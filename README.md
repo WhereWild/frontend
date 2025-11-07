@@ -1,8 +1,10 @@
-# Welcome to your Expo app 👋
+# Welcome to the WhereWild front end repository
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
+
+This project has some VS Code helper configured. Open `front-end.code-workspace` as a workspace in VS Code. There is also a recommended extension list at `.vscode/extensions.json`. VS Code will auto-prompt to install the extensions when the workspace or folder is opened.
 
 1. Install dependencies
 
@@ -10,7 +12,15 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Clone Figma's Simple Design System repository alongside this repository (not in it). Assuming PWD is this repository,
+
+   ```bash
+   git clone https://github.com/figma/sds.git ../sds
+   ```
+
+   This folder is also listed as a dependency in the VS Code workspace.
+
+3. Start the app
 
    ```bash
    npx expo start
