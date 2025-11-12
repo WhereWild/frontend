@@ -1,6 +1,5 @@
 # Ignore IDE configs
 .vscode/*
-!.vscode/extensions.json
 
 # dependencies
 node_modules/

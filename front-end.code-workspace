@@ -4,8 +4,16 @@
 			"path": "."
 		},
 		{
-			"path": "../sds"
+			"path": "../wherewild-design-system"
 		}
 	],
-	"settings": {}
+	"settings": {},
+	"extensions": {
+		"recommendations": [
+			"figma.figma-vscode-extension",
+			"expo.vscode-expo-tools",
+			"dbaeumer.vscode-eslint",
+			"davidanson.vscode-markdownlint"
+		]
+	}
 }
