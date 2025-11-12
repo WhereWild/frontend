@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import Map from "./components/map";
+import TiledMap from "./components/map";
 
 export default function Index() {
   return (
@@ -10,7 +10,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Map />
+      <TiledMap />
     </View>
   );
 }
