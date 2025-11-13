@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../wherewild-design-system"
+		}
+	],
+	"settings": {},
+	"extensions": {
+		"recommendations": [
+			"figma.figma-vscode-extension",
+			"expo.vscode-expo-tools",
+			"dbaeumer.vscode-eslint",
+			"davidanson.vscode-markdownlint"
+		]
+	}
+}
