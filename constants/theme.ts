@@ -5,25 +5,24 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+import { wdsSemanticTokens } from './wdsTokens';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: wdsSemanticTokens.light['wds-color-text-default-default'],
+    background: wdsSemanticTokens.light['wds-color-background-default-default'],
+    tint: wdsSemanticTokens.light['wds-color-icon-brand-default'],
+    icon: wdsSemanticTokens.light['wds-color-icon-default-secondary'],
+    tabIconDefault: wdsSemanticTokens.light['wds-color-icon-default-secondary'],
+    tabIconSelected: wdsSemanticTokens.light['wds-color-icon-brand-default'],
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: wdsSemanticTokens.dark['wds-color-text-default-default'],
+    background: wdsSemanticTokens.dark['wds-color-background-default-default'],
+    tint: wdsSemanticTokens.dark['wds-color-icon-brand-default'],
+    icon: wdsSemanticTokens.dark['wds-color-icon-default-secondary'],
+    tabIconDefault: wdsSemanticTokens.dark['wds-color-icon-default-secondary'],
+    tabIconSelected: wdsSemanticTokens.dark['wds-color-icon-brand-default'],
   },
 };
 
