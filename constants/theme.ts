@@ -94,7 +94,7 @@ const expoFontMap: Record<string, string> = {
   '"domine", serif|700': 'Domine_700Bold',
   '"inter", sans-serif|400': 'Inter_400Regular',
   '"inter", sans-serif|600': 'Inter_600SemiBold',
-  '"jetbrainsmono", code|400': 'JetBrainsMono_400Regular',
+  '"jetbrains mono", monospace|400': 'JetBrainsMono_400Regular',
 };
 
 // Function to get the Expo font name based on family and weight

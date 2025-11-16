@@ -25,7 +25,7 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
           style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
         />
 
-        <ThemedText type="bodyStrong">{title}</ThemedText>
+        <ThemedText variant="bodyStrong">{title}</ThemedText>
       </TouchableOpacity>
       {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
     </ThemedView>

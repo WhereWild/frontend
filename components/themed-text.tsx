@@ -1,17 +1,19 @@
 import { Text as DefaultText, type TextProps } from 'react-native';
 import { useTypographyStyles } from '@/hooks/use-typography-styles';
 
+type Variant = 'titleHero' | 'titlePage' | 'subtitle' | 'body' | 'bodyStrong' | 'link' | 'code';
+
 type ThemedTextProps = TextProps & {
-  type?: 'titleHero' | 'titlePage' | 'subtitle' | 'body' | 'bodyStrong' | 'link' | 'code';
+  variant?: Variant;
 };
 
-export function ThemedText({ style, type = 'body', ...otherProps }: ThemedTextProps) {
+export function ThemedText({ style, variant = 'body', ...otherProps }: ThemedTextProps) {
   const typographyStyles = useTypographyStyles();
-  
+
   return (
-    <DefaultText 
-      {...otherProps} 
-      style={[typographyStyles[type], style]} 
+    <DefaultText
+      {...otherProps}
+      style={[typographyStyles[variant], style]}
     />
   );
 }

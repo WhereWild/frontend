@@ -29,33 +29,33 @@ export default function TabTwoScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="titleHero">Explore</ThemedText>
+        <ThemedText variant="titleHero">Explore</ThemedText>
       </ThemedView>
       <ThemedText>This app includes example code to help you get started.</ThemedText>
       <Collapsible title="File-based routing">
         <ThemedText>
           This app has two screens:{' '}
-          <ThemedText type="bodyStrong">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="bodyStrong">app/(tabs)/explore.tsx</ThemedText>
+          <ThemedText variant="bodyStrong">app/(tabs)/index.tsx</ThemedText> and{' '}
+          <ThemedText variant="bodyStrong">app/(tabs)/explore.tsx</ThemedText>
         </ThemedText>
         <ThemedText>
-          The layout file in <ThemedText type="bodyStrong">app/(tabs)/_layout.tsx</ThemedText>{' '}
+          The layout file in <ThemedText variant="bodyStrong">app/(tabs)/_layout.tsx</ThemedText>{' '}
           sets up the tab navigator.
         </ThemedText>
         <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
+          <ThemedText variant="link">Learn more</ThemedText>
         </ExternalLink>
       </Collapsible>
       <Collapsible title="Android, iOS, and web support">
         <ThemedText>
           You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="bodyStrong">w</ThemedText> in the terminal running this project.
+          <ThemedText variant="bodyStrong">w</ThemedText> in the terminal running this project.
         </ThemedText>
       </Collapsible>
       <Collapsible title="Images">
         <ThemedText>
-          For static images, you can use the <ThemedText type="bodyStrong">@2x</ThemedText> and{' '}
-          <ThemedText type="bodyStrong">@3x</ThemedText> suffixes to provide files for
+          For static images, you can use the <ThemedText variant="bodyStrong">@2x</ThemedText> and{' '}
+          <ThemedText variant="bodyStrong">@3x</ThemedText> suffixes to provide files for
           different screen densities
         </ThemedText>
         <Image
@@ -63,25 +63,25 @@ export default function TabTwoScreen() {
           style={{ width: 100, height: 100, alignSelf: 'center' }}
         />
         <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
+          <ThemedText variant="link">Learn more</ThemedText>
         </ExternalLink>
       </Collapsible>
       <Collapsible title="Light and dark mode components">
         <ThemedText>
           This template has light and dark mode support. The{' '}
-          <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect
+          <ThemedText variant="code">useColorScheme()</ThemedText> hook lets you inspect
           what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
         </ThemedText>
         <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
+          <ThemedText variant="link">Learn more</ThemedText>
         </ExternalLink>
       </Collapsible>
       <Collapsible title="Animations">
         <ThemedText>
           This template includes an example of an animated component. The{' '}
-          <ThemedText type="bodyStrong">components/HelloWave.tsx</ThemedText> component uses
+          <ThemedText variant="bodyStrong">components/HelloWave.tsx</ThemedText> component uses
           the powerful{' '}
-          <ThemedText type="code">
+          <ThemedText variant="code">
             react-native-reanimated
           </ThemedText>{' '}
           library to create a waving hand animation.
@@ -89,7 +89,7 @@ export default function TabTwoScreen() {
         {Platform.select({
           ios: (
             <ThemedText>
-              The <ThemedText type="bodyStrong">components/ParallaxScrollView.tsx</ThemedText>{' '}
+              The <ThemedText variant="bodyStrong">components/ParallaxScrollView.tsx</ThemedText>{' '}
               component provides a parallax effect for the header image.
             </ThemedText>
           ),
