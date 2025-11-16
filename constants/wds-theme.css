@@ -473,13 +473,13 @@
   --wds-typography-body-size-small: var(--wds-typography-scale-02);
   --wds-typography-code-font-family: var(--wds-typography-family-mono);
   --wds-typography-code-font-weight: var(--wds-typography-body-font-weight-regular);
-  --wds-typography-code-size-base: var(--wds-typography-body-size-medium);
   --wds-typography-code-size-large: var(--wds-typography-body-size-large);
+  --wds-typography-code-size-medium: var(--wds-typography-body-size-medium);
   --wds-typography-code-size-small: var(--wds-typography-body-size-small);
   --wds-typography-heading-font-family: var(--wds-typography-family-serif);
   --wds-typography-heading-font-weight: var(--wds-typography-weight-semibold);
-  --wds-typography-heading-size-base: var(--wds-typography-scale-05);
   --wds-typography-heading-size-large: var(--wds-typography-scale-06);
+  --wds-typography-heading-size-medium: var(--wds-typography-scale-05);
   --wds-typography-heading-size-small: var(--wds-typography-scale-04);
   --wds-typography-subheading-font-family: var(--wds-typography-family-serif);
   --wds-typography-subheading-font-weight: var(--wds-typography-weight-regular);
@@ -488,24 +488,24 @@
   --wds-typography-subheading-size-small: var(--wds-typography-scale-03);
   --wds-typography-subtitle-font-family: var(--wds-typography-family-sans);
   --wds-typography-subtitle-font-weight: var(--wds-typography-weight-regular);
-  --wds-typography-subtitle-size-base: var(--wds-typography-scale-06);
   --wds-typography-subtitle-size-large: var(--wds-typography-scale-07);
+  --wds-typography-subtitle-size-medium: var(--wds-typography-scale-06);
   --wds-typography-subtitle-size-small: var(--wds-typography-scale-05);
   --wds-typography-title-hero-font-family: var(--wds-typography-family-serif);
   --wds-typography-title-hero-font-weight: var(--wds-typography-weight-bold);
   --wds-typography-title-hero-size: var(--wds-typography-scale-10);
   --wds-typography-title-page-font-family: var(--wds-typography-family-serif);
   --wds-typography-title-page-font-weight: var(--wds-typography-weight-bold);
-  --wds-typography-title-page-size-base: var(--wds-typography-scale-08);
   --wds-typography-title-page-size-large: var(--wds-typography-scale-09);
+  --wds-typography-title-page-size-medium: var(--wds-typography-scale-08);
   --wds-typography-title-page-size-small: var(--wds-typography-scale-07);
 }
 /* styles */
 :root {
   --wds-font-title-hero: normal var(--wds-typography-title-hero-font-weight) var(--wds-typography-title-hero-size) var(--wds-typography-title-hero-font-family);
-  --wds-font-title-page: normal var(--wds-typography-title-page-font-weight) var(--wds-typography-title-page-size-base) var(--wds-typography-title-page-font-family);
-  --wds-font-subtitle: normal var(--wds-typography-subtitle-font-weight) var(--wds-typography-subtitle-size-base) var(--wds-typography-subtitle-font-family);
-  --wds-font-heading: normal var(--wds-typography-heading-font-weight) var(--wds-typography-heading-size-base) var(--wds-typography-heading-font-family);
+  --wds-font-title-page: normal var(--wds-typography-title-page-font-weight) var(--wds-typography-title-page-size-medium) var(--wds-typography-title-page-font-family);
+  --wds-font-subtitle: normal var(--wds-typography-subtitle-font-weight) var(--wds-typography-subtitle-size-medium) var(--wds-typography-subtitle-font-family);
+  --wds-font-heading: normal var(--wds-typography-heading-font-weight) var(--wds-typography-heading-size-medium) var(--wds-typography-heading-font-family);
   --wds-font-subheading: normal var(--wds-typography-subheading-font-weight) var(--wds-typography-subheading-size-medium) var(--wds-typography-subheading-font-family);
   --wds-font-body-base: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-body-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
@@ -513,7 +513,7 @@
   --wds-font-body-link: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-body-small: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
-  --wds-font-body-code: normal var(--wds-typography-code-font-weight) var(--wds-typography-code-size-base) var(--wds-typography-code-font-family);
+  --wds-font-body-code: normal var(--wds-typography-code-font-weight) var(--wds-typography-code-size-medium) var(--wds-typography-code-font-family);
   --wds-font-single-line-body-base: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-single-line-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-utilities-component-notes-regular: normal var(--wds-typography-weight-regular) var(--wds-typography-scale-03) var(--wds-typography-family-mono);
