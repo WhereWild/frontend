@@ -10,6 +10,7 @@ import {
   wdsStyleTokens,
   wdsTypographyPrimitiveTokens,
   wdsTypographyTokens,
+  wdsSizeTokens,
 } from './wdsTokens';
 
 // Style typography tokens reference primitive tokens (e.g. var(--wds-typography-body-size-medium)),
@@ -101,8 +102,9 @@ const expoFontMap: Record<string, string> = {
 const getExpoFontName = (family: string, weight: string) =>
   expoFontMap[`${family}|${weight}`] ?? 'System';
 
-// Fonts sizes are in rem units in the design system, 
-// convert them to px because React Native uses px units.
+// rem units are used across typography and size tokens in the design system.
+// React Native expects pixel values, so we convert rem -> px using a 16px base.
+// This single helper is reused for font sizes and all size-related tokens to keep consistency.
 const remToPx = (rem: string) => parseFloat(rem) * 16;
 
 // Function to parse CSS font shorthand into React Native style object
@@ -142,3 +144,32 @@ export const Typography = {
     'singleLineBody',
   ),
 };
+
+// Raw size tokens (CSS values) for direct variable usage in web contexts if needed.
+export const SizeTokens = wdsSizeTokens;
+
+// Helper to build a grouped map from a token prefix, stripping the prefix and converting units.
+// Default conversion uses the shared remToPx helper (negative values are preserved automatically).
+const buildGroup = (prefix: string, convert: (value: string) => number = remToPx) =>
+  Object.fromEntries(
+    Object.entries(wdsSizeTokens)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, value]) => [key.replace(prefix, ''), convert(value)])
+  );
+
+// Groups are organized by semantic intent (spacing, radius, depth, etc.).
+export const Size = {
+  space: buildGroup('wds-size-space-'), // Includes negative space tokens (remain negative after conversion)
+  radius: buildGroup('wds-size-radius-'),
+  icon: buildGroup('wds-size-icon-'),
+  depth: buildGroup('wds-size-depth-'),
+  // Negative depth values are already captured inside depth (they have the same prefix);
+  // expose a convenience filtered view if needed.
+  depthNegative: Object.fromEntries(
+    Object.entries(buildGroup('wds-size-depth-')).filter(([k]) => k.startsWith('negative-'))
+  ),
+  stroke: buildGroup('wds-size-stroke-'),
+  blur: buildGroup('wds-size-blur-'),
+} as const;
+
+export type SizeGroup = typeof Size;
