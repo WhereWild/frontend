@@ -44,16 +44,41 @@ WhereWild is a tool for naturalists and citizen scientists to gain insight into 
 Always import design tokens from `constants/theme.ts`:
 
 ```typescript
+import { View, Text } from 'react-native';
 import { Colors, Typography, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: Colors.light.background.brand.default,
-    color: Colors.light.text.brand.onBrand,
-    padding: Size.space[400],
-    borderRadius: Size.radius[200],
-  },
-});
+function Example() {
+  const colorScheme = useColorScheme();
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+
+  return (
+    <View style={{
+      backgroundColor: Colors[mode].background.brand.default,
+      padding: Size.space[400],
+      borderRadius: Size.radius[200],
+    }}>
+      <Text style={[
+        Typography[mode].body,
+        { color: Colors[mode].text.brand.onBrand },
+      ]}>
+        Content
+      </Text>
+    </View>
+  );
+}   backgroundColor: Colors[mode].background.brand.default,
+      padding: Size.space[400],
+      borderRadius: Size.radius[200],
+    }}>
+      <Text style={[
+        Typography[mode].body,
+        { color: Colors[mode].text.brand.onBrand },
+      ]}>
+        Content
+      </Text>
+    </View>
+  );
+}
 ```
 
 ⚠️ **Never import from `wdsTokens.ts`** - it contains raw auto-generated tokens not structured for component use:
@@ -181,72 +206,47 @@ const styles = StyleSheet.create({
 
 ### Button Component Example
 
+The repository already includes fully-implemented button components. Import and use them:
+
 ```typescript
-import { Pressable, Text, StyleSheet } from 'react-native';
-import { Colors, Typography, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Button, ButtonDanger, IconButton } from '@/components';
 
-type ButtonProps = {
-  variant?: 'primary' | 'neutral' | 'subtle';
-  size?: 'small' | 'medium';
-  onPress?: () => void;
-  children: React.ReactNode;
-};
+// Primary button (brand green)
+<Button variant="primary" size="medium" onPress={handleSubmit}>
+  Submit
+</Button>
 
-export function Button({ 
-  variant = 'primary', 
-  size = 'medium',
-  onPress,
-  children 
-}: ButtonProps) {
-  const colorScheme = useColorScheme();
-  const mode = colorScheme === 'dark' ? 'dark' : 'light';
-  
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        styles[size],
-        {
-          backgroundColor: pressed
-            ? Colors[mode].background[variant].pressed
-            : Colors[mode].background[variant].default,
-        },
-      ]}
-    >
-      {({ pressed }) => (
-        <Text style={{
-          color: variant === 'neutral'
-            ? Colors[mode].text.neutral.onNeutral
-            : Colors[mode].text.brand.onBrand,
-          fontSize: Typography.body.size.medium,
-          fontWeight: Typography.body.fontWeight.strong,
-        }}>
-          {children}
-        </Text>
-      )}
-    </Pressable>
-  );
-}
+// Neutral button (gray)
+<Button variant="neutral" size="small" onPress={handleCancel}>
+  Cancel
+</Button>
 
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Size.radius[200],
-  },
-  small: {
-    paddingVertical: Size.space[200],
-    paddingHorizontal: Size.space[400],
-    gap: Size.space[200],
-  },
-  medium: {
-    paddingVertical: Size.space[300],
-    paddingHorizontal: Size.space[600],
-    gap: Size.space[200],
-  },
-});
+// Subtle button (transparent → gray on hover)
+<Button variant="subtle" onPress={handleSkip}>
+  Skip
+</Button>
+
+// Danger button for destructive actions
+<ButtonDanger variant="primary" onPress={handleDelete}>
+  Delete
+</ButtonDanger>
+
+// Icon-only button
+<IconButton
+  variant="subtle"
+  size="medium"
+  icon={<YourIcon />}
+  accessibilityLabel="Close"
+  onPress={handleClose}
+/>
+```
+
+All buttons support:
+- **Variants**: `primary`, `neutral`, `subtle` (+ `ButtonDanger` for destructive actions)
+- **Sizes**: `small`, `medium`
+- **States**: `disabled`, `loading`
+- **Icons**: `iconStart`, `iconEnd` props
+- **Accessibility**: Proper ARIA labels and roles
 ```
 
 ### Text Component with Theme
@@ -313,6 +313,29 @@ const styles = StyleSheet.create({
   },
 });
 ```
+
+## Figma MCP Integration Rules
+These rules define how to translate Figma inputs into code for this project and must be followed for every Figma-driven change.
+
+### Required flow (do not skip)
+1. Run `mcp_figma_mcp-ser_get_design_context` first to fetch the structured representation for the exact node(s). Requires `nodeId` and `fileKey` parameters.
+2. If the response is too large or truncated, run `mcp_figma_mcp-ser_get_metadata` to get the high‑level node map and then re‑fetch only the required node(s) with get_design_context.
+3. Run `mcp_figma_mcp-ser_get_screenshot` for a visual reference of the node variant being implemented.
+4. Optionally run `mcp_figma_mcp-ser_get_variable_defs` to see resolved Figma variable values applied to the node.
+5. Only after you have both get_design_context and get_screenshot, download any assets needed and start implementation.
+6. Translate the output (usually React + Tailwind) into this project's conventions, styles and framework. Reuse the project's color tokens, components, and typography wherever possible.
+7. Validate against Figma for 1:1 look and behavior before marking complete.
+
+### Implementation rules
+- Treat the Figma MCP output (React + Tailwind) as a representation of design and behavior, not as final code style.
+- Convert all Tailwind classes to React Native StyleSheet or inline styles using design tokens.
+- Replace `<div>` with `<View>`, `<p>` with `<Text>`, `className` with `style` prop, etc.
+- Reuse existing components from `@/components` (`Button`, `ButtonDanger`, `IconButton`, `ThemedText`) instead of duplicating functionality.
+- Use the project's `Colors[mode]`, `Typography[mode]`, and `Size` tokens consistently—never hardcode values.
+- Handle both light and dark modes using `useColorScheme()` hook.
+- Respect existing routing, state management, and data‑fetch patterns already adopted in the repo.
+- Strive for 1:1 visual parity with the Figma design. When conflicts arise, prefer design‑system tokens and adjust spacing or sizes minimally to match visuals.
+- Validate the final UI against the Figma screenshot for both look and behavior.
 
 ## Best Practices & Common Pitfalls
 
@@ -461,13 +484,40 @@ When running on web:
 
 ### Creating New Components
 
-1. **Check existing components** - Reuse `Button`, `ThemedText`, etc. before creating new ones
-2. **Use TypeScript** - Define prop types for better DX
-3. **Handle both color modes** - Use `useColorScheme()` hook
+1. **Check existing components** - Reuse `Button`, `ButtonDanger`, `IconButton`, `ThemedText` from `@/components` before creating new ones
+2. **Use TypeScript** - Define prop types and export them for better DX
+3. **Handle both color modes** - Use `useColorScheme()` hook and `Colors[mode]`, `Typography[mode]` patterns
 4. **Use StyleSheet.create()** - Optimize performance with StyleSheet API
-5. **Test on multiple platforms** - iOS, Android, and web
+5. **Export from barrel file** - Add new components to `components/index.ts` for clean imports
+6. **Test on multiple platforms** - iOS, Android, and web
 
-### Example Workflow
+#### Available Components
+
+Import from the barrel export for clean code:
+
+```typescript
+import { Button, ButtonDanger, IconButton, ThemedText } from '@/components';
+import type { ButtonProps, ButtonDangerVariant, IconButtonSize } from '@/components';
+
+// Button - Primary, Neutral, Subtle variants with Small/Medium sizes
+<Button variant="primary" size="medium" onPress={handlePress}>Submit</Button>
+
+// ButtonDanger - Destructive actions
+<ButtonDanger variant="primary" size="small" onPress={handleDelete}>Delete</ButtonDanger>
+
+// IconButton - Icon-only buttons
+<IconButton 
+  variant="subtle" 
+  icon={<YourIcon />} 
+  accessibilityLabel="Close"
+  onPress={handleClose} 
+/>
+
+// ThemedText - Theme-aware text
+<ThemedText>Your content</ThemedText>
+```
+
+## Example Workflow
 
 ```typescript
 // 1. Import necessary dependencies
@@ -500,18 +550,16 @@ export function Card({ title, description, onPress }: CardProps) {
         },
       ]}
     >
-      <Text style={{
-        color: Colors[mode].text.default.default,
-        fontFamily: Typography.heading.fontFamily,
-        fontSize: Typography.heading.size.small,
-      }}>
+      <Text style={[
+        Typography[mode].heading,
+        { color: Colors[mode].text.default.default },
+      ]}>
         {title}
       </Text>
-      <Text style={{
-        color: Colors[mode].text.default.secondary,
-        fontFamily: Typography.body.fontFamily,
-        fontSize: Typography.body.size.medium,
-      }}>
+      <Text style={[
+        Typography[mode].body,
+        { color: Colors[mode].text.default.secondary },
+      ]}>
         {description}
       </Text>
     </Pressable>
