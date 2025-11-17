@@ -34,6 +34,7 @@ function computeDangerStyles(
         return {
             backgroundColor: palette.background.disabled.default,
             color: palette.text.disabled.onDisabled,
+            iconColor: palette.icon.disabled.onDisabled,
         };
     }
 
@@ -43,6 +44,7 @@ function computeDangerStyles(
                 ? palette.background.danger.pressed
                 : (hovered ? palette.background.danger.hover : palette.background.danger.default),
             color: palette.text.danger.onDanger,
+            iconColor: palette.icon.danger.onDanger,
         };
     }
 
@@ -54,6 +56,9 @@ function computeDangerStyles(
         color: pressed || hovered
             ? palette.text.danger.onDangerSecondary
             : palette.text.danger.secondary,
+        iconColor: pressed || hovered
+            ? palette.icon.danger.onDangerSecondary
+            : palette.icon.danger.secondary,
     };
 }
 
@@ -69,6 +74,25 @@ function computeSizeStyles(size: ButtonDangerSize) {
         paddingVertical: Size.space['300'],
     };
 }
+
+const renderIcon = (iconNode: React.ReactNode, color: string) => {
+    if (!React.isValidElement(iconNode)) {
+        return iconNode;
+    }
+
+    const currentProps = iconNode.props as { color?: string };
+    const nextProps: Record<string, unknown> = {};
+
+    if (currentProps.color == null) {
+        nextProps.color = color;
+    }
+
+    if (Object.keys(nextProps).length === 0) {
+        return iconNode;
+    }
+
+    return React.cloneElement(iconNode, nextProps);
+};
 
 export const ButtonDanger: React.FC<ButtonDangerProps> = ({
     variant = 'primary',
@@ -118,7 +142,11 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
                 const v = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled || loading);
                 return (
                     <>
-                        {iconStart && !loading && <View>{iconStart}</View>}
+                        {iconStart && !loading && (
+                            <View>
+                                {renderIcon(iconStart, v.iconColor)}
+                            </View>
+                        )}
                         <Text
                             style={[
                                 Typography[mode].singleLineBody,
@@ -130,10 +158,18 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
                         >
                             {loading ? '…' : (label ?? children)}
                         </Text>
-                        {iconEnd && !loading && <View>{iconEnd}</View>}
+                        {iconEnd && !loading && (
+                            <View>
+                                {renderIcon(iconEnd, v.iconColor)}
+                            </View>
+                        )}
                     </>
                 );
             }}
         </Pressable>
     );
+};
+
+export const __BUTTON_DANGER_TESTING__ = {
+    computeDangerStyles,
 };

@@ -3,46 +3,49 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 
-const createTypographyStyles = (palette: typeof Colors.light) =>
+const createTypographyStyles = (
+  palette: typeof Colors.light,
+  tokens: typeof Typography.light,
+) =>
   StyleSheet.create({
     titleHero: {
-      ...Typography.titleHero,
+      ...tokens.titleHero,
       color: palette.text.brand.default,
     },
     titlePage: {
-      ...Typography.titlePage,
+      ...tokens.titlePage,
       color: palette.text.brand.default,
     },
     subtitle: {
-      ...Typography.subtitle,
+      ...tokens.subtitle,
       color: palette.text.brand.secondary,
     },
     heading: {
-      ...Typography.heading,
+      ...tokens.heading,
       color: palette.text.default.default,
     },
     subheading: {
-      ...Typography.subheading,
+      ...tokens.subheading,
       color: palette.text.default.default,
     },
     body: {
-      ...Typography.body,
+      ...tokens.body,
       color: palette.text.default.default,
     },
     bodyStrong: {
-      ...Typography.bodyStrong,
+      ...tokens.bodyStrong,
       color: palette.text.default.default,
     },
     link: {
-        ...Typography.link,
-        color: palette.text.default.default,
+      ...tokens.link,
+      color: palette.text.default.default,
     },
     code: {
-      ...Typography.code,
+      ...tokens.code,
       color: palette.text.default.default,
     },
     singleLineBody: {
-      ...Typography.singleLineBody,
+      ...tokens.singleLineBody,
       color: palette.text.default.default,
     },
   });
@@ -50,6 +53,7 @@ const createTypographyStyles = (palette: typeof Colors.light) =>
 export const useTypographyStyles = () => {
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme ?? 'light'];
+  const tokens = Typography[colorScheme ?? 'light'];
 
-  return useMemo(() => createTypographyStyles(palette), [palette]);
+  return useMemo(() => createTypographyStyles(palette, tokens), [palette, tokens]);
 };

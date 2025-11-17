@@ -1,149 +1,224 @@
-import { Text, View, ScrollView, StyleSheet } from "react-native";
-import { Button, ButtonDanger, IconButton } from "@/components";
-import { Size, Colors, Typography } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import type { ReactNode } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, ButtonDanger, IconButton } from '@/components';
+import { Colors, Size, Typography } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import {
+  IconAlertTriangle,
+  IconArrowLeft,
+  IconArrowRight,
+  IconDownload,
+  IconStar,
+  IconTrash,
+} from '@/assets/icons';
+import type { IconSize } from '@/primitives';
 
-// Simple star icon component for demo
-const StarIcon = ({ color = "#fff", size = 20 }: { color?: string; size?: number }) => (
-  <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-    <Text style={{ color, fontSize: size * 0.8 }}>★</Text>
-  </View>
-);
+type ButtonVariant = 'primary' | 'neutral' | 'subtle';
+
+type ButtonRow = {
+  title: string;
+  variant?: ButtonVariant;
+  danger?: boolean;
+  buttons: ButtonEntry[];
+};
+
+type ButtonEntry = {
+  label: string;
+  size?: 'small' | 'medium';
+  iconStart?: ReactNode;
+  iconEnd?: ReactNode;
+  disabled?: boolean;
+  variant?: ButtonVariant;
+};
 
 export default function Index() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const iconSize: IconSize = '20';
+
+  const buttonRows: ButtonRow[] = [
+    {
+      title: 'Button — Primary',
+      buttons: [
+        { label: 'Medium' },
+        { label: 'Small', size: 'small' },
+        { label: 'Disabled', disabled: true },
+        { label: 'Disabled Small', size: 'small', disabled: true },
+      ],
+    },
+    {
+      title: 'Button — Neutral',
+      variant: 'neutral',
+      buttons: [
+        { label: 'Medium' },
+        { label: 'Small', size: 'small' },
+        { label: 'Disabled', disabled: true },
+        { label: 'Disabled Small', size: 'small', disabled: true },
+      ],
+    },
+    {
+      title: 'Button — Subtle',
+      variant: 'subtle',
+      buttons: [
+        { label: 'Medium' },
+        { label: 'Small', size: 'small' },
+        { label: 'Disabled', disabled: true },
+        { label: 'Disabled Small', size: 'small', disabled: true },
+      ],
+    },
+    {
+      title: 'Button — Primary (Icons)',
+      buttons: [
+        { label: 'Download', iconStart: <IconDownload size={iconSize} /> },
+        { label: 'Continue', iconEnd: <IconArrowRight size={iconSize} /> },
+        {
+          label: 'Favorite',
+          iconStart: <IconStar size={iconSize} />,
+          iconEnd: <IconArrowRight size={iconSize} />,
+        },
+      ],
+    },
+    {
+      title: 'Button — Neutral (Icons)',
+      variant: 'neutral',
+      buttons: [
+        { label: 'Back', iconStart: <IconArrowLeft size={iconSize} /> },
+        { label: 'Next', iconEnd: <IconArrowRight size={iconSize} /> },
+        {
+          label: 'Export',
+          iconStart: <IconDownload size={iconSize} />,
+          iconEnd: <IconArrowRight size={iconSize} />,
+        },
+      ],
+    },
+    {
+      title: 'Button — Subtle (Icons)',
+      variant: 'subtle',
+      buttons: [
+        { label: 'Highlight', iconStart: <IconStar size={iconSize} /> },
+        { label: 'Learn More', iconEnd: <IconArrowRight size={iconSize} /> },
+        {
+          label: 'Browse',
+          iconStart: <IconArrowLeft size={iconSize} />,
+          iconEnd: <IconArrowRight size={iconSize} />,
+        },
+      ],
+    },
+    {
+      title: 'ButtonDanger — Primary',
+      danger: true,
+      buttons: [
+        { label: 'Medium' },
+        { label: 'Small', size: 'small' },
+        { label: 'Disabled', disabled: true },
+        { label: 'Disabled Small', size: 'small', disabled: true },
+      ],
+    },
+    {
+      title: 'ButtonDanger — Subtle',
+      danger: true,
+      variant: 'subtle',
+      buttons: [
+        { label: 'Medium' },
+        { label: 'Small', size: 'small' },
+        { label: 'Disabled', disabled: true },
+        { label: 'Disabled Small', size: 'small', disabled: true },
+      ],
+    },
+    {
+      title: 'ButtonDanger — Icons',
+      danger: true,
+      buttons: [
+        { label: 'Delete', iconStart: <IconTrash size={iconSize} /> },
+        { label: 'Confirm', iconEnd: <IconArrowRight size={iconSize} /> },
+        {
+          label: 'Report',
+          variant: 'subtle',
+          iconStart: <IconAlertTriangle size={iconSize} />,
+          iconEnd: <IconArrowRight size={iconSize} />,
+        },
+      ],
+    },
+  ];
+
+  const iconButtonVariants: { title: string; variant: ButtonVariant }[] = [
+    { title: 'IconButton — Primary', variant: 'primary' },
+    { title: 'IconButton — Neutral', variant: 'neutral' },
+    { title: 'IconButton — Subtle', variant: 'subtle' },
+  ];
+
+  const iconButtonStates: { size: 'medium' | 'small'; disabled: boolean }[] = [
+    { size: 'medium', disabled: false },
+    { size: 'small', disabled: false },
+    { size: 'medium', disabled: true },
+    { size: 'small', disabled: true },
+  ];
 
   return (
     <ScrollView contentContainerStyle={[
       styles.container,
       { backgroundColor: Colors[mode].background.default.default }
     ]}>
-      <Text style={Typography[mode].bodyStrong}>Button — Primary</Text>
-      <View style={styles.row}>
-        <Button onPress={() => {}}>Medium</Button>
-        <Button size="small" onPress={() => {}}>Small</Button>
-        <Button disabled>Disabled</Button>
-        <Button size="small" disabled>Disabled Small</Button>
-      </View>
+      {buttonRows.map(({ title, variant, buttons, danger }) => (
+        <View key={title}>
+          <Text style={Typography[mode].bodyStrong}>{title}</Text>
+          <View style={styles.row}>
+            {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
+              const buttonVariant = overrideVariant ?? variant;
 
-      <Text style={Typography[mode].bodyStrong}>Button — Neutral</Text>
-      <View style={styles.row}>
-        <Button variant="neutral" onPress={() => {}}>Medium</Button>
-        <Button variant="neutral" size="small" onPress={() => {}}>Small</Button>
-        <Button variant="neutral" disabled>Disabled</Button>
-        <Button variant="neutral" size="small" disabled>Disabled Small</Button>
-      </View>
+              if (danger) {
+                const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+                return (
+                  <ButtonDanger
+                    key={label}
+                    size={size}
+                    variant={dangerVariant}
+                    disabled={disabled}
+                    iconStart={iconStart}
+                    iconEnd={iconEnd}
+                    onPress={() => {}}
+                  >
+                    {label}
+                  </ButtonDanger>
+                );
+              }
 
-      <Text style={Typography[mode].bodyStrong}>Button — Subtle</Text>
-      <View style={styles.row}>
-        <Button variant="subtle" onPress={() => {}}>Medium</Button>
-        <Button variant="subtle" size="small" onPress={() => {}}>Small</Button>
-        <Button variant="subtle" disabled>Disabled</Button>
-        <Button variant="subtle" size="small" disabled>Disabled Small</Button>
-      </View>
+              return (
+                <Button
+                  key={label}
+                  size={size}
+                  variant={buttonVariant}
+                  disabled={disabled}
+                  iconStart={iconStart}
+                  iconEnd={iconEnd}
+                  onPress={() => {}}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </View>
+        </View>
+      ))}
 
-      <Text style={Typography[mode].bodyStrong}>ButtonDanger — Primary</Text>
-      <View style={styles.row}>
-        <ButtonDanger onPress={() => {}}>Medium</ButtonDanger>
-        <ButtonDanger size="small" onPress={() => {}}>Small</ButtonDanger>
-        <ButtonDanger disabled>Disabled</ButtonDanger>
-        <ButtonDanger size="small" disabled>Disabled Small</ButtonDanger>
-      </View>
-
-      <Text style={Typography[mode].bodyStrong}>ButtonDanger — Subtle</Text>
-      <View style={styles.row}>
-        <ButtonDanger variant="subtle" onPress={() => {}}>Medium</ButtonDanger>
-        <ButtonDanger variant="subtle" size="small" onPress={() => {}}>Small</ButtonDanger>
-        <ButtonDanger variant="subtle" disabled>Disabled</ButtonDanger>
-        <ButtonDanger variant="subtle" size="small" disabled>Disabled Small</ButtonDanger>
-      </View>
-
-      <Text style={Typography[mode].bodyStrong}>IconButton — Primary</Text>
-      <View style={styles.row}>
-        <IconButton 
-          icon={<StarIcon color={Colors[mode].icon.brand.onBrand} />}
-          accessibilityLabel="Star"
-          onPress={() => {}}
-        />
-        <IconButton 
-          icon={<StarIcon color={Colors[mode].icon.brand.onBrand} size={20} />}
-          accessibilityLabel="Star"
-          size="small"
-          onPress={() => {}}
-        />
-        <IconButton 
-          icon={<StarIcon color={Colors[mode].icon.disabled.onDisabled} />}
-          accessibilityLabel="Star"
-          disabled
-        />
-        <IconButton 
-          icon={<StarIcon color={Colors[mode].icon.disabled.onDisabled} size={20} />}
-          accessibilityLabel="Star"
-          size="small"
-          disabled
-        />
-      </View>
-
-      <Text style={Typography[mode].bodyStrong}>IconButton — Neutral</Text>
-      <View style={styles.row}>
-        <IconButton 
-          variant="neutral"
-          icon={<StarIcon color={Colors[mode].icon.neutral.onNeutralSecondary} />}
-          accessibilityLabel="Star"
-          onPress={() => {}}
-        />
-        <IconButton 
-          variant="neutral"
-          icon={<StarIcon color={Colors[mode].icon.neutral.onNeutralSecondary} size={20} />}
-          accessibilityLabel="Star"
-          size="small"
-          onPress={() => {}}
-        />
-        <IconButton 
-          variant="neutral"
-          icon={<StarIcon color={Colors[mode].icon.disabled.onDisabled} />}
-          accessibilityLabel="Star"
-          disabled
-        />
-        <IconButton 
-          variant="neutral"
-          icon={<StarIcon color={Colors[mode].icon.disabled.onDisabled} size={20} />}
-          accessibilityLabel="Star"
-          size="small"
-          disabled
-        />
-      </View>
-
-      <Text style={Typography[mode].bodyStrong}>IconButton — Subtle</Text>
-      <View style={styles.row}>
-        <IconButton 
-          variant="subtle"
-          icon={<StarIcon color={Colors[mode].icon.neutral.default} />}
-          accessibilityLabel="Star"
-          onPress={() => {}}
-        />
-        <IconButton 
-          variant="subtle"
-          icon={<StarIcon color={Colors[mode].icon.neutral.default} size={20} />}
-          accessibilityLabel="Star"
-          size="small"
-          onPress={() => {}}
-        />
-        <IconButton 
-          variant="subtle"
-          icon={<StarIcon color={Colors[mode].icon.disabled.onDisabled} />}
-          accessibilityLabel="Star"
-          disabled
-        />
-        <IconButton 
-          variant="subtle"
-          icon={<StarIcon color={Colors[mode].icon.disabled.onDisabled} size={20} />}
-          accessibilityLabel="Star"
-          size="small"
-          disabled
-        />
-      </View>
+      {iconButtonVariants.map(({ title, variant }) => (
+        <View key={title}>
+          <Text style={Typography[mode].bodyStrong}>{title}</Text>
+          <View style={styles.row}>
+            {iconButtonStates.map(({ size, disabled }) => (
+              <IconButton
+                key={`${size}-${disabled}`}
+                variant={variant}
+                icon={<IconStar size={iconSize} />}
+                accessibilityLabel="Star"
+                size={size}
+                disabled={disabled}
+                onPress={disabled ? undefined : () => {}}
+              />
+            ))}
+          </View>
+        </View>
+      ))}
     </ScrollView>
   );
 }

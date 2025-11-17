@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ViewStyle, AccessibilityProps } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import type { IconSize } from '@/primitives';
 
 export type IconButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type IconButtonSize = 'medium' | 'small';
@@ -81,24 +82,49 @@ function computeVariantStyles(
 // Size-specific styles matching Figma design
 // Uses "hug" sizing - container wraps icon with padding
 function computeSizeStyles(size: IconButtonSize) {
-  // Unusual design decision: Border radius is 32px (var(--sds-typography-scale-06))
-  // for both sizes per Figma, creating a pill-shaped button.
-  // This deviates from the 8px radius used on regular buttons.
-  const borderRadius = 32; // 2rem converted to pixels
-  
+  const borderRadius = Size.space['800']; // 2rem token keeps pill shape consistent with design
+
   if (size === 'small') {
     return {
-      padding: Size.space['200'], // 8px
+      padding: Size.space['200'],
       borderRadius,
-      iconSize: 20,
+      iconSize: '16' as IconSize,
     };
   }
   return {
-    padding: Size.space['300'], // 12px
+    padding: Size.space['300'],
     borderRadius,
-    iconSize: 20,
+    iconSize: '20' as IconSize,
   };
 }
+
+const renderIcon = (iconNode: React.ReactNode, color: string, iconSize?: IconSize) => {
+  if (!React.isValidElement(iconNode)) {
+    return iconNode;
+  }
+
+  const currentProps = iconNode.props as { color?: string; size?: IconSize };
+  const nextProps: Record<string, unknown> = {};
+
+  if (currentProps.color == null) {
+    nextProps.color = color;
+  }
+
+  if (iconSize && currentProps.size == null) {
+    nextProps.size = iconSize;
+  }
+
+  if (Object.keys(nextProps).length === 0) {
+    return iconNode;
+  }
+
+  return React.cloneElement(iconNode, nextProps);
+};
+
+export const __ICON_BUTTON_TESTING__ = {
+  computeVariantStyles,
+  computeSizeStyles,
+};
 
 export const IconButton: React.FC<IconButtonProps> = ({
   variant = 'primary',
@@ -113,6 +139,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
 
+  const sizeStyles = React.useMemo(() => computeSizeStyles(size), [size]);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -120,23 +148,24 @@ export const IconButton: React.FC<IconButtonProps> = ({
       disabled={disabled}
       onPress={onPress}
       style={({ pressed, hovered }) => {
-        const v = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
-        const s = computeSizeStyles(size);
+        const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         return [
           {
             alignItems: 'center',
             justifyContent: 'center',
-            // Using "hug" sizing - no hardcoded width/height
-            borderRadius: s.borderRadius,
-            backgroundColor: v.backgroundColor,
-            padding: s.padding,
+            borderRadius: sizeStyles.borderRadius,
+            backgroundColor: variantStyles.backgroundColor,
+            padding: sizeStyles.padding,
           },
           style,
         ];
       }}
       {...accessibilityProps}
     >
-      {icon}
+      {({ pressed, hovered }) => {
+        const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
+        return renderIcon(icon, variantStyles.iconColor, sizeStyles.iconSize);
+      }}
     </Pressable>
   );
 };
