@@ -344,7 +344,7 @@
     --wds-color-background-brand-tertiary-pressed: var(--wds-new-color-tertiary-900);
     --wds-color-background-danger-default: var(--wds-color-red-400);
     --wds-color-background-danger-hover: var(--wds-color-red-300);
-    --wds-color-background-danger-pressed: var(--wds-color-red-200);
+    --wds-color-background-danger-pressed: var(--wds-color-red-500);
     --wds-color-background-danger-secondary: var(--wds-color-red-800);
     --wds-color-background-danger-secondary-hover: var(--wds-color-red-700);
     --wds-color-background-danger-secondary-pressed: var(--wds-color-red-900);
@@ -363,7 +363,7 @@
     --wds-color-background-neutral-pressed: var(--wds-color-slate-400);
     --wds-color-background-neutral-secondary: var(--wds-color-slate-400);
     --wds-color-background-neutral-secondary-hover: var(--wds-color-slate-300);
-    --wds-color-background-neutral-secondary-pressed: var(--wds-color-slate-800);
+    --wds-color-background-neutral-secondary-pressed: var(--wds-color-slate-500);
     --wds-color-background-neutral-tertiary: var(--wds-color-slate-500);
     --wds-color-background-neutral-tertiary-hover: var(--wds-color-slate-400);
     --wds-color-background-neutral-tertiary-pressed: var(--wds-color-slate-600);
