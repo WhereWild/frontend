@@ -30,21 +30,49 @@ const makePalette = (mode: 'light' | 'dark') => ({
   background: {
     default: {
       default: wdsSemanticTokens[mode]['wds-color-background-default-default'],
+      hover: wdsSemanticTokens[mode]['wds-color-background-default-hover'],
+      pressed: wdsSemanticTokens[mode]['wds-color-background-default-pressed'],
       secondary: wdsSemanticTokens[mode]['wds-color-background-default-secondary'],
+      secondaryHover: wdsSemanticTokens[mode]['wds-color-background-default-secondary-hover'],
+      secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-default-secondary-pressed'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-background-default-tertiary'],
+      tertiaryHover: wdsSemanticTokens[mode]['wds-color-background-default-tertiary-hover'],
+      tertiaryPressed: wdsSemanticTokens[mode]['wds-color-background-default-tertiary-pressed'],
     },
     neutral: {
+      default: wdsSemanticTokens[mode]['wds-color-background-neutral-default'],
+      hover: wdsSemanticTokens[mode]['wds-color-background-neutral-hover'],
       secondary: wdsSemanticTokens[mode]['wds-color-background-neutral-secondary'],
       secondaryHover: wdsSemanticTokens[mode]['wds-color-background-neutral-secondary-hover'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-background-neutral-tertiary'],
+      tertiaryHover: wdsSemanticTokens[mode]['wds-color-background-neutral-tertiary-hover'],
+      pressed: wdsSemanticTokens[mode]['wds-color-background-neutral-pressed'],
     },
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-background-brand-default'],
       hover: wdsSemanticTokens[mode]['wds-color-background-brand-hover'],
+      pressed: wdsSemanticTokens[mode]['wds-color-background-brand-pressed'],
+    },
+      danger: {
+        default: wdsSemanticTokens[mode]['wds-color-background-danger-default'],
+        hover: wdsSemanticTokens[mode]['wds-color-background-danger-hover'],
+        pressed: wdsSemanticTokens[mode]['wds-color-background-danger-pressed'],
+        secondary: wdsSemanticTokens[mode]['wds-color-background-danger-secondary'],
+        secondaryHover: wdsSemanticTokens[mode]['wds-color-background-danger-secondary-hover'],
+        secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-danger-secondary-pressed'],
+      },
+    disabled: {
+      default: wdsSemanticTokens[mode]['wds-color-background-disabled-default'],
     }
   },
   border: {
     default: {
       default: wdsSemanticTokens[mode]['wds-color-border-default-default'],
-    }
+      },
+      danger: {
+        default: wdsSemanticTokens[mode]['wds-color-border-danger-default'],
+        secondary: wdsSemanticTokens[mode]['wds-color-border-danger-secondary'],
+      }
   },
   icon: {
     default: {
@@ -52,6 +80,25 @@ const makePalette = (mode: 'light' | 'dark') => ({
     },
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-icon-brand-default'],
+      onBrand: wdsSemanticTokens[mode]['wds-color-icon-brand-on-brand'],
+    },
+    neutral: {
+      default: wdsSemanticTokens[mode]['wds-color-icon-neutral-default'],
+      onNeutral: wdsSemanticTokens[mode]['wds-color-icon-neutral-on-neutral'],
+      onNeutralSecondary: wdsSemanticTokens[mode]['wds-color-icon-neutral-on-neutral-secondary'],
+      onNeutralTertiary: wdsSemanticTokens[mode]['wds-color-icon-neutral-on-neutral-tertiary'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-neutral-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-icon-neutral-tertiary'],
+    },
+    danger: {
+      default: wdsSemanticTokens[mode]['wds-color-icon-danger-default'],
+      onDanger: wdsSemanticTokens[mode]['wds-color-icon-danger-on-danger'],
+      onDangerSecondary: wdsSemanticTokens[mode]['wds-color-icon-danger-on-danger-secondary'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-danger-secondary'],
+    },
+    disabled: {
+      default: wdsSemanticTokens[mode]['wds-color-icon-disabled-default'],
+      onDisabled: wdsSemanticTokens[mode]['wds-color-icon-disabled-on-disabled'],
     }
   },
   text: {
@@ -61,12 +108,25 @@ const makePalette = (mode: 'light' | 'dark') => ({
     },
     neutral: {
       default: wdsSemanticTokens[mode]['wds-color-text-neutral-default'],
+      onNeutral: wdsSemanticTokens[mode]['wds-color-text-neutral-on-neutral'],
       onNeutralSecondary: wdsSemanticTokens[mode]['wds-color-text-neutral-on-neutral-secondary'],
+      onNeutralTertiary: wdsSemanticTokens[mode]['wds-color-text-neutral-on-neutral-tertiary'],
     },
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-text-brand-default'],
       onBrand: wdsSemanticTokens[mode]['wds-color-text-brand-on-brand'],
       secondary: wdsSemanticTokens[mode]['wds-color-text-brand-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-text-brand-tertiary'],
+    },
+      danger: {
+        default: wdsSemanticTokens[mode]['wds-color-text-danger-default'],
+        onDanger: wdsSemanticTokens[mode]['wds-color-text-danger-on-danger'],
+        onDangerSecondary: wdsSemanticTokens[mode]['wds-color-text-danger-on-danger-secondary'],
+        secondary: wdsSemanticTokens[mode]['wds-color-text-danger-secondary'],
+      },
+    disabled: {
+      default: wdsSemanticTokens[mode]['wds-color-text-disabled-default'],
+      onDisabled: wdsSemanticTokens[mode]['wds-color-text-disabled-on-disabled'],
     }
   }
 })
@@ -129,20 +189,23 @@ const parseFontShorthand = (
   };
 };
 
+// Typography styles with colors that adapt to light/dark mode
+const createTypography = (mode: 'light' | 'dark') => ({
+  titleHero: { ...parseFontShorthand(wdsStyleTokens['wds-font-title-hero'], 'titleHero'), color: Colors[mode].text.brand.default },
+  titlePage: { ...parseFontShorthand(wdsStyleTokens['wds-font-title-page'], 'titlePage'), color: Colors[mode].text.brand.default },
+  subtitle: { ...parseFontShorthand(wdsStyleTokens['wds-font-subtitle'], 'subtitle'), color: Colors[mode].text.default.default },
+  heading: { ...parseFontShorthand(wdsStyleTokens['wds-font-heading'], 'heading'), color: Colors[mode].text.brand.secondary },
+  subheading: { ...parseFontShorthand(wdsStyleTokens['wds-font-subheading'], 'subheading'), color: Colors[mode].text.brand.tertiary },
+  body: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-base'], 'body'), color: Colors[mode].text.default.default },
+  bodyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-strong'], 'body'), color: Colors[mode].text.default.default },
+  link: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-link'], 'body'), color: Colors[mode].text.brand.default },
+  code: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-code'], 'code'), color: Colors[mode].text.default.default },
+  singleLineBody: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-base'], 'singleLineBody'), color: Colors[mode].text.default.default },
+});
+
 export const Typography = {
-  titleHero: parseFontShorthand(wdsStyleTokens['wds-font-title-hero'], 'titleHero'),
-  titlePage: parseFontShorthand(wdsStyleTokens['wds-font-title-page'], 'titlePage'),
-  subtitle: parseFontShorthand(wdsStyleTokens['wds-font-subtitle'], 'subtitle'),
-  heading: parseFontShorthand(wdsStyleTokens['wds-font-heading'], 'heading'),
-  subheading: parseFontShorthand(wdsStyleTokens['wds-font-subheading'], 'subheading'),
-  body: parseFontShorthand(wdsStyleTokens['wds-font-body-base'], 'body'),
-  bodyStrong: parseFontShorthand(wdsStyleTokens['wds-font-body-strong'], 'body'),
-  link: parseFontShorthand(wdsStyleTokens['wds-font-body-link'], 'body'),
-  code: parseFontShorthand(wdsStyleTokens['wds-font-body-code'], 'code'),
-  singleLineBody: parseFontShorthand(
-    wdsStyleTokens['wds-font-single-line-body-base'],
-    'singleLineBody',
-  ),
+  light: createTypography('light'),
+  dark: createTypography('dark'),
 };
 
 // Raw size tokens (CSS values) for direct variable usage in web contexts if needed.
