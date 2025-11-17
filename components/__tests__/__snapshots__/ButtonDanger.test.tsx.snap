@@ -1,0 +1,74 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ButtonDanger Component Snapshot matches snapshot (smoke test) 1`] = `
+<View
+  accessibilityLabel="Delete Account"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": undefined,
+      "checked": undefined,
+      "disabled": false,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={true}
+  onBlur={[Function]}
+  onClick={[Function]}
+  onFocus={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    [
+      {
+        "alignItems": "center",
+        "backgroundColor": "#ec221f",
+        "borderRadius": 8,
+        "flexDirection": "row",
+        "gap": 8,
+        "justifyContent": "center",
+        "opacity": 1,
+        "paddingHorizontal": 12,
+        "paddingVertical": 12,
+      },
+      undefined,
+    ]
+  }
+>
+  <Text
+    style={
+      [
+        {
+          "color": "#1e1e1e",
+          "fontFamily": "Inter_400Regular",
+          "fontSize": 16,
+          "fontStyle": "normal",
+          "fontWeight": "400",
+          "lineHeight": 16,
+        },
+        {
+          "color": "#fee9e7",
+        },
+        undefined,
+      ]
+    }
+  >
+    Delete Account
+  </Text>
+</View>
+`;
