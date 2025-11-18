@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View, ViewStyle, TextStyle } from 'react-native';
-import { useColorScheme } from '../hooks/use-color-scheme';
+import { useColorScheme } from '../hooks/useColorScheme';
 import { Colors, Typography, Size } from '../constants/theme';
 
 export type ButtonDangerVariant = 'primary' | 'subtle';

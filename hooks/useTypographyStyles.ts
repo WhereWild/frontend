@@ -1,5 +1,5 @@
 import { Colors, Typography } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 

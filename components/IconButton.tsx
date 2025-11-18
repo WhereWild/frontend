@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ViewStyle, AccessibilityProps } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import type { IconSize } from '@/primitives';
 
 export type IconButtonVariant = 'primary' | 'neutral' | 'subtle';

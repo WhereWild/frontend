@@ -46,7 +46,7 @@ Always import design tokens from `constants/theme.ts`:
 ```typescript
 import { View, Text } from 'react-native';
 import { Colors, Typography, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 function Example() {
   const colorScheme = useColorScheme();
@@ -106,9 +106,9 @@ Before implementing any feature or design:
 Following [Expo best practices](https://expo.dev/blog/expo-app-folder-structure-best-practices):
 
 - **Component files**: PascalCase (`Button.tsx`, `ThemedText.tsx`)
-- **Utility files**: kebab-case (`use-color-scheme.ts`, `use-theme-color.ts`)
+- **Utility files**: camelCase (`useColorScheme.ts`, `useThemeColor.ts`)
 - **Component exports**: PascalCase (`Button`, `ThemedText`)
-- **Hook files**: kebab-case with `use-` prefix (`use-color-scheme.ts`)
+- **Hook files**: camelCase with `use` prefix (`useColorScheme.ts`)
 - **Constant files**: kebab-case (`theme.ts`, `wds-theme.css`)
 
 ### Core Directories
@@ -130,9 +130,9 @@ constants/
 └── wds-theme.css       # CSS tokens for web compatibility
 
 hooks/
-├── use-color-scheme.ts      # Color scheme detection hook
-├── use-theme-color.ts       # Theme color hook
-└── use-typography-styles.ts # Typography utilities
+├── useColorScheme.ts        # Color scheme detection hook
+├── useThemeColor.ts         # Theme color hook
+└── useTypographyStyles.ts   # Typography utilities
 
 scripts/
 └── sync-theme.cjs      # Syncs tokens from design system
@@ -254,7 +254,7 @@ All buttons support:
 ```typescript
 import { Text as RNText, StyleSheet } from 'react-native';
 import { Colors, Typography } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 type ThemedTextProps = {
   variant?: 'default' | 'secondary' | 'brand';
@@ -290,7 +290,7 @@ export function ThemedText({
 ```typescript
 import { View, StyleSheet } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export function Section({ children }: { children: React.ReactNode }) {
   const colorScheme = useColorScheme();
@@ -523,7 +523,7 @@ import type { ButtonProps, ButtonDangerVariant, IconButtonSize } from '@/compone
 // 1. Import necessary dependencies
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Colors, Typography, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 // 2. Define TypeScript types
 type CardProps = {
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
 ```typescript
 // ✅ CORRECT
 import { Colors, Typography, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
 const backgroundColor = Colors[mode].background.brand.default;
