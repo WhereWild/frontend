@@ -13,7 +13,7 @@ import Svg, {
   SvgProps,
 } from 'react-native-svg';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export type IconSize = '14' | '16' | '20' | '24' | '32' | '40' | '48';
 export type IconProps = {

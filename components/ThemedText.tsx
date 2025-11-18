@@ -1,5 +1,5 @@
 import { Text as DefaultText, type TextProps } from 'react-native';
-import { useTypographyStyles } from '@/hooks/use-typography-styles';
+import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 
 type Variant = 'titleHero' | 'titlePage' | 'subtitle' | 'body' | 'bodyStrong' | 'link' | 'code';
 
