@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, Text, ViewStyle, TextStyle, View } from 'react-native';
+import { Pressable, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Colors, Size, Typography } from '../constants/theme';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { Typography, Size, Colors } from '../constants/theme';
 
 // Variants aligned with Figma design system Button component
 export type ButtonVariant = 'primary' | 'neutral' | 'subtle';
@@ -31,6 +31,8 @@ function computeVariantStyles(
   disabled: boolean
 ) {
   const palette = Colors[mode];
+  const strokeWidth = Size.stroke.border;
+  const transparent = 'transparent';
 
   // Disabled state overrides all variants
   if (disabled) {
@@ -38,6 +40,8 @@ function computeVariantStyles(
       backgroundColor: palette.background.disabled.default,
       color: palette.text.disabled.onDisabled,
       iconColor: palette.icon.disabled.onDisabled,
+      borderColor: transparent,
+      borderWidth: 0,
     };
   }
 
@@ -50,6 +54,8 @@ function computeVariantStyles(
         backgroundColor: bg,
         color: palette.text.brand.onBrand,
         iconColor: palette.icon.brand.onBrand,
+        borderColor: transparent,
+        borderWidth: 0,
       };
     }
     case 'neutral': {
@@ -60,23 +66,29 @@ function computeVariantStyles(
         backgroundColor: bg,
         color: palette.text.neutral.onNeutralSecondary,
         iconColor: palette.icon.neutral.onNeutralSecondary,
+        borderColor: transparent,
+        borderWidth: 0,
       };
     }
     case 'subtle': {
       // Subtle variant starts transparent and uses tertiary backgrounds on interaction
+      const isOutlinedState = !(pressed || hovered);
       const bg = pressed
         ? palette.background.neutral.tertiaryPressed
-        : (hovered ? palette.background.neutral.tertiaryHover : 'transparent');
+        : (hovered ? palette.background.neutral.tertiaryHover : transparent);
       const textColor = pressed || hovered
         ? palette.text.neutral.onNeutralTertiary
         : palette.text.neutral.tertiary;
       const iconColor = pressed || hovered
         ? palette.icon.neutral.onNeutralTertiary
         : palette.icon.neutral.tertiary;
+      const borderWidth = strokeWidth;
       return {
         backgroundColor: bg,
         color: textColor,
         iconColor,
+        borderColor: isOutlinedState ? palette.border.neutral.tertiary : transparent,
+        borderWidth,
       };
     }
     default: {
@@ -84,6 +96,8 @@ function computeVariantStyles(
         backgroundColor: palette.background.default.default,
         color: palette.text.default.default,
         iconColor: palette.icon.default.default,
+        borderColor: transparent,
+        borderWidth: 0,
       };
     }
   }
@@ -94,11 +108,15 @@ const renderIcon = (iconNode: React.ReactNode, color: string) => {
     return iconNode;
   }
 
-  const currentProps = iconNode.props as { color?: string };
+  const currentProps = iconNode.props as { color?: string; size?: string | number };
   const nextProps: Record<string, unknown> = {};
 
   if (currentProps.color == null) {
     nextProps.color = color;
+  }
+
+  if (currentProps.size == null) {
+    nextProps.size = '16';
   }
 
   if (Object.keys(nextProps).length === 0) {
@@ -150,6 +168,9 @@ export const Button: React.FC<ButtonProps> = ({
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled || loading);
         const sizeStyles = computeSizeStyles(size);
+        const borderWidth = variantStyles.borderWidth ?? 0;
+        const paddingHorizontal = Math.max(0, sizeStyles.paddingHorizontal - borderWidth);
+        const paddingVertical = Math.max(0, sizeStyles.paddingVertical - borderWidth);
         return [
           {
             flexDirection: 'row',
@@ -157,9 +178,11 @@ export const Button: React.FC<ButtonProps> = ({
             justifyContent: 'center',
             borderRadius: Size.radius['200'], // 8px - matches Figma design
             backgroundColor: variantStyles.backgroundColor,
+            borderColor: variantStyles.borderColor,
+            borderWidth: variantStyles.borderWidth,
             opacity: loading ? 0.7 : 1,
-            paddingHorizontal: sizeStyles.paddingHorizontal,
-            paddingVertical: sizeStyles.paddingVertical,
+            paddingHorizontal,
+            paddingVertical,
             gap: Size.space['200'], // 8px - matches Figma gap
           },
           style,

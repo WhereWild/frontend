@@ -6,11 +6,11 @@
 import type { TextStyle } from 'react-native';
 
 import {
-  wdsSemanticTokens,
-  wdsStyleTokens,
-  wdsTypographyPrimitiveTokens,
-  wdsTypographyTokens,
-  wdsSizeTokens,
+    wdsSemanticTokens,
+    wdsSizeTokens,
+    wdsStyleTokens,
+    wdsTypographyPrimitiveTokens,
+    wdsTypographyTokens,
 } from './wdsTokens';
 
 // Style typography tokens reference primitive tokens (e.g. var(--wds-typography-body-size-medium)),
@@ -74,6 +74,11 @@ const makePalette = (mode: 'light' | 'dark') => ({
     danger: {
       default: wdsSemanticTokens[mode]['wds-color-border-danger-default'],
       secondary: wdsSemanticTokens[mode]['wds-color-border-danger-secondary'],
+    },
+    neutral: {
+      default: wdsSemanticTokens[mode]['wds-color-border-neutral-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-border-neutral-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-border-neutral-tertiary'],
     }
   },
   icon: {

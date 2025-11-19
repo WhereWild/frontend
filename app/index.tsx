@@ -1,8 +1,3 @@
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, ButtonDanger, IconButton } from '@/components';
-import { Colors, Size, Typography } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import {
   IconAlertTriangle,
   IconArrowLeft,
@@ -11,7 +6,11 @@ import {
   IconStar,
   IconTrash,
 } from '@/assets/icons';
-import type { IconSize } from '@/primitives';
+import { Button, ButtonDanger, IconButton } from '@/components';
+import { Colors, Size, Typography } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import type { ReactNode } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -34,8 +33,6 @@ type ButtonEntry = {
 export default function Index() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
-  const iconSize: IconSize = '20';
-
   const buttonRows: ButtonRow[] = [
     {
       title: 'Button — Primary',
@@ -69,12 +66,12 @@ export default function Index() {
     {
       title: 'Button — Primary (Icons)',
       buttons: [
-        { label: 'Download', iconStart: <IconDownload size={iconSize} /> },
-        { label: 'Continue', iconEnd: <IconArrowRight size={iconSize} /> },
+        { label: 'Download', iconStart: <IconDownload /> },
+        { label: 'Continue', iconEnd: <IconArrowRight /> },
         {
           label: 'Favorite',
-          iconStart: <IconStar size={iconSize} />,
-          iconEnd: <IconArrowRight size={iconSize} />,
+          iconStart: <IconStar />,
+          iconEnd: <IconArrowRight />,
         },
       ],
     },
@@ -82,12 +79,12 @@ export default function Index() {
       title: 'Button — Neutral (Icons)',
       variant: 'neutral',
       buttons: [
-        { label: 'Back', iconStart: <IconArrowLeft size={iconSize} /> },
-        { label: 'Next', iconEnd: <IconArrowRight size={iconSize} /> },
+        { label: 'Back', iconStart: <IconArrowLeft /> },
+        { label: 'Next', iconEnd: <IconArrowRight /> },
         {
           label: 'Export',
-          iconStart: <IconDownload size={iconSize} />,
-          iconEnd: <IconArrowRight size={iconSize} />,
+          iconStart: <IconDownload />,
+          iconEnd: <IconArrowRight />,
         },
       ],
     },
@@ -95,12 +92,12 @@ export default function Index() {
       title: 'Button — Subtle (Icons)',
       variant: 'subtle',
       buttons: [
-        { label: 'Highlight', iconStart: <IconStar size={iconSize} /> },
-        { label: 'Learn More', iconEnd: <IconArrowRight size={iconSize} /> },
+        { label: 'Highlight', iconStart: <IconStar /> },
+        { label: 'Learn More', iconEnd: <IconArrowRight /> },
         {
           label: 'Browse',
-          iconStart: <IconArrowLeft size={iconSize} />,
-          iconEnd: <IconArrowRight size={iconSize} />,
+          iconStart: <IconArrowLeft />,
+          iconEnd: <IconArrowRight />,
         },
       ],
     },
@@ -129,13 +126,13 @@ export default function Index() {
       title: 'ButtonDanger — Icons',
       danger: true,
       buttons: [
-        { label: 'Delete', iconStart: <IconTrash size={iconSize} /> },
-        { label: 'Confirm', iconEnd: <IconArrowRight size={iconSize} /> },
+        { label: 'Delete', iconStart: <IconTrash /> },
+        { label: 'Confirm', iconEnd: <IconArrowRight /> },
         {
           label: 'Report',
           variant: 'subtle',
-          iconStart: <IconAlertTriangle size={iconSize} />,
-          iconEnd: <IconArrowRight size={iconSize} />,
+          iconStart: <IconAlertTriangle />,
+          iconEnd: <IconArrowRight />,
         },
       ],
     },
@@ -209,7 +206,7 @@ export default function Index() {
               <IconButton
                 key={`${size}-${disabled}`}
                 variant={variant}
-                icon={<IconStar size={iconSize} />}
+                icon={<IconStar />}
                 accessibilityLabel="Star"
                 size={size}
                 disabled={disabled}

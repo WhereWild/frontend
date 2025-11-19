@@ -1,8 +1,8 @@
-import React from 'react';
-import { Pressable, ViewStyle, AccessibilityProps } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { IconSize } from '@/primitives';
+import React from 'react';
+import { AccessibilityProps, Pressable, ViewStyle } from 'react-native';
 
 export type IconButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type IconButtonSize = 'medium' | 'small';
@@ -26,11 +26,15 @@ function computeVariantStyles(
   disabled: boolean,
 ) {
   const palette = Colors[mode];
+  const strokeWidth = Size.stroke.border;
+  const transparent = 'transparent';
 
   if (disabled) {
     return {
       backgroundColor: palette.background.disabled.default,
       iconColor: palette.icon.disabled.onDisabled,
+      borderColor: transparent,
+      borderWidth: 0,
     };
   }
 
@@ -44,6 +48,8 @@ function computeVariantStyles(
       return {
         backgroundColor: bg,
         iconColor: palette.icon.brand.onBrand,
+        borderColor: transparent,
+        borderWidth: 0,
       };
     }
     case 'neutral': {
@@ -55,25 +61,33 @@ function computeVariantStyles(
       return {
         backgroundColor: bg,
         iconColor: palette.icon.neutral.onNeutralSecondary,
+        borderColor: transparent,
+        borderWidth: 0,
       };
     }
     case 'subtle': {
       // Subtle variant starts transparent and uses tertiary backgrounds on interaction
+      const isOutlinedState = !(pressed || hovered);
       const bg = pressed
-        ? palette.background.neutral.tertiary
-        : (hovered ? palette.background.neutral.tertiaryHover : 'transparent');
+        ? palette.background.neutral.tertiaryPressed
+        : (hovered ? palette.background.neutral.tertiaryHover : transparent);
       const iconColor = pressed || hovered
         ? palette.icon.neutral.onNeutralTertiary
         : palette.icon.neutral.tertiary;
+      const borderWidth = strokeWidth;
       return {
         backgroundColor: bg,
         iconColor,
+        borderColor: isOutlinedState ? palette.border.neutral.tertiary : transparent,
+        borderWidth,
       };
     }
     default: {
       return {
         backgroundColor: palette.background.default.default,
         iconColor: palette.icon.default.default,
+        borderColor: transparent,
+        borderWidth: 0,
       };
     }
   }
@@ -82,19 +96,20 @@ function computeVariantStyles(
 // Size-specific styles matching Figma design
 // Uses "hug" sizing - container wraps icon with padding
 function computeSizeStyles(size: IconButtonSize) {
-  const borderRadius = Size.space['800']; // 2rem token keeps pill shape consistent with design
+  const borderRadius = Size.space['800']; // 2rem token keeps shape consistent with design
+  const iconSize: IconSize = '20';
 
   if (size === 'small') {
     return {
       padding: Size.space['200'],
       borderRadius,
-      iconSize: '16' as IconSize,
+      iconSize,
     };
   }
   return {
     padding: Size.space['300'],
     borderRadius,
-    iconSize: '20' as IconSize,
+    iconSize,
   };
 }
 
@@ -149,13 +164,21 @@ export const IconButton: React.FC<IconButtonProps> = ({
       onPress={onPress}
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
+        const borderWidth = variantStyles.borderWidth ?? 0;
+        // Only adjust padding for 'subtle' variant, which has a border
+        const padding =
+          variant === 'subtle'
+            ? Math.max(0, sizeStyles.padding - borderWidth)
+            : sizeStyles.padding;
         return [
           {
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: sizeStyles.borderRadius,
             backgroundColor: variantStyles.backgroundColor,
-            padding: sizeStyles.padding,
+            borderColor: variantStyles.borderColor,
+            borderWidth: variantStyles.borderWidth,
+            padding,
           },
           style,
         ];
