@@ -26,6 +26,8 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.jest-localstorage
+junit.xml
 
 # macOS
 .DS_Store
