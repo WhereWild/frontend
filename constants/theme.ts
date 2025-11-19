@@ -84,6 +84,8 @@ const makePalette = (mode: 'light' | 'dark') => ({
   icon: {
     default: {
       default: wdsSemanticTokens[mode]['wds-color-icon-default-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-default-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-icon-default-tertiary'],
     },
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-icon-brand-default'],
@@ -112,6 +114,7 @@ const makePalette = (mode: 'light' | 'dark') => ({
     default: {
       default: wdsSemanticTokens[mode]['wds-color-text-default-default'],
       secondary: wdsSemanticTokens[mode]['wds-color-text-default-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-text-default-tertiary'],
     },
     neutral: {
       default: wdsSemanticTokens[mode]['wds-color-text-neutral-default'],
