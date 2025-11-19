@@ -98,6 +98,7 @@ Before implementing any feature or design:
 3. ✅ **Import tokens from `theme.ts`** - `Colors`, `Typography`, `Size` (never from `wdsTokens.ts`)
 4. ✅ **Handle both color modes** - Use `useColorScheme()` for light/dark switching
 5. ✅ **Test on multiple platforms** - iOS, Android, and web if applicable
+6. ✅ **Keep implementations KISS** - Favor the simplest approach that meets requirements before adding abstractions
 
 ## File Structure & Architecture
 
