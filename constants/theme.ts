@@ -42,13 +42,13 @@ const makePalette = (mode: 'light' | 'dark') => ({
     neutral: {
       default: wdsSemanticTokens[mode]['wds-color-background-neutral-default'],
       hover: wdsSemanticTokens[mode]['wds-color-background-neutral-hover'],
+      pressed: wdsSemanticTokens[mode]['wds-color-background-neutral-pressed'],
       secondary: wdsSemanticTokens[mode]['wds-color-background-neutral-secondary'],
       secondaryHover: wdsSemanticTokens[mode]['wds-color-background-neutral-secondary-hover'],
       secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-neutral-secondary-pressed'],
       tertiary: wdsSemanticTokens[mode]['wds-color-background-neutral-tertiary'],
       tertiaryHover: wdsSemanticTokens[mode]['wds-color-background-neutral-tertiary-hover'],
       tertiaryPressed: wdsSemanticTokens[mode]['wds-color-background-neutral-tertiary-pressed'],
-      pressed: wdsSemanticTokens[mode]['wds-color-background-neutral-pressed'],
     },
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-background-brand-default'],
@@ -70,6 +70,8 @@ const makePalette = (mode: 'light' | 'dark') => ({
   border: {
     default: {
       default: wdsSemanticTokens[mode]['wds-color-border-default-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-border-default-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-border-default-tertiary'],
     },
     danger: {
       default: wdsSemanticTokens[mode]['wds-color-border-danger-default'],
@@ -101,9 +103,9 @@ const makePalette = (mode: 'light' | 'dark') => ({
     },
     danger: {
       default: wdsSemanticTokens[mode]['wds-color-icon-danger-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-danger-secondary'],
       onDanger: wdsSemanticTokens[mode]['wds-color-icon-danger-on-danger'],
       onDangerSecondary: wdsSemanticTokens[mode]['wds-color-icon-danger-on-danger-secondary'],
-      secondary: wdsSemanticTokens[mode]['wds-color-icon-danger-secondary'],
     },
     disabled: {
       default: wdsSemanticTokens[mode]['wds-color-icon-disabled-default'],
@@ -118,11 +120,11 @@ const makePalette = (mode: 'light' | 'dark') => ({
     },
     neutral: {
       default: wdsSemanticTokens[mode]['wds-color-text-neutral-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-text-neutral-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-text-neutral-tertiary'],
       onNeutral: wdsSemanticTokens[mode]['wds-color-text-neutral-on-neutral'],
       onNeutralSecondary: wdsSemanticTokens[mode]['wds-color-text-neutral-on-neutral-secondary'],
       onNeutralTertiary: wdsSemanticTokens[mode]['wds-color-text-neutral-on-neutral-tertiary'],
-      secondary: wdsSemanticTokens[mode]['wds-color-text-neutral-secondary'],
-      tertiary: wdsSemanticTokens[mode]['wds-color-text-neutral-tertiary'],
     },
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-text-brand-default'],
@@ -132,9 +134,9 @@ const makePalette = (mode: 'light' | 'dark') => ({
     },
     danger: {
       default: wdsSemanticTokens[mode]['wds-color-text-danger-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-text-danger-secondary'],
       onDanger: wdsSemanticTokens[mode]['wds-color-text-danger-on-danger'],
       onDangerSecondary: wdsSemanticTokens[mode]['wds-color-text-danger-on-danger-secondary'],
-      secondary: wdsSemanticTokens[mode]['wds-color-text-danger-secondary'],
     },
     disabled: {
       default: wdsSemanticTokens[mode]['wds-color-text-disabled-default'],

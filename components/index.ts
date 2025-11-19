@@ -19,4 +19,7 @@ export type { ButtonDangerProps, ButtonDangerSize, ButtonDangerVariant } from '.
 export { IconButton } from './IconButton';
 export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './IconButton';
 
+export { SearchInput } from './SearchInput';
+export type { SearchInputProps } from './SearchInput';
+
 export { ThemedText } from './ThemedText';

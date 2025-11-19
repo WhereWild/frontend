@@ -6,9 +6,10 @@ import {
   IconStar,
   IconTrash,
 } from '@/assets/icons';
-import { Button, ButtonDanger, IconButton } from '@/components';
+import { Button, ButtonDanger, IconButton, SearchInput } from '@/components';
 import { Colors, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -33,6 +34,8 @@ type ButtonEntry = {
 export default function Index() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const [searchQuery, setSearchQuery] = useState('');
+  const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
   const buttonRows: ButtonRow[] = [
     {
       title: 'Button — Primary',
@@ -156,66 +159,104 @@ export default function Index() {
       styles.container,
       { backgroundColor: Colors[mode].background.default.default }
     ]}>
-      {buttonRows.map(({ title, variant, buttons, danger }) => (
-        <View key={title}>
-          <Text style={Typography[mode].bodyStrong}>{title}</Text>
-          <View style={styles.row}>
-            {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
-              const buttonVariant = overrideVariant ?? variant;
+      <View>
+        <Text style={Typography[mode].heading}>Search Input</Text>
+        <View>
+          <SearchInput
+            value={searchQuery}
+            placeholder="Search species"
+            onQueryChange={(value) => {
+              setSearchQuery(value);
+              setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
+            }}
+            onCharacterAdd={(char, value) => {
+              setLastSearchEvent(`Added "${char}" -> ${value}`);
+            }}
+            onSubmitSearch={(value) => {
+              setLastSearchEvent(`Search submitted with "${value}"`);
+            }}
+            onClear={() => {
+              setLastSearchEvent('Search cleared');
+            }}
+            autoCorrect={false}
+            returnKeyType="search"
+            accessibilityLabel="Search species"
+          />
+        </View>
+        <Text style={Typography[mode].body}>{lastSearchEvent}</Text>
+        <Text style={Typography[mode].bodyStrong}>Disabled</Text>
+        <View>
+          <SearchInput
+            placeholder="Search species"
+            accessibilityLabel="Search species"
+            disabled
+          />
+        </View>
+      </View>
 
-              if (danger) {
-                const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+      <View>
+        <Text style={Typography[mode].heading}>Buttons</Text>
+        {buttonRows.map(({ title, variant, buttons, danger }) => (
+          <View key={title}>
+            <Text style={Typography[mode].bodyStrong}>{title}</Text>
+            <View style={styles.row}>
+              {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
+                const buttonVariant = overrideVariant ?? variant;
+
+                if (danger) {
+                  const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+                  return (
+                    <ButtonDanger
+                      key={label}
+                      size={size}
+                      variant={dangerVariant}
+                      disabled={disabled}
+                      iconStart={iconStart}
+                      iconEnd={iconEnd}
+                      onPress={() => { }}
+                    >
+                      {label}
+                    </ButtonDanger>
+                  );
+                }
+
                 return (
-                  <ButtonDanger
+                  <Button
                     key={label}
                     size={size}
-                    variant={dangerVariant}
+                    variant={buttonVariant}
                     disabled={disabled}
                     iconStart={iconStart}
                     iconEnd={iconEnd}
-                    onPress={() => {}}
+                    onPress={() => { }}
                   >
                     {label}
-                  </ButtonDanger>
+                  </Button>
                 );
-              }
+              })}
+            </View>
+          </View>
+        ))}
 
-              return (
-                <Button
-                  key={label}
+        {iconButtonVariants.map(({ title, variant }) => (
+          <View key={title}>
+            <Text style={Typography[mode].bodyStrong}>{title}</Text>
+            <View style={styles.row}>
+              {iconButtonStates.map(({ size, disabled }) => (
+                <IconButton
+                  key={`${size}-${disabled}`}
+                  variant={variant}
+                  icon={<IconStar />}
+                  accessibilityLabel="Star"
                   size={size}
-                  variant={buttonVariant}
                   disabled={disabled}
-                  iconStart={iconStart}
-                  iconEnd={iconEnd}
-                  onPress={() => {}}
-                >
-                  {label}
-                </Button>
-              );
-            })}
+                  onPress={disabled ? undefined : () => { }}
+                />
+              ))}
+            </View>
           </View>
-        </View>
-      ))}
-
-      {iconButtonVariants.map(({ title, variant }) => (
-        <View key={title}>
-          <Text style={Typography[mode].bodyStrong}>{title}</Text>
-          <View style={styles.row}>
-            {iconButtonStates.map(({ size, disabled }) => (
-              <IconButton
-                key={`${size}-${disabled}`}
-                variant={variant}
-                icon={<IconStar />}
-                accessibilityLabel="Star"
-                size={size}
-                disabled={disabled}
-                onPress={disabled ? undefined : () => {}}
-              />
-            ))}
-          </View>
-        </View>
-      ))}
+        ))}
+      </View>
     </ScrollView>
   );
 }
