@@ -35,15 +35,15 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Get a fresh project
+## Sync Tokens from Design System
 
-When you're ready, run:
+Run
 
 ```bash
-npm run reset-project
+npm run sync-theme
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+to sync the design tokens from the design system repository.
 
 ## Learn more
 
