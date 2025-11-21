@@ -19,6 +19,9 @@ export type { ButtonDangerProps, ButtonDangerSize, ButtonDangerVariant } from '.
 export { IconButton } from './IconButton';
 export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './IconButton';
 
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps, PageHeaderAction } from './PageHeader';
+
 export { SearchInput } from './SearchInput';
 export type { SearchInputProps } from './SearchInput';
 
