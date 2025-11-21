@@ -6,12 +6,16 @@ import {
   IconStar,
   IconTrash,
 } from '@/assets/icons';
-import { Button, ButtonDanger, IconButton, SearchInput } from '@/components';
+import { Button, ButtonDanger, IconButton, SearchInput, SpeciesCard } from '@/components';
 import { Colors, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
+const SPECIES_CARD_IMAGE = {
+  uri: 'https://www.figma.com/api/mcp/asset/4518cadf-c93e-418b-8fce-72c496cb5efb',
+} as const;
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -159,6 +163,16 @@ export default function Index() {
       styles.container,
       { backgroundColor: Colors[mode].background.default.default }
     ]}>
+      <View>
+        <Text style={Typography[mode].heading}>Species Card</Text>
+        <SpeciesCard
+          commonName="Common Name"
+          scientificName="Binomial nomenclature"
+          description="Description"
+          imageSource={SPECIES_CARD_IMAGE}
+        />
+      </View>
+
       <View>
         <Text style={Typography[mode].heading}>Search Input</Text>
         <View>

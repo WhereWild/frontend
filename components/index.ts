@@ -22,4 +22,7 @@ export type { IconButtonProps, IconButtonSize, IconButtonVariant } from './IconB
 export { SearchInput } from './SearchInput';
 export type { SearchInputProps } from './SearchInput';
 
+export { SpeciesCard } from './SpeciesCard';
+export type { SpeciesCardProps } from './SpeciesCard';
+
 export { ThemedText } from './ThemedText';
