@@ -1,289 +1,190 @@
-import {
-  IconAlertTriangle,
-  IconArrowLeft,
-  IconArrowRight,
-  IconDownload,
-  IconStar,
-  IconTrash,
-} from '@/assets/icons';
-import { Button, ButtonDanger, IconButton, SearchInput, SpeciesCard } from '@/components';
+import { IconFilter } from '@/assets/icons';
+import { Button, PageHeader, SpeciesCard } from '@/components';
+import type { SpeciesCardProps } from '@/components';
 import { Colors, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { usePathname, useRouter } from 'expo-router';
 
-const SPECIES_CARD_IMAGE = {
-  uri: 'https://www.figma.com/api/mcp/asset/4518cadf-c93e-418b-8fce-72c496cb5efb',
+const HEAT_MAP_IMAGE = {
+  uri: 'https://www.figma.com/api/mcp/asset/4e7b085b-6b57-4286-82e1-c07d7c8391be',
 } as const;
 
-type ButtonVariant = 'primary' | 'neutral' | 'subtle';
+const MAP_CONTROLS_IMAGE = {
+  uri: 'https://www.figma.com/api/mcp/asset/d2af09b0-a6bf-4d77-8a1b-1f1341e2b4dd',
+} as const;
 
-type ButtonRow = {
-  title: string;
-  variant?: ButtonVariant;
-  danger?: boolean;
-  buttons: ButtonEntry[];
+const MAP_HEIGHT = 640;
+const SIDEBAR_WIDTH = 400;
+
+type AppRoute = '/' | '/about';
+
+type SpeciesRecommendation = SpeciesCardProps & {
+  id: string;
 };
 
-type ButtonEntry = {
-  label: string;
-  size?: 'small' | 'medium';
-  iconStart?: ReactNode;
-  iconEnd?: ReactNode;
-  disabled?: boolean;
-  variant?: ButtonVariant;
-};
+const SPECIES_RECOMMENDATIONS: SpeciesRecommendation[] = [
+  {
+    id: 'mojave-kingcup',
+    commonName: 'Mojave Kingcup',
+    scientificName: 'Echinocereus triglochidiatus',
+    description: 'Flowering now',
+    imageSource: { uri: 'https://www.figma.com/api/mcp/asset/b0db2a27-6bd5-4152-88ae-951ffa2af365' },
+  },
+  {
+    id: 'golden-eagle',
+    commonName: 'Golden Eagle',
+    scientificName: 'Aquila chrysaetos',
+    description: 'Migrating nearby',
+    imageSource: { uri: 'https://www.figma.com/api/mcp/asset/91018ef5-59f5-4ac3-9b3f-eeb6a66a2707' },
+  },
+  {
+    id: 'great-basin-spadefoot',
+    commonName: 'Great Basin Spadefoot',
+    scientificName: 'Spea intermontana',
+    description: 'Common after rain',
+    imageSource: { uri: 'https://www.figma.com/api/mcp/asset/aed3792b-f433-4a76-ba84-a59af8d5df5c' },
+  },
+  {
+    id: 'colorado-hairstreak',
+    commonName: 'Colorado Hairstreak',
+    scientificName: 'Hypaurotis crysalus',
+    description: 'Frequent in your area',
+    imageSource: { uri: 'https://www.figma.com/api/mcp/asset/f5f75794-49c6-4880-8e97-e4f919219986' },
+  },
+];
 
 export default function Index() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const [searchQuery, setSearchQuery] = useState('');
-  const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
-  const buttonRows: ButtonRow[] = [
-    {
-      title: 'Button — Primary',
-      buttons: [
-        { label: 'Medium' },
-        { label: 'Small', size: 'small' },
-        { label: 'Disabled', disabled: true },
-        { label: 'Disabled Small', size: 'small', disabled: true },
-      ],
-    },
-    {
-      title: 'Button — Neutral',
-      variant: 'neutral',
-      buttons: [
-        { label: 'Medium' },
-        { label: 'Small', size: 'small' },
-        { label: 'Disabled', disabled: true },
-        { label: 'Disabled Small', size: 'small', disabled: true },
-      ],
-    },
-    {
-      title: 'Button — Subtle',
-      variant: 'subtle',
-      buttons: [
-        { label: 'Medium' },
-        { label: 'Small', size: 'small' },
-        { label: 'Disabled', disabled: true },
-        { label: 'Disabled Small', size: 'small', disabled: true },
-      ],
-    },
-    {
-      title: 'Button — Primary (Icons)',
-      buttons: [
-        { label: 'Download', iconStart: <IconDownload /> },
-        { label: 'Continue', iconEnd: <IconArrowRight /> },
-        {
-          label: 'Favorite',
-          iconStart: <IconStar />,
-          iconEnd: <IconArrowRight />,
-        },
-      ],
-    },
-    {
-      title: 'Button — Neutral (Icons)',
-      variant: 'neutral',
-      buttons: [
-        { label: 'Back', iconStart: <IconArrowLeft /> },
-        { label: 'Next', iconEnd: <IconArrowRight /> },
-        {
-          label: 'Export',
-          iconStart: <IconDownload />,
-          iconEnd: <IconArrowRight />,
-        },
-      ],
-    },
-    {
-      title: 'Button — Subtle (Icons)',
-      variant: 'subtle',
-      buttons: [
-        { label: 'Highlight', iconStart: <IconStar /> },
-        { label: 'Learn More', iconEnd: <IconArrowRight /> },
-        {
-          label: 'Browse',
-          iconStart: <IconArrowLeft />,
-          iconEnd: <IconArrowRight />,
-        },
-      ],
-    },
-    {
-      title: 'ButtonDanger — Primary',
-      danger: true,
-      buttons: [
-        { label: 'Medium' },
-        { label: 'Small', size: 'small' },
-        { label: 'Disabled', disabled: true },
-        { label: 'Disabled Small', size: 'small', disabled: true },
-      ],
-    },
-    {
-      title: 'ButtonDanger — Subtle',
-      danger: true,
-      variant: 'subtle',
-      buttons: [
-        { label: 'Medium' },
-        { label: 'Small', size: 'small' },
-        { label: 'Disabled', disabled: true },
-        { label: 'Disabled Small', size: 'small', disabled: true },
-      ],
-    },
-    {
-      title: 'ButtonDanger — Icons',
-      danger: true,
-      buttons: [
-        { label: 'Delete', iconStart: <IconTrash /> },
-        { label: 'Confirm', iconEnd: <IconArrowRight /> },
-        {
-          label: 'Report',
-          variant: 'subtle',
-          iconStart: <IconAlertTriangle />,
-          iconEnd: <IconArrowRight />,
-        },
-      ],
-    },
-  ];
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const iconButtonVariants: { title: string; variant: ButtonVariant }[] = [
-    { title: 'IconButton — Primary', variant: 'primary' },
-    { title: 'IconButton — Neutral', variant: 'neutral' },
-    { title: 'IconButton — Subtle', variant: 'subtle' },
-  ];
-
-  const iconButtonStates: { size: 'medium' | 'small'; disabled: boolean }[] = [
-    { size: 'medium', disabled: false },
-    { size: 'small', disabled: false },
-    { size: 'medium', disabled: true },
-    { size: 'small', disabled: true },
-  ];
+  const navigateTo = (path: AppRoute) => {
+    if (pathname !== path) {
+      router.push(path);
+    }
+  };
 
   return (
-    <ScrollView contentContainerStyle={[
-      styles.container,
-      { backgroundColor: Colors[mode].background.default.default }
-    ]}>
-      <View>
-        <Text style={Typography[mode].heading}>Species Card</Text>
-        <SpeciesCard
-          commonName="Common Name"
-          scientificName="Binomial nomenclature"
-          description="Description"
-          imageSource={SPECIES_CARD_IMAGE}
-        />
-      </View>
+    <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+      <PageHeader
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onLogoPress={() => navigateTo('/')}
+      />
 
-      <View>
-        <Text style={Typography[mode].heading}>Search Input</Text>
-        <View>
-          <SearchInput
-            value={searchQuery}
-            placeholder="Search species"
-            onQueryChange={(value) => {
-              setSearchQuery(value);
-              setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
-            }}
-            onCharacterAdd={(char, value) => {
-              setLastSearchEvent(`Added "${char}" -> ${value}`);
-            }}
-            onSubmitSearch={(value) => {
-              setLastSearchEvent(`Search submitted with "${value}"`);
-            }}
-            onClear={() => {
-              setLastSearchEvent('Search cleared');
-            }}
-            autoCorrect={false}
-            returnKeyType="search"
-            accessibilityLabel="Search species"
-          />
-        </View>
-        <Text style={Typography[mode].body}>{lastSearchEvent}</Text>
-        <Text style={Typography[mode].bodyStrong}>Disabled</Text>
-        <View>
-          <SearchInput
-            placeholder="Search species"
-            accessibilityLabel="Search species"
-            disabled
-          />
-        </View>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        bounces={false}
+      >
+        <View style={styles.layout}>
+          <View style={styles.mapSection}>
+            <Text
+              style={[
+                Typography[mode].heading,
+              ]}
+            >
+              Local Map
+            </Text>
 
-      <View>
-        <Text style={Typography[mode].heading}>Buttons</Text>
-        {buttonRows.map(({ title, variant, buttons, danger }) => (
-          <View key={title}>
-            <Text style={Typography[mode].bodyStrong}>{title}</Text>
-            <View style={styles.row}>
-              {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
-                const buttonVariant = overrideVariant ?? variant;
-
-                if (danger) {
-                  const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
-                  return (
-                    <ButtonDanger
-                      key={label}
-                      size={size}
-                      variant={dangerVariant}
-                      disabled={disabled}
-                      iconStart={iconStart}
-                      iconEnd={iconEnd}
-                      onPress={() => { }}
-                    >
-                      {label}
-                    </ButtonDanger>
-                  );
-                }
-
-                return (
-                  <Button
-                    key={label}
-                    size={size}
-                    variant={buttonVariant}
-                    disabled={disabled}
-                    iconStart={iconStart}
-                    iconEnd={iconEnd}
-                    onPress={() => { }}
-                  >
-                    {label}
-                  </Button>
-                );
-              })}
+            <View>
+              <Image source={HEAT_MAP_IMAGE} style={styles.mapImage} resizeMode="cover" />
+              <Image source={MAP_CONTROLS_IMAGE} style={styles.mapControls} resizeMode="contain" />
             </View>
           </View>
-        ))}
 
-        {iconButtonVariants.map(({ title, variant }) => (
-          <View key={title}>
-            <Text style={Typography[mode].bodyStrong}>{title}</Text>
-            <View style={styles.row}>
-              {iconButtonStates.map(({ size, disabled }) => (
-                <IconButton
-                  key={`${size}-${disabled}`}
-                  variant={variant}
-                  icon={<IconStar />}
-                  accessibilityLabel="Star"
-                  size={size}
-                  disabled={disabled}
-                  onPress={disabled ? undefined : () => { }}
+          <View
+            style={[
+              styles.sidebar,
+            ]}
+          >
+            <View style={styles.sidebarHeader}>
+              <Text
+                style={[
+                  Typography[mode].heading,
+                ]}
+              >
+                Active Near You
+              </Text>
+              <Button variant="neutral" size="small" iconStart={<IconFilter />} onPress={() => { }} disabled>
+                Filter
+              </Button>
+            </View>
+
+            <View style={styles.recommendations}>
+              {SPECIES_RECOMMENDATIONS.map((species) => (
+                <SpeciesCard
+                  key={species.id}
+                  {...species}
+                  style={[
+                    styles.speciesCard,
+                    { backgroundColor: palette.background.default.tertiary },
+                  ]}
                 />
               ))}
             </View>
           </View>
-        ))}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: Size.space[600],
-    gap: Size.space[600],
+  screen: {
+    flex: 1,
   },
-  row: {
+  content: {
+    paddingHorizontal: Size.space['1600'],
+    paddingTop: Size.space['800'],
+    width: '100%',
+  },
+  layout: {
+    flexDirection: 'row',
+    gap: Size.space['800'],
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    width: '100%',
+  },
+  mapSection: {
+    flex: 1,
+    minWidth: 320,
+    gap: Size.space['400'],
+  },
+  mapContainer: {
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  mapImage: {
+    width: '100%',
+    height: MAP_HEIGHT,
+  },
+  mapControls: {
+    position: 'absolute',
+    top: Size.space['200'],
+    left: Size.space['200'],
+    width: 26,
+    height: 52,
+  },
+  sidebar: {
+    gap: Size.space['400'],
+    flexBasis: SIDEBAR_WIDTH,
+    maxWidth: SIDEBAR_WIDTH,
+  },
+  sidebarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: Size.space[300],
+    justifyContent: 'space-between',
+  },
+  recommendations: {
+    gap: Size.space['400'],
+    width: '100%',
+  },
+  speciesCard: {
+    maxWidth: '100%',
   },
 });
