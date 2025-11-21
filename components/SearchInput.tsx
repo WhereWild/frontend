@@ -154,7 +154,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         value={currentValue}
         placeholder={placeholder}
         placeholderTextColor={
-          disabled ? palette.text.disabled.onDisabled : palette.text.default.tertiary
+          disabled ? palette.text.disabled.onDisabled : palette.text.disabled.default
         }
         onChangeText={handleChangeText}
         onFocus={(event) => {
