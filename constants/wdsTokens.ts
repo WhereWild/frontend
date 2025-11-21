@@ -599,6 +599,7 @@ export const wdsStyleTokens = {
   "wds-font-body-emphasis": "var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family)",
   "wds-font-body-link": "normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family)",
   "wds-font-body-small": "normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family)",
+  "wds-font-body-small-emphasis": "var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-small) \"Inter\", sans-serif",
   "wds-font-body-small-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family)",
   "wds-font-body-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family)",
   "wds-font-heading": "normal var(--wds-typography-heading-font-weight) var(--wds-typography-heading-size-medium) var(--wds-typography-heading-font-family)",

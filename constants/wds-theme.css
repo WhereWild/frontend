@@ -594,6 +594,7 @@
   --wds-font-body-link: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-body-small: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
+  --wds-font-body-small-emphasis: var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-small) "Inter", sans-serif;
   --wds-font-body-code: normal var(--wds-typography-code-font-weight) var(--wds-typography-code-size-medium) var(--wds-typography-code-font-family);
   --wds-font-single-line-body-base: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-single-line-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
