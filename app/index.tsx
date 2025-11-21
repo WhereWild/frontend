@@ -120,10 +120,7 @@ export default function Index() {
                 <SpeciesCard
                   key={species.id}
                   {...species}
-                  style={[
-                    styles.speciesCard,
-                    { backgroundColor: palette.background.default.tertiary },
-                  ]}
+                  style={styles.speciesCard}
                 />
               ))}
             </View>
