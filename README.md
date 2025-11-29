@@ -1,5 +1,8 @@
 # Welcome to the WhereWild front end repository
 
+[![Pipeline Status](https://capstone.cs.utah.edu/wherewild/front-end/-/badges/main/pipeline.svg)](https://capstone.cs.utah.edu/wherewild/front-end/-/pipelines)
+[![Test Coverage](https://capstone.cs.utah.edu/wherewild/front-end/-/badges/main/coverage.svg)](https://capstone.cs.utah.edu/wherewild/front-end/-/commits/main)
+
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 ## Get started
