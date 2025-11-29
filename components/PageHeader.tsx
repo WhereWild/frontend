@@ -56,7 +56,7 @@ const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
 export function PageHeader({
   title = 'WhereWild',
   logoSource = DEFAULT_LOGO,
-  searchValue,
+  searchValue = '',
   onSearchChange,
   onSubmitSearch,
   searchPlaceholder = 'Search',
