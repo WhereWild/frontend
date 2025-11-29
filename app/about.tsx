@@ -52,6 +52,9 @@ export default function About() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const [searchQuery, setSearchQuery] = useState('');
+  const submitSearchQuery = (query: string) => {
+    router.push({pathname: '/search', params: {query: query}});
+  };
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
   const [headerSearchQuery, setHeaderSearchQuery] = useState('');
   const router = useRouter();
@@ -185,9 +188,7 @@ export default function About() {
       <PageHeader
         searchValue={headerSearchQuery}
         onSearchChange={setHeaderSearchQuery}
-        onSubmitSearch={(value: string) =>
-          setLastSearchEvent(`Header search submitted with "${value}"`)
-        }
+        onSubmitSearch={submitSearchQuery}
         onLogoPress={() => navigateTo('/')}
       />
 
