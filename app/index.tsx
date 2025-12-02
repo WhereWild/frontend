@@ -17,7 +17,7 @@ const MAP_CONTROLS_IMAGE = {
 const MAP_HEIGHT = 640;
 const SIDEBAR_WIDTH = 400;
 
-type AppRoute = '/' | '/about' | '/search';
+type AppRoute = '/' | '/about';
 
 type SpeciesRecommendation = SpeciesCardProps & {
   id: string;
@@ -61,12 +61,6 @@ export default function Index() {
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const pathname = usePathname();
-
-  const submitSearchQuery = (query: string) => {
-    if (pathname !== '/search') {
-      router.push('/search');
-    }
-  };
 
   const navigateTo = (path: AppRoute) => {
     if (pathname !== path) {
