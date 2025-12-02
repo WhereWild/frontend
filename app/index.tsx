@@ -63,7 +63,9 @@ export default function Index() {
   const pathname = usePathname();
 
   const submitSearchQuery = (query: string) => {
-    router.push({pathname: '/search', params: {query: query}});
+    if (pathname !== '/search') {
+      router.push('/search');
+    }
   };
 
   const navigateTo = (path: AppRoute) => {
@@ -77,7 +79,6 @@ export default function Index() {
       <PageHeader
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        onSubmitSearch={submitSearchQuery}
         onLogoPress={() => navigateTo('/')}
       />
 
