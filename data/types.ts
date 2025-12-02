@@ -10,10 +10,10 @@ import type { ImageSourcePropType } from 'react-native';
  * Minimal description of a species that can be rendered in cards or lists.
  */
 export type SpeciesSummary = {
-  commonName: string;
-  scientificName: string;
+  common_name: string;
+  scientific_name: string;
   description: string;
-  imageSource?: ImageSourcePropType;
+  image_source?: ImageSourcePropType;
 };
 
 /**
@@ -84,11 +84,11 @@ export type EnvironmentalDataSection = {
  */
 export type SpeciesOverview = {
   description: string;
-  imageSource: ImageSourcePropType;
+  image_source: ImageSourcePropType;
 };
 
 export type HeatmapSnapshot = {
-  imageSource: ImageSourcePropType;
+  image_source: ImageSourcePropType;
 };
 
 /**
@@ -96,8 +96,8 @@ export type HeatmapSnapshot = {
  */
 export type SpeciesPageData = {
   id: string;
-  commonName: string;
-  scientificName: string;
+  common_name: string;
+  scientific_name: string;
   overview: SpeciesOverview;
   dataSections: EnvironmentalDataSection[];
   nearbySpecies: SpeciesSummary[];

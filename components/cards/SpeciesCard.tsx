@@ -13,14 +13,18 @@ import {
   ViewStyle,
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
-
+import { useRouter } from 'expo-router';
+import type { RelativePathString } from 'expo-router';
+import { fetchSpeciesByCommonName, fetchSpeciesBySlug } from '@/data/api';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 
-export type SpeciesCardProps = {
-  commonName: string;
-  scientificName: string;
+type SpeciesCardProps = {
+  taxon_id?: number;
+  slug?: string;
+  common_name: string;
+  scientific_name: string;
   description: string;
-  imageSource?: ImageSourcePropType;
+  image_source?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   onPress?: () => void;
@@ -61,10 +65,10 @@ const resolveSpeciesCardBackground = (
 };
 
 export function SpeciesCard({
-  commonName,
-  scientificName,
+  common_name,
+  scientific_name,
   description,
-  imageSource,
+  image_source,
   style,
   testID,
   onPress,
@@ -73,17 +77,33 @@ export function SpeciesCard({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const router = useRouter();
 
   const placeholderBackground = palette.background.neutral.default;
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
+  const handlePress = async () => {
+    if (onPress) {
+      onPress();
+      return;
+    }
+    if (common_name){ 
+      const found = await fetchSpeciesBySlug(common_name);
+      if (found && found.common_name){
+        const encoded = encodeURIComponent(found.common_name);
 
+        const path = (`/species/${encoded}`) as unknown as RelativePathString;
+
+        router.push(path);
+      }
+    }
+  }
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+      accessibilityLabel={`${common_name}. ${scientific_name}. ${description}`}
       testID={testID}
       style={(state) => [
         styles.container,
@@ -97,16 +117,16 @@ export function SpeciesCard({
       <View
         style={[
           styles.imageWrapper,
-          !imageSource && { backgroundColor: placeholderBackground },
+          !image_source && { backgroundColor: placeholderBackground },
         ]}
       >
-        {imageSource ? (
+        {image_source ? (
           <Image
             testID="species-card-image"
-            source={imageSource}
+            source={image_source}
             style={styles.image}
             resizeMode="cover"
-            accessibilityLabel={`${commonName} habitat`}
+            accessibilityLabel={`${common_name} habitat`}
           />
         ) : (
           <View
@@ -121,10 +141,10 @@ export function SpeciesCard({
       <View style={styles.textSection}>
         <View>
           <ThemedText variant="subheading" numberOfLines={1} accessibilityRole="header">
-            {commonName}
+            {common_name}
           </ThemedText>
           <ThemedText variant="bodySmallEmphasis" numberOfLines={1}>
-            {scientificName}
+            {scientific_name}
           </ThemedText>
         </View>
 

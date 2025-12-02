@@ -18,7 +18,7 @@ type SpeciesSampleScreenProps = {
 };
 
 export default function SpeciesSampleScreen({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
-  const { commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
+  const { common_name, scientific_name, overview, dataSections, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -33,7 +33,7 @@ export default function SpeciesSampleScreen({ data = mountainBallCactusData }: S
   return (
     <>
       <Head>
-        <title>{`WhereWild | ${commonName}`}</title>
+        <title>{`WhereWild | ${common_name}`}</title>
       </Head>
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
@@ -47,8 +47,8 @@ export default function SpeciesSampleScreen({ data = mountainBallCactusData }: S
 
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <SpeciesPageHeader
-            commonName={commonName}
-            scientificName={scientificName}
+            commonName={common_name}
+            scientificName={scientific_name}
             onPressDownload={handleDownload}
           />
 
@@ -61,10 +61,10 @@ export default function SpeciesSampleScreen({ data = mountainBallCactusData }: S
                 </View>
                 <View style={styles.featuredImageWrapper}>
                   <Image
-                    source={overview.imageSource}
+                    source={overview.image_source}
                     style={[styles.featuredImage]}
                     resizeMode="cover"
-                    accessibilityLabel={`${commonName} featured image`}
+                    accessibilityLabel={`${common_name} featured image`}
                   />
                 </View>
               </View>
@@ -83,7 +83,7 @@ export default function SpeciesSampleScreen({ data = mountainBallCactusData }: S
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>
             <Image
-              source={heatmap.imageSource}
+              source={heatmap.image_source}
               resizeMode="cover"
               style={styles.heatmap}
               accessibilityLabel="Predicted sightings heat map"
