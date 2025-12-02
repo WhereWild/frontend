@@ -26,7 +26,7 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
-.jest-localstorage
+.jest-localstorage*
 junit.xml
 
 # Test coverage

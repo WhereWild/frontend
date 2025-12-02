@@ -40,8 +40,12 @@ jest.mock('expo-router', () => ({
   Link: 'Link',
 }));
 
-// Mock useColorScheme for consistent test results
-// Note: Individual tests can override this by re-mocking with different return values
-jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
-  default: jest.fn(() => 'light'),
+// Mock useColorScheme for consistent test results. Individual suites can 
+// unmock '@/hooks/useColorScheme' when they need the real implementation.
+// Default to 'dark' mode for tests as it is the app default.
+const mockUseColorScheme = jest.fn(() => 'dark');
+
+jest.mock('@/hooks/useColorScheme', () => ({
+  __esModule: true,
+  useColorScheme: mockUseColorScheme,
 }));

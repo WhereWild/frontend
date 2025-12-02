@@ -1,0 +1,181 @@
+import { IconChevronDown, IconChevronUp } from '@/assets/icons';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import React from 'react';
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
+import { ThemedText } from '../text/ThemedText';
+
+export type DataEntryDetail = {
+  label: string;
+  value: string;
+};
+
+export type DataEntryProps = {
+  dataName: string;
+  dataPoint: string;
+  details?: DataEntryDetail[];
+  showGraph?: boolean;
+  graph?: React.ReactNode;
+  expandable?: boolean;
+  onToggle?: (expanded: boolean) => void;
+  style?: StyleProp<ViewStyle>;
+};
+
+const MIN_GRAPH_HEIGHT = Size.space['1600'];
+const MAX_GRAPH_HEIGHT = Size.space['8000'];
+
+export function DataEntry({
+  dataName,
+  dataPoint,
+  details = [],
+  showGraph = true,
+  graph,
+  expandable = true,
+  onToggle,
+  style,
+}: DataEntryProps) {
+  const colorScheme = useColorScheme();
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+  const hasDetails = details.length > 0;
+  const isExpandable = expandable && hasDetails;
+  const [expanded, setExpanded] = React.useState(!isExpandable);
+
+  const handleToggle = React.useCallback(() => {
+    if (!isExpandable) {
+      return;
+    }
+    setExpanded((prev) => {
+      const next = !prev;
+      onToggle?.(next);
+      return next;
+    });
+  }, [isExpandable, onToggle]);
+
+  React.useEffect(() => {
+    setExpanded(!isExpandable);
+  }, [isExpandable]);
+
+  return (
+    <View style={[styles.container, style]}>
+      {isExpandable ? (
+        <Pressable
+          style={({ hovered, pressed }) => [
+            styles.labelRow,
+            {
+              backgroundColor: resolveLabelRowBackground(
+                palette,
+                { hovered: hovered ?? false, pressed: pressed ?? false },
+              ),
+            },
+          ]}
+          onPress={handleToggle}
+          accessibilityRole="button"
+          accessibilityLabel={`${dataName} ${expanded ? 'collapse' : 'expand'}`}
+          accessibilityState={{ expanded }}
+        >
+          <ThemedText variant="body">
+            {dataName}: {dataPoint}
+          </ThemedText>
+          {expanded ? <IconChevronUp /> : <IconChevronDown />}
+        </Pressable>
+      ) : (
+        <View
+          style={styles.labelRow}
+          accessibilityRole="text"
+        >
+          <ThemedText variant="body">
+            {dataName}: {dataPoint}
+          </ThemedText>
+        </View>
+      )}
+      {(
+        isExpandable ? expanded : hasDetails
+      ) ? (
+        <View style={styles.details}>
+          {showGraph ? (
+            <View
+              style={[
+                styles.graphContainer,
+                !graph && styles.graphPlaceholderBounds,
+              ]}
+              testID="data-entry-graph"
+            >
+              {graph ?? (
+                <View
+                  style={[
+                    styles.graphPlaceholder,
+                    { backgroundColor: palette.background.default.tertiary },
+                  ]}
+                  testID="data-entry-graph-placeholder"
+                  pointerEvents="none"
+                />
+              )}
+            </View>
+          ) : null}
+          {details.map(({ label, value }, index) => (
+            <ThemedText key={`${label}-${value}-${index}`} variant="body">
+              {label}: {value}
+            </ThemedText>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    gap: Size.space['200'],
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Size.space['100'],
+    borderRadius: Size.radius['100'],
+  },
+  details: {
+    gap: Size.space['050'],
+    width: '100%',
+    paddingLeft: Size.space['800'],
+  },
+  graphContainer: {
+    width: '100%',
+    borderRadius: Size.radius['200'],
+    overflow: 'hidden',
+  },
+  graphPlaceholderBounds: {
+    minHeight: MIN_GRAPH_HEIGHT,
+    maxHeight: MAX_GRAPH_HEIGHT,
+    height: MAX_GRAPH_HEIGHT,
+  },
+  graphPlaceholder: {
+    flex: 1,
+    height: '100%',
+  },
+});
+
+function resolveLabelRowBackground(
+  palette: typeof Colors.light,
+  state: { hovered: boolean; pressed: boolean },
+) {
+  if (state.pressed) {
+    return palette.background.default.secondaryPressed;
+  }
+  if (state.hovered) {
+    return palette.background.default.secondaryHover;
+  }
+  return 'transparent';
+}
+
+export const __DATA_ENTRY_TESTING__ = {
+  resolveLabelRowBackground,
+};

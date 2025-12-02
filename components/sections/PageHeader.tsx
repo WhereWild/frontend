@@ -1,3 +1,12 @@
+import {
+  IconFilter,
+  IconHelpCircle,
+  IconInfo,
+  IconSettings,
+} from '@/assets/icons';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
 import {
   Image,
@@ -8,18 +17,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import {
-  IconFilter,
-  IconHelpCircle,
-  IconInfo,
-  IconSettings,
-} from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { usePathname, useRouter } from 'expo-router';
-import { SearchInput, type SearchInputProps } from './SearchInput';
-import { Button } from './Button';
-import { ThemedText } from './ThemedText';
+import { Button } from '../buttons/Button';
+import { SearchInput, type SearchInputProps } from '../inputs/SearchInput';
+import { ThemedText } from '../text/ThemedText';
 
 // Allows callers to forward styling/behavior props to SearchInput while keeping PageHeader in control of its value.
 type SearchInputPassthroughProps = Partial<
@@ -36,7 +36,6 @@ export type PageHeaderAction = {
 export type PageHeaderProps = {
   title?: string;
   logoSource?: ImageSourcePropType;
-  onLogoPress?: () => void;
   logoAccessibilityLabel?: string;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
@@ -67,7 +66,6 @@ export function PageHeader({
   filterLabel = 'Filter',
   filterButtonAccessibilityLabel = 'Filter search results',
   style,
-  onLogoPress,
   logoAccessibilityLabel = 'Go to home',
 }: PageHeaderProps) {
   const scheme = useColorScheme();
@@ -75,11 +73,19 @@ export function PageHeader({
   const palette = Colors[mode];
   const router = useRouter();
   const pathname = usePathname();
-  const navigateToAbout = React.useCallback(() => {
-    if (pathname !== '/about') {
-      router.push('/about');
+  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
+    if (pathname !== targetPath) {
+      router.push(targetPath);
     }
   }, [pathname, router]);
+
+  const navigateHome = React.useCallback(() => {
+    navigateIfDifferent('/');
+  }, [navigateIfDifferent]);
+
+  const navigateToAbout = React.useCallback(() => {
+    navigateIfDifferent('/about');
+  }, [navigateIfDifferent]);
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
@@ -117,18 +123,14 @@ export function PageHeader({
       ]}
       accessibilityRole="header"
     >
-      {onLogoPress ? (
-        <Pressable
-          onPress={onLogoPress}
-          style={styles.logoSection}
-          accessibilityRole="link"
-          accessibilityLabel={logoAccessibilityLabel}
-        >
-          {logoContent}
-        </Pressable>
-      ) : (
-        <View style={styles.logoSection}>{logoContent}</View>
-      )}
+      <Pressable
+        onPress={navigateHome}
+        style={styles.logoSection}
+        accessibilityRole="link"
+        accessibilityLabel={logoAccessibilityLabel}
+      >
+        {logoContent}
+      </Pressable>
 
       <View style={styles.searchRow}>
         <View style={styles.searchWrapper}>
