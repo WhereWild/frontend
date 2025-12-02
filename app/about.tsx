@@ -10,21 +10,23 @@ import {
   Button,
   ButtonDanger,
   IconButton,
+  InlineExpandableRows,
+  NearbySpeciesCarousel,
   PageHeader,
   SearchInput,
   SpeciesCard,
+  SpeciesPageHeader,
   ThemedText,
 } from '@/components';
 import { Colors, Size } from '@/constants/theme';
+import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useState } from 'react';
+import Head from 'expo-router/head';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { usePathname, useRouter } from 'expo-router';
 
-const SPECIES_CARD_IMAGE = {
-  uri: 'https://www.figma.com/api/mcp/asset/4518cadf-c93e-418b-8fce-72c496cb5efb',
-} as const;
+const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -44,18 +46,16 @@ type ButtonEntry = {
   variant?: ButtonVariant;
 };
 
-type AppRoute = '/' | '/about';
-
-const noop = () => {};
+const noop = () => { };
 
 export default function About() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
   const [headerSearchQuery, setHeaderSearchQuery] = useState('');
-  const router = useRouter();
-  const pathname = usePathname();
+  const speciesSample = mountainBallCactusData;
   const buttonRows: ButtonRow[] = [
     {
       title: 'Button — Primary',
@@ -174,134 +174,152 @@ export default function About() {
     { size: 'small', disabled: true },
   ];
 
-  const navigateTo = (path: AppRoute) => {
-    if (pathname !== path) {
-      router.push(path);
-    }
-  };
-
   return (
-    <View style={[styles.screen, { backgroundColor: Colors[mode].background.default.default }]}>
-      <PageHeader
-        searchValue={headerSearchQuery}
-        onSearchChange={setHeaderSearchQuery}
-        onSubmitSearch={(value: string) =>
-          setLastSearchEvent(`Header search submitted with "${value}"`)
-        }
-        onLogoPress={() => navigateTo('/')}
-      />
+    <>
+      <Head>
+        <title>WhereWild | About</title>
+      </Head>
+      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+        <PageHeader
+          searchValue={headerSearchQuery}
+          onSearchChange={setHeaderSearchQuery}
+          onSubmitSearch={(value: string) =>
+            setLastSearchEvent(`Header search submitted with "${value}"`)
+          }
+        />
 
-      <ScrollView contentContainerStyle={styles.container}>
-        <View>
-          <ThemedText variant="heading">Species Card</ThemedText>
-          <SpeciesCard
-            commonName="Common Name"
-            scientificName="Binomial nomenclature"
-            description="Description"
-            imageSource={SPECIES_CARD_IMAGE}
-          />
-        </View>
-
-        <View>
-          <ThemedText variant="heading">Search Input</ThemedText>
+        <ScrollView contentContainerStyle={styles.container}>
           <View>
-            <SearchInput
-              value={searchQuery}
-              placeholder="Search species"
-              onQueryChange={(value) => {
-                setSearchQuery(value);
-                setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
-              }}
-              onCharacterAdd={(char, value) => {
-                setLastSearchEvent(`Added "${char}" -> ${value}`);
-              }}
-              onSubmitSearch={(value) => {
-                setLastSearchEvent(`Search submitted with "${value}"`);
-              }}
-              onClear={() => {
-                setLastSearchEvent('Search cleared');
-              }}
-              autoCorrect={false}
-              returnKeyType="search"
-              accessibilityLabel="Search species"
+            <ThemedText variant="heading">Search Input</ThemedText>
+            <View>
+              <SearchInput
+                value={searchQuery}
+                placeholder="Search species"
+                onQueryChange={(value) => {
+                  setSearchQuery(value);
+                  setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
+                }}
+                onCharacterAdd={(char, value) => {
+                  setLastSearchEvent(`Added "${char}" -> ${value}`);
+                }}
+                onSubmitSearch={(value) => {
+                  setLastSearchEvent(`Search submitted with "${value}"`);
+                }}
+                onClear={() => {
+                  setLastSearchEvent('Search cleared');
+                }}
+                autoCorrect={false}
+                returnKeyType="search"
+                accessibilityLabel="Search species"
+              />
+            </View>
+            <ThemedText variant="body">{lastSearchEvent}</ThemedText>
+            <ThemedText variant="bodyStrong">Disabled</ThemedText>
+            <View>
+              <SearchInput
+                placeholder="Search species"
+                accessibilityLabel="Search species"
+                disabled
+              />
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Species Card</ThemedText>
+            <SpeciesCard
+              commonName="Common Name"
+              scientificName="Binomial nomenclature"
+              description="Description"
+              imageSource={SPECIES_CARD_IMAGE}
             />
           </View>
-          <ThemedText variant="body">{lastSearchEvent}</ThemedText>
-          <ThemedText variant="bodyStrong">Disabled</ThemedText>
+
           <View>
-            <SearchInput
-              placeholder="Search species"
-              accessibilityLabel="Search species"
-              disabled
-            />
+            <ThemedText variant="heading">Species Page Components</ThemedText>
+            <ThemedText variant="body">
+              Preview of the composable building blocks used on the species detail page.
+            </ThemedText>
+            <View
+              style={[
+                styles.speciesPreview,
+              ]}
+            >
+              <SpeciesPageHeader
+                commonName={speciesSample.commonName}
+                scientificName={speciesSample.scientificName}
+                onPressDownload={noop}
+              />
+              <InlineExpandableRows sections={speciesSample.dataSections} />
+              <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
+            </View>
           </View>
-        </View>
 
-        <View>
-          <ThemedText variant="heading">Buttons</ThemedText>
-          {buttonRows.map(({ title, variant, buttons, danger }) => (
-            <View key={title}>
-              <ThemedText variant="bodyStrong">{title}</ThemedText>
-              <View style={styles.row}>
-                {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
-                  const buttonVariant = overrideVariant ?? variant;
+          <View>
+            <ThemedText variant="heading">Buttons</ThemedText>
+            {buttonRows.map(({ title, variant, buttons, danger }) => (
+              <View key={title}>
+                <ThemedText variant="bodyStrong">{title}</ThemedText>
+                <View style={styles.row}>
+                  {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
+                    const buttonVariant = overrideVariant ?? variant;
 
-                  if (danger) {
-                    const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+                    if (danger) {
+                      const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+                      return (
+                        <ButtonDanger
+                          key={label}
+                          size={size}
+                          variant={dangerVariant}
+                          disabled={disabled}
+                          iconStart={iconStart}
+                          iconEnd={iconEnd}
+                          onPress={noop}
+                        >
+                          {label}
+                        </ButtonDanger>
+                      );
+                    }
+
                     return (
-                      <ButtonDanger
+                      <Button
                         key={label}
                         size={size}
-                        variant={dangerVariant}
+                        variant={buttonVariant}
                         disabled={disabled}
                         iconStart={iconStart}
                         iconEnd={iconEnd}
                         onPress={noop}
                       >
                         {label}
-                      </ButtonDanger>
+                      </Button>
                     );
-                  }
+                  })}
+                </View>
+              </View>
+            ))}
 
-                  return (
-                    <Button
-                      key={label}
+            {iconButtonVariants.map(({ title, variant }) => (
+              <View key={title}>
+                <ThemedText variant="bodyStrong">{title}</ThemedText>
+                <View style={styles.row}>
+                  {iconButtonStates.map(({ size, disabled }) => (
+                    <IconButton
+                      key={`${size}-${disabled}`}
+                      variant={variant}
+                      icon={<IconStar />}
+                      accessibilityLabel="Star"
                       size={size}
-                      variant={buttonVariant}
                       disabled={disabled}
-                      iconStart={iconStart}
-                      iconEnd={iconEnd}
-                      onPress={noop}
-                    >
-                      {label}
-                    </Button>
-                  );
-                })}
+                      onPress={disabled ? undefined : noop}
+                    />
+                  ))}
+                </View>
               </View>
-            </View>
-          ))}
-
-          {iconButtonVariants.map(({ title, variant }) => (
-            <View key={title}>
-              <ThemedText variant="bodyStrong">{title}</ThemedText>
-              <View style={styles.row}>
-                {iconButtonStates.map(({ size, disabled }) => (
-                  <IconButton
-                    key={`${size}-${disabled}`}
-                    variant={variant}
-                    icon={<IconStar />}
-                    accessibilityLabel="Star"
-                    size={size}
-                    disabled={disabled}
-                    onPress={disabled ? undefined : noop}
-                  />
-                ))}
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    </>
   );
 }
 
@@ -310,14 +328,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: Size.space[600],
-    gap: Size.space[600],
+    padding: Size.space['800'],
+    gap: Size.space['800'],
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: Size.space[300],
+    gap: Size.space['300'],
     flexWrap: 'wrap',
+  },
+  speciesPreview: {
+    gap: Size.space['400'],
+    padding: Size.space['400'],
+    borderRadius: Size.radius['400'],
   },
 });

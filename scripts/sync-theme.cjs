@@ -427,7 +427,6 @@ const tokensTs =
 
 fs.writeFileSync(TARGET_TS_PATH, tokensTs, 'utf8');
 
-// Emit a summary so it's obvious what the script touched.
 // Emit a quick summary so devs know what changed without opening the file.
 const summaryParts = [
   `color primitives: ${Object.keys(resolvedColorPrimitives).length}`,

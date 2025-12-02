@@ -1,3 +1,6 @@
+import { IconImage } from '@/assets/icons';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import {
   Image,
@@ -9,10 +12,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { IconImage } from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { ThemedText } from './ThemedText';
+import { ThemedText } from '../text/ThemedText';
+
+export type SpeciesCardVariant = 'secondary' | 'tertiary';
 
 export type SpeciesCardProps = {
   commonName: string;
@@ -22,22 +24,40 @@ export type SpeciesCardProps = {
   style?: StyleProp<ViewStyle>;
   testID?: string;
   onPress?: () => void;
+  variant?: SpeciesCardVariant;
 };
 
 const IMAGE_SIZE = 128;
 const MAX_WIDTH = 440;
 
+/**
+ * Keeps 'secondary' as the default to preserve the palette used before variants existed.
+ */
 const resolveSpeciesCardBackground = (
   palette: typeof Colors.light,
   state: PressableStateCallbackType,
+  variant: SpeciesCardVariant = 'secondary',
 ) => {
+  const colors =
+    variant === 'tertiary'
+      ? {
+          default: palette.background.default.tertiary,
+          hover: palette.background.default.tertiaryHover,
+          pressed: palette.background.default.tertiaryPressed,
+        }
+      : {
+          default: palette.background.default.secondary,
+          hover: palette.background.default.secondaryHover,
+          pressed: palette.background.default.secondaryPressed,
+        };
+
   if (state.pressed) {
-    return palette.background.default.secondaryPressed;
+    return colors.pressed;
   }
   if (state.hovered) {
-    return palette.background.default.secondaryHover;
+    return colors.hover;
   }
-  return palette.background.default.secondary;
+  return colors.default;
 };
 
 export function SpeciesCard({
@@ -48,6 +68,7 @@ export function SpeciesCard({
   style,
   testID,
   onPress,
+  variant = 'secondary',
 }: SpeciesCardProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -56,7 +77,7 @@ export function SpeciesCard({
   const placeholderBackground = palette.background.neutral.default;
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
-    resolveSpeciesCardBackground(palette, state);
+    resolveSpeciesCardBackground(palette, state, variant);
 
   return (
     <Pressable
