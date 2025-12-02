@@ -1,10 +1,10 @@
+import { Colors } from '@/constants/theme';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import { ButtonDanger, __BUTTON_DANGER_TESTING__ } from '../ButtonDanger';
-import type { ButtonDangerVariant, ButtonDangerSize } from '../ButtonDanger';
-import { Colors } from '@/constants/theme';
-import { ThemedText } from '../ThemedText';
+import type { ButtonDangerSize, ButtonDangerVariant } from '../buttons/ButtonDanger';
+import { ButtonDanger, __BUTTON_DANGER_TESTING__ } from '../buttons/ButtonDanger';
+import { ThemedText } from '../text/ThemedText';
 
 const createIconProbe = () => {
   const calls: { color?: string }[] = [];
@@ -78,7 +78,7 @@ describe('ButtonDanger Component', () => {
   });
 
   describe('Icons', () => {
-    const iconSource = require('../../assets/images/react-logo.png');
+    const iconSource = require('../../assets/images/placeholder.png');
 
     it('renders asset iconStart when provided', () => {
       render(
@@ -128,7 +128,7 @@ describe('ButtonDanger Component', () => {
         </ButtonDanger>
       );
 
-      expect(calls.at(-1)?.color).toBe(Colors.light.icon.danger.onDanger);
+      expect(calls.at(-1)?.color).toBe(Colors.dark.icon.danger.onDanger);
     });
 
     it('respects supplied icon color for danger buttons', () => {
@@ -244,14 +244,30 @@ describe('ButtonDanger Component', () => {
     });
 
     it('uses pressed danger background token', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'light', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.danger.pressed);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'dark', true, false, false);
+      expect(computed.backgroundColor).toBe(Colors.dark.background.danger.pressed);
     });
 
     it('uses hover colors for subtle danger variant', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'light', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.danger.secondaryHover);
-      expect(computed.iconColor).toBe(Colors.light.icon.danger.onDangerSecondary);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'dark', false, true, false);
+      expect(computed.backgroundColor).toBe(Colors.dark.background.danger.secondaryHover);
+      expect(computed.iconColor).toBe(Colors.dark.icon.danger.onDangerSecondary);
+    });
+
+    it('locks disabled palette across variants and modes', () => {
+      const lightDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'light', true, true, true);
+      expect(lightDisabled.backgroundColor).toBe(Colors.light.background.disabled.default);
+      expect(lightDisabled.color).toBe(Colors.light.text.disabled.onDisabled);
+      expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
+      expect(lightDisabled.borderColor).toBe('transparent');
+      expect(lightDisabled.borderWidth).toBe(0);
+
+      const darkDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'dark', false, false, true);
+      expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
+      expect(darkDisabled.color).toBe(Colors.dark.text.disabled.onDisabled);
+      expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
+      expect(darkDisabled.borderColor).toBe('transparent');
+      expect(darkDisabled.borderWidth).toBe(0);
     });
   });
 
