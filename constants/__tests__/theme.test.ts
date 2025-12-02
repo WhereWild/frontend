@@ -161,29 +161,29 @@ describe('Theme Tokens', () => {
     });
 
     it('has space tokens with numeric keys', () => {
-      expect(Size.space[0]).toBe(0);
-      expect(Size.space[200]).toBe(8);
-      expect(Size.space[300]).toBe(12);
-      expect(Size.space[400]).toBe(16);
-      expect(Size.space[600]).toBe(24);
-      expect(Size.space[800]).toBe(32);
+      expect(Size.space['0']).toBe(0);
+      expect(Size.space['200']).toBe(8);
+      expect(Size.space['300']).toBe(12);
+      expect(Size.space['400']).toBe(16);
+      expect(Size.space['600']).toBe(24);
+      expect(Size.space['800']).toBe(32);
     });
 
     it('converts rem to pixels correctly (16px base)', () => {
       // 0.5rem = 8px
-      expect(Size.space[200]).toBe(8);
+      expect(Size.space['200']).toBe(8);
       // 0.75rem = 12px
-      expect(Size.space[300]).toBe(12);
+      expect(Size.space['300']).toBe(12);
       // 1rem = 16px
-      expect(Size.space[400]).toBe(16);
+      expect(Size.space['400']).toBe(16);
       // 1.5rem = 24px
-      expect(Size.space[600]).toBe(24);
+      expect(Size.space['600']).toBe(24);
     });
 
     it('has radius tokens', () => {
-      expect(Size.radius[100]).toBe(4);
-      expect(Size.radius[200]).toBe(8);
-      expect(Size.radius[400]).toBe(16);
+      expect(Size.radius['100']).toBe(4);
+      expect(Size.radius['200']).toBe(8);
+      expect(Size.radius['400']).toBe(16);
     });
 
     it('has icon size tokens', () => {
@@ -203,18 +203,18 @@ describe('Theme Tokens', () => {
 
     it('has depth tokens for shadows', () => {
       expect(Size.depth).toBeDefined();
-      expect(Size.depth[0]).toBe(0);
+      expect(Size.depth['0']).toBe(0);
     });
 
     it('exports numbers not strings', () => {
-      expect(typeof Size.space[200]).toBe('number');
-      expect(typeof Size.radius[200]).toBe('number');
+      expect(typeof Size.space['200']).toBe('number');
+      expect(typeof Size.radius['200']).toBe('number');
       expect(typeof Size.stroke.border).toBe('number');
     });
 
     it('derives values directly from the size tokens map', () => {
-      expect(Size.space[400]).toBe(parseFloat(wdsSizeTokens['wds-size-space-400']) * 16);
-      expect(Size.radius[200]).toBe(parseFloat(wdsSizeTokens['wds-size-radius-200']) * 16);
+      expect(Size.space['400']).toBe(parseFloat(wdsSizeTokens['wds-size-space-400']) * 16);
+      expect(Size.radius['200']).toBe(parseFloat(wdsSizeTokens['wds-size-radius-200']) * 16);
       expect(Size.depthNegative['negative-025']).toBe(
         parseFloat(wdsSizeTokens['wds-size-depth-negative-025']) * 16,
       );
@@ -240,7 +240,7 @@ describe('Theme Tokens', () => {
       expect(Colors.light.background.brand.default).toMatch(/^#[0-9a-f]{6}$/i);
       
       // Size tokens should be numbers
-      expect(typeof Size.space[400]).toBe('number');
+      expect(typeof Size.space['400']).toBe('number');
       
       // Typography should have valid font properties
       expect(typeof Typography.light.body.fontFamily).toBe('string');

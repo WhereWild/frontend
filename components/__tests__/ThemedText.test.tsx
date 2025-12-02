@@ -1,7 +1,7 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react-native';
-import { ThemedText } from '../ThemedText';
 import { useTypographyStyles } from '@/hooks/useTypographyStyles';
+import { render, screen } from '@testing-library/react-native';
+import React from 'react';
+import { ThemedText } from '../text/ThemedText';
 
 jest.mock('@/hooks/useTypographyStyles');
 
@@ -37,5 +37,23 @@ describe('ThemedText', () => {
         expect.objectContaining({ textTransform: 'uppercase' }),
       ])
     );
+  });
+
+  it('warns and falls back when an unknown variant is provided', () => {
+    const originalDev = __DEV__;
+    (global as any).__DEV__ = true;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    render(
+      <ThemedText variant={'mystery' as any}>
+        Unknown
+      </ThemedText>,
+    );
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'ThemedText: unknown variant "mystery". Falling back to "body".',
+    );
+    warnSpy.mockRestore();
+    (global as any).__DEV__ = originalDev;
   });
 });

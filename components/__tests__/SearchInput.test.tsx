@@ -1,8 +1,8 @@
-import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
-import { SearchInput, __SEARCH_INPUT_TESTING__ } from '../SearchInput';
 import { Typography } from '@/constants/theme';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import React from 'react';
+import { StyleSheet } from 'react-native';
+import { SearchInput, __SEARCH_INPUT_TESTING__ } from '../inputs/SearchInput';
 
 describe('SearchInput', () => {
   it('renders placeholder text', () => {

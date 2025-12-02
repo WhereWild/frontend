@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import { PageHeader } from '../PageHeader';
+import { PageHeader } from '../sections/PageHeader';
 import { IconHelpCircle } from '@/assets/icons';
 
 const mockPush = jest.fn();
@@ -57,17 +57,21 @@ describe('PageHeader', () => {
     expect(handlePress).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onLogoPress when the logo is pressed', () => {
-    const handleLogoPress = jest.fn();
-    render(
-      <PageHeader
-        onLogoPress={handleLogoPress}
-        logoAccessibilityLabel="Go home"
-      />,
-    );
+  it('navigates home when logo is pressed from another page', () => {
+    mockPathname = '/about';
+    render(<PageHeader />);
 
-    fireEvent.press(screen.getByLabelText('Go home'));
-    expect(handleLogoPress).toHaveBeenCalledTimes(1);
+    const logoLink = screen.getByLabelText('Go to home');
+    expect(logoLink.props.accessibilityRole).toBe('link');
+    fireEvent.press(logoLink);
+    expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('does not navigate when already on the home page', () => {
+    render(<PageHeader />);
+
+    fireEvent.press(screen.getByLabelText('Go to home'));
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('invokes filter handler when filter button is pressed', () => {

@@ -6,21 +6,29 @@
 import type { TextStyle } from 'react-native';
 
 import {
-    wdsSemanticTokens,
-    wdsSizeTokens,
-    wdsStyleTokens,
-    wdsTypographyPrimitiveTokens,
-    wdsTypographyTokens,
+  wdsResponsiveTokens,
+  wdsSemanticTokens,
+  wdsSizeTokens,
+  wdsStyleTokens,
+  wdsTypographyPrimitiveTokens,
+  wdsTypographyTokens,
 } from './wdsTokens';
 
 // Style typography tokens reference primitive tokens (e.g. var(--wds-typography-body-size-medium)),
 // so build a lookup map we can use to swap those placeholders for their concrete values.
-const cssVariableMap = Object.fromEntries(
-  Object.entries({
+const cssVariableMap = Object.fromEntries([
+  ...Object.entries({
     ...wdsTypographyPrimitiveTokens,
     ...wdsTypographyTokens,
   }).map(([key, value]) => [`--${key}`, value]),
-);
+  ...Object.entries(wdsSizeTokens).flatMap(([key, value]) => {
+    const normalizedKey = key.replace(/^wds-/, '');
+    return [
+      [`--${key}`, value],
+      [`--@${normalizedKey}`, value],
+    ];
+  }),
+]);
 
 // Replace each CSS variable reference inside the font shorthand string with its literal value.
 const resolveCssVariables = (value: string) =>
@@ -72,6 +80,11 @@ const makePalette = (mode: 'light' | 'dark') => ({
       default: wdsSemanticTokens[mode]['wds-color-border-default-default'],
       secondary: wdsSemanticTokens[mode]['wds-color-border-default-secondary'],
       tertiary: wdsSemanticTokens[mode]['wds-color-border-default-tertiary'],
+    },
+    brand: {
+      default: wdsSemanticTokens[mode]['wds-color-border-brand-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-border-brand-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-border-brand-tertiary'],
     },
     danger: {
       default: wdsSemanticTokens[mode]['wds-color-border-danger-default'],
@@ -179,7 +192,7 @@ const getExpoFontName = (family: string, weight: string) =>
 // rem units are used across typography and size tokens in the design system.
 // React Native expects pixel values, so we convert rem -> px using a 16px base.
 // This single helper is reused for font sizes and all size-related tokens to keep consistency.
-const remToPx = (rem: string) => parseFloat(rem) * 16;
+const remToPx = (rem: string) => parseFloat(resolveCssVariables(rem)) * 16;
 
 // Function to parse CSS font shorthand into React Native style object
 const parseFontShorthand = (
@@ -254,6 +267,14 @@ export const Size = {
 } as const;
 
 export type SizeGroup = typeof Size;
+
+// Layout-related responsive tokens live outside the size system; expose the ones we can use in RN layouts.
+// Will need updates as mobile-specific responsive tokens are added to the design system.
+export const Responsive = {
+  contentWidth: remToPx(wdsResponsiveTokens.desktop['wds-responsive-content-width']),
+  textWidth: remToPx(wdsResponsiveTokens.desktop['wds-responsive-text-width']),
+  marginHorizontal: remToPx(wdsResponsiveTokens.mobile['wds-responsive-margin-horizontal']),
+} as const;
 
 // Internal helpers are exported for targeted unit tests to ensure token parsing stays stable.
 export const themeInternals = {
