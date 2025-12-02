@@ -30,4 +30,14 @@ describe('useColorScheme (web)', () => {
       expect(result.current).toBe('dark');
     });
   });
+
+  it('falls back to the default when the native value is missing after hydration', async () => {
+    mockRNHook.mockReturnValue(undefined);
+
+    const { result } = renderHook(() => useColorScheme());
+
+    await waitFor(() => {
+      expect(result.current).toBe('dark');
+    });
+  });
 });

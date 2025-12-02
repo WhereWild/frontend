@@ -1,10 +1,10 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import { IconButton , __ICON_BUTTON_TESTING__ } from '../IconButton';
-import type { IconButtonVariant, IconButtonSize } from '../IconButton';
-import { Image } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
-import { ThemedText } from '../ThemedText';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import React from 'react';
+import { Image } from 'react-native';
+import type { IconButtonSize, IconButtonVariant } from '../buttons/IconButton';
+import { IconButton, __ICON_BUTTON_TESTING__ } from '../buttons/IconButton';
+import { ThemedText } from '../text/ThemedText';
 
 // Mock icon component for testing
 const MockIcon = () => <ThemedText>Icon</ThemedText>;
@@ -98,7 +98,7 @@ describe('IconButton Component', () => {
   });
 
   describe('Icons', () => {
-    const iconSource = require('../../assets/images/react-logo.png');
+    const iconSource = require('../../assets/images/placeholder.png');
 
     it('renders asset icon node inside the button', () => {
       render(
@@ -133,7 +133,7 @@ describe('IconButton Component', () => {
 
       expect(calls.at(-1)).toEqual(
         expect.objectContaining({
-          color: Colors.light.icon.brand.onBrand,
+          color: Colors.dark.icon.brand.onBrand,
           size: '20',
         })
       );
@@ -290,22 +290,32 @@ describe('IconButton Component', () => {
     });
 
     it('applies pressed brand background token for primary variant', () => {
-      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles('primary', 'light', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.brand.pressed);
+      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles('primary', 'dark', true, false, false);
+      expect(computed.backgroundColor).toBe(Colors.dark.background.brand.pressed);
     });
 
     it('uses neutral hover token for neutral variant', () => {
-      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles('neutral', 'light', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.neutral.secondaryHover);
-      expect(computed.iconColor).toBe(Colors.light.icon.neutral.onNeutralSecondary);
+      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles('neutral', 'dark', false, true, false);
+      expect(computed.backgroundColor).toBe(Colors.dark.background.neutral.secondaryHover);
+      expect(computed.iconColor).toBe(Colors.dark.icon.neutral.onNeutralSecondary);
     });
 
     it('keeps subtle variant transparent idle but swaps tokens on hover', () => {
-      const idle = __ICON_BUTTON_TESTING__.computeVariantStyles('subtle', 'light', false, false, false);
-      const hover = __ICON_BUTTON_TESTING__.computeVariantStyles('subtle', 'light', false, true, false);
+      const idle = __ICON_BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, false, false);
+      const hover = __ICON_BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, true, false);
       expect(idle.backgroundColor).toBe('transparent');
-      expect(hover.backgroundColor).toBe(Colors.light.background.neutral.tertiaryHover);
-      expect(hover.iconColor).toBe(Colors.light.icon.neutral.onNeutralTertiary);
+      expect(hover.backgroundColor).toBe(Colors.dark.background.neutral.tertiaryHover);
+      expect(hover.iconColor).toBe(Colors.dark.icon.neutral.onNeutralTertiary);
+    });
+
+    it('falls back to disabled palette regardless of variant', () => {
+      const lightDisabled = __ICON_BUTTON_TESTING__.computeVariantStyles('primary', 'light', false, false, true);
+      expect(lightDisabled.backgroundColor).toBe(Colors.light.background.disabled.default);
+      expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
+
+      const darkDisabled = __ICON_BUTTON_TESTING__.computeVariantStyles('neutral', 'dark', true, true, true);
+      expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
+      expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
     });
   });
 
@@ -313,14 +323,14 @@ describe('IconButton Component', () => {
     it('falls back to default palette for unknown variants', () => {
       const computed = __ICON_BUTTON_TESTING__.computeVariantStyles(
         'unknown' as IconButtonVariant,
-        'light',
+        'dark',
         false,
         false,
         false,
       );
 
-      expect(computed.backgroundColor).toBe(Colors.light.background.default.default);
-      expect(computed.iconColor).toBe(Colors.light.icon.default.default);
+      expect(computed.backgroundColor).toBe(Colors.dark.background.default.default);
+      expect(computed.iconColor).toBe(Colors.dark.icon.default.default);
     });
 
     it('returns raw node when icon is not a React element', () => {

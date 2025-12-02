@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, TextStyle, View, ViewStyle } from 'react-native';
-import { Colors, Size } from '../constants/theme';
-import { useColorScheme } from '../hooks/useColorScheme';
-import { ThemedText } from './ThemedText';
+import { Colors, Size } from '../../constants/theme';
+import { useColorScheme } from '../../hooks/useColorScheme';
+import { ThemedText } from '../text/ThemedText';
 
 // Variants aligned with Figma design system Button component
 export type ButtonVariant = 'primary' | 'neutral' | 'subtle';
