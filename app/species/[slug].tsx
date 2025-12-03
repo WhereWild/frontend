@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, ScrollView, Image, ActivityIndicator, StyleSheet, Text } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { PageHeader, Button, IconButton, ThemedText } from '@/components';
-import { IconDownload, IconArrowRight } from '@/assets/icons';
-import { Colors, Typography, Size } from '@/constants/theme';
+import { View, ScrollView, Image, StyleSheet } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { PageHeader, InlineExpandableRows, NearbySpeciesCarousel, ThemedText, SpeciesPageHeader } from '@/components';
+import { Colors, Size, Responsive } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { fetchSpeciesBySlug } from '@/data/api';
 
@@ -15,8 +14,8 @@ type SpeciesBasics = {
   description?: string;
 };
 
+
 export default function SpeciesBasicsPage() {
-  const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
   const colorScheme = useColorScheme();
@@ -26,6 +25,7 @@ export default function SpeciesBasicsPage() {
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
 
   React.useEffect(() => {
     let mounted = true;
@@ -60,193 +60,177 @@ export default function SpeciesBasicsPage() {
         imageSource = { uri: data.image_url }; // <-- use backend-provided URL
         }
   }
+    const dataSections = [
+    {
+      title: 'Overview',
+      entries: [
+        { dataName: 'Average elevation', dataPoint: '2000 m', expandable: false },
+        {
+          dataName: 'Average precipitation',
+          dataPoint: '39.4 cm',
+          details: [
+            { label: 'Median rainfall (spring)', value: '32 cm' },
+            { label: 'Median rainfall (summer)', value: '24 cm' },
+            { label: 'Median rainfall (autumn)', value: '41 cm' },
+            { label: 'Median rainfall (winter)', value: '61 cm' },
+          ],
+        },
+      ],
+    },
+    {
+      title: 'Habitat',
+      entries: [
+        { dataName: 'Common climate', dataPoint: 'desert', expandable: false },
+        {
+          dataName: 'Common soil',
+          dataPoint: 'loose',
+          details: [
+            { label: 'Soil moisture', value: 'Low' },
+            { label: 'Drainage', value: 'Fast' },
+            { label: 'pH tolerance', value: 'Neutral to alkaline' },
+            { label: 'Organic matter', value: 'Sparse' },
+          ],
+        },
+      ],
+    },
+    {
+      title: 'Phenology',
+      entries: [
+        {
+          dataName: 'Flowering season',
+          dataPoint: 'May to June',
+          details: [
+            { label: 'Flowering peak', value: 'Late May' },
+            { label: 'Seed set', value: 'Early June' },
+            { label: 'Dormancy', value: 'Late summer' },
+          ],
+        },
+        { dataName: 'Fruiting season', dataPoint: 'varies', expandable: false },
+      ],
+    },
+  ];
+
+  const nearbySpecies = [
+    {
+      commonName: 'Utah Juniper',
+      scientificName: 'Juniperus osteosperma',
+      description: 'Evergreen shrub or small tree adapted to high desert plateaus.',
+    },
+    {
+      commonName: 'Sagebrush',
+      scientificName: 'Artemisia tridentata',
+      description: 'Shrub with aromatic foliage often co-occurring with alpine cacti.',
+    },
+    {
+      commonName: 'Colorado Pinyon',
+      scientificName: 'Pinus edulis',
+      description: 'Slow-growing pine producing edible nuts favored by wildlife.',
+    },
+    {
+      commonName: 'Sweat Bees',
+      scientificName: 'Halictidae',
+      description: 'Important pollinators that frequent cactus blooms in early summer.',
+    },
+  ]
+ const heatmapImage = require('@/assets/images/Local_Map.png');
+
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
               <PageHeader/>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Button
-          variant="neutral"
-          size="small"
-          iconStart={<IconDownload />}
-          style={styles.downloadButton}
-          label="Download"
-          onPress={() => console.log('download', data.common_name)}
-        />
-
-        <Text style={[Typography[mode].heading, styles.title]}>{data.common_name}</Text>
-        <Text style={[Typography[mode].body, styles.idText]}>{data.scientific_name}</Text>
-
-        <View
-          style={{
-            height: 1,
-            backgroundColor: Typography[mode].heading.color,
-            marginVertical: Size.space['400'],
-            width: '100%',
-          }}
-        />
-
-        <View style={{ flexDirection: 'row' }}>
-          <Image
-            source={imageSource ?? { uri: 'https://via.placeholder.com/600x400?text=No+image' }}
-            style={styles.image}
-            resizeMode="contain"
-            accessibilityLabel={`${data.common_name} image`}
-          />
-
-          <DetailsCard
-            palette={palette}
-            mode={mode}
-            items={[
-              { label: 'Avg. elevation', value: '2000 m' },
-              { label: 'Avg. precipitation', value: '39.4 cm' },
-              { label: 'Common climate', value: 'desert' },
-              { label: 'Preferred weather', value: 'N/A' },
-            ]}
-          />
-        </View>
-
-        {data.description ? (
-          <Text style={[Typography[mode].body, styles.body]}>{data.description}</Text>
-        ) : null}
-      </ScrollView>
-    </View>
-  );
-}
-
-function DetailsCard({
-  items,
-  palette,
-  mode,
-}: {
-  items: { label: string; value?: string }[];
-  palette: typeof Colors['light'];
-  mode: 'light' | 'dark';
-}) {
-  const [expandedIndex, setExpandedIndex] = React.useState<number | null>(null);
-  const toggle = (i: number) => setExpandedIndex((prev) => (prev === i ? null : i));
-
-  return (
-    <View style={[styles.detailsCard, { backgroundColor: palette.background.default.default }]}>
-      {items.map((it, i) => {
-        const expanded = expandedIndex === i;
-        return (
-          <View key={i}>
-            <View style={styles.detailRow}>
-              <View style={styles.detailText}>
-                <Text style={[Typography[mode].body, styles.detailLabel]} numberOfLines={1}>
-                  {it.label}
-                </Text>
-                {it.value ? (
-                  <Text style={[Typography[mode].body, styles.detailValue]} numberOfLines={1}>
-                    {it.value}
-                  </Text>
-                ) : null}
+      <ScrollView contentContainerStyle={styles.content} bounces={false}>
+                <SpeciesPageHeader
+                  commonName={data.common_name}
+                  scientificName={data.scientific_name}
+                />
+      
+<View style={styles.centeredSection}>
+            <View style={styles.sectionContent}>
+              <View style={styles.overviewSection}>
+                <View style={styles.overviewText}>
+                  <ThemedText variant="heading">Overview</ThemedText>
+                  <ThemedText variant="body">{data.description}</ThemedText>
+                </View>
+                <View style={styles.featuredImageWrapper}>
+                  <Image
+                    source={imageSource}
+                    style={[styles.featuredImage]}
+                    resizeMode="cover"
+                    accessibilityLabel={`${data.common_name} featured image`}
+                  />
+                </View>
               </View>
-
-              <IconButton
-                variant="neutral"
-                size="small"
-                icon={<IconArrowRight />}
-                accessibilityLabel={expanded ? `Collapse ${it.label}` : `Open ${it.label}`}
-                onPress={() => toggle(i)}
-                style={styles.rowButton}
-              />
             </View>
-
-            {expanded ? (
-              <View style={[styles.menu, { backgroundColor: palette.background.default.default }]}>
-                <Text
-                  style={[Typography[mode].body, styles.menuItem]}
-                  onPress={() => console.log('view', it.label)}
-                >
-                  View details
-                </Text>
-              </View>
-            ) : null}
           </View>
-        );
-      })}
-    </View>
+
+          <View style={styles.centeredSection}>
+            <View style={styles.sectionContent}>
+              <InlineExpandableRows sections={dataSections} />
+            </View>
+          </View>
+          <NearbySpeciesCarousel species={nearbySpecies} />
+
+          <View style={styles.heatMapSection}>
+            <View style={[styles.sectionContent]}>
+              <ThemedText variant="heading">Heat Map</ThemedText>
+            </View>
+            <Image
+              source={heatmapImage}
+              resizeMode="cover"
+              style={styles.heatmap}
+              accessibilityLabel="Predicted sightings heat map"
+            />
+          </View>
+        </ScrollView>
+      </View>
   );
 }
+
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  container: {
-    paddingHorizontal: Size.space['1600'],
-    paddingTop: Size.space['800'],
-    paddingBottom: Size.space['800'],
-  },
-  downloadButton: {
-    position: 'absolute',
-    top: 30,
-    right: 24,
-    zIndex: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  idText: {
-    color: '#666',
-    marginBottom: 12,
-  },
-  image: {
-    width: '40%',
-    height: 360,
-    borderRadius: 8,
-    marginBottom: 12,
-    backgroundColor: '#00000008', // helps visually if image fails
-  },
-  body: {
-    fontSize: 16,
-    marginLeft: -20,
-  },
-  detailsCard: {
-    width: '20%',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#00000006',
-    overflow: 'hidden',
-    marginBottom: Size.space['400'],
-    marginLeft: Size.space['600'],
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#00000004',
-  },
-  detailText: {
+  screen: {
     flex: 1,
-    paddingRight: 8,
   },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+  content: {
+    width: '100%',
+    paddingTop: Size.space['800'],
+    gap: Size.space['800'],
   },
-  detailValue: {
-    fontSize: 13,
-    color: '#666666',
-    marginTop: 2,
+  centeredSection: {
+    width: '100%',
+    alignItems: 'center',
   },
-  menu: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#00000004',
+  sectionContent: {
+    width: '100%',
+    maxWidth: Responsive.contentWidth,
+    gap: Size.space['800'],
+    paddingHorizontal: Responsive.marginHorizontal,
   },
-  menuItem: {
-    paddingVertical: 8,
+  overviewSection: {
+    flexDirection: 'row',
+    gap: Size.space['400'],
+    flexWrap: 'wrap',
   },
-  rowButton: {
-    padding: 6,
-    marginLeft: 8,
-    alignSelf: 'center',
+  overviewText: {
+    flex: 1,
+    minWidth: 280,
+    gap: Size.space['200'],
+  },
+  featuredImageWrapper: {
+    flex: 1,
+    minWidth: 280,
+    maxWidth: 600,
+  },
+  featuredImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: Size.radius['400'],
+  },
+  heatMapSection: {
+    gap: Size.space['400'],
+  },
+  heatmap: {
+    width: '100%',
+    aspectRatio: 1440 / 810,
   },
 });

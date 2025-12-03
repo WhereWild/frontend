@@ -68,39 +68,3 @@ export async function fetchSpeciesBySlug(slug: string) {
     description: item.description ?? 'description pending',
   };
 }
-export async function fetchSpeciesByCommonName(commonName: string) {
-  if (!commonName) throw new Error('commonName is required');
-  // Use the list endpoint with q= to get candidates, then exact-match locally.
-  const params = new URLSearchParams();
-  params.set('q', commonName);
-  // we don't need many results; 50 is a safe upper bound
-  params.set('limit', '50');
-  const url = `${BACKEND_BASE}/api/species/by_name?name=${encodeURIComponent(commonName)}`;
-  console.log("fetchSpeciesByCommonName -> url:", url);
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch candidates for ${commonName}: ${res.status} ${txt}`);
-  }
-  const data: any[] = await res.json();
-
-  // case-insensitive exact match on common_name or scientific_name
-  const target = data.find((it) => {
-    const cn = (it.common_name ?? '').toString().trim().toLowerCase();
-    const sn = (it.scientific_name ?? '').toString().trim().toLowerCase();
-    const q = commonName.trim().toLowerCase();
-    return cn === q || sn === q;
-  });
-
-  if (!target) {
-    // not found; return null for caller to handle
-    return null;
-  }
-
-  const normalized = normalizeToJsonShape(target);
-  return {
-    ...normalized,
-    description: (target.description ?? 'descriptions pending'),
-  };
-}

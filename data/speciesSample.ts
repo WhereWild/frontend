@@ -5,12 +5,12 @@ const HEATMAP = { uri: 'https://www.figma.com/api/mcp/asset/7d50c2fc-2baf-4a64-a
 
 export const mountainBallCactusData: SpeciesPageData = {
   id: 'mountain-ball-cactus',
-  common_name: 'Mountain Ball Cactus',
-  scientific_name: 'Pediocactus simpsonii',
+  commonName: 'Mountain Ball Cactus',
+  scientificName: 'Pediocactus simpsonii',
   overview: {
     description:
       'Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States. It can be found at higher elevations than any other cactus in North America. While not a landscape dominating plant, it is a relatively common species and the most common member of the genus Pediocactus. Because of its beauty and adaptation to cold environments it is sometimes grown by gardeners in areas that have few other choices due to the limited number of cactuses with cold adaptations. Like many cactuses its populations are sometimes threatened by this desirability due to the theft or removal of plants from the wild by collectors.',
-    image_source: FEATURED_IMAGE,
+    imageSource: FEATURED_IMAGE,
   },
   dataSections: [
     {
@@ -63,27 +63,27 @@ export const mountainBallCactusData: SpeciesPageData = {
   ],
   nearbySpecies: [
     {
-      common_name: 'Utah Juniper',
-      scientific_name: 'Juniperus osteosperma',
+      commonName: 'Utah Juniper',
+      scientificName: 'Juniperus osteosperma',
       description: 'Evergreen shrub or small tree adapted to high desert plateaus.',
     },
     {
-      common_name: 'Sagebrush',
-      scientific_name: 'Artemisia tridentata',
+      commonName: 'Sagebrush',
+      scientificName: 'Artemisia tridentata',
       description: 'Shrub with aromatic foliage often co-occurring with alpine cacti.',
     },
     {
-      common_name: 'Colorado Pinyon',
-      scientific_name: 'Pinus edulis',
+      commonName: 'Colorado Pinyon',
+      scientificName: 'Pinus edulis',
       description: 'Slow-growing pine producing edible nuts favored by wildlife.',
     },
     {
-      common_name: 'Sweat Bees',
-      scientific_name: 'Halictidae',
+      commonName: 'Sweat Bees',
+      scientificName: 'Halictidae',
       description: 'Important pollinators that frequent cactus blooms in early summer.',
     },
   ],
   heatmap: {
-    image_source: HEATMAP,
+    imageSource: HEATMAP,
   },
 };

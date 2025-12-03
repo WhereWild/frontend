@@ -15,16 +15,16 @@ import {
 import { ThemedText } from '../text/ThemedText';
 import { useRouter } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
-import { fetchSpeciesByCommonName, fetchSpeciesBySlug } from '@/data/api';
+import {fetchSpeciesBySlug } from '@/data/api';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 
 type SpeciesCardProps = {
   taxon_id?: number;
   slug?: string;
-  common_name: string;
-  scientific_name: string;
+  commonName: string;
+  scientificName: string;
   description: string;
-  image_source?: ImageSourcePropType;
+  imageSource?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   onPress?: () => void;
@@ -65,10 +65,10 @@ const resolveSpeciesCardBackground = (
 };
 
 export function SpeciesCard({
-  common_name,
-  scientific_name,
+  commonName,
+  scientificName,
   description,
-  image_source,
+  imageSource,
   style,
   testID,
   onPress,
@@ -88,8 +88,8 @@ export function SpeciesCard({
       onPress();
       return;
     }
-    if (common_name){ 
-      const found = await fetchSpeciesBySlug(common_name);
+    if (commonName){ 
+      const found = await fetchSpeciesBySlug(commonName);
       if (found && found.common_name){
         const encoded = encodeURIComponent(found.common_name);
 
@@ -103,7 +103,7 @@ export function SpeciesCard({
     <Pressable
       onPress={handlePress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${common_name}. ${scientific_name}. ${description}`}
+      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
       testID={testID}
       style={(state) => [
         styles.container,
@@ -117,16 +117,16 @@ export function SpeciesCard({
       <View
         style={[
           styles.imageWrapper,
-          !image_source && { backgroundColor: placeholderBackground },
+          !imageSource && { backgroundColor: placeholderBackground },
         ]}
       >
-        {image_source ? (
+        {imageSource ? (
           <Image
             testID="species-card-image"
-            source={image_source}
+            source={imageSource}
             style={styles.image}
             resizeMode="cover"
-            accessibilityLabel={`${common_name} habitat`}
+            accessibilityLabel={`${commonName} habitat`}
           />
         ) : (
           <View
@@ -141,10 +141,10 @@ export function SpeciesCard({
       <View style={styles.textSection}>
         <View>
           <ThemedText variant="subheading" numberOfLines={1} accessibilityRole="header">
-            {common_name}
+            {commonName}
           </ThemedText>
           <ThemedText variant="bodySmallEmphasis" numberOfLines={1}>
-            {scientific_name}
+            {scientificName}
           </ThemedText>
         </View>
 
