@@ -38,7 +38,9 @@ export function NearbySpeciesCarousel({
         style,
       ]}
     >
-      <ThemedText variant="heading">Nearby Species</ThemedText>
+      <View style={styles.headingRow}>
+        <ThemedText variant="heading">Nearby Species</ThemedText>
+      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -61,11 +63,14 @@ export function NearbySpeciesCarousel({
 
 const styles = StyleSheet.create({
   container: {
-    paddingLeft: Responsive.marginHorizontal,
     paddingTop: Size.space['400'],
+  },
+  headingRow: {
+    paddingHorizontal: Responsive.marginHorizontal
   },
   row: {
     flexDirection: 'row',
+    paddingHorizontal: Responsive.marginHorizontal,
     paddingVertical: Size.space['400'],
     gap: Size.space['800'],
   },
