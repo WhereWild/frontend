@@ -111,10 +111,12 @@ export function DataEntry({
                 <View
                   style={[
                     styles.graphPlaceholder,
-                    { backgroundColor: palette.background.default.tertiary },
+                    { 
+                      backgroundColor: palette.background.default.tertiary, 
+                      pointerEvents: 'none'
+                    },
                   ]}
                   testID="data-entry-graph-placeholder"
-                  pointerEvents="none"
                 />
               )}
             </View>
