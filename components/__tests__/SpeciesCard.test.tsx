@@ -4,7 +4,7 @@ import React from 'react';
 import { PressableStateCallbackType, StyleSheet } from 'react-native';
 import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../cards/SpeciesCard';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { fetchSpeciesBySlug } from '@/data/api';
+import { fetchSpeciesByTaxonId } from '@/data/api';
 import { useRouter } from 'expo-router';
 import type { Router } from 'expo-router';
 
@@ -13,7 +13,7 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 jest.mock('@/data/api', () => ({
-  fetchSpeciesBySlug: jest.fn(),
+  fetchSpeciesByTaxonId: jest.fn(),
 }));
 
 jest.mock('expo-router', () => ({
@@ -21,7 +21,7 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
-const mockFetchSpeciesBySlug = fetchSpeciesBySlug as jest.MockedFunction<typeof fetchSpeciesBySlug>;
+const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 
 let pushMock: jest.Mock;
@@ -51,12 +51,11 @@ const createPressableState = (
   hovered: state.hovered ?? false,
 });
 
-type FetchSpeciesResponse = Awaited<ReturnType<typeof fetchSpeciesBySlug>>;
+type FetchSpeciesResponse = Awaited<ReturnType<typeof fetchSpeciesByTaxonId>>;
 const buildFetchResponse = (overrides: Partial<FetchSpeciesResponse> = {}): FetchSpeciesResponse => ({
-  taxon_id: null,
-  slug: null,
-  scientific_name: '',
-  common_name: '',
+  taxon_id: 4242,
+  scientific_name: 'Resolved Scientific',
+  common_name: 'Resolved Common',
   image_source: null,
   _raw: {},
   description: 'description pending',
@@ -69,10 +68,11 @@ describe('SpeciesCard', () => {
     pushMock = jest.fn();
     routerStub = createRouterStub({ push: pushMock as Router['push'] });
     mockUseRouter.mockReturnValue(routerStub);
-    mockFetchSpeciesBySlug.mockReset();
+    mockFetchSpeciesByTaxonId.mockReset();
   });
 
   const baseProps = {
+    taxonId: 555,
     commonName: 'Common Name',
     scientificName: 'Binomial nomenclature',
     description: 'Description',
@@ -161,11 +161,11 @@ describe('SpeciesCard', () => {
   });
 
   it('fetches species data and navigates when no onPress is supplied', async () => {
-    mockFetchSpeciesBySlug.mockResolvedValue(
+    mockFetchSpeciesByTaxonId.mockResolvedValue(
       buildFetchResponse({
-        common_name: 'Snowy Owl',
-        description: 'Large white owl adapted to Arctic climates.',
-        image_source: 'https://example.com/owl.png',
+        taxon_id: 777,
+        scientific_name: 'Strix nebulosa',
+        description: 'Large gray owl.',
       }),
     );
 
@@ -175,41 +175,62 @@ describe('SpeciesCard', () => {
       fireEvent.press(screen.getByTestId('species-card'));
     });
 
-    expect(mockFetchSpeciesBySlug).toHaveBeenCalledWith(baseProps.commonName);
-    expect(pushMock).toHaveBeenCalledWith('/species/Snowy%20Owl');
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(String(baseProps.taxonId));
+    expect(pushMock).toHaveBeenCalledWith('/species/777/strix-nebulosa');
   });
 
-  it('does nothing when commonName is falsy', async () => {
-    render(<SpeciesCard {...baseProps} commonName="" testID="species-card" />);
+  it('does nothing when no identifier is available', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+    render(
+      <SpeciesCard
+        {...baseProps}
+        taxonId={undefined as unknown as number}
+        commonName=""
+        scientificName=""
+        testID="species-card"
+      />,
+    );
+
+    expect(screen.getByTestId('species-card')).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('species-card'));
     });
 
-    expect(mockFetchSpeciesBySlug).not.toHaveBeenCalled();
+    expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith('SpeciesCard requires a taxonId to navigate');
+    consoleErrorSpy.mockRestore();
   });
 
-  it('does not navigate when the fetched species common name resolves to null', async () => {
-    mockFetchSpeciesBySlug.mockResolvedValue(
+  it('does not navigate when the resolved identifiers are missing', async () => {
+    mockFetchSpeciesByTaxonId.mockResolvedValue(
       buildFetchResponse({
-        common_name: null as unknown as string,
+        taxon_id: null,
+        scientific_name: null,
       }),
     );
 
-    render(<SpeciesCard {...baseProps} testID="species-card" />);
+    render(
+      <SpeciesCard
+        {...baseProps}
+        commonName=""
+        scientificName=""
+        testID="species-card"
+      />,
+    );
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('species-card'));
     });
 
-    expect(mockFetchSpeciesBySlug).toHaveBeenCalledWith(baseProps.commonName);
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(String(baseProps.taxonId));
     expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it('does not navigate when fetchSpeciesBySlug rejects', async () => {
+  it('does not navigate when fetchSpeciesByTaxonId rejects', async () => {
     const rejection = new Error('network unavailable');
-    mockFetchSpeciesBySlug.mockRejectedValueOnce(rejection);
+    mockFetchSpeciesByTaxonId.mockRejectedValueOnce(rejection);
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
     render(<SpeciesCard {...baseProps} testID="species-card" />);
@@ -219,11 +240,60 @@ describe('SpeciesCard', () => {
         fireEvent.press(screen.getByTestId('species-card'));
       });
 
-      expect(mockFetchSpeciesBySlug).toHaveBeenCalledWith(baseProps.commonName);
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(String(baseProps.taxonId));
       expect(pushMock).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Failed to fetch species data for',
-        baseProps.commonName,
+        String(baseProps.taxonId),
+        rejection,
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it('falls back to provided identifiers when the backend omits them', async () => {
+    mockFetchSpeciesByTaxonId.mockResolvedValue(
+      buildFetchResponse({
+        taxon_id: null,
+        scientific_name: null,
+      }),
+    );
+
+    render(
+      <SpeciesCard
+        {...baseProps}
+        taxonId={9001}
+        scientificName="Card Provided Scientific"
+        testID="species-card"
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('species-card'));
+    });
+
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('9001');
+    expect(pushMock).toHaveBeenCalledWith('/species/9001/card-provided-scientific');
+  });
+
+  it('logs failures with the taxon identifier when provided', async () => {
+    const rejection = new Error('network timeout');
+    mockFetchSpeciesByTaxonId.mockRejectedValueOnce(rejection);
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    try {
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('species-card'));
+      });
+
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(String(baseProps.taxonId));
+      expect(pushMock).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to fetch species data for',
+        String(baseProps.taxonId),
         rejection,
       );
     } finally {

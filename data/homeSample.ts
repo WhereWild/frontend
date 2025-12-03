@@ -1,46 +1,47 @@
 import type { HomePageData } from './types';
-const escobaria_vivipara = require('@/assets/images/escobaria_vivipara.jpg')
-const Hypaurotis_crysalus = require('@/assets/images/Hypaurotis_crysalus.jpg')
-const spea_intermontana = require('@/assets/images/Spea_intermontana.jpg')
-const haliaeetus_leucocephalus = require('@/assets/images/Haliaeetus_leucocephalus.jpg')
-const local = require('@/assets/images/Local_Map.png')
-const controls = require('@/assets/images/Map_Controls.png')
+
+const escobariaViviparaImage = require('@/assets/images/escobaria_vivipara.jpg');
+const hypaurotisCrysalusImage = require('@/assets/images/Hypaurotis_crysalus.jpg');
+const speaIntermontanaImage = require('@/assets/images/Spea_intermontana.jpg');
+const haliaeetusLeucocephalusImage = require('@/assets/images/Haliaeetus_leucocephalus.jpg');
+const localMapImage = require('@/assets/images/Local_Map.png');
+const mapControlsImage = require('@/assets/images/Map_Controls.png');
 
 
 export const mockHomePageData: HomePageData = {
   map: {
-    heatmapImage: local,
-    controlsImage: controls,
+    heatmapImage: localMapImage,
+    controlsImage: mapControlsImage,
   },
   recommendations: {
     items: [
       {
-        id: 'spinystar',
+        taxonId: 148405,
         commonName: 'Spinystar',
         scientificName: 'Escobaria vivipara',
         description: 'Flowering now',
-        imageSource: escobaria_vivipara,
+        imageSource: escobariaViviparaImage,
       },
       {
-        id: 'bald-eagle',
+        taxonId: 5305,
         commonName: 'Bald Eagle',
         scientificName: 'Haliaeetus leucocephalus',
         description: 'Migrating nearby',
-        imageSource: haliaeetus_leucocephalus,
+        imageSource: haliaeetusLeucocephalusImage,
       },
       {
-        id: 'great-basin-spadefoot',
+        taxonId: 26704,
         commonName: 'Great Basin Spadefoot',
         scientificName: 'Spea intermontana',
         description: 'Common after rain',
-        imageSource: spea_intermontana,
+        imageSource: speaIntermontanaImage,
       },
       {
-        id: 'colorado-hairstreak',
+        taxonId: 221964,
         commonName: 'Colorado Hairstreak',
         scientificName: 'Hypaurotis crysalus',
         description: 'Frequent in your area',
-        imageSource: Hypaurotis_crysalus,
+        imageSource: hypaurotisCrysalusImage,
       },
     ],
   },

@@ -15,12 +15,12 @@ import {
 import { ThemedText } from '../text/ThemedText';
 import { useRouter } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
-import { fetchSpeciesBySlug } from '@/data/api';
+import { fetchSpeciesByTaxonId } from '@/data/api';
+import { toKebabCase } from '@/utils/string';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 
-type SpeciesCardProps = {
-  taxon_id?: number;
-  slug?: string;
+export type SpeciesCardProps = {
+  taxonId: number;
   commonName: string;
   scientificName: string;
   description: string;
@@ -65,6 +65,7 @@ const resolveSpeciesCardBackground = (
 };
 
 export function SpeciesCard({
+  taxonId,
   commonName,
   scientificName,
   description,
@@ -89,20 +90,33 @@ export function SpeciesCard({
       return;
     }
 
-    if (!commonName) {
+    if (typeof taxonId !== 'number') {
+      console.error('SpeciesCard requires a taxonId to navigate');
       return;
     }
 
+    const identifier = String(taxonId);
+
     try {
-      const found = await fetchSpeciesBySlug(commonName);
-      if (found && found.common_name) {
-        const encoded = encodeURIComponent(found.common_name);
-        const path = (`/species/${encoded}`) as unknown as RelativePathString;
+      const found = await fetchSpeciesByTaxonId(identifier);
+      if (found) {
+        const resolvedTaxonId = found.taxon_id ?? taxonId;
+        const resolvedScientificName = found.scientific_name ?? scientificName;
+        if (!resolvedTaxonId || !resolvedScientificName) {
+          console.error('SpeciesCard requires a scientific name to navigate');
+          return;
+        }
+        const scientificSegment = toKebabCase(resolvedScientificName);
+        if (!scientificSegment) {
+          console.error('SpeciesCard: scientific name could not be converted to a valid URL segment');
+          return;
+        }
+        const path = (`/species/${resolvedTaxonId}/${scientificSegment}`) as unknown as RelativePathString;
 
         router.push(path);
       }
     } catch (error) {
-      console.error('Failed to fetch species data for', commonName, error);
+      console.error('Failed to fetch species data for', identifier, error);
     }
   };
 

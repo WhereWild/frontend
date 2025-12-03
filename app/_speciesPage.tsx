@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   featuredImage: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    aspectRatio: 1,
     borderRadius: Size.radius['400'],
   },
   heatMapSection: {

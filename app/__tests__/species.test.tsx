@@ -26,9 +26,11 @@ afterEach(() => {
 });
 
 const createData = (overrides: Partial<SpeciesPageData> = {}): SpeciesPageData => ({
-  id: 'test-species',
+  taxonId: 13579,
   commonName: 'Test Cactus',
   scientificName: 'Testus cactus',
+  description: 'Fixture description used in cards and summaries.',
+  imageSource: { uri: 'card-image' },
   overview: {
     description: 'A sample species used for testing.',
     imageSource: { uri: 'test-image' },
@@ -48,6 +50,7 @@ const createData = (overrides: Partial<SpeciesPageData> = {}): SpeciesPageData =
   ],
   nearbySpecies: [
     {
+      taxonId: 24680,
       commonName: 'Neighbor',
       scientificName: 'Neighborius plantus',
       description: 'Nearby species description.',

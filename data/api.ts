@@ -14,7 +14,10 @@ const DEV_HOST = (() => {
   return Platform.OS === 'android' ? 'http://10.0.2.2:8000' : DEFAULT_LOCAL;
 })();
 export const BACKEND_BASE = (process.env.REACT_NATIVE_BACKEND_URL as string) ?? DEV_HOST;
-console.log("BACKEND_BASE:", BACKEND_BASE);
+
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  console.log('BACKEND_BASE:', BACKEND_BASE);
+}
 
 /**
  * Normalize backend item to match your original JSON keys exactly,
@@ -31,7 +34,6 @@ function normalizeToJsonShape(item: any) {
 
   return {
     taxon_id: item.taxon_id ?? null,
-    slug: item.slug ?? null,
     scientific_name: item.scientific_name ?? '',
     common_name: item.common_name ?? '',
     image_source: imageUrl,
@@ -54,12 +56,13 @@ export async function fetchSpeciesList(limit?: number, q?: string) {
   return data.map((it: any) => normalizeToJsonShape(it));
 }
 
-export async function fetchSpeciesBySlug(slug: string) {
-  const url = `${BACKEND_BASE}/api/species/${encodeURIComponent(slug)}`;
+export async function fetchSpeciesByTaxonId(taxonId: string | number) {
+  const encoded = encodeURIComponent(String(taxonId));
+  const url = `${BACKEND_BASE}/api/species/${encoded}`;
   const res = await fetch(url);
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch species ${slug}: ${res.status} ${txt}`);
+    throw new Error(`Failed to fetch species ${taxonId}: ${res.status} ${txt}`);
   }
   const item = await res.json();
   const normalized = normalizeToJsonShape(item);

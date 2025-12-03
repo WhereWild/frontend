@@ -2,16 +2,25 @@ import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import SpeciesPage from '../_speciesPage';
-import { fetchSpeciesBySlug } from '@/data/api';
+import { fetchSpeciesByTaxonId } from '@/data/api';
 import type { SpeciesPageData } from '@/data/types';
 import { mountainBallCactusData } from '@/data/speciesSample';
 
+const isPresent = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0;
+
 type SpeciesBasics = {
+  taxon_id?: number;
   common_name?: string;
   scientific_name?: string;
   image_source?: ImageSourcePropType | string;
   image_url?: string;
   description?: string;
+};
+
+type SpeciesRouteParams = {
+  identifier?: string | string[];
+  taxonId?: string;
 };
 
 const normalizeImageSource = (payload: SpeciesBasics): ImageSourcePropType | undefined => {
@@ -30,15 +39,15 @@ const normalizeImageSource = (payload: SpeciesBasics): ImageSourcePropType | und
 
 const buildSpeciesPageData = (
   payload: SpeciesBasics,
-  slug: string | undefined,
+  requestedTaxonId?: number,
 ): SpeciesPageData => {
   const fallback = mountainBallCactusData;
-  // When the API starts returning environmental sections, nearby species, or heatmap snapshots,
-  // extend `SpeciesBasics` and override `dataSections`, `nearbySpecies`, and `heatmap` here so
-  // SpeciesPage renders fully dynamic content instead of falling back to sample data.
+  // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
+  // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
+  const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
   return {
     ...fallback,
-    id: slug ?? fallback.id,
+    taxonId: resolvedTaxonId,
     commonName: payload.common_name ?? fallback.commonName,
     scientificName: payload.scientific_name ?? fallback.scientificName,
     overview: {
@@ -49,9 +58,42 @@ const buildSpeciesPageData = (
   };
 };
 
+const toArray = (value: string | string[] | undefined): string[] => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (isPresent(value)) {
+    return [value];
+  }
+  return [];
+};
+
+const toNumericTaxonId = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return /^\d+$/.test(trimmed) ? trimmed : undefined;
+};
+
+const getIdentifierFromParams = (params: SpeciesRouteParams) => {
+  const identifierSegments = toArray(params.identifier);
+  const segmentMatch = identifierSegments
+    .map(toNumericTaxonId)
+    .find((segment) => typeof segment === 'string');
+
+  const queryMatch = toNumericTaxonId(params.taxonId);
+  const fetchIdentifier = segmentMatch ?? queryMatch;
+
+  return {
+    fetchIdentifier,
+    requestedTaxonId: fetchIdentifier ? Number(fetchIdentifier) : undefined,
+  };
+};
+
 export default function SpeciesBasicsPage() {
-  const { slug } = useLocalSearchParams<{ slug?: string }>();
-  const slugParam = typeof slug === 'string' ? slug : undefined;
+  const params = useLocalSearchParams<SpeciesRouteParams>();
+  const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
 
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -60,16 +102,19 @@ export default function SpeciesBasicsPage() {
     let mounted = true;
 
     (async () => {
-      if (!slugParam) {
+      if (!fetchIdentifier) {
         setLoading(false);
-        console.error('Missing species identifier');
+        console.error(
+          'Missing numeric taxon ID in route parameters. Received:',
+          { identifier: params.identifier, taxonId: params.taxonId }
+        );
         return;
       }
 
       setLoading(true);
 
       try {
-        const response = await fetchSpeciesBySlug(slugParam);
+        const response = await fetchSpeciesByTaxonId(fetchIdentifier);
         if (!mounted) {
           return;
         }
@@ -79,7 +124,7 @@ export default function SpeciesBasicsPage() {
           return;
         }
         const message = err instanceof Error ? err.message : 'Failed to load species';
-        console.error(`Failed to load species '${slugParam}':`, message);
+        console.error(`Failed to load species '${fetchIdentifier}':`, message);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -90,14 +135,14 @@ export default function SpeciesBasicsPage() {
     return () => {
       mounted = false;
     };
-  }, [slugParam]);
+  }, [fetchIdentifier, params.identifier, params.taxonId]);
 
   if (loading && !data) {
     return null;
   }
 
   const resolvedPageData = data
-    ? buildSpeciesPageData(data, slugParam)
+    ? buildSpeciesPageData(data, requestedTaxonId)
     : mountainBallCactusData;
 
   return <SpeciesPage data={resolvedPageData} />;
@@ -106,4 +151,5 @@ export default function SpeciesBasicsPage() {
 export const __SPECIES_BASICS_TESTING__ = {
   normalizeImageSource,
   buildSpeciesPageData,
+  getIdentifierFromParams,
 };
