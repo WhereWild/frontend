@@ -102,3 +102,8 @@ export default function SpeciesBasicsPage() {
 
   return <SpeciesPage data={resolvedPageData} />;
 }
+
+export const __SPECIES_BASICS_TESTING__ = {
+  normalizeImageSource,
+  buildSpeciesPageData,
+};
