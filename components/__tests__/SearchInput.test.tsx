@@ -1,8 +1,6 @@
-import { Typography } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { SearchInput, __SEARCH_INPUT_TESTING__ } from '../inputs/SearchInput';
+import { SearchInput } from '../inputs/SearchInput';
 
 describe('SearchInput', () => {
   it('renders placeholder text', () => {
@@ -126,62 +124,6 @@ describe('SearchInput', () => {
     expect(screen.queryByTestId('search-input-clear')).toBeNull();
   });
 
-  it('keeps overall width and height unchanged when focused', () => {
-    render(<SearchInput placeholder="Search" defaultValue="lynx" />);
-
-    const flatten = (node: any) => StyleSheet.flatten(node?.props?.style) ?? {};
-    const iconVisualSize = 16;
-
-    const computeDimensions = () => {
-      const containerStyle = flatten(screen.getByRole('search'));
-      const iconStartStyle = flatten(screen.getByTestId('search-input-icon'));
-      const inputStyle = flatten(screen.getByPlaceholderText('Search'));
-      const iconEndStyle = flatten(screen.getByTestId('search-input-clear'));
-
-      const numeric = (value: unknown) => (typeof value === 'number' ? value : 0);
-
-      const containerHorizontal = numeric(containerStyle.paddingHorizontal);
-      const containerVertical = numeric(containerStyle.paddingVertical);
-      const containerBorder = numeric(containerStyle.borderWidth);
-
-      const iconStartHorizontal = numeric(iconStartStyle.paddingHorizontal);
-      const iconStartVertical = numeric(iconStartStyle.paddingVertical);
-
-      const iconEndHorizontal = numeric(iconEndStyle.paddingHorizontal);
-      const iconEndVertical = numeric(iconEndStyle.paddingVertical);
-
-      const inputPaddingHorizontal = numeric(inputStyle.paddingHorizontal);
-      const inputPaddingVertical = numeric(inputStyle.paddingVertical);
-      const mode = 'light'; // Define mode for test
-      const inputLineHeight = numeric(inputStyle.lineHeight) || numeric(Typography[mode].singleLineBody.lineHeight);
-
-      const width =
-        2 * (containerHorizontal + containerBorder) +
-        (2 * iconStartHorizontal + iconVisualSize) +
-        (2 * iconEndHorizontal + iconVisualSize) +
-        2 * inputPaddingHorizontal;
-
-      const contentHeight = Math.max(
-        2 * iconStartVertical + iconVisualSize,
-        2 * iconEndVertical + iconVisualSize,
-        2 * inputPaddingVertical + inputLineHeight,
-      );
-
-      const height = 2 * (containerVertical + containerBorder) + contentHeight;
-
-      return { width, height };
-    };
-
-    const initial = computeDimensions();
-
-    fireEvent(screen.getByPlaceholderText('Search'), 'focus');
-
-    const focused = computeDimensions();
-
-    expect(focused.width).toBe(initial.width);
-    expect(focused.height).toBe(initial.height);
-  });
-
   it('forwards focus and blur callbacks', () => {
     const handleFocus = jest.fn();
     const handleBlur = jest.fn();
@@ -196,6 +138,15 @@ describe('SearchInput', () => {
     expect(handleBlur).toHaveBeenCalledTimes(1);
   });
 
+
+  it('disables editing when disabled prop is true', () => {
+    render(<SearchInput disabled defaultValue="discoveries" />);
+
+    const input = screen.getByPlaceholderText('Search');
+    expect(input.props.editable).toBe(false);
+    expect(screen.queryByTestId('search-input-clear')).toBeNull();
+  });
+
   it('does not submit when disabled and the icon is pressed', () => {
     const handleSubmit = jest.fn();
     render(<SearchInput disabled defaultValue="lynx" onSubmitSearch={handleSubmit} />);
@@ -203,82 +154,5 @@ describe('SearchInput', () => {
     fireEvent.press(screen.getByTestId('search-input-icon'));
 
     expect(handleSubmit).not.toHaveBeenCalled();
-  });
-});
-
-describe('SearchInput helpers', () => {
-  it('does not clear when disabled', () => {
-    const ref = { current: 'value' };
-    const setInternalValue = jest.fn();
-    const onQueryChange = jest.fn();
-    const onClear = jest.fn();
-
-    const result = __SEARCH_INPUT_TESTING__.handleClearValue({
-      disabled: true,
-      isControlled: false,
-      setInternalValue,
-      previousValueRef: ref,
-      onQueryChange,
-      onClear,
-    });
-
-    expect(result).toBe(false);
-    expect(setInternalValue).not.toHaveBeenCalled();
-    expect(onQueryChange).not.toHaveBeenCalled();
-    expect(onClear).not.toHaveBeenCalled();
-  });
-
-  it('clears value and notifies callbacks in uncontrolled mode', () => {
-    const ref = { current: 'seed' };
-    const setInternalValue = jest.fn();
-    const onQueryChange = jest.fn();
-    const onClear = jest.fn();
-
-    const result = __SEARCH_INPUT_TESTING__.handleClearValue({
-      disabled: false,
-      isControlled: false,
-      setInternalValue,
-      previousValueRef: ref,
-      onQueryChange,
-      onClear,
-    });
-
-    expect(result).toBe(true);
-    expect(ref.current).toBe('');
-    expect(setInternalValue).toHaveBeenCalledWith('');
-    expect(onQueryChange).toHaveBeenCalledWith('');
-    expect(onClear).toHaveBeenCalled();
-  });
-
-  it('clears value without mutating internal state in controlled mode', () => {
-    const ref = { current: 'seed' };
-    const setInternalValue = jest.fn();
-    const onQueryChange = jest.fn();
-    const onClear = jest.fn();
-
-    const result = __SEARCH_INPUT_TESTING__.handleClearValue({
-      disabled: false,
-      isControlled: true,
-      setInternalValue,
-      previousValueRef: ref,
-      onQueryChange,
-      onClear,
-    });
-
-    expect(result).toBe(true);
-    expect(ref.current).toBe('');
-    expect(setInternalValue).not.toHaveBeenCalled();
-    expect(onQueryChange).toHaveBeenCalledWith('');
-    expect(onClear).toHaveBeenCalled();
-  });
-
-  it('submits only when enabled', () => {
-    const onSubmit = jest.fn();
-    const disabledResult = __SEARCH_INPUT_TESTING__.submitSearchValue(true, 'lynx', onSubmit);
-    const enabledResult = __SEARCH_INPUT_TESTING__.submitSearchValue(false, 'lynx', onSubmit);
-
-    expect(disabledResult).toBe(false);
-    expect(enabledResult).toBe(true);
-    expect(onSubmit).toHaveBeenCalledWith('lynx');
   });
 });

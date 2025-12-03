@@ -192,10 +192,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: Size.space['400'],
+    minWidth: Size.space['8000']
   },
   searchWrapper: {
     flex: 1,
-    minWidth: 240,
   },
   actionsWrapper: {
     flexDirection: 'row',
