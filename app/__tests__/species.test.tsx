@@ -4,7 +4,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Alert, StyleSheet } from 'react-native';
-import SpeciesScreen from '../species';
+import SpeciesScreen from '../_speciesPage';
 
 const mockPush = jest.fn();
 
