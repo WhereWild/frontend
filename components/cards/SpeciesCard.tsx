@@ -15,7 +15,7 @@ import {
 import { ThemedText } from '../text/ThemedText';
 import { useRouter } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
-import {fetchSpeciesBySlug } from '@/data/api';
+import { fetchSpeciesBySlug } from '@/data/api';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 
 type SpeciesCardProps = {
@@ -45,15 +45,15 @@ const resolveSpeciesCardBackground = (
   const colors =
     variant === 'tertiary'
       ? {
-          default: palette.background.default.tertiary,
-          hover: palette.background.default.tertiaryHover,
-          pressed: palette.background.default.tertiaryPressed,
-        }
+        default: palette.background.default.tertiary,
+        hover: palette.background.default.tertiaryHover,
+        pressed: palette.background.default.tertiaryPressed,
+      }
       : {
-          default: palette.background.default.secondary,
-          hover: palette.background.default.secondaryHover,
-          pressed: palette.background.default.secondaryPressed,
-        };
+        default: palette.background.default.secondary,
+        hover: palette.background.default.secondaryHover,
+        pressed: palette.background.default.secondaryPressed,
+      };
 
   if (state.pressed) {
     return colors.pressed;
@@ -88,17 +88,24 @@ export function SpeciesCard({
       onPress();
       return;
     }
-    if (commonName){ 
-      const found = await fetchSpeciesBySlug(commonName);
-      if (found && found.common_name){
-        const encoded = encodeURIComponent(found.common_name);
 
+    if (!commonName) {
+      return;
+    }
+
+    try {
+      const found = await fetchSpeciesBySlug(commonName);
+      if (found && found.common_name) {
+        const encoded = encodeURIComponent(found.common_name);
         const path = (`/species/${encoded}`) as unknown as RelativePathString;
 
         router.push(path);
       }
+    } catch (error) {
+      console.error('Failed to fetch species data for', commonName, error);
     }
-  }
+  };
+
   return (
     <Pressable
       onPress={handlePress}
