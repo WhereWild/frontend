@@ -5,8 +5,13 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import About from '../about';
 
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: 1024, height: 768, scale: 1, fontScale: 1 }),
+}));
+
 const mockPush = jest.fn();
-let mockPathname: '/' | '/about' = '/';
+let mockPathname: '/' | '/about' | '/settings' = '/';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),

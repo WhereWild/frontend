@@ -13,12 +13,14 @@ import {
   InlineExpandableRows,
   NearbySpeciesCarousel,
   PageHeader,
+  SelectField,
   SearchInput,
+  SwitchField,
   SpeciesCard,
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
@@ -27,6 +29,12 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
+const SELECT_FIELD_OPTIONS = [
+  { label: 'Fennec Fox', value: 'fennec' },
+  { label: 'Red Panda', value: 'panda' },
+  { label: 'Snowy Owl', value: 'owl' },
+  { label: 'Lynx', value: 'lynx' },
+];
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -55,6 +63,10 @@ export default function About() {
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
   const [headerSearchQuery, setHeaderSearchQuery] = useState('');
+  const [selectedSpecies, setSelectedSpecies] = useState<string | undefined>();
+  const [switchOnValue, setSwitchOnValue] = useState(true);
+  const [switchOffValue, setSwitchOffValue] = useState(false);
+  const selectedSpeciesLabel = SELECT_FIELD_OPTIONS.find((option) => option.value === selectedSpecies)?.label;
   const speciesSample = mountainBallCactusData;
   const buttonRows: ButtonRow[] = [
     {
@@ -225,8 +237,86 @@ export default function About() {
           </View>
 
           <View>
+            <ThemedText variant="heading">Select Field</ThemedText>
+            <ThemedText variant="body">
+              {selectedSpeciesLabel
+                ? `Current selection: ${selectedSpeciesLabel}`
+                : 'Pick a species to update the selection state.'}
+            </ThemedText>
+            <View style={styles.fieldRow}>
+              <View style={styles.selectFieldItem}>
+                <SelectField
+                  label="Species"
+                  description="Updates the About playground state"
+                  options={SELECT_FIELD_OPTIONS}
+                  placeholder="Choose a species"
+                  value={selectedSpecies}
+                  onValueChange={setSelectedSpecies}
+                />
+              </View>
+              <View style={styles.selectFieldItem}>
+                <SelectField
+                  label="Disabled"
+                  description="Pre-selected + read only"
+                  options={SELECT_FIELD_OPTIONS}
+                  defaultValue={SELECT_FIELD_OPTIONS[0].value}
+                  disabled
+                />
+              </View>
+              <View style={styles.selectFieldItem}>
+                <SelectField
+                  label="Validation"
+                  description="Demonstrates error messaging"
+                  options={SELECT_FIELD_OPTIONS}
+                  placeholder="Select one"
+                  errorMessage="Selection required"
+                />
+              </View>
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Switch Field</ThemedText>
+            <View style={styles.switchGrid}>
+              <View style={styles.switchFieldItem}>
+                <SwitchField
+                  label="Sightings alerts"
+                  description="Send push notifications when rare species are nearby."
+                  value={switchOnValue}
+                  onValueChange={setSwitchOnValue}
+                />
+              </View>
+              <View style={styles.switchFieldItem}>
+                <SwitchField
+                  label="Location sharing"
+                  description="Allow WhereWild to access device GPS data."
+                  value={switchOffValue}
+                  onValueChange={setSwitchOffValue}
+                />
+              </View>
+              <View style={styles.switchFieldItem}>
+                <SwitchField
+                  label="Summary emails"
+                  description="Weekly recap is always on for team admins."
+                  value
+                  disabled
+                />
+              </View>
+              <View style={styles.switchFieldItem}>
+                <SwitchField
+                  label="Auto-download maps"
+                  description="Disabled until offline mode is enabled."
+                  value={false}
+                  disabled
+                />
+              </View>
+            </View>
+          </View>
+
+          <View>
             <ThemedText variant="heading">Species Card</ThemedText>
             <SpeciesCard
+              taxonId={speciesSample.taxonId}
               commonName="Common Name"
               scientificName="Binomial nomenclature"
               description="Description"
@@ -249,8 +339,36 @@ export default function About() {
                 scientificName={speciesSample.scientificName}
                 onPressDownload={noop}
               />
-              <InlineExpandableRows sections={speciesSample.dataSections} />
+              <InlineExpandableRows
+                sections={speciesSample.dataSections}
+                taxonId={speciesSample.taxonId}
+              />
               <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Shadow Tokens</ThemedText>
+            <ThemedText variant="body">
+              Drop shadow tokens translate directly to React Native styles. The card below uses the
+              heaviest token (dropShadow600) so you can verify the visual depth.
+            </ThemedText>
+            <View style={styles.shadowDemoWrapper}>
+              <View
+                style={[
+                  styles.shadowDemoCard,
+                  {
+                    backgroundColor: palette.background.default.secondary,
+                    borderColor: palette.border.default.secondary,
+                  },
+                  Shadows.dropShadow600.style,
+                ]}
+              >
+                <ThemedText variant="bodyStrong">dropShadow600</ThemedText>
+                <ThemedText variant="body">
+                  Built from the design system token with a 16px Y-offset and 32px blur.
+                </ThemedText>
+              </View>
             </View>
           </View>
 
@@ -338,9 +456,41 @@ const styles = StyleSheet.create({
     gap: Size.space['300'],
     flexWrap: 'wrap',
   },
+  fieldRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['400'],
+  },
+  selectFieldItem: {
+    flex: 1,
+    minWidth: Size.space['4000'],
+  },
+  switchGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['400'],
+  },
+  switchFieldItem: {
+    flex: 1,
+    minWidth: Size.space['4000'],
+  },
   speciesPreview: {
     gap: Size.space['400'],
     padding: Size.space['400'],
     borderRadius: Size.radius['400'],
   },
+  shadowDemoWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: Size.space['400'],
+  },
+  shadowDemoCard: {
+    width: '100%',
+    maxWidth: Size.space['8000'],
+    borderRadius: Size.radius['400'],
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Size.space['600'],
+    gap: Size.space['300'],
+  },
+
 });
