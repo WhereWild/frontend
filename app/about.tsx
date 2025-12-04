@@ -13,14 +13,14 @@ import {
   InlineExpandableRows,
   NearbySpeciesCarousel,
   PageHeader,
-  SelectField,
   SearchInput,
-  SwitchField,
+  SelectField,
   SpeciesCard,
   SpeciesPageHeader,
+  SwitchField,
   ThemedText,
 } from '@/components';
-import { Colors, Shadows, Size } from '@/constants/theme';
+import { Colors, Responsive, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
@@ -198,239 +198,266 @@ export default function About() {
         />
 
         <ScrollView contentContainerStyle={styles.container}>
-          <View>
-            <ThemedText variant="heading">Search Input</ThemedText>
-            <View>
-              <SearchInput
-                value={searchQuery}
-                placeholder="Search species"
-                onQueryChange={(value) => {
-                  setSearchQuery(value);
-                  setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
-                }}
-                onCharacterAdd={(char, value) => {
-                  setLastSearchEvent(`Added "${char}" -> ${value}`);
-                }}
-                onSubmitSearch={(value) => {
-                  setLastSearchEvent(`Search submitted with "${value}"`);
-                }}
-                onClear={() => {
-                  setLastSearchEvent('Search cleared');
-                }}
-                autoCorrect={false}
-                returnKeyType="search"
-                accessibilityLabel="Search species"
-              />
-            </View>
-            <ThemedText variant="body">{lastSearchEvent}</ThemedText>
-            <ThemedText variant="bodyStrong">Disabled</ThemedText>
-            <View>
-              <SearchInput
-                placeholder="Search species"
-                accessibilityLabel="Search species"
-                disabled
-              />
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Select Field</ThemedText>
-            <ThemedText variant="body">
-              {selectedSpeciesLabel
-                ? `Current selection: ${selectedSpeciesLabel}`
-                : 'Pick a species to update the selection state.'}
-            </ThemedText>
-            <View style={styles.fieldRow}>
-              <View style={styles.selectFieldItem}>
-                <SelectField
-                  label="Species"
-                  description="Updates the About playground state"
-                  options={SELECT_FIELD_OPTIONS}
-                  placeholder="Choose a species"
-                  value={selectedSpecies}
-                  onValueChange={setSelectedSpecies}
-                />
-              </View>
-              <View style={styles.selectFieldItem}>
-                <SelectField
-                  label="Disabled"
-                  description="Pre-selected + read only"
-                  options={SELECT_FIELD_OPTIONS}
-                  defaultValue={SELECT_FIELD_OPTIONS[0].value}
-                  disabled
-                />
-              </View>
-              <View style={styles.selectFieldItem}>
-                <SelectField
-                  label="Validation"
-                  description="Demonstrates error messaging"
-                  options={SELECT_FIELD_OPTIONS}
-                  placeholder="Select one"
-                  errorMessage="Selection required"
-                />
-              </View>
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Switch Field</ThemedText>
-            <View style={styles.switchGrid}>
-              <View style={styles.switchFieldItem}>
-                <SwitchField
-                  label="Sightings alerts"
-                  description="Send push notifications when rare species are nearby."
-                  value={switchOnValue}
-                  onValueChange={setSwitchOnValue}
-                />
-              </View>
-              <View style={styles.switchFieldItem}>
-                <SwitchField
-                  label="Location sharing"
-                  description="Allow WhereWild to access device GPS data."
-                  value={switchOffValue}
-                  onValueChange={setSwitchOffValue}
-                />
-              </View>
-              <View style={styles.switchFieldItem}>
-                <SwitchField
-                  label="Summary emails"
-                  description="Weekly recap is always on for team admins."
-                  value
-                  disabled
-                />
-              </View>
-              <View style={styles.switchFieldItem}>
-                <SwitchField
-                  label="Auto-download maps"
-                  description="Disabled until offline mode is enabled."
-                  value={false}
-                  disabled
-                />
-              </View>
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Species Card</ThemedText>
-            <SpeciesCard
-              taxonId={speciesSample.taxonId}
-              commonName="Common Name"
-              scientificName="Binomial nomenclature"
-              description="Description"
-              imageSource={SPECIES_CARD_IMAGE}
-            />
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Species Page Components</ThemedText>
-            <ThemedText variant="body">
-              Preview of the composable building blocks used on the species detail page.
-            </ThemedText>
-            <View
-              style={[
-                styles.speciesPreview,
-              ]}
-            >
-              <SpeciesPageHeader
-                commonName={speciesSample.commonName}
-                scientificName={speciesSample.scientificName}
-                onPressDownload={noop}
-              />
-              <InlineExpandableRows
-                sections={speciesSample.dataSections}
-                taxonId={speciesSample.taxonId}
-              />
-              <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Shadow Tokens</ThemedText>
-            <ThemedText variant="body">
-              Drop shadow tokens translate directly to React Native styles. The card below uses the
-              heaviest token (dropShadow600) so you can verify the visual depth.
-            </ThemedText>
-            <View style={styles.shadowDemoWrapper}>
+          <View style={styles.pageTitleContainer}>
+            <View style={styles.pageTitle}>
+              <ThemedText variant="titlePage">About WhereWild</ThemedText>
               <View
                 style={[
-                  styles.shadowDemoCard,
-                  {
-                    backgroundColor: palette.background.default.secondary,
-                    borderColor: palette.border.default.secondary,
-                  },
-                  Shadows.dropShadow600.style,
+                  styles.pageTitleDivider,
+                  { backgroundColor: palette.border.brand.secondary },
                 ]}
-              >
-                <ThemedText variant="bodyStrong">dropShadow600</ThemedText>
-                <ThemedText variant="body">
-                  Built from the design system token with a 16px Y-offset and 32px blur.
-                </ThemedText>
-              </View>
+              />
+              <ThemedText variant="body">
+                WhereWild is a naturalist companion that blends field observations, environmental
+                summaries, and predictive heatmaps so explorers can plan responsibly and share
+                insights with their teams.
+              </ThemedText>
             </View>
           </View>
 
-          <View>
-            <ThemedText variant="heading">Buttons</ThemedText>
-            {buttonRows.map(({ title, variant, buttons, danger }) => (
-              <View key={title}>
-                <ThemedText variant="bodyStrong">{title}</ThemedText>
-                <View style={styles.row}>
-                  {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
-                    const buttonVariant = overrideVariant ?? variant;
+          <View style={styles.playgroundSection}>
+            <ThemedText variant="heading">Component Playground</ThemedText>
+            <ThemedText variant="body">
+              Experiment with live design-system primitives below to validate copy, interactions,
+              and accessibility behaviors before promoting them into production screens.
+            </ThemedText>
+          </View>
 
-                    if (danger) {
-                      const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+          <View style={styles.playgroundContent}>
+            <View>
+              <ThemedText variant="subheading">Search Input</ThemedText>
+              <View>
+                <SearchInput
+                  value={searchQuery}
+                  placeholder="Search species"
+                  onQueryChange={(value) => {
+                    setSearchQuery(value);
+                    setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
+                  }}
+                  onCharacterAdd={(char, value) => {
+                    setLastSearchEvent(`Added "${char}" -> ${value}`);
+                  }}
+                  onSubmitSearch={(value) => {
+                    setLastSearchEvent(`Search submitted with "${value}"`);
+                  }}
+                  onClear={() => {
+                    setLastSearchEvent('Search cleared');
+                  }}
+                  autoCorrect={false}
+                  returnKeyType="search"
+                  accessibilityLabel="Search species"
+                />
+              </View>
+              <ThemedText variant="body">{lastSearchEvent}</ThemedText>
+              <ThemedText variant="bodyStrong">Disabled</ThemedText>
+              <View>
+                <SearchInput
+                  placeholder="Search species"
+                  accessibilityLabel="Search species"
+                  disabled
+                />
+              </View>
+            </View>
+
+            <View>
+              <ThemedText variant="subheading">Select Field</ThemedText>
+              <ThemedText variant="body">
+                {selectedSpeciesLabel
+                  ? `Current selection: ${selectedSpeciesLabel}`
+                  : 'Pick a species to update the selection state.'}
+              </ThemedText>
+              <View style={styles.fieldRow}>
+                <View style={styles.selectFieldItem}>
+                  <SelectField
+                    label="Species"
+                    description="Updates the About playground state"
+                    options={SELECT_FIELD_OPTIONS}
+                    placeholder="Choose a species"
+                    value={selectedSpecies}
+                    onValueChange={setSelectedSpecies}
+                  />
+                </View>
+                <View style={styles.selectFieldItem}>
+                  <SelectField
+                    label="Disabled"
+                    description="Pre-selected + read only"
+                    options={SELECT_FIELD_OPTIONS}
+                    defaultValue={SELECT_FIELD_OPTIONS[0].value}
+                    disabled
+                  />
+                </View>
+                <View style={styles.selectFieldItem}>
+                  <SelectField
+                    label="Validation"
+                    description="Demonstrates error messaging"
+                    options={SELECT_FIELD_OPTIONS}
+                    placeholder="Select one"
+                    errorMessage="Selection required"
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View>
+              <ThemedText variant="subheading">Switch Field</ThemedText>
+              <View style={styles.switchGrid}>
+                <View style={styles.switchFieldItem}>
+                  <SwitchField
+                    label="Sightings alerts"
+                    description="Send push notifications when rare species are nearby."
+                    value={switchOnValue}
+                    onValueChange={setSwitchOnValue}
+                  />
+                </View>
+                <View style={styles.switchFieldItem}>
+                  <SwitchField
+                    label="Location sharing"
+                    description="Allow WhereWild to access device GPS data."
+                    value={switchOffValue}
+                    onValueChange={setSwitchOffValue}
+                  />
+                </View>
+                <View style={styles.switchFieldItem}>
+                  <SwitchField
+                    label="Summary emails"
+                    description="Weekly recap is always on for team admins."
+                    value
+                    disabled
+                  />
+                </View>
+                <View style={styles.switchFieldItem}>
+                  <SwitchField
+                    label="Auto-download maps"
+                    description="Disabled until offline mode is enabled."
+                    value={false}
+                    disabled
+                  />
+                </View>
+              </View>
+            </View>
+
+            <View>
+              <ThemedText variant="subheading">Species Card</ThemedText>
+              <SpeciesCard
+                taxonId={speciesSample.taxonId}
+                commonName="Common Name"
+                scientificName="Binomial nomenclature"
+                description="Description"
+                imageSource={SPECIES_CARD_IMAGE}
+              />
+            </View>
+
+            <View>
+              <ThemedText variant="subheading">Species Page Components</ThemedText>
+              <ThemedText variant="body">
+                Preview of the composable building blocks used on the species detail page.
+              </ThemedText>
+              <View
+                style={[
+                  styles.speciesPreview,
+                ]}
+              >
+                <SpeciesPageHeader
+                  commonName={speciesSample.commonName}
+                  scientificName={speciesSample.scientificName}
+                  onPressDownload={noop}
+                />
+                <InlineExpandableRows
+                  sections={speciesSample.dataSections}
+                  taxonId={speciesSample.taxonId}
+                />
+                <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
+              </View>
+            </View>
+
+            <View>
+              <ThemedText variant="subheading">Shadow Tokens</ThemedText>
+              <ThemedText variant="body">
+                Drop shadow tokens translate directly to React Native styles. The card below uses the
+                heaviest token (dropShadow600) so you can verify the visual depth.
+              </ThemedText>
+              <View style={styles.shadowDemoWrapper}>
+                <View
+                  style={[
+                    styles.shadowDemoCard,
+                    {
+                      backgroundColor: palette.background.default.secondary,
+                      borderColor: palette.border.default.secondary,
+                    },
+                    Shadows.dropShadow600.style,
+                  ]}
+                >
+                  <ThemedText variant="bodyStrong">dropShadow600</ThemedText>
+                  <ThemedText variant="body">
+                    Built from the design system token with a 16px Y-offset and 32px blur.
+                  </ThemedText>
+                </View>
+              </View>
+            </View>
+
+            <View>
+              <ThemedText variant="subheading">Buttons</ThemedText>
+              {buttonRows.map(({ title, variant, buttons, danger }) => (
+                <View key={title}>
+                  <ThemedText variant="bodyStrong">{title}</ThemedText>
+                  <View style={styles.row}>
+                    {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
+                      const buttonVariant = overrideVariant ?? variant;
+
+                      if (danger) {
+                        const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
+                        return (
+                          <ButtonDanger
+                            key={label}
+                            size={size}
+                            variant={dangerVariant}
+                            disabled={disabled}
+                            iconStart={iconStart}
+                            iconEnd={iconEnd}
+                            onPress={noop}
+                          >
+                            {label}
+                          </ButtonDanger>
+                        );
+                      }
+
                       return (
-                        <ButtonDanger
+                        <Button
                           key={label}
                           size={size}
-                          variant={dangerVariant}
+                          variant={buttonVariant}
                           disabled={disabled}
                           iconStart={iconStart}
                           iconEnd={iconEnd}
                           onPress={noop}
                         >
                           {label}
-                        </ButtonDanger>
+                        </Button>
                       );
-                    }
+                    })}
+                  </View>
+                </View>
+              ))}
 
-                    return (
-                      <Button
-                        key={label}
+              {iconButtonVariants.map(({ title, variant }) => (
+                <View key={title}>
+                  <ThemedText variant="bodyStrong">{title}</ThemedText>
+                  <View style={styles.row}>
+                    {iconButtonStates.map(({ size, disabled }) => (
+                      <IconButton
+                        key={`${size}-${disabled}`}
+                        variant={variant}
+                        icon={<IconStar />}
+                        accessibilityLabel="Star"
                         size={size}
-                        variant={buttonVariant}
                         disabled={disabled}
-                        iconStart={iconStart}
-                        iconEnd={iconEnd}
-                        onPress={noop}
-                      >
-                        {label}
-                      </Button>
-                    );
-                  })}
+                        onPress={disabled ? undefined : noop}
+                      />
+                    ))}
+                  </View>
                 </View>
-              </View>
-            ))}
-
-            {iconButtonVariants.map(({ title, variant }) => (
-              <View key={title}>
-                <ThemedText variant="bodyStrong">{title}</ThemedText>
-                <View style={styles.row}>
-                  {iconButtonStates.map(({ size, disabled }) => (
-                    <IconButton
-                      key={`${size}-${disabled}`}
-                      variant={variant}
-                      icon={<IconStar />}
-                      accessibilityLabel="Star"
-                      size={size}
-                      disabled={disabled}
-                      onPress={disabled ? undefined : noop}
-                    />
-                  ))}
-                </View>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         </ScrollView>
       </View>
@@ -443,9 +470,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
+    width: '100%',
     paddingTop: Size.space['800'],
-    paddingHorizontal: Size.space['800'],
     paddingBottom: Size.space['1600'],
+    paddingHorizontal: Responsive.marginHorizontal,
+    alignItems: 'center',
+    gap: Size.space['800'],
+  },
+  pageTitleContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  pageTitle: {
+    width: '100%',
+    maxWidth: Responsive.contentWidth,
+    gap: Size.space['300'],
+  },
+  pageTitleDivider: {
+    height: Size.stroke.border,
+    width: '100%',
+  },
+  playgroundSection: {
+    width: '100%',
+    maxWidth: Responsive.textWidth,
+    gap: Size.space['200'],
+  },
+  playgroundContent: {
+    width: '100%',
+    maxWidth: Responsive.contentWidth,
     gap: Size.space['800'],
   },
   row: {

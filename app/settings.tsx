@@ -162,7 +162,7 @@ export default function SettingsScreen() {
                 <View style={styles.field}>
                   <SelectField
                     label="Temperature Units"
-                    description="Supports °C, °F (US imperial), or Kelvin"
+                    description="Supports °C, °F, or Kelvin"
                     options={TEMPERATURE_UNIT_OPTIONS}
                     value={temperatureUnits}
                     onValueChange={setTemperatureUnits}
