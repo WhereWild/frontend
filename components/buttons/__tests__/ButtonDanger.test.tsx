@@ -2,9 +2,9 @@ import { Colors } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
-import type { ButtonDangerSize, ButtonDangerVariant } from '../buttons/ButtonDanger';
-import { ButtonDanger, __BUTTON_DANGER_TESTING__ } from '../buttons/ButtonDanger';
-import { ThemedText } from '../text/ThemedText';
+import { ThemedText } from '../../text/ThemedText';
+import type { ButtonDangerSize, ButtonDangerVariant } from '../ButtonDanger';
+import { ButtonDanger, __BUTTON_DANGER_TESTING__ } from '../ButtonDanger';
 
 const createIconProbe = () => {
   const calls: { color?: string }[] = [];
@@ -78,7 +78,7 @@ describe('ButtonDanger Component', () => {
   });
 
   describe('Icons', () => {
-    const iconSource = require('../../assets/images/placeholder.png');
+    const iconSource = require('../../../assets/images/placeholder.png');
 
     it('renders asset iconStart when provided', () => {
       render(

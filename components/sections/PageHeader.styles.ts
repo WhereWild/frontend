@@ -1,5 +1,5 @@
-import { StyleSheet } from 'react-native';
 import { Shadows, Size } from '@/constants/theme';
+import { StyleSheet } from 'react-native';
 
 export const pageHeaderStyles = StyleSheet.create({
   container: {
@@ -84,14 +84,5 @@ export const pageHeaderStyles = StyleSheet.create({
   },
   mobileActionButton: {
     width: '100%',
-  },
-  mobileBackButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['100'],
-    borderRadius: Size.radius['200'],
-    paddingVertical: Size.space['100'],
-    paddingHorizontal: Size.space['200'],
-    borderWidth: Size.stroke.border,
   },
 });

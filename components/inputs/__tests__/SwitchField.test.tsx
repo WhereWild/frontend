@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { SwitchField } from '../inputs/SwitchField';
+import { SwitchField } from '../SwitchField';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 

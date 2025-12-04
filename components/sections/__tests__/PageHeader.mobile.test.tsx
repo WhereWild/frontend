@@ -1,8 +1,8 @@
-import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { IconHelpCircle } from '@/assets/icons';
 import { Size } from '@/constants/theme';
-import { PageHeader } from '../sections/PageHeader';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import React from 'react';
+import { PageHeader } from '../PageHeader';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -52,9 +52,11 @@ describe('PageHeader (mobile)', () => {
 
     const filterButton = screen.getByLabelText('Filter search results');
     const menuButton = screen.getByLabelText('Toggle navigation menu');
+    const backButton = screen.getByLabelText('Go back');
 
     expect(filterButton).toBeTruthy();
     expect(menuButton).toBeTruthy();
+    expect(backButton).toBeTruthy();
     expect(screen.queryByLabelText('Help')).toBeNull();
   });
 

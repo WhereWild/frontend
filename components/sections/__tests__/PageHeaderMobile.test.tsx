@@ -1,8 +1,8 @@
-import React from 'react';
-import { fireEvent, render } from '@testing-library/react-native';
-import { View, Text } from 'react-native';
-import { PageHeaderMobile, type PageHeaderMobileProps } from '../sections/PageHeaderMobile';
 import { Colors, Size } from '@/constants/theme';
+import { fireEvent, render } from '@testing-library/react-native';
+import React from 'react';
+import { Pressable, Text, View } from 'react-native';
+import { PageHeaderMobile, type PageHeaderMobileProps } from '../PageHeaderMobile';
 
 jest.mock('@/assets/icons', () => ({
   IconFilter: () => null,
@@ -29,6 +29,7 @@ const createProps = (overrides: Partial<PageHeaderMobileProps> = {}): PageHeader
   menuAccessibilityLabel: 'Open menu',
   onLogoPress: jest.fn(),
   logoAccessibilityLabel: 'WhereWild home',
+  logoIsButton: false,
   ...overrides,
 });
 
@@ -205,5 +206,31 @@ describe('PageHeaderMobile', () => {
       | Record<string, number | undefined>
       | undefined;
     expect(inlineStyles?.width).toBe(100 + Size.space['400']);
+  });
+
+  it('allows the logo content to handle presses when logoIsButton is true', () => {
+    const customLogoPress = jest.fn();
+    const onLogoPress = jest.fn();
+
+    const { getByLabelText, queryByLabelText } = render(
+      <PageHeaderMobile
+        {...createProps({
+          logoIsButton: true,
+          onLogoPress,
+          logoContent: (
+            <Pressable accessibilityLabel="Custom back" onPress={customLogoPress}>
+              <Text>Back</Text>
+            </Pressable>
+          ),
+        })}
+      />,
+    );
+
+    const customButton = getByLabelText('Custom back');
+    fireEvent.press(customButton);
+
+    expect(customLogoPress).toHaveBeenCalled();
+    expect(onLogoPress).not.toHaveBeenCalled();
+    expect(queryByLabelText('WhereWild home')).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
+import { PageHeader } from '../PageHeader';
 import { IconHelpCircle } from '@/assets/icons';
-import { PageHeader } from '../sections/PageHeader';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -21,13 +21,11 @@ jest.mock('expo-router', () => ({
   usePathname: () => mockPathname,
 }));
 
-describe('PageHeader (desktop)', () => {
+describe('PageHeader', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockPathname = '/';
   });
-
-  const defaultLogoAccessibilityLabel = 'WhereWild – Go to home';
 
   it('renders title, search input, and default actions', () => {
     render(<PageHeader searchValue="lynx" />);
@@ -57,7 +55,7 @@ describe('PageHeader (desktop)', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('invokes custom action handler when pressed', () => {
+  it('invokes action handler when pressed', () => {
     const handlePress = jest.fn();
     render(
       <PageHeader
@@ -69,15 +67,19 @@ describe('PageHeader (desktop)', () => {
     expect(handlePress).toHaveBeenCalledTimes(1);
   });
 
+  const defaultLogoAccessibilityLabel = 'WhereWild – Go to home';
+
   it('navigates home when logo is pressed from another page', () => {
     mockPathname = '/about';
     render(<PageHeader />);
 
-    fireEvent.press(screen.getByLabelText(defaultLogoAccessibilityLabel));
+    const logoLink = screen.getByLabelText(defaultLogoAccessibilityLabel);
+    expect(logoLink.props.accessibilityRole).toBe('link');
+    fireEvent.press(logoLink);
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('does not navigate home when already on the root path', () => {
+  it('does not navigate when already on the home page', () => {
     render(<PageHeader />);
 
     fireEvent.press(screen.getByLabelText(defaultLogoAccessibilityLabel));

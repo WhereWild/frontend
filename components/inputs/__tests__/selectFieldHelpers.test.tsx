@@ -5,7 +5,7 @@ import {
   getOptionRowBackground,
   getSelectFieldColors,
   useSelectDropdown,
-} from '../inputs/selectFieldHelpers';
+} from '../selectFieldHelpers';
 import { Dimensions, type View } from 'react-native';
 
 describe('selectFieldHelpers', () => {

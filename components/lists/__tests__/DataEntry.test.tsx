@@ -3,7 +3,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { DataEntry, __DATA_ENTRY_TESTING__ } from '../lists/DataEntry';
+import { DataEntry, __DATA_ENTRY_TESTING__ } from '../DataEntry';
 
 const MAX_GRAPH_HEIGHT = Size.space['8000'];
 const MIN_GRAPH_HEIGHT = Size.space['1600'];

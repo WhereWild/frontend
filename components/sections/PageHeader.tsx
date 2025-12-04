@@ -9,12 +9,13 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useIsCompact } from '@/hooks/useResponsive';
 import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
-import { Image, Platform, View } from 'react-native';
+import { Image, Platform } from 'react-native';
+import { IconButton } from '../buttons/IconButton';
+import { ThemedText } from '../text/ThemedText';
+import { pageHeaderStyles as styles } from './PageHeader.styles';
+import type { PageHeaderAction, PageHeaderProps } from './PageHeader.types';
 import { PageHeaderDesktop } from './PageHeaderDesktop';
 import { PageHeaderMobile } from './PageHeaderMobile';
-import { ThemedText } from '../text/ThemedText';
-import type { PageHeaderAction, PageHeaderProps } from './PageHeader.types';
-import { pageHeaderStyles as styles } from './PageHeader.styles';
 export type { PageHeaderAction, PageHeaderProps } from './PageHeader.types';
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
@@ -125,23 +126,13 @@ export function PageHeader({
   );
 
   const backButtonContent = (
-    <View
-      style={[
-        styles.mobileBackButton,
-        {
-          backgroundColor: palette.background.default.tertiary,
-          borderColor: palette.border.default.tertiary,
-        },
-      ]}
-    >
-      <IconChevronLeft />
-      <ThemedText
-        variant="body"
-        style={{ color: palette.text.default.default }}
-      >
-        Back
-      </ThemedText>
-    </View>
+    <IconButton
+      variant="subtle"
+      size="small"
+      icon={<IconChevronLeft />}
+      accessibilityLabel={defaultBackAccessibilityLabel}
+      onPress={handleBackPress}
+    />
   );
 
   if (isCompact) {
@@ -150,6 +141,7 @@ export function PageHeader({
       <PageHeaderMobile
         palette={palette}
         logoContent={useBackContent ? backButtonContent : logoContent}
+        logoIsButton={useBackContent}
         style={style}
         searchValue={searchValue}
         onSearchChange={onSearchChange}

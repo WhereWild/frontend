@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { SelectField, type SelectFieldOption } from '../inputs/SelectField';
+import { SelectField, type SelectFieldOption } from '../SelectField';
 
 const OPTIONS: SelectFieldOption[] = [
   { label: 'Fennec Fox', value: 'fennec' },

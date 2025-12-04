@@ -2,9 +2,9 @@ import { Colors, Size } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image } from 'react-native';
-import type { IconButtonSize, IconButtonVariant } from '../buttons/IconButton';
-import { IconButton, __ICON_BUTTON_TESTING__ } from '../buttons/IconButton';
-import { ThemedText } from '../text/ThemedText';
+import { ThemedText } from '../../text/ThemedText';
+import type { IconButtonSize, IconButtonVariant } from '../IconButton';
+import { IconButton, __ICON_BUTTON_TESTING__ } from '../IconButton';
 
 // Mock icon component for testing
 const MockIcon = () => <ThemedText>Icon</ThemedText>;
@@ -98,7 +98,7 @@ describe('IconButton Component', () => {
   });
 
   describe('Icons', () => {
-    const iconSource = require('../../assets/images/placeholder.png');
+    const iconSource = require('../../../assets/images/placeholder.png');
 
     it('renders asset icon node inside the button', () => {
       render(

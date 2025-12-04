@@ -1,3 +1,5 @@
+import { IconFilter, IconMenu } from '@/assets/icons';
+import { Size } from '@/constants/theme';
 import React from 'react';
 import {
   LayoutChangeEvent,
@@ -6,17 +8,15 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { IconFilter, IconMenu } from '@/assets/icons';
+import { Button } from '../buttons/Button';
+import { IconButton } from '../buttons/IconButton';
+import { SearchInput } from '../inputs/SearchInput';
+import { pageHeaderStyles as styles } from './PageHeader.styles';
 import type {
   ColorPalette,
   PageHeaderAction,
   SearchInputPassthroughProps,
 } from './PageHeader.types';
-import { pageHeaderStyles as styles } from './PageHeader.styles';
-import { Button } from '../buttons/Button';
-import { IconButton } from '../buttons/IconButton';
-import { SearchInput } from '../inputs/SearchInput';
-import { Size } from '@/constants/theme';
 
 export type PageHeaderMobileProps = {
   palette: ColorPalette;
@@ -37,6 +37,7 @@ export type PageHeaderMobileProps = {
   menuAccessibilityLabel: string;
   onLogoPress: () => void;
   logoAccessibilityLabel: string;
+  logoIsButton?: boolean;
 };
 
 export function PageHeaderMobile({
@@ -58,6 +59,7 @@ export function PageHeaderMobile({
   menuAccessibilityLabel,
   onLogoPress,
   logoAccessibilityLabel,
+  logoIsButton = false,
 }: PageHeaderMobileProps) {
   const [toolbarHeight, setToolbarHeight] = React.useState(0);
   const [maxActionWidth, setMaxActionWidth] = React.useState(0);
@@ -123,6 +125,21 @@ export function PageHeaderMobile({
     </View>
   ));
 
+  const logoWrapperStyle = [styles.logoSection, styles.mobileLogoSection];
+
+  const logoNode = logoIsButton ? (
+    <View style={logoWrapperStyle}>{logoContent}</View>
+  ) : (
+    <Pressable
+      onPress={onLogoPress}
+      style={logoWrapperStyle}
+      accessibilityRole="link"
+      accessibilityLabel={logoAccessibilityLabel}
+    >
+      {logoContent}
+    </Pressable>
+  );
+
   return (
     <View
       style={[
@@ -140,14 +157,7 @@ export function PageHeaderMobile({
         onLayout={handleToolbarLayout}
         testID="page-header-mobile-toolbar"
       >
-        <Pressable
-          onPress={onLogoPress}
-          style={[styles.logoSection, styles.mobileLogoSection]}
-          accessibilityRole="link"
-          accessibilityLabel={logoAccessibilityLabel}
-        >
-          {logoContent}
-        </Pressable>
+        {logoNode}
 
         <View style={[styles.searchRow, styles.mobileSearchRow]}>
           <View style={styles.searchWrapper}>
