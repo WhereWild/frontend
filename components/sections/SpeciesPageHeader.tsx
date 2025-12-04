@@ -39,7 +39,6 @@ export function SpeciesPageHeader({
       iconStart={<IconDownload />}
       onPress={onPressDownload}
       accessibilityLabel={`${downloadLabel} ${commonName}`}
-      size={isCompact ? 'small' : 'medium'}
       style={isCompact ? styles.mobileButton : undefined}
     >
       {downloadLabel}

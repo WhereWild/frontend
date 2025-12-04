@@ -103,6 +103,7 @@ export function SwitchField({
           onHoverIn={handleHoverIn}
           onHoverOut={handleHoverOut}
           disabled={disabled}
+          focusable={!disabled}
           accessibilityRole="switch"
           accessibilityLabel={accessibilityLabel ?? label}
           accessibilityState={{ disabled, checked: value }}

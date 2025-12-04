@@ -27,6 +27,8 @@ describe('PageHeader (desktop)', () => {
     mockPathname = '/';
   });
 
+  const defaultLogoAccessibilityLabel = 'WhereWild – Go to home';
+
   it('renders title, search input, and default actions', () => {
     render(<PageHeader searchValue="lynx" />);
 
@@ -71,14 +73,14 @@ describe('PageHeader (desktop)', () => {
     mockPathname = '/about';
     render(<PageHeader />);
 
-    fireEvent.press(screen.getByLabelText('Go to home'));
+    fireEvent.press(screen.getByLabelText(defaultLogoAccessibilityLabel));
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
   it('does not navigate home when already on the root path', () => {
     render(<PageHeader />);
 
-    fireEvent.press(screen.getByLabelText('Go to home'));
+    fireEvent.press(screen.getByLabelText(defaultLogoAccessibilityLabel));
     expect(mockPush).not.toHaveBeenCalled();
   });
 

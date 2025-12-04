@@ -35,7 +35,7 @@ export function PageHeader({
   onMenuPress,
   menuAccessibilityLabel = 'Toggle navigation menu',
   style,
-  logoAccessibilityLabel = 'Go to home',
+  logoAccessibilityLabel,
 }: PageHeaderProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -83,6 +83,9 @@ export function PageHeader({
     onMenuPress?.();
   }, [onMenuPress]);
 
+  const defaultLogoAccessibilityLabel = `${title} – Go to home`;
+  const resolvedLogoAccessibilityLabel = logoAccessibilityLabel ?? defaultLogoAccessibilityLabel;
+
   const logoContent = (
     <>
       <Image
@@ -122,7 +125,7 @@ export function PageHeader({
         onMenuPress={handleMenuPress}
         menuAccessibilityLabel={menuAccessibilityLabel}
         onLogoPress={navigateHome}
-        logoAccessibilityLabel={logoAccessibilityLabel}
+        logoAccessibilityLabel={resolvedLogoAccessibilityLabel}
       />
     );
   }
@@ -143,7 +146,7 @@ export function PageHeader({
       filterLabel={filterLabel}
       filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
       onLogoPress={navigateHome}
-      logoAccessibilityLabel={logoAccessibilityLabel}
+      logoAccessibilityLabel={resolvedLogoAccessibilityLabel}
     />
   );
 }

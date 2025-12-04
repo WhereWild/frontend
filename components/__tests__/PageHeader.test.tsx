@@ -67,11 +67,13 @@ describe('PageHeader', () => {
     expect(handlePress).toHaveBeenCalledTimes(1);
   });
 
+  const defaultLogoAccessibilityLabel = 'WhereWild – Go to home';
+
   it('navigates home when logo is pressed from another page', () => {
     mockPathname = '/about';
     render(<PageHeader />);
 
-    const logoLink = screen.getByLabelText('Go to home');
+    const logoLink = screen.getByLabelText(defaultLogoAccessibilityLabel);
     expect(logoLink.props.accessibilityRole).toBe('link');
     fireEvent.press(logoLink);
     expect(mockPush).toHaveBeenCalledWith('/');
@@ -80,7 +82,7 @@ describe('PageHeader', () => {
   it('does not navigate when already on the home page', () => {
     render(<PageHeader />);
 
-    fireEvent.press(screen.getByLabelText('Go to home'));
+    fireEvent.press(screen.getByLabelText(defaultLogoAccessibilityLabel));
     expect(mockPush).not.toHaveBeenCalled();
   });
 

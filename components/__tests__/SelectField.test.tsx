@@ -107,7 +107,7 @@ describe('SelectField', () => {
     expect(screen.getByText('Pick a mammal')).toBeTruthy();
   });
 
-  it('falls back to the placeholder for accessibility label when no label is supplied', () => {
+  it('includes a default field label when no label is supplied', () => {
     render(
       <SelectField
         placeholder="Choose a species"
@@ -115,7 +115,7 @@ describe('SelectField', () => {
       />,
     );
 
-    expect(screen.getByLabelText('Choose a species')).toBeTruthy();
+    expect(screen.getByLabelText('Select field: Choose a species')).toBeTruthy();
   });
 
   it('marks the default option as selected when the menu opens', async () => {

@@ -74,6 +74,12 @@ export function SelectField<Value extends string | number = string>({
   const selectedValue = isControlled ? value : internalValue;
   const selectedOption = options.find((option) => option.value === selectedValue);
   const showPlaceholder = !selectedOption;
+  const triggerDisplayText = showPlaceholder ? (placeholder ?? '') : selectedOption?.label ?? '';
+  const triggerAccessibilityLabel = React.useMemo(() => {
+    const fieldPurpose = label && label.trim().length > 0 ? label : 'Select field';
+    const valueText = selectedOption?.label || placeholder || 'No selection';
+    return `${fieldPurpose}: ${valueText}`;
+  }, [label, placeholder, selectedOption?.label]);
 
   const colors = React.useMemo(
     () => getSelectFieldColors(palette, { disabled, errorMessage, isOpen }),
@@ -131,12 +137,13 @@ export function SelectField<Value extends string | number = string>({
           ref={triggerRef}
           testID={testID}
           accessibilityRole="button"
-          accessibilityLabel={label ?? placeholder}
+          accessibilityLabel={triggerAccessibilityLabel}
           accessibilityState={{
             disabled,
             expanded: isOpen,
           }}
           accessibilityHint={disabled ? undefined : 'Opens a menu with additional options'}
+          focusable={!disabled}
           onPress={toggleDropdown}
           disabled={disabled}
           onLayout={handleFieldLayout}
@@ -156,7 +163,7 @@ export function SelectField<Value extends string | number = string>({
             ellipsizeMode="tail"
             style={[styles.triggerText, { color: showPlaceholder ? placeholderColor : textColor }]}
           >
-            {showPlaceholder ? placeholder : selectedOption?.label}
+            {triggerDisplayText}
           </ThemedText>
           <IconChevronDown
             color={iconColor}
