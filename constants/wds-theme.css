@@ -232,7 +232,7 @@
   --wds-color-background-default-tertiary: var(--wds-color-gray-250);
   --wds-color-background-default-tertiary-hover: var(--wds-color-gray-200);
   --wds-color-background-default-tertiary-pressed: var(--wds-color-gray-300);
-  --wds-color-background-disabled-default: var(--wds-color-gray-500);
+  --wds-color-background-disabled-default: var(--wds-color-gray-400);
   --wds-color-background-neutral-default: var(--wds-color-slate-900);
   --wds-color-background-neutral-hover: var(--wds-color-slate-800);
   --wds-color-background-neutral-pressed: var(--wds-color-slate-1000);
@@ -266,7 +266,7 @@
   --wds-color-border-default-default: var(--wds-color-gray-500);
   --wds-color-border-default-secondary: var(--wds-color-gray-500);
   --wds-color-border-default-tertiary: var(--wds-color-gray-500);
-  --wds-color-border-disabled-default: var(--wds-color-gray-500);
+  --wds-color-border-disabled-default: var(--wds-color-gray-400);
   --wds-color-border-neutral-default: var(--wds-color-slate-700);
   --wds-color-border-neutral-secondary: var(--wds-color-slate-900);
   --wds-color-border-neutral-tertiary: var(--wds-color-slate-600);
@@ -289,8 +289,8 @@
   --wds-color-icon-default-default: var(--wds-color-gray-1000);
   --wds-color-icon-default-secondary: var(--wds-color-gray-900);
   --wds-color-icon-default-tertiary: var(--wds-color-gray-800);
-  --wds-color-icon-disabled-default: var(--wds-color-gray-500);
-  --wds-color-icon-disabled-on-disabled: var(--wds-color-gray-600);
+  --wds-color-icon-disabled-default: var(--wds-color-gray-400);
+  --wds-color-icon-disabled-on-disabled: var(--wds-color-gray-500);
   --wds-color-icon-neutral-default: var(--wds-color-gray-900);
   --wds-color-icon-neutral-on-neutral: var(--wds-color-slate-200);
   --wds-color-icon-neutral-on-neutral-secondary: var(--wds-color-slate-200);
@@ -320,8 +320,8 @@
   --wds-color-text-default-default: var(--wds-color-gray-1000);
   --wds-color-text-default-secondary: var(--wds-color-gray-900);
   --wds-color-text-default-tertiary: var(--wds-color-gray-800);
-  --wds-color-text-disabled-default: var(--wds-color-gray-500);
-  --wds-color-text-disabled-on-disabled: var(--wds-color-gray-600);
+  --wds-color-text-disabled-default: var(--wds-color-gray-400);
+  --wds-color-text-disabled-on-disabled: var(--wds-color-gray-500);
   --wds-color-text-neutral-default: var(--wds-color-gray-900);
   --wds-color-text-neutral-on-neutral: var(--wds-color-slate-200);
   --wds-color-text-neutral-on-neutral-secondary: var(--wds-color-slate-200);
@@ -506,6 +506,7 @@
   --wds-size-space-16000: 40rem;
   --wds-size-space-200: 0.5rem;
   --wds-size-space-2400: 6rem;
+  --wds-size-space-250: 0.625rem;
   --wds-size-space-300: 0.75rem;
   --wds-size-space-400: 1rem;
   --wds-size-space-4000: 10rem;
@@ -635,7 +636,7 @@
   --wds-font-body-link: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-body-small: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
-  --wds-font-body-small-emphasis: var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-small) "Inter", sans-serif;
+  --wds-font-body-small-emphasis: var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-body-code: normal var(--wds-typography-code-font-weight) var(--wds-typography-code-size-medium) var(--wds-typography-code-font-family);
   --wds-font-single-line-body-base: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
   --wds-font-single-line-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
