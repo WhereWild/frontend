@@ -1,12 +1,3 @@
-import {
-  IconFilter,
-  IconHelpCircle,
-  IconInfo,
-  IconSettings,
-} from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
 import {
   Image,
@@ -17,9 +8,18 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { Button } from '../buttons/Button';
-import { SearchInput, type SearchInputProps } from '../inputs/SearchInput';
-import { ThemedText } from '../text/ThemedText';
+import {
+  IconFilter,
+  IconHelpCircle,
+  IconInfo,
+  IconSettings,
+} from '@/assets/icons';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { usePathname, useRouter } from 'expo-router';
+import { SearchInput, type SearchInputProps } from './SearchInput';
+import { Button } from './Button';
+import { ThemedText } from './ThemedText';
 
 // Allows callers to forward styling/behavior props to SearchInput while keeping PageHeader in control of its value.
 type SearchInputPassthroughProps = Partial<
@@ -36,6 +36,7 @@ export type PageHeaderAction = {
 export type PageHeaderProps = {
   title?: string;
   logoSource?: ImageSourcePropType;
+  onLogoPress?: () => void;
   logoAccessibilityLabel?: string;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
@@ -54,8 +55,9 @@ const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
 export function PageHeader({
   title = 'WhereWild',
   logoSource = DEFAULT_LOGO,
-  searchValue,
+  searchValue = '',
   onSearchChange,
+  onSubmitSearch,
   searchPlaceholder = 'Search',
   searchInputProps,
   actions,
@@ -64,6 +66,7 @@ export function PageHeader({
   filterLabel = 'Filter',
   filterButtonAccessibilityLabel = 'Filter search results',
   style,
+  onLogoPress,
   logoAccessibilityLabel = 'Go to home',
 }: PageHeaderProps) {
   const scheme = useColorScheme();
@@ -71,21 +74,11 @@ export function PageHeader({
   const palette = Colors[mode];
   const router = useRouter();
   const pathname = usePathname();
-  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
-    if (pathname !== targetPath) {
-      router.push(targetPath);
+  const navigateToAbout = React.useCallback(() => {
+    if (pathname !== '/about') {
+      router.push('/about');
     }
   }, [pathname, router]);
-  const submitSearchQuery = (query: string) => {
-    router.push({pathname: '/search', params: {query: query}});
-  };
-  const navigateHome = React.useCallback(() => {
-    navigateIfDifferent('/');
-  }, [navigateIfDifferent]);
-
-  const navigateToAbout = React.useCallback(() => {
-    navigateIfDifferent('/about');
-  }, [navigateIfDifferent]);
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
@@ -123,21 +116,25 @@ export function PageHeader({
       ]}
       accessibilityRole="header"
     >
-      <Pressable
-        onPress={navigateHome}
-        style={styles.logoSection}
-        accessibilityRole="link"
-        accessibilityLabel={logoAccessibilityLabel}
-      >
-        {logoContent}
-      </Pressable>
+      {onLogoPress ? (
+        <Pressable
+          onPress={onLogoPress}
+          style={styles.logoSection}
+          accessibilityRole="link"
+          accessibilityLabel={logoAccessibilityLabel}
+        >
+          {logoContent}
+        </Pressable>
+      ) : (
+        <View style={styles.logoSection}>{logoContent}</View>
+      )}
 
       <View style={styles.searchRow}>
         <View style={styles.searchWrapper}>
           <SearchInput
             value={searchValue}
             onQueryChange={onSearchChange}
-            onSubmitSearch={submitSearchQuery}
+            onSubmitSearch={onSubmitSearch}
             placeholder={searchPlaceholder}
             {...searchInputProps}
           />
@@ -192,10 +189,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: Size.space['400'],
-    minWidth: Size.space['8000']
   },
   searchWrapper: {
     flex: 1,
+    minWidth: 240,
   },
   actionsWrapper: {
     flexDirection: 'row',
