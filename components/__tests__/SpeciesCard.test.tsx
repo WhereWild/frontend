@@ -6,9 +6,14 @@ import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../cards/SpeciesCard';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
 import type { Router } from 'expo-router';
+import { useIsCompact } from '@/hooks/useResponsive';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
+}));
+
+jest.mock('@/hooks/useResponsive', () => ({
+  useIsCompact: jest.fn(() => false),
 }));
 
 jest.mock('expo-router', () => ({
@@ -16,6 +21,7 @@ jest.mock('expo-router', () => ({
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseIsCompact = useIsCompact as jest.MockedFunction<typeof useIsCompact>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 
 let pushMock: jest.Mock;
@@ -48,6 +54,7 @@ const createPressableState = (
 describe('SpeciesCard', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
+    mockUseIsCompact.mockReturnValue(false);
     pushMock = jest.fn();
     routerStub = createRouterStub({ push: pushMock as Router['push'] });
     mockUseRouter.mockReturnValue(routerStub);
@@ -223,5 +230,27 @@ describe('SpeciesCard', () => {
       'SpeciesCard: scientific name could not be converted to a valid URL segment',
     );
     consoleErrorSpy.mockRestore();
+  });
+
+  it('caps width on compact layouts', () => {
+    mockUseIsCompact.mockReturnValue(true);
+
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    const card = screen.getByTestId('species-card');
+    const computed = StyleSheet.flatten(card.props.style);
+    expect(computed.width).toBe(320);
+    expect(computed.maxWidth).toBe(320);
+  });
+
+  it('uses full width on larger breakpoints', () => {
+    mockUseIsCompact.mockReturnValue(false);
+
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    const card = screen.getByTestId('species-card');
+    const computed = StyleSheet.flatten(card.props.style);
+    expect(computed.width).toBe('100%');
+    expect(computed.maxWidth).toBe(440);
   });
 });

@@ -1,6 +1,7 @@
 import { IconImage } from '@/assets/icons';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useIsCompact } from '@/hooks/useResponsive';
 import React from 'react';
 import {
   Image,
@@ -11,6 +12,7 @@ import {
   StyleSheet,
   View,
   ViewStyle,
+  type DimensionValue,
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
 import { useRouter } from 'expo-router';
@@ -31,7 +33,9 @@ export type SpeciesCardProps = {
 };
 
 const IMAGE_SIZE = 128;
-const MAX_WIDTH = 440;
+const DESKTOP_MAX_WIDTH = 440;
+const COMPACT_MAX_WIDTH = 320;
+const FULL_WIDTH: DimensionValue = '100%';
 
 /**
  * Keeps 'secondary' as the default to preserve the palette used before variants existed.
@@ -77,6 +81,7 @@ export function SpeciesCard({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const isCompact = useIsCompact();
   const router = useRouter();
 
   const placeholderBackground = palette.background.neutral.default;
@@ -109,6 +114,9 @@ export function SpeciesCard({
     router.push(`/species/${taxonId}/${scientificSegment}` as RelativePathString);
   };
 
+  const resolvedWidth: DimensionValue | undefined = isCompact ? COMPACT_MAX_WIDTH : FULL_WIDTH;
+  const resolvedMaxWidth = isCompact ? COMPACT_MAX_WIDTH : DESKTOP_MAX_WIDTH;
+
   return (
     <Pressable
       onPress={handlePress}
@@ -120,6 +128,8 @@ export function SpeciesCard({
         {
           backgroundColor: backgroundForState(state),
           borderRadius: Size.radius['200'],
+          width: resolvedWidth,
+          maxWidth: resolvedMaxWidth,
         },
         style,
       ]}
@@ -172,8 +182,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: Size.space['400'],
     gap: Size.space['400'],
-    maxWidth: MAX_WIDTH,
-    width: '100%',
   },
   imageWrapper: {
     width: IMAGE_SIZE,
