@@ -195,9 +195,6 @@ export default function About() {
         <PageHeader
           searchValue={headerSearchQuery}
           onSearchChange={setHeaderSearchQuery}
-          onSubmitSearch={(value: string) =>
-            setLastSearchEvent(`Header search submitted with "${value}"`)
-          }
         />
 
         <ScrollView contentContainerStyle={styles.container}>
