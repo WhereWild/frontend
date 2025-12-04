@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: Size.space['800'],
+    paddingBottom: Size.space['1600'],
     paddingHorizontal: Responsive.marginHorizontal,
     width: '100%',
   },

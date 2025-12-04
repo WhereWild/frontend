@@ -446,7 +446,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    padding: Size.space['800'],
+    paddingTop: Size.space['800'],
+    paddingHorizontal: Size.space['800'],
+    paddingBottom: Size.space['1600'],
     gap: Size.space['800'],
   },
   row: {

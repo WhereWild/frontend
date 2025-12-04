@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
     paddingTop: Size.space['800'],
-    paddingBottom: Size.space['800'],
+    paddingBottom: Size.space['1600'],
     paddingHorizontal: Responsive.marginHorizontal,
     alignItems: 'center',
     gap: Size.space['600'],
