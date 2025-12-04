@@ -1,5 +1,11 @@
 import type { ImageSourcePropType } from 'react-native';
 
+export type SpeciesIdentifiers = {
+  taxonId: number;
+  scientificName: string;
+  commonName: string;
+};
+
 /**
  * Shared data contracts for hooking the WhereWild UI up to real APIs.
  * These interfaces deliberately avoid importing component props so the same
@@ -9,18 +15,9 @@ import type { ImageSourcePropType } from 'react-native';
 /**
  * Minimal description of a species that can be rendered in cards or lists.
  */
-export type SpeciesSummary = {
-  commonName: string;
-  scientificName: string;
+export type SpeciesSummary = SpeciesIdentifiers & {
   description: string;
   imageSource?: ImageSourcePropType;
-};
-
-/**
- * Summary record that also includes a stable identifier for recommendation lists.
- */
-export type HighlightedSpecies = SpeciesSummary & {
-  id: string;
 };
 
 /**
@@ -37,7 +34,7 @@ export type MapSnapshot = {
 export type HomePageData = {
   map: MapSnapshot;
   recommendations: {
-    items: HighlightedSpecies[];
+    items: SpeciesSummary[];
   };
 };
 
@@ -94,10 +91,7 @@ export type HeatmapSnapshot = {
 /**
  * Full payload required to render the species detail page.
  */
-export type SpeciesPageData = {
-  id: string;
-  commonName: string;
-  scientificName: string;
+export type SpeciesPageData = SpeciesSummary & {
   overview: SpeciesOverview;
   dataSections: EnvironmentalDataSection[];
   nearbySpecies: SpeciesSummary[];

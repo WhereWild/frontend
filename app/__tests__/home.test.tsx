@@ -28,14 +28,14 @@ const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
   recommendations: {
     items: [
       {
-        id: 'desert-bloom',
+        taxonId: 101,
         commonName: 'Desert Bloom',
         scientificName: 'Bloomus deserti',
         description: 'Currently flowering',
         imageSource: { uri: 'desert' },
       },
       {
-        id: 'alpine-falcon',
+        taxonId: 202,
         commonName: 'Alpine Falcon',
         scientificName: 'Falco alpinus',
         description: 'Sighted this week',
