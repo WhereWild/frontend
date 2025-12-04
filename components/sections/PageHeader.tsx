@@ -10,6 +10,7 @@ import { useIsCompact } from '@/hooks/useResponsive';
 import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
 import { Image, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '../buttons/IconButton';
 import { ThemedText } from '../text/ThemedText';
 import { pageHeaderStyles as styles } from './PageHeader.styles';
@@ -46,6 +47,7 @@ export function PageHeader({
   const pathname = usePathname();
   const isCompact = useIsCompact();
   const isNativeMobile = Platform.OS !== 'web' && isCompact;
+  const safeAreaInsets = useSafeAreaInsets();
   const [mobileMenuExpanded, setMobileMenuExpanded] = React.useState(false);
 
   const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about' | '/settings') => {
@@ -137,11 +139,13 @@ export function PageHeader({
 
   if (isCompact) {
     const useBackContent = isNativeMobile;
+    const topInset = isNativeMobile ? safeAreaInsets.top : 0;
     return (
       <PageHeaderMobile
         palette={palette}
         logoContent={useBackContent ? backButtonContent : logoContent}
         logoIsButton={useBackContent}
+        topInset={topInset}
         style={style}
         searchValue={searchValue}
         onSearchChange={onSearchChange}

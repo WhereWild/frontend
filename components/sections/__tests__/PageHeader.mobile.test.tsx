@@ -3,6 +3,7 @@ import { Size } from '@/constants/theme';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { PageHeader } from '../PageHeader';
+import type { EdgeInsets } from 'react-native-safe-area-context';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -20,6 +21,12 @@ let mockPathname = '/';
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => mockPathname,
+}));
+
+const mockInsets: EdgeInsets = { top: 20, bottom: 0, left: 0, right: 0 };
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => mockInsets,
 }));
 
 const selectStyleObject = (

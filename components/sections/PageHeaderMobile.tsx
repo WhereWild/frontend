@@ -38,6 +38,7 @@ export type PageHeaderMobileProps = {
   onLogoPress: () => void;
   logoAccessibilityLabel: string;
   logoIsButton?: boolean;
+  topInset?: number;
 };
 
 export function PageHeaderMobile({
@@ -60,6 +61,7 @@ export function PageHeaderMobile({
   onLogoPress,
   logoAccessibilityLabel,
   logoIsButton = false,
+  topInset = 0,
 }: PageHeaderMobileProps) {
   const [toolbarHeight, setToolbarHeight] = React.useState(0);
   const [maxActionWidth, setMaxActionWidth] = React.useState(0);
@@ -145,9 +147,11 @@ export function PageHeaderMobile({
       style={[
         styles.mobileContainer,
         shouldRenderActions ? styles.mobileContainerRaised : undefined,
+        { paddingTop: topInset },
         style,
       ]}
       accessibilityRole="header"
+      testID="page-header-mobile-container"
     >
       <View
         style={[

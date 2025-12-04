@@ -4,6 +4,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Alert, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SpeciesScreen from '../_speciesPage';
 
 jest.mock('@/components/sections/SpeciesEnvironmentSection', () => {
@@ -29,12 +30,18 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseSafeAreaInsets = useSafeAreaInsets as jest.MockedFunction<typeof useSafeAreaInsets>;
+
+beforeEach(() => {
+  mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 0, left: 0 });
+});
 
 afterEach(() => {
   jest.restoreAllMocks();
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
   speciesEnvironmentSectionMock.mockClear();
+
 });
 
 const createData = (overrides: Partial<SpeciesPageData> = {}): SpeciesPageData => ({

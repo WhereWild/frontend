@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import { fetchSpeciesByTaxonId, fetchSpeciesEnvironment } from '@/data/api';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import SpeciesPage from '../../_speciesPage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 jest.mock('@/components/sections/SpeciesEnvironmentSection', () => ({
   __esModule: true,
@@ -40,6 +41,7 @@ const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
 const mockFetchSpeciesEnvironment = fetchSpeciesEnvironment as jest.MockedFunction<typeof fetchSpeciesEnvironment>;
 const mockSpeciesPage = SpeciesPage as jest.MockedFunction<typeof SpeciesPage>;
+const mockUseSafeAreaInsets = useSafeAreaInsets as jest.MockedFunction<typeof useSafeAreaInsets>;
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -68,6 +70,8 @@ describe('SpeciesBasicsPage', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
+    mockUseSafeAreaInsets.mockReset();
+    mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 0, left: 0 });
     mockFetchSpeciesEnvironment.mockImplementation(async (taxonId, variableId) => ({
       speciesId: Number(taxonId ?? SAMPLE_TAXON_ID),
       variable: String(variableId),
