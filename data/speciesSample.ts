@@ -3,6 +3,29 @@ import type { SpeciesPageData } from './types';
 const FEATURED_IMAGE = require('@/assets/images/placeholder.png');
 const HEATMAP = { uri: 'https://www.figma.com/api/mcp/asset/7d50c2fc-2baf-4a64-a4e7-562ccf20b239' };
 
+const ENVIRONMENT_GRAPH_ENTRIES = [
+  {
+    dataName: 'Elevation distribution',
+    dataPoint: 'Median near 2000 m',
+    variableId: 'elevation',
+  },
+  {
+    dataName: 'Annual precipitation',
+    dataPoint: 'Median near 40 cm',
+    variableId: 'annual_precip',
+  },
+  {
+    dataName: 'Mean temp (coldest quarter)',
+    dataPoint: 'Average about -2 °C',
+    variableId: 'mean_temp_coldest_quarter',
+  },
+  {
+    dataName: 'Max temp (warmest month)',
+    dataPoint: 'Average about 32 °C',
+    variableId: 'max_temp_warmest_month',
+  },
+];
+
 export const mountainBallCactusData: SpeciesPageData = {
   taxonId: 999001,
   commonName: 'Mountain Ball Cactus',
@@ -18,7 +41,11 @@ export const mountainBallCactusData: SpeciesPageData = {
     {
       title: 'Overview',
       entries: [
-        { dataName: 'Average elevation', dataPoint: '2000 m', expandable: false },
+        {
+          dataName: 'Average elevation',
+          dataPoint: '2000 m',
+          expandable: false,
+        },
         {
           dataName: 'Average precipitation',
           dataPoint: '39.4 cm',
@@ -46,6 +73,16 @@ export const mountainBallCactusData: SpeciesPageData = {
           ],
         },
       ],
+    },
+    {
+      title: 'Environmental Factors',
+      entries: ENVIRONMENT_GRAPH_ENTRIES.map((entry) => ({
+        dataName: entry.dataName,
+        dataPoint: entry.dataPoint,
+        expandable: false,
+        showGraph: true,
+        environmentGraph: { variableId: entry.variableId },
+      })),
     },
     {
       title: 'Phenology',

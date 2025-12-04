@@ -46,6 +46,15 @@ export type EnvironmentalDataDetail = {
   value: string;
 };
 
+export type EnvironmentalGraphConfig = {
+  variableId: string;
+  /**
+   * Optional prefetched stats that can be passed directly to SpeciesEnvironmentSection
+   * to avoid triggering another network request when the entry already resolved the data.
+   */
+  initialStats?: SpeciesEnvironmentStats;
+};
+
 export type EnvironmentalDataEntry = {
   dataName: string;
   dataPoint: string;
@@ -65,6 +74,12 @@ export type EnvironmentalDataEntry = {
    * If both are true, the UI should render both the expand/collapse control and the graph.
    */
   showGraph?: boolean;
+  /**
+   * Optional configuration that drives an inline SpeciesEnvironmentSection graph.
+   * When provided, the entry will automatically render the graph inline using
+   * the ambient species taxon ID for fetching data.
+   */
+  environmentGraph?: EnvironmentalGraphConfig;
 };
 
 /**
@@ -81,11 +96,11 @@ export type EnvironmentalDataSection = {
  */
 export type SpeciesOverview = {
   description: string;
-  imageSource: ImageSourcePropType;
+  imageSource?: ImageSourcePropType;
 };
 
 export type HeatmapSnapshot = {
-  imageSource: ImageSourcePropType;
+  imageSource?: ImageSourcePropType;
 };
 
 /**

@@ -3,7 +3,6 @@ import {
   NearbySpeciesCarousel,
   PageHeader,
   SpeciesPageHeader,
-  SpeciesEnvironmentSection,
   ThemedText,
 } from '@/components';
 import { Colors, Responsive, Size } from '@/constants/theme';
@@ -19,13 +18,39 @@ type SpeciesSampleScreenProps = {
 };
 
 export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
-  const { taxonId, commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
-    data;
+  const {
+    taxonId,
+    commonName,
+    scientificName,
+    overview,
+    dataSections: rawDataSections,
+    nearbySpecies: rawNearbySpecies,
+    heatmap,
+  } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   // Placeholder for future search/filter functionality. Currently unused in this demo screen.
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  const dataSections = React.useMemo(() => rawDataSections ?? [], [rawDataSections]);
+  const nearbySpecies = rawNearbySpecies ?? [];
+
+  const emptyCardTone = React.useMemo(
+    () => ({
+      borderColor: palette.border.default.default,
+      backgroundColor: palette.background.default.secondary,
+    }),
+    [palette.border.default.default, palette.background.default.secondary],
+  );
+
+  const overviewDescription = overview?.description?.trim() ?? '';
+  const overviewImage = overview?.imageSource;
+  const shouldRenderOverview = Boolean(overviewDescription || overviewImage);
+  const heatmapImage = heatmap?.imageSource;
+  const shouldRenderHeatmap = Boolean(heatmapImage);
+  const hasSections = dataSections.length > 0;
+  const hasNearbySpecies = nearbySpecies.length > 0;
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -56,41 +81,72 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           <View style={styles.centeredSection}>
             <View style={styles.sectionContent}>
               <View style={styles.overviewSection}>
-                <View style={styles.overviewText}>
-                  <ThemedText variant="heading">Overview</ThemedText>
-                  <ThemedText variant="body">{overview.description}</ThemedText>
-                </View>
-                <View style={styles.featuredImageWrapper}>
-                  <Image
-                    source={overview.imageSource}
-                    style={[styles.featuredImage]}
-                    resizeMode="cover"
-                    accessibilityLabel={`${commonName} featured image`}
-                  />
-                </View>
+                {shouldRenderOverview ? (
+                  <>
+                    {overviewDescription ? (
+                      <View style={styles.overviewText}>
+                        <ThemedText variant="heading">Overview</ThemedText>
+                        <ThemedText variant="body">{overviewDescription}</ThemedText>
+                      </View>
+                    ) : null}
+                    {overviewImage ? (
+                      <View style={styles.featuredImageWrapper}>
+                        <Image
+                          source={overviewImage}
+                          style={styles.featuredImage}
+                          resizeMode="cover"
+                          accessibilityLabel={`${commonName} featured image`}
+                        />
+                      </View>
+                    ) : null}
+                  </>
+                ) : (
+                  <View style={[styles.emptyStateCard, emptyCardTone]}>
+                    <ThemedText variant="body">
+                      Overview data is unavailable for this species.
+                    </ThemedText>
+                  </View>
+                )}
               </View>
             </View>
           </View>
 
           <View style={styles.centeredSection}>
             <View style={styles.sectionContent}>
-              <InlineExpandableRows sections={dataSections} />
+              {hasSections ? (
+                <InlineExpandableRows sections={dataSections} taxonId={taxonId} />
+              ) : (
+                <View style={[styles.emptyStateCard, emptyCardTone]}>
+                  <ThemedText variant="body">
+                    Environmental breakdowns are not yet available.
+                  </ThemedText>
+                </View>
+              )}
             </View>
           </View>
-          <NearbySpeciesCarousel species={nearbySpecies} />
 
-          <SpeciesEnvironmentSection taxonId={taxonId} />
+          {hasNearbySpecies ? (
+            <NearbySpeciesCarousel species={nearbySpecies} />
+          ) : null}
 
           <View style={styles.heatMapSection}>
-            <View style={[styles.sectionContent]}>
+            <View style={styles.sectionContent}>
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>
-            <Image
-              source={heatmap.imageSource}
-              resizeMode="cover"
-              style={styles.heatmap}
-              accessibilityLabel="Predicted sightings heat map"
-            />
+            {shouldRenderHeatmap ? (
+              <Image
+                source={heatmapImage!}
+                resizeMode="cover"
+                style={styles.heatmap}
+                accessibilityLabel="Predicted sightings heat map"
+              />
+            ) : (
+              <View style={[styles.emptyStateCard, styles.heatmapPlaceholder, emptyCardTone]}>
+                <ThemedText variant="body">
+                  Heat map data is still processing for this species.
+                </ThemedText>
+              </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -122,6 +178,12 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     flexWrap: 'wrap',
   },
+  emptyStateCard: {
+    width: '100%',
+    padding: Size.space['400'],
+    borderRadius: Size.radius['200'],
+    borderWidth: Size.stroke.border,
+  },
   overviewText: {
     flex: 1,
     minWidth: 280,
@@ -143,5 +205,12 @@ const styles = StyleSheet.create({
   heatmap: {
     width: '100%',
     aspectRatio: 1440 / 810,
+  },
+  heatmapPlaceholder: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: Size.space['4000'],
+    paddingVertical: Size.space['600'],
   },
 });

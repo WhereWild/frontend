@@ -3,7 +3,8 @@ import { act, render, screen } from '@testing-library/react-native';
 import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier]';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
-import { fetchSpeciesByTaxonId } from '@/data/api';
+import { fetchSpeciesByTaxonId, fetchSpeciesEnvironment } from '@/data/api';
+import type { SpeciesEnvironmentStats } from '@/data/types';
 import SpeciesPage from '../../_speciesPage';
 
 jest.mock('expo-router', () => {
@@ -18,6 +19,7 @@ jest.mock('expo-router', () => {
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
+  fetchSpeciesEnvironment: jest.fn(),
 }));
 
 jest.mock('../../_speciesPage', () => {
@@ -31,6 +33,7 @@ const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typ
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
+const mockFetchSpeciesEnvironment = fetchSpeciesEnvironment as jest.MockedFunction<typeof fetchSpeciesEnvironment>;
 const mockSpeciesPage = SpeciesPage as jest.MockedFunction<typeof SpeciesPage>;
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
@@ -60,6 +63,26 @@ describe('SpeciesBasicsPage', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
+    mockFetchSpeciesEnvironment.mockImplementation(async (taxonId, variableId) => ({
+      speciesId: Number(taxonId ?? SAMPLE_TAXON_ID),
+      variable: String(variableId),
+      variableName: String(variableId),
+      units: 'units',
+      variableType: 'continuous',
+      generatedAt: '2024-01-01T00:00:00Z',
+      summary: {
+        count: 42,
+        mean: 12,
+        stddev: 3,
+        q10: 4,
+        q90: 20,
+      },
+      histogram: { bins: [0, 10, 20], counts: [10, 32] },
+      binSamples: [],
+      categoricalDistribution: [],
+      dominantCategories: [],
+      categoricalSamples: [],
+    }));
   });
 
   it('renders fallback data when no identifier parameter is supplied', async () => {
@@ -96,6 +119,56 @@ describe('SpeciesBasicsPage', () => {
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
     await screen.findByText('Snowy Owl');
     await screen.findByText('Large white owl adapted to Arctic climates.');
+  });
+
+  it('hydrates environmental data sections from backend stats', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      taxon_id: Number(SAMPLE_TAXON_ID),
+      common_name: 'Data-rich species',
+      scientific_name: 'Statistica foobar',
+      description: 'Has field data.',
+    } as any);
+
+    render(<SpeciesBasicsPage />);
+    await act(async () => {
+      await flushMicrotasksQueue();
+    });
+    await act(async () => {
+      await flushMicrotasksQueue();
+    });
+
+    const expectedCalls = __SPECIES_BASICS_TESTING__.ENVIRONMENT_VARIABLE_TARGETS.length;
+    expect(mockFetchSpeciesEnvironment).toHaveBeenCalledTimes(expectedCalls);
+    __SPECIES_BASICS_TESTING__.ENVIRONMENT_VARIABLE_TARGETS.forEach(({ variableId }, index) => {
+      expect(mockFetchSpeciesEnvironment).toHaveBeenNthCalledWith(
+        index + 1,
+        Number(SAMPLE_TAXON_ID),
+        variableId,
+      );
+    });
+
+    const props = getLatestRenderProps();
+    const sections = props?.data?.dataSections;
+    const entries = sections?.[0]?.entries ?? [];
+    expect(entries).toHaveLength(expectedCalls);
+
+    entries.forEach((entry, index) => {
+      const target = __SPECIES_BASICS_TESTING__.ENVIRONMENT_VARIABLE_TARGETS[index];
+      expect(entry.environmentGraph?.initialStats).toEqual(
+        expect.objectContaining({
+          speciesId: Number(SAMPLE_TAXON_ID),
+          variable: target.variableId,
+          summary: expect.objectContaining({
+            count: 42,
+            mean: 12,
+            stddev: 3,
+            q10: 4,
+            q90: 20,
+          }),
+        }),
+      );
+    });
   });
 
   it('falls back to sample data when the fetch request fails', async () => {
@@ -165,7 +238,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     const props = getLatestRenderProps();
-    expect(props?.data?.overview.imageSource).toEqual({ uri: 'https://example.com/preferred.png' });
+    expect(props?.data?.overview?.imageSource).toEqual({ uri: 'https://example.com/preferred.png' });
   });
 
   it('uses the provided React Native image source object when supplied', async () => {
@@ -184,7 +257,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     const props = getLatestRenderProps();
-    expect(props?.data?.overview.imageSource).toBe(providedSource);
+    expect(props?.data?.overview?.imageSource).toBe(providedSource);
   });
 
   it('renders nothing while the identifier data is still loading', () => {
@@ -211,7 +284,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     const props = getLatestRenderProps();
-    expect(props?.data?.overview.imageSource).toBe(mountainBallCactusData.overview.imageSource);
+    expect(props?.data?.overview?.imageSource).toBe(mountainBallCactusData.overview?.imageSource);
   });
 
   it('ignores late success responses after unmounting', async () => {
@@ -293,6 +366,41 @@ describe('SpeciesBasicsPage', () => {
   });
 
   describe('__SPECIES_BASICS_TESTING__ helpers', () => {
+    const createStats = (
+      overrides: Partial<SpeciesEnvironmentStats> = {},
+    ): SpeciesEnvironmentStats => {
+      const { summary: summaryOverride, ...rest } = overrides;
+      const summary = {
+        count: 120,
+        mean: 820.5,
+        stddev: 42.3,
+        q10: 640.1,
+        q90: 963.8,
+        ...summaryOverride,
+      };
+
+      const base: SpeciesEnvironmentStats = {
+        speciesId: 4242,
+        variable: 'elevation',
+        variableName: 'Elevation',
+        units: 'm',
+        variableType: 'continuous',
+        generatedAt: '2024-01-01T00:00:00Z',
+        summary,
+        histogram: { bins: [0, 10, 20], counts: [12, 18] },
+        binSamples: [],
+        categoricalDistribution: [],
+        dominantCategories: [],
+        categoricalSamples: [],
+      };
+
+      return {
+        ...base,
+        ...rest,
+        summary,
+      };
+    };
+
     it('builds SpeciesPageData with payload overrides', () => {
       const payload = {
         taxon_id: 24680,
@@ -306,17 +414,17 @@ describe('SpeciesBasicsPage', () => {
       expect(result.taxonId).toBe(24680);
       expect(result.commonName).toBe('Prairie Smoke');
       expect(result.scientificName).toBe('Geum triflorum');
-      expect(result.overview.description).toBe(payload.description);
-      expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
-      expect(result.dataSections).toBe(mountainBallCactusData.dataSections);
+      expect(result.overview?.description).toBe(payload.description);
+      expect(result.overview?.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
+      expect(result.dataSections).toEqual([]);
     });
 
     it('uses the requested taxon id when payload lacks taxon data', () => {
       const fallbackTaxonId = 97531;
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData({}, fallbackTaxonId as any);
       expect(result.taxonId).toBe(fallbackTaxonId);
-      expect(result.commonName).toBe(mountainBallCactusData.commonName);
-      expect(result.scientificName).toBe(mountainBallCactusData.scientificName);
+      expect(result.commonName).toBe('Taxon 97531');
+      expect(result.scientificName).toBe('Taxon 97531');
     });
 
     it('derives identifier priorities from route params', () => {
@@ -362,6 +470,133 @@ describe('SpeciesBasicsPage', () => {
 
       expect(fetchIdentifier).toBe('654321');
       expect(requestedTaxonId).toBe(654321);
+    });
+
+    it('normalizes image sources across string, RN source, and url payloads', () => {
+      const stringSource = __SPECIES_BASICS_TESTING__.normalizeImageSource({
+        image_source: 'https://example.com/direct.png',
+      } as any);
+      expect(stringSource).toEqual({ uri: 'https://example.com/direct.png' });
+
+      const rnSource = { uri: 'https://example.com/rn-object.png' } as const;
+      const objectSource = __SPECIES_BASICS_TESTING__.normalizeImageSource({
+        image_source: rnSource,
+      } as any);
+      expect(objectSource).toBe(rnSource);
+
+      const fallback = __SPECIES_BASICS_TESTING__.normalizeImageSource({
+        image_url: 'https://example.com/fallback.png',
+      } as any);
+      expect(fallback).toEqual({ uri: 'https://example.com/fallback.png' });
+
+      expect(__SPECIES_BASICS_TESTING__.normalizeImageSource({} as any)).toBeUndefined();
+    });
+
+    it('builds environment entries with resolved summary details', () => {
+      const stats = createStats({
+        dominantCategories: [
+          { value: 1, className: 'Forest', count: 40, fraction: 0.5 },
+        ],
+      });
+
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(stats, 'Fallback label');
+      expect(entry).not.toBeNull();
+      expect(entry?.dataName).toBe('Elevation');
+      expect(entry?.environmentGraph?.initialStats).toBe(stats);
+      expect(entry?.details).toEqual(
+        expect.arrayContaining([
+          { label: 'Samples', value: '120' },
+          { label: 'Mean', value: '821 m' },
+          { label: 'Std dev', value: '42.3 m' },
+          { label: 'Central range', value: '640 m to 964 m' },
+          expect.objectContaining({ label: 'Forest' }),
+        ]),
+      );
+    });
+
+    it('falls back to the provided label when variable metadata is missing', () => {
+      const stats = createStats({
+        variableName: '',
+        summary: {
+          count: 10,
+          mean: null,
+          stddev: null,
+          q10: null,
+          q90: null,
+        },
+        dominantCategories: [],
+        categoricalDistribution: [{ value: 3, className: 'Shrubland', count: 10, fraction: 1 }],
+      });
+
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(stats, 'Fallback label');
+      expect(entry?.dataName).toBe('Fallback label');
+      expect(entry?.dataPoint).toContain('Shrubland');
+    });
+
+    it('skips environment entries without sample data and prunes empty sections', () => {
+      const emptyStats = createStats({
+        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null },
+        dominantCategories: [],
+        categoricalDistribution: [],
+      });
+
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(emptyStats, 'Unavailable');
+      expect(entry).toBeNull();
+
+      const sections = __SPECIES_BASICS_TESTING__.buildEnvironmentSections([
+        { stats: emptyStats, fallbackLabel: 'Unused' },
+      ]);
+      expect(sections).toEqual([]);
+
+      const stats = createStats();
+      const populatedSections = __SPECIES_BASICS_TESTING__.buildEnvironmentSections([
+        { stats, fallbackLabel: 'Primary' },
+      ]);
+      expect(populatedSections).toHaveLength(1);
+      expect(populatedSections[0].title).toBe('Environmental Factors');
+      expect(populatedSections[0].entries[0].dataName).toBe(stats.variableName);
+    });
+
+    it('resolves summary descriptions based on available statistics', () => {
+      const quantileStats = createStats();
+      expect(
+        __SPECIES_BASICS_TESTING__.resolveSummaryDescription(quantileStats),
+      ).toContain('to');
+
+      const meanStats = createStats({
+        summary: { count: 12, mean: 15.5, stddev: null, q10: null, q90: null },
+        dominantCategories: [],
+      });
+      expect(
+        __SPECIES_BASICS_TESTING__.resolveSummaryDescription(meanStats),
+      ).toContain('average');
+
+      const categoryStats = createStats({
+        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null },
+        dominantCategories: [
+          { value: 1, className: 'Wetland', count: 5, fraction: 0.5 },
+        ],
+      });
+      expect(
+        __SPECIES_BASICS_TESTING__.resolveSummaryDescription(categoryStats),
+      ).toContain('Wetland');
+
+      const samplesOnly = createStats({
+        summary: { count: 7, mean: null, stddev: null, q10: null, q90: null },
+        dominantCategories: [],
+      });
+      expect(
+        __SPECIES_BASICS_TESTING__.resolveSummaryDescription(samplesOnly),
+      ).toBe('7 samples recorded');
+
+      const insufficient = createStats({
+        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null },
+        dominantCategories: [],
+        categoricalDistribution: [],
+      });
+      expect(
+        __SPECIES_BASICS_TESTING__.resolveSummaryDescription(insufficient),
+      ).toBe('Not enough samples yet');
     });
   });
 });

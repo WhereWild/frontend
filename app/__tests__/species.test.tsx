@@ -6,6 +6,17 @@ import React from 'react';
 import { Alert, StyleSheet } from 'react-native';
 import SpeciesScreen from '../_speciesPage';
 
+jest.mock('@/components/sections/SpeciesEnvironmentSection', () => {
+  const MockSpeciesEnvironmentSection = jest.fn(() => null);
+  return {
+    __esModule: true,
+    SpeciesEnvironmentSection: MockSpeciesEnvironmentSection,
+  };
+});
+
+const speciesEnvironmentSectionMock = jest.requireMock('@/components/sections/SpeciesEnvironmentSection')
+  .SpeciesEnvironmentSection as jest.Mock;
+
 const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
@@ -23,6 +34,7 @@ afterEach(() => {
   jest.restoreAllMocks();
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
+  speciesEnvironmentSectionMock.mockClear();
 });
 
 const createData = (overrides: Partial<SpeciesPageData> = {}): SpeciesPageData => ({
@@ -44,6 +56,9 @@ const createData = (overrides: Partial<SpeciesPageData> = {}): SpeciesPageData =
           dataName: 'Soil',
           dataPoint: 'Sandy',
           details: [{ label: 'Drainage', value: 'Fast' }],
+          environmentGraph: {
+            variableId: 'soil_moisture',
+          },
         },
       ],
     },
@@ -88,6 +103,18 @@ describe('Species screen', () => {
     expect(screen.getByText('Mountain Ball Cactus')).toBeTruthy();
   });
 
+  it('renders the overview fallback copy when description and image data are missing', () => {
+    const data = createData({
+      overview: undefined,
+    });
+
+    render(<SpeciesScreen data={data} />);
+
+    expect(
+      screen.getByText('Overview data is unavailable for this species.'),
+    ).toBeTruthy();
+  });
+
   it('updates header search input and triggers filter alert', () => {
     render(<SpeciesScreen data={createData()} />);
 
@@ -101,14 +128,24 @@ describe('Species screen', () => {
     alertSpy.mockRestore();
   });
 
-  it('expands inline rows to reveal details and graph placeholder', () => {
-    render(<SpeciesScreen data={createData()} />);
+  it('expands inline rows to reveal details and environment graph', () => {
+    const data = createData();
+    render(<SpeciesScreen data={data} />);
 
-    const soilRow = screen.getByLabelText('Soil expand');
+    expect(speciesEnvironmentSectionMock).not.toHaveBeenCalled();
+
+    const soilRow = screen.getByLabelText('Soil: Sandy');
     fireEvent.press(soilRow);
 
     expect(screen.getByText('Drainage: Fast')).toBeTruthy();
-    expect(screen.getByTestId('data-entry-graph')).toBeTruthy();
+    expect(speciesEnvironmentSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taxonId: data.taxonId,
+        variableId: 'soil_moisture',
+        title: 'Soil',
+      }),
+      undefined,
+    );
   });
 
   it('renders dark mode palette and hides empty nearby species carousel', () => {
@@ -120,6 +157,22 @@ describe('Species screen', () => {
     );
 
     expect(screen.queryByText('Nearby Species')).toBeNull();
+  });
+
+  it('shows environmental and heat map placeholders when sections and imagery are missing', () => {
+    const data = createData({
+      dataSections: [],
+      heatmap: undefined,
+    });
+
+    render(<SpeciesScreen data={data} />);
+
+    expect(
+      screen.getByText('Environmental breakdowns are not yet available.'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Heat map data is still processing for this species.'),
+    ).toBeTruthy();
   });
 
   it('applies light mode background color when overridden to be light', () => {
