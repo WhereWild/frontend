@@ -186,19 +186,27 @@ const FONT_LINE_HEIGHTS: Record<string, number> = {
   subheading: 1.2,
 };
 
-// Map CSS font-family and font-weight to Expo font names
+// Map CSS font descriptors to Expo font names (family + weight + style)
 const expoFontMap: Record<string, string> = {
-  '"domine", serif|400': 'Domine_400Regular',
-  '"domine", serif|600': 'Domine_600SemiBold',
-  '"domine", serif|700': 'Domine_700Bold',
-  '"inter", sans-serif|400': 'Inter_400Regular',
-  '"inter", sans-serif|600': 'Inter_600SemiBold',
-  '"jetbrains mono", monospace|400': 'JetBrainsMono_400Regular',
+  '"domine", serif|400|normal': 'Domine_400Regular',
+  '"domine", serif|600|normal': 'Domine_600SemiBold',
+  '"domine", serif|700|normal': 'Domine_700Bold',
+  '"inter", sans-serif|400|normal': 'Inter_400Regular',
+  '"inter", sans-serif|400|italic': 'Inter_400Regular_Italic',
+  '"inter", sans-serif|600|normal': 'Inter_600SemiBold',
+  '"inter", sans-serif|600|italic': 'Inter_600SemiBold_Italic',
+  '"jetbrains mono", monospace|400|normal': 'JetBrainsMono_400Regular',
+  '"jetbrains mono", monospace|400|italic': 'JetBrainsMono_400Regular_Italic',
 };
 
-// Function to get the Expo font name based on family and weight
-const getExpoFontName = (family: string, weight: string) =>
-  expoFontMap[`${family}|${weight}`] ?? 'System';
+// Normalize family/style casing to match the font map entries.
+const normalizeFontDescriptor = (value: string) => value.trim().toLowerCase();
+
+// Function to get the Expo font name based on family, weight, and style
+const getExpoFontName = (family: string, weight: string, style: string) => {
+  const key = `${normalizeFontDescriptor(family)}|${weight}|${normalizeFontDescriptor(style || 'normal')}`;
+  return expoFontMap[key] ?? 'System';
+};
 
 // rem units are used across typography and size tokens in the design system.
 // React Native expects pixel values, so we convert rem -> px using a 16px base.
@@ -231,7 +239,7 @@ const parseFontShorthand = (
   const fontSize = remToPx(size);
   const fontStyle = style as TextStyle['fontStyle'];
   const fontWeight = weight as TextStyle['fontWeight'];
-  const fontFamily = getExpoFontName(family, weight) as TextStyle['fontFamily'];
+  const fontFamily = getExpoFontName(family, weight, style) as TextStyle['fontFamily'];
 
   return {
     fontStyle,
