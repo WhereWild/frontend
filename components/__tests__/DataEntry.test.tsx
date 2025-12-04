@@ -19,6 +19,11 @@ describe('DataEntry', () => {
     mockUseColorScheme.mockReturnValue('dark');
   });
 
+  const elevationSummaryLabel = 'Average elevation: 2000 m';
+  const precipitationSummaryLabel = 'Average precipitation: 39.4 cm';
+  const expandHint = 'Expands to reveal additional details';
+  const collapseHint = 'Collapses additional details';
+
   it('toggles expansion state and renders details', () => {
     const handleToggle = jest.fn();
 
@@ -33,12 +38,14 @@ describe('DataEntry', () => {
     );
 
     expect(screen.queryByText('Detail name: data point')).toBeNull();
+    expect(screen.getByHintText(expandHint)).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText('Average elevation expand'));
+    fireEvent.press(screen.getByLabelText(elevationSummaryLabel));
     expect(screen.getByText('Detail name: data point')).toBeTruthy();
     expect(handleToggle).toHaveBeenLastCalledWith(true);
 
-    fireEvent.press(screen.getByLabelText('Average elevation collapse'));
+    expect(screen.getByHintText(collapseHint)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(elevationSummaryLabel));
     expect(handleToggle).toHaveBeenLastCalledWith(false);
   });
 
@@ -51,8 +58,8 @@ describe('DataEntry', () => {
       />,
     );
 
-    expect(screen.getByText('Average elevation: 2000 m')).toBeTruthy();
-    expect(screen.queryByLabelText('Average elevation expand')).toBeNull();
+    expect(screen.getByText(elevationSummaryLabel)).toBeTruthy();
+    expect(screen.queryByLabelText(elevationSummaryLabel)).toBeNull();
     expect(screen.queryByTestId('data-entry-graph')).toBeNull();
   });
 
@@ -66,8 +73,8 @@ describe('DataEntry', () => {
       />,
     );
 
-    expect(screen.getByText('Average precipitation: 39.4 cm')).toBeTruthy();
-    expect(screen.queryByLabelText('Average precipitation expand')).toBeNull();
+    expect(screen.getByText(precipitationSummaryLabel)).toBeTruthy();
+    expect(screen.queryByLabelText(precipitationSummaryLabel)).toBeNull();
   });
 
   it('still renders details when expandable is false', () => {
@@ -124,7 +131,7 @@ describe('DataEntry', () => {
       <DataEntry dataName="Average elevation" dataPoint="2000 m" details={[]} />,
     );
 
-    expect(screen.queryByLabelText('Average elevation expand')).toBeNull();
+    expect(screen.queryByLabelText(elevationSummaryLabel)).toBeNull();
 
     rerender(
       <DataEntry
@@ -134,7 +141,7 @@ describe('DataEntry', () => {
       />,
     );
 
-    expect(screen.getByLabelText('Average elevation expand')).toBeTruthy();
+    expect(screen.getByLabelText(elevationSummaryLabel)).toBeTruthy();
     expect(screen.queryByText('Detail name: data point')).toBeNull();
   });
 
@@ -145,7 +152,7 @@ describe('DataEntry', () => {
     );
 
     expect(screen.queryByTestId('data-entry-graph')).toBeNull();
-    fireEvent.press(screen.getByLabelText('Average elevation expand'));
+    fireEvent.press(screen.getByLabelText(elevationSummaryLabel));
     const placeholder = screen.getByTestId('data-entry-graph');
     const flattened = StyleSheet.flatten(placeholder.props.style);
     expect(flattened.height).toBe(MAX_GRAPH_HEIGHT);
@@ -173,7 +180,7 @@ describe('DataEntry', () => {
       />,
     );
 
-    fireEvent.press(screen.getByLabelText('Average precipitation expand'));
+    fireEvent.press(screen.getByLabelText(precipitationSummaryLabel));
 
     expect(screen.getByTestId('custom-graph')).toBeTruthy();
   });
@@ -214,7 +221,7 @@ describe('DataEntry', () => {
       />,
     );
 
-    fireEvent.press(screen.getByLabelText('Average elevation expand'));
+    fireEvent.press(screen.getByLabelText(elevationSummaryLabel));
 
     const placeholder = screen.getByTestId('data-entry-graph-placeholder');
     const placeholderStyles = StyleSheet.flatten(placeholder.props.style);

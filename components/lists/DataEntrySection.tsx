@@ -10,12 +10,14 @@ export type DataEntrySectionProps = {
   title?: string;
   entries?: DataEntrySectionEntry[];
   style?: StyleProp<ViewStyle>;
+  taxonId?: number;
 };
 
 export function DataEntrySection({
   title = 'Section Title',
   entries = [],
   style,
+  taxonId,
 }: DataEntrySectionProps) {
   return (
     <View style={[styles.section, style]}>
@@ -25,6 +27,7 @@ export function DataEntrySection({
           <DataEntry
             key={`${entry.dataName}-${entry.dataPoint}-${index}`}
             {...entry}
+            taxonId={taxonId}
           />
         ))}
       </View>

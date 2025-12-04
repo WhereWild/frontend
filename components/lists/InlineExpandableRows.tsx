@@ -14,11 +14,13 @@ export type InlineExpandableRowsSection = {
 export type InlineExpandableRowsProps = {
   sections?: InlineExpandableRowsSection[];
   style?: StyleProp<ViewStyle>;
+  taxonId?: number;
 };
 
 export function InlineExpandableRows({
   sections = [],
   style,
+  taxonId,
 }: InlineExpandableRowsProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -40,6 +42,7 @@ export function InlineExpandableRows({
           key={`${section.title}-${index}`}
           title={section.title}
           entries={section.entries}
+          taxonId={taxonId}
         />
       ))}
     </View>

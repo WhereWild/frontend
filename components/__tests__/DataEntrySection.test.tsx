@@ -32,7 +32,7 @@ describe('DataEntrySection', () => {
       />,
     );
 
-    fireEvent.press(screen.getByLabelText('Average precipitation expand'));
+    fireEvent.press(screen.getByLabelText('Average precipitation: 39.4 cm'));
 
     expect(screen.getByText('Detail name: data point')).toBeTruthy();
   });

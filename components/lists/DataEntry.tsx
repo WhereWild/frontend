@@ -1,5 +1,6 @@
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
 import { Colors, Size } from '@/constants/theme';
+import type { EnvironmentalGraphConfig } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import {
@@ -9,6 +10,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { SpeciesEnvironmentSection } from '../sections/SpeciesEnvironmentSection';
 import { ThemedText } from '../text/ThemedText';
 
 export type DataEntryDetail = {
@@ -22,13 +24,11 @@ export type DataEntryProps = {
   details?: DataEntryDetail[];
   showGraph?: boolean;
   graph?: React.ReactNode;
+  environmentGraph?: EnvironmentalGraphConfig;
   expandable?: boolean;
   onToggle?: (expanded: boolean) => void;
   style?: StyleProp<ViewStyle>;
 };
-
-const MIN_GRAPH_HEIGHT = Size.space['1600'];
-const MAX_GRAPH_HEIGHT = Size.space['8000'];
 
 export function DataEntry({
   dataName,
@@ -36,16 +36,20 @@ export function DataEntry({
   details = [],
   showGraph = true,
   graph,
+  environmentGraph,
   expandable = true,
   onToggle,
   style,
-}: DataEntryProps) {
+  taxonId,
+}: DataEntryProps & { taxonId?: number }) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const hasDetails = details.length > 0;
   const isExpandable = expandable && hasDetails;
   const [expanded, setExpanded] = React.useState(!isExpandable);
+  const shouldShowGraph = showGraph && (isExpandable ? expanded : true);
+  const shouldRenderDetails = isExpandable ? expanded : hasDetails || shouldShowGraph;
 
   const handleToggle = React.useCallback(() => {
     if (!isExpandable) {
@@ -62,6 +66,51 @@ export function DataEntry({
     setExpanded(!isExpandable);
   }, [isExpandable]);
 
+  const resolvedGraph = React.useMemo(() => {
+    if (!shouldShowGraph) {
+      return null;
+    }
+    if (graph) {
+      return graph;
+    }
+    if (!environmentGraph || !taxonId) {
+      return null;
+    }
+    return (
+      <SpeciesEnvironmentSection
+        taxonId={taxonId}
+        variableId={environmentGraph.variableId}
+        initialStats={environmentGraph.initialStats}
+        title={dataName}
+      />
+    );
+  }, [environmentGraph, graph, shouldShowGraph, taxonId, dataName]);
+
+  const shouldShowPlaceholder = shouldShowGraph && !resolvedGraph && hasDetails;
+  const graphPlaceholder = shouldShowPlaceholder ? (
+    <View
+      testID="data-entry-graph"
+      style={[styles.graphContainer, styles.graphPlaceholderContainer]}
+    >
+      <View
+        testID="data-entry-graph-placeholder"
+        style={[
+          styles.graphPlaceholderSurface,
+          { backgroundColor: palette.background.default.tertiary },
+        ]}
+      >
+        <ThemedText variant="bodySmall">
+          Environmental graph available once data loads.
+        </ThemedText>
+      </View>
+    </View>
+  ) : null;
+
+  const dataSummaryText = `${dataName}: ${dataPoint}`;
+  const accessibilityHint = isExpandable
+    ? expanded ? 'Will collapse additional details' : 'Will expand to reveal additional details'
+    : undefined;
+
   return (
     <View style={[styles.container, style]}>
       {isExpandable ? (
@@ -77,11 +126,12 @@ export function DataEntry({
           ]}
           onPress={handleToggle}
           accessibilityRole="button"
-          accessibilityLabel={`${dataName} ${expanded ? 'collapse' : 'expand'}`}
+          accessibilityLabel={dataSummaryText}
+          accessibilityHint={accessibilityHint}
           accessibilityState={{ expanded }}
         >
-          <ThemedText variant="body">
-            {dataName}: {dataPoint}
+          <ThemedText variant="body" style={{ flex: 1 }}>
+            {dataSummaryText}
           </ThemedText>
           {expanded ? <IconChevronUp /> : <IconChevronDown />}
         </Pressable>
@@ -91,34 +141,21 @@ export function DataEntry({
           accessibilityRole="text"
         >
           <ThemedText variant="body">
-            {dataName}: {dataPoint}
+            {dataSummaryText}
           </ThemedText>
         </View>
       )}
-      {(
-        isExpandable ? expanded : hasDetails
-      ) ? (
+      {shouldRenderDetails ? (
         <View style={styles.details}>
-          {showGraph ? (
+          {shouldShowGraph && resolvedGraph ? (
             <View
-              style={[
-                styles.graphContainer,
-                !graph && styles.graphPlaceholderBounds,
-              ]}
+              style={[styles.graphContainer, styles.graphContainerWithContent]}
               testID="data-entry-graph"
             >
-              {graph ?? (
-                <View
-                  style={[
-                    styles.graphPlaceholder,
-                    { backgroundColor: palette.background.default.tertiary },
-                  ]}
-                  testID="data-entry-graph-placeholder"
-                  pointerEvents="none"
-                />
-              )}
+              {resolvedGraph}
             </View>
           ) : null}
+          {graphPlaceholder}
           {details.map(({ label, value }, index) => (
             <ThemedText key={`${label}-${value}-${index}`} variant="body">
               {label}: {value}
@@ -152,14 +189,23 @@ const styles = StyleSheet.create({
     borderRadius: Size.radius['200'],
     overflow: 'hidden',
   },
-  graphPlaceholderBounds: {
-    minHeight: MIN_GRAPH_HEIGHT,
-    maxHeight: MAX_GRAPH_HEIGHT,
-    height: MAX_GRAPH_HEIGHT,
+  graphContainerWithContent: {
+    overflow: 'visible',
   },
-  graphPlaceholder: {
-    flex: 1,
+  graphPlaceholderContainer: {
+    height: Size.space['8000'],
+    minHeight: Size.space['1600'],
+    maxHeight: Size.space['8000'],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  graphPlaceholderSurface: {
+    width: '100%',
     height: '100%',
+    borderRadius: Size.radius['200'],
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Size.space['400'],
   },
 });
 
