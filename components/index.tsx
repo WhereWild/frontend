@@ -31,6 +31,12 @@ export type { PageHeaderAction, PageHeaderProps } from './sections/PageHeader';
 export { SearchInput } from './inputs/SearchInput';
 export type { SearchInputProps } from './inputs/SearchInput';
 
+export { SelectField } from './inputs/SelectField';
+export type { SelectFieldProps, SelectFieldOption } from './inputs/SelectField';
+
+export { SwitchField } from './inputs/SwitchField';
+export type { SwitchFieldProps } from './inputs/SwitchField';
+
 export { SpeciesCard } from './cards/SpeciesCard';
 export type { SpeciesCardProps } from './cards/SpeciesCard';
 
