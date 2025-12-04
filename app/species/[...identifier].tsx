@@ -10,10 +10,11 @@ import type {
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
-import SpeciesPage from '../_speciesPage';
 import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
 import type { MeasurementPreferenceSnapshot } from '@/constants/userPreferences';
 import { convertStatsToPreferredUnits } from '@/utils/measurement';
+import SpeciesPage from '../_speciesPage';
+import HomeScreen from '../index';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -25,6 +26,8 @@ type SpeciesBasics = {
   image_source?: ImageSourcePropType | string;
   image_url?: string;
   description?: string;
+  heatmap_image_source?: ImageSourcePropType | string;
+  heatmap_image_url?: string;
   _raw?: Record<string, unknown>;
 };
 
@@ -40,7 +43,6 @@ const ENVIRONMENT_VARIABLE_TARGETS = [
   { variableId: 'min_temp_coldest_month', fallbackLabel: 'Min temp (coldest month)' },
   { variableId: 'max_temp_warmest_month', fallbackLabel: 'Max temp (warmest month)' },
   { variableId: 'landcover', fallbackLabel: 'Landcover class' },
-  
 ] as const;
 
 type EnvironmentStatsEntry = {
@@ -48,8 +50,10 @@ type EnvironmentStatsEntry = {
   fallbackLabel: string;
 };
 
+type ImagePayload = Pick<SpeciesBasics, 'image_source' | 'image_url'>;
+
 // Converts backend image variants into a React Native-friendly ImageSource.
-const normalizeImageSource = (payload: SpeciesBasics): ImageSourcePropType | undefined => {
+const normalizeImageSource = (payload: ImagePayload): ImageSourcePropType | undefined => {
   if (payload.image_source) {
     return typeof payload.image_source === 'string'
       ? { uri: payload.image_source }
@@ -63,6 +67,14 @@ const normalizeImageSource = (payload: SpeciesBasics): ImageSourcePropType | und
   return undefined;
 };
 
+const normalizeHeatmapSource = (
+  payload: Pick<SpeciesBasics, 'heatmap_image_source' | 'heatmap_image_url'>,
+) =>
+  normalizeImageSource({
+    image_source: payload.heatmap_image_source,
+    image_url: payload.heatmap_image_url,
+  });
+
 // Merges backend basics with our rich demo fallback so the page renders even when
 // the API only returns partial fields (overview text, hero image, etc.).
 const buildSpeciesPageData = (
@@ -70,20 +82,30 @@ const buildSpeciesPageData = (
   requestedTaxonId?: number,
 ): SpeciesPageData => {
   const fallback = mountainBallCactusData;
+  const fallbackOverview = fallback.overview ?? { description: '', imageSource: undefined };
+  const fallbackHeatmap = fallback.heatmap ?? { imageSource: undefined };
   const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
-  const resolvedImage = normalizeImageSource(payload) ?? fallback.overview?.imageSource;
-  const description = payload.description ?? '';
+  const resolvedOverviewImage = normalizeImageSource(payload) ?? fallbackOverview.imageSource;
+  const resolvedDescription =
+    payload.description ?? fallbackOverview.description ?? fallback.description ?? '';
+  const resolvedHeatmapSource =
+    normalizeHeatmapSource(payload) ?? fallbackHeatmap.imageSource;
 
   return {
+    ...fallback,
     taxonId: resolvedTaxonId,
-    commonName: payload.common_name ?? `Taxon ${resolvedTaxonId}`,
-    scientificName: payload.scientific_name ?? `Taxon ${resolvedTaxonId}`,
-    description,
-    imageSource: resolvedImage,
-    overview: {description, imageSource: resolvedImage},
-    dataSections: [],
-    nearbySpecies: [],
-    heatmap: {},
+    commonName: payload.common_name ?? fallback.commonName ?? `Taxon ${resolvedTaxonId}`,
+    scientificName: payload.scientific_name ?? fallback.scientificName ?? `Taxon ${resolvedTaxonId}`,
+    description: resolvedDescription,
+    imageSource: resolvedOverviewImage,
+    overview: {
+      ...fallbackOverview,
+      description: resolvedDescription,
+      imageSource: resolvedOverviewImage,
+    },
+    heatmap: resolvedHeatmapSource
+      ? { ...fallbackHeatmap, imageSource: resolvedHeatmapSource }
+      : { ...fallbackHeatmap },
   };
 };
 
@@ -309,6 +331,7 @@ export default function SpeciesBasicsPage() {
   const measurementSnapshot = measurementPreferences.snapshot;
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [environmentStats, setEnvironmentStats] = React.useState<EnvironmentStatsEntry[] | undefined>(undefined);
+  const [loading, setLoading] = React.useState(true);
 
   // Fetch the selected species whenever the resolved numeric identifier changes.
   // The mounted flag ensures we never update state after the component unmounts.
@@ -317,10 +340,19 @@ export default function SpeciesBasicsPage() {
 
     (async () => {
       if (!fetchIdentifier) {
+        if (mounted) {
+          setData(null);
+          setEnvironmentStats(undefined);
+          setLoading(false);
+        }
         console.error(
           'Missing numeric taxon ID in route segments.',
         );
         return;
+      }
+
+      if (mounted) {
+        setLoading(true);
       }
 
       try {
@@ -335,6 +367,10 @@ export default function SpeciesBasicsPage() {
         }
         const message = err instanceof Error ? err.message : 'Failed to load species';
         console.error(`Failed to load species '${fetchIdentifier}':`, message);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -389,18 +425,15 @@ export default function SpeciesBasicsPage() {
     };
   }, [data, resolvedTaxonId]);
 
-  const resolvedEnvironmentSections = React.useMemo(
-    () => {
-      if (!environmentStats || environmentStats.length === 0) {
-        return undefined;
-      }
-      return buildEnvironmentSections(environmentStats, measurementSnapshot);
-    },
-    [environmentStats, measurementSnapshot],
-  );
-
   const hydratedPageData = React.useMemo(
     () => {
+      const resolvedEnvironmentSections = (() => {
+        if (!environmentStats || environmentStats.length === 0) {
+          return undefined;
+        }
+        return buildEnvironmentSections(environmentStats, measurementSnapshot);
+      })();
+
       const merged =
         resolvedEnvironmentSections && resolvedEnvironmentSections.length > 0
           ? resolvedEnvironmentSections
@@ -410,8 +443,12 @@ export default function SpeciesBasicsPage() {
         dataSections: merged,
       };
     },
-    [resolvedEnvironmentSections, resolvedPageData],
+    [environmentStats, measurementSnapshot, resolvedPageData],
   );
+
+  if (loading && !data) {
+    return <HomeScreen />;
+  }
   return <SpeciesPage data={hydratedPageData} />;
 }
 

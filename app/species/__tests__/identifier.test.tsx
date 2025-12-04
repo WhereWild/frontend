@@ -472,7 +472,7 @@ describe('SpeciesBasicsPage', () => {
       expect(result.scientificName).toBe('Geum triflorum');
       expect(result.overview?.description).toBe(payload.description);
       expect(result.overview?.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
-      expect(result.dataSections).toEqual([]);
+      expect(result.dataSections).toEqual(mountainBallCactusData.dataSections);
     });
 
     it('uses the requested taxon id when payload lacks taxon data', () => {

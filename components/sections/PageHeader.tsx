@@ -14,34 +14,12 @@ import { Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '../buttons/IconButton';
 import { ThemedText } from '../text/ThemedText';
+import { pageHeaderStyles as styles } from './PageHeader.styles';
+import { PageHeaderDesktop } from './PageHeaderDesktop';
+import { PageHeaderMobile } from './PageHeaderMobile';
+import type { PageHeaderAction, PageHeaderProps } from './PageHeader.types';
 
-// Allows callers to forward styling/behavior props to SearchInput while keeping PageHeader in control of its value.
-type SearchInputPassthroughProps = Partial<
-  Omit<SearchInputProps, 'value' | 'onQueryChange' | 'onSubmitSearch' | 'placeholder'>
->;
-
-export type PageHeaderAction = {
-  label: string;
-  icon: React.ReactNode;
-  onPress?: () => void;
-  variant?: 'neutral' | 'subtle';
-};
-
-export type PageHeaderProps = {
-  title?: string;
-  logoSource?: ImageSourcePropType;
-  logoAccessibilityLabel?: string;
-  searchValue?: string;
-  onSearchChange?: (value: string) => void;
-  searchPlaceholder?: string;
-  searchInputProps?: SearchInputPassthroughProps;
-  actions?: PageHeaderAction[];
-  showFilterButton?: boolean;
-  onFilterPress?: () => void;
-  filterLabel?: string;
-  filterButtonAccessibilityLabel?: string;
-  style?: StyleProp<ViewStyle>;
-};
+export type { PageHeaderAction, PageHeaderProps } from './PageHeader.types';
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
 const PageHeaderActionIds = {
@@ -53,8 +31,10 @@ const PageHeaderActionIds = {
 export function PageHeader({
   title = 'WhereWild',
   logoSource = DEFAULT_LOGO,
+  logoAccessibilityLabel,
   searchValue,
   onSearchChange,
+  onSubmitSearch: onSubmitSearchProp,
   searchPlaceholder = 'Search',
   searchInputProps,
   actions,
@@ -66,7 +46,6 @@ export function PageHeader({
   onMenuPress,
   menuAccessibilityLabel = 'Toggle navigation menu',
   style,
-  logoAccessibilityLabel,
 }: PageHeaderProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -79,14 +58,15 @@ export function PageHeader({
   const canNavigateBack = router.canGoBack();
   const [mobileMenuExpanded, setMobileMenuExpanded] = React.useState(false);
 
-  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about' | '/settings') => {
-    if (pathname !== targetPath) {
-      router.push(targetPath);
-    }
-  }, [pathname, router]);
-  const submitSearchQuery = (query: string) => {
-    router.push({pathname: '/search', params: {query: query}});
-  };
+  const navigateIfDifferent = React.useCallback(
+    (targetPath: '/' | '/about' | '/settings') => {
+      if (pathname !== targetPath) {
+        router.push(targetPath);
+      }
+    },
+    [pathname, router],
+  );
+
   const navigateHome = React.useCallback(() => {
     navigateIfDifferent('/');
   }, [navigateIfDifferent]);
@@ -99,6 +79,17 @@ export function PageHeader({
     navigateIfDifferent('/settings');
   }, [navigateIfDifferent]);
 
+  const handleSubmitSearch = React.useCallback(
+    (query: string) => {
+      if (onSubmitSearchProp) {
+        onSubmitSearchProp(query);
+        return;
+      }
+      router.push({ pathname: '/search', params: { query } });
+    },
+    [onSubmitSearchProp, router],
+  );
+
   const handleBackPress = React.useCallback(() => {
     if (router.canGoBack()) {
       router.back();
@@ -110,11 +101,22 @@ export function PageHeader({
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
       { id: PageHeaderActionIds.help, label: 'Help', icon: <IconHelpCircle /> },
-      { id: PageHeaderActionIds.about, label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
-      { id: PageHeaderActionIds.settings, label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
+      {
+        id: PageHeaderActionIds.about,
+        label: 'About',
+        icon: <IconInfo />,
+        onPress: navigateToAbout,
+      },
+      {
+        id: PageHeaderActionIds.settings,
+        label: 'Settings',
+        icon: <IconSettings />,
+        onPress: navigateToSettings,
+      },
     ],
     [navigateToAbout, navigateToSettings],
   );
+
   const resolvedActions = React.useMemo(() => {
     const baseActions = actions ?? defaultActions;
     if (!EnvironmentFlags.disableSecondaryControls) {
@@ -128,6 +130,7 @@ export function PageHeader({
       return action;
     });
   }, [actions, defaultActions]);
+
   const filterButtonDisabled = EnvironmentFlags.disableSecondaryControls;
 
   React.useEffect(() => {
@@ -146,8 +149,9 @@ export function PageHeader({
   const defaultLogoAccessibilityLabel = `${title} – Go to home`;
   const defaultBackAccessibilityLabel = 'Go back';
   const getLogoAccessibilityLabel = React.useCallback(
-    (useBackLabel: boolean) => (logoAccessibilityLabel
-      ?? (useBackLabel ? defaultBackAccessibilityLabel : defaultLogoAccessibilityLabel)),
+    (useBackLabel: boolean) =>
+      logoAccessibilityLabel ??
+      (useBackLabel ? defaultBackAccessibilityLabel : defaultLogoAccessibilityLabel),
     [defaultBackAccessibilityLabel, defaultLogoAccessibilityLabel, logoAccessibilityLabel],
   );
 
@@ -160,10 +164,7 @@ export function PageHeader({
         accessibilityLabel="WhereWild logo"
       />
       {!isCompact ? (
-        <ThemedText
-          variant="heading"
-          style={{ color: palette.text.brand.default }}
-        >
+        <ThemedText variant="heading" style={{ color: palette.text.brand.default }}>
           {title}
         </ThemedText>
       ) : null}
@@ -183,6 +184,7 @@ export function PageHeader({
   if (isCompact) {
     const useBackContent = isNativeMobile && canNavigateBack;
     const topInset = isNativeMobile ? safeAreaInsets.top : 0;
+
     return (
       <PageHeaderMobile
         palette={palette}
@@ -192,7 +194,7 @@ export function PageHeader({
         style={style}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
-        onSubmitSearch={onSubmitSearch}
+        onSubmitSearch={handleSubmitSearch}
         searchPlaceholder={searchPlaceholder}
         searchInputProps={searchInputProps}
         actions={resolvedActions}
@@ -211,94 +213,23 @@ export function PageHeader({
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: palette.background.default.secondary,
-        },
-        style,
-      ]}
-      accessibilityRole="header"
-    >
-      <Pressable
-        onPress={navigateHome}
-        style={styles.logoSection}
-        accessibilityRole="link"
-        accessibilityLabel={logoAccessibilityLabel}
-      >
-        {logoContent}
-      </Pressable>
-
-      <View style={styles.searchRow}>
-        <View style={styles.searchWrapper}>
-          <SearchInput
-            value={searchValue}
-            onQueryChange={onSearchChange}
-            onSubmitSearch={submitSearchQuery}
-            placeholder={searchPlaceholder}
-            {...searchInputProps}
-          />
-        </View>
-        {showFilterButton ? (
-          <Button
-            variant="neutral"
-            iconStart={<IconFilter />}
-            label={filterLabel}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        ) : null}
-      </View>
-
-      <View style={styles.actionsWrapper}>
-        {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-          <Button
-            key={label}
-            variant={variant}
-            onPress={onPress}
-            iconStart={icon}
-            label={label}
-          />
-        ))}
-      </View>
-    </View>
+    <PageHeaderDesktop
+      palette={palette}
+      logoContent={logoContent}
+      style={style}
+      searchValue={searchValue}
+      onSearchChange={onSearchChange}
+      onSubmitSearch={handleSubmitSearch}
+      searchPlaceholder={searchPlaceholder}
+      searchInputProps={searchInputProps}
+      actions={resolvedActions}
+      showFilterButton={showFilterButton}
+      onFilterPress={onFilterPress}
+      filterLabel={filterLabel}
+      filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
+      filterButtonDisabled={filterButtonDisabled}
+      onLogoPress={navigateHome}
+      logoAccessibilityLabel={getLogoAccessibilityLabel(false)}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    paddingHorizontal: Size.space['800'],
-    paddingVertical: Size.space['200'],
-    gap: Size.space['400'],
-  },
-  logoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['200'],
-  },
-  logo: {
-    width: Size.space['1600'],
-    height: Size.space['1600'],
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: Size.space['400'],
-    minWidth: Size.space['8000']
-  },
-  searchWrapper: {
-    flex: 1,
-  },
-  actionsWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['400'],
-    flexWrap: 'wrap',
-  },
-});
