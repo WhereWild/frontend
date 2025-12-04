@@ -1,4 +1,5 @@
 import {
+  IconChevronLeft,
   IconHelpCircle,
   IconInfo,
   IconSettings,
@@ -8,7 +9,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useIsCompact } from '@/hooks/useResponsive';
 import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
-import { Image } from 'react-native';
+import { Image, Platform, View } from 'react-native';
 import { PageHeaderDesktop } from './PageHeaderDesktop';
 import { PageHeaderMobile } from './PageHeaderMobile';
 import { ThemedText } from '../text/ThemedText';
@@ -43,6 +44,7 @@ export function PageHeader({
   const router = useRouter();
   const pathname = usePathname();
   const isCompact = useIsCompact();
+  const isNativeMobile = Platform.OS !== 'web' && isCompact;
   const [mobileMenuExpanded, setMobileMenuExpanded] = React.useState(false);
 
   const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about' | '/settings') => {
@@ -62,6 +64,14 @@ export function PageHeader({
   const navigateToSettings = React.useCallback(() => {
     navigateIfDifferent('/settings');
   }, [navigateIfDifferent]);
+
+  const handleBackPress = React.useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    navigateHome();
+  }, [navigateHome, router]);
 
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
@@ -88,7 +98,12 @@ export function PageHeader({
   }, [onMenuPress]);
 
   const defaultLogoAccessibilityLabel = `${title} – Go to home`;
-  const resolvedLogoAccessibilityLabel = logoAccessibilityLabel ?? defaultLogoAccessibilityLabel;
+  const defaultBackAccessibilityLabel = 'Go back';
+  const getLogoAccessibilityLabel = React.useCallback(
+    (useBackLabel: boolean) => (logoAccessibilityLabel
+      ?? (useBackLabel ? defaultBackAccessibilityLabel : defaultLogoAccessibilityLabel)),
+    [defaultBackAccessibilityLabel, defaultLogoAccessibilityLabel, logoAccessibilityLabel],
+  );
 
   const logoContent = (
     <>
@@ -109,11 +124,32 @@ export function PageHeader({
     </>
   );
 
+  const backButtonContent = (
+    <View
+      style={[
+        styles.mobileBackButton,
+        {
+          backgroundColor: palette.background.default.tertiary,
+          borderColor: palette.border.default.tertiary,
+        },
+      ]}
+    >
+      <IconChevronLeft />
+      <ThemedText
+        variant="body"
+        style={{ color: palette.text.default.default }}
+      >
+        Back
+      </ThemedText>
+    </View>
+  );
+
   if (isCompact) {
+    const useBackContent = isNativeMobile;
     return (
       <PageHeaderMobile
         palette={palette}
-        logoContent={logoContent}
+        logoContent={useBackContent ? backButtonContent : logoContent}
         style={style}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
@@ -128,8 +164,8 @@ export function PageHeader({
         mobileMenuExpanded={mobileMenuExpanded}
         onMenuPress={handleMenuPress}
         menuAccessibilityLabel={menuAccessibilityLabel}
-        onLogoPress={navigateHome}
-        logoAccessibilityLabel={resolvedLogoAccessibilityLabel}
+        onLogoPress={useBackContent ? handleBackPress : navigateHome}
+        logoAccessibilityLabel={getLogoAccessibilityLabel(useBackContent)}
       />
     );
   }
@@ -150,7 +186,7 @@ export function PageHeader({
       filterLabel={filterLabel}
       filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
       onLogoPress={navigateHome}
-      logoAccessibilityLabel={resolvedLogoAccessibilityLabel}
+      logoAccessibilityLabel={getLogoAccessibilityLabel(false)}
     />
   );
 }
