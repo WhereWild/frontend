@@ -126,12 +126,19 @@ export const parseShadowValue = (
     .map((layer) => parseShadowLayer(layer, cssLengthToPx))
     .filter((layer): layer is ShadowLayer => Boolean(layer));
 
+const selectProminentLayer = (layers: ShadowLayer[]) =>
+  layers.reduce((candidate, layer) => {
+    const candidateWeight = Math.abs(candidate.offsetY) + candidate.blurRadius;
+    const layerWeight = Math.abs(layer.offsetY) + layer.blurRadius;
+    return layerWeight > candidateWeight ? layer : candidate;
+  });
+
 export const toReactNativeShadow = (layers: ShadowLayer[]): ShadowToken => {
   if (!layers.length) {
     return { layers, style: {} };
   }
 
-  const primary = layers[0];
+  const primary = selectProminentLayer(layers);
   const elevation = Math.max(1, Math.round((Math.abs(primary.offsetY) + primary.blurRadius) / 2));
 
   return {

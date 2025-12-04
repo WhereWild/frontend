@@ -89,7 +89,6 @@ export function PageHeaderMobile({
   const mobileFilterButton = showFilterButton ? (
     <IconButton
       variant="neutral"
-      size="small"
       icon={<IconFilter />}
       accessibilityLabel={filterButtonAccessibilityLabel}
       onPress={onFilterPress}
@@ -100,7 +99,6 @@ export function PageHeaderMobile({
   const mobileMenuButton = showMenuButton ? (
     <IconButton
       variant="primary"
-      size="small"
       icon={<IconMenu />}
       accessibilityLabel={menuAccessibilityLabel}
       accessibilityState={{ expanded: mobileMenuExpanded }}
@@ -123,7 +121,6 @@ export function PageHeaderMobile({
         onPress={onPress}
         iconStart={icon}
         label={label}
-        size="small"
         disabled={disabled}
         accessibilityLabel={label}
         style={styles.mobileActionButton}
@@ -195,7 +192,6 @@ export function PageHeaderMobile({
               right: Size.space['200'],
               borderColor: palette.border.default.tertiary,
               borderWidth: Size.stroke.border,
-              shadowColor: palette.text.default.default,
               width: maxActionWidth > 0 ? maxActionWidth + Size.space['400'] : undefined,
             },
           ]}

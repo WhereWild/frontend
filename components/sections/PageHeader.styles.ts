@@ -77,7 +77,7 @@ export const pageHeaderStyles = StyleSheet.create({
     alignSelf: 'flex-end',
     position: 'absolute',
     zIndex: 10,
-    ...Shadows.dropShadow200.style,
+    ...Shadows.dropShadow400.style,
   },
   mobileActionButtonWrapper: {
     alignSelf: 'flex-start',
