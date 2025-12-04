@@ -48,6 +48,7 @@ export function PageHeader({
   const isCompact = useIsCompact();
   const isNativeMobile = Platform.OS !== 'web' && isCompact;
   const safeAreaInsets = useSafeAreaInsets();
+  const canNavigateBack = router.canGoBack();
   const [mobileMenuExpanded, setMobileMenuExpanded] = React.useState(false);
 
   const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about' | '/settings') => {
@@ -138,7 +139,7 @@ export function PageHeader({
   );
 
   if (isCompact) {
-    const useBackContent = isNativeMobile;
+    const useBackContent = isNativeMobile && canNavigateBack;
     const topInset = isNativeMobile ? safeAreaInsets.top : 0;
     return (
       <PageHeaderMobile

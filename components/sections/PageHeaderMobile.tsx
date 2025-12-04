@@ -147,7 +147,10 @@ export function PageHeaderMobile({
       style={[
         styles.mobileContainer,
         shouldRenderActions ? styles.mobileContainerRaised : undefined,
-        { paddingTop: topInset },
+        {
+          paddingTop: topInset,
+          backgroundColor: palette.background.default.secondary,
+        },
         style,
       ]}
       accessibilityRole="header"
@@ -184,7 +187,7 @@ export function PageHeaderMobile({
             styles.mobileActionsCard,
             {
               backgroundColor: palette.background.default.tertiary,
-              top: toolbarHeight + Size.space['200'],
+              top: topInset + toolbarHeight + Size.space['200'],
               right: Size.space['200'],
               borderColor: palette.border.default.tertiary,
               borderWidth: Size.stroke.border,
