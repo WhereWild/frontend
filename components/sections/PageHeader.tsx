@@ -4,6 +4,7 @@ import {
   IconInfo,
   IconSettings,
 } from '@/assets/icons';
+import { EnvironmentFlags } from '@/constants/environment';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useIsCompact } from '@/hooks/useResponsive';
@@ -20,6 +21,11 @@ import { PageHeaderMobile } from './PageHeaderMobile';
 export type { PageHeaderAction, PageHeaderProps } from './PageHeader.types';
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
+const PageHeaderActionIds = {
+  help: 'help',
+  about: 'about',
+  settings: 'settings',
+} as const;
 
 export function PageHeader({
   title = 'WhereWild',
@@ -79,14 +85,26 @@ export function PageHeader({
 
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
-      { label: 'Help', icon: <IconHelpCircle /> },
-      { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
-      { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
+      { id: PageHeaderActionIds.help, label: 'Help', icon: <IconHelpCircle /> },
+      { id: PageHeaderActionIds.about, label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
+      { id: PageHeaderActionIds.settings, label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
     ],
     [navigateToAbout, navigateToSettings],
   );
-
-  const resolvedActions = actions ?? defaultActions;
+  const resolvedActions = React.useMemo(() => {
+    const baseActions = actions ?? defaultActions;
+    if (!EnvironmentFlags.disableSecondaryControls) {
+      return baseActions;
+    }
+    return baseActions.map((action) => {
+      const actionId = action.id ?? action.label;
+      if (actionId === PageHeaderActionIds.help) {
+        return { ...action, disabled: true, onPress: undefined };
+      }
+      return action;
+    });
+  }, [actions, defaultActions]);
+  const filterButtonDisabled = EnvironmentFlags.disableSecondaryControls;
 
   React.useEffect(() => {
     if (!isCompact || !showMenuButton) {
@@ -155,6 +173,7 @@ export function PageHeader({
         searchInputProps={searchInputProps}
         actions={resolvedActions}
         showFilterButton={showFilterButton}
+        filterButtonDisabled={filterButtonDisabled}
         onFilterPress={onFilterPress}
         filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
         showMenuButton={showMenuButton}
@@ -179,6 +198,7 @@ export function PageHeader({
       searchInputProps={searchInputProps}
       actions={resolvedActions}
       showFilterButton={showFilterButton}
+      filterButtonDisabled={filterButtonDisabled}
       onFilterPress={onFilterPress}
       filterLabel={filterLabel}
       filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}

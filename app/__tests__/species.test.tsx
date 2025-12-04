@@ -19,9 +19,13 @@ const speciesEnvironmentSectionMock = jest.requireMock('@/components/sections/Sp
   .SpeciesEnvironmentSection as jest.Mock;
 
 const mockPush = jest.fn();
+const mockCanGoBack = jest.fn(() => false);
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({
+    push: mockPush,
+    canGoBack: mockCanGoBack,
+  }),
   usePathname: () => '/',
 }));
 

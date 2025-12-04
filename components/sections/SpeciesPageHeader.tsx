@@ -1,4 +1,5 @@
 import { IconDownload } from '@/assets/icons';
+import { EnvironmentFlags } from '@/constants/environment';
 import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useIsCompact } from '@/hooks/useResponsive';
@@ -26,6 +27,7 @@ export function SpeciesPageHeader({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const isCompact = useIsCompact();
+  const downloadsDisabled = EnvironmentFlags.disableDownloadButtons;
   const dividerStyle = [
     styles.divider,
     {
@@ -39,6 +41,7 @@ export function SpeciesPageHeader({
       iconStart={<IconDownload />}
       onPress={onPressDownload}
       accessibilityLabel={`${downloadLabel} ${commonName}`}
+      disabled={downloadsDisabled}
       style={isCompact ? styles.mobileButton : undefined}
     >
       {downloadLabel}

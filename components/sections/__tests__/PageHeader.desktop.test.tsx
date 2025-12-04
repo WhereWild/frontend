@@ -15,10 +15,11 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockCanGoBack = jest.fn(() => false);
 let mockPathname = '/';
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, canGoBack: mockCanGoBack }),
   usePathname: () => mockPathname,
 }));
 
@@ -31,6 +32,7 @@ jest.mock('react-native-safe-area-context', () => ({
 describe('PageHeader (desktop)', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    mockCanGoBack.mockReturnValue(false);
     mockPathname = '/';
   });
 

@@ -31,6 +31,7 @@ export type PageHeaderMobileProps = {
   showFilterButton: boolean;
   onFilterPress?: () => void;
   filterButtonAccessibilityLabel: string;
+  filterButtonDisabled?: boolean;
   showMenuButton: boolean;
   mobileMenuExpanded: boolean;
   onMenuPress?: () => void;
@@ -54,6 +55,7 @@ export function PageHeaderMobile({
   showFilterButton,
   onFilterPress,
   filterButtonAccessibilityLabel,
+  filterButtonDisabled = false,
   showMenuButton,
   mobileMenuExpanded,
   onMenuPress,
@@ -91,6 +93,7 @@ export function PageHeaderMobile({
       icon={<IconFilter />}
       accessibilityLabel={filterButtonAccessibilityLabel}
       onPress={onFilterPress}
+      disabled={filterButtonDisabled}
     />
   ) : null;
 
@@ -105,7 +108,7 @@ export function PageHeaderMobile({
     />
   ) : null;
 
-  const renderedActions = actions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+  const renderedActions = actions.map(({ label, icon, onPress, variant = 'subtle', disabled }) => (
     <View
       key={label}
       style={[
@@ -121,6 +124,7 @@ export function PageHeaderMobile({
         iconStart={icon}
         label={label}
         size="small"
+        disabled={disabled}
         accessibilityLabel={label}
         style={styles.mobileActionButton}
       />

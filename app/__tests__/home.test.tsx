@@ -8,9 +8,13 @@ import { StyleSheet } from 'react-native';
 import HomeScreen from '../index';
 
 const mockPush = jest.fn();
+const mockCanGoBack = jest.fn(() => false);
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({
+    push: mockPush,
+    canGoBack: mockCanGoBack,
+  }),
   usePathname: () => '/',
 }));
 

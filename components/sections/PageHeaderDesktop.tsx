@@ -24,6 +24,7 @@ export type PageHeaderDesktopProps = {
   onFilterPress?: () => void;
   filterLabel: string;
   filterButtonAccessibilityLabel: string;
+  filterButtonDisabled?: boolean;
   onLogoPress: () => void;
   logoAccessibilityLabel: string;
 };
@@ -42,6 +43,7 @@ export function PageHeaderDesktop({
   onFilterPress,
   filterLabel,
   filterButtonAccessibilityLabel,
+  filterButtonDisabled = false,
   onLogoPress,
   logoAccessibilityLabel,
 }: PageHeaderDesktopProps) {
@@ -81,13 +83,14 @@ export function PageHeaderDesktop({
             iconStart={<IconFilter />}
             label={filterLabel}
             onPress={onFilterPress}
+            disabled={filterButtonDisabled}
             accessibilityLabel={filterButtonAccessibilityLabel}
           />
         ) : null}
       </View>
 
       <View style={styles.actionsWrapper}>
-        {actions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+        {actions.map(({ label, icon, onPress, variant = 'subtle', disabled }) => (
           <Button
             key={label}
             variant={variant}
@@ -95,6 +98,7 @@ export function PageHeaderDesktop({
             iconStart={icon}
             label={label}
             size="medium"
+            disabled={disabled}
             accessibilityLabel={label}
           />
         ))}

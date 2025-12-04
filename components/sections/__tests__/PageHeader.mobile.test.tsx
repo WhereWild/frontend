@@ -16,10 +16,11 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 }));
 
 const mockPush = jest.fn();
+const mockCanGoBack = jest.fn(() => false);
 let mockPathname = '/';
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, canGoBack: mockCanGoBack }),
   usePathname: () => mockPathname,
 }));
 
@@ -51,10 +52,12 @@ const selectStyleObject = (
 describe('PageHeader (mobile)', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    mockCanGoBack.mockReturnValue(false);
     mockPathname = '/';
   });
 
   it('renders filter and menu icon buttons while hiding actions initially', () => {
+    mockCanGoBack.mockReturnValue(true);
     render(<PageHeader />);
 
     const filterButton = screen.getByLabelText('Filter search results');
@@ -114,7 +117,7 @@ describe('PageHeader (mobile)', () => {
     await waitFor(() => {
       const actionsCard = screen.getByTestId('page-header-mobile-actions-card');
       const dynamicStyles = selectStyleObject(actionsCard.props.style, style => 'top' in style);
-      expect(dynamicStyles?.top).toBe(72 + Size.space['200']);
+      expect(dynamicStyles?.top).toBe(mockInsets.top + 72 + Size.space['200']);
     });
   });
 
