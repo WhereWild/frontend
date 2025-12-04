@@ -250,7 +250,13 @@ describe('Theme Tokens', () => {
 });
 
 describe('Theme internals', () => {
-  const { resolveCssVariables, parseFontShorthand } = themeInternals;
+  const {
+    resolveCssVariables,
+    parseFontShorthand,
+    cssLengthToPx,
+    splitShadowLayers,
+    parseShadowValue,
+  } = themeInternals;
 
   it('falls back to raw CSS variable names when a token is missing', () => {
     expect(resolveCssVariables('var(--wds-typography-body-size-medium)')).toBe('1rem');
@@ -265,5 +271,41 @@ describe('Theme internals', () => {
     expect(style.fontFamily).toBe('System');
     expect(style.fontStyle).toBe('italic');
     expect(style.fontWeight).toBe('500');
+  });
+
+  it('converts mixed CSS length units into px values', () => {
+    expect(cssLengthToPx('2rem')).toBe(32);
+    expect(cssLengthToPx('18px')).toBe(18);
+    expect(cssLengthToPx('var(--missing-token)')).toBe(0);
+    expect(cssLengthToPx('')).toBe(0);
+  });
+
+  it('splits shadow strings without breaking rgba commas', () => {
+    const layers = splitShadowLayers('0px 1px rgba(0, 0, 0, 0.4), 2px 3px rgba(10, 20, 30, 0.2)');
+
+    expect(layers).toEqual([
+      '0px 1px rgba(0, 0, 0, 0.4)',
+      '2px 3px rgba(10, 20, 30, 0.2)',
+    ]);
+  });
+
+  it('parses shadow layers and normalizes colors and opacities', () => {
+    const parsed = parseShadowValue(
+      '1px 2px 3px rgba(4, 5, 6, 0.5), 0px 0px 5px 10px #102030cc, 4px 4px 6px',
+    );
+
+    expect(parsed).toHaveLength(2); // invalid layer without a color is dropped
+    expect(parsed[0]).toMatchObject({
+      offsetX: 1,
+      offsetY: 2,
+      blurRadius: 3,
+      opacity: 0.5,
+      color: 'rgba(4,5,6,1)',
+    });
+    expect(parsed[1]).toMatchObject({
+      spreadRadius: 10,
+      color: '#102030',
+    });
+    expect(parsed[1].opacity).toBeCloseTo(0.8, 5);
   });
 });

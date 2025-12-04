@@ -6,6 +6,14 @@
 import type { TextStyle } from 'react-native';
 
 import {
+  buildShadows,
+  dropShadowTokenNames,
+  parseShadowValue as parseShadowValueWithResolvers,
+  splitShadowLayers as splitShadowLayersWithResolver,
+} from './shadowUtils';
+import type { ShadowStyleTokens } from './shadowUtils';
+import {
+  wdsPrimitiveTokens,
   wdsResponsiveTokens,
   wdsSemanticTokens,
   wdsSizeTokens,
@@ -21,6 +29,7 @@ const cssVariableMap = Object.fromEntries([
     ...wdsTypographyPrimitiveTokens,
     ...wdsTypographyTokens,
   }).map(([key, value]) => [`--${key}`, value]),
+  ...Object.entries(wdsPrimitiveTokens).map(([key, value]) => [`--${key}`, value]),
   ...Object.entries(wdsSizeTokens).flatMap(([key, value]) => {
     const normalizedKey = key.replace(/^wds-/, '');
     return [
@@ -194,6 +203,21 @@ const getExpoFontName = (family: string, weight: string) =>
 // This single helper is reused for font sizes and all size-related tokens to keep consistency.
 const remToPx = (rem: string) => parseFloat(resolveCssVariables(rem)) * 16;
 
+const cssLengthToPx = (length: string) => {
+  const normalized = typeof length === 'string' ? length : '';
+  const resolved = resolveCssVariables(normalized.trim());
+  if (resolved.endsWith('rem')) {
+    return parseFloat(resolved) * 16;
+  }
+  if (resolved.endsWith('px')) {
+    return parseFloat(resolved);
+  }
+  if (!resolved) {
+    return 0;
+  }
+  return parseFloat(resolved) || 0;
+};
+
 // Function to parse CSS font shorthand into React Native style object
 const parseFontShorthand = (
   value: string,
@@ -270,11 +294,28 @@ export type SizeGroup = typeof Size;
 
 // Layout-related responsive tokens live outside the size system; expose the ones we can use in RN layouts.
 // Will need updates as mobile-specific responsive tokens are added to the design system.
+const responsiveDeviceWidths = {
+  desktop: remToPx(wdsResponsiveTokens.desktop['wds-responsive-device-width']),
+  tablet: remToPx(wdsResponsiveTokens.tablet['wds-responsive-device-width']),
+  mobile: remToPx(wdsResponsiveTokens.mobile['wds-responsive-device-width']),
+} as const;
+
 export const Responsive = {
   contentWidth: remToPx(wdsResponsiveTokens.desktop['wds-responsive-content-width']),
   textWidth: remToPx(wdsResponsiveTokens.desktop['wds-responsive-text-width']),
   marginHorizontal: remToPx(wdsResponsiveTokens.mobile['wds-responsive-margin-horizontal']),
+  deviceWidth: responsiveDeviceWidths,
 } as const;
+
+const splitShadowLayers = (value: string) => splitShadowLayersWithResolver(value, resolveCssVariables);
+const parseShadowValue = (value: string) => parseShadowValueWithResolvers(value, resolveCssVariables, cssLengthToPx);
+
+const dropShadowTokens = dropShadowTokenNames.reduce((acc, tokenName) => {
+  acc[tokenName] = wdsStyleTokens[tokenName];
+  return acc;
+}, {} as ShadowStyleTokens);
+
+export const Shadows = buildShadows(dropShadowTokens, resolveCssVariables, cssLengthToPx);
 
 // Internal helpers are exported for targeted unit tests to ensure token parsing stays stable.
 export const themeInternals = {
@@ -282,4 +323,8 @@ export const themeInternals = {
   parseFontShorthand,
   remToPx,
   getExpoFontName,
+  cssLengthToPx,
+  splitShadowLayers,
+  parseShadowValue,
+  dropShadowTokens,
 };
