@@ -11,6 +11,9 @@ import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
 import SpeciesPage from '../_speciesPage';
+import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
+import type { MeasurementPreferenceSnapshot } from '@/constants/userPreferences';
+import { convertStatsToPreferredUnits } from '@/utils/measurement';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -34,9 +37,16 @@ const ENVIRONMENT_SECTION_TITLE = 'Environmental Factors';
 const ENVIRONMENT_VARIABLE_TARGETS = [
   { variableId: 'elevation', fallbackLabel: 'Elevation distribution' },
   { variableId: 'annual_precip', fallbackLabel: 'Annual precipitation' },
-  { variableId: 'mean_temp_coldest_quarter', fallbackLabel: 'Mean temp (coldest quarter)' },
+  { variableId: 'min_temp_coldest_month', fallbackLabel: 'Min temp (coldest month)' },
   { variableId: 'max_temp_warmest_month', fallbackLabel: 'Max temp (warmest month)' },
+  { variableId: 'landcover', fallbackLabel: 'Landcover class' },
+  
 ] as const;
+
+type EnvironmentStatsEntry = {
+  stats: SpeciesEnvironmentStats;
+  fallbackLabel: string;
+};
 
 // Converts backend image variants into a React Native-friendly ImageSource.
 const normalizeImageSource = (payload: SpeciesBasics): ImageSourcePropType | undefined => {
@@ -106,6 +116,18 @@ const formatPercent = (fraction: number | null | undefined) => {
   return `${(fraction * 100).toFixed(1)}%`;
 };
 
+const formatCategorySummary = (
+  categoryCount: number,
+  sampleCount: number | null | undefined,
+) => {
+  if (categoryCount <= 0) {
+    return (sampleCount ?? 0) > 0
+      ? `${formatSamples(sampleCount)} samples recorded`
+      : 'Not enough class samples yet';
+  }
+  return `${categoryCount} unique classes (${formatSamples(sampleCount)} samples)`;
+};
+
 const buildEnvironmentDetails = (
   stats: SpeciesEnvironmentStats,
 ): EnvironmentalDataDetail[] => {
@@ -151,6 +173,14 @@ const resolveSummaryDescription = (stats: SpeciesEnvironmentStats): string => {
   const summary = stats.summary;
   const units = stats.units;
 
+  if (isFiniteNumber(summary.min) && isFiniteNumber(summary.max)) {
+    const low = formatMeasurement(summary.min, units);
+    const high = formatMeasurement(summary.max, units);
+    if (low && high) {
+      return `${low} to ${high} (${formatSamples(summary.count)} samples)`;
+    }
+  }
+
   if (isFiniteNumber(summary.q10) && isFiniteNumber(summary.q90)) {
     const low = formatMeasurement(summary.q10, units);
     const high = formatMeasurement(summary.q90, units);
@@ -181,6 +211,7 @@ const resolveSummaryDescription = (stats: SpeciesEnvironmentStats): string => {
 const buildEnvironmentEntry = (
   stats: SpeciesEnvironmentStats,
   fallbackLabel: string,
+  measurementPrefs: MeasurementPreferenceSnapshot,
 ): EnvironmentalDataEntry | null => {
   const hasSampleData =
     (stats.summary?.count ?? 0) > 0 ||
@@ -191,11 +222,21 @@ const buildEnvironmentEntry = (
     return null;
   }
 
-  const details = buildEnvironmentDetails(stats);
+  const displayStats = convertStatsToPreferredUnits(stats, measurementPrefs);
+  const details = buildEnvironmentDetails(displayStats);
+  const categoryCount =
+    stats.categoricalDistribution?.length ??
+    stats.dominantCategories?.length ??
+    0;
+  const isCategorical =
+    stats.variableType === 'categorical' || categoryCount > 0;
+  const summaryText = isCategorical
+    ? formatCategorySummary(categoryCount, stats.summary.count)
+    : resolveSummaryDescription(displayStats);
 
   return {
-    dataName: stats.variableName || fallbackLabel || stats.variable,
-    dataPoint: resolveSummaryDescription(stats),
+    dataName: displayStats.variableName || fallbackLabel || stats.variable,
+    dataPoint: summaryText,
     details,
     expandable: details.length > 0,
     showGraph: true,
@@ -208,9 +249,12 @@ const buildEnvironmentEntry = (
 
 const buildEnvironmentSections = (
   stats: { stats: SpeciesEnvironmentStats; fallbackLabel: string }[],
+  measurementPrefs: MeasurementPreferenceSnapshot,
 ): EnvironmentalDataSection[] => {
   const entries = stats
-    .map(({ stats: entryStats, fallbackLabel }) => buildEnvironmentEntry(entryStats, fallbackLabel))
+    .map(({ stats: entryStats, fallbackLabel }) =>
+      buildEnvironmentEntry(entryStats, fallbackLabel, measurementPrefs),
+    )
     .filter((entry): entry is EnvironmentalDataEntry => Boolean(entry));
 
   if (!entries.length) {
@@ -261,8 +305,10 @@ export default function SpeciesBasicsPage() {
   const params = useLocalSearchParams<SpeciesRouteParams>();
   const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
 
+  const measurementPreferences = useMeasurementPreferences();
+  const measurementSnapshot = measurementPreferences.snapshot;
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
-  const [fetchedEnvironmentSections, setFetchedEnvironmentSections] = React.useState<EnvironmentalDataSection[] | undefined>(undefined);
+  const [environmentStats, setEnvironmentStats] = React.useState<EnvironmentStatsEntry[] | undefined>(undefined);
 
   // Fetch the selected species whenever the resolved numeric identifier changes.
   // The mounted flag ensures we never update state after the component unmounts.
@@ -305,7 +351,7 @@ export default function SpeciesBasicsPage() {
 
   React.useEffect(() => {
     if (!data || !resolvedTaxonId) {
-      setFetchedEnvironmentSections(undefined);
+      setEnvironmentStats(undefined);
       return;
     }
 
@@ -335,7 +381,7 @@ export default function SpeciesBasicsPage() {
         console.warn(`Failed to load ${variableId} stats for taxon ${resolvedTaxonId}:`, reason);
       });
 
-      setFetchedEnvironmentSections(buildEnvironmentSections(fulfilled));
+      setEnvironmentStats(fulfilled);
     })();
 
     return () => {
@@ -343,18 +389,28 @@ export default function SpeciesBasicsPage() {
     };
   }, [data, resolvedTaxonId]);
 
+  const resolvedEnvironmentSections = React.useMemo(
+    () => {
+      if (!environmentStats || environmentStats.length === 0) {
+        return undefined;
+      }
+      return buildEnvironmentSections(environmentStats, measurementSnapshot);
+    },
+    [environmentStats, measurementSnapshot],
+  );
+
   const hydratedPageData = React.useMemo(
     () => {
       const merged =
-        fetchedEnvironmentSections && fetchedEnvironmentSections.length > 0
-          ? fetchedEnvironmentSections
+        resolvedEnvironmentSections && resolvedEnvironmentSections.length > 0
+          ? resolvedEnvironmentSections
           : resolvedPageData.dataSections ?? [];
       return {
         ...resolvedPageData,
         dataSections: merged,
       };
     },
-    [fetchedEnvironmentSections, resolvedPageData],
+    [resolvedEnvironmentSections, resolvedPageData],
   );
   return <SpeciesPage data={hydratedPageData} />;
 }

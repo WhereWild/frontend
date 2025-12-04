@@ -33,8 +33,12 @@ export const buildHistogramBars = (
     }));
   }
 
+  const step = limit > 1 ? (effectiveCounts - 1) / (limit - 1) : 0;
   const indices = Array.from({ length: limit }, (_, idx) => {
-    const raw = Math.floor((idx / limit) * effectiveCounts);
+    if (limit === 1) {
+      return 0;
+    }
+    const raw = Math.round(idx * step);
     return Math.min(raw, effectiveCounts - 1);
   });
 

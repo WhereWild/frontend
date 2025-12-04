@@ -6,6 +6,7 @@ import { fetchSpeciesEnvironment } from '@/data/api';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesEnvironment: jest.fn(),
@@ -19,9 +20,29 @@ jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
+jest.mock('@/hooks/useMeasurementPreferences', () => ({
+  useMeasurementPreferences: jest.fn(() => ({
+    lengthUnits: 'metric',
+    rainfallUnits: 'metric',
+    temperatureUnits: 'celsius',
+    setLengthUnits: jest.fn(),
+    setRainfallUnits: jest.fn(),
+    setTemperatureUnits: jest.fn(),
+    resetLengthUnits: jest.fn(),
+    resetRainfallUnits: jest.fn(),
+    resetTemperatureUnits: jest.fn(),
+    snapshot: {
+      lengthUnits: 'metric',
+      rainfallUnits: 'metric',
+      temperatureUnits: 'celsius',
+    },
+  })),
+}));
+
 const mockFetchSpeciesEnvironment = fetchSpeciesEnvironment as jest.MockedFunction<typeof fetchSpeciesEnvironment>;
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+const mockUseMeasurementPreferences = useMeasurementPreferences as jest.MockedFunction<typeof useMeasurementPreferences>;
 
 const desktopResponsive = {
   width: 1280,
@@ -114,6 +135,22 @@ describe('SpeciesEnvironmentSection', () => {
     jest.clearAllMocks();
     mockUseColorScheme.mockReturnValue('light');
     mockUseResponsive.mockReturnValue(desktopResponsive);
+    mockUseMeasurementPreferences.mockReturnValue({
+      lengthUnits: 'metric',
+      rainfallUnits: 'metric',
+      temperatureUnits: 'celsius',
+      setLengthUnits: jest.fn(),
+      setRainfallUnits: jest.fn(),
+      setTemperatureUnits: jest.fn(),
+      resetLengthUnits: jest.fn(),
+      resetRainfallUnits: jest.fn(),
+      resetTemperatureUnits: jest.fn(),
+      snapshot: {
+        lengthUnits: 'metric',
+        rainfallUnits: 'metric',
+        temperatureUnits: 'celsius',
+      },
+    });
   });
 
   it('renders nothing when no taxon id is provided', () => {

@@ -1,7 +1,10 @@
 import { IconRotateCcw } from '@/assets/icons';
 import { ButtonDanger, PageHeader, SelectField, SwitchField, ThemedText } from '@/components';
 import { Colors, Responsive, Size } from '@/constants/theme';
+import { DEFAULT_MEASUREMENT_UNITS } from '@/constants/userPreferences';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
+import { usePersistentSetting } from '@/hooks/usePersistentSetting';
 import Head from 'expo-router/head';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -39,13 +42,15 @@ const TEMPERATURE_UNIT_OPTIONS = [
 const DEFAULT_SETTINGS = {
   region: REGION_OPTIONS[0].value,
   language: LANGUAGE_OPTIONS[0].value,
-  lengthUnits: LENGTH_UNIT_OPTIONS[0].value,
-  rainfallUnits: RAINFALL_UNIT_OPTIONS[0].value,
-  temperatureUnits: TEMPERATURE_UNIT_OPTIONS[0].value,
+  lengthUnits: DEFAULT_MEASUREMENT_UNITS.lengthUnits,
+  rainfallUnits: DEFAULT_MEASUREMENT_UNITS.rainfallUnits,
+  temperatureUnits: DEFAULT_MEASUREMENT_UNITS.temperatureUnits,
   email: true,
   push: false,
   demoSwitch: false,
 } as const;
+
+const DEMO_SWITCH_STORAGE_KEY = 'settings:demo-switch';
 
 export default function SettingsScreen() {
   const scheme = useColorScheme();
@@ -53,23 +58,39 @@ export default function SettingsScreen() {
   const palette = Colors[mode];
   const [region, setRegion] = useState<string>(DEFAULT_SETTINGS.region);
   const [language, setLanguage] = useState<string>(DEFAULT_SETTINGS.language);
-  const [lengthUnits, setLengthUnits] = useState<string>(DEFAULT_SETTINGS.lengthUnits);
-  const [rainfallUnits, setRainfallUnits] = useState<string>(DEFAULT_SETTINGS.rainfallUnits);
-  const [temperatureUnits, setTemperatureUnits] = useState<string>(DEFAULT_SETTINGS.temperatureUnits);
+  const {
+    lengthUnits,
+    rainfallUnits,
+    temperatureUnits,
+    setLengthUnits,
+    setRainfallUnits,
+    setTemperatureUnits,
+    resetLengthUnits,
+    resetRainfallUnits,
+    resetTemperatureUnits,
+  } = useMeasurementPreferences();
   const [emailNotifications, setEmailNotifications] = useState<boolean>(DEFAULT_SETTINGS.email);
   const [pushNotifications, setPushNotifications] = useState<boolean>(DEFAULT_SETTINGS.push);
-  const [demoSwitchEnabled, setDemoSwitchEnabled] = useState<boolean>(DEFAULT_SETTINGS.demoSwitch);
+  const [demoSwitchEnabled, setDemoSwitchEnabled, resetDemoSwitch] = usePersistentSetting(
+    DEMO_SWITCH_STORAGE_KEY,
+    DEFAULT_SETTINGS.demoSwitch,
+  );
 
   const handleRestoreDefaults = useCallback(() => {
     setRegion(DEFAULT_SETTINGS.region);
     setLanguage(DEFAULT_SETTINGS.language);
-    setLengthUnits(DEFAULT_SETTINGS.lengthUnits);
-    setRainfallUnits(DEFAULT_SETTINGS.rainfallUnits);
-    setTemperatureUnits(DEFAULT_SETTINGS.temperatureUnits);
+    resetLengthUnits();
+    resetRainfallUnits();
+    resetTemperatureUnits();
     setEmailNotifications(DEFAULT_SETTINGS.email);
     setPushNotifications(DEFAULT_SETTINGS.push);
-    setDemoSwitchEnabled(DEFAULT_SETTINGS.demoSwitch);
-  }, []);
+    resetDemoSwitch();
+  }, [
+    resetDemoSwitch,
+    resetLengthUnits,
+    resetRainfallUnits,
+    resetTemperatureUnits,
+  ]);
 
   return (
     <>

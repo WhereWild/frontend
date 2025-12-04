@@ -119,6 +119,8 @@ export type SpeciesEnvironmentSummary = {
   stddev: number | null;
   q10: number | null;
   q90: number | null;
+  min?: number | null;
+  max?: number | null;
 };
 
 export type SpeciesEnvironmentHistogram = {

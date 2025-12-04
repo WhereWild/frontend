@@ -2,7 +2,9 @@ import { Colors, Responsive, Size } from '@/constants/theme';
 import { fetchSpeciesEnvironment } from '@/data/api';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
 import { useResponsive } from '@/hooks/useResponsive';
+import { convertStatsToPreferredUnits } from '@/utils/measurement';
 import React from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
@@ -30,7 +32,9 @@ export function SpeciesEnvironmentSection({
   const { isCompact } = useResponsive();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const [stats, setStats] = React.useState<SpeciesEnvironmentStats | null>(null);
+  const measurementPreferences = useMeasurementPreferences();
+  const measurementSnapshot = measurementPreferences.snapshot;
+  const [rawStats, setRawStats] = React.useState<SpeciesEnvironmentStats | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [selectedBinIndex, setSelectedBinIndex] = React.useState<number | null>(null);
@@ -44,7 +48,7 @@ export function SpeciesEnvironmentSection({
 
   React.useEffect(() => {
     if (!taxonId) {
-      setStats(null);
+      setRawStats(null);
       setError(null);
       setLoading(false);
       return;
@@ -57,7 +61,7 @@ export function SpeciesEnvironmentSection({
     );
 
     if (hasPrefetchedStats) {
-      setStats(initialStats!);
+      setRawStats(initialStats!);
       setError(null);
       setLoading(false);
       return;
@@ -66,12 +70,12 @@ export function SpeciesEnvironmentSection({
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setStats(null);
+    setRawStats(null);
     (async () => {
       try {
         const response = await fetchSpeciesEnvironment(taxonId, effectiveVariableId);
         if (!cancelled) {
-          setStats(response);
+          setRawStats(response);
         }
       } catch (err) {
         if (!cancelled) {
@@ -89,6 +93,12 @@ export function SpeciesEnvironmentSection({
       cancelled = true;
     };
   }, [taxonId, effectiveVariableId, initialStats]);
+
+  const stats = React.useMemo(
+    () =>
+      rawStats ? convertStatsToPreferredUnits(rawStats, measurementSnapshot) : null,
+    [rawStats, measurementSnapshot],
+  );
 
   const summary = stats?.summary;
   const totalSamples = summary?.count ?? 0;

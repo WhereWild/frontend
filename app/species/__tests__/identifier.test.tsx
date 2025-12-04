@@ -1,6 +1,8 @@
 import { fetchSpeciesByTaxonId, fetchSpeciesEnvironment } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesEnvironmentStats } from '@/data/types';
+import { DEFAULT_MEASUREMENT_UNITS } from '@/constants/userPreferences';
+import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
 import { act, render, screen } from '@testing-library/react-native';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 import React from 'react';
@@ -35,6 +37,25 @@ jest.mock('../../_speciesPage', () => {
   return WrappedSpeciesPage;
 });
 
+jest.mock('@/hooks/useMeasurementPreferences', () => ({
+  useMeasurementPreferences: jest.fn(() => ({
+    lengthUnits: 'metric',
+    rainfallUnits: 'metric',
+    temperatureUnits: 'celsius',
+    setLengthUnits: jest.fn(),
+    setRainfallUnits: jest.fn(),
+    setTemperatureUnits: jest.fn(),
+    resetLengthUnits: jest.fn(),
+    resetRainfallUnits: jest.fn(),
+    resetTemperatureUnits: jest.fn(),
+    snapshot: {
+      lengthUnits: 'metric',
+      rainfallUnits: 'metric',
+      temperatureUnits: 'celsius',
+    },
+  })),
+}));
+
 const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
@@ -42,6 +63,7 @@ const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<t
 const mockFetchSpeciesEnvironment = fetchSpeciesEnvironment as jest.MockedFunction<typeof fetchSpeciesEnvironment>;
 const mockSpeciesPage = SpeciesPage as jest.MockedFunction<typeof SpeciesPage>;
 const mockUseSafeAreaInsets = useSafeAreaInsets as jest.MockedFunction<typeof useSafeAreaInsets>;
+const mockUseMeasurementPreferences = useMeasurementPreferences as jest.MockedFunction<typeof useMeasurementPreferences>;
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -72,6 +94,22 @@ describe('SpeciesBasicsPage', () => {
     mockUsePathname.mockReturnValue('/');
     mockUseSafeAreaInsets.mockReset();
     mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 0, left: 0 });
+    mockUseMeasurementPreferences.mockReturnValue({
+      lengthUnits: 'metric',
+      rainfallUnits: 'metric',
+      temperatureUnits: 'celsius',
+      setLengthUnits: jest.fn(),
+      setRainfallUnits: jest.fn(),
+      setTemperatureUnits: jest.fn(),
+      resetLengthUnits: jest.fn(),
+      resetRainfallUnits: jest.fn(),
+      resetTemperatureUnits: jest.fn(),
+      snapshot: {
+        lengthUnits: 'metric',
+        rainfallUnits: 'metric',
+        temperatureUnits: 'celsius',
+      },
+    });
     mockFetchSpeciesEnvironment.mockImplementation(async (taxonId, variableId) => ({
       speciesId: Number(taxonId ?? SAMPLE_TAXON_ID),
       variable: String(variableId),
@@ -392,6 +430,8 @@ describe('SpeciesBasicsPage', () => {
         stddev: 42.3,
         q10: 640.1,
         q90: 963.8,
+        min: 512.3,
+        max: 1684.2,
         ...summaryOverride,
       };
 
@@ -515,7 +555,11 @@ describe('SpeciesBasicsPage', () => {
         ],
       });
 
-      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(stats, 'Fallback label');
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(
+        stats,
+        'Fallback label',
+        DEFAULT_MEASUREMENT_UNITS,
+      );
       expect(entry).not.toBeNull();
       expect(entry?.dataName).toBe('Elevation');
       expect(entry?.environmentGraph?.initialStats).toBe(stats);
@@ -530,6 +574,26 @@ describe('SpeciesBasicsPage', () => {
       );
     });
 
+    it('summarizes categorical distributions by unique class count', () => {
+      const stats = createStats({
+        variableType: 'categorical',
+        summary: { count: 25, mean: null, stddev: null, q10: null, q90: null, min: null, max: null },
+        categoricalDistribution: [
+          { value: 1, className: 'Forest', count: 10, fraction: 0.4 },
+          { value: 2, className: 'Shrubland', count: 15, fraction: 0.6 },
+        ],
+      });
+
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(
+        stats,
+        'Fallback label',
+        DEFAULT_MEASUREMENT_UNITS,
+      );
+
+      expect(entry?.dataPoint).toContain('2 unique classes');
+      expect(entry?.dataPoint).toContain('25 samples');
+    });
+
     it('falls back to the provided label when variable metadata is missing', () => {
       const stats = createStats({
         variableName: '',
@@ -539,35 +603,47 @@ describe('SpeciesBasicsPage', () => {
           stddev: null,
           q10: null,
           q90: null,
+          min: null,
+          max: null,
         },
         dominantCategories: [],
         categoricalDistribution: [{ value: 3, className: 'Shrubland', count: 10, fraction: 1 }],
       });
 
-      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(stats, 'Fallback label');
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(
+        stats,
+        'Fallback label',
+        DEFAULT_MEASUREMENT_UNITS,
+      );
       expect(entry?.dataName).toBe('Fallback label');
       expect(entry?.dataPoint).toContain('Shrubland');
     });
 
     it('skips environment entries without sample data and prunes empty sections', () => {
       const emptyStats = createStats({
-        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null },
+        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null, min: null, max: null },
         dominantCategories: [],
         categoricalDistribution: [],
       });
 
-      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(emptyStats, 'Unavailable');
+      const entry = __SPECIES_BASICS_TESTING__.buildEnvironmentEntry(
+        emptyStats,
+        'Unavailable',
+        DEFAULT_MEASUREMENT_UNITS,
+      );
       expect(entry).toBeNull();
 
-      const sections = __SPECIES_BASICS_TESTING__.buildEnvironmentSections([
-        { stats: emptyStats, fallbackLabel: 'Unused' },
-      ]);
+      const sections = __SPECIES_BASICS_TESTING__.buildEnvironmentSections(
+        [{ stats: emptyStats, fallbackLabel: 'Unused' }],
+        DEFAULT_MEASUREMENT_UNITS,
+      );
       expect(sections).toEqual([]);
 
       const stats = createStats();
-      const populatedSections = __SPECIES_BASICS_TESTING__.buildEnvironmentSections([
-        { stats, fallbackLabel: 'Primary' },
-      ]);
+      const populatedSections = __SPECIES_BASICS_TESTING__.buildEnvironmentSections(
+        [{ stats, fallbackLabel: 'Primary' }],
+        DEFAULT_MEASUREMENT_UNITS,
+      );
       expect(populatedSections).toHaveLength(1);
       expect(populatedSections[0].title).toBe('Environmental Factors');
       expect(populatedSections[0].entries[0].dataName).toBe(stats.variableName);
@@ -580,7 +656,7 @@ describe('SpeciesBasicsPage', () => {
       ).toContain('to');
 
       const meanStats = createStats({
-        summary: { count: 12, mean: 15.5, stddev: null, q10: null, q90: null },
+        summary: { count: 12, mean: 15.5, stddev: null, q10: null, q90: null, min: null, max: null },
         dominantCategories: [],
       });
       expect(
@@ -588,7 +664,7 @@ describe('SpeciesBasicsPage', () => {
       ).toContain('average');
 
       const categoryStats = createStats({
-        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null },
+        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null, min: null, max: null },
         dominantCategories: [
           { value: 1, className: 'Wetland', count: 5, fraction: 0.5 },
         ],
@@ -598,7 +674,7 @@ describe('SpeciesBasicsPage', () => {
       ).toContain('Wetland');
 
       const samplesOnly = createStats({
-        summary: { count: 7, mean: null, stddev: null, q10: null, q90: null },
+        summary: { count: 7, mean: null, stddev: null, q10: null, q90: null, min: null, max: null },
         dominantCategories: [],
       });
       expect(
@@ -606,7 +682,7 @@ describe('SpeciesBasicsPage', () => {
       ).toBe('7 samples recorded');
 
       const insufficient = createStats({
-        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null },
+        summary: { count: 0, mean: null, stddev: null, q10: null, q90: null, min: null, max: null },
         dominantCategories: [],
         categoricalDistribution: [],
       });

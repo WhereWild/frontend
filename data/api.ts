@@ -105,6 +105,8 @@ const coerceEnvironmentSummary = (value: Partial<SpeciesEnvironmentSummary> | un
   stddev: typeof value?.stddev === 'number' ? value?.stddev : null,
   q10: typeof value?.q10 === 'number' ? value?.q10 : null,
   q90: typeof value?.q90 === 'number' ? value?.q90 : null,
+  min: typeof value?.min === 'number' ? value?.min : null,
+  max: typeof value?.max === 'number' ? value?.max : null,
 });
 
 const coerceHistogram = (
