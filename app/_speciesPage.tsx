@@ -17,7 +17,7 @@ type SpeciesSampleScreenProps = {
   data?: SpeciesPageData;
 };
 
-export default function SpeciesSampleScreen({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
+export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
   const { commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
@@ -27,8 +27,8 @@ export default function SpeciesSampleScreen({ data = mountainBallCactusData }: S
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const handleDownload = React.useCallback(() => {
-    Alert.alert('Download started', 'Preparing Mountain Ball Cactus data…');
-  }, []);
+    Alert.alert('Download started', `Preparing ${commonName} data…`);
+  }, [commonName]);
 
   return (
     <>
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   featuredImage: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    aspectRatio: 1,
     borderRadius: Size.radius['400'],
   },
   heatMapSection: {

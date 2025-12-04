@@ -48,7 +48,8 @@ export function NearbySpeciesCarousel({
       >
         {species.map((item) => (
           <SpeciesCard
-            key={item.scientificName}
+            key={item.taxonId}
+            taxonId={item.taxonId}
             commonName={item.commonName}
             scientificName={item.scientificName}
             description={item.description}
