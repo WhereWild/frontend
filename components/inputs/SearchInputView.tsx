@@ -42,6 +42,12 @@ export type SearchInputViewProps = {
 };
 
 const ICON_BUTTON_EXPANSION = Size.space['200'];
+const BASE_VERTICAL_PADDING = Size.space['300'];
+// React Native Web injects extra vertical padding into TextInput; trim it to keep the
+// search pill height consistent without affecting native platforms.
+const CONTAINER_VERTICAL_PADDING = Platform.OS === 'web'
+  ? BASE_VERTICAL_PADDING - RN_TEXT_INPUT_VERTICAL_OFFSET
+  : BASE_VERTICAL_PADDING;
 
 const styles = StyleSheet.create({
   container: {
@@ -50,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: Size.radius.full,
     borderWidth: 0,
     paddingHorizontal: Size.space['300'],
-    paddingVertical: Size.space['300'] - RN_TEXT_INPUT_VERTICAL_OFFSET, // compensate for RN padding
+    paddingVertical: CONTAINER_VERTICAL_PADDING,
     gap: Size.space['300'],
     // Default outline stays off until the controller toggles it back on for native focus rings.
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),

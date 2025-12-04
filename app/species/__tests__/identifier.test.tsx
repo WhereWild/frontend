@@ -1,12 +1,12 @@
-import React from 'react';
-import { act, render, screen } from '@testing-library/react-native';
-import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier]';
-import { mountainBallCactusData } from '@/data/speciesSample';
-import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import { fetchSpeciesByTaxonId, fetchSpeciesEnvironment } from '@/data/api';
+import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesEnvironmentStats } from '@/data/types';
-import SpeciesPage from '../../_speciesPage';
+import { act, render, screen } from '@testing-library/react-native';
+import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
+import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SpeciesPage from '../../_speciesPage';
+import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier]';
 
 jest.mock('@/components/sections/SpeciesEnvironmentSection', () => ({
   __esModule: true,

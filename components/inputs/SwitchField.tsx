@@ -7,8 +7,11 @@ import { ThemedText } from '../text/ThemedText';
 const TRACK_WIDTH = Size.space['400'] + Size.space['600'];
 const TRACK_HEIGHT = Size.space['600'];
 const TRACK_PADDING = Size.space['100'];
+const TRACK_BORDER_WIDTH = Size.stroke.border;
 const KNOB_DIAMETER = Size.space['400'];
 const KNOB_TRAVEL = TRACK_WIDTH - KNOB_DIAMETER - TRACK_PADDING * 2;
+// Compensate for the track border so the knob stays visually centered.
+const KNOB_VERTICAL_OFFSET = Math.max(TRACK_PADDING - TRACK_BORDER_WIDTH, 0);
 const HIT_SLOP = Size.space['100'];
 
 export type SwitchFieldProps = {
@@ -168,12 +171,12 @@ const styles = StyleSheet.create({
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT,
     padding: TRACK_PADDING,
-    borderWidth: Size.stroke.border,
+    borderWidth: TRACK_BORDER_WIDTH,
     justifyContent: 'center',
   },
   knob: {
     position: 'absolute',
-    top: TRACK_PADDING,
+    top: KNOB_VERTICAL_OFFSET,
     left: 0,
     width: KNOB_DIAMETER,
     height: KNOB_DIAMETER,

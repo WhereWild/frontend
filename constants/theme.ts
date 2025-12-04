@@ -176,7 +176,9 @@ export const Colors = {
 const FONT_LINE_HEIGHTS: Record<string, number> = {
   body: 1.4,
   code: 1,
-  singleLineBody: 1,
+  // Used by single-line controls (e.g., pills, buttons, navigation items) to ensure glyphs are visually centered.
+  // Changes to this value affect vertical alignment in these components.
+  singleLineBody: 1.2,
   titleHero: 1.2,
   titlePage: 1.2,
   subtitle: 1.2,
