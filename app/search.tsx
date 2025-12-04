@@ -3,14 +3,22 @@ import type { SpeciesCardProps } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ImageSourcePropType, KeyboardAvoidingViewBase, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
 
 const SIDEBAR_WIDTH = 400;
 
+function normalize(imageFile: string) {
+    const updated = imageFile.replace('images/', 'http://127.0.0.1:8000/static/species_images/');
+    console.log(updated);
+    return updated;
+}
+
 export default function Search() {
     const [searchResults, setSearchResults] = useState([]);
     const [query, setQuery] = useState(useLocalSearchParams<{query: string}>().query);
+
+    const [images, setImages] = useState(new Map());
 
     useEffect(() => {
         async function getSearchResults() {
@@ -50,6 +58,7 @@ export default function Search() {
                                     commonName={species['common_name']}
                                     scientificName={species['scientific_name']}
                                     description=''
+                                    imageSource={{uri: normalize(species['image_file'])}}
                                     style={styles.speciesCard} />
                             ))}
                         </View>
