@@ -31,10 +31,10 @@ export const mountainBallCactusData: SpeciesPageData = {
   commonName: 'Mountain Ball Cactus',
   scientificName: 'Pediocactus simpsonii',
   description:
-    'Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States.',
+    'Demo data only: this sample entry is provided for preview purposes and does not describe a real field observation. Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States.',
   overview: {
     description:
-      'Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States. It can be found at higher elevations than any other cactus in North America. While not a landscape dominating plant, it is a relatively common species and the most common member of the genus Pediocactus. Because of its beauty and adaptation to cold environments it is sometimes grown by gardeners in areas that have few other choices due to the limited number of cactuses with cold adaptations. Like many cactuses its populations are sometimes threatened by this desirability due to the theft or removal of plants from the wild by collectors.',
+      'Demo data only: this sample entry is provided for preview purposes and does not describe a real field observation. Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States. It can be found at higher elevations than any other cactus in North America. While not a landscape dominating plant, it is a relatively common species and the most common member of the genus Pediocactus. Because of its beauty and adaptation to cold environments it is sometimes grown by gardeners in areas that have few other choices due to the limited number of cactuses with cold adaptations. Like many cactuses its populations are sometimes threatened by this desirability due to the theft or removal of plants from the wild by collectors.',
     imageSource: FEATURED_IMAGE,
   },
   dataSections: [
@@ -101,6 +101,12 @@ export const mountainBallCactusData: SpeciesPageData = {
     },
   ],
   nearbySpecies: [
+    {
+      taxonId: 0,
+      commonName: 'Demo Data Preview',
+      scientificName: 'Sample only',
+      description: 'This nearby species list contains demo values for showcasing the UI and is not real field data.',
+    },
     {
       taxonId: 200101,
       commonName: 'Utah Juniper',

@@ -4,6 +4,7 @@ const escobariaViviparaImage = require('@/assets/images/escobaria_vivipara.jpg')
 const hypaurotisCrysalusImage = require('@/assets/images/Hypaurotis_crysalus.jpg');
 const speaIntermontanaImage = require('@/assets/images/Spea_intermontana.jpg');
 const haliaeetusLeucocephalusImage = require('@/assets/images/Haliaeetus_leucocephalus.jpg');
+const demoSpeciesImage = require('@/assets/images/placeholder.png');
 const localMapImage = require('@/assets/images/Local_Map.png');
 const mapControlsImage = require('@/assets/images/Map_Controls.png');
 
@@ -15,6 +16,13 @@ export const mockHomePageData: HomePageData = {
   },
   recommendations: {
     items: [
+      {
+        taxonId: 999000000,
+        commonName: 'Sample Species (Demo)',
+        scientificName: 'Demo sample data',
+        description: 'Opens the built-in sample species page',
+        imageSource: demoSpeciesImage,
+      },
       {
         taxonId: 148405,
         commonName: 'Spinystar',
