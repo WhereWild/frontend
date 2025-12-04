@@ -25,5 +25,7 @@ export default function RootLayout() {
     return null;
   }
 
+  // TODO: Consider rendering the shared header here (outside the Stack) so iOS
+  // navigation transitions don't visually sweep it away between screens.
   return <Stack screenOptions={{ headerShown: false }} />;
 }
