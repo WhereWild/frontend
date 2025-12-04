@@ -55,7 +55,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
               <View style={styles.recommendations}>
                 {recommendations.items.map((species) => (
                   <SpeciesCard
-                    key={species.id}
+                    key={species.taxonId}
                     {...species}
                     style={styles.speciesCard}
                   />
