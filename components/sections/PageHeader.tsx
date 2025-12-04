@@ -10,7 +10,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useIsCompact } from '@/hooks/useResponsive';
 import { usePathname, useRouter } from 'expo-router';
 import React from 'react';
-import { Image, Platform } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '../buttons/IconButton';
 import { ThemedText } from '../text/ThemedText';
@@ -55,6 +55,7 @@ export function PageHeader({
   const isCompact = useIsCompact();
   const isNativeMobile = Platform.OS !== 'web' && isCompact;
   const safeAreaInsets = useSafeAreaInsets();
+  const topInset = isNativeMobile ? safeAreaInsets.top : 0;
   const canNavigateBack = router.canGoBack();
   const [mobileMenuExpanded, setMobileMenuExpanded] = React.useState(false);
 
@@ -174,23 +175,61 @@ export function PageHeader({
   const backButtonContent = (
     <IconButton
       variant="subtle"
-      size="small"
       icon={<IconChevronLeft />}
       accessibilityLabel={defaultBackAccessibilityLabel}
       onPress={handleBackPress}
     />
   );
 
+  const headerBackgroundColor = React.useMemo(() => {
+    const flattenedStyle = StyleSheet.flatten(style);
+    if (flattenedStyle && 'backgroundColor' in flattenedStyle && flattenedStyle?.backgroundColor) {
+      return flattenedStyle.backgroundColor as string;
+    }
+    return palette.background.default.secondary;
+  }, [palette.background.default.secondary, style]);
+
+  const insetWrapperStyle = React.useMemo(
+    () => ({ paddingTop: topInset, backgroundColor: headerBackgroundColor }),
+    [headerBackgroundColor, topInset],
+  );
+
   if (isCompact) {
     const useBackContent = isNativeMobile && canNavigateBack;
-    const topInset = isNativeMobile ? safeAreaInsets.top : 0;
 
     return (
-      <PageHeaderMobile
+      <View style={insetWrapperStyle} testID="page-header-safe-area-wrapper">
+        <PageHeaderMobile
+          palette={palette}
+          logoContent={useBackContent ? backButtonContent : logoContent}
+          logoIsButton={useBackContent}
+          style={style}
+          searchValue={searchValue}
+          onSearchChange={onSearchChange}
+          onSubmitSearch={handleSubmitSearch}
+          searchPlaceholder={searchPlaceholder}
+          searchInputProps={searchInputProps}
+          actions={resolvedActions}
+          showFilterButton={showFilterButton}
+          filterButtonDisabled={filterButtonDisabled}
+          onFilterPress={onFilterPress}
+          filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
+          showMenuButton={showMenuButton}
+          mobileMenuExpanded={mobileMenuExpanded}
+          onMenuPress={handleMenuPress}
+          menuAccessibilityLabel={menuAccessibilityLabel}
+          onLogoPress={useBackContent ? handleBackPress : navigateHome}
+          logoAccessibilityLabel={getLogoAccessibilityLabel(useBackContent)}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={insetWrapperStyle} testID="page-header-safe-area-wrapper">
+      <PageHeaderDesktop
         palette={palette}
-        logoContent={useBackContent ? backButtonContent : logoContent}
-        logoIsButton={useBackContent}
-        topInset={topInset}
+        logoContent={logoContent}
         style={style}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
@@ -199,37 +238,13 @@ export function PageHeader({
         searchInputProps={searchInputProps}
         actions={resolvedActions}
         showFilterButton={showFilterButton}
-        filterButtonDisabled={filterButtonDisabled}
         onFilterPress={onFilterPress}
+        filterLabel={filterLabel}
         filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
-        showMenuButton={showMenuButton}
-        mobileMenuExpanded={mobileMenuExpanded}
-        onMenuPress={handleMenuPress}
-        menuAccessibilityLabel={menuAccessibilityLabel}
-        onLogoPress={useBackContent ? handleBackPress : navigateHome}
-        logoAccessibilityLabel={getLogoAccessibilityLabel(useBackContent)}
+        filterButtonDisabled={filterButtonDisabled}
+        onLogoPress={navigateHome}
+        logoAccessibilityLabel={getLogoAccessibilityLabel(false)}
       />
-    );
-  }
-
-  return (
-    <PageHeaderDesktop
-      palette={palette}
-      logoContent={logoContent}
-      style={style}
-      searchValue={searchValue}
-      onSearchChange={onSearchChange}
-      onSubmitSearch={handleSubmitSearch}
-      searchPlaceholder={searchPlaceholder}
-      searchInputProps={searchInputProps}
-      actions={resolvedActions}
-      showFilterButton={showFilterButton}
-      onFilterPress={onFilterPress}
-      filterLabel={filterLabel}
-      filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
-      filterButtonDisabled={filterButtonDisabled}
-      onLogoPress={navigateHome}
-      logoAccessibilityLabel={getLogoAccessibilityLabel(false)}
-    />
+    </View>
   );
 }

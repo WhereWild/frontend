@@ -66,6 +66,15 @@ describe('shadowUtils helpers', () => {
     });
   });
 
+  it('falls back to the original color string when parsing formats it does not recognize', () => {
+    const parsed = parseShadowValue('0px 0px hsla(120, 50%, 40%, 0.7)', identity, toNumber);
+
+    expect(parsed[0]).toMatchObject({
+      color: 'hsla(120, 50%, 40%, 0.7)',
+      opacity: 1,
+    });
+  });
+
   it('translates parsed layers into React Native shadow styles', () => {
     expect(toReactNativeShadow([])).toEqual({ layers: [], style: {} });
 

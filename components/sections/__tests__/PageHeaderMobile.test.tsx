@@ -234,17 +234,4 @@ describe('PageHeaderMobile', () => {
     expect(queryByLabelText('WhereWild home')).toBeNull();
   });
 
-  it('applies safe-area padding when topInset is provided', () => {
-    const { getByTestId } = render(
-      <PageHeaderMobile
-        {...createProps({
-          topInset: 24,
-        })}
-      />,
-    );
-
-    const header = getByTestId('page-header-mobile-container');
-    const headerStyles = findStyleObject(header.props.style, style => 'paddingTop' in style);
-    expect(headerStyles?.paddingTop).toBe(24);
-  });
 });

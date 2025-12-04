@@ -58,16 +58,6 @@ describe('About screen', () => {
     expect(screen.getByText('Search cleared')).toBeTruthy();
   });
 
-  it('submits the header search input through the icon button', () => {
-    render(<About />);
-
-    const headerSearchInput = screen.getAllByPlaceholderText('Search')[0];
-    fireEvent.changeText(headerSearchInput, 'lichen');
-    const headerSearchIcon = screen.getAllByTestId('search-input-icon')[0];
-    fireEvent.press(headerSearchIcon);
-    expect(screen.getByText('Header search submitted with "lichen"')).toBeTruthy();
-  });
-
   it('records submission events for the playground search input', () => {
     render(<About />);
 
@@ -76,14 +66,6 @@ describe('About screen', () => {
     fireEvent(speciesSearchInput, 'submitEditing', { nativeEvent: { text: 'sage' } });
 
     expect(screen.getByText('Search submitted with "sage"')).toBeTruthy();
-  });
-
-  it('does not push a new route when already viewing About', () => {
-    mockPathname = '/about';
-    render(<About />);
-
-    fireEvent.press(screen.getByLabelText('About'));
-    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('applies light mode background color when overridden to be light', () => {

@@ -1,5 +1,5 @@
 import { IconHelpCircle } from '@/assets/icons';
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { PageHeader } from '../PageHeader';
@@ -28,6 +28,10 @@ const mockInsets: EdgeInsets = { top: 20, bottom: 0, left: 0, right: 0 };
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => mockInsets,
+}));
+
+jest.mock('@/hooks/useColorScheme', () => ({
+  useColorScheme: () => 'light',
 }));
 
 const selectStyleObject = (
@@ -117,7 +121,7 @@ describe('PageHeader (mobile)', () => {
     await waitFor(() => {
       const actionsCard = screen.getByTestId('page-header-mobile-actions-card');
       const dynamicStyles = selectStyleObject(actionsCard.props.style, style => 'top' in style);
-      expect(dynamicStyles?.top).toBe(mockInsets.top + 72 + Size.space['200']);
+      expect(dynamicStyles?.top).toBe(72 + Size.space['200']);
     });
   });
 
@@ -194,5 +198,14 @@ describe('PageHeader (mobile)', () => {
       const dynamicStyles = selectStyleObject(updatedWrapper.props.style, style => 'width' in style);
       expect(dynamicStyles?.width).toBe(60);
     });
+  });
+
+  it('applies safe-area padding and header background color via wrapper view', () => {
+    render(<PageHeader />);
+
+    const wrapper = screen.getByTestId('page-header-safe-area-wrapper');
+    const wrapperStyles = selectStyleObject(wrapper.props.style, style => 'paddingTop' in style);
+    expect(wrapperStyles?.paddingTop).toBe(mockInsets.top);
+    expect(wrapperStyles?.backgroundColor).toBe(Colors.light.background.default.secondary);
   });
 });
