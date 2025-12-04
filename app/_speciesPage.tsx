@@ -34,7 +34,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const dataSections = React.useMemo(() => rawDataSections ?? [], [rawDataSections]);
-  const nearbySpecies = rawNearbySpecies ?? [];
+  const nearbySpecies = React.useMemo(() => rawNearbySpecies ?? [], [rawNearbySpecies]);
+  const resolvedNearbySpecies = React.useMemo(() => {
+    if (nearbySpecies.length > 0) {
+      return nearbySpecies;
+    }
+    // Always show placeholder nearby species for the prototype demo so this section is never empty.
+    return mountainBallCactusData.nearbySpecies ?? [];
+  }, [nearbySpecies]);
 
   const emptyCardTone = React.useMemo(
     () => ({
@@ -50,7 +57,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const heatmapImage = heatmap?.imageSource;
   const shouldRenderHeatmap = Boolean(heatmapImage);
   const hasSections = dataSections.length > 0;
-  const hasNearbySpecies = nearbySpecies.length > 0;
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -124,10 +130,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
               )}
             </View>
           </View>
-
-          {hasNearbySpecies ? (
-            <NearbySpeciesCarousel species={nearbySpecies} />
-          ) : null}
+          <NearbySpeciesCarousel species={resolvedNearbySpecies} />
 
           <View style={styles.heatMapSection}>
             <View style={styles.sectionContent}>

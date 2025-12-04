@@ -148,7 +148,7 @@ describe('Species screen', () => {
     );
   });
 
-  it('renders dark mode palette and hides empty nearby species carousel', () => {
+  it('renders dark mode palette and shows placeholder nearby species when data is empty', () => {
     mockUseColorScheme.mockReturnValue('dark');
     render(
       <SpeciesScreen
@@ -156,7 +156,8 @@ describe('Species screen', () => {
       />,
     );
 
-    expect(screen.queryByText('Nearby Species')).toBeNull();
+    expect(screen.getByText('Nearby Species')).toBeTruthy();
+    expect(screen.getByText('Utah Juniper')).toBeTruthy();
   });
 
   it('shows environmental and heat map placeholders when sections and imagery are missing', () => {
