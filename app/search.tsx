@@ -10,7 +10,7 @@ const SIDEBAR_WIDTH = 400;
 
 export default function Search() {
     const [searchResults, setSearchResults] = useState([]);
-    const query = useLocalSearchParams<{query: string}>().query;
+    const [query, setQuery] = useState(useLocalSearchParams<{query: string}>().query);
 
     useEffect(() => {
         async function getSearchResults() {
@@ -27,13 +27,12 @@ export default function Search() {
     const colorScheme = useColorScheme();
     const mode = colorScheme === 'dark' ? 'dark' : 'light';
     const palette = Colors[mode];
-    const [searchQuery, setSearchQuery] = useState(query);
 
     return (
         <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
             <PageHeader
-                searchValue={searchQuery}
-                onSearchChange={setSearchQuery}
+                searchValue={query}
+                onSearchChange={setQuery}
             />
 
             <ScrollView
