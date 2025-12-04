@@ -1,51 +1,47 @@
 import type { HomePageData } from './types';
 
+const escobariaViviparaImage = require('@/assets/images/escobaria_vivipara.jpg');
+const hypaurotisCrysalusImage = require('@/assets/images/Hypaurotis_crysalus.jpg');
+const speaIntermontanaImage = require('@/assets/images/Spea_intermontana.jpg');
+const haliaeetusLeucocephalusImage = require('@/assets/images/Haliaeetus_leucocephalus.jpg');
+const localMapImage = require('@/assets/images/Local_Map.png');
+const mapControlsImage = require('@/assets/images/Map_Controls.png');
+
+
 export const mockHomePageData: HomePageData = {
   map: {
-    heatmapImage: {
-      uri: 'https://www.figma.com/api/mcp/asset/4e7b085b-6b57-4286-82e1-c07d7c8391be',
-    },
-    controlsImage: {
-      uri: 'https://www.figma.com/api/mcp/asset/d2af09b0-a6bf-4d77-8a1b-1f1341e2b4dd',
-    },
+    heatmapImage: localMapImage,
+    controlsImage: mapControlsImage,
   },
   recommendations: {
     items: [
       {
-        id: 'mojave-kingcup',
-        commonName: 'Mojave Kingcup',
-        scientificName: 'Echinocereus triglochidiatus',
+        taxonId: 148405,
+        commonName: 'Spinystar',
+        scientificName: 'Escobaria vivipara',
         description: 'Flowering now',
-        imageSource: {
-          uri: 'https://www.figma.com/api/mcp/asset/b0db2a27-6bd5-4152-88ae-951ffa2af365',
-        },
+        imageSource: escobariaViviparaImage,
       },
       {
-        id: 'golden-eagle',
-        commonName: 'Golden Eagle',
-        scientificName: 'Aquila chrysaetos',
+        taxonId: 5305,
+        commonName: 'Bald Eagle',
+        scientificName: 'Haliaeetus leucocephalus',
         description: 'Migrating nearby',
-        imageSource: {
-          uri: 'https://www.figma.com/api/mcp/asset/91018ef5-59f5-4ac3-9b3f-eeb6a66a2707',
-        },
+        imageSource: haliaeetusLeucocephalusImage,
       },
       {
-        id: 'great-basin-spadefoot',
+        taxonId: 26704,
         commonName: 'Great Basin Spadefoot',
         scientificName: 'Spea intermontana',
         description: 'Common after rain',
-        imageSource: {
-          uri: 'https://www.figma.com/api/mcp/asset/aed3792b-f433-4a76-ba84-a59af8d5df5c',
-        },
+        imageSource: speaIntermontanaImage,
       },
       {
-        id: 'colorado-hairstreak',
+        taxonId: 221964,
         commonName: 'Colorado Hairstreak',
         scientificName: 'Hypaurotis crysalus',
         description: 'Frequent in your area',
-        imageSource: {
-          uri: 'https://www.figma.com/api/mcp/asset/f5f75794-49c6-4880-8e97-e4f919219986',
-        },
+        imageSource: hypaurotisCrysalusImage,
       },
     ],
   },
