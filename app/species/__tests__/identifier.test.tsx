@@ -7,6 +7,11 @@ import { fetchSpeciesByTaxonId, fetchSpeciesEnvironment } from '@/data/api';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import SpeciesPage from '../../_speciesPage';
 
+jest.mock('@/components/sections/SpeciesEnvironmentSection', () => ({
+  __esModule: true,
+  SpeciesEnvironmentSection: jest.fn(() => null),
+}));
+
 jest.mock('expo-router', () => {
   const actual = jest.requireActual('expo-router');
   return {
@@ -260,14 +265,19 @@ describe('SpeciesBasicsPage', () => {
     expect(props?.data?.overview?.imageSource).toBe(providedSource);
   });
 
-  it('renders nothing while the identifier data is still loading', () => {
+  it('renders fallback content while the identifier data is still loading', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => { }));
 
-    const { toJSON } = render(<SpeciesBasicsPage />);
+    render(<SpeciesBasicsPage />);
 
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
-    expect(toJSON()).toBeNull();
+    await act(async () => {
+      await flushMicrotasksQueue();
+    });
+
+    expect(mockSpeciesPage).toHaveBeenCalled();
+    expect(getLatestRenderProps()?.data).toEqual(mountainBallCactusData);
+    expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
   });
 
   it('falls back to the sample overview image when no image fields are provided', async () => {
@@ -296,6 +306,7 @@ describe('SpeciesBasicsPage', () => {
     mockFetchSpeciesByTaxonId.mockReturnValue(pendingFetch as any);
 
     const { unmount } = render(<SpeciesBasicsPage />);
+    expect(mockSpeciesPage).toHaveBeenCalledTimes(1);
     unmount();
 
     await act(async () => {
@@ -307,7 +318,7 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
+    expect(mockSpeciesPage).toHaveBeenCalledTimes(1);
   });
 
   it('ignores late error responses after unmounting', async () => {
@@ -320,6 +331,7 @@ describe('SpeciesBasicsPage', () => {
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
     const { unmount } = render(<SpeciesBasicsPage />);
+    expect(mockSpeciesPage).toHaveBeenCalledTimes(1);
     unmount();
 
     await act(async () => {
@@ -328,7 +340,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(consoleSpy).not.toHaveBeenCalled();
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
+    expect(mockSpeciesPage).toHaveBeenCalledTimes(1);
 
     consoleSpy.mockRestore();
   });

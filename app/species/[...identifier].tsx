@@ -262,7 +262,6 @@ export default function SpeciesBasicsPage() {
   const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
 
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
-  const [loading, setLoading] = React.useState(true);
   const [fetchedEnvironmentSections, setFetchedEnvironmentSections] = React.useState<EnvironmentalDataSection[] | undefined>(undefined);
 
   // Fetch the selected species whenever the resolved numeric identifier changes.
@@ -272,14 +271,11 @@ export default function SpeciesBasicsPage() {
 
     (async () => {
       if (!fetchIdentifier) {
-        setLoading(false);
         console.error(
           'Missing numeric taxon ID in route segments.',
         );
         return;
       }
-
-      setLoading(true);
 
       try {
         const response = await fetchSpeciesByTaxonId(fetchIdentifier);
@@ -293,10 +289,6 @@ export default function SpeciesBasicsPage() {
         }
         const message = err instanceof Error ? err.message : 'Failed to load species';
         console.error(`Failed to load species '${fetchIdentifier}':`, message);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
       }
     })();
 
@@ -364,11 +356,6 @@ export default function SpeciesBasicsPage() {
     },
     [fetchedEnvironmentSections, resolvedPageData],
   );
-
-  if (loading && !data) {
-    return null;
-  }
-
   return <SpeciesPage data={hydratedPageData} />;
 }
 
