@@ -227,6 +227,7 @@ export default function About() {
           <View>
             <ThemedText variant="heading">Species Card</ThemedText>
             <SpeciesCard
+              taxonId={5305}
               commonName="Common Name"
               scientificName="Binomial nomenclature"
               description="Description"

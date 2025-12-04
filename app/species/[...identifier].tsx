@@ -5,6 +5,7 @@ import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
 import SpeciesPage from '../_speciesPage';
+import HomeScreen from '../index';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -16,6 +17,7 @@ type SpeciesBasics = {
   image_source?: ImageSourcePropType | string;
   image_url?: string;
   description?: string;
+  heatmap_image_source?: ImageSourcePropType | string;
 };
 
 type SpeciesRouteParams = {
@@ -47,6 +49,9 @@ const buildSpeciesPageData = (
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
+  const heatmapSource =
+  normalizeImageSource({ image_source: payload.heatmap_image_source ?? payload.heatmap_image_source }) ??
+  fallback.heatmap.imageSource;
   return {
     ...fallback,
     taxonId: resolvedTaxonId,
@@ -56,6 +61,10 @@ const buildSpeciesPageData = (
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
       imageSource: normalizeImageSource(payload) ?? fallback.overview.imageSource,
+    },
+    heatmap: {
+      ...fallback.heatmap,
+      imageSource: heatmapSource,
     },
   };
 };
@@ -140,7 +149,7 @@ export default function SpeciesBasicsPage() {
   }, [fetchIdentifier]);
 
   if (loading && !data) {
-    return null;
+    return <HomeScreen/>;
   }
 
   const resolvedPageData = data

@@ -26,12 +26,19 @@ function normalizeToJsonShape(item: any) {
   const imageUrl = imageUrlFromBackend ?? (imageFile
     ? `${BACKEND_BASE}/static/species_images/${imageFile.replace(/^images\//, '')}`
     : null);
+  const heatmapUrlFromBackend =
+    item.heatmap_image_url ?? item.heatmapImageUrl ?? item.heatmap_imageUrl ?? null;
+  const heatmapFile = item.heatmap_image_file ?? item.heatmap_file ?? null;
+  const heatmapUrl = heatmapUrlFromBackend ?? (heatmapFile
+    ? `${BACKEND_BASE}/static/species_probabilities/${heatmapFile.replace(/^probabilities\//, '')}`
+    : null);
 
   return {
     taxon_id: item.taxon_id ?? null,
     scientific_name: item.scientific_name ?? '',
     common_name: item.common_name ?? '',
     image_source: imageUrl,
+    heatmap_image_source: heatmapUrl,
     _raw: item,
   };
 }
