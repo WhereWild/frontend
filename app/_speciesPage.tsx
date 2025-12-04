@@ -3,6 +3,7 @@ import {
   NearbySpeciesCarousel,
   PageHeader,
   SpeciesPageHeader,
+  SpeciesEnvironmentSection,
   ThemedText,
 } from '@/components';
 import { Colors, Responsive, Size } from '@/constants/theme';
@@ -18,7 +19,7 @@ type SpeciesSampleScreenProps = {
 };
 
 export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
-  const { commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
+  const { taxonId, commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -77,6 +78,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             </View>
           </View>
           <NearbySpeciesCarousel species={nearbySpecies} />
+
+          <SpeciesEnvironmentSection taxonId={taxonId} />
 
           <View style={styles.heatMapSection}>
             <View style={[styles.sectionContent]}>
