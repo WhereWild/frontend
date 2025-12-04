@@ -13,10 +13,13 @@ import {
   ViewStyle,
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
-
+import { useRouter } from 'expo-router';
+import type { RelativePathString } from 'expo-router';
+import { toKebabCase } from '@/utils/string';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 
 export type SpeciesCardProps = {
+  taxonId: number;
   commonName: string;
   scientificName: string;
   description: string;
@@ -41,15 +44,15 @@ const resolveSpeciesCardBackground = (
   const colors =
     variant === 'tertiary'
       ? {
-          default: palette.background.default.tertiary,
-          hover: palette.background.default.tertiaryHover,
-          pressed: palette.background.default.tertiaryPressed,
-        }
+        default: palette.background.default.tertiary,
+        hover: palette.background.default.tertiaryHover,
+        pressed: palette.background.default.tertiaryPressed,
+      }
       : {
-          default: palette.background.default.secondary,
-          hover: palette.background.default.secondaryHover,
-          pressed: palette.background.default.secondaryPressed,
-        };
+        default: palette.background.default.secondary,
+        hover: palette.background.default.secondaryHover,
+        pressed: palette.background.default.secondaryPressed,
+      };
 
   if (state.pressed) {
     return colors.pressed;
@@ -61,6 +64,7 @@ const resolveSpeciesCardBackground = (
 };
 
 export function SpeciesCard({
+  taxonId,
   commonName,
   scientificName,
   description,
@@ -73,15 +77,41 @@ export function SpeciesCard({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const router = useRouter();
 
   const placeholderBackground = palette.background.neutral.default;
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+      return;
+    }
+
+    if (typeof taxonId !== 'number') {
+      console.error('SpeciesCard requires a taxonId to navigate');
+      return;
+    }
+
+    const trimmedScientificName = scientificName?.trim();
+    if (!trimmedScientificName) {
+      console.error('SpeciesCard requires a scientific name to navigate');
+      return;
+    }
+
+    const scientificSegment = toKebabCase(trimmedScientificName);
+    if (!scientificSegment) {
+      console.error('SpeciesCard: scientific name could not be converted to a valid URL segment');
+      return;
+    }
+
+    router.push(`/species/${taxonId}/${scientificSegment}` as RelativePathString);
+  };
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
       testID={testID}

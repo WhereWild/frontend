@@ -4,9 +4,9 @@ The UI screens consume strongly typed data objects so they can be wired to any A
 
 | Interface | Purpose | Key Fields |
 | --- | --- | --- |
-| `HomePageData` | Drives the home screen map snapshot and recommendation shelf. | `map` (heatmap + controls images), `recommendations.items` (array of `HighlightedSpecies`). |
+| `HomePageData` | Drives the home screen map snapshot and recommendation shelf. | `map` (heatmap + controls images), `recommendations.items` (array of `SpeciesSummary`). |
 | `SpeciesPageData` | Powers the species detail sample page, including overview text, inline environmental sections, nearby species, and the predictive heatmap. | `overview`, `dataSections` (arrays of `EnvironmentalDataSection`), `nearbySpecies`, `heatmap`. |
-| `SpeciesSummary` / `HighlightedSpecies` | Lightweight representation of a species suitable for cards and lists. | `commonName`, `scientificName`, `description`, optional `imageSource`. |
+| `SpeciesSummary` | Lightweight representation of a species suitable for cards and lists. | `commonName`, `scientificName`, `description`, optional `imageSource`. |
 | `EnvironmentalDataSection` | Structured rows that render inside `InlineExpandableRows`. | Each section exposes a `title` plus `entries` made of `EnvironmentalDataEntry` records (name, datapoint, optional detail list). |
 
 When replacing the mock data with a FastAPI (or any REST) backend, shape your responses to match these interfaces and pass them directly into the existing pages. Doing so keeps the UI completely declarative: fetch data → hydrate the relevant interface → render.
