@@ -97,3 +97,56 @@ export type SpeciesPageData = SpeciesSummary & {
   nearbySpecies: SpeciesSummary[];
   heatmap: HeatmapSnapshot;
 };
+
+export type SpeciesEnvironmentSummary = {
+  count: number;
+  mean: number | null;
+  stddev: number | null;
+  q10: number | null;
+  q90: number | null;
+};
+
+export type SpeciesEnvironmentHistogram = {
+  bins: number[];
+  counts: number[];
+};
+
+export type SpeciesEnvironmentStats = {
+  speciesId: number;
+  variable: string;
+  variableName: string;
+  units?: string | null;
+  variableType?: string | null;
+  generatedAt?: string;
+  summary: SpeciesEnvironmentSummary;
+  histogram: SpeciesEnvironmentHistogram | null;
+  binSamples?: SpeciesEnvironmentBinSample[];
+  categoricalDistribution?: SpeciesEnvironmentCategory[];
+  dominantCategories?: SpeciesEnvironmentCategory[];
+  categoricalSamples?: SpeciesEnvironmentCategorySamples[];
+};
+
+export type EnvironmentVariableDefinition = {
+  id: string;
+  name?: string;
+  units?: string | null;
+  description?: string | null;
+};
+
+export type SpeciesEnvironmentBinSample = {
+  index: number;
+  observationIds: Array<number | string>;
+};
+
+export type SpeciesEnvironmentCategory = {
+  value: number;
+  className: string;
+  description?: string | null;
+  count: number;
+  fraction: number;
+};
+
+export type SpeciesEnvironmentCategorySamples = {
+  value: number;
+  observationIds: Array<number | string>;
+};

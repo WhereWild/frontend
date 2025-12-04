@@ -94,7 +94,22 @@ const getIdentifierFromParams = (params: SpeciesRouteParams) => {
 
 export default function SpeciesBasicsPage() {
   const params = useLocalSearchParams<SpeciesRouteParams>();
-  const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
+  const identifierParam = params.identifier;
+  const taxonParam = params.taxonId;
+
+  const identifierDependencyKey = Array.isArray(identifierParam)
+    ? identifierParam.join('|')
+    : identifierParam ?? '';
+
+  const { fetchIdentifier, requestedTaxonId } = React.useMemo(
+    () => getIdentifierFromParams({ identifier: identifierParam, taxonId: taxonParam }),
+    [identifierDependencyKey, taxonParam],
+  );
+
+  const routeParamsForLogging = React.useMemo(
+    () => ({ identifier: identifierParam, taxonId: taxonParam }),
+    [identifierDependencyKey, taxonParam],
+  );
 
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -108,7 +123,8 @@ export default function SpeciesBasicsPage() {
       if (!fetchIdentifier) {
         setLoading(false);
         console.error(
-          'Missing numeric taxon ID in route segments.',
+          'Missing numeric taxon ID in route parameters. Received:',
+          routeParamsForLogging,
         );
         return;
       }
@@ -137,7 +153,7 @@ export default function SpeciesBasicsPage() {
     return () => {
       mounted = false;
     };
-  }, [fetchIdentifier]);
+  }, [fetchIdentifier, routeParamsForLogging]);
 
   if (loading && !data) {
     return null;
