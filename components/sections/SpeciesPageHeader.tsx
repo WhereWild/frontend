@@ -1,6 +1,7 @@
 import { IconDownload } from '@/assets/icons';
 import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useIsCompact } from '@/hooks/useResponsive';
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Button } from '../buttons/Button';
@@ -24,9 +25,30 @@ export function SpeciesPageHeader({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const isCompact = useIsCompact();
+  const dividerStyle = [
+    styles.divider,
+    {
+      backgroundColor: palette.border.brand.secondary,
+    },
+  ];
+
+  const downloadButton = (
+    <Button
+      variant="neutral"
+      iconStart={<IconDownload />}
+      onPress={onPressDownload}
+      accessibilityLabel={`${downloadLabel} ${commonName}`}
+      size={isCompact ? 'small' : 'medium'}
+      style={isCompact ? styles.mobileButton : undefined}
+    >
+      {downloadLabel}
+    </Button>
+  );
 
   return (
     <View
+      testID={`species-page-header-${isCompact ? 'mobile' : 'desktop'}`}
       style={[
         styles.container,
         {
@@ -36,31 +58,33 @@ export function SpeciesPageHeader({
       ]}
     >
       <View style={styles.content}>
-        <View style={styles.headingRow}>
-          <ThemedText variant="titlePage">
-            {commonName}
-          </ThemedText>
-          <Button
-            variant="neutral"
-            iconStart={<IconDownload />}
-            onPress={onPressDownload}
-            accessibilityLabel={`${downloadLabel} ${commonName}`}
-          >
-            {downloadLabel}
-          </Button>
-        </View>
-        <ThemedText variant="bodyEmphasis">
-          {scientificName}
-        </ThemedText>
-        <View
-          style={[
-            styles.divider,
-            {
-              backgroundColor: palette.border.brand.secondary,
-            },
-          ]}
-          testID="species-page-header-divider"
-        />
+        {isCompact ? (
+          <>
+            <View style={styles.mobileHeadingGroup}>
+              <ThemedText variant="titlePage">
+                {commonName}
+              </ThemedText>
+              <ThemedText variant="bodyEmphasis">
+                {scientificName}
+              </ThemedText>
+            </View>
+            {downloadButton}
+            <View style={dividerStyle} testID="species-page-header-divider" />
+          </>
+        ) : (
+          <>
+            <View style={styles.headingRow}>
+              <ThemedText variant="titlePage">
+                {commonName}
+              </ThemedText>
+              {downloadButton}
+            </View>
+            <ThemedText variant="bodyEmphasis">
+              {scientificName}
+            </ThemedText>
+            <View style={dividerStyle} testID="species-page-header-divider" />
+          </>
+        )}
       </View>
     </View>
   );
@@ -82,6 +106,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  mobileHeadingGroup: {
+    gap: Size.space['050'],
+    alignSelf: 'stretch',
+  },
+  mobileButton: {
+    alignSelf: 'flex-start',
   },
   divider: {
     height: Size.stroke.border,

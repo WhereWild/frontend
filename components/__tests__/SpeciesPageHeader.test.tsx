@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors, Responsive } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
@@ -11,12 +11,30 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
+const mockUseWindowDimensions = jest.fn(() => ({
+  width: 1024,
+  height: 768,
+  scale: 1,
+  fontScale: 1,
+}));
+
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => mockUseWindowDimensions(),
+}));
+
 describe('SpeciesPageHeader', () => {
   const commonName = 'Mountain Ball Cactus';
   const scientificName = 'Pediocactus simpsonii';
 
   beforeEach(() => { 
     mockUseColorScheme.mockReturnValue('dark');
+    mockUseWindowDimensions.mockReturnValue({
+      width: 1024,
+      height: 768,
+      scale: 1,
+      fontScale: 1,
+    });
   });
 
 
@@ -31,6 +49,24 @@ describe('SpeciesPageHeader', () => {
 
     expect(screen.getByText(commonName)).toBeTruthy();
     expect(screen.getByText(scientificName)).toBeTruthy();
+  });
+
+  it('switches to the mobile layout when width is tablet or below', () => {
+    mockUseWindowDimensions.mockReturnValue({
+      width: Responsive.deviceWidth.mobile,
+      height: 640,
+      scale: 1,
+      fontScale: 1,
+    });
+
+    render(
+      <SpeciesPageHeader
+        commonName={commonName}
+        scientificName={scientificName}
+      />,
+    );
+
+    expect(screen.getByTestId('species-page-header-mobile')).toBeTruthy();
   });
 
   it('invokes download handler when button is pressed', () => {

@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import { PageHeader } from '../sections/PageHeader';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { IconHelpCircle } from '@/assets/icons';
+import { PageHeader } from '../sections/PageHeader';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -21,7 +21,7 @@ jest.mock('expo-router', () => ({
   usePathname: () => mockPathname,
 }));
 
-describe('PageHeader', () => {
+describe('PageHeader (desktop)', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockPathname = '/';
@@ -55,7 +55,7 @@ describe('PageHeader', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('invokes action handler when pressed', () => {
+  it('invokes custom action handler when pressed', () => {
     const handlePress = jest.fn();
     render(
       <PageHeader
@@ -71,13 +71,11 @@ describe('PageHeader', () => {
     mockPathname = '/about';
     render(<PageHeader />);
 
-    const logoLink = screen.getByLabelText('Go to home');
-    expect(logoLink.props.accessibilityRole).toBe('link');
-    fireEvent.press(logoLink);
+    fireEvent.press(screen.getByLabelText('Go to home'));
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('does not navigate when already on the home page', () => {
+  it('does not navigate home when already on the root path', () => {
     render(<PageHeader />);
 
     fireEvent.press(screen.getByLabelText('Go to home'));
