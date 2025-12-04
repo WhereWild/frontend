@@ -45,7 +45,7 @@ export function PageHeader({
   const isCompact = useIsCompact();
   const [mobileMenuExpanded, setMobileMenuExpanded] = React.useState(false);
 
-  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
+  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about' | '/settings') => {
     if (pathname !== targetPath) {
       router.push(targetPath);
     }
@@ -59,13 +59,17 @@ export function PageHeader({
     navigateIfDifferent('/about');
   }, [navigateIfDifferent]);
 
+  const navigateToSettings = React.useCallback(() => {
+    navigateIfDifferent('/settings');
+  }, [navigateIfDifferent]);
+
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
       { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
-      { label: 'Settings', icon: <IconSettings /> },
+      { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
     ],
-    [navigateToAbout],
+    [navigateToAbout, navigateToSettings],
   );
 
   const resolvedActions = actions ?? defaultActions;
