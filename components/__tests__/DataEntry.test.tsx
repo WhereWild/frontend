@@ -21,8 +21,8 @@ describe('DataEntry', () => {
 
   const elevationSummaryLabel = 'Average elevation: 2000 m';
   const precipitationSummaryLabel = 'Average precipitation: 39.4 cm';
-  const expandHint = 'Expands to reveal additional details';
-  const collapseHint = 'Collapses additional details';
+  const expandHint = 'Will expand to reveal additional details';
+  const collapseHint = 'Will collapse additional details';
 
   it('toggles expansion state and renders details', () => {
     const handleToggle = jest.fn();
