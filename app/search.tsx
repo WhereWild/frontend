@@ -1,10 +1,9 @@
 import { PageHeader, SpeciesCard, ThemedText } from '@/components';
-import type { SpeciesCardProps } from '@/components';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useEffect, useState } from 'react';
-import { ImageSourcePropType, KeyboardAvoidingViewBase, ScrollView, StyleSheet, View } from 'react-native';
-import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams  } from 'expo-router';
 
 const SIDEBAR_WIDTH = 400;
 
@@ -17,8 +16,6 @@ function normalize(imageFile: string) {
 export default function Search() {
     const [searchResults, setSearchResults] = useState([]);
     const [query, setQuery] = useState(useLocalSearchParams<{query: string}>().query);
-
-    const [images, setImages] = useState(new Map());
 
     useEffect(() => {
         async function getSearchResults() {
@@ -74,7 +71,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: Size.space['1600'],
+    paddingHorizontal: Responsive.marginHorizontal,
     paddingTop: Size.space['800'],
     width: '100%',
   },
