@@ -53,7 +53,7 @@ export function CategoryDistributionList({
         const content = (
           <>
             <View style={styles.rowHeader}>
-              <ThemedText variant="bodyStrong">{category.className}</ThemedText>
+              <ThemedText variant="bodySmallStrong">{category.className}</ThemedText>
               <ThemedText variant="bodySmall">
                 {formatFractionPercent(category.fraction)} • {formatValue(category.count)} samples
               </ThemedText>
@@ -90,7 +90,7 @@ export function CategoryDistributionList({
               </Pressable>
               {selected ? (
                 <View style={[styles.observationPanel, { backgroundColor: observationPanelColor }]}>
-                  <ThemedText variant="bodySmallEmphasis">
+                  <ThemedText variant="bodySmall">
                     Observations in {category.className}
                   </ThemedText>
                   {(samples?.length ?? 0) > 0 ? (
@@ -134,7 +134,7 @@ export function CategoryDistributionList({
 
 const styles = StyleSheet.create({
   container: {
-    gap: Size.space['300'],
+    gap: Size.space['200'],
   },
   emptyState: {
     height: 160,
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   interactiveRow: {
-    gap: Size.space['200'],
-    paddingVertical: Size.space['200'],
+    gap: Size.space['150'],
+    paddingVertical: Size.space['150'],
   },
   rowHeader: {
     flexDirection: 'row',
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   barTrack: {
-    height: 8,
+    height: Size.space['150'],
     borderRadius: Size.radius['200'],
     overflow: 'hidden',
   },
@@ -161,18 +161,18 @@ const styles = StyleSheet.create({
   },
   description: {},
   observationPanel: {
-    gap: Size.space['200'],
-    padding: Size.space['300'],
+    gap: Size.space['150'],
+    padding: Size.space['200'],
     borderRadius: Size.radius['200'],
   },
   observationList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Size.space['200'],
+    gap: Size.space['150'],
   },
   observationChip: {
-    paddingHorizontal: Size.space['200'],
-    paddingVertical: Size.space['100'],
+    paddingHorizontal: Size.space['150'],
+    paddingVertical: Size.space['050'],
     borderRadius: Size.radius['200'],
   },
   observationLink: {

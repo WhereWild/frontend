@@ -1,3 +1,4 @@
+import { Size } from '@/constants/theme';
 import React from 'react';
 import {
   Pressable,
@@ -6,7 +7,6 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { Size } from '@/constants/theme';
 import { ThemedText } from '../../text/ThemedText';
 import type { HistogramBar } from './utils';
 import { formatBinLabel, formatValue } from './utils';
@@ -155,7 +155,7 @@ export function HistogramChart({
             </ThemedText>
             <View
               testID={`histogram-horizontal-track-${bar.index}`}
-              style={styles.barTrack}
+              style={[styles.barTrack, trackColor ? { backgroundColor: trackColor } : null]}
             >
               <View
                 style={[
@@ -197,8 +197,9 @@ const styles = StyleSheet.create({
   },
   barTooltip: {
     position: 'absolute',
-    top: 0,
+    bottom: '100%',
     left: 0,
+    marginBottom: Size.space['100'],
     paddingHorizontal: Size.space['200'],
     paddingVertical: Size.space['100'],
     borderRadius: Size.radius['200'],
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
   },
   barColumn: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   barLabelRow: {
     flexDirection: 'row',
@@ -229,11 +230,11 @@ const styles = StyleSheet.create({
   barAxis: {
     flexGrow: 1,
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'stretch',
     width: '100%',
   },
   bar: {
-    width: '80%',
+    width: '100%',
     borderTopLeftRadius: Size.radius['100'],
     borderTopRightRadius: Size.radius['100'],
   },
@@ -248,16 +249,23 @@ const styles = StyleSheet.create({
   horizontalBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Size.space['300'],
+    gap: Size.space['100'],
+    width: '100%',
   },
   barLabelHorizontal: {
-    width: '38%',
+    // Reserve ~1/4 of the row so bin labels line up without wrapping.
+    flexBasis: '26%',
+    flexGrow: 0,
+    flexShrink: 1,
+    minWidth: 72, // Replace with token later.
     textAlign: 'right',
-    paddingRight: Size.space['100'],
+    paddingRight: Size.space['050'],
   },
   barTrack: {
     flex: 1,
     height: Size.space['400'],
+    width: '100%',
+    alignSelf: 'stretch',
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
     borderTopRightRadius: Size.radius['200'],
