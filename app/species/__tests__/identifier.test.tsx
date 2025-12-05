@@ -307,7 +307,7 @@ describe('SpeciesBasicsPage', () => {
     expect(props?.data?.overview?.imageSource).toBe(providedSource);
   });
 
-  it('renders fallback content while the identifier data is still loading', async () => {
+  it('continues rendering placeholder species data while the basics request is loading', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => { }));
 
@@ -317,8 +317,8 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
-    expect(screen.getByText('Active Near You')).toBeTruthy();
+    expect(mockSpeciesPage).toHaveBeenCalled();
+    expect(getLatestRenderProps()?.data).toEqual(mountainBallCactusData);
   });
 
   it('falls back to the sample overview image when no image fields are provided', async () => {

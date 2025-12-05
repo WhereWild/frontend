@@ -14,7 +14,6 @@ import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
 import type { MeasurementPreferenceSnapshot } from '@/constants/userPreferences';
 import { convertStatsToPreferredUnits } from '@/utils/measurement';
 import SpeciesPage from '../_speciesPage';
-import HomeScreen from '../index';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -331,7 +330,6 @@ export default function SpeciesBasicsPage() {
   const measurementSnapshot = measurementPreferences.snapshot;
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [environmentStats, setEnvironmentStats] = React.useState<EnvironmentStatsEntry[] | undefined>(undefined);
-  const [loading, setLoading] = React.useState(true);
 
   // Fetch the selected species whenever the resolved numeric identifier changes.
   // The mounted flag ensures we never update state after the component unmounts.
@@ -343,16 +341,11 @@ export default function SpeciesBasicsPage() {
         if (mounted) {
           setData(null);
           setEnvironmentStats(undefined);
-          setLoading(false);
         }
         console.error(
           'Missing numeric taxon ID in route segments.',
         );
         return;
-      }
-
-      if (mounted) {
-        setLoading(true);
       }
 
       try {
@@ -367,11 +360,7 @@ export default function SpeciesBasicsPage() {
         }
         const message = err instanceof Error ? err.message : 'Failed to load species';
         console.error(`Failed to load species '${fetchIdentifier}':`, message);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
+      } 
     })();
 
     return () => {
@@ -446,9 +435,6 @@ export default function SpeciesBasicsPage() {
     [environmentStats, measurementSnapshot, resolvedPageData],
   );
 
-  if (loading && !data) {
-    return <HomeScreen />;
-  }
   return <SpeciesPage data={hydratedPageData} />;
 }
 
