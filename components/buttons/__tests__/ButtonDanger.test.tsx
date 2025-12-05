@@ -62,18 +62,17 @@ describe('ButtonDanger Component', () => {
       });
     });
 
-    it('defaults to medium size (12px padding)', () => {
+    it('defaults to medium size with target 40px control height', () => {
       const { getByRole } = render(<ButtonDanger>Default Size</ButtonDanger>);
       const button = getByRole('button');
-      const styles = button.props.style;
-      expect(styles).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            paddingHorizontal: 12,
-            paddingVertical: 12,
-          }),
-        ])
-      );
+      const resolvedStyle =
+        typeof button.props.style === 'function'
+          ? button.props.style({ pressed: false, hovered: false })
+          : button.props.style;
+      const flattened = StyleSheet.flatten(resolvedStyle);
+
+      expect(flattened.paddingHorizontal).toBe(12);
+      expect(flattened.paddingVertical).toBeCloseTo(10.4, 1);
     });
   });
 

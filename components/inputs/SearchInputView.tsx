@@ -1,15 +1,14 @@
+import { Size, Typography } from '@/constants/theme';
 import React from 'react';
 import {
   Platform,
   Pressable,
+  PressableStateCallbackType,
   StyleSheet,
   TextInput,
   TextInputProps,
   ViewStyle,
-  PressableStateCallbackType,
 } from 'react-native';
-import { RN_TEXT_INPUT_VERTICAL_OFFSET } from './searchInputHelpers';
-import { Size } from '@/constants/theme';
 
 /**
  * Pure view for SearchInput; expects fully-resolved props from the controller.
@@ -42,12 +41,17 @@ export type SearchInputViewProps = {
 };
 
 const ICON_BUTTON_EXPANSION = Size.space['200'];
-const BASE_VERTICAL_PADDING = Size.space['300'];
-// React Native Web injects extra vertical padding into TextInput; trim it to keep the
-// search pill height consistent without affecting native platforms.
-const CONTAINER_VERTICAL_PADDING = Platform.OS === 'web'
-  ? BASE_VERTICAL_PADDING - RN_TEXT_INPUT_VERTICAL_OFFSET
-  : BASE_VERTICAL_PADDING;
+const SEARCH_INPUT_TARGET_HEIGHT = 40;
+// Mirror the button sizing math so the pill always hits 40px without hardcoding padding.
+const SINGLE_LINE_LINE_HEIGHT =
+  Typography.light.singleLineBody.lineHeight ??
+  Typography.light.body.lineHeight ??
+  20;
+const BASE_VERTICAL_PADDING = Math.max(
+  0,
+  (SEARCH_INPUT_TARGET_HEIGHT - SINGLE_LINE_LINE_HEIGHT) / 2,
+);
+const CONTAINER_VERTICAL_PADDING = BASE_VERTICAL_PADDING;
 
 const styles = StyleSheet.create({
   container: {

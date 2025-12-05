@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, TextStyle, View, ViewStyle } from 'react-native';
-import { Colors, Size } from '../../constants/theme';
+import { Colors, Size, Typography } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { ThemedText } from '../text/ThemedText';
 
@@ -74,16 +74,31 @@ function computeDangerStyles(
     };
 }
 
+// Danger buttons share the same 40px spec as the primary buttons, so derive padding from
+// the actual single-line type metrics instead of guessing.
+const SINGLE_LINE_BODY_LINE_HEIGHT =
+    Typography.light.singleLineBody.lineHeight ??
+    Typography.light.body.lineHeight ??
+    20;
+const BUTTON_TARGET_HEIGHT: Record<ButtonDangerSize, number> = {
+    small: SINGLE_LINE_BODY_LINE_HEIGHT + Size.space['200'] * 2,
+    medium: 40,
+};
+
+const getVerticalPadding = (size: ButtonDangerSize, borderWidth: number) => {
+    const targetHeight = BUTTON_TARGET_HEIGHT[size] ?? BUTTON_TARGET_HEIGHT.medium;
+    const available = targetHeight - SINGLE_LINE_BODY_LINE_HEIGHT - borderWidth * 2;
+    return Math.max(0, available / 2);
+};
+
 function computeSizeStyles(size: ButtonDangerSize) {
     if (size === 'small') {
         return {
             paddingHorizontal: Size.space['200'],
-            paddingVertical: Size.space['200'],
         };
     }
     return {
         paddingHorizontal: Size.space['300'],
-        paddingVertical: Size.space['300'],
     };
 }
 
@@ -140,7 +155,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
                 const s = computeSizeStyles(size);
                 const borderWidth = v.borderWidth ?? 0;
                 const paddingHorizontal = Math.max(0, s.paddingHorizontal - borderWidth);
-                const paddingVertical = Math.max(0, s.paddingVertical - borderWidth);
+                const paddingVertical = getVerticalPadding(size, borderWidth);
                 return [
                     {
                         flexDirection: 'row',
