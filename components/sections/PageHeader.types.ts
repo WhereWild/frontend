@@ -36,4 +36,6 @@ export type PageHeaderProps = {
   onMenuPress?: () => void;
   menuAccessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
 };

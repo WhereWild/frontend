@@ -8,10 +8,10 @@ import { convertStatsToPreferredUnits } from '@/utils/measurement';
 import React from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
-import { HistogramChart } from './speciesEnvironment/HistogramChart';
 import { CategoryDistributionList } from './speciesEnvironment/CategoryDistributionList';
-import { buildHistogramBars, formatBinLabel } from './speciesEnvironment/utils';
+import { HistogramChart } from './speciesEnvironment/HistogramChart';
 import type { HistogramBar } from './speciesEnvironment/utils';
+import { buildHistogramBars, formatBinLabel } from './speciesEnvironment/utils';
 
 const DEFAULT_VARIABLE = 'elevation';
 
@@ -262,10 +262,8 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
   },
   chartWrapper: {
-    gap: Size.space['600'],
+    gap: Size.space['300'],
     position: 'relative',
-    paddingTop: Size.space['800'],
-    paddingBottom: Size.space['200'],
   },
   loadingRow: {
     flexDirection: 'row',

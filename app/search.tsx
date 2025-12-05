@@ -1,9 +1,10 @@
-import { PageHeader, SpeciesCard, ThemedText } from '@/components';
+import { SpeciesCard, ThemedText } from '@/components';
+import { usePageHeaderConfig } from '@/components/sections/PageHeaderPortal';
 import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useEffect, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useLocalSearchParams  } from 'expo-router';
 
 const SIDEBAR_WIDTH = 400;
 
@@ -16,6 +17,12 @@ function normalize(imageFile: string) {
 export default function Search() {
     const [searchResults, setSearchResults] = useState([]);
     const [query, setQuery] = useState(useLocalSearchParams<{query: string}>().query);
+    const headerConfig = useMemo(() => ({
+      searchValue: query,
+      onSearchChange: setQuery,
+    }), [query]);
+
+    usePageHeaderConfig(headerConfig);
 
     useEffect(() => {
         async function getSearchResults() {
@@ -34,12 +41,10 @@ export default function Search() {
     const palette = Colors[mode];
 
     return (
-        <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-            <PageHeader
-                searchValue={query}
-                onSearchChange={setQuery}
-            />
-
+        <View
+          style={[styles.screen, { backgroundColor: palette.background.default.default }]}
+          testID="search-screen"
+        >
             <ScrollView
                 contentContainerStyle={styles.content}
                 bounces={false}

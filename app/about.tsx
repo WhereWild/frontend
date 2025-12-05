@@ -12,7 +12,6 @@ import {
   IconButton,
   InlineExpandableRows,
   NearbySpeciesCarousel,
-  PageHeader,
   SearchInput,
   SelectField,
   SpeciesCard,
@@ -62,7 +61,6 @@ export default function About() {
   const palette = Colors[mode];
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
-  const [headerSearchQuery, setHeaderSearchQuery] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState<string | undefined>();
   const [switchOnValue, setSwitchOnValue] = useState(true);
   const [switchOffValue, setSwitchOffValue] = useState(false);
@@ -191,12 +189,10 @@ export default function About() {
       <Head>
         <title>WhereWild | About</title>
       </Head>
-      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader
-          searchValue={headerSearchQuery}
-          onSearchChange={setHeaderSearchQuery}
-        />
-
+      <View
+        style={[styles.screen, { backgroundColor: palette.background.default.default }]}
+        testID="about-screen"
+      >
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.pageTitleContainer}>
             <View style={styles.pageTitle}>

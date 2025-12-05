@@ -1,10 +1,9 @@
-import { PageHeader, SpeciesCard, ThemedText } from '@/components';
+import { SpeciesCard, ThemedText } from '@/components';
 import { Colors, Responsive, Size } from '@/constants/theme';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
-import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
 const MAP_HEIGHT = 640;
@@ -19,18 +18,15 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const { map, recommendations } = data;
-  const [searchQuery, setSearchQuery] = useState('');
   return (
     <>
       <Head>
         <title>WhereWild | Home</title>
       </Head>
-      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-
+      <View
+        style={[styles.screen, { backgroundColor: palette.background.default.default }]}
+        testID="home-screen"
+      >
         <ScrollView
           contentContainerStyle={styles.content}
           bounces={false}

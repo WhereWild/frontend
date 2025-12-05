@@ -103,6 +103,15 @@ export const useSearchInputController = ({
   const inputRef = React.useRef<TextInput>(null);
 
   React.useEffect(() => {
+    if (!isControlled) {
+      return;
+    }
+
+    const nextValue = value ?? '';
+    setInternalValue((prev) => (prev === nextValue ? prev : nextValue));
+  }, [isControlled, value]);
+
+  React.useEffect(() => {
     if (!disabled) {
       return;
     }

@@ -1,18 +1,19 @@
+import { IconFilter } from '@/assets/icons';
 import React from 'react';
 import { Pressable, StyleProp, View, ViewStyle } from 'react-native';
-import { IconFilter } from '@/assets/icons';
+import { Button } from '../buttons/Button';
+import { SearchInput } from '../inputs/SearchInput';
+import { pageHeaderStyles as styles } from './PageHeader.styles';
 import type {
   ColorPalette,
   PageHeaderAction,
   SearchInputPassthroughProps,
 } from './PageHeader.types';
-import { pageHeaderStyles as styles } from './PageHeader.styles';
-import { Button } from '../buttons/Button';
-import { SearchInput } from '../inputs/SearchInput';
 
 export type PageHeaderDesktopProps = {
   palette: ColorPalette;
   logoContent: React.ReactNode;
+  logoTitleContent?: React.ReactNode | null;
   style?: StyleProp<ViewStyle>;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
@@ -32,6 +33,7 @@ export type PageHeaderDesktopProps = {
 export function PageHeaderDesktop({
   palette,
   logoContent,
+  logoTitleContent,
   style,
   searchValue,
   onSearchChange,
@@ -47,6 +49,8 @@ export function PageHeaderDesktop({
   onLogoPress,
   logoAccessibilityLabel,
 }: PageHeaderDesktopProps) {
+  const shouldShowLogoTitle = !!logoTitleContent;
+
   return (
     <View
       style={[
@@ -65,6 +69,7 @@ export function PageHeaderDesktop({
         accessibilityLabel={logoAccessibilityLabel}
       >
         {logoContent}
+        {shouldShowLogoTitle ? logoTitleContent : null}
       </Pressable>
 
       <View style={[styles.searchRow, styles.searchRowDesktop]}>

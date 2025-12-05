@@ -7,6 +7,7 @@ import {
   StyleProp,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { Button } from '../buttons/Button';
 import { IconButton } from '../buttons/IconButton';
@@ -39,6 +40,7 @@ export type PageHeaderMobileProps = {
   onLogoPress: () => void;
   logoAccessibilityLabel: string;
   logoIsButton?: boolean;
+  onDismissMenu?: () => void;
 };
 
 export function PageHeaderMobile({
@@ -62,27 +64,23 @@ export function PageHeaderMobile({
   onLogoPress,
   logoAccessibilityLabel,
   logoIsButton = false,
+  onDismissMenu,
 }: PageHeaderMobileProps) {
   const [toolbarHeight, setToolbarHeight] = React.useState(0);
-  const [maxActionWidth, setMaxActionWidth] = React.useState(0);
-  const actionSignature = React.useMemo(
-    () => actions.map(({ label }) => label).join('|'),
-    [actions],
-  );
+  const { height: windowHeight } = useWindowDimensions();
   const shouldRenderActions = (!showMenuButton || mobileMenuExpanded) && actions.length > 0;
 
   const handleToolbarLayout = React.useCallback((event: LayoutChangeEvent) => {
     setToolbarHeight(event.nativeEvent.layout.height);
   }, []);
 
-  const handleActionLayout = React.useCallback((event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setMaxActionWidth((prev) => (width > prev ? width : prev));
-  }, []);
-
-  React.useEffect(() => {
-    setMaxActionWidth(0);
-  }, [actionSignature]);
+  const handleActionPress = React.useCallback(
+    (actionOnPress?: () => void) => () => {
+      actionOnPress?.();
+      onDismissMenu?.();
+    },
+    [onDismissMenu],
+  );
 
   const mobileFilterButton = showFilterButton ? (
     <IconButton
@@ -107,16 +105,11 @@ export function PageHeaderMobile({
   const renderedActions = actions.map(({ label, icon, onPress, variant = 'subtle', disabled }) => (
     <View
       key={label}
-      style={[
-        styles.mobileActionButtonWrapper,
-        maxActionWidth > 0 ? { width: maxActionWidth } : undefined,
-      ]}
-      onLayout={handleActionLayout}
-      testID="page-header-mobile-action-wrapper"
+      style={styles.mobileActionButtonWrapper}
     >
       <Button
         variant={variant}
-        onPress={onPress}
+        onPress={handleActionPress(onPress)}
         iconStart={icon}
         label={label}
         disabled={disabled}
@@ -125,6 +118,18 @@ export function PageHeaderMobile({
       />
     </View>
   ));
+
+  const shouldShowScrim = showMenuButton && mobileMenuExpanded;
+  const scrimStyle = React.useMemo(
+    () => [
+      styles.mobileMenuScrim,
+      {
+        height: windowHeight + toolbarHeight,
+        top: -toolbarHeight,
+      },
+    ],
+    [toolbarHeight, windowHeight],
+  );
 
   const logoWrapperStyle = [styles.logoSection, styles.mobileLogoSection];
 
@@ -178,22 +183,32 @@ export function PageHeaderMobile({
       </View>
 
       {shouldRenderActions ? (
-        <View
-          style={[
-            styles.mobileActionsCard,
-            {
-              backgroundColor: palette.background.default.tertiary,
-              top: toolbarHeight + Size.space['200'],
-              right: Size.space['200'],
-              borderColor: palette.border.default.tertiary,
-              borderWidth: Size.stroke.border,
-              width: maxActionWidth > 0 ? maxActionWidth + Size.space['400'] : undefined,
-            },
-          ]}
-          testID="page-header-mobile-actions-card"
-        >
-          {renderedActions}
-        </View>
+        <>
+          {shouldShowScrim ? (
+            <Pressable
+              style={scrimStyle}
+              accessibilityLabel="Dismiss menu"
+              accessibilityRole="button"
+              onPress={onDismissMenu}
+              testID="page-header-mobile-scrim"
+            />
+          ) : null}
+          <View
+            style={[
+              styles.mobileActionsCard,
+              {
+                backgroundColor: palette.background.default.tertiary,
+                top: toolbarHeight + Size.space['200'],
+                right: Size.space['200'],
+                borderColor: palette.border.default.tertiary,
+                borderWidth: Size.stroke.border,
+              },
+            ]}
+            testID="page-header-mobile-actions-card"
+          >
+            {renderedActions}
+          </View>
+        </>
       ) : null}
     </View>
   );

@@ -1,3 +1,4 @@
+import { PageHeaderPortal, PageHeaderPortalProvider } from '@/components/sections/PageHeaderPortal';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
@@ -28,6 +29,14 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
+const renderWithHeader = (ui: React.ReactElement) =>
+  render(
+    <PageHeaderPortalProvider>
+      <PageHeaderPortal />
+      {ui}
+    </PageHeaderPortalProvider>,
+  );
+
 describe('About screen', () => {
   beforeEach(() => {
     mockPush.mockClear();
@@ -35,7 +44,7 @@ describe('About screen', () => {
   });
 
   it('renders the species component preview with sample data', () => {
-    render(<About />);
+    renderWithHeader(<About />);
 
     expect(screen.getByText('Species Page Components')).toBeTruthy();
     expect(
@@ -47,7 +56,7 @@ describe('About screen', () => {
   });
 
   it('updates the playground search status text when typing and clearing', () => {
-    render(<About />);
+    renderWithHeader(<About />);
 
     const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
     fireEvent.changeText(speciesSearchInput, 'pinyon');
@@ -59,7 +68,7 @@ describe('About screen', () => {
   });
 
   it('records submission events for the playground search input', () => {
-    render(<About />);
+    renderWithHeader(<About />);
 
     const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
     fireEvent.changeText(speciesSearchInput, 'sage');
@@ -70,13 +79,9 @@ describe('About screen', () => {
 
   it('applies light mode background color when overridden to be light', () => {
     mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<About />).toJSON();
+    renderWithHeader(<About />);
 
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected About to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
+    const styles = StyleSheet.flatten(screen.getByTestId('about-screen').props.style);
     expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
   });
 });

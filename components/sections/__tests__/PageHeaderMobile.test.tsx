@@ -89,7 +89,7 @@ describe('PageHeaderMobile', () => {
       { label: 'Share', icon: <View />, onPress: jest.fn(), variant: 'neutral' },
     ];
 
-    const { getByLabelText, getByTestId, getAllByTestId, queryByTestId, rerender } = render(
+    const { getByLabelText, getByTestId, queryByTestId, rerender } = render(
       <PageHeaderMobile
         {...createProps({
           showFilterButton: true,
@@ -128,34 +128,24 @@ describe('PageHeaderMobile', () => {
       nativeEvent: { layout: { height: 72, width: 200, x: 0, y: 0 } },
     });
 
-    const wrappers = getAllByTestId('page-header-mobile-action-wrapper');
-    fireEvent(wrappers[0], 'layout', {
-      nativeEvent: { layout: { width: 120, height: 32, x: 0, y: 0 } },
-    });
-    fireEvent(wrappers[1], 'layout', {
-      nativeEvent: { layout: { width: 160, height: 32, x: 0, y: 0 } },
-    });
-
     const actionsCard = getByTestId('page-header-mobile-actions-card');
-    const inlineStyles = findStyleObject(actionsCard.props.style, style =>
-      'top' in style && 'width' in style,
-    ) as Record<string, number | undefined> | undefined;
-    expect(inlineStyles).toBeDefined();
-    expect(inlineStyles?.top).toBe(72 + Size.space['200']);
-    expect(inlineStyles?.width).toBe(160 + Size.space['400']);
+    const topStyles = findStyleObject(actionsCard.props.style, style => 'top' in style) as
+      | Record<string, number | undefined>
+      | undefined;
+    const widthStyles = findStyleObject(actionsCard.props.style, style => 'width' in style) as
+      | Record<string, number | undefined>
+      | undefined;
+    expect(topStyles?.top).toBe(72 + Size.space['200']);
+    expect(widthStyles?.width).toBe(Size.space['4000']);
   });
 
-  it('resets max action width when the action set changes', () => {
-    const initialActions: PageHeaderMobileProps['actions'] = [
-      { label: 'Download', icon: <View />, onPress: jest.fn() },
-    ];
-
-    const { getByTestId, getAllByTestId, rerender } = render(
+  it('keeps the action card width token-based across rerenders', () => {
+    const { getByTestId, rerender } = render(
       <PageHeaderMobile
         {...createProps({
           showMenuButton: true,
           mobileMenuExpanded: true,
-          actions: initialActions,
+          actions: [{ label: 'Download', icon: <View />, onPress: jest.fn() }],
         })}
       />,
     );
@@ -165,47 +155,30 @@ describe('PageHeaderMobile', () => {
       nativeEvent: { layout: { height: 60, width: 200, x: 0, y: 0 } },
     });
 
-    const firstWrapper = getAllByTestId('page-header-mobile-action-wrapper')[0];
-    fireEvent(firstWrapper, 'layout', {
-      nativeEvent: { layout: { width: 140, height: 28, x: 0, y: 0 } },
-    });
-
-    let actionsCard = getByTestId('page-header-mobile-actions-card');
-    let inlineStyles = findStyleObject(actionsCard.props.style, style => 'width' in style) as
+    const actionsCard = getByTestId('page-header-mobile-actions-card');
+    const initialStyles = findStyleObject(actionsCard.props.style, style => 'width' in style) as
       | Record<string, number | undefined>
       | undefined;
-    expect(inlineStyles?.width).toBe(140 + Size.space['400']);
-
-    const updatedActions: PageHeaderMobileProps['actions'] = [
-      { label: 'Inspect', icon: <View />, onPress: jest.fn() },
-    ];
+    expect(initialStyles?.width).toBe(Size.space['4000']);
 
     rerender(
       <PageHeaderMobile
         {...createProps({
           showMenuButton: true,
           mobileMenuExpanded: true,
-          actions: updatedActions,
+          actions: [
+            { label: 'Inspect', icon: <View />, onPress: jest.fn() },
+            { label: 'Archive', icon: <View />, onPress: jest.fn() },
+          ],
         })}
       />,
     );
 
-    actionsCard = getByTestId('page-header-mobile-actions-card');
-    inlineStyles = findStyleObject(actionsCard.props.style, style => 'width' in style) as
+    const updatedCard = getByTestId('page-header-mobile-actions-card');
+    const updatedStyles = findStyleObject(updatedCard.props.style, style => 'width' in style) as
       | Record<string, number | undefined>
       | undefined;
-    expect(inlineStyles?.width).toBeUndefined();
-
-    const updatedWrapper = getAllByTestId('page-header-mobile-action-wrapper')[0];
-    fireEvent(updatedWrapper, 'layout', {
-      nativeEvent: { layout: { width: 100, height: 28, x: 0, y: 0 } },
-    });
-
-    actionsCard = getByTestId('page-header-mobile-actions-card');
-    inlineStyles = findStyleObject(actionsCard.props.style, style => 'width' in style) as
-      | Record<string, number | undefined>
-      | undefined;
-    expect(inlineStyles?.width).toBe(100 + Size.space['400']);
+    expect(updatedStyles?.width).toBe(Size.space['4000']);
   });
 
   it('allows the logo content to handle presses when logoIsButton is true', () => {

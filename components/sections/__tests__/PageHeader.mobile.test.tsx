@@ -2,8 +2,8 @@ import { IconHelpCircle } from '@/assets/icons';
 import { Colors, Size } from '@/constants/theme';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { PageHeader } from '../PageHeader';
 import type { EdgeInsets } from 'react-native-safe-area-context';
+import { PageHeader } from '../PageHeader';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -74,6 +74,23 @@ describe('PageHeader (mobile)', () => {
     expect(screen.queryByLabelText('Help')).toBeNull();
   });
 
+  it('shows the logo link when the router cannot go back', () => {
+    mockCanGoBack.mockReturnValue(false);
+    render(<PageHeader />);
+
+    expect(screen.queryByLabelText('Go back')).toBeNull();
+    expect(screen.getByLabelText('WhereWild – Go to home')).toBeTruthy();
+  });
+
+  it('shows the back button when the current route is not the root even if the router cannot go back', () => {
+    mockPathname = '/about';
+    mockCanGoBack.mockReturnValue(false);
+    render(<PageHeader />);
+
+    expect(screen.getByLabelText('Go back')).toBeTruthy();
+    expect(screen.queryByLabelText('WhereWild – Go to home')).toBeNull();
+  });
+
   it('toggles the mobile action menu when the menu button is pressed', () => {
     render(<PageHeader />);
 
@@ -94,6 +111,24 @@ describe('PageHeader (mobile)', () => {
 
     fireEvent.press(screen.getByLabelText('Toggle navigation menu'));
     expect(handleMenuToggle).toHaveBeenCalled();
+  });
+
+  it('dismisses the action list when an action is pressed', () => {
+    render(<PageHeader />);
+
+    fireEvent.press(screen.getByLabelText('Toggle navigation menu'));
+    fireEvent.press(screen.getByLabelText('Help'));
+
+    expect(screen.queryByLabelText('Help')).toBeNull();
+  });
+
+  it('dismisses the action list when tapping outside the menu', () => {
+    render(<PageHeader />);
+
+    fireEvent.press(screen.getByLabelText('Toggle navigation menu'));
+    fireEvent.press(screen.getByTestId('page-header-mobile-scrim'));
+
+    expect(screen.queryByLabelText('Help')).toBeNull();
   });
 
   it('shows actions immediately when the menu button is hidden', () => {
@@ -120,46 +155,14 @@ describe('PageHeader (mobile)', () => {
 
     await waitFor(() => {
       const actionsCard = screen.getByTestId('page-header-mobile-actions-card');
-      const dynamicStyles = selectStyleObject(actionsCard.props.style, style => 'top' in style);
-      expect(dynamicStyles?.top).toBe(72 + Size.space['200']);
+      const topStyles = selectStyleObject(actionsCard.props.style, style => 'top' in style);
+      expect(topStyles?.top).toBe(72 + Size.space['200']);
+      const widthStyles = selectStyleObject(actionsCard.props.style, style => 'width' in style);
+      expect(widthStyles?.width).toBe(Size.space['4000']);
     });
   });
 
-  it('equalizes action widths based on measured layouts', async () => {
-    render(<PageHeader showMenuButton={false} />);
-
-    const actionWrappers = screen.getAllByTestId('page-header-mobile-action-wrapper');
-    fireEvent(actionWrappers[0], 'layout', {
-      nativeEvent: { layout: { width: 80, height: 24, x: 0, y: 0 } },
-    });
-    fireEvent(actionWrappers[1], 'layout', {
-      nativeEvent: { layout: { width: 120, height: 24, x: 0, y: 0 } },
-    });
-
-    await waitFor(() => {
-      const updatedWrappers = screen.getAllByTestId('page-header-mobile-action-wrapper');
-      const firstStyles = selectStyleObject(updatedWrappers[0].props.style, style => 'width' in style);
-      const secondStyles = selectStyleObject(updatedWrappers[1].props.style, style => 'width' in style);
-      expect(firstStyles?.width).toBe(120);
-      expect(secondStyles?.width).toBe(120);
-    });
-
-    fireEvent(actionWrappers[0], 'layout', {
-      nativeEvent: { layout: { width: 60, height: 24, x: 0, y: 0 } },
-    });
-
-    await waitFor(() => {
-      const updatedWrappers = screen.getAllByTestId('page-header-mobile-action-wrapper');
-      const dynamicStyles = selectStyleObject(updatedWrappers[0].props.style, style => 'width' in style);
-      expect(dynamicStyles?.width).toBe(120);
-    });
-
-    const actionsCard = screen.getByTestId('page-header-mobile-actions-card');
-    const cardStyles = selectStyleObject(actionsCard.props.style, style => 'width' in style);
-    expect(cardStyles?.width).toBe(120 + Size.space['400']);
-  });
-
-  it('resets action width measurements when the actions array changes', async () => {
+  it('keeps a fixed token-based width for the action card regardless of actions', () => {
     const initialActions = [
       { label: 'Alpha', icon: <IconHelpCircle /> },
       { label: 'Beta', icon: <IconHelpCircle /> },
@@ -168,36 +171,17 @@ describe('PageHeader (mobile)', () => {
       <PageHeader showMenuButton={false} actions={initialActions} />,
     );
 
-    const initialWrappers = screen.getAllByTestId('page-header-mobile-action-wrapper');
-    fireEvent(initialWrappers[0], 'layout', {
-      nativeEvent: { layout: { width: 90, height: 24, x: 0, y: 0 } },
-    });
-    await waitFor(() => {
-      const wrappers = screen.getAllByTestId('page-header-mobile-action-wrapper');
-      const dynamicStyles = selectStyleObject(wrappers[0].props.style, style => 'width' in style);
-      expect(dynamicStyles?.width).toBe(90);
-    });
+    let actionsCard = screen.getByTestId('page-header-mobile-actions-card');
+    let widthStyles = selectStyleObject(actionsCard.props.style, style => 'width' in style);
+    expect(widthStyles?.width).toBe(Size.space['4000']);
 
     rerender(
       <PageHeader showMenuButton={false} actions={[{ label: 'Gamma', icon: <IconHelpCircle /> }]} />,
     );
 
-    await waitFor(() => {
-      const [wrapper] = screen.getAllByTestId('page-header-mobile-action-wrapper');
-      const styles = selectStyleObject(wrapper.props.style, style => 'width' in style);
-      expect(styles).toBeUndefined();
-    });
-
-    const [wrapper] = screen.getAllByTestId('page-header-mobile-action-wrapper');
-    fireEvent(wrapper, 'layout', {
-      nativeEvent: { layout: { width: 60, height: 24, x: 0, y: 0 } },
-    });
-
-    await waitFor(() => {
-      const [updatedWrapper] = screen.getAllByTestId('page-header-mobile-action-wrapper');
-      const dynamicStyles = selectStyleObject(updatedWrapper.props.style, style => 'width' in style);
-      expect(dynamicStyles?.width).toBe(60);
-    });
+    actionsCard = screen.getByTestId('page-header-mobile-actions-card');
+    widthStyles = selectStyleObject(actionsCard.props.style, style => 'width' in style);
+    expect(widthStyles?.width).toBe(Size.space['4000']);
   });
 
   it('applies safe-area padding and header background color via wrapper view', () => {

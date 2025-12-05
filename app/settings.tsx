@@ -1,5 +1,5 @@
 import { IconRotateCcw } from '@/assets/icons';
-import { ButtonDanger, PageHeader, SelectField, SwitchField, ThemedText } from '@/components';
+import { ButtonDanger, SelectField, SwitchField, ThemedText } from '@/components';
 import { Colors, Responsive, Size } from '@/constants/theme';
 import { DEFAULT_MEASUREMENT_UNITS } from '@/constants/userPreferences';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -98,8 +98,10 @@ export default function SettingsScreen() {
         <title>WhereWild | Settings</title>
       </Head>
 
-      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader />
+      <View
+        style={[styles.screen, { backgroundColor: palette.background.default.default }]}
+        testID="settings-screen"
+      >
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"

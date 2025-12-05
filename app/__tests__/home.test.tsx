@@ -1,3 +1,4 @@
+import { PageHeaderPortal, PageHeaderPortalProvider } from '@/components/sections/PageHeaderPortal';
 import { Colors } from '@/constants/theme';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
@@ -23,6 +24,14 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+
+const renderWithHeader = (ui: React.ReactElement) =>
+  render(
+    <PageHeaderPortalProvider>
+      <PageHeaderPortal />
+      {ui}
+    </PageHeaderPortalProvider>,
+  );
 
 const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
   map: {
@@ -57,7 +66,7 @@ describe('Home screen', () => {
   });
 
   it('renders map and recommendation cards from provided data', () => {
-    render(<HomeScreen data={createData()} />);
+    renderWithHeader(<HomeScreen data={createData()} />);
 
     expect(screen.getByText('Local Map')).toBeTruthy();
     expect(screen.getByText('Active Near You')).toBeTruthy();
@@ -68,13 +77,13 @@ describe('Home screen', () => {
   });
 
   it('falls back to mock data when no data prop is supplied', () => {
-    render(<HomeScreen />);
+    renderWithHeader(<HomeScreen />);
 
     expect(screen.getByText(mockHomePageData.recommendations.items[0].commonName)).toBeTruthy();
   });
 
   it('updates the page header search input state', () => {
-    render(<HomeScreen data={createData()} />);
+    renderWithHeader(<HomeScreen data={createData()} />);
 
     const searchInput = screen.getByPlaceholderText('Search');
     fireEvent.changeText(searchInput, 'lynx');
@@ -83,13 +92,9 @@ describe('Home screen', () => {
 
   it('applies light mode background color when overridden to be light', () => {
     mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<HomeScreen data={createData()} />).toJSON();
+    renderWithHeader(<HomeScreen data={createData()} />);
 
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected HomeScreen to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
+    const styles = StyleSheet.flatten(screen.getByTestId('home-screen').props.style);
     expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
   });
 });

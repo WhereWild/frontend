@@ -1,7 +1,6 @@
 import {
   InlineExpandableRows,
   NearbySpeciesCarousel,
-  PageHeader,
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
@@ -30,8 +29,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  // Placeholder for future search/filter functionality. Currently unused in this demo screen.
-  const [searchQuery, setSearchQuery] = React.useState('');
 
   const dataSections = React.useMemo(() => rawDataSections ?? [], [rawDataSections]);
   const nearbySpecies = React.useMemo(() => rawNearbySpecies ?? [], [rawNearbySpecies]);
@@ -69,13 +66,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
       </Head>
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
+        testID="species-screen"
       >
-        <PageHeader
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          onFilterPress={() => Alert.alert('Filter coming soon')}
-        />
-
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <SpeciesPageHeader
             commonName={commonName}

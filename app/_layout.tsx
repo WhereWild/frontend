@@ -1,5 +1,9 @@
-import { Stack } from "expo-router";
-import { useFonts } from 'expo-font';
+import { PageHeaderPortal, PageHeaderPortalProvider } from '@/components/sections/PageHeaderPortal';
+import {
+  Domine_400Regular,
+  Domine_600SemiBold,
+  Domine_700Bold,
+} from '@expo-google-fonts/domine';
 import {
   Inter_400Regular,
   Inter_400Regular_Italic,
@@ -7,14 +11,12 @@ import {
   Inter_600SemiBold_Italic,
 } from '@expo-google-fonts/inter';
 import {
-  Domine_400Regular,
-  Domine_600SemiBold,
-  Domine_700Bold,
-} from '@expo-google-fonts/domine';
-import {
   JetBrainsMono_400Regular,
   JetBrainsMono_400Regular_Italic,
 } from '@expo-google-fonts/jetbrains-mono';
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -33,7 +35,31 @@ export default function RootLayout() {
     return null;
   }
 
-  // TODO: Consider rendering the shared header here (outside the Stack) so iOS
-  // navigation transitions don't visually sweep it away between screens.
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <PageHeaderPortalProvider>
+      <View style={styles.container}>
+        <View style={styles.headerWrapper}>
+          <PageHeaderPortal />
+        </View>
+        <View style={styles.contentWrapper}>
+          <Stack screenOptions={{ headerShown: false }} />
+        </View>
+      </View>
+    </PageHeaderPortalProvider>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    width: '100%',
+  },
+  headerWrapper: {
+    zIndex: 1,
+    width: '100%',
+  },
+  contentWrapper: {
+    flex: 1,
+    width: '100%',
+  },
+});

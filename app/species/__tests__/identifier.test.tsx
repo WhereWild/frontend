@@ -1,7 +1,8 @@
+import { PageHeaderPortal, PageHeaderPortalProvider } from '@/components/sections/PageHeaderPortal';
+import { DEFAULT_MEASUREMENT_UNITS } from '@/constants/userPreferences';
 import { fetchSpeciesByTaxonId, fetchSpeciesEnvironment } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesEnvironmentStats } from '@/data/types';
-import { DEFAULT_MEASUREMENT_UNITS } from '@/constants/userPreferences';
 import { useMeasurementPreferences } from '@/hooks/useMeasurementPreferences';
 import { act, render, screen } from '@testing-library/react-native';
 import { useLocalSearchParams, usePathname, useRouter } from 'expo-router';
@@ -64,6 +65,14 @@ const mockFetchSpeciesEnvironment = fetchSpeciesEnvironment as jest.MockedFuncti
 const mockSpeciesPage = SpeciesPage as jest.MockedFunction<typeof SpeciesPage>;
 const mockUseSafeAreaInsets = useSafeAreaInsets as jest.MockedFunction<typeof useSafeAreaInsets>;
 const mockUseMeasurementPreferences = useMeasurementPreferences as jest.MockedFunction<typeof useMeasurementPreferences>;
+
+const renderWithHeader = (ui: React.ReactElement) =>
+  render(
+    <PageHeaderPortalProvider>
+      <PageHeaderPortal />
+      {ui}
+    </PageHeaderPortalProvider>,
+  );
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -136,7 +145,7 @@ describe('SpeciesBasicsPage', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
     mockUseLocalSearchParams.mockReturnValue({});
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -158,7 +167,7 @@ describe('SpeciesBasicsPage', () => {
       image_url: 'https://example.com/owl.png',
     } as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -177,7 +186,7 @@ describe('SpeciesBasicsPage', () => {
       description: 'Has field data.',
     } as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -223,7 +232,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockRejectedValue(new Error('Network down'));
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -244,7 +253,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockRejectedValue('uh oh');
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -260,7 +269,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockResolvedValue(null as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -279,7 +288,7 @@ describe('SpeciesBasicsPage', () => {
       image_url: 'https://example.com/should-not-use.png',
     } as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -298,7 +307,7 @@ describe('SpeciesBasicsPage', () => {
       image_source: providedSource,
     } as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -311,7 +320,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => { }));
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
 
     await act(async () => {
       await flushMicrotasksQueue();
@@ -329,7 +338,7 @@ describe('SpeciesBasicsPage', () => {
       description: 'Species reported without image metadata.',
     } as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -346,7 +355,7 @@ describe('SpeciesBasicsPage', () => {
     });
     mockFetchSpeciesByTaxonId.mockReturnValue(pendingFetch as any);
 
-    const { unmount } = render(<SpeciesBasicsPage />);
+    const { unmount } = renderWithHeader(<SpeciesBasicsPage />);
     const initialRenderCount = mockSpeciesPage.mock.calls.length;
     unmount();
 
@@ -371,7 +380,7 @@ describe('SpeciesBasicsPage', () => {
     mockFetchSpeciesByTaxonId.mockReturnValue(pendingFetch as any);
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
-    const { unmount } = render(<SpeciesBasicsPage />);
+    const { unmount } = renderWithHeader(<SpeciesBasicsPage />);
     const initialRenderCount = mockSpeciesPage.mock.calls.length;
     unmount();
 
@@ -394,7 +403,7 @@ describe('SpeciesBasicsPage', () => {
       description: 'Large gray owl.',
     } as any);
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });
@@ -406,7 +415,7 @@ describe('SpeciesBasicsPage', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
     mockUseLocalSearchParams.mockReturnValue({ identifier: 'invalid identifier' });
 
-    render(<SpeciesBasicsPage />);
+    renderWithHeader(<SpeciesBasicsPage />);
     await act(async () => {
       await flushMicrotasksQueue();
     });

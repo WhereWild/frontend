@@ -1,3 +1,4 @@
+import { PageHeaderPortal, PageHeaderPortalProvider } from '@/components/sections/PageHeaderPortal';
 import { Colors } from '@/constants/theme';
 import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -35,6 +36,14 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 const mockUseSafeAreaInsets = useSafeAreaInsets as jest.MockedFunction<typeof useSafeAreaInsets>;
+
+const renderWithHeader = (ui: React.ReactElement) =>
+  render(
+    <PageHeaderPortalProvider>
+      <PageHeaderPortal />
+      {ui}
+    </PageHeaderPortalProvider>,
+  );
 
 beforeEach(() => {
   mockUseSafeAreaInsets.mockReturnValue({ top: 0, right: 0, bottom: 0, left: 0 });
@@ -91,7 +100,7 @@ const createData = (overrides: Partial<SpeciesPageData> = {}): SpeciesPageData =
 describe('Species screen', () => {
   it('renders species data-driven content and supports download press', () => {
     const data = createData();
-    render(<SpeciesScreen data={data} />);
+    renderWithHeader(<SpeciesScreen data={data} />);
 
     expect(screen.getByText('Test Cactus')).toBeTruthy();
     expect(screen.getByText('Testus cactus')).toBeTruthy();
@@ -109,7 +118,7 @@ describe('Species screen', () => {
   });
 
   it('falls back to sample data when no data prop is provided', () => {
-    render(<SpeciesScreen />);
+    renderWithHeader(<SpeciesScreen />);
 
     expect(screen.getByText('Mountain Ball Cactus')).toBeTruthy();
   });
@@ -119,29 +128,16 @@ describe('Species screen', () => {
       overview: undefined,
     });
 
-    render(<SpeciesScreen data={data} />);
+    renderWithHeader(<SpeciesScreen data={data} />);
 
     expect(
       screen.getByText('Overview data is unavailable for this species.'),
     ).toBeTruthy();
   });
 
-  it('updates header search input and triggers filter alert', () => {
-    render(<SpeciesScreen data={createData()} />);
-
-    const headerSearchInput = screen.getAllByPlaceholderText('Search')[0];
-    fireEvent.changeText(headerSearchInput, 'lichen');
-    expect(headerSearchInput.props.value).toBe('lichen');
-
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    fireEvent.press(screen.getByLabelText('Filter search results'));
-    expect(alertSpy).toHaveBeenCalledWith('Filter coming soon');
-    alertSpy.mockRestore();
-  });
-
   it('expands inline rows to reveal details and environment graph', () => {
     const data = createData();
-    render(<SpeciesScreen data={data} />);
+    renderWithHeader(<SpeciesScreen data={data} />);
 
     expect(speciesEnvironmentSectionMock).not.toHaveBeenCalled();
 
@@ -161,7 +157,7 @@ describe('Species screen', () => {
 
   it('renders dark mode palette and shows placeholder nearby species when data is empty', () => {
     mockUseColorScheme.mockReturnValue('dark');
-    render(
+    renderWithHeader(
       <SpeciesScreen
         data={createData({ nearbySpecies: [] })}
       />,
@@ -177,7 +173,7 @@ describe('Species screen', () => {
       heatmap: undefined,
     });
 
-    render(<SpeciesScreen data={data} />);
+    renderWithHeader(<SpeciesScreen data={data} />);
 
     expect(
       screen.getByText('Environmental breakdowns are not yet available.'),
@@ -189,13 +185,9 @@ describe('Species screen', () => {
 
   it('applies light mode background color when overridden to be light', () => {
     mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<SpeciesScreen data={createData()} />).toJSON();
+    renderWithHeader(<SpeciesScreen data={createData()} />);
 
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected SpeciesScreen to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
+    const styles = StyleSheet.flatten(screen.getByTestId('species-screen').props.style);
     expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
   });
 });

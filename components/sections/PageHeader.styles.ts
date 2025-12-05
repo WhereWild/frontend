@@ -21,8 +21,8 @@ export const pageHeaderStyles = StyleSheet.create({
     height: Size.space['1600'],
   },
   logoMobile: {
-    width: Size.space['1200'],
-    height: Size.space['1200'],
+    width: Size.space['1200'] - Size.space['200'],
+    height: Size.space['1200'] - Size.space['200'],
   },
   searchRow: {
     flexDirection: 'row',
@@ -77,10 +77,19 @@ export const pageHeaderStyles = StyleSheet.create({
     alignSelf: 'flex-end',
     position: 'absolute',
     zIndex: 10,
+    elevation: 10,
+    width: Size.space['4000'],
+    maxWidth: '100%',
     ...Shadows.dropShadow400.style,
   },
+  mobileMenuScrim: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+    backgroundColor: 'transparent',
+  },
   mobileActionButtonWrapper: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
+    width: '100%',
   },
   mobileActionButton: {
     width: '100%',

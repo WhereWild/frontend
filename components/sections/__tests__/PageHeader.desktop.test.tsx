@@ -1,8 +1,8 @@
-import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
 import { IconHelpCircle } from '@/assets/icons';
-import { PageHeader } from '../PageHeader';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import React from 'react';
 import type { EdgeInsets } from 'react-native-safe-area-context';
+import { PageHeader } from '../PageHeader';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
@@ -106,4 +106,5 @@ describe('PageHeader (desktop)', () => {
 
     expect(screen.queryByLabelText('Filter search results')).toBeNull();
   });
+
 });

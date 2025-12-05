@@ -124,6 +124,17 @@ describe('SearchInput', () => {
     expect(screen.queryByTestId('search-input-clear')).toBeNull();
   });
 
+  it('persists the latest controlled value when returning to uncontrolled mode', () => {
+    const handleQueryChange = jest.fn();
+    const { rerender } = render(<SearchInput value="frog" onQueryChange={handleQueryChange} />);
+
+    rerender(<SearchInput value="" onQueryChange={handleQueryChange} />);
+    expect(screen.getByPlaceholderText('Search').props.value).toBe('');
+
+    rerender(<SearchInput onQueryChange={handleQueryChange} />);
+    expect(screen.getByPlaceholderText('Search').props.value).toBe('');
+  });
+
   it('forwards focus and blur callbacks', () => {
     const handleFocus = jest.fn();
     const handleBlur = jest.fn();
