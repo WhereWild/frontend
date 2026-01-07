@@ -2,9 +2,9 @@ import { Colors } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
-import type { ButtonSize, ButtonVariant } from '../buttons/Button';
-import { Button, __BUTTON_TESTING__ } from '../buttons/Button';
-import { ThemedText } from '../text/ThemedText';
+import type { ButtonSize, ButtonVariant } from '../Button';
+import { Button, __BUTTON_TESTING__ } from '../Button';
+import { ThemedText } from '../../text/ThemedText';
 
 const createIconProbe = () => {
   const calls: { color?: string }[] = [];
@@ -100,7 +100,7 @@ describe('Button Component', () => {
   });
 
   describe('Icons', () => {
-    const iconSource = require('../../assets/images/placeholder.png');
+    const iconSource = require('../../../assets/images/placeholder.png');
 
     it('renders asset iconStart when provided', () => {
       render(
