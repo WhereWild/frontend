@@ -8,11 +8,11 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
-import type { SearchInputViewProps } from '../inputs/SearchInputView';
+import type { SearchInputViewProps } from '../SearchInputView';
 import {
   useSearchInputController,
   type UseSearchInputControllerArgs,
-} from '../inputs/useSearchInputController';
+} from '../useSearchInputController';
 
 const ControllerHarness = React.forwardRef<SearchInputViewProps, Partial<UseSearchInputControllerArgs>>(
   (props, ref) => {

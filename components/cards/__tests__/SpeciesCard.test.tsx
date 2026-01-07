@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { PressableStateCallbackType, StyleSheet } from 'react-native';
-import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../cards/SpeciesCard';
+import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../SpeciesCard';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
 import type { Router } from 'expo-router';

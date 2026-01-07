@@ -3,7 +3,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { InlineExpandableRows } from '../lists/InlineExpandableRows';
+import { InlineExpandableRows } from '../InlineExpandableRows';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
