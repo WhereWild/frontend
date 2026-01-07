@@ -6,7 +6,7 @@ import {
   submitSearchValue,
   resolveIconButtonInteractionStyles,
   createContainerHandlers,
-} from '../inputs/searchInputHelpers';
+} from '../searchInputHelpers';
 
 describe('searchInputHelpers', () => {
   const createPressableState = (
