@@ -1,7 +1,7 @@
 import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { ThemedText } from '../text/ThemedText';
+import { ThemedText } from '../ThemedText';
 
 jest.mock('@/hooks/useTypographyStyles');
 

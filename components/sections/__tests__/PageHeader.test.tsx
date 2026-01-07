@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import { PageHeader } from '../sections/PageHeader';
+import { PageHeader } from '../PageHeader';
 import { IconHelpCircle } from '@/assets/icons';
 
 const mockPush = jest.fn();
