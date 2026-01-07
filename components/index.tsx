@@ -47,3 +47,10 @@ export type {
 export { NearbySpeciesCarousel } from './NearbySpeciesCarousel';
 export type { NearbySpeciesCarouselProps } from './NearbySpeciesCarousel';
 
+export { SpeciesEnvironmentSection } from './sections/SpeciesEnvironmentSection';
+export type { SpeciesEnvironmentSectionProps } from './sections/SpeciesEnvironmentSection';
+
+export { SpeciesLocationPicker } from './sections/SpeciesLocationPicker';
+export type { SpeciesLocationPickerProps } from './sections/SpeciesLocationPicker';
+
+export { SpeciesOccurrenceMap } from './sections/SpeciesOccurrenceMap';

@@ -1,10 +1,10 @@
-import { fetchSpeciesByTaxonId } from '@/data/api';
-import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
-import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import SpeciesPage from '../_speciesPage';
+import { fetchSpeciesByTaxonId } from '@/data/api';
+import type { SpeciesPageData } from '@/data/types';
+import { mountainBallCactusData } from '@/data/speciesSample';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -16,10 +16,12 @@ type SpeciesBasics = {
   image_source?: ImageSourcePropType | string;
   image_url?: string;
   description?: string;
+  taxonomy_path?: string;
 };
 
 type SpeciesRouteParams = {
   identifier?: string | string[];
+  taxonId?: string;
 };
 
 // Converts backend image variants into a React Native-friendly ImageSource.
@@ -44,14 +46,20 @@ const buildSpeciesPageData = (
   requestedTaxonId?: number,
 ): SpeciesPageData => {
   const fallback = mountainBallCactusData;
+  const normalizeName = (value?: string) => (isPresent(value) ? value.replace(/_/g, ' ') : value);
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
+  const resolvedTaxonomyPath =
+    typeof payload.taxonomy_path === 'string' && payload.taxonomy_path.length
+      ? payload.taxonomy_path
+      : undefined;
   return {
     ...fallback,
     taxonId: resolvedTaxonId,
-    commonName: payload.common_name ?? fallback.commonName,
-    scientificName: payload.scientific_name ?? fallback.scientificName,
+    commonName: normalizeName(payload.common_name) ?? fallback.commonName,
+    scientificName: normalizeName(payload.scientific_name) ?? fallback.scientificName,
+    taxonomyPath: resolvedTaxonomyPath ?? fallback.taxonomyPath,
     overview: {
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
@@ -82,9 +90,13 @@ const toNumericTaxonId = (value: string | undefined): string | undefined => {
 
 // Resolves the actual taxon ID to request (preferring path segments over query strings).
 const getIdentifierFromParams = (params: SpeciesRouteParams) => {
-  const fetchIdentifier = toArray(params.identifier)
+  const identifierSegments = toArray(params.identifier);
+  const segmentMatch = identifierSegments
     .map(toNumericTaxonId)
-    .find(Boolean);
+    .find((segment) => typeof segment === 'string');
+
+  const queryMatch = toNumericTaxonId(params.taxonId);
+  const fetchIdentifier = segmentMatch ?? queryMatch;
 
   return {
     fetchIdentifier,
@@ -94,7 +106,22 @@ const getIdentifierFromParams = (params: SpeciesRouteParams) => {
 
 export default function SpeciesBasicsPage() {
   const params = useLocalSearchParams<SpeciesRouteParams>();
-  const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
+  const identifierParam = params.identifier;
+  const taxonParam = params.taxonId;
+
+  const identifierDependencyKey = Array.isArray(identifierParam)
+    ? identifierParam.join('|')
+    : identifierParam ?? '';
+
+  const { fetchIdentifier, requestedTaxonId } = React.useMemo(
+    () => getIdentifierFromParams({ identifier: identifierParam, taxonId: taxonParam }),
+    [identifierDependencyKey, taxonParam],
+  );
+
+  const routeParamsForLogging = React.useMemo(
+    () => ({ identifier: identifierParam, taxonId: taxonParam }),
+    [identifierDependencyKey, taxonParam],
+  );
 
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -108,7 +135,8 @@ export default function SpeciesBasicsPage() {
       if (!fetchIdentifier) {
         setLoading(false);
         console.error(
-          'Missing numeric taxon ID in route segments.',
+          'Missing numeric taxon ID in route parameters. Received:',
+          routeParamsForLogging,
         );
         return;
       }
@@ -137,7 +165,7 @@ export default function SpeciesBasicsPage() {
     return () => {
       mounted = false;
     };
-  }, [fetchIdentifier]);
+  }, [fetchIdentifier, routeParamsForLogging]);
 
   if (loading && !data) {
     return null;

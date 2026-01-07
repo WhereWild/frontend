@@ -96,4 +96,173 @@ export type SpeciesPageData = SpeciesSummary & {
   dataSections: EnvironmentalDataSection[];
   nearbySpecies: SpeciesSummary[];
   heatmap: HeatmapSnapshot;
+  taxonomyPath?: string | null;
+};
+
+export type SpeciesEnvironmentSummary = {
+  count: number;
+  min: number | null;
+  mean: number | null;
+  max: number | null;
+  stddev?: number | null;
+  q01?: number | null;
+  q10?: number | null;
+  q90?: number | null;
+  q99?: number | null;
+};
+
+export type SpeciesEnvironmentHistogram = {
+  bins: number[];
+  counts: number[];
+};
+
+export type SpeciesEnvironmentBinSample = {
+  index: number;
+  observationIds: Array<number | string>;
+};
+
+export type SpeciesEnvironmentDensity = {
+  points: number[];
+  density: number[];
+};
+
+export type SpeciesEnvironmentObservation = {
+  catalogNumber: number | string;
+  value?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type SpeciesOccurrence = {
+  catalogNumber: number | string;
+  latitude: number;
+  longitude: number;
+};
+
+export type LocationSearchResult = {
+  gid: string;
+  name: string;
+  level: number;
+  hierarchy: string[];
+};
+
+export type SpeciesEnvironmentSliceResponse = {
+  speciesId: number;
+  variable: string;
+  range: { min: number; max: number };
+  limit: number | null;
+  count: number;
+  observations: SpeciesEnvironmentObservation[];
+};
+
+export type SpeciesEnvironmentCategory = {
+  value: number | string;
+  className: string;
+  description?: string | null;
+  count: number;
+  fraction: number;
+};
+
+export type SpeciesEnvironmentCategorySamples = {
+  value: number | string;
+  observationIds: Array<number | string>;
+};
+
+export type SpeciesEnvironmentCategoricalTotals = {
+  totalSamples?: number;
+  uniqueClasses?: number;
+  significantUniqueClasses?: number;
+};
+
+export type SpeciesEnvironmentCategorySampleResponse = {
+  speciesId: number;
+  variable: string;
+  classValue: number | string;
+  observations: SpeciesEnvironmentObservation[];
+  count: number;
+};
+
+export type SpeciesEnvironmentRelativeRank = {
+  metric: string;
+  label?: string | null;
+  rank?: number | null;
+  count?: number | null;
+  percentile?: number | null;
+  context?: string | null;
+};
+
+export type SpeciesEnvironmentStats = {
+  speciesId: number;
+  variable: string;
+  variableName: string;
+  units?: string | null;
+  variableType?: string | null;
+  generatedAt?: string;
+  summary: SpeciesEnvironmentSummary;
+  histogram: SpeciesEnvironmentHistogram | null;
+  densityCurve?: SpeciesEnvironmentDensity | null;
+  binSamples?: SpeciesEnvironmentBinSample[];
+  categoricalDistribution?: SpeciesEnvironmentCategory[];
+  dominantCategories?: SpeciesEnvironmentCategory[];
+  categoricalSamples?: SpeciesEnvironmentCategorySamples[];
+  relativeRanks?: SpeciesEnvironmentRelativeRank[];
+  baselineSummary?: SpeciesEnvironmentSummary | null;
+  baselineCategoricalDistribution?: SpeciesEnvironmentCategory[];
+  baselineCategoricalTotals?: SpeciesEnvironmentCategoricalTotals | null;
+};
+
+export type EnvironmentVariableDefinition = {
+  id: string;
+  name?: string;
+  units?: string | null;
+  description?: string | null;
+  valueType?: string | null;
+};
+
+export type EnvironmentSliceParams = {
+  taxonId: number | string;
+  variableId: string;
+  min: number;
+  max: number;
+  limit?: number;
+  location?: string | null;
+};
+
+export type RelativeRankingEntry = {
+  taxonId: number | string;
+  scientificName?: string | null;
+  commonName?: string | null;
+  rank?: string | null;
+  value: number | null;
+  position: number;
+  percentile?: number | null;
+  count: number;
+  sampleCount?: number | null;
+};
+
+export type RelativeRankingOption = {
+  variable: string;
+  metric: string;
+  column: string;
+  count: number;
+};
+
+export type RelativeRankingResponse = {
+  ancestorTaxonId: number;
+  rank: string;
+  variable: string;
+  metric: string;
+  total: number;
+  limit: number;
+  order?: 'asc' | 'desc';
+  minSamples?: number;
+  includeSpeciesLike?: boolean;
+  entries: RelativeRankingEntry[];
+  distribution?: SpeciesEnvironmentDensity | null;
+};
+
+export type RelativeRankingOptionsResponse = {
+  ancestorTaxonId: number;
+  rank: string;
+  options: RelativeRankingOption[];
 };

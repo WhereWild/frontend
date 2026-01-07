@@ -287,7 +287,10 @@ describe('SpeciesBasicsPage', () => {
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
     expect(mockSpeciesPage).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith('Missing numeric taxon ID in route segments.');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Missing numeric taxon ID in route parameters. Received:',
+      { identifier: 'invalid identifier', taxonId: undefined },
+    );
 
     consoleSpy.mockRestore();
   });

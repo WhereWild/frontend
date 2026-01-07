@@ -1,4 +1,5 @@
 import {
+  IconBarChart2,
   IconFilter,
   IconHelpCircle,
   IconInfo,
@@ -73,7 +74,7 @@ export function PageHeader({
   const palette = Colors[mode];
   const router = useRouter();
   const pathname = usePathname();
-  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
+  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about' | '/relative-rankings') => {
     if (pathname !== targetPath) {
       router.push(targetPath);
     }
@@ -86,13 +87,17 @@ export function PageHeader({
   const navigateToAbout = React.useCallback(() => {
     navigateIfDifferent('/about');
   }, [navigateIfDifferent]);
+  const navigateToLeaderboards = React.useCallback(() => {
+    navigateIfDifferent('/relative-rankings');
+  }, [navigateIfDifferent]);
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
+      { label: 'Leaderboards', icon: <IconBarChart2 />, onPress: navigateToLeaderboards },
       { label: 'Help', icon: <IconHelpCircle /> },
       { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
       { label: 'Settings', icon: <IconSettings /> },
     ],
-    [navigateToAbout],
+    [navigateToAbout, navigateToLeaderboards],
   );
   const resolvedActions = actions ?? defaultActions;
   const logoContent = (

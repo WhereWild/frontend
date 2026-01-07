@@ -2,12 +2,16 @@ import {
   InlineExpandableRows,
   NearbySpeciesCarousel,
   PageHeader,
+  SpeciesEnvironmentSection,
+  SpeciesLocationPicker,
+  SpeciesOccurrenceMap,
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
 import { Colors, Responsive, Size } from '@/constants/theme';
+import { fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
 import React from 'react';
@@ -18,7 +22,16 @@ type SpeciesSampleScreenProps = {
 };
 
 export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
-  const { commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
+  const {
+    taxonId,
+    commonName,
+    scientificName,
+    overview,
+    dataSections,
+    nearbySpecies,
+    heatmap,
+    taxonomyPath,
+  } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -26,9 +39,60 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   // Placeholder for future search/filter functionality. Currently unused in this demo screen.
   const [searchQuery, setSearchQuery] = React.useState('');
 
+  const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
+  const [occurrenceLoading, setOccurrenceLoading] = React.useState(false);
+  const [occurrenceError, setOccurrenceError] = React.useState<string | null>(null);
+  const shouldRenderOccurrenceMap = Boolean(taxonId);
+  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<Array<number | string>>([]);
+  const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
+  const locationGid = selectedLocation?.gid ?? null;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!taxonId) {
+      setOccurrences([]);
+      setOccurrenceError('No taxon ID supplied.');
+      return () => {
+        cancelled = true;
+      };
+    }
+    setOccurrenceLoading(true);
+    setOccurrenceError(null);
+    (async () => {
+      try {
+        const rows = await fetchSpeciesOccurrences(taxonId, {
+          location: locationGid ?? undefined,
+        });
+        if (!cancelled) {
+          setOccurrences(rows);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load observations.';
+          setOccurrenceError(message);
+          setOccurrences([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setOccurrenceLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [taxonId, locationGid]);
+
+  React.useEffect(() => {
+    setHighlightedCatalogs([]);
+  }, [locationGid]);
+
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
+  const taxonomyLabel = typeof taxonomyPath === 'string' && taxonomyPath.length
+    ? taxonomyPath
+    : null;
 
   return (
     <>
@@ -58,6 +122,12 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
                   <ThemedText variant="body">{overview.description}</ThemedText>
+                  {taxonomyLabel ? (
+                    <View style={styles.taxonomyBlock}>
+                      <ThemedText variant="bodySmallEmphasis">Taxonomy path</ThemedText>
+                      <ThemedText variant="bodySmall">{taxonomyLabel}</ThemedText>
+                    </View>
+                  ) : null}
                 </View>
                 <View style={styles.featuredImageWrapper}>
                   <Image
@@ -77,6 +147,35 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             </View>
           </View>
           <NearbySpeciesCarousel species={nearbySpecies} />
+
+          <View style={styles.centeredSection}>
+            <View style={styles.sectionContent}>
+              <SpeciesLocationPicker
+                value={selectedLocation}
+                onChange={setSelectedLocation}
+              />
+            </View>
+          </View>
+
+          <SpeciesEnvironmentSection
+            taxonId={taxonId}
+            onHighlightChange={setHighlightedCatalogs}
+            locationGid={locationGid}
+          />
+
+          {shouldRenderOccurrenceMap ? (
+            <View style={styles.centeredSection}>
+              <View style={styles.sectionContent}>
+                <ThemedText variant="heading">Observation Map</ThemedText>
+                <SpeciesOccurrenceMap
+                  occurrences={occurrences}
+                  loading={occurrenceLoading}
+                  error={occurrenceError}
+                  highlightedCatalogs={highlightedCatalogs}
+                />
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.heatMapSection}>
             <View style={[styles.sectionContent]}>
@@ -124,6 +223,10 @@ const styles = StyleSheet.create({
     minWidth: 280,
     gap: Size.space['200'],
   },
+  taxonomyBlock: {
+    gap: Size.space['50'],
+    paddingTop: Size.space['100'],
+  },
   featuredImageWrapper: {
     flex: 1,
     minWidth: 280,
@@ -142,3 +245,6 @@ const styles = StyleSheet.create({
     aspectRatio: 1440 / 810,
   },
 });
+  const handleHighlightsChange = React.useCallback((catalogNumbers: Array<number | string>) => {
+    setHighlightedCatalogs(catalogNumbers);
+  }, []);

@@ -7,6 +7,7 @@ export const mountainBallCactusData: SpeciesPageData = {
   taxonId: 999001,
   commonName: 'Mountain Ball Cactus',
   scientificName: 'Pediocactus simpsonii',
+  taxonomyPath: 'Plantae_6/Tracheophyta_7707728/Magnoliopsida_220/Caryophyllales_422/Cactaceae_2519/Pediocactus_3231951/Pediocactus_simpsonii_999001',
   description:
     'Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States.',
   overview: {
