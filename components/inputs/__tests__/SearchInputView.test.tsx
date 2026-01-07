@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet, Text, TextInput } from 'react-native';
-import { SearchInputView, type IconButtonSlotProps } from '../inputs/SearchInputView';
+import { SearchInputView, type IconButtonSlotProps } from '../SearchInputView';
 
 describe('SearchInputView', () => {
   const createSlot = (overrides: Partial<IconButtonSlotProps> = {}): IconButtonSlotProps => ({
@@ -97,7 +97,7 @@ describe('SearchInputView', () => {
       const RN = jest.requireActual('react-native');
       const originalDescriptor = Object.getOwnPropertyDescriptor(RN.Platform, 'OS');
       Object.defineProperty(RN.Platform, 'OS', { configurable: true, value: 'web' });
-      const { styles } = jest.requireActual('../inputs/SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
+      const { styles } = jest.requireActual('../SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
       const containerStyle = StyleSheet.flatten(styles.container);
       expect(containerStyle).toMatchObject({ outlineStyle: 'none' });
       if (originalDescriptor) {

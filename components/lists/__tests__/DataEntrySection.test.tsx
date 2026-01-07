@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { DataEntrySection } from '../lists/DataEntrySection';
+import { DataEntrySection } from '../DataEntrySection';
 
 describe('DataEntrySection', () => {
   it('renders the section title and entries', () => {
