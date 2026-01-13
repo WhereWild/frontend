@@ -835,6 +835,9 @@ export function SpeciesEnvironmentSection({
     if (!stats?.categoricalSamples || !stats.categoricalSamples.length) {
       return;
     }
+    if (locationGid) {
+      return;
+    }
     setCategorySamplesByValue((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -927,8 +930,6 @@ export function SpeciesEnvironmentSection({
   }, [
     isCategorical,
     selectedCategoryKey,
-    selectedCategorySampleState?.loaded,
-    selectedCategorySampleState?.loading,
     selectedVariable,
     taxonId,
     locationGid,
