@@ -18,7 +18,7 @@ import {
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
@@ -47,6 +47,36 @@ type ButtonEntry = {
 };
 
 const noop = () => { };
+
+const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
+const TYPOGRAPHY_VARIANTS = [
+  'titleHero',
+  'titlePage',
+  'subtitle',
+  'heading',
+  'subheading',
+  'body',
+  'bodyEmphasis',
+  'bodyStrong',
+  'bodySmall',
+  'bodySmallEmphasis',
+  'bodySmallStrong',
+  'link',
+  'code',
+  'singleLineBody',
+  'singleLineBodySmallStrong',
+] as const;
+
+const SHADOW_TOKEN_KEYS = Object.keys(Shadows) as (keyof typeof Shadows)[];
+const SHADOW_SAMPLE_TEXT = 'Shadow preview block';
+
+const formatTokenLabel = (value: string) =>
+  value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/(\d+)/g, ' $1')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, (char) => char.toUpperCase());
 
 export default function About() {
   const colorScheme = useColorScheme();
@@ -255,6 +285,57 @@ export default function About() {
           </View>
 
           <View>
+            <ThemedText variant="heading">Typography Tokens</ThemedText>
+            <ThemedText variant="body">Preview of every WhereWild typography variant.</ThemedText>
+            <View style={styles.tokenSection}>
+              {TYPOGRAPHY_VARIANTS.map((variant) => (
+                <View
+                  key={variant}
+                  testID="typography-sample"
+                  style={[
+                    styles.typographyExample,
+                    { borderBottomColor: palette.border.default.default },
+                  ]}
+                >
+                  <ThemedText variant="bodySmallStrong">{formatTokenLabel(variant)}</ThemedText>
+                  <ThemedText variant={variant}>
+                    {TYPOGRAPHY_SAMPLE_TEXT}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Shadow Tokens</ThemedText>
+            <ThemedText variant="body">React Native previews for each drop shadow token.</ThemedText>
+            <View style={styles.shadowGrid}>
+              {SHADOW_TOKEN_KEYS.map((tokenName) => {
+                const shadowToken = Shadows[tokenName];
+                return (
+                  <View
+                    key={tokenName}
+                    testID="shadow-sample"
+                    style={[
+                      styles.shadowCard,
+                      {
+                        backgroundColor: palette.background.default.secondary,
+                      },
+                      shadowToken.style,
+                    ]}
+                  >
+                    <ThemedText variant="bodySmallStrong">{formatTokenLabel(tokenName)}</ThemedText>
+                    <ThemedText variant="body">{SHADOW_SAMPLE_TEXT}</ThemedText>
+                    <ThemedText variant="bodySmall">
+                      {shadowToken.layers.length} layer{shadowToken.layers.length === 1 ? '' : 's'}
+                    </ThemedText>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          <View>
             <ThemedText variant="heading">Buttons</ThemedText>
             {buttonRows.map(({ title, variant, buttons, danger }) => (
               <View key={title}>
@@ -342,5 +423,21 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     padding: Size.space['400'],
     borderRadius: Size.radius['400'],
+  },
+  tokenSection: {
+    gap: Size.space['400'],
+  },
+  typographyExample: {
+    paddingVertical: Size.space['200'],
+    gap: Size.space['150'],
+    borderBottomWidth: Size.stroke.border,
+  },
+  shadowGrid: {
+    gap: Size.space['400'],
+  },
+  shadowCard: {
+    padding: Size.space['400'],
+    gap: Size.space['200'],
+    borderRadius: Size.radius['200'],
   },
 });

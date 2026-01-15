@@ -1,15 +1,20 @@
 import { renderHook } from '@testing-library/react-native';
-import { Colors, Typography } from '@/constants/theme';
+import { Colors, Typography, getTypographyForMode } from '@/constants/theme';
+import { getResponsive } from '@/constants/responsive';
 import { useTypographyStyles } from '../useTypographyStyles';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 
 jest.mock('@/hooks/useColorScheme');
+jest.mock('@/hooks/useResponsive');
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
 
 describe('useTypographyStyles', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseResponsive.mockReturnValue(getResponsive());
   });
 
   it('returns typography tokens configured for the light palette', () => {
@@ -48,5 +53,27 @@ describe('useTypographyStyles', () => {
     rerender(undefined);
 
     expect(result.current.heading.color).toBe(Colors.dark.text.brand.secondary);
+  });
+
+  it('honors responsive root font size when provided', () => {
+    mockUseColorScheme.mockReturnValue('light');
+    mockUseResponsive.mockReturnValue({ ...getResponsive({ windowWidth: 1440 }), rootFontSize: 20 });
+
+    const { result } = renderHook(() => useTypographyStyles());
+    const expectedTokens = getTypographyForMode('light', 20);
+
+    expect(result.current.body.fontSize).toBe(expectedTokens.body.fontSize);
+    expect(result.current.body.lineHeight).toBe(expectedTokens.body.lineHeight);
+  });
+
+  it('falls back to default root font size when responsive is missing it', () => {
+    mockUseColorScheme.mockReturnValue('light');
+    mockUseResponsive.mockReturnValue({ ...getResponsive({ windowWidth: 1024 }), rootFontSize: undefined as any });
+
+    const { result } = renderHook(() => useTypographyStyles());
+    const expectedTokens = getTypographyForMode('light', 16);
+
+    expect(result.current.body.fontSize).toBe(expectedTokens.body.fontSize);
+    expect(result.current.body.lineHeight).toBe(expectedTokens.body.lineHeight);
   });
 });
