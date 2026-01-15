@@ -80,21 +80,20 @@ function computeVariantStyles(
   }
 }
 
-// Size-specific styles matching Figma design
-// Uses "hug" sizing - container wraps icon with padding
 function computeSizeStyles(size: IconButtonSize) {
-  const borderRadius = Size.space['800']; // 2rem token keeps shape consistent with design
+  // Figma: 20px glyph with 6px (small) or 10px (medium) padding and a fully rounded pill
+  const borderRadius = Size.radius['full'];
   const iconSize: IconSize = '20';
 
   if (size === 'small') {
     return {
-      padding: Size.space['200'],
+      padding: Size.space['150'],
       borderRadius,
       iconSize,
     };
   }
   return {
-    padding: Size.space['300'],
+    padding: Size.space['250'],
     borderRadius,
     iconSize,
   };
