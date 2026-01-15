@@ -5,10 +5,11 @@ import {
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
-import { Colors, Responsive, Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
 import React from 'react';
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
@@ -23,6 +24,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const responsive = useResponsive();
   // Placeholder for future search/filter functionality. Currently unused in this demo screen.
   const [searchQuery, setSearchQuery] = React.useState('');
 
@@ -53,7 +55,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           />
 
           <View style={styles.centeredSection}>
-            <View style={styles.sectionContent}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
               <View style={styles.overviewSection}>
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
@@ -72,14 +74,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           </View>
 
           <View style={styles.centeredSection}>
-            <View style={styles.sectionContent}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
               <InlineExpandableRows sections={dataSections} />
             </View>
           </View>
           <NearbySpeciesCarousel species={nearbySpecies} />
 
           <View style={styles.heatMapSection}>
-            <View style={[styles.sectionContent]}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>
             <Image
@@ -110,9 +112,8 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     width: '100%',
-    maxWidth: Responsive.contentWidth,
     gap: Size.space['800'],
-    paddingHorizontal: Responsive.marginHorizontal,
+
   },
   overviewSection: {
     flexDirection: 'row',

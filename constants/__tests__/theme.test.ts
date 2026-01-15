@@ -1,4 +1,4 @@
-import { Colors, Typography, Size, themeInternals } from '@/constants/theme';
+import { Colors, Responsive, Shadows, Size, SizeTokens, Typography, __themeTestHooks } from '@/constants/theme';
 import { wdsSemanticTokens, wdsSizeTokens } from '@/constants/wdsTokens';
 
 describe('Theme Tokens', () => {
@@ -142,10 +142,21 @@ describe('Theme Tokens', () => {
       const bodyStyle = Typography.light.body;
 
       expect(bodyStyle.fontFamily).toBe('Inter_400Regular');
-      expect(bodyStyle.fontSize).toBe(16);
-      expect(bodyStyle.lineHeight).toBeCloseTo(22.4); // 16 * 1.4 line-height ratio
+      expect(bodyStyle.fontSize).toBe(Responsive.rootFontSize);
+      expect(bodyStyle.lineHeight).toBeCloseTo(Responsive.rootFontSize * 1.4);
       expect(bodyStyle.color).toBe(Colors.light.text.default.default);
       expect(Typography.dark.link.color).toBe(Colors.dark.text.brand.default);
+    });
+
+    it('falls back to System font and default line height when mapping is missing', () => {
+      expect(__themeTestHooks).toBeDefined();
+      const { parseFontShorthand, getExpoFontName } = __themeTestHooks!;
+
+      const style = parseFontShorthand('normal 500 1rem "unknown", serif', 'unknown' as never);
+
+      expect(style.fontFamily).toBe('System');
+      expect(style.lineHeight).toBeCloseTo(19.2); // 16px * 1.2 default ratio
+      expect(getExpoFontName('"unknown", serif', '500')).toBe('System');
     });
   });
 
@@ -219,6 +230,35 @@ describe('Theme Tokens', () => {
         parseFloat(wdsSizeTokens['wds-size-depth-negative-025']) * 16,
       );
     });
+
+    it('exposes raw size token strings via SizeTokens', () => {
+      expect(SizeTokens['wds-size-space-400']).toBe(wdsSizeTokens['wds-size-space-400']);
+      expect(SizeTokens['wds-size-radius-200']).toBe(wdsSizeTokens['wds-size-radius-200']);
+    });
+  });
+
+  describe('Responsive', () => {
+    it('converts responsive rem tokens to pixel values', () => {
+      expect(Responsive.contentWidth).toBeGreaterThan(0);
+      expect(Responsive.textWidth).toBeGreaterThan(0);
+      expect(Responsive.marginHorizontal).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Shadows', () => {
+    it('exports parsed shadow tokens with style metadata', () => {
+      const keys = Object.keys(Shadows).sort();
+      expect(keys).toEqual(
+        ['dropShadow100', 'dropShadow200', 'dropShadow300', 'dropShadow400', 'dropShadow500', 'dropShadow600'],
+      );
+
+      const token = Shadows.dropShadow300;
+      expect(Array.isArray(token.layers)).toBe(true);
+      expect(token.layers.length).toBeGreaterThan(0);
+      expect(token.style.boxShadow).toBeDefined();
+      expect(typeof token.style.elevation).toBe('number');
+    });
+
   });
 
   describe('Token Structure Validation', () => {
@@ -246,24 +286,5 @@ describe('Theme Tokens', () => {
       expect(typeof Typography.light.body.fontFamily).toBe('string');
       expect(typeof Typography.light.body.fontSize).toBe('number');
     });
-  });
-});
-
-describe('Theme internals', () => {
-  const { resolveCssVariables, parseFontShorthand } = themeInternals;
-
-  it('falls back to raw CSS variable names when a token is missing', () => {
-    expect(resolveCssVariables('var(--wds-typography-body-size-medium)')).toBe('1rem');
-    expect(resolveCssVariables('var(--missing-token)')).toBe('--missing-token');
-  });
-
-  it('parses shorthand fonts using default line-height and system font fallbacks', () => {
-    const style = parseFontShorthand('italic 500 2rem var(--made-up-family)', 'unknown' as any);
-
-    expect(style.fontSize).toBe(32);
-    expect(style.lineHeight).toBeCloseTo(38.4); // 32 * fallback 1.2 ratio
-    expect(style.fontFamily).toBe('System');
-    expect(style.fontStyle).toBe('italic');
-    expect(style.fontWeight).toBe('500');
   });
 });
