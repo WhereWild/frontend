@@ -89,8 +89,8 @@ describe('IconButton Component', () => {
       expect(styles).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            padding: Size.space['300'],
-            borderRadius: Size.space['800'],
+            padding: Size.space['250'],
+            borderRadius: Size.radius['full'],
           }),
         ])
       );
@@ -269,8 +269,8 @@ describe('IconButton Component', () => {
       // Square aspect ratio is achieved via single padding value (applies to all sides)
       const paddingStyle = styles.find((s: any) => s?.padding !== undefined);
       expect(paddingStyle).toBeDefined();
-      expect(paddingStyle.padding).toBe(Size.space['300']); // Equal padding on all sides
-      expect(paddingStyle.borderRadius).toBe(Size.space['800']);
+      expect(paddingStyle.padding).toBe(Size.space['250']); // Equal padding on all sides
+      expect(paddingStyle.borderRadius).toBe(Size.radius['full']);
     });
 
     it('maintains square aspect ratio via equal padding (small)', () => {
@@ -285,8 +285,8 @@ describe('IconButton Component', () => {
       const styles = button.props.style;
       const paddingStyle = styles.find((s: any) => s?.padding !== undefined);
       expect(paddingStyle).toBeDefined();
-      expect(paddingStyle.padding).toBe(Size.space['200']);
-      expect(paddingStyle.borderRadius).toBe(Size.space['800']);
+      expect(paddingStyle.padding).toBe(Size.space['150']);
+      expect(paddingStyle.borderRadius).toBe(Size.radius['full']);
     });
 
     it('applies pressed brand background token for primary variant', () => {

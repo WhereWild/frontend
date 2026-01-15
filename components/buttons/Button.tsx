@@ -2,22 +2,25 @@ import React from 'react';
 import { Pressable, TextStyle, View, ViewStyle } from 'react-native';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
+import { IconSize } from '../../primitives/Icon';
 import { ThemedText } from '../text/ThemedText';
 
 // Variants aligned with Figma design system Button component
 export type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type ButtonSize = 'small' | 'medium';
 
+type ButtonIconElement = React.ReactElement<{ color?: string; size?: IconSize }>;
+type ButtonIcon = React.ComponentType<{ color?: string; size?: IconSize }> | ButtonIconElement;
+
 export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
-  loading?: boolean;
   onPress?: () => void;
   children?: React.ReactNode;
   label?: string;
-  iconStart?: React.ReactNode;
-  iconEnd?: React.ReactNode;
+  iconStart?: ButtonIcon;
+  iconEnd?: ButtonIcon;
   style?: ViewStyle;
   textStyle?: TextStyle;
   accessibilityLabel?: string;
@@ -104,27 +107,18 @@ function computeVariantStyles(
   }
 }
 
-const renderIcon = (iconNode: React.ReactNode, color: string) => {
-  if (!React.isValidElement(iconNode)) {
-    return iconNode;
+const renderIcon = (icon: ButtonIcon | undefined, color: string, size: IconSize) => {
+  if (!icon) return null;
+
+  if (React.isValidElement(icon)) {
+    const currentProps = icon.props as { color?: string; size?: IconSize };
+    return React.cloneElement(icon, {
+      color: currentProps.color ?? color,
+      size: currentProps.size ?? size,
+    });
   }
 
-  const currentProps = iconNode.props as { color?: string; size?: string | number };
-  const nextProps: Record<string, unknown> = {};
-
-  if (currentProps.color == null) {
-    nextProps.color = color;
-  }
-
-  if (currentProps.size == null) {
-    nextProps.size = '16';
-  }
-
-  if (Object.keys(nextProps).length === 0) {
-    return iconNode;
-  }
-
-  return React.cloneElement(iconNode, nextProps);
+  return React.createElement(icon, { color, size });
 };
 
 // Size-specific styles matching Figma design
@@ -145,7 +139,6 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'medium',
   disabled = false,
-  loading = false,
   onPress,
   children,
   label,
@@ -156,6 +149,8 @@ export const Button: React.FC<ButtonProps> = ({
   accessibilityLabel,
 }) => {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const iconSize: IconSize = '16'; // Figma default glyph for buttons
+  const iconDimension = Number(iconSize);
 
   return (
     <Pressable
@@ -164,10 +159,10 @@ export const Button: React.FC<ButtonProps> = ({
         accessibilityLabel ||
         (label ?? (typeof children === 'string' ? children : undefined))
       }
-      disabled={disabled || loading}
+        disabled={disabled}
       onPress={onPress}
       style={({ pressed, hovered }) => {
-        const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled || loading);
+          const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         const sizeStyles = computeSizeStyles(size);
         const borderWidth = variantStyles.borderWidth ?? 0;
         const paddingHorizontal = Math.max(0, sizeStyles.paddingHorizontal - borderWidth);
@@ -181,7 +176,7 @@ export const Button: React.FC<ButtonProps> = ({
             backgroundColor: variantStyles.backgroundColor,
             borderColor: variantStyles.borderColor,
             borderWidth: variantStyles.borderWidth,
-            opacity: loading ? 0.7 : 1,
+            opacity: 1,
             paddingHorizontal,
             paddingVertical,
             gap: Size.space['200'], // 8px - matches Figma gap
@@ -191,23 +186,25 @@ export const Button: React.FC<ButtonProps> = ({
       }}
     >
       {({ pressed, hovered }) => {
-        const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled || loading);
+        const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
 
         return (
           <>
-            {iconStart && !loading && <View>{renderIcon(iconStart, variantStyles.iconColor)}</View>}
-            <ThemedText
-              variant="singleLineBody"
-              style={[
-                {
-                  color: variantStyles.color,
-                },
-                textStyle,
-              ]}
-            >
-              {loading ? '…' : (label ?? children)}
-            </ThemedText>
-            {iconEnd && !loading && <View>{renderIcon(iconEnd, variantStyles.iconColor)}</View>}
+            {iconStart && <View>{renderIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
+            <View style={{ minHeight: iconDimension, justifyContent: 'center' }}>
+              <ThemedText
+                variant="singleLineBody"
+                style={[
+                  {
+                    color: variantStyles.color,
+                  },
+                  textStyle,
+                ]}
+              >
+                {label ?? children}
+              </ThemedText>
+            </View>
+            {iconEnd && <View>{renderIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
           </>
         );
       }}
