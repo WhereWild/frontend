@@ -1,8 +1,9 @@
 import { PageHeader, SpeciesCard, ThemedText } from '@/components';
-import { Colors, Responsive, Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
 import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
@@ -18,6 +19,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const responsive = useResponsive();
   const { map, recommendations } = data;
   const [searchQuery, setSearchQuery] = useState('');
   return (
@@ -32,7 +34,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
         />
 
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingHorizontal: responsive.marginHorizontal }]}
           bounces={false}
         >
           <View style={styles.layout}>
@@ -75,7 +77,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: Size.space['800'],
-    paddingHorizontal: Responsive.marginHorizontal,
     width: '100%',
   },
   layout: {
