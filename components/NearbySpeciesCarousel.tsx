@@ -1,6 +1,7 @@
-import { Colors, Responsive, Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import type { SpeciesSummary } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
 import {
   ScrollView,
@@ -25,6 +26,7 @@ export function NearbySpeciesCarousel({
 }: NearbySpeciesCarouselProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const responsive = useResponsive();
 
   if (!species.length) {
     return null;
@@ -38,13 +40,17 @@ export function NearbySpeciesCarousel({
         style,
       ]}
     >
-      <View style={styles.headingRow}>
+      <View style={{ paddingHorizontal: responsive.marginHorizontal }}>
         <ThemedText variant="heading">Nearby Species</ThemedText>
       </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.row, contentContainerStyle]}
+        contentContainerStyle={[
+          styles.row,
+          { paddingHorizontal: responsive.marginHorizontal },
+          contentContainerStyle,
+        ]}
       >
         {species.map((item) => (
           <SpeciesCard
@@ -66,12 +72,8 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: Size.space['400'],
   },
-  headingRow: {
-    paddingHorizontal: Responsive.marginHorizontal
-  },
   row: {
     flexDirection: 'row',
-    paddingHorizontal: Responsive.marginHorizontal,
     paddingVertical: Size.space['400'],
     gap: Size.space['800'],
   },

@@ -1,6 +1,7 @@
 import { IconDownload } from '@/assets/icons';
-import { Colors, Responsive, Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Button } from '../buttons/Button';
@@ -24,6 +25,7 @@ export function SpeciesPageHeader({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const responsive = useResponsive();
 
   return (
     <View
@@ -31,11 +33,12 @@ export function SpeciesPageHeader({
         styles.container,
         {
           backgroundColor: palette.background.default.default,
+          paddingHorizontal: responsive.marginHorizontal,
         },
         style,
       ]}
     >
-      <View style={styles.content}>
+      <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
         <View style={styles.headingRow}>
           <ThemedText variant="titlePage">
             {commonName}
@@ -70,11 +73,11 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
-    paddingHorizontal: Responsive.marginHorizontal, // Pending mobile spec: rely on desktop spacing for now
+
   },
   content: {
     width: '100%',
-    maxWidth: Responsive.contentWidth,
+
     alignSelf: 'center',
     gap: Size.space['200'],
   },
