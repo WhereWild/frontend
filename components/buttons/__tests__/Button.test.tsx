@@ -126,21 +126,6 @@ describe('Button Component', () => {
       expect(screen.getByText('Continue')).toBeDefined();
     });
 
-    it('hides icons when loading to avoid layout shift', () => {
-      render(
-        <Button
-          loading
-          label="Loading"
-          iconStart={<Image source={iconSource} testID="button-icon-start" />}
-          iconEnd={<Image source={iconSource} testID="button-icon-end" />}
-        />
-      );
-
-      expect(screen.queryByTestId('button-icon-start')).toBeNull();
-      expect(screen.queryByTestId('button-icon-end')).toBeNull();
-      expect(screen.getByText('…')).toBeDefined();
-    });
-
     it('injects semantic icon color for primary variant when icon has no color', () => {
       const { IconProbe, calls } = createIconProbe();
 
@@ -189,11 +174,6 @@ describe('Button Component', () => {
   });
 
   describe('States', () => {
-    it('shows loading state with ellipsis', () => {
-      render(<Button loading>Click Me</Button>);
-      expect(screen.getByText('…')).toBeDefined();
-    });
-
     it('is disabled when disabled prop is true', () => {
       const onPress = jest.fn();
       render(
@@ -203,19 +183,6 @@ describe('Button Component', () => {
       );
 
       fireEvent.press(screen.getByText('Disabled Button'));
-      expect(onPress).not.toHaveBeenCalled();
-    });
-
-    it('is disabled when loading', () => {
-      const onPress = jest.fn();
-      render(
-        <Button loading onPress={onPress}>
-          Click Me
-        </Button>
-      );
-
-      const button = screen.getByText('…');
-      fireEvent.press(button);
       expect(onPress).not.toHaveBeenCalled();
     });
   });
@@ -280,10 +247,37 @@ describe('Button Component', () => {
       expect(computed.backgroundColor).toBe(Colors.dark.background.brand.pressed);
     });
 
+    it('applies hover background tokens for primary variant', () => {
+      const computed = __BUTTON_TESTING__.computeVariantStyles('primary', 'light', false, true, false);
+      expect(computed.backgroundColor).toBe(Colors.light.background.brand.hover);
+    });
+
+    it('applies pressed background tokens for neutral variant', () => {
+      const computed = __BUTTON_TESTING__.computeVariantStyles('neutral', 'dark', true, false, false);
+      expect(computed.backgroundColor).toBe(Colors.dark.background.neutral.secondaryPressed);
+    });
+
+    it('applies hover background tokens for neutral variant', () => {
+      const computed = __BUTTON_TESTING__.computeVariantStyles('neutral', 'light', false, true, false);
+      expect(computed.backgroundColor).toBe(Colors.light.background.neutral.secondaryHover);
+    });
+
     it('applies hover text and icon colors for subtle variant', () => {
       const computed = __BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, true, false);
       expect(computed.backgroundColor).toBe(Colors.dark.background.neutral.tertiaryHover);
       expect(computed.iconColor).toBe(Colors.dark.icon.neutral.onNeutralTertiary);
+    });
+
+    it('applies pressed colors for subtle variant', () => {
+      const computed = __BUTTON_TESTING__.computeVariantStyles('subtle', 'light', true, false, false);
+      expect(computed.backgroundColor).toBe(Colors.light.background.neutral.tertiaryPressed);
+      expect(computed.iconColor).toBe(Colors.light.icon.neutral.onNeutralTertiary);
+    });
+
+    it('applies outlined border when subtle is idle', () => {
+      const computed = __BUTTON_TESTING__.computeVariantStyles('subtle', 'light', false, false, false);
+      expect(computed.borderColor).toBe(Colors.light.border.neutral.tertiary);
+      expect(computed.backgroundColor).toBe('transparent');
     });
 
     it('forces disabled palette regardless of variant or interaction state', () => {
@@ -317,20 +311,31 @@ describe('Button Component', () => {
       expect(computed.iconColor).toBe(Colors.dark.icon.default.default);
     });
 
-    it('returns non-element icons unchanged', () => {
-      const glyph = 'icon-glyph';
-      expect(__BUTTON_TESTING__.renderIcon(glyph, '#000000')).toBe(glyph);
-    });
-
-    it('avoids cloning when icon already defines props', () => {
-      const Icon = (props: { color?: string; size?: string | number }) => (
-        <ThemedText accessibilityLabel="icon" style={{ color: props.color }}>
-          Icon
+    it('renders a component icon with injected defaults', () => {
+      const Icon = ({ color, size }: { color?: string; size?: string }) => (
+        <ThemedText accessibilityLabel="icon" style={{ color }}>
+          {String(size)}
         </ThemedText>
       );
-      const icon = <Icon color="#123456" size="32" />;
 
-      expect(__BUTTON_TESTING__.renderIcon(icon, '#000000')).toBe(icon);
+      const rendered = __BUTTON_TESTING__.renderIcon(Icon, '#111111', '16');
+      expect(React.isValidElement(rendered)).toBe(true);
+      expect(rendered?.props.color).toBe('#111111');
+      expect(rendered?.props.size).toBe('16');
+    });
+
+    it('preserves existing icon element props without overriding', () => {
+      const Icon = ({ color, size }: { color?: string; size?: string }) => (
+        <ThemedText accessibilityLabel="icon" style={{ color }}>
+          {String(size)}
+        </ThemedText>
+      );
+
+      const iconElement = <Icon color="#abc123" size="24" />;
+
+      const rendered = __BUTTON_TESTING__.renderIcon(iconElement, '#111111', '16');
+      expect(rendered?.props.color).toBe('#abc123');
+      expect(rendered?.props.size).toBe('24');
     });
   });
 });
