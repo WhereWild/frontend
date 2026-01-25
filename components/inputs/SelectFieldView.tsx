@@ -1,8 +1,12 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText, IconButton } from '@/components';
+import { Portal } from '@/components/Portal';
 import { Size } from '@/constants/theme';
 import type { SelectFieldViewProps } from './useSelectFieldController';
+import { FIELD_HEIGHT } from './useSelectFieldController';
+
+const PLACEHOLDER_INPUT_HEIGHT = 20;
 
 export const SelectFieldView = ({
   label,
@@ -19,12 +23,14 @@ export const SelectFieldView = ({
   placeholderColor,
   valueColor,
   fieldStyleOverrides,
-  fieldPressablePropsOpen,
-  fieldPressablePropsClosed,
+  fieldPressableProps,
+  fieldWrapperRef,
+  onFieldWrapperLayout,
+  dropdownPosition,
+  onDismiss,
   inputRef,
   inputProps,
-  iconButtonPropsOpen,
-  iconButtonPropsClosed,
+  iconButtonProps,
   options,
   optionsContainerStyleOverrides,
   optionActiveBackgroundColor,
@@ -32,6 +38,13 @@ export const SelectFieldView = ({
   dropShadowStyle,
   containerStyle,
 }: SelectFieldViewProps) => {
+  const portalAccessibilityLabel = label
+    ? `${label} options`
+    : placeholder
+      ? `${placeholder} options`
+      : 'Select options';
+  const portalAccessibilityHint = 'Swipe through options and double tap to select.';
+
   return (
     <View style={[styles.container, containerStyle]}>
       {label ? (
@@ -44,88 +57,124 @@ export const SelectFieldView = ({
           {description}
         </ThemedText>
       ) : null}
-      <View style={styles.fieldWrapper}>
-        {isOpen ? (
-          <Pressable
-            {...fieldPressablePropsOpen}
-            style={[styles.field, ...fieldStyleOverrides]}
-          >
-            {allowSearch ? (
-              <TextInput
-                ref={inputRef}
-                {...(inputProps ?? {})}
-                style={[styles.input, inputProps?.style]}
-              />
-            ) : (
-              <ThemedText
-                variant="singleLineBody"
-                style={{ color: showPlaceholder ? placeholderColor : valueColor, flex: 1 }}
-              >
-                {valueText || placeholder}
-              </ThemedText>
-            )}
-            <IconButton
-              variant="subtle"
-              size="small"
-              icon={iconButtonPropsOpen.icon}
-              accessibilityLabel={iconButtonPropsOpen.accessibilityLabel}
-              accessibilityRole={iconButtonPropsOpen.accessibilityRole}
-              disabled={iconButtonPropsOpen.disabled}
-              onPress={iconButtonPropsOpen.onPress}
-              {...(iconButtonPropsOpen.extraProps ?? {})}
-            />
-          </Pressable>
-        ) : (
-          <Pressable
-            {...fieldPressablePropsClosed}
-            style={[styles.field, ...fieldStyleOverrides]}
-          >
+      <View ref={fieldWrapperRef} onLayout={onFieldWrapperLayout} style={styles.fieldWrapper}>
+        <Pressable
+          {...fieldPressableProps}
+          style={[styles.field, ...fieldStyleOverrides]}
+        >
+          {isOpen && allowSearch ? (
+            /* 
+             * When the dropdown is open with search enabled, we render the actual TextInput
+             * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
+             *
+             * This View is a non-interactive placeholder that keeps the field row height and
+             * layout stable while the real input lives in the portal overlay. The fixed
+             * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
+             * opening/closing the dropdown does not cause the field to jump or resize.
+             *
+             * If you change the height or layout of the portal input, update this placeholder
+             * accordingly so that the dual-input pattern (placeholder here + real input in
+             * the Portal) continues to behave and look consistent.
+             */
+            <View style={[styles.input, { height: PLACEHOLDER_INPUT_HEIGHT }]} />
+          ) : (
             <ThemedText
               variant="singleLineBody"
               style={{ color: showPlaceholder ? placeholderColor : valueColor, flex: 1 }}
             >
               {valueText || placeholder}
             </ThemedText>
-            <IconButton
-              variant="subtle"
-              size="small"
-              icon={iconButtonPropsClosed.icon}
-              accessibilityLabel={iconButtonPropsClosed.accessibilityLabel}
-              accessibilityRole={iconButtonPropsClosed.accessibilityRole}
-              disabled={iconButtonPropsClosed.disabled}
-              onPress={iconButtonPropsClosed.onPress}
-              {...(iconButtonPropsClosed.extraProps ?? {})}
-            />
-          </Pressable>
-        )}
-        {isOpen ? (
-          <View style={[styles.optionsContainer, dropShadowStyle, ...optionsContainerStyleOverrides]}>
-            <ScrollView ref={scrollViewRef} style={styles.optionsScroll}>
-              {options.map((option) => {
-                const backgroundColor = option.isHighlighted || option.isSelected
-                  ? optionActiveBackgroundColor
-                  : 'transparent';
-
-                return (
-                  <Pressable
-                    key={option.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={option.accessibilityLabel}
-                    onPress={option.onPress}
-                    onPressIn={option.onPressIn}
-                    onPressOut={option.onPressOut}
-                    onLayout={option.onLayout}
-                    style={[styles.optionRow, { backgroundColor }]}
-                    {...(option.pressableProps ?? {})}
-                  >
-                    <ThemedText variant="singleLineBody">{option.label}</ThemedText>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        ) : null}
+          )}
+          <IconButton
+            variant="subtle"
+            size="small"
+            icon={iconButtonProps.icon}
+            accessibilityLabel={iconButtonProps.accessibilityLabel}
+            accessibilityRole={iconButtonProps.accessibilityRole}
+            disabled={iconButtonProps.disabled}
+            onPress={iconButtonProps.onPress}
+            {...(iconButtonProps.extraProps ?? {})}
+          />
+        </Pressable>
       </View>
+      <Portal
+        visible={isOpen}
+        onDismiss={onDismiss}
+        accessibilityLabel={portalAccessibilityLabel}
+        accessibilityHint={portalAccessibilityHint}
+      >
+        <Pressable
+          style={styles.backdrop}
+          onPress={onDismiss}
+          accessibilityRole="button"
+          accessibilityLabel="Close dropdown"
+        />
+        {/* Input inside Portal for keyboard events */}
+        {allowSearch && dropdownPosition ? (
+          <View
+            style={[
+              styles.portalInputWrapper,
+              {
+                top: dropdownPosition.top - dropdownPosition.height - Size.space['100'],
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+                height: dropdownPosition.height,
+              },
+            ]}
+          >
+            <TextInput
+              ref={inputRef}
+              {...inputProps}
+              style={[styles.portalInput, inputProps.style]}
+            />
+          </View>
+        ) : (
+          /* Hidden input to capture keyboard events for non-searchable variant */
+          <TextInput
+            ref={inputRef}
+            {...inputProps}
+          />
+        )}
+        <View
+          pointerEvents="auto"
+          style={[
+            styles.optionsContainer,
+            dropShadowStyle,
+            dropdownPosition
+              ? {
+                  top: dropdownPosition.top,
+                  left: dropdownPosition.left,
+                  width: dropdownPosition.width,
+                }
+              : null,
+            ...optionsContainerStyleOverrides,
+          ]}
+        >
+          <ScrollView ref={scrollViewRef} style={styles.optionsScroll}>
+            {options.map((option) => {
+              const backgroundColor = option.isHighlighted || option.isSelected
+                ? optionActiveBackgroundColor
+                : 'transparent';
+
+              return (
+                <Pressable
+                  key={option.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.accessibilityLabel}
+                  onPress={option.onPress}
+                  onPressIn={option.onPressIn}
+                  onPressOut={option.onPressOut}
+                  onLayout={option.onLayout}
+                  style={[styles.optionRow, { backgroundColor }]}
+                  {...(option.pressableProps ?? {})}
+                >
+                  <ThemedText variant="singleLineBody">{option.label}</ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Portal>
       {errorMessage ? (
         <ThemedText variant="body" style={{ color: errorColor }}>
           {errorMessage}
@@ -140,16 +189,12 @@ const styles = StyleSheet.create({
     gap: Size.space['200'],
     minWidth: Size.space['8000'],
     maxWidth: '100%',
-    position: 'relative',
-    overflow: 'visible',
   },
   fieldWrapper: {
     position: 'relative',
-    zIndex: 50,
-    overflow: 'visible',
   },
   field: {
-    minHeight: 44,
+    minHeight: FIELD_HEIGHT,
     paddingVertical: Size.space['100'],
     paddingLeft: Size.space['400'],
     paddingRight: Size.space['100'],
@@ -163,18 +208,25 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 0,
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  portalInputWrapper: {
+    position: 'absolute',
+    height: FIELD_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: Size.space['400'],
+  },
+  portalInput: {
+    flex: 1,
+    padding: 0,
+  },
   optionsContainer: {
     position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: Size.space['100'],
     borderWidth: Size.stroke.border,
     borderRadius: Size.radius['200'],
     overflow: 'hidden',
     maxHeight: 240,
-    zIndex: 1000,
-    elevation: 1000,
   },
   optionsScroll: {
     paddingVertical: Size.space['100'],

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, ScrollView, TextInput, type LayoutChangeEvent, type PressableProps, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { Platform, ScrollView, TextInput, View, type LayoutChangeEvent, type PressableProps, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Colors, Shadows, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
@@ -51,19 +51,14 @@ export type SelectFieldViewProps = {
   placeholderColor: string;
   valueColor: string;
   fieldStyleOverrides: (ViewStyle | null)[];
-  fieldPressablePropsOpen: PressableProps;
-  fieldPressablePropsClosed: PressableProps;
+  fieldPressableProps: PressableProps;
+  fieldWrapperRef: React.RefObject<View | null>;
+  onFieldWrapperLayout: () => void;
+  dropdownPosition: { top: number; left: number; width: number; height: number } | null;
+  onDismiss: () => void;
   inputRef: React.RefObject<TextInput | null>;
-  inputProps?: TextInputProps;
-  iconButtonPropsOpen: {
-    accessibilityLabel: string;
-    disabled: boolean;
-    icon: React.ReactNode;
-    onPress: () => void;
-    accessibilityRole?: 'none';
-    extraProps?: Record<string, unknown> | null;
-  };
-  iconButtonPropsClosed: {
+  inputProps: TextInputProps;
+  iconButtonProps: {
     accessibilityLabel: string;
     disabled: boolean;
     icon: React.ReactNode;
@@ -91,6 +86,13 @@ const dropShadowStyle = primaryDropShadow
       shadowRadius: primaryDropShadow.blurRadius,
     }
   : {};
+
+/** Height of the field for positioning calculations. */
+export const FIELD_HEIGHT = 40;
+/** Delay before blur closes dropdown, giving option presses time to register. */
+const BLUR_DELAY_MS = 150;
+/** Grace period after open to ignore blur from autoFocus race. */
+const JUST_OPENED_MS = 100;
 
 export const useSelectFieldController = ({
   label,
@@ -123,7 +125,14 @@ export const useSelectFieldController = ({
     : null;
   const inputRef = React.useRef<TextInput>(null);
   const scrollViewRef = React.useRef<ScrollView | null>(null);
+  const fieldWrapperRef = React.useRef<View | null>(null);
+  const [dropdownPosition, setDropdownPosition] = React.useState<
+    { top: number; left: number; width: number; height: number } | null
+  >(null);
   const optionLayoutsRef = React.useRef<{ y: number; height: number }[]>([]);
+  // Track when the select just opened so we can ignore the initial blur caused by
+  // autoFocus mounting the portal input (focus/blur churn that would otherwise close the list).
+  const justOpenedRef = React.useRef(false);
   const [isFocused, setIsFocused] = React.useState(false);
 
   // Controlled value is the single source of truth for selection.
@@ -148,6 +157,11 @@ export const useSelectFieldController = ({
     if (isDisabled) {
       return;
     }
+    // Mark that we just opened so blur handler ignores the initial focus/blur churn.
+    justOpenedRef.current = true;
+    setTimeout(() => {
+      justOpenedRef.current = false;
+    }, JUST_OPENED_MS);
     setIsOpen(true);
     // Avoid pre-filling the search query so users can type from an empty state.
     setQuery(allowSearch ? '' : selectedLabel);
@@ -164,18 +178,36 @@ export const useSelectFieldController = ({
     onOpenChange?.(false);
   }, [onOpenChange]);
 
+  const measureDropdownAnchor = React.useCallback(() => {
+    const node = fieldWrapperRef.current;
+    if (!node || !node.measureInWindow) {
+      return;
+    }
+    node.measureInWindow((x, y, width, height) => {
+      setDropdownPosition({
+        left: x,
+        width,
+        height,
+        top: y + height + Size.space['100'],
+      });
+    });
+  }, []);
+
   const handleInputBlur = React.useCallback(() => {
     if (blurTimeoutRef.current) {
       clearTimeout(blurTimeoutRef.current);
     }
 
     blurTimeoutRef.current = setTimeout(() => {
-      if (isOptionPressingRef.current) {
+      // If an option press is in progress, or we've only just opened the field, ignore this blur:
+      // - isOptionPressingRef: prevents closing when the input blurs before the option press completes.
+      // - justOpenedRef: guards against initial focus/autoFocus churn right after opening.
+      if (isOptionPressingRef.current || justOpenedRef.current) {
         return;
       }
       setIsFocused(false);
       closeSelect();
-    }, 0);
+    }, BLUR_DELAY_MS);
   }, [closeSelect]);
 
   const handleInputFocus = React.useCallback(() => {
@@ -282,27 +314,42 @@ export const useSelectFieldController = ({
   const visibleOptions = allowSearch ? filteredOptions : options;
   // Prevent the chevron button from entering the tab order; focus stays on the field.
   const webIconButtonProps = Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : null;
-  // Handle keyboard behavior on web: Enter/Space opens the list; arrows navigate without scrolling.
-  const webKeyDownHandlers = Platform.OS === 'web'
-    ? ({
-        onKeyDown: (event: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => {
-          const { key } = event;
-          if (!isOpen && (key === 'Enter' || key === ' ')) {
-            event.preventDefault?.();
-            event.stopPropagation?.();
-            openSelect();
-            return;
-          }
-
-          if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter' || key === 'Escape') {
-            event.preventDefault?.();
-            event.stopPropagation?.();
-          }
-          handleKeyPress(key, visibleOptions);
-        },
-      } as any)
-    : null;
   const webOptionProps = Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : null;
+
+  // Shared keyboard handler for navigation keys.
+  const createKeyDownHandler = (allowOpenOnEnterSpace: boolean) =>
+    Platform.OS === 'web'
+      ? {
+          onKeyDown: (event: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => {
+            const { key } = event;
+            if (allowOpenOnEnterSpace && !isOpen && (key === 'Enter' || key === ' ')) {
+              event.preventDefault?.();
+              event.stopPropagation?.();
+              openSelect();
+              return;
+            }
+            if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter' || key === 'Escape') {
+              event.preventDefault?.();
+              event.stopPropagation?.();
+            }
+            handleKeyPress(key, visibleOptions);
+          },
+        }
+      : null;
+
+  const webKeyDownHandlers = createKeyDownHandler(true);
+  const webInputKeyDownHandler = createKeyDownHandler(false);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    // Measure after opening so the portal dropdown can align to the field.
+    const frame = requestAnimationFrame(() => {
+      measureDropdownAnchor();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, measureDropdownAnchor]);
 
   React.useEffect(() => {
     if (highlightedIndex === null) {
@@ -361,6 +408,11 @@ export const useSelectFieldController = ({
     ...webKeyDownHandlers,
   };
 
+  const inputAccessibilityLabel = label ?? placeholder ?? 'Select field';
+  const inputAccessibilityHint = allowSearch
+    ? 'Type to filter options.'
+    : 'Use arrow keys to navigate options.';
+
   return {
     label,
     description,
@@ -376,26 +428,28 @@ export const useSelectFieldController = ({
     placeholderColor,
     valueColor,
     fieldStyleOverrides: [webFieldOutlineStyle, webFocusRingStyle, { backgroundColor: fieldBackground }],
-    fieldPressablePropsOpen: {
+    fieldPressableProps: {
       ...fieldPressableBase,
-      onPress: () => {
-        setIsFocused(true);
-        if (allowSearch && !isDisabled) {
-          inputRef.current?.focus();
-        }
-      },
+      onPress: isOpen
+        ? () => {
+            setIsFocused(true);
+            if (allowSearch && !isDisabled) {
+              inputRef.current?.focus();
+            }
+          }
+        : toggleSelect,
       onFocus: () => setIsFocused(true),
       onBlur: () => setIsFocused(false),
     },
-    fieldPressablePropsClosed: {
-      ...fieldPressableBase,
-      onPress: toggleSelect,
-      onFocus: () => setIsFocused(true),
-      onBlur: () => setIsFocused(false),
-    },
+    fieldWrapperRef,
+    onFieldWrapperLayout: measureDropdownAnchor,
+    dropdownPosition,
+    onDismiss: closeSelect,
     inputRef,
     inputProps: allowSearch
       ? {
+          accessibilityLabel: inputAccessibilityLabel,
+          accessibilityHint: inputAccessibilityHint,
           value: query,
           onChangeText: handleTextChange,
           placeholder,
@@ -424,22 +478,26 @@ export const useSelectFieldController = ({
           ],
           onFocus: handleInputFocus,
           onBlur: handleInputBlur,
+          ...webInputKeyDownHandler,
         }
-      : undefined,
-    iconButtonPropsOpen: {
-      accessibilityLabel: 'Close select',
+      : {
+          // Hidden input for keyboard capture in non-searchable mode
+          accessibilityLabel: inputAccessibilityLabel,
+          accessibilityHint: inputAccessibilityHint,
+          value: '',
+          autoFocus: true,
+          editable: true,
+          style: { position: 'absolute', opacity: 0, height: 1, width: 1 } as any,
+          onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
+          onBlur: handleInputBlur,
+          ...webInputKeyDownHandler,
+        },
+    iconButtonProps: {
+      accessibilityLabel: isOpen ? 'Close select' : 'Open select',
       accessibilityRole: 'none',
       disabled: isDisabled,
       icon: iconNode,
-      onPress: closeSelect,
-      extraProps: webIconButtonProps,
-    },
-    iconButtonPropsClosed: {
-      accessibilityLabel: 'Open select',
-      accessibilityRole: 'none',
-      disabled: isDisabled,
-      icon: iconNode,
-      onPress: toggleSelect,
+      onPress: isOpen ? closeSelect : toggleSelect,
       extraProps: webIconButtonProps,
     },
     options: optionsViewModel,
