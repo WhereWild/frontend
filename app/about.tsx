@@ -14,6 +14,7 @@ import {
   NearbySpeciesCarousel,
   PageHeader,
   SearchInput,
+  SelectField,
   SpeciesCard,
   SpeciesPageHeader,
   ThemedText,
@@ -84,7 +85,20 @@ export default function About() {
   const palette = Colors[mode];
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
+  const [selectSearchableValue, setSelectSearchableValue] = useState('');
+  const [selectSearchablePlaceholderValue, setSelectSearchablePlaceholderValue] = useState('');
+  const [selectSearchableDisabledValue] = useState('hello');
+  const [selectSearchableErrorValue, setSelectSearchableErrorValue] = useState('hello');
+  const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
+  const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const speciesSample = mountainBallCactusData;
+  const selectOptions = [
+    { label: 'Hello World', value: 'hello' },
+    { label: 'Option 2', value: 'option-2' },
+    { label: 'Option 3', value: 'option-3' },
+    { label: 'Option 4', value: 'option-4' },
+    { label: 'Option 5', value: 'option-5' },
+  ];
   const buttonRows: ButtonRow[] = [
     {
       title: 'Button — Primary',
@@ -248,8 +262,64 @@ export default function About() {
           </View>
 
           <View>
-            <ThemedText variant="heading">Species Cards</ThemedText>
-            <ThemedText variant="bodyStrong">Default</ThemedText>
+            <ThemedText variant="heading">Select Field</ThemedText>
+            <View style={styles.selectGrid}>
+              <SelectField
+                label="Label (Searchable)"
+                description="Type to filter"
+                value={selectSearchableValue}
+                placeholder="Value"
+                options={selectOptions}
+                onValueChange={setSelectSearchableValue}
+              />
+              <SelectField
+                label="Label (Searchable - Placeholder)"
+                description="No selection"
+                value={selectSearchablePlaceholderValue}
+                placeholder="Value"
+                options={selectOptions}
+                onValueChange={setSelectSearchablePlaceholderValue}
+              />
+              <SelectField
+                label="Label (Searchable - Disabled)"
+                description="Disabled"
+                value={selectSearchableDisabledValue}
+                placeholder="Value"
+                options={selectOptions}
+                disabled
+              />
+              <SelectField
+                label="Label (Searchable - Error)"
+                description="Shows error"
+                value={selectSearchableErrorValue}
+                placeholder="Value"
+                options={selectOptions}
+                onValueChange={setSelectSearchableErrorValue}
+                errorMessage="Error"
+              />
+              <SelectField
+                label="Label (List Only)"
+                description="No text entry"
+                value={selectListOnlyValue}
+                placeholder="Value"
+                options={selectOptions}
+                allowSearch={false}
+                onValueChange={setSelectListOnlyValue}
+              />
+              <SelectField
+                label="Label (List Only - Placeholder)"
+                description="No selection"
+                value={selectListOnlyPlaceholderValue}
+                placeholder="Value"
+                options={selectOptions}
+                allowSearch={false}
+                onValueChange={setSelectListOnlyPlaceholderValue}
+              />
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Species Card</ThemedText>
             <SpeciesCard
               taxonId={speciesSample.taxonId}
               commonName="Common Name"
@@ -442,5 +512,10 @@ const styles = StyleSheet.create({
     padding: Size.space['400'],
     gap: Size.space['200'],
     borderRadius: Size.radius['200'],
+  },
+  selectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['600'],
   },
 });
