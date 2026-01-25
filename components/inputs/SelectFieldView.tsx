@@ -24,6 +24,7 @@ export const SelectFieldView = ({
   valueColor,
   fieldStyleOverrides,
   fieldPressableProps,
+  fieldPressableRef,
   fieldWrapperRef,
   onFieldWrapperLayout,
   dropdownPosition,
@@ -59,6 +60,7 @@ export const SelectFieldView = ({
       ) : null}
       <View ref={fieldWrapperRef} onLayout={onFieldWrapperLayout} style={styles.fieldWrapper}>
         <Pressable
+          ref={fieldPressableRef}
           {...fieldPressableProps}
           style={[styles.field, ...fieldStyleOverrides]}
         >
@@ -85,7 +87,13 @@ export const SelectFieldView = ({
               {valueText || placeholder}
             </ThemedText>
           )}
+          {/*
+           * Anti-pattern: changing the key forces a remount to clear a stuck hover state when
+           * the dropdown closes via the backdrop (Safari/overlay click can swallow hover-out).
+           * This is the smallest, reliable fix without adding hover overrides to IconButton.
+           */}
           <IconButton
+            key={isOpen ? 'open' : 'closed'}
             variant="subtle"
             size="small"
             icon={iconButtonProps.icon}

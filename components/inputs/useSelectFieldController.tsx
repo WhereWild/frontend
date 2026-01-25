@@ -52,6 +52,7 @@ export type SelectFieldViewProps = {
   valueColor: string;
   fieldStyleOverrides: (ViewStyle | null)[];
   fieldPressableProps: PressableProps;
+  fieldPressableRef: React.RefObject<View | null>;
   fieldWrapperRef: React.RefObject<View | null>;
   onFieldWrapperLayout: () => void;
   dropdownPosition: { top: number; left: number; width: number; height: number } | null;
@@ -125,6 +126,7 @@ export const useSelectFieldController = ({
     : null;
   const inputRef = React.useRef<TextInput>(null);
   const scrollViewRef = React.useRef<ScrollView | null>(null);
+  const fieldPressableRef = React.useRef<View | null>(null);
   const fieldWrapperRef = React.useRef<View | null>(null);
   const [dropdownPosition, setDropdownPosition] = React.useState<
     { top: number; left: number; width: number; height: number } | null
@@ -233,6 +235,12 @@ export const useSelectFieldController = ({
       }
       onValueChange?.(option.value);
       closeSelect();
+      // Web only: return keyboard focus to the field after closing the dropdown.
+      if (Platform.OS === 'web') {
+        requestAnimationFrame(() => {
+          (fieldPressableRef.current as unknown as HTMLElement | null)?.focus?.();
+        });
+      }
     },
     [closeSelect, isDisabled, onValueChange],
   );
@@ -428,6 +436,7 @@ export const useSelectFieldController = ({
     placeholderColor,
     valueColor,
     fieldStyleOverrides: [webFieldOutlineStyle, webFocusRingStyle, { backgroundColor: fieldBackground }],
+    fieldPressableRef,
     fieldPressableProps: {
       ...fieldPressableBase,
       onPress: isOpen
