@@ -226,11 +226,12 @@ describe('useSelectFieldController', () => {
       render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
 
       act(() => {
-        controllerRef.current?.fieldPressableProps.onKeyDown?.({
-          key: 'Enter',
-          preventDefault: jest.fn(),
-          stopPropagation: jest.fn(),
-        } as never);
+        (controllerRef.current?.fieldPressableProps as { onKeyDown?: (event: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => void } | undefined)
+          ?.onKeyDown?.({
+            key: 'Enter',
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+          });
       });
 
       expect(onOpenChange).toHaveBeenCalledWith(true);

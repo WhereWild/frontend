@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { TextInput } from 'react-native';
 import { SelectField } from '../SelectField';
 
 const OPTIONS = [
