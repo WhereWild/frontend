@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { TextInput } from 'react-native';
 import { SelectField } from '../SelectField';
 
 const OPTIONS = [
@@ -82,6 +83,111 @@ describe('SelectField', () => {
     expect(handleValueChange).toHaveBeenCalledWith('hello');
   });
 
+  it('selects the last option when pressing ArrowUp first', () => {
+    const handleValueChange = jest.fn();
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={OPTIONS}
+        value=""
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Label'));
+    const input = screen.getByPlaceholderText('Value');
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowUp' } });
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
+
+    expect(handleValueChange).toHaveBeenCalledWith('option-5');
+  });
+
+  it('does not select when Enter is pressed without a highlight', () => {
+    const handleValueChange = jest.fn();
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={OPTIONS}
+        value=""
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Label'));
+    const input = screen.getByPlaceholderText('Value');
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
+
+    expect(handleValueChange).not.toHaveBeenCalled();
+  });
+
+  it('closes on Escape and triggers onOpenChange', () => {
+    const handleOpenChange = jest.fn();
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={OPTIONS}
+        value=""
+        onOpenChange={handleOpenChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Label'));
+    const input = screen.getByPlaceholderText('Value');
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'Escape' } });
+
+    expect(handleOpenChange).toHaveBeenCalledWith(true);
+    expect(handleOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('does nothing when options are empty', () => {
+    const handleValueChange = jest.fn();
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={[]}
+        value=""
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Label'));
+    const input = screen.getByPlaceholderText('Value');
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowDown' } });
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
+
+    expect(handleValueChange).not.toHaveBeenCalled();
+  });
+
+  it('supports keyboard selection when not searchable', () => {
+    const handleValueChange = jest.fn();
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={OPTIONS}
+        value=""
+        allowSearch={false}
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Label'));
+    const inputCandidates = screen.getAllByLabelText('Label');
+    const input = inputCandidates.find((node) => typeof node.props?.onKeyPress === 'function');
+    expect(input).toBeTruthy();
+    if (!input) {
+      throw new Error('Expected keyboard input to be rendered.');
+    }
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowDown' } });
+    fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
+
+    expect(handleValueChange).toHaveBeenCalledWith('hello');
+  });
+
   it('does not open when disabled', () => {
     render(
       <SelectField
@@ -112,6 +218,19 @@ describe('SelectField', () => {
     expect(screen.getByText('Error')).toBeTruthy();
   });
 
+  it('renders selected value when provided', () => {
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={OPTIONS}
+        value="option-2"
+      />,
+    );
+
+    expect(screen.getByText('Option 2')).toBeTruthy();
+  });
+
   it('renders a list-only variant without a text input', () => {
     render(
       <SelectField
@@ -127,5 +246,25 @@ describe('SelectField', () => {
     expect(screen.queryByPlaceholderText('Value')).toBeNull();
     expect(screen.getByText('Option 2')).toBeTruthy();
     expect(screen.getByText('Hello World')).toBeTruthy();
+  });
+
+  it('calls onOpenChange and closes on backdrop press', () => {
+    const handleOpenChange = jest.fn();
+    render(
+      <SelectField
+        label="Label"
+        placeholder="Value"
+        options={OPTIONS}
+        value=""
+        onOpenChange={handleOpenChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Label'));
+    expect(handleOpenChange).toHaveBeenCalledWith(true);
+
+    fireEvent.press(screen.getByLabelText('Close dropdown'));
+    expect(handleOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByText('Option 2')).toBeNull();
   });
 });
