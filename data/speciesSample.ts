@@ -6,6 +6,7 @@ const HEATMAP = { uri: 'https://www.figma.com/api/mcp/asset/7d50c2fc-2baf-4a64-a
 export const mountainBallCactusData: SpeciesPageData = {
   taxonId: 999001,
   commonName: 'Mountain Ball Cactus',
+  commonNames: ['Mountain cactus', 'Snowball cactus', 'Mountain ball cactus'],
   scientificName: 'Pediocactus simpsonii',
   taxonomyPath: 'Plantae_6/Tracheophyta_7707728/Magnoliopsida_220/Caryophyllales_422/Cactaceae_2519/Pediocactus_3231951/Pediocactus_simpsonii_999001',
   description:

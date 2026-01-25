@@ -9,6 +9,7 @@ import { ThemedText } from '../text/ThemedText';
 export type SpeciesPageHeaderProps = {
   commonName: string;
   scientificName: string;
+  commonNames?: string[];
   onPressDownload?: () => void;
   downloadLabel?: string;
   style?: StyleProp<ViewStyle>;
@@ -17,6 +18,7 @@ export type SpeciesPageHeaderProps = {
 export function SpeciesPageHeader({
   commonName,
   scientificName,
+  commonNames,
   downloadLabel = 'Download',
   onPressDownload,
   style,
@@ -52,6 +54,14 @@ export function SpeciesPageHeader({
         <ThemedText variant="bodyEmphasis">
           {scientificName}
         </ThemedText>
+        {commonNames && commonNames.length > 0 ? (
+          <View style={styles.commonNames}>
+            <ThemedText variant="bodySmallEmphasis">Common names</ThemedText>
+            <ThemedText variant="bodySmall">
+              {commonNames.join(', ')}
+            </ThemedText>
+          </View>
+        ) : null}
         <View
           style={[
             styles.divider,
@@ -82,6 +92,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  commonNames: {
+    gap: Size.space['100'],
   },
   divider: {
     height: Size.stroke.border,

@@ -18,6 +18,7 @@ export type SpeciesIdentifiers = {
 export type SpeciesSummary = SpeciesIdentifiers & {
   description: string;
   imageSource?: ImageSourcePropType;
+  commonNames?: string[];
 };
 
 /**
@@ -82,6 +83,10 @@ export type EnvironmentalDataSection = {
 export type SpeciesOverview = {
   description: string;
   imageSource: ImageSourcePropType;
+  imageLicense?: string;
+  imageCreator?: string;
+  imageRightsHolder?: string;
+  imageReferences?: string;
 };
 
 export type HeatmapSnapshot = {
@@ -232,6 +237,7 @@ export type RelativeRankingEntry = {
   taxonId: number | string;
   scientificName?: string | null;
   commonName?: string | null;
+  imageSource?: ImageSourcePropType;
   rank?: string | null;
   value: number | null;
   position: number;

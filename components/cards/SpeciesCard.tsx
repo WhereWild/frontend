@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
 import { toKebabCase } from '@/utils/string';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
+export type SpeciesCardSize = 'default' | 'large';
 
 export type SpeciesCardProps = {
   taxonId: number;
@@ -28,10 +29,13 @@ export type SpeciesCardProps = {
   testID?: string;
   onPress?: () => void;
   variant?: SpeciesCardVariant;
+  size?: SpeciesCardSize;
 };
 
 const IMAGE_SIZE = 128;
+const LARGE_IMAGE_SIZE = 160;
 const MAX_WIDTH = 440;
+const LARGE_MAX_WIDTH = 960;
 
 /**
  * Keeps 'secondary' as the default to preserve the palette used before variants existed.
@@ -73,6 +77,7 @@ export function SpeciesCard({
   testID,
   onPress,
   variant = 'secondary',
+  size = 'default',
 }: SpeciesCardProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -83,6 +88,9 @@ export function SpeciesCard({
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
+  const imageSize = size === 'large' ? LARGE_IMAGE_SIZE : IMAGE_SIZE;
+  const maxWidth = size === 'large' ? LARGE_MAX_WIDTH : MAX_WIDTH;
+  const padding = size === 'large' ? Size.space['500'] : Size.space['400'];
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -117,9 +125,12 @@ export function SpeciesCard({
       testID={testID}
       style={(state) => [
         styles.container,
+        size === 'large' && styles.containerLarge,
         {
           backgroundColor: backgroundForState(state),
           borderRadius: Size.radius['200'],
+          maxWidth,
+          padding,
         },
         style,
       ]}
@@ -127,6 +138,7 @@ export function SpeciesCard({
       <View
         style={[
           styles.imageWrapper,
+          { width: imageSize, height: imageSize },
           !imageSource && { backgroundColor: placeholderBackground },
         ]}
       >
@@ -148,7 +160,7 @@ export function SpeciesCard({
         )}
       </View>
 
-      <View style={styles.textSection}>
+      <View style={[styles.textSection, { minHeight: imageSize }]}>
         <View>
           <ThemedText variant="subheading" numberOfLines={1} accessibilityRole="header">
             {commonName}
@@ -172,12 +184,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: Size.space['400'],
     gap: Size.space['400'],
-    maxWidth: MAX_WIDTH,
     width: '100%',
   },
+  containerLarge: {
+    maxWidth: '100%',
+  },
   imageWrapper: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
     borderRadius: Size.radius['200'],
     overflow: 'hidden',
     justifyContent: 'center',

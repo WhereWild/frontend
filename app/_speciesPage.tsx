@@ -15,7 +15,7 @@ import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 type SpeciesSampleScreenProps = {
   data?: SpeciesPageData;
@@ -25,6 +25,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const {
     taxonId,
     commonName,
+    commonNames,
     scientificName,
     overview,
     dataSections,
@@ -112,6 +113,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <SpeciesPageHeader
             commonName={commonName}
+            commonNames={commonNames}
             scientificName={scientificName}
             onPressDownload={handleDownload}
           />
@@ -136,6 +138,32 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
                     resizeMode="cover"
                     accessibilityLabel={`${commonName} featured image`}
                   />
+                  {(overview.imageCreator || overview.imageLicense || overview.imageReferences) && (
+                    <View style={styles.imageAttribution}>
+                      {overview.imageCreator && (
+                        <ThemedText
+                          variant="bodySmall"
+                          style={styles.licenseText}
+                        >
+                          Photo by {overview.imageCreator}
+                        </ThemedText>
+                      )}
+                      {overview.imageReferences && (
+                        <ThemedText
+                          variant="bodySmall"
+                          style={styles.attributionLink}
+                          onPress={() => Linking.openURL(overview.imageReferences)}
+                        >
+                          View on iNaturalist
+                        </ThemedText>
+                      )}
+                      {overview.imageLicense && (
+                        <ThemedText variant="bodySmall" style={styles.licenseText}>
+                          {overview.imageLicense}
+                        </ThemedText>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
@@ -236,6 +264,17 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: Size.radius['400'],
+  },
+  imageAttribution: {
+    marginTop: Size.space['100'],
+    gap: Size.space['50'],
+  },
+  licenseText: {
+    opacity: 0.7,
+  },
+  attributionLink: {
+    color: Colors.light.tint,
+    textDecorationLine: 'underline',
   },
   heatMapSection: {
     gap: Size.space['400'],

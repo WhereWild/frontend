@@ -39,6 +39,35 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('Using backend:', BACKEND_BASE);
 }
 
+const toCommonNames = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+  }
+  return [];
+};
+
+const toPrimaryCommonName = (item: any, commonNames: string[]): string => {
+  if (typeof item?.common_name === 'string' && item.common_name.length > 0) {
+    return item.common_name;
+  }
+  if (Array.isArray(item?.common_name)) {
+    const first = item.common_name.find((entry: unknown) => typeof entry === 'string' && entry.length > 0);
+    if (first) {
+      return first;
+    }
+  }
+  if (typeof item?.commonName === 'string' && item.commonName.length > 0) {
+    return item.commonName;
+  }
+  if (commonNames.length > 0) {
+    return commonNames[0];
+  }
+  return '';
+};
+
 /**
  * Normalize backend item to match your original JSON keys exactly,
  * but set `image_file` to the full URL to the static image so RN <Image> can use it.
@@ -51,11 +80,14 @@ function normalizeToJsonShape(item: any) {
   const imageUrl = imageUrlFromBackend ?? (imageFile
     ? `${BACKEND_BASE}/static/species_images/${imageFile.replace(/^images\//, '')}`
     : null);
+  const commonNames = toCommonNames(item.common_names ?? item.commonNames ?? item.common_name);
 
   return {
     taxon_id: item.taxon_id ?? null,
     scientific_name: item.scientific_name ?? '',
-    common_name: item.common_name ?? '',
+    common_name: toPrimaryCommonName(item, commonNames),
+    common_names: commonNames,
+    matched_common_name: item.matched_common_name ?? item.matchedCommonName ?? null,
     image_source: imageUrl,
     _raw: item,
   };
@@ -90,6 +122,10 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number) {
     ...normalized,
     description: item.description ?? 'description pending',
     taxonomy_path: item.taxonomy_path ?? item.taxonomyPath ?? null,
+    image_license: item.image_license ?? item.imageLicense ?? null,
+    image_creator: item.image_creator ?? item.imageCreator ?? null,
+    image_rights_holder: item.image_rights_holder ?? item.imageRightsHolder ?? null,
+    image_references: item.image_references ?? item.imageReferences ?? null,
   };
 }
 
@@ -473,22 +509,34 @@ export async function fetchSpeciesEnvironment(
   };
 }
 
-const normalizeRelativeRankingEntry = (entry: any): RelativeRankingEntry => ({
-  taxonId: entry?.taxon_id ?? entry?.taxonId ?? entry?.id ?? null,
-  scientificName: entry?.scientific_name ?? entry?.scientificName ?? null,
-  commonName: entry?.common_name ?? entry?.commonName ?? null,
-  rank: entry?.rank ?? entry?.taxon_rank ?? null,
-  value: toNumber(entry?.value),
-  position: typeof entry?.position === 'number' ? entry.position : Number(entry?.position ?? 0),
-  percentile: toNumber(entry?.percentile),
-  count: typeof entry?.count === 'number' ? entry.count : Number(entry?.count ?? 0),
-  sampleCount:
-    typeof entry?.sample_count === 'number'
-      ? entry.sample_count
-      : typeof entry?.sampleCount === 'number'
-        ? entry.sampleCount
-        : entry?.count ?? null,
-});
+const normalizeRelativeRankingEntry = (entry: any): RelativeRankingEntry => {
+  const commonNames = toCommonNames(
+    entry?.common_names ?? entry?.commonName ?? entry?.common_name,
+  );
+  const commonName = toPrimaryCommonName(entry, commonNames);
+  const imageUrl = entry?.image_url ?? entry?.imageUrl ?? entry?.image_source ?? entry?.imageSource;
+  const imageSource =
+    typeof imageUrl === 'string'
+      ? { uri: imageUrl }
+      : imageUrl;
+  return {
+    taxonId: entry?.taxon_id ?? entry?.taxonId ?? entry?.id ?? null,
+    scientificName: entry?.scientific_name ?? entry?.scientificName ?? null,
+    commonName: commonName || null,
+    imageSource,
+    rank: entry?.rank ?? entry?.taxon_rank ?? null,
+    value: toNumber(entry?.value),
+    position: typeof entry?.position === 'number' ? entry.position : Number(entry?.position ?? 0),
+    percentile: toNumber(entry?.percentile),
+    count: typeof entry?.count === 'number' ? entry.count : Number(entry?.count ?? 0),
+    sampleCount:
+      typeof entry?.sample_count === 'number'
+        ? entry.sample_count
+        : typeof entry?.sampleCount === 'number'
+          ? entry.sampleCount
+          : entry?.count ?? null,
+  };
+};
 
 export type RelativeRankingParams = {
   taxonId: number | string;

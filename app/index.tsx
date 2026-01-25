@@ -23,7 +23,8 @@ const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
       : `Taxon #${rawId}`;
   const normalizeName = (value?: string) =>
     typeof value === 'string' && value.length > 0 ? value.replace(/_/g, ' ') : value;
-  const commonName = normalizeName(entry?.common_name) ?? scientificName;
+  const matchedCommonName = normalizeName(entry?.matched_common_name);
+  const commonName = matchedCommonName ?? normalizeName(entry?.common_name) ?? scientificName;
   const description =
     (typeof entry?.description === 'string' && entry.description.length > 0)
       ? entry.description
@@ -34,6 +35,10 @@ const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
     typeof entry?.image_source === 'string'
       ? { uri: entry.image_source }
       : entry?.image_source;
+  const commonNames =
+    Array.isArray(entry?.common_names)
+      ? entry.common_names.filter((name: unknown) => typeof name === 'string' && name.length > 0)
+      : undefined;
 
   return {
     taxonId: rawId,
@@ -41,6 +46,7 @@ const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
     scientificName: normalizeName(scientificName),
     description,
     imageSource,
+    commonNames,
   };
 };
 

@@ -12,9 +12,14 @@ const isPresent = (value: unknown): value is string =>
 type SpeciesBasics = {
   taxon_id?: number;
   common_name?: string;
+  common_names?: string[];
   scientific_name?: string;
   image_source?: ImageSourcePropType | string;
   image_url?: string;
+  image_license?: string;
+  image_creator?: string;
+  image_rights_holder?: string;
+  image_references?: string;
   description?: string;
   taxonomy_path?: string;
 };
@@ -47,6 +52,20 @@ const buildSpeciesPageData = (
 ): SpeciesPageData => {
   const fallback = mountainBallCactusData;
   const normalizeName = (value?: string) => (isPresent(value) ? value.replace(/_/g, ' ') : value);
+  const normalizeNames = (value?: string[] | string) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((name) => normalizeName(name))
+        .filter((name): name is string => Boolean(name));
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value
+        .split(',')
+        .map((name) => normalizeName(name.trim()))
+        .filter((name): name is string => Boolean(name));
+    }
+    return [];
+  };
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
@@ -54,16 +73,22 @@ const buildSpeciesPageData = (
     typeof payload.taxonomy_path === 'string' && payload.taxonomy_path.length
       ? payload.taxonomy_path
       : undefined;
+  const normalizedCommonNames = normalizeNames(payload.common_names ?? payload.common_name);
   return {
     ...fallback,
     taxonId: resolvedTaxonId,
     commonName: normalizeName(payload.common_name) ?? fallback.commonName,
+    commonNames: normalizedCommonNames.length > 0 ? normalizedCommonNames : fallback.commonNames,
     scientificName: normalizeName(payload.scientific_name) ?? fallback.scientificName,
     taxonomyPath: resolvedTaxonomyPath ?? fallback.taxonomyPath,
     overview: {
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
       imageSource: normalizeImageSource(payload) ?? fallback.overview.imageSource,
+      imageLicense: payload.image_license,
+      imageCreator: payload.image_creator,
+      imageRightsHolder: payload.image_rights_holder,
+      imageReferences: payload.image_references,
     },
   };
 };
