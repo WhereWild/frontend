@@ -55,7 +55,7 @@ export type SelectFieldViewProps = {
   fieldBackgroundPressed: string;
   fieldStyleOverrides: (ViewStyle | null)[];
   fieldPressableProps: PressableProps;
-  fieldPressableRef: React.RefObject<View | null>;
+  fieldPressableRef: React.RefObject<FocusableView | null>;
   fieldWrapperRef: React.RefObject<View | null>;
   onFieldWrapperLayout: () => void;
   dropdownPosition: { top: number; left: number; width: number; height: number } | null;
@@ -77,6 +77,8 @@ export type SelectFieldViewProps = {
   dropShadowStyle: ViewStyle;
   containerStyle?: StyleProp<ViewStyle>;
 };
+
+type FocusableView = View & { focus?: () => void };
 
 const primaryDropShadow = Shadows.dropShadow200.layers[0];
 const dropShadowStyle = primaryDropShadow
@@ -129,7 +131,7 @@ export const useSelectFieldController = ({
     : null;
   const inputRef = React.useRef<TextInput>(null);
   const scrollViewRef = React.useRef<ScrollView | null>(null);
-  const fieldPressableRef = React.useRef<View | null>(null);
+  const fieldPressableRef = React.useRef<FocusableView | null>(null);
   const fieldWrapperRef = React.useRef<View | null>(null);
   const [dropdownPosition, setDropdownPosition] = React.useState<
     { top: number; left: number; width: number; height: number } | null
@@ -198,6 +200,21 @@ export const useSelectFieldController = ({
     });
   }, []);
 
+  const focusFieldPressable = React.useCallback(() => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+    // Defer focus to the next frame so blur handling/unmount completes first;
+    // focusing synchronously here can be ignored or immediately overridden.
+    requestAnimationFrame(() => {
+      const node = fieldPressableRef.current;
+      if (!node || typeof node.focus !== 'function') {
+        return;
+      }
+      node.focus();
+    });
+  }, []);
+
   const handleInputBlur = React.useCallback(() => {
     if (blurTimeoutRef.current) {
       clearTimeout(blurTimeoutRef.current);
@@ -212,8 +229,10 @@ export const useSelectFieldController = ({
       }
       setIsFocused(false);
       closeSelect();
+      // Web only: return focus to the field after blur closes the dropdown (e.g., Tab key).
+      focusFieldPressable();
     }, BLUR_DELAY_MS);
-  }, [closeSelect]);
+  }, [closeSelect, focusFieldPressable]);
 
   const handleInputFocus = React.useCallback(() => {
     setIsFocused(true);
@@ -239,13 +258,9 @@ export const useSelectFieldController = ({
       onValueChange?.(option.value);
       closeSelect();
       // Web only: return keyboard focus to the field after closing the dropdown.
-      if (Platform.OS === 'web') {
-        requestAnimationFrame(() => {
-          (fieldPressableRef.current as unknown as HTMLElement | null)?.focus?.();
-        });
-      }
+      focusFieldPressable();
     },
-    [closeSelect, isDisabled, onValueChange],
+    [closeSelect, focusFieldPressable, isDisabled, onValueChange],
   );
 
   const handleKeyPress = React.useCallback(
