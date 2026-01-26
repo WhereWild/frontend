@@ -22,6 +22,9 @@ export const SelectFieldView = ({
   valueText,
   placeholderColor,
   valueColor,
+  fieldBackgroundDefault,
+  fieldBackgroundHover,
+  fieldBackgroundPressed,
   fieldStyleOverrides,
   fieldPressableProps,
   fieldPressableRef,
@@ -62,7 +65,18 @@ export const SelectFieldView = ({
         <Pressable
           ref={fieldPressableRef}
           {...fieldPressableProps}
-          style={[styles.field, ...fieldStyleOverrides]}
+          style=
+          {({ pressed, hovered }) => [
+            styles.field,
+            {
+              backgroundColor: pressed
+                ? fieldBackgroundPressed
+                : hovered
+                  ? fieldBackgroundHover
+                  : fieldBackgroundDefault,
+            },
+            ...fieldStyleOverrides
+          ]}
         >
           {isOpen && allowSearch ? (
             /* 
@@ -150,10 +164,10 @@ export const SelectFieldView = ({
             dropShadowStyle,
             dropdownPosition
               ? {
-                  top: dropdownPosition.top,
-                  left: dropdownPosition.left,
-                  width: dropdownPosition.width,
-                }
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+              }
               : null,
             ...optionsContainerStyleOverrides,
           ]}

@@ -50,6 +50,9 @@ export type SelectFieldViewProps = {
   valueText: string;
   placeholderColor: string;
   valueColor: string;
+  fieldBackgroundDefault: string;
+  fieldBackgroundHover: string;
+  fieldBackgroundPressed: string;
   fieldStyleOverrides: (ViewStyle | null)[];
   fieldPressableProps: PressableProps;
   fieldPressableRef: React.RefObject<View | null>;
@@ -290,11 +293,21 @@ export const useSelectFieldController = ({
     [closeSelect, handleSelectOption, highlightedIndex],
   );
 
-  const fieldBackground = isDisabled
+  const fieldBackgroundDefault = isDisabled
     ? palette.background.disabled.default
     : isError
       ? palette.background.danger.default
       : palette.background.default.secondary;
+  const fieldBackgroundHover = isDisabled
+    ? palette.background.disabled.default
+    : isError
+      ? palette.background.danger.hover
+      : palette.background.default.secondaryHover;
+  const fieldBackgroundPressed = isDisabled
+    ? palette.background.disabled.default
+    : isError
+      ? palette.background.danger.pressed
+      : palette.background.default.secondaryPressed;
 
   const labelColor = isDisabled
     ? palette.text.disabled.default
@@ -435,7 +448,10 @@ export const useSelectFieldController = ({
     valueText: showPlaceholder ? placeholder : selectedLabel,
     placeholderColor,
     valueColor,
-    fieldStyleOverrides: [webFieldOutlineStyle, webFocusRingStyle, { backgroundColor: fieldBackground }],
+    fieldBackgroundDefault,
+    fieldBackgroundHover,
+    fieldBackgroundPressed,
+    fieldStyleOverrides: [webFieldOutlineStyle, webFocusRingStyle],
     fieldPressableRef,
     fieldPressableProps: {
       ...fieldPressableBase,
