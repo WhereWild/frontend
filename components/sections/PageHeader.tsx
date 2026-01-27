@@ -238,6 +238,8 @@ export function PageHeader({
   }, [debouncedQuery]);
 
   const hasQuery = debouncedQuery.length > 0;
+  const searchStatusColor = palette.text.default.secondary;
+  const showResults = searchResults.length > 0;
 
   return (
     <View
