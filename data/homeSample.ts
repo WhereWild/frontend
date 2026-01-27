@@ -16,28 +16,28 @@ export const mockHomePageData: HomePageData = {
   recommendations: {
     items: [
       {
-        taxonId: 148405,
-        commonName: 'Spinystar',
-        scientificName: 'Escobaria vivipara',
+        taxonId: 6378250,
+        commonName: 'Common Spinystar',
+        scientificName: 'Escobaria vivipara var. vivipara',
         description: 'Flowering now',
         imageSource: escobariaViviparaImage,
       },
       {
-        taxonId: 5305,
+        taxonId: 2480446,
         commonName: 'Bald Eagle',
         scientificName: 'Haliaeetus leucocephalus',
         description: 'Migrating nearby',
         imageSource: haliaeetusLeucocephalusImage,
       },
       {
-        taxonId: 26704,
+        taxonId: 2429791,
         commonName: 'Great Basin Spadefoot',
         scientificName: 'Spea intermontana',
         description: 'Common after rain',
         imageSource: speaIntermontanaImage,
       },
       {
-        taxonId: 221964,
+        taxonId: 1933998,
         commonName: 'Colorado Hairstreak',
         scientificName: 'Hypaurotis crysalus',
         description: 'Frequent in your area',
