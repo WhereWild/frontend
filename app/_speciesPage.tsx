@@ -5,9 +5,11 @@ import {
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
+import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
+import { fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
@@ -19,14 +21,60 @@ type SpeciesSampleScreenProps = {
 };
 
 export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
-  const { commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
+  const { taxonId, commonName, scientificName, overview, dataSections, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  // Placeholder for future search/filter functionality. Currently unused in this demo screen.
-  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
+  const [occurrenceLoading, setOccurrenceLoading] = React.useState(false);
+  const [occurrenceError, setOccurrenceError] = React.useState<string | null>(null);
+  const shouldRenderOccurrenceMap = Boolean(taxonId);
+  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<Array<number | string>>([]);
+  const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
+  const locationGid = selectedLocation?.gid ?? null;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!taxonId) {
+      setOccurrences([]);
+      setOccurrenceError('No taxon ID supplied.');
+      return () => {
+        cancelled = true;
+      };
+    }
+    setOccurrenceLoading(true);
+    setOccurrenceError(null);
+    (async () => {
+      try {
+        const rows = await fetchSpeciesOccurrences(taxonId, {
+          location: locationGid ?? undefined,
+        });
+        if (!cancelled) {
+          setOccurrences(rows);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load observations.';
+          setOccurrenceError(message);
+          setOccurrences([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setOccurrenceLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [taxonId, locationGid]);
+
+  React.useEffect(() => {
+    setHighlightedCatalogs([]);
+  }, [locationGid]);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -40,9 +88,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
       >
-        <PageHeader
-          onFilterPress={() => Alert.alert('Filter coming soon')}
-        />
+        <PageHeader />
 
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <SpeciesPageHeader
@@ -76,6 +122,20 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             </View>
           </View>
           <NearbySpeciesCarousel species={nearbySpecies} />
+
+          {shouldRenderOccurrenceMap && (
+            <View style={styles.centeredSection}>
+              <View style={[styles.sectionContent,{ maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
+                <ThemedText variant="heading">Observation Map</ThemedText>
+                <SpeciesOccurrenceMap
+                  occurrences={occurrences}
+                  loading={occurrenceLoading}
+                  error={occurrenceError}
+                  highlightedCatalogs={highlightedCatalogs}
+                />
+              </View>
+            </View>
+          )}
 
           <View style={styles.heatMapSection}>
             <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
