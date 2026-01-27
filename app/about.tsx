@@ -210,13 +210,7 @@ export default function About() {
         <title>WhereWild | About</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader
-          searchValue={headerSearchQuery}
-          onSearchChange={setHeaderSearchQuery}
-          onSubmitSearch={(value: string) =>
-            setLastSearchEvent(`Header search submitted with "${value}"`)
-          }
-        />
+        <PageHeader/>
 
         <ScrollView contentContainerStyle={styles.container}>
           <View>
@@ -255,12 +249,22 @@ export default function About() {
           </View>
 
           <View>
-            <ThemedText variant="heading">Species Card</ThemedText>
+            <ThemedText variant="heading">Species Cards</ThemedText>
+            <ThemedText variant="bodyStrong">Default</ThemedText>
             <SpeciesCard
+              taxonId={12345}
               commonName="Common Name"
               scientificName="Binomial nomenclature"
               description="Description"
               imageSource={SPECIES_CARD_IMAGE}
+            />
+            <ThemedText variant="bodyStrong">Mini (search results)</ThemedText>
+            <SpeciesCard
+              taxonId={12345}
+              commonName="Common Name"
+              scientificName="Binomial nomenclature"
+              imageSource={SPECIES_CARD_IMAGE}
+              size="compact"
             />
           </View>
 
