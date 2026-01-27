@@ -17,20 +17,23 @@ import { useRouter } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
 import { toKebabCase } from '@/utils/string';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
+export type SpeciesCardSize = 'default' | 'compact';
 
 export type SpeciesCardProps = {
   taxonId: number;
   commonName: string;
   scientificName: string;
-  description: string;
+  description?: string;
   imageSource?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   onPress?: () => void;
   variant?: SpeciesCardVariant;
+  size?: SpeciesCardSize;
 };
 
-const IMAGE_SIZE = 128;
+const DEFAULT_IMAGE_SIZE = 128;
+const COMPACT_IMAGE_SIZE = 56;
 const MAX_WIDTH = 440;
 
 /**
@@ -73,6 +76,7 @@ export function SpeciesCard({
   testID,
   onPress,
   variant = 'secondary',
+  size = 'default',
 }: SpeciesCardProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -117,6 +121,7 @@ export function SpeciesCard({
       testID={testID}
       style={(state) => [
         styles.container,
+        size === 'compact' && styles.containerCompact,
         {
           backgroundColor: backgroundForState(state),
           borderRadius: Size.radius['200'],
@@ -127,6 +132,7 @@ export function SpeciesCard({
       <View
         style={[
           styles.imageWrapper,
+          size === 'compact' && styles.imageWrapperCompact,
           !imageSource && { backgroundColor: placeholderBackground },
         ]}
       >
@@ -148,7 +154,10 @@ export function SpeciesCard({
         )}
       </View>
 
-      <View style={styles.textSection}>
+      <View style={[
+        styles.textSection,
+        size === 'compact' && styles.textSectionCompact,
+      ]}>
         <View>
           <ThemedText variant="subheading" numberOfLines={1} accessibilityRole="header">
             {commonName}
@@ -158,9 +167,16 @@ export function SpeciesCard({
           </ThemedText>
         </View>
 
-        <ThemedText variant="body" style={styles.description} numberOfLines={3}>
-          {description}
-        </ThemedText>
+        {size === 'default' && (
+          <ThemedText 
+            variant="body" 
+            style={styles.description} 
+            numberOfLines={3} 
+            testID='species-card-description'
+          >
+            {description}
+          </ThemedText>
+        )}
       </View>
     </Pressable>
   );
@@ -175,13 +191,24 @@ const styles = StyleSheet.create({
     maxWidth: MAX_WIDTH,
     width: '100%',
   },
+  containerCompact: {
+    alignItems: 'center',
+    padding: Size.space['300'],
+    gap: Size.space['300'],
+    maxWidth: MAX_WIDTH,
+  },
   imageWrapper: {
-    width: IMAGE_SIZE,
-    height: IMAGE_SIZE,
+    width: DEFAULT_IMAGE_SIZE,
+    height: DEFAULT_IMAGE_SIZE,
     borderRadius: Size.radius['200'],
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  imageWrapperCompact: {
+      width: COMPACT_IMAGE_SIZE,
+      height: COMPACT_IMAGE_SIZE,
+      flexShrink: 0,
   },
   image: {
     width: '100%',
@@ -196,9 +223,14 @@ const styles = StyleSheet.create({
   },
   textSection: {
     flex: 1,
-    minHeight: IMAGE_SIZE,
+    minHeight: DEFAULT_IMAGE_SIZE,
     justifyContent: 'space-between',
   },
+  textSectionCompact: {
+      minHeight: COMPACT_IMAGE_SIZE,
+      justifyContent: 'center',
+      gap: Size.space['100'],
+    },
   description: {
     marginTop: Size.space['200'],
   },

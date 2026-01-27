@@ -28,10 +28,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
         <title>WhereWild | Home</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+        <PageHeader/>
 
         <ScrollView
           contentContainerStyle={[styles.content, { paddingHorizontal: responsive.marginHorizontal }]}
