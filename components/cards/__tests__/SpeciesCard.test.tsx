@@ -224,4 +224,25 @@ describe('SpeciesCard', () => {
     );
     consoleErrorSpy.mockRestore();
   });
+
+  it('does not display a description when the compact size is used', () => {
+    render(
+      <SpeciesCard
+        {...baseProps}
+        size='compact'
+        testID="species-card"
+      />,
+    );
+
+    expect(screen.queryByTestId('species-card-description')).toBeNull();
+
+    render(
+      <SpeciesCard
+        {...baseProps}
+        testID="species-card"
+      />,
+    );
+    
+    expect(screen.getByTestId('species-card-description')).toBeTruthy();
+    });
 });
