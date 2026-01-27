@@ -41,9 +41,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
       >
         <PageHeader
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSubmitSearch={setSearchQuery}
           onFilterPress={() => Alert.alert('Filter coming soon')}
         />
 
