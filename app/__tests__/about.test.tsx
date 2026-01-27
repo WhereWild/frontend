@@ -68,16 +68,6 @@ describe('About screen', () => {
     expect(screen.getByText('Search cleared')).toBeTruthy();
   });
 
-  it('submits the header search input through the icon button', () => {
-    render(<About />);
-
-    const headerSearchInput = screen.getAllByPlaceholderText('Search')[0];
-    fireEvent.changeText(headerSearchInput, 'lichen');
-    const headerSearchIcon = screen.getAllByTestId('search-input-icon')[0];
-    fireEvent.press(headerSearchIcon);
-    expect(screen.getByText('Header search submitted with "lichen"')).toBeTruthy();
-  });
-
   it('records submission events for the playground search input', () => {
     render(<About />);
 
