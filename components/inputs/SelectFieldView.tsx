@@ -201,10 +201,14 @@ export const SelectFieldView = ({
                               ? optionFocusedBackgroundColor
                               : 'transparent',
                       ...(Platform.OS === 'web'
-                        ? {
-                          outlineStyle: option.isHighlighted ? 'auto' : 'none',
-                          outlineWidth: Size.stroke.focusRing,
-                        }
+                        ? (
+                          {
+                            // Cast needed: RN types don't include outlineStyle='auto',
+                            // but react-native-web forwards it to native browser focus ring.
+                            outlineStyle: option.isHighlighted ? 'auto' : 'none',
+                            outlineWidth: Size.stroke.focusRing,
+                          } as any
+                        )
                         : null),
                     },
                   ]}
