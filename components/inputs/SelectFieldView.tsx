@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { ThemedText, IconButton } from '@/components';
+import { IconButton } from '@/components/buttons/IconButton';
+import { ThemedText } from '@/components/text/ThemedText';
 import { Portal } from '@/components/Portal';
 import { Size } from '@/constants/theme';
 import type { SelectFieldViewProps } from './useSelectFieldController';
