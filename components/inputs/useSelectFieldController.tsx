@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, ScrollView, TextInput, View, type LayoutChangeEvent, type PressableProps, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import { Keyboard, Platform, ScrollView, TextInput, View, type LayoutChangeEvent, type PressableProps, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Colors, Shadows, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
@@ -13,6 +13,8 @@ export type SelectFieldOptionViewModel = {
   onPress: () => void;
   onPressIn: () => void;
   onPressOut: () => void;
+  onTouchStart: () => void;
+  onTouchEnd: () => void;
   onLayout: (event: LayoutChangeEvent) => void;
   accessibilityLabel: string;
   pressableProps?: Record<string, unknown> | null;
@@ -203,6 +205,14 @@ export const useSelectFieldController = ({
   }, []);
 
   const handleInputBlur = React.useCallback(() => {
+    if (Platform.OS !== 'web') {
+      // Native platforms dispatch blur when the virtual keyboard is dismissed,
+      // including when the user taps an option in the dropdown, often before
+      // the option press handlers complete. This early return is an intentional
+      // divergence from the web behavior: we keep the dropdown open on native
+      // and rely on option selection or backdrop interactions to manage dismissal.
+      return;
+    }
     if (blurTimeoutRef.current) {
       clearTimeout(blurTimeoutRef.current);
     }
@@ -243,6 +253,9 @@ export const useSelectFieldController = ({
         blurTimeoutRef.current = null;
       }
       onValueChange?.(option.value);
+      if (Platform.OS !== 'web') {
+        Keyboard.dismiss();
+      }
       closeSelect();
       // Web only: return keyboard focus to the field after closing the dropdown.
       focusFieldPressable();
@@ -389,6 +402,17 @@ export const useSelectFieldController = ({
     });
   }, [highlightedIndex]);
 
+  // On iOS, onPressIn/onPressOut may fire after blur completes, causing the dropdown
+  // to close before selection registers. We use onTouchStart/onTouchEnd as a backup
+  // since they fire synchronously before blur on native platforms.
+  const markPressing = React.useCallback(() => {
+    isOptionPressingRef.current = true;
+  }, []);
+
+  const unmarkPressing = React.useCallback(() => {
+    isOptionPressingRef.current = false;
+  }, []);
+
   const optionsViewModel: SelectFieldOptionViewModel[] = visibleOptions.map((option, index) => {
     const isSelected = option.value === resolvedValue;
     const isHighlighted = highlightedIndex !== null && index === highlightedIndex;
@@ -398,12 +422,10 @@ export const useSelectFieldController = ({
       isSelected,
       isHighlighted,
       onPress: () => handleSelectOption(option),
-      onPressIn: () => {
-        isOptionPressingRef.current = true;
-      },
-      onPressOut: () => {
-        isOptionPressingRef.current = false;
-      },
+      onPressIn: markPressing,
+      onPressOut: unmarkPressing,
+      onTouchStart: markPressing,
+      onTouchEnd: unmarkPressing,
       onLayout: (event) => {
         optionLayoutsRef.current[index] = {
           y: event.nativeEvent.layout.y,
@@ -512,8 +534,15 @@ export const useSelectFieldController = ({
         accessibilityLabel: inputAccessibilityLabel,
         accessibilityHint: inputAccessibilityHint,
         value: '',
-        autoFocus: true,
+        // Only auto-focus this hidden input on web. On native platforms, autoFocus would still
+        // cause the soft keyboard to appear even with showSoftInputOnFocus=false, which is not
+        // desirable for list-only selects that should not summon the on-screen keyboard.
+        autoFocus: Platform.OS === 'web',
         editable: true,
+        // Prevent on-screen keyboard from appearing on iOS/Android for list-only selects.
+        // This keeps the list-only variant from behaving like a text input while still
+        // allowing hardware keyboard navigation through this hidden input.
+        showSoftInputOnFocus: false,
         style: { position: 'absolute', opacity: 0, height: 1, width: 1 } as any,
         onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
         onBlur: handleInputBlur,

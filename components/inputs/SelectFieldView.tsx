@@ -177,7 +177,12 @@ export const SelectFieldView = ({
             ...optionsContainerStyleOverrides,
           ]}
         >
-          <ScrollView ref={scrollViewRef} style={styles.optionsScroll}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.optionsScroll}
+            keyboardShouldPersistTaps="always"
+            keyboardDismissMode="none"
+          >
             {options.map((option) => {
               return (
                 <Pressable
@@ -187,6 +192,8 @@ export const SelectFieldView = ({
                   onPress={option.onPress}
                   onPressIn={option.onPressIn}
                   onPressOut={option.onPressOut}
+                  onTouchStart={option.onTouchStart}
+                  onTouchEnd={option.onTouchEnd}
                   onLayout={option.onLayout}
                   style={({ pressed, hovered }) => [
                     styles.optionRow,
