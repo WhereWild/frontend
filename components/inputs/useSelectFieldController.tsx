@@ -73,6 +73,11 @@ export type SelectFieldViewProps = {
   options: SelectFieldOptionViewModel[];
   optionsContainerStyleOverrides: (ViewStyle | null)[];
   optionActiveBackgroundColor: string;
+  optionFocusedBackgroundColor: string;
+  optionHoverBackgroundColor: string;
+  optionPressedBackgroundColor: string;
+  optionActiveTextColor: string;
+  optionDefaultTextColor: string;
   scrollViewRef: React.RefObject<ScrollView | null>;
   dropShadowStyle: ViewStyle;
   containerStyle?: StyleProp<ViewStyle>;
@@ -547,7 +552,12 @@ export const useSelectFieldController = ({
         borderColor: palette.border.default.tertiary,
       },
     ],
-    optionActiveBackgroundColor: palette.background.default.secondary,
+    optionActiveBackgroundColor: palette.background.neutral.tertiary,
+    optionFocusedBackgroundColor: 'transparent',
+    optionHoverBackgroundColor: palette.background.default.tertiaryHover,
+    optionPressedBackgroundColor: palette.background.default.tertiaryPressed,
+    optionActiveTextColor: palette.text.neutral.onNeutralTertiary,
+    optionDefaultTextColor: palette.text.default.default,
     scrollViewRef,
     dropShadowStyle,
     containerStyle: style,

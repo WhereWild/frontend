@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText, IconButton } from '@/components';
 import { Portal } from '@/components/Portal';
 import { Size } from '@/constants/theme';
@@ -38,6 +38,11 @@ export const SelectFieldView = ({
   options,
   optionsContainerStyleOverrides,
   optionActiveBackgroundColor,
+  optionFocusedBackgroundColor,
+  optionHoverBackgroundColor,
+  optionPressedBackgroundColor,
+  optionActiveTextColor,
+  optionDefaultTextColor,
   scrollViewRef,
   dropShadowStyle,
   containerStyle,
@@ -174,10 +179,6 @@ export const SelectFieldView = ({
         >
           <ScrollView ref={scrollViewRef} style={styles.optionsScroll}>
             {options.map((option) => {
-              const backgroundColor = option.isHighlighted || option.isSelected
-                ? optionActiveBackgroundColor
-                : 'transparent';
-
               return (
                 <Pressable
                   key={option.key}
@@ -187,10 +188,38 @@ export const SelectFieldView = ({
                   onPressIn={option.onPressIn}
                   onPressOut={option.onPressOut}
                   onLayout={option.onLayout}
-                  style={[styles.optionRow, { backgroundColor }]}
+                  style={({ pressed, hovered }) => [
+                    styles.optionRow,
+                    {
+                      backgroundColor: option.isSelected
+                        ? optionActiveBackgroundColor
+                        : pressed
+                          ? optionPressedBackgroundColor
+                          : hovered
+                            ? optionHoverBackgroundColor
+                            : option.isHighlighted
+                              ? optionFocusedBackgroundColor
+                              : 'transparent',
+                      ...(Platform.OS === 'web'
+                        ? {
+                          outlineStyle: option.isHighlighted ? 'auto' : 'none',
+                          outlineWidth: Size.stroke.focusRing,
+                        }
+                        : null),
+                    },
+                  ]}
                   {...(option.pressableProps ?? {})}
                 >
-                  <ThemedText variant="singleLineBody">{option.label}</ThemedText>
+                  <ThemedText
+                    variant="singleLineBody"
+                    style={{
+                      color: option.isSelected
+                        ? optionActiveTextColor
+                        : optionDefaultTextColor,
+                    }}
+                  >
+                    {option.label}
+                  </ThemedText>
                 </Pressable>
               );
             })}
@@ -251,10 +280,13 @@ const styles = StyleSheet.create({
     maxHeight: 240,
   },
   optionsScroll: {
-    paddingVertical: Size.space['100'],
+    paddingTop: Size.space['200'],
+    paddingBottom: Size.space['150'], // 200 - 50 from marginBottom = 150
+    paddingHorizontal: Size.space['200'],
   },
   optionRow: {
-    paddingVertical: Size.space['200'],
-    paddingHorizontal: Size.space['300'],
+    padding: Size.space['200'],
+    borderRadius: Size.radius['200'],
+    marginBottom: Size.space['050'],
   },
 });
