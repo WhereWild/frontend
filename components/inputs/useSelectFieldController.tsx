@@ -3,25 +3,7 @@ import { Platform, ScrollView, TextInput, View, type LayoutChangeEvent, type Pre
 import { Colors, Shadows, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
-
-export type SelectOption = {
-  label: string;
-  value: string;
-};
-
-export type SelectFieldProps = {
-  label?: string;
-  description?: string;
-  errorMessage?: string;
-  placeholder?: string;
-  disabled?: boolean;
-  allowSearch?: boolean;
-  options?: SelectOption[];
-  value: string;
-  onValueChange?: (value: string) => void;
-  onOpenChange?: (open: boolean) => void;
-  style?: StyleProp<ViewStyle>;
-};
+import { SelectFieldProps, SelectOption } from "./SelectField";
 
 export type SelectFieldOptionViewModel = {
   key: string;
@@ -88,14 +70,14 @@ type FocusableView = View & { focus?: () => void };
 const primaryDropShadow = Shadows.dropShadow200.layers[0];
 const dropShadowStyle = primaryDropShadow
   ? {
-      shadowColor: primaryDropShadow.color,
-      shadowOffset: {
-        width: primaryDropShadow.offsetX,
-        height: primaryDropShadow.offsetY,
-      },
-      shadowOpacity: primaryDropShadow.opacity,
-      shadowRadius: primaryDropShadow.blurRadius,
-    }
+    shadowColor: primaryDropShadow.color,
+    shadowOffset: {
+      width: primaryDropShadow.offsetX,
+      height: primaryDropShadow.offsetY,
+    },
+    shadowOpacity: primaryDropShadow.opacity,
+    shadowRadius: primaryDropShadow.blurRadius,
+  }
   : {};
 
 /** Height of the field for positioning calculations. */
@@ -361,21 +343,21 @@ export const useSelectFieldController = ({
   const createKeyDownHandler = (allowOpenOnEnterSpace: boolean) =>
     Platform.OS === 'web'
       ? {
-          onKeyDown: (event: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => {
-            const { key } = event;
-            if (allowOpenOnEnterSpace && !isOpen && (key === 'Enter' || key === ' ')) {
-              event.preventDefault?.();
-              event.stopPropagation?.();
-              openSelect();
-              return;
-            }
-            if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter' || key === 'Escape') {
-              event.preventDefault?.();
-              event.stopPropagation?.();
-            }
-            handleKeyPress(key, visibleOptions);
-          },
-        }
+        onKeyDown: (event: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => {
+          const { key } = event;
+          if (allowOpenOnEnterSpace && !isOpen && (key === 'Enter' || key === ' ')) {
+            event.preventDefault?.();
+            event.stopPropagation?.();
+            openSelect();
+            return;
+          }
+          if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter' || key === 'Escape') {
+            event.preventDefault?.();
+            event.stopPropagation?.();
+          }
+          handleKeyPress(key, visibleOptions);
+        },
+      }
       : null;
 
   const webKeyDownHandlers = createKeyDownHandler(true);
@@ -477,11 +459,11 @@ export const useSelectFieldController = ({
       ...fieldPressableBase,
       onPress: isOpen
         ? () => {
-            setIsFocused(true);
-            if (allowSearch && !isDisabled) {
-              inputRef.current?.focus();
-            }
+          setIsFocused(true);
+          if (allowSearch && !isDisabled) {
+            inputRef.current?.focus();
           }
+        }
         : toggleSelect,
       onFocus: () => setIsFocused(true),
       onBlur: () => setIsFocused(false),
@@ -493,50 +475,50 @@ export const useSelectFieldController = ({
     inputRef,
     inputProps: allowSearch
       ? {
-          accessibilityLabel: inputAccessibilityLabel,
-          accessibilityHint: inputAccessibilityHint,
-          value: query,
-          onChangeText: handleTextChange,
-          placeholder,
-          placeholderTextColor: isDisabled
-            ? palette.text.disabled.onDisabled
-            : isError
-              ? palette.text.danger.onDangerSecondary
-              : palette.text.disabled.default,
-          autoFocus: true,
-          editable: !isDisabled,
-          autoCorrect: false,
-          autoCapitalize: 'none',
-          onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
-          style: [
-            webInputOutlineStyle,
-            Typography[mode].singleLineBody,
-            {
-              color: isDisabled
-                ? palette.text.disabled.onDisabled
-                : isError
-                  ? palette.text.danger.onDanger
-                  : isQueryEmpty
-                    ? palette.text.disabled.default
-                    : palette.text.default.default,
-            },
-          ],
-          onFocus: handleInputFocus,
-          onBlur: handleInputBlur,
-          ...webInputKeyDownHandler,
-        }
+        accessibilityLabel: inputAccessibilityLabel,
+        accessibilityHint: inputAccessibilityHint,
+        value: query,
+        onChangeText: handleTextChange,
+        placeholder,
+        placeholderTextColor: isDisabled
+          ? palette.text.disabled.onDisabled
+          : isError
+            ? palette.text.danger.onDangerSecondary
+            : palette.text.disabled.default,
+        autoFocus: true,
+        editable: !isDisabled,
+        autoCorrect: false,
+        autoCapitalize: 'none',
+        onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
+        style: [
+          webInputOutlineStyle,
+          Typography[mode].singleLineBody,
+          {
+            color: isDisabled
+              ? palette.text.disabled.onDisabled
+              : isError
+                ? palette.text.danger.onDanger
+                : isQueryEmpty
+                  ? palette.text.disabled.default
+                  : palette.text.default.default,
+          },
+        ],
+        onFocus: handleInputFocus,
+        onBlur: handleInputBlur,
+        ...webInputKeyDownHandler,
+      }
       : {
-          // Hidden input for keyboard capture in non-searchable mode
-          accessibilityLabel: inputAccessibilityLabel,
-          accessibilityHint: inputAccessibilityHint,
-          value: '',
-          autoFocus: true,
-          editable: true,
-          style: { position: 'absolute', opacity: 0, height: 1, width: 1 } as any,
-          onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
-          onBlur: handleInputBlur,
-          ...webInputKeyDownHandler,
-        },
+        // Hidden input for keyboard capture in non-searchable mode
+        accessibilityLabel: inputAccessibilityLabel,
+        accessibilityHint: inputAccessibilityHint,
+        value: '',
+        autoFocus: true,
+        editable: true,
+        style: { position: 'absolute', opacity: 0, height: 1, width: 1 } as any,
+        onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
+        onBlur: handleInputBlur,
+        ...webInputKeyDownHandler,
+      },
     iconButtonProps: {
       accessibilityLabel: isOpen ? 'Close select' : 'Open select',
       accessibilityRole: 'none',

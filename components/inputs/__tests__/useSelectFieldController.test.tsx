@@ -2,7 +2,8 @@ import React from 'react';
 import { act, render } from '@testing-library/react-native';
 import { Platform, type LayoutChangeEvent } from 'react-native';
 import { Size } from '@/constants/theme';
-import type { SelectFieldProps, SelectFieldViewProps } from '../useSelectFieldController';
+import type { SelectFieldProps  } from '../SelectField';
+import type { SelectFieldViewProps } from '../useSelectFieldController';
 import { useSelectFieldController } from '../useSelectFieldController';
 
 const OPTIONS = [
