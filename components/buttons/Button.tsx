@@ -125,13 +125,13 @@ const renderIcon = (icon: ButtonIcon | undefined, color: string, size: IconSize)
 function computeSizeStyles(size: ButtonSize) {
   if (size === 'small') {
     return {
-      paddingHorizontal: Size.space['200'], // 8px
-      paddingVertical: Size.space['200'], // 8px
+      paddingHorizontal: Size.space['200'],
+      paddingVertical: Size.space['150'],
     };
   }
   return {
-    paddingHorizontal: Size.space['300'], // 12px
-    paddingVertical: Size.space['300'], // 12px
+    paddingHorizontal: Size.space['300'],
+    paddingVertical: Size.space['250'],
   };
 }
 

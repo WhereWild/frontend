@@ -81,12 +81,12 @@ function computeSizeStyles(size: ButtonDangerSize) {
   if (size === 'small') {
     return {
       paddingHorizontal: Size.space['200'],
-      paddingVertical: Size.space['200'],
+      paddingVertical: Size.space['150'],
     };
   }
   return {
     paddingHorizontal: Size.space['300'],
-    paddingVertical: Size.space['300'],
+    paddingVertical: Size.space['250'],
   };
 }
 
