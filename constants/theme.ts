@@ -190,14 +190,15 @@ const parseFontShorthand = (
   };
 };
 
+const isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
 // Expose targeted hooks for tests without leaking implementation details at runtime
-export const __themeTestHooks =
-  process.env.NODE_ENV === 'test'
-    ? {
-        parseFontShorthand,
-        getExpoFontName,
-      }
-    : undefined;
+export const __themeTestHooks = isTestEnv
+  ? {
+      parseFontShorthand,
+      getExpoFontName,
+    }
+  : undefined;
 
 export const Responsive = getResponsive();
 

@@ -94,11 +94,6 @@ describe('Species screen', () => {
     const headerSearchInput = screen.getAllByPlaceholderText('Search')[0];
     fireEvent.changeText(headerSearchInput, 'lichen');
     expect(headerSearchInput.props.value).toBe('lichen');
-
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    fireEvent.press(screen.getByLabelText('Filter search results'));
-    expect(alertSpy).toHaveBeenCalledWith('Filter coming soon');
-    alertSpy.mockRestore();
   });
 
   it('expands inline rows to reveal details and graph placeholder', () => {

@@ -32,8 +32,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const [occurrenceLoading, setOccurrenceLoading] = React.useState(false);
   const [occurrenceError, setOccurrenceError] = React.useState<string | null>(null);
   const shouldRenderOccurrenceMap = Boolean(taxonId);
-  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<Array<number | string>>([]);
-  const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
+  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [selectedLocation] = React.useState<LocationSearchResult | null>(null);
   const locationGid = selectedLocation?.gid ?? null;
 
   React.useEffect(() => {

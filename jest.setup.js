@@ -40,6 +40,14 @@ jest.mock('expo-router', () => ({
   Link: 'Link',
 }));
 
+// Mock react-native-webview to avoid native module access in Jest.
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  return {
+    WebView: (props) => React.createElement('WebView', props),
+  };
+});
+
 // Mock useColorScheme for consistent test results. Individual suites can 
 // unmock '@/hooks/useColorScheme' when they need the real implementation.
 // Default to 'dark' mode for tests as it is the app default.
