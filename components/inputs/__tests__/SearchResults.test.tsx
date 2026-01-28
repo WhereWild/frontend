@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 import React from 'react';
 import { SearchResults } from '../SearchResults';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -193,6 +193,3 @@ describe('SearchResults', () => {
     expect(screen.getByText('Species Two')).toBeTruthy();
   });
 });
-
-// Import after describe block to avoid issues
-import { fireEvent } from '@testing-library/react-native';
