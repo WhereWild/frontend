@@ -164,10 +164,12 @@ export const SelectFieldView = ({
           />
         )}
         <View
-          pointerEvents="auto"
           style={[
             styles.optionsContainer,
             dropShadowStyle,
+            {
+              pointerEvents: 'auto',
+            },
             dropdownPosition
               ? {
                 top: dropdownPosition.top,

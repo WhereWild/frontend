@@ -31,8 +31,7 @@ export function Portal({ visible, onDismiss, accessibilityLabel, accessibilityHi
       onRequestClose={onDismiss}
     >
       <View
-        style={styles.container}
-        pointerEvents="box-none"
+        style={[styles.container, { pointerEvents: 'box-none' }]}
         accessibilityRole="none"
         importantForAccessibility="no"
       >
