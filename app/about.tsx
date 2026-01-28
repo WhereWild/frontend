@@ -18,11 +18,11 @@ import {
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
+import type { ButtonProps } from '@/components';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
-import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -40,8 +40,8 @@ type ButtonRow = {
 type ButtonEntry = {
   label: string;
   size?: 'small' | 'medium';
-  iconStart?: ReactNode;
-  iconEnd?: ReactNode;
+  iconStart?: ButtonProps['iconStart'];
+  iconEnd?: ButtonProps['iconEnd'];
   disabled?: boolean;
   variant?: ButtonVariant;
 };
@@ -84,7 +84,6 @@ export default function About() {
   const palette = Colors[mode];
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
-  const [headerSearchQuery, setHeaderSearchQuery] = useState('');
   const speciesSample = mountainBallCactusData;
   const buttonRows: ButtonRow[] = [
     {
@@ -252,7 +251,7 @@ export default function About() {
             <ThemedText variant="heading">Species Cards</ThemedText>
             <ThemedText variant="bodyStrong">Default</ThemedText>
             <SpeciesCard
-              taxonId={12345}
+              taxonId={speciesSample.taxonId}
               commonName="Common Name"
               scientificName="Binomial nomenclature"
               description="Description"
