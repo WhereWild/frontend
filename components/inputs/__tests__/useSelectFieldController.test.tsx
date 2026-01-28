@@ -1,6 +1,12 @@
 import React from 'react';
 import { act, render } from '@testing-library/react-native';
-import { Keyboard, Platform, type LayoutChangeEvent } from 'react-native';
+import {
+  Keyboard,
+  Platform,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { Size } from '@/constants/theme';
 import type { SelectFieldProps } from '../SelectField';
 import type { SelectFieldViewProps } from '../useSelectFieldController';
@@ -69,6 +75,17 @@ const createLayoutEvent = (y = 12, height = 24): LayoutChangeEvent =>
     },
   },
 } as LayoutChangeEvent);
+
+const createScrollEvent = (y = 0): NativeSyntheticEvent<NativeScrollEvent> =>
+  ({
+    nativeEvent: {
+      contentOffset: { x: 0, y },
+      contentInset: { top: 0, right: 0, bottom: 0, left: 0 },
+      contentSize: { width: 0, height: 0 },
+      layoutMeasurement: { width: 0, height: 0 },
+      zoomScale: 1,
+    },
+  } as NativeSyntheticEvent<NativeScrollEvent>);
 
 const createPressEvent = () => undefined as unknown as Parameters<
   NonNullable<SelectFieldViewProps['fieldPressableProps']['onPress']>
@@ -160,16 +177,22 @@ describe('useSelectFieldController', () => {
     jest.useRealTimers();
   });
 
-  it('scrolls to the highlighted option when layout is known', () => {
+  it('scrolls down when the highlighted option is below the visible area', () => {
     const controllerRef = React.createRef<SelectFieldViewProps>();
     render(<ControllerHarness ref={controllerRef} />);
 
+    const scrollTo = jest.fn();
+    const optionTop = 140;
+    const optionHeight = 20;
+    const viewportHeight = 100;
     act(() => {
       if (controllerRef.current) {
         controllerRef.current.scrollViewRef.current = {
-          scrollTo: jest.fn(),
+          scrollTo,
         } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
-        controllerRef.current.options[0].onLayout(createLayoutEvent(48, 20));
+        controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+        controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(0));
+        controllerRef.current.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
       }
     });
 
@@ -179,7 +202,38 @@ describe('useSelectFieldController', () => {
       } as never);
     });
 
-    expect(controllerRef.current?.scrollViewRef.current?.scrollTo).toHaveBeenCalled();
+    const expectedY = Math.max(0, optionTop + optionHeight - viewportHeight + Size.space['400']);
+    expect(scrollTo).toHaveBeenCalledWith({ y: expectedY, animated: true });
+  });
+
+  it('scrolls down when the highlighted option hits the buffer boundary', () => {
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(<ControllerHarness ref={controllerRef} />);
+
+    const scrollTo = jest.fn();
+    const viewportHeight = 100;
+    const optionHeight = 20;
+    const optionTop = viewportHeight - Size.space['600'];
+
+    act(() => {
+      if (controllerRef.current) {
+        controllerRef.current.scrollViewRef.current = {
+          scrollTo,
+        } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
+        controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+        controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(0));
+        controllerRef.current.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
+      }
+    });
+
+    act(() => {
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
+    });
+
+    const expectedY = Math.max(0, optionTop + optionHeight - viewportHeight + Size.space['400']);
+    expect(scrollTo).toHaveBeenCalledWith({ y: expectedY, animated: true });
   });
 
   it('selects the second option after two ArrowDown presses', async () => {
@@ -474,26 +528,59 @@ describe('useSelectFieldController', () => {
     expect(focusSpy).toHaveBeenCalled();
   });
 
-  it('scrolls to the highlighted option when layout is stored', () => {
+  it('scrolls up when the highlighted option is above the visible area', () => {
     const controllerRef = React.createRef<SelectFieldViewProps>();
     render(<ControllerHarness ref={controllerRef} />);
 
     const scrollTo = jest.fn();
+    const optionTop = 40;
+    const optionHeight = 20;
+    const viewportHeight = 80;
+    const scrollOffset = 120;
     if (controllerRef.current) {
       controllerRef.current.scrollViewRef.current = {
         scrollTo,
       } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
+      controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+      controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(scrollOffset));
     }
 
     act(() => {
-      controllerRef.current?.options[0].onLayout(createLayoutEvent(12, 16));
+      controllerRef.current?.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
     });
 
     act(() => {
       controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
     });
 
-    expect(scrollTo).toHaveBeenCalled();
+    expect(scrollTo).toHaveBeenCalledWith({ y: Math.max(0, optionTop), animated: true });
+  });
+
+  it('does not scroll when the highlighted option is already visible', () => {
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(<ControllerHarness ref={controllerRef} />);
+
+    const scrollTo = jest.fn();
+    const optionTop = 40;
+    const optionHeight = 20;
+    const viewportHeight = 140;
+    if (controllerRef.current) {
+      controllerRef.current.scrollViewRef.current = {
+        scrollTo,
+      } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
+      controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+      controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(0));
+    }
+
+    act(() => {
+      controllerRef.current?.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
+    });
+
+    act(() => {
+      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it('does not close on native blur (keyboard dismissal)', () => {

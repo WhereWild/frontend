@@ -45,9 +45,11 @@ export const SelectFieldView = ({
   optionActiveTextColor,
   optionDefaultTextColor,
   scrollViewRef,
+  scrollViewProps,
   dropShadowStyle,
   containerStyle,
 }: SelectFieldViewProps) => {
+  const { style: scrollViewStyle, ...scrollViewRest } = scrollViewProps ?? {};
   const portalAccessibilityLabel = label
     ? `${label} options`
     : placeholder
@@ -206,9 +208,10 @@ export const SelectFieldView = ({
         >
           <ScrollView
             ref={scrollViewRef}
-            style={styles.optionsScroll}
+            style={[styles.optionsScroll, scrollViewStyle]}
             keyboardShouldPersistTaps="always"
             keyboardDismissMode="none"
+            {...scrollViewRest}
           >
             {options.map((option) => {
               return (

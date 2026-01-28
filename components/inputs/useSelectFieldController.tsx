@@ -1,5 +1,19 @@
 import React from 'react';
-import { Keyboard, Platform, ScrollView, TextInput, View, type LayoutChangeEvent, type PressableProps, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import {
+  Keyboard,
+  Platform,
+  ScrollView,
+  TextInput,
+  View,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type PressableProps,
+  type ScrollViewProps,
+  type StyleProp,
+  type TextInputProps,
+  type ViewStyle,
+} from 'react-native';
 import { Colors, Shadows, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
@@ -63,6 +77,7 @@ export type SelectFieldViewProps = {
   optionActiveTextColor: string;
   optionDefaultTextColor: string;
   scrollViewRef: React.RefObject<ScrollView | null>;
+  scrollViewProps?: ScrollViewProps;
   dropShadowStyle: ViewStyle;
   containerStyle?: StyleProp<ViewStyle>;
 };
@@ -111,6 +126,7 @@ export const useSelectFieldController = ({
   const scrollViewRef = React.useRef<ScrollView | null>(null);
   const fieldPressableRef = React.useRef<FocusableView | null>(null);
   const fieldWrapperRef = React.useRef<View | null>(null);
+  const scrollMetricsRef = React.useRef({ height: 0, offset: 0 });
   const [dropdownPosition, setDropdownPosition] = React.useState<
     { top: number; left: number; width: number; height: number } | null
   >(null);
@@ -384,11 +400,36 @@ export const useSelectFieldController = ({
     if (!layout) {
       return;
     }
-    // Scroll the list to keep the highlighted option visible when navigating via keyboard.
-    scrollViewRef.current?.scrollTo({
-      y: Math.max(0, layout.y - Size.space['200']),
-      animated: true,
-    });
+    const { height, offset } = scrollMetricsRef.current;
+    if (!height) {
+      return;
+    }
+
+    // Keep keyboard-highlighted options visible without constantly snapping the list.
+    // We only scroll when the highlighted option is fully outside the visible window.
+    // The scroll targets align the option's edge with the viewport edge so it just re-enters view.
+    const optionTop = layout.y;
+    const optionBottom = layout.y + layout.height;
+    const visibleTop = offset;
+    const visibleBottom = offset + height;
+
+    // Scrolls down when the highlighted option is below the visible area.
+    // Use a small buffer (Size.space['600']) to ensure the option is fully visible before scrolling
+    // and that the scrolled position fully shows the next option.
+    if (optionTop + Size.space['600'] >= visibleBottom) {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, optionBottom - height + Size.space['400']),
+        animated: true,
+      });
+      return;
+    }
+
+    if (optionBottom <= visibleTop) {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, optionTop),
+        animated: true,
+      });
+    }
   }, [highlightedIndex]);
 
   // On iOS, onPressIn/onPressOut may fire after blur completes, causing the dropdown
@@ -446,6 +487,17 @@ export const useSelectFieldController = ({
   const inputAccessibilityHint = allowSearch
     ? 'Type to filter options.'
     : 'Use arrow keys to navigate options.';
+
+  const handleScrollViewLayout = React.useCallback((event: LayoutChangeEvent) => {
+    scrollMetricsRef.current.height = event.nativeEvent.layout.height;
+  }, []);
+
+  const handleScrollViewScroll = React.useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollMetricsRef.current.offset = event.nativeEvent.contentOffset.y;
+    },
+    [],
+  );
 
   return {
     label,
@@ -559,6 +611,11 @@ export const useSelectFieldController = ({
     optionActiveTextColor: palette.text.neutral.onNeutralTertiary,
     optionDefaultTextColor: palette.text.default.default,
     scrollViewRef,
+    scrollViewProps: {
+      onLayout: handleScrollViewLayout,
+      onScroll: handleScrollViewScroll,
+      scrollEventThrottle: 16,
+    },
     dropShadowStyle,
     containerStyle: style,
   };
