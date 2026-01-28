@@ -5,7 +5,6 @@ import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
-import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
 const MAP_HEIGHT = 640;
@@ -21,7 +20,6 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const palette = Colors[mode];
   const responsive = useResponsive();
   const { map, recommendations } = data;
-  const [searchQuery, setSearchQuery] = useState('');
   return (
     <>
       <Head>
