@@ -308,7 +308,6 @@ export function PageHeader({
         variant === 'mobile' ? (
           <IconButton
             variant="neutral"
-            size="small"
             icon={<IconFilter />}
             onPress={onFilterPress}
             accessibilityLabel={filterButtonAccessibilityLabel}
@@ -327,7 +326,6 @@ export function PageHeader({
       {variant === 'mobile' ? (
         <IconButton
           variant="primary"
-          size="small"
           icon={<IconMenu />}
           onPress={() => setIsMenuOpen((prev) => !prev)}
           accessibilityLabel="Open menu"
@@ -421,6 +419,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     zIndex: 9999,
+    position: 'relative',
   },
   containerDesktop: {
     flexDirection: 'row',
@@ -485,10 +484,15 @@ const styles = StyleSheet.create({
   },
   mobileMenu: {
     alignSelf: 'flex-end',
+    position: 'absolute',
+    top: '100%',
+    right: Size.space['200'],
+    marginTop: Size.space['200'],
     padding: Size.space['200'],
     gap: Size.space['200'],
     borderRadius: Size.radius['400'],
     borderWidth: Size.stroke.border,
+    zIndex: 10000,
   },
   mobileMenuButton: {
     width: '100%',
