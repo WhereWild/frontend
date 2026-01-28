@@ -11,7 +11,7 @@ type SpeciesOccurrenceMapProps = {
   loading?: boolean;
   error?: string | null;
   height?: number;
-  highlightedCatalogs?: Array<number | string>;
+  highlightedCatalogs?: (number | string)[];
 };
 
 const buildLeafletHtml = (points: SpeciesOccurrence[]) => {

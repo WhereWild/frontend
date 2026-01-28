@@ -18,6 +18,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Button } from '../buttons/Button';
+import type { ButtonProps } from '../buttons/Button';
 import { SearchInput, type SearchInputProps } from '../inputs/SearchInput';
 import { SearchResults } from '../inputs/SearchResults';
 import { ThemedText } from '../text/ThemedText';
@@ -64,7 +65,7 @@ const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
 
 export type PageHeaderAction = {
   label: string;
-  icon: React.ReactNode;
+  icon: ButtonProps['iconStart'];
   onPress?: () => void;
   variant?: 'neutral' | 'subtle';
 };
@@ -235,11 +236,9 @@ export function PageHeader({
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, onSearchResultsChanged, onSearchingChanged]);
 
   const hasQuery = debouncedQuery.length > 0;
-  const searchStatusColor = palette.text.default.secondary;
-  const showResults = searchResults.length > 0;
 
   return (
     <View
