@@ -1,6 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import React, { act } from 'react';
 import { StyleSheet } from 'react-native';
 import Search from '../search';
@@ -19,17 +19,13 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 let pageHeaderProps: any;
 
-jest.mock('@/components', () => {
-    const React = require('react');
-    const { View } = require('react-native');
-    return {
-        ...jest.requireActual('@/components'),
-        PageHeader: (props: any) => {
-            pageHeaderProps = props;
-        return React.createElement(View, { testID: 'page-header' });
-        },
-    };
-});
+jest.mock('@/components', () => ({
+    ...jest.requireActual('@/components'),
+    PageHeader: function MockPageHeader(props: any) {
+        pageHeaderProps = props;
+        return null;
+    },
+}));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
     typeof useColorScheme
@@ -56,9 +52,9 @@ describe('Search screen', () => {
         mockPush.mockClear();
     });
 
-    it('renders the page header', () => {
+    it('captures page header props', () => {
         render(<Search />);
-        expect(screen.getByTestId('page-header')).toBeTruthy();
+        expect(pageHeaderProps).toBeDefined();
     });
 
     it('displays the Results heading', () => {
