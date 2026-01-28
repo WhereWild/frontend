@@ -278,6 +278,36 @@ describe('useSelectFieldController', () => {
     expect(onValueChange).toHaveBeenCalledWith('option-5');
   });
 
+  it('selects the only option on Enter when no highlight exists', () => {
+    const onValueChange = jest.fn();
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(
+      <ControllerHarness
+        ref={controllerRef}
+        options={[{ label: 'Only Option', value: 'only' }]}
+        onValueChange={onValueChange}
+      />,
+    );
+
+    act(() => {
+      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+    });
+
+    expect(onValueChange).toHaveBeenCalledWith('only');
+  });
+
+  it('does not select on Enter when multiple options exist and no highlight exists', () => {
+    const onValueChange = jest.fn();
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(<ControllerHarness ref={controllerRef} onValueChange={onValueChange} />);
+
+    act(() => {
+      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+    });
+
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
   it('no-ops when options are empty', () => {
     const onValueChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();

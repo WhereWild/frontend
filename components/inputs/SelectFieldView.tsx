@@ -9,6 +9,30 @@ import { FIELD_HEIGHT } from './useSelectFieldController';
 
 const PLACEHOLDER_INPUT_HEIGHT = 20;
 
+// Safari's WebKit engine does not render auto outlines on non-focusable nodes.
+// We detect WebKit so we can apply a solid outline fallback for keyboard focus.
+let cachedIsWebKitBrowser: boolean | null = null;
+let cachedUserAgent: string | null = null;
+
+const isWebKitBrowser = () => {
+  if (Platform.OS !== 'web') {
+    cachedIsWebKitBrowser = false;
+    return cachedIsWebKitBrowser;
+  }
+
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  if (cachedUserAgent === userAgent && cachedIsWebKitBrowser !== null) {
+    return cachedIsWebKitBrowser;
+  }
+  const isWebKit = /AppleWebKit/i.test(userAgent);
+  const isChrome = /Chrome|Chromium/i.test(userAgent);
+  const isEdge = /Edg/i.test(userAgent);
+
+  cachedUserAgent = userAgent;
+  cachedIsWebKitBrowser = isWebKit && !isChrome && !isEdge;
+  return cachedIsWebKitBrowser;
+};
+
 export const SelectFieldView = ({
   label,
   description,
@@ -44,6 +68,7 @@ export const SelectFieldView = ({
   optionPressedBackgroundColor,
   optionActiveTextColor,
   optionDefaultTextColor,
+  optionFocusedRingColor,
   scrollViewRef,
   scrollViewProps,
   dropShadowStyle,
@@ -240,10 +265,13 @@ export const SelectFieldView = ({
                       ...(Platform.OS === 'web'
                         ? (
                           {
-                            // Cast needed: RN types don't include outlineStyle='auto',
-                            // but react-native-web forwards it to native browser focus ring.
-                            outlineStyle: option.isHighlighted ? 'auto' : 'none',
+                            // Safari does not render the auto outline for non-focusable nodes.
+                            // Use a solid outline with explicit color as a fallback focus ring.
+                            outlineStyle: option.isHighlighted
+                              ? (isWebKitBrowser() ? 'solid' : 'auto')
+                              : 'none',
                             outlineWidth: Size.stroke.focusRing,
+                            outlineColor: isWebKitBrowser() ? optionFocusedRingColor : undefined,
                           } as any
                         )
                         : null),

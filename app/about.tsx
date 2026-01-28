@@ -91,6 +91,7 @@ export default function About() {
   const [selectSearchableErrorValue, setSelectSearchableErrorValue] = useState('hello');
   const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
+  const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -103,6 +104,40 @@ export default function About() {
     { label: 'Option 8', value: 'option-8' },
     { label: 'Option 9', value: 'option-9' },
     { label: 'Option 10', value: 'option-10' },
+  ];
+  const longPlaceOptions = [
+    {
+      label: 'Parque Nacional Torres del Paine, Región de Magallanes y de la Antártica Chilena, Chile',
+      value: 'torres-del-paine-chile',
+    },
+    {
+      label: 'Grosser Aletschgletscher and Jungfrau-Aletsch UNESCO World Heritage Site, Switzerland',
+      value: 'jungfrau-aletsch-switzerland',
+    },
+    {
+      label: 'Wadi Rum Protected Area (Valley of the Moon), Aqaba Governorate, Jordan',
+      value: 'wadi-rum-jordan',
+    },
+    {
+      label: 'Papahānaumokuākea Marine National Monument, Northwestern Hawaiian Islands, USA',
+      value: 'papahanaumokuakea-usa',
+    },
+    {
+      label: 'Kluane / Wrangell-St. Elias / Glacier Bay / Tatshenshini-Alsek World Heritage Site, Canada-USA',
+      value: 'kluane-wrangell-glacier-bay',
+    },
+    {
+      label: 'Te Urewera Forest and Lake Waikaremoana, North Island, Aotearoa New Zealand',
+      value: 'te-urewera-new-zealand',
+    },
+    {
+      label: 'Bialowieza Forest (Białowieża), Podlaskie Voivodeship, Poland-Belarus',
+      value: 'bialowieza-forest',
+    },
+    {
+      label: 'Sagarmatha National Park (Everest Region), Province No. 1, Nepal',
+      value: 'sagarmatha-nepal',
+    },
   ];
   const buttonRows: ButtonRow[] = [
     {
@@ -319,6 +354,14 @@ export default function About() {
                 options={selectOptions}
                 allowSearch={false}
                 onValueChange={setSelectListOnlyPlaceholderValue}
+              />
+              <SelectField
+                label="Label (Searchable - Long place names)"
+                description="Type to filter"
+                value={selectLongPlaceValue}
+                placeholder="Start typing a place name"
+                options={longPlaceOptions}
+                onValueChange={setSelectLongPlaceValue}
               />
             </View>
           </View>

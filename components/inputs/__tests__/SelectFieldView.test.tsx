@@ -111,6 +111,7 @@ const createProps = (overrides: Partial<SelectFieldViewProps> = {}): SelectField
     optionPressedBackgroundColor: 'orange',
     optionActiveTextColor: 'white',
     optionDefaultTextColor: 'black',
+    optionFocusedRingColor: 'purple',
     scrollViewRef: React.createRef(),
     dropShadowStyle: {},
     containerStyle: undefined,
@@ -255,7 +256,7 @@ describe('SelectFieldView', () => {
     cleanup();
   });
 
-  it('adds web outline styles for highlighted options', () => {
+  it('adds Safari outline styles for highlighted options', () => {
     const highlightedOption = createOption({
       key: 'highlighted-web',
       label: 'Highlighted Web',
@@ -272,6 +273,56 @@ describe('SelectFieldView', () => {
       const optionStyleFn = option.props.style as PressableStyleFunction;
       const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
       Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+      const originalNavigator = global.navigator;
+      Object.defineProperty(global, 'navigator', {
+        configurable: true,
+        value: { userAgent: 'Mozilla/5.0 AppleWebKit/605.1.15 Safari/605.1.15' },
+      });
+
+      try {
+        const optionStyle = optionStyleFn({ pressed: false, hovered: false });
+        const outlineStyle = getStyleProperty(optionStyle, 'outlineStyle');
+        const outlineColor = getStyleProperty(optionStyle, 'outlineColor');
+
+        expect(outlineStyle).toBe('solid');
+        expect(outlineColor).toBe(props.optionFocusedRingColor);
+      } finally {
+        if (originalNavigator !== undefined) {
+          Object.defineProperty(global, 'navigator', { configurable: true, value: originalNavigator });
+        } else {
+          Object.defineProperty(global, 'navigator', { configurable: true, value: undefined });
+        }
+        if (originalDescriptor) {
+          Object.defineProperty(Platform, 'OS', originalDescriptor);
+        }
+      }
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('uses auto outline on non-Safari web', () => {
+    const highlightedOption = createOption({
+      key: 'highlighted-web-non-safari',
+      label: 'Highlighted Web Non Safari',
+      accessibilityLabel: 'Select Highlighted Web Non Safari',
+      isHighlighted: true,
+    });
+    const props = createProps({
+      isOpen: true,
+      options: [highlightedOption],
+    });
+    const { tree, cleanup } = createTestTree(props);
+    try {
+      const option = findByAccessibilityLabel(tree, 'Select Highlighted Web Non Safari');
+      const optionStyleFn = option.props.style as PressableStyleFunction;
+      const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+      const originalNavigator = global.navigator;
+      Object.defineProperty(global, 'navigator', {
+        configurable: true,
+        value: { userAgent: 'Mozilla/5.0 AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
+      });
 
       try {
         const optionStyle = optionStyleFn({ pressed: false, hovered: false });
@@ -279,6 +330,11 @@ describe('SelectFieldView', () => {
 
         expect(outlineStyle).toBe('auto');
       } finally {
+        if (originalNavigator !== undefined) {
+          Object.defineProperty(global, 'navigator', { configurable: true, value: originalNavigator });
+        } else {
+          Object.defineProperty(global, 'navigator', { configurable: true, value: undefined });
+        }
         if (originalDescriptor) {
           Object.defineProperty(Platform, 'OS', originalDescriptor);
         }

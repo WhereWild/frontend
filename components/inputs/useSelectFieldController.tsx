@@ -76,6 +76,7 @@ export type SelectFieldViewProps = {
   optionPressedBackgroundColor: string;
   optionActiveTextColor: string;
   optionDefaultTextColor: string;
+  optionFocusedRingColor: string;
   scrollViewRef: React.RefObject<ScrollView | null>;
   scrollViewProps?: ScrollViewProps;
   dropShadowStyle: ViewStyle;
@@ -298,7 +299,9 @@ export const useSelectFieldController = ({
 
       if (key === 'Enter') {
         const option = highlightedIndex === null
-          ? null
+          ? optionsList.length === 1
+            ? optionsList[0]
+            : null
           : optionsList[highlightedIndex];
         if (option) {
           handleSelectOption(option);
@@ -610,6 +613,7 @@ export const useSelectFieldController = ({
     optionPressedBackgroundColor: palette.background.default.tertiaryPressed,
     optionActiveTextColor: palette.text.neutral.onNeutralTertiary,
     optionDefaultTextColor: palette.text.default.default,
+    optionFocusedRingColor: palette.border.brand.default,
     scrollViewRef,
     scrollViewProps: {
       onLayout: handleScrollViewLayout,
