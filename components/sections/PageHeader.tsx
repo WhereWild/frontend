@@ -2,10 +2,12 @@ import {
   IconFilter,
   IconHelpCircle,
   IconInfo,
+  IconMenu,
   IconSettings,
 } from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -18,9 +20,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Button } from '../buttons/Button';
+import { IconButton } from '../buttons/IconButton';
 import type { ButtonProps } from '../buttons/Button';
 import { SearchInput, type SearchInputProps } from '../inputs/SearchInput';
-import { SearchResults } from '../inputs/SearchResults';
+import { SearchResults } from './SearchResults';
 import { ThemedText } from '../text/ThemedText';
 import { fetchSpeciesList } from '@/data/api';
 import { SpeciesSummary } from '@/data/types';
@@ -111,6 +114,8 @@ export function PageHeader({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const responsive = useResponsive();
+  const isCompact = responsive.breakpoint !== 'desktop';
   const router = useRouter();
   const pathname = usePathname();
   const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
@@ -127,9 +132,9 @@ export function PageHeader({
     navigateIfDifferent('/about');
   }, [navigateIfDifferent]);
 
-   const submitSearchQuery = (query: string) => {
+  const submitSearchQuery = (query: string) => {
     if (query !== '') {
-      router.push({pathname: '/search', params: {query: query}});
+      router.push({ pathname: '/search', params: { query: query } });
     }
   };
   const defaultActions = React.useMemo<PageHeaderAction[]>(
@@ -145,16 +150,15 @@ export function PageHeader({
     <>
       <Image
         source={logoSource}
-        style={styles.logo}
+        style={isCompact ? styles.logoMobile : styles.logo}
         resizeMode="contain"
         accessibilityLabel="WhereWild logo"
       />
-      <ThemedText
-        variant="heading"
-        style={{ color: palette.text.brand.default }}  // override color to match page header mock
-      >
-        {title}
-      </ThemedText>
+      {!isCompact ? (
+        <ThemedText variant="heading">
+          {title}
+        </ThemedText>
+      ) : null}
     </>
   );
 
@@ -166,6 +170,13 @@ export function PageHeader({
   const [wrapperHeight, setWrapperHeight] = useState<number | null>(null);
   const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
   const [isSearchResultsHovered, setIsSearchResultsHovered] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isCompact && isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+  }, [isCompact, isMenuOpen]);
 
   if (typeof initialQuery === 'string' && initialQuery !== '' && searchQuery === '') {
     // Initialize search query from prop on first render
@@ -227,7 +238,7 @@ export function PageHeader({
         if (!cancelled) {
           setSearching(false);
           if (onSearchingChanged) {
-            onSearchingChanged(false);  
+            onSearchingChanged(false);
           }
         }
       }
@@ -240,75 +251,69 @@ export function PageHeader({
 
   const hasQuery = debouncedQuery.length > 0;
 
-  return (
+  const searchResultsVisible =
+    wrapperHeight &&
+    hasQuery &&
+    showSearchResultsDropdown &&
+    (isSearchBarFocused || isSearchResultsHovered);
+
+  const renderSearchResults = () =>
+    searchResultsVisible ? (
+      <SearchResults
+        results={searchResults}
+        isVisible={true}
+        isLoading={searching}
+        emptyMessage={searchError ?? 'No species found'}
+        onPointerEnter={() => setIsSearchResultsHovered(true)}
+        onPointerLeave={() => setIsSearchResultsHovered(false)}
+        onSelectResult={(s) => {
+          const segment = toKebabCase((s.scientificName ?? '').trim());
+          if (segment) {
+            router.push(`/species/${s.taxonId}/${segment}` as any);
+          }
+        }}
+        testID="header-search-results"
+      />
+    ) : null;
+
+  const renderSearchContent = (variant: 'mobile' | 'desktop') => (
     <View
+      onFocus={() => setIsSearchBarFocused(true)}
+      onBlur={() => setIsSearchBarFocused(false)}
       style={[
-        styles.container,
-        {
-          backgroundColor: palette.background.default.secondary,
-        },
-        style,
+        styles.searchRow,
+        variant === 'mobile' ? styles.searchRowMobile : styles.searchRowDesktop,
       ]}
-      accessibilityRole="header"
+      testID="page-header-search-row"
     >
-      <Pressable
-        onPress={navigateHome}
-        style={styles.logoSection}
-        accessibilityRole="link"
-        accessibilityLabel={logoAccessibilityLabel}
+      <View
+        style={styles.searchWrapper}
+        onLayout={(e) => {
+          setWrapperHeight(e.nativeEvent.layout.height);
+        }}
+        testID="page-header-search-wrapper"
       >
-        {logoContent}
-      </Pressable>
+        <SearchInput
+          value={searchQuery}
+          onQueryChange={setSearchQuery}
+          onSubmitSearch={submitSearchQuery}
+          placeholder={searchPlaceholder}
+          {...searchInputProps}
+        />
 
-      <View 
-        onFocus={() => setIsSearchBarFocused(true)}
-        onBlur={() => setIsSearchBarFocused(false)}
-        style={styles.searchRow}
-      >
-        <View
-          style={styles.searchWrapper}
-          onLayout={(e) => {
-            setWrapperHeight(e.nativeEvent.layout.height);
-          }}
-        >
-          <SearchInput
-            value={searchQuery}
-            onQueryChange={setSearchQuery}
-            onSubmitSearch={submitSearchQuery}
-            placeholder={searchPlaceholder}
-            {...searchInputProps}
+        {renderSearchResults()}
+      </View>
+
+      {showFilterButton ? (
+        variant === 'mobile' ? (
+          <IconButton
+            variant="neutral"
+            size="small"
+            icon={<IconFilter />}
+            onPress={onFilterPress}
+            accessibilityLabel={filterButtonAccessibilityLabel}
           />
-        </View>
-
-        {wrapperHeight && hasQuery && showSearchResultsDropdown && (isSearchBarFocused || isSearchResultsHovered) && (
-          <View
-            onPointerEnter={() => setIsSearchResultsHovered(true)}
-            onPointerLeave={() => setIsSearchResultsHovered(false)}
-            style={[
-              styles.resultsOverlay,
-              {
-                top: wrapperHeight + Size.space['200'],
-                width: '100%',
-                maxWidth: 440,
-              },
-            ]}
-          >
-            <SearchResults
-              results={searchResults}
-              isVisible={true}
-              isLoading={searching}
-              emptyMessage={searchError ?? 'No species found'}
-              onSelectResult={(s) => {
-                const segment = toKebabCase((s.scientificName ?? '').trim());
-                if (segment) {
-                  router.push(`/species/${s.taxonId}/${segment}` as any);
-                }
-              }}
-              testID="header-search-results"
-            />
-          </View>
-        )}
-        {showFilterButton ? (
+        ) : (
           <Button
             variant="neutral"
             iconStart={<IconFilter />}
@@ -316,20 +321,98 @@ export function PageHeader({
             onPress={onFilterPress}
             accessibilityLabel={filterButtonAccessibilityLabel}
           />
-        ) : null}
-      </View>
+        )
+      ) : null}
 
-      <View style={styles.actionsWrapper}>
-        {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-          <Button
-            key={label}
-            variant={variant}
-            onPress={onPress}
-            iconStart={icon}
-            label={label}
-          />
-        ))}
-      </View>
+      {variant === 'mobile' ? (
+        <IconButton
+          variant="primary"
+          size="small"
+          icon={<IconMenu />}
+          onPress={() => setIsMenuOpen((prev) => !prev)}
+          accessibilityLabel="Open menu"
+        />
+      ) : null}
+    </View>
+  );
+
+  return (
+    <View
+      style={[
+        styles.container,
+        isCompact ? styles.containerMobile : styles.containerDesktop,
+        {
+          backgroundColor: palette.background.default.secondary,
+        },
+        style,
+      ]}
+      accessibilityRole="header"
+    >
+      {isCompact ? (
+        <>
+          <View style={styles.mobileHeaderRow}>
+            <Pressable
+              onPress={navigateHome}
+              style={styles.logoSectionMobile}
+              accessibilityRole="link"
+              accessibilityLabel={logoAccessibilityLabel}
+            >
+              {logoContent}
+            </Pressable>
+
+            {renderSearchContent('mobile')}
+          </View>
+
+          {isMenuOpen ? (
+            <View
+              style={[
+                styles.mobileMenu,
+                {
+                  backgroundColor: palette.background.default.tertiary,
+                  borderColor: palette.border.default.tertiary,
+                },
+                Shadows.dropShadow400.style,
+              ]}
+            >
+              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+                <Button
+                  key={label}
+                  variant={variant}
+                  onPress={onPress}
+                  iconStart={icon}
+                  label={label}
+                  style={styles.mobileMenuButton}
+                />
+              ))}
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <Pressable
+            onPress={navigateHome}
+            style={styles.logoSection}
+            accessibilityRole="link"
+            accessibilityLabel={logoAccessibilityLabel}
+          >
+            {logoContent}
+          </Pressable>
+
+          {renderSearchContent('desktop')}
+
+          <View style={styles.actionsWrapper}>
+            {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+              <Button
+                key={label}
+                variant={variant}
+                onPress={onPress}
+                iconStart={icon}
+                label={label}
+              />
+            ))}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -337,41 +420,77 @@ export function PageHeader({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    zIndex: 9999,
+  },
+  containerDesktop: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     paddingHorizontal: Size.space['800'],
     paddingVertical: Size.space['200'],
     gap: Size.space['400'],
-    zIndex: 9999,
+  },
+  containerMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['400'],
+    gap: Size.space['200'],
+  },
+  mobileHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
+    width: '100%',
   },
   logoSection: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['200'],
   },
+  logoSectionMobile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   logo: {
     width: Size.space['1600'],
     height: Size.space['1600'],
   },
+  logoMobile: {
+    width: Size.space['1200'],
+    height: Size.space['1200'],
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
     gap: Size.space['400'],
-    minWidth: Size.space['8000']
+  },
+  searchRowDesktop: {
+    flex: 1,
+    minWidth: Size.space['8000'],
+  },
+  searchRowMobile: {
+    flex: 1,
+    gap: Size.space['200'],
   },
   searchWrapper: {
     flex: 1,
-  },
-  resultsOverlay: {
-    position: 'absolute',
-    zIndex: 9999,
+    position: 'relative',
   },
   actionsWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['400'],
     flexWrap: 'wrap',
+  },
+  mobileMenu: {
+    alignSelf: 'flex-end',
+    padding: Size.space['200'],
+    gap: Size.space['200'],
+    borderRadius: Size.radius['400'],
+    borderWidth: Size.stroke.border,
+  },
+  mobileMenuButton: {
+    width: '100%',
   },
 });
