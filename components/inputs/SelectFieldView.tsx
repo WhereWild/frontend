@@ -163,6 +163,30 @@ export const SelectFieldView = ({
             {...inputProps}
           />
         )}
+        {dropdownPosition ? (
+          <View
+            style={[
+              styles.portalFieldIconRow,
+              {
+                top: dropdownPosition.top - dropdownPosition.height - Size.space['100'],
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+                height: dropdownPosition.height,
+              },
+            ]}
+          >
+            <IconButton
+              variant="subtle"
+              size="small"
+              icon={iconButtonProps.icon}
+              accessibilityLabel={iconButtonProps.accessibilityLabel}
+              accessibilityRole={iconButtonProps.accessibilityRole}
+              disabled={iconButtonProps.disabled}
+              onPress={iconButtonProps.onPress}
+              {...(iconButtonProps.extraProps ?? {})}
+            />
+          </View>
+        ) : null}
         <View
           style={[
             styles.optionsContainer,
@@ -281,6 +305,16 @@ const styles = StyleSheet.create({
     height: FIELD_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: Size.space['400'],
+  },
+  portalFieldIconRow: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingRight: Size.space['100'],
+    pointerEvents: 'box-none',
+    zIndex: 3,
+    elevation: 3,
   },
   portalInput: {
     flex: 1,
