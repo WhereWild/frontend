@@ -17,6 +17,7 @@ import {
   SelectField,
   SpeciesCard,
   SpeciesPageHeader,
+  Tabs,
   ThemedText,
 } from '@/components';
 import type { ButtonProps } from '@/components';
@@ -92,6 +93,7 @@ export default function About() {
   const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
+  const [selectedTab, setSelectedTab] = useState('overview');
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -257,6 +259,14 @@ export default function About() {
     { size: 'small', disabled: true },
   ];
 
+  const tabsSample = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'habitat', label: 'Habitat & Range' },
+    { key: 'tracking', label: 'Tracking and Sightings' },
+    { key: 'images', label: 'Images' },
+    { key: 'notes', label: 'Field Notes' },
+  ];
+
   return (
     <>
       <Head>
@@ -406,6 +416,19 @@ export default function About() {
           </View>
 
           <View>
+            <ThemedText variant="heading">Tabs</ThemedText>
+            <ThemedText variant="body">Controlled tabs with keyboard navigation.</ThemedText>
+            <View style={styles.tabsRow}>
+              <Tabs
+                tabs={tabsSample}
+                selectedKey={selectedTab}
+                onSelectionChange={setSelectedTab}
+                accessibilityLabel="Species tabs"
+              />
+            </View>
+          </View>
+
+          <View>
             <ThemedText variant="heading">Typography Tokens</ThemedText>
             <ThemedText variant="body">Preview of every WhereWild typography variant.</ThemedText>
             <View style={styles.tokenSection}>
@@ -544,6 +567,9 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     padding: Size.space['400'],
     borderRadius: Size.radius['400'],
+  },
+  tabsRow: {
+    paddingTop: Size.space['200'],
   },
   tokenSection: {
     gap: Size.space['400'],

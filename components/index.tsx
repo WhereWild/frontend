@@ -42,6 +42,12 @@ export type { SpeciesCardProps } from './cards/SpeciesCard';
 
 export { ThemedText } from './text/ThemedText';
 
+export { Tab } from './tabs/Tab';
+export type { TabProps } from './tabs/Tab';
+
+export { Tabs } from './tabs/Tabs';
+export type { TabsProps } from './tabs/Tabs';
+
 export { SpeciesPageHeader } from './sections/SpeciesPageHeader';
 export type { SpeciesPageHeaderProps } from './sections/SpeciesPageHeader';
 
