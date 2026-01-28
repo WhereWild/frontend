@@ -69,18 +69,7 @@ export type SelectFieldViewProps = {
 
 type FocusableView = View & { focus?: () => void };
 
-const primaryDropShadow = Shadows.dropShadow200.layers[0];
-const dropShadowStyle = primaryDropShadow
-  ? {
-    shadowColor: primaryDropShadow.color,
-    shadowOffset: {
-      width: primaryDropShadow.offsetX,
-      height: primaryDropShadow.offsetY,
-    },
-    shadowOpacity: primaryDropShadow.opacity,
-    shadowRadius: primaryDropShadow.blurRadius,
-  }
-  : {};
+const dropShadowStyle = (Shadows.dropShadow200.style ?? {}) as ViewStyle;
 
 /** Height of the field for positioning calculations. */
 export const FIELD_HEIGHT = 40;
