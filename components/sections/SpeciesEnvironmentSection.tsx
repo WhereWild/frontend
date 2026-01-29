@@ -30,7 +30,7 @@ import {
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { ThemedText } from '../text/ThemedText';
 
-const DEFAULT_VARIABLE = 'elevation';
+const DEFAULT_VARIABLE = 'bio_1';
 const CHART_HEIGHT = 160;
 const CATEGORY_DISPLAY_LIMIT = 8;
 const ALL_CONTEXT_KEY = '__all__';
@@ -52,6 +52,7 @@ type CategorySampleState = {
 };
 
 const DEFAULT_VARIABLES: EnvironmentVariableOption[] = [
+  { id: 'bio_1', label: 'Bio 1' },
   { id: 'elevation', label: 'Elevation' },
   { id: 'annual_precip', label: 'Annual Precipitation' },
   { id: 'mean_temp_coldest_quarter', label: 'Mean Temp (Cold Qtr)' },
@@ -772,14 +773,6 @@ export function SpeciesEnvironmentSection({
   const error = selectedVariable ? errorByVariable[selectedVariable] ?? null : null;
   const loading = loadingVariable === selectedVariable;
   const summary = stats?.summary;
-  const summaryRangeValue =
-    typeof summary?.q01 === 'number' && typeof summary?.q99 === 'number'
-      ? summary.q99 - summary.q01
-      : null;
-  const baselineRangeValue =
-    typeof baselineSummary?.q01 === 'number' && typeof baselineSummary?.q99 === 'number'
-      ? baselineSummary.q99 - baselineSummary.q01
-      : null;
   const categoricalDistribution = stats?.categoricalDistribution ?? [];
   const variableType =
     stats?.variableType?.toLowerCase?.() ??
@@ -1136,11 +1129,6 @@ const resolveRankForMetric = React.useCallback(
       mean: resolveRankForMetric('mean', summary?.mean),
       max: resolveRankForMetric('max', summary?.max),
       std: resolveRankForMetric('std', summary?.stddev, { allowHistogramFallback: false }),
-      range99: resolveRankForMetric(
-        '1-99 range',
-        summaryRangeValue,
-        { allowHistogramFallback: false },
-      ),
     }),
     [
       resolveRankForMetric,
@@ -1148,7 +1136,6 @@ const resolveRankForMetric = React.useCallback(
       summary?.mean,
       summary?.min,
       summary?.stddev,
-      summaryRangeValue,
     ],
   );
   const summaryComparisons = React.useMemo<Record<string, string | null>>(() => {
@@ -1170,10 +1157,8 @@ const resolveRankForMetric = React.useCallback(
         1,
         displayUnits,
       ),
-      range99: formatComparisonLabel(summaryRangeValue, baselineRangeValue, 1, displayUnits),
     };
   }, [
-    baselineRangeValue,
     baselineSummary?.max,
     baselineSummary?.mean,
     baselineSummary?.min,
@@ -1184,7 +1169,6 @@ const resolveRankForMetric = React.useCallback(
     summary?.mean,
     summary?.min,
     summary?.stddev,
-    summaryRangeValue,
   ]);
 
   const categoricalSummary = React.useMemo(
@@ -1479,16 +1463,6 @@ const resolveRankForMetric = React.useCallback(
                   locationFilterActive
                     ? summaryComparisons.std ?? null
                     : formatRankLabel(summaryRanks.std)
-                }
-                rankColor={palette.text.default.secondary}
-              />
-              <SummaryItem
-                label="1-99 Range"
-                value={formatRangeWithUnits(summary?.q01, summary?.q99, 1, displayUnits)}
-                rankLabel={
-                  locationFilterActive
-                    ? summaryComparisons.range99 ?? null
-                    : formatRankLabel(summaryRanks.range99)
                 }
                 rankColor={palette.text.default.secondary}
               />

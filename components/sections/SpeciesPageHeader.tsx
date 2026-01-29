@@ -8,7 +8,7 @@ import { Button } from '../buttons/Button';
 import { ThemedText } from '../text/ThemedText';
 
 export type SpeciesPageHeaderProps = {
-  commonName: string;
+  commonName?: string | null;
   scientificName: string;
   commonNames?: string[];
   onPressDownload?: () => void;
@@ -29,6 +29,12 @@ export function SpeciesPageHeader({
   const palette = Colors[mode];
   const responsive = useResponsive();
 
+  const resolvedCommonName = typeof commonName === 'string' ? commonName.trim() : '';
+  const resolvedScientificName = typeof scientificName === 'string' ? scientificName.trim() : '';
+  const showCommonName = resolvedCommonName.length > 0;
+  const headingLabel = showCommonName ? resolvedCommonName : resolvedScientificName;
+  const downloadContext = headingLabel || 'species data';
+
   return (
     <View
       style={[
@@ -42,21 +48,19 @@ export function SpeciesPageHeader({
     >
       <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
         <View style={styles.headingRow}>
-          <ThemedText variant="titlePage">
-            {commonName}
-          </ThemedText>
+          <ThemedText variant="titlePage">{headingLabel}</ThemedText>
           <Button
             variant="neutral"
             iconStart={<IconDownload />}
             onPress={onPressDownload}
-            accessibilityLabel={`${downloadLabel} ${commonName}`}
+            accessibilityLabel={`${downloadLabel} ${downloadContext}`}
           >
             {downloadLabel}
           </Button>
         </View>
-        <ThemedText variant="bodyEmphasis">
-          {scientificName}
-        </ThemedText>
+        {resolvedScientificName ? (
+          <ThemedText variant="bodyEmphasis">{resolvedScientificName}</ThemedText>
+        ) : null}
         {commonNames && commonNames.length > 0 ? (
           <View style={styles.commonNames}>
             <ThemedText variant="bodySmallEmphasis">Common names</ThemedText>

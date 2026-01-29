@@ -121,7 +121,7 @@ export function SpeciesLocationPicker({
           styles.input,
           {
             backgroundColor: palette.background.default.tertiary,
-            color: palette.text.default.primary,
+            color: palette.text.default.default,
           },
         ]}
         onFocus={() => {

@@ -197,7 +197,7 @@ export function SpeciesCard({
           </ThemedText>
         </View>
 
-        {size === 'default' && (
+        {size !== 'compact' && (
           <ThemedText
             variant="body"
             style={styles.description}

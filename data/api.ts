@@ -172,7 +172,9 @@ const coerceEnvironmentSummary = (
   min: toNumber(value?.min),
   mean: toNumber(value?.mean),
   max: toNumber(value?.max),
-  stddev: toNumber(value?.stddev),
+  stddev: toNumber(
+    value?.stddev ?? value?.std ?? value?.standard_deviation ?? value?.standardDeviation,
+  ),
   q01: toNumber(value?.q01 ?? value?.q1),
   q10: toNumber(value?.q10),
   q90: toNumber(value?.q90),
@@ -383,25 +385,73 @@ const coerceRelativeRanks = (value: any): SpeciesEnvironmentRelativeRank[] => {
     return [];
   }
 
+  const resolvePreferredCommonName = (source: any): string | null => {
+    const direct =
+      source?.preferred_common_name ??
+      source?.preferredCommonName ??
+      source?.primary_common_name ??
+      source?.primaryCommonName ??
+      source?.common_name ??
+      source?.commonName ??
+      source?.taxon_common_name ??
+      source?.taxonCommonName ??
+      source?.display_name ??
+      source?.displayName ??
+      null;
+    if (typeof direct === 'string' && direct.trim().length > 0) {
+      return direct.trim();
+    }
+    const commonNames = toCommonNames(
+      source?.common_names ?? source?.commonNames ?? source?.common_name,
+    );
+    const preferred = toPrimaryCommonName(source, commonNames);
+    return preferred || null;
+  };
+
   const normalizeRank = (
     metric: string,
     entry: any,
     overrides?: Partial<SpeciesEnvironmentRelativeRank>,
-  ): SpeciesEnvironmentRelativeRank => ({
-    metric,
-    label: entry?.label ?? entry?.name ?? overrides?.label ?? null,
-    rank: toNumber(
-      typeof entry?.position === 'number' ? entry.position : entry?.rank,
-    ),
-    count: toNumber(entry?.count),
-    percentile: toNumber(entry?.percentile),
-    context:
-      entry?.context ??
-      entry?.context_label ??
-      entry?.ancestor_name ??
-      overrides?.context ??
-      null,
-  });
+  ): SpeciesEnvironmentRelativeRank => {
+    const preferredLabel = resolvePreferredCommonName(entry);
+    const preferredContext = resolvePreferredCommonName({
+      common_name:
+        entry?.context_common_name ??
+        entry?.contextCommonName ??
+        entry?.ancestor_common_name ??
+        entry?.ancestorCommonName ??
+        entry?.context_preferred_common_name ??
+        entry?.contextPreferredCommonName ??
+        entry?.ancestor_preferred_common_name ??
+        entry?.ancestorPreferredCommonName,
+      common_names:
+        entry?.context_common_names ??
+        entry?.contextCommonNames ??
+        entry?.ancestor_common_names ??
+        entry?.ancestorCommonNames,
+      display_name:
+        entry?.context_display_name ??
+        entry?.contextDisplayName ??
+        entry?.ancestor_display_name ??
+        entry?.ancestorDisplayName,
+    });
+    return {
+      metric,
+      label: preferredLabel ?? entry?.label ?? entry?.name ?? overrides?.label ?? null,
+      rank: toNumber(
+        typeof entry?.position === 'number' ? entry.position : entry?.rank,
+      ),
+      count: toNumber(entry?.count),
+      percentile: toNumber(entry?.percentile),
+      context:
+        preferredContext ??
+        entry?.context ??
+        entry?.context_label ??
+        entry?.ancestor_name ??
+        overrides?.context ??
+        null,
+    };
+  };
 
   if (Array.isArray(value)) {
     return value

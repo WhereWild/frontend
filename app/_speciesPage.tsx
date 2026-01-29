@@ -1,5 +1,4 @@
 import {
-  InlineExpandableRows,
   NearbySpeciesCarousel,
   PageHeader,
   SpeciesEnvironmentSection,
@@ -29,10 +28,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     commonNames,
     scientificName,
     overview,
-    dataSections,
     nearbySpecies,
     heatmap,
-    taxonomyPath,
   } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -95,9 +92,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     setHighlightedCatalogs(catalogNumbers);
   }, []);
 
-  const taxonomyLabel = typeof taxonomyPath === 'string' && taxonomyPath.length
-    ? taxonomyPath
-    : null;
 
   return (
     <>
@@ -124,12 +118,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
                   <ThemedText variant="body">{overview.description}</ThemedText>
-                  {taxonomyLabel ? (
-                    <View style={styles.taxonomyBlock}>
-                      <ThemedText variant="bodySmallEmphasis">Taxonomy path</ThemedText>
-                      <ThemedText variant="bodySmall">{taxonomyLabel}</ThemedText>
-                    </View>
-                  ) : null}
                 </View>
                 <View style={styles.featuredImageWrapper}>
                   <Image
@@ -169,12 +157,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             </View>
           </View>
 
-          <View style={styles.centeredSection}>
-            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
-            >
-              <InlineExpandableRows sections={dataSections} />
-            </View>
-          </View>
           <NearbySpeciesCarousel species={nearbySpecies} />
 
           <View style={styles.centeredSection}>
@@ -257,10 +239,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 280,
     gap: Size.space['200'],
-  },
-  taxonomyBlock: {
-    gap: Size.space['50'],
-    paddingTop: Size.space['100'],
   },
   featuredImageWrapper: {
     flex: 1,

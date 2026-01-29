@@ -54,7 +54,7 @@ export default function RelativeRankingScreen() {
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const router = useRouter();
-  const [taxonInput, setTaxonInput] = React.useState('2519');
+  const [taxonInput, setTaxonInput] = React.useState('1');
   const [taxonQuery, setTaxonQuery] = React.useState('');
   const [debouncedTaxonQuery, setDebouncedTaxonQuery] = React.useState('');
   const [taxonResults, setTaxonResults] = React.useState<SpeciesSummary[]>([]);
@@ -66,8 +66,8 @@ export default function RelativeRankingScreen() {
   const [metricInput, setMetricInput] = React.useState('mean');
   const [limitInput, setLimitInput] = React.useState('25');
   const [sortDescending, setSortDescending] = React.useState(false);
-  const [minSamplesInput, setMinSamplesInput] = React.useState('0');
-  const [includeSpeciesLike, setIncludeSpeciesLike] = React.useState(true);
+  const [minSamplesInput, setMinSamplesInput] = React.useState('10');
+  const [includeSpeciesLike, setIncludeSpeciesLike] = React.useState(false);
   const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -448,7 +448,7 @@ export default function RelativeRankingScreen() {
               setTaxonQuery(value);
               setSelectedTaxon(null);
             }}
-            style={[styles.input, { color: palette.text.default.primary }]}
+            style={[styles.input, { color: palette.text.default.default, backgroundColor: palette.background.default.tertiary }]}
             placeholder="Search taxa (e.g. Cactaceae, Ribes, Podaxis pistillaris)"
             placeholderTextColor={palette.text.default.tertiary}
           />
@@ -511,7 +511,7 @@ export default function RelativeRankingScreen() {
               <TextInput
                 value={rankInput}
                 onChangeText={setRankInput}
-                style={[styles.input, { color: palette.text.default.primary }]}
+                style={[styles.input, { color: palette.text.default.default, backgroundColor: palette.background.default.tertiary }]}
                 autoCapitalize="characters"
                 placeholder="SPECIES"
                 placeholderTextColor={palette.text.default.tertiary}
@@ -557,7 +557,7 @@ export default function RelativeRankingScreen() {
                     ]}
                     onPress={() => setVariableDropdownOpen((prev) => !prev)}
                   >
-                    <ThemedText variant="bodySmall">
+                    <ThemedText variant="bodySmall" style={{ color: palette.text.default.default }}>
                       {variableInput ? getVariableLabel(variableInput) : 'Select variable'}
                     </ThemedText>
                   </Pressable>
@@ -596,7 +596,7 @@ export default function RelativeRankingScreen() {
                 <TextInput
                   value={variableInput}
                   onChangeText={setVariableInput}
-                  style={[styles.input, { color: palette.text.default.primary }]}
+                  style={[styles.input, { color: palette.text.default.default, backgroundColor: palette.background.default.tertiary }]}
                   autoCapitalize="none"
                   placeholder="Temperature (bio_1)"
                   placeholderTextColor={palette.text.default.tertiary}
@@ -617,7 +617,7 @@ export default function RelativeRankingScreen() {
                     ]}
                     onPress={() => setMetricDropdownOpen((prev) => !prev)}
                   >
-                    <ThemedText variant="bodySmall">
+                    <ThemedText variant="bodySmall" style={{ color: palette.text.default.default }}>
                       {metricInput ? metricInput : 'Select metric'}
                     </ThemedText>
                   </Pressable>
@@ -656,7 +656,7 @@ export default function RelativeRankingScreen() {
                 <TextInput
                   value={metricInput}
                   onChangeText={setMetricInput}
-                  style={[styles.input, { color: palette.text.default.primary }]}
+                  style={[styles.input, { color: palette.text.default.default, backgroundColor: palette.background.default.tertiary }]}
                   autoCapitalize="none"
                   placeholder="mean"
                   placeholderTextColor={palette.text.default.tertiary}
@@ -689,7 +689,7 @@ export default function RelativeRankingScreen() {
               <TextInput
                 value={limitInput}
                 onChangeText={setLimitInput}
-                style={[styles.input, { color: palette.text.default.primary }]}
+                style={[styles.input, { color: palette.text.default.default, backgroundColor: palette.background.default.tertiary }]}
                 keyboardType="numeric"
                 placeholder="25"
                 placeholderTextColor={palette.text.default.tertiary}
@@ -700,7 +700,7 @@ export default function RelativeRankingScreen() {
               <TextInput
                 value={minSamplesInput}
                 onChangeText={setMinSamplesInput}
-                style={[styles.input, { color: palette.text.default.primary }]}
+                style={[styles.input, { color: palette.text.default.default, backgroundColor: palette.background.default.tertiary }]}
                 keyboardType="numeric"
                 placeholder="0"
                 placeholderTextColor={palette.text.default.tertiary}
@@ -790,10 +790,32 @@ export default function RelativeRankingScreen() {
               {data.entries.map((entry) => {
                 const resolvedTaxonId = Number(entry.taxonId);
                 const safeTaxonId = Number.isFinite(resolvedTaxonId) ? resolvedTaxonId : 0;
-                const commonName = entry.commonName ?? entry.scientificName ?? 'Unknown species';
-                const scientificName = entry.scientificName ?? entry.commonName ?? 'Unknown species';
-                const displayCommonName = commonName.replace(/_/g, ' ');
-                const displayScientificName = scientificName.replace(/_/g, ' ');
+                const rawCommonName =
+                  entry.commonName ??
+                  (entry as any)?.common_name ??
+                  (entry as any)?.commonName ??
+                  (entry as any)?.name ??
+                  (entry as any)?.label ??
+                  (entry as any)?.taxon_name ??
+                  (entry as any)?.taxonName ??
+                  null;
+                const rawScientificName =
+                  entry.scientificName ??
+                  (entry as any)?.scientific_name ??
+                  (entry as any)?.scientificName ??
+                  (entry as any)?.name ??
+                  (entry as any)?.label ??
+                  (entry as any)?.taxon_name ??
+                  (entry as any)?.taxonName ??
+                  null;
+                const fallbackLabel =
+                  rawCommonName ??
+                  rawScientificName ??
+                  (Number.isFinite(safeTaxonId) ? `Taxon #${safeTaxonId}` : 'Unknown species');
+                const commonName = rawCommonName ?? fallbackLabel;
+                const scientificName = rawScientificName ?? fallbackLabel;
+                const displayCommonName = String(commonName).replace(/_/g, ' ');
+                const displayScientificName = String(scientificName).replace(/_/g, ' ');
                 const description = `#${entry.position} · Rank ${entry.rank ?? '—'} · Value ${formatEntryValue(entry.value)} · ${formatPercent(entry.percentile)} · Samples ${entry.sampleCount ?? '—'}`;
                 return (
                   <SpeciesCard
