@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { SpeciesOccurrence } from './types';
 
-const LOCAL_BACKEND = 'https://apiwherewild.cat-nest.net';
+const LOCAL_BACKEND = 'http://localhost:8000';
 const ANDROID_EMULATOR_BACKEND = 'http://10.0.2.2:8000';
 
 const explicitBackend =
