@@ -364,6 +364,10 @@ export default function RelativeRankingScreen() {
     (value: string) => variableNameMap.get(value) ?? value,
     [variableNameMap],
   );
+  const getVariableUnits = React.useCallback(
+    (value: string) => variableCatalog.find((entry) => entry.id === value)?.units ?? null,
+    [variableCatalog],
+  );
   const metricChoices = React.useMemo(() => {
     const normalized = variableInput.trim();
     const target = groupedOptions.find((entry) => entry.variable === normalized);
@@ -396,6 +400,8 @@ export default function RelativeRankingScreen() {
   const resolvedRankingVariable = (data?.variable ?? variableInput ?? '')
     .trim()
     .toLowerCase();
+  const resolvedVariableId = (data?.variable ?? variableInput ?? '').trim();
+  const resolvedUnits = getVariableUnits(resolvedVariableId);
   const rankingIsCategorical = CATEGORICAL_VARIABLES.has(resolvedRankingVariable);
   const formatEntryValue = React.useCallback(
     (value: number | null | undefined) => {
@@ -405,9 +411,10 @@ export default function RelativeRankingScreen() {
       if (rankingIsCategorical) {
         return `${(value * 100).toFixed(1)}%`;
       }
-      return value.toFixed(2);
+      const formatted = value.toFixed(2);
+      return resolvedUnits ? `${formatted} ${resolvedUnits}` : formatted;
     },
-    [rankingIsCategorical],
+    [rankingIsCategorical, resolvedUnits],
   );
 
   return (

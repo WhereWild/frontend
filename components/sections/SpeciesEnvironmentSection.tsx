@@ -93,6 +93,18 @@ const formatValue = (value: number | null | undefined, digits = 0) => {
   });
 };
 
+const formatValueWithUnits = (
+  value: number | null | undefined,
+  digits: number,
+  units?: string | null,
+) => {
+  const formatted = formatValue(value, digits);
+  if (!units || formatted === '—') {
+    return formatted;
+  }
+  return `${formatted} ${units}`;
+};
+
 const formatRange = (
   start: number | null | undefined,
   end: number | null | undefined,
@@ -102,6 +114,22 @@ const formatRange = (
     return '—';
   }
   return `${formatValue(start, digits)} to ${formatValue(end, digits)}`;
+};
+
+const formatRangeWithUnits = (
+  start: number | null | undefined,
+  end: number | null | undefined,
+  digits: number,
+  units?: string | null,
+) => {
+  if (typeof start !== 'number' || typeof end !== 'number') {
+    return '—';
+  }
+  return `${formatValueWithUnits(start, digits, units)} to ${formatValueWithUnits(
+    end,
+    digits,
+    units,
+  )}`;
 };
 
 type SummaryItemProps = {
@@ -132,12 +160,14 @@ const DensityChart = ({
   fillColor,
   selection,
   onSelectionChange,
+  units,
 }: {
   curve: SpeciesEnvironmentDensity | null | undefined;
   lineColor: string;
   fillColor: string;
   selection?: DensitySelectionRange | null;
   onSelectionChange?: (range: DensitySelectionRange | null) => void;
+  units?: string | null;
 }) => {
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
@@ -333,8 +363,8 @@ const DensityChart = ({
         <Path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} />
       </Svg>
       <View style={styles.chartLabels}>
-        <ThemedText variant="bodySmall">{formatValue(minX, 1)}</ThemedText>
-        <ThemedText variant="bodySmall">{formatValue(maxX, 1)}</ThemedText>
+        <ThemedText variant="bodySmall">{formatValueWithUnits(minX, 1, units)}</ThemedText>
+        <ThemedText variant="bodySmall">{formatValueWithUnits(maxX, 1, units)}</ThemedText>
       </View>
     </View>
   );
@@ -351,11 +381,12 @@ const formatComparisonLabel = (
   current: number | null | undefined,
   baseline: number | null | undefined,
   digits = 1,
+  units?: string | null,
 ) => {
   if (typeof current !== 'number' || typeof baseline !== 'number') {
     return null;
   }
-  const baselineText = formatValue(baseline, digits);
+  const baselineText = formatValueWithUnits(baseline, digits, units);
   const delta = current - baseline;
   const percent =
     Math.abs(baseline) > 1e-9 ? ((delta / Math.abs(baseline)) * 100).toFixed(0) : null;
@@ -737,6 +768,7 @@ export function SpeciesEnvironmentSection({
     () => resolvedVariables.find((option) => option.id === selectedVariable) ?? null,
     [resolvedVariables, selectedVariable],
   );
+  const displayUnits = stats?.units ?? selectedVariableMeta?.units ?? null;
   const error = selectedVariable ? errorByVariable[selectedVariable] ?? null : null;
   const loading = loadingVariable === selectedVariable;
   const summary = stats?.summary;
@@ -1036,10 +1068,10 @@ export function SpeciesEnvironmentSection({
         id: entry.catalogNumber,
         label:
           typeof entry.value === 'number'
-            ? `#${entry.catalogNumber} (${formatValue(entry.value, 1)})`
+            ? `#${entry.catalogNumber} (${formatValueWithUnits(entry.value, 1, displayUnits)})`
             : `#${entry.catalogNumber}`,
       })),
-    [rangeObservations],
+    [displayUnits, rangeObservations],
   );
 
   const handleObservationPress = React.useCallback((id: number | string) => {
@@ -1124,11 +1156,21 @@ const resolveRankForMetric = React.useCallback(
       return {};
     }
     return {
-      min: formatComparisonLabel(summary?.min ?? null, baselineSummary?.min ?? null, 1),
-      mean: formatComparisonLabel(summary?.mean ?? null, baselineSummary?.mean ?? null, 1),
-      max: formatComparisonLabel(summary?.max ?? null, baselineSummary?.max ?? null, 1),
-      std: formatComparisonLabel(summary?.stddev ?? null, baselineSummary?.stddev ?? null, 1),
-      range99: formatComparisonLabel(summaryRangeValue, baselineRangeValue, 1),
+      min: formatComparisonLabel(summary?.min ?? null, baselineSummary?.min ?? null, 1, displayUnits),
+      mean: formatComparisonLabel(
+        summary?.mean ?? null,
+        baselineSummary?.mean ?? null,
+        1,
+        displayUnits,
+      ),
+      max: formatComparisonLabel(summary?.max ?? null, baselineSummary?.max ?? null, 1, displayUnits),
+      std: formatComparisonLabel(
+        summary?.stddev ?? null,
+        baselineSummary?.stddev ?? null,
+        1,
+        displayUnits,
+      ),
+      range99: formatComparisonLabel(summaryRangeValue, baselineRangeValue, 1, displayUnits),
     };
   }, [
     baselineRangeValue,
@@ -1136,6 +1178,7 @@ const resolveRankForMetric = React.useCallback(
     baselineSummary?.mean,
     baselineSummary?.min,
     baselineSummary?.stddev,
+    displayUnits,
     locationFilterActive,
     summary?.max,
     summary?.mean,
@@ -1280,14 +1323,19 @@ const resolveRankForMetric = React.useCallback(
               fillColor={palette.background.brand.default}
               selection={selectedDensityRange}
               onSelectionChange={handleDensitySelectionChange}
+              units={displayUnits}
             />
           )}
 
           {!isCategorical && selectedDensityRange ? (
             <View style={styles.selectionSummary}>
               <ThemedText variant="bodySmall">
-                Selected range {formatValue(selectedDensityRange.start, 1)} to{' '}
-                {formatValue(selectedDensityRange.end, 1)}
+                Selected range {formatRangeWithUnits(
+                  selectedDensityRange.start,
+                  selectedDensityRange.end,
+                  1,
+                  displayUnits,
+                )}
               </ThemedText>
               <Pressable onPress={() => setSelectedDensityRange(null)}>
                 <ThemedText variant="bodySmallEmphasis">Clear</ThemedText>
@@ -1396,7 +1444,7 @@ const resolveRankForMetric = React.useCallback(
             <View style={styles.summaryRow}>
               <SummaryItem
                 label="Min"
-                value={formatValue(summary?.min, 1)}
+                value={formatValueWithUnits(summary?.min, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
                     ? summaryComparisons.min ?? null
@@ -1406,7 +1454,7 @@ const resolveRankForMetric = React.useCallback(
               />
               <SummaryItem
                 label="Mean"
-                value={formatValue(summary?.mean, 1)}
+                value={formatValueWithUnits(summary?.mean, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
                     ? summaryComparisons.mean ?? null
@@ -1416,7 +1464,7 @@ const resolveRankForMetric = React.useCallback(
               />
               <SummaryItem
                 label="Max"
-                value={formatValue(summary?.max, 1)}
+                value={formatValueWithUnits(summary?.max, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
                     ? summaryComparisons.max ?? null
@@ -1426,7 +1474,7 @@ const resolveRankForMetric = React.useCallback(
               />
               <SummaryItem
                 label="Std Dev"
-                value={formatValue(summary?.stddev, 1)}
+                value={formatValueWithUnits(summary?.stddev, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
                     ? summaryComparisons.std ?? null
@@ -1436,7 +1484,7 @@ const resolveRankForMetric = React.useCallback(
               />
               <SummaryItem
                 label="1-99 Range"
-                value={formatRange(summary?.q01, summary?.q99, 1)}
+                value={formatRangeWithUnits(summary?.q01, summary?.q99, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
                     ? summaryComparisons.range99 ?? null
