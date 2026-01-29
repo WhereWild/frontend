@@ -19,13 +19,19 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 let pageHeaderProps: any;
 
-jest.mock('@/components', () => ({
-    ...jest.requireActual('@/components'),
-    PageHeader: function MockPageHeader(props: any) {
-        pageHeaderProps = props;
-        return null;
-    },
-}));
+jest.mock('@/components', () => {
+    const { SpeciesCard } = jest.requireActual('@/components/cards/SpeciesCard');
+    const { ThemedText } = jest.requireActual('@/components/text/ThemedText');
+
+    return {
+        PageHeader: function MockPageHeader(props: any) {
+            pageHeaderProps = props;
+            return null;
+        },
+        SpeciesCard,
+        ThemedText,
+    };
+});
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
     typeof useColorScheme
