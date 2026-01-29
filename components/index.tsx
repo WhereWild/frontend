@@ -48,6 +48,12 @@ export type { TabProps } from './tabs/Tab';
 export { Tabs } from './tabs/Tabs';
 export type { TabsProps } from './tabs/Tabs';
 
+export { NavigationPill } from './navigation/Pill';
+export type { NavigationPillProps } from './navigation/Pill';
+
+export { NavigationPillList } from './navigation/NavigationPillList';
+export type { NavigationPillListProps } from './navigation/NavigationPillList';
+
 export { SpeciesPageHeader } from './sections/SpeciesPageHeader';
 export type { SpeciesPageHeaderProps } from './sections/SpeciesPageHeader';
 

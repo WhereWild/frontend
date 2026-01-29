@@ -11,6 +11,7 @@ import {
   ButtonDanger,
   IconButton,
   InlineExpandableRows,
+  NavigationPillList,
   NearbySpeciesCarousel,
   PageHeader,
   SearchInput,
@@ -94,6 +95,11 @@ export default function About() {
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [overviewPill, setOverviewPill] = useState('all');
+  const [habitatPill, setHabitatPill] = useState('soil');
+  const [trackingPill, setTrackingPill] = useState('recent');
+  const [imagesPill, setImagesPill] = useState('all');
+  const [notesPill, setNotesPill] = useState('notes');
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -267,6 +273,42 @@ export default function About() {
     { key: 'notes', label: 'Field Notes' },
   ];
 
+  const overviewPills = [
+    { key: 'all', label: 'All' },
+    { key: 'nearby', label: 'Nearby' },
+    { key: 'seasonal', label: 'Seasonal' },
+    { key: 'rare', label: 'Rare Finds' },
+    { key: 'favorites', label: 'Favorites' },
+    { key: 'alerts', label: 'Alerts' },
+  ];
+
+  const habitatPills = [
+    { key: 'soil', label: 'Soil' },
+    { key: 'elevation', label: 'Elevation' },
+    { key: 'climate', label: 'Climate' },
+    { key: 'canopy', label: 'Canopy Cover' },
+  ];
+
+  const trackingPills = [
+    { key: 'recent', label: 'Recent' },
+    { key: 'verified', label: 'Verified' },
+    { key: 'unverified', label: 'Needs Review' },
+    { key: 'community', label: 'Community Notes' },
+  ];
+
+  const imagesPills = [
+    { key: 'all', label: 'All Images' },
+    { key: 'macro', label: 'Macro' },
+    { key: 'habitat', label: 'Habitat' },
+    { key: 'seasonal', label: 'Seasonal Color' },
+  ];
+
+  const notesPills = [
+    { key: 'notes', label: 'Notes' },
+    { key: 'care', label: 'Care Tips' },
+    { key: 'hazards', label: 'Hazards' },
+  ];
+
   return (
     <>
       <Head>
@@ -426,6 +468,64 @@ export default function About() {
                 accessibilityLabel="Species tabs"
               />
             </View>
+            <View style={styles.pillExamples}>
+              {selectedTab === 'overview' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Horizontal wrap</ThemedText>
+                  <NavigationPillList
+                    pills={overviewPills}
+                    selectedKey={overviewPill}
+                    onSelectionChange={setOverviewPill}
+                    accessibilityLabel="Overview filters"
+                  />
+                </View>
+              )}
+              {selectedTab === 'habitat' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Vertical list</ThemedText>
+                  <NavigationPillList
+                    pills={habitatPills}
+                    selectedKey={habitatPill}
+                    onSelectionChange={setHabitatPill}
+                    direction="vertical"
+                    accessibilityLabel="Habitat filters"
+                  />
+                </View>
+              )}
+              {selectedTab === 'tracking' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Mixed label lengths</ThemedText>
+                  <NavigationPillList
+                    pills={trackingPills}
+                    selectedKey={trackingPill}
+                    onSelectionChange={setTrackingPill}
+                    accessibilityLabel="Tracking filters"
+                  />
+                </View>
+              )}
+              {selectedTab === 'images' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Image categories</ThemedText>
+                  <NavigationPillList
+                    pills={imagesPills}
+                    selectedKey={imagesPill}
+                    onSelectionChange={setImagesPill}
+                    accessibilityLabel="Image filters"
+                  />
+                </View>
+              )}
+              {selectedTab === 'notes' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Notes sections</ThemedText>
+                  <NavigationPillList
+                    pills={notesPills}
+                    selectedKey={notesPill}
+                    onSelectionChange={setNotesPill}
+                    accessibilityLabel="Notes filters"
+                  />
+                </View>
+              )}
+            </View>
           </View>
 
           <View>
@@ -570,6 +670,13 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     paddingTop: Size.space['200'],
+  },
+  pillExamples: {
+    paddingTop: Size.space['400'],
+    gap: Size.space['400'],
+  },
+  pillExampleGroup: {
+    gap: Size.space['200'],
   },
   tokenSection: {
     gap: Size.space['400'],
