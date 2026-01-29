@@ -14,17 +14,20 @@ import {
   Image,
   ImageSourcePropType,
   Pressable,
+  useWindowDimensions,
   StyleProp,
   StyleSheet,
   View,
   ViewStyle,
 } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { Button } from '../buttons/Button';
 import { IconButton } from '../buttons/IconButton';
 import type { ButtonProps } from '../buttons/Button';
 import { SearchInput, type SearchInputProps } from '../inputs/SearchInput';
 import { SearchResults } from './SearchResults';
 import { ThemedText } from '../text/ThemedText';
+import { Portal } from '../Portal';
 import { fetchSpeciesList } from '@/data/api';
 import { SpeciesSummary } from '@/data/types';
 import { toKebabCase } from '@/utils/string';
@@ -116,6 +119,10 @@ export function PageHeader({
   const palette = Colors[mode];
   const responsive = useResponsive();
   const isCompact = responsive.breakpoint !== 'desktop';
+  const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
+  const insets = safeAreaInsets ?? { top: 0, bottom: 0, left: 0, right: 0 };
+  const window = useWindowDimensions();
+  const menuButtonRef = React.useRef<View>(null);
   const router = useRouter();
   const pathname = usePathname();
   const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
@@ -171,12 +178,29 @@ export function PageHeader({
   const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
   const [isSearchResultsHovered, setIsSearchResultsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
 
   useEffect(() => {
     if (!isCompact && isMenuOpen) {
       setIsMenuOpen(false);
     }
   }, [isCompact, isMenuOpen]);
+
+  const measureMenuAnchor = React.useCallback(() => {
+    if (!menuButtonRef.current) {
+      return;
+    }
+    menuButtonRef.current.measureInWindow((x, y, width, height) => {
+      const right = Math.max(0, window.width - (x + width));
+      setMenuAnchor({ top: y + height + Size.space['200'], right });
+    });
+  }, [window.width]);
+
+  useEffect(() => {
+    if (isMenuOpen && isCompact) {
+      measureMenuAnchor();
+    }
+  }, [isMenuOpen, isCompact, measureMenuAnchor]);
 
   if (typeof initialQuery === 'string' && initialQuery !== '' && searchQuery === '') {
     // Initialize search query from prop on first render
@@ -255,7 +279,8 @@ export function PageHeader({
     wrapperHeight &&
     hasQuery &&
     showSearchResultsDropdown &&
-    (isSearchBarFocused || isSearchResultsHovered);
+    (isCompact || isSearchBarFocused || isSearchResultsHovered);
+  const searchResultsTop = wrapperHeight ? wrapperHeight + Size.space['200'] : undefined;
 
   const renderSearchResults = () =>
     searchResultsVisible ? (
@@ -264,8 +289,11 @@ export function PageHeader({
         isVisible={true}
         isLoading={searching}
         emptyMessage={searchError ?? 'No species found'}
+        style={searchResultsTop ? { top: searchResultsTop } : undefined}
         onPointerEnter={() => setIsSearchResultsHovered(true)}
         onPointerLeave={() => setIsSearchResultsHovered(false)}
+        onTouchStart={() => setIsSearchResultsHovered(true)}
+        onTouchEnd={() => setIsSearchResultsHovered(false)}
         onSelectResult={(s) => {
           const segment = toKebabCase((s.scientificName ?? '').trim());
           if (segment) {
@@ -324,12 +352,21 @@ export function PageHeader({
       ) : null}
 
       {variant === 'mobile' ? (
-        <IconButton
-          variant="primary"
-          icon={<IconMenu />}
-          onPress={() => setIsMenuOpen((prev) => !prev)}
-          accessibilityLabel="Open menu"
-        />
+        <View ref={menuButtonRef} collapsable={false}>
+          <IconButton
+            variant="primary"
+            icon={<IconMenu />}
+            onPress={() => {
+              if (isMenuOpen) {
+                setIsMenuOpen(false);
+                return;
+              }
+              measureMenuAnchor();
+              setIsMenuOpen(true);
+            }}
+            accessibilityLabel="Open menu"
+          />
+        </View>
       ) : null}
     </View>
   );
@@ -338,15 +375,27 @@ export function PageHeader({
     <View
       style={[
         styles.container,
-        isCompact ? styles.containerMobile : styles.containerDesktop,
-        {
-          backgroundColor: palette.background.default.secondary,
-        },
-        Shadows.dropShadow200.style,
+        isCompact ? { marginTop: insets.top } : null,
         style,
       ]}
       accessibilityRole="header"
     >
+      <View
+        pointerEvents="none"
+        style={[
+          styles.surface,
+          {
+            backgroundColor: palette.background.default.secondary,
+          },
+          Shadows.dropShadow200.style,
+        ]}
+      />
+      <View
+        style={[
+          styles.content,
+          isCompact ? styles.containerMobile : styles.containerDesktop,
+        ]}
+      >
       {isCompact ? (
         <>
           <View style={styles.mobileHeaderRow}>
@@ -363,27 +412,36 @@ export function PageHeader({
           </View>
 
           {isMenuOpen ? (
-            <View
-              style={[
-                styles.mobileMenu,
-                {
-                  backgroundColor: palette.background.default.tertiary,
-                  borderColor: palette.border.default.tertiary,
-                },
-                Shadows.dropShadow400.style,
-              ]}
-            >
-              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-                <Button
-                  key={label}
-                  variant={variant}
-                  onPress={onPress}
-                  iconStart={icon}
-                  label={label}
-                  style={styles.mobileMenuButton}
-                />
-              ))}
-            </View>
+            <Portal visible={isMenuOpen} onDismiss={() => setIsMenuOpen(false)}>
+              <Pressable
+                style={styles.menuBackdrop}
+                onPress={() => setIsMenuOpen(false)}
+              />
+              <View
+                style={[
+                  styles.mobileMenu,
+                  {
+                    backgroundColor: palette.background.default.tertiary,
+                    borderColor: palette.border.default.tertiary,
+                  },
+                  menuAnchor
+                    ? { top: menuAnchor.top + Size.space['600'], right: menuAnchor.right }
+                    : { top: insets.top + Size.space['1600'] + Size.space['300'], right: Size.space['200'] },
+                  Shadows.dropShadow400.style,
+                ]}
+              >
+                {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+                  <Button
+                    key={label}
+                    variant={variant}
+                    onPress={onPress}
+                    iconStart={icon}
+                    label={label}
+                    style={styles.mobileMenuButton}
+                  />
+                ))}
+              </View>
+            </Portal>
           ) : null}
         </>
       ) : (
@@ -412,6 +470,7 @@ export function PageHeader({
           </View>
         </>
       )}
+      </View>
     </View>
   );
 }
@@ -421,6 +480,14 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 9999,
     position: 'relative',
+  },
+  surface: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  content: {
+    position: 'relative',
+    zIndex: 1,
   },
   containerDesktop: {
     flexDirection: 'row',
@@ -483,12 +550,11 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     flexWrap: 'wrap',
   },
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   mobileMenu: {
-    alignSelf: 'flex-end',
     position: 'absolute',
-    top: '100%',
-    right: Size.space['200'],
-    marginTop: Size.space['200'],
     padding: Size.space['200'],
     gap: Size.space['200'],
     borderRadius: Size.radius['400'],

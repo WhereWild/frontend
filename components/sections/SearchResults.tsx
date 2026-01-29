@@ -51,6 +51,8 @@ export type SearchResultsProps = {
    */
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  onTouchStart?: () => void;
+  onTouchEnd?: () => void;
 
   /**
    * Maximum height of the results list.
@@ -80,6 +82,8 @@ export function SearchResults({
   testID,
   onPointerEnter,
   onPointerLeave,
+  onTouchStart,
+  onTouchEnd,
 }: SearchResultsProps) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -107,6 +111,8 @@ export function SearchResults({
         ]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         testID={testID ? `${testID}-loading` : undefined}
       >
         <View style={styles.centerContent}>
@@ -125,6 +131,8 @@ export function SearchResults({
         ]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         testID={testID ? `${testID}-empty` : undefined}
       >
         <View style={styles.centerContent}>
@@ -156,6 +164,8 @@ export function SearchResults({
       ]}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
       testID={testID}
     >
       <FlatList
@@ -164,6 +174,8 @@ export function SearchResults({
         keyExtractor={(item) => item.taxonId.toString()}
         scrollEnabled
         nestedScrollEnabled
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
         contentContainerStyle={styles.listContent}
         testID={testID ? `${testID}-list` : undefined}
       />
@@ -178,7 +190,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-    marginTop: Size.space['400'],
   },
   panel: {
     borderRadius: Size.radius['400'],
