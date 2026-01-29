@@ -48,8 +48,8 @@ export type { TabProps } from './tabs/Tab';
 export { Tabs } from './tabs/Tabs';
 export type { TabsProps } from './tabs/Tabs';
 
-export { NavigationPill } from './navigation/Pill';
-export type { NavigationPillProps } from './navigation/Pill';
+export { NavigationPill } from './navigation/NavigationPill';
+export type { NavigationPillProps } from './navigation/NavigationPill';
 
 export { NavigationPillList } from './navigation/NavigationPillList';
 export type { NavigationPillListProps } from './navigation/NavigationPillList';

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Size } from '@/constants/theme';
-import { NavigationPill } from './Pill';
+import { NavigationPill } from './NavigationPill';
 
 type NavigationPillItem = {
   key: string;
@@ -166,7 +166,7 @@ export function NavigationPillList({
                   return { ...prev, [pill.key]: width };
                 });
               }}
-              contentWidth={!isHorizontal ? maxPillWidth : undefined}
+              contentWidth={!isHorizontal ? maxPillWidth ?? undefined : undefined}
               focusable={isTabbable}
               tabIndex={isTabbable ? 0 : -1}
               accessibilityLabel={pill.accessibilityLabel ?? pill.label}

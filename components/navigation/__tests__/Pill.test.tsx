@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { act, create } from 'react-test-renderer';
 import { Colors, Size } from '@/constants/theme';
-import { NavigationPill } from '../Pill';
+import { NavigationPill } from '../NavigationPill';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: () => 'light',
