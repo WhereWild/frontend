@@ -93,6 +93,19 @@ export type HeatmapSnapshot = {
   imageSource: ImageSourcePropType;
 };
 
+export type SpeciesOccurrence = {
+  catalogNumber: number | string;
+  latitude: number;
+  longitude: number;
+};
+
+export type LocationSearchResult = {
+  gid: string;
+  name: string;
+  level: number;
+  hierarchy: string[];
+};
+
 /**
  * Full payload required to render the species detail page.
  */

@@ -6,9 +6,12 @@ import {
   IconSettings,
 } from '@/assets/icons';
 import { Colors, Size } from '@/constants/theme';
+import { fetchSpeciesList } from '@/data/api';
+import type { SpeciesSummary } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { toKebabCase } from '@/utils/string';
 import { usePathname, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -19,7 +22,9 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Button } from '../buttons/Button';
+import type { ButtonProps } from '../buttons/Button';
 import { SearchInput, type SearchInputProps } from '../inputs/SearchInput';
+import { SearchResults } from '../inputs/SearchResults';
 import { ThemedText } from '../text/ThemedText';
 
 // Allows callers to forward styling/behavior props to SearchInput while keeping PageHeader in control of its value.
@@ -27,9 +32,47 @@ type SearchInputPassthroughProps = Partial<
   Omit<SearchInputProps, 'value' | 'onQueryChange' | 'onSubmitSearch' | 'placeholder'>
 >;
 
+const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
+  const rawId = typeof entry?.taxon_id === 'number' ? entry?.taxon_id : Number(entry?.taxon_id ?? NaN);
+  if (!Number.isFinite(rawId)) {
+    return null;
+  }
+  const scientificName =
+    (typeof entry?.scientific_name === 'string' && entry.scientific_name.length > 0)
+      ? entry.scientific_name
+      : `Taxon #${rawId}`;
+  const normalizeName = (value?: string) =>
+    typeof value === 'string' && value.length > 0 ? value.replace(/_/g, ' ') : value;
+  const matchedCommonName = normalizeName(entry?.matched_common_name);
+  const commonName = matchedCommonName ?? normalizeName(entry?.common_name) ?? scientificName;
+  const description =
+    (typeof entry?.description === 'string' && entry.description.length > 0)
+      ? entry.description
+      : (typeof entry?._raw?.description === 'string' && entry._raw.description.length > 0)
+        ? entry._raw.description
+        : 'Tap to view species details';
+  const imageSource =
+    typeof entry?.image_source === 'string'
+      ? { uri: entry.image_source }
+      : entry?.image_source;
+  const commonNames =
+    Array.isArray(entry?.common_names)
+      ? entry.common_names.filter((name: unknown) => typeof name === 'string' && name.length > 0)
+      : undefined;
+
+  return {
+    taxonId: rawId,
+    commonName,
+    scientificName: normalizeName(scientificName) ?? '',
+    description,
+    imageSource,
+    commonNames,
+  };
+};
+
 export type PageHeaderAction = {
   label: string;
-  icon: React.ReactNode;
+  icon: ButtonProps['iconStart'];
   onPress?: () => void;
   variant?: 'neutral' | 'subtle';
 };
@@ -38,9 +81,6 @@ export type PageHeaderProps = {
   title?: string;
   logoSource?: ImageSourcePropType;
   logoAccessibilityLabel?: string;
-  searchValue?: string;
-  onSearchChange?: (value: string) => void;
-  onSubmitSearch?: (value: string) => void;
   searchPlaceholder?: string;
   searchInputProps?: SearchInputPassthroughProps;
   actions?: PageHeaderAction[];
@@ -49,16 +89,18 @@ export type PageHeaderProps = {
   filterLabel?: string;
   filterButtonAccessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  showSearchResultsDropdown?: boolean;
+  initialQuery?: string;
+  onSearchingChanged?: (searching: boolean) => void;
+  onSearchResultsChanged?: (results: SpeciesSummary[]) => void;
 };
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
+const SEARCH_RESULT_LIMIT = 9;
 
 export function PageHeader({
   title = 'WhereWild',
   logoSource = DEFAULT_LOGO,
-  searchValue,
-  onSearchChange,
-  onSubmitSearch,
   searchPlaceholder = 'Search',
   searchInputProps,
   actions,
@@ -68,6 +110,10 @@ export function PageHeader({
   filterButtonAccessibilityLabel = 'Filter search results',
   style,
   logoAccessibilityLabel = 'Go to home',
+  showSearchResultsDropdown = true,
+  initialQuery,
+  onSearchingChanged,
+  onSearchResultsChanged,
 }: PageHeaderProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -87,9 +133,17 @@ export function PageHeader({
   const navigateToAbout = React.useCallback(() => {
     navigateIfDifferent('/about');
   }, [navigateIfDifferent]);
+
   const navigateToLeaderboards = React.useCallback(() => {
     navigateIfDifferent('/relative-rankings');
   }, [navigateIfDifferent]);
+
+  const submitSearchQuery = (query: string) => {
+    if (query !== '') {
+      router.push({ pathname: '/search', params: { query: query } });
+    }
+  };
+
   const defaultActions = React.useMemo<PageHeaderAction[]>(
     () => [
       { label: 'Leaderboards', icon: <IconBarChart2 />, onPress: navigateToLeaderboards },
@@ -110,12 +164,94 @@ export function PageHeader({
       />
       <ThemedText
         variant="heading"
-        style={{ color: palette.text.brand.default }}  // override color to match page header mock
+        style={{ color: palette.text.brand.default }} // override color to match page header mock
       >
         {title}
       </ThemedText>
     </>
   );
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SpeciesSummary[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [wrapperHeight, setWrapperHeight] = useState<number | null>(null);
+  const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
+  const [isSearchResultsHovered, setIsSearchResultsHovered] = useState(false);
+
+  if (typeof initialQuery === 'string' && initialQuery !== '' && searchQuery === '') {
+    // Initialize search query from prop on first render
+    // After first render, initialQuery will be set to a blank string and searchQuery will be controlled internally
+    setSearchQuery(initialQuery);
+  }
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!debouncedQuery) {
+      setSearchResults([]);
+      if (onSearchResultsChanged) {
+        onSearchResultsChanged([]);
+      }
+      setSearchError(null);
+      setSearching(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setSearching(true);
+    if (onSearchingChanged) {
+      onSearchingChanged(true);
+    }
+    setSearchError(null);
+    (async () => {
+      try {
+        const payload = await fetchSpeciesList(SEARCH_RESULT_LIMIT * 2, debouncedQuery);
+        if (cancelled) {
+          return;
+        }
+        const mapped = payload
+          .map(mapSearchResultToSummary)
+          .filter((entry: any): entry is SpeciesSummary => Boolean(entry))
+          .slice(0, SEARCH_RESULT_LIMIT);
+        setSearchResults(mapped);
+        if (onSearchResultsChanged) {
+          onSearchResultsChanged(mapped);
+        }
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        const message = err instanceof Error ? err.message : 'Search failed';
+        setSearchError(message);
+        setSearchResults([]);
+        if (onSearchResultsChanged) {
+          onSearchResultsChanged([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearching(false);
+          if (onSearchingChanged) {
+            onSearchingChanged(false);
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery, onSearchResultsChanged, onSearchingChanged]);
+
+  const hasQuery = debouncedQuery.length > 0;
 
   return (
     <View
@@ -137,16 +273,54 @@ export function PageHeader({
         {logoContent}
       </Pressable>
 
-      <View style={styles.searchRow}>
-        <View style={styles.searchWrapper}>
+      <View
+        onFocus={() => setIsSearchBarFocused(true)}
+        onBlur={() => setIsSearchBarFocused(false)}
+        style={styles.searchRow}
+      >
+        <View
+          style={styles.searchWrapper}
+          onLayout={(e) => {
+            setWrapperHeight(e.nativeEvent.layout.height);
+          }}
+        >
           <SearchInput
-            value={searchValue}
-            onQueryChange={onSearchChange}
-            onSubmitSearch={onSubmitSearch}
+            value={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSubmitSearch={submitSearchQuery}
             placeholder={searchPlaceholder}
             {...searchInputProps}
           />
         </View>
+
+        {wrapperHeight && hasQuery && showSearchResultsDropdown && (isSearchBarFocused || isSearchResultsHovered) && (
+          <View
+            onPointerEnter={() => setIsSearchResultsHovered(true)}
+            onPointerLeave={() => setIsSearchResultsHovered(false)}
+            style={[
+              styles.resultsOverlay,
+              {
+                top: wrapperHeight + Size.space['200'],
+                width: '100%',
+                maxWidth: 440,
+              },
+            ]}
+          >
+            <SearchResults
+              results={searchResults}
+              isVisible={true}
+              isLoading={searching}
+              emptyMessage={searchError ?? 'No species found'}
+              onSelectResult={(s) => {
+                const segment = toKebabCase((s.scientificName ?? '').trim());
+                if (segment) {
+                  router.push(`/species/${s.taxonId}/${segment}` as any);
+                }
+              }}
+              testID="header-search-results"
+            />
+          </View>
+        )}
         {showFilterButton ? (
           <Button
             variant="neutral"
@@ -182,6 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Size.space['800'],
     paddingVertical: Size.space['200'],
     gap: Size.space['400'],
+    zIndex: 9999,
   },
   logoSection: {
     flexDirection: 'row',
@@ -197,10 +372,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: Size.space['400'],
-    minWidth: Size.space['8000']
+    minWidth: Size.space['8000'],
   },
   searchWrapper: {
     flex: 1,
+  },
+  resultsOverlay: {
+    position: 'absolute',
+    zIndex: 9999,
   },
   actionsWrapper: {
     flexDirection: 'row',

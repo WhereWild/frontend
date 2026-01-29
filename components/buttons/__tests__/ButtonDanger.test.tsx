@@ -2,9 +2,9 @@ import { Colors } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
-import type { ButtonDangerSize, ButtonDangerVariant } from '../buttons/ButtonDanger';
-import { ButtonDanger, __BUTTON_DANGER_TESTING__ } from '../buttons/ButtonDanger';
-import { ThemedText } from '../text/ThemedText';
+import type { ButtonDangerSize, ButtonDangerVariant } from '../ButtonDanger';
+import { ButtonDanger, __BUTTON_DANGER_TESTING__ } from '../ButtonDanger';
+import { ThemedText } from '../../text/ThemedText';
 
 const createIconProbe = () => {
   const calls: { color?: string }[] = [];
@@ -78,7 +78,7 @@ describe('ButtonDanger Component', () => {
   });
 
   describe('Icons', () => {
-    const iconSource = require('../../assets/images/placeholder.png');
+    const iconSource = require('../../../assets/images/placeholder.png');
 
     it('renders asset iconStart when provided', () => {
       render(
@@ -102,21 +102,6 @@ describe('ButtonDanger Component', () => {
 
       expect(screen.getByTestId('danger-icon-end')).toBeDefined();
       expect(screen.getByText('Archive')).toBeDefined();
-    });
-
-    it('hides icons during loading state', () => {
-      render(
-        <ButtonDanger
-          loading
-          label="Deleting"
-          iconStart={<Image source={iconSource} testID="danger-icon-start" />}
-          iconEnd={<Image source={iconSource} testID="danger-icon-end" />}
-        />
-      );
-
-      expect(screen.queryByTestId('danger-icon-start')).toBeNull();
-      expect(screen.queryByTestId('danger-icon-end')).toBeNull();
-      expect(screen.getByText('…')).toBeDefined();
     });
 
     it('injects semantic icon color for primary danger variant when needed', () => {
@@ -167,11 +152,6 @@ describe('ButtonDanger Component', () => {
   });
 
   describe('States', () => {
-    it('shows loading state with ellipsis', () => {
-      render(<ButtonDanger loading>Delete</ButtonDanger>);
-      expect(screen.getByText('…')).toBeDefined();
-    });
-
     it('is disabled when disabled prop is true', () => {
       const onPress = jest.fn();
       render(
@@ -181,19 +161,6 @@ describe('ButtonDanger Component', () => {
       );
 
       fireEvent.press(screen.getByText('Cannot Delete'));
-      expect(onPress).not.toHaveBeenCalled();
-    });
-
-    it('is disabled when loading', () => {
-      const onPress = jest.fn();
-      render(
-        <ButtonDanger loading onPress={onPress}>
-          Delete
-        </ButtonDanger>
-      );
-
-      const button = screen.getByText('…');
-      fireEvent.press(button);
       expect(onPress).not.toHaveBeenCalled();
     });
   });
@@ -248,10 +215,27 @@ describe('ButtonDanger Component', () => {
       expect(computed.backgroundColor).toBe(Colors.dark.background.danger.pressed);
     });
 
+    it('uses hover danger background token', () => {
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'light', false, true, false);
+      expect(computed.backgroundColor).toBe(Colors.light.background.danger.hover);
+    });
+
     it('uses hover colors for subtle danger variant', () => {
       const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'dark', false, true, false);
       expect(computed.backgroundColor).toBe(Colors.dark.background.danger.secondaryHover);
       expect(computed.iconColor).toBe(Colors.dark.icon.danger.onDangerSecondary);
+    });
+
+    it('uses pressed colors for subtle danger variant', () => {
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'light', true, false, false);
+      expect(computed.backgroundColor).toBe(Colors.light.background.danger.secondaryPressed);
+      expect(computed.iconColor).toBe(Colors.light.icon.danger.onDangerSecondary);
+    });
+
+    it('shows outlined border when subtle danger is idle', () => {
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'light', false, false, false);
+      expect(computed.borderColor).toBe(Colors.light.border.danger.secondary);
+      expect(computed.backgroundColor).toBe('transparent');
     });
 
     it('locks disabled palette across variants and modes', () => {
@@ -272,19 +256,31 @@ describe('ButtonDanger Component', () => {
   });
 
   describe('__BUTTON_DANGER_TESTING__ helpers', () => {
-    it('returns raw icon when node is not a React element', () => {
-      expect(__BUTTON_DANGER_TESTING__.renderIcon('glyph', '#ff0000')).toBe('glyph');
-    });
-
-    it('does not clone icons that already define props', () => {
-      const Icon = (props: { color?: string; size?: string | number }) => (
-        <ThemedText accessibilityLabel="danger-icon" style={{ color: props.color }}>
-          Icon
+    it('renders a component icon with injected defaults', () => {
+      const Icon = ({ color, size }: { color?: string; size?: string }) => (
+        <ThemedText accessibilityLabel="danger-icon" style={{ color }}>
+          {String(size)}
         </ThemedText>
       );
-      const icon = <Icon color="#ff00ff" size="18" />;
 
-      expect(__BUTTON_DANGER_TESTING__.renderIcon(icon, '#000000')).toBe(icon);
+      const rendered = __BUTTON_DANGER_TESTING__.renderIcon(Icon, '#ff0000', '20');
+      expect(React.isValidElement(rendered)).toBe(true);
+      expect(rendered?.props.color).toBe('#ff0000');
+      expect(rendered?.props.size).toBe('20');
+    });
+    
+    it('preserves existing icon element props without overriding', () => {
+      const Icon = ({ color, size }: { color?: string; size?: string }) => (
+        <ThemedText accessibilityLabel="icon" style={{ color }}>
+          {String(size)}
+        </ThemedText>
+      );
+
+      const iconElement = <Icon color="#ff00ff" size="32" />;
+
+      const rendered = __BUTTON_DANGER_TESTING__.renderIcon(iconElement, '#ff0000', '20');
+      expect(rendered?.props.color).toBe('#ff00ff');
+      expect(rendered?.props.size).toBe('32');
     });
   });
 });

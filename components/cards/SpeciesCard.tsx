@@ -17,13 +17,13 @@ import { useRouter } from 'expo-router';
 import type { RelativePathString } from 'expo-router';
 import { toKebabCase } from '@/utils/string';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
-export type SpeciesCardSize = 'default' | 'large';
+export type SpeciesCardSize = 'default' | 'compact' | 'large';
 
 export type SpeciesCardProps = {
   taxonId: number;
   commonName: string;
   scientificName: string;
-  description: string;
+  description?: string;
   imageSource?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
   testID?: string;
@@ -32,7 +32,8 @@ export type SpeciesCardProps = {
   size?: SpeciesCardSize;
 };
 
-const IMAGE_SIZE = 128;
+const DEFAULT_IMAGE_SIZE = 128;
+const COMPACT_IMAGE_SIZE = 56;
 const LARGE_IMAGE_SIZE = 160;
 const MAX_WIDTH = 440;
 const LARGE_MAX_WIDTH = 960;
@@ -88,9 +89,27 @@ export function SpeciesCard({
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
-  const imageSize = size === 'large' ? LARGE_IMAGE_SIZE : IMAGE_SIZE;
+
+  const imageSize =
+    size === 'large'
+      ? LARGE_IMAGE_SIZE
+      : size === 'compact'
+        ? COMPACT_IMAGE_SIZE
+        : DEFAULT_IMAGE_SIZE;
   const maxWidth = size === 'large' ? LARGE_MAX_WIDTH : MAX_WIDTH;
-  const padding = size === 'large' ? Size.space['500'] : Size.space['400'];
+  const padding =
+    size === 'large'
+      ? Size.space['500']
+      : size === 'compact'
+        ? Size.space['300']
+        : Size.space['400'];
+  const gap =
+    size === 'large'
+      ? Size.space['500']
+      : size === 'compact'
+        ? Size.space['300']
+        : Size.space['400'];
+
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -125,12 +144,13 @@ export function SpeciesCard({
       testID={testID}
       style={(state) => [
         styles.container,
-        size === 'large' && styles.containerLarge,
+        size === 'compact' && styles.containerCompact,
         {
           backgroundColor: backgroundForState(state),
           borderRadius: Size.radius['200'],
           maxWidth,
           padding,
+          gap,
         },
         style,
       ]}
@@ -139,6 +159,7 @@ export function SpeciesCard({
         style={[
           styles.imageWrapper,
           { width: imageSize, height: imageSize },
+          size === 'compact' && styles.imageWrapperCompact,
           !imageSource && { backgroundColor: placeholderBackground },
         ]}
       >
@@ -160,7 +181,13 @@ export function SpeciesCard({
         )}
       </View>
 
-      <View style={[styles.textSection, { minHeight: imageSize }]}>
+      <View
+        style={[
+          styles.textSection,
+          { minHeight: imageSize },
+          size === 'compact' && styles.textSectionCompact,
+        ]}
+      >
         <View>
           <ThemedText variant="subheading" numberOfLines={1} accessibilityRole="header">
             {commonName}
@@ -170,9 +197,16 @@ export function SpeciesCard({
           </ThemedText>
         </View>
 
-        <ThemedText variant="body" style={styles.description} numberOfLines={3}>
-          {description}
-        </ThemedText>
+        {size === 'default' && (
+          <ThemedText
+            variant="body"
+            style={styles.description}
+            numberOfLines={3}
+            testID="species-card-description"
+          >
+            {description}
+          </ThemedText>
+        )}
       </View>
     </Pressable>
   );
@@ -186,14 +220,17 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     width: '100%',
   },
-  containerLarge: {
-    maxWidth: '100%',
+  containerCompact: {
+    alignItems: 'center',
   },
   imageWrapper: {
     borderRadius: Size.radius['200'],
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  imageWrapperCompact: {
+    flexShrink: 0,
   },
   image: {
     width: '100%',
@@ -208,8 +245,12 @@ const styles = StyleSheet.create({
   },
   textSection: {
     flex: 1,
-    minHeight: IMAGE_SIZE,
     justifyContent: 'space-between',
+  },
+  textSectionCompact: {
+    minHeight: COMPACT_IMAGE_SIZE,
+    justifyContent: 'center',
+    gap: Size.space['100'],
   },
   description: {
     marginTop: Size.space['200'],

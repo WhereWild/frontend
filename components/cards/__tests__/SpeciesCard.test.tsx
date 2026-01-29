@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { PressableStateCallbackType, StyleSheet } from 'react-native';
-import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../cards/SpeciesCard';
+import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../SpeciesCard';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
 import type { Router } from 'expo-router';
@@ -224,4 +224,25 @@ describe('SpeciesCard', () => {
     );
     consoleErrorSpy.mockRestore();
   });
+
+  it('does not display a description when the compact size is used', () => {
+    render(
+      <SpeciesCard
+        {...baseProps}
+        size='compact'
+        testID="species-card"
+      />,
+    );
+
+    expect(screen.queryByTestId('species-card-description')).toBeNull();
+
+    render(
+      <SpeciesCard
+        {...baseProps}
+        testID="species-card"
+      />,
+    );
+    
+    expect(screen.getByTestId('species-card-description')).toBeTruthy();
+    });
 });

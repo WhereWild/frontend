@@ -8,11 +8,12 @@ import {
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
-import { Colors, Responsive, Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
 import React from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
@@ -32,19 +33,17 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     nearbySpecies,
     heatmap,
     taxonomyPath,
-  } =
-    data;
+  } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  // Placeholder for future search/filter functionality. Currently unused in this demo screen.
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const responsive = useResponsive();
 
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
   const [occurrenceLoading, setOccurrenceLoading] = React.useState(false);
   const [occurrenceError, setOccurrenceError] = React.useState<string | null>(null);
   const shouldRenderOccurrenceMap = Boolean(taxonId);
-  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<Array<number | string>>([]);
+  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
   const locationGid = selectedLocation?.gid ?? null;
 
@@ -91,6 +90,11 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
+
+  const handleHighlightsChange = React.useCallback((catalogNumbers: Array<number | string>) => {
+    setHighlightedCatalogs(catalogNumbers);
+  }, []);
+
   const taxonomyLabel = typeof taxonomyPath === 'string' && taxonomyPath.length
     ? taxonomyPath
     : null;
@@ -103,12 +107,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
       >
-        <PageHeader
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSubmitSearch={setSearchQuery}
-          onFilterPress={() => Alert.alert('Filter coming soon')}
-        />
+        <PageHeader />
 
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <SpeciesPageHeader
@@ -119,7 +118,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           />
 
           <View style={styles.centeredSection}>
-            <View style={styles.sectionContent}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
+            >
               <View style={styles.overviewSection}>
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
@@ -170,14 +170,16 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           </View>
 
           <View style={styles.centeredSection}>
-            <View style={styles.sectionContent}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
+            >
               <InlineExpandableRows sections={dataSections} />
             </View>
           </View>
           <NearbySpeciesCarousel species={nearbySpecies} />
 
           <View style={styles.centeredSection}>
-            <View style={styles.sectionContent}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
+            >
               <SpeciesLocationPicker
                 value={selectedLocation}
                 onChange={setSelectedLocation}
@@ -185,15 +187,21 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             </View>
           </View>
 
-          <SpeciesEnvironmentSection
-            taxonId={taxonId}
-            onHighlightChange={setHighlightedCatalogs}
-            locationGid={locationGid}
-          />
+          <View style={styles.centeredSection}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
+            >
+              <SpeciesEnvironmentSection
+                taxonId={taxonId}
+                onHighlightChange={handleHighlightsChange}
+                locationGid={locationGid}
+              />
+            </View>
+          </View>
 
-          {shouldRenderOccurrenceMap ? (
+          {shouldRenderOccurrenceMap && (
             <View style={styles.centeredSection}>
-              <View style={styles.sectionContent}>
+              <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
+              >
                 <ThemedText variant="heading">Observation Map</ThemedText>
                 <SpeciesOccurrenceMap
                   occurrences={occurrences}
@@ -203,10 +211,11 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
                 />
               </View>
             </View>
-          ) : null}
+          )}
 
           <View style={styles.heatMapSection}>
-            <View style={[styles.sectionContent]}>
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
+            >
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>
             <Image
@@ -237,9 +246,7 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     width: '100%',
-    maxWidth: Responsive.contentWidth,
     gap: Size.space['800'],
-    paddingHorizontal: Responsive.marginHorizontal,
   },
   overviewSection: {
     flexDirection: 'row',
@@ -284,6 +291,3 @@ const styles = StyleSheet.create({
     aspectRatio: 1440 / 810,
   },
 });
-  const handleHighlightsChange = React.useCallback((catalogNumbers: Array<number | string>) => {
-    setHighlightedCatalogs(catalogNumbers);
-  }, []);

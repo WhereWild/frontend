@@ -153,6 +153,10 @@ export async function fetchEnvironmentVariables(): Promise<EnvironmentVariableDe
     .filter((entry) => entry.id.length > 0);
 }
 
+type LocationOptions = {
+  location?: string | null;
+};
+
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -436,10 +440,6 @@ const coerceRelativeRanks = (value: any): SpeciesEnvironmentRelativeRank[] => {
     ranks.push(normalizeRank(key, raw));
   }
   return ranks;
-};
-
-type LocationOptions = {
-  location?: string | null;
 };
 
 export async function fetchSpeciesEnvironment(

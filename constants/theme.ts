@@ -5,34 +5,12 @@
 
 import type { TextStyle } from 'react-native';
 
-import {
-  wdsResponsiveTokens,
-  wdsSemanticTokens,
-  wdsSizeTokens,
-  wdsStyleTokens,
-  wdsTypographyPrimitiveTokens,
-  wdsTypographyTokens,
-} from './wdsTokens';
+import { cssLengthToPx, resolveCssVariables } from './tokenHelpers';
+import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens } from './wdsTokens';
+import { getResponsive } from './responsive';
+import { createShadows } from './shadows';
 
-// Style typography tokens reference primitive tokens (e.g. var(--wds-typography-body-size-medium)),
-// so build a lookup map we can use to swap those placeholders for their concrete values.
-const cssVariableMap = Object.fromEntries([
-  ...Object.entries({
-    ...wdsTypographyPrimitiveTokens,
-    ...wdsTypographyTokens,
-  }).map(([key, value]) => [`--${key}`, value]),
-  ...Object.entries(wdsSizeTokens).flatMap(([key, value]) => {
-    const normalizedKey = key.replace(/^wds-/, '');
-    return [
-      [`--${key}`, value],
-      [`--@${normalizedKey}`, value],
-    ];
-  }),
-]);
-
-// Replace each CSS variable reference inside the font shorthand string with its literal value.
-const resolveCssVariables = (value: string) =>
-  value.replace(/var\((--[^)]+)\)/g, (_, token) => cssVariableMap[token] ?? token);
+// Token helpers live in tokenHelpers.ts to enable reuse across responsive and shadow factories.
 
 const makePalette = (mode: 'light' | 'dark') => ({
   background: {
@@ -189,20 +167,16 @@ const expoFontMap: Record<string, string> = {
 const getExpoFontName = (family: string, weight: string) =>
   expoFontMap[`${family}|${weight}`] ?? 'System';
 
-// rem units are used across typography and size tokens in the design system.
-// React Native expects pixel values, so we convert rem -> px using a 16px base.
-// This single helper is reused for font sizes and all size-related tokens to keep consistency.
-const remToPx = (rem: string) => parseFloat(resolveCssVariables(rem)) * 16;
-
 // Function to parse CSS font shorthand into React Native style object
 const parseFontShorthand = (
   value: string,
   variant: keyof typeof FONT_LINE_HEIGHTS,
+  baseRemPx = 16,
 ): TextStyle => {
   const resolvedValue = resolveCssVariables(value);
   const [style, weight, size, ...familyParts] = resolvedValue.split(' ');
   const family = familyParts.join(' ');
-  const fontSize = remToPx(size);
+  const fontSize = cssLengthToPx(size, baseRemPx);
   const fontStyle = style as TextStyle['fontStyle'];
   const fontWeight = weight as TextStyle['fontWeight'];
   const fontFamily = getExpoFontName(family, weight) as TextStyle['fontFamily'];
@@ -216,35 +190,53 @@ const parseFontShorthand = (
   };
 };
 
+const isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+
+// Expose targeted hooks for tests without leaking implementation details at runtime
+export const __themeTestHooks = isTestEnv
+  ? {
+      parseFontShorthand,
+      getExpoFontName,
+    }
+  : undefined;
+
+export const Responsive = getResponsive();
+
 // Typography styles with colors that adapt to light/dark mode
-const createTypography = (mode: 'light' | 'dark') => ({
-  titleHero: { ...parseFontShorthand(wdsStyleTokens['wds-font-title-hero'], 'titleHero'), color: Colors[mode].text.brand.default },
-  titlePage: { ...parseFontShorthand(wdsStyleTokens['wds-font-title-page'], 'titlePage'), color: Colors[mode].text.brand.default },
-  subtitle: { ...parseFontShorthand(wdsStyleTokens['wds-font-subtitle'], 'subtitle'), color: Colors[mode].text.default.default },
-  heading: { ...parseFontShorthand(wdsStyleTokens['wds-font-heading'], 'heading'), color: Colors[mode].text.brand.secondary },
-  subheading: { ...parseFontShorthand(wdsStyleTokens['wds-font-subheading'], 'subheading'), color: Colors[mode].text.brand.tertiary },
-  body: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-base'], 'body'), color: Colors[mode].text.default.default },
-  bodyEmphasis: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-emphasis'], 'body'), color: Colors[mode].text.default.default },
-  bodyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-strong'], 'body'), color: Colors[mode].text.default.default },
-  bodySmall: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small'], 'body'), color: Colors[mode].text.default.default },
-  bodySmallEmphasis: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-emphasis'], 'body'), color: Colors[mode].text.default.default },
-  bodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-strong'], 'body'), color: Colors[mode].text.default.default },
-  link: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-link'], 'body'), color: Colors[mode].text.brand.default },
-  code: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-code'], 'code'), color: Colors[mode].text.default.default },
-  singleLineBody: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-base'], 'singleLineBody'), color: Colors[mode].text.default.default },
+const createTypography = (mode: 'light' | 'dark', baseRemPx: number) => ({
+  titleHero: { ...parseFontShorthand(wdsStyleTokens['wds-font-title-hero'], 'titleHero', baseRemPx), color: Colors[mode].text.brand.default },
+  titlePage: { ...parseFontShorthand(wdsStyleTokens['wds-font-title-page'], 'titlePage', baseRemPx), color: Colors[mode].text.brand.default },
+  subtitle: { ...parseFontShorthand(wdsStyleTokens['wds-font-subtitle'], 'subtitle', baseRemPx), color: Colors[mode].text.default.default },
+  heading: { ...parseFontShorthand(wdsStyleTokens['wds-font-heading'], 'heading', baseRemPx), color: Colors[mode].text.brand.secondary },
+  subheading: { ...parseFontShorthand(wdsStyleTokens['wds-font-subheading'], 'subheading', baseRemPx), color: Colors[mode].text.brand.tertiary },
+  body: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-base'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodyEmphasis: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-emphasis'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodySmall: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodySmallEmphasis: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-emphasis'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  link: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-link'], 'body', baseRemPx), color: Colors[mode].text.brand.default },
+  code: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-code'], 'code', baseRemPx), color: Colors[mode].text.default.default },
+  singleLineBody: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-base'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
+  singleLineBodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-small-strong'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
 });
 
+export const getTypographyForMode = (mode: 'light' | 'dark', baseRemPx = Responsive.rootFontSize || 16) =>
+  createTypography(mode, baseRemPx);
+
 export const Typography = {
-  light: createTypography('light'),
-  dark: createTypography('dark'),
+  light: getTypographyForMode('light'),
+  dark: getTypographyForMode('dark'),
 };
+
+export const Shadows = createShadows();
 
 // Raw size tokens (CSS values) for direct variable usage in web contexts if needed.
 export const SizeTokens = wdsSizeTokens;
 
 // Helper to build a grouped map from a token prefix, stripping the prefix and converting units.
 // Default conversion uses the shared remToPx helper (negative values are preserved automatically).
-const buildGroup = (prefix: string, convert: (value: string) => number = remToPx) =>
+const buildGroup = (prefix: string, convert: (value: string) => number = cssLengthToPx) =>
   Object.fromEntries(
     Object.entries(wdsSizeTokens)
       .filter(([key]) => key.startsWith(prefix))
@@ -267,19 +259,3 @@ export const Size = {
 } as const;
 
 export type SizeGroup = typeof Size;
-
-// Layout-related responsive tokens live outside the size system; expose the ones we can use in RN layouts.
-// Will need updates as mobile-specific responsive tokens are added to the design system.
-export const Responsive = {
-  contentWidth: remToPx(wdsResponsiveTokens.desktop['wds-responsive-content-width']),
-  textWidth: remToPx(wdsResponsiveTokens.desktop['wds-responsive-text-width']),
-  marginHorizontal: remToPx(wdsResponsiveTokens.mobile['wds-responsive-margin-horizontal']),
-} as const;
-
-// Internal helpers are exported for targeted unit tests to ensure token parsing stays stable.
-export const themeInternals = {
-  resolveCssVariables,
-  parseFontShorthand,
-  remToPx,
-  getExpoFontName,
-};

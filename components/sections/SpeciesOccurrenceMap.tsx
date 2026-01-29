@@ -11,7 +11,7 @@ type SpeciesOccurrenceMapProps = {
   loading?: boolean;
   error?: string | null;
   height?: number;
-  highlightedCatalogs?: Array<number | string>;
+  highlightedCatalogs?: (number | string)[];
 };
 
 const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
@@ -21,6 +21,8 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <style>
       html, body, #map {
         height: 100%;
@@ -33,6 +35,7 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
   <body>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
       const points = ${payload};
       const map = L.map('map');
@@ -85,12 +88,13 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
       window.addEventListener('message', (event) => handleHighlightMessage(event.data));
       if (Array.isArray(points) && points.length) {
         const bounds = [];
+        const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 8 });
         points.forEach((pt) => {
           if (typeof pt.latitude === 'number' && typeof pt.longitude === 'number') {
             const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
-            const marker = L.circleMarker([pt.latitude, pt.longitude], markerStyle).addTo(map);
+            const marker = L.circleMarker([pt.latitude, pt.longitude]).addTo(clusterGroup);
             if (catalog.length) {
-              marker.bindPopup('Observation #' + catalog);
+              marker.bindPopup('<a href="https://www.inaturalist.org/observations/' + catalog + '" target="_blank">Observation #' + catalog + '</a>');
               markers.set(catalog, marker);
             } else {
               markers.set(String(Math.random()), marker);
@@ -98,6 +102,7 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
             bounds.push([pt.latitude, pt.longitude]);
           }
         });
+        map.addLayer(clusterGroup);
         if (bounds.length) {
           map.fitBounds(bounds, { padding: [20, 20] });
         } else {

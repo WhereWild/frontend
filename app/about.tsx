@@ -14,15 +14,16 @@ import {
   NearbySpeciesCarousel,
   PageHeader,
   SearchInput,
+  SelectField,
   SpeciesCard,
   SpeciesPageHeader,
   ThemedText,
 } from '@/components';
-import { Colors, Size } from '@/constants/theme';
+import type { ButtonProps } from '@/components';
+import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Head from 'expo-router/head';
-import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -40,13 +41,43 @@ type ButtonRow = {
 type ButtonEntry = {
   label: string;
   size?: 'small' | 'medium';
-  iconStart?: ReactNode;
-  iconEnd?: ReactNode;
+  iconStart?: ButtonProps['iconStart'];
+  iconEnd?: ButtonProps['iconEnd'];
   disabled?: boolean;
   variant?: ButtonVariant;
 };
 
 const noop = () => { };
+
+const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
+const TYPOGRAPHY_VARIANTS = [
+  'titleHero',
+  'titlePage',
+  'subtitle',
+  'heading',
+  'subheading',
+  'body',
+  'bodyEmphasis',
+  'bodyStrong',
+  'bodySmall',
+  'bodySmallEmphasis',
+  'bodySmallStrong',
+  'link',
+  'code',
+  'singleLineBody',
+  'singleLineBodySmallStrong',
+] as const;
+
+const SHADOW_TOKEN_KEYS = Object.keys(Shadows) as (keyof typeof Shadows)[];
+const SHADOW_SAMPLE_TEXT = 'Shadow preview block';
+
+const formatTokenLabel = (value: string) =>
+  value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/(\d+)/g, ' $1')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, (char) => char.toUpperCase());
 
 export default function About() {
   const colorScheme = useColorScheme();
@@ -54,8 +85,60 @@ export default function About() {
   const palette = Colors[mode];
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
-  const [headerSearchQuery, setHeaderSearchQuery] = useState('');
+  const [selectSearchableValue, setSelectSearchableValue] = useState('');
+  const [selectSearchablePlaceholderValue, setSelectSearchablePlaceholderValue] = useState('');
+  const [selectSearchableDisabledValue] = useState('hello');
+  const [selectSearchableErrorValue, setSelectSearchableErrorValue] = useState('hello');
+  const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
+  const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
+  const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
   const speciesSample = mountainBallCactusData;
+  const selectOptions = [
+    { label: 'Hello World', value: 'hello' },
+    { label: 'Option 2', value: 'option-2' },
+    { label: 'Option 3', value: 'option-3' },
+    { label: 'Option 4', value: 'option-4' },
+    { label: 'Option 5', value: 'option-5' },
+    { label: 'Option 6', value: 'option-6' },
+    { label: 'Option 7', value: 'option-7' },
+    { label: 'Option 8', value: 'option-8' },
+    { label: 'Option 9', value: 'option-9' },
+    { label: 'Option 10', value: 'option-10' },
+  ];
+  const longPlaceOptions = [
+    {
+      label: 'Parque Nacional Torres del Paine, Región de Magallanes y de la Antártica Chilena, Chile',
+      value: 'torres-del-paine-chile',
+    },
+    {
+      label: 'Grosser Aletschgletscher and Jungfrau-Aletsch UNESCO World Heritage Site, Switzerland',
+      value: 'jungfrau-aletsch-switzerland',
+    },
+    {
+      label: 'Wadi Rum Protected Area (Valley of the Moon), Aqaba Governorate, Jordan',
+      value: 'wadi-rum-jordan',
+    },
+    {
+      label: 'Papahānaumokuākea Marine National Monument, Northwestern Hawaiian Islands, USA',
+      value: 'papahanaumokuakea-usa',
+    },
+    {
+      label: 'Kluane / Wrangell-St. Elias / Glacier Bay / Tatshenshini-Alsek World Heritage Site, Canada-USA',
+      value: 'kluane-wrangell-glacier-bay',
+    },
+    {
+      label: 'Te Urewera Forest and Lake Waikaremoana, North Island, Aotearoa New Zealand',
+      value: 'te-urewera-new-zealand',
+    },
+    {
+      label: 'Bialowieza Forest (Białowieża), Podlaskie Voivodeship, Poland-Belarus',
+      value: 'bialowieza-forest',
+    },
+    {
+      label: 'Sagarmatha National Park (Everest Region), Province No. 1, Nepal',
+      value: 'sagarmatha-nepal',
+    },
+  ];
   const buttonRows: ButtonRow[] = [
     {
       title: 'Button — Primary',
@@ -180,13 +263,7 @@ export default function About() {
         <title>WhereWild | About</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader
-          searchValue={headerSearchQuery}
-          onSearchChange={setHeaderSearchQuery}
-          onSubmitSearch={(value: string) =>
-            setLastSearchEvent(`Header search submitted with "${value}"`)
-          }
-        />
+        <PageHeader/>
 
         <ScrollView contentContainerStyle={styles.container}>
           <View>
@@ -225,12 +302,86 @@ export default function About() {
           </View>
 
           <View>
+            <ThemedText variant="heading">Select Field</ThemedText>
+            <View style={styles.selectGrid}>
+              <SelectField
+                label="Label (Searchable)"
+                description="Type to filter"
+                value={selectSearchableValue}
+                placeholder="Value"
+                options={selectOptions}
+                onValueChange={setSelectSearchableValue}
+              />
+              <SelectField
+                label="Label (Searchable - Placeholder)"
+                description="No selection"
+                value={selectSearchablePlaceholderValue}
+                placeholder="Value"
+                options={selectOptions}
+                onValueChange={setSelectSearchablePlaceholderValue}
+              />
+              <SelectField
+                label="Label (Searchable - Disabled)"
+                description="Disabled"
+                value={selectSearchableDisabledValue}
+                placeholder="Value"
+                options={selectOptions}
+                disabled
+              />
+              <SelectField
+                label="Label (Searchable - Error)"
+                description="Shows error"
+                value={selectSearchableErrorValue}
+                placeholder="Value"
+                options={selectOptions}
+                onValueChange={setSelectSearchableErrorValue}
+                errorMessage="Error"
+              />
+              <SelectField
+                label="Label (List Only)"
+                description="No text entry"
+                value={selectListOnlyValue}
+                placeholder="Value"
+                options={selectOptions}
+                allowSearch={false}
+                onValueChange={setSelectListOnlyValue}
+              />
+              <SelectField
+                label="Label (List Only - Placeholder)"
+                description="No selection"
+                value={selectListOnlyPlaceholderValue}
+                placeholder="Value"
+                options={selectOptions}
+                allowSearch={false}
+                onValueChange={setSelectListOnlyPlaceholderValue}
+              />
+              <SelectField
+                label="Label (Searchable - Long place names)"
+                description="Type to filter"
+                value={selectLongPlaceValue}
+                placeholder="Start typing a place name"
+                options={longPlaceOptions}
+                onValueChange={setSelectLongPlaceValue}
+              />
+            </View>
+          </View>
+
+          <View>
             <ThemedText variant="heading">Species Card</ThemedText>
             <SpeciesCard
+              taxonId={speciesSample.taxonId}
               commonName="Common Name"
               scientificName="Binomial nomenclature"
               description="Description"
               imageSource={SPECIES_CARD_IMAGE}
+            />
+            <ThemedText variant="bodyStrong">Mini (search results)</ThemedText>
+            <SpeciesCard
+              taxonId={12345}
+              commonName="Common Name"
+              scientificName="Binomial nomenclature"
+              imageSource={SPECIES_CARD_IMAGE}
+              size="compact"
             />
           </View>
 
@@ -251,6 +402,57 @@ export default function About() {
               />
               <InlineExpandableRows sections={speciesSample.dataSections} />
               <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Typography Tokens</ThemedText>
+            <ThemedText variant="body">Preview of every WhereWild typography variant.</ThemedText>
+            <View style={styles.tokenSection}>
+              {TYPOGRAPHY_VARIANTS.map((variant) => (
+                <View
+                  key={variant}
+                  testID="typography-sample"
+                  style={[
+                    styles.typographyExample,
+                    { borderBottomColor: palette.border.default.default },
+                  ]}
+                >
+                  <ThemedText variant="bodySmallStrong">{formatTokenLabel(variant)}</ThemedText>
+                  <ThemedText variant={variant}>
+                    {TYPOGRAPHY_SAMPLE_TEXT}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Shadow Tokens</ThemedText>
+            <ThemedText variant="body">React Native previews for each drop shadow token.</ThemedText>
+            <View style={styles.shadowGrid}>
+              {SHADOW_TOKEN_KEYS.map((tokenName) => {
+                const shadowToken = Shadows[tokenName];
+                return (
+                  <View
+                    key={tokenName}
+                    testID="shadow-sample"
+                    style={[
+                      styles.shadowCard,
+                      {
+                        backgroundColor: palette.background.default.secondary,
+                      },
+                      shadowToken.style,
+                    ]}
+                  >
+                    <ThemedText variant="bodySmallStrong">{formatTokenLabel(tokenName)}</ThemedText>
+                    <ThemedText variant="body">{SHADOW_SAMPLE_TEXT}</ThemedText>
+                    <ThemedText variant="bodySmall">
+                      {shadowToken.layers.length} layer{shadowToken.layers.length === 1 ? '' : 's'}
+                    </ThemedText>
+                  </View>
+                );
+              })}
             </View>
           </View>
 
@@ -342,5 +544,26 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     padding: Size.space['400'],
     borderRadius: Size.radius['400'],
+  },
+  tokenSection: {
+    gap: Size.space['400'],
+  },
+  typographyExample: {
+    paddingVertical: Size.space['200'],
+    gap: Size.space['150'],
+    borderBottomWidth: Size.stroke.border,
+  },
+  shadowGrid: {
+    gap: Size.space['400'],
+  },
+  shadowCard: {
+    padding: Size.space['400'],
+    gap: Size.space['200'],
+    borderRadius: Size.radius['200'],
+  },
+  selectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['600'],
   },
 });
