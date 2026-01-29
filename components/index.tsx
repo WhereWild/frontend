@@ -34,6 +34,9 @@ export type { SearchInputProps } from './inputs/SearchInput';
 export { SearchResults } from './inputs/SearchResults';
 export type { SearchResultsProps } from './inputs/SearchResults';
 
+export { SelectField } from './inputs/SelectField';
+export type { SelectFieldProps, SelectOption } from './inputs/SelectField';
+
 export { SpeciesCard } from './cards/SpeciesCard';
 export type { SpeciesCardProps } from './cards/SpeciesCard';
 
