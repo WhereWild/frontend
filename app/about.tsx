@@ -309,6 +309,56 @@ export default function About() {
     { key: 'hazards', label: 'Hazards' },
   ];
 
+  const overviewContent: Record<string, string> = {
+    all: 'Showing all recent observations and modeled occurrences in your region.',
+    nearby: 'Nearby sightings within a 10 km radius based on recent reports.',
+    seasonal: 'Seasonal activity highlights based on the current month.',
+    rare: 'Rare finds include uncommon or low-frequency sightings.',
+    favorites: 'Your starred species and saved locations.',
+    alerts: 'Active alerts for unusual sightings or conditions.',
+  };
+
+  const habitatContent: Record<string, string> = {
+    soil: 'Soil acidity, texture, and moisture indicators for the species.',
+    elevation: 'Typical elevation range where the species thrives.',
+    climate: 'Temperature and precipitation trends for this habitat.',
+    canopy: 'Canopy cover estimates and light availability.',
+  };
+
+  const trackingContent: Record<string, string> = {
+    recent: 'Most recent sightings from verified observers.',
+    verified: 'Observations with confirmed IDs and supporting media.',
+    unverified: 'Reports awaiting community review or expert confirmation.',
+    community: 'Notes and insights from the local community.',
+  };
+
+  const imagesContent: Record<string, string> = {
+    all: 'A mix of macro, habitat, and seasonal imagery.',
+    macro: 'Close-up details for identification and morphology.',
+    habitat: 'Contextual images showing surrounding vegetation.',
+    seasonal: 'Seasonal color changes and flowering stages.',
+  };
+
+  const notesContent: Record<string, string> = {
+    notes: 'General field notes and observations for this species.',
+    care: 'Care considerations for conservation and restoration efforts.',
+    hazards: 'Safety notes, toxins, or environmental hazards.',
+  };
+
+  const renderPillContentCard = (content: string) => (
+    <View
+      style={[
+        styles.pillContentCard,
+        {
+          backgroundColor: palette.background.default.secondary,
+          borderColor: palette.border.default.default,
+        },
+      ]}
+    >
+      <ThemedText variant="body">{content}</ThemedText>
+    </View>
+  );
+
   return (
     <>
       <Head>
@@ -478,6 +528,7 @@ export default function About() {
                     onSelectionChange={setOverviewPill}
                     accessibilityLabel="Overview filters"
                   />
+                  {renderPillContentCard(overviewContent[overviewPill])}
                 </View>
               )}
               {selectedTab === 'habitat' && (
@@ -490,6 +541,7 @@ export default function About() {
                     direction="vertical"
                     accessibilityLabel="Habitat filters"
                   />
+                  {renderPillContentCard(habitatContent[habitatPill])}
                 </View>
               )}
               {selectedTab === 'tracking' && (
@@ -501,6 +553,7 @@ export default function About() {
                     onSelectionChange={setTrackingPill}
                     accessibilityLabel="Tracking filters"
                   />
+                  {renderPillContentCard(trackingContent[trackingPill])}
                 </View>
               )}
               {selectedTab === 'images' && (
@@ -512,6 +565,7 @@ export default function About() {
                     onSelectionChange={setImagesPill}
                     accessibilityLabel="Image filters"
                   />
+                  {renderPillContentCard(imagesContent[imagesPill])}
                 </View>
               )}
               {selectedTab === 'notes' && (
@@ -523,6 +577,7 @@ export default function About() {
                     onSelectionChange={setNotesPill}
                     accessibilityLabel="Notes filters"
                   />
+                  {renderPillContentCard(notesContent[notesPill])}
                 </View>
               )}
             </View>
@@ -677,6 +732,12 @@ const styles = StyleSheet.create({
   },
   pillExampleGroup: {
     gap: Size.space['200'],
+  },
+  pillContentCard: {
+    padding: Size.space['300'],
+    gap: Size.space['150'],
+    borderRadius: Size.radius['200'],
+    borderWidth: Size.stroke.border,
   },
   tokenSection: {
     gap: Size.space['400'],

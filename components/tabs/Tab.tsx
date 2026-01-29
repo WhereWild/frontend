@@ -137,8 +137,7 @@ export const Tab = forwardRef<PressableRef, TabProps>(function Tab(
             {/* Invisible measurer: renders unconstrained text to capture natural width */}
             {onLabelLayout && (
               <View
-                style={styles.measurer}
-                pointerEvents="none"
+                style={[styles.measurer, { pointerEvents: 'none' }]}
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
               >

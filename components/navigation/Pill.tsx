@@ -39,6 +39,8 @@ export type NavigationPillProps = {
   onPress: (id: string) => void;
   onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
   onFocus?: () => void;
+  onContentLayout?: (width: number) => void;
+  contentWidth?: number;
   focusable?: boolean;
   tabIndex?: 0 | -1;
   accessibilityLabel?: string;
@@ -96,6 +98,8 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     onPress,
     onKeyDown,
     onFocus,
+    onContentLayout,
+    contentWidth,
     focusable,
     tabIndex,
     accessibilityLabel,
@@ -140,8 +144,12 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
                 borderWidth,
                 paddingHorizontal,
                 paddingVertical,
+                width: contentWidth,
               },
             ]}
+            onLayout={(event) => {
+              onContentLayout?.(event.nativeEvent.layout.width);
+            }}
           >
             <ThemedText
               variant="singleLineBody"

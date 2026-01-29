@@ -38,12 +38,24 @@ export function NavigationPillList({
   const pillRefs = useRef<NavigationPillRef[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const lastSelectedKeyRef = useRef<string>(selectedKey);
+  const [pillWidths, setPillWidths] = useState<Record<string, number>>({});
   const isHorizontal = direction === 'horizontal';
 
   const selectedIndex = useMemo(
     () => pills.findIndex((pill) => pill.key === selectedKey),
     [pills, selectedKey]
   );
+
+  const maxPillWidth = useMemo(() => {
+    if (isHorizontal) {
+      return null;
+    }
+    const widths = Object.values(pillWidths);
+    if (widths.length === 0) {
+      return null;
+    }
+    return Math.max(...widths);
+  }, [isHorizontal, pillWidths]);
 
   useEffect(() => {
     if (selectedIndex < 0) {
@@ -131,7 +143,7 @@ export function NavigationPillList({
         return (
           <View
             key={pill.key}
-            style={[!isHorizontal ? styles.pillWrapperVertical : undefined]}
+            style={!isHorizontal ? styles.pillWrapperVertical : undefined}
           >
             <NavigationPill
               ref={(node) => {
@@ -143,6 +155,18 @@ export function NavigationPillList({
               onPress={handleSelectionChange}
               onKeyDown={onKeyDownForIndex(index)}
               onFocus={() => setFocusedIndex(index)}
+              onContentLayout={(width) => {
+                if (isHorizontal) {
+                  return;
+                }
+                setPillWidths((prev) => {
+                  if (prev[pill.key] === width) {
+                    return prev;
+                  }
+                  return { ...prev, [pill.key]: width };
+                });
+              }}
+              contentWidth={!isHorizontal ? maxPillWidth : undefined}
               focusable={isTabbable}
               tabIndex={isTabbable ? 0 : -1}
               accessibilityLabel={pill.accessibilityLabel ?? pill.label}
@@ -158,16 +182,17 @@ export function NavigationPillList({
 const styles = StyleSheet.create({
   list: {
     gap: Size.space['200'],
-    alignItems: 'flex-start',
   },
   listHorizontal: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'flex-start',
   },
   listVertical: {
     flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   pillWrapperVertical: {
-    alignSelf: 'stretch',
+    alignSelf: 'flex-start',
   },
 });
