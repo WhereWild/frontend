@@ -321,7 +321,7 @@
   --wds-color-text-default-secondary: var(--wds-color-gray-900);
   --wds-color-text-default-tertiary: var(--wds-color-gray-800);
   --wds-color-text-disabled-default: var(--wds-color-gray-400);
-  --wds-color-text-disabled-on-disabled: var(--wds-color-gray-500);
+  --wds-color-text-disabled-on-disabled: var(--wds-color-gray-600);
   --wds-color-text-neutral-default: var(--wds-color-gray-900);
   --wds-color-text-neutral-on-neutral: var(--wds-color-slate-200);
   --wds-color-text-neutral-on-neutral-secondary: var(--wds-color-slate-200);
@@ -455,7 +455,7 @@
     --wds-color-text-default-secondary: var(--wds-color-gray-200);
     --wds-color-text-default-tertiary: var(--wds-color-gray-250);
     --wds-color-text-disabled-default: var(--wds-color-gray-500);
-    --wds-color-text-disabled-on-disabled: var(--wds-color-gray-400);
+    --wds-color-text-disabled-on-disabled: var(--wds-color-gray-300);
     --wds-color-text-neutral-default: var(--wds-color-gray-150);
     --wds-color-text-neutral-on-neutral: var(--wds-color-slate-800);
     --wds-color-text-neutral-on-neutral-secondary: var(--wds-color-slate-900);
