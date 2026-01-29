@@ -342,6 +342,7 @@ export function PageHeader({
         {
           backgroundColor: palette.background.default.secondary,
         },
+        Shadows.dropShadow200.style,
         style,
       ]}
       accessibilityRole="header"
