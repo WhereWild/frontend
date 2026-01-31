@@ -144,8 +144,8 @@ export const Colors = {
 // The Figma tokens don't export line heights, so we define them here.
 const FONT_LINE_HEIGHTS: Record<string, number> = {
   body: 1.4,
-  code: 1,
-  singleLineBody: 1,
+  code: 1.2,
+  singleLineBody: 1.2,
   titleHero: 1.2,
   titlePage: 1.2,
   subtitle: 1.2,
