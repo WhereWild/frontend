@@ -176,6 +176,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
                 taxonId={taxonId}
                 onHighlightChange={handleHighlightsChange}
                 locationGid={locationGid}
+                locationName={selectedLocation?.name ?? null}
               />
             </View>
           </View>

@@ -72,6 +72,7 @@ export type SpeciesEnvironmentSectionProps = {
   variables?: EnvironmentVariableOption[];
   onHighlightChange?: (catalogNumbers: Array<number | string>) => void;
   locationGid?: string | null;
+  locationName?: string | null;
 };
 
 type RankContextOption = {
@@ -563,6 +564,51 @@ const formatRankLabel = (rank?: SpeciesEnvironmentRelativeRank | null) => {
   return parts.length ? parts.join(' • ') : null;
 };
 
+const formatRankAndComparison = (
+  rank: SpeciesEnvironmentRelativeRank | null | undefined,
+  comparison: string | null | undefined,
+) => {
+  const parts: string[] = [];
+  const rankLabel = formatRankLabel(rank ?? null);
+  if (rankLabel) {
+    parts.push(rankLabel);
+  }
+  if (comparison) {
+    parts.push(comparison);
+  }
+  return parts.length ? parts.join(' • ') : null;
+};
+
+const formatRankLabelWithLocation = (
+  rank: SpeciesEnvironmentRelativeRank | null | undefined,
+  locationName?: string | null,
+) => {
+  const base = formatRankLabel(rank ?? null);
+  if (!base) {
+    return null;
+  }
+  if (locationName && locationName.trim().length > 0) {
+    return `${base} in ${locationName.trim()}`;
+  }
+  return base;
+};
+
+const formatRankAndComparisonWithLocation = (
+  rank: SpeciesEnvironmentRelativeRank | null | undefined,
+  comparison: string | null | undefined,
+  locationName?: string | null,
+) => {
+  const parts: string[] = [];
+  const rankLabel = formatRankLabelWithLocation(rank ?? null, locationName);
+  if (rankLabel) {
+    parts.push(rankLabel);
+  }
+  if (comparison) {
+    parts.push(comparison);
+  }
+  return parts.length ? parts.join(' • ') : null;
+};
+
 type ObservationPanelItem = number | string | { id: number | string; label?: string };
 
 const isObjectObservationItem = (
@@ -632,6 +678,7 @@ export function SpeciesEnvironmentSection({
   variables,
   onHighlightChange,
   locationGid,
+  locationName,
 }: SpeciesEnvironmentSectionProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -786,11 +833,7 @@ export function SpeciesEnvironmentSection({
   const densityCurve = isCategorical ? null : stats?.densityCurve ?? null;
 
   const rankContextOptions = React.useMemo(() => {
-    if (
-      locationFilterActive ||
-      !stats?.relativeRanks ||
-      !stats.relativeRanks.length
-    ) {
+    if (!stats?.relativeRanks || !stats.relativeRanks.length) {
       return [] as RankContextOption[];
     }
     const seen = new Map<string, string>();
@@ -809,7 +852,7 @@ export function SpeciesEnvironmentSection({
       return [{ key: ALL_CONTEXT_KEY, label: 'All contexts' }, ...contexts];
     }
     return contexts;
-  }, [locationFilterActive, stats?.relativeRanks]);
+  }, [stats?.relativeRanks]);
 
   React.useEffect(() => {
     if (!rankContextOptions.length) {
@@ -1217,7 +1260,7 @@ const resolveRankForMetric = React.useCallback(
           baselineCategoricalSummary.dominant.fraction,
         )})`
       : null;
-  const showRankContext = !locationFilterActive && rankContextOptions.length > 0;
+  const showRankContext = rankContextOptions.length > 0;
 
   return (
     <View
@@ -1431,7 +1474,11 @@ const resolveRankForMetric = React.useCallback(
                 value={formatValueWithUnits(summary?.min, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
-                    ? summaryComparisons.min ?? null
+                    ? formatRankAndComparisonWithLocation(
+                        summaryRanks.min,
+                        summaryComparisons.min,
+                        locationName,
+                      )
                     : formatRankLabel(summaryRanks.min)
                 }
                 rankColor={palette.text.default.secondary}
@@ -1441,7 +1488,11 @@ const resolveRankForMetric = React.useCallback(
                 value={formatValueWithUnits(summary?.mean, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
-                    ? summaryComparisons.mean ?? null
+                    ? formatRankAndComparisonWithLocation(
+                        summaryRanks.mean,
+                        summaryComparisons.mean,
+                        locationName,
+                      )
                     : formatRankLabel(summaryRanks.mean)
                 }
                 rankColor={palette.text.default.secondary}
@@ -1451,7 +1502,11 @@ const resolveRankForMetric = React.useCallback(
                 value={formatValueWithUnits(summary?.max, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
-                    ? summaryComparisons.max ?? null
+                    ? formatRankAndComparisonWithLocation(
+                        summaryRanks.max,
+                        summaryComparisons.max,
+                        locationName,
+                      )
                     : formatRankLabel(summaryRanks.max)
                 }
                 rankColor={palette.text.default.secondary}
@@ -1461,7 +1516,11 @@ const resolveRankForMetric = React.useCallback(
                 value={formatValueWithUnits(summary?.stddev, 1, displayUnits)}
                 rankLabel={
                   locationFilterActive
-                    ? summaryComparisons.std ?? null
+                    ? formatRankAndComparisonWithLocation(
+                        summaryRanks.std,
+                        summaryComparisons.std,
+                        locationName,
+                      )
                     : formatRankLabel(summaryRanks.std)
                 }
                 rankColor={palette.text.default.secondary}

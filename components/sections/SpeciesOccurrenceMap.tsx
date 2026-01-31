@@ -88,7 +88,7 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
       window.addEventListener('message', (event) => handleHighlightMessage(event.data));
       if (Array.isArray(points) && points.length) {
         const bounds = [];
-        const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 4 });
+        const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 1 });
         points.forEach((pt) => {
           if (typeof pt.latitude === 'number' && typeof pt.longitude === 'number') {
             const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
