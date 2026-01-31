@@ -70,7 +70,7 @@ describe('ButtonDanger Component', () => {
         expect.arrayContaining([
           expect.objectContaining({
             paddingHorizontal: 12,
-            paddingVertical: 12,
+            paddingVertical: 10,
           }),
         ])
       );
