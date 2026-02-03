@@ -31,8 +31,8 @@ export type { PageHeaderAction, PageHeaderProps } from './sections/PageHeader';
 export { SearchInput } from './inputs/SearchInput';
 export type { SearchInputProps } from './inputs/SearchInput';
 
-export { SearchResults } from './inputs/SearchResults';
-export type { SearchResultsProps } from './inputs/SearchResults';
+export { SearchResults } from './sections/SearchResults';
+export type { SearchResultsProps } from './sections/SearchResults';
 
 export { SelectField } from './inputs/SelectField';
 export type { SelectFieldProps, SelectOption } from './inputs/SelectField';
