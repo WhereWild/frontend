@@ -11,12 +11,14 @@ import {
   ButtonDanger,
   IconButton,
   InlineExpandableRows,
+  NavigationPillList,
   NearbySpeciesCarousel,
   PageHeader,
   SearchInput,
   SelectField,
   SpeciesCard,
   SpeciesPageHeader,
+  Tabs,
   ThemedText,
 } from '@/components';
 import type { ButtonProps } from '@/components';
@@ -92,6 +94,12 @@ export default function About() {
   const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const [overviewPill, setOverviewPill] = useState('all');
+  const [habitatPill, setHabitatPill] = useState('soil');
+  const [trackingPill, setTrackingPill] = useState('recent');
+  const [imagesPill, setImagesPill] = useState('all');
+  const [notesPill, setNotesPill] = useState('notes');
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -257,6 +265,100 @@ export default function About() {
     { size: 'small', disabled: true },
   ];
 
+  const tabsSample = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'habitat', label: 'Habitat & Range' },
+    { key: 'tracking', label: 'Tracking and Sightings' },
+    { key: 'images', label: 'Images' },
+    { key: 'notes', label: 'Field Notes' },
+  ];
+
+  const overviewPills = [
+    { key: 'all', label: 'All' },
+    { key: 'nearby', label: 'Nearby' },
+    { key: 'seasonal', label: 'Seasonal' },
+    { key: 'rare', label: 'Rare Finds' },
+    { key: 'favorites', label: 'Favorites' },
+    { key: 'alerts', label: 'Alerts' },
+  ];
+
+  const habitatPills = [
+    { key: 'soil', label: 'Soil' },
+    { key: 'elevation', label: 'Elevation' },
+    { key: 'climate', label: 'Climate' },
+    { key: 'canopy', label: 'Canopy Cover' },
+  ];
+
+  const trackingPills = [
+    { key: 'recent', label: 'Recent' },
+    { key: 'verified', label: 'Verified' },
+    { key: 'unverified', label: 'Needs Review' },
+    { key: 'community', label: 'Community Notes' },
+  ];
+
+  const imagesPills = [
+    { key: 'all', label: 'All Images' },
+    { key: 'macro', label: 'Macro' },
+    { key: 'habitat', label: 'Habitat' },
+    { key: 'seasonal', label: 'Seasonal Color' },
+  ];
+
+  const notesPills = [
+    { key: 'notes', label: 'Notes' },
+    { key: 'care', label: 'Care Tips' },
+    { key: 'hazards', label: 'Hazards' },
+  ];
+
+  const overviewContent: Record<string, string> = {
+    all: 'Showing all recent observations and modeled occurrences in your region.',
+    nearby: 'Nearby sightings within a 10 km radius based on recent reports.',
+    seasonal: 'Seasonal activity highlights based on the current month.',
+    rare: 'Rare finds include uncommon or low-frequency sightings.',
+    favorites: 'Your starred species and saved locations.',
+    alerts: 'Active alerts for unusual sightings or conditions.',
+  };
+
+  const habitatContent: Record<string, string> = {
+    soil: 'Soil acidity, texture, and moisture indicators for the species.',
+    elevation: 'Typical elevation range where the species thrives.',
+    climate: 'Temperature and precipitation trends for this habitat.',
+    canopy: 'Canopy cover estimates and light availability.',
+  };
+
+  const trackingContent: Record<string, string> = {
+    recent: 'Most recent sightings from verified observers.',
+    verified: 'Observations with confirmed IDs and supporting media.',
+    unverified: 'Reports awaiting community review or expert confirmation.',
+    community: 'Notes and insights from the local community.',
+  };
+
+  const imagesContent: Record<string, string> = {
+    all: 'A mix of macro, habitat, and seasonal imagery.',
+    macro: 'Close-up details for identification and morphology.',
+    habitat: 'Contextual images showing surrounding vegetation.',
+    seasonal: 'Seasonal color changes and flowering stages.',
+  };
+
+  const notesContent: Record<string, string> = {
+    notes: 'General field notes and observations for this species.',
+    care: 'Care considerations for conservation and restoration efforts.',
+    hazards: 'Safety notes, toxins, or environmental hazards.',
+  };
+
+  const renderPillContentCard = (content: string) => (
+    <View
+      style={[
+        styles.pillContentCard,
+        {
+          backgroundColor: palette.background.default.secondary,
+          borderColor: palette.border.default.default,
+        },
+      ]}
+    >
+      <ThemedText variant="body">{content}</ThemedText>
+    </View>
+  );
+
   return (
     <>
       <Head>
@@ -406,6 +508,82 @@ export default function About() {
           </View>
 
           <View>
+            <ThemedText variant="heading">Tabs</ThemedText>
+            <ThemedText variant="body">Controlled tabs with keyboard navigation.</ThemedText>
+            <View style={styles.tabsRow}>
+              <Tabs
+                tabs={tabsSample}
+                selectedKey={selectedTab}
+                onSelectionChange={setSelectedTab}
+                accessibilityLabel="Species tabs"
+              />
+            </View>
+            <View style={styles.pillExamples}>
+              {selectedTab === 'overview' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Horizontal wrap</ThemedText>
+                  <NavigationPillList
+                    pills={overviewPills}
+                    selectedKey={overviewPill}
+                    onSelectionChange={setOverviewPill}
+                    accessibilityLabel="Overview filters"
+                  />
+                  {renderPillContentCard(overviewContent[overviewPill])}
+                </View>
+              )}
+              {selectedTab === 'habitat' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Vertical list</ThemedText>
+                  <NavigationPillList
+                    pills={habitatPills}
+                    selectedKey={habitatPill}
+                    onSelectionChange={setHabitatPill}
+                    direction="vertical"
+                    accessibilityLabel="Habitat filters"
+                  />
+                  {renderPillContentCard(habitatContent[habitatPill])}
+                </View>
+              )}
+              {selectedTab === 'tracking' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Mixed label lengths</ThemedText>
+                  <NavigationPillList
+                    pills={trackingPills}
+                    selectedKey={trackingPill}
+                    onSelectionChange={setTrackingPill}
+                    accessibilityLabel="Tracking filters"
+                  />
+                  {renderPillContentCard(trackingContent[trackingPill])}
+                </View>
+              )}
+              {selectedTab === 'images' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Image categories</ThemedText>
+                  <NavigationPillList
+                    pills={imagesPills}
+                    selectedKey={imagesPill}
+                    onSelectionChange={setImagesPill}
+                    accessibilityLabel="Image filters"
+                  />
+                  {renderPillContentCard(imagesContent[imagesPill])}
+                </View>
+              )}
+              {selectedTab === 'notes' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Notes sections</ThemedText>
+                  <NavigationPillList
+                    pills={notesPills}
+                    selectedKey={notesPill}
+                    onSelectionChange={setNotesPill}
+                    accessibilityLabel="Notes filters"
+                  />
+                  {renderPillContentCard(notesContent[notesPill])}
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View>
             <ThemedText variant="heading">Typography Tokens</ThemedText>
             <ThemedText variant="body">Preview of every WhereWild typography variant.</ThemedText>
             <View style={styles.tokenSection}>
@@ -544,6 +722,22 @@ const styles = StyleSheet.create({
     gap: Size.space['400'],
     padding: Size.space['400'],
     borderRadius: Size.radius['400'],
+  },
+  tabsRow: {
+    paddingTop: Size.space['200'],
+  },
+  pillExamples: {
+    paddingTop: Size.space['400'],
+    gap: Size.space['400'],
+  },
+  pillExampleGroup: {
+    gap: Size.space['200'],
+  },
+  pillContentCard: {
+    padding: Size.space['300'],
+    gap: Size.space['150'],
+    borderRadius: Size.radius['200'],
+    borderWidth: Size.stroke.border,
   },
   tokenSection: {
     gap: Size.space['400'],

@@ -42,6 +42,18 @@ export type { SpeciesCardProps } from './cards/SpeciesCard';
 
 export { ThemedText } from './text/ThemedText';
 
+export { Tab } from './tabs/Tab';
+export type { TabProps } from './tabs/Tab';
+
+export { Tabs } from './tabs/Tabs';
+export type { TabsProps } from './tabs/Tabs';
+
+export { NavigationPill } from './navigation/NavigationPill';
+export type { NavigationPillProps } from './navigation/NavigationPill';
+
+export { NavigationPillList } from './navigation/NavigationPillList';
+export type { NavigationPillListProps } from './navigation/NavigationPillList';
+
 export { SpeciesPageHeader } from './sections/SpeciesPageHeader';
 export type { SpeciesPageHeaderProps } from './sections/SpeciesPageHeader';
 
