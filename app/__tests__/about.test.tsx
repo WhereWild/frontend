@@ -13,6 +13,10 @@ jest.mock('expo-router', () => ({
   usePathname: () => mockPathname,
 }));
 
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({ breakpoint: 'desktop' }),
+}));
+
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
