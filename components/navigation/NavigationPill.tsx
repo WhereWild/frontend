@@ -45,6 +45,8 @@ export type NavigationPillProps = {
   tabIndex?: 0 | -1;
   accessibilityLabel?: string;
   testID?: string;
+  icon?: React.ReactNode;
+  allowDeselect?: boolean;
 };
 
 const getPillState = (
@@ -104,6 +106,8 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     tabIndex,
     accessibilityLabel,
     testID,
+    icon,
+    allowDeselect = false,
   },
   ref
 ) {
@@ -121,7 +125,7 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
       tabIndex={tabIndex}
       testID={testID}
       onPress={() => {
-        if (!isActive) {
+        if (!isActive || allowDeselect) {
           onPress(id);
         }
       }}
@@ -151,13 +155,16 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
               onContentLayout?.(event.nativeEvent.layout.width);
             }}
           >
-            <ThemedText
-              variant="singleLineBody"
-              style={{ color: pillState.textColor }}
-              numberOfLines={1}
-            >
-              {label}
-            </ThemedText>
+            <View style={styles.pillInner}>
+              {icon && <View style={styles.pillIcon}>{icon}</View>}
+              <ThemedText
+                variant="singleLineBody"
+                style={{ color: pillState.textColor }}
+                numberOfLines={1}
+              >
+                {label}
+              </ThemedText>
+            </View>
           </View>
         );
       }}
@@ -176,5 +183,13 @@ const styles = StyleSheet.create({
     borderRadius: Size.radius['full'],
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pillInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  pillIcon: {
+    // Icon container
   },
 });

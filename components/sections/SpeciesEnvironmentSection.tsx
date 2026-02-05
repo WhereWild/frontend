@@ -429,6 +429,17 @@ const formatPercent = (fraction: number) => {
   return num + getOrdinalSuffix(num);
 };
 
+const formatCategoryPercent = (fraction: number) => {
+  if (!Number.isFinite(fraction)) {
+    return '0%';
+  }
+  if (fraction * 100 < 1) {
+    return '<1%';
+  }
+  const num = Math.round(fraction * 100);
+  return `${num}%`;
+};
+
 const formatComparisonLabel = (
   current: number | null | undefined,
   baseline: number | null | undefined,
@@ -476,6 +487,141 @@ const buildCategoricalSummary = (
     significantClasses,
     dominant,
   };
+};
+
+const CATEGORY_COLORS = [
+  '#466237', // brand green
+  '#E07A5F', // coral
+  '#3D5A80', // navy
+  '#F2CC8F', // sand
+  '#81B29A', // sage
+  '#E76F51', // burnt orange
+  '#264653', // dark teal
+  '#E9C46A', // gold
+  '#F4A261', // peach
+];
+
+const StackedCategoryBar = ({
+  categories,
+  selectedValue,
+  onSelect,
+  descriptionColor,
+}: {
+  categories: SpeciesEnvironmentCategory[];
+  selectedValue: number | string | null;
+  onSelect?: (value: number | string) => void;
+  descriptionColor: string;
+}) => {
+  const [hoveredValue, setHoveredValue] = React.useState<number | string | null>(null);
+  
+  if (!categories.length) {
+    return (
+      <View style={styles.emptyChart}>
+        <ThemedText variant="bodySmall">Categories unavailable.</ThemedText>
+      </View>
+    );
+  }
+
+  const topCategories = categories.slice(0, CATEGORY_DISPLAY_LIMIT);
+  const otherCategories = categories.slice(CATEGORY_DISPLAY_LIMIT);
+  
+  const otherCategory: SpeciesEnvironmentCategory | null = otherCategories.length > 0 ? {
+    value: '__other__',
+    className: 'Other',
+    fraction: otherCategories.reduce((sum, cat) => sum + (cat.fraction || 0), 0),
+    count: otherCategories.reduce((sum, cat) => sum + (cat.count || 0), 0),
+    description: otherCategories.map((cat, index) => {
+      if (index === 0) return cat.className;
+      return cat.className.charAt(0).toLowerCase() + cat.className.slice(1);
+    }).join(', '),
+  } : null;
+
+  const displayCategories = otherCategory 
+    ? [...topCategories, otherCategory]
+    : topCategories;
+
+  const selectedCategory = selectedValue !== null
+    ? displayCategories.find((cat) => String(cat.value) === String(selectedValue))
+    : null;
+
+  return (
+    <View style={styles.stackedCategoryContainer}>
+      <View style={styles.stackedBarTrack}>
+        {displayCategories.map((category, index) => {
+          const percent = Math.min(100, Math.max(0, category.fraction * 100));
+          const isSelected = String(category.value) === String(selectedValue);
+          const isHovered = String(category.value) === String(hoveredValue);
+          const baseColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          
+          // Darken on hover, lighten on press
+          let opacity = 1;
+          if (isHovered && !isSelected) opacity = 0.8;
+          if (isSelected) opacity = 0.9;
+
+          return (
+            <Pressable
+              key={String(category.value)}
+              onPress={() => onSelect?.(category.value)}
+              onHoverIn={() => setHoveredValue(category.value)}
+              onHoverOut={() => setHoveredValue(null)}
+              style={[
+                styles.stackedBarSegment,
+                {
+                  width: `${percent}%`,
+                  backgroundColor: baseColor,
+                  opacity,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+
+      <NavigationPillList
+        pills={displayCategories.map((category, index) => {
+          const baseColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          return {
+            key: String(category.value),
+            label: category.className,
+            icon: (
+              <View
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 6,
+                  backgroundColor: baseColor,
+                }}
+              />
+            ),
+          };
+        })}
+        selectedKey={selectedValue !== null ? String(selectedValue) : ''}
+        onSelectionChange={(key) => {
+          // Convert key back to original type and toggle selection
+          const value = displayCategories.find(cat => String(cat.value) === key)?.value;
+          if (value !== undefined) {
+            onSelect?.(value);
+          }
+        }}
+        direction="horizontal"
+        accessibilityLabel="Category selection"
+        allowDeselect={true}
+      />
+
+      {selectedCategory ? (
+        <ThemedText
+          variant="bodySmall"
+          style={[styles.categoryDescription, { color: descriptionColor }]}
+        >
+          {selectedCategory.description ? (
+            `${selectedCategory.description.replace(/\.$/, '')}. ${String(selectedCategory.value) === '__other__' ? 'Together these account' : 'This accounts'} for ${formatCategoryPercent(selectedCategory.fraction)} of all observations (${formatValue(selectedCategory.count)} samples).`
+          ) : (
+            `This accounts for ${formatCategoryPercent(selectedCategory.fraction)} of all observations (${formatValue(selectedCategory.count)} samples).`
+          )}
+        </ThemedText>
+      ) : null}
+    </View>
+  );
 };
 
 const CategoryDistributionList = ({
@@ -1301,13 +1447,15 @@ const resolveRankForMetric = React.useCallback(
             {!isCategorical && (stats?.units || selectedVariableMeta?.units) ? ` (${stats?.units ?? selectedVariableMeta?.units})` : ''}
           </ThemedText>
           <ThemedText variant="bodySmall">
-            Based on{' '}
-            {formatValue(
-              isCategorical
-                ? categoricalSummary?.totalSamples ?? summary?.count ?? 0
-                : summary?.count ?? 0,
-            )}{' '}
-            samples
+            {!isCategorical && selectedDensityRange ? (
+              `Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)} (${rangeObservationItems.length} of ${formatValue(summary?.count ?? 0)} observations)`
+            ) : (
+              `(Based on ${formatValue(
+                isCategorical
+                  ? categoricalSummary?.totalSamples ?? summary?.count ?? 0
+                  : summary?.count ?? 0,
+              )} observations)`
+            )}
           </ThemedText>
         </View>
       )}
@@ -1328,15 +1476,13 @@ const resolveRankForMetric = React.useCallback(
       {stats ? (
         <>
           {isCategorical ? (
-            <CategoryDistributionList
+            <StackedCategoryBar
               categories={categoricalDistribution}
-              barColor={palette.background.brand.default}
-              trackColor={palette.background.default.tertiary}
-              descriptionColor={palette.text.default.secondary}
               selectedValue={selectedCategoryValue}
               onSelect={(value) =>
                 setSelectedCategoryValue((prev) => (prev === value ? null : value))
               }
+              descriptionColor={palette.text.default.secondary}
             />
           ) : (
             <DensityChart
@@ -1350,44 +1496,7 @@ const resolveRankForMetric = React.useCallback(
             />
           )}
 
-          {!isCategorical && selectedDensityRange ? (
-            <View style={{ marginTop: Size.space['800'] }}>
-              <ObservationPanel
-                title={`Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)}`}
-                subtitle={`(${rangeObservationItems.length} observations)`}
-                onClear={() => setSelectedDensityRange(null)}
-                backgroundColor={palette.background.default.tertiary}
-              />
-            </View>
-          ) : null}
-
-          {isCategorical ? (
-            <View style={[styles.summaryRow, { paddingTop: Size.space['600'] }]}>
-              <SummaryItem
-                label="Unique classes"
-                value={formatValue(categoricalSummary?.uniqueClasses ?? 0)}
-                comparison={
-                  locationFilterActive ? categoricalComparisons.unique ?? null : null
-                }
-              />
-              <SummaryItem
-                label="Significant classes"
-                value={formatValue(categoricalSummary?.significantClasses ?? 0)}
-                comparison={
-                  locationFilterActive ? categoricalComparisons.significant ?? null : null
-                }
-              />
-              {categoricalSummary?.dominant ? (
-                <SummaryItem
-                  label="Top class"
-                  value={`${categoricalSummary.dominant.className} (${formatPercent(
-                    categoricalSummary.dominant.fraction,
-                  )})`}
-                  comparison={locationFilterActive ? categoricalTopComparison : null}
-                />
-              ) : null}
-            </View>
-          ) : (
+          {!isCategorical ? (
             <View style={[styles.summaryRow, { paddingTop: Size.space['600'] }]}>
               <SummaryItem
                 label="Min"
@@ -1409,7 +1518,7 @@ const resolveRankForMetric = React.useCallback(
                 isLast
               />
             </View>
-          )}
+          ) : null}
           {showRankContext && rankContextOptions.length > 1 ? (
             <View style={styles.rankContextRow}>
               <NavigationPillList
@@ -1425,22 +1534,6 @@ const resolveRankForMetric = React.useCallback(
               <ThemedText variant="bodySmallEmphasis">Rank context</ThemedText>
               <ThemedText variant="bodySmall">{rankContextOptions[0].label}</ThemedText>
             </View>
-          ) : null}
-
-          {isCategorical && selectedCategory ? (
-            <ObservationPanel
-              title={`Observations in ${selectedCategory.className}`}
-              description={selectedCategoryObservationDescription}
-              items={selectedCategoryObservationItems}
-              onPressItem={handleObservationPress}
-              backgroundColor={palette.background.default.tertiary}
-              chipColor={palette.background.default.secondary}
-              emptyMessage={
-                selectedCategorySampleState?.loading
-                  ? 'Loading observations…'
-                  : selectedCategorySampleState?.error ?? undefined
-              }
-            />
           ) : null}
         </>
       ) : null}
@@ -1578,4 +1671,38 @@ const styles = StyleSheet.create({
     borderRadius: Size.radius['200'],
   },
   categoryDescription: {},
+  stackedCategoryContainer: {
+    gap: Size.space['300'],
+  },
+  stackedBarTrack: {
+    height: 32,
+    borderRadius: Size.radius['200'],
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  stackedBarSegment: {
+    height: '100%',
+  },
+  categoryDescriptionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Size.space['300'],
+  },
+  categoryLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['300'],
+    marginTop: Size.space['200'],
+  },
+  categoryLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  categoryLegendCircle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
 });
