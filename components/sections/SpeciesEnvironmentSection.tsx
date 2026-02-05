@@ -29,6 +29,7 @@ import {
 } from 'react-native';
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { ThemedText } from '../text/ThemedText';
+import { Tabs } from '@/components';
 
 const DEFAULT_VARIABLE = 'bio_1';
 const CHART_HEIGHT = 160;
@@ -1398,45 +1399,13 @@ const resolveRankForMetric = React.useCallback(
         ) : null}
       </View>
 
-      {categories.length > 1 ? (
-        <ScrollView
-          horizontal
-          style={styles.categoryTabsScroll}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryTabsList}
-          accessibilityRole="tablist"
-        >
-          {categories.map((category) => {
-            const selected = category === selectedCategory;
-            return (
-              <Pressable
-                key={category}
-                onPress={() => setSelectedCategory(category)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                style={[
-                  styles.categoryTab,
-                  {
-                    borderBottomColor: selected
-                      ? palette.border.brand.default
-                      : palette.border.default.tertiary,
-                  },
-                ]}
-              >
-                <ThemedText
-                  variant={selected ? 'bodySmallEmphasis' : 'bodySmall'}
-                  style={{
-                    color: selected
-                      ? palette.text.brand.default
-                      : palette.text.default.secondary,
-                  }}
-                >
-                  {category}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+      {categories.length > 1 && selectedCategory ? (
+        <Tabs
+          tabs={categories.map((category) => ({ key: category, label: category }))}
+          selectedKey={selectedCategory}
+          onSelectionChange={setSelectedCategory}
+          accessibilityLabel="Environment categories"
+        />
       ) : null}
 
       {variablesForCategory.length ? (
@@ -1822,20 +1791,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-  },
-  categoryTabsScroll: {
-    maxHeight: 48,
-  },
-  categoryTabsList: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['400'],
-    paddingBottom: Size.space['200'],
-  },
-  categoryTab: {
-    paddingVertical: Size.space['100'],
-    paddingHorizontal: Size.space['50'],
-    borderBottomWidth: 2,
   },
   variableScroll: {
     maxHeight: 220,

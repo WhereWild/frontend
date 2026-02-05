@@ -60,3 +60,9 @@ export { SpeciesLocationPicker } from './sections/SpeciesLocationPicker';
 export type { SpeciesLocationPickerProps } from './sections/SpeciesLocationPicker';
 
 export { SpeciesOccurrenceMap } from './sections/SpeciesOccurrenceMap';
+
+export { Tab } from './tabs/Tab';
+export type { TabProps } from './tabs/Tab';
+
+export { Tabs } from './tabs/Tabs';
+export type { TabsProps } from './tabs/Tabs';
