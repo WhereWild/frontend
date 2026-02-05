@@ -83,19 +83,20 @@ function computeVariantStyles(
 function computeSizeStyles(size: IconButtonSize) {
   // Figma: 20px glyph with 6px (small) or 10px (medium) padding and a fully rounded pill
   const borderRadius = Size.radius['full'];
-  const iconSize: IconSize = '20';
+  const iconSizeMedium: IconSize = '20';
+  const iconSizeSmall: IconSize = '16';
 
   if (size === 'small') {
     return {
-      padding: Size.space['150'],
+      padding: Size.space['200'],
       borderRadius,
-      iconSize,
+      iconSize: iconSizeSmall,
     };
   }
   return {
     padding: Size.space['250'],
     borderRadius,
-    iconSize,
+    iconSize: iconSizeMedium,
   };
 }
 
