@@ -42,7 +42,7 @@ describe('SearchInput', () => {
       />,
     );
 
-    fireEvent.press(screen.getByTestId('search-input-icon'));
+    fireEvent.press(screen.getByLabelText('Start search'));
     expect(handleSubmit).toHaveBeenCalledTimes(1);
     expect(handleSubmit).toHaveBeenCalledWith('lynx');
   });
@@ -95,12 +95,12 @@ describe('SearchInput', () => {
 
     const input = screen.getByPlaceholderText('Search');
     fireEvent.changeText(input, 'owl');
-    fireEvent.press(screen.getByTestId('search-input-clear'));
+    fireEvent.press(screen.getByLabelText('Clear search'));
 
     expect(handleClear).toHaveBeenCalled();
     expect(handleQueryChange).toHaveBeenCalledWith('');
     expect(screen.getByPlaceholderText('Search').props.value).toBe('');
-    expect(screen.queryByTestId('search-input-clear')).toBeNull();
+    expect(screen.queryByLabelText('Clear search')).toBeNull();
   });
 
   it('keeps rendered value controlled by props', () => {
@@ -116,12 +116,12 @@ describe('SearchInput', () => {
     expect(handleQueryChange).toHaveBeenCalledWith('hawk');
     expect(input.props.value).toBe('owl');
 
-    fireEvent.press(screen.getByTestId('search-input-clear'));
+    fireEvent.press(screen.getByLabelText('Clear search'));
     expect(handleClear).toHaveBeenCalled();
     expect(screen.getByPlaceholderText('Search').props.value).toBe('owl');
 
     rerender(<SearchInput value="" onQueryChange={handleQueryChange} onClear={handleClear} />);
-    expect(screen.queryByTestId('search-input-clear')).toBeNull();
+    expect(screen.queryByLabelText('Clear search')).toBeNull();
   });
 
   it('forwards focus and blur callbacks', () => {
@@ -144,14 +144,14 @@ describe('SearchInput', () => {
 
     const input = screen.getByPlaceholderText('Search');
     expect(input.props.editable).toBe(false);
-    expect(screen.queryByTestId('search-input-clear')).toBeNull();
+    expect(screen.queryByLabelText('Clear search')).toBeNull();
   });
 
   it('does not submit when disabled and the icon is pressed', () => {
     const handleSubmit = jest.fn();
     render(<SearchInput disabled defaultValue="lynx" onSubmitSearch={handleSubmit} />);
 
-    fireEvent.press(screen.getByTestId('search-input-icon'));
+    fireEvent.press(screen.getByLabelText('Start search'));
 
     expect(handleSubmit).not.toHaveBeenCalled();
   });
