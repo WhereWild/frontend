@@ -31,6 +31,8 @@ import {
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { ThemedText } from '../text/ThemedText';
 import { NavigationPillList } from '../navigation/NavigationPillList';
+import { ButtonDanger } from '../buttons/ButtonDanger';
+import { IconTrash } from '@/assets/icons/IconTrash';
 
 const DEFAULT_VARIABLE = 'bio_1';
 const CHART_PADDING = 10; // Pads the top of the density curve so the top doesn't clip
@@ -599,25 +601,46 @@ const normalizeObservationItem = (
 
 const ObservationPanel = ({
   title,
+  subtitle,
   description,
   items,
   onPressItem,
+  onClear,
   backgroundColor,
   chipColor,
   emptyMessage,
 }: {
   title: string;
-  description: string;
-  items: ObservationPanelItem[];
+  subtitle?: string;
+  description?: string;
+  items?: ObservationPanelItem[];
   onPressItem?: (id: number | string) => void;
+  onClear?: () => void;
   backgroundColor?: string;
   chipColor?: string;
   emptyMessage?: string;
 }) => (
   <View style={[styles.observationPanel, backgroundColor ? { backgroundColor } : null]}>
-    <ThemedText variant="bodySmallEmphasis">{title}</ThemedText>
-    <ThemedText variant="bodySmall">{description}</ThemedText>
-    {items.length ? (
+    <View style={styles.observationPanelHeader}>
+      <ThemedText variant="bodySmall">{title}</ThemedText>
+      {subtitle ? (
+        <ThemedText variant="bodySmall"> {subtitle}</ThemedText>
+      ) : null}
+      {onClear ? (
+        <ButtonDanger
+          variant="subtle"
+          size="small"
+          onPress={onClear}
+          iconStart={<IconTrash />}
+        >
+          Clear
+        </ButtonDanger>
+      ) : null}
+    </View>
+    {description ? (
+      <ThemedText variant="bodySmall">{description}</ThemedText>
+    ) : null}
+    {items && items.length ? (
       <View style={styles.observationList}>
         {items.slice(0, 12).map((item, index) => {
           const normalized = normalizeObservationItem(item);
@@ -634,11 +657,11 @@ const ObservationPanel = ({
           );
         })}
       </View>
-    ) : (
+    ) : items && !items.length ? (
       <ThemedText variant="bodySmall">
         {emptyMessage ?? 'No observations recorded.'}
       </ThemedText>
-    )}
+    ) : null}
   </View>
 );
 
@@ -1328,33 +1351,14 @@ const resolveRankForMetric = React.useCallback(
           )}
 
           {!isCategorical && selectedDensityRange ? (
-            <View style={styles.selectionSummary}>
-              <ThemedText variant="bodySmall">
-                Selected range {formatValue(selectedDensityRange.start, 1)} to{' '}
-                {formatValue(selectedDensityRange.end, 1)}
-              </ThemedText>
-              <Pressable onPress={() => setSelectedDensityRange(null)}>
-                <ThemedText variant="bodySmallEmphasis">Clear</ThemedText>
-              </Pressable>
+            <View style={{ marginTop: Size.space['800'] }}>
+              <ObservationPanel
+                title={`Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)}`}
+                subtitle={`(${rangeObservationItems.length} observations)`}
+                onClear={() => setSelectedDensityRange(null)}
+                backgroundColor={palette.background.default.tertiary}
+              />
             </View>
-          ) : null}
-
-          {!isCategorical && selectedDensityRange ? (
-            <ObservationPanel
-              title={`${rangeObservationItems.length} observations in selected range`}
-              description={
-                rangeObservationsError
-                  ? rangeObservationsError
-                  : rangeObservationsLoading
-                    ? 'Loading observations…'
-                    : 'Tap an observation ID to open it on iNaturalist.'
-              }
-              items={rangeObservationItems}
-              onPressItem={handleObservationPress}
-              backgroundColor={palette.background.default.tertiary}
-              chipColor={palette.background.default.secondary}
-              emptyMessage={rangeObservationsLoading ? 'Loading observations…' : undefined}
-            />
           ) : null}
 
           {isCategorical ? (
@@ -1526,6 +1530,18 @@ const styles = StyleSheet.create({
     gap: Size.space['200'],
     padding: Size.space['300'],
     borderRadius: Size.radius['200'],
+    alignSelf: 'center',
+  },
+  observationPanelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Size.space['300'],
+  },
+  observationPanelTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   observationList: {
     flexDirection: 'row',
