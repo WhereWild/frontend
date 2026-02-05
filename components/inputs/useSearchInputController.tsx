@@ -2,9 +2,9 @@ import { IconSearch, IconX } from '@/assets/icons';
 import { Colors, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { Platform, PressableStateCallbackType, TextInput, TextInputProps, TextStyle, ViewStyle } from 'react-native';
-import { type IconButtonSlotProps, type SearchInputViewProps } from './SearchInputView';
-import { createContainerHandlers, handleClearValue, resolveIconButtonInteractionStyles, submitSearchValue } from './searchInputHelpers';
+import { Platform, TextInput, TextInputProps, TextStyle, ViewStyle } from 'react-native';
+import { type SearchInputViewProps } from './SearchInputView';
+import { createContainerHandlers, handleClearValue, submitSearchValue } from './searchInputHelpers';
 
 /**
  * Central hook + helper exports for SearchInput. Keeps business logic separate from presentation.
@@ -28,46 +28,6 @@ export type UseSearchInputControllerArgs = {
    * this prop.
    */
   characterReader?: (value: string) => string | undefined;
-};
-
-const createIconButtonSlot = (
-  icon: 'search' | 'clear',
-  {
-    onPress,
-    accessibilityLabel,
-    testID,
-    disabled,
-    palette,
-    baseIconColor,
-  }: {
-    onPress?: () => void;
-    accessibilityLabel: string;
-    testID: string;
-    disabled: boolean;
-    palette: (typeof Colors)['light'];
-    baseIconColor: string;
-  },
-): IconButtonSlotProps => {
-  const renderIconNode = (color: string) =>
-    icon === 'search' ? <IconSearch size="16" color={color} /> : <IconX size="16" color={color} />;
-
-  const resolveStyles = (state: PressableStateCallbackType) =>
-    resolveIconButtonInteractionStyles({ palette, baseIconColor, disabled, state });
-
-  return {
-    onPress,
-    accessibilityLabel,
-    testID,
-    disabled,
-    style: (state) => {
-      const { containerStyle } = resolveStyles(state);
-      return [containerStyle];
-    },
-    renderIcon: (state) => {
-      const { iconColor } = resolveStyles(state);
-      return renderIconNode(iconColor);
-    },
-  };
 };
 
 export const readLastCharacter = (value: string): string | undefined => value.at(-1);
@@ -129,9 +89,6 @@ export const useSearchInputController = ({
   const textColor = disabled
     ? palette.text.disabled.onDisabled
     : palette.text.default.tertiary;
-  const iconColor = disabled
-    ? palette.icon.disabled.onDisabled
-    : palette.icon.default.tertiary;
 
   const handleChangeText = (nextValue: string) => {
     if (!isControlled) {
@@ -184,24 +141,20 @@ export const useSearchInputController = ({
     setIsPressing,
   });
 
-  const searchButton = createIconButtonSlot('search', {
+  const searchButton = {
     onPress: () => submitSearch(currentValue),
     accessibilityLabel: 'Start search',
-    testID: 'search-input-icon',
     disabled,
-    palette,
-    baseIconColor: iconColor,
-  });
+    icon: <IconSearch />,
+  };
 
   const clearButton = showClearButton
-    ? createIconButtonSlot('clear', {
+    ? {
       onPress: clearValue,
       accessibilityLabel: 'Clear search',
-      testID: 'search-input-clear',
       disabled: false,
-      palette,
-      baseIconColor: iconColor,
-    })
+      icon: <IconX />,
+    }
     : undefined;
 
   // Forward events to the underlying TextInput so consumers injecting raw TextInput props
@@ -230,6 +183,7 @@ export const useSearchInputController = ({
       inputStyle ?? null,
     ],
     editable: !disabled,
+    focusable: !disabled,
     value: currentValue,
     placeholder,
     placeholderTextColor: disabled
