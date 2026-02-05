@@ -32,7 +32,7 @@ import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { ThemedText } from '../text/ThemedText';
 import { NavigationPillList } from '../navigation/NavigationPillList';
 
-const DEFAULT_VARIABLE = 'elevation';
+const DEFAULT_VARIABLE = 'bio_1';
 const CHART_PADDING = 10; // Pads the top of the density curve so the top doesn't clip
 const CHART_HEIGHT = 160;
 const CATEGORY_DISPLAY_LIMIT = 8;
@@ -110,24 +110,42 @@ const formatRange = (
 type SummaryItemProps = {
   label: string;
   value: string;
-  rankLabel?: string | null;
-  rankColor?: string;
+  rank?: SpeciesEnvironmentRelativeRank | null;
+  comparison?: string | null;
+  isLast?: boolean;
 };
 
-const SummaryItem = ({ label, value, rankLabel, rankColor }: SummaryItemProps) => (
-  <View style={styles.summaryItem}>
-    <ThemedText variant="bodySmallEmphasis">{label}</ThemedText>
-    <ThemedText variant="bodyStrong">{value}</ThemedText>
-    {rankLabel ? (
-      <ThemedText
-        variant="bodySmall"
-        style={[styles.rankLabel, rankColor ? { color: rankColor } : null]}
-      >
-        {rankLabel}
-      </ThemedText>
-    ) : null}
-  </View>
-);
+const SummaryItem = ({ label, value, rank, comparison, isLast }: SummaryItemProps) => {
+  const scheme = useColorScheme();
+  const mode = scheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+
+  return (
+    <View style={[styles.summaryItem, isLast && styles.summaryItemLast]}>
+      <ThemedText variant="body">{label}</ThemedText>
+      <ThemedText variant="subtitle">{value}</ThemedText>
+      {comparison ? (
+        <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
+          {comparison}
+        </ThemedText>
+      ) : rank ? (
+        <>
+          {(typeof rank.rank === 'number' && typeof rank.count === 'number') ? (
+            <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
+              Ranks <ThemedText variant="body" style={{ fontWeight: 'bold' }}>{Math.round(rank.rank).toLocaleString()} / {Math.round(rank.count).toLocaleString()}</ThemedText> in{' '}
+              {rank.label || 'selected taxon'}
+            </ThemedText>
+          ) : null}
+          {typeof rank.percentile === 'number' && Number.isFinite(rank.percentile) ? (
+            <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+              ({formatPercent(rank.percentile)} percentile)
+            </ThemedText>
+          ) : null}
+        </>
+      ) : null}
+    </View>
+  );
+};
 
 const DensityChart = ({
   curve,
@@ -389,11 +407,24 @@ const DensityChart = ({
   );
 };
 
+const getOrdinalSuffix = (num: number) => {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) return 'st';
+  if (j === 2 && k !== 12) return 'nd';
+  if (j === 3 && k !== 13) return 'rd';
+  return 'th';
+};
+
 const formatPercent = (fraction: number) => {
   if (!Number.isFinite(fraction)) {
-    return '0%';
+    return '0.0th';
   }
-  return `${(fraction * 100).toFixed(1)}%`;
+  if (fraction * 100 < 1) {
+    return '<1st'
+  }
+  const num = Math.round(fraction * 100);
+  return num + getOrdinalSuffix(num);
 };
 
 const formatComparisonLabel = (
@@ -546,38 +577,6 @@ const estimatePercentileFromHistogram = (
     break;
   }
   return Math.min(1, Math.max(0, cumulative / total));
-};
-
-const formatRankLabel = (rank?: SpeciesEnvironmentRelativeRank | null) => {
-  if (!rank) {
-    return null;
-  }
-  const parts: string[] = [];
-  const rankValue =
-    typeof rank.rank === 'number' && Number.isFinite(rank.rank) ? Math.round(rank.rank) : null;
-  const countValue =
-    typeof rank.count === 'number' && Number.isFinite(rank.count)
-      ? Math.round(rank.count)
-      : null;
-  if (rankValue && rankValue > 0 && countValue && countValue > 0) {
-    parts.push(`${rankValue}/${countValue}`);
-  } else if (rankValue && rankValue > 0) {
-    parts.push(`${rankValue}`);
-  }
-  if (typeof rank.percentile === 'number' && Number.isFinite(rank.percentile)) {
-    parts.push(`${formatPercent(rank.percentile)} percentile`);
-  }
-  const contextPieces: string[] = [];
-  if (rank.label) {
-    contextPieces.push(rank.label);
-  }
-  if (rank.context && rank.context !== rank.label) {
-    contextPieces.push(rank.context);
-  }
-  if (contextPieces.length) {
-    parts.push(contextPieces.join(' '));
-  }
-  return parts.length ? parts.join(' • ') : null;
 };
 
 type ObservationPanelItem = number | string | { id: number | string; label?: string };
@@ -829,10 +828,7 @@ export function SpeciesEnvironmentSection({
       key,
       label,
     }));
-    if (contexts.length > 1) {
-      return [{ key: ALL_CONTEXT_KEY, label: 'All contexts' }, ...contexts];
-    }
-    return contexts;
+    return contexts.reverse();
   }, [locationFilterActive, stats?.relativeRanks]);
 
   React.useEffect(() => {
@@ -1276,10 +1272,21 @@ const resolveRankForMetric = React.useCallback(
       ) : null}
 
       {stats && (
-        <ThemedText variant="heading">
-          {stats?.variableName ?? selectedVariableMeta?.label ?? 'Environment'}
-          {!isCategorical && (stats?.units || selectedVariableMeta?.units) ? ` (${stats?.units ?? selectedVariableMeta?.units})` : ''}
-        </ThemedText>
+        <View style={styles.variableHeadingRow}>
+          <ThemedText variant="heading">
+            {stats?.variableName ?? selectedVariableMeta?.label ?? 'Environment'}
+            {!isCategorical && (stats?.units || selectedVariableMeta?.units) ? ` (${stats?.units ?? selectedVariableMeta?.units})` : ''}
+          </ThemedText>
+          <ThemedText variant="bodySmall">
+            Based on{' '}
+            {formatValue(
+              isCategorical
+                ? categoricalSummary?.totalSamples ?? summary?.count ?? 0
+                : summary?.count ?? 0,
+            )}{' '}
+            samples
+          </ThemedText>
+        </View>
       )}
 
       {loading && !stats ? (
@@ -1350,22 +1357,57 @@ const resolveRankForMetric = React.useCallback(
             />
           ) : null}
 
-          <View style={[styles.summaryHeader, { paddingTop: Size.space['600'] }]}>
-            <ThemedText variant="bodySmallEmphasis">
-              {isCategorical ? 'Category Summary' : 'Summary Statistics'}
-            </ThemedText>
-            <ThemedText variant="bodySmall">
-              Samples{' '}
-              {formatValue(
-                isCategorical
-                  ? categoricalSummary?.totalSamples ?? summary?.count ?? 0
-                  : summary?.count ?? 0,
-              )}
-            </ThemedText>
-          </View>
+          {isCategorical ? (
+            <View style={[styles.summaryRow, { paddingTop: Size.space['600'] }]}>
+              <SummaryItem
+                label="Unique classes"
+                value={formatValue(categoricalSummary?.uniqueClasses ?? 0)}
+                comparison={
+                  locationFilterActive ? categoricalComparisons.unique ?? null : null
+                }
+              />
+              <SummaryItem
+                label="Significant classes"
+                value={formatValue(categoricalSummary?.significantClasses ?? 0)}
+                comparison={
+                  locationFilterActive ? categoricalComparisons.significant ?? null : null
+                }
+              />
+              {categoricalSummary?.dominant ? (
+                <SummaryItem
+                  label="Top class"
+                  value={`${categoricalSummary.dominant.className} (${formatPercent(
+                    categoricalSummary.dominant.fraction,
+                  )})`}
+                  comparison={locationFilterActive ? categoricalTopComparison : null}
+                />
+              ) : null}
+            </View>
+          ) : (
+            <View style={[styles.summaryRow, { paddingTop: Size.space['600'] }]}>
+              <SummaryItem
+                label="Min"
+                value={formatValue(summary?.min, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.min}
+                comparison={locationFilterActive ? summaryComparisons.min ?? null : null}
+              />
+              <SummaryItem
+                label="Mean"
+                value={formatValue(summary?.mean, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.mean}
+                comparison={locationFilterActive ? summaryComparisons.mean ?? null : null}
+              />
+              <SummaryItem
+                label="Max"
+                value={formatValue(summary?.max, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.max}
+                comparison={locationFilterActive ? summaryComparisons.max ?? null : null}
+                isLast
+              />
+            </View>
+          )}
           {showRankContext && rankContextOptions.length > 1 ? (
             <View style={styles.rankContextRow}>
-              <ThemedText variant="bodySmallEmphasis">Rank context</ThemedText>
               <NavigationPillList
                 pills={rankContextOptions}
                 selectedKey={selectedRankContext ?? rankContextOptions[0].key}
@@ -1380,86 +1422,6 @@ const resolveRankForMetric = React.useCallback(
               <ThemedText variant="bodySmall">{rankContextOptions[0].label}</ThemedText>
             </View>
           ) : null}
-          {isCategorical ? (
-            <View style={styles.summaryRow}>
-              <SummaryItem
-                label="Unique classes"
-                value={formatValue(categoricalSummary?.uniqueClasses ?? 0)}
-                rankLabel={
-                  locationFilterActive ? categoricalComparisons.unique ?? null : null
-                }
-              />
-              <SummaryItem
-                label="Significant classes"
-                value={formatValue(categoricalSummary?.significantClasses ?? 0)}
-                rankLabel={
-                  locationFilterActive ? categoricalComparisons.significant ?? null : null
-                }
-              />
-              {categoricalSummary?.dominant ? (
-                <SummaryItem
-                  label="Top class"
-                  value={`${categoricalSummary.dominant.className} (${formatPercent(
-                    categoricalSummary.dominant.fraction,
-                  )})`}
-                  rankLabel={locationFilterActive ? categoricalTopComparison : null}
-                />
-              ) : null}
-            </View>
-          ) : (
-            <View style={styles.summaryRow}>
-              <SummaryItem
-                label="Min"
-                value={formatValue(summary?.min, 1)}
-                rankLabel={
-                  locationFilterActive
-                    ? summaryComparisons.min ?? null
-                    : formatRankLabel(summaryRanks.min)
-                }
-                rankColor={palette.text.default.secondary}
-              />
-              <SummaryItem
-                label="Mean"
-                value={formatValue(summary?.mean, 1)}
-                rankLabel={
-                  locationFilterActive
-                    ? summaryComparisons.mean ?? null
-                    : formatRankLabel(summaryRanks.mean)
-                }
-                rankColor={palette.text.default.secondary}
-              />
-              <SummaryItem
-                label="Max"
-                value={formatValue(summary?.max, 1)}
-                rankLabel={
-                  locationFilterActive
-                    ? summaryComparisons.max ?? null
-                    : formatRankLabel(summaryRanks.max)
-                }
-                rankColor={palette.text.default.secondary}
-              />
-              <SummaryItem
-                label="Std Dev"
-                value={formatValue(summary?.stddev, 1)}
-                rankLabel={
-                  locationFilterActive
-                    ? summaryComparisons.std ?? null
-                    : formatRankLabel(summaryRanks.std)
-                }
-                rankColor={palette.text.default.secondary}
-              />
-              <SummaryItem
-                label="1-99 Range"
-                value={formatRange(summary?.q01, summary?.q99, 1)}
-                rankLabel={
-                  locationFilterActive
-                    ? summaryComparisons.range99 ?? null
-                    : formatRankLabel(summaryRanks.range99)
-                }
-                rankColor={palette.text.default.secondary}
-              />
-            </View>
-          )}
 
           {isCategorical && selectedCategory ? (
             <ObservationPanel
@@ -1525,6 +1487,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'baseline',
   },
+  variableHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
   selectionSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1533,16 +1500,26 @@ const styles = StyleSheet.create({
   },
   rankContextRow: {
     gap: Size.space['100'],
+    alignItems: 'center',
   },
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Size.space['400'],
+    justifyContent: 'space-evenly',
   },
   summaryItem: {
     flexDirection: 'column',
+    flex: 1,
     minWidth: 140,
     gap: Size.space['100'],
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: Colors.light.border.default.default,
+    paddingHorizontal: Size.space['300'],
+  },
+  summaryItemLast: {
+    borderRightWidth: 0,
   },
   rankLabel: {},
   observationPanel: {
