@@ -31,6 +31,7 @@ import {
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { ThemedText } from '../text/ThemedText';
 import { NavigationPillList } from '../navigation/NavigationPillList';
+import { SelectField } from '../inputs/SelectField';
 import { ButtonDanger } from '../buttons/ButtonDanger';
 import { IconTrash } from '@/assets/icons/IconTrash';
 
@@ -553,10 +554,9 @@ const StackedCategoryBar = ({
           const isHovered = String(category.value) === String(hoveredValue);
           const baseColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           
-          // Darken on hover, lighten on press
+          // Darken on hover, emphasize on selected
           let opacity = 1;
           if (isHovered && !isSelected) opacity = 0.8;
-          if (isSelected) opacity = 0.9;
 
           return (
             <Pressable
@@ -957,6 +957,18 @@ export function SpeciesEnvironmentSection({
   const error = selectedVariable ? errorByVariable[selectedVariable] ?? null : null;
   const loading = loadingVariable === selectedVariable;
   const summary = stats?.summary;
+  
+  // Determine if selected variable is categorical before data loads
+  const isVariableCategorical = React.useMemo(() => {
+    if (!selectedVariable) return false;
+    const isForcedCategorical = FORCED_CATEGORICAL_VARIABLES.has(
+      selectedVariable.toLowerCase(),
+    );
+    if (isForcedCategorical) return true;
+    const varType = selectedVariableMeta?.valueType?.toLowerCase();
+    return varType === 'categorical';
+  }, [selectedVariable, selectedVariableMeta]);
+  
   const summaryRangeValue =
     typeof summary?.q01 === 'number' && typeof summary?.q99 === 'number'
       ? summary.q99 - summary.q01
@@ -1422,30 +1434,31 @@ const resolveRankForMetric = React.useCallback(
         { backgroundColor: palette.background.default.secondary },
       ]}
     >
-      {resolvedVariables.length ? (
-        <ScrollView
-          style={styles.variableScroll}
-          showsVerticalScrollIndicator
-        >
-          <NavigationPillList
-            pills={resolvedVariables.map((option) => ({
-              key: option.id,
-              label: option.label,
-            }))}
-            selectedKey={selectedVariable}
-            onSelectionChange={setSelectedVariable}
-            direction="horizontal"
-            accessibilityLabel="Environment variables"
+      <View style={styles.variableHeadingRow}>
+        {resolvedVariables.length ? (
+          <SelectField
+            options={resolvedVariables.map((option) => {
+              const isCategoricalVar = 
+                option.valueType?.toLowerCase() === 'categorical' ||
+                FORCED_CATEGORICAL_VARIABLES.has(option.id.toLowerCase());
+              return {
+                value: option.id,
+                label: !isCategoricalVar && option.units 
+                  ? `${option.label} (${option.units})` 
+                  : option.label,
+              };
+            })}
+            value={selectedVariable}
+            onValueChange={setSelectedVariable}
+            placeholder="Select environment variable"
           />
-        </ScrollView>
-      ) : null}
-
-      {stats && (
-        <View style={styles.variableHeadingRow}>
+        ) : stats ? (
           <ThemedText variant="heading">
             {stats?.variableName ?? selectedVariableMeta?.label ?? 'Environment'}
             {!isCategorical && (stats?.units || selectedVariableMeta?.units) ? ` (${stats?.units ?? selectedVariableMeta?.units})` : ''}
           </ThemedText>
+        ) : null}
+        {stats && (
           <ThemedText variant="bodySmall">
             {!isCategorical && selectedDensityRange ? (
               `Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)} (${rangeObservationItems.length} of ${formatValue(summary?.count ?? 0)} observations)`
@@ -1457,11 +1470,14 @@ const resolveRankForMetric = React.useCallback(
               )} observations)`
             )}
           </ThemedText>
-        </View>
-      )}
+        )}
+      </View>
 
       {loading && !stats ? (
-        <View style={styles.loadingRow}>
+        <View style={[
+          styles.loadingPlaceholder,
+          isVariableCategorical ? styles.loadingPlaceholderCategorical : styles.loadingPlaceholderContinuous,
+        ]}>
           <ActivityIndicator color={palette.text.brand.default} />
           <ThemedText variant="bodySmall">Loading environment data…</ThemedText>
         </View>
@@ -1570,6 +1586,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['200'],
+  },
+  loadingPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Size.space['200'],
+  },
+  loadingPlaceholderContinuous: {
+    minHeight: 300, // Chart (160) + labels + summary stats
+  },
+  loadingPlaceholderCategorical: {
+    minHeight: 200, // Stacked bar (32) + pills + description space
   },
   errorRow: {
     paddingVertical: Size.space['200'],
