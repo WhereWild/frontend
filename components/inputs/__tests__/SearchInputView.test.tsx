@@ -1,17 +1,16 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet, Text, TextInput } from 'react-native';
-import { SearchInputView, type IconButtonSlotProps } from '../SearchInputView';
+import { SearchInputView, type SearchInputIconButtonProps } from '../SearchInputView';
 
 describe('SearchInputView', () => {
-  const createSlot = (overrides: Partial<IconButtonSlotProps> = {}): IconButtonSlotProps => ({
+  const createSlot = (
+    overrides: Partial<SearchInputIconButtonProps> = {},
+  ): SearchInputIconButtonProps => ({
     onPress: jest.fn(),
     accessibilityLabel: 'slot',
-    testID: 'slot-id',
     disabled: false,
-    hitSlop: undefined,
-    style: () => [],
-    renderIcon: () => <Text>icon</Text>,
+    icon: <Text>icon</Text>,
     ...overrides,
   });
 
@@ -26,13 +25,13 @@ describe('SearchInputView', () => {
   it('renders clear slot', () => {
     const inputRef = React.createRef<TextInput>();
 
-    const { getByTestId } = render(
+    const { getByLabelText } = render(
       <SearchInputView
         disabled={false}
         containerStyle={[null]}
         containerHandlers={handlers}
-        searchButton={createSlot({ testID: 'search-slot' })}
-        clearButton={createSlot({ testID: 'clear-slot' })}
+        searchButton={createSlot({ accessibilityLabel: 'search-slot' })}
+        clearButton={createSlot({ accessibilityLabel: 'clear-slot' })}
         inputProps={{
           style: { paddingHorizontal: 24 },
           value: '',
@@ -43,18 +42,18 @@ describe('SearchInputView', () => {
       />,
     );
 
-    expect(getByTestId('clear-slot')).toBeTruthy();
+    expect(getByLabelText('clear-slot')).toBeTruthy();
   });
 
   it('omits clear slot when not provided', () => {
     const inputRef = React.createRef<TextInput>();
 
-    const { queryByTestId } = render(
+    const { queryByLabelText } = render(
       <SearchInputView
         disabled
         containerStyle={[null]}
         containerHandlers={handlers}
-        searchButton={createSlot({ testID: 'search-slot' })}
+        searchButton={createSlot({ accessibilityLabel: 'search-slot' })}
         inputProps={{
           style: [StyleSheet.create({})],
           value: '',
@@ -65,7 +64,7 @@ describe('SearchInputView', () => {
       />,
     );
 
-    expect(queryByTestId('clear-slot')).toBeNull();
+    expect(queryByLabelText('clear-slot')).toBeNull();
   });
 
   it('maintains baseline styles when no input style is provided', () => {
@@ -76,7 +75,7 @@ describe('SearchInputView', () => {
         disabled={false}
         containerStyle={[null]}
         containerHandlers={handlers}
-        searchButton={createSlot({ testID: 'search-slot' })}
+        searchButton={createSlot({ accessibilityLabel: 'search-slot' })}
         inputProps={{
           value: '',
           onChangeText: jest.fn(),

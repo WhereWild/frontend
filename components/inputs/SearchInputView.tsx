@@ -6,23 +6,19 @@ import {
   TextInput,
   TextInputProps,
   ViewStyle,
-  PressableStateCallbackType,
 } from 'react-native';
-import { RN_TEXT_INPUT_VERTICAL_OFFSET } from './searchInputHelpers';
+import { IconButton } from '@/components/buttons/IconButton';
 import { Size } from '@/constants/theme';
 
 /**
  * Pure view for SearchInput; expects fully-resolved props from the controller.
  */
 
-export type IconButtonSlotProps = {
+export type SearchInputIconButtonProps = {
   onPress?: () => void;
   accessibilityLabel: string;
-  testID: string;
   disabled: boolean;
-  hitSlop?: number | object;
-  style: (state: PressableStateCallbackType) => (ViewStyle | null)[];
-  renderIcon: (state: PressableStateCallbackType) => React.ReactNode;
+  icon: React.ReactNode;
 };
 
 export type SearchInputViewProps = {
@@ -35,13 +31,11 @@ export type SearchInputViewProps = {
     onPressIn: () => void;
     onPressOut: () => void;
   };
-  searchButton: IconButtonSlotProps;
-  clearButton?: IconButtonSlotProps;
+  searchButton: SearchInputIconButtonProps;
+  clearButton?: SearchInputIconButtonProps;
   inputProps: TextInputProps;
   inputRef: React.RefObject<TextInput | null>;
 };
-
-const ICON_BUTTON_EXPANSION = Size.space['200'];
 
 const styles = StyleSheet.create({
   container: {
@@ -49,20 +43,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: Size.radius.full,
     borderWidth: 0,
-    paddingHorizontal: Size.space['300'],
-    paddingVertical: Size.space['300'] - RN_TEXT_INPUT_VERTICAL_OFFSET, // compensate for RN padding
+    paddingHorizontal: Size.space['100'],
+    paddingVertical: Size.space['100'], 
     gap: Size.space['300'],
     // Default outline stays off until the controller toggles it back on for native focus rings.
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
-  },
-  iconButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: ICON_BUTTON_EXPANSION,
-    paddingVertical: ICON_BUTTON_EXPANSION,
-    marginHorizontal: -ICON_BUTTON_EXPANSION,
-    marginVertical: -ICON_BUTTON_EXPANSION,
-    borderRadius: Size.radius.full,
   },
   input: {
     flex: 1,
@@ -99,36 +84,31 @@ export function SearchInputView({
       onPressOut={containerHandlers.onPressOut}
       style={[styles.container, ...containerStyle]}
       disabled={disabled}
-      accessible
-      accessibilityRole="search"
-      accessibilityState={{ disabled }}
+      // The outer pressable is unfocusable; focus is managed on the TextInput inside.
+      accessible={false}
+      focusable={false}
+      {...(Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : {})}
     >
-      <Pressable
-        onPress={searchButton.onPress}
-        accessibilityRole="button"
+      <IconButton
+        variant="subtle"
+        size="small"
+        icon={searchButton.icon}
         accessibilityLabel={searchButton.accessibilityLabel}
-        testID={searchButton.testID}
-        hitSlop={searchButton.hitSlop}
         disabled={searchButton.disabled}
-        style={(state) => [styles.iconButton, ...searchButton.style(state)]}
-      >
-        {(state) => searchButton.renderIcon(state)}
-      </Pressable>
+        onPress={searchButton.onPress}
+      />
 
       <TextInput ref={inputRef} {...restInputProps} style={mergedInputStyle} />
 
       {clearButton ? (
-        <Pressable
-          onPress={clearButton.onPress}
-          accessibilityRole="button"
+        <IconButton
+          variant="subtle"
+          size="small"
+          icon={clearButton.icon}
           accessibilityLabel={clearButton.accessibilityLabel}
-          testID={clearButton.testID}
-          hitSlop={clearButton.hitSlop}
           disabled={clearButton.disabled}
-          style={(state) => [styles.iconButton, ...clearButton.style(state)]}
-        >
-          {(state) => clearButton.renderIcon(state)}
-        </Pressable>
+          onPress={clearButton.onPress}
+        />
       ) : null}
     </Pressable>
   );
