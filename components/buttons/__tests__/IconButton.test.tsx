@@ -285,7 +285,7 @@ describe('IconButton Component', () => {
       const styles = button.props.style;
       const paddingStyle = styles.find((s: any) => s?.padding !== undefined);
       expect(paddingStyle).toBeDefined();
-      expect(paddingStyle.padding).toBe(Size.space['150']);
+      expect(paddingStyle.padding).toBe(Size.space['200']);
       expect(paddingStyle.borderRadius).toBe(Size.radius['full']);
     });
 
