@@ -42,6 +42,7 @@ type EnvironmentVariableOption = {
   label: string;
   units?: string | null;
   valueType?: string | null;
+  category?: string | null;
 };
 
 type CategorySampleState = {
@@ -52,12 +53,12 @@ type CategorySampleState = {
 };
 
 const DEFAULT_VARIABLES: EnvironmentVariableOption[] = [
-  { id: 'bio_1', label: 'Bio 1' },
-  { id: 'elevation', label: 'Elevation' },
-  { id: 'annual_precip', label: 'Annual Precipitation' },
-  { id: 'mean_temp_coldest_quarter', label: 'Mean Temp (Cold Qtr)' },
-  { id: 'max_temp_warmest_month', label: 'Max Temp (Warmest Mo)' },
-  { id: 'landcover', label: 'Land Cover', valueType: 'categorical' },
+  { id: 'bio_1', label: 'Bio 1', category: 'Environment' },
+  { id: 'elevation', label: 'Elevation', category: 'Environment' },
+  { id: 'annual_precip', label: 'Annual Precipitation', category: 'Environment' },
+  { id: 'mean_temp_coldest_quarter', label: 'Mean Temp (Cold Qtr)', category: 'Environment' },
+  { id: 'max_temp_warmest_month', label: 'Max Temp (Warmest Mo)', category: 'Environment' },
+  { id: 'landcover', label: 'Land Cover', valueType: 'categorical', category: 'Environment' },
 ];
 
 const normalizeLabel = (value: string) =>
@@ -65,6 +66,20 @@ const normalizeLabel = (value: string) =>
     .split('_')
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(' ');
+
+const parseTemporalId = (value: string) => {
+  const match = value.match(/^(.*)_(avg|sum|snapshot)_(\d+)h$/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    baseId: match[1],
+    agg: match[2].toLowerCase(),
+    hours: Number(match[3]),
+  };
+};
+
+const stripTemporalSuffix = (value: string) => value.replace(/\s*\([^)]+\)\s*$/, '');
 
 export type SpeciesEnvironmentSectionProps = {
   taxonId?: number;
@@ -83,6 +98,19 @@ type RankContextOption = {
 type DensitySelectionRange = {
   start: number;
   end: number;
+};
+
+type TemporalOption = {
+  id: string;
+  hours: number | null;
+  agg: string | null;
+  label: string;
+};
+
+type TemporalGroup = {
+  baseId: string;
+  label: string;
+  options: TemporalOption[];
 };
 
 const formatValue = (value: number | null | undefined, digits = 0) => {
@@ -694,7 +722,96 @@ export function SpeciesEnvironmentSection({
     }
     return DEFAULT_VARIABLES;
   }, [remoteVariables, variables]);
-  const fallbackVariable = variableId || resolvedVariables[0]?.id || DEFAULT_VARIABLE;
+  const categories = React.useMemo(() => {
+    const names = resolvedVariables
+      .map((option) => option.category?.trim() ?? '')
+      .filter((value) => value.length > 0);
+    return Array.from(new Set(names));
+  }, [resolvedVariables]);
+  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
+    categories[0] ?? null,
+  );
+  React.useEffect(() => {
+    setSelectedCategory((prev) => {
+      if (!categories.length) {
+        return null;
+      }
+      if (prev && categories.includes(prev)) {
+        return prev;
+      }
+      return categories[0];
+    });
+  }, [categories]);
+  React.useEffect(() => {
+    if (!variableId) {
+      return;
+    }
+    const match = resolvedVariables.find((option) => option.id === variableId);
+    const category = match?.category?.trim();
+    if (category && categories.includes(category)) {
+      setSelectedCategory(category);
+    }
+  }, [categories, resolvedVariables, variableId]);
+  const variablesForCategory = React.useMemo(() => {
+    if (!selectedCategory) {
+      return resolvedVariables;
+    }
+    return resolvedVariables.filter(
+      (option) => option.category?.trim() === selectedCategory,
+    );
+  }, [resolvedVariables, selectedCategory]);
+  const temporalGroups = React.useMemo<TemporalGroup[]>(() => {
+    const groups = new Map<string, TemporalGroup>();
+    variablesForCategory.forEach((option) => {
+      const parsed = parseTemporalId(option.id);
+      const baseId = parsed?.baseId ?? option.id;
+      const baseLabel =
+        parsed && option.label ? stripTemporalSuffix(option.label) : option.label;
+      const group = groups.get(baseId) ?? {
+        baseId,
+        label: baseLabel || normalizeLabel(baseId),
+        options: [],
+      };
+      const optionLabel =
+        parsed && option.label ? stripTemporalSuffix(option.label) : option.label;
+      group.options.push({
+        id: option.id,
+        hours: parsed?.hours ?? null,
+        agg: parsed?.agg ?? null,
+        label: optionLabel || normalizeLabel(baseId),
+      });
+      if (!group.label && optionLabel) {
+        group.label = optionLabel;
+      }
+      groups.set(baseId, group);
+    });
+    const list = Array.from(groups.values());
+    list.sort((a, b) => a.label.localeCompare(b.label));
+    list.forEach((group) => {
+      group.options.sort((a, b) => {
+        const aHours = a.hours ?? Number.POSITIVE_INFINITY;
+        const bHours = b.hours ?? Number.POSITIVE_INFINITY;
+        if (aHours !== bHours) {
+          return aHours - bHours;
+        }
+        return String(a.agg ?? '').localeCompare(String(b.agg ?? ''));
+      });
+    });
+    return list;
+  }, [variablesForCategory]);
+  const isTemporalCategory = React.useMemo(
+    () => variablesForCategory.some((option) => parseTemporalId(option.id)),
+    [variablesForCategory],
+  );
+  const fallbackVariable = React.useMemo(() => {
+    if (variableId && resolvedVariables.some((option) => option.id === variableId)) {
+      return variableId;
+    }
+    if (variablesForCategory.length) {
+      return variablesForCategory[0].id;
+    }
+    return resolvedVariables[0]?.id || DEFAULT_VARIABLE;
+  }, [resolvedVariables, variableId, variablesForCategory]);
   const [selectedVariable, setSelectedVariable] = React.useState(fallbackVariable);
   React.useEffect(() => {
     setSelectedVariable(fallbackVariable);
@@ -718,6 +835,7 @@ export function SpeciesEnvironmentSection({
             label: entry.name ?? normalizeLabel(entry.id),
             units: entry.units ?? null,
             valueType: entry.valueType ?? entry.value_type ?? null,
+            category: entry.category ?? null,
           }));
           setRemoteVariables(mapped);
         }
@@ -867,7 +985,7 @@ export function SpeciesEnvironmentSection({
     });
   }, [rankContextOptions]);
 
-  const selectedCategory =
+  const selectedCategoryEntry =
     isCategorical && selectedCategoryValue !== null
       ? categoricalDistribution.find(
           (category) => String(category.value) === String(selectedCategoryValue),
@@ -1280,41 +1398,175 @@ const resolveRankForMetric = React.useCallback(
         ) : null}
       </View>
 
-      {resolvedVariables.length ? (
+      {categories.length > 1 ? (
         <ScrollView
-          style={styles.variableScroll}
-          showsVerticalScrollIndicator
-          contentContainerStyle={styles.variableSelectorGrid}
+          horizontal
+          style={styles.categoryTabsScroll}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryTabsList}
+          accessibilityRole="tablist"
         >
-          {resolvedVariables.map((option) => {
-            const selected = option.id === selectedVariable;
+          {categories.map((category) => {
+            const selected = category === selectedCategory;
             return (
               <Pressable
-                key={option.id}
-                onPress={() => setSelectedVariable(option.id)}
+                key={category}
+                onPress={() => setSelectedCategory(category)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
                 style={[
-                  styles.variablePill,
+                  styles.categoryTab,
                   {
-                    backgroundColor: selected
-                      ? palette.background.brand.default
-                      : palette.background.default.tertiary,
+                    borderBottomColor: selected
+                      ? palette.border.brand.default
+                      : palette.border.default.tertiary,
                   },
                 ]}
               >
                 <ThemedText
-                  variant="bodySmall"
+                  variant={selected ? 'bodySmallEmphasis' : 'bodySmall'}
                   style={{
                     color: selected
-                      ? palette.text.brand.contrast
+                      ? palette.text.brand.default
                       : palette.text.default.secondary,
                   }}
                 >
-                  {option.label}
+                  {category}
                 </ThemedText>
               </Pressable>
             );
           })}
         </ScrollView>
+      ) : null}
+
+      {variablesForCategory.length ? (
+        <>
+          {isTemporalCategory && temporalGroups.length ? (
+            <>
+              <ScrollView
+                style={styles.variableScroll}
+                showsVerticalScrollIndicator
+                contentContainerStyle={styles.variableSelectorGrid}
+              >
+                {temporalGroups.map((group) => {
+                  const selected = group.options.some(
+                    (option) => option.id === selectedVariable,
+                  );
+                  return (
+                    <Pressable
+                      key={group.baseId}
+                      onPress={() => setSelectedVariable(group.options[0]?.id ?? group.baseId)}
+                      style={[
+                        styles.variablePill,
+                        {
+                          backgroundColor: selected
+                            ? palette.background.brand.default
+                            : palette.background.default.tertiary,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        variant="bodySmall"
+                        style={{
+                          color: selected
+                            ? palette.text.brand.contrast
+                            : palette.text.default.secondary,
+                        }}
+                      >
+                        {group.label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              {(() => {
+                const activeGroup = temporalGroups.find((group) =>
+                  group.options.some((option) => option.id === selectedVariable),
+                );
+                if (!activeGroup || activeGroup.options.length <= 1) {
+                  return null;
+                }
+                const showAgg = new Set(activeGroup.options.map((option) => option.agg)).size > 1;
+                return (
+                  <ScrollView
+                    horizontal
+                    style={styles.temporalWindowScroll}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.temporalWindowRow}
+                  >
+                    {activeGroup.options.map((option) => {
+                      const selected = option.id === selectedVariable;
+                      const hoursLabel = option.hours !== null ? `${option.hours}h` : 'Snapshot';
+                      const aggLabel = option.agg ? option.agg.toUpperCase() : '';
+                      const label = showAgg && aggLabel ? `${aggLabel} ${hoursLabel}` : hoursLabel;
+                      return (
+                        <Pressable
+                          key={option.id}
+                          onPress={() => setSelectedVariable(option.id)}
+                          style={[
+                            styles.windowPill,
+                            {
+                              backgroundColor: selected
+                                ? palette.background.brand.default
+                                : palette.background.default.tertiary,
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            variant="bodySmall"
+                            style={{
+                              color: selected
+                                ? palette.text.brand.contrast
+                                : palette.text.default.secondary,
+                            }}
+                          >
+                            {label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                );
+              })()}
+            </>
+          ) : (
+            <ScrollView
+              style={styles.variableScroll}
+              showsVerticalScrollIndicator
+              contentContainerStyle={styles.variableSelectorGrid}
+            >
+              {variablesForCategory.map((option) => {
+                const selected = option.id === selectedVariable;
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => setSelectedVariable(option.id)}
+                    style={[
+                      styles.variablePill,
+                      {
+                        backgroundColor: selected
+                          ? palette.background.brand.default
+                          : palette.background.default.tertiary,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      variant="bodySmall"
+                      style={{
+                        color: selected
+                          ? palette.text.brand.contrast
+                          : palette.text.default.secondary,
+                      }}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </>
       ) : null}
 
       {loading && !stats ? (
@@ -1528,9 +1780,9 @@ const resolveRankForMetric = React.useCallback(
             </View>
           )}
 
-          {isCategorical && selectedCategory ? (
+          {isCategorical && selectedCategoryEntry ? (
             <ObservationPanel
-              title={`Observations in ${selectedCategory.className}`}
+              title={`Observations in ${selectedCategoryEntry.className}`}
               description={selectedCategoryObservationDescription}
               items={selectedCategoryObservationItems}
               onPressItem={handleObservationPress}
@@ -1571,6 +1823,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'baseline',
   },
+  categoryTabsScroll: {
+    maxHeight: 48,
+  },
+  categoryTabsList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['400'],
+    paddingBottom: Size.space['200'],
+  },
+  categoryTab: {
+    paddingVertical: Size.space['100'],
+    paddingHorizontal: Size.space['50'],
+    borderBottomWidth: 2,
+  },
   variableScroll: {
     maxHeight: 220,
   },
@@ -1581,6 +1847,20 @@ const styles = StyleSheet.create({
     paddingBottom: Size.space['100'],
   },
   variablePill: {
+    paddingVertical: Size.space['100'],
+    paddingHorizontal: Size.space['200'],
+    borderRadius: Size.radius['400'],
+  },
+  temporalWindowScroll: {
+    maxHeight: 44,
+  },
+  temporalWindowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
+    paddingBottom: Size.space['100'],
+  },
+  windowPill: {
     paddingVertical: Size.space['100'],
     paddingHorizontal: Size.space['200'],
     borderRadius: Size.radius['400'],

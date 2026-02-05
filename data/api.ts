@@ -135,6 +135,7 @@ const toVariableDefinition = (entry: any): EnvironmentVariableDefinition => ({
   units: entry?.units ?? null,
   description: entry?.description,
   valueType: entry?.value_type ?? entry?.valueType ?? null,
+  category: entry?.category ?? null,
 });
 
 export async function fetchEnvironmentVariables(): Promise<EnvironmentVariableDefinition[]> {
