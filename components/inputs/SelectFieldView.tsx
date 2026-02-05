@@ -98,8 +98,7 @@ export const SelectFieldView = ({
         <Pressable
           ref={fieldPressableRef}
           {...fieldPressableProps}
-          style=
-          {({ pressed, hovered }) => [
+          style={({ pressed, hovered }) => [
             styles.field,
             {
               backgroundColor: pressed
@@ -108,7 +107,7 @@ export const SelectFieldView = ({
                   ? fieldBackgroundHover
                   : fieldBackgroundDefault,
             },
-            ...fieldStyleOverrides
+            ...fieldStyleOverrides,
           ]}
         >
           {isOpen && allowSearch ? (
@@ -320,9 +319,7 @@ const styles = StyleSheet.create({
     paddingRight: Size.space['100'],
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: Size.stroke.border,
     borderRadius: Size.radius['200'],
-    borderColor: 'transparent',
   },
   input: {
     flex: 1,
