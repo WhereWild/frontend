@@ -67,7 +67,7 @@ describe('About screen', () => {
     fireEvent.changeText(speciesSearchInput, 'pinyon');
     expect(screen.getByText('Query changed: pinyon')).toBeTruthy();
 
-    const clearSpeciesSearch = screen.getByTestId('search-input-clear');
+    const clearSpeciesSearch = screen.getByLabelText('Clear search');
     fireEvent.press(clearSpeciesSearch);
     expect(screen.getByText('Search cleared')).toBeTruthy();
   });
