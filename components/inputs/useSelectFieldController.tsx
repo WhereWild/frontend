@@ -350,7 +350,7 @@ export const useSelectFieldController = ({
       : palette.text.disabled.default;
   const errorColor = palette.text.danger.default;
 
-  const iconNode = isOpen ? <IconChevronUp size="20" /> : <IconChevronDown size="20" />;
+  const iconNode = isOpen ? <IconChevronUp /> : <IconChevronDown />;
   // Only render the browser focus ring when the wrapper is focused.
   const webFocusRingStyle: ViewStyle | null = Platform.OS === 'web'
     ? ({ outlineStyle: isFocused ? 'auto' : 'none' } as any)
