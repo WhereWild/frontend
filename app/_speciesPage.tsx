@@ -8,7 +8,7 @@ import {
   ThemedText,
 } from '@/components';
 import { Colors, Size } from '@/constants/theme';
-import { fetchSpeciesOccurrences } from '@/data/api';
+import { BACKEND_BASE, fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -29,7 +29,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     scientificName,
     overview,
     nearbySpecies,
-    heatmap,
   } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -201,11 +200,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             >
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>
-            <Image
-              source={heatmap.imageSource}
-              resizeMode="cover"
-              style={styles.heatmap}
-              accessibilityLabel="Predicted sightings heat map"
+            <SpeciesOccurrenceMap
+              occurrences={occurrences}
+              loading={false}
+              error={null}
+              showMarkers={false}
+              heatmapTileUrl={`${BACKEND_BASE}/sdm/tiles/${taxonId}/{z}/{x}/{y}.png`}
+              heatmapOpacity={0.7}
+              height={360}
             />
           </View>
         </ScrollView>
@@ -264,9 +266,5 @@ const styles = StyleSheet.create({
   },
   heatMapSection: {
     gap: Size.space['400'],
-  },
-  heatmap: {
-    width: '100%',
-    aspectRatio: 1440 / 810,
   },
 });
