@@ -172,6 +172,7 @@ export type SpeciesEnvironmentCategory = {
   value: number | string;
   className: string;
   description?: string | null;
+  color?: string | null;
   count: number;
   fraction: number;
 };
@@ -230,6 +231,7 @@ export type EnvironmentVariableDefinition = {
   units?: string | null;
   description?: string | null;
   valueType?: string | null;
+  category?: string | null;
 };
 
 export type EnvironmentSliceParams = {

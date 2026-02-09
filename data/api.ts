@@ -219,6 +219,7 @@ const toVariableDefinition = (entry: any): EnvironmentVariableDefinition => ({
   units: entry?.units ?? null,
   description: entry?.description,
   valueType: entry?.value_type ?? entry?.valueType ?? null,
+  category: entry?.category ?? null,
 });
 
 export async function fetchEnvironmentVariables(): Promise<EnvironmentVariableDefinition[]> {
@@ -307,6 +308,7 @@ const coerceCategories = (value: any): SpeciesEnvironmentCategory[] => {
             : Number(entry?.value ?? NaN),
       className: entry?.class_name ?? entry?.className ?? String(entry?.value ?? ''),
       description: entry?.description ?? null,
+      color: entry?.color ?? null,
       count: typeof entry?.count === 'number' ? entry.count : Number(entry?.count ?? 0),
       fraction:
         typeof entry?.fraction === 'number' ? entry.fraction : Number(entry?.fraction ?? 0),

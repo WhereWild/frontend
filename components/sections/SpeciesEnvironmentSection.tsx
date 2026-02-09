@@ -33,6 +33,7 @@ import { ThemedText } from '../text/ThemedText';
 import { NavigationPillList } from '../navigation/NavigationPillList';
 import { SelectField } from '../inputs/SelectField';
 import { ButtonDanger } from '../buttons/ButtonDanger';
+import { Tabs } from '../tabs/Tabs';
 import { IconTrash } from '@/assets/icons/IconTrash';
 
 const DEFAULT_VARIABLE = 'bio_1';
@@ -48,6 +49,7 @@ type EnvironmentVariableOption = {
   label: string;
   units?: string | null;
   valueType?: string | null;
+  category?: string | null;
 };
 
 type CategorySampleState = {
@@ -552,7 +554,7 @@ const StackedCategoryBar = ({
           const percent = Math.min(100, Math.max(0, category.fraction * 100));
           const isSelected = String(category.value) === String(selectedValue);
           const isHovered = String(category.value) === String(hoveredValue);
-          const baseColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           
           // Darken on hover, emphasize on selected
           let opacity = 1;
@@ -579,7 +581,7 @@ const StackedCategoryBar = ({
 
       <NavigationPillList
         pills={displayCategories.map((category, index) => {
-          const baseColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           return {
             key: String(category.value),
             label: category.className,
@@ -834,9 +836,41 @@ export function SpeciesEnvironmentSection({
   }, [remoteVariables, variables]);
   const fallbackVariable = variableId || resolvedVariables[0]?.id || DEFAULT_VARIABLE;
   const [selectedVariable, setSelectedVariable] = React.useState(fallbackVariable);
+  const [selectedVariableCategory, setSelectedVariableCategory] = React.useState<string | null>(null);
+  
   React.useEffect(() => {
     setSelectedVariable(fallbackVariable);
   }, [fallbackVariable]);
+
+  const categories = React.useMemo(() => {
+    const categorySet = new Set<string>();
+    resolvedVariables.forEach((variable) => {
+      if (variable.category) {
+        categorySet.add(variable.category);
+      }
+    });
+    return Array.from(categorySet).sort();
+  }, [resolvedVariables]);
+
+  const filteredVariables = React.useMemo(() => {
+    if (!selectedVariableCategory || !categories.length) {
+      return resolvedVariables;
+    }
+    return resolvedVariables.filter((v) => v.category === selectedVariableCategory);
+  }, [resolvedVariables, selectedVariableCategory, categories.length]);
+
+  React.useEffect(() => {
+    if (categories.length) {
+      setSelectedVariableCategory(categories[0]);
+    }
+  }, [categories]);
+
+  React.useEffect(() => {
+    if (filteredVariables.length && selectedVariableCategory) {
+      setSelectedVariable(filteredVariables[0].id);
+    }
+  }, [selectedVariableCategory, filteredVariables]);
+
   React.useEffect(() => {
     setSelectedCategoryValue(null);
     setSelectedDensityRange(null);
@@ -856,6 +890,7 @@ export function SpeciesEnvironmentSection({
             label: entry.name ?? normalizeLabel(entry.id),
             units: entry.units ?? null,
             valueType: entry.valueType ?? entry.valueType ?? null,
+            category: entry.category ?? null,
           }));
           setRemoteVariables(mapped);
         }
@@ -1434,10 +1469,22 @@ const resolveRankForMetric = React.useCallback(
         { backgroundColor: palette.background.default.secondary },
       ]}
     >
+      {categories.length > 0 ? (
+        <Tabs
+          tabs={categories.map((cat) => ({
+            key: cat,
+            label: cat,
+          }))}
+          selectedKey={selectedVariableCategory ?? categories[0]}
+          onSelectionChange={setSelectedVariableCategory}
+          accessibilityLabel="Environment variable categories"
+        />
+      ) : null}
+
       <View style={styles.variableHeadingRow}>
-        {resolvedVariables.length ? (
+        {filteredVariables.length ? (
           <SelectField
-            options={resolvedVariables.map((option) => {
+            options={filteredVariables.map((option) => {
               const isCategoricalVar = 
                 option.valueType?.toLowerCase() === 'categorical' ||
                 FORCED_CATEGORICAL_VARIABLES.has(option.id.toLowerCase());
