@@ -1560,43 +1560,56 @@ const resolveRankForMetric = React.useCallback(
           )}
 
           {!isCategorical ? (
-            <View style={[styles.summaryRow, { paddingTop: Size.space['600'] }]}>
-              <SummaryItem
-                label="Min"
-                value={formatValue(summary?.min, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.min}
-                comparison={locationFilterActive ? summaryComparisons.min ?? null : null}
-              />
-              <SummaryItem
-                label="Mean"
-                value={formatValue(summary?.mean, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.mean}
-                comparison={locationFilterActive ? summaryComparisons.mean ?? null : null}
-              />
-              <SummaryItem
-                label="Max"
-                value={formatValue(summary?.max, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.max}
-                comparison={locationFilterActive ? summaryComparisons.max ?? null : null}
-                isLast
-              />
-            </View>
-          ) : null}
-          {showRankContext && rankContextOptions.length > 1 ? (
-            <View style={styles.rankContextRow}>
-              <NavigationPillList
-                pills={rankContextOptions}
-                selectedKey={selectedRankContext ?? rankContextOptions[0].key}
-                onSelectionChange={setSelectedRankContext}
-                direction="horizontal"
-                accessibilityLabel="Rank context options"
-              />
-            </View>
-          ) : showRankContext && rankContextOptions.length === 1 ? (
-            <View style={styles.rankContextRow}>
-              <ThemedText variant="bodySmallEmphasis">Rank context</ThemedText>
-              <ThemedText variant="bodySmall">{rankContextOptions[0].label}</ThemedText>
-            </View>
+            <>
+              {showRankContext && rankContextOptions.length > 1 ? (
+                <>
+                  <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
+                  <View style={styles.rankContextRow}>
+                    <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary, textAlign: 'center' }}>
+                      Select a taxon to see how this compares to related species.
+                    </ThemedText>
+                    <NavigationPillList
+                      pills={rankContextOptions}
+                      selectedKey={selectedRankContext ?? rankContextOptions[0].key}
+                      onSelectionChange={setSelectedRankContext}
+                      direction="horizontal"
+                      accessibilityLabel="Rank context selection"
+                    />
+                  </View>
+                </>
+              ) : showRankContext && rankContextOptions.length === 1 ? (
+                <>
+                  <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
+                  <View style={styles.rankContextRow}>
+                    <ThemedText variant="bodySmall">
+                      Rankings within {rankContextOptions[0].label}
+                    </ThemedText>
+                  </View>
+                </>
+              ) : null}
+
+              <View style={[styles.summaryRow, { paddingTop: Size.space['300'] }]}>
+                <SummaryItem
+                  label="Min"
+                  value={formatValue(summary?.min, 1)}
+                  rank={locationFilterActive ? undefined : summaryRanks.min}
+                  comparison={locationFilterActive ? summaryComparisons.min ?? null : null}
+                />
+                <SummaryItem
+                  label="Mean"
+                  value={formatValue(summary?.mean, 1)}
+                  rank={locationFilterActive ? undefined : summaryRanks.mean}
+                  comparison={locationFilterActive ? summaryComparisons.mean ?? null : null}
+                />
+                <SummaryItem
+                  label="Max"
+                  value={formatValue(summary?.max, 1)}
+                  rank={locationFilterActive ? undefined : summaryRanks.max}
+                  comparison={locationFilterActive ? summaryComparisons.max ?? null : null}
+                  isLast
+                />
+              </View>
+            </>
           ) : null}
         </>
       ) : null}
@@ -1669,8 +1682,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Size.space['200'],
   },
+  divider: {
+    height: 1,
+    width: '100%',
+    marginTop: Size.space['600'],
+    marginBottom: Size.space['100'],
+  },
   rankContextRow: {
-    gap: Size.space['100'],
+    flexDirection: 'column',
+    gap: Size.space['200'],
     alignItems: 'center',
   },
   summaryRow: {
