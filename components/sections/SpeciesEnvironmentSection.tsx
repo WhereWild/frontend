@@ -539,7 +539,8 @@ const StackedCategoryBar = ({
           const percent = Math.min(100, Math.max(0, category.fraction * 100));
           const isSelected = String(category.value) === String(selectedValue);
           const isHovered = String(category.value) === String(hoveredValue);
-          const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          const isOther = String(category.value) === '__other__';
+          const baseColor = isOther ? '#94A3B8' : (category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length]);
           
           // Darken on hover, emphasize on selected
           let opacity = 1;
@@ -566,7 +567,8 @@ const StackedCategoryBar = ({
 
       <NavigationPillList
         pills={displayCategories.map((category, index) => {
-          const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          const isOther = String(category.value) === '__other__';
+          const baseColor = isOther ? '#94A3B8' : (category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length]);
           return {
             key: String(category.value),
             label: category.className,
