@@ -108,9 +108,16 @@ export async function fetchSpeciesList(limit?: number, q?: string) {
   return data.map((it: any) => normalizeToJsonShape(it));
 }
 
-export async function fetchSpeciesByTaxonId(taxonId: string | number) {
+export async function fetchSpeciesByTaxonId(
+  taxonId: string | number,
+  options?: LocationOptions,
+) {
   const encoded = encodeURIComponent(String(taxonId));
-  const url = `${BACKEND_BASE}/api/species/${encoded}`;
+  const params = new URLSearchParams();
+  if (options?.location) {
+    params.set('location', options.location);
+  }
+  const url = `${BACKEND_BASE}/api/species/${encoded}${params.toString() ? `?${params.toString()}` : ''}`;
   const res = await fetch(url);
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -118,9 +125,15 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number) {
   }
   const item = await res.json();
   const normalized = normalizeToJsonShape(item);
+  let description = 'description pending';
+  if (Array.isArray(item.description)) {
+    description = item.description.join('\n');
+  } else if (typeof item.description === 'string' && item.description.trim().length > 0) {
+    description = item.description;
+  }
   return {
     ...normalized,
-    description: item.description ?? 'description pending',
+    description,
     taxonomy_path: item.taxonomy_path ?? item.taxonomyPath ?? null,
     image_license: item.image_license ?? item.imageLicense ?? null,
     image_creator: item.image_creator ?? item.imageCreator ?? null,

@@ -8,7 +8,7 @@ import {
   ThemedText,
 } from '@/components';
 import { Colors, Size } from '@/constants/theme';
-import { BACKEND_BASE, fetchSpeciesOccurrences } from '@/data/api';
+import { BACKEND_BASE, fetchSpeciesByTaxonId, fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -42,6 +42,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
   const locationGid = selectedLocation?.gid ?? null;
+  const [descriptionOverride, setDescriptionOverride] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -83,6 +84,37 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     setHighlightedCatalogs([]);
   }, [locationGid]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!taxonId) {
+      setDescriptionOverride(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!locationGid) {
+      setDescriptionOverride(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    (async () => {
+      try {
+        const response = await fetchSpeciesByTaxonId(taxonId, { location: locationGid });
+        if (!cancelled) {
+          setDescriptionOverride(response?.description ?? null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDescriptionOverride(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [taxonId, locationGid]);
+
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
@@ -91,6 +123,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     setHighlightedCatalogs(catalogNumbers);
   }, []);
 
+
+  const overviewDescription = descriptionOverride ?? overview.description;
 
   return (
     <>
@@ -116,7 +150,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
               <View style={styles.overviewSection}>
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
-                  <ThemedText variant="body">{overview.description}</ThemedText>
+                  <ThemedText variant="body">{overviewDescription}</ThemedText>
                 </View>
                 <View style={styles.featuredImageWrapper}>
                   <Image
