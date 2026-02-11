@@ -6,7 +6,6 @@ import {
   fetchSpeciesEnvironmentCategorySamples,
 } from '@/data/api';
 import type {
-  EnvironmentVariableDefinition,
   SpeciesEnvironmentCategory,
   SpeciesEnvironmentCategoricalTotals,
   SpeciesEnvironmentHistogram,
@@ -20,9 +19,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
   LayoutChangeEvent,
@@ -40,7 +37,6 @@ const DEFAULT_VARIABLE = 'bio_1';
 const CHART_PADDING = 10; // Pads the top of the density curve so the top doesn't clip
 const CHART_HEIGHT = 160;
 const CATEGORY_DISPLAY_LIMIT = 8;
-const ALL_CONTEXT_KEY = '__all__';
 const SIGNIFICANT_CATEGORY_THRESHOLD = 0.02;
 const FORCED_CATEGORICAL_VARIABLES = new Set(['landcover']);
 
@@ -99,17 +95,6 @@ const formatValue = (value: number | null | undefined, digits = 0) => {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-};
-
-const formatRange = (
-  start: number | null | undefined,
-  end: number | null | undefined,
-  digits = 0,
-) => {
-  if (typeof start !== 'number' || typeof end !== 'number') {
-    return '—';
-  }
-  return `${formatValue(start, digits)} to ${formatValue(end, digits)}`;
 };
 
 type SummaryItemProps = {
@@ -626,75 +611,6 @@ const StackedCategoryBar = ({
   );
 };
 
-const CategoryDistributionList = ({
-  categories,
-  barColor,
-  trackColor,
-  descriptionColor,
-  selectedValue,
-  onSelect,
-}: {
-  categories: SpeciesEnvironmentCategory[];
-  barColor: string;
-  trackColor: string;
-  descriptionColor: string;
-  selectedValue: number | string | null;
-  onSelect?: (value: number | string) => void;
-}) => {
-  if (!categories.length) {
-    return (
-      <View style={styles.emptyChart}>
-        <ThemedText variant="bodySmall">Categories unavailable.</ThemedText>
-      </View>
-    );
-  }
-  const subset = categories.slice(0, CATEGORY_DISPLAY_LIMIT);
-  return (
-    <View style={styles.categoryList}>
-      {subset.map((category) => {
-        const percent = Math.min(100, Math.max(0, category.fraction * 100));
-        const content = (
-          <>
-            <View style={styles.categoryRowHeader}>
-              <ThemedText variant="bodyStrong">{category.className}</ThemedText>
-              <ThemedText variant="bodySmall">
-                {formatPercent(category.fraction)} • {formatValue(category.count)} samples
-              </ThemedText>
-            </View>
-            <View style={[styles.categoryBarTrack, { backgroundColor: trackColor }]}>
-              <View
-                style={[
-                  styles.categoryBarFill,
-                  { width: `${percent}%`, backgroundColor: barColor },
-                ]}
-              />
-            </View>
-            {category.description ? (
-              <ThemedText
-                variant="bodySmall"
-                style={[styles.categoryDescription, { color: descriptionColor }]}
-              >
-                {category.description}
-              </ThemedText>
-            ) : null}
-          </>
-        );
-        const contentWrapper =
-          typeof onSelect === 'function' ? (
-            <Pressable onPress={() => onSelect?.(category.value)}>{content}</Pressable>
-          ) : (
-            content
-          );
-        return (
-          <View key={String(category.value)} style={styles.categoryRow}>
-            {contentWrapper}
-          </View>
-        );
-      })}
-    </View>
-  );
-};
-
 const estimatePercentileFromHistogram = (
   histogram: SpeciesEnvironmentHistogram | null,
   target: number | null | undefined,
@@ -746,72 +662,6 @@ const normalizeObservationItem = (
   }
   return { id: item, label: `#${String(item)}` };
 };
-
-const ObservationPanel = ({
-  title,
-  subtitle,
-  description,
-  items,
-  onPressItem,
-  onClear,
-  backgroundColor,
-  chipColor,
-  emptyMessage,
-}: {
-  title: string;
-  subtitle?: string;
-  description?: string;
-  items?: ObservationPanelItem[];
-  onPressItem?: (id: number | string) => void;
-  onClear?: () => void;
-  backgroundColor?: string;
-  chipColor?: string;
-  emptyMessage?: string;
-}) => (
-  <View style={[styles.observationPanel, backgroundColor ? { backgroundColor } : null]}>
-    <View style={styles.observationPanelHeader}>
-      <ThemedText variant="bodySmall">{title}</ThemedText>
-      {subtitle ? (
-        <ThemedText variant="bodySmall"> {subtitle}</ThemedText>
-      ) : null}
-      {onClear ? (
-        <ButtonDanger
-          variant="subtle"
-          size="small"
-          onPress={onClear}
-          iconStart={<IconTrash />}
-        >
-          Clear
-        </ButtonDanger>
-      ) : null}
-    </View>
-    {description ? (
-      <ThemedText variant="bodySmall">{description}</ThemedText>
-    ) : null}
-    {items && items.length ? (
-      <View style={styles.observationList}>
-        {items.slice(0, 12).map((item, index) => {
-          const normalized = normalizeObservationItem(item);
-          return (
-            <Pressable
-              key={`${String(normalized.id)}-${index}`}
-              onPress={() => onPressItem?.(normalized.id)}
-              style={[styles.observationChip, chipColor ? { backgroundColor: chipColor } : null]}
-            >
-              <ThemedText variant="bodySmall" style={styles.observationLink}>
-                {normalized.label}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
-    ) : items && !items.length ? (
-      <ThemedText variant="bodySmall">
-        {emptyMessage ?? 'No observations recorded.'}
-      </ThemedText>
-    ) : null}
-  </View>
-);
 
 export function SpeciesEnvironmentSection({
   taxonId,
@@ -979,12 +829,6 @@ export function SpeciesEnvironmentSection({
 
   const stats = selectedVariable ? statsByVariable[selectedVariable] ?? null : null;
   const baselineSummary = locationFilterActive ? stats?.baselineSummary ?? null : null;
-  const baselineCategoricalDistribution = locationFilterActive
-    ? stats?.baselineCategoricalDistribution ?? []
-    : [];
-  const baselineCategoricalTotals = locationFilterActive
-    ? stats?.baselineCategoricalTotals ?? null
-    : null;
   const selectedVariableMeta = React.useMemo(
     () => resolvedVariables.find((option) => option.id === selectedVariable) ?? null,
     [resolvedVariables, selectedVariable],
@@ -1060,34 +904,11 @@ export function SpeciesEnvironmentSection({
     });
   }, [rankContextOptions]);
 
-  const selectedCategory =
-    isCategorical && selectedCategoryValue !== null
-      ? categoricalDistribution.find(
-          (category) => String(category.value) === String(selectedCategoryValue),
-        )
-      : null;
   const selectedCategoryKey =
     selectedCategoryValue !== null ? String(selectedCategoryValue) : null;
   const selectedCategorySampleState = selectedCategoryKey
     ? categorySamplesByValue[selectedCategoryKey]
     : undefined;
-  const selectedCategoryObservationItems = React.useMemo(() => {
-    if (!selectedCategorySampleState?.observations?.length) {
-      return [];
-    }
-    return selectedCategorySampleState.observations.map((obs) => ({
-      id: obs.catalogNumber,
-      label:
-        typeof obs.value === 'number' || typeof obs.value === 'string'
-          ? `#${obs.catalogNumber} (${obs.value})`
-          : `#${obs.catalogNumber}`,
-    }));
-  }, [selectedCategorySampleState]);
-  const selectedCategoryObservationDescription = selectedCategorySampleState?.error
-    ? selectedCategorySampleState.error
-    : selectedCategorySampleState?.loading
-      ? 'Loading observations…'
-      : 'Tap an observation ID to open it on iNaturalist.';
   const selectionRangeKey = selectedDensityRange
     ? `${selectedDensityRange.start.toFixed(4)}:${selectedDensityRange.end.toFixed(4)}`
     : null;
@@ -1303,17 +1124,6 @@ export function SpeciesEnvironmentSection({
     [rangeObservations],
   );
 
-  const handleObservationPress = React.useCallback((id: number | string) => {
-    const normalized = String(id).trim();
-    if (!normalized.length) {
-      return;
-    }
-    const url = `https://www.inaturalist.org/observations/${normalized}`;
-    Linking.openURL(url).catch((err) => {
-      console.warn('Failed to open observation', id, err);
-    });
-  }, []);
-
 const resolveRankForMetric = React.useCallback(
     (
       metric: string,
@@ -1330,7 +1140,7 @@ const resolveRankForMetric = React.useCallback(
         stats.relativeRanks?.filter((entry) => entry.metric?.toLowerCase?.() === normalizedMetric) ??
         [];
       const filteredCandidates =
-        selectedRankContext && selectedRankContext !== ALL_CONTEXT_KEY
+        selectedRankContext
           ? rawCandidates.filter(
               (entry) => (entry.label ?? entry.context ?? '') === selectedRankContext,
             )
@@ -1416,50 +1226,6 @@ const resolveRankForMetric = React.useCallback(
     [categoricalDistribution, isCategorical, summary],
   );
 
-  const baselineCategoricalSummary = React.useMemo(() => {
-    if (!locationFilterActive || !isCategorical) {
-      return null;
-    }
-    return buildCategoricalSummary(
-      baselineCategoricalDistribution,
-      baselineSummary,
-      baselineCategoricalTotals,
-    );
-  }, [
-    baselineCategoricalDistribution,
-    baselineCategoricalTotals,
-    baselineSummary,
-    isCategorical,
-    locationFilterActive,
-  ]);
-
-  const categoricalComparisons = React.useMemo<Record<string, string | null>>(() => {
-    if (!locationFilterActive) {
-      return {
-        unique: null,
-        significant: null,
-      };
-    }
-    return {
-      unique: formatComparisonLabel(
-        categoricalSummary?.uniqueClasses ?? null,
-        baselineCategoricalSummary?.uniqueClasses ?? null,
-        0,
-      ),
-      significant: formatComparisonLabel(
-        categoricalSummary?.significantClasses ?? null,
-        baselineCategoricalSummary?.significantClasses ?? null,
-        0,
-      ),
-    };
-  }, [baselineCategoricalSummary, categoricalSummary, locationFilterActive]);
-
-  const categoricalTopComparison =
-    locationFilterActive && baselineCategoricalSummary?.dominant
-      ? `Global top: ${baselineCategoricalSummary.dominant.className} (${formatPercent(
-          baselineCategoricalSummary.dominant.fraction,
-        )})`
-      : null;
   const showRankContext = !locationFilterActive && rankContextOptions.length > 0;
 
   return (
@@ -1666,21 +1432,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
   variableHeadingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-  },
-  selectionSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Size.space['200'],
   },
   divider: {
     height: 1,
@@ -1712,7 +1467,6 @@ const styles = StyleSheet.create({
   summaryItemLast: {
     borderRightWidth: 0,
   },
-  rankLabel: {},
   observationPanel: {
     gap: Size.space['200'],
     padding: Size.space['300'],
@@ -1724,11 +1478,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: Size.space['300'],
-  },
-  observationPanelTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
   },
   observationList: {
     flexDirection: 'row',
@@ -1743,27 +1492,6 @@ const styles = StyleSheet.create({
   observationLink: {
     textDecorationLine: 'underline',
   },
-  categoryList: {
-    gap: Size.space['300'],
-  },
-  categoryRow: {
-    gap: Size.space['200'],
-    paddingVertical: Size.space['200'],
-  },
-  categoryRowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  categoryBarTrack: {
-    height: 8,
-    borderRadius: Size.radius['200'],
-    overflow: 'hidden',
-  },
-  categoryBarFill: {
-    height: '100%',
-    borderRadius: Size.radius['200'],
-  },
   categoryDescription: {},
   stackedCategoryContainer: {
     gap: Size.space['300'],
@@ -1776,27 +1504,5 @@ const styles = StyleSheet.create({
   },
   stackedBarSegment: {
     height: '100%',
-  },
-  categoryDescriptionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Size.space['300'],
-  },
-  categoryLegend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Size.space['300'],
-    marginTop: Size.space['200'],
-  },
-  categoryLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['100'],
-  },
-  categoryLegendCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
   },
 });
