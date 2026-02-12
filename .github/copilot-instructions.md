@@ -347,6 +347,7 @@ These rules define how to translate Figma inputs into code for this project and 
 
 - **Use React Native components** - `View`, `Text`, `Pressable`, not web elements
 - **Use StyleSheet.create()** - Optimize styles with React Native's StyleSheet API
+- **Avoid deprecated `pointerEvents` prop usage** - Set `pointerEvents` via `style` (e.g., `style={{ pointerEvents: 'none' }}`)
 - **Import tokens from `theme.ts`** - Use `Colors`, `Typography`, `Size` (not `wdsTokens.ts`)
 - **Handle color modes** - Always consider light/dark mode in your components
 - **Use typed props** - Leverage TypeScript for better DX
