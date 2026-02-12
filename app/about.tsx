@@ -88,6 +88,7 @@ export default function About() {
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
   const [selectSearchableValue, setSelectSearchableValue] = useState('');
+  const [selectSearchableTertiaryValue, setSelectSearchableTertiaryValue] = useState('');
   const [selectSearchablePlaceholderValue, setSelectSearchablePlaceholderValue] = useState('');
   const [selectSearchableDisabledValue] = useState('hello');
   const [selectSearchableErrorValue, setSelectSearchableErrorValue] = useState('hello');
@@ -413,6 +414,14 @@ export default function About() {
                 placeholder="Value"
                 options={selectOptions}
                 onValueChange={setSelectSearchableValue}
+              />
+              <SelectField
+                label="Label (Searchable, tertiary)"
+                description="Type to filter"
+                value={selectSearchableTertiaryValue}
+                options={selectOptions}
+                variant="tertiary"
+                onValueChange={setSelectSearchableTertiaryValue}
               />
               <SelectField
                 label="Label (Searchable - Placeholder)"
