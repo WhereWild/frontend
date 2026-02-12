@@ -34,6 +34,12 @@ Start the app
 npm start
 ```
 
+Use production env values when starting:
+
+```bash
+npm run start:prod
+```
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
@@ -44,6 +50,12 @@ In the output, you'll find options to open the app in a
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
 ## Scripts
+
+### Start
+
+- `npm start` uses `.env.local` if present
+    - You likely want to create `.env.local` containing `EXPO_PUBLIC_BACKEND_URL=http://localhost:8000`
+- `npm run start:prod` uses `.env` even if `.env.local` is present. It achieves this by temporarily renaming `.env.local` to `.env.local.bak.start`.
 
 ### Tests
 
@@ -103,7 +115,19 @@ to sync the design tokens from the design system repository.
 
 ## Environment variables
 
-This app does not require any environment variables for local development.
+This app does not require any environment variables for local development, but it supports overrides:
+
+- `.env.local` is used for local development
+- `.env` is used for production exports
+- When running `npm run export:web`, the script temporarily renames any existing `.env.local` to `.env.local.bak.export` so that Expo reads `.env` for the export, and then restores `.env.local` after a successful run.
+    - If a previous export crashed or was interrupted and left a stale `.env.local.bak.export` file, the next `npm run export:web` can fail. To fix this, either rename `.env.local.bak.export` back to `.env.local` or delete the backup file before rerunning the command.
+- You can override the backend URL per command:
+
+    ```bash
+    npm run export:web -- --backendUrl=http://localhost:8000
+    ```
+
+    When `--backendUrl` is provided, `export-web.mjs` sets `EXPO_NO_DOTENV=1`, which disables loading all dotenv files (`.env`, `.env.local`, etc.) for that export. In that case, only the explicitly provided backend URL and any variables already present in the shell environment are used—other values from dotenv files will not be applied.
 
 ## CI
 
