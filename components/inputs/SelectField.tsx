@@ -8,6 +8,8 @@ export type SelectOption = {
   value: string;
 };
 
+export type SelectFieldVariant = 'secondary' | 'tertiary';
+
 export type SelectFieldProps = {
   label?: string;
   description?: string;
@@ -20,6 +22,7 @@ export type SelectFieldProps = {
   onValueChange?: (value: string) => void;
   onOpenChange?: (open: boolean) => void;
   style?: StyleProp<ViewStyle>;
+  variant?: SelectFieldVariant;
 };
 
 export function SelectField(props: SelectFieldProps) {
