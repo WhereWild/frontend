@@ -89,7 +89,6 @@ export type HeatmapSnapshot = {
  */
 export type SpeciesPageData = SpeciesSummary & {
   overview: SpeciesOverview;
-  dataSections: EnvironmentalDataSection[];
   nearbySpecies: SpeciesSummary[];
   heatmap: HeatmapSnapshot;
   taxonomyPath?: string | null;
