@@ -3,7 +3,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { SpeciesPageHeader } from '../SpeciesPageHeader';
+import { SpeciesPageTitle } from '../SpeciesPageTitle';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
@@ -11,7 +11,7 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
-describe('SpeciesPageHeader', () => {
+describe('SpeciesPageTitle', () => {
   const commonName = 'Mountain Ball Cactus';
   const scientificName = 'Pediocactus simpsonii';
 
@@ -23,7 +23,7 @@ describe('SpeciesPageHeader', () => {
 
   it('renders the species name and scientific name', () => {
     render(
-      <SpeciesPageHeader
+      <SpeciesPageTitle
         commonName={commonName}
         scientificName={scientificName}
       />,
@@ -37,7 +37,7 @@ describe('SpeciesPageHeader', () => {
     const handleDownload = jest.fn();
 
     render(
-      <SpeciesPageHeader
+      <SpeciesPageTitle
         commonName={commonName}
         scientificName={scientificName}
         onPressDownload={handleDownload}
@@ -50,7 +50,7 @@ describe('SpeciesPageHeader', () => {
 
   it('shows the default download label', () => {
     render(
-      <SpeciesPageHeader
+      <SpeciesPageTitle
         commonName={commonName}
         scientificName={scientificName}
       />,
@@ -63,7 +63,7 @@ describe('SpeciesPageHeader', () => {
     const customLabel = 'Save Report';
 
     render(
-      <SpeciesPageHeader
+      <SpeciesPageTitle
         commonName={commonName}
         scientificName={scientificName}
         downloadLabel={customLabel}
@@ -80,7 +80,7 @@ describe('SpeciesPageHeader', () => {
     mockUseColorScheme.mockReturnValue('light');
 
     const tree = render(
-      <SpeciesPageHeader
+      <SpeciesPageTitle
         commonName={commonName}
         scientificName={scientificName}
       />,
@@ -93,7 +93,7 @@ describe('SpeciesPageHeader', () => {
     const styles = StyleSheet.flatten(tree.props.style);
     expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
 
-    const divider = screen.getByTestId('species-page-header-divider');
+    const divider = screen.getByTestId('species-page-title-divider');
     const dividerStyles = StyleSheet.flatten(divider.props.style);
     expect(dividerStyles.backgroundColor).toBe(
       Colors.light.border.brand.secondary,

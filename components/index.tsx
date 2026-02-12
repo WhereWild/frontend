@@ -54,8 +54,8 @@ export type { NavigationPillProps } from './navigation/NavigationPill';
 export { NavigationPillList } from './navigation/NavigationPillList';
 export type { NavigationPillListProps } from './navigation/NavigationPillList';
 
-export { SpeciesPageHeader } from './sections/SpeciesPageHeader';
-export type { SpeciesPageHeaderProps } from './sections/SpeciesPageHeader';
+export { SpeciesPageTitle } from './sections/SpeciesPageTitle';
+export type { SpeciesPageTitleProps } from './sections/SpeciesPageTitle';
 
 export { InlineExpandableRows } from './lists/InlineExpandableRows';
 export type {
