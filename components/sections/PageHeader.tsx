@@ -381,9 +381,9 @@ export function PageHeader({
       accessibilityRole="header"
     >
       <View
-        pointerEvents="none"
         style={[
           styles.surface,
+          { pointerEvents: 'none' },
           {
             backgroundColor: palette.background.default.secondary,
           },
