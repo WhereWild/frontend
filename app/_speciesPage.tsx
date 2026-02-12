@@ -67,13 +67,13 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   // simple cache for lists: { `${taxonId}::level::parentGid` => LocationSearchResult[] }
   const speciesLocationCacheRef = React.useRef<Record<string, LocationSearchResult[]>>({});
 
-  const finalLocationGid = React.useMemo(() => {
+  const finalLocationGid: string | null = React.useMemo(() => {
     return (
       selectedCountyGid ??
       selectedStateGid ??
       selectedCountryGid ??
       (selectedContinentGid !== 'world' ? selectedContinentGid : null)
-    );
+    ) ?? null;
   }, [selectedContinentGid, selectedCountryGid, selectedStateGid, selectedCountyGid]);
 
   // loadSpeciesLocations remains for states/counties and still filters to places that have observations

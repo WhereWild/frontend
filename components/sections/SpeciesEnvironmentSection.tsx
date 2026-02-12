@@ -1252,6 +1252,7 @@ const resolveRankForMetric = React.useCallback(
       <View style={styles.variableHeadingRow}>
         {filteredVariables.length ? (
           <SelectField
+            variant='tertiary'
             options={filteredVariables.map((option) => {
               const isCategoricalVar = 
                 option.valueType?.toLowerCase() === 'categorical' ||
