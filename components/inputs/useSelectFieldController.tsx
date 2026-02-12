@@ -106,6 +106,7 @@ export const useSelectFieldController = ({
   onValueChange,
   onOpenChange,
   style,
+  variant = 'secondary',
 }: SelectFieldProps): SelectFieldViewProps => {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -316,21 +317,50 @@ export const useSelectFieldController = ({
     [closeSelect, handleSelectOption, highlightedIndex],
   );
 
-  const fieldBackgroundDefault = isDisabled
-    ? palette.background.disabled.default
-    : isError
-      ? palette.background.danger.default
-      : palette.background.default.secondary;
-  const fieldBackgroundHover = isDisabled
-    ? palette.background.disabled.default
-    : isError
-      ? palette.background.danger.hover
-      : palette.background.default.secondaryHover;
-  const fieldBackgroundPressed = isDisabled
-    ? palette.background.disabled.default
-    : isError
-      ? palette.background.danger.pressed
-      : palette.background.default.secondaryPressed;
+  type FieldBackgrounds = {
+    default: string;
+    hover: string;
+    pressed: string;
+  };
+
+  const getFieldBackgrounds = (
+    palette: typeof Colors.light,
+    variant: SelectFieldProps['variant'],
+    isDisabled: boolean,
+    isError: boolean,
+  ): FieldBackgrounds => {
+    if (isDisabled) {
+      return {
+        default: palette.background.disabled.default,
+        hover: palette.background.disabled.default,
+        pressed: palette.background.disabled.default,
+      };
+    }
+    if (isError) {
+      return {
+        default: palette.background.danger.default,
+        hover: palette.background.danger.hover,
+        pressed: palette.background.danger.pressed,
+      };
+    }
+    if (variant === 'tertiary') {
+      return {
+        default: palette.background.default.tertiary,
+        hover: palette.background.default.tertiaryHover,
+        pressed: palette.background.default.tertiaryPressed,
+      };
+    }
+    return {
+      default: palette.background.default.secondary,
+      hover: palette.background.default.secondaryHover,
+      pressed: palette.background.default.secondaryPressed,
+    };
+  };
+
+  const fieldBackgrounds = getFieldBackgrounds(palette, variant, isDisabled, isError);
+  const fieldBackgroundDefault = fieldBackgrounds.default;
+  const fieldBackgroundHover = fieldBackgrounds.hover;
+  const fieldBackgroundPressed = fieldBackgrounds.pressed;
 
   const labelColor = isDisabled
     ? palette.text.disabled.default
