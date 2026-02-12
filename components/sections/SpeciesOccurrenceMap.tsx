@@ -50,6 +50,7 @@ const buildLeafletHtml = (
     <script>
       const points = ${payload};
       const heatmapUrl = ${heatmapUrl};
+      const allowMarkers = ${allowMarkers ? "true" : "false"};
       const map = L.map('map');
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
