@@ -7,7 +7,7 @@ import {
 } from '@/components';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
-import { fetchSpeciesOccurrences, fetchLocationsByHierarchy } from '@/data/api';
+import { fetchSpeciesOccurrences, fetchSpeciesLocations } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -75,7 +75,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     );
   }, [selectedContinentGid, selectedCountryGid, selectedStateGid, selectedCountyGid]);
 
-  // loadSpeciesLocations remains for states/counties and still filters to places that have observations
+  // Load species locations directly from backend membership index.
   const loadSpeciesLocations = React.useCallback(
     async (
       level: 'country' | 'state' | 'county',
@@ -88,57 +88,20 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
         return speciesLocationCacheRef.current[cacheKey];
       }
 
-      // Determine parent token to send to backend:
-      let parentToken: string | null = null;
-      if (parentGidOrName) {
-        const byGid =
-          countryMapRef.current[parentGidOrName] ||
-          stateMapRef.current[parentGidOrName] ||
-          continentMapRef.current[parentGidOrName] ||
-          countyMapRef.current[parentGidOrName];
-        parentToken = byGid ? byGid.name : parentGidOrName;
-      }
-
-      const q = ''; // we prefer passing parent as parent param; backend will enumerate children
-      let candidates: LocationSearchResult[] = [];
+      let locations: LocationSearchResult[] = [];
       try {
-        const backendResults = await fetchLocationsByHierarchy(q, level, parentToken ?? undefined, 500);
-        candidates = backendResults;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (err) {
-        candidates = [];
-      }
-
-      // Optionally filter client-side by matching exact parent in hierarchy:
-      if (parentToken) {
-        const lowerParent = parentToken.toLowerCase();
-        candidates = candidates.filter((c) =>
-          (c.hierarchy || []).some((h) => String(h ?? '').toLowerCase() === lowerParent),
+        locations = await fetchSpeciesLocations(
+          taxonId,
+          level,
+          parentGidOrName ?? undefined,
+          500,
         );
+      } catch {
+        locations = [];
       }
 
-      // Now check which candidates actually have species occurrences
-      const positives: LocationSearchResult[] = [];
-      const concurrency = 8;
-      const queue = candidates.slice();
-      const worker = async () => {
-        while (queue.length) {
-          const candidate = queue.shift()!;
-          try {
-            const occs = await fetchSpeciesOccurrences(taxonId, { location: candidate.gid });
-            if (occs && occs.length > 0) {
-              positives.push(candidate);
-            }
-          } catch {
-            // ignore network errors for candidate
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
-      positives.sort((a, b) => a.name.localeCompare(b.name));
-      speciesLocationCacheRef.current[cacheKey] = positives;
-      return positives;
+      speciesLocationCacheRef.current[cacheKey] = locations;
+      return locations;
     },
     [taxonId],
   );
@@ -542,4 +505,3 @@ const styles = StyleSheet.create({
     marginBottom: Size.space['200'],
   },
 });
-
