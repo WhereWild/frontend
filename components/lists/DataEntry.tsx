@@ -112,9 +112,9 @@ export function DataEntry({
                   style={[
                     styles.graphPlaceholder,
                     { backgroundColor: palette.background.default.tertiary },
+                    { pointerEvents: 'none' },
                   ]}
                   testID="data-entry-graph-placeholder"
-                  pointerEvents="none"
                 />
               )}
             </View>
