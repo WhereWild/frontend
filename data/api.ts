@@ -1,20 +1,8 @@
-import { Platform } from 'react-native';
 import { SpeciesOccurrence, LocationSearchResult } from './types';
 
-const LOCAL_BACKEND = 'http://localhost:8000';
-const ANDROID_EMULATOR_BACKEND = 'http://10.0.2.2:8000';
+const ENV_BACKEND_BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-const explicitBackend =
-  (process.env.REACT_NATIVE_BACKEND_URL as string) ||
-  (process.env.EXPO_PUBLIC_BACKEND_URL as string) ||
-  (process.env.REACT_APP_BACKEND_URL as string);
-
-const inferredBackend = typeof window === 'undefined' && Platform.OS === 'android'
-  ? ANDROID_EMULATOR_BACKEND
-  : LOCAL_BACKEND;
-
-
-export const BACKEND_BASE = explicitBackend || inferredBackend;
+export const BACKEND_BASE = ENV_BACKEND_BASE || 'http://localhost:8000';
 
 /**
  * Normalize backend item to match your original JSON keys exactly,
