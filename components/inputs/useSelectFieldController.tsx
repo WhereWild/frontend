@@ -18,6 +18,7 @@ import { Colors, Shadows, Size, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
 import { SelectFieldProps, SelectOption } from "./SelectField";
+import { stripDiacritics } from '@/utils/stripDiacritics';
 
 export type SelectFieldOptionViewModel = {
   key: string;
@@ -147,13 +148,17 @@ export const useSelectFieldController = ({
   const showPlaceholder = !selectedLabel;
   const isQueryEmpty = query.trim().length === 0;
 
-  const filteredOptions = React.useMemo(() => {
-    if (!query.trim()) {
-      return options;
-    }
-    const normalizedQuery = query.trim().toLowerCase();
-    return options.filter((option) => option.label.toLowerCase().includes(normalizedQuery));
-  }, [options, query]);
+ const filteredOptions = React.useMemo(() => {
+  if (!query.trim()) {
+    return options;
+  }
+  const qNorm = stripDiacritics(query);
+    return options.filter((option) => {
+      // prefer precomputed labelNorm if available (for perf)
+      const labelNorm = (option as any).labelNorm ?? stripDiacritics(option.label);
+      return labelNorm.includes(qNorm);
+    });
+    }, [options, query]);
 
   const openSelect = React.useCallback(() => {
     if (isDisabled) {

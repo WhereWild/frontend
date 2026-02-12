@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { SpeciesOccurrence } from './types';
+import { SpeciesOccurrence, LocationSearchResult } from './types';
 
 const LOCAL_BACKEND = 'http://localhost:8000';
 const ANDROID_EMULATOR_BACKEND = 'http://10.0.2.2:8000';
@@ -12,6 +12,7 @@ const explicitBackend =
 const inferredBackend = typeof window === 'undefined' && Platform.OS === 'android'
   ? ANDROID_EMULATOR_BACKEND
   : LOCAL_BACKEND;
+
 
 export const BACKEND_BASE = explicitBackend || inferredBackend;
 
@@ -27,15 +28,99 @@ function normalizeToJsonShape(item: any) {
   const imageUrl = imageUrlFromBackend ?? (imageFile
     ? `${BACKEND_BASE}/static/species_images/${imageFile.replace(/^images\//, '')}`
     : null);
+  const sciName = item.scientific_name ?? '';
 
+  const rawCommon = item.common_name ?? item.commonName ?? null;
+
+  const commonName =
+    typeof rawCommon === 'string' && rawCommon.trim().length > 0
+      ? rawCommon
+      : sciName;
   return {
     taxon_id: item.taxon_id ?? null,
-    scientific_name: item.scientific_name ?? '',
-    common_name: item.common_name ?? '',
+    scientific_name: sciName,
+    common_name: commonName,
     image_source: imageUrl,
     _raw: item,
   };
 }
+
+export async function fetchLocationsByHierarchy(
+  query: string,
+  level?: 'continent' | 'country' | 'state' | 'county' | number,
+  parent?: string, // parent name(s) or gid; for multiple parents use 'Country|State'
+  limit = 50,
+): Promise<LocationSearchResult[]> {
+  const trimmed = query.trim();
+
+  // map friendly level names to numeric level codes used by the backend
+  const LEVEL_NAME_TO_NUM: Record<string, number> = {
+    continent: -1,
+    country: 0,
+    state: 1,
+    county: 2,
+  };
+
+  const params = new URLSearchParams({ q: trimmed });
+  // if caller passed a string name, convert to numeric; if they passed a number, use it
+  if (typeof level === 'string') {
+    const maybe = LEVEL_NAME_TO_NUM[level.toLowerCase()];
+    if (typeof maybe === 'number') {
+      params.set('level', String(maybe));
+    }
+  } else if (typeof level === 'number') {
+    params.set('level', String(level));
+  }
+  if (parent) params.set('parent', parent);
+  params.set('limit', String(limit));
+
+  const res = await fetch(`${BACKEND_BASE}/locations/search_hierarchy?${params.toString()}`);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Failed to search locations by hierarchy: ${res.status} ${txt}`);
+  }
+  const payload = await res.json();
+  const results = Array.isArray(payload.results) ? payload.results : [];
+  return results
+    .map((entry: any) => ({
+      gid: String(entry?.gid ?? ''),
+      name: entry?.name ?? '',
+      level: typeof entry?.level === 'number' ? entry.level : Number(entry?.level ?? -1),
+      hierarchy: Array.isArray(entry?.hierarchy)
+        ? entry.hierarchy.map((item: any) => String(item ?? '')).filter(Boolean)
+        : [],
+    }))
+    .filter((entry: any) => entry.gid.length > 0 && entry.name.length > 0);
+}
+
+export async function fetchLocations(query: string, limit = 8): Promise<LocationSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed.length) {
+    return [];
+  }
+  const params = new URLSearchParams({ q: trimmed });
+  if (limit) {
+    params.set('limit', String(limit));
+  }
+  const res = await fetch(`${BACKEND_BASE}/locations/search?${params.toString()}`);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Failed to search locations: ${res.status} ${txt}`);
+  }
+  const payload = await res.json();
+  const results = Array.isArray(payload.results) ? payload.results : [];
+  return results
+    .map((entry: any) => ({
+      gid: String(entry?.gid ?? ''),
+      name: entry?.name ?? '',
+      level: typeof entry?.level === 'number' ? entry.level : Number(entry?.level ?? -1),
+      hierarchy: Array.isArray(entry?.hierarchy)
+        ? entry.hierarchy.map((item: any) => String(item ?? '')).filter(Boolean)
+        : [],
+    }))
+    .filter((entry: any) => entry.gid.length > 0 && entry.name.length > 0);
+}
+
 
 export async function fetchSpeciesList(limit?: number, q?: string) {
   const params = new URLSearchParams();
