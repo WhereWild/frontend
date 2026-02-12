@@ -7,7 +7,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Button } from '../buttons/Button';
 import { ThemedText } from '../text/ThemedText';
 
-export type SpeciesPageHeaderProps = {
+export type SpeciesPageTitleProps = {
   commonName: string;
   scientificName: string;
   onPressDownload?: () => void;
@@ -15,13 +15,13 @@ export type SpeciesPageHeaderProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function SpeciesPageHeader({
+export function SpeciesPageTitle({
   commonName,
   scientificName,
   downloadLabel = 'Download',
   onPressDownload,
   style,
-}: SpeciesPageHeaderProps) {
+}: SpeciesPageTitleProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -39,22 +39,25 @@ export function SpeciesPageHeader({
       ]}
     >
       <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
-        <View style={styles.headingRow}>
-          <ThemedText variant="titlePage">
-            {commonName}
-          </ThemedText>
+        <View style={styles.titleRow}>
+          <View style={styles.nameColumn}>
+            <ThemedText variant="titlePage">
+              {commonName}
+            </ThemedText>
+            <ThemedText variant="bodyEmphasis">
+              {scientificName}
+            </ThemedText>
+          </View>
           <Button
             variant="neutral"
             iconStart={<IconDownload />}
             onPress={onPressDownload}
             accessibilityLabel={`${downloadLabel} ${commonName}`}
+            style={styles.downloadButton}
           >
             {downloadLabel}
           </Button>
         </View>
-        <ThemedText variant="bodyEmphasis">
-          {scientificName}
-        </ThemedText>
         <View
           style={[
             styles.divider,
@@ -62,7 +65,7 @@ export function SpeciesPageHeader({
               backgroundColor: palette.border.brand.secondary,
             },
           ]}
-          testID="species-page-header-divider"
+          testID="species-page-title-divider"
         />
       </View>
     </View>
@@ -73,18 +76,26 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
-
   },
   content: {
     width: '100%',
-
     alignSelf: 'center',
     gap: Size.space['200'],
   },
-  headingRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Size.space['200'],
+    flexWrap: 'wrap',
+  },
+  nameColumn: {
+    flexDirection: 'column',
+    flexShrink: 0,
+    maxWidth: '100%',
+  },
+  downloadButton: {
+    flexShrink: 0,
   },
   divider: {
     height: Size.stroke.border,
