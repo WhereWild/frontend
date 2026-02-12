@@ -2,7 +2,7 @@ import {
   InlineExpandableRows,
   NearbySpeciesCarousel,
   PageHeader,
-  SpeciesPageHeader,
+  SpeciesPageTitle,
   ThemedText,
 } from '@/components';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
@@ -91,7 +91,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
         <PageHeader />
 
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
-          <SpeciesPageHeader
+          <SpeciesPageTitle
             commonName={commonName}
             scientificName={scientificName}
             onPressDownload={handleDownload}

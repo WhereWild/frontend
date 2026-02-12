@@ -17,7 +17,7 @@ import {
   SearchInput,
   SelectField,
   SpeciesCard,
-  SpeciesPageHeader,
+  SpeciesPageTitle,
   Tabs,
   ThemedText,
 } from '@/components';
@@ -497,7 +497,7 @@ export default function About() {
                 styles.speciesPreview,
               ]}
             >
-              <SpeciesPageHeader
+              <SpeciesPageTitle
                 commonName={speciesSample.commonName}
                 scientificName={speciesSample.scientificName}
                 onPressDownload={noop}
