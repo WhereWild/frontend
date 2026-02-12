@@ -107,7 +107,6 @@ build:expo:
     expire_in: 7 days
   only:
     - main
-    - develop
 
 # Security scanning
 security:dependencies:
