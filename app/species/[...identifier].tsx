@@ -3,7 +3,7 @@ import type { ImageSourcePropType } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import SpeciesPage from '../_speciesPage';
 import { fetchSpeciesByTaxonId } from '@/data/api';
-import type { SpeciesPageData } from '@/data/types';
+import type { SpeciesDescriptionProfile, SpeciesPageData } from '@/data/types';
 import { mountainBallCactusData } from '@/data/speciesSample';
 
 const isPresent = (value: unknown): value is string =>
@@ -21,6 +21,7 @@ type SpeciesBasics = {
   image_rights_holder?: string;
   image_references?: string;
   description?: string;
+  description_profile?: SpeciesDescriptionProfile | null;
   taxonomy_path?: string;
 };
 
@@ -84,6 +85,7 @@ const buildSpeciesPageData = (
     overview: {
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
+      descriptionProfile: payload.description_profile ?? null,
       imageSource: normalizeImageSource(payload) ?? fallback.overview.imageSource,
       imageLicense: payload.image_license,
       imageCreator: payload.image_creator,

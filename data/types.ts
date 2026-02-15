@@ -82,11 +82,52 @@ export type EnvironmentalDataSection = {
  */
 export type SpeciesOverview = {
   description: string;
+  descriptionProfile?: SpeciesDescriptionProfile | null;
   imageSource: ImageSourcePropType;
   imageLicense?: string;
   imageCreator?: string;
   imageRightsHolder?: string;
   imageReferences?: string;
+};
+
+export type SpeciesDescriptionCategory = {
+  category: string;
+  notable: boolean;
+  level?: string | null;
+  detail?: string | null;
+  variable_id?: string;
+  metric?: string;
+  direction?: string;
+  percentile?: number;
+  context_count?: number;
+};
+
+export type SpeciesDescriptionLine = {
+  prefix?: string | null;
+  body: string;
+  parts?: SpeciesDescriptionPart[];
+};
+
+export type SpeciesDescriptionPart = {
+  text: string;
+  role?: 'descriptor' | 'group' | 'plain';
+  color?: string;
+};
+
+export type SpeciesDescriptionSection = {
+  id: string;
+  title: string;
+  lines: SpeciesDescriptionLine[];
+};
+
+export type SpeciesDescriptionProfile = {
+  summary?: string;
+  habitat?: string | null;
+  climate?: string | null;
+  locations?: string | null;
+  categories?: SpeciesDescriptionCategory[];
+  sections?: SpeciesDescriptionSection[];
+  text?: string;
 };
 
 export type HeatmapSnapshot = {

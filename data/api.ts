@@ -16,6 +16,7 @@ import type {
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
   SpeciesEnvironmentSummary,
+  SpeciesDescriptionProfile,
   LocationSearchResult,
   SpeciesOccurrence,
 } from './types';
@@ -66,6 +67,81 @@ const toPrimaryCommonName = (item: any, commonNames: string[]): string => {
     return commonNames[0];
   }
   return '';
+};
+
+const toDescriptionProfile = (value: unknown): SpeciesDescriptionProfile | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const source = value as Record<string, unknown>;
+  const categories = Array.isArray(source.categories)
+    ? source.categories
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => {
+        const row = entry as Record<string, unknown>;
+        return {
+          category: typeof row.category === 'string' ? row.category : 'other',
+          notable: Boolean(row.notable),
+          level: typeof row.level === 'string' ? row.level : null,
+          detail: typeof row.detail === 'string' ? row.detail : null,
+          variable_id: typeof row.variable_id === 'string' ? row.variable_id : undefined,
+          metric: typeof row.metric === 'string' ? row.metric : undefined,
+          direction: typeof row.direction === 'string' ? row.direction : undefined,
+          percentile: typeof row.percentile === 'number' ? row.percentile : undefined,
+          context_count: typeof row.context_count === 'number' ? row.context_count : undefined,
+        };
+      })
+    : [];
+  const sections = Array.isArray(source.sections)
+    ? source.sections
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => {
+        const section = entry as Record<string, unknown>;
+        const lines = Array.isArray(section.lines)
+          ? section.lines
+            .filter((line) => line && typeof line === 'object')
+            .map((line) => {
+              const row = line as Record<string, unknown>;
+              const parts = Array.isArray(row.parts)
+                ? row.parts
+                  .filter((part) => part && typeof part === 'object')
+                  .map((part) => {
+                    const segment = part as Record<string, unknown>;
+                    return {
+                      text: typeof segment.text === 'string' ? segment.text : '',
+                      role: segment.role === 'descriptor' || segment.role === 'group'
+                        ? segment.role
+                        : 'plain',
+                      color: typeof segment.color === 'string' ? segment.color : undefined,
+                    };
+                  })
+                  .filter((part) => part.text.length > 0)
+                : [];
+              return {
+                prefix: typeof row.prefix === 'string' ? row.prefix : null,
+                body: typeof row.body === 'string' ? row.body : '',
+                parts,
+              };
+            })
+            .filter((line) => line.body.trim().length > 0)
+          : [];
+        return {
+          id: typeof section.id === 'string' ? section.id : '',
+          title: typeof section.title === 'string' ? section.title : '',
+          lines,
+        };
+      })
+      .filter((section) => section.id.length > 0 && section.title.length > 0 && section.lines.length > 0)
+    : [];
+  return {
+    summary: typeof source.summary === 'string' ? source.summary : undefined,
+    habitat: typeof source.habitat === 'string' ? source.habitat : null,
+    climate: typeof source.climate === 'string' ? source.climate : null,
+    locations: typeof source.locations === 'string' ? source.locations : null,
+    categories,
+    sections,
+    text: typeof source.text === 'string' ? source.text : undefined,
+  };
 };
 
 /**
@@ -125,6 +201,9 @@ export async function fetchSpeciesByTaxonId(
   }
   const item = await res.json();
   const normalized = normalizeToJsonShape(item);
+  const description_profile = toDescriptionProfile(
+    item.description_profile ?? item.descriptionProfile ?? null,
+  );
   let description = 'description pending';
   if (Array.isArray(item.description)) {
     description = item.description.join('\n');
@@ -134,6 +213,7 @@ export async function fetchSpeciesByTaxonId(
   return {
     ...normalized,
     description,
+    description_profile,
     taxonomy_path: item.taxonomy_path ?? item.taxonomyPath ?? null,
     image_license: item.image_license ?? item.imageLicense ?? null,
     image_creator: item.image_creator ?? item.imageCreator ?? null,

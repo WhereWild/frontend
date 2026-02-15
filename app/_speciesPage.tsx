@@ -8,9 +8,17 @@ import {
   ThemedText,
 } from '@/components';
 import { Colors, Size } from '@/constants/theme';
-import { BACKEND_BASE, fetchSpeciesByTaxonId, fetchSpeciesOccurrences } from '@/data/api';
+import { fetchSpeciesByTaxonId, fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
+import type {
+  LocationSearchResult,
+  SpeciesDescriptionCategory,
+  SpeciesDescriptionLine,
+  SpeciesDescriptionProfile,
+  SpeciesDescriptionSection,
+  SpeciesOccurrence,
+  SpeciesPageData,
+} from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
@@ -19,6 +27,23 @@ import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-nativ
 
 type SpeciesSampleScreenProps = {
   data?: SpeciesPageData;
+};
+
+const toTitleCase = (value: string) => value
+  .replace(/_/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatCategoryDetail = (row: SpeciesDescriptionCategory): string => {
+  if (!row.notable) {
+    return 'Not notable';
+  }
+  const detail = (row.detail || '').trim();
+  if (detail.length > 0) {
+    return detail.replace(/\.$/, '');
+  }
+  return 'Notable';
 };
 
 export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
@@ -43,6 +68,8 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const [selectedLocation, setSelectedLocation] = React.useState<LocationSearchResult | null>(null);
   const locationGid = selectedLocation?.gid ?? null;
   const [descriptionOverride, setDescriptionOverride] = React.useState<string | null>(null);
+  const [descriptionProfileOverride, setDescriptionProfileOverride] =
+    React.useState<SpeciesDescriptionProfile | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -88,12 +115,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     let cancelled = false;
     if (!taxonId) {
       setDescriptionOverride(null);
+      setDescriptionProfileOverride(null);
       return () => {
         cancelled = true;
       };
     }
     if (!locationGid) {
       setDescriptionOverride(null);
+      setDescriptionProfileOverride(null);
       return () => {
         cancelled = true;
       };
@@ -103,10 +132,12 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
         const response = await fetchSpeciesByTaxonId(taxonId, { location: locationGid });
         if (!cancelled) {
           setDescriptionOverride(response?.description ?? null);
+          setDescriptionProfileOverride(response?.description_profile ?? null);
         }
       } catch (err) {
         if (!cancelled) {
           setDescriptionOverride(null);
+          setDescriptionProfileOverride(null);
         }
       }
     })();
@@ -123,8 +154,75 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     setHighlightedCatalogs(catalogNumbers);
   }, []);
 
-
   const overviewDescription = descriptionOverride ?? overview.description;
+  const overviewProfile = descriptionProfileOverride
+    ?? (locationGid ? null : (overview.descriptionProfile ?? null));
+  const categoryRows = Array.isArray(overviewProfile?.categories)
+    ? overviewProfile.categories
+    : [];
+  const imageReferenceUrl = typeof overview.imageReferences === 'string'
+    ? overview.imageReferences
+    : null;
+  const showProfileBlocks = Boolean(
+    overviewProfile
+    && (
+      (Array.isArray(overviewProfile.sections) && overviewProfile.sections.length > 0)
+      || (
+      overviewProfile.habitat
+      || overviewProfile.climate
+      || overviewProfile.locations
+      || categoryRows.length > 0
+      )
+    ),
+  );
+  const profileContextSuffix = selectedLocation?.name
+    ? ` in ${selectedLocation.name}`
+    : '';
+  const profileSections = React.useMemo(() => {
+    const backendSections = Array.isArray(overviewProfile?.sections)
+      ? overviewProfile.sections
+      : [];
+    if (backendSections.length > 0) {
+      return backendSections
+        .filter((section): section is SpeciesDescriptionSection => Boolean(section && section.title))
+        .map((section) => ({
+          title: section.title,
+          lines: Array.isArray(section.lines)
+            ? section.lines.filter(
+              (line): line is SpeciesDescriptionLine => Boolean(line && line.body),
+            )
+            : [],
+        }))
+        .filter((section) => section.lines.length > 0);
+    }
+
+    const sections: Array<{ title: string; lines: SpeciesDescriptionLine[] }> = [];
+    const pushSection = (title: string, value: string | null | undefined) => {
+      if (!value) {
+        return;
+      }
+      const body = value.trim();
+      if (body.length === 0) {
+        return;
+      }
+      sections.push({ title, lines: [{ prefix: null, body }] });
+    };
+
+    pushSection(`Habitat${profileContextSuffix}`, overviewProfile?.habitat ?? null);
+    pushSection(`Climates${profileContextSuffix}`, overviewProfile?.climate ?? null);
+    pushSection('Locations', overviewProfile?.locations ?? null);
+    for (const row of categoryRows) {
+      pushSection(toTitleCase(row.category || 'other'), formatCategoryDetail(row));
+    }
+    return sections;
+  }, [
+    categoryRows,
+    overviewProfile?.climate,
+    overviewProfile?.habitat,
+    overviewProfile?.locations,
+    overviewProfile?.sections,
+    profileContextSuffix,
+  ]);
 
   return (
     <>
@@ -150,7 +248,82 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
               <View style={styles.overviewSection}>
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
-                  <ThemedText variant="body">{overviewDescription}</ThemedText>
+                  <ThemedText variant="body">
+                    {overviewProfile?.summary ?? overviewDescription}
+                  </ThemedText>
+                  {showProfileBlocks && (
+                    <View style={styles.descriptionProfile}>
+                      {profileSections.map((section, sectionIndex) => (
+                        <View
+                          key={`${section.title}-${sectionIndex}`}
+                          style={[
+                            styles.profileSection,
+                            {
+                              backgroundColor: palette.background.default.secondary,
+                              borderLeftColor: palette.border.brand.default,
+                              borderColor: palette.border.default.secondary,
+                            },
+                          ]}
+                        >
+                          <ThemedText
+                            variant="bodySmallStrong"
+                            style={[
+                              styles.profileSectionHeading,
+                              { color: palette.text.brand.default },
+                            ]}
+                          >
+                            {section.title}
+                          </ThemedText>
+                          <View style={styles.profileSectionLines}>
+                            {section.lines.map((line, lineIndex) => (
+                              <ThemedText
+                                key={`${section.title}-${sectionIndex}-${lineIndex}`}
+                                variant="bodySmall"
+                              >
+                                {line.prefix ? (
+                                  <>
+                                    <ThemedText
+                                      variant="bodySmall"
+                                      style={styles.frequencyPrefix}
+                                    >
+                                      {line.prefix}
+                                    </ThemedText>
+                                    {' '}
+                                  </>
+                                ) : null}
+                                {Array.isArray(line.parts) && line.parts.length > 0
+                                  ? line.parts.map((part, partIndex) => {
+                                    const fallback = part.role === 'descriptor'
+                                      ? palette.text.default.secondary
+                                      : part.role === 'group'
+                                        ? palette.text.brand.tertiary
+                                        : palette.text.default.default;
+                                    const color = part.color ?? fallback;
+                                    return (
+                                      <ThemedText
+                                        key={`${section.title}-${sectionIndex}-${lineIndex}-${partIndex}`}
+                                        variant="bodySmall"
+                                        style={[
+                                          part.role === 'descriptor'
+                                            ? styles.descriptorPart
+                                            : part.role === 'group'
+                                              ? styles.groupPart
+                                              : null,
+                                          { color },
+                                        ]}
+                                      >
+                                        {part.text}
+                                      </ThemedText>
+                                    );
+                                  })
+                                  : line.body}
+                              </ThemedText>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
                 <View style={styles.featuredImageWrapper}>
                   <Image
@@ -169,11 +342,11 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
                           Photo by {overview.imageCreator}
                         </ThemedText>
                       )}
-                      {overview.imageReferences && (
+                      {imageReferenceUrl && (
                         <ThemedText
                           variant="bodySmall"
                           style={styles.attributionLink}
-                          onPress={() => Linking.openURL(overview.imageReferences)}
+                          onPress={() => Linking.openURL(imageReferenceUrl)}
                         >
                           View on iNaturalist
                         </ThemedText>
@@ -233,16 +406,10 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
             >
               <ThemedText variant="heading">Heat Map</ThemedText>
+              <ThemedText variant="bodySmall">
+                Heat map disabled for now.
+              </ThemedText>
             </View>
-            <SpeciesOccurrenceMap
-              occurrences={occurrences}
-              loading={false}
-              error={null}
-              showMarkers={false}
-              heatmapTileUrl={`${BACKEND_BASE}/sdm/tiles/${taxonId}/{z}/{x}/{y}.png`}
-              heatmapOpacity={0.7}
-              height={360}
-            />
           </View>
         </ScrollView>
       </View>
@@ -277,6 +444,32 @@ const styles = StyleSheet.create({
     minWidth: 280,
     gap: Size.space['200'],
   },
+  descriptionProfile: {
+    gap: Size.space['150'],
+  },
+  profileSection: {
+    gap: Size.space['100'],
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['150'],
+    paddingVertical: Size.space['100'],
+  },
+  profileSectionHeading: {
+    letterSpacing: 0.2,
+  },
+  profileSectionLines: {
+    gap: Size.space['100'],
+  },
+  frequencyPrefix: {
+    textDecorationLine: 'underline',
+  },
+  descriptorPart: {
+    opacity: 0.92,
+  },
+  groupPart: {
+    opacity: 0.94,
+  },
   featuredImageWrapper: {
     flex: 1,
     minWidth: 280,
@@ -295,7 +488,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   attributionLink: {
-    color: Colors.light.tint,
+    color: Colors.light.text.brand.default,
     textDecorationLine: 'underline',
   },
   heatMapSection: {
