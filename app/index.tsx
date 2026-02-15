@@ -1,14 +1,16 @@
-import { PageHeader, SpeciesCard, ThemedText } from '@/components';
+import { PageHeader, SpeciesCard, SpeciesOccurrenceMap, ThemedText } from '@/components';
 import { Colors, Size } from '@/constants/theme';
+import { BACKEND_BASE } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 const MAP_HEIGHT = 640;
 const SIDEBAR_WIDTH = 400;
+const HOME_HEATMAP_TEST_TAXON_ID = 0;
 
 type HomeScreenProps = {
   data?: HomePageData;
@@ -19,7 +21,12 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  const { map, recommendations } = data;
+  const { recommendations } = data;
+  const heatmapTileUrl = React.useMemo(
+    // Added cache buster for debugging - remove for production
+    () => `${BACKEND_BASE}/sdm/tiles/${HOME_HEATMAP_TEST_TAXON_ID}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&layers=elevation&_cb=${Date.now()}`,
+    [],
+  );
   return (
     <>
       <Head>
@@ -36,10 +43,15 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
             <View style={styles.mapSection}>
               <ThemedText variant="heading">Local Map</ThemedText>
 
-              <View>
-                <Image source={map.heatmapImage} style={styles.mapImage} resizeMode="cover" />
-                <Image source={map.controlsImage} style={styles.mapControls} resizeMode="contain" />
-              </View>
+              <SpeciesOccurrenceMap
+                occurrences={[]}
+                loading={false}
+                error={null}
+                height={MAP_HEIGHT}
+                heatmapTileUrl={heatmapTileUrl}
+                heatmapOpacity={0.85}
+                showMarkers={false}
+              />
             </View>
 
             <View
@@ -85,21 +97,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 320,
     gap: Size.space['400'],
-  },
-  mapContainer: {
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  mapImage: {
-    width: '100%',
-    height: MAP_HEIGHT,
-  },
-  mapControls: {
-    position: 'absolute',
-    top: Size.space['200'],
-    left: Size.space['200'],
-    width: 26,
-    height: 52,
   },
   sidebar: {
     gap: Size.space['400'],

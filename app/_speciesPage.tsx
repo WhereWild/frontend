@@ -8,7 +8,7 @@ import {
   ThemedText,
 } from '@/components';
 import { Colors, Size } from '@/constants/theme';
-import { fetchSpeciesByTaxonId, fetchSpeciesOccurrences } from '@/data/api';
+import { BACKEND_BASE, fetchSpeciesByTaxonId, fetchSpeciesOccurrences } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type {
   LocationSearchResult,
@@ -70,6 +70,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const [descriptionOverride, setDescriptionOverride] = React.useState<string | null>(null);
   const [descriptionProfileOverride, setDescriptionProfileOverride] =
     React.useState<SpeciesDescriptionProfile | null>(null);
+  const heatmapTileUrl = React.useMemo(() => {
+    if (!taxonId) {
+      return null;
+    }
+    const encodedTaxonId = encodeURIComponent(String(taxonId));
+    // Added cache buster for debugging - remove for production
+    return `${BACKEND_BASE}/sdm/tiles/${encodedTaxonId}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&layers=elevation&_cb=${Date.now()}`;
+  }, [taxonId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -406,9 +414,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
             >
               <ThemedText variant="heading">Heat Map</ThemedText>
-              <ThemedText variant="bodySmall">
-                Heat map disabled for now.
-              </ThemedText>
+              <SpeciesOccurrenceMap
+                occurrences={occurrences}
+                loading={false}
+                error={null}
+                heatmapTileUrl={heatmapTileUrl}
+                heatmapOpacity={0.82}
+                showMarkers={false}
+              />
             </View>
           </View>
         </ScrollView>
