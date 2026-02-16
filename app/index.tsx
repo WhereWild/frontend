@@ -6,11 +6,27 @@ import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 const MAP_HEIGHT = 640;
 const SIDEBAR_WIDTH = 400;
 const HOME_HEATMAP_TEST_TAXON_ID = 0;
+
+const LAYER_OPTIONS = [
+  { id: 'all', label: 'All Layers' },
+  { id: 'elevation', label: 'Elevation' },
+  { id: 'slope', label: 'Slope' },
+  { id: 'aspect', label: 'Aspect' },
+  { id: 'landcover', label: 'Landcover' },
+  { id: 'koppen_geiger', label: 'Köppen Climate' },
+  { id: 'bio_1', label: 'Mean Temp' },
+  { id: 'bio_4', label: 'Temp Seasonality' },
+  { id: 'bio_12', label: 'Annual Precip' },
+  { id: 'bio_15', label: 'Precip Seasonality' },
+] as const;
+
+type LayerId = typeof LAYER_OPTIONS[number]['id'];
 
 type HomeScreenProps = {
   data?: HomePageData;
@@ -22,11 +38,12 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const palette = Colors[mode];
   const responsive = useResponsive();
   const { recommendations } = data;
-  const heatmapTileUrl = React.useMemo(
-    // Added cache buster for debugging - remove for production
-    () => `${BACKEND_BASE}/sdm/tiles/${HOME_HEATMAP_TEST_TAXON_ID}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&max_native_zoom=12&_cb=${Date.now()}`,
-    [],
-  );
+  const [selectedLayer, setSelectedLayer] = React.useState<LayerId>('all');
+
+  const heatmapTileUrl = React.useMemo(() => {
+    const layerParam = selectedLayer === 'all' ? '' : `&layers=${selectedLayer}`;
+    return `${BACKEND_BASE}/sdm/tiles/${HOME_HEATMAP_TEST_TAXON_ID}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&max_native_zoom=12${layerParam}&_cb=${Date.now()}`;
+  }, [selectedLayer]);
   return (
     <>
       <Head>
@@ -42,6 +59,35 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
           <View style={styles.layout}>
             <View style={styles.mapSection}>
               <ThemedText variant="heading">Local Map</ThemedText>
+
+              <View style={styles.layerPicker}>
+                {LAYER_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => setSelectedLayer(option.id)}
+                    style={[
+                      styles.layerButton,
+                      {
+                        backgroundColor: selectedLayer === option.id
+                          ? palette.background.brand.default
+                          : palette.background.default.secondary,
+                        borderColor: palette.border.default.default,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      variant="bodySmall"
+                      style={{
+                        color: selectedLayer === option.id
+                          ? '#ffffff'
+                          : palette.text.default.default,
+                      }}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
 
               <SpeciesOccurrenceMap
                 occurrences={[]}
@@ -97,6 +143,17 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 320,
     gap: Size.space['400'],
+  },
+  layerPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['200'],
+  },
+  layerButton: {
+    paddingHorizontal: Size.space['300'],
+    paddingVertical: Size.space['150'],
+    borderRadius: Size.radius['200'],
+    borderWidth: 1,
   },
   sidebar: {
     gap: Size.space['400'],
