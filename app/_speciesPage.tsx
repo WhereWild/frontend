@@ -36,14 +36,76 @@ const toTitleCase = (value: string) => value
   .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const formatCategoryDetail = (row: SpeciesDescriptionCategory): string => {
-  if (!row.notable) {
-    return 'Not notable';
-  }
   const detail = (row.detail || '').trim();
   if (detail.length > 0) {
     return detail.replace(/\.$/, '');
   }
-  return 'Notable';
+  if (row.notable) {
+    return 'Notable';
+  }
+  return 'Not notable';
+};
+
+const parseDescriptionProfileFromText = (text: string): SpeciesDescriptionProfile | null => {
+  const source = text.trim();
+  if (!source) {
+    return null;
+  }
+  const lines = source
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (!lines.length) {
+    return null;
+  }
+
+  let summary: string | undefined;
+  const sections: SpeciesDescriptionSection[] = [];
+  let currentSection: SpeciesDescriptionSection | null = null;
+
+  for (const line of lines) {
+    const summaryMatch = /^summary:\s*(.+)$/i.exec(line);
+    if (summaryMatch) {
+      summary = summaryMatch[1].trim();
+      currentSection = null;
+      continue;
+    }
+
+    const sectionMatch = /^([A-Za-z][A-Za-z\s]+):\s*(.*)$/.exec(line);
+    if (sectionMatch) {
+      const rawTitle = sectionMatch[1].trim();
+      const body = sectionMatch[2].trim();
+      currentSection = {
+        id: rawTitle.toLowerCase().replace(/\s+/g, '_'),
+        title: toTitleCase(rawTitle),
+        lines: body ? [{ prefix: null, body }] : [],
+      };
+      sections.push(currentSection);
+      continue;
+    }
+
+    if (currentSection) {
+      currentSection.lines.push({ prefix: null, body: line });
+    } else if (!summary) {
+      summary = line;
+    }
+  }
+
+  const normalizedSections = sections
+    .map((section) => ({
+      ...section,
+      lines: section.lines.filter((line) => Boolean(line.body && line.body.trim().length > 0)),
+    }))
+    .filter((section) => section.lines.length > 0);
+
+  if (!summary && normalizedSections.length === 0) {
+    return null;
+  }
+
+  return {
+    summary,
+    sections: normalizedSections,
+  };
 };
 
 export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSampleScreenProps) {
@@ -163,7 +225,18 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   }, []);
 
   const overviewDescription = descriptionOverride ?? overview.description;
+  const parsedDescriptionProfileOverride = React.useMemo(
+    () => (
+      locationGid
+      && !descriptionProfileOverride
+      && descriptionOverride
+        ? parseDescriptionProfileFromText(descriptionOverride)
+        : null
+    ),
+    [descriptionOverride, descriptionProfileOverride, locationGid],
+  );
   const overviewProfile = descriptionProfileOverride
+    ?? parsedDescriptionProfileOverride
     ?? (locationGid ? null : (overview.descriptionProfile ?? null));
   const categoryRows = Array.isArray(overviewProfile?.categories)
     ? overviewProfile.categories
