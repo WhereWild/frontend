@@ -24,7 +24,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const { recommendations } = data;
   const heatmapTileUrl = React.useMemo(
     // Added cache buster for debugging - remove for production
-    () => `${BACKEND_BASE}/sdm/tiles/${HOME_HEATMAP_TEST_TAXON_ID}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&layers=elevation&_cb=${Date.now()}`,
+    () => `${BACKEND_BASE}/sdm/tiles/${HOME_HEATMAP_TEST_TAXON_ID}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&layers=slope&max_native_zoom=12&_cb=${Date.now()}`,
     [],
   );
   return (

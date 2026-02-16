@@ -76,7 +76,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
     }
     const encodedTaxonId = encodeURIComponent(String(taxonId));
     // Added cache buster for debugging - remove for production
-    return `${BACKEND_BASE}/sdm/tiles/${encodedTaxonId}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&layers=elevation&_cb=${Date.now()}`;
+    return `${BACKEND_BASE}/sdm/tiles/${encodedTaxonId}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&layers=slope&max_native_zoom=12&_cb=${Date.now()}`;
   }, [taxonId]);
 
   React.useEffect(() => {

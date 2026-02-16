@@ -61,6 +61,7 @@ const buildLeafletHtml = (
           tileSize: 256,
           crossOrigin: true,
           updateWhenIdle: true,
+          maxZoom: 18,
         }).addTo(map);
       }
       const markerStyle = {
