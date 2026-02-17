@@ -1,4 +1,5 @@
 import { Colors, Size } from '@/constants/theme';
+import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import type { SpeciesSummary } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -40,7 +41,12 @@ export function NearbySpeciesCarousel({
         style,
       ]}
     >
-      <View style={{ paddingHorizontal: responsive.marginHorizontal }}>
+      <View
+        style={getResponsiveContentContainerStyle(responsive, {
+          includeWidth: false,
+          includeTopPadding: false,
+        })}
+      >
         <ThemedText variant="heading">Nearby Species</ThemedText>
       </View>
       <ScrollView
@@ -48,7 +54,10 @@ export function NearbySpeciesCarousel({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[
           styles.row,
-          { paddingHorizontal: responsive.marginHorizontal },
+          getResponsiveContentContainerStyle(responsive, {
+            includeWidth: false,
+            includeTopPadding: false,
+          }),
           contentContainerStyle,
         ]}
       >

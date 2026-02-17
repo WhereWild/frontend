@@ -25,6 +25,8 @@ import type { ButtonProps } from '@/components';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -64,10 +66,15 @@ const TYPOGRAPHY_VARIANTS = [
   'bodySmall',
   'bodySmallEmphasis',
   'bodySmallStrong',
+  'bodyTiny',
+  'bodyTinyStrong',
   'link',
   'code',
   'singleLineBody',
+  'singleLineBodySmall',
   'singleLineBodySmallStrong',
+  'singleLineBodyTiny',
+  'singleLineBodyTinyStrong',
 ] as const;
 
 const SHADOW_TOKEN_KEYS = Object.keys(Shadows) as (keyof typeof Shadows)[];
@@ -85,6 +92,7 @@ export default function About() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const responsive = useResponsive();
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
   const [selectSearchableValue, setSelectSearchableValue] = useState('');
@@ -366,9 +374,14 @@ export default function About() {
         <title>WhereWild | About</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <PageHeader/>
+        <PageHeader />
 
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView
+          contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
+            includeBottomPadding: true,
+            includeGap: true,
+          })}
+        >
           <View>
             <ThemedText variant="heading">Search Input</ThemedText>
             <View>
@@ -715,10 +728,6 @@ export default function About() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-  },
-  container: {
-    padding: Size.space['800'],
-    gap: Size.space['800'],
   },
   row: {
     flexDirection: 'row',

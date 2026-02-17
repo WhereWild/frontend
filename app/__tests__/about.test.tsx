@@ -36,10 +36,15 @@ const EXPECTED_TYPOGRAPHY_LABELS = [
   'Body Small',
   'Body Small Emphasis',
   'Body Small Strong',
+  'Body Tiny',
+  'Body Tiny Strong',
   'Link',
   'Code',
   'Single Line Body',
+  'Single Line Body Small',
   'Single Line Body Small Strong',
+  'Single Line Body Tiny',
+  'Single Line Body Tiny Strong',
 ] as const;
 
 describe('About screen', () => {

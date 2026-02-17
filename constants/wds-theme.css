@@ -564,6 +564,7 @@
   --wds-typography-body-size-large: var(--wds-typography-scale-04);
   --wds-typography-body-size-medium: var(--wds-typography-scale-03);
   --wds-typography-body-size-small: var(--wds-typography-scale-02);
+  --wds-typography-body-size-tiny: var(--wds-typography-scale-01);
   --wds-typography-code-font-family: var(--wds-typography-family-mono);
   --wds-typography-code-font-weight: var(--wds-typography-body-font-weight-regular);
   --wds-typography-code-size-large: var(--wds-typography-body-size-large);
@@ -598,33 +599,36 @@
   --wds-responsive-content-width: 75rem;
   --wds-responsive-device: desktop;
   --wds-responsive-device-width: 90rem;
-  --wds-responsive-margin-horizontal: var(--@size-space-1600);
+  --wds-responsive-margin-horizontal: var(--@size-space-800);
   --wds-responsive-max-device-width: 625rem;
   --wds-responsive-root-font-size: var(--@typography_primitives-scale-03);
   --wds-responsive-scale: 0.0625rem;
   --wds-responsive-text-width: 50rem;
+  --wds-responsive-top-level-gap: var(--@size-space-800);
 }
-/* responsive: mobile */
-.wds-theme-responsive-mobile {
+/* responsive: phone */
+.wds-theme-responsive-phone {
   --wds-responsive-content-width: 75rem;
-  --wds-responsive-device: mobile;
+  --wds-responsive-device: phone;
   --wds-responsive-device-width: 23.4375rem;
-  --wds-responsive-margin-horizontal: var(--@size-space-800);
+  --wds-responsive-margin-horizontal: var(--@size-space-400);
   --wds-responsive-max-device-width: 37.5rem;
   --wds-responsive-root-font-size: var(--@typography_primitives-scale-03);
   --wds-responsive-scale: 0.0625rem;
   --wds-responsive-text-width: 50rem;
+  --wds-responsive-top-level-gap: var(--@size-space-400);
 }
 /* responsive: tablet */
 .wds-theme-responsive-tablet {
   --wds-responsive-content-width: 75rem;
   --wds-responsive-device: tablet;
   --wds-responsive-device-width: 48rem;
-  --wds-responsive-margin-horizontal: var(--@size-space-1200);
+  --wds-responsive-margin-horizontal: var(--@size-space-600);
   --wds-responsive-max-device-width: 62.5rem;
   --wds-responsive-root-font-size: var(--@typography_primitives-scale-03);
   --wds-responsive-scale: 0.0625rem;
   --wds-responsive-text-width: 50rem;
+  --wds-responsive-top-level-gap: var(--@size-space-600);
 }
 /* styles */
 :root {
@@ -640,9 +644,14 @@
   --wds-font-body-small: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-body-small-emphasis: var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
+  --wds-font-body-tiny: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family);
+  --wds-font-body-tiny-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family);
   --wds-font-body-code: normal var(--wds-typography-code-font-weight) var(--wds-typography-code-size-medium) var(--wds-typography-code-font-family);
   --wds-font-single-line-body-base: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family);
+  --wds-font-single-line-body-small: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
   --wds-font-single-line-body-small-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family);
+  --wds-font-single-line-body-tiny: normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family);
+  --wds-font-single-line-body-tiny-strong: normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family);
   --wds-font-utilities-component-notes-regular: normal var(--wds-typography-weight-regular) var(--wds-typography-scale-03) var(--wds-typography-family-mono);
   --wds-font-utilities-component-notes-bold: normal var(--wds-typography-weight-bold) var(--wds-typography-scale-03) var(--wds-typography-family-mono);
   --wds-effects-shadows-drop-shadow-100: var(--wds-size-depth-0) var(--wds-size-depth-025) var(--wds-size-depth-100) var(--wds-size-depth-0) var(--wds-color-black-100);
