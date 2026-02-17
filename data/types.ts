@@ -74,6 +74,10 @@ export type EnvironmentalDataEntry = {
 export type SpeciesOverview = {
   description: string;
   imageSource: ImageSourcePropType;
+  imageLicense?: string;
+  imageCreator?: string;
+  imageRightsHolder?: string;
+  imageReferences?: string;
 };
 
 export type HeatmapSnapshot = {
@@ -104,6 +108,10 @@ export type SpeciesApiNormalized = {
 
 export type SpeciesApiDetail = SpeciesApiNormalized & {
   description: string;
+  image_license?: string | null;
+  image_creator?: string | null;
+  image_rights_holder?: string | null;
+  image_references?: string | null;
 };
 
 /**

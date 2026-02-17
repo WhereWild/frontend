@@ -170,6 +170,24 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<S
       typeof detailSource.description === 'string'
         ? detailSource.description
         : 'description pending',
+    image_license:
+      typeof detailSource.image_license === 'string'
+        ? detailSource.image_license
+        : (typeof detailSource.imageLicense === 'string' ? detailSource.imageLicense : null),
+    image_creator:
+      typeof detailSource.image_creator === 'string'
+        ? detailSource.image_creator
+        : (typeof detailSource.imageCreator === 'string' ? detailSource.imageCreator : null),
+    image_rights_holder:
+      typeof detailSource.image_rights_holder === 'string'
+        ? detailSource.image_rights_holder
+        : (typeof detailSource.imageRightsHolder === 'string'
+          ? detailSource.imageRightsHolder
+          : null),
+    image_references:
+      typeof detailSource.image_references === 'string'
+        ? detailSource.image_references
+        : (typeof detailSource.imageReferences === 'string' ? detailSource.imageReferences : null),
   };
 }
 
