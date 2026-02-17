@@ -1,33 +1,60 @@
-import { SpeciesOccurrence, LocationSearchResult } from './types';
+import { SpeciesOccurrence, LocationSearchResult, SpeciesApiDetail, SpeciesApiNormalized } from './types';
+import { normalizeCommonNames } from './commonNames';
 
 const ENV_BACKEND_BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export const BACKEND_BASE = ENV_BACKEND_BASE || 'http://localhost:8000';
 
 /**
- * Normalize backend item to match your original JSON keys exactly,
- * but set `image_file` to the full URL to the static image so RN <Image> can use it.
+ * Normalize a backend species item into the `SpeciesApiNormalized` shape,
+ * ensuring `image_source` is a full URL to the static image (suitable for RN <Image>)
+ * and normalizing name fields like `scientific_name`, `common_name`, and `common_names`.
  */
-function normalizeToJsonShape(item: any) {
+function normalizeToJsonShape(item: unknown): SpeciesApiNormalized {
+  const source = (item ?? {}) as Record<string, unknown>;
+  const rawTaxonId = source.taxon_id;
+  const normalizedTaxonId =
+    typeof rawTaxonId === 'number'
+      ? (Number.isFinite(rawTaxonId) ? rawTaxonId : null)
+      : (typeof rawTaxonId === 'string' && rawTaxonId.trim().length > 0
+        ? (() => {
+          const parsed = Number(rawTaxonId);
+          return Number.isFinite(parsed) ? parsed : null;
+        })()
+        : null);
   // prefer full URL returned by backend
-  const imageUrlFromBackend = item.image_url ?? item.imageUrl ?? null;
+  const imageUrlFromBackend =
+    (typeof source.image_url === 'string' ? source.image_url : null) ??
+    (typeof source.imageUrl === 'string' ? source.imageUrl : null);
   // fallback: try image_file (basename) and construct URL
-  const imageFile = item.image_file ?? (item.image_file_name ?? null);
+  const imageFile =
+    (typeof source.image_file === 'string' ? source.image_file : null) ??
+    (typeof source.image_file_name === 'string' ? source.image_file_name : null);
+  const imageFileName = imageFile
+    ? imageFile
+      .replace(/^images\//, '')
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .pop() ?? ''
+    : '';
   const imageUrl = imageUrlFromBackend ?? (imageFile
-    ? `${BACKEND_BASE}/static/species_images/${imageFile.replace(/^images\//, '')}`
+    ? `${BACKEND_BASE}/static/species_images/${encodeURIComponent(imageFileName)}`
     : null);
-  const sciName = item.scientific_name ?? '';
+  const sciName = typeof source.scientific_name === 'string' ? source.scientific_name.trim() : '';
 
-  const rawCommon = item.common_name ?? item.commonName ?? null;
+  const commonNames = normalizeCommonNames(source.common_names ?? source.commonNames);
+
+  const rawCommon = source.common_name ?? source.commonName ?? commonNames[0] ?? null;
 
   const commonName =
     typeof rawCommon === 'string' && rawCommon.trim().length > 0
-      ? rawCommon
+      ? rawCommon.trim()
       : sciName;
   return {
-    taxon_id: item.taxon_id ?? null,
+    taxon_id: normalizedTaxonId,
     scientific_name: sciName,
     common_name: commonName,
+    common_names: commonNames,
     image_source: imageUrl,
     _raw: item,
   };
@@ -110,7 +137,7 @@ export async function fetchLocations(query: string, limit = 8): Promise<Location
 }
 
 
-export async function fetchSpeciesList(limit?: number, q?: string) {
+export async function fetchSpeciesList(limit?: number, q?: string): Promise<SpeciesApiNormalized[]> {
   const params = new URLSearchParams();
   if (limit) params.set('limit', String(limit));
   if (q) params.set('q', q);
@@ -121,11 +148,12 @@ export async function fetchSpeciesList(limit?: number, q?: string) {
     const txt = await res.text().catch(() => '');
     throw new Error(`Failed to fetch species list: ${res.status} ${txt}`);
   }
-  const data = await res.json();
-  return data.map((it: any) => normalizeToJsonShape(it));
+  const data: unknown = await res.json();
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((it) => normalizeToJsonShape(it));
 }
 
-export async function fetchSpeciesByTaxonId(taxonId: string | number) {
+export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<SpeciesApiDetail> {
   const encoded = encodeURIComponent(String(taxonId));
   const url = `${BACKEND_BASE}/api/species/${encoded}`;
   const res = await fetch(url);
@@ -133,11 +161,15 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number) {
     const txt = await res.text().catch(() => '');
     throw new Error(`Failed to fetch species ${taxonId}: ${res.status} ${txt}`);
   }
-  const item = await res.json();
+  const item: unknown = await res.json();
   const normalized = normalizeToJsonShape(item);
-  return{
+  const detailSource = (item ?? {}) as Record<string, unknown>;
+  return {
     ...normalized,
-    description: item.description ?? 'description pending',
+    description:
+      typeof detailSource.description === 'string'
+        ? detailSource.description
+        : 'description pending',
   };
 }
 
