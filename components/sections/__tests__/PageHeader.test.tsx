@@ -122,7 +122,7 @@ describe('PageHeader', () => {
   });
 
   it('renders compact layout and exposes actions behind the menu button', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'mobile' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
     render(<PageHeader />);
 
     expect(screen.queryByText('WhereWild')).toBeNull();

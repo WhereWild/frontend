@@ -1,6 +1,8 @@
 import { PageHeader, SpeciesCard, ThemedText } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { getResponsiveContentContainerStyle, getResponsiveGapStyle } from '@/constants/responsiveStyles';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -26,6 +28,7 @@ export default function Search() {
     const colorScheme = useColorScheme();
     const mode = colorScheme === 'dark' ? 'dark' : 'light';
     const palette = Colors[mode];
+    const responsive = useResponsive();
 
     return (
         <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
@@ -36,10 +39,10 @@ export default function Search() {
                 onSearchingChanged={onSearchingChanged}
             />
             <ScrollView
-                contentContainerStyle={styles.content}
+                contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
                 bounces={false}
             >
-                <View style={styles.layout}>
+                <View style={[styles.layout, getResponsiveGapStyle(responsive)]}> 
                     <View style={styles.main}>
                         <View style={styles.resultsHeader}>
                             <ThemedText variant="heading">Results</ThemedText>
@@ -73,14 +76,8 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  content: {
-    paddingHorizontal: Size.space['1600'],
-    paddingTop: Size.space['800'],
-    width: '100%',
-  },
   layout: {
     flexDirection: 'row',
-    gap: Size.space['800'],
     alignItems: 'flex-start',
     flexWrap: 'wrap',
     width: '100%',

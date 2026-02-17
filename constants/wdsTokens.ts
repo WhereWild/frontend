@@ -560,6 +560,7 @@ export const wdsTypographyTokens = {
   "wds-typography-body-size-large": "1.25rem",
   "wds-typography-body-size-medium": "1rem",
   "wds-typography-body-size-small": "0.875rem",
+  "wds-typography-body-size-tiny": "0.75rem",
   "wds-typography-code-font-family": "\"jetbrains mono\", monospace",
   "wds-typography-code-font-weight": "400",
   "wds-typography-code-size-large": "1.25rem",
@@ -614,9 +615,14 @@ export const wdsStyleTokens = {
   "wds-font-body-small-emphasis": "var(--wds-typography-body-font-style-italic) 400 var(--wds-typography-body-size-small) var(--wds-typography-body-font-family)",
   "wds-font-body-small-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family)",
   "wds-font-body-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family)",
+  "wds-font-body-tiny": "normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family)",
+  "wds-font-body-tiny-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family)",
   "wds-font-heading": "normal var(--wds-typography-heading-font-weight) var(--wds-typography-heading-size-medium) var(--wds-typography-heading-font-family)",
   "wds-font-single-line-body-base": "normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-medium) var(--wds-typography-body-font-family)",
+  "wds-font-single-line-body-small": "normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family)",
   "wds-font-single-line-body-small-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-small) var(--wds-typography-body-font-family)",
+  "wds-font-single-line-body-tiny": "normal var(--wds-typography-body-font-weight-regular) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family)",
+  "wds-font-single-line-body-tiny-strong": "normal var(--wds-typography-body-font-weight-strong) var(--wds-typography-body-size-tiny) var(--wds-typography-body-font-family)",
   "wds-font-subheading": "normal var(--wds-typography-subheading-font-weight) var(--wds-typography-subheading-size-medium) var(--wds-typography-subheading-font-family)",
   "wds-font-subtitle": "normal var(--wds-typography-subtitle-font-weight) var(--wds-typography-subtitle-size-medium) var(--wds-typography-subtitle-font-family)",
   "wds-font-title-hero": "normal var(--wds-typography-title-hero-font-weight) var(--wds-typography-title-hero-size) var(--wds-typography-title-hero-font-family)",
@@ -630,31 +636,34 @@ export const wdsResponsiveTokens = {
     "wds-responsive-content-width": "75rem",
     "wds-responsive-device": "desktop",
     "wds-responsive-device-width": "90rem",
-    "wds-responsive-margin-horizontal": "var(--@size-space-1600)",
+    "wds-responsive-margin-horizontal": "var(--@size-space-800)",
     "wds-responsive-max-device-width": "625rem",
     "wds-responsive-root-font-size": "var(--@typography_primitives-scale-03)",
     "wds-responsive-scale": "0.0625rem",
-    "wds-responsive-text-width": "50rem"
+    "wds-responsive-text-width": "50rem",
+    "wds-responsive-top-level-gap": "var(--@size-space-800)"
   },
-  "mobile": {
+  "phone": {
     "wds-responsive-content-width": "75rem",
-    "wds-responsive-device": "mobile",
+    "wds-responsive-device": "phone",
     "wds-responsive-device-width": "23.4375rem",
-    "wds-responsive-margin-horizontal": "var(--@size-space-800)",
+    "wds-responsive-margin-horizontal": "var(--@size-space-400)",
     "wds-responsive-max-device-width": "37.5rem",
     "wds-responsive-root-font-size": "var(--@typography_primitives-scale-03)",
     "wds-responsive-scale": "0.0625rem",
-    "wds-responsive-text-width": "50rem"
+    "wds-responsive-text-width": "50rem",
+    "wds-responsive-top-level-gap": "var(--@size-space-400)"
   },
   "tablet": {
     "wds-responsive-content-width": "75rem",
     "wds-responsive-device": "tablet",
     "wds-responsive-device-width": "48rem",
-    "wds-responsive-margin-horizontal": "var(--@size-space-1200)",
+    "wds-responsive-margin-horizontal": "var(--@size-space-600)",
     "wds-responsive-max-device-width": "62.5rem",
     "wds-responsive-root-font-size": "var(--@typography_primitives-scale-03)",
     "wds-responsive-scale": "0.0625rem",
-    "wds-responsive-text-width": "50rem"
+    "wds-responsive-text-width": "50rem",
+    "wds-responsive-top-level-gap": "var(--@size-space-600)"
   }
 } as const;
 

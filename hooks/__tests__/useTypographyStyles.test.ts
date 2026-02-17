@@ -76,4 +76,12 @@ describe('useTypographyStyles', () => {
     expect(result.current.body.fontSize).toBe(expectedTokens.body.fontSize);
     expect(result.current.body.lineHeight).toBe(expectedTokens.body.lineHeight);
   });
+
+  it('exposes every Typography token key in the style map', () => {
+    mockUseColorScheme.mockReturnValue('light');
+
+    const { result } = renderHook(() => useTypographyStyles());
+
+    expect(Object.keys(result.current).sort()).toEqual(Object.keys(Typography.light).sort());
+  });
 });
