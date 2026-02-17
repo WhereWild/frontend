@@ -23,11 +23,13 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 type SpeciesSampleScreenProps = {
   data?: SpeciesPageData;
 };
+
+const SPECIES_MAP_HEIGHT = 520;
 
 const toTitleCase = (value: string) => value
   .replace(/_/g, ' ')
@@ -132,13 +134,14 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const [descriptionOverride, setDescriptionOverride] = React.useState<string | null>(null);
   const [descriptionProfileOverride, setDescriptionProfileOverride] =
     React.useState<SpeciesDescriptionProfile | null>(null);
+  const [showOccurrencePins, setShowOccurrencePins] = React.useState(true);
+  const [showHeatmapLayer, setShowHeatmapLayer] = React.useState(false);
   const heatmapTileUrl = React.useMemo(() => {
     if (!taxonId) {
       return null;
     }
     const encodedTaxonId = encodeURIComponent(String(taxonId));
-    // Added cache buster for debugging - remove for production
-    return `${BACKEND_BASE}/sdm/tiles/${encodedTaxonId}/{z}/{x}/{y}.png?model_id=stub_sum&reproject=true&max_native_zoom=12&_cb=${Date.now()}`;
+    return `${BACKEND_BASE}/sdm/tiles/${encodedTaxonId}/{z}/{x}/{y}.png?model_id=auto_gbt&reproject=true&max_native_zoom=12`;
   }, [taxonId]);
 
   React.useEffect(() => {
@@ -259,6 +262,7 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
   const profileContextSuffix = selectedLocation?.name
     ? ` in ${selectedLocation.name}`
     : '';
+  const showHeatmap = showHeatmapLayer;
   const profileSections = React.useMemo(() => {
     const backendSections = Array.isArray(overviewProfile?.sections)
       ? overviewProfile.sections
@@ -472,31 +476,85 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
             <View style={styles.centeredSection}>
               <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
               >
-                <ThemedText variant="heading">Observation Map</ThemedText>
+                <ThemedText variant="heading">Map</ThemedText>
+                <View style={styles.mapCheckboxRow}>
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: showOccurrencePins }}
+                    accessibilityLabel="Show occurrence pins"
+                    onPress={() => setShowOccurrencePins((prev) => !prev)}
+                    style={styles.mapCheckbox}
+                  >
+                    <View
+                      style={[
+                        styles.mapCheckboxBox,
+                        {
+                          borderColor: palette.border.default.default,
+                          backgroundColor: showOccurrencePins
+                            ? palette.background.brand.default
+                            : palette.background.default.tertiary,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        variant="bodySmallStrong"
+                        style={{
+                          color: showOccurrencePins
+                            ? palette.text.brand.onBrand
+                            : 'transparent',
+                        }}
+                      >
+                        ✓
+                      </ThemedText>
+                    </View>
+                    <ThemedText variant="bodySmall">Occurrences</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: showHeatmapLayer }}
+                    accessibilityLabel="Show heatmap overlay"
+                    onPress={() => setShowHeatmapLayer((prev) => !prev)}
+                    style={styles.mapCheckbox}
+                  >
+                    <View
+                      style={[
+                        styles.mapCheckboxBox,
+                        {
+                          borderColor: palette.border.default.default,
+                          backgroundColor: showHeatmapLayer
+                            ? palette.background.brand.default
+                            : palette.background.default.tertiary,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        variant="bodySmallStrong"
+                        style={{
+                          color: showHeatmapLayer
+                            ? palette.text.brand.onBrand
+                            : 'transparent',
+                        }}
+                      >
+                        ✓
+                      </ThemedText>
+                    </View>
+                    <ThemedText variant="bodySmall">Heatmap</ThemedText>
+                  </Pressable>
+                </View>
                 <SpeciesOccurrenceMap
                   occurrences={occurrences}
-                  loading={occurrenceLoading}
-                  error={occurrenceError}
+                  loading={showOccurrencePins && !showHeatmap ? occurrenceLoading : false}
+                  error={showOccurrencePins && !showHeatmap ? occurrenceError : null}
                   highlightedCatalogs={highlightedCatalogs}
+                  height={SPECIES_MAP_HEIGHT}
+                  heatmapTileUrl={showHeatmap ? heatmapTileUrl : null}
+                  heatmapOpacity={0.82}
+                  minZoom={showHeatmap ? 5 : 0}
+                  showMarkers={showOccurrencePins}
                 />
               </View>
             </View>
           )}
-
-          <View style={styles.heatMapSection}>
-            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}
-            >
-              <ThemedText variant="heading">Heat Map</ThemedText>
-              <SpeciesOccurrenceMap
-                occurrences={occurrences}
-                loading={false}
-                error={null}
-                heatmapTileUrl={heatmapTileUrl}
-                heatmapOpacity={0.82}
-                showMarkers={false}
-              />
-            </View>
-          </View>
         </ScrollView>
       </View>
     </>
@@ -510,6 +568,7 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
     paddingTop: Size.space['800'],
+    paddingBottom: Size.space['1200'],
     gap: Size.space['800'],
   },
   centeredSection: {
@@ -519,6 +578,24 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['800'],
+  },
+  mapCheckboxRow: {
+    flexDirection: 'row',
+    gap: Size.space['400'],
+    flexWrap: 'wrap',
+  },
+  mapCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  mapCheckboxBox: {
+    width: Size.space['400'],
+    height: Size.space['400'],
+    borderWidth: 1,
+    borderRadius: Size.radius['100'],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   overviewSection: {
     flexDirection: 'row',
@@ -576,8 +653,5 @@ const styles = StyleSheet.create({
   attributionLink: {
     color: Colors.light.text.brand.default,
     textDecorationLine: 'underline',
-  },
-  heatMapSection: {
-    gap: Size.space['400'],
   },
 });

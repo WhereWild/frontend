@@ -14,6 +14,7 @@ type SpeciesOccurrenceMapProps = {
   highlightedCatalogs?: (number | string)[];
   heatmapTileUrl?: string | null;
   heatmapOpacity?: number;
+  minZoom?: number;
   showMarkers?: boolean;
 };
 
@@ -21,11 +22,13 @@ const buildLeafletHtml = (
   points: SpeciesOccurrence[],
   heatmapTileUrl?: string | null,
   heatmapOpacity?: number,
+  minZoom?: number,
   showMarkers?: boolean,
 ) => {
   const payload = JSON.stringify(points ?? []);
   const heatmapUrl = heatmapTileUrl ? JSON.stringify(heatmapTileUrl) : 'null';
   const opacity = typeof heatmapOpacity === 'number' ? heatmapOpacity : 0.6;
+  const resolvedMinZoom = typeof minZoom === 'number' ? minZoom : 0;
   const allowMarkers = showMarkers !== false;
   return `<!DOCTYPE html>
 <html>
@@ -50,18 +53,30 @@ const buildLeafletHtml = (
     <script>
       const points = ${payload};
       const heatmapUrl = ${heatmapUrl};
+      const minZoom = ${resolvedMinZoom};
       const allowMarkers = ${allowMarkers ? "true" : "false"};
-      const map = L.map('map');
+      const map = L.map('map', {
+        minZoom,
+        zoomAnimation: false,
+        fadeAnimation: false,
+        markerZoomAnimation: false,
+      });
+      const tileOptions = {
+        updateWhenIdle: true,
+        updateWhenZooming: false,
+        keepBuffer: 1,
+      };
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; OpenStreetMap contributors',
+        ...tileOptions,
       }).addTo(map);
       if (heatmapUrl) {
         L.tileLayer(heatmapUrl, {
           opacity: ${opacity},
           tileSize: 256,
           crossOrigin: true,
-          updateWhenIdle: true,
           maxZoom: 18,
+          ...tileOptions,
         }).addTo(map);
       }
       const markerStyle = {
@@ -160,6 +175,7 @@ export function SpeciesOccurrenceMap({
   highlightedCatalogs = [],
   heatmapTileUrl = null,
   heatmapOpacity = 0.6,
+  minZoom = 0,
   showMarkers = true,
 }: SpeciesOccurrenceMapProps) {
   const scheme = useColorScheme();
@@ -175,8 +191,8 @@ export function SpeciesOccurrenceMap({
     [highlightedCatalogs],
   );
   const html = React.useMemo(
-    () => buildLeafletHtml(occurrences, heatmapTileUrl, heatmapOpacity, showMarkers),
-    [occurrences, heatmapTileUrl, heatmapOpacity, showMarkers],
+    () => buildLeafletHtml(occurrences, heatmapTileUrl, heatmapOpacity, minZoom, showMarkers),
+    [occurrences, heatmapTileUrl, heatmapOpacity, minZoom, showMarkers],
   );
 
   React.useEffect(() => {
@@ -228,7 +244,7 @@ export function SpeciesOccurrenceMap({
     );
   }
 
-  if (!hasOccurrences && showMarkers) {
+  if (!hasOccurrences && showMarkers && !heatmapTileUrl) {
     return (
       <View style={styles.feedback}>
         <ThemedText variant="bodySmall">
