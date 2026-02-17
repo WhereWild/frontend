@@ -406,6 +406,56 @@ describe('useSelectFieldController', () => {
     expect(controllerRef.current?.options[0].isHighlighted).toBe(true);
   });
 
+  it('filters options with trimmed diacritic-insensitive query text', () => {
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(
+      <ControllerHarness
+        ref={controllerRef}
+        options={[
+          { label: 'Málaga', value: 'malaga' },
+          { label: 'Berlin', value: 'berlin' },
+        ]}
+      />,
+    );
+
+    act(() => {
+      controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
+    });
+
+    act(() => {
+      controllerRef.current?.inputProps.onChangeText?.('   malaga   ');
+    });
+
+    const optionLabels = controllerRef.current?.options.map((option) => option.label) ?? [];
+    expect(optionLabels).toEqual(['Málaga']);
+    expect(controllerRef.current?.options[0].isHighlighted).toBe(true);
+  });
+
+  it('filters options with case-insensitive query text', () => {
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(
+      <ControllerHarness
+        ref={controllerRef}
+        options={[
+          { label: 'Málaga', value: 'malaga' },
+          { label: 'Berlin', value: 'berlin' },
+        ]}
+      />,
+    );
+
+    act(() => {
+      controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
+    });
+
+    act(() => {
+      controllerRef.current?.inputProps.onChangeText?.('  MALAGA  ');
+    });
+
+    const optionLabels = controllerRef.current?.options.map((option) => option.label) ?? [];
+    expect(optionLabels).toEqual(['Málaga']);
+    expect(controllerRef.current?.options[0].isHighlighted).toBe(true);
+  });
+
   it('uses the raw value label when it does not exist in options', () => {
     const controllerRef = React.createRef<SelectFieldViewProps>();
     render(<ControllerHarness ref={controllerRef} options={[]} value="missing" />);

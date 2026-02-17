@@ -4,7 +4,7 @@ import type { SpeciesPageData } from '@/data/types';
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
-import SpeciesPage from '../_speciesPage';
+import Species from '../_species';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -147,7 +147,7 @@ export default function SpeciesBasicsPage() {
     ? buildSpeciesPageData(data, requestedTaxonId)
     : mountainBallCactusData;
 
-  return <SpeciesPage data={resolvedPageData} />;
+  return <Species data={resolvedPageData} />;
 }
 
 export const __SPECIES_BASICS_TESTING__ = {
