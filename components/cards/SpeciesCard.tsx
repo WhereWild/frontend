@@ -34,7 +34,7 @@ export type SpeciesCardProps = {
 
 const DEFAULT_IMAGE_SIZE = 128;
 const COMPACT_IMAGE_SIZE = 56;
-const MAX_WIDTH = 440;
+const MAX_WIDTH = 465;
 
 /**
  * Keeps 'secondary' as the default to preserve the palette used before variants existed.
@@ -168,10 +168,9 @@ export function SpeciesCard({
         </View>
 
         {size === 'default' && (
-          <ThemedText 
-            variant="body" 
-            style={styles.description} 
-            numberOfLines={3} 
+          <ThemedText
+            variant="body"
+            numberOfLines={3}
             testID='species-card-description'
           >
             {description}
@@ -193,8 +192,8 @@ const styles = StyleSheet.create({
   },
   containerCompact: {
     alignItems: 'center',
-    padding: Size.space['300'],
-    gap: Size.space['300'],
+    padding: Size.space['200'],
+    gap: Size.space['200'],
     maxWidth: MAX_WIDTH,
   },
   imageWrapper: {
@@ -206,9 +205,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   imageWrapperCompact: {
-      width: COMPACT_IMAGE_SIZE,
-      height: COMPACT_IMAGE_SIZE,
-      flexShrink: 0,
+    width: COMPACT_IMAGE_SIZE,
+    height: COMPACT_IMAGE_SIZE,
+    flexShrink: 0,
   },
   image: {
     width: '100%',
@@ -227,12 +226,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   textSectionCompact: {
-      minHeight: COMPACT_IMAGE_SIZE,
-      justifyContent: 'center',
-      gap: Size.space['100'],
-    },
-  description: {
-    marginTop: Size.space['200'],
+    minHeight: COMPACT_IMAGE_SIZE,
+    justifyContent: 'center',
+    gap: Size.space['100'],
   },
 });
 
