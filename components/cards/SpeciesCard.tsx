@@ -1,5 +1,5 @@
 import { IconImage } from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Size, type ColorPalette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import {
@@ -40,7 +40,7 @@ const MAX_WIDTH = 440;
  * Keeps 'secondary' as the default to preserve the palette used before variants existed.
  */
 const resolveSpeciesCardBackground = (
-  palette: typeof Colors.light,
+  palette: ColorPalette,
   state: PressableStateCallbackType,
   variant: SpeciesCardVariant = 'secondary',
 ) => {

@@ -14,7 +14,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
-import { Colors, Shadows, Size, Typography } from '@/constants/theme';
+import { Colors, Shadows, Size, Typography, type ColorPalette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
 import { SelectFieldProps, SelectOption } from "./SelectField";
@@ -149,17 +149,17 @@ export const useSelectFieldController = ({
   const showPlaceholder = !selectedLabel;
   const isQueryEmpty = query.trim().length === 0;
 
- const filteredOptions = React.useMemo(() => {
-  if (!query.trim()) {
-    return options;
-  }
-  const qNorm = stripDiacritics(query);
+  const filteredOptions = React.useMemo(() => {
+    if (!query.trim()) {
+      return options;
+    }
+    const qNorm = stripDiacritics(query);
     return options.filter((option) => {
       // prefer precomputed labelNorm if available (for perf)
       const labelNorm = (option as any).labelNorm ?? stripDiacritics(option.label);
       return labelNorm.includes(qNorm);
     });
-    }, [options, query]);
+  }, [options, query]);
 
   const openSelect = React.useCallback(() => {
     if (isDisabled) {
@@ -329,7 +329,7 @@ export const useSelectFieldController = ({
   };
 
   const getFieldBackgrounds = (
-    palette: typeof Colors.light,
+    palette: ColorPalette,
     variant: SelectFieldProps['variant'],
     isDisabled: boolean,
     isError: boolean,
