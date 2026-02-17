@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import { fetchLocationsByHierarchy, fetchSpeciesOccurrences } from '@/data/api';
+import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import * as speciesLocationFiltersModule from '@/hooks/species/useSpeciesLocationFilters';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
@@ -10,7 +10,7 @@ import SpeciesScreen, { LOCATION_SEARCH_LIMIT, type SpeciesScreenData } from '..
 const mockPush = jest.fn();
 
 jest.mock('@/data/api', () => ({
-  fetchLocationsByHierarchy: jest.fn(),
+  fetchSpeciesLocations: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
 }));
 
@@ -102,8 +102,8 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
-const mockFetchLocationsByHierarchy = fetchLocationsByHierarchy as jest.MockedFunction<
-  typeof fetchLocationsByHierarchy
+const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
+  typeof fetchSpeciesLocations
 >;
 const mockFetchSpeciesOccurrences = fetchSpeciesOccurrences as jest.MockedFunction<
   typeof fetchSpeciesOccurrences
@@ -114,7 +114,7 @@ afterEach(() => {
   jest.clearAllMocks();
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
-  mockFetchLocationsByHierarchy.mockResolvedValue([]);
+  mockFetchSpeciesLocations.mockResolvedValue([]);
   mockFetchSpeciesOccurrences.mockResolvedValue([]);
 });
 
@@ -156,7 +156,7 @@ const waitForSpeciesEffectsToSettle = async (hasTaxonId = true) => {
   }
 
   await waitFor(() => {
-    expect(mockFetchLocationsByHierarchy).toHaveBeenCalled();
+    expect(mockFetchSpeciesLocations).toHaveBeenCalled();
   });
 
   await waitFor(() => {
@@ -173,7 +173,7 @@ const waitForSpeciesEffectsToSettle = async (hasTaxonId = true) => {
 describe('Species screen', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
-    mockFetchLocationsByHierarchy.mockResolvedValue([]);
+    mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
   });
 
@@ -235,8 +235,8 @@ describe('Species screen', () => {
       });
     });
 
-    expect(mockFetchLocationsByHierarchy).toHaveBeenCalledWith(
-      '',
+    expect(mockFetchSpeciesLocations).toHaveBeenCalledWith(
+      13579,
       'country',
       undefined,
       LOCATION_SEARCH_LIMIT,
@@ -342,7 +342,7 @@ describe('Species screen', () => {
     render(<SpeciesScreen data={createData()} />);
 
     await waitFor(() => {
-      expect(mockFetchLocationsByHierarchy).toHaveBeenCalled();
+      expect(mockFetchSpeciesLocations).toHaveBeenCalled();
     });
 
     await waitFor(() => {
@@ -356,7 +356,7 @@ describe('Species screen', () => {
     render(<SpeciesScreen data={createData()} />);
 
     await waitFor(() => {
-      expect(mockFetchLocationsByHierarchy).toHaveBeenCalled();
+      expect(mockFetchSpeciesLocations).toHaveBeenCalled();
     });
 
     await waitFor(() => {
