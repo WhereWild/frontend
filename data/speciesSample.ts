@@ -6,6 +6,7 @@ const HEATMAP = { uri: 'https://www.figma.com/api/mcp/asset/7d50c2fc-2baf-4a64-a
 export const mountainBallCactusData: SpeciesPageData = {
   taxonId: 999001,
   commonName: 'Mountain Ball Cactus',
+  commonNames: ['Mountain Ball Cactus', 'Mountain Cactus', 'Snowball Cactus'],
   scientificName: 'Pediocactus simpsonii',
   description:
     'Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States.',
@@ -18,24 +19,28 @@ export const mountainBallCactusData: SpeciesPageData = {
     {
       taxonId: 200101,
       commonName: 'Utah Juniper',
+      commonNames: ['Utah Juniper'],
       scientificName: 'Juniperus osteosperma',
       description: 'Evergreen shrub or small tree adapted to high desert plateaus.',
     },
     {
       taxonId: 200102,
       commonName: 'Sagebrush',
+      commonNames: ['Sagebrush'],
       scientificName: 'Artemisia tridentata',
       description: 'Shrub with aromatic foliage often co-occurring with alpine cacti.',
     },
     {
       taxonId: 200103,
       commonName: 'Colorado Pinyon',
+      commonNames: ['Colorado Pinyon'],
       scientificName: 'Pinus edulis',
       description: 'Slow-growing pine producing edible nuts favored by wildlife.',
     },
     {
       taxonId: 200104,
       commonName: 'Sweat Bees',
+      commonNames: ['Sweat Bees'],
       scientificName: 'Halictidae',
       description: 'Important pollinators that frequent cactus blooms in early summer.',
     },

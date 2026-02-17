@@ -4,6 +4,7 @@ export type SpeciesIdentifiers = {
   taxonId: number;
   scientificName: string;
   commonName: string;
+  commonNames: string[];
 };
 
 /**
@@ -90,6 +91,19 @@ export type LocationSearchResult = {
   name: string;
   level: number;
   hierarchy: string[];
+};
+
+export type SpeciesApiNormalized = {
+  taxon_id: number | null;
+  scientific_name: string;
+  common_name: string;
+  common_names: string[];
+  image_source: string | null;
+  _raw: unknown;
+};
+
+export type SpeciesApiDetail = SpeciesApiNormalized & {
+  description: string;
 };
 
 /**

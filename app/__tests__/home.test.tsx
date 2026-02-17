@@ -30,6 +30,7 @@ const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
       {
         taxonId: 101,
         commonName: 'Desert Bloom',
+        commonNames: ['Desert Bloom'],
         scientificName: 'Bloomus deserti',
         description: 'Currently flowering',
         imageSource: { uri: 'desert' },
@@ -37,6 +38,7 @@ const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
       {
         taxonId: 202,
         commonName: 'Alpine Falcon',
+        commonNames: ['Alpine Falcon'],
         scientificName: 'Falco alpinus',
         description: 'Sighted this week',
         imageSource: { uri: 'falcon' },
