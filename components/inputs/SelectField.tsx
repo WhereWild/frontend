@@ -3,6 +3,14 @@ import { type StyleProp, type ViewStyle } from 'react-native';
 import { SelectFieldView } from './SelectFieldView';
 import { useSelectFieldController } from './useSelectFieldController';
 
+/**
+ * A single SelectField option.
+ *
+ * - `label`: text shown in the dropdown.
+ * - `value`: controlled value emitted via `onValueChange`.
+ *
+ * When `allowSearch` is enabled, matching is stripping diacritics, trimming and lowercasing.
+ */
 export type SelectOption = {
   label: string;
   value: string;
@@ -10,6 +18,23 @@ export type SelectOption = {
 
 export type SelectFieldVariant = 'secondary' | 'tertiary';
 
+/**
+ * Props for `SelectField`.
+ *
+ * `SelectField` is a controlled component: pass `value` and update it in `onValueChange`.
+ * Use an empty string (`''`) to represent no selection.
+ *
+ * Search behavior:
+ * - Enabled by default (`allowSearch: true`).
+ * - Normalizes option `label` at runtime for filtering.
+ *
+ * Defaults:
+ * - `placeholder`: "Select an option"
+ * - `disabled`: `false`
+ * - `allowSearch`: `true`
+ * - `options`: `[]`
+ * - `variant`: `'secondary'`
+ */
 export type SelectFieldProps = {
   label?: string;
   description?: string;
