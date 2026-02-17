@@ -382,6 +382,11 @@ describe('SpeciesBasicsPage', () => {
       expect(result.scientificName).toBe(mountainBallCactusData.scientificName);
     });
 
+    it('uses sample fallback taxon id when neither payload nor request includes one', () => {
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData({});
+      expect(result.taxonId).toBe(mountainBallCactusData.taxonId);
+    });
+
     it('derives identifier priorities from route params', () => {
       const params = {
         identifier: ['9876', 'encoded-sci'],
