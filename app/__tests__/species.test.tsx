@@ -121,6 +121,7 @@ afterEach(() => {
 const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenData => ({
   taxonId: 13579,
   commonName: 'Test Cactus',
+  commonNames: ['Test Cactus', 'Prickly Test Cactus'],
   scientificName: 'Testus cactus',
   overview: {
     description: 'A sample species used for testing.',
@@ -130,6 +131,7 @@ const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenDa
     {
       taxonId: 24680,
       commonName: 'Neighbor',
+      commonNames: ['Neighbor'],
       scientificName: 'Neighborius plantus',
       description: 'Nearby species description.',
     },
@@ -181,9 +183,12 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.getByText('Test Cactus')).toBeTruthy();
+    expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(0);
     expect(screen.getByText('Testus cactus')).toBeTruthy();
     expect(screen.getByText('A sample species used for testing.')).toBeTruthy();
+    expect(screen.getByText('Common Names')).toBeTruthy();
+    expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(0);
+    expect(screen.getByText('Prickly Test Cactus')).toBeTruthy();
     expect(screen.getByText('Nearby Species')).toBeTruthy();
     expect(screen.getByText('Neighbor')).toBeTruthy();
     expect(screen.getByText('Heat Map')).toBeTruthy();
@@ -202,7 +207,23 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.getByText('Mountain Ball Cactus')).toBeTruthy();
+    expect(screen.getAllByText('Mountain Ball Cactus').length).toBeGreaterThan(0);
+    expect(screen.getByText('Common Names')).toBeTruthy();
+    expect(screen.getByText('Mountain Cactus')).toBeTruthy();
+    expect(screen.getByText('Snowball Cactus')).toBeTruthy();
+  });
+
+  it('falls back to single commonName when commonNames list is empty', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({ commonNames: [] })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Common Names')).toBeTruthy();
+    expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(1);
   });
 
   it('loads occurrence and country options on mount', async () => {
