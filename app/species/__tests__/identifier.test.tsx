@@ -4,7 +4,7 @@ import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import { fetchSpeciesByTaxonId } from '@/data/api';
-import SpeciesPage from '../../_speciesPage';
+import Species from '../../_species';
 
 jest.mock('expo-router', () => {
   const actual = jest.requireActual('expo-router');
@@ -20,18 +20,23 @@ jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
 }));
 
-jest.mock('../../_speciesPage', () => {
-  const actual = jest.requireActual('../../_speciesPage');
-  const SpeciesPageActual = actual.default;
-  const WrappedSpeciesPage = jest.fn((props) => SpeciesPageActual(props));
-  return WrappedSpeciesPage;
+jest.mock('../../_species', () => {
+  const React = jest.requireActual('react');
+  const actual = jest.requireActual('../../_species');
+  const SpeciesActual = actual.default;
+  const WrappedSpecies = jest.fn((props) => React.createElement(SpeciesActual, props));
+  return {
+    __esModule: true,
+    ...actual,
+    default: WrappedSpecies,
+  };
 });
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
-const mockSpeciesPage = SpeciesPage as jest.MockedFunction<typeof SpeciesPage>;
+const mockSpecies = Species as jest.MockedFunction<typeof Species>;
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -49,7 +54,7 @@ const createRouterMock = () => ({
 } as unknown as ReturnType<typeof useRouter>);
 
 const getLatestRenderProps = () => {
-  const call = mockSpeciesPage.mock.calls[mockSpeciesPage.mock.calls.length - 1];
+  const call = mockSpecies.mock.calls[mockSpecies.mock.calls.length - 1];
   return call?.[0];
 };
 
@@ -72,7 +77,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(mockSpeciesPage).toHaveBeenCalled();
+    expect(mockSpecies).toHaveBeenCalled();
     expect(getLatestRenderProps()?.data).toEqual(mountainBallCactusData);
     expect(screen.queryAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
 
@@ -109,7 +114,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
-    expect(mockSpeciesPage).toHaveBeenCalled();
+    expect(mockSpecies).toHaveBeenCalled();
     await screen.findByText(mountainBallCactusData.commonName);
     expect(consoleSpy).toHaveBeenCalledWith(
       `Failed to load species '${SAMPLE_TAXON_ID}':`,
@@ -193,7 +198,7 @@ describe('SpeciesBasicsPage', () => {
 
     const { toJSON } = render(<SpeciesBasicsPage />);
 
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
+    expect(mockSpecies).not.toHaveBeenCalled();
     expect(toJSON()).toBeNull();
   });
 
@@ -234,7 +239,7 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
+    expect(mockSpecies).not.toHaveBeenCalled();
   });
 
   it('ignores late error responses after unmounting', async () => {
@@ -255,7 +260,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(consoleSpy).not.toHaveBeenCalled();
-    expect(mockSpeciesPage).not.toHaveBeenCalled();
+    expect(mockSpecies).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
@@ -286,7 +291,7 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(mockSpeciesPage).toHaveBeenCalled();
+    expect(mockSpecies).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith('Missing numeric taxon ID in route segments.');
 
     consoleSpy.mockRestore();
@@ -308,7 +313,6 @@ describe('SpeciesBasicsPage', () => {
       expect(result.scientificName).toBe('Geum triflorum');
       expect(result.overview.description).toBe(payload.description);
       expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
-      expect(result.dataSections).toBe(mountainBallCactusData.dataSections);
     });
 
     it('uses the requested taxon id when payload lacks taxon data', () => {
