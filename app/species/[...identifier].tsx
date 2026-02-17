@@ -18,6 +18,10 @@ type SpeciesBasics = {
   image_source?: ImageSourcePropType | string | null;
   image_url?: string;
   description?: string;
+  image_license?: string | null;
+  image_creator?: string | null;
+  image_rights_holder?: string | null;
+  image_references?: string | null;
 };
 
 type SpeciesRouteParams = {
@@ -63,6 +67,10 @@ const buildSpeciesPageData = (
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
       imageSource: normalizeImageSource(payload) ?? fallback.overview.imageSource,
+      imageLicense: payload.image_license ?? fallback.overview.imageLicense,
+      imageCreator: payload.image_creator ?? fallback.overview.imageCreator,
+      imageRightsHolder: payload.image_rights_holder ?? fallback.overview.imageRightsHolder,
+      imageReferences: payload.image_references ?? fallback.overview.imageReferences,
     },
   };
 };
