@@ -40,6 +40,12 @@ const makePalette = (mode: 'light' | 'dark') => ({
       default: wdsSemanticTokens[mode]['wds-color-background-brand-default'],
       hover: wdsSemanticTokens[mode]['wds-color-background-brand-hover'],
       pressed: wdsSemanticTokens[mode]['wds-color-background-brand-pressed'],
+      secondary: wdsSemanticTokens[mode]['wds-color-background-brand-secondary'],
+      secondaryHover: wdsSemanticTokens[mode]['wds-color-background-brand-secondary-hover'],
+      secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-brand-secondary-pressed'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-background-brand-tertiary'],
+      tertiaryHover: wdsSemanticTokens[mode]['wds-color-background-brand-tertiary-hover'],
+      tertiaryPressed: wdsSemanticTokens[mode]['wds-color-background-brand-tertiary-pressed'],
     },
     danger: {
       default: wdsSemanticTokens[mode]['wds-color-background-danger-default'],
@@ -48,6 +54,28 @@ const makePalette = (mode: 'light' | 'dark') => ({
       secondary: wdsSemanticTokens[mode]['wds-color-background-danger-secondary'],
       secondaryHover: wdsSemanticTokens[mode]['wds-color-background-danger-secondary-hover'],
       secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-danger-secondary-pressed'],
+    },
+    positive: {
+      default: wdsSemanticTokens[mode]['wds-color-background-positive-default'],
+      hover: wdsSemanticTokens[mode]['wds-color-background-positive-hover'],
+      pressed: wdsSemanticTokens[mode]['wds-color-background-positive-pressed'],
+      secondary: wdsSemanticTokens[mode]['wds-color-background-positive-secondary'],
+      secondaryHover: wdsSemanticTokens[mode]['wds-color-background-positive-secondary-hover'],
+      secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-positive-secondary-pressed'],
+    },
+    warning: {
+      default: wdsSemanticTokens[mode]['wds-color-background-warning-default'],
+      hover: wdsSemanticTokens[mode]['wds-color-background-warning-hover'],
+      pressed: wdsSemanticTokens[mode]['wds-color-background-warning-pressed'],
+      secondary: wdsSemanticTokens[mode]['wds-color-background-warning-secondary'],
+      secondaryHover: wdsSemanticTokens[mode]['wds-color-background-warning-secondary-hover'],
+      secondaryPressed: wdsSemanticTokens[mode]['wds-color-background-warning-secondary-pressed'],
+    },
+    utilities: {
+      overlay: wdsSemanticTokens[mode]['wds-color-background-utilities-overlay'],
+      scrim: wdsSemanticTokens[mode]['wds-color-background-utilities-scrim'],
+      blanket: wdsSemanticTokens[mode]['wds-color-background-utilities-blanket'],
+      measurement: wdsSemanticTokens[mode]['wds-color-background-utilities-measurement'],
     },
     disabled: {
       default: wdsSemanticTokens[mode]['wds-color-background-disabled-default'],
@@ -68,10 +96,25 @@ const makePalette = (mode: 'light' | 'dark') => ({
       default: wdsSemanticTokens[mode]['wds-color-border-danger-default'],
       secondary: wdsSemanticTokens[mode]['wds-color-border-danger-secondary'],
     },
+    positive: {
+      default: wdsSemanticTokens[mode]['wds-color-border-positive-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-border-positive-secondary'],
+    },
+    warning: {
+      default: wdsSemanticTokens[mode]['wds-color-border-warning-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-border-warning-secondary'],
+    },
     neutral: {
       default: wdsSemanticTokens[mode]['wds-color-border-neutral-default'],
       secondary: wdsSemanticTokens[mode]['wds-color-border-neutral-secondary'],
       tertiary: wdsSemanticTokens[mode]['wds-color-border-neutral-tertiary'],
+    },
+    utilities: {
+      swatch: wdsSemanticTokens[mode]['wds-color-border-utilities-swatch'],
+      measurement: wdsSemanticTokens[mode]['wds-color-border-utilities-measurement'],
+    },
+    disabled: {
+      default: wdsSemanticTokens[mode]['wds-color-border-disabled-default'],
     }
   },
   icon: {
@@ -83,6 +126,10 @@ const makePalette = (mode: 'light' | 'dark') => ({
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-icon-brand-default'],
       onBrand: wdsSemanticTokens[mode]['wds-color-icon-brand-on-brand'],
+      onBrandSecondary: wdsSemanticTokens[mode]['wds-color-icon-brand-on-brand-secondary'],
+      onBrandTertiary: wdsSemanticTokens[mode]['wds-color-icon-brand-on-brand-tertiary'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-brand-secondary'],
+      tertiary: wdsSemanticTokens[mode]['wds-color-icon-brand-tertiary'],
     },
     neutral: {
       default: wdsSemanticTokens[mode]['wds-color-icon-neutral-default'],
@@ -97,6 +144,22 @@ const makePalette = (mode: 'light' | 'dark') => ({
       secondary: wdsSemanticTokens[mode]['wds-color-icon-danger-secondary'],
       onDanger: wdsSemanticTokens[mode]['wds-color-icon-danger-on-danger'],
       onDangerSecondary: wdsSemanticTokens[mode]['wds-color-icon-danger-on-danger-secondary'],
+    },
+    positive: {
+      default: wdsSemanticTokens[mode]['wds-color-icon-positive-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-positive-secondary'],
+      onPositive: wdsSemanticTokens[mode]['wds-color-icon-positive-on-positive'],
+      onPositiveSecondary: wdsSemanticTokens[mode]['wds-color-icon-positive-on-positive-secondary'],
+    },
+    warning: {
+      default: wdsSemanticTokens[mode]['wds-color-icon-warning-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-icon-warning-secondary'],
+      onWarning: wdsSemanticTokens[mode]['wds-color-icon-warning-on-warning'],
+      onWarningSecondary: wdsSemanticTokens[mode]['wds-color-icon-warning-on-warning-secondary'],
+    },
+    utilities: {
+      icon: wdsSemanticTokens[mode]['wds-color-icon-utilities-icon'],
+      iconOnMeasurement: wdsSemanticTokens[mode]['wds-color-icon-utilities-icon-on-measurement'],
     },
     disabled: {
       default: wdsSemanticTokens[mode]['wds-color-icon-disabled-default'],
@@ -120,6 +183,8 @@ const makePalette = (mode: 'light' | 'dark') => ({
     brand: {
       default: wdsSemanticTokens[mode]['wds-color-text-brand-default'],
       onBrand: wdsSemanticTokens[mode]['wds-color-text-brand-on-brand'],
+      onBrandSecondary: wdsSemanticTokens[mode]['wds-color-text-brand-on-brand-secondary'],
+      onBrandTertiary: wdsSemanticTokens[mode]['wds-color-text-brand-on-brand-tertiary'],
       secondary: wdsSemanticTokens[mode]['wds-color-text-brand-secondary'],
       tertiary: wdsSemanticTokens[mode]['wds-color-text-brand-tertiary'],
     },
@@ -128,6 +193,22 @@ const makePalette = (mode: 'light' | 'dark') => ({
       secondary: wdsSemanticTokens[mode]['wds-color-text-danger-secondary'],
       onDanger: wdsSemanticTokens[mode]['wds-color-text-danger-on-danger'],
       onDangerSecondary: wdsSemanticTokens[mode]['wds-color-text-danger-on-danger-secondary'],
+    },
+    positive: {
+      default: wdsSemanticTokens[mode]['wds-color-text-positive-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-text-positive-secondary'],
+      onPositive: wdsSemanticTokens[mode]['wds-color-text-positive-on-positive'],
+      onPositiveSecondary: wdsSemanticTokens[mode]['wds-color-text-positive-on-positive-secondary'],
+    },
+    warning: {
+      default: wdsSemanticTokens[mode]['wds-color-text-warning-default'],
+      secondary: wdsSemanticTokens[mode]['wds-color-text-warning-secondary'],
+      onWarning: wdsSemanticTokens[mode]['wds-color-text-warning-on-warning'],
+      onWarningSecondary: wdsSemanticTokens[mode]['wds-color-text-warning-on-warning-secondary'],
+    },
+    utilities: {
+      textOnOverlay: wdsSemanticTokens[mode]['wds-color-text-utilities-text-on-overlay'],
+      textOnMeasurement: wdsSemanticTokens[mode]['wds-color-text-utilities-text-on-measurement'],
     },
     disabled: {
       default: wdsSemanticTokens[mode]['wds-color-text-disabled-default'],
@@ -140,6 +221,8 @@ export const Colors = {
   light: makePalette('light'),
   dark: makePalette('dark'),
 };
+
+export type ColorPalette = typeof Colors.light;
 
 // The Figma tokens don't export line heights, so we define them here.
 const FONT_LINE_HEIGHTS: Record<string, number> = {
@@ -161,6 +244,7 @@ const expoFontMap: Record<string, string> = {
   '"inter", sans-serif|400': 'Inter_400Regular',
   '"inter", sans-serif|600': 'Inter_600SemiBold',
   '"jetbrains mono", monospace|400': 'JetBrainsMono_400Regular',
+  '"jetbrains mono", monospace|700': 'JetBrainsMono_700Bold',
 };
 
 // Function to get the Expo font name based on family and weight
@@ -215,10 +299,15 @@ const createTypography = (mode: 'light' | 'dark', baseRemPx: number) => ({
   bodySmall: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   bodySmallEmphasis: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-emphasis'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   bodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodyTiny: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-tiny'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodyTinyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-tiny-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   link: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-link'], 'body', baseRemPx), color: Colors[mode].text.brand.default },
   code: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-code'], 'code', baseRemPx), color: Colors[mode].text.default.default },
   singleLineBody: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-base'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
+  singleLineBodySmall: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-small'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
   singleLineBodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-small-strong'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
+  singleLineBodyTiny: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-tiny'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
+  singleLineBodyTinyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-single-line-body-tiny-strong'], 'singleLineBody', baseRemPx), color: Colors[mode].text.default.default },
 });
 
 export const getTypographyForMode = (mode: 'light' | 'dark', baseRemPx = Responsive.rootFontSize || 16) =>

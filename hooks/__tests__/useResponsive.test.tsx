@@ -50,7 +50,7 @@ describe('useResponsive', () => {
     } as any;
 
     const { getByTestId, unmount } = render(<TestComponent />);
-    expect(getByTestId('breakpoint').props.children).toBe('mobile');
+    expect(getByTestId('breakpoint').props.children).toBe('phone');
 
     await act(async () => {
       changeHandlers.forEach((handler) => handler({ window: { width: 1400 } }));
@@ -88,7 +88,7 @@ describe('useResponsive', () => {
     };
 
     const { getByTestId, unmount } = render(<TestComponentWithSpy />);
-    expect(getByTestId('breakpoint-spy').props.children).toBe('mobile');
+    expect(getByTestId('breakpoint-spy').props.children).toBe('phone');
     expect(renderSpy).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -96,7 +96,7 @@ describe('useResponsive', () => {
     });
 
     expect(renderSpy).toHaveBeenCalledTimes(1);
-    expect(getByTestId('breakpoint-spy').props.children).toBe('mobile');
+    expect(getByTestId('breakpoint-spy').props.children).toBe('phone');
 
     unmount();
   });
@@ -130,7 +130,7 @@ describe('useResponsive', () => {
       window.dispatchEvent(new Event('resize'));
     });
 
-    expect(getByTestId('breakpoint').props.children).toBe('mobile');
+    expect(getByTestId('breakpoint').props.children).toBe('phone');
     expect(addResizeSpy).toHaveBeenCalledWith('resize', expect.any(Function));
 
     unmount();
@@ -148,7 +148,7 @@ describe('useResponsive', () => {
     (Dimensions as any).removeEventListener = legacyRemove;
 
     const { getByTestId, unmount } = render(<TestComponent />);
-    expect(getByTestId('breakpoint').props.children).toBe('mobile');
+    expect(getByTestId('breakpoint').props.children).toBe('phone');
 
     unmount();
     expect(legacyRemove).toHaveBeenCalledWith('change', expect.any(Function));
@@ -162,7 +162,7 @@ describe('useResponsive', () => {
     (Dimensions as any).removeEventListener = undefined;
 
     const { getByTestId, unmount } = render(<TestComponent />);
-    expect(getByTestId('breakpoint').props.children).toBe('mobile');
+    expect(getByTestId('breakpoint').props.children).toBe('phone');
 
     expect(() => unmount()).not.toThrow();
   });

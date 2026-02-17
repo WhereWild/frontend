@@ -1,5 +1,5 @@
 import { Colors, Responsive, Shadows, Size, SizeTokens, Typography, __themeTestHooks } from '@/constants/theme';
-import { wdsSemanticTokens, wdsSizeTokens } from '@/constants/wdsTokens';
+import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens } from '@/constants/wdsTokens';
 
 describe('Theme Tokens', () => {
   describe('Colors', () => {
@@ -133,7 +133,7 @@ describe('Theme Tokens', () => {
       expect(bodyStyle).toHaveProperty('fontFamily');
       expect(bodyStyle).toHaveProperty('fontSize');
       expect(bodyStyle).toHaveProperty('fontWeight');
-      
+
       // Should not have web-only properties
       expect(bodyStyle).not.toHaveProperty('font');
     });
@@ -157,6 +157,37 @@ describe('Theme Tokens', () => {
       expect(style.fontFamily).toBe('System');
       expect(style.lineHeight).toBeCloseTo(19.2); // 16px * 1.2 default ratio
       expect(getExpoFontName('"unknown", serif', '500')).toBe('System');
+    });
+
+    it('exports a Typography entry for every synced wds-font token', () => {
+      // Skip utility font tokens (e.g. component notes) since they are not exposed via the Typography API.
+      const fontTokenKeys = Object.keys(wdsStyleTokens).filter(
+        (tokenKey) => tokenKey.startsWith('wds-font-') && !tokenKey.startsWith('wds-font-utilities-'),
+      );
+
+      const toTokenName = (typographyKey: string) => {
+        if (typographyKey === 'body') return 'wds-font-body-base';
+        if (typographyKey === 'singleLineBody') return 'wds-font-single-line-body-base';
+        if (typographyKey === 'link') return 'wds-font-body-link';
+        if (typographyKey === 'code') return 'wds-font-body-code';
+
+        const kebab = typographyKey
+          .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+          .toLowerCase();
+        return `wds-font-${kebab}`;
+      };
+
+      const typographyLightKeys = Object.keys(Typography.light);
+      const typographyDarkKeys = Object.keys(Typography.dark);
+      expect(typographyLightKeys.sort()).toEqual(typographyDarkKeys.sort());
+
+      const derivedTokenKeys = typographyLightKeys.map(toTokenName);
+
+      const missingInTokens = derivedTokenKeys.filter((tokenKey) => !fontTokenKeys.includes(tokenKey));
+      const missingInTypography = fontTokenKeys.filter((tokenKey) => !derivedTokenKeys.includes(tokenKey));
+
+      expect(missingInTokens).toEqual([]);
+      expect(missingInTypography).toEqual([]);
     });
   });
 
@@ -278,10 +309,10 @@ describe('Theme Tokens', () => {
       // This test validates that token values are compatible with React Native
       // Color tokens should be hex strings
       expect(Colors.light.background.brand.default).toMatch(/^#[0-9a-f]{6}$/i);
-      
+
       // Size tokens should be numbers
       expect(typeof Size.space['400']).toBe('number');
-      
+
       // Typography should have valid font properties
       expect(typeof Typography.light.body.fontFamily).toBe('string');
       expect(typeof Typography.light.body.fontSize).toBe('number');

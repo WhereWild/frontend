@@ -73,7 +73,7 @@ function Example() {
 
 > ℹ️ **Minimize component style overrides.** Prefer composing layout with surrounding `View`s instead of passing custom `style` to shared components. If you do need overrides, stick to container layout tweaks (e.g., width, margin) and avoid touching colors/typography. This keeps the design-system tokens authoritative and prevents subtle visual drift between screens.
 
-> ℹ️ **Do not override `ThemedText` colors.** Pick the closest `variant` (or add a new one if missing) rather than passing a custom color style so the palette stays source-of-truth.
+> ℹ️ **`ThemedText` color override exception for UI text.** Prefer variant-default colors, but you may override `ThemedText` color for body and single-line body variants when a UI component needs a non-default text color (e.g., secondary text, error text, muted states). Use `Colors[mode]` tokens only—never hardcoded color values.
 
 ⚠️ **Never import from `wdsTokens.ts`** - it contains raw auto-generated tokens not structured for component use:
 

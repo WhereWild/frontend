@@ -17,10 +17,15 @@ const createTypographyStyles = (tokens: typeof Typography.light) =>
     bodySmall: tokens.bodySmall,
     bodySmallEmphasis: tokens.bodySmallEmphasis,
     bodySmallStrong: tokens.bodySmallStrong,
+    bodyTiny: tokens.bodyTiny,
+    bodyTinyStrong: tokens.bodyTinyStrong,
     link: tokens.link,
     code: tokens.code,
     singleLineBody: tokens.singleLineBody,
+    singleLineBodySmall: tokens.singleLineBodySmall,
     singleLineBodySmallStrong: tokens.singleLineBodySmallStrong,
+    singleLineBodyTiny: tokens.singleLineBodyTiny,
+    singleLineBodyTinyStrong: tokens.singleLineBodyTinyStrong,
   });
 
 export const useTypographyStyles = () => {

@@ -1,4 +1,5 @@
 import { IconDownload } from '@/assets/icons';
+import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -33,8 +34,11 @@ export function SpeciesPageTitle({
         styles.container,
         {
           backgroundColor: palette.background.default.default,
-          paddingHorizontal: responsive.marginHorizontal,
         },
+        getResponsiveContentContainerStyle(responsive, {
+          includeWidth: false,
+          includeTopPadding: false,
+        }),
         style,
       ]}
     >
