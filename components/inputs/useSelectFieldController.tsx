@@ -95,6 +95,9 @@ const BLUR_DELAY_MS = 150;
 /** Grace period after open to ignore blur from autoFocus race. */
 const JUST_OPENED_MS = 100;
 
+const normalizeSearchText = (text: string): string =>
+  stripDiacritics(text).trim().toLowerCase();
+
 export const useSelectFieldController = ({
   label,
   description,
@@ -153,10 +156,9 @@ export const useSelectFieldController = ({
     if (!query.trim()) {
       return options;
     }
-    const qNorm = stripDiacritics(query);
+    const qNorm = normalizeSearchText(query);
     return options.filter((option) => {
-      // prefer precomputed labelNorm if available (for perf)
-      const labelNorm = (option as any).labelNorm ?? stripDiacritics(option.label);
+      const labelNorm = normalizeSearchText(option.label);
       return labelNorm.includes(qNorm);
     });
   }, [options, query]);

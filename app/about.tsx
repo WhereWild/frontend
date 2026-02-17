@@ -10,7 +10,6 @@ import {
   Button,
   ButtonDanger,
   IconButton,
-  InlineExpandableRows,
   NavigationPillList,
   NearbySpeciesCarousel,
   PageHeader,
@@ -524,7 +523,6 @@ export default function About() {
                 scientificName={speciesSample.scientificName}
                 onPressDownload={noop}
               />
-              <InlineExpandableRows sections={speciesSample.dataSections} />
               <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
             </View>
           </View>

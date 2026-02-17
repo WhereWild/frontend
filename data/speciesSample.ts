@@ -14,55 +14,6 @@ export const mountainBallCactusData: SpeciesPageData = {
       'Pediocactus simpsonii, known by the common names mountain cactus, snowball cactus, and mountain ball cactus, is a relatively common cactus that has adapted to survive in cold and dry environments in high elevation areas of the western United States. It can be found at higher elevations than any other cactus in North America. While not a landscape dominating plant, it is a relatively common species and the most common member of the genus Pediocactus. Because of its beauty and adaptation to cold environments it is sometimes grown by gardeners in areas that have few other choices due to the limited number of cactuses with cold adaptations. Like many cactuses its populations are sometimes threatened by this desirability due to the theft or removal of plants from the wild by collectors.',
     imageSource: FEATURED_IMAGE,
   },
-  dataSections: [
-    {
-      title: 'Overview',
-      entries: [
-        { dataName: 'Average elevation', dataPoint: '2000 m', expandable: false },
-        {
-          dataName: 'Average precipitation',
-          dataPoint: '39.4 cm',
-          details: [
-            { label: 'Median rainfall (spring)', value: '32 cm' },
-            { label: 'Median rainfall (summer)', value: '24 cm' },
-            { label: 'Median rainfall (autumn)', value: '41 cm' },
-            { label: 'Median rainfall (winter)', value: '61 cm' },
-          ],
-        },
-      ],
-    },
-    {
-      title: 'Habitat',
-      entries: [
-        { dataName: 'Common climate', dataPoint: 'desert', expandable: false },
-        {
-          dataName: 'Common soil',
-          dataPoint: 'loose',
-          details: [
-            { label: 'Soil moisture', value: 'Low' },
-            { label: 'Drainage', value: 'Fast' },
-            { label: 'pH tolerance', value: 'Neutral to alkaline' },
-            { label: 'Organic matter', value: 'Sparse' },
-          ],
-        },
-      ],
-    },
-    {
-      title: 'Phenology',
-      entries: [
-        {
-          dataName: 'Flowering season',
-          dataPoint: 'May to June',
-          details: [
-            { label: 'Flowering peak', value: 'Late May' },
-            { label: 'Seed set', value: 'Early June' },
-            { label: 'Dormancy', value: 'Late summer' },
-          ],
-        },
-        { dataName: 'Fruiting season', dataPoint: 'varies', expandable: false },
-      ],
-    },
-  ],
   nearbySpecies: [
     {
       taxonId: 200101,
