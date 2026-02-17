@@ -12,6 +12,7 @@ import { mountainBallCactusData } from '@/data/speciesSample';
 import type { LocationSearchResult, SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
@@ -371,7 +372,13 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
       >
         <PageHeader />
 
-        <ScrollView contentContainerStyle={styles.content} bounces={false}>
+        <ScrollView
+          contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
+            includeHorizontalPadding: false,
+            includeGap: true,
+          })}
+          bounces={false}
+        >
           <SpeciesPageTitle
             commonName={commonName}
             scientificName={scientificName}
@@ -379,7 +386,15 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           />
 
           <View style={styles.centeredSection}>
-            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
+            <View
+              style={[
+                styles.sectionContent,
+                getResponsiveContentContainerStyle(responsive, {
+                  includeTopPadding: false,
+                }),
+                { maxWidth: responsive.contentWidth },
+              ]}
+            >
               <View style={styles.overviewSection}>
                 <View style={styles.overviewText}>
                   <ThemedText variant="heading">Overview</ThemedText>
@@ -398,7 +413,15 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           </View>
 
           <View style={styles.centeredSection}>
-            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
+            <View
+              style={[
+                styles.sectionContent,
+                getResponsiveContentContainerStyle(responsive, {
+                  includeTopPadding: false,
+                }),
+                { maxWidth: responsive.contentWidth },
+              ]}
+            >
               <InlineExpandableRows sections={dataSections} />
             </View>
           </View>
@@ -406,7 +429,15 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
 
           {shouldRenderOccurrenceMap && (
             <View style={styles.centeredSection}>
-              <View style={[styles.sectionContent,{ maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
+              <View
+                style={[
+                  styles.sectionContent,
+                  getResponsiveContentContainerStyle(responsive, {
+                    includeTopPadding: false,
+                  }),
+                  { maxWidth: responsive.contentWidth },
+                ]}
+              >
                 <ThemedText variant="heading">Observation Map</ThemedText>
                                  <View style={styles.filterContainer}>
                   <ThemedText variant="body" style={styles.filterHeader}>Filter</ThemedText>
@@ -458,7 +489,15 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
           )}
 
           <View style={styles.heatMapSection}>
-            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth, paddingHorizontal: responsive.marginHorizontal }]}>
+            <View
+              style={[
+                styles.sectionContent,
+                getResponsiveContentContainerStyle(responsive, {
+                  includeTopPadding: false,
+                }),
+                { maxWidth: responsive.contentWidth },
+              ]}
+            >
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>
             <Image
@@ -477,11 +516,6 @@ export default function SpeciesPage({ data = mountainBallCactusData }: SpeciesSa
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-  },
-  content: {
-    width: '100%',
-    paddingTop: Size.space['800'],
-    gap: Size.space['800'],
   },
   centeredSection: {
     width: '100%',

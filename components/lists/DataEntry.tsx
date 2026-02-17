@@ -1,5 +1,5 @@
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Size, type ColorPalette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import {
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
 });
 
 function resolveLabelRowBackground(
-  palette: typeof Colors.light,
+  palette: ColorPalette,
   state: { hovered: boolean; pressed: boolean },
 ) {
   if (state.pressed) {

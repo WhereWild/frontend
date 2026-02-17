@@ -38,7 +38,7 @@ const TARGET_TS_PATH = path.resolve(
 if (!fs.existsSync(DESIGN_SYSTEM_THEME)) {
   console.error(
     `Unable to find theme.css at ${DESIGN_SYSTEM_THEME}. ` +
-      'Set DESIGN_SYSTEM_PATH to the wherewild-design-system repo root if it is not checked out next to the front end.',
+    'Set DESIGN_SYSTEM_PATH to the wherewild-design-system repo root if it is not checked out next to the front end.',
   );
   process.exit(1);
 }
@@ -59,8 +59,8 @@ const contexts = {
   typography: {},
   styles: {},
   responsiveDesktop: {},
-  responsiveMobile: {},
   responsiveTablet: {},
+  responsivePhone: {},
 };
 
 // Any unexpected sections land here so we can still consume their tokens.
@@ -188,7 +188,7 @@ function determinePendingContext(commentLower) {
     additionalContexts[fallbackKey] = {};
     console.warn(
       `Captured additional token section "${normalized}" into bucket "${fallbackKey}". ` +
-        'Consider adding explicit handling if these tokens need special processing.',
+      'Consider adding explicit handling if these tokens need special processing.',
     );
   }
   return setContext(fallbackKey, 'additional');
@@ -294,12 +294,32 @@ const responsiveDependencyContext = {
   ...contexts.styles,
 };
 
-// Only include responsive variants that actually contain tokens.
-const responsiveContextEntries = [
-  ['desktop', contexts.responsiveDesktop],
-  ['mobile', contexts.responsiveMobile],
-  ['tablet', contexts.responsiveTablet],
-].filter(([, ctx]) => Object.keys(ctx).length > 0);
+// Include every responsive variant discovered from comment headers (e.g. desktop/tablet/phone).
+const getResponsiveVariantTier = (variant) => {
+  const normalized = variant.toLowerCase();
+  if (normalized === 'desktop') return 0;
+  if (normalized === 'tablet') return 1;
+  if (normalized === 'phone') return 2;
+  return 3;
+};
+
+const responsiveContextEntries = Object.entries(contexts)
+  .filter(([key, ctx]) => key.startsWith('responsive') && Object.keys(ctx).length > 0)
+  .map(([key, ctx]) => {
+    const rawVariant = key.replace(/^responsive/, '');
+    const variant = rawVariant
+      ? rawVariant.charAt(0).toLowerCase() + rawVariant.slice(1)
+      : 'desktop';
+    return [variant, ctx];
+  })
+  .sort(([a], [b]) => {
+    const aTier = getResponsiveVariantTier(a);
+    const bTier = getResponsiveVariantTier(b);
+    if (aTier !== bTier) {
+      return aTier - bTier;
+    }
+    return a.localeCompare(b);
+  });
 
 const resolvedResponsiveTokens = Object.fromEntries(
   responsiveContextEntries.map(([variant, ctx]) => [
@@ -392,25 +412,25 @@ const tokensTs =
   )} as const;\n\n` +
   (responsiveContextEntries.length
     ? `export const wdsResponsiveTokens = ${JSON.stringify(
-        Object.fromEntries(
-          Object.entries(resolvedResponsiveTokens).sort(([a], [b]) =>
-            a.localeCompare(b),
-          ),
+      Object.fromEntries(
+        Object.entries(resolvedResponsiveTokens).sort(([a], [b]) =>
+          a.localeCompare(b),
         ),
-        null,
-        2,
-      )} as const;\n\n`
+      ),
+      null,
+      2,
+    )} as const;\n\n`
     : '') +
   (Object.keys(resolvedAdditionalTokenTables).length
     ? `export const wdsAdditionalTokenTables = ${JSON.stringify(
-        Object.fromEntries(
-          Object.entries(resolvedAdditionalTokenTables).sort(([a], [b]) =>
-            a.localeCompare(b),
-          ),
+      Object.fromEntries(
+        Object.entries(resolvedAdditionalTokenTables).sort(([a], [b]) =>
+          a.localeCompare(b),
         ),
-        null,
-        2,
-      )} as const;\n\n`
+      ),
+      null,
+      2,
+    )} as const;\n\n`
     : '') +
   // Helpful types for consumers
   `export type WdsPrimitiveTokenName = keyof typeof wdsPrimitiveTokens;\n` +
@@ -422,11 +442,11 @@ const tokensTs =
   `export type WdsStyleTokenName = keyof typeof wdsStyleTokens;\n` +
   (responsiveContextEntries.length
     ? `export type WdsResponsiveVariant = keyof typeof wdsResponsiveTokens;\n` +
-      `export type WdsResponsiveTokenName = keyof (typeof wdsResponsiveTokens)[WdsResponsiveVariant];\n`
+    `export type WdsResponsiveTokenName = keyof (typeof wdsResponsiveTokens)[WdsResponsiveVariant];\n`
     : '') +
   (Object.keys(resolvedAdditionalTokenTables).length
     ? `export type WdsAdditionalTokenBucket = keyof typeof wdsAdditionalTokenTables;\n` +
-      `export type WdsAdditionalTokenName = keyof (typeof wdsAdditionalTokenTables)[WdsAdditionalTokenBucket];\n`
+    `export type WdsAdditionalTokenName = keyof (typeof wdsAdditionalTokenTables)[WdsAdditionalTokenBucket];\n`
     : '');
 
 fs.writeFileSync(TARGET_TS_PATH, tokensTs, 'utf8');
@@ -438,8 +458,7 @@ const summaryParts = [
     resolvedDark,
   ).length} dark`,
   `sizes: ${Object.keys(resolvedSizeTokens).length}`,
-  `typography primitives: ${
-    Object.keys(resolvedTypographyPrimitives).length
+  `typography primitives: ${Object.keys(resolvedTypographyPrimitives).length
   }`,
   `typography: ${Object.keys(resolvedTypography).length}`,
   `styles: ${Object.keys(resolvedStyleTokens).length}`,

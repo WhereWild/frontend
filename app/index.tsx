@@ -4,6 +4,7 @@ import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { getResponsiveContentContainerStyle, getResponsiveGapStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -29,10 +30,10 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
         <PageHeader/>
 
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingHorizontal: responsive.marginHorizontal }]}
+          contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}
         >
-          <View style={styles.layout}>
+          <View style={[styles.layout, getResponsiveGapStyle(responsive)]}> 
             <View style={styles.mapSection}>
               <ThemedText variant="heading">Local Map</ThemedText>
 
@@ -70,13 +71,8 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  content: {
-    paddingTop: Size.space['800'],
-    width: '100%',
-  },
   layout: {
     flexDirection: 'row',
-    gap: Size.space['800'],
     alignItems: 'flex-start',
     flexWrap: 'wrap',
     width: '100%',
