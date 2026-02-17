@@ -16,12 +16,14 @@ describe('SearchResults', () => {
     {
       taxonId: 1,
       commonName: 'Species One',
+      commonNames: ['Species One'],
       scientificName: 'Genus one',
       description: 'Description one',
     },
     {
       taxonId: 2,
       commonName: 'Species Two',
+      commonNames: ['Species Two'],
       scientificName: 'Genus two',
       description: 'Description two',
     },

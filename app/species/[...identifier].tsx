@@ -1,4 +1,5 @@
 import { fetchSpeciesByTaxonId } from '@/data/api';
+import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesPageData } from '@/data/types';
 import { useLocalSearchParams } from 'expo-router';
@@ -10,10 +11,11 @@ const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
 type SpeciesBasics = {
-  taxon_id?: number;
+  taxon_id?: number | null;
   common_name?: string;
+  common_names?: (string | null)[];
   scientific_name?: string;
-  image_source?: ImageSourcePropType | string;
+  image_source?: ImageSourcePropType | string | null;
   image_url?: string;
   description?: string;
 };
@@ -44,13 +46,18 @@ const buildSpeciesPageData = (
   requestedTaxonId?: number,
 ): SpeciesPageData => {
   const fallback = mountainBallCactusData;
+  const normalizedCommonName =
+    typeof payload.common_name === 'string' ? payload.common_name.trim() : '';
+  const commonNames = buildCommonNamesWithPrimary(normalizedCommonName, payload.common_names);
+  const resolvedCommonName = commonNames[0] ?? fallback.commonName;
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
   return {
     ...fallback,
     taxonId: resolvedTaxonId,
-    commonName: payload.common_name ?? fallback.commonName,
+    commonName: resolvedCommonName,
+    commonNames,
     scientificName: payload.scientific_name ?? fallback.scientificName,
     overview: {
       ...fallback.overview,
