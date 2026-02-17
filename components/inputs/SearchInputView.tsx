@@ -44,8 +44,8 @@ const styles = StyleSheet.create({
     borderRadius: Size.radius.full,
     borderWidth: 0,
     paddingHorizontal: Size.space['100'],
-    paddingVertical: Size.space['100'], 
-    gap: Size.space['300'],
+    paddingVertical: Size.space['100'],
+    gap: Size.space['100'],
     // Default outline stays off until the controller toggles it back on for native focus rings.
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
