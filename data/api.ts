@@ -226,3 +226,55 @@ export async function fetchSpeciesOccurrences(
       longitude: entry.longitude,
     }));
 }
+
+export async function fetchSpeciesLocations(
+  taxonId: string | number,
+  level?: 'continent' | 'country' | 'state' | 'county' | number,
+  parent?: string,
+  limit = 500,
+): Promise<LocationSearchResult[]> {
+  const encodedId = encodeURIComponent(String(taxonId));
+  const LEVEL_NAME_TO_NUM: Record<string, number> = {
+    continent: -1,
+    country: 0,
+    state: 1,
+    county: 2,
+  };
+
+  const params = new URLSearchParams();
+  if (typeof level === 'string') {
+    const maybe = LEVEL_NAME_TO_NUM[level.toLowerCase()];
+    if (typeof maybe === 'number') {
+      params.set('level', String(maybe));
+    }
+  } else if (typeof level === 'number') {
+    params.set('level', String(level));
+  }
+  if (parent) {
+    params.set('parent', parent);
+  }
+  if (limit) {
+    params.set('limit', String(limit));
+  }
+
+  const query = params.toString();
+  const url = `${BACKEND_BASE}/species/${encodedId}/locations${query ? `?${query}` : ''}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch species locations for ${taxonId}: ${res.status} ${txt}`);
+  }
+
+  const payload = await res.json();
+  const rows = Array.isArray(payload) ? payload : [];
+  return rows
+    .map((entry: any) => ({
+      gid: String(entry?.gid ?? ''),
+      name: entry?.name ?? '',
+      level: typeof entry?.level === 'number' ? entry.level : Number(entry?.level ?? -1),
+      hierarchy: Array.isArray(entry?.hierarchy)
+        ? entry.hierarchy.map((item: any) => String(item ?? '')).filter(Boolean)
+        : [],
+    }))
+    .filter((entry: any) => entry.gid.length > 0 && entry.name.length > 0);
+}

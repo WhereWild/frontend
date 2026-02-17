@@ -1,9 +1,7 @@
 import React from 'react';
-import { fetchLocationsByHierarchy, fetchSpeciesOccurrences } from '@/data/api';
+import { fetchSpeciesLocations } from '@/data/api';
 import type { LocationSearchResult } from '@/data/types';
 import {
-  compareLocationsByName,
-  getValidLocationGid,
   type LocationOption,
   mapLocationsToOptions,
 } from './locationHelpers';
@@ -37,13 +35,7 @@ export const useSpeciesLocationFilters = ({
   locationSearchLimit,
   occurrenceCheckConcurrency,
 }: UseSpeciesLocationFiltersParams): UseSpeciesLocationFiltersResult => {
-  const safeOccurrenceCheckConcurrency = React.useMemo(() => {
-    if (!Number.isFinite(occurrenceCheckConcurrency)) {
-      return 1;
-    }
-
-    return Math.max(1, Math.trunc(occurrenceCheckConcurrency));
-  }, [occurrenceCheckConcurrency]);
+  void occurrenceCheckConcurrency;
 
   const [countryOptions, setCountryOptions] = React.useState<LocationOption[]>([]);
   const [stateOptions, setStateOptions] = React.useState<LocationOption[]>([]);
@@ -90,104 +82,33 @@ export const useSpeciesLocationFilters = ({
     async (level: LocationLevel, parentGidOrName: string | null): Promise<LocationSearchResult[]> => {
       if (taxonId == null) return [];
 
-      let parentToken: string | null = null;
-      let parentCacheIdentity = 'root';
-      if (parentGidOrName != null) {
-        const parentInput = String(parentGidOrName).trim();
-        if (parentInput) {
-          const parentLookupMap =
-            level === 'county'
-              ? stateMapRef.current
-              : countryMapRef.current;
-
-          // API contract: fetchLocationsByHierarchy `parent` accepts either gid or name.
-          // Resolve gid first (fast exact key hit), then fallback to name match so mixed
-          // callers still normalize to one parent identity/cache path.
-          const byGid = parentLookupMap[parentInput];
-          const byName = byGid ? null : findByNameInMap(parentInput, parentLookupMap);
-          const resolvedParent = byGid ?? byName;
-
-          if (resolvedParent) {
-            parentToken = resolvedParent.name;
-            parentCacheIdentity = `gid:${resolvedParent.gid}`;
-          } else {
-            parentToken = parentInput;
-            parentCacheIdentity = `name:${parentInput.toLowerCase()}`;
-          }
-        }
-      }
-
-      // Cache keys use parent identity (prefer gid, fallback normalized name) and
-      // include locationSearchLimit so:
-      // - gid vs name inputs for the same parent share one cache entry,
-      // - same-name but different-gid parents do not collide, and
-      // - requests with different limits do not reuse stale cached result sizes.
-      const cacheKey = `${taxonId}::${level}::${parentCacheIdentity}::limit:${locationSearchLimit}`;
+      const parentToken = parentGidOrName ? String(parentGidOrName).trim() : '';
+      const cacheParent = parentToken || 'root';
+      const cacheKey = `${taxonId}::${level}::${cacheParent}::limit:${locationSearchLimit}`;
       if (speciesLocationCacheRef.current[cacheKey]) {
         return speciesLocationCacheRef.current[cacheKey];
       }
 
-      const q = '';
-      let candidates: LocationSearchResult[] = [];
-      let hierarchyFetchSucceeded = false;
+      let locations: LocationSearchResult[] = [];
+      let fetchSucceeded = false;
       try {
-        candidates = await fetchLocationsByHierarchy(
-          q,
+        locations = await fetchSpeciesLocations(
+          taxonId,
           level,
-          parentToken ?? undefined,
+          parentToken || undefined,
           locationSearchLimit,
         );
-        hierarchyFetchSucceeded = true;
+        fetchSucceeded = true;
       } catch {
-        candidates = [];
+        locations = [];
       }
 
-      if (parentToken) {
-        const lowerParent = parentToken.toLowerCase();
-        candidates = candidates.filter((candidate) =>
-          (candidate.hierarchy || []).some((value) => String(value ?? '').toLowerCase() === lowerParent),
-        );
+      if (fetchSucceeded) {
+        speciesLocationCacheRef.current[cacheKey] = locations;
       }
-
-      const positives: LocationSearchResult[] = [];
-      const queue = candidates.slice();
-      const worker = async () => {
-        while (queue.length) {
-          const candidate = queue.pop()!;
-          const candidateGid = getValidLocationGid(candidate);
-          if (!candidateGid) {
-            continue;
-          }
-          try {
-            /*
-            This does an N+1 pattern: fetchSpeciesOccurrences is called once per candidate location
-            (potentially hundreds) every time a level is loaded. Even with concurrency=8, this can
-            be slow, battery/network intensive, and may trigger API throttling.
-
-            Fix: A backend endpoint that returns only valid child locations for a taxon would
-            substantially reduce latency and request volume.
-
-            TODO issue: https://capstone.cs.utah.edu/wherewild/wherewild/-/issues/57
-            */
-            const occs = await fetchSpeciesOccurrences(taxonId, { location: candidateGid });
-            if (occs && occs.length > 0) {
-              positives.push(candidate);
-            }
-          } catch {
-            // ignore network errors for candidate
-          }
-        }
-      };
-
-      await Promise.all(Array.from({ length: safeOccurrenceCheckConcurrency }, () => worker()));
-
-      positives.sort(compareLocationsByName);
-      if (hierarchyFetchSucceeded) {
-        speciesLocationCacheRef.current[cacheKey] = positives;
-      }
-      return positives;
+      return locations;
     },
-    [findByNameInMap, locationSearchLimit, safeOccurrenceCheckConcurrency, taxonId],
+    [locationSearchLimit, taxonId],
   );
 
   const runGuardedLoad = React.useCallback(
