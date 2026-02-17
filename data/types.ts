@@ -68,15 +68,6 @@ export type EnvironmentalDataEntry = {
 };
 
 /**
- * Environmental data sections relevant to this species.
- * Each section contains a title and a list of environmental data entries.
- */
-export type EnvironmentalDataSection = {
-  title: string;
-  entries: EnvironmentalDataEntry[];
-};
-
-/**
  * Hero copy shown at the top of the species page.
  */
 export type SpeciesOverview = {
@@ -106,7 +97,6 @@ export type LocationSearchResult = {
  */
 export type SpeciesPageData = SpeciesSummary & {
   overview: SpeciesOverview;
-  dataSections: EnvironmentalDataSection[];
   nearbySpecies: SpeciesSummary[];
   heatmap: HeatmapSnapshot;
 };

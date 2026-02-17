@@ -309,7 +309,7 @@ export const SelectFieldView = ({
 const styles = StyleSheet.create({
   container: {
     gap: Size.space['100'],
-    minWidth: Size.space['8000'],
+    minWidth: 240,
     maxWidth: '100%',
   },
   fieldWrapper: {
