@@ -15,12 +15,14 @@ const SAMPLE_SPECIES = [
   {
     taxonId: 185699,
     commonName: 'Utah Juniper',
+    commonNames: ['Utah Juniper'],
     scientificName: 'Juniperus osteosperma',
     description: 'Evergreen shrub or small tree adapted to high desert plateaus.',
   },
   {
     taxonId: 185700,
     commonName: 'Sagebrush',
+    commonNames: ['Sagebrush'],
     scientificName: 'Artemisia tridentata',
     description: 'Shrub with aromatic foliage often co-occurring with alpine cacti.',
   },

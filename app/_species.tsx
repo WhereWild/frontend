@@ -7,6 +7,7 @@ import {
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
 import { fetchSpeciesOccurrences } from '@/data/api';
+import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesOccurrence, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -24,7 +25,7 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'overview' | 'nearbySpecies' | 'heatmap'
+  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -32,7 +33,7 @@ const LOCATION_OCCURRENCE_CHECK_CONCURRENCY = 8;
 
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, scientificName, overview, nearbySpecies, heatmap } =
+  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -118,6 +119,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
 
+  const displayCommonNames = React.useMemo(() => {
+    return buildCommonNamesWithPrimary(commonName, commonNames);
+  }, [commonName, commonNames]);
+
   return (
     <>
       <Head>
@@ -163,6 +168,28 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 <View style={[styles.overviewText, { maxWidth: responsive.textWidth }]}>
                   <ThemedText variant="heading">Overview</ThemedText>
                   <ThemedText variant="body">{overview.description}</ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.commonNamesSection}>
+                <ThemedText variant="heading">Common Names</ThemedText>
+                <View>
+                  {displayCommonNames.map((name) => (
+                    <View key={name} style={styles.commonNameRow}>
+                      <ThemedText
+                        variant="body"
+                        style={styles.commonNameBullet}
+                        accessible={false}
+                        importantForAccessibility="no"
+                        accessibilityElementsHidden
+                      >
+                        •
+                      </ThemedText>
+                      <ThemedText variant="body">
+                        {name}
+                      </ThemedText>
+                    </View>
+                  ))}
                 </View>
               </View>
             </View>
@@ -289,6 +316,17 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: Size.radius['400'],
+  },
+  commonNamesSection: {
+    gap: Size.space['200'],
+  },
+  commonNameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Size.space['100'],
+  },
+  commonNameBullet: {
+    minWidth: Size.space['200'],
   },
   heatMapSection: {
     gap: Size.space['400'],

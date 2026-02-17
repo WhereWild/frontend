@@ -63,6 +63,7 @@ const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
   return {
     taxonId: rawId,
     commonName,
+    commonNames: [commonName],
     scientificName: normalizeName(scientificName) ?? "",
     description,
     imageSource,

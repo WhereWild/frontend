@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier]';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
@@ -18,7 +18,14 @@ jest.mock('expo-router', () => {
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
+  fetchSpeciesOccurrences: jest.fn(),
+  fetchLocationsByHierarchy: jest.fn(),
 }));
+
+const mockedApiModule = jest.requireMock('@/data/api') as {
+  fetchSpeciesOccurrences: jest.Mock;
+  fetchLocationsByHierarchy: jest.Mock;
+};
 
 jest.mock('../../_species', () => {
   const React = jest.requireActual('react');
@@ -65,6 +72,8 @@ describe('SpeciesBasicsPage', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
+    mockedApiModule.fetchSpeciesOccurrences.mockResolvedValue([]);
+    mockedApiModule.fetchLocationsByHierarchy.mockResolvedValue([]);
   });
 
   it('renders fallback data when no identifier parameter is supplied', async () => {
@@ -88,6 +97,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockResolvedValue({
       common_name: 'Snowy Owl',
+      common_names: ['Snowy Owl', 'Arctic Owl'],
       scientific_name: 'Bubo scandiacus',
       description: 'Large white owl adapted to Arctic climates.',
       image_url: 'https://example.com/owl.png',
@@ -99,8 +109,13 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
-    await screen.findByText('Snowy Owl');
+    await waitFor(() => {
+      expect(screen.getAllByText('Snowy Owl').length).toBeGreaterThan(0);
+    });
     await screen.findByText('Large white owl adapted to Arctic climates.');
+
+    const props = getLatestRenderProps();
+    expect(props?.data?.commonNames).toEqual(['Snowy Owl', 'Arctic Owl']);
   });
 
   it('falls back to sample data when the fetch request fails', async () => {
@@ -115,7 +130,9 @@ describe('SpeciesBasicsPage', () => {
 
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
     expect(mockSpecies).toHaveBeenCalled();
-    await screen.findByText(mountainBallCactusData.commonName);
+    await waitFor(() => {
+      expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
+    });
     expect(consoleSpy).toHaveBeenCalledWith(
       `Failed to load species '${SAMPLE_TAXON_ID}':`,
       'Network down',
@@ -151,7 +168,9 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
-    await screen.findByText(mountainBallCactusData.commonName);
+    await waitFor(() => {
+      expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
+    });
   });
 
   it('prefers image_source strings returned by the API over image_url', async () => {
@@ -302,6 +321,7 @@ describe('SpeciesBasicsPage', () => {
       const payload = {
         taxon_id: 24680,
         common_name: 'Prairie Smoke',
+        common_names: ['Prairie Smoke', 'Old Man\'s Whiskers'],
         scientific_name: 'Geum triflorum',
         description: 'Feathery seed-heads add spring interest.',
         image_source: 'https://example.com/prairie-smoke.png',
@@ -310,9 +330,48 @@ describe('SpeciesBasicsPage', () => {
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
       expect(result.taxonId).toBe(24680);
       expect(result.commonName).toBe('Prairie Smoke');
+      expect(result.commonNames).toEqual(['Prairie Smoke', 'Old Man\'s Whiskers']);
       expect(result.scientificName).toBe('Geum triflorum');
       expect(result.overview.description).toBe(payload.description);
       expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
+    });
+
+    it('uses first common_names entry when common_name is missing', () => {
+      const payload = {
+        taxon_id: 24680,
+        common_names: ['Northern Wolf', 'Gray Wolf'],
+        scientific_name: 'Canis lupus',
+      } as any;
+
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      expect(result.commonName).toBe('Northern Wolf');
+      expect(result.commonNames).toEqual(['Northern Wolf', 'Gray Wolf']);
+    });
+
+    it('trims common_name before assigning resolved commonName', () => {
+      const payload = {
+        taxon_id: 24680,
+        common_name: '  Cougar  ',
+        common_names: ['Mountain Lion'],
+        scientific_name: 'Puma concolor',
+      } as any;
+
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      expect(result.commonName).toBe('Cougar');
+      expect(result.commonNames).toEqual(['Cougar', 'Mountain Lion']);
+    });
+
+    it('filters and trims dirty common_names values before fallback selection', () => {
+      const payload = {
+        taxon_id: 24680,
+        common_name: '   ',
+        common_names: [null, '  Wolf  ', '', '   ', 'Gray Wolf'],
+        scientific_name: 'Canis lupus',
+      } as any;
+
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      expect(result.commonName).toBe('Wolf');
+      expect(result.commonNames).toEqual(['Wolf', 'Gray Wolf']);
     });
 
     it('uses the requested taxon id when payload lacks taxon data', () => {
