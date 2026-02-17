@@ -29,9 +29,7 @@ import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { ThemedText } from '../text/ThemedText';
 import { NavigationPillList } from '../navigation/NavigationPillList';
 import { SelectField } from '../inputs/SelectField';
-import { ButtonDanger } from '../buttons/ButtonDanger';
 import { Tabs } from '../tabs/Tabs';
-import { IconTrash } from '@/assets/icons/IconTrash';
 
 const DEFAULT_VARIABLE = 'bio_1';
 const CHART_PADDING = 10; // Pads the top of the density curve so the top doesn't clip
@@ -73,7 +71,7 @@ export type SpeciesEnvironmentSectionProps = {
   taxonId?: number;
   variableId?: string;
   variables?: EnvironmentVariableOption[];
-  onHighlightChange?: (catalogNumbers: Array<number | string>) => void;
+  onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
   locationGid?: string | null;
 };
 
@@ -158,58 +156,31 @@ const DensityChart = ({
   const dragOrigin = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
   const pointCount = Math.min(curve?.points?.length ?? 0, curve?.density?.length ?? 0);
-  if (!curve || pointCount === 0) {
-    return (
-      <View style={styles.emptyChart}>
-        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
-      </View>
-    );
-  }
-  const samples: Array<{ x: number; y: number }> = [];
-  for (let index = 0; index < pointCount; index += 1) {
-    const x = curve.points[index];
-    const y = curve.density[index];
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      samples.push({ x, y });
+
+  const samples: { x: number; y: number }[] = [];
+  if (curve && pointCount > 0) {
+    for (let index = 0; index < pointCount; index += 1) {
+      const x = curve.points[index];
+      const y = curve.density[index];
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        samples.push({ x, y });
+      }
     }
   }
-  if (!samples.length) {
-    return (
-      <View style={styles.emptyChart}>
-        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
-      </View>
-    );
-  }
-  const minX = Math.min(...samples.map((sample) => sample.x));
-  const maxX = Math.max(...samples.map((sample) => sample.x));
+
+  const hasCurveData = Boolean(curve) && pointCount > 0 && samples.length > 0;
+  const minX = hasCurveData ? Math.min(...samples.map((sample) => sample.x)) : 0;
+  const maxX = hasCurveData ? Math.max(...samples.map((sample) => sample.x)) : 1;
   const spanX = maxX - minX || 1;
-  const maxY = Math.max(...samples.map((sample) => sample.y));
+  const maxY = hasCurveData ? Math.max(...samples.map((sample) => sample.y)) : 1;
   const safeMaxY = maxY || 1;
-  const normalized = samples.map((sample) => ({
-    value: sample.x,
-    x: ((sample.x - minX) / spanX) * 100,
-    y: CHART_HEIGHT - (sample.y / safeMaxY) * (CHART_HEIGHT - CHART_PADDING),
-  }));
-  if (!normalized.length) {
-    return (
-      <View style={styles.emptyChart}>
-        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
-      </View>
-    );
-  }
-  const start = normalized[0];
-  const end = normalized[normalized.length - 1];
-  const linePath = normalized
-    .map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x},${y}`)
-    .join(' ');
-  const areaSegments = normalized.slice(1).map(({ x, y }) => `L${x},${y}`);
-  const areaPath = [
-    `M${start.x},${CHART_HEIGHT}`,
-    `L${start.x},${start.y}`,
-    ...areaSegments,
-    `L${end.x},${CHART_HEIGHT}`,
-    'Z',
-  ].join(' ');
+  const normalized = hasCurveData
+    ? samples.map((sample) => ({
+        value: sample.x,
+        x: ((sample.x - minX) / spanX) * 100,
+        y: CHART_HEIGHT - (sample.y / safeMaxY) * (CHART_HEIGHT - CHART_PADDING),
+      }))
+    : [];
   const clipId = React.useMemo(
     () => `densitySelection-${Math.random().toString(36).slice(2)}`,
     [],
@@ -302,6 +273,28 @@ const DensityChart = ({
     },
     [getValueForLocation, onSelectionChange],
   );
+
+  if (!hasCurveData || !normalized.length) {
+    return (
+      <View style={styles.emptyChart}>
+        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
+      </View>
+    );
+  }
+
+  const start = normalized[0];
+  const end = normalized[normalized.length - 1];
+  const linePath = normalized
+    .map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x},${y}`)
+    .join(' ');
+  const areaSegments = normalized.slice(1).map(({ x, y }) => `L${x},${y}`);
+  const areaPath = [
+    `M${start.x},${CHART_HEIGHT}`,
+    `L${start.x},${start.y}`,
+    ...areaSegments,
+    `L${end.x},${CHART_HEIGHT}`,
+    'Z',
+  ].join(' ');
 
   return (
     <View
@@ -647,24 +640,6 @@ const estimatePercentileFromHistogram = (
   return Math.min(1, Math.max(0, cumulative / total));
 };
 
-type ObservationPanelItem = number | string | { id: number | string; label?: string };
-
-const isObjectObservationItem = (
-  item: ObservationPanelItem,
-): item is { id: number | string; label?: string } =>
-  typeof item === 'object' && item !== null && 'id' in item;
-
-const normalizeObservationItem = (
-  item: ObservationPanelItem,
-): { id: number | string; label: string } => {
-  if (isObjectObservationItem(item)) {
-    const label =
-      item.label && item.label.length > 0 ? item.label : `#${String(item.id ?? '')}`.trim();
-    return { id: item.id, label };
-  }
-  return { id: item, label: `#${String(item)}` };
-};
-
 export function SpeciesEnvironmentSection({
   taxonId,
   variableId = DEFAULT_VARIABLE,
@@ -776,8 +751,8 @@ export function SpeciesEnvironmentSection({
   const [rangeObservations, setRangeObservations] = React.useState<
     SpeciesEnvironmentObservation[]
   >([]);
-  const [rangeObservationsLoading, setRangeObservationsLoading] = React.useState(false);
-  const [rangeObservationsError, setRangeObservationsError] = React.useState<string | null>(null);
+  const [, setRangeObservationsLoading] = React.useState(false);
+  const [, setRangeObservationsError] = React.useState<string | null>(null);
   const locationFilterActive = Boolean(locationGid);
 
   React.useEffect(() => {
@@ -825,10 +800,6 @@ export function SpeciesEnvironmentSection({
     };
   }, [hasStatsForSelection, selectedVariable, taxonId, locationGid]);
 
-  if (!taxonId) {
-    return null;
-  }
-
   const stats = selectedVariable ? statsByVariable[selectedVariable] ?? null : null;
   const baselineSummary = locationFilterActive ? stats?.baselineSummary ?? null : null;
   const selectedVariableMeta = React.useMemo(
@@ -858,7 +829,10 @@ export function SpeciesEnvironmentSection({
     typeof baselineSummary?.q01 === 'number' && typeof baselineSummary?.q99 === 'number'
       ? baselineSummary.q99 - baselineSummary.q01
       : null;
-  const categoricalDistribution = stats?.categoricalDistribution ?? [];
+  const categoricalDistribution = React.useMemo(
+    () => stats?.categoricalDistribution ?? [],
+    [stats?.categoricalDistribution],
+  );
   const variableType =
     stats?.variableType?.toLowerCase?.() ??
     selectedVariableMeta?.valueType?.toLowerCase?.() ??
@@ -1014,6 +988,8 @@ export function SpeciesEnvironmentSection({
   }, [
     isCategorical,
     selectedCategoryKey,
+    selectedCategorySampleState?.loaded,
+    selectedCategorySampleState?.loading,
     selectedVariable,
     taxonId,
     locationGid,
@@ -1229,6 +1205,10 @@ const resolveRankForMetric = React.useCallback(
   );
 
   const showRankContext = !locationFilterActive && rankContextOptions.length > 0;
+
+  if (!taxonId) {
+    return null;
+  }
 
   return (
     <View

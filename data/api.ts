@@ -209,7 +209,12 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<S
       typeof detailSource.image_references === 'string'
         ? detailSource.image_references
         : (typeof detailSource.imageReferences === 'string' ? detailSource.imageReferences : null),
-    taxonomy_path: item.taxonomy_path ?? item.taxonomyPath ?? null,
+    taxonomyPath:
+      typeof detailSource.taxonomy_path === 'string'
+        ? detailSource.taxonomy_path
+        : typeof detailSource.taxonomyPath === 'string'
+          ? detailSource.taxonomyPath
+          : null,
   };
 }
 

@@ -113,7 +113,7 @@ export type SpeciesEnvironmentHistogram = {
 
 export type SpeciesEnvironmentBinSample = {
   index: number;
-  observationIds: Array<number | string>;
+  observationIds: (number | string)[];
 };
 
 export type SpeciesEnvironmentDensity = {
@@ -156,6 +156,7 @@ export type SpeciesApiDetail = SpeciesApiNormalized & {
   image_creator?: string | null;
   image_rights_holder?: string | null;
   image_references?: string | null;
+  taxonomyPath?: string | null;
 };
 
 export type SpeciesEnvironmentSliceResponse = {
@@ -178,7 +179,7 @@ export type SpeciesEnvironmentCategory = {
 
 export type SpeciesEnvironmentCategorySamples = {
   value: number | string;
-  observationIds: Array<number | string>;
+  observationIds: (number | string)[];
 };
 
 export type SpeciesEnvironmentCategoricalTotals = {
