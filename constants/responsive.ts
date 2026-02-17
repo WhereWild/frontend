@@ -3,14 +3,16 @@ import { Dimensions, Platform } from 'react-native';
 import { cssLengthToPx } from './tokenHelpers';
 import { wdsResponsiveTokens } from './wdsTokens';
 
-const responsiveVariants = ['desktop', 'tablet', 'mobile'] as const;
+const responsiveVariants = ['desktop', 'tablet', 'phone'] as const;
 export type ResponsiveVariant = (typeof responsiveVariants)[number];
+export type ResponsiveRuntime = 'web' | 'app';
 
 export type ResponsiveVariantValues = {
   device: string;
   contentWidth: number;
   textWidth: number;
   marginHorizontal: number;
+  gap: number;
   rootFontSize: number;
   scale: number;
   maxDeviceWidth: number;
@@ -20,16 +22,20 @@ export type ResponsiveByDevice = Record<ResponsiveVariant, ResponsiveVariantValu
 
 export type ResponsiveResult = {
   breakpoint: ResponsiveVariant;
+  platformOS: string;
+  runtime: ResponsiveRuntime;
   device: string;
   contentWidth: number;
   textWidth: number;
   marginHorizontal: number;
+  gap: number;
   rootFontSize: number;
   scale: number;
   platformMaxDeviceWidth: number;
   contentWidthByDevice: Record<ResponsiveVariant, number>;
   textWidthByDevice: Record<ResponsiveVariant, number>;
   marginHorizontalByDevice: Record<ResponsiveVariant, number>;
+  gapByDevice: Record<ResponsiveVariant, number>;
   rootFontSizeByDevice: Record<ResponsiveVariant, number>;
   scaleByDevice: Record<ResponsiveVariant, number>;
   maxDeviceWidth: Record<ResponsiveVariant, number>;
@@ -43,30 +49,31 @@ type ResponsiveOptions = {
   windowWidth?: number;
 };
 
+type RawResponsiveTokens = Record<string, string>;
+
+const responsiveTokenMap: Record<string, RawResponsiveTokens> = wdsResponsiveTokens;
+
+const getResponsiveTokensForVariant = (variant: ResponsiveVariant): RawResponsiveTokens => {
+  const tokens = responsiveTokenMap[variant];
+  if (!tokens) {
+    throw new Error(`Missing responsive tokens for variant: ${variant}`);
+  }
+  return tokens;
+};
+
 const buildResponsiveVariant = (variant: ResponsiveVariant): ResponsiveVariantValues => {
-  const tokens = wdsResponsiveTokens[variant];
+  const tokens = getResponsiveTokensForVariant(variant);
+
   return {
     device: tokens['wds-responsive-device'],
     contentWidth: cssLengthToPx(tokens['wds-responsive-content-width']),
     textWidth: cssLengthToPx(tokens['wds-responsive-text-width']),
     marginHorizontal: cssLengthToPx(tokens['wds-responsive-margin-horizontal']),
+    gap: cssLengthToPx(tokens['wds-responsive-top-level-gap']),
     rootFontSize: cssLengthToPx(tokens['wds-responsive-root-font-size']),
     scale: cssLengthToPx(tokens['wds-responsive-scale']),
     maxDeviceWidth: cssLengthToPx(tokens['wds-responsive-max-device-width']),
   };
-};
-
-const pickPlatformVariant = (platform: PlatformWithPad): ResponsiveVariant => {
-  const isPad = platform.OS === 'ios' && platform.isPad;
-
-  return (
-    platform.select({
-      ios: isPad ? 'tablet' : 'mobile',
-      android: 'mobile',
-      web: 'desktop',
-      default: 'tablet',
-    }) ?? 'mobile'
-  );
 };
 
 const getCurrentWindowWidth = (): number | undefined => {
@@ -86,25 +93,24 @@ const getCurrentWindowWidth = (): number | undefined => {
 const pickDimensionVariant = (
   width: number | undefined,
   byDevice: ResponsiveByDevice,
-): ResponsiveVariant | null => {
-  // Bucket the current viewport width against the max-device-width thresholds so web can downshift
-  // to tablet/mobile breakpoints while native still defaults to its platform variant.
-  if (typeof width !== 'number') {
-    return null;
+): ResponsiveVariant => {
+  // Breakpoints depend only on viewport width, independent of platform.
+  if (typeof width !== 'number' || Number.isNaN(width)) {
+    return 'tablet';
   }
 
-  const { mobile, tablet } = byDevice;
-  const mobileMax =
-    typeof mobile.maxDeviceWidth === 'number' && !Number.isNaN(mobile.maxDeviceWidth)
-      ? mobile.maxDeviceWidth
+  const { phone, tablet } = byDevice;
+  const phoneMax =
+    typeof phone.maxDeviceWidth === 'number' && !Number.isNaN(phone.maxDeviceWidth)
+      ? phone.maxDeviceWidth
       : Number.POSITIVE_INFINITY;
   const tabletMax =
     typeof tablet.maxDeviceWidth === 'number' && !Number.isNaN(tablet.maxDeviceWidth)
       ? tablet.maxDeviceWidth
       : Number.POSITIVE_INFINITY;
 
-  if (width <= mobileMax) {
-    return 'mobile';
+  if (width <= phoneMax) {
+    return 'phone';
   }
 
   if (width <= tabletMax) {
@@ -112,27 +118,6 @@ const pickDimensionVariant = (
   }
 
   return 'desktop';
-};
-
-const pickNarrowerVariant = (
-  platformVariant: ResponsiveVariant,
-  dimensionVariant: ResponsiveVariant | null,
-): ResponsiveVariant => {
-  // Platform variant reflects the OS preference (e.g., iOS/Android => mobile/tablet, web => desktop).
-  // Dimension variant reflects the viewport width against max-device-width thresholds.
-  // We pick the narrower of the two so native stays constrained even on wide viewports,
-  // while desktop can still shrink to tablet/mobile when the window is small.
-  if (!dimensionVariant) {
-    return platformVariant;
-  }
-
-  const priority: Record<ResponsiveVariant, number> = {
-    mobile: 0,
-    tablet: 1,
-    desktop: 2,
-  };
-
-  return priority[dimensionVariant] < priority[platformVariant] ? dimensionVariant : platformVariant;
 };
 
 export const getResponsive = ({ platform = Platform, windowWidth }: ResponsiveOptions = {}): ResponsiveResult => {
@@ -143,28 +128,36 @@ export const getResponsive = ({ platform = Platform, windowWidth }: ResponsiveOp
     contentWidthByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.contentWidth])) as Record<ResponsiveVariant, number>,
     textWidthByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.textWidth])) as Record<ResponsiveVariant, number>,
     marginHorizontalByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.marginHorizontal])) as Record<ResponsiveVariant, number>,
+    gapByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.gap])) as Record<ResponsiveVariant, number>,
     rootFontSizeByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.rootFontSize])) as Record<ResponsiveVariant, number>,
     scaleByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.scale])) as Record<ResponsiveVariant, number>,
     maxDeviceWidthByDevice: Object.fromEntries(byDeviceEntries.map(([variant, values]) => [variant, values.maxDeviceWidth])) as Record<ResponsiveVariant, number>,
   };
 
-  const platformVariant = pickPlatformVariant(platform);
-  const dimensionVariant = pickDimensionVariant(windowWidth ?? getCurrentWindowWidth(), byDevice);
-  const breakpoint = pickNarrowerVariant(platformVariant, dimensionVariant);
+  const platformOS = platform.OS;
+  if (!platformOS) {
+    throw new Error('Missing platform OS in getResponsive()');
+  }
+  const runtime: ResponsiveRuntime = platformOS === 'web' ? 'web' : 'app';
+  const breakpoint = pickDimensionVariant(windowWidth ?? getCurrentWindowWidth(), byDevice);
   const platformValues = byDevice[breakpoint];
 
   return {
     breakpoint,
+    platformOS,
+    runtime,
     device: platformValues.device,
     contentWidth: platformValues.contentWidth,
     textWidth: platformValues.textWidth,
     marginHorizontal: platformValues.marginHorizontal,
+    gap: platformValues.gap,
     rootFontSize: platformValues.rootFontSize,
     scale: platformValues.scale,
     platformMaxDeviceWidth: platformValues.maxDeviceWidth,
     contentWidthByDevice: aggregations.contentWidthByDevice,
     textWidthByDevice: aggregations.textWidthByDevice,
     marginHorizontalByDevice: aggregations.marginHorizontalByDevice,
+    gapByDevice: aggregations.gapByDevice,
     rootFontSizeByDevice: aggregations.rootFontSizeByDevice,
     scaleByDevice: aggregations.scaleByDevice,
     maxDeviceWidth: aggregations.maxDeviceWidthByDevice,
