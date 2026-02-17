@@ -237,7 +237,7 @@ export const SelectFieldView = ({
             keyboardDismissMode="none"
             {...scrollViewRest}
           >
-            {options.map((option) => {
+            {options.map((option, index) => {
               return (
                 <Pressable
                   key={option.key}
@@ -251,6 +251,9 @@ export const SelectFieldView = ({
                   onLayout={option.onLayout}
                   style={({ pressed, hovered }) => [
                     styles.optionRow,
+                    {
+                      marginBottom: index === options.length - 1 ? 0 : Size.space['050'],
+                    },
                     {
                       backgroundColor: option.isSelected
                         ? optionActiveBackgroundColor
@@ -279,7 +282,7 @@ export const SelectFieldView = ({
                   {...(option.pressableProps ?? {})}
                 >
                   <ThemedText
-                    variant="singleLineBody"
+                    variant={option.isSelected ? 'bodyStrong' : 'body'}
                     style={{
                       color: option.isSelected
                         ? optionActiveTextColor
@@ -305,7 +308,7 @@ export const SelectFieldView = ({
 
 const styles = StyleSheet.create({
   container: {
-    gap: Size.space['200'],
+    gap: Size.space['100'],
     minWidth: Size.space['8000'],
     maxWidth: '100%',
   },
@@ -317,6 +320,8 @@ const styles = StyleSheet.create({
     paddingVertical: Size.space['100'],
     paddingLeft: Size.space['400'],
     paddingRight: Size.space['100'],
+    marginVertical: Size.space['100'],
+    gap: Size.space['100'],
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: Size.radius['200'],
@@ -356,13 +361,11 @@ const styles = StyleSheet.create({
     maxHeight: 240,
   },
   optionsScroll: {
-    paddingTop: Size.space['200'],
-    paddingBottom: Size.space['150'], // 200 - 50 from marginBottom = 150
-    paddingHorizontal: Size.space['200'],
+    padding: Size.space['100'],
   },
   optionRow: {
-    padding: Size.space['200'],
-    borderRadius: Size.radius['200'],
-    marginBottom: Size.space['050'],
+    paddingVertical: Size.space['150'],
+    paddingHorizontal: Size.space['200'],
+    borderRadius: Size.radius['100'],
   },
 });
