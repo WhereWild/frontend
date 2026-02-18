@@ -51,8 +51,6 @@ describe('ContinuousInsights', () => {
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
         locationFilterActive={false}
-        borderColor="#ddd"
-        secondaryTextColor="#666"
       />, 
     );
 
@@ -72,8 +70,6 @@ describe('ContinuousInsights', () => {
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
         locationFilterActive={false}
-        borderColor="#ddd"
-        secondaryTextColor="#666"
       />,
     );
 
@@ -98,8 +94,6 @@ describe('ContinuousInsights', () => {
         }}
         summaryComparisons={{ min: 'vs. 0 (+10%)', mean: 'vs. 4 (+25%)', max: 'vs. 9 (+11%)' }}
         locationFilterActive={true}
-        borderColor="#ddd"
-        secondaryTextColor="#666"
       />,
     );
 

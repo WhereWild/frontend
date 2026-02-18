@@ -202,7 +202,7 @@ export function DensityChart({
         {summary?.min != null && (
           <View style={styles.minLabelContainer}>
             <ThemedText variant="bodySmall">{formatValue(summary.min, 1)}</ThemedText>
-            <ThemedText variant="bodySmall" style={styles.labelHint}>
+            <ThemedText variant="bodySmall">
               min
             </ThemedText>
           </View>
@@ -224,7 +224,7 @@ export function DensityChart({
         {summary?.max != null && (
           <View style={styles.maxLabelContainer}>
             <ThemedText variant="bodySmall">{formatValue(summary.max, 1)}</ThemedText>
-            <ThemedText variant="bodySmall" style={styles.labelHint}>
+            <ThemedText variant="bodySmall">
               max
             </ThemedText>
           </View>

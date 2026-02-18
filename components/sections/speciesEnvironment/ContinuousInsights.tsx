@@ -56,7 +56,7 @@ export function ContinuousInsights({
     <>
       {showRankContext && rankContextOptions.length > 1 ? (
         <>
-          <View style={[styles.divider, { backgroundColor: palette.border.default }]} />
+          <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
           <View style={styles.rankContextRow}>
             <ThemedText
               variant="body"
@@ -75,7 +75,7 @@ export function ContinuousInsights({
         </>
       ) : showRankContext && rankContextOptions.length === 1 ? (
         <>
-          <View style={[styles.divider, { backgroundColor: palette.border.default }]} />
+          <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
           <View style={styles.rankContextRow}>
             <ThemedText
               variant="body"
