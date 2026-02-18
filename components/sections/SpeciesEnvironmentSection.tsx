@@ -157,8 +157,6 @@ export function SpeciesEnvironmentSection({
               summaryRanks={summaryRanks}
               summaryComparisons={summaryComparisons}
               locationFilterActive={locationFilterActive}
-              borderColor={palette.border.default.default}
-              secondaryTextColor={palette.text.default.secondary}
             />
           </>
         )

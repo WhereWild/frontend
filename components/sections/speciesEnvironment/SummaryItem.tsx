@@ -34,8 +34,7 @@ export function SummaryItem({ label, value, rank, comparison, isLast }: SummaryI
         isLast && styles.summaryItemLast,
       ]}
     >
-      <ThemedText variant="body">{label}</ThemedText>
-      <ThemedText variant="subtitle">{value}</ThemedText>
+      <ThemedText variant="body">{label}: {value}</ThemedText>
       {comparison ? (
         <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
           {comparison}
@@ -43,16 +42,13 @@ export function SummaryItem({ label, value, rank, comparison, isLast }: SummaryI
       ) : rank ? (
         <>
           {typeof rank.rank === 'number' && typeof rank.count === 'number' ? (
-            <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
-              Ranks{' '}
-              <ThemedText variant="body" style={{ fontWeight: 'bold' }}>
-                {Math.round(rank.rank).toLocaleString()} / {Math.round(rank.count).toLocaleString()}
-              </ThemedText>{' '}
+            <ThemedText variant="body" style={{ color: palette.text.default.secondary, textAlign: 'center' }}>
+              Ranks {Math.round(rank.rank).toLocaleString()} / {Math.round(rank.count).toLocaleString()}{' '}
               in {rank.label || 'selected taxon'}
             </ThemedText>
           ) : null}
           {typeof rank.percentile === 'number' && Number.isFinite(rank.percentile) ? (
-            <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+            <ThemedText variant="bodySmall" style={{ color: palette.text.default.tertiary }}>
               ({formatPercent(rank.percentile)} percentile)
             </ThemedText>
           ) : null}
@@ -70,7 +66,7 @@ const styles = StyleSheet.create({
     gap: Size.space['100'],
     alignItems: 'center',
     borderRightWidth: 1,
-    paddingHorizontal: Size.space['300'],
+    paddingHorizontal: Size.space['200'],
   },
   summaryItemLast: {
     borderRightWidth: 0,

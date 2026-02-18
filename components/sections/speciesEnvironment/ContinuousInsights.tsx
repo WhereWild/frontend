@@ -1,4 +1,5 @@
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import type { SpeciesEnvironmentRelativeRank } from '@/data/types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -34,10 +35,6 @@ type ContinuousInsightsProps = {
   summaryComparisons: Record<string, string | null>;
   /** Indicates whether comparisons should be shown instead of rank labels. */
   locationFilterActive: boolean;
-  /** Divider/border color token for section separators. */
-  borderColor: string;
-  /** Secondary text color token for helper copy. */
-  secondaryTextColor: string;
 };
 
 /** Renders rank-context controls and min/mean/max summary cards for continuous variables. */
@@ -50,18 +47,20 @@ export function ContinuousInsights({
   summaryRanks,
   summaryComparisons,
   locationFilterActive,
-  borderColor,
-  secondaryTextColor,
 }: ContinuousInsightsProps) {
+  const scheme = useColorScheme();
+  const mode = scheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+
   return (
     <>
       {showRankContext && rankContextOptions.length > 1 ? (
         <>
-          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+          <View style={[styles.divider, { backgroundColor: palette.border.default }]} />
           <View style={styles.rankContextRow}>
             <ThemedText
-              variant="bodySmall"
-              style={{ color: secondaryTextColor, textAlign: 'center' }}
+              variant="body"
+              style={{ textAlign: 'center' }}
             >
               Select a taxon to see how this compares to related species.
             </ThemedText>
@@ -76,9 +75,12 @@ export function ContinuousInsights({
         </>
       ) : showRankContext && rankContextOptions.length === 1 ? (
         <>
-          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+          <View style={[styles.divider, { backgroundColor: palette.border.default }]} />
           <View style={styles.rankContextRow}>
-            <ThemedText variant="bodySmall">
+            <ThemedText
+              variant="body"
+              style={{ textAlign: 'center' }}
+            >
               Rankings within {rankContextOptions[0].label}
             </ThemedText>
           </View>

@@ -78,9 +78,9 @@ describe('ContinuousInsights', () => {
     );
 
     expect(screen.getByText('Rankings within Mammalia')).toBeTruthy();
-    expect(screen.getByText('Min')).toBeTruthy();
-    expect(screen.getByText('Mean')).toBeTruthy();
-    expect(screen.getByText('Max')).toBeTruthy();
+    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+    expect(screen.getByText(/Mean\s*:\s*5\.0/)).toBeTruthy();
+    expect(screen.getByText(/Max\s*:\s*10\.0/)).toBeTruthy();
   });
 
   it('renders comparison values in location filter mode', () => {
@@ -96,15 +96,15 @@ describe('ContinuousInsights', () => {
           mean: { metric: 'mean', label: 'Mammalia', rank: 2, count: 10, percentile: 0.8 },
           max: { metric: 'max', label: 'Mammalia', rank: 3, count: 10, percentile: 0.7 },
         }}
-        summaryComparisons={{ min: 'vs 0 (+10%)', mean: 'vs 4 (+25%)', max: 'vs 9 (+11%)' }}
+        summaryComparisons={{ min: 'vs. 0 (+10%)', mean: 'vs. 4 (+25%)', max: 'vs. 9 (+11%)' }}
         locationFilterActive={true}
         borderColor="#ddd"
         secondaryTextColor="#666"
       />,
     );
 
-    expect(screen.getByText('vs 0 (+10%)')).toBeTruthy();
-    expect(screen.getByText('vs 4 (+25%)')).toBeTruthy();
-    expect(screen.getByText('vs 9 (+11%)')).toBeTruthy();
+    expect(screen.getByText('vs. 0 (+10%)')).toBeTruthy();
+    expect(screen.getByText('vs. 4 (+25%)')).toBeTruthy();
+    expect(screen.getByText('vs. 9 (+11%)')).toBeTruthy();
   });
 });
