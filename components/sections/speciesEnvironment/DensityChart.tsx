@@ -16,8 +16,6 @@ import {
 
 const CHART_PADDING = Size.space['200'];
 const CHART_HEIGHT = 240;
-const LABEL_HINT_SIZE = 16;
-const LABEL_HINT_LINE_HEIGHT = 16;
 const MEAN_LABEL_HALF_WIDTH = 24;
 
 /** Selected value range on the density curve. */
@@ -218,7 +216,7 @@ export function DensityChart({
             }}
           >
             <ThemedText variant="bodySmall">{formatValue(summary?.mean, 1)}</ThemedText>
-            <ThemedText variant="bodySmall" style={styles.labelHint}>
+            <ThemedText variant="bodySmall">
               mean
             </ThemedText>
           </View>
@@ -262,10 +260,6 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     gap: 0,
-  },
-  labelHint: {
-    fontSize: LABEL_HINT_SIZE,
-    lineHeight: LABEL_HINT_LINE_HEIGHT,
   },
   emptyChart: {
     height: CHART_HEIGHT,
