@@ -16,7 +16,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SelectField } from '@/components/inputs/SelectField';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 
@@ -124,6 +124,29 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
 
+  const hasImageAttribution = Boolean(
+    overview.imageLicense ||
+      overview.imageCreator ||
+      overview.imageRightsHolder ||
+      overview.imageReferences
+  );
+
+  const normalizedCreator = overview.imageCreator?.trim() || '';
+  const normalizedRightsHolder = overview.imageRightsHolder?.trim() || '';
+  const creatorMatchesRightsHolder =
+    normalizedCreator &&
+    normalizedRightsHolder &&
+    normalizedCreator.toLowerCase() === normalizedRightsHolder.toLowerCase();
+
+  const photoBy = normalizedCreator || normalizedRightsHolder;
+
+  const imageReferenceUrl = React.useMemo(() => {
+    const raw = overview.imageReferences?.trim();
+    if (!raw) return null;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `https://www.inaturalist.org/${raw.replace(/^\/+/, '')}`;
+  }, [overview.imageReferences]);
+
   return (
     <>
       <Head>
@@ -165,6 +188,29 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                     resizeMode="cover"
                     accessibilityLabel={`${commonName} featured image`}
                   />
+                  {hasImageAttribution && (
+                    <View style={styles.imageAttribution}>
+                      {photoBy && (
+                        <ThemedText variant="bodySmall" style={styles.licenseText}>
+                          Photo by {photoBy}
+                        </ThemedText>
+                      )}
+                      {imageReferenceUrl && (
+                        <ThemedText
+                          variant="bodySmall"
+                          style={styles.attributionLink}
+                          onPress={() => Linking.openURL(imageReferenceUrl)}
+                        >
+                          View on iNaturalist
+                        </ThemedText>
+                      )}
+                      {overview.imageLicense && (
+                        <ThemedText variant="bodySmall" style={styles.licenseText}>
+                          {overview.imageLicense}
+                        </ThemedText>
+                      )}
+                    </View>
+                  )}
                 </View>
                 <View style={[styles.overviewText, { maxWidth: responsive.textWidth }]}>
                   <ThemedText variant="heading">Overview</ThemedText>
@@ -324,6 +370,17 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: Size.radius['400'],
   },
+  imageAttribution: {
+    marginTop: Size.space['100'],
+    gap: Size.space['50'],
+  },
+  licenseText: {
+    opacity: 0.7,
+  },
+  attributionLink: {
+    color: Colors.light.text.brand.default,
+    textDecorationLine: 'underline',
+  },
   commonNamesSection: {
     gap: Size.space['200'],
   },
@@ -357,4 +414,3 @@ const styles = StyleSheet.create({
     maxWidth: 720,
   }
 });
-
