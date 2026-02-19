@@ -227,8 +227,10 @@ const toVariableDefinition = (entry: any): EnvironmentVariableDefinition => ({
   category: entry?.category ?? null,
 });
 
-export async function fetchEnvironmentVariables(): Promise<EnvironmentVariableDefinition[]> {
-  const url = `${BACKEND_BASE}/variables`;
+export async function fetchEnvironmentVariables(options?: { units?: string | null }): Promise<EnvironmentVariableDefinition[]> {
+  const params = new URLSearchParams();
+  if (options?.units) params.set('unit_system', options.units);
+  const url = `${BACKEND_BASE}/variables${params.toString() ? `?${params.toString()}` : ''}`;
   const res = await fetch(url);
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -531,12 +533,13 @@ const coerceRelativeRanks = (value: any): SpeciesEnvironmentRelativeRank[] => {
 
 type LocationOptions = {
   location?: string | null;
+  units?: string | null;
 };
 
 export async function fetchSpeciesEnvironment(
   taxonId: string | number,
   variableId: string,
-  options?: LocationOptions,
+  options?: { location?: string | null; units?: string | null },
 ): Promise<SpeciesEnvironmentStats> {
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
@@ -544,8 +547,15 @@ export async function fetchSpeciesEnvironment(
   if (options?.location) {
     params.set('location', options.location);
   }
+  if (options?.units) {
+    params.set('unit_system', options.units);
+  }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
+
+  // <--- ADD THIS DEBUG LINE
+  console.log('[api] fetchSpeciesEnvironment url:', url, 'unit_system:', options?.units);
+
   const res = await fetch(url);
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -554,12 +564,16 @@ export async function fetchSpeciesEnvironment(
     );
   }
   const payload = await res.json();
+
+  // <--- AND THIS DEBUG LINE
+  console.log('[api] fetchSpeciesEnvironment response units:', payload?.units);
+
   const summary = coerceEnvironmentSummary(payload.summary);
   const baselineSummary = payload.baseline_summary || payload.baselineSummary
     ? coerceEnvironmentSummary(payload.baseline_summary ?? payload.baselineSummary)
     : null;
   const tallStats = buildCategoriesFromTallStats(payload.categorical_stats, variableId);
-  if ((summary.count === 0 || !Number.isFinite(summary.count)) && tallStats?.totals.totalSamples) {
+  if ((summary.count === 0 || !Number.isFinite(summary.count)) && tallStats?.totals?.totalSamples) {
     summary.count = tallStats.totals.totalSamples;
   }
   const distribution = coerceCategories(payload.categorical_distribution);
@@ -574,18 +588,18 @@ export async function fetchSpeciesEnvironment(
     speciesId: payload.species_id ?? Number(taxonId),
     variable: payload.variable ?? variableId,
     variableName: payload.variable_metadata?.name ?? payload.variable ?? variableId,
-    units: payload.variable_metadata?.units ?? null,
+    units: payload.units ?? payload.variable_metadata?.units ?? null,
     variableType:
       payload.variable_metadata?.value_type ?? payload.variable_metadata?.valueType ?? null,
     generatedAt: payload.generated_at,
     summary,
     histogram: coerceHistogram(payload.histogram),
     densityCurve: Array.isArray(payload.densityCurve?.points ?? payload.density_curve?.points)
-    ? {
-        points: payload.densityCurve?.points ?? payload.density_curve?.points ?? [],
-        density: payload.densityCurve?.density ?? payload.density_curve?.density ?? [],
-      }
-    : null,
+      ? {
+          points: payload.densityCurve?.points ?? payload.density_curve?.points ?? [],
+          density: payload.densityCurve?.density ?? payload.density_curve?.density ?? [],
+        }
+      : null,
     binSamples: coerceBinSamples(payload.bin_samples),
     categoricalDistribution:
       distribution.length ? distribution : tallStats?.distribution ?? [],
@@ -745,12 +759,13 @@ export type EnvironmentSliceParams = {
   max: number;
   limit?: number;
   location?: string | null;
+  units?: string | null;
 };
 
 export async function fetchEnvironmentRangeSlice(
   params: EnvironmentSliceParams,
 ): Promise<SpeciesEnvironmentSliceResponse> {
-  const { taxonId, variableId, min, max, limit, location } = params;
+  const { taxonId, variableId, min, max, limit, location, units } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const query = new URLSearchParams({
@@ -761,7 +776,10 @@ export async function fetchEnvironmentRangeSlice(
     query.set('limit', String(limit));
   }
   if (location) {
-     query.set('location', location);
+    query.set('location', location);
+  }
+  if (units) {
+    query.set('unit_system', units);
   }
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
   const res = await fetch(url);
@@ -791,6 +809,7 @@ export async function fetchEnvironmentRangeSlice(
 type CategorySampleOptions = {
   limit?: number;
   location?: string | null;
+  units?: string | null;
 };
 
 export async function fetchSpeciesEnvironmentCategorySamples(
@@ -808,6 +827,9 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   }
   if (options?.location) {
     query.set('location', options.location);
+  }
+  if (options?.units) {
+    query.set('unit_system', options.units);
   }
   const queryString = query.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;

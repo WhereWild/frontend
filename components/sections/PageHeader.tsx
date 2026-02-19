@@ -140,6 +140,12 @@ export function PageHeader({
     navigateIfDifferent('/about');
   }, [navigateIfDifferent]);
 
+  const navigateToSettings = React.useCallback(() => {
+    if (pathname !== '/settings') {
+      router.push('/settings');
+    }
+  }, [pathname, router]);
+
   const submitSearchQuery = (query: string) => {
     if (query !== '') {
       router.push({ pathname: '/search', params: { query: query } });
@@ -149,9 +155,9 @@ export function PageHeader({
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
       { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
-      { label: 'Settings', icon: <IconSettings /> },
+      { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
     ],
-    [navigateToAbout],
+    [navigateToAbout, navigateToSettings],
   );
   const resolvedActions = actions ?? defaultActions;
   const logoContent = (

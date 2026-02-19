@@ -19,6 +19,7 @@ import React from 'react';
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { SelectField } from '@/components/inputs/SelectField';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { useSettings } from '@/context/SettingsContext';
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -40,6 +41,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+  const { units } = useSettings();
 
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
   const [occurrenceLoading, setOccurrenceLoading] = React.useState(false);
@@ -254,6 +256,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   taxonId={taxonId}
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
+                  units={units}
                 />
 
                 <SpeciesOccurrenceMap

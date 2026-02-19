@@ -73,6 +73,7 @@ export type SpeciesEnvironmentSectionProps = {
   variables?: EnvironmentVariableOption[];
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
   locationGid?: string | null;
+  units?: 'metric' | 'imperial' | undefined;
 };
 
 type RankContextOption = {
@@ -646,7 +647,9 @@ export function SpeciesEnvironmentSection({
   variables,
   onHighlightChange,
   locationGid,
+  units,
 }: SpeciesEnvironmentSectionProps) {
+  console.log("[ENV] render — units:", units);
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -707,28 +710,29 @@ export function SpeciesEnvironmentSection({
   }, [selectedVariable]);
 
   React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetchEnvironmentVariables();
-        if (!cancelled && response.length) {
-          const mapped: EnvironmentVariableOption[] = response.map((entry) => ({
-            id: entry.id,
-            label: entry.name ?? normalizeLabel(entry.id),
-            units: entry.units ?? null,
-            valueType: entry.valueType ?? entry.valueType ?? null,
-            category: entry.category ?? null,
-          }));
-          setRemoteVariables(mapped);
-        }
-      } catch (err) {
-        console.warn('Failed to load variable catalog', err);
+  let cancelled = false;
+  (async () => {
+    try {
+      // pass units to backend so returned variable units are converted/display-ready
+      const response = await fetchEnvironmentVariables({ units });
+      if (!cancelled && response.length) {
+        const mapped: EnvironmentVariableOption[] = response.map((entry) => ({
+          id: entry.id,
+          label: entry.name ?? normalizeLabel(entry.id),
+          units: entry.units ?? null,
+          valueType: entry.valueType ?? entry.valueType ?? null,
+          category: entry.category ?? null,
+        }));
+        setRemoteVariables(mapped);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    } catch (err) {
+      console.warn('Failed to load variable catalog', err);
+    }
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, [units]);
 
   React.useEffect(() => {
     setCategorySamplesByValue({});
@@ -762,11 +766,18 @@ export function SpeciesEnvironmentSection({
     setSelectedDensityRange(null);
     setRangeObservations([]);
     setRangeObservationsError(null);
-  }, [taxonId, locationGid]);
+    setCategorySamplesByValue({});
+  }, [taxonId, locationGid, units]);
 
   const hasStatsForSelection = Boolean(selectedVariable && statsByVariable[selectedVariable]);
 
+ 
   React.useEffect(() => {
+    console.log("[ENV] effect triggered", {
+    taxonId,
+    selectedVariable,
+    units,
+  });
     if (!taxonId || !selectedVariable || hasStatsForSelection) {
       return;
     }
@@ -775,9 +786,12 @@ export function SpeciesEnvironmentSection({
       setLoadingVariable(selectedVariable);
       setErrorByVariable((prev) => ({ ...prev, [selectedVariable]: null }));
       try {
+        // Pass units so backend converts values / density / displayed units
         const response = await fetchSpeciesEnvironment(taxonId, selectedVariable, {
           location: locationGid,
+          units,
         });
+        
         if (cancelled) {
           return;
         }
@@ -798,7 +812,8 @@ export function SpeciesEnvironmentSection({
     return () => {
       cancelled = true;
     };
-  }, [hasStatsForSelection, selectedVariable, taxonId, locationGid]);
+}, [hasStatsForSelection, selectedVariable, taxonId, locationGid, units]);
+
 
   const stats = selectedVariable ? statsByVariable[selectedVariable] ?? null : null;
   const baselineSummary = locationFilterActive ? stats?.baselineSummary ?? null : null;
@@ -925,75 +940,76 @@ export function SpeciesEnvironmentSection({
     });
   }, [stats?.categoricalSamples, selectedVariable, locationGid]);
 
-  React.useEffect(() => {
-    if (
-      !isCategorical ||
-      !taxonId ||
-      !selectedVariable ||
-      !selectedCategoryKey ||
-      selectedCategorySampleState?.loading ||
-      selectedCategorySampleState?.loaded
-    ) {
-      return;
-    }
-    let cancelled = false;
-    setCategorySamplesByValue((prev) => ({
-      ...prev,
-      [selectedCategoryKey]: {
-        observations: prev[selectedCategoryKey]?.observations ?? [],
-        loading: true,
-        loaded: false,
-        error: null,
-      },
-    }));
-    (async () => {
-      try {
-        const response = await fetchSpeciesEnvironmentCategorySamples(
-          taxonId,
-          selectedVariable,
-          selectedCategoryKey,
-          { location: locationGid ?? undefined },
-        );
-        if (cancelled) {
-          return;
-        }
-        setCategorySamplesByValue((prev) => ({
-          ...prev,
-          [selectedCategoryKey]: {
-            observations: response.observations ?? [],
-            loading: false,
-            loaded: true,
-            error: null,
-          },
-        }));
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        setCategorySamplesByValue((prev) => ({
-          ...prev,
-          [selectedCategoryKey]: {
-            observations: [],
-            loading: false,
-            loaded: true,
-            error:
-              err instanceof Error ? err.message : 'Failed to load category observations.',
-          },
-        }));
+ React.useEffect(() => {
+  if (
+    !isCategorical ||
+    !taxonId ||
+    !selectedVariable ||
+    !selectedCategoryKey ||
+    selectedCategorySampleState?.loading ||
+    selectedCategorySampleState?.loaded
+  ) {
+    return;
+  }
+  let cancelled = false;
+  setCategorySamplesByValue((prev) => ({
+    ...prev,
+    [selectedCategoryKey]: {
+      observations: prev[selectedCategoryKey]?.observations ?? [],
+      loading: true,
+      loaded: false,
+      error: null,
+    },
+  }));
+  (async () => {
+    try {
+      const response = await fetchSpeciesEnvironmentCategorySamples(
+        taxonId,
+        selectedVariable,
+        selectedCategoryKey,
+        { location: locationGid ?? undefined, units },
+      );
+      if (cancelled) {
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isCategorical,
-    selectedCategoryKey,
-    selectedCategorySampleState?.loaded,
-    selectedCategorySampleState?.loading,
-    selectedVariable,
-    taxonId,
-    locationGid,
-  ]);
+      setCategorySamplesByValue((prev) => ({
+        ...prev,
+        [selectedCategoryKey]: {
+          observations: response.observations ?? [],
+          loading: false,
+          loaded: true,
+          error: null,
+        },
+      }));
+    } catch (err) {
+      if (cancelled) {
+        return;
+      }
+      setCategorySamplesByValue((prev) => ({
+        ...prev,
+        [selectedCategoryKey]: {
+          observations: [],
+          loading: false,
+          loaded: true,
+          error:
+            err instanceof Error ? err.message : 'Failed to load category observations.',
+        },
+      }));
+    }
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, [
+  isCategorical,
+  selectedCategoryKey,
+  selectedCategorySampleState?.loaded,
+  selectedCategorySampleState?.loading,
+  selectedVariable,
+  taxonId,
+  locationGid,
+  units,
+]);
 
   const handleDensitySelectionChange = React.useCallback(
     (range: DensitySelectionRange | null) => {
@@ -1002,61 +1018,63 @@ export function SpeciesEnvironmentSection({
     [],
   );
 
-  React.useEffect(() => {
-    if (!taxonId || !selectedVariable || !selectedDensityRange) {
-      setRangeObservations([]);
-      setRangeObservationsError(null);
-      setRangeObservationsLoading(false);
-      onHighlightChange?.([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setRangeObservationsLoading(true);
-      setRangeObservationsError(null);
-      try {
-        const response = await fetchEnvironmentRangeSlice({
-          taxonId,
-          variableId: selectedVariable,
-          min: selectedDensityRange.start,
-          max: selectedDensityRange.end,
-          location: locationGid ?? undefined,
-        });
-        if (cancelled) {
-          return;
-        }
-        setRangeObservations(response.observations ?? []);
-        onHighlightChange?.(
-          (response.observations ?? [])
-            .map((entry) => entry.catalogNumber)
-            .filter((id) => typeof id === 'number' || typeof id === 'string'),
-        );
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        setRangeObservationsError(
-          err instanceof Error ? err.message : 'Failed to load observations',
-        );
-        setRangeObservations([]);
-        onHighlightChange?.([]);
-      } finally {
-        if (!cancelled) {
-          setRangeObservationsLoading(false);
-        }
+ React.useEffect(() => {
+  if (!taxonId || !selectedVariable || !selectedDensityRange) {
+    setRangeObservations([]);
+    setRangeObservationsError(null);
+    setRangeObservationsLoading(false);
+    onHighlightChange?.([]);
+    return;
+  }
+  let cancelled = false;
+  (async () => {
+    setRangeObservationsLoading(true);
+    setRangeObservationsError(null);
+    try {
+      const response = await fetchEnvironmentRangeSlice({
+        taxonId,
+        variableId: selectedVariable,
+        min: selectedDensityRange.start,
+        max: selectedDensityRange.end,
+        location: locationGid ?? undefined,
+        units,
+      });
+      if (cancelled) {
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    onHighlightChange,
-    selectedDensityRange,
-    selectionRangeKey,
-    selectedVariable,
-    taxonId,
-    locationGid,
-  ]);
+      setRangeObservations(response.observations ?? []);
+      onHighlightChange?.(
+        (response.observations ?? [])
+          .map((entry) => entry.catalogNumber)
+          .filter((id) => typeof id === 'number' || typeof id === 'string'),
+      );
+    } catch (err) {
+      if (cancelled) {
+        return;
+      }
+      setRangeObservationsError(
+        err instanceof Error ? err.message : 'Failed to load observations',
+      );
+      setRangeObservations([]);
+      onHighlightChange?.([]);
+    } finally {
+      if (!cancelled) {
+        setRangeObservationsLoading(false);
+      }
+    }
+  })();
+  return () => {
+    cancelled = true;
+  };
+}, [
+  onHighlightChange,
+  selectedDensityRange,
+  selectionRangeKey,
+  selectedVariable,
+  taxonId,
+  locationGid,
+  units,
+]);
 
   React.useEffect(() => {
     if (!selectedDensityRange) {

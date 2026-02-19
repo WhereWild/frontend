@@ -10,6 +10,7 @@ import {
   Domine_700Bold,
 } from '@expo-google-fonts/domine';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono';
+import { SettingsProvider } from '@/context/SettingsContext';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -25,5 +26,9 @@ export default function RootLayout() {
     return null;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+    return (
+    <SettingsProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SettingsProvider>
+  )
 }
