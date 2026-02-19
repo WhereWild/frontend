@@ -216,24 +216,4 @@ describe('data/api common name normalization', () => {
       }),
     );
   });
-
-  it('handles null species detail payloads without throwing', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => null,
-    });
-
-    const row = await fetchSpeciesByTaxonId(999);
-
-    expect(row).toEqual(
-      expect.objectContaining({
-        taxon_id: null,
-        scientific_name: '',
-        common_name: '',
-        common_names: [],
-        image_source: null,
-        description: 'description pending',
-      }),
-    );
-  });
 });

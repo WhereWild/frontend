@@ -88,11 +88,20 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
       window.addEventListener('message', (event) => handleHighlightMessage(event.data));
       if (Array.isArray(points) && points.length) {
         const bounds = [];
-        const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 8 });
+        const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 6 });
+        let cluster = false;
+        if (points.length >= 10000) {
+          cluster = true;
+        }
         points.forEach((pt) => {
           if (typeof pt.latitude === 'number' && typeof pt.longitude === 'number') {
             const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
-            const marker = L.circleMarker([pt.latitude, pt.longitude]).addTo(clusterGroup);
+            const marker = L.circleMarker([pt.latitude, pt.longitude]);
+            if (cluster) {
+              clusterGroup.addLayer(marker);
+            } else {
+              map.addLayer(marker);  
+            }
             if (catalog.length) {
               marker.bindPopup('<a href="https://www.inaturalist.org/observations/' + catalog + '" target="_blank">Observation #' + catalog + '</a>');
               markers.set(catalog, marker);
@@ -102,7 +111,9 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
             bounds.push([pt.latitude, pt.longitude]);
           }
         });
-        map.addLayer(clusterGroup);
+        if (cluster) {
+          map.addLayer(clusterGroup);
+        }
         if (bounds.length) {
           map.fitBounds(bounds, { padding: [20, 20] });
         } else {

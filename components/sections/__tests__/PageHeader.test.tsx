@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react-nativ
 import { PageHeader } from '../PageHeader';
 import { IconHelpCircle } from '@/assets/icons';
 import { useResponsive } from '@/hooks/useResponsive';
-import { fetchSpeciesList } from '@/data/api';
 
 const mockPush = jest.fn();
 let mockPathname = '/';
@@ -17,12 +16,13 @@ jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
+const mockFetchSpeciesList = jest.fn();
+
 jest.mock('@/data/api', () => ({
-  fetchSpeciesList: jest.fn(),
+  fetchSpeciesList: jest.fn((...args) => mockFetchSpeciesList(...args)),
 }));
 
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
-const mockFetchSpeciesList = fetchSpeciesList as jest.MockedFunction<typeof fetchSpeciesList>;
 
 const SEARCH_WRAPPER_LAYOUT_HEIGHT = 40;
 
@@ -133,6 +133,10 @@ describe('PageHeader', () => {
     expect(screen.getByLabelText('Help')).toBeTruthy();
     expect(screen.getByLabelText('About')).toBeTruthy();
     expect(screen.getByLabelText('Settings')).toBeTruthy();
+    
+    // Close the menu before unmounting to avoid Portal cleanup timeout
+    const backdrop = screen.getByTestId('page-header-menu-backdrop');
+    fireEvent.press(backdrop);
   });
 
   it('submits search queries and ignores empty submissions', async () => {

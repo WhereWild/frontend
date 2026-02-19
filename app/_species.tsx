@@ -3,6 +3,7 @@ import {
   PageHeader,
   SpeciesPageTitle,
   ThemedText,
+  SpeciesEnvironmentSection
 } from '@/components';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
@@ -248,6 +249,12 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                     </View>
                   </View>
                 </View>
+
+                <SpeciesEnvironmentSection
+                  taxonId={taxonId}
+                  onHighlightChange={setHighlightedCatalogs}
+                  locationGid={finalLocationGid}
+                />
 
                 <SpeciesOccurrenceMap
                   occurrences={occurrences}
