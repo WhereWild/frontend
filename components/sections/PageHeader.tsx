@@ -415,6 +415,7 @@ export function PageHeader({
           {isMenuOpen ? (
             <Portal visible={isMenuOpen} onDismiss={() => setIsMenuOpen(false)}>
               <Pressable
+                testID="page-header-menu-backdrop"
                 style={styles.menuBackdrop}
                 onPress={() => setIsMenuOpen(false)}
               />
