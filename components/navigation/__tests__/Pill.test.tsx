@@ -62,7 +62,20 @@ describe('NavigationPill', () => {
       return { content: null, text: null };
     }
     const renderedWithProps = renderedElement as StyleableElement;
-    const textChild = React.Children.toArray(renderedWithProps.props.children)[0];
+    
+    // Navigate through the pillInner View to find the ThemedText
+    const pillInnerView = React.Children.toArray(renderedWithProps.props.children)[0];
+    if (!React.isValidElement(pillInnerView)) {
+      return { content: renderedWithProps, text: null };
+    }
+    
+    const pillInnerChildren = React.Children.toArray((pillInnerView as StyleableElement).props.children);
+    // ThemedText is either the first child (no icon) or second child (with icon)
+    const textChild = pillInnerChildren.find((child) => 
+      React.isValidElement(child) && 
+      (child.type as any)?.displayName === 'ThemedText'
+    ) || pillInnerChildren[pillInnerChildren.length - 1];
+    
     return {
       content: renderedWithProps,
       text: React.isValidElement(textChild) ? (textChild as StyleableElement) : null,
@@ -120,6 +133,38 @@ describe('NavigationPill', () => {
 
     fireEvent.press(screen.getByLabelText('One'));
     expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('calls onPress when active and allowDeselect is true', () => {
+    const onPress = jest.fn();
+    render(
+      <NavigationPill
+        id="one"
+        label="One"
+        isActive={true}
+        onPress={onPress}
+        allowDeselect={true}
+      />
+    );
+
+    fireEvent.press(screen.getByLabelText('One'));
+    expect(onPress).toHaveBeenCalledWith('one');
+  });
+
+  it('calls onPress when inactive even with allowDeselect false', () => {
+    const onPress = jest.fn();
+    render(
+      <NavigationPill
+        id="one"
+        label="One"
+        isActive={false}
+        onPress={onPress}
+        allowDeselect={false}
+      />
+    );
+
+    fireEvent.press(screen.getByLabelText('One'));
+    expect(onPress).toHaveBeenCalledWith('one');
   });
 
   it('renders default visuals when idle', () => {
