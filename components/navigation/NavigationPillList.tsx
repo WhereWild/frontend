@@ -8,6 +8,7 @@ type NavigationPillItem = {
   label: string;
   accessibilityLabel?: string;
   testID?: string;
+  icon?: React.ReactNode;
 };
 
 export type NavigationPillListProps = {
@@ -18,6 +19,7 @@ export type NavigationPillListProps = {
   accessibilityLabel?: string;
   testID?: string;
   onFocusRequest?: (index: number) => void;
+  allowDeselect?: boolean;
 };
 
 type KeyEvent = { nativeEvent?: { key?: string }; preventDefault?: () => void };
@@ -34,6 +36,7 @@ export function NavigationPillList({
   accessibilityLabel = 'Navigation pills',
   testID,
   onFocusRequest,
+  allowDeselect = false,
 }: NavigationPillListProps) {
   const pillRefs = useRef<NavigationPillRef[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -75,11 +78,11 @@ export function NavigationPillList({
 
   const handleSelectionChange = useCallback(
     (key: string) => {
-      if (key !== selectedKey) {
+      if (key !== selectedKey || allowDeselect) {
         onSelectionChange(key);
       }
     },
-    [onSelectionChange, selectedKey]
+    [onSelectionChange, selectedKey, allowDeselect]
   );
 
   const focusPill = useCallback((index: number) => {
@@ -171,6 +174,8 @@ export function NavigationPillList({
               tabIndex={isTabbable ? 0 : -1}
               accessibilityLabel={pill.accessibilityLabel ?? pill.label}
               testID={pill.testID}
+              icon={pill.icon}
+              allowDeselect={allowDeselect}
             />
           </View>
         );
