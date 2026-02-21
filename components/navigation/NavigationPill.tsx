@@ -1,29 +1,10 @@
 import React, { forwardRef } from 'react';
-import { Pressable, StyleSheet, View, type PressableProps } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
 
 type PressableRef = React.ElementRef<typeof Pressable>;
-type PressableWithKeyDownProps = PressableProps & {
-  onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
-  tabIndex?: 0 | -1;
-};
-
-const PressableWithKeyDown = forwardRef<PressableRef, PressableWithKeyDownProps>(function PressableWithKeyDown(
-  { onKeyDown, tabIndex, ...props },
-  ref
-) {
-  return (
-    <Pressable
-      ref={ref}
-      {...props}
-      // @ts-expect-error react-native-web supports onKeyDown and tabIndex for keyboard accessibility.
-      onKeyDown={onKeyDown}
-      tabIndex={tabIndex}
-    />
-  );
-});
 
 type PillState = {
   backgroundColor: string;
@@ -31,6 +12,14 @@ type PillState = {
   borderWidth: number;
   textColor: string;
 };
+
+type PillLayout = {
+  paddingHorizontal: number;
+  paddingVertical: number;
+};
+
+const BASE_HORIZONTAL_PADDING = Size.space['250'];
+const BASE_VERTICAL_PADDING = Size.space['150'];
 
 export type NavigationPillProps = {
   id: string;
@@ -46,8 +35,12 @@ export type NavigationPillProps = {
   accessibilityLabel?: string;
   testID?: string;
   icon?: React.ReactNode;
-  allowDeselect?: boolean;
 };
+
+const getPillLayout = (borderWidth: number): PillLayout => ({
+  paddingHorizontal: Math.max(0, BASE_HORIZONTAL_PADDING - borderWidth),
+  paddingVertical: Math.max(0, BASE_VERTICAL_PADDING - borderWidth),
+});
 
 const getPillState = (
   mode: 'light' | 'dark',
@@ -107,37 +100,29 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     accessibilityLabel,
     testID,
     icon,
-    allowDeselect = false,
   },
   ref
 ) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
 
   return (
-    <PressableWithKeyDown
+    <Pressable
       ref={ref}
       accessibilityRole="radio"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: isActive }}
-      onKeyDown={onKeyDown}
       onFocus={onFocus}
       focusable={focusable}
-      tabIndex={tabIndex}
       testID={testID}
-      onPress={() => {
-        if (!isActive || allowDeselect) {
-          onPress(id);
-        }
-      }}
+      onPress={() => onPress(id)}
       style={styles.pill}
+      // @ts-expect-error react-native-web supports onKeyDown for keyboard accessibility.
+      onKeyDown={onKeyDown}
+      tabIndex={tabIndex}
     >
       {({ pressed, hovered }) => {
         const pillState = getPillState(mode, isActive, pressed, hovered ?? false);
-        const borderWidth = pillState.borderWidth;
-        // Adjust padding by borderWidth so that content + padding + border maintain a consistent
-        // overall pill size across states with different border widths (e.g., active vs. default).
-        const paddingHorizontal = Math.max(0, Size.space['250'] - borderWidth);
-        const paddingVertical = Math.max(0, Size.space['150'] - borderWidth);
+        const layout = getPillLayout(pillState.borderWidth);
         return (
           <View
             style={[
@@ -145,9 +130,9 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
               {
                 backgroundColor: pillState.backgroundColor,
                 borderColor: pillState.borderColor,
-                borderWidth,
-                paddingHorizontal,
-                paddingVertical,
+                borderWidth: pillState.borderWidth,
+                paddingHorizontal: layout.paddingHorizontal,
+                paddingVertical: layout.paddingVertical,
                 width: contentWidth,
               },
             ]}
@@ -156,7 +141,7 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
             }}
           >
             <View style={styles.pillInner}>
-              {icon && <View style={styles.pillIcon}>{icon}</View>}
+              {icon && <View>{icon}</View>}
               <ThemedText
                 variant="singleLineBody"
                 style={{ color: pillState.textColor }}
@@ -168,7 +153,7 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
           </View>
         );
       }}
-    </PressableWithKeyDown>
+    </Pressable>
   );
 });
 
@@ -188,8 +173,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['100'],
-  },
-  pillIcon: {
-    // Icon container
   },
 });
