@@ -14,8 +14,28 @@ type SpeciesOccurrenceMapProps = {
   highlightedCatalogs?: (number | string)[];
 };
 
-const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
+const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
+
+type HighlightMessage = {
+  type: typeof HIGHLIGHT_MESSAGE_TYPE;
+  catalogs: string[];
+};
+
+type MapMarkerPalette = {
+  markerFill: string;
+  markerStroke: string;
+  highlightFill: string;
+  highlightStroke: string;
+};
+
+const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage => ({
+  type: HIGHLIGHT_MESSAGE_TYPE,
+  catalogs,
+});
+
+const buildLeafletHtml = (points: SpeciesOccurrence[], markerPalette: MapMarkerPalette) => {
   const payload = JSON.stringify(points ?? []);
+  const palettePayload = JSON.stringify(markerPalette);
   return `<!DOCTYPE html>
 <html>
   <head>
@@ -38,22 +58,23 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
       const points = ${payload};
+      const palette = ${palettePayload};
       const map = L.map('map');
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
       const markerStyle = {
         radius: 4,
-        fillColor: '#4CAF50',
-        color: '#2E7D32',
+        fillColor: palette.markerFill,
+        color: palette.markerStroke,
         weight: 1,
         opacity: 0.9,
         fillOpacity: 0.9,
       };
       const highlightStyle = {
         radius: 5,
-        fillColor: '#E53935',
-        color: '#B71C1C',
+        fillColor: palette.highlightFill,
+        color: palette.highlightStroke,
         weight: 1,
         opacity: 0.95,
         fillOpacity: 0.95,
@@ -80,7 +101,7 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
             return;
           }
         }
-        if (data && data.type === 'highlight') {
+        if (data && data.type === '${HIGHLIGHT_MESSAGE_TYPE}') {
           applyHighlights(data.catalogs || []);
         }
       }
@@ -93,7 +114,7 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
         if (points.length >= 10000) {
           cluster = true;
         }
-        points.forEach((pt) => {
+        points.forEach((pt, idx) => {
           if (typeof pt.latitude === 'number' && typeof pt.longitude === 'number') {
             const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
             const marker = L.circleMarker([pt.latitude, pt.longitude]);
@@ -106,7 +127,7 @@ const buildLeafletHtml = (points: SpeciesOccurrence[]) => {
               marker.bindPopup('<a href="https://www.inaturalist.org/observations/' + catalog + '" target="_blank">Observation #' + catalog + '</a>');
               markers.set(catalog, marker);
             } else {
-              markers.set(String(Math.random()), marker);
+              markers.set('fallback-' + String(idx), marker);
             }
             bounds.push([pt.latitude, pt.longitude]);
           }
@@ -143,33 +164,39 @@ export function SpeciesOccurrenceMap({
   const [mapReady, setMapReady] = React.useState(false);
 
   const hasOccurrences = occurrences.length > 0;
+  const markerPalette = React.useMemo<MapMarkerPalette>(
+    () => ({
+      markerFill: palette.background.brand.default,
+      markerStroke: palette.border.brand.default,
+      highlightFill: palette.background.danger.default,
+      highlightStroke: palette.border.danger.default,
+    }),
+    [palette.background.brand.default, palette.background.danger.default, palette.border.brand.default, palette.border.danger.default],
+  );
   const highlightKeys = React.useMemo(
     () => highlightedCatalogs.map((id) => String(id)),
     [highlightedCatalogs],
   );
-  const html = React.useMemo(() => buildLeafletHtml(occurrences), [occurrences]);
+  const html = React.useMemo(
+    () => buildLeafletHtml(occurrences, markerPalette),
+    [markerPalette, occurrences],
+  );
 
   React.useEffect(() => {
     setMapReady(false);
   }, [html]);
 
+  const highlightMessage = React.useMemo(
+    () => toHighlightMessagePayload(highlightKeys),
+    [highlightKeys],
+  );
+
   const sendHighlightMessage = React.useCallback(
-    (catalogs: string[]) => {
+    (message: HighlightMessage) => {
       if (Platform.OS === 'web') {
-        iframeRef.current?.contentWindow?.postMessage(
-          {
-            type: 'highlight',
-            catalogs,
-          },
-          '*',
-        );
+        iframeRef.current?.contentWindow?.postMessage(message, '*');
       } else {
-        webViewRef.current?.postMessage(
-          JSON.stringify({
-            type: 'highlight',
-            catalogs,
-          }),
-        );
+        webViewRef.current?.postMessage(JSON.stringify(message));
       }
     },
     [],
@@ -179,8 +206,8 @@ export function SpeciesOccurrenceMap({
     if (!mapReady || !hasOccurrences) {
       return;
     }
-    sendHighlightMessage(highlightKeys);
-  }, [mapReady, highlightKeys, sendHighlightMessage, hasOccurrences]);
+    sendHighlightMessage(highlightMessage);
+  }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
 
   if (loading) {
     return (
@@ -253,6 +280,7 @@ const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFram
       },
       title: 'Observation map',
       loading: 'lazy',
+      sandbox: 'allow-scripts allow-popups',
       onLoad,
     }),
 );
