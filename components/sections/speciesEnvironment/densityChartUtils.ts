@@ -1,0 +1,120 @@
+import type { SpeciesEnvironmentDensity } from '@/data/types';
+
+/** Selected numeric range represented on the density chart. */
+type DensitySelectionRange = {
+  start: number;
+  end: number;
+};
+
+/** Cartesian density sample in source domain units. */
+export type DensitySamplePoint = {
+  x: number;
+  y: number;
+};
+
+/** Derived x/y domain metadata used for chart normalization. */
+export type DensityDomain = {
+  minX: number;
+  maxX: number;
+  spanX: number;
+  safeMaxY: number;
+};
+
+/** Builds finite x/y density samples from API curve payload. */
+export const buildDensitySamples = (
+  curve: SpeciesEnvironmentDensity | null | undefined,
+): DensitySamplePoint[] => {
+  const pointCount = Math.min(curve?.points?.length ?? 0, curve?.density?.length ?? 0);
+  const samples: DensitySamplePoint[] = [];
+
+  if (!curve || pointCount <= 0) {
+    return samples;
+  }
+
+  for (let index = 0; index < pointCount; index += 1) {
+    const x = curve.points[index];
+    const y = curve.density[index];
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      samples.push({ x, y });
+    }
+  }
+
+  return samples;
+};
+
+/** Computes chart domain bounds and safe extents from density samples. */
+export const getDensityDomain = (samples: DensitySamplePoint[]): DensityDomain => {
+  const minX = samples.length ? Math.min(...samples.map((sample) => sample.x)) : 0;
+  const maxX = samples.length ? Math.max(...samples.map((sample) => sample.x)) : 1;
+  const spanX = maxX - minX || 1;
+  const maxY = samples.length ? Math.max(...samples.map((sample) => sample.y)) : 1;
+
+  return {
+    minX,
+    maxX,
+    spanX,
+    safeMaxY: maxY || 1,
+  };
+};
+
+/** Maps domain samples into normalized chart coordinates. */
+export const normalizeDensitySamples = (
+  samples: DensitySamplePoint[],
+  domain: DensityDomain,
+  chartHeight: number,
+  chartPadding: number,
+) =>
+  samples.map((sample) => ({
+    x: ((sample.x - domain.minX) / domain.spanX) * 100,
+    y: chartHeight - (sample.y / domain.safeMaxY) * (chartHeight - chartPadding),
+  }));
+
+/** Resolves SVG selection rectangle bounds for the active selection range. */
+export const getSelectionBounds = (
+  selection: DensitySelectionRange | null | undefined,
+  domain: DensityDomain,
+) => {
+  if (!selection) {
+    return null;
+  }
+
+  const leftValue = Math.max(domain.minX, Math.min(domain.maxX, selection.start));
+  const rightValue = Math.max(domain.minX, Math.min(domain.maxX, selection.end));
+  const leftRatio = ((Math.min(leftValue, rightValue) - domain.minX) / domain.spanX) * 100;
+  const rightRatio = ((Math.max(leftValue, rightValue) - domain.minX) / domain.spanX) * 100;
+
+  if (!Number.isFinite(leftRatio) || !Number.isFinite(rightRatio)) {
+    return null;
+  }
+
+  const width = Math.max(0, rightRatio - leftRatio);
+  if (width <= 0) {
+    return null;
+  }
+
+  return {
+    left: leftRatio,
+    width,
+  };
+};
+
+/** Converts gesture x-location to variable-domain value. */
+export const getValueForLocation = (
+  locationX: number,
+  chartWidth: number,
+  domain: DensityDomain,
+) => {
+  if (!chartWidth) {
+    return null;
+  }
+
+  const clamped = Math.min(Math.max(locationX, 0), chartWidth);
+  const fraction = clamped / chartWidth;
+  return domain.minX + fraction * domain.spanX;
+};
+
+/** Returns selection range with ascending start/end ordering. */
+export const toSortedSelectionRange = (left: number, right: number) => ({
+  start: Math.min(left, right),
+  end: Math.max(left, right),
+});

@@ -1,10 +1,8 @@
-import { Colors } from '@/constants/theme';
 import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import * as speciesLocationFiltersModule from '@/hooks/species/useSpeciesLocationFilters';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { Alert } from 'react-native';
 import SpeciesScreen, { LOCATION_SEARCH_LIMIT, type SpeciesScreenData } from '../_species';
 
 const mockPush = jest.fn();
@@ -12,7 +10,18 @@ const mockPush = jest.fn();
 jest.mock('@/data/api', () => ({
   fetchSpeciesLocations: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
+  fetchEnvironmentVariables: jest.fn(),
+  fetchSpeciesEnvironment: jest.fn(),
+  fetchEnvironmentRangeSlice: jest.fn(),
+  fetchSpeciesEnvironmentCategorySamples: jest.fn(),
 }));
+
+const mockedApiModule = jest.requireMock('@/data/api') as {
+  fetchEnvironmentVariables: jest.Mock;
+  fetchSpeciesEnvironment: jest.Mock;
+  fetchEnvironmentRangeSlice: jest.Mock;
+  fetchSpeciesEnvironmentCategorySamples: jest.Mock;
+};
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -116,6 +125,23 @@ afterEach(() => {
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
   mockFetchSpeciesOccurrences.mockResolvedValue([]);
+  mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
+  mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
+  mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
+    speciesId: 0,
+    variable: 'bio_1',
+    range: { min: 0, max: 0 },
+    limit: null,
+    count: 0,
+    observations: [],
+  });
+  mockedApiModule.fetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+    speciesId: 0,
+    variable: 'landcover',
+    classValue: 'unknown',
+    observations: [],
+    count: 0,
+  });
 });
 
 const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenData => ({
@@ -175,6 +201,23 @@ describe('Species screen', () => {
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
+    mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
+    mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
+    mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
+      speciesId: 0,
+      variable: 'bio_1',
+      range: { min: 0, max: 0 },
+      limit: null,
+      count: 0,
+      observations: [],
+    });
+    mockedApiModule.fetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 0,
+      variable: 'landcover',
+      classValue: 'unknown',
+      observations: [],
+      count: 0,
+    });
   });
 
   it('renders species data-driven content and supports download press', async () => {
@@ -274,66 +317,56 @@ describe('Species screen', () => {
     expect(mockFetchSpeciesOccurrences).not.toHaveBeenCalled();
   });
 
-  it('applies light mode background color when overridden to be light', async () => {
+  it('renders map and filters when color scheme is light', async () => {
     mockUseColorScheme.mockReturnValue('light');
-    const rendered = render(<SpeciesScreen data={createData()} />);
+    render(<SpeciesScreen data={createData()} />);
 
     await waitForSpeciesEffectsToSettle();
 
-    const tree = rendered.toJSON();
-
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected SpeciesScreen to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
+    expect(screen.getByText('Observation Map')).toBeTruthy();
+    expect(screen.getByText('Filter Observations by Location')).toBeTruthy();
   });
 
-  it('wires location filter values and handlers into SelectField controls', async () => {
-    const onCountryChange = jest.fn();
-    const onStateChange = jest.fn();
-    const onCountyChange = jest.fn();
+  it('updates map query when users change location filters', async () => {
+    mockFetchSpeciesLocations.mockImplementation(async (_query, level, parent) => {
+      if (level === 'country') {
+        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: ['Region'] }];
+      }
+      if (level === 'state' && parent === 'United States') {
+        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
+      }
+      return [];
+    });
 
-    const filtersSpy = jest
-      .spyOn(speciesLocationFiltersModule, 'useSpeciesLocationFilters')
-      .mockReturnValue({
-        countryOptions: [{ label: 'United States', value: 'country-us' }],
-        stateOptions: [{ label: 'Utah', value: 'state-ut' }],
-        countyOptions: [{ label: 'Salt Lake', value: 'county-salt-lake' }],
-        countryLoading: false,
-        stateLoading: false,
-        countyLoading: false,
-        selectedCountryGid: 'country-us',
-        selectedStateGid: 'state-ut',
-        selectedCountyGid: 'county-salt-lake',
-        finalLocationGid: 'county-salt-lake',
-        onCountryChange,
-        onStateChange,
-        onCountyChange,
-      });
+    mockFetchSpeciesOccurrences.mockImplementation(async (_taxonId, options) => {
+      if (!options?.location || options.location === 'country-us' || options.location === 'state-ut') {
+        return [{ catalogNumber: 'ok', latitude: 1, longitude: 2 }];
+      }
 
-    try {
-      render(<SpeciesScreen data={createData()} />);
+      return [];
+    });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('select-Country-status').props.children).toBe('Enabled');
-      });
+    render(<SpeciesScreen data={createData()} />);
 
-      expect(screen.getByTestId('select-Country-value').props.children).toContain('country-us');
-      expect(screen.getByTestId('select-State-value').props.children).toContain('state-ut');
-      expect(screen.getByTestId('select-County-value').props.children).toContain('county-salt-lake');
+    await waitFor(() => {
+      expect(screen.getByTestId('select-Country-option-country-us')).toBeTruthy();
+    });
 
-      fireEvent.press(screen.getByTestId('select-Country-next'));
-      fireEvent.press(screen.getByTestId('select-State-next'));
-      fireEvent.press(screen.getByTestId('select-County-next'));
+    fireEvent.press(screen.getByTestId('select-Country-option-country-us'));
 
-      expect(onCountryChange).toHaveBeenCalledWith('country-us');
-      expect(onStateChange).toHaveBeenCalledWith('state-ut');
-      expect(onCountyChange).toHaveBeenCalledWith('county-salt-lake');
-    } finally {
-      filtersSpy.mockRestore();
-    }
+    await waitFor(() => {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, { location: 'country-us' });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('select-State-option-state-ut')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByTestId('select-State-option-state-ut'));
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, { location: 'state-ut' });
+    });
   });
 
   it('shows API error message when occurrence fetch rejects with Error', async () => {

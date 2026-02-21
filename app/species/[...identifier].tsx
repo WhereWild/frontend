@@ -107,24 +107,17 @@ const getIdentifierFromParams = (params: SpeciesRouteParams) => {
   };
 };
 
-export default function SpeciesBasicsPage() {
-  const params = useLocalSearchParams<SpeciesRouteParams>();
-  const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
-
+const useSpeciesBasicsData = (fetchIdentifier?: string) => {
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
 
-  // Fetch the selected species whenever the resolved numeric identifier changes.
-  // The mounted flag ensures we never update state after the component unmounts.
   React.useEffect(() => {
     let mounted = true;
 
     (async () => {
       if (!fetchIdentifier) {
         setLoading(false);
-        console.error(
-          'Missing numeric taxon ID in route segments.',
-        );
+        console.error('Missing numeric taxon ID in route segments.');
         return;
       }
 
@@ -154,6 +147,18 @@ export default function SpeciesBasicsPage() {
     };
   }, [fetchIdentifier]);
 
+  return {
+    data,
+    loading,
+  };
+};
+
+export default function SpeciesBasicsPage() {
+  const params = useLocalSearchParams<SpeciesRouteParams>();
+  const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
+
+  const { data, loading } = useSpeciesBasicsData(fetchIdentifier);
+
   if (loading && !data) {
     return null;
   }
@@ -169,4 +174,5 @@ export const __SPECIES_BASICS_TESTING__ = {
   normalizeImageSource,
   buildSpeciesPageData,
   getIdentifierFromParams,
+  useSpeciesBasicsData,
 };

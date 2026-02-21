@@ -19,7 +19,6 @@ export type NavigationPillListProps = {
   accessibilityLabel?: string;
   testID?: string;
   onFocusRequest?: (index: number) => void;
-  allowDeselect?: boolean;
 };
 
 type KeyEvent = { nativeEvent?: { key?: string }; preventDefault?: () => void };
@@ -36,11 +35,9 @@ export function NavigationPillList({
   accessibilityLabel = 'Navigation pills',
   testID,
   onFocusRequest,
-  allowDeselect = false,
 }: NavigationPillListProps) {
   const pillRefs = useRef<NavigationPillRef[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
-  const lastSelectedKeyRef = useRef<string>(selectedKey);
   const [pillWidths, setPillWidths] = useState<Record<string, number>>({});
   const isHorizontal = direction === 'horizontal';
 
@@ -64,25 +61,16 @@ export function NavigationPillList({
     if (selectedIndex < 0) {
       return;
     }
-
-    if (lastSelectedKeyRef.current !== selectedKey) {
-      lastSelectedKeyRef.current = selectedKey;
-      setFocusedIndex(selectedIndex);
-      return;
-    }
-
-    if (focusedIndex === null) {
-      setFocusedIndex(selectedIndex);
-    }
-  }, [focusedIndex, selectedIndex, selectedKey]);
+    setFocusedIndex(selectedIndex);
+  }, [selectedIndex]);
 
   const handleSelectionChange = useCallback(
     (key: string) => {
-      if (key !== selectedKey || allowDeselect) {
+      if (key !== selectedKey) {
         onSelectionChange(key);
       }
     },
-    [onSelectionChange, selectedKey, allowDeselect]
+    [onSelectionChange, selectedKey]
   );
 
   const focusPill = useCallback((index: number) => {
@@ -90,6 +78,21 @@ export function NavigationPillList({
     ref?.focus?.();
     onFocusRequest?.(index);
   }, [onFocusRequest]);
+
+  const updateVerticalPillWidth = useCallback(
+    (pillKey: string, width: number) => {
+      if (isHorizontal) {
+        return;
+      }
+      setPillWidths((prev) => {
+        if (prev[pillKey] === width) {
+          return prev;
+        }
+        return { ...prev, [pillKey]: width };
+      });
+    },
+    [isHorizontal],
+  );
 
   const getNextIndex = useCallback(
     (currentIndex: number, directionStep: 1 | -1) => {
@@ -118,14 +121,13 @@ export function NavigationPillList({
 
       if (key === 'Enter' || key === ' ') {
         event.preventDefault?.();
-        const activeIndex = focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : index);
-        const pillKey = pills[activeIndex]?.key;
+        const pillKey = pills[index]?.key;
         if (pillKey) {
           handleSelectionChange(pillKey);
         }
       }
     },
-    [focusPill, focusedIndex, getNextIndex, handleSelectionChange, isHorizontal, pills, selectedIndex]
+    [focusPill, getNextIndex, handleSelectionChange, isHorizontal, pills]
   );
 
   return (
@@ -158,24 +160,13 @@ export function NavigationPillList({
               onPress={handleSelectionChange}
               onKeyDown={onKeyDownForIndex(index)}
               onFocus={() => setFocusedIndex(index)}
-              onContentLayout={(width) => {
-                if (isHorizontal) {
-                  return;
-                }
-                setPillWidths((prev) => {
-                  if (prev[pill.key] === width) {
-                    return prev;
-                  }
-                  return { ...prev, [pill.key]: width };
-                });
-              }}
+              onContentLayout={(width) => updateVerticalPillWidth(pill.key, width)}
               contentWidth={!isHorizontal ? maxPillWidth ?? undefined : undefined}
               focusable={isTabbable}
               tabIndex={isTabbable ? 0 : -1}
               accessibilityLabel={pill.accessibilityLabel ?? pill.label}
               testID={pill.testID}
               icon={pill.icon}
-              allowDeselect={allowDeselect}
             />
           </View>
         );
