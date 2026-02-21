@@ -5,13 +5,17 @@ import {
   type LocationOption,
   mapLocationsToOptions,
 } from './locationHelpers';
-
-type LocationLevel = 'country' | 'state' | 'county';
+import {
+  buildLocationCacheKey,
+  filterCandidatesByParent,
+  inferParentSelection,
+  resolveParentLookup,
+  type LocationLevel,
+} from './locationFilterHelpers';
 
 type UseSpeciesLocationFiltersParams = {
   taxonId?: number;
   locationSearchLimit: number;
-  occurrenceCheckConcurrency: number;
 };
 
 type UseSpeciesLocationFiltersResult = {
@@ -33,10 +37,7 @@ type UseSpeciesLocationFiltersResult = {
 export const useSpeciesLocationFilters = ({
   taxonId,
   locationSearchLimit,
-  occurrenceCheckConcurrency,
 }: UseSpeciesLocationFiltersParams): UseSpeciesLocationFiltersResult => {
-  void occurrenceCheckConcurrency;
-
   const [countryOptions, setCountryOptions] = React.useState<LocationOption[]>([]);
   const [stateOptions, setStateOptions] = React.useState<LocationOption[]>([]);
   const [countyOptions, setCountyOptions] = React.useState<LocationOption[]>([]);
@@ -62,51 +63,37 @@ export const useSpeciesLocationFilters = ({
     return selectedCountyGid ?? selectedStateGid ?? selectedCountryGid;
   }, [selectedCountryGid, selectedCountyGid, selectedStateGid]);
 
-  const findByNameInMap = React.useCallback(
-    (name: string, map: Record<string, LocationSearchResult>): LocationSearchResult | null => {
-      if (!name) {
-        return null;
-      }
-      const lower = name.toLowerCase();
-      for (const location of Object.values(map)) {
-        if ((location.name ?? '').toLowerCase() === lower) {
-          return location;
-        }
-      }
-      return null;
-    },
-    [],
-  );
-
   const loadSpeciesLocations = React.useCallback(
     async (level: LocationLevel, parentGidOrName: string | null): Promise<LocationSearchResult[]> => {
       if (taxonId == null) return [];
 
-      const parentToken = parentGidOrName ? String(parentGidOrName).trim() : '';
-      const cacheParent = parentToken || 'root';
-      const cacheKey = `${taxonId}::${level}::${cacheParent}::limit:${locationSearchLimit}`;
+      const { parentToken, parentCacheIdentity } = resolveParentLookup({
+        level,
+        parentGidOrName,
+        countryMap: countryMapRef.current,
+        stateMap: stateMapRef.current,
+      });
+
+      // Cache keys use parent identity (prefer gid, fallback normalized name) and
+      // include locationSearchLimit so:
+      // - gid vs name inputs for the same parent share one cache entry,
+      // - same-name but different-gid parents do not collide, and
+      // - requests with different limits do not reuse stale cached result sizes.
+      const cacheKey = buildLocationCacheKey(taxonId, level, parentCacheIdentity, locationSearchLimit);
       if (speciesLocationCacheRef.current[cacheKey]) {
         return speciesLocationCacheRef.current[cacheKey];
       }
 
-      let locations: LocationSearchResult[] = [];
-      let fetchSucceeded = false;
-      try {
-        locations = await fetchSpeciesLocations(
-          taxonId,
-          level,
-          parentToken || undefined,
-          locationSearchLimit,
-        );
-        fetchSucceeded = true;
-      } catch {
-        locations = [];
-      }
+      const locations = await fetchSpeciesLocations(
+        taxonId,
+        level,
+        parentToken || undefined,
+        locationSearchLimit,
+      );
 
-      if (fetchSucceeded) {
-        speciesLocationCacheRef.current[cacheKey] = locations;
-      }
-      return locations;
+      const filtered = filterCandidatesByParent(locations, parentToken);
+      speciesLocationCacheRef.current[cacheKey] = filtered;
+      return filtered;
     },
     [locationSearchLimit, taxonId],
   );
@@ -120,16 +107,36 @@ export const useSpeciesLocationFilters = ({
     ) => {
       const requestId = ++requestRef.current;
       setLoading(true);
-      let list: LocationSearchResult[] = [];
+
       try {
-        list = await load();
-      } catch {
-        list = [];
-      } finally {
+        const list = await load();
         if (requestRef.current === requestId) {
           onSuccess(list);
+        }
+      } catch {
+        if (requestRef.current === requestId) {
+          onSuccess([]);
+        }
+      } finally {
+        if (requestRef.current === requestId) {
           setLoading(false);
         }
+      }
+    },
+    [],
+  );
+
+  const applyLocationOptions = React.useCallback(
+    (
+      list: LocationSearchResult[],
+      setOptions: React.Dispatch<React.SetStateAction<LocationOption[]>>,
+      mapRef: React.MutableRefObject<Record<string, LocationSearchResult>>,
+    ) => {
+      const { sanitized, options } = mapLocationsToOptions(list);
+      setOptions(options);
+      mapRef.current = {};
+      for (const item of sanitized) {
+        mapRef.current[item.gid] = item;
       }
     },
     [],
@@ -184,55 +191,30 @@ export const useSpeciesLocationFilters = ({
   }, []);
 
   const inferAndSetParentsFromEntry = React.useCallback((entry: LocationSearchResult) => {
-    const hierarchy = Array.isArray(entry.hierarchy) ? entry.hierarchy.map((value) => String(value ?? '')) : [];
-
-    if (entry.level == null) {
+    const inferred = inferParentSelection(entry, countryMapRef.current, stateMapRef.current);
+    if (!inferred) {
       return;
     }
 
-    const level = Number(entry.level);
-    if (!Number.isInteger(level) || (level !== 0 && level !== 1 && level !== 2)) {
-      return;
+    if (inferred.countryGid) {
+      setSelectedCountryGid(inferred.countryGid);
     }
-
-    if (level === 0) {
-      setSelectedCountryGid(entry.gid);
-      return;
+    if (inferred.stateGid) {
+      setSelectedStateGid(inferred.stateGid);
     }
-
-    if (level === 1) {
-      setSelectedStateGid(entry.gid);
-      const countryName = hierarchy[1] ?? '';
-      const countryMatch = findByNameInMap(countryName, countryMapRef.current);
-      if (countryMatch) setSelectedCountryGid(countryMatch.gid);
-      return;
+    if (inferred.countyGid) {
+      setSelectedCountyGid(inferred.countyGid);
     }
-
-    setSelectedCountyGid(entry.gid);
-    const stateName = hierarchy[hierarchy.length - 2] ?? '';
-    const countryName = hierarchy[hierarchy.length - 3] ?? hierarchy[1] ?? '';
-
-    const stateMatch = findByNameInMap(stateName, stateMapRef.current);
-    if (stateMatch) setSelectedStateGid(stateMatch.gid);
-
-    const countryMatch = findByNameInMap(countryName, countryMapRef.current);
-    if (countryMatch) setSelectedCountryGid(countryMatch.gid);
-  }, [findByNameInMap]);
+  }, []);
 
   React.useEffect(() => {
     void runGuardedLoad(
       countryLoadRequestRef,
       setCountryLoading,
       () => loadSpeciesLocations('country', null),
-      (list) => {
-        const { sanitized, options } = mapLocationsToOptions(list);
-        setCountryOptions(options);
-        for (const country of sanitized) {
-          countryMapRef.current[country.gid] = country;
-        }
-      },
+      (list) => applyLocationOptions(list, setCountryOptions, countryMapRef),
     );
-  }, [loadSpeciesLocations, runGuardedLoad, taxonId]);
+  }, [applyLocationOptions, loadSpeciesLocations, runGuardedLoad, taxonId]);
 
   React.useEffect(() => {
     resetStateAndCountySelection();
@@ -245,15 +227,10 @@ export const useSpeciesLocationFilters = ({
       stateLoadRequestRef,
       setStateLoading,
       () => loadSpeciesLocations('state', selectedCountryGid),
-      (list) => {
-        const { sanitized, options } = mapLocationsToOptions(list);
-        setStateOptions(options);
-        for (const state of sanitized) {
-          stateMapRef.current[state.gid] = state;
-        }
-      },
+      (list) => applyLocationOptions(list, setStateOptions, stateMapRef),
     );
   }, [
+    applyLocationOptions,
     loadSpeciesLocations,
     resetStateAndCountySelection,
     runGuardedLoad,
@@ -272,15 +249,16 @@ export const useSpeciesLocationFilters = ({
       countyLoadRequestRef,
       setCountyLoading,
       () => loadSpeciesLocations('county', selectedStateGid),
-      (list) => {
-        const { sanitized, options } = mapLocationsToOptions(list);
-        setCountyOptions(options);
-        for (const county of sanitized) {
-          countyMapRef.current[county.gid] = county;
-        }
-      },
+      (list) => applyLocationOptions(list, setCountyOptions, countyMapRef),
     );
-  }, [loadSpeciesLocations, resetCountySelection, runGuardedLoad, selectedStateGid, taxonId]);
+  }, [
+    applyLocationOptions,
+    loadSpeciesLocations,
+    resetCountySelection,
+    runGuardedLoad,
+    selectedStateGid,
+    taxonId,
+  ]);
 
   const onCountryChange = React.useCallback(
     (gid: string | null) => {

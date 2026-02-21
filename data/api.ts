@@ -1,30 +1,125 @@
 import type {
-  EnvironmentVariableDefinition,
   RelativeRankingEntry,
   RelativeRankingOption,
   RelativeRankingOptionsResponse,
   RelativeRankingResponse,
   SpeciesApiDetail,
   SpeciesApiNormalized,
-  SpeciesEnvironmentBinSample,
-  SpeciesEnvironmentCategory,
   SpeciesEnvironmentCategorySampleResponse,
-  SpeciesEnvironmentCategorySamples,
-  SpeciesEnvironmentCategoricalTotals,
-  SpeciesEnvironmentHistogram,
-  SpeciesEnvironmentObservation,
-  SpeciesEnvironmentRelativeRank,
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
-  SpeciesEnvironmentSummary,
   LocationSearchResult,
   SpeciesOccurrence,
 } from './types';
 import { normalizeCommonNames } from './commonNames';
+import {
+  parseEnvironmentCategorySampleResponse,
+  parseEnvironmentSliceResponse,
+  parseEnvironmentVariableDefinitions,
+  parseSpeciesEnvironmentStats,
+  toFiniteNumber,
+} from './environmentParsers';
 
 const ENV_BACKEND_BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export const BACKEND_BASE = ENV_BACKEND_BASE || 'http://localhost:8000';
+
+type JsonRecord = Record<string, unknown>;
+
+const LEVEL_NAME_TO_NUM: Record<string, number> = {
+  continent: -1,
+  country: 0,
+  state: 1,
+  county: 2,
+};
+
+const asRecord = (value: unknown): JsonRecord =>
+  value && typeof value === 'object' ? (value as JsonRecord) : {};
+
+const parseNumericTaxonId = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const toOptionalString = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
+const toRequiredString = (value: unknown, fallback: string): string =>
+  typeof value === 'string' ? value : fallback;
+
+const toRequiredNumber = (value: unknown, fallback: number): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const readErrorText = async (response: Response) => response.text().catch(() => '');
+
+const fetchJsonOrThrow = async (url: string, failureLabel: string): Promise<unknown> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    const txt = await readErrorText(response);
+    throw new Error(`${failureLabel}: ${response.status} ${txt}`);
+  }
+
+  return response.json();
+};
+
+const toLocationSearchResult = (entry: unknown): LocationSearchResult | null => {
+  const source = asRecord(entry);
+  const gid = String(source.gid ?? '').trim();
+  const name = typeof source.name === 'string' ? source.name : '';
+
+  if (!gid.length || !name.length) {
+    return null;
+  }
+
+  return {
+    gid,
+    name,
+    level: typeof source.level === 'number' ? source.level : Number(source.level ?? -1),
+    hierarchy: Array.isArray(source.hierarchy)
+      ? source.hierarchy.map((item) => String(item ?? '')).filter(Boolean)
+      : [],
+  };
+};
+
+const mapLocationSearchResults = (payload: unknown): LocationSearchResult[] => {
+  const source = asRecord(payload);
+  const results = Array.isArray(source.results) ? source.results : [];
+
+  return results
+    .map(toLocationSearchResult)
+    .filter((entry): entry is LocationSearchResult => Boolean(entry));
+};
+
+const setLocationLevelParam = (
+  params: URLSearchParams,
+  level?: 'continent' | 'country' | 'state' | 'county' | number,
+) => {
+  if (typeof level === 'string') {
+    const maybe = LEVEL_NAME_TO_NUM[level.toLowerCase()];
+    if (typeof maybe === 'number') {
+      params.set('level', String(maybe));
+    }
+    return;
+  }
+
+  if (typeof level === 'number') {
+    params.set('level', String(level));
+  }
+};
 
 /**
  * Normalize a backend species item into the `SpeciesApiNormalized` shape,
@@ -32,17 +127,8 @@ export const BACKEND_BASE = ENV_BACKEND_BASE || 'http://localhost:8000';
  * and normalizing name fields like `scientific_name`, `common_name`, and `common_names`.
  */
 function normalizeToJsonShape(item: unknown): SpeciesApiNormalized {
-  const source = (item ?? {}) as Record<string, unknown>;
-  const rawTaxonId = source.taxon_id;
-  const normalizedTaxonId =
-    typeof rawTaxonId === 'number'
-      ? (Number.isFinite(rawTaxonId) ? rawTaxonId : null)
-      : (typeof rawTaxonId === 'string' && rawTaxonId.trim().length > 0
-        ? (() => {
-          const parsed = Number(rawTaxonId);
-          return Number.isFinite(parsed) ? parsed : null;
-        })()
-        : null);
+  const source = asRecord(item);
+  const normalizedTaxonId = parseNumericTaxonId(source.taxon_id);
   // prefer full URL returned by backend
   const imageUrlFromBackend =
     (typeof source.image_url === 'string' ? source.image_url : null) ??
@@ -89,44 +175,17 @@ export async function fetchLocationsByHierarchy(
 ): Promise<LocationSearchResult[]> {
   const trimmed = query.trim();
 
-  // map friendly level names to numeric level codes used by the backend
-  const LEVEL_NAME_TO_NUM: Record<string, number> = {
-    continent: -1,
-    country: 0,
-    state: 1,
-    county: 2,
-  };
-
   const params = new URLSearchParams({ q: trimmed });
-  // if caller passed a string name, convert to numeric; if they passed a number, use it
-  if (typeof level === 'string') {
-    const maybe = LEVEL_NAME_TO_NUM[level.toLowerCase()];
-    if (typeof maybe === 'number') {
-      params.set('level', String(maybe));
-    }
-  } else if (typeof level === 'number') {
-    params.set('level', String(level));
-  }
+  setLocationLevelParam(params, level);
   if (parent) params.set('parent', parent);
   params.set('limit', String(limit));
 
-  const res = await fetch(`${BACKEND_BASE}/locations/search_hierarchy?${params.toString()}`);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to search locations by hierarchy: ${res.status} ${txt}`);
-  }
-  const payload = await res.json();
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  return results
-    .map((entry: any) => ({
-      gid: String(entry?.gid ?? ''),
-      name: entry?.name ?? '',
-      level: typeof entry?.level === 'number' ? entry.level : Number(entry?.level ?? -1),
-      hierarchy: Array.isArray(entry?.hierarchy)
-        ? entry.hierarchy.map((item: any) => String(item ?? '')).filter(Boolean)
-        : [],
-    }))
-    .filter((entry: any) => entry.gid.length > 0 && entry.name.length > 0);
+  const payload = await fetchJsonOrThrow(
+    `${BACKEND_BASE}/locations/search_hierarchy?${params.toString()}`,
+    'Failed to search locations by hierarchy',
+  );
+
+  return mapLocationSearchResults(payload);
 }
 
 export async function fetchLocations(query: string, limit = 8): Promise<LocationSearchResult[]> {
@@ -138,23 +197,12 @@ export async function fetchLocations(query: string, limit = 8): Promise<Location
   if (limit) {
     params.set('limit', String(limit));
   }
-  const res = await fetch(`${BACKEND_BASE}/locations/search?${params.toString()}`);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to search locations: ${res.status} ${txt}`);
-  }
-  const payload = await res.json();
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  return results
-    .map((entry: any) => ({
-      gid: String(entry?.gid ?? ''),
-      name: entry?.name ?? '',
-      level: typeof entry?.level === 'number' ? entry.level : Number(entry?.level ?? -1),
-      hierarchy: Array.isArray(entry?.hierarchy)
-        ? entry.hierarchy.map((item: any) => String(item ?? '')).filter(Boolean)
-        : [],
-    }))
-    .filter((entry: any) => entry.gid.length > 0 && entry.name.length > 0);
+  const payload = await fetchJsonOrThrow(
+    `${BACKEND_BASE}/locations/search?${params.toString()}`,
+    'Failed to search locations',
+  );
+
+  return mapLocationSearchResults(payload);
 }
 
 
@@ -164,12 +212,7 @@ export async function fetchSpeciesList(limit?: number, q?: string): Promise<Spec
   if (q) params.set('q', q);
   const url = `${BACKEND_BASE}/api/species${params.toString() ? `?${params.toString()}` : ''}`;
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch species list: ${res.status} ${txt}`);
-  }
-  const data: unknown = await res.json();
+  const data = await fetchJsonOrThrow(url, 'Failed to fetch species list');
   const rows = Array.isArray(data) ? data : [];
   return rows.map((it) => normalizeToJsonShape(it));
 }
@@ -177,14 +220,9 @@ export async function fetchSpeciesList(limit?: number, q?: string): Promise<Spec
 export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<SpeciesApiDetail> {
   const encoded = encodeURIComponent(String(taxonId));
   const url = `${BACKEND_BASE}/api/species/${encoded}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch species ${taxonId}: ${res.status} ${txt}`);
-  }
-  const item: unknown = await res.json();
+  const item = await fetchJsonOrThrow(url, `Failed to fetch species ${taxonId}`);
   const normalized = normalizeToJsonShape(item);
-  const detailSource = (item ?? {}) as Record<string, unknown>;
+  const detailSource = asRecord(item);
   return {
     ...normalized,
     description:
@@ -218,316 +256,11 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<S
   };
 }
 
-const toVariableDefinition = (entry: any): EnvironmentVariableDefinition => ({
-  id: String(entry?.id ?? ''),
-  name: entry?.name,
-  units: entry?.units ?? null,
-  description: entry?.description,
-  valueType: entry?.value_type ?? entry?.valueType ?? null,
-  category: entry?.category ?? null,
-});
-
-export async function fetchEnvironmentVariables(): Promise<EnvironmentVariableDefinition[]> {
+export async function fetchEnvironmentVariables() {
   const url = `${BACKEND_BASE}/variables`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch variables: ${res.status} ${txt}`);
-  }
-  const payload = await res.json();
-  if (!Array.isArray(payload)) {
-    return [];
-  }
-  return payload
-    .map(toVariableDefinition)
-    .filter((entry) => entry.id.length > 0);
+  const payload = await fetchJsonOrThrow(url, 'Failed to fetch variables');
+  return parseEnvironmentVariableDefinitions(payload);
 }
-
-const toNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  const converted = Number(value);
-  return Number.isFinite(converted) ? converted : null;
-};
-
-const coerceEnvironmentSummary = (
-  value: Partial<SpeciesEnvironmentSummary> | undefined,
-): SpeciesEnvironmentSummary => ({
-  count: typeof value?.count === 'number' ? value.count : 0,
-  min: toNumber(value?.min),
-  mean: toNumber(value?.mean),
-  max: toNumber(value?.max),
-  stddev: toNumber(value?.stddev),
-  q01: toNumber(value?.q01 ?? value?.q01),
-  q10: toNumber(value?.q10),
-  q90: toNumber(value?.q90),
-  q99: toNumber(value?.q99 ?? value?.q99),
-});
-
-const coerceHistogram = (
-  value: Partial<SpeciesEnvironmentHistogram> | undefined,
-): SpeciesEnvironmentHistogram | null => {
-  if (!value) {
-    return null;
-  }
-  const bins = Array.isArray(value.bins)
-    ? value.bins.map(toNumber).filter((num): num is number => typeof num === 'number')
-    : [];
-  const counts = Array.isArray(value.counts)
-    ? value.counts.map(toNumber).filter((num): num is number => typeof num === 'number')
-    : [];
-  if (!bins.length || !counts.length) {
-    return null;
-  }
-  return { bins, counts };
-};
-
-const coerceBinSamples = (value: any): SpeciesEnvironmentBinSample[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => ({
-      index: typeof entry?.index === 'number' ? entry.index : Number(entry?.index ?? -1),
-      observationIds: Array.isArray(entry?.observation_ids)
-        ? entry.observation_ids
-        : Array.isArray(entry?.observationIds)
-          ? entry.observationIds
-          : [],
-    }))
-    .filter((entry) => Number.isFinite(entry.index) && entry.index >= 0);
-};
-
-const coerceCategories = (value: any): SpeciesEnvironmentCategory[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => ({
-      value:
-        typeof entry?.value === 'number'
-          ? entry.value
-          : typeof entry?.value === 'string'
-            ? entry.value
-            : Number(entry?.value ?? NaN),
-      className: entry?.class_name ?? entry?.className ?? String(entry?.value ?? ''),
-      description: entry?.description ?? null,
-      color: entry?.color ?? null,
-      count: typeof entry?.count === 'number' ? entry.count : Number(entry?.count ?? 0),
-      fraction:
-        typeof entry?.fraction === 'number' ? entry.fraction : Number(entry?.fraction ?? 0),
-    }))
-    .filter((entry) => entry.className.length > 0);
-};
-
-const coerceCategorySamples = (value: any): SpeciesEnvironmentCategorySamples[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => ({
-      value:
-        typeof entry?.value === 'number'
-          ? entry.value
-          : typeof entry?.value === 'string'
-            ? entry.value
-            : Number(entry?.value ?? NaN),
-      observationIds: Array.isArray(entry?.observation_ids)
-        ? entry.observation_ids
-        : Array.isArray(entry?.observationIds)
-          ? entry.observationIds
-          : [],
-    }))
-    .filter((entry) => entry.observationIds.length > 0);
-};
-
-const coerceCategoricalTotals = (value: any): SpeciesEnvironmentCategoricalTotals | null => {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-  const totalSamples = toNumber(value.total_samples ?? value.totalSamples);
-  const uniqueClasses = toNumber(value.unique_classes ?? value.uniqueClasses);
-  const significantUniqueClasses = toNumber(
-    value.significant_unique_classes ?? value.significantUniqueClasses,
-  );
-  return {
-    totalSamples: totalSamples ?? undefined,
-    uniqueClasses: uniqueClasses ?? undefined,
-    significantUniqueClasses: significantUniqueClasses ?? undefined,
-  };
-};
-
-const normalizeObservationEntry = (
-  entry: any,
-): SpeciesEnvironmentObservation => {
-  const rawCatalog =
-    entry?.catalogNumber ??
-    entry?.catalog_number ??
-    entry?.catalog ??
-    entry?.id;
-  const catalogNumber =
-    typeof rawCatalog === 'number' || typeof rawCatalog === 'string'
-      ? String(rawCatalog)
-      : '';
-  return {
-    catalogNumber,
-    value: toNumber(entry?.value),
-    latitude: toNumber(entry?.latitude),
-    longitude: toNumber(entry?.longitude),
-  };
-};
-
-const capitalize = (word: string) =>
-  word.length ? word[0].toUpperCase() + word.slice(1) : '';
-
-const labelFromSlug = (slug: string) =>
-  slug
-    .split('_')
-    .filter(Boolean)
-    .map(capitalize)
-    .join(' ');
-
-const buildCategoriesFromTallStats = (
-  value: any,
-  variableId: string,
-): {
-  distribution: SpeciesEnvironmentCategory[];
-  dominant: SpeciesEnvironmentCategory[];
-  totals: { totalSamples?: number; uniqueClasses?: number; significantClasses?: number };
-} | null => {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-  const variable = variableId?.toLowerCase?.() ?? '';
-  const filtered = value.filter((entry) => {
-    if (!entry?.variable) {
-      return true;
-    }
-    return String(entry.variable).toLowerCase() === variable;
-  });
-  if (!filtered.length) {
-    return null;
-  }
-  let totalSamples: number | undefined;
-  let uniqueClasses: number | undefined;
-  let significantClasses: number | undefined;
-  const categories: SpeciesEnvironmentCategory[] = [];
-  filtered.forEach((entry) => {
-    const metric = String(entry?.metric ?? '').trim();
-    const rawValue =
-      typeof entry?.value === 'number'
-        ? entry.value
-        : Number(entry?.value ?? NaN);
-    if (!metric.length) {
-      return;
-    }
-    if (metric === 'total_samples') {
-      if (Number.isFinite(rawValue)) {
-        totalSamples = rawValue;
-      }
-      return;
-    }
-    if (metric === 'unique_classes') {
-      if (Number.isFinite(rawValue)) {
-        uniqueClasses = rawValue;
-      }
-      return;
-    }
-    if (metric === 'significant_unique_classes') {
-      if (Number.isFinite(rawValue)) {
-        significantClasses = rawValue;
-      }
-      return;
-    }
-    if (!Number.isFinite(rawValue)) {
-      return;
-    }
-    const fraction = Number(rawValue);
-    const count =
-      typeof totalSamples === 'number'
-        ? Math.round(totalSamples * fraction)
-        : fraction;
-    categories.push({
-      value: metric,
-      className: labelFromSlug(metric),
-      description: null,
-      count,
-      fraction,
-    });
-  });
-  categories.sort((a, b) => b.fraction - a.fraction);
-  const dominant = categories.slice(0, Math.min(5, categories.length));
-  return {
-    distribution: categories,
-    dominant,
-    totals: { totalSamples, uniqueClasses, significantClasses },
-  };
-};
-
-const coerceRelativeRanks = (value: any): SpeciesEnvironmentRelativeRank[] => {
-  if (!value) {
-    return [];
-  }
-
-  const normalizeRank = (
-    metric: string,
-    entry: any,
-    overrides?: Partial<SpeciesEnvironmentRelativeRank>,
-  ): SpeciesEnvironmentRelativeRank => ({
-    metric,
-    label: entry?.label ?? entry?.name ?? overrides?.label ?? null,
-    rank: toNumber(
-      typeof entry?.position === 'number' ? entry.position : entry?.rank,
-    ),
-    count: toNumber(entry?.count),
-    percentile: toNumber(entry?.percentile),
-    context:
-      entry?.context ??
-      entry?.context_label ??
-      entry?.ancestor_name ??
-      overrides?.context ??
-      null,
-  });
-
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => normalizeRank(String(entry?.metric ?? ''), entry))
-      .filter((entry) => entry.metric.length > 0);
-  }
-
-  const ranks: SpeciesEnvironmentRelativeRank[] = [];
-  const entries = Object.entries(value);
-  for (const [key, raw] of entries) {
-    if (Array.isArray(raw)) {
-      raw.forEach((entry) => {
-        ranks.push(normalizeRank(String(entry?.metric ?? key), entry));
-      });
-      continue;
-    }
-
-    const layers = (raw as any)?.layers;
-    if (layers && typeof layers === 'object') {
-      for (const [layer, metrics] of Object.entries(layers)) {
-        if (!metrics || typeof metrics !== 'object') {
-          continue;
-        }
-        for (const [metric, record] of Object.entries(metrics as Record<string, any>)) {
-          ranks.push(
-            normalizeRank(metric, record, {
-              label: layer,
-              context: (raw as any)?.ancestor_name ?? key,
-            }),
-          );
-        }
-      }
-      continue;
-    }
-
-    ranks.push(normalizeRank(key, raw));
-  }
-  return ranks;
-};
 
 type LocationOptions = {
   location?: string | null;
@@ -546,76 +279,33 @@ export async function fetchSpeciesEnvironment(
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch environment stats (${variableId}) for ${taxonId}: ${res.status} ${txt}`,
-    );
-  }
-  const payload = await res.json();
-  const summary = coerceEnvironmentSummary(payload.summary);
-  const baselineSummary = payload.baseline_summary || payload.baselineSummary
-    ? coerceEnvironmentSummary(payload.baseline_summary ?? payload.baselineSummary)
-    : null;
-  const tallStats = buildCategoriesFromTallStats(payload.categorical_stats, variableId);
-  if ((summary.count === 0 || !Number.isFinite(summary.count)) && tallStats?.totals.totalSamples) {
-    summary.count = tallStats.totals.totalSamples;
-  }
-  const distribution = coerceCategories(payload.categorical_distribution);
-  const dominant = coerceCategories(payload.dominant_categories);
-  const baselineCategoricalDistribution = coerceCategories(
-    payload.baseline_categorical_distribution ?? payload.baselineCategoricalDistribution,
+  const payload = await fetchJsonOrThrow(
+    url,
+    `Failed to fetch environment stats (${variableId}) for ${taxonId}`,
   );
-  const baselineCategoricalTotals = coerceCategoricalTotals(
-    payload.baseline_categorical_totals ?? payload.baselineCategoricalTotals,
-  );
-  return {
-    speciesId: payload.species_id ?? Number(taxonId),
-    variable: payload.variable ?? variableId,
-    variableName: payload.variable_metadata?.name ?? payload.variable ?? variableId,
-    units: payload.variable_metadata?.units ?? null,
-    variableType:
-      payload.variable_metadata?.value_type ?? payload.variable_metadata?.valueType ?? null,
-    generatedAt: payload.generated_at,
-    summary,
-    histogram: coerceHistogram(payload.histogram),
-    densityCurve: Array.isArray(payload.densityCurve?.points ?? payload.density_curve?.points)
-    ? {
-        points: payload.densityCurve?.points ?? payload.density_curve?.points ?? [],
-        density: payload.densityCurve?.density ?? payload.density_curve?.density ?? [],
-      }
-    : null,
-    binSamples: coerceBinSamples(payload.bin_samples),
-    categoricalDistribution:
-      distribution.length ? distribution : tallStats?.distribution ?? [],
-    dominantCategories: dominant.length ? dominant : tallStats?.dominant ?? [],
-    categoricalSamples: coerceCategorySamples(payload.categorical_samples),
-    relativeRanks: coerceRelativeRanks(
-      payload.relative_ranks ?? payload.relative_rankings ?? payload.rankings,
-    ),
-    baselineSummary,
-    baselineCategoricalDistribution,
-    baselineCategoricalTotals,
-  };
+  return parseSpeciesEnvironmentStats(payload, taxonId, variableId);
 }
 
-const normalizeRelativeRankingEntry = (entry: any): RelativeRankingEntry => ({
-  taxonId: entry?.taxon_id ?? entry?.taxonId ?? entry?.id ?? null,
-  scientificName: entry?.scientific_name ?? entry?.scientificName ?? null,
-  commonName: entry?.common_name ?? entry?.commonName ?? null,
-  rank: entry?.rank ?? entry?.taxon_rank ?? null,
-  value: toNumber(entry?.value),
-  position: typeof entry?.position === 'number' ? entry.position : Number(entry?.position ?? 0),
-  percentile: toNumber(entry?.percentile),
-  count: typeof entry?.count === 'number' ? entry.count : Number(entry?.count ?? 0),
-  sampleCount:
-    typeof entry?.sample_count === 'number'
-      ? entry.sample_count
-      : typeof entry?.sampleCount === 'number'
-        ? entry.sampleCount
-        : entry?.count ?? null,
-});
+const normalizeRelativeRankingEntry = (entry: unknown): RelativeRankingEntry => {
+  const source = asRecord(entry);
+  const taxonIdRaw = source.taxon_id ?? source.taxonId ?? source.id;
+  const sampleCountRaw = source.sample_count ?? source.sampleCount ?? source.count;
+
+  return {
+    taxonId:
+      typeof taxonIdRaw === 'number' || typeof taxonIdRaw === 'string'
+        ? taxonIdRaw
+        : String(taxonIdRaw ?? ''),
+    scientificName: toOptionalString(source.scientific_name ?? source.scientificName),
+    commonName: toOptionalString(source.common_name ?? source.commonName),
+    rank: toOptionalString(source.rank ?? source.taxon_rank),
+    value: toFiniteNumber(source.value),
+    position: toRequiredNumber(source.position, 0),
+    percentile: toFiniteNumber(source.percentile),
+    count: toRequiredNumber(source.count, 0),
+    sampleCount: toFiniteNumber(sampleCountRaw),
+  };
+};
 
 export type RelativeRankingParams = {
   taxonId: number | string;
@@ -641,27 +331,29 @@ export async function fetchRelativeRankingOptions(
   const encoded = encodeURIComponent(String(taxonId));
   const query = new URLSearchParams({ rank });
   const url = `${BACKEND_BASE}/relative-rankings/${encoded}/options?${query.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch relative ranking options: ${res.status} ${txt}`);
-  }
-  const payload = await res.json();
+  const payload = asRecord(await fetchJsonOrThrow(url, 'Failed to fetch relative ranking options'));
   const options: RelativeRankingOption[] = Array.isArray(payload.options)
     ? payload.options
-        .map((entry: any) => ({
-          variable: typeof entry?.variable === 'string' ? entry.variable : String(entry?.variable ?? '').trim(),
-          metric: typeof entry?.metric === 'string' ? entry.metric : String(entry?.metric ?? '').trim(),
-          column: typeof entry?.column === 'string' && entry.column.length
-            ? entry.column
-            : `${entry?.variable ?? ''}::${entry?.metric ?? ''}`,
-          count: typeof entry?.count === 'number' ? entry.count : Number(entry?.count ?? 0) || 0,
-        }))
-        .filter((entry: { variable: string | any[]; metric: string | any[]; }) => entry.variable.length > 0 && entry.metric.length > 0)
+      .map((entry) => {
+        const source = asRecord(entry);
+
+        return {
+          variable:
+            typeof source.variable === 'string' ? source.variable : String(source.variable ?? '').trim(),
+          metric:
+            typeof source.metric === 'string' ? source.metric : String(source.metric ?? '').trim(),
+          column:
+            typeof source.column === 'string' && source.column.length
+              ? source.column
+              : `${source.variable ?? ''}::${source.metric ?? ''}`,
+          count: typeof source.count === 'number' ? source.count : Number(source.count ?? 0) || 0,
+        };
+      })
+      .filter((entry) => entry.variable.length > 0 && entry.metric.length > 0)
     : [];
   return {
-    ancestorTaxonId: payload.ancestor_taxon_id ?? Number(taxonId),
-    rank: payload.rank ?? rank,
+    ancestorTaxonId: toRequiredNumber(payload.ancestor_taxon_id, Number(taxonId)),
+    rank: toRequiredString(payload.rank, rank),
     options,
   };
 }
@@ -702,29 +394,24 @@ export async function fetchRelativeRankings(
     query.set('location', location);
   }
   const url = `${BACKEND_BASE}/relative-rankings/${encoded}?${query.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch relative rankings: ${res.status} ${txt}`);
-  }
-  const payload = await res.json();
+  const payload = asRecord(await fetchJsonOrThrow(url, 'Failed to fetch relative rankings'));
   const entries = Array.isArray(payload.entries)
     ? payload.entries.map(normalizeRelativeRankingEntry)
     : [];
+  const distributionSource = asRecord(payload.distribution);
   const distribution =
-    payload.distribution &&
-    Array.isArray(payload.distribution.points) &&
-    Array.isArray(payload.distribution.density)
+    Array.isArray(distributionSource.points) &&
+      Array.isArray(distributionSource.density)
       ? {
-          points: payload.distribution.points,
-          density: payload.distribution.density,
-        }
+        points: distributionSource.points,
+        density: distributionSource.density,
+      }
       : null;
   return {
-    ancestorTaxonId: payload.ancestor_taxon_id ?? Number(taxonId),
-    rank: payload.rank ?? rank,
-    variable: payload.variable ?? variableId,
-    metric: payload.metric ?? metric,
+    ancestorTaxonId: toRequiredNumber(payload.ancestor_taxon_id, Number(taxonId)),
+    rank: toRequiredString(payload.rank, rank),
+    variable: toRequiredString(payload.variable, variableId),
+    metric: toRequiredString(payload.metric, metric),
     total: typeof payload.total === 'number' ? payload.total : entries.length,
     limit: typeof payload.limit === 'number' ? payload.limit : limit ?? entries.length,
     entries,
@@ -761,31 +448,14 @@ export async function fetchEnvironmentRangeSlice(
     query.set('limit', String(limit));
   }
   if (location) {
-     query.set('location', location);
+    query.set('location', location);
   }
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch environment slice (${variableId}) for ${taxonId}: ${res.status} ${txt}`,
-    );
-  }
-  const payload = await res.json();
-  const observations = Array.isArray(payload.observations)
-    ? payload.observations.map(normalizeObservationEntry)
-    : [];
-  return {
-    speciesId: payload.speciesId ?? Number(taxonId),
-    variable: payload.variable ?? variableId,
-    range: {
-      min: typeof payload.range?.min === 'number' ? payload.range.min : min,
-      max: typeof payload.range?.max === 'number' ? payload.range.max : max,
-    },
-    limit: typeof payload.limit === 'number' ? payload.limit : limit ?? null,
-    count: typeof payload.count === 'number' ? payload.count : observations.length,
-    observations,
-  };
+  const payload = await fetchJsonOrThrow(
+    url,
+    `Failed to fetch environment slice (${variableId}) for ${taxonId}`,
+  );
+  return parseEnvironmentSliceResponse(payload, { taxonId, variableId, min, max, limit });
 }
 
 type CategorySampleOptions = {
@@ -811,24 +481,11 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   }
   const queryString = query.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch samples for ${variableId}=${classValue}: ${res.status} ${txt}`,
-    );
-  }
-  const payload = await res.json();
-  const observations = Array.isArray(payload.observations)
-    ? payload.observations.map(normalizeObservationEntry)
-    : [];
-  return {
-    speciesId: payload.speciesId ?? payload.species_id ?? Number(taxonId),
-    variable: payload.variable ?? variableId,
-    classValue: payload.classValue ?? payload.class_value ?? classValue,
-    observations,
-    count: typeof payload.count === 'number' ? payload.count : observations.length,
-  };
+  const payload = await fetchJsonOrThrow(
+    url,
+    `Failed to fetch samples for ${variableId}=${classValue}`,
+  );
+  return parseEnvironmentCategorySampleResponse(payload, { taxonId, variableId, classValue });
 }
 
 export async function fetchSpeciesOccurrences(
@@ -842,31 +499,28 @@ export async function fetchSpeciesOccurrences(
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(
-      `Failed to fetch occurrences for ${taxonId}: ${res.status} ${txt}`,
-    );
-  }
-  const payload = await res.json();
+  const payload = asRecord(await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`));
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
   return rows
-    .map((entry: any) => ({
-      catalogNumber:
-        entry?.catalogNumber ??
-        entry?.catalog_number ??
-        entry?.id ??
-        entry?.catalog ??
-        null,
-      latitude: toNumber(entry?.latitude),
-      longitude: toNumber(entry?.longitude),
-    }))
+    .map((entry) => {
+      const source = asRecord(entry);
+
+      return {
+        catalogNumber:
+          source.catalogNumber ??
+          source.catalog_number ??
+          source.id ??
+          source.catalog ??
+          null,
+        latitude: toFiniteNumber(source.latitude),
+        longitude: toFiniteNumber(source.longitude),
+      };
+    })
     .filter(
-      (entry: { latitude: any; longitude: any; }): entry is { catalogNumber: string | number; latitude: number; longitude: number } =>
-        (typeof entry.latitude === 'number' && typeof entry.longitude === 'number'),
+      (entry): entry is { catalogNumber: string | number; latitude: number; longitude: number } =>
+        typeof entry.latitude === 'number' && typeof entry.longitude === 'number',
     )
-    .map((entry: { catalogNumber: any; latitude: any; longitude: any; }) => ({
+    .map((entry) => ({
       catalogNumber: entry.catalogNumber ?? '',
       latitude: entry.latitude,
       longitude: entry.longitude,
@@ -880,22 +534,8 @@ export async function fetchSpeciesLocations(
   limit = 500,
 ): Promise<LocationSearchResult[]> {
   const encodedId = encodeURIComponent(String(taxonId));
-  const LEVEL_NAME_TO_NUM: Record<string, number> = {
-    continent: -1,
-    country: 0,
-    state: 1,
-    county: 2,
-  };
-
   const params = new URLSearchParams();
-  if (typeof level === 'string') {
-    const maybe = LEVEL_NAME_TO_NUM[level.toLowerCase()];
-    if (typeof maybe === 'number') {
-      params.set('level', String(maybe));
-    }
-  } else if (typeof level === 'number') {
-    params.set('level', String(level));
-  }
+  setLocationLevelParam(params, level);
   if (parent) {
     params.set('parent', parent);
   }
@@ -905,22 +545,17 @@ export async function fetchSpeciesLocations(
 
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/locations${query ? `?${query}` : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch species locations for ${taxonId}: ${res.status} ${txt}`);
-  }
+  const payload = await fetchJsonOrThrow(
+    url,
+    `Failed to fetch species locations for ${taxonId}`,
+  );
+  const rows = Array.isArray(payload)
+    ? payload
+    : Array.isArray(asRecord(payload).results)
+      ? (asRecord(payload).results as unknown[])
+      : [];
 
-  const payload = await res.json();
-  const rows = Array.isArray(payload) ? payload : [];
   return rows
-    .map((entry: any) => ({
-      gid: String(entry?.gid ?? ''),
-      name: entry?.name ?? '',
-      level: typeof entry?.level === 'number' ? entry.level : Number(entry?.level ?? -1),
-      hierarchy: Array.isArray(entry?.hierarchy)
-        ? entry.hierarchy.map((item: any) => String(item ?? '')).filter(Boolean)
-        : [],
-    }))
-    .filter((entry: any) => entry.gid.length > 0 && entry.name.length > 0);
+    .map(toLocationSearchResult)
+    .filter((entry): entry is LocationSearchResult => Boolean(entry));
 }

@@ -1,4 +1,9 @@
-import { BACKEND_BASE, fetchSpeciesByTaxonId, fetchSpeciesList } from '../api';
+import {
+  BACKEND_BASE,
+  fetchSpeciesByTaxonId,
+  fetchSpeciesList,
+  fetchSpeciesLocations,
+} from '../api';
 
 describe('data/api common name normalization', () => {
   const originalFetch = global.fetch;
@@ -214,6 +219,65 @@ describe('data/api common name normalization', () => {
       expect.objectContaining({
         image_source: `${BACKEND_BASE}/static/species_images/fox%20image.png`,
       }),
+    );
+  });
+
+  it('normalizes species locations from array payloads and drops malformed rows', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ([
+        { gid: 'country-us', name: 'United States', level: 0, hierarchy: ['North America'] },
+        { gid: '', name: 'Missing gid', level: 0, hierarchy: [] },
+      ]),
+    });
+
+    const rows = await fetchSpeciesLocations(42, 'country', undefined, 500);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${BACKEND_BASE}/species/42/locations?level=0&limit=500`,
+    );
+    expect(rows).toEqual([
+      {
+        gid: 'country-us',
+        name: 'United States',
+        level: 0,
+        hierarchy: ['North America'],
+      },
+    ]);
+  });
+
+  it('normalizes species locations from object payloads with results arrays', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['North America', 'United States'] }],
+      }),
+    });
+
+    const rows = await fetchSpeciesLocations(42, 'state', 'United States', 25);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${BACKEND_BASE}/species/42/locations?level=1&parent=United+States&limit=25`,
+    );
+    expect(rows).toEqual([
+      {
+        gid: 'state-ut',
+        name: 'Utah',
+        level: 1,
+        hierarchy: ['North America', 'United States'],
+      },
+    ]);
+  });
+
+  it('throws a descriptive error when species location request fails', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: async () => 'backend unavailable',
+    });
+
+    await expect(fetchSpeciesLocations(42, 'country')).rejects.toThrow(
+      'Failed to fetch species locations for 42: 503 backend unavailable',
     );
   });
 });

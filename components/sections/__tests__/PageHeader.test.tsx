@@ -236,7 +236,10 @@ describe('PageHeader', () => {
     expect(screen.queryByTestId('search-result-invalid')).toBeNull();
     expect(screen.getAllByTestId(/search-result-/)).toHaveLength(1);
     fireEvent.press(result);
-    expect(mockPush).toHaveBeenCalledWith('/species/12/canis-lupus');
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['12', 'canis-lupus'] },
+    });
 
     const resultsPanel = screen.getByTestId('header-search-results');
     act(() => {

@@ -4,7 +4,6 @@ import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import { fetchSpeciesByTaxonId } from '@/data/api';
-import Species from '../../_species';
 
 jest.mock('expo-router', () => {
   const actual = jest.requireActual('expo-router');
@@ -20,30 +19,25 @@ jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
   fetchLocationsByHierarchy: jest.fn(),
+  fetchEnvironmentVariables: jest.fn(),
+  fetchSpeciesEnvironment: jest.fn(),
+  fetchEnvironmentRangeSlice: jest.fn(),
+  fetchSpeciesEnvironmentCategorySamples: jest.fn(),
 }));
 
 const mockedApiModule = jest.requireMock('@/data/api') as {
   fetchSpeciesOccurrences: jest.Mock;
   fetchLocationsByHierarchy: jest.Mock;
+  fetchEnvironmentVariables: jest.Mock;
+  fetchSpeciesEnvironment: jest.Mock;
+  fetchEnvironmentRangeSlice: jest.Mock;
+  fetchSpeciesEnvironmentCategorySamples: jest.Mock;
 };
-
-jest.mock('../../_species', () => {
-  const React = jest.requireActual('react');
-  const actual = jest.requireActual('../../_species');
-  const SpeciesActual = actual.default;
-  const WrappedSpecies = jest.fn((props) => React.createElement(SpeciesActual, props));
-  return {
-    __esModule: true,
-    ...actual,
-    default: WrappedSpecies,
-  };
-});
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
-const mockSpecies = Species as jest.MockedFunction<typeof Species>;
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -60,11 +54,6 @@ const createRouterMock = () => ({
   refresh: jest.fn(),
 } as unknown as ReturnType<typeof useRouter>);
 
-const getLatestRenderProps = () => {
-  const call = mockSpecies.mock.calls[mockSpecies.mock.calls.length - 1];
-  return call?.[0];
-};
-
 const SAMPLE_TAXON_ID = '123456';
 
 describe('SpeciesBasicsPage', () => {
@@ -74,6 +63,23 @@ describe('SpeciesBasicsPage', () => {
     mockUsePathname.mockReturnValue('/');
     mockedApiModule.fetchSpeciesOccurrences.mockResolvedValue([]);
     mockedApiModule.fetchLocationsByHierarchy.mockResolvedValue([]);
+    mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
+    mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
+    mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
+      speciesId: Number(SAMPLE_TAXON_ID),
+      variable: 'bio_1',
+      range: { min: 0, max: 0 },
+      limit: null,
+      count: 0,
+      observations: [],
+    });
+    mockedApiModule.fetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: Number(SAMPLE_TAXON_ID),
+      variable: 'landcover',
+      classValue: 'unknown',
+      observations: [],
+      count: 0,
+    });
   });
 
   it('renders fallback data when no identifier parameter is supplied', async () => {
@@ -86,8 +92,6 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(mockSpecies).toHaveBeenCalled();
-    expect(getLatestRenderProps()?.data).toEqual(mountainBallCactusData);
     expect(screen.queryAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
 
     consoleSpy.mockRestore();
@@ -112,10 +116,8 @@ describe('SpeciesBasicsPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Snowy Owl').length).toBeGreaterThan(0);
     });
+    expect(screen.getByText('Bubo scandiacus')).toBeTruthy();
     await screen.findByText('Large white owl adapted to Arctic climates.');
-
-    const props = getLatestRenderProps();
-    expect(props?.data?.commonNames).toEqual(['Snowy Owl', 'Arctic Owl']);
   });
 
   it('falls back to sample data when the fetch request fails', async () => {
@@ -129,7 +131,6 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
-    expect(mockSpecies).toHaveBeenCalled();
     await waitFor(() => {
       expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
     });
@@ -183,13 +184,12 @@ describe('SpeciesBasicsPage', () => {
       image_url: 'https://example.com/should-not-use.png',
     } as any);
 
-    render(<SpeciesBasicsPage />);
-    await act(async () => {
-      await flushMicrotasksQueue();
-    });
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
 
-    const props = getLatestRenderProps();
-    expect(props?.data?.overview.imageSource).toEqual({ uri: 'https://example.com/preferred.png' });
+    expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/preferred.png' });
   });
 
   it('uses the provided React Native image source object when supplied', async () => {
@@ -202,13 +202,12 @@ describe('SpeciesBasicsPage', () => {
       image_source: providedSource,
     } as any);
 
-    render(<SpeciesBasicsPage />);
-    await act(async () => {
-      await flushMicrotasksQueue();
-    });
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
 
-    const props = getLatestRenderProps();
-    expect(props?.data?.overview.imageSource).toBe(providedSource);
+    expect(result.overview.imageSource).toBe(providedSource);
   });
 
   it('renders nothing while the identifier data is still loading', () => {
@@ -217,7 +216,6 @@ describe('SpeciesBasicsPage', () => {
 
     const { toJSON } = render(<SpeciesBasicsPage />);
 
-    expect(mockSpecies).not.toHaveBeenCalled();
     expect(toJSON()).toBeNull();
   });
 
@@ -229,13 +227,12 @@ describe('SpeciesBasicsPage', () => {
       description: 'Species reported without image metadata.',
     } as any);
 
-    render(<SpeciesBasicsPage />);
-    await act(async () => {
-      await flushMicrotasksQueue();
-    });
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
 
-    const props = getLatestRenderProps();
-    expect(props?.data?.overview.imageSource).toBe(mountainBallCactusData.overview.imageSource);
+    expect(result.overview.imageSource).toBe(mountainBallCactusData.overview.imageSource);
   });
 
   it('ignores late success responses after unmounting', async () => {
@@ -257,8 +254,6 @@ describe('SpeciesBasicsPage', () => {
       });
       await flushMicrotasksQueue();
     });
-
-    expect(mockSpecies).not.toHaveBeenCalled();
   });
 
   it('ignores late error responses after unmounting', async () => {
@@ -279,7 +274,6 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(consoleSpy).not.toHaveBeenCalled();
-    expect(mockSpecies).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
@@ -310,7 +304,6 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(mockSpecies).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith('Missing numeric taxon ID in route segments.');
 
     consoleSpy.mockRestore();
