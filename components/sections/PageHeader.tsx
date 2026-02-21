@@ -29,7 +29,7 @@ import { SearchResults } from './SearchResults';
 import { ThemedText } from '../text/ThemedText';
 import { Portal } from '../Portal';
 import { fetchSpeciesList } from '@/data/api';
-import { SpeciesSummary } from '@/data/types';
+import { SpeciesApiNormalized, SpeciesSummary } from '@/data/types';
 import { toKebabCase } from '@/utils/string';
 
 // Allows callers to forward styling/behavior props to SearchInput while keeping PageHeader in control of its value.
@@ -37,28 +37,31 @@ type SearchInputPassthroughProps = Partial<
   Omit<SearchInputProps, 'value' | 'onQueryChange' | 'onSubmitSearch' | 'placeholder'>
 >;
 
-const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
-  const rawId = typeof entry?.taxon_id === 'number' ? entry?.taxon_id : Number(entry?.taxon_id ?? NaN);
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+const mapSearchResultToSummary = (entry: SpeciesApiNormalized): SpeciesSummary | null => {
+  const rawId = typeof entry.taxon_id === 'number' ? entry.taxon_id : Number(entry.taxon_id ?? NaN);
   if (!Number.isFinite(rawId)) {
     return null;
   }
   const scientificName =
-    (typeof entry?.scientific_name === 'string' && entry.scientific_name.length > 0)
+    (typeof entry.scientific_name === 'string' && entry.scientific_name.length > 0)
       ? entry.scientific_name
       : `Taxon #${rawId}`;
   const normalizeName = (value?: string) =>
     typeof value === 'string' && value.length > 0 ? value.replace(/_/g, ' ') : value;
-  const commonName = normalizeName(entry?.common_name) ?? scientificName;
+  const commonName = normalizeName(entry.common_name) ?? scientificName;
+  const raw = asRecord(entry._raw);
+  const rawDescription = raw.description;
   const description =
-    (typeof entry?.description === 'string' && entry.description.length > 0)
-      ? entry.description
-      : (typeof entry?._raw?.description === 'string' && entry._raw.description.length > 0)
-        ? entry._raw.description
+    (typeof rawDescription === 'string' && rawDescription.length > 0)
+      ? rawDescription
         : 'Tap to view species details';
   const imageSource =
-    typeof entry?.image_source === 'string'
+    typeof entry.image_source === 'string'
       ? { uri: entry.image_source }
-      : entry?.image_source;
+      : undefined;
 
   return {
     taxonId: rawId,
@@ -170,7 +173,6 @@ export function PageHeader({
     </>
   );
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SpeciesSummary[]>([]);
   const [searching, setSearching] = useState(false);
@@ -180,6 +182,20 @@ export function PageHeader({
   const [isSearchResultsHovered, setIsSearchResultsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState(() =>
+    typeof initialQuery === 'string' ? initialQuery : '',
+  );
+  const previousInitialQueryRef = React.useRef(initialQuery);
+
+  useEffect(() => {
+    if (initialQuery === previousInitialQueryRef.current) {
+      return;
+    }
+
+    previousInitialQueryRef.current = initialQuery;
+    setSearchQuery(typeof initialQuery === 'string' ? initialQuery : '');
+  }, [initialQuery]);
 
   useEffect(() => {
     if (!isCompact && isMenuOpen) {
@@ -202,12 +218,6 @@ export function PageHeader({
       measureMenuAnchor();
     }
   }, [isMenuOpen, isCompact, measureMenuAnchor]);
-
-  if (typeof initialQuery === 'string' && initialQuery !== '' && searchQuery === '') {
-    // Initialize search query from prop on first render
-    // After first render, initialQuery will be set to a blank string and searchQuery will be controlled internally
-    setSearchQuery(initialQuery);
-  }
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -243,7 +253,7 @@ export function PageHeader({
         }
         const mapped = payload
           .map(mapSearchResultToSummary)
-          .filter((entry: any): entry is SpeciesSummary => Boolean(entry))
+          .filter((result): result is SpeciesSummary => Boolean(result))
           .slice(0, SEARCH_RESULT_LIMIT);
         setSearchResults(mapped);
         if (onSearchResultsChanged) {
@@ -298,7 +308,10 @@ export function PageHeader({
         onSelectResult={(s) => {
           const segment = toKebabCase((s.scientificName ?? '').trim());
           if (segment) {
-            router.push(`/species/${s.taxonId}/${segment}` as any);
+            router.push({
+              pathname: '/species/[...identifier]',
+              params: { identifier: [String(s.taxonId), segment] },
+            });
           }
         }}
         testID="header-search-results"

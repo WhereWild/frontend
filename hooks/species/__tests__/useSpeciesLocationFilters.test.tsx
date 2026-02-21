@@ -13,12 +13,11 @@ const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
 
 const HookHarness = React.forwardRef<
   ReturnType<typeof useSpeciesLocationFilters>,
-  { taxonId?: number; occurrenceCheckConcurrency?: number; locationSearchLimit?: number }
->(({ taxonId, occurrenceCheckConcurrency = 2, locationSearchLimit = 500 }, ref) => {
+  { taxonId?: number; locationSearchLimit?: number }
+>(({ taxonId, locationSearchLimit = 500 }, ref) => {
   const value = useSpeciesLocationFilters({
     taxonId,
     locationSearchLimit,
-    occurrenceCheckConcurrency,
   });
 
   React.useImperativeHandle(ref, () => value, [value]);
@@ -70,10 +69,10 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: ['Region'] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
       }
-      if (level === 'county' && parent === 'state-ut') {
+      if (level === 'county' && parent === 'Utah') {
         return [
           {
             gid: 'county-slc',
@@ -115,10 +114,10 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: ['Region'] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
       }
-      if (level === 'county' && parent === 'state-ut') {
+      if (level === 'county' && parent === 'Utah') {
         return [
           {
             gid: 'county-slc',
@@ -209,7 +208,7 @@ describe('useSpeciesLocationFilters', () => {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
       }
 
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         stateCallCount += 1;
         if (stateCallCount === 1) {
           throw new Error('transient');
@@ -253,7 +252,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const stateCalls = mockFetchSpeciesLocations.mock.calls.filter(
-      (args) => args[1] === 'state' && args[2] === 'country-us',
+      (args) => args[1] === 'state' && args[2] === 'United States',
     );
     expect(stateCalls).toHaveLength(2);
   });
@@ -310,7 +309,7 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: [] }];
       }
       return [];
@@ -332,7 +331,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const stateCallsBeforeReselect = mockFetchSpeciesLocations.mock.calls.filter(
-      (args) => args[1] === 'state' && args[2] === 'country-us',
+      (args) => args[1] === 'state' && args[2] === 'United States',
     ).length;
 
     await act(async () => {
@@ -350,7 +349,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const stateCallsAfterReselect = mockFetchSpeciesLocations.mock.calls.filter(
-      (args) => args[1] === 'state' && args[2] === 'country-us',
+      (args) => args[1] === 'state' && args[2] === 'United States',
     ).length;
     expect(stateCallsAfterReselect).toBe(stateCallsBeforeReselect);
   });
@@ -360,7 +359,7 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [{ gid: 'state-as-country', name: 'Country-Level', level: 0 as any, hierarchy: [] }];
       }
       return [];
@@ -394,7 +393,7 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [{ gid: 'state-unknown', name: 'Unknown', level: null as any, hierarchy: [] }];
       }
       return [];
@@ -456,7 +455,7 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [
           { gid: 'state-no-country', name: 'No Country', level: 1, hierarchy: [] },
           { gid: 'state-invalid-level', name: 'Invalid Level', level: 1.5 as any, hierarchy: [] },
@@ -499,10 +498,10 @@ describe('useSpeciesLocationFilters', () => {
       if (level === 'country') {
         return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
       }
-      if (level === 'state' && parent === 'country-us') {
+      if (level === 'state' && parent === 'United States') {
         return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
       }
-      if (level === 'county' && parent === 'state-ut') {
+      if (level === 'county' && parent === 'Utah') {
         return [
           { gid: 'county-slc', name: 'Salt Lake County', level: 2, hierarchy: ['Region', 'United States', 'Utah'] },
           { gid: 'county-no-hierarchy', name: 'No Hierarchy', level: 2, hierarchy: undefined as any },
