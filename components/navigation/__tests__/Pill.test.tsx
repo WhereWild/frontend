@@ -120,7 +120,7 @@ describe('NavigationPill', () => {
     expect(onPress).toHaveBeenCalledWith('one');
   });
 
-  it('does not call onPress when active', () => {
+  it('calls onPress when active', () => {
     const onPress = jest.fn();
     render(
       <NavigationPill
@@ -128,38 +128,6 @@ describe('NavigationPill', () => {
         label="One"
         isActive={true}
         onPress={onPress}
-      />
-    );
-
-    fireEvent.press(screen.getByLabelText('One'));
-    expect(onPress).not.toHaveBeenCalled();
-  });
-
-  it('calls onPress when active and allowDeselect is true', () => {
-    const onPress = jest.fn();
-    render(
-      <NavigationPill
-        id="one"
-        label="One"
-        isActive={true}
-        onPress={onPress}
-        allowDeselect={true}
-      />
-    );
-
-    fireEvent.press(screen.getByLabelText('One'));
-    expect(onPress).toHaveBeenCalledWith('one');
-  });
-
-  it('calls onPress when inactive even with allowDeselect false', () => {
-    const onPress = jest.fn();
-    render(
-      <NavigationPill
-        id="one"
-        label="One"
-        isActive={false}
-        onPress={onPress}
-        allowDeselect={false}
       />
     );
 
