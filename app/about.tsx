@@ -15,6 +15,7 @@ import {
   PageHeader,
   SearchInput,
   SelectField,
+  SwitchField,
   SpeciesCard,
   SpeciesPageTitle,
   Tabs,
@@ -102,6 +103,7 @@ export default function About() {
   const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
+  const [switchValue, setSwitchValue] = useState(true);
   const [selectedTab, setSelectedTab] = useState('overview');
   const [overviewPill, setOverviewPill] = useState('all');
   const [habitatPill, setHabitatPill] = useState('soil');
@@ -485,6 +487,30 @@ export default function About() {
                 placeholder="Start typing a place name"
                 options={longPlaceOptions}
                 onValueChange={setSelectLongPlaceValue}
+              />
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Switch Field</ThemedText>
+            <View style={styles.selectGrid}>
+              <SwitchField
+                label="Label"
+                description="Description"
+                value={switchValue}
+                onValueChange={setSwitchValue}
+              />
+              <SwitchField
+                label="Label"
+                description="Description"
+                value={false}
+                disabled
+              />
+              <SwitchField
+                label="Label"
+                description="Description"
+                value={true}
+                disabled
               />
             </View>
           </View>
