@@ -132,18 +132,13 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const hasImageAttribution = Boolean(
     overview.imageLicense ||
-      overview.imageCreator ||
-      overview.imageRightsHolder ||
-      overview.imageReferences
+    overview.imageCreator ||
+    overview.imageRightsHolder ||
+    overview.imageReferences
   );
 
   const normalizedCreator = overview.imageCreator?.trim() || '';
   const normalizedRightsHolder = overview.imageRightsHolder?.trim() || '';
-  const creatorMatchesRightsHolder =
-    normalizedCreator &&
-    normalizedRightsHolder &&
-    normalizedCreator.toLowerCase() === normalizedRightsHolder.toLowerCase();
-
   const photoBy = normalizedCreator || normalizedRightsHolder;
 
   const imageReferenceUrl = React.useMemo(() => {
@@ -188,21 +183,20 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   {hasImageAttribution && (
                     <View style={styles.imageAttribution}>
                       {photoBy && (
-                        <ThemedText variant="bodySmall" style={styles.licenseText}>
+                        <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
                           Photo by {photoBy}
                         </ThemedText>
                       )}
                       {imageReferenceUrl && (
                         <ThemedText
-                          variant="bodySmall"
-                          style={styles.attributionLink}
+                          variant="link"
                           onPress={() => Linking.openURL(imageReferenceUrl)}
                         >
                           View on iNaturalist
                         </ThemedText>
                       )}
                       {overview.imageLicense && (
-                        <ThemedText variant="bodySmall" style={styles.licenseText}>
+                        <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
                           {overview.imageLicense}
                         </ThemedText>
                       )}
@@ -317,13 +311,6 @@ const styles = StyleSheet.create({
   imageAttribution: {
     marginTop: Size.space['100'],
     gap: Size.space['50'],
-  },
-  licenseText: {
-    opacity: 0.7,
-  },
-  attributionLink: {
-    color: Colors.light.text.brand.default,
-    textDecorationLine: 'underline',
   },
   commonNamesSection: {
     gap: Size.space['200'],
