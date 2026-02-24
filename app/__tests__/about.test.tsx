@@ -1,4 +1,4 @@
-import { Colors, Shadows, Typography } from '@/constants/theme';
+import { Colors, Shadows, Time, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import React from 'react';
@@ -49,8 +49,13 @@ const EXPECTED_TYPOGRAPHY_LABELS = [
 
 describe('About screen', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     mockPush.mockClear();
     mockPathname = '/';
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders the species component preview with sample data', () => {
@@ -87,7 +92,7 @@ describe('About screen', () => {
     expect(screen.getByText('Search submitted with "sage"')).toBeTruthy();
   });
 
-  it('renders previews for each typography variant and shadow token', () => {
+  it('renders previews for typography, shadow, and time token examples', () => {
     render(<About />);
 
     const typographyVariantCount = Object.keys(Typography.light).length;
@@ -100,6 +105,14 @@ describe('About screen', () => {
       expect(scoped.getByText(TYPOGRAPHY_SAMPLE_TEXT)).toBeTruthy();
     });
     expect(screen.getAllByTestId('shadow-sample')).toHaveLength(Object.keys(Shadows).length);
+
+    expect(screen.getByText('Time + Easing Tokens')).toBeTruthy();
+    expect(screen.getByText('Duration \\ Easing')).toBeTruthy();
+    expect(screen.getAllByTestId('time-duration-header')).toHaveLength(Object.keys(Time.duration).length);
+    expect(screen.getAllByTestId('time-easing-header')).toHaveLength(Object.keys(Time.easing).length);
+    expect(screen.getAllByTestId('time-motion-preview-cell')).toHaveLength(
+      Object.keys(Time.duration).length * Object.keys(Time.easing).length,
+    );
   });
 
   it('does not push a new route when already viewing About', () => {

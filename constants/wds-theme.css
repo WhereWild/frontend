@@ -630,6 +630,19 @@
   --wds-responsive-text-width: 50rem;
   --wds-responsive-top-level-gap: var(--@size-space-600);
 }
+/* time: mode_1 (default) */
+:root {
+  --wds-time-duration-deliberate: 500ms;
+  --wds-time-duration-instant: 0ms;
+  --wds-time-duration-long: 300ms;
+  --wds-time-duration-medium: 200ms;
+  --wds-time-duration-short: 100ms;
+  --wds-time-easing-in: [0.42, 0, 1, 1];
+  --wds-time-easing-in-and-out: [0.42, 0, 0.58, 1];
+  --wds-time-easing-linear: [0, 0, 1, 1];
+  --wds-time-easing-out: [0, 0, 0.58, 1];
+  --wds-time-easing-standard: [0.25, 0.1, 0.25, 1];
+}
 /* styles */
 :root {
   --wds-font-title-hero: normal var(--wds-typography-title-hero-font-weight) var(--wds-typography-title-hero-size) var(--wds-typography-title-hero-font-family);
