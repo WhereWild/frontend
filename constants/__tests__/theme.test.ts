@@ -140,11 +140,15 @@ describe('Theme Tokens', () => {
 
     it('converts CSS shorthands into Expo font metadata', () => {
       const bodyStyle = Typography.light.body;
+      const bodySmallLinkStyle = Typography.light.bodySmallLink;
 
       expect(bodyStyle.fontFamily).toBe('Inter_400Regular');
       expect(bodyStyle.fontSize).toBe(Responsive.rootFontSize);
       expect(bodyStyle.lineHeight).toBeCloseTo(Responsive.rootFontSize * 1.4);
       expect(bodyStyle.color).toBe(Colors.light.text.default.default);
+      expect(bodySmallLinkStyle.fontFamily).toBe('Inter_400Regular');
+      expect(bodySmallLinkStyle.color).toBe(Colors.light.text.brand.default);
+      expect(Typography.dark.bodySmallLink.color).toBe(Colors.dark.text.brand.default);
       expect(Typography.dark.link.color).toBe(Colors.dark.text.brand.default);
     });
 

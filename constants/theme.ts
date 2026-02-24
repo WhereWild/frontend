@@ -298,6 +298,7 @@ const createTypography = (mode: 'light' | 'dark', baseRemPx: number) => ({
   bodyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   bodySmall: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   bodySmallEmphasis: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-emphasis'], 'body', baseRemPx), color: Colors[mode].text.default.default },
+  bodySmallLink: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-link'], 'body', baseRemPx), color: Colors[mode].text.brand.default },
   bodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   bodyTiny: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-tiny'], 'body', baseRemPx), color: Colors[mode].text.default.default },
   bodyTinyStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-tiny-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
