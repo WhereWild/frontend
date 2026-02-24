@@ -1,8 +1,10 @@
 import React, { act } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { Size } from '@/constants/theme';
 import { PageHeader } from '../PageHeader';
 import { IconHelpCircle } from '@/assets/icons';
 import { useResponsive } from '@/hooks/useResponsive';
+import { StyleSheet, View } from 'react-native';
 
 const mockPush = jest.fn();
 let mockPathname = '/';
@@ -25,6 +27,7 @@ jest.mock('@/data/api', () => ({
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
 
 const SEARCH_WRAPPER_LAYOUT_HEIGHT = 40;
+const SEARCH_DEBOUNCE_MS = 400;
 
 describe('PageHeader', () => {
   const setupSearchVisibility = () => {
@@ -35,12 +38,12 @@ describe('PageHeader', () => {
       });
     });
 
-    const searchRow = screen.getByTestId('page-header-search-row');
+    const searchInput = screen.getByLabelText('Search input');
     act(() => {
-      searchRow.props.onFocus?.({});
+      searchInput.props.onFocus?.({});
     });
 
-    return { searchRow };
+    return { searchInput };
   };
 
   beforeEach(() => {
@@ -51,7 +54,7 @@ describe('PageHeader', () => {
   });
 
   it('renders title, search input, and default actions', () => {
-    render(<PageHeader/>);
+    render(<PageHeader />);
 
     expect(screen.getByText('WhereWild')).toBeTruthy();
     expect(screen.getByPlaceholderText('Search').props.value).toBe('');
@@ -133,7 +136,7 @@ describe('PageHeader', () => {
     expect(screen.getByLabelText('Help')).toBeTruthy();
     expect(screen.getByLabelText('About')).toBeTruthy();
     expect(screen.getByLabelText('Settings')).toBeTruthy();
-    
+
     // Close the menu before unmounting to avoid Portal cleanup timeout
     const backdrop = screen.getByTestId('page-header-menu-backdrop');
     fireEvent.press(backdrop);
@@ -167,7 +170,7 @@ describe('PageHeader', () => {
     expect(searchInput.props.value).toBe('fox');
 
     await act(async () => {
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -176,6 +179,20 @@ describe('PageHeader', () => {
     expect(handleResults).toHaveBeenCalled();
 
     jest.useRealTimers();
+  });
+
+  it('updates search query when initialQuery prop changes', () => {
+    const { rerender } = render(<PageHeader initialQuery="fox" />);
+
+    expect(screen.getByLabelText('Search input').props.value).toBe('fox');
+
+    rerender(<PageHeader initialQuery="owl" />);
+
+    expect(screen.getByLabelText('Search input').props.value).toBe('owl');
+
+    rerender(<PageHeader initialQuery={undefined} />);
+
+    expect(screen.getByLabelText('Search input').props.value).toBe('');
   });
 
   it('reports empty results when query is cleared', async () => {
@@ -194,13 +211,13 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'fox');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
     await act(async () => {
       fireEvent.changeText(searchInput, '');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -219,12 +236,12 @@ describe('PageHeader', () => {
     ] as any);
 
     render(<PageHeader />);
-    const { searchRow } = setupSearchVisibility();
+    setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'wolf');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -241,19 +258,38 @@ describe('PageHeader', () => {
       params: { identifier: ['12', 'canis-lupus'] },
     });
 
-    const resultsPanel = screen.getByTestId('header-search-results');
-    act(() => {
-      resultsPanel.props.onPointerEnter?.();
+    jest.useRealTimers();
+  });
+
+  it('keeps results mounted long enough to navigate when click blurs input first', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 312, scientific_name: 'Puma concolor', common_name: 'Mountain Lion' },
+    ] as any);
+
+    render(<PageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'puma');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
     });
-    act(() => {
-      searchRow.props.onBlur?.({});
-    });
-    expect(screen.getByTestId('header-search-results')).toBeTruthy();
+
+    await screen.findByTestId('header-search-results');
+    const result = await screen.findByTestId('search-result-312');
 
     act(() => {
-      resultsPanel.props.onPointerLeave?.();
+      searchInput.props.onBlur?.({});
     });
-    expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    fireEvent.press(result);
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['312', 'puma-concolor'] },
+    });
 
     jest.useRealTimers();
   });
@@ -275,7 +311,7 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'error');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -318,7 +354,7 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'lynx');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -364,7 +400,7 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'bad');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -405,7 +441,7 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'owl');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -430,7 +466,7 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'silent');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -453,9 +489,44 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'fox');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
+
+    expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    jest.useRealTimers();
+  });
+
+  it('hides results when focus moves from search input to filter button', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 123, scientific_name: 'Buteo jamaicensis', common_name: 'Red-tailed Hawk' },
+    ] as any);
+
+    render(<PageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'hawk');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByTestId('header-search-results')).toBeTruthy();
+
+    act(() => {
+      searchInput.props.onBlur?.({});
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const filterButton = screen.getByLabelText('Filter search results');
+    fireEvent(filterButton, 'focus');
 
     expect(screen.queryByTestId('header-search-results')).toBeNull();
 
@@ -471,7 +542,7 @@ describe('PageHeader', () => {
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'fail');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
@@ -480,29 +551,217 @@ describe('PageHeader', () => {
     jest.useRealTimers();
   });
 
-  it('hides results when search row blurs and hover is inactive', async () => {
+  it('hides results when search input blur grace expires', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
       { taxon_id: 55, scientific_name: 'Strix aluco', common_name: 'Tawny Owl' },
     ] as any);
 
     render(<PageHeader />);
-    const { searchRow } = setupSearchVisibility();
+    setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
     await act(async () => {
       fireEvent.changeText(searchInput, 'owl');
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
       await Promise.resolve();
     });
 
     expect(await screen.findByTestId('header-search-results')).toBeTruthy();
 
     act(() => {
-      searchRow.props.onBlur?.({});
+      searchInput.props.onBlur?.({});
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
     });
 
     expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    jest.useRealTimers();
+  });
+
+  it('toggles compact menu closed when open button is pressed twice', () => {
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+    render(<PageHeader />);
+
+    const menuButton = screen.getByLabelText('Open menu');
+    fireEvent.press(menuButton);
+    expect(screen.getByLabelText('Help')).toBeTruthy();
+
+    fireEvent.press(menuButton);
+    expect(screen.queryByLabelText('Help')).toBeNull();
+  });
+
+  it('applies compact overlay edge insets from responsive margin', async () => {
+    jest.useFakeTimers();
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'phone',
+      marginHorizontal: 32,
+    } as ReturnType<typeof useResponsive>);
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 77, scientific_name: 'Bubo bubo', common_name: 'Eurasian Eagle-Owl' },
+    ] as any);
+
+    render(<PageHeader />);
+    const searchWrapper = screen.getByTestId('page-header-search-wrapper');
+    act(() => {
+      searchWrapper.props.onLayout?.({
+        nativeEvent: { layout: { height: SEARCH_WRAPPER_LAYOUT_HEIGHT } },
+      });
+    });
+    const searchInput = screen.getByLabelText('Search input');
+    act(() => {
+      searchInput.props.onFocus?.({});
+    });
+
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'owl');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const panel = await screen.findByTestId('header-search-results');
+    const flattenedStyle = StyleSheet.flatten(panel.props.style);
+
+    expect(flattenedStyle?.left).toBe(32);
+    expect(flattenedStyle?.right).toBe(32);
+
+    jest.useRealTimers();
+  });
+
+  it('uses compact header row frame to position overlay top', async () => {
+    jest.useFakeTimers();
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'tablet',
+      marginHorizontal: 24,
+    } as ReturnType<typeof useResponsive>);
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 88, scientific_name: 'Strix nebulosa', common_name: 'Great Gray Owl' },
+    ] as any);
+
+    const rendered = render(<PageHeader />);
+    const allViews = rendered.UNSAFE_getAllByType(View);
+    const desktopTop = SEARCH_WRAPPER_LAYOUT_HEIGHT + Size.space['100'];
+
+    act(() => {
+      allViews
+        .filter((viewNode) => typeof viewNode.props.onLayout === 'function')
+        .forEach((viewNode) => {
+          viewNode.props.onLayout?.({
+            nativeEvent: { layout: { y: 12, height: 56 } },
+          });
+        });
+    });
+
+    const searchWrapper = screen.getByTestId('page-header-search-wrapper');
+    act(() => {
+      searchWrapper.props.onLayout?.({
+        nativeEvent: { layout: { height: SEARCH_WRAPPER_LAYOUT_HEIGHT } },
+      });
+    });
+    const searchInput = screen.getByLabelText('Search input');
+    act(() => {
+      searchInput.props.onFocus?.({});
+    });
+
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'gray');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const panel = await screen.findByTestId('header-search-results');
+    const flattenedStyle = StyleSheet.flatten(panel.props.style);
+
+    expect(typeof flattenedStyle?.top).toBe('number');
+    expect((flattenedStyle?.top as number)).toBeGreaterThan(desktopTop);
+
+    jest.useRealTimers();
+  });
+
+  it('shows compact results only while input/results are active', async () => {
+    jest.useFakeTimers();
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'phone',
+      marginHorizontal: 32,
+    } as ReturnType<typeof useResponsive>);
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 91, scientific_name: 'Asio otus', common_name: 'Long-eared Owl' },
+    ] as any);
+
+    render(<PageHeader />);
+    const searchWrapper = screen.getByTestId('page-header-search-wrapper');
+    act(() => {
+      searchWrapper.props.onLayout?.({
+        nativeEvent: { layout: { height: SEARCH_WRAPPER_LAYOUT_HEIGHT } },
+      });
+    });
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'owl');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    act(() => {
+      searchInput.props.onFocus?.({});
+    });
+
+    expect(await screen.findByTestId('header-search-results')).toBeTruthy();
+
+    act(() => {
+      searchInput.props.onBlur?.({});
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    jest.useRealTimers();
+  });
+
+  it('navigates to tapped result on mobile when input blurs before tap', async () => {
+    jest.useFakeTimers();
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'phone',
+      marginHorizontal: 32,
+    } as ReturnType<typeof useResponsive>);
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 301, scientific_name: 'Bubo scandiacus', common_name: 'Snowy Owl' },
+    ] as any);
+
+    render(<PageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'snowy');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('header-search-results');
+
+    act(() => {
+      searchInput.props.onBlur?.({});
+    });
+
+    const result = await screen.findByTestId('search-result-301');
+    fireEvent.press(result);
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['301', 'bubo-scandiacus'] },
+    });
 
     jest.useRealTimers();
   });
