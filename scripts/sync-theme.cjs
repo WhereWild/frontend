@@ -55,6 +55,7 @@ const contexts = {
   colorLight: {},
   colorDark: {},
   size: {},
+  time: {},
   typographyPrimitives: {},
   typography: {},
   styles: {},
@@ -152,6 +153,9 @@ function determinePendingContext(commentLower) {
   }
   if (lowerComment.includes('size:')) {
     return setContext('size');
+  }
+  if (lowerComment.includes('time:')) {
+    return setContext('time');
   }
   if (lowerComment.includes('typography_primitives')) {
     return setContext('typographyPrimitives');
@@ -272,6 +276,14 @@ const resolvedDark = resolveContext(contexts.colorDark, {
 });
 
 const resolvedSizeTokens = resolveContext(contexts.size);
+const resolvedTimeTokens = resolveContext(contexts.time, {
+  ...mergedColorPrimitives,
+  ...contexts.size,
+  ...contexts.typographyPrimitives,
+  ...contexts.typography,
+  ...contexts.styles,
+  ...contexts.time,
+});
 const resolvedTypographyPrimitives = resolveContext(
   contexts.typographyPrimitives,
 );
@@ -383,6 +395,15 @@ const tokensTs =
     null,
     2,
   )} as const;\n\n` +
+  `export const wdsTimeTokens = ${JSON.stringify(
+    Object.fromEntries(
+      Object.entries(resolvedTimeTokens).sort(([a], [b]) =>
+        a.localeCompare(b),
+      ),
+    ),
+    null,
+    2,
+  )} as const;\n\n` +
   `export const wdsTypographyPrimitiveTokens = ${JSON.stringify(
     Object.fromEntries(
       Object.entries(resolvedTypographyPrimitives).sort(([a], [b]) =>
@@ -437,6 +458,7 @@ const tokensTs =
   `export type WdsSemanticMode = keyof typeof wdsSemanticTokens;\n` +
   `export type WdsSemanticTokenName = keyof (typeof wdsSemanticTokens)[WdsSemanticMode];\n` +
   `export type WdsSizeTokenName = keyof typeof wdsSizeTokens;\n` +
+  `export type WdsTimeTokenName = keyof typeof wdsTimeTokens;\n` +
   `export type WdsTypographyPrimitiveTokenName = keyof typeof wdsTypographyPrimitiveTokens;\n` +
   `export type WdsTypographyTokenName = keyof typeof wdsTypographyTokens;\n` +
   `export type WdsStyleTokenName = keyof typeof wdsStyleTokens;\n` +
@@ -458,6 +480,7 @@ const summaryParts = [
     resolvedDark,
   ).length} dark`,
   `sizes: ${Object.keys(resolvedSizeTokens).length}`,
+  `time: ${Object.keys(resolvedTimeTokens).length}`,
   `typography primitives: ${Object.keys(resolvedTypographyPrimitives).length
   }`,
   `typography: ${Object.keys(resolvedTypography).length}`,
