@@ -27,6 +27,7 @@ import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
+import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
 import Head from 'expo-router/head';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -680,6 +681,8 @@ export default function About() {
               })}
             </View>
           </View>
+
+          <TimeEasingMatrixSection palette={palette} />
 
           <View>
             <ThemedText variant="heading">Buttons</ThemedText>
