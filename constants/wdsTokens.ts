@@ -518,6 +518,19 @@ export const wdsSizeTokens = {
   "wds-size-stroke-focus-ring": "0.125rem"
 } as const;
 
+export const wdsTimeTokens = {
+  "wds-time-duration-deliberate": "500ms",
+  "wds-time-duration-instant": "0ms",
+  "wds-time-duration-long": "300ms",
+  "wds-time-duration-medium": "200ms",
+  "wds-time-duration-short": "100ms",
+  "wds-time-easing-in": "[0.42, 0, 1, 1]",
+  "wds-time-easing-in-and-out": "[0.42, 0, 0.58, 1]",
+  "wds-time-easing-linear": "[0, 0, 1, 1]",
+  "wds-time-easing-out": "[0, 0, 0.58, 1]",
+  "wds-time-easing-standard": "[0.25, 0.1, 0.25, 1]"
+} as const;
+
 export const wdsTypographyPrimitiveTokens = {
   "wds-typography-family-mono": "\"jetbrains mono\", monospace",
   "wds-typography-family-sans": "\"inter\", sans-serif",
@@ -672,6 +685,7 @@ export type WdsPrimitiveTokenName = keyof typeof wdsPrimitiveTokens;
 export type WdsSemanticMode = keyof typeof wdsSemanticTokens;
 export type WdsSemanticTokenName = keyof (typeof wdsSemanticTokens)[WdsSemanticMode];
 export type WdsSizeTokenName = keyof typeof wdsSizeTokens;
+export type WdsTimeTokenName = keyof typeof wdsTimeTokens;
 export type WdsTypographyPrimitiveTokenName = keyof typeof wdsTypographyPrimitiveTokens;
 export type WdsTypographyTokenName = keyof typeof wdsTypographyTokens;
 export type WdsStyleTokenName = keyof typeof wdsStyleTokens;
