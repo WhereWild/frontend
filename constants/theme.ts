@@ -2,11 +2,10 @@
  * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
+import { Easing, TextStyle } from 'react-native';
 
-import type { TextStyle } from 'react-native';
-
-import { cssLengthToPx, resolveCssVariables } from './tokenHelpers';
-import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens } from './wdsTokens';
+import { cssLengthToPx, cssTimeToMs, resolveCssVariables } from './tokenHelpers';
+import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens, wdsTimeTokens } from './wdsTokens';
 import { getResponsive } from './responsive';
 import { createShadows } from './shadows';
 
@@ -274,6 +273,36 @@ const parseFontShorthand = (
   };
 };
 
+const DEFAULT_EASING_CURVE = [0.25, 0.1, 0.25, 1];
+
+const isValidCurveShape = (parts: number[]) =>
+  parts.length === 4 && parts.every((part) => !Number.isNaN(part));
+
+const hasValidXControlPoints = (parts: number[]) =>
+  parts[0] >= 0 && parts[0] <= 1 && parts[2] >= 0 && parts[2] <= 1;
+
+const parseEasingCurve = (value: string): number[] => {
+  const normalized = value
+    .trim()
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .replace(/^\(/, '')
+    .replace(/\)$/, '');
+
+  const parts = normalized.split(',').map((part) => Number(part.trim()));
+  const hasInvalidShape = !isValidCurveShape(parts);
+  const hasInvalidXControlPoints = !hasInvalidShape && !hasValidXControlPoints(parts);
+
+  if (hasInvalidShape || hasInvalidXControlPoints) {
+    console.warn(
+      `[theme] Invalid easing curve "${value}". Falling back to default curve [${DEFAULT_EASING_CURVE.join(', ')}].`
+    );
+    return [...DEFAULT_EASING_CURVE];
+  }
+
+  return [parts[0], parts[1], parts[2], parts[3]];
+};
+
 const isTestEnv = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
 
 // Expose targeted hooks for tests without leaking implementation details at runtime
@@ -281,6 +310,7 @@ export const __themeTestHooks = isTestEnv
   ? {
       parseFontShorthand,
       getExpoFontName,
+      parseEasingCurve,
     }
   : undefined;
 
@@ -323,28 +353,65 @@ export const Shadows = createShadows();
 // Raw size tokens (CSS values) for direct variable usage in web contexts if needed.
 export const SizeTokens = wdsSizeTokens;
 
-// Helper to build a grouped map from a token prefix, stripping the prefix and converting units.
-// Default conversion uses the shared remToPx helper (negative values are preserved automatically).
-const buildGroup = (prefix: string, convert: (value: string) => number = cssLengthToPx) =>
+// Raw time tokens (CSS values) for direct variable usage in web contexts if needed.
+export const TimeTokens = wdsTimeTokens;
+
+/**
+ * Builds a grouped token map by filtering keys with a prefix, stripping that prefix,
+ * and converting each raw token value into a typed value.
+ *
+ * @template T - Output value type returned by the converter (e.g. number, string, number[]).
+ * @param tokens - Source token dictionary to read from.
+ * @param prefix - Token key prefix to match and remove from output keys.
+ * @param convert - Converter applied to each matched token value.
+ * @returns Record keyed by stripped token names with converted values.
+ */
+const buildTokenGroup = <T>(
+  tokens: Record<string, string>,
+  prefix: string,
+  convert: (value: string) => T,
+) =>
   Object.fromEntries(
-    Object.entries(wdsSizeTokens)
+    Object.entries(tokens)
       .filter(([key]) => key.startsWith(prefix))
       .map(([key, value]) => [key.replace(prefix, ''), convert(value)])
-  );
+  ) as Record<string, T>;
 
 // Groups are organized by semantic intent (spacing, radius, depth, etc.).
 export const Size = {
-  space: buildGroup('wds-size-space-'), // Includes negative space tokens (remain negative after conversion)
-  radius: buildGroup('wds-size-radius-'),
-  icon: buildGroup('wds-size-icon-'),
-  depth: buildGroup('wds-size-depth-'),
+  space: buildTokenGroup(wdsSizeTokens, 'wds-size-space-', cssLengthToPx), // Includes negative space tokens (remain negative after conversion)
+  radius: buildTokenGroup(wdsSizeTokens, 'wds-size-radius-', cssLengthToPx),
+  icon: buildTokenGroup(wdsSizeTokens, 'wds-size-icon-', cssLengthToPx),
+  depth: buildTokenGroup(wdsSizeTokens, 'wds-size-depth-', cssLengthToPx),
   // Negative depth values are already captured inside depth (they have the same prefix);
   // expose a convenience filtered view if needed.
   depthNegative: Object.fromEntries(
-    Object.entries(buildGroup('wds-size-depth-')).filter(([k]) => k.startsWith('negative-'))
+    Object.entries(buildTokenGroup(wdsSizeTokens, 'wds-size-depth-', cssLengthToPx)).filter(([k]) => k.startsWith('negative-'))
   ),
-  stroke: buildGroup('wds-size-stroke-'),
-  blur: buildGroup('wds-size-blur-'),
+  stroke: buildTokenGroup(wdsSizeTokens, 'wds-size-stroke-', cssLengthToPx),
+  blur: buildTokenGroup(wdsSizeTokens, 'wds-size-blur-', cssLengthToPx),
 } as const;
 
 export type SizeGroup = typeof Size;
+
+// Groups are organized by semantic time intent (durations and easing curves).
+// Duration tokens are parsed into numeric milliseconds (e.g. 200ms -> 200).
+export const Time = {
+  duration: buildTokenGroup(wdsTimeTokens, 'wds-time-duration-', cssTimeToMs),
+  easing: buildTokenGroup(wdsTimeTokens, 'wds-time-easing-', (value) => value),
+} as const;
+
+export type TimeGroup = typeof Time;
+
+export const TimeEasingCurves = buildTokenGroup<number[]>(
+  wdsTimeTokens,
+  'wds-time-easing-',
+  parseEasingCurve,
+);
+
+export type TimeEasingName = keyof typeof TimeEasingCurves;
+
+export const getReactNativeEasing = (name: TimeEasingName) => {
+  const [x1, y1, x2, y2] = TimeEasingCurves[name] ?? DEFAULT_EASING_CURVE;
+  return Easing.bezier(x1, y1, x2, y2);
+};
