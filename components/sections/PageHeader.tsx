@@ -57,7 +57,7 @@ const mapSearchResultToSummary = (entry: SpeciesApiNormalized): SpeciesSummary |
   const description =
     (typeof rawDescription === 'string' && rawDescription.length > 0)
       ? rawDescription
-        : 'Tap to view species details';
+      : 'Tap to view species details';
   const imageSource =
     typeof entry.image_source === 'string'
       ? { uri: entry.image_source }
@@ -100,6 +100,7 @@ export type PageHeaderProps = {
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
 const SEARCH_RESULT_LIMIT = 9;
+const SEARCH_BLUR_GRACE_MS = 100;
 
 export function PageHeader({
   title = 'WhereWild',
@@ -178,10 +179,15 @@ export function PageHeader({
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [wrapperHeight, setWrapperHeight] = useState<number | null>(null);
+  const [mobileHeaderLayout, setMobileHeaderLayout] = useState<{
+    y: number;
+    height: number;
+  } | null>(null);
   const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
-  const [isSearchResultsHovered, setIsSearchResultsHovered] = useState(false);
+  const [isSearchBlurGraceActive, setIsSearchBlurGraceActive] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
+  const searchBlurGraceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [searchQuery, setSearchQuery] = useState(() =>
     typeof initialQuery === 'string' ? initialQuery : '',
@@ -202,6 +208,31 @@ export function PageHeader({
       setIsMenuOpen(false);
     }
   }, [isCompact, isMenuOpen]);
+
+  const cancelSearchBlurGrace = React.useCallback(() => {
+    if (searchBlurGraceTimerRef.current) {
+      clearTimeout(searchBlurGraceTimerRef.current);
+      searchBlurGraceTimerRef.current = null;
+    }
+    setIsSearchBlurGraceActive(false);
+  }, []);
+
+  const startSearchBlurGrace = React.useCallback(() => {
+    if (searchBlurGraceTimerRef.current) {
+      clearTimeout(searchBlurGraceTimerRef.current);
+    }
+    setIsSearchBlurGraceActive(true);
+    searchBlurGraceTimerRef.current = setTimeout(() => {
+      setIsSearchBlurGraceActive(false);
+      searchBlurGraceTimerRef.current = null;
+    }, SEARCH_BLUR_GRACE_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (searchBlurGraceTimerRef.current) {
+      clearTimeout(searchBlurGraceTimerRef.current);
+    }
+  }, []);
 
   const measureMenuAnchor = React.useCallback(() => {
     if (!menuButtonRef.current) {
@@ -290,100 +321,134 @@ export function PageHeader({
     wrapperHeight &&
     hasQuery &&
     showSearchResultsDropdown &&
-    (isCompact || isSearchBarFocused || isSearchResultsHovered);
+    (isSearchBarFocused || isSearchBlurGraceActive);
+
   const searchResultsTop = wrapperHeight ? wrapperHeight + Size.space['200'] : undefined;
+  const compactSearchResultsTop = mobileHeaderLayout
+    ? mobileHeaderLayout.y + mobileHeaderLayout.height + Size.space['200']
+    : undefined;
 
-  const renderSearchResults = () =>
-    searchResultsVisible ? (
-      <SearchResults
-        results={searchResults}
-        isVisible={true}
-        isLoading={searching}
-        emptyMessage={searchError ?? 'No species found'}
-        style={searchResultsTop ? { top: searchResultsTop } : undefined}
-        onPointerEnter={() => setIsSearchResultsHovered(true)}
-        onPointerLeave={() => setIsSearchResultsHovered(false)}
-        onTouchStart={() => setIsSearchResultsHovered(true)}
-        onTouchEnd={() => setIsSearchResultsHovered(false)}
-        onSelectResult={(s) => {
-          const segment = toKebabCase((s.scientificName ?? '').trim());
-          if (segment) {
-            router.push({
-              pathname: '/species/[...identifier]',
-              params: { identifier: [String(s.taxonId), segment] },
-            });
-          }
-        }}
-        testID="header-search-results"
-      />
-    ) : null;
+  const renderSearchResults = (variant: 'mobile' | 'desktop') =>
+    searchResultsVisible ? (() => {
+      const mobileSearchResultsStyle: StyleProp<ViewStyle> = [
+        {
+          left: responsive.marginHorizontal,
+          right: responsive.marginHorizontal,
+        },
+        compactSearchResultsTop ? { top: compactSearchResultsTop } : null,
+      ];
 
-  const renderSearchContent = (variant: 'mobile' | 'desktop') => (
-    <View
-      onFocus={() => setIsSearchBarFocused(true)}
-      onBlur={() => setIsSearchBarFocused(false)}
-      style={[
-        styles.searchRow,
-        variant === 'mobile' ? styles.searchRowMobile : styles.searchRowDesktop,
-      ]}
-      testID="page-header-search-row"
-    >
-      <View
-        style={styles.searchWrapper}
-        onLayout={(e) => {
-          setWrapperHeight(e.nativeEvent.layout.height);
-        }}
-        testID="page-header-search-wrapper"
-      >
-        <SearchInput
-          value={searchQuery}
-          onQueryChange={setSearchQuery}
-          onSubmitSearch={submitSearchQuery}
-          placeholder={searchPlaceholder}
-          {...searchInputProps}
+      const desktopSearchResultsStyle: StyleProp<ViewStyle> =
+        searchResultsTop ? { top: searchResultsTop } : undefined;
+
+      const resolvedSearchResultsStyle =
+        variant === 'mobile' ? mobileSearchResultsStyle : desktopSearchResultsStyle;
+
+      return (
+        <SearchResults
+          results={searchResults}
+          isVisible={true}
+          isLoading={searching}
+          emptyMessage={searchError ?? 'No species found'}
+          style={resolvedSearchResultsStyle}
+          onSelectResult={(s) => {
+            cancelSearchBlurGrace();
+            const segment = toKebabCase((s.scientificName ?? '').trim());
+            if (segment) {
+              router.push({
+                pathname: '/species/[...identifier]',
+                params: { identifier: [String(s.taxonId), segment] },
+              });
+            }
+          }}
+          testID="header-search-results"
         />
+      );
+    })() : null;
 
-        {renderSearchResults()}
-      </View>
+  const renderSearchContent = (variant: 'mobile' | 'desktop') => {
+    const {
+      onFocus: onSearchInputFocus,
+      onBlur: onSearchInputBlur,
+      ...resolvedSearchInputProps
+    } = searchInputProps ?? {};
 
-      {showFilterButton ? (
-        variant === 'mobile' ? (
-          <IconButton
-            variant="neutral"
-            icon={<IconFilter />}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        ) : (
-          <Button
-            variant="neutral"
-            iconStart={<IconFilter />}
-            label={filterLabel}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        )
-      ) : null}
-
-      {variant === 'mobile' ? (
-        <View ref={menuButtonRef} collapsable={false}>
-          <IconButton
-            variant="primary"
-            icon={<IconMenu />}
-            onPress={() => {
-              if (isMenuOpen) {
-                setIsMenuOpen(false);
-                return;
-              }
-              measureMenuAnchor();
-              setIsMenuOpen(true);
+    return (
+      <View
+        style={[
+          styles.searchRow,
+          variant === 'mobile' ? styles.searchRowMobile : styles.searchRowDesktop,
+        ]}
+        testID="page-header-search-row"
+      >
+        <View
+          style={styles.searchWrapper}
+          onLayout={(e) => {
+            setWrapperHeight(e.nativeEvent.layout.height);
+          }}
+          testID="page-header-search-wrapper"
+        >
+          <SearchInput
+            {...resolvedSearchInputProps}
+            value={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSubmitSearch={submitSearchQuery}
+            placeholder={searchPlaceholder}
+            onFocus={(event) => {
+              cancelSearchBlurGrace();
+              setIsSearchBarFocused(true);
+              onSearchInputFocus?.(event);
             }}
-            accessibilityLabel="Open menu"
+            onBlur={(event) => {
+              setIsSearchBarFocused(false);
+              startSearchBlurGrace();
+              onSearchInputBlur?.(event);
+            }}
           />
+
+          {variant === 'desktop' ? renderSearchResults('desktop') : null}
         </View>
-      ) : null}
-    </View>
-  );
+
+        {showFilterButton ? (
+          variant === 'mobile' ? (
+            <IconButton
+              variant="neutral"
+              icon={<IconFilter />}
+              onPress={onFilterPress}
+              accessibilityLabel={filterButtonAccessibilityLabel}
+            />
+          ) : (
+            <Button
+              variant="neutral"
+              iconStart={<IconFilter />}
+              label={filterLabel}
+              onPress={onFilterPress}
+              accessibilityLabel={filterButtonAccessibilityLabel}
+            />
+          )
+        ) : null}
+
+        {variant === 'mobile' ? (
+          <View ref={menuButtonRef} collapsable={false}>
+            <IconButton
+              variant="primary"
+              icon={<IconMenu />}
+              onPress={() => {
+                if (isMenuOpen) {
+                  setIsMenuOpen(false);
+                  return;
+                }
+                measureMenuAnchor();
+                setIsMenuOpen(true);
+              }}
+              accessibilityLabel="Open menu"
+            />
+          </View>
+        ) : null}
+
+      </View>
+    );
+  };
 
   return (
     <View
@@ -410,81 +475,89 @@ export function PageHeader({
           isCompact ? styles.containerMobile : styles.containerDesktop,
         ]}
       >
-      {isCompact ? (
-        <>
-          <View style={styles.mobileHeaderRow}>
+        {isCompact ? (
+          <>
+            <View
+              style={styles.mobileHeaderRow}
+              onLayout={(e) => {
+                const { y, height } = e.nativeEvent.layout;
+                setMobileHeaderLayout({ y, height });
+              }}
+            >
+              <Pressable
+                onPress={navigateHome}
+                style={styles.logoSectionMobile}
+                accessibilityRole="link"
+                accessibilityLabel={logoAccessibilityLabel}
+              >
+                {logoContent}
+              </Pressable>
+
+              {renderSearchContent('mobile')}
+            </View>
+
+            {renderSearchResults('mobile')}
+
+            {isMenuOpen ? (
+              <Portal visible={isMenuOpen} onDismiss={() => setIsMenuOpen(false)}>
+                <Pressable
+                  testID="page-header-menu-backdrop"
+                  style={styles.menuBackdrop}
+                  onPress={() => setIsMenuOpen(false)}
+                />
+                <View
+                  style={[
+                    styles.mobileMenu,
+                    {
+                      backgroundColor: palette.background.default.tertiary,
+                      borderColor: palette.border.default.tertiary,
+                    },
+                    menuAnchor
+                      ? { top: menuAnchor.top + Size.space['600'], right: menuAnchor.right }
+                      : { top: insets.top + Size.space['1600'] + Size.space['300'], right: Size.space['200'] },
+                    Shadows.dropShadow400.style,
+                  ]}
+                >
+                  {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+                    <Button
+                      key={label}
+                      variant={variant}
+                      onPress={onPress}
+                      iconStart={icon}
+                      label={label}
+                      style={styles.mobileMenuButton}
+                    />
+                  ))}
+                </View>
+              </Portal>
+            ) : null}
+          </>
+        ) : (
+          <>
             <Pressable
               onPress={navigateHome}
-              style={styles.logoSectionMobile}
+              style={styles.logoSection}
               accessibilityRole="link"
               accessibilityLabel={logoAccessibilityLabel}
             >
               {logoContent}
             </Pressable>
 
-            {renderSearchContent('mobile')}
-          </View>
+            {renderSearchContent('desktop')}
 
-          {isMenuOpen ? (
-            <Portal visible={isMenuOpen} onDismiss={() => setIsMenuOpen(false)}>
-              <Pressable
-                testID="page-header-menu-backdrop"
-                style={styles.menuBackdrop}
-                onPress={() => setIsMenuOpen(false)}
-              />
-              <View
-                style={[
-                  styles.mobileMenu,
-                  {
-                    backgroundColor: palette.background.default.tertiary,
-                    borderColor: palette.border.default.tertiary,
-                  },
-                  menuAnchor
-                    ? { top: menuAnchor.top + Size.space['600'], right: menuAnchor.right }
-                    : { top: insets.top + Size.space['1600'] + Size.space['300'], right: Size.space['200'] },
-                  Shadows.dropShadow400.style,
-                ]}
-              >
-                {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-                  <Button
-                    key={label}
-                    variant={variant}
-                    onPress={onPress}
-                    iconStart={icon}
-                    label={label}
-                    style={styles.mobileMenuButton}
-                  />
-                ))}
-              </View>
-            </Portal>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <Pressable
-            onPress={navigateHome}
-            style={styles.logoSection}
-            accessibilityRole="link"
-            accessibilityLabel={logoAccessibilityLabel}
-          >
-            {logoContent}
-          </Pressable>
-
-          {renderSearchContent('desktop')}
-
-          <View style={styles.actionsWrapper}>
-            {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-              <Button
-                key={label}
-                variant={variant}
-                onPress={onPress}
-                iconStart={icon}
-                label={label}
-              />
-            ))}
-          </View>
-        </>
-      )}
+            <View style={styles.actionsWrapper}>
+              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+                <Button
+                  key={label}
+                  variant={variant}
+                  onPress={onPress}
+                  iconStart={icon}
+                  label={label}
+                />
+              ))}
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -557,6 +630,7 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     flex: 1,
+    minWidth: 0, // Allow search input to shrink without overflowing its flex row
     position: 'relative',
   },
   actionsWrapper: {

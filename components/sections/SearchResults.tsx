@@ -53,6 +53,8 @@ export type SearchResultsProps = {
   onPointerLeave?: () => void;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 
   /**
    * Maximum height of the results list.
@@ -84,11 +86,14 @@ export function SearchResults({
   onPointerLeave,
   onTouchStart,
   onTouchEnd,
+  onFocus,
+  onBlur,
 }: SearchResultsProps) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const panelStyles: StyleProp<ViewStyle> = [
+    styles.container,
     styles.panel,
     {
       backgroundColor: palette.background.default.tertiary,
@@ -106,13 +111,14 @@ export function SearchResults({
     return (
       <View
         style={[
-          styles.container,
           panelStyles,
         ]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
+        onFocus={onFocus}
+        onBlur={onBlur}
         testID={testID ? `${testID}-loading` : undefined}
       >
         <View style={styles.centerContent}>
@@ -126,13 +132,14 @@ export function SearchResults({
     return (
       <View
         style={[
-          styles.container,
           panelStyles,
         ]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
+        onFocus={onFocus}
+        onBlur={onBlur}
         testID={testID ? `${testID}-empty` : undefined}
       >
         <View style={styles.centerContent}>
@@ -158,7 +165,6 @@ export function SearchResults({
   return (
     <View
       style={[
-        styles.container,
         panelStyles,
         { maxHeight },
       ]}
@@ -166,6 +172,8 @@ export function SearchResults({
       onPointerLeave={onPointerLeave}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
+      onFocus={onFocus}
+      onBlur={onBlur}
       testID={testID}
     >
       <FlatList
