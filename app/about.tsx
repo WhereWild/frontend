@@ -65,6 +65,7 @@ const TYPOGRAPHY_VARIANTS = [
   'bodySmall',
   'bodySmallEmphasis',
   'bodySmallStrong',
+  'bodySmallLink',
   'bodyTiny',
   'bodyTinyStrong',
   'link',
