@@ -36,6 +36,7 @@ const EXPECTED_TYPOGRAPHY_LABELS = [
   'Body Small',
   'Body Small Emphasis',
   'Body Small Strong',
+  'Body Small Link',
   'Body Tiny',
   'Body Tiny Strong',
   'Link',

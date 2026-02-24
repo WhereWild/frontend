@@ -16,6 +16,7 @@ const createTypographyStyles = (tokens: typeof Typography.light) =>
     bodyStrong: tokens.bodyStrong,
     bodySmall: tokens.bodySmall,
     bodySmallEmphasis: tokens.bodySmallEmphasis,
+    bodySmallLink: tokens.bodySmallLink,
     bodySmallStrong: tokens.bodySmallStrong,
     bodyTiny: tokens.bodyTiny,
     bodyTinyStrong: tokens.bodyTinyStrong,

@@ -10,6 +10,7 @@ const mockUseTypographyStyles = useTypographyStyles as jest.MockedFunction<typeo
 beforeEach(() => {
   mockUseTypographyStyles.mockReturnValue({
     body: { color: '#111111', fontSize: 16 },
+    bodySmallLink: { color: '#006600', fontSize: 12 },
     link: { color: '#00ff00', fontSize: 14 },
   } as any);
 });
@@ -35,6 +36,17 @@ describe('ThemedText', () => {
       expect.arrayContaining([
         expect.objectContaining({ color: '#00ff00' }),
         expect.objectContaining({ textTransform: 'uppercase' }),
+      ])
+    );
+  });
+
+  it('applies bodySmallLink variant styles', () => {
+    render(<ThemedText variant="bodySmallLink">Learn More</ThemedText>);
+
+    const text = screen.getByText('Learn More');
+    expect(text.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ color: '#006600', fontSize: 12 }),
       ])
     );
   });
