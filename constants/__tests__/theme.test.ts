@@ -1,5 +1,17 @@
-import { Colors, Responsive, Shadows, Size, SizeTokens, Typography, __themeTestHooks } from '@/constants/theme';
-import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens } from '@/constants/wdsTokens';
+import {
+  Colors,
+  Responsive,
+  Shadows,
+  Size,
+  SizeTokens,
+  Time,
+  TimeEasingCurves,
+  TimeTokens,
+  Typography,
+  __themeTestHooks,
+  getReactNativeEasing,
+} from '@/constants/theme';
+import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens, wdsTimeTokens } from '@/constants/wdsTokens';
 
 describe('Theme Tokens', () => {
   describe('Colors', () => {
@@ -277,6 +289,61 @@ describe('Theme Tokens', () => {
       expect(Responsive.contentWidth).toBeGreaterThan(0);
       expect(Responsive.textWidth).toBeGreaterThan(0);
       expect(Responsive.marginHorizontal).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Time', () => {
+    it('exports grouped time tokens', () => {
+      expect(Time).toBeDefined();
+      expect(Time.duration).toBeDefined();
+      expect(Time.easing).toBeDefined();
+    });
+
+    it('converts duration tokens to numeric values', () => {
+      expect(Time.duration.instant).toBe(0);
+      expect(Time.duration.short).toBe(100);
+      expect(Time.duration.medium).toBe(200);
+      expect(Time.duration.long).toBe(300);
+      expect(Time.duration.deliberate).toBe(500);
+    });
+
+    it('exposes easing tokens as raw values', () => {
+      expect(Time.easing.standard).toBe('[0.25, 0.1, 0.25, 1]');
+      expect(Time.easing.linear).toBe('[0, 0, 1, 1]');
+    });
+
+    it('parses easing tokens into RN cubic-bezier control points', () => {
+      expect(TimeEasingCurves.standard).toEqual([0.25, 0.1, 0.25, 1]);
+      expect(TimeEasingCurves.linear).toEqual([0, 0, 1, 1]);
+      expect(TimeEasingCurves.out).toEqual([0, 0, 0.58, 1]);
+    });
+
+    it('exports a React Native easing factory from token names', () => {
+      const easingFn = getReactNativeEasing('standard');
+      expect(typeof easingFn).toBe('function');
+    });
+
+    it('normalizes easing token formats and falls back on invalid values', () => {
+      expect(__themeTestHooks).toBeDefined();
+      const { parseEasingCurve } = __themeTestHooks!;
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      expect(parseEasingCurve('(0, 0, 0.58, 1)')).toEqual([0, 0, 0.58, 1]);
+      expect(parseEasingCurve('[broken, value]')).toEqual([0.25, 0.1, 0.25, 1]);
+      expect(parseEasingCurve('[1.2, 0.1, -0.2, 1]')).toEqual([0.25, 0.1, 0.25, 1]);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[theme] Invalid easing curve "[broken, value]". Falling back to default curve [0.25, 0.1, 0.25, 1].'
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[theme] Invalid easing curve "[1.2, 0.1, -0.2, 1]". Falling back to default curve [0.25, 0.1, 0.25, 1].'
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('exposes raw time token strings via TimeTokens', () => {
+      expect(TimeTokens['wds-time-duration-medium']).toBe(wdsTimeTokens['wds-time-duration-medium']);
+      expect(TimeTokens['wds-time-easing-standard']).toBe(wdsTimeTokens['wds-time-easing-standard']);
     });
   });
 
