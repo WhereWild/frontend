@@ -6,8 +6,6 @@ import type { TopAppBarProps } from './TopAppBar';
 const validHome: TopAppBarProps = {
   variant: 'home',
   title: 'Home',
-  logoSource: require('@/assets/images/wherewild.png'),
-  logoAccessibilityLabel: 'WhereWild logo',
 };
 
 const validPage: TopAppBarProps = {
@@ -26,12 +24,6 @@ const validSearch: TopAppBarProps = {
 // @ts-expect-error page variant requires onPressBack
 const invalidPageMissingBack: TopAppBarProps = {
   variant: 'page',
-};
-
-// @ts-expect-error home variant requires logoSource and logoAccessibilityLabel
-const invalidHomeMissingLogoProps: TopAppBarProps = {
-  variant: 'home',
-  title: 'Home',
 };
 
 // @ts-expect-error home variant disallows search props
@@ -55,6 +47,5 @@ void validHome;
 void validPage;
 void validSearch;
 void invalidPageMissingBack;
-void invalidHomeMissingLogoProps;
 void invalidHomeWithSearchProps;
 void invalidSearchWithBack;

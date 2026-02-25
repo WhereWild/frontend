@@ -11,6 +11,7 @@ import type {
   LeadingContentProps,
   TopAppBarProps,
 } from './TopAppBar.types';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   StyleSheet,
@@ -24,8 +25,11 @@ const TOP_APP_BAR_HEIGHT = 64;
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 const DEFAULT_SECONDARY_ACTION_ICON = <IconRotateCcw />;
 const DEFAULT_PRIMARY_ACTION_ICON = <IconFilter />;
+const DEFAULT_HOME_LOGO = require('@/assets/images/wherewild.png');
+const DEFAULT_HOME_LOGO_ACCESSIBILITY_LABEL = 'Go to home';
 
 export function TopAppBar(props: TopAppBarProps) {
+  const router = useRouter();
   const {
     secondaryAction,
     primaryAction,
@@ -63,6 +67,9 @@ export function TopAppBar(props: TopAppBarProps) {
   const shouldRenderPrimaryButton = resolvedPrimaryAction.isVisible;
   const shouldRenderActionsRow = shouldRenderSecondaryButton || shouldRenderPrimaryButton;
   const isSecondaryActionEnabled = typeof resolvedSecondaryAction.onPress === 'function';
+  const defaultHandlePressLogo = React.useCallback(() => {
+    router.push('/');
+  }, [router]);
 
   let leadingContentProps: LeadingContentProps;
 
@@ -84,9 +91,9 @@ export function TopAppBar(props: TopAppBarProps) {
     leadingContentProps = {
       variant: 'home',
       title: props.title,
-      logoSource: props.logoSource,
-      logoAccessibilityLabel: props.logoAccessibilityLabel,
-      onPressLogo: props.onPressLogo,
+      logoSource: props.logoSource ?? DEFAULT_HOME_LOGO,
+      logoAccessibilityLabel: props.logoAccessibilityLabel ?? DEFAULT_HOME_LOGO_ACCESSIBILITY_LABEL,
+      onPressLogo: props.onPressLogo ?? defaultHandlePressLogo,
     };
   }
 

@@ -72,8 +72,8 @@ export type TopAppBarPageVariantProps = TopAppBarBaseProps & {
 export type TopAppBarHomeVariantProps = TopAppBarBaseProps & {
   variant?: 'home';
   title: string;
-  logoSource: ImageSourcePropType;
-  logoAccessibilityLabel: string;
+  logoSource?: ImageSourcePropType;
+  logoAccessibilityLabel?: string;
   onPressLogo?: () => void;
   onPressBack?: never;
   searchValue?: never;
