@@ -26,6 +26,10 @@ type WebPageHeaderSearchRowProps = {
   filterButtonAccessibilityLabel: string;
 };
 
+/**
+ * Header search row UI: search input + optional filter control.
+ * Desktop renders results in-row; compact mode renders controls only.
+ */
 export function WebPageHeaderSearchRow({
   variant,
   searchInputProps,

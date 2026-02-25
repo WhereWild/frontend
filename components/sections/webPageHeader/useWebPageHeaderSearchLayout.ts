@@ -12,6 +12,10 @@ type UseWebPageHeaderSearchLayoutOptions = {
   isSearchBlurGraceActive: boolean;
 };
 
+/**
+ * Computes visibility and absolute positioning for the search preview overlay
+ * in both desktop and compact header variants.
+ */
 export function useWebPageHeaderSearchLayout({
   marginHorizontal,
   hasQuery,

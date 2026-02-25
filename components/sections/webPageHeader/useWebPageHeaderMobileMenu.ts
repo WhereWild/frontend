@@ -2,6 +2,7 @@ import { Size } from '@/constants/theme';
 import React, { RefObject, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+/** Absolute menu position anchored to the compact menu trigger button. */
 export type MobileMenuAnchor = {
   top: number;
   right: number;
@@ -13,6 +14,10 @@ type UseWebPageHeaderMobileMenuOptions = {
   windowWidth: number;
 };
 
+/**
+ * Controls compact-menu open state and anchor measurement.
+ * Also closes the menu automatically when switching back to desktop layout.
+ */
 export function useWebPageHeaderMobileMenu({
   isCompact,
   menuButtonRef,

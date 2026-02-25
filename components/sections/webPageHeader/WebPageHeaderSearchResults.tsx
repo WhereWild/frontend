@@ -12,6 +12,10 @@ type WebPageHeaderSearchResultsProps = {
   onSelectResult: (result: SpeciesSummary) => void;
 };
 
+/**
+ * Thin visibility wrapper around SearchResults for WebPageHeader.
+ * Centralizes empty/error messaging and keeps caller render logic small.
+ */
 export function WebPageHeaderSearchResults({
   isVisible,
   results,

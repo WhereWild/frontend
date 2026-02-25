@@ -20,6 +20,10 @@ type WebPageHeaderMobileMenuProps = {
   borderColor: string;
 };
 
+/**
+ * Compact-only menu trigger and overlay action list for WebPageHeader.
+ * Uses Portal so the menu can float above the header surface.
+ */
 export function WebPageHeaderMobileMenu({
   actions,
   menuButtonRef,

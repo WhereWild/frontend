@@ -54,6 +54,10 @@ type UseWebPageHeaderSearchOptions = {
   onSearchResultsChanged?: (results: SpeciesSummary[]) => void;
 };
 
+/**
+ * Manages WebPageHeader search query lifecycle:
+ * initial value syncing, debounce, loading/error states, API fetch, and blur grace timing.
+ */
 export function useWebPageHeaderSearch({
   initialQuery,
   onSearchingChanged,

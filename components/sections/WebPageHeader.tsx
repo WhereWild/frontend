@@ -33,6 +33,7 @@ import type { WebPageHeaderAction, SearchInputPassthroughProps } from './webPage
 
 export type { WebPageHeaderAction } from './webPageHeader/types';
 
+/** Public props for the WebPageHeader composition. */
 export type WebPageHeaderProps = {
   title?: string;
   logoSource?: ImageSourcePropType;
@@ -53,6 +54,10 @@ export type WebPageHeaderProps = {
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
 
+/**
+ * App-level header with navigation actions, search input, and optional compact menu.
+ * Composes focused helpers for search state, search overlay layout, and mobile menu behavior.
+ */
 export function WebPageHeader({
   title = 'WhereWild',
   logoSource = DEFAULT_LOGO,
