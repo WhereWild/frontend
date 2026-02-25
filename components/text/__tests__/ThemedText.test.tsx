@@ -198,6 +198,40 @@ describe('ThemedText', () => {
     });
   });
 
+  it('handles web press interactions for link variant', () => {
+    withPlatformOS('web', () => {
+      const timingSpy = jest.spyOn(Animated, 'timing');
+      const onPressInSpy = jest.fn();
+      const onPressOutSpy = jest.fn();
+
+      render(
+        <ThemedText variant="link" onPressIn={onPressInSpy} onPressOut={onPressOutSpy}>
+          Read More
+        </ThemedText>
+      );
+
+      const text = screen.getByText('Read More');
+
+      act(() => {
+        text.props.onPressIn({} as any);
+      });
+      expect(onPressInSpy).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Read More').props.style).toEqual(
+        expect.objectContaining({ textDecorationColor: '#00ff00' })
+      );
+
+      act(() => {
+        screen.getByText('Read More').props.onPressOut({} as any);
+      });
+      expect(onPressOutSpy).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Read More').props.style).toEqual(
+        expect.objectContaining({ textDecorationColor: 'transparent' })
+      );
+
+      expect(timingSpy).not.toHaveBeenCalled();
+    });
+  });
+
   it('does not attach animation handlers for non-link variants', () => {
     render(<ThemedText variant="body">Body</ThemedText>);
     const text = screen.getByText('Body');
