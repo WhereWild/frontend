@@ -31,15 +31,6 @@ export function NavigationBar(_props: NavigationBarProps) {
 }
 
 export const __NAVIGATION_BAR_TESTING__ = {
-  getRequiredHorizontalWidth: (
-    _tabCount: number,
-    _measuredTabWidths: Record<string, number>,
-    _tabKeys: string[],
-  ) => 0,
-  shouldUseHorizontalVariant: (
-    _availableWidth: number,
-    _tabCount: number,
-    _measuredTabWidths: Record<string, number>,
-    _tabKeys: string[],
-  ) => false,
+  getRequiredHorizontalWidth: (_tabCount: number) => 0,
+  shouldUseHorizontalVariant: (_availableWidth: number, _tabCount: number) => false,
 };

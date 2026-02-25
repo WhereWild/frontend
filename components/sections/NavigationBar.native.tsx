@@ -46,15 +46,8 @@ const DEFAULT_TABS: NavigationBarTabItem[] = [
 const HORIZONTAL_MIN_TAB_WIDTH = 96;
 const TAB_GAP = Size.space['200'];
 
-const getRequiredHorizontalWidth = (
-  tabCount: number,
-  measuredTabWidths: Record<string, number>,
-  tabKeys: string[],
-) => {
-  const totalTabWidth = tabKeys.reduce(
-    (sum, key) => sum + (measuredTabWidths[key] ?? HORIZONTAL_MIN_TAB_WIDTH),
-    0,
-  );
+const getRequiredHorizontalWidth = (tabCount: number) => {
+  const totalTabWidth = tabCount * HORIZONTAL_MIN_TAB_WIDTH;
   const totalGapWidth = Math.max(0, tabCount - 1) * TAB_GAP;
   return totalTabWidth + totalGapWidth;
 };
@@ -62,14 +55,12 @@ const getRequiredHorizontalWidth = (
 const shouldUseHorizontalVariant = (
   availableWidth: number,
   tabCount: number,
-  measuredTabWidths: Record<string, number>,
-  tabKeys: string[],
 ) => {
   if (tabCount <= 1) {
     return true;
   }
 
-  const requiredWidth = getRequiredHorizontalWidth(tabCount, measuredTabWidths, tabKeys);
+  const requiredWidth = getRequiredHorizontalWidth(tabCount);
   return availableWidth >= requiredWidth;
 };
 
@@ -82,30 +73,12 @@ export function NavigationBar({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const [availableWidth, setAvailableWidth] = React.useState(0);
-  const [measuredTabWidths, setMeasuredTabWidths] = React.useState<Record<string, number>>({});
-
-  const tabKeys = React.useMemo(() => tabs.map((tab) => tab.key), [tabs]);
-
   const tabVariant: NavigationBarTabVariant = shouldUseHorizontalVariant(
     availableWidth,
     tabs.length,
-    measuredTabWidths,
-    tabKeys,
   )
     ? 'horizontal'
     : 'vertical';
-
-  const onTabWidthLayout = React.useCallback((tabKey: string, width: number) => {
-    setMeasuredTabWidths((prev) => {
-      if (prev[tabKey] === width) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [tabKey]: width,
-      };
-    });
-  }, []);
 
   return (
     <View
@@ -133,7 +106,6 @@ export function NavigationBar({
             state={tab.state ?? 'default'}
             variant={tabVariant}
             onPress={tab.onPress}
-            onLayout={(width) => onTabWidthLayout(tab.key, width)}
             accessibilityLabel={tab.accessibilityLabel ?? tab.label}
             testID={tab.testID ?? `navigation-bar-tab-${tab.key}`}
           />
@@ -157,7 +129,7 @@ const styles = StyleSheet.create({
     maxWidth: 640,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     gap: TAB_GAP,
   },
 });

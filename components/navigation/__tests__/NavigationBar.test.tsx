@@ -74,53 +74,26 @@ describe('NavigationBar', () => {
     expect(screen.getByLabelText('Home')).toBeTruthy();
   });
 
-  it('computes required horizontal width from measured widths and 200 space gap', () => {
-    const required = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
-      3,
-      {
-        one: 100,
-        two: 120,
-        three: 96,
-      },
-      ['one', 'two', 'three'],
-    );
+  it('computes required horizontal width from minimum tab width and 200 space gap', () => {
+    const tabCount = 3;
+    const expectedWidth = tabCount * 96 + (tabCount - 1) * 8;
+    const required = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(3);
 
-    expect(required).toBe(332);
+    expect(required).toBe(expectedWidth);
   });
 
-  it('falls back to minimum width when a tab has no measurement', () => {
-    const required = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
-      3,
-      {
-        one: 120,
-      },
-      ['one', 'two', 'three'],
-    );
-
-    expect(required).toBe(328);
-  });
 
   it('uses horizontal when there is enough width and vertical when not', () => {
+    const tabCount = 3;
+    const requiredWidth = tabCount * 96 + (tabCount - 1) * 8;
     const horizontal = __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
-      340,
-      3,
-      {
-        one: 100,
-        two: 120,
-        three: 96,
-      },
-      ['one', 'two', 'three'],
+      requiredWidth,
+      tabCount,
     );
 
     const vertical = __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
-      320,
-      3,
-      {
-        one: 100,
-        two: 120,
-        three: 96,
-      },
-      ['one', 'two', 'three'],
+      requiredWidth - 1,
+      tabCount,
     );
 
     expect(horizontal).toBe(true);
@@ -129,15 +102,27 @@ describe('NavigationBar', () => {
 
   it('always uses horizontal when there is one or zero tabs', () => {
     expect(
-      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['only']),
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1),
     ).toBe(true);
 
     expect(
-      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 0, {}, []),
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 0),
     ).toBe(true);
   });
 
-  it('adapts all tabs between vertical and horizontal based on measured width', () => {
+  it('uses deterministic threshold at the required width boundary', () => {
+    const tabCount = 3;
+    const requiredWidth = tabCount * 96 + (tabCount - 1) * 8;
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth, tabCount),
+    ).toBe(true);
+
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth - 1, tabCount),
+    ).toBe(false);
+  });
+
+  it('adapts all tabs between vertical and horizontal based on available width', () => {
     const renderer = createRenderer(<NavigationBar />);
 
     expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
@@ -169,7 +154,7 @@ describe('NavigationBar', () => {
     expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
   });
 
-  it('handles measured tab widths and same-width updates without breaking layout decisions', () => {
+  it('does not depend on tab onLayout for variant decisions', () => {
     const renderer = createRenderer(<NavigationBar />);
     const tabsLayoutView = getTabsLayoutView(renderer);
 
@@ -185,19 +170,9 @@ describe('NavigationBar', () => {
 
     const tabNodes = renderer.root.findAllByType(NavigationBarTab);
 
-    act(() => {
-      tabNodes[0]?.props.onLayout?.(96);
-      tabNodes[1]?.props.onLayout?.(96);
-      tabNodes[2]?.props.onLayout?.(96);
-      tabNodes[3]?.props.onLayout?.(96);
-      tabNodes[4]?.props.onLayout?.(96);
-    });
+    expect(tabNodes.every((tab) => tab.props.onLayout === undefined)).toBe(true);
 
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
-
-    act(() => {
-      tabNodes[0]?.props.onLayout?.(96);
-    });
 
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
   });
