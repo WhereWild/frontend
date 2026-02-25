@@ -8,6 +8,9 @@ import {
 import { NavigationBarTab } from '../../sections/NavigationBarTab';
 import { View } from 'react-native';
 
+const HORIZONTAL_MIN_TAB_WIDTH = 96;
+const TAB_GAP = 8;
+
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: () => 'light',
 }));
@@ -25,7 +28,13 @@ describe('NavigationBar', () => {
   };
 
   const getTabVariants = (renderer: ReturnType<typeof create>) =>
-    renderer.root.findAllByType(NavigationBarTab).map((node) => node.props.variant);
+    renderer.root
+      .findAllByType(NavigationBarTab)
+      .filter((node) => node.props.onLayout === undefined)
+      .map((node) => node.props.variant);
+
+  const getMeasuringTabNodes = (renderer: ReturnType<typeof create>) =>
+    renderer.root.findAllByType(NavigationBarTab).filter((node) => typeof node.props.onLayout === 'function');
 
   const getTabsLayoutView = (renderer: ReturnType<typeof create>) => {
     const layoutView = renderer.root
@@ -37,6 +46,16 @@ describe('NavigationBar', () => {
     }
 
     return layoutView;
+  };
+
+  const measureAllTabs = (renderer: ReturnType<typeof create>, widths: number[]) => {
+    const tabNodes = getMeasuringTabNodes(renderer);
+    act(() => {
+      tabNodes.forEach((tab, index) => {
+        tab.props.onLayout?.(widths[index] ?? HORIZONTAL_MIN_TAB_WIDTH);
+      });
+    });
+    return tabNodes;
   };
 
   it('renders default tabs', () => {
@@ -76,24 +95,58 @@ describe('NavigationBar', () => {
 
   it('computes required horizontal width from minimum tab width and 200 space gap', () => {
     const tabCount = 3;
-    const expectedWidth = tabCount * 96 + (tabCount - 1) * 8;
-    const required = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(3);
+    const expectedWidth = 100 + 120 + HORIZONTAL_MIN_TAB_WIDTH + (tabCount - 1) * TAB_GAP;
+    const required = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+      3,
+      {
+        one: 100,
+        two: 120,
+        three: 96,
+      },
+      ['one', 'two', 'three'],
+    );
 
     expect(required).toBe(expectedWidth);
   });
 
+  it('falls back to minimum width for tabs without measurements', () => {
+    const tabCount = 3;
+    const required = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+      tabCount,
+      {
+        one: 120,
+      },
+      ['one', 'two', 'three'],
+    );
+
+    expect(required).toBe(120 + HORIZONTAL_MIN_TAB_WIDTH + HORIZONTAL_MIN_TAB_WIDTH + (tabCount - 1) * TAB_GAP);
+  });
 
   it('uses horizontal when there is enough width and vertical when not', () => {
     const tabCount = 3;
-    const requiredWidth = tabCount * 96 + (tabCount - 1) * 8;
+    const measuredTabWidths = {
+      one: 100,
+      two: 120,
+      three: HORIZONTAL_MIN_TAB_WIDTH,
+    };
+    const tabKeys = ['one', 'two', 'three'];
+    const requiredWidth = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+      tabCount,
+      measuredTabWidths,
+      tabKeys,
+    );
     const horizontal = __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
       requiredWidth,
       tabCount,
+      measuredTabWidths,
+      tabKeys,
     );
 
     const vertical = __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
       requiredWidth - 1,
       tabCount,
+      measuredTabWidths,
+      tabKeys,
     );
 
     expect(horizontal).toBe(true);
@@ -102,30 +155,43 @@ describe('NavigationBar', () => {
 
   it('always uses horizontal when there is one or zero tabs', () => {
     expect(
-      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1),
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['only']),
     ).toBe(true);
 
     expect(
-      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 0),
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 0, {}, []),
     ).toBe(true);
   });
 
   it('uses deterministic threshold at the required width boundary', () => {
     const tabCount = 3;
-    const requiredWidth = tabCount * 96 + (tabCount - 1) * 8;
+    const measuredTabWidths = {
+      one: 100,
+      two: 120,
+      three: HORIZONTAL_MIN_TAB_WIDTH,
+    };
+    const tabKeys = ['one', 'two', 'three'];
+    const requiredWidth = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+      tabCount,
+      measuredTabWidths,
+      tabKeys,
+    );
     expect(
-      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth, tabCount),
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth, tabCount, measuredTabWidths, tabKeys),
     ).toBe(true);
 
     expect(
-      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth - 1, tabCount),
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth - 1, tabCount, measuredTabWidths, tabKeys),
     ).toBe(false);
   });
 
-  it('adapts all tabs between vertical and horizontal based on available width', () => {
+  it('starts horizontal during measuring, then resolves variants from measured width', () => {
     const renderer = createRenderer(<NavigationBar />);
 
-    expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+    // Initial render is the measuring fallback: visible layer stays horizontal
+    // until width + tab measurements are available.
+    expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
+    expect(getMeasuringTabNodes(renderer).length).toBeGreaterThan(0);
 
     const tabsLayoutView = getTabsLayoutView(renderer);
 
@@ -139,6 +205,16 @@ describe('NavigationBar', () => {
       });
     });
 
+    measureAllTabs(renderer, [
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH
+    ]);
+
+    // After finalize, the hidden measuring layer should be removed.
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
 
     act(() => {
@@ -151,10 +227,18 @@ describe('NavigationBar', () => {
       });
     });
 
+    measureAllTabs(renderer, [
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH
+    ]);
+
     expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
   });
 
-  it('does not depend on tab onLayout for variant decisions', () => {
+  it('uses tab onLayout measurements to update variant decisions', () => {
     const renderer = createRenderer(<NavigationBar />);
     const tabsLayoutView = getTabsLayoutView(renderer);
 
@@ -168,12 +252,156 @@ describe('NavigationBar', () => {
       });
     });
 
-    const tabNodes = renderer.root.findAllByType(NavigationBarTab);
+    const tabNodes = getMeasuringTabNodes(renderer);
 
-    expect(tabNodes.every((tab) => tab.props.onLayout === undefined)).toBe(true);
+    expect(tabNodes.every((tab) => typeof tab.props.onLayout === 'function')).toBe(true);
+
+    measureAllTabs(renderer, [
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH
+    ]);
 
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
 
+    const tabNodesAfterFinalize = getMeasuringTabNodes(renderer);
+    expect(tabNodesAfterFinalize).toHaveLength(0);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 620,
+          },
+        },
+      });
+    });
+
+    const tabNodesAfterSameWidth = getMeasuringTabNodes(renderer);
+    expect(tabNodesAfterSameWidth).toHaveLength(0);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 560,
+          },
+        },
+      });
+    });
+
+    const tabNodesDuringReMeasure = getMeasuringTabNodes(renderer);
+    expect(tabNodesDuringReMeasure.every((tab) => typeof tab.props.onLayout === 'function')).toBe(true);
+
+    measureAllTabs(renderer, [
+      240, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH
+    ]);
+
+    expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+  });
+
+  it('keeps measuring state unchanged when layout width is zero', () => {
+    const renderer = createRenderer(<NavigationBar />);
+    const tabsLayoutView = getTabsLayoutView(renderer);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 0,
+          },
+        },
+      });
+    });
+
+    expect(getMeasuringTabNodes(renderer).length).toBeGreaterThan(0);
+    expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
+  });
+
+  it('finalizes measuring immediately for one-tab configurations', () => {
+    const renderer = createRenderer(
+      <NavigationBar
+        tabs={[
+          {
+            key: 'only',
+            label: 'Only',
+            icon: () => null,
+          },
+        ]}
+      />,
+    );
+    const tabsLayoutView = getTabsLayoutView(renderer);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 320,
+          },
+        },
+      });
+    });
+
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getTabVariants(renderer)).toEqual(['horizontal']);
+  });
+
+  it('ignores duplicate tab measurement while still collecting widths', () => {
+    const renderer = createRenderer(<NavigationBar />);
+    const tabsLayoutView = getTabsLayoutView(renderer);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 620,
+          },
+        },
+      });
+    });
+
+    const tabNodes = getMeasuringTabNodes(renderer);
+    const [firstTab, ...remainingTabs] = tabNodes;
+
+    act(() => {
+      firstTab?.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH);
+      firstTab?.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH);
+      remainingTabs.forEach((tab) => tab.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH));
+    });
+
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
+  });
+
+  it('ignores duplicate tab measurement after all widths are collected', () => {
+    const renderer = createRenderer(<NavigationBar />);
+    const tabsLayoutView = getTabsLayoutView(renderer);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 620,
+          },
+        },
+      });
+    });
+
+    const tabNodes = getMeasuringTabNodes(renderer);
+    const [firstTab] = tabNodes;
+
+    act(() => {
+      tabNodes.forEach((tab) => tab.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH));
+      firstTab?.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH);
+    });
+
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
   });
 

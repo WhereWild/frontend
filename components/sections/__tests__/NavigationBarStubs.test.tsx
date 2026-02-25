@@ -1,23 +1,22 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { IconSearch } from '@/assets/icons';
-import { Colors } from '@/constants/theme';
 import {
   __NAVIGATION_BAR_TESTING__,
   NavigationBar,
-} from '../NavigationBar.native';
+} from '../NavigationBar.tsx';
 import {
   __NAVIGATION_BAR_TAB_TESTING__,
   NavigationBarTab,
-} from '../NavigationBarTab.native';
+} from '../NavigationBarTab.tsx';
 
-describe('NavigationBar native behavior', () => {
-  it('renders NavigationBar module without crashing', () => {
+describe('NavigationBar stubs', () => {
+  it('renders NavigationBar stub as null', () => {
     const { toJSON } = render(<NavigationBar />);
-    expect(toJSON()).toBeTruthy();
+    expect(toJSON()).toBeNull();
   });
 
-  it('renders NavigationBarTab module without crashing', () => {
+  it('renders NavigationBarTab stub as null', () => {
     const { toJSON } = render(
       <NavigationBarTab
         label="Search"
@@ -25,10 +24,10 @@ describe('NavigationBar native behavior', () => {
       />,
     );
 
-    expect(toJSON()).toBeTruthy();
+    expect(toJSON()).toBeNull();
   });
 
-  it('covers visual-state helpers with exact native values', () => {
+  it('covers stub tab helper exports', () => {
     expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('active', false, false)).toBe('active');
     expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('pressed', false, false)).toBe('pressed');
     expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', true, false)).toBe('pressed');
@@ -40,29 +39,35 @@ describe('NavigationBar native behavior', () => {
 
     expect(lightStyles).toEqual({
       backgroundColor: 'transparent',
-      textColor: Colors.light.text.default.default,
-      iconColor: Colors.light.icon.default.default,
+      textColor: 'transparent',
+      iconColor: 'transparent',
       borderWidth: 0,
     });
 
     expect(darkStyles).toEqual({
-      backgroundColor: Colors.dark.background.brand.pressed,
-      textColor: Colors.dark.text.brand.onBrand,
-      iconColor: Colors.dark.icon.brand.onBrand,
+      backgroundColor: 'transparent',
+      textColor: 'transparent',
+      iconColor: 'transparent',
       borderWidth: 0,
     });
   });
 
-  it('covers NavigationBar helper exports with deterministic native thresholds', () => {
-    const requiredWidthForFourTabs = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(4);
-    const requiredWidth = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(5);
+  it('covers stub NavigationBar helper exports', () => {
+    expect(
+      __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+        5,
+        { one: 100 },
+        ['one', 'two', 'three', 'four', 'five'],
+      ),
+    ).toBe(0);
 
-    expect(requiredWidthForFourTabs).toBe(4 * 96 + 3 * 8);
-    expect(requiredWidth).toBe(5 * 96 + 4 * 8);
-    expect(requiredWidth).toBeGreaterThan(requiredWidthForFourTabs);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(640, 5)).toBe(true);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth, 5)).toBe(true);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth - 1, 5)).toBe(false);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1)).toBe(true);
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
+        640,
+        5,
+        { one: 100 },
+        ['one', 'two', 'three', 'four', 'five'],
+      ),
+    ).toBe(false);
   });
 });

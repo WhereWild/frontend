@@ -54,15 +54,49 @@ describe('NavigationBar native behavior', () => {
   });
 
   it('covers NavigationBar helper exports with deterministic native thresholds', () => {
-    const requiredWidthForFourTabs = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(4);
-    const requiredWidth = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(5);
+    const requiredWidthForFourTabs = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+      4,
+      {
+        one: 100,
+        two: 100,
+      },
+      ['one', 'two', 'three', 'four'],
+    );
+    const requiredWidth = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+      5,
+      {
+        one: 100,
+      },
+      ['one', 'two', 'three', 'four', 'five'],
+    );
 
-    expect(requiredWidthForFourTabs).toBe(4 * 96 + 3 * 8);
-    expect(requiredWidth).toBe(5 * 96 + 4 * 8);
+    expect(requiredWidthForFourTabs).toBe(100 + 100 + 96 + 96 + 3 * 8);
+    expect(requiredWidth).toBe(100 + 96 + 96 + 96 + 96 + 4 * 8);
     expect(requiredWidth).toBeGreaterThan(requiredWidthForFourTabs);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(640, 5)).toBe(true);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth, 5)).toBe(true);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(requiredWidth - 1, 5)).toBe(false);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1)).toBe(true);
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
+        640,
+        5,
+        { one: 100 },
+        ['one', 'two', 'three', 'four', 'five'],
+      ),
+    ).toBe(true);
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
+        requiredWidth,
+        5,
+        { one: 100 },
+        ['one', 'two', 'three', 'four', 'five'],
+      ),
+    ).toBe(true);
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(
+        requiredWidth - 1,
+        5,
+        { one: 100 },
+        ['one', 'two', 'three', 'four', 'five'],
+      ),
+    ).toBe(false);
+    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['one'])).toBe(true);
   });
 });
