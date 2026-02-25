@@ -1,0 +1,117 @@
+import {
+  IconChevronLeft,
+  IconFilter,
+} from '@/assets/icons';
+import { Button } from '@/components/buttons/Button';
+import { IconButton } from '@/components/buttons/IconButton';
+import { SearchInput } from '@/components/inputs/SearchInput';
+import { ThemedText } from '@/components/text/ThemedText';
+import { Size } from '@/constants/theme';
+import type {
+  LeadingContentProps,
+  PrimaryActionProps,
+} from './TopAppBar.types';
+import React from 'react';
+import {
+  Image,
+  StyleSheet,
+  View,
+} from 'react-native';
+
+export function LeadingContent(props: LeadingContentProps) {
+  switch (props.variant) {
+    case 'search':
+      return (
+        <View style={styles.searchWrapper} testID="top-app-bar-leading">
+          <SearchInput
+            value={props.searchValue}
+            onQueryChange={props.onSearchValueChange}
+            onSubmitSearch={props.onSubmitSearch}
+            placeholder={props.searchPlaceholder ?? 'Search'}
+          />
+        </View>
+      );
+    case 'page':
+      return (
+        <View style={styles.leadingRow} testID="top-app-bar-leading">
+          <IconButton
+            variant="subtle"
+            icon={<IconChevronLeft />}
+            onPress={props.onPressBack}
+            accessibilityLabel="Back"
+          />
+          <ThemedText variant="heading">{props.title}</ThemedText>
+        </View>
+      );
+    default:
+      return (
+        <View style={styles.leadingRow} testID="top-app-bar-leading">
+          <Image
+            source={props.logoSource}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel={props.logoAccessibilityLabel}
+          />
+          <ThemedText variant="heading">{props.title}</ThemedText>
+        </View>
+      );
+  }
+}
+
+export function PrimaryAction({
+  hasPrimaryButton,
+  shouldRenderPrimaryAsIcon,
+  onPressPrimaryButton,
+  primaryIconButtonAccessibilityLabel,
+  primaryButtonAccessibilityLabel,
+  primaryButtonLabel,
+}: PrimaryActionProps) {
+  if (!hasPrimaryButton) {
+    return null;
+  }
+
+  const isPrimaryActionEnabled = typeof onPressPrimaryButton === 'function';
+
+  if (shouldRenderPrimaryAsIcon) {
+    return (
+      <IconButton
+        variant="primary"
+        icon={<IconFilter />}
+        onPress={onPressPrimaryButton}
+        disabled={!isPrimaryActionEnabled}
+        accessibilityLabel={primaryIconButtonAccessibilityLabel}
+      />
+    );
+  }
+
+  return (
+    <View testID="top-app-bar-filter-button-wrapper">
+      <Button
+        variant="primary"
+        iconStart={<IconFilter />}
+        label={primaryButtonLabel}
+        onPress={onPressPrimaryButton}
+        disabled={!isPrimaryActionEnabled}
+        accessibilityLabel={primaryButtonAccessibilityLabel}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  leadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
+    flexShrink: 1,
+  },
+  logo: {
+    width: Size.space['1200'],
+    height: Size.space['1200'],
+  },
+  searchWrapper: {
+    flex: 1,
+    minWidth: 0,
+  },
+});
