@@ -49,6 +49,7 @@ const DEFAULT_TABS: NavigationBarTabItem[] = [
 ];
 
 const TAB_GAP = Size.space['200'];
+const DEFAULT_BOTTOM_PADDING = Size.space['200'];
 
 const getRequiredHorizontalWidth = (
   tabCount: number,
@@ -95,6 +96,7 @@ export function NavigationBar({
   const palette = Colors[mode];
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const bottomInset = safeAreaInsets?.bottom ?? 0;
+  const safeAreaBottomPadding = Math.max(bottomInset - DEFAULT_BOTTOM_PADDING, 0);
   // Most of this component's logic is width measurement: it measures tab widths,
   // adds fixed tab gaps, and picks horizontal vs vertical based on available width.
   const [availableWidth, setAvailableWidth] = React.useState<number | null>(null);
@@ -182,7 +184,7 @@ export function NavigationBar({
         {
           backgroundColor: palette.background.default.secondary,
           borderTopColor: palette.border.default.secondary,
-          paddingBottom: bottomInset,
+          paddingBottom: safeAreaBottomPadding,
         },
         style,
       ]}
