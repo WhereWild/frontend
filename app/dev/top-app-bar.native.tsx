@@ -1,5 +1,5 @@
 import {
-  Button,
+  NavigationPillList,
   SwitchField,
   ThemedText,
   TopAppBar,
@@ -7,15 +7,27 @@ import {
 } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+const HOME_LOGO_SOURCE = require('@/assets/images/wherewild.png');
+const HOME_LOGO_ACCESSIBILITY_LABEL = 'WhereWild logo';
+
 const VARIANTS: TopAppBarVariant[] = ['home', 'page', 'search'];
+const VARIANT_PILLS = VARIANTS.map((value) => ({
+  key: value,
+  label: value,
+  accessibilityLabel: `Select ${value} variant`,
+}));
 
 const noop = () => { };
 
 export default function TopAppBarDevScreen() {
+  const router = useRouter();
   const scheme = useColorScheme();
+  const responsive = useResponsive();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
@@ -24,62 +36,77 @@ export default function TopAppBarDevScreen() {
   const [searchValue, setSearchValue] = React.useState('');
   const [hasSecondaryButton, setHasSecondaryButton] = React.useState(true);
   const [hasPrimaryButton, setHasPrimaryButton] = React.useState(true);
-  const [isPrimaryButtonIcon, setIsPrimaryButtonIcon] = React.useState(false);
+  const [primaryActionMode, setPrimaryActionMode] = React.useState<'responsive' | 'icon'>('responsive');
+
+  const secondaryAction = {
+    isVisible: hasSecondaryButton,
+    onPress: noop,
+  };
+
+  const primaryAction = {
+    isVisible: hasPrimaryButton,
+    mode: primaryActionMode,
+    onPress: noop,
+  };
+
+  const handleVariantChange = React.useCallback((key: string) => {
+    if ((VARIANTS as readonly string[]).includes(key)) {
+      setVariant(key as TopAppBarVariant);
+    }
+  }, []);
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}> 
       {variant === 'search' ? (
         <TopAppBar
           variant="search"
-          title={pageTitle}
           searchValue={searchValue}
           onSearchValueChange={setSearchValue}
           onSubmitSearch={setSearchValue}
-          hasSecondaryButton={hasSecondaryButton}
-          hasPrimaryButton={hasPrimaryButton}
-          isPrimaryButtonIcon={isPrimaryButtonIcon}
-          onPressPrimaryButton={noop}
-          onPressSecondaryButton={noop}
+          secondaryAction={secondaryAction}
+          primaryAction={primaryAction}
         />
       ) : variant === 'page' ? (
         <TopAppBar
           variant="page"
           title={pageTitle}
-          onPressBack={noop}
-          hasSecondaryButton={hasSecondaryButton}
-          hasPrimaryButton={hasPrimaryButton}
-          isPrimaryButtonIcon={isPrimaryButtonIcon}
-          onPressPrimaryButton={noop}
-          onPressSecondaryButton={noop}
+          onPressBack={() => router.back()}
+          secondaryAction={secondaryAction}
+          primaryAction={primaryAction}
         />
       ) : (
         <TopAppBar
           variant="home"
           title={pageTitle}
-          hasSecondaryButton={hasSecondaryButton}
-          hasPrimaryButton={hasPrimaryButton}
-          isPrimaryButtonIcon={isPrimaryButtonIcon}
-          onPressPrimaryButton={noop}
-          onPressSecondaryButton={noop}
+          logoSource={HOME_LOGO_SOURCE}
+          logoAccessibilityLabel={HOME_LOGO_ACCESSIBILITY_LABEL}
+          onPressLogo={() => router.push('/')}
+          secondaryAction={secondaryAction}
+          primaryAction={primaryAction}
         />
       )}
 
-      <ScrollView contentContainerStyle={styles.content} bounces={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: responsive.marginHorizontal },
+        ]}
+        bounces={false}
+      >
         <ThemedText variant="heading">Top App Bar Preview</ThemedText>
         <ThemedText variant="body">
           Rotate device and resize width to verify primary button collapse/expand behavior.
         </ThemedText>
 
         <View style={styles.variantRow}>
-          {VARIANTS.map((value) => (
-            <Button
-              key={value}
-              variant={variant === value ? 'primary' : 'subtle'}
-              label={value}
-              onPress={() => setVariant(value)}
-              accessibilityLabel={`Select ${value} variant`}
-            />
-          ))}
+          <NavigationPillList
+            pills={VARIANT_PILLS}
+            selectedKey={variant}
+            onSelectionChange={handleVariantChange}
+            direction="horizontal"
+            accessibilityLabel="Top app bar variant selection"
+            testID="top-app-bar-variant-selector"
+          />
         </View>
 
         <View style={styles.inputGroup}>
@@ -121,8 +148,8 @@ export default function TopAppBarDevScreen() {
         />
         <SwitchField
           label="Force primary icon mode"
-          value={isPrimaryButtonIcon}
-          onValueChange={setIsPrimaryButtonIcon}
+          value={primaryActionMode === 'icon'}
+          onValueChange={(enabled) => setPrimaryActionMode(enabled ? 'icon' : 'responsive')}
         />
       </ScrollView>
     </View>
@@ -134,7 +161,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: Size.space['400'],
     paddingVertical: Size.space['400'],
     gap: Size.space['300'],
   },
