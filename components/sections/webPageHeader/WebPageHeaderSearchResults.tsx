@@ -27,6 +27,7 @@ export function WebPageHeaderSearchResults({
   return (
     <SearchResults
       results={results}
+      isVisible={true}
       isLoading={isLoading}
       emptyMessage={errorMessage ?? 'No species found'}
       style={style}
