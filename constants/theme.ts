@@ -331,7 +331,7 @@ const createTypography = (mode: 'light' | 'dark', baseRemPx: number) => ({
   bodySmallLink: {
     ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-link'], 'body', baseRemPx),
     color: Colors[mode].text.brand.default,
-    textDecorationLine: 'underline',
+    textDecorationLine: 'underline' as const,
     textDecorationColor: 'transparent',
   },
   bodySmallStrong: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-small-strong'], 'body', baseRemPx), color: Colors[mode].text.default.default },
@@ -340,7 +340,7 @@ const createTypography = (mode: 'light' | 'dark', baseRemPx: number) => ({
   link: {
     ...parseFontShorthand(wdsStyleTokens['wds-font-body-link'], 'body', baseRemPx),
     color: Colors[mode].text.brand.default,
-    textDecorationLine: 'underline',
+    textDecorationLine: 'underline' as const,
     textDecorationColor: 'transparent',
   },
   code: { ...parseFontShorthand(wdsStyleTokens['wds-font-body-code'], 'code', baseRemPx), color: Colors[mode].text.default.default },

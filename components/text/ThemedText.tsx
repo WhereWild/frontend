@@ -1,17 +1,22 @@
 import { Time, TimeEasingCurves, getReactNativeEasing } from '@/constants/theme';
 import type { ComponentType } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, type TextProps, type TextStyle } from 'react-native';
+import { Animated, Platform, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 
 type TypographyVariants = keyof ReturnType<typeof useTypographyStyles>;
 
-type ThemedTextProps = TextProps & {
+type HoverHandlers = {
+  onHoverIn?: (event: unknown) => void;
+  onHoverOut?: (event: unknown) => void;
+};
+
+type ThemedTextProps = TextProps & HoverHandlers & {
   variant?: TypographyVariants;
 };
 
-type HoverInEvent = Parameters<NonNullable<ThemedTextProps['onHoverIn']>>[0];
-type HoverOutEvent = Parameters<NonNullable<ThemedTextProps['onHoverOut']>>[0];
+type HoverInEvent = Parameters<NonNullable<HoverHandlers['onHoverIn']>>[0];
+type HoverOutEvent = Parameters<NonNullable<HoverHandlers['onHoverOut']>>[0];
 type PressInEvent = Parameters<NonNullable<ThemedTextProps['onPressIn']>>[0];
 type PressOutEvent = Parameters<NonNullable<ThemedTextProps['onPressOut']>>[0];
 
@@ -20,7 +25,10 @@ type WebMouseHandlers = {
   onMouseLeave?: (event: HoverOutEvent) => void;
 };
 
-type AnimatedTextProps = TextProps & WebMouseHandlers;
+type AnimatedTextProps = Omit<TextProps, 'style'> &
+  WebMouseHandlers & {
+    style?: StyleProp<TextStyle>;
+  };
 
 const AnimatedText = Animated.Text as ComponentType<AnimatedTextProps>;
 
@@ -51,7 +59,7 @@ export function ThemedText({
         inputRange: [0, 1],
         outputRange: ['transparent', variantColor],
       }),
-    };
+    } as unknown as TextStyle;
   }, [isLinkVariant, isWebLinkVariant, underlineProgress, variantColor]);
 
   const webHoverTransitionStyle = useMemo(() => {

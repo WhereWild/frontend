@@ -2,10 +2,9 @@ import { getTypographyForMode, Typography } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
 
 const createTypographyStyles = (tokens: typeof Typography.light) =>
-  StyleSheet.create({
+  ({
     titleHero: tokens.titleHero,
     titlePage: tokens.titlePage,
     subtitle: tokens.subtitle,
