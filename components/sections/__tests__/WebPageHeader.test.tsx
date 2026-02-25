@@ -1,7 +1,7 @@
 import React, { act } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { Size } from '@/constants/theme';
-import { PageHeader } from '../PageHeader';
+import { WebPageHeader } from '../WebPageHeader';
 import { IconHelpCircle } from '@/assets/icons';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet, View } from 'react-native';
@@ -29,7 +29,7 @@ const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useRespons
 const SEARCH_WRAPPER_LAYOUT_HEIGHT = 40;
 const SEARCH_DEBOUNCE_MS = 400;
 
-describe('PageHeader', () => {
+describe('WebPageHeader', () => {
   const setupSearchVisibility = () => {
     const searchWrapper = screen.getByTestId('page-header-search-wrapper');
     act(() => {
@@ -54,7 +54,7 @@ describe('PageHeader', () => {
   });
 
   it('renders title, search input, and default actions', () => {
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     expect(screen.getByText('WhereWild')).toBeTruthy();
     expect(screen.getByPlaceholderText('Search').props.value).toBe('');
@@ -65,7 +65,7 @@ describe('PageHeader', () => {
   });
 
   it('navigates to about when default About action is pressed', () => {
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     fireEvent.press(screen.getByLabelText('About'));
 
@@ -74,7 +74,7 @@ describe('PageHeader', () => {
 
   it('does not navigate when already on About', () => {
     mockPathname = '/about';
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     fireEvent.press(screen.getByLabelText('About'));
 
@@ -84,7 +84,7 @@ describe('PageHeader', () => {
   it('invokes action handler when pressed', () => {
     const handlePress = jest.fn();
     render(
-      <PageHeader
+      <WebPageHeader
         actions={[{ label: 'Docs', icon: <IconHelpCircle />, onPress: handlePress }]}
       />,
     );
@@ -95,7 +95,7 @@ describe('PageHeader', () => {
 
   it('navigates home when logo is pressed from another page', () => {
     mockPathname = '/about';
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     const logoLink = screen.getByLabelText('Go to home');
     expect(logoLink.props.accessibilityRole).toBe('link');
@@ -104,7 +104,7 @@ describe('PageHeader', () => {
   });
 
   it('does not navigate when already on the home page', () => {
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     fireEvent.press(screen.getByLabelText('Go to home'));
     expect(mockPush).not.toHaveBeenCalled();
@@ -112,21 +112,21 @@ describe('PageHeader', () => {
 
   it('invokes filter handler when filter button is pressed', () => {
     const handleFilter = jest.fn();
-    render(<PageHeader onFilterPress={handleFilter} />);
+    render(<WebPageHeader onFilterPress={handleFilter} />);
 
     fireEvent.press(screen.getByLabelText('Filter search results'));
     expect(handleFilter).toHaveBeenCalledTimes(1);
   });
 
   it('can hide the filter button', () => {
-    render(<PageHeader showFilterButton={false} />);
+    render(<WebPageHeader showFilterButton={false} />);
 
     expect(screen.queryByLabelText('Filter search results')).toBeNull();
   });
 
   it('renders compact layout and exposes actions behind the menu button', () => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     expect(screen.queryByText('WhereWild')).toBeNull();
     expect(screen.getByLabelText('Filter search results')).toBeTruthy();
@@ -143,7 +143,7 @@ describe('PageHeader', () => {
   });
 
   it('submits search queries and ignores empty submissions', async () => {
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     const searchInput = screen.getByLabelText('Search input');
     fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: '' } });
@@ -159,7 +159,7 @@ describe('PageHeader', () => {
     const handleSearching = jest.fn();
 
     render(
-      <PageHeader
+      <WebPageHeader
         initialQuery="fox"
         onSearchResultsChanged={handleResults}
         onSearchingChanged={handleSearching}
@@ -182,15 +182,15 @@ describe('PageHeader', () => {
   });
 
   it('updates search query when initialQuery prop changes', () => {
-    const { rerender } = render(<PageHeader initialQuery="fox" />);
+    const { rerender } = render(<WebPageHeader initialQuery="fox" />);
 
     expect(screen.getByLabelText('Search input').props.value).toBe('fox');
 
-    rerender(<PageHeader initialQuery="owl" />);
+    rerender(<WebPageHeader initialQuery="owl" />);
 
     expect(screen.getByLabelText('Search input').props.value).toBe('owl');
 
-    rerender(<PageHeader initialQuery={undefined} />);
+    rerender(<WebPageHeader initialQuery={undefined} />);
 
     expect(screen.getByLabelText('Search input').props.value).toBe('');
   });
@@ -201,7 +201,7 @@ describe('PageHeader', () => {
     const handleSearching = jest.fn();
 
     render(
-      <PageHeader
+      <WebPageHeader
         onSearchResultsChanged={handleResults}
         onSearchingChanged={handleSearching}
       />,
@@ -235,7 +235,7 @@ describe('PageHeader', () => {
       { taxon_id: 'invalid' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -267,7 +267,7 @@ describe('PageHeader', () => {
       { taxon_id: 312, scientific_name: 'Puma concolor', common_name: 'Mountain Lion' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -301,7 +301,7 @@ describe('PageHeader', () => {
     const handleSearching = jest.fn();
 
     render(
-      <PageHeader
+      <WebPageHeader
         onSearchResultsChanged={handleResults}
         onSearchingChanged={handleSearching}
       />,
@@ -344,7 +344,7 @@ describe('PageHeader', () => {
     const handleSearching = jest.fn();
 
     const { unmount } = render(
-      <PageHeader
+      <WebPageHeader
         onSearchResultsChanged={handleResults}
         onSearchingChanged={handleSearching}
       />,
@@ -390,7 +390,7 @@ describe('PageHeader', () => {
     const handleSearching = jest.fn();
 
     const { unmount } = render(
-      <PageHeader
+      <WebPageHeader
         onSearchResultsChanged={handleResults}
         onSearchingChanged={handleSearching}
       />,
@@ -435,7 +435,7 @@ describe('PageHeader', () => {
       },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -460,7 +460,7 @@ describe('PageHeader', () => {
       { taxon_id: 7, scientific_name: '   ', common_name: 'Silent Owl' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -483,7 +483,7 @@ describe('PageHeader', () => {
       { taxon_id: 99, scientific_name: 'Vulpes vulpes', common_name: 'Red Fox' },
     ] as any);
 
-    render(<PageHeader showSearchResultsDropdown={false} />);
+    render(<WebPageHeader showSearchResultsDropdown={false} />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -504,7 +504,7 @@ describe('PageHeader', () => {
       { taxon_id: 123, scientific_name: 'Buteo jamaicensis', common_name: 'Red-tailed Hawk' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -536,7 +536,7 @@ describe('PageHeader', () => {
   it('uses default error message for non-Error rejections', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockRejectedValue('nope');
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -557,7 +557,7 @@ describe('PageHeader', () => {
       { taxon_id: 55, scientific_name: 'Strix aluco', common_name: 'Tawny Owl' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
@@ -585,7 +585,7 @@ describe('PageHeader', () => {
 
   it('toggles compact menu closed when open button is pressed twice', () => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
-    render(<PageHeader />);
+    render(<WebPageHeader />);
 
     const menuButton = screen.getByLabelText('Open menu');
     fireEvent.press(menuButton);
@@ -605,7 +605,7 @@ describe('PageHeader', () => {
       { taxon_id: 77, scientific_name: 'Bubo bubo', common_name: 'Eurasian Eagle-Owl' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     const searchWrapper = screen.getByTestId('page-header-search-wrapper');
     act(() => {
       searchWrapper.props.onLayout?.({
@@ -642,9 +642,9 @@ describe('PageHeader', () => {
       { taxon_id: 88, scientific_name: 'Strix nebulosa', common_name: 'Great Gray Owl' },
     ] as any);
 
-    const rendered = render(<PageHeader />);
+    const rendered = render(<WebPageHeader />);
     const allViews = rendered.UNSAFE_getAllByType(View);
-    const desktopTop = SEARCH_WRAPPER_LAYOUT_HEIGHT + Size.space['100'];
+    const desktopTop = SEARCH_WRAPPER_LAYOUT_HEIGHT + Size.space['200'];
 
     act(() => {
       allViews
@@ -692,7 +692,7 @@ describe('PageHeader', () => {
       { taxon_id: 91, scientific_name: 'Asio otus', common_name: 'Long-eared Owl' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     const searchWrapper = screen.getByTestId('page-header-search-wrapper');
     act(() => {
       searchWrapper.props.onLayout?.({
@@ -739,7 +739,7 @@ describe('PageHeader', () => {
       { taxon_id: 301, scientific_name: 'Bubo scandiacus', common_name: 'Snowy Owl' },
     ] as any);
 
-    render(<PageHeader />);
+    render(<WebPageHeader />);
     setupSearchVisibility();
 
     const searchInput = screen.getByLabelText('Search input');
