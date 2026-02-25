@@ -1,4 +1,4 @@
-import { PageHeader, SpeciesCard, ThemedText } from '@/components';
+import { WebPageHeader, SpeciesCard, ThemedText } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -32,7 +32,7 @@ export default function Search() {
 
     return (
         <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-            <PageHeader
+            <WebPageHeader
                 showSearchResultsDropdown={false}
                 initialQuery={initialQuery}
                 onSearchResultsChanged={onSearchResultsChanged} 

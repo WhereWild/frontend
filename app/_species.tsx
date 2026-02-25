@@ -1,6 +1,6 @@
 import {
   NearbySpeciesCarousel,
-  PageHeader,
+  WebPageHeader,
   SpeciesPageTitle,
   ThemedText,
   SpeciesEnvironmentSection
@@ -156,7 +156,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
       >
-        <PageHeader />
+        <WebPageHeader />
 
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
