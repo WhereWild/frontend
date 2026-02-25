@@ -1,6 +1,5 @@
 import {
   IconChevronLeft,
-  IconFilter,
 } from '@/assets/icons';
 import { Button } from '@/components/buttons/Button';
 import { IconButton } from '@/components/buttons/IconButton';
@@ -14,9 +13,12 @@ import type {
 import React from 'react';
 import {
   Image,
+  Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+
+const LOGO_SIZE = 40;
 
 export function LeadingContent(props: LeadingContentProps) {
   switch (props.variant) {
@@ -40,20 +42,50 @@ export function LeadingContent(props: LeadingContentProps) {
             onPress={props.onPressBack}
             accessibilityLabel="Back"
           />
-          <ThemedText variant="heading">{props.title}</ThemedText>
+          <ThemedText
+            variant="heading"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={styles.title}
+          >
+            {props.title}
+          </ThemedText>
         </View>
       );
     default:
       return (
         <View style={styles.leadingRow} testID="top-app-bar-leading">
-          <Image
-            source={props.logoSource}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityRole="image"
-            accessibilityLabel={props.logoAccessibilityLabel}
-          />
-          <ThemedText variant="heading">{props.title}</ThemedText>
+          {typeof props.onPressLogo === 'function' ? (
+            <Pressable
+              onPress={props.onPressLogo}
+              accessibilityRole="button"
+              accessibilityLabel={props.logoAccessibilityLabel}
+              style={styles.logoPressable}
+            >
+              <Image
+                source={props.logoSource}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityRole="image"
+              />
+            </Pressable>
+          ) : (
+            <Image
+              source={props.logoSource}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityRole="image"
+              accessibilityLabel={props.logoAccessibilityLabel}
+            />
+          )}
+          <ThemedText
+            variant="heading"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={styles.title}
+          >
+            {props.title}
+          </ThemedText>
         </View>
       );
   }
@@ -62,6 +94,7 @@ export function LeadingContent(props: LeadingContentProps) {
 export function PrimaryAction({
   hasPrimaryButton,
   shouldRenderPrimaryAsIcon,
+  primaryButtonIcon,
   onPressPrimaryButton,
   primaryIconButtonAccessibilityLabel,
   primaryButtonAccessibilityLabel,
@@ -77,7 +110,7 @@ export function PrimaryAction({
     return (
       <IconButton
         variant="primary"
-        icon={<IconFilter />}
+        icon={primaryButtonIcon}
         onPress={onPressPrimaryButton}
         disabled={!isPrimaryActionEnabled}
         accessibilityLabel={primaryIconButtonAccessibilityLabel}
@@ -89,7 +122,7 @@ export function PrimaryAction({
     <View testID="top-app-bar-filter-button-wrapper">
       <Button
         variant="primary"
-        iconStart={<IconFilter />}
+        iconStart={primaryButtonIcon}
         label={primaryButtonLabel}
         onPress={onPressPrimaryButton}
         disabled={!isPrimaryActionEnabled}
@@ -105,10 +138,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Size.space['200'],
     flexShrink: 1,
+    minWidth: 0,
+  },
+  title: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   logo: {
-    width: Size.space['1200'],
-    height: Size.space['1200'],
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+  },
+  logoPressable: {
+    borderRadius: Size.radius['full'],
   },
   searchWrapper: {
     flex: 1,

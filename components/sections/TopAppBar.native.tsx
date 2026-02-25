@@ -1,4 +1,4 @@
-import { IconRotateCcw } from '@/assets/icons';
+import { IconFilter, IconRotateCcw } from '@/assets/icons';
 import { IconButton } from '@/components/buttons/IconButton';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -21,31 +21,31 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 export type { TopAppBarProps, TopAppBarVariant } from './TopAppBar.types';
 
 const TOP_APP_BAR_HEIGHT = 64;
-const TOP_APP_BAR_HORIZONTAL_PADDING = Size.space['200'];
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
-const NOOP = () => {};
+const DEFAULT_SECONDARY_ACTION_ICON = <IconRotateCcw />;
+const DEFAULT_PRIMARY_ACTION_ICON = <IconFilter />;
 
-export function TopAppBar({
-  variant = 'home',
-  title = 'Page Title',
-  logoSource = require('@/assets/images/wherewild.png'),
-  logoAccessibilityLabel = 'WhereWild logo',
-  searchValue,
-  onSearchValueChange,
-  onSubmitSearch,
-  searchPlaceholder,
-  hasSecondaryButton = true,
-  hasPrimaryButton = true,
-  isPrimaryButtonIcon = false,
-  secondaryButtonAccessibilityLabel = 'Refresh',
-  primaryButtonAccessibilityLabel = 'Filter',
-  primaryIconButtonAccessibilityLabel = 'Filter action',
-  primaryButtonLabel = 'Filter',
-  onPressBack,
-  onPressSecondaryButton,
-  onPressPrimaryButton,
-  style,
-}: TopAppBarProps) {
+export function TopAppBar(props: TopAppBarProps) {
+  const {
+    secondaryAction,
+    primaryAction,
+    style,
+  } = props;
+  const resolvedSecondaryAction = {
+    isVisible: secondaryAction?.isVisible ?? true,
+    icon: secondaryAction?.icon ?? DEFAULT_SECONDARY_ACTION_ICON,
+    accessibilityLabel: secondaryAction?.accessibilityLabel ?? 'Reset filters',
+    onPress: secondaryAction?.onPress,
+  };
+  const resolvedPrimaryAction = {
+    isVisible: primaryAction?.isVisible ?? true,
+    mode: primaryAction?.mode ?? 'responsive',
+    icon: primaryAction?.icon ?? DEFAULT_PRIMARY_ACTION_ICON,
+    buttonLabel: primaryAction?.buttonLabel ?? 'Filter',
+    buttonAccessibilityLabel: primaryAction?.buttonAccessibilityLabel ?? 'Filter',
+    iconAccessibilityLabel: primaryAction?.iconAccessibilityLabel ?? 'Filter action',
+    onPress: primaryAction?.onPress,
+  };
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -55,37 +55,38 @@ export function TopAppBar({
   const safeAreaTopInset = insets.top;
 
   const isPhoneBreakpoint = responsive.breakpoint === 'phone';
-  const shouldRenderSpacer = variant !== 'search';
-  const shouldRenderPrimaryAsIcon = isPrimaryButtonIcon || isPhoneBreakpoint;
-  const isSecondaryActionEnabled = typeof onPressSecondaryButton === 'function';
+  const shouldRenderSpacer = props.variant !== 'search';
+  const shouldRenderPrimaryAsIcon =
+    resolvedPrimaryAction.mode === 'icon' ||
+    (resolvedPrimaryAction.mode === 'responsive' && isPhoneBreakpoint);
+  const shouldRenderSecondaryButton = resolvedSecondaryAction.isVisible;
+  const shouldRenderPrimaryButton = resolvedPrimaryAction.isVisible;
+  const shouldRenderActionsRow = shouldRenderSecondaryButton || shouldRenderPrimaryButton;
+  const isSecondaryActionEnabled = typeof resolvedSecondaryAction.onPress === 'function';
 
   let leadingContentProps: LeadingContentProps;
 
-  if (variant === 'search') {
+  if (props.variant === 'search') {
     leadingContentProps = {
-      variant,
-      title,
-      logoSource,
-      logoAccessibilityLabel,
-      searchValue: searchValue ?? '',
-      onSearchValueChange: onSearchValueChange ?? NOOP,
-      onSubmitSearch: onSubmitSearch ?? NOOP,
-      searchPlaceholder,
+      variant: 'search',
+      searchValue: props.searchValue,
+      onSearchValueChange: props.onSearchValueChange,
+      onSubmitSearch: props.onSubmitSearch,
+      searchPlaceholder: props.searchPlaceholder,
     };
-  } else if (variant === 'page') {
+  } else if (props.variant === 'page') {
     leadingContentProps = {
-      variant,
-      title,
-      logoSource,
-      logoAccessibilityLabel,
-      onPressBack: onPressBack ?? NOOP,
+      variant: 'page',
+      title: props.title,
+      onPressBack: props.onPressBack,
     };
   } else {
     leadingContentProps = {
       variant: 'home',
-      title,
-      logoSource,
-      logoAccessibilityLabel,
+      title: props.title,
+      logoSource: props.logoSource,
+      logoAccessibilityLabel: props.logoAccessibilityLabel,
+      onPressLogo: props.onPressLogo,
     };
   }
 
@@ -102,32 +103,40 @@ export function TopAppBar({
         style,
       ]}
     >
-      <View style={styles.container} accessibilityRole="header" testID="top-app-bar-container">
+      <View
+        style={[
+          styles.container,
+          { paddingHorizontal: responsive.marginHorizontal },
+        ]}
+        accessibilityRole="header"
+        testID="top-app-bar-container"
+      >
         <LeadingContent
           {...leadingContentProps}
         />
         {shouldRenderSpacer ? <View style={styles.spacer} /> : null}
-        <View style={styles.actionsRow}>
-          <View style={styles.fixedActionsRow} testID="top-app-bar-actions-fixed">
-            {hasSecondaryButton ? (
+        {shouldRenderActionsRow ? (
+          <View style={styles.actionsRow}>
+            {shouldRenderSecondaryButton ? (
               <IconButton
                 variant="neutral"
-                icon={<IconRotateCcw />}
-                onPress={onPressSecondaryButton}
+                icon={resolvedSecondaryAction.icon}
+                onPress={resolvedSecondaryAction.onPress}
                 disabled={!isSecondaryActionEnabled}
-                accessibilityLabel={secondaryButtonAccessibilityLabel}
+                accessibilityLabel={resolvedSecondaryAction.accessibilityLabel}
               />
             ) : null}
+            <PrimaryAction
+              hasPrimaryButton={shouldRenderPrimaryButton}
+              shouldRenderPrimaryAsIcon={shouldRenderPrimaryAsIcon}
+              primaryButtonIcon={resolvedPrimaryAction.icon}
+              onPressPrimaryButton={resolvedPrimaryAction.onPress}
+              primaryIconButtonAccessibilityLabel={resolvedPrimaryAction.iconAccessibilityLabel}
+              primaryButtonAccessibilityLabel={resolvedPrimaryAction.buttonAccessibilityLabel}
+              primaryButtonLabel={resolvedPrimaryAction.buttonLabel}
+            />
           </View>
-          <PrimaryAction
-            hasPrimaryButton={hasPrimaryButton}
-            shouldRenderPrimaryAsIcon={shouldRenderPrimaryAsIcon}
-            onPressPrimaryButton={onPressPrimaryButton}
-            primaryIconButtonAccessibilityLabel={primaryIconButtonAccessibilityLabel}
-            primaryButtonAccessibilityLabel={primaryButtonAccessibilityLabel}
-            primaryButtonLabel={primaryButtonLabel}
-          />
-        </View>
+        ) : null}
       </View>
     </View>
   );
@@ -140,7 +149,6 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     height: TOP_APP_BAR_HEIGHT,
-    paddingHorizontal: TOP_APP_BAR_HORIZONTAL_PADDING,
     paddingVertical: Size.space['200'],
     flexDirection: 'row',
     alignItems: 'center',
@@ -156,10 +164,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Size.space['200'],
     flexShrink: 0,
-  },
-  fixedActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
   },
 });
