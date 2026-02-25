@@ -17,6 +17,11 @@ import {
   type NavigationBarTabProps,
   type NavigationBarTabVariant,
 } from './NavigationBarTab';
+import {
+  getMeasuredWidthOrFallback,
+  hasAllTabMeasurements,
+  updateMeasuredTabWidths,
+} from './navigationBarMeasurement';
 
 type NavigationBarTabItem = {
   key: string;
@@ -43,7 +48,6 @@ const DEFAULT_TABS: NavigationBarTabItem[] = [
   { key: 'settings', label: 'Settings', icon: IconSettings, state: 'default' },
 ];
 
-const HORIZONTAL_MIN_TAB_WIDTH = 96;
 const TAB_GAP = Size.space['200'];
 
 const getRequiredHorizontalWidth = (
@@ -51,10 +55,7 @@ const getRequiredHorizontalWidth = (
   measuredTabWidths: Record<string, number>,
   tabKeys: string[],
 ) => {
-  const totalTabWidth = tabKeys.reduce(
-    (sum, key) => sum + (measuredTabWidths[key] ?? HORIZONTAL_MIN_TAB_WIDTH),
-    0,
-  );
+  const totalTabWidth = tabKeys.reduce((sum, key) => sum + getMeasuredWidthOrFallback(measuredTabWidths, key), 0);
   const totalGapWidth = Math.max(0, tabCount - 1) * TAB_GAP;
   return totalTabWidth + totalGapWidth;
 };
@@ -105,21 +106,7 @@ export function NavigationBar({
   const tabKeys = React.useMemo(() => tabs.map((tab) => tab.key), [tabs]);
 
   const onTabWidthLayout = React.useCallback((tabKey: string, width: number) => {
-    setMeasuredTabWidths((prev) => {
-      const hasAllMeasurements = tabKeys.every((key) => prev[key] !== undefined);
-      if (hasAllMeasurements) {
-        return prev;
-      }
-
-      if (prev[tabKey] === width) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        [tabKey]: width,
-      };
-    });
+    setMeasuredTabWidths((prev) => updateMeasuredTabWidths(prev, tabKeys, tabKey, width));
   }, [tabKeys]);
 
   React.useEffect(() => {
@@ -138,8 +125,7 @@ export function NavigationBar({
       setIsMeasuring(false);
     };
 
-    const hasAllMeasurements = tabKeys.every((key) => measuredTabWidths[key] !== undefined);
-    if (hasAllMeasurements) {
+    if (hasAllTabMeasurements(tabKeys, measuredTabWidths)) {
       finalizeMeasurement();
       return;
     }
