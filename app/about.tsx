@@ -3,6 +3,11 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconDownload,
+  IconHelpCircle,
+  IconHome,
+  IconInfo,
+  IconSearch,
+  IconSettings,
   IconStar,
   IconTrash,
 } from '@/assets/icons';
@@ -23,16 +28,17 @@ import {
   Tabs,
   ThemedText,
 } from '@/components';
-import type { ButtonProps } from '@/components';
+import type { ButtonProps, NavigationBarProps } from '@/components';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
+import { usePathname, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 import { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 
@@ -96,6 +102,8 @@ export default function About() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const router = useRouter();
+  const pathname = usePathname();
   const responsive = useResponsive();
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
@@ -378,6 +386,55 @@ export default function About() {
     </View>
   );
 
+  const navigateIfDifferent = (targetPath: '/' | '/about' | '/search') => {
+    if (pathname !== targetPath) {
+      router.push(targetPath);
+    }
+  };
+
+  const navigationTabs: NonNullable<NavigationBarProps['tabs']> = [
+    {
+      key: 'home',
+      label: 'Home',
+      icon: IconHome,
+      state: pathname === '/' ? 'active' : 'default' as const,
+      onPress: () => navigateIfDifferent('/'),
+      accessibilityLabel: 'Home tab',
+    },
+    {
+      key: 'search',
+      label: 'Search',
+      icon: IconSearch,
+      state: pathname === '/search' ? 'active' : 'default' as const,
+      onPress: () => navigateIfDifferent('/search'),
+      accessibilityLabel: 'Search tab',
+    },
+    {
+      key: 'help',
+      label: 'Help',
+      icon: IconHelpCircle,
+      state: 'default' as const,
+      onPress: noop,
+      accessibilityLabel: 'Help tab',
+    },
+    {
+      key: 'about',
+      label: 'About',
+      icon: IconInfo,
+      state: pathname === '/about' ? 'active' : 'default' as const,
+      onPress: () => navigateIfDifferent('/about'),
+      accessibilityLabel: 'About tab',
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      icon: IconSettings,
+      state: 'default' as const,
+      onPress: noop,
+      accessibilityLabel: 'Settings tab',
+    },
+  ];
+
   return (
     <>
       <Head>
@@ -386,12 +443,13 @@ export default function About() {
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <WebPageHeader />
 
-        <ScrollView
-          contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
-            includeBottomPadding: true,
-            includeGap: true,
-          })}
-        >
+        <View style={styles.content}>
+          <ScrollView
+            contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
+              includeBottomPadding: true,
+              includeGap: true,
+            })}
+          >
           <View>
             <ThemedText variant="heading">Search Input</ThemedText>
             <View>
@@ -661,14 +719,6 @@ export default function About() {
             </View>
           </View>
 
-          {Platform.OS !== 'web' ? (
-            <View>
-              <ThemedText variant="heading">Navigation Bar</ThemedText>
-              <ThemedText variant="body">Native-only bottom navigation bar preview.</ThemedText>
-              <NavigationBar />
-            </View>
-          ) : null}
-
           <View>
             <ThemedText variant="heading">Typography Tokens</ThemedText>
             <ThemedText variant="body">Preview of every WhereWild typography variant.</ThemedText>
@@ -785,7 +835,9 @@ export default function About() {
               </View>
             ))}
           </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
+        <NavigationBar tabs={navigationTabs} />
       </View>
     </>
   );
@@ -793,6 +845,9 @@ export default function About() {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  content: {
     flex: 1,
   },
   row: {
