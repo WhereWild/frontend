@@ -10,6 +10,7 @@ import {
   Button,
   ButtonDanger,
   IconButton,
+  NavigationBar,
   NavigationPillList,
   NearbySpeciesCarousel,
   WebPageHeader,
@@ -31,7 +32,7 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
 import Head from 'expo-router/head';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 
@@ -659,6 +660,14 @@ export default function About() {
               )}
             </View>
           </View>
+
+          {Platform.OS !== 'web' ? (
+            <View>
+              <ThemedText variant="heading">Navigation Bar</ThemedText>
+              <ThemedText variant="body">Native-only bottom navigation bar preview.</ThemedText>
+              <NavigationBar />
+            </View>
+          ) : null}
 
           <View>
             <ThemedText variant="heading">Typography Tokens</ThemedText>
