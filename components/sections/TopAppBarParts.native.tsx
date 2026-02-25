@@ -63,6 +63,7 @@ export function LeadingContent(props: LeadingContentProps) {
               style={styles.logoPressable}
             >
               <Image
+                testID="top-app-bar-home-logo-image"
                 source={props.logoSource}
                 style={styles.logo}
                 resizeMode="contain"
@@ -71,6 +72,7 @@ export function LeadingContent(props: LeadingContentProps) {
             </Pressable>
           ) : (
             <Image
+              testID="top-app-bar-home-logo-image"
               source={props.logoSource}
               style={styles.logo}
               resizeMode="contain"

@@ -123,7 +123,7 @@ export function TopAppBar(props: TopAppBarProps) {
         />
         {shouldRenderSpacer ? <View style={styles.spacer} /> : null}
         {shouldRenderActionsRow ? (
-          <View style={styles.actionsRow}>
+          <View testID="top-app-bar-actions-row" style={styles.actionsRow}>
             {shouldRenderSecondaryButton ? (
               <IconButton
                 variant="neutral"

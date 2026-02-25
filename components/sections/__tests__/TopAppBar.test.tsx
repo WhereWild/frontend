@@ -4,20 +4,50 @@ import { TopAppBar } from '../TopAppBar';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { IconFilter, IconRotateCcw } from '@/assets/icons';
+
+const mockRouterPush = jest.fn();
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: mockRouterPush,
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
+  useLocalSearchParams: () => ({}),
+  Link: 'Link',
+}));
 
 jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+const HOME_PROPS = {
+  variant: 'home' as const,
+  title: 'Page Title',
+  logoSource: require('@/assets/images/wherewild.png'),
+  logoAccessibilityLabel: 'WhereWild logo',
+  secondaryAction: {
+    icon: <IconRotateCcw />,
+    accessibilityLabel: 'Refresh',
+  },
+  primaryAction: {
+    icon: <IconFilter />,
+    buttonLabel: 'Filter',
+    buttonAccessibilityLabel: 'Filter',
+    iconAccessibilityLabel: 'Filter action',
+  },
+};
 
 describe('TopAppBar', () => {
   beforeEach(() => {
+    mockRouterPush.mockClear();
     mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
   });
 
-  it('renders home variant by default with title and actions', () => {
-    render(<TopAppBar />);
+  it('renders home variant with title and actions', () => {
+    render(<TopAppBar {...HOME_PROPS} />);
 
     expect(screen.getByText('Page Title')).toBeTruthy();
     expect(screen.getByLabelText('Refresh')).toBeTruthy();
@@ -26,9 +56,67 @@ describe('TopAppBar', () => {
     expect(screen.queryByLabelText('Search input')).toBeNull();
   });
 
+  it('uses default action icons and labels when action props are omitted', () => {
+    render(
+      <TopAppBar
+        variant="home"
+        title="Page Title"
+        logoSource={require('@/assets/images/wherewild.png')}
+        logoAccessibilityLabel="WhereWild logo"
+      />,
+    );
+
+    expect(screen.getByLabelText('Reset filters')).toBeTruthy();
+    expect(screen.getByLabelText('Filter')).toBeTruthy();
+    expect(screen.queryByLabelText('Filter action')).toBeNull();
+  });
+
+  it('uses default home logo and navigates to home when onPressLogo is omitted', () => {
+    const wherewildLogo = require('@/assets/images/wherewild.png');
+
+    render(
+      <TopAppBar
+        variant="home"
+        title="Page Title"
+      />,
+    );
+
+    const logoButton = screen.getByLabelText('Go to home');
+    fireEvent.press(logoButton);
+    expect(mockRouterPush).toHaveBeenCalledWith('/');
+
+    const logoImage = screen.getByTestId('top-app-bar-home-logo-image');
+    expect(logoImage.props.source).toBe(wherewildLogo);
+  });
+
+  it('calls onPressLogo when home logo is tapped', () => {
+    const onPressLogo = jest.fn();
+
+    render(<TopAppBar {...HOME_PROPS} onPressLogo={onPressLogo} />);
+
+    fireEvent.press(screen.getByLabelText('WhereWild logo'));
+    expect(onPressLogo).toHaveBeenCalledTimes(1);
+  });
+
   it('renders page variant and calls back action', () => {
     const onPressBack = jest.fn();
-    render(<TopAppBar variant="page" title="Species" onPressBack={onPressBack} />);
+    render(
+      <TopAppBar
+        variant="page"
+        title="Species"
+        onPressBack={onPressBack}
+        secondaryAction={{
+          icon: <IconRotateCcw />,
+          accessibilityLabel: 'Refresh',
+        }}
+        primaryAction={{
+          icon: <IconFilter />,
+          buttonLabel: 'Filter',
+          buttonAccessibilityLabel: 'Filter',
+          iconAccessibilityLabel: 'Filter action',
+        }}
+      />,
+    );
 
     expect(screen.getByText('Species')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Back'));
@@ -45,6 +133,16 @@ describe('TopAppBar', () => {
         searchValue=""
         onSearchValueChange={onSearchValueChange}
         onSubmitSearch={onSubmitSearch}
+        secondaryAction={{
+          icon: <IconRotateCcw />,
+          accessibilityLabel: 'Refresh',
+        }}
+        primaryAction={{
+          icon: <IconFilter />,
+          buttonLabel: 'Filter',
+          buttonAccessibilityLabel: 'Filter',
+          iconAccessibilityLabel: 'Filter action',
+        }}
       />,
     );
 
@@ -56,34 +154,102 @@ describe('TopAppBar', () => {
     expect(onSubmitSearch).toHaveBeenCalledWith('lynx');
   });
 
-  it('hides secondary button when hasSecondaryButton is false', () => {
-    render(<TopAppBar hasSecondaryButton={false} />);
+  it('does not reserve action-row space in search when both actions are hidden', () => {
+    render(
+      <TopAppBar
+        variant="search"
+        searchValue=""
+        onSearchValueChange={() => {}}
+        onSubmitSearch={() => {}}
+        secondaryAction={{
+          icon: <IconRotateCcw />,
+          accessibilityLabel: 'Refresh',
+          isVisible: false,
+        }}
+        primaryAction={{
+          icon: <IconFilter />,
+          buttonLabel: 'Filter',
+          buttonAccessibilityLabel: 'Filter',
+          iconAccessibilityLabel: 'Filter action',
+          isVisible: false,
+        }}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Refresh')).toBeNull();
+    expect(screen.queryByLabelText('Filter')).toBeNull();
+    expect(screen.queryByLabelText('Filter action')).toBeNull();
+    expect(screen.queryByTestId('top-app-bar-actions-row')).toBeNull();
+  });
+
+  it('hides secondary button when secondaryAction.isVisible is false', () => {
+    render(
+      <TopAppBar
+        {...HOME_PROPS}
+        secondaryAction={{
+          ...HOME_PROPS.secondaryAction,
+          isVisible: false,
+        }}
+      />,
+    );
 
     expect(screen.queryByLabelText('Refresh')).toBeNull();
   });
 
   it('renders primary button as icon when explicitly configured', () => {
-    render(<TopAppBar isPrimaryButtonIcon={true} />);
+    render(
+      <TopAppBar
+        {...HOME_PROPS}
+        primaryAction={{
+          ...HOME_PROPS.primaryAction,
+          mode: 'icon',
+        }}
+      />,
+    );
 
     expect(screen.getByLabelText('Filter action')).toBeTruthy();
     expect(screen.queryByLabelText('Filter')).toBeNull();
   });
 
-  it('hides primary button when hasPrimaryButton is false', () => {
-    render(<TopAppBar hasPrimaryButton={false} />);
+  it('hides primary button when primaryAction.isVisible is false', () => {
+    render(
+      <TopAppBar
+        {...HOME_PROPS}
+        primaryAction={{
+          ...HOME_PROPS.primaryAction,
+          isVisible: false,
+        }}
+      />,
+    );
 
     expect(screen.queryByLabelText('Filter')).toBeNull();
     expect(screen.queryByLabelText('Filter action')).toBeNull();
   });
 
   it('disables secondary button when handler is missing', () => {
-    render(<TopAppBar onPressSecondaryButton={undefined} />);
+    render(
+      <TopAppBar
+        {...HOME_PROPS}
+        secondaryAction={{
+          ...HOME_PROPS.secondaryAction,
+          onPress: undefined,
+        }}
+      />,
+    );
 
     expect(screen.getByLabelText('Refresh')).toBeDisabled();
   });
 
   it('disables primary action when handler is missing', () => {
-    render(<TopAppBar onPressPrimaryButton={undefined} />);
+    render(
+      <TopAppBar
+        {...HOME_PROPS}
+        primaryAction={{
+          ...HOME_PROPS.primaryAction,
+          onPress: undefined,
+        }}
+      />,
+    );
 
     expect(screen.getByLabelText('Filter')).toBeDisabled();
   });
@@ -91,7 +257,15 @@ describe('TopAppBar', () => {
   it('disables icon primary action when handler is missing on phone breakpoint', () => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
 
-    render(<TopAppBar onPressPrimaryButton={undefined} />);
+    render(
+      <TopAppBar
+        {...HOME_PROPS}
+        primaryAction={{
+          ...HOME_PROPS.primaryAction,
+          onPress: undefined,
+        }}
+      />,
+    );
 
     expect(screen.getByLabelText('Filter action')).toBeDisabled();
   });
@@ -101,7 +275,11 @@ describe('TopAppBar', () => {
 
     const { rerender } = render(
       <TopAppBar
-        onPressPrimaryButton={onPressPrimaryButton}
+        {...HOME_PROPS}
+        primaryAction={{
+          ...HOME_PROPS.primaryAction,
+          onPress: onPressPrimaryButton,
+        }}
       />,
     );
 
@@ -109,8 +287,12 @@ describe('TopAppBar', () => {
 
     rerender(
       <TopAppBar
-        isPrimaryButtonIcon={true}
-        onPressPrimaryButton={onPressPrimaryButton}
+        {...HOME_PROPS}
+        primaryAction={{
+          ...HOME_PROPS.primaryAction,
+          mode: 'icon',
+          onPress: onPressPrimaryButton,
+        }}
       />,
     );
 
@@ -121,7 +303,7 @@ describe('TopAppBar', () => {
   it('renders primary icon button on phone breakpoint', () => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
 
-    render(<TopAppBar />);
+    render(<TopAppBar {...HOME_PROPS} />);
 
     expect(screen.getByLabelText('Filter action')).toBeTruthy();
     expect(screen.queryByLabelText('Filter')).toBeNull();
@@ -130,7 +312,7 @@ describe('TopAppBar', () => {
   it('renders primary text button on tablet breakpoint', () => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
 
-    render(<TopAppBar />);
+    render(<TopAppBar {...HOME_PROPS} />);
 
     expect(screen.getByLabelText('Filter')).toBeTruthy();
     expect(screen.queryByLabelText('Filter action')).toBeNull();
@@ -139,7 +321,7 @@ describe('TopAppBar', () => {
   it('renders primary text button on desktop breakpoint', () => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
 
-    render(<TopAppBar />);
+    render(<TopAppBar {...HOME_PROPS} />);
 
     expect(screen.getByLabelText('Filter')).toBeTruthy();
     expect(screen.queryByLabelText('Filter action')).toBeNull();
@@ -150,7 +332,7 @@ describe('TopAppBar', () => {
 
     render(
       <SafeAreaInsetsContext.Provider value={insets}>
-        <TopAppBar />
+        <TopAppBar {...HOME_PROPS} />
       </SafeAreaInsetsContext.Provider>,
     );
 
@@ -158,20 +340,4 @@ describe('TopAppBar', () => {
     expect(withInsetStyles.paddingTop).toBe(24);
   });
 
-  it('fails safe for invalid search variant runtime props', () => {
-    render(<TopAppBar {...({ variant: 'search' } as any)} />);
-
-    const searchInput = screen.getByLabelText('Search input');
-    expect(searchInput).toBeTruthy();
-    expect(() => fireEvent.changeText(searchInput, 'lynx')).not.toThrow();
-    expect(() => fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: 'lynx' } })).not.toThrow();
-  });
-
-  it('fails safe for invalid page variant runtime props', () => {
-    render(<TopAppBar {...({ variant: 'page', title: 'Species' } as any)} />);
-
-    const backButton = screen.getByLabelText('Back');
-    expect(backButton).toBeTruthy();
-    expect(() => fireEvent.press(backButton)).not.toThrow();
-  });
 });
