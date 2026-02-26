@@ -70,7 +70,6 @@ export function SpeciesCard({
   taxonId,
   commonName,
   scientificName,
-  description,
   imageSource,
   style,
   testID,
@@ -117,7 +116,7 @@ export function SpeciesCard({
     <Pressable
       onPress={handlePress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+      accessibilityLabel={`${commonName}. ${scientificName}.`}
       testID={testID}
       style={(state) => [
         styles.container,
@@ -166,16 +165,6 @@ export function SpeciesCard({
             {scientificName}
           </ThemedText>
         </View>
-
-        {size === 'default' && (
-          <ThemedText
-            variant="body"
-            numberOfLines={3}
-            testID='species-card-description'
-          >
-            {description}
-          </ThemedText>
-        )}
       </View>
     </Pressable>
   );
