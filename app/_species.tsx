@@ -183,20 +183,20 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   {hasImageAttribution && (
                     <View style={styles.imageAttribution}>
                       {photoBy && (
-                        <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
+                        <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
                           Photo by {photoBy}
                         </ThemedText>
                       )}
                       {imageReferenceUrl && (
                         <ThemedText
-                          variant="link"
+                          variant="bodySmallLink"
                           onPress={() => Linking.openURL(imageReferenceUrl)}
                         >
                           View on iNaturalist
                         </ThemedText>
                       )}
                       {overview.imageLicense && (
-                        <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
+                        <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
                           {overview.imageLicense}
                         </ThemedText>
                       )}
