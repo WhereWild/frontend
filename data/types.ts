@@ -134,6 +134,29 @@ export type SpeciesOccurrence = {
   longitude: number;
 };
 
+export type SpeciesHeatmapCell = {
+  lat: number;
+  lon: number;
+  count: number;
+  intensity: number;
+};
+
+export type SpeciesHeatmapResponse = {
+  speciesId: number;
+  zoom: number;
+  cellSizeDeg: number;
+  totalPoints: number;
+  boundedPoints: number;
+  maxIntensity: number;
+  bbox?: {
+    minLon: number;
+    minLat: number;
+    maxLon: number;
+    maxLat: number;
+  };
+  cells: SpeciesHeatmapCell[];
+};
+
 export type LocationSearchResult = {
   gid: string;
   name: string;

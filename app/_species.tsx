@@ -2,6 +2,7 @@ import {
   NearbySpeciesCarousel,
   PageHeader,
   SpeciesPageTitle,
+  SwitchField,
   ThemedText,
   SpeciesEnvironmentSection
 } from '@/components';
@@ -18,6 +19,7 @@ import React from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
+import { useSpeciesHeatmap } from '@/hooks/species/useSpeciesHeatmap';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 
 type SpeciesScreenProps = {
@@ -26,7 +28,7 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
+  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -80,7 +82,7 @@ function CommonNamesList({ names }: { names: string[] }) {
 
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
+  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -89,6 +91,9 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [showHeatmap, setShowHeatmap] = React.useState(true);
+  const [heatmapZoom, setHeatmapZoom] = React.useState(5);
+  const [heatmapBbox, setHeatmapBbox] = React.useState<string | null>(null);
 
   const {
     countryOptions,
@@ -118,9 +123,46 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     locationGid: finalLocationGid,
   });
 
+  const {
+    cells: heatmapCells,
+  } = useSpeciesHeatmap({
+    taxonId,
+    locationGid: finalLocationGid,
+    zoom: heatmapZoom,
+    bbox: heatmapBbox,
+    maxCells: Math.max(3000, Math.min(16000, heatmapZoom * 1200)),
+    enabled: showHeatmap,
+  });
+
+  const viewportDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   React.useEffect(() => {
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
+
+  React.useEffect(() => {
+    setHeatmapZoom(5);
+    setHeatmapBbox(null);
+  }, [finalLocationGid, taxonId]);
+
+  const handleViewportChange = React.useCallback((zoom: number, bbox: string) => {
+    const backendZoom = Math.max(1, Math.min(12, Math.round(zoom) + 4));
+    if (viewportDebounceRef.current) {
+      clearTimeout(viewportDebounceRef.current);
+    }
+    viewportDebounceRef.current = setTimeout(() => {
+      setHeatmapZoom((prev) => (prev === backendZoom ? prev : backendZoom));
+      setHeatmapBbox((prev) => (prev === bbox ? prev : bbox));
+    }, 250);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (viewportDebounceRef.current) {
+        clearTimeout(viewportDebounceRef.current);
+      }
+    };
+  }, []);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -241,34 +283,25 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   locationGid={finalLocationGid}
                 />
 
+                <SwitchField
+                  label="Show heatmap overlay"
+                  description="Overlay density heatmap on top of occurrence points."
+                  value={showHeatmap}
+                  onValueChange={setShowHeatmap}
+                />
+
                 <SpeciesOccurrenceMap
                   occurrences={occurrences}
+                  heatmapCells={showHeatmap ? heatmapCells : []}
+                  showHeatmap={showHeatmap}
                   loading={occurrenceLoading}
                   error={occurrenceError}
+                  height={'80%'}
                   highlightedCatalogs={highlightedCatalogs}
+                  onViewportChange={handleViewportChange}
                 />
             </SectionShell>
           )}
-
-          <View style={styles.heatMapSection}>
-            <View
-              style={[
-                styles.sectionContent,
-                getResponsiveContentContainerStyle(responsive, {
-                  includeTopPadding: false,
-                }),
-                { maxWidth: responsive.contentWidth },
-              ]}
-            >
-              <ThemedText variant="heading">Heat Map</ThemedText>
-            </View>
-            <Image
-              source={heatmap.imageSource}
-              resizeMode="cover"
-              style={styles.heatmap}
-              accessibilityLabel="Predicted sightings heat map"
-            />
-          </View>
         </ScrollView >
       </View >
     </>
@@ -322,12 +355,5 @@ const styles = StyleSheet.create({
   },
   commonNameBullet: {
     minWidth: Size.space['200'],
-  },
-  heatMapSection: {
-    gap: Size.space['400'],
-  },
-  heatmap: {
-    width: '100%',
-    aspectRatio: 1440 / 810,
   },
 });

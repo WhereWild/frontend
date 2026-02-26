@@ -10,6 +10,7 @@ import type {
   SpeciesEnvironmentStats,
   LocationSearchResult,
   SpeciesOccurrence,
+  SpeciesHeatmapResponse,
 } from './types';
 import { normalizeCommonNames } from './commonNames';
 import {
@@ -264,6 +265,25 @@ export async function fetchEnvironmentVariables() {
 
 type LocationOptions = {
   location?: string | null;
+};
+
+type HeatmapOptions = LocationOptions & {
+  bbox?: string;
+  zoom?: number;
+  maxCells?: number;
+  timeSlice?: string;
+};
+
+const parseBboxCsv = (bbox: string): { minLon: number; minLat: number; maxLon: number; maxLat: number } | null => {
+  const parts = bbox.split(',').map((value) => Number(value.trim()));
+  if (parts.length !== 4 || parts.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+  const [minLon, minLat, maxLon, maxLat] = parts;
+  if (minLon >= maxLon || minLat >= maxLat) {
+    return null;
+  }
+  return { minLon, minLat, maxLon, maxLat };
 };
 
 export async function fetchSpeciesEnvironment(
@@ -525,6 +545,120 @@ export async function fetchSpeciesOccurrences(
       latitude: entry.latitude,
       longitude: entry.longitude,
     }));
+}
+
+export async function fetchSpeciesHeatmap(
+  taxonId: string | number,
+  options?: HeatmapOptions,
+): Promise<SpeciesHeatmapResponse> {
+  const encodedId = encodeURIComponent(String(taxonId));
+  const params = new URLSearchParams();
+  if (options?.location) {
+    params.set('location', options.location);
+  }
+  if (options?.bbox) {
+    params.set('bbox', options.bbox);
+  }
+  if (typeof options?.zoom === 'number') {
+    params.set('zoom', String(options.zoom));
+  }
+  if (typeof options?.maxCells === 'number') {
+    params.set('max_cells', String(options.maxCells));
+  }
+  if (options?.timeSlice) {
+    params.set('time_slice', options.timeSlice);
+  }
+
+  const query = params.toString();
+  const parsedBbox = options?.bbox ? parseBboxCsv(options.bbox) : null;
+
+  let dynamicUrl: string | null = null;
+  if (parsedBbox) {
+    const centerLat = (parsedBbox.minLat + parsedBbox.maxLat) / 2;
+    const centerLon = (parsedBbox.minLon + parsedBbox.maxLon) / 2;
+    const viewportWidthDeg = parsedBbox.maxLon - parsedBbox.minLon;
+    const viewportHeightDeg = parsedBbox.maxLat - parsedBbox.minLat;
+
+    const densityBase = Math.sqrt(Math.max(16, options?.maxCells ?? 4096));
+    const density = Math.max(8, Math.min(220, Math.round(densityBase)));
+
+    const dynamicParams = new URLSearchParams({
+      center_lat: centerLat.toFixed(6),
+      center_lon: centerLon.toFixed(6),
+      viewport_width_deg: viewportWidthDeg.toFixed(6),
+      viewport_height_deg: viewportHeightDeg.toFixed(6),
+      density: String(density),
+    });
+    if (options?.timeSlice) {
+      dynamicParams.set('time_slice', options.timeSlice);
+    }
+    dynamicUrl = `${BACKEND_BASE}/species/${encodedId}/inference-heatmap-dynamic?${dynamicParams.toString()}`;
+  }
+
+  const inferenceUrl = `${BACKEND_BASE}/species/${encodedId}/inference-heatmap${query ? `?${query}` : ''}`;
+  const fallbackUrl = `${BACKEND_BASE}/species/${encodedId}/heatmap${query ? `?${query}` : ''}`;
+
+  let payload: JsonRecord;
+  try {
+    if (dynamicUrl) {
+      payload = asRecord(await fetchJsonOrThrow(dynamicUrl, `Failed to fetch heatmap for ${taxonId}`));
+    } else {
+      payload = asRecord(await fetchJsonOrThrow(inferenceUrl, `Failed to fetch heatmap for ${taxonId}`));
+    }
+  } catch {
+    try {
+      payload = asRecord(await fetchJsonOrThrow(inferenceUrl, `Failed to fetch heatmap for ${taxonId}`));
+    } catch {
+      payload = asRecord(await fetchJsonOrThrow(fallbackUrl, `Failed to fetch heatmap for ${taxonId}`));
+    }
+  }
+  const cellsRaw = Array.isArray(payload.cells) ? payload.cells : [];
+
+  const speciesId = toRequiredNumber(payload.speciesId, Number(taxonId) || 0);
+  const zoom = toRequiredNumber(payload.zoom, options?.zoom ?? 5);
+  const cellSizeDeg = toRequiredNumber(payload.cellSizeDeg, 1);
+  const totalPoints = toRequiredNumber(payload.totalPoints, 0);
+  const boundedPoints = toRequiredNumber(payload.boundedPoints, 0);
+  const maxIntensity = toRequiredNumber(payload.maxIntensity, 0);
+
+  const bboxSource = asRecord(payload.bbox);
+  const bbox = Object.keys(bboxSource).length
+    ? {
+      minLon: toRequiredNumber(bboxSource.minLon, -180),
+      minLat: toRequiredNumber(bboxSource.minLat, -90),
+      maxLon: toRequiredNumber(bboxSource.maxLon, 180),
+      maxLat: toRequiredNumber(bboxSource.maxLat, 90),
+    }
+    : undefined;
+
+  const cells = cellsRaw
+    .map((entry) => {
+      const source = asRecord(entry);
+      return {
+        lat: toFiniteNumber(source.lat),
+        lon: toFiniteNumber(source.lon),
+        count: toRequiredNumber(source.count, 0),
+        intensity: toRequiredNumber(source.intensity, 0),
+      };
+    })
+    .filter(
+      (entry): entry is { lat: number; lon: number; count: number; intensity: number } =>
+        typeof entry.lat === 'number' &&
+        typeof entry.lon === 'number' &&
+        Number.isFinite(entry.lat) &&
+        Number.isFinite(entry.lon),
+    );
+
+  return {
+    speciesId,
+    zoom,
+    cellSizeDeg,
+    totalPoints,
+    boundedPoints,
+    maxIntensity,
+    bbox,
+    cells,
+  };
 }
 
 export async function fetchSpeciesLocations(
