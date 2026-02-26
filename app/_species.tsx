@@ -9,7 +9,8 @@ import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import { parseOverviewSectionsFromDescriptionText } from '@/data/speciesOverviewParser';
+import type { SpeciesOverviewLine, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -78,6 +79,24 @@ function CommonNamesList({ names }: { names: string[] }) {
     </View>
   );
 }
+
+const renderOverviewLineText = (line: SpeciesOverviewLine) => {
+  const body = line.body?.trim();
+  if (!body) {
+    return null;
+  }
+  const prefix = line.prefix?.trim();
+  if (!prefix) {
+    return <ThemedText variant="body">{body}</ThemedText>;
+  }
+
+  return (
+    <ThemedText variant="body">
+      <ThemedText variant="bodyStrong">{`${prefix} `}</ThemedText>
+      {body}
+    </ThemedText>
+  );
+};
 
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
@@ -152,6 +171,13 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     return `https://www.inaturalist.org/${raw.replace(/^\/+/, '')}`;
   }, [overview.imageReferences]);
 
+  const overviewSections = React.useMemo(() => {
+    if (overview.sections && overview.sections.length > 0) {
+      return overview.sections;
+    }
+    return parseOverviewSectionsFromDescriptionText(overview.description);
+  }, [overview.description, overview.sections]);
+
   return (
     <>
       <Head>
@@ -209,7 +235,30 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 </View>
                 <View style={[styles.overviewText, { maxWidth: responsive.textWidth }]}>
                   <ThemedText variant="heading">Overview</ThemedText>
-                  <ThemedText variant="body">{overview.description}</ThemedText>
+                  {overviewSections.length > 0 ? (
+                    <View style={styles.overviewSections}>
+                      {overviewSections.map((section) => (
+                        <View key={section.id} style={styles.overviewSectionBlock}>
+                          <ThemedText variant="subheading">{section.title}</ThemedText>
+                          <View style={styles.overviewLines}>
+                            {section.lines.map((line, index) => {
+                              const lineNode = renderOverviewLineText(line);
+                              if (!lineNode) {
+                                return null;
+                              }
+                              return (
+                                <View key={`${section.id}-line-${index}`}>
+                                  {lineNode}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <ThemedText variant="body">{overview.description}</ThemedText>
+                  )}
                 </View>
               </View>
 
@@ -299,6 +348,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 280,
     gap: Size.space['200'],
+  },
+  overviewSections: {
+    gap: Size.space['200'],
+  },
+  overviewSectionBlock: {
+    gap: Size.space['100'],
+  },
+  overviewLines: {
+    gap: Size.space['50'],
   },
   featuredImageWrapper: {
     flex: 1,
