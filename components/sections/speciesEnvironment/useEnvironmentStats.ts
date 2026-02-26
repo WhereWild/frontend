@@ -11,6 +11,8 @@ type UseEnvironmentStatsParams = {
   selectedVariable: string;
   /** Optional location filter gid. */
   locationGid?: string | null;
+
+  units?: 'metric' | 'imperial' | undefined;
 };
 
 /** Fetches and caches environment stats keyed by selected variable. */
@@ -18,6 +20,7 @@ export function useEnvironmentStats({
   taxonId,
   selectedVariable,
   locationGid,
+  units,
 }: UseEnvironmentStatsParams) {
   const [statsByVariable, setStatsByVariable] = React.useState<Record<string, SpeciesEnvironmentStats>>(
     {},
@@ -28,7 +31,7 @@ export function useEnvironmentStats({
   React.useEffect(() => {
     setStatsByVariable({});
     setErrorByVariable({});
-  }, [taxonId, locationGid]);
+  }, [taxonId, locationGid, units]);
 
   const hasStatsForSelection = Boolean(selectedVariable && statsByVariable[selectedVariable]);
 
@@ -43,6 +46,7 @@ export function useEnvironmentStats({
       try {
         const response = await fetchSpeciesEnvironment(taxonId, selectedVariable, {
           location: locationGid,
+          units: units,
         });
         if (response.histogram && !isValidHistogramContract(response.histogram)) {
           throw new Error('Received malformed histogram data from environment API');
@@ -66,7 +70,7 @@ export function useEnvironmentStats({
     return () => {
       cancelled = true;
     };
-  }, [hasStatsForSelection, selectedVariable, taxonId, locationGid]);
+  }, [hasStatsForSelection, selectedVariable, taxonId, locationGid, units]);
 
   const stats = selectedVariable ? statsByVariable[selectedVariable] ?? null : null;
   const error = selectedVariable ? errorByVariable[selectedVariable] ?? null : null;

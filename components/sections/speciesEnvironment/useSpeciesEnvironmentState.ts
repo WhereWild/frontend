@@ -31,6 +31,7 @@ type UseSpeciesEnvironmentStateParams = {
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
   /** Optional location filter gid for scoped environment views. */
   locationGid?: string | null;
+  units?: 'metric' | 'imperial' | undefined;
 };
 
 /** Inputs used to derive presentational state from loaded stats and selection metadata. */
@@ -77,6 +78,7 @@ export function useSpeciesEnvironmentState({
   variables,
   onHighlightChange,
   locationGid,
+  units,
 }: UseSpeciesEnvironmentStateParams) {
   const {
     categories,
@@ -90,6 +92,7 @@ export function useSpeciesEnvironmentState({
   } = useEnvironmentVariableSelection({
     variableId,
     variables,
+    units,
   });
 
   const locationFilterActive = Boolean(locationGid);
@@ -97,6 +100,7 @@ export function useSpeciesEnvironmentState({
     taxonId,
     selectedVariable,
     locationGid,
+    units,
   });
 
   const { baselineSummary, summary, categoricalDistribution, isCategorical, densityCurve } =
@@ -124,6 +128,7 @@ export function useSpeciesEnvironmentState({
     isCategorical,
     locationGid,
     onHighlightChange,
+    units,
   });
 
   const rangeObservationItems = React.useMemo(
@@ -223,7 +228,7 @@ export function useSpeciesEnvironmentState({
     selectedVariableMeta?.label,
     isCategorical,
     stats?.units,
-    selectedVariableMeta?.units,
+    selectedVariableMeta?.displayUnits,
   );
 
   const metaText = buildMetaText({
