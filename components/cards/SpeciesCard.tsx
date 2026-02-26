@@ -109,7 +109,10 @@ export function SpeciesCard({
       return;
     }
 
-    router.push(`/species/${taxonId}/${scientificSegment}` as RelativePathString);
+    router.push({
+      pathname: '/species/[...identifier]',
+      params: { identifier: [taxonId.toString(), scientificSegment] },
+    });
   };
 
   return (

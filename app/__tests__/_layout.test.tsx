@@ -8,23 +8,15 @@ jest.mock('expo-font', () => ({
   useFonts: jest.fn(),
 }));
 
-const recordedStackProps: any[] = [];
-
-function mockStack(props: any) {
-  recordedStackProps.push(props);
-  return <View testID="app-stack" />;
-}
-
-jest.mock('expo-router', () => ({
-  Stack: mockStack,
-}));
-
 const mockUseFonts = useFonts as jest.MockedFunction<typeof useFonts>;
+
+// Get the mocked expo-router to access Stack's recorded props
+const expoRouterMock = jest.requireMock('expo-router');
 
 describe('Root layout', () => {
   afterEach(() => {
     mockUseFonts.mockReset();
-    recordedStackProps.length = 0;
+    expoRouterMock.Stack.__recordedProps.length = 0;
   });
 
   it('renders nothing until fonts are loaded', () => {
@@ -41,6 +33,6 @@ describe('Root layout', () => {
     render(<RootLayout />);
 
     expect(screen.getByTestId('app-stack')).toBeTruthy();
-    expect(recordedStackProps.at(-1)?.screenOptions).toEqual({ headerShown: false });
+    expect(expoRouterMock.Stack.__recordedProps.at(-1)?.screenOptions).toEqual({ headerShown: false });
   });
 });
