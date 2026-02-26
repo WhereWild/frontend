@@ -222,6 +222,47 @@ describe('data/api common name normalization', () => {
     );
   });
 
+  it('parses structured overview sections from description_profile payload', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        taxon_id: 10,
+        scientific_name: 'Lynx canadensis',
+        common_name: 'Canada Lynx',
+        description: 'Summary: Medium-sized wild cat.',
+        description_profile: {
+          sections: [
+            {
+              id: 'habitat',
+              title: 'Habitat',
+              lines: [
+                {
+                  prefix: 'Often in:',
+                  body: 'boreal forests',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+
+    const row = await fetchSpeciesByTaxonId(10);
+
+    expect(row.description_sections).toEqual([
+      {
+        id: 'habitat',
+        title: 'Habitat',
+        lines: [
+          {
+            prefix: 'Often in:',
+            body: 'boreal forests',
+          },
+        ],
+      },
+    ]);
+  });
+
   it('normalizes species locations from array payloads and drops malformed rows', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,

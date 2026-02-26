@@ -1,0 +1,85 @@
+import { parseSpeciesApiDetail } from '../speciesDetailParser';
+import type { SpeciesApiNormalized } from '../types';
+
+const baseNormalized: SpeciesApiNormalized = {
+  taxon_id: 99,
+  scientific_name: 'Lynx canadensis',
+  common_name: 'Canada Lynx',
+  common_names: ['Canada Lynx'],
+  image_source: 'https://example.com/lynx.png',
+  _raw: null,
+};
+
+describe('speciesDetailParser', () => {
+  it('maps image metadata aliases and taxonomy path', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        description: 'Summary: Wild cat.',
+        imageLicense: 'CC-BY',
+        imageCreator: 'A. Photographer',
+        imageRightsHolder: 'Photo Org',
+        imageReferences: '/observations/123',
+        taxonomy_path: 'Animalia > Chordata > Mammalia',
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.description).toBe('Summary: Wild cat.');
+    expect(parsed.image_license).toBe('CC-BY');
+    expect(parsed.image_creator).toBe('A. Photographer');
+    expect(parsed.image_rights_holder).toBe('Photo Org');
+    expect(parsed.image_references).toBe('/observations/123');
+    expect(parsed.taxonomyPath).toBe('Animalia > Chordata > Mammalia');
+  });
+
+  it('falls back to description pending and parses sections from profile when provided', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        description_profile: {
+          sections: [
+            {
+              id: 'summary',
+              title: 'Summary',
+              lines: [{ body: 'Medium-sized wild cat.' }],
+            },
+          ],
+        },
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.description).toBe('description pending');
+    expect(parsed.description_sections).toEqual([
+      {
+        id: 'summary',
+        title: 'Summary',
+        lines: [{ body: 'Medium-sized wild cat.' }],
+      },
+    ]);
+  });
+
+  it('parses sections when profile is provided as camelCase descriptionProfile', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        descriptionProfile: {
+          sections: [
+            {
+              title: 'Climate',
+              lines: [{ body: 'Cold temperate climates.' }],
+            },
+          ],
+        },
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.description).toBe('description pending');
+    expect(parsed.description_sections).toEqual([
+      {
+        id: 'climate',
+        title: 'Climate',
+        lines: [{ body: 'Cold temperate climates.' }],
+      },
+    ]);
+  });
+});
