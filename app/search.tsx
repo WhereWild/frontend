@@ -4,7 +4,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle, getResponsiveGapStyle } from '@/constants/responsiveStyles';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SpeciesSummary } from '@/data/types';
 
@@ -47,7 +47,10 @@ export default function Search() {
                         <View style={styles.resultsHeader}>
                             <ThemedText variant="heading">Results</ThemedText>
                             {searching && (
-                                <ThemedText variant="subheading">Loading...</ThemedText>
+                                <View style={styles.resultsHeader}>
+                                    <ActivityIndicator color={palette.icon.brand.default} />
+                                    <ThemedText variant="subheading">Loading...</ThemedText>
+                                </View>
                             )}
                         </View>
                         {searchResults.length === 0 && !searching && (
