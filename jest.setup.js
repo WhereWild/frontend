@@ -30,15 +30,36 @@ jest.mock('expo-splash-screen', () => ({
   hideAsync: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-  }),
-  useLocalSearchParams: () => ({}),
-  Link: 'Link',
-}));
+jest.mock('expo-router', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  
+  // Global array to record Stack props for testing
+  const recordedStackProps = [];
+  
+  function Stack(props) {
+    recordedStackProps.push(props);
+    return React.createElement(View, { ...props, testID: 'app-stack' });
+  }
+  
+  Stack.Screen = function Screen(props) {
+    return React.createElement(View, props);
+  };
+  
+  // Expose the array for tests to access
+  Stack.__recordedProps = recordedStackProps;
+  
+  return {
+    useRouter: () => ({
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+    }),
+    useLocalSearchParams: () => ({}),
+    Link: 'Link',
+    Stack,
+  };
+});
 
 // Mock react-native-webview to avoid native module access in Jest.
 jest.mock('react-native-webview', () => {
@@ -47,6 +68,19 @@ jest.mock('react-native-webview', () => {
     WebView: (props) => React.createElement('WebView', props),
   };
 });
+
+// Mock AsyncStorage for test environment
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(() => Promise.resolve(null)),
+  setItem: jest.fn(() => Promise.resolve()),
+  removeItem: jest.fn(() => Promise.resolve()),
+  multiGet: jest.fn(() => Promise.resolve([])),
+  multiSet: jest.fn(() => Promise.resolve()),
+  multiRemove: jest.fn(() => Promise.resolve()),
+  clear: jest.fn(() => Promise.resolve()),
+  getAllKeys: jest.fn(() => Promise.resolve([])),
+  flushGetRequests: jest.fn(),
+}));
 
 // Mock useColorScheme for consistent test results. Individual suites can 
 // unmock '@/hooks/useColorScheme' when they need the real implementation.
@@ -57,3 +91,14 @@ jest.mock('@/hooks/useColorScheme', () => ({
   __esModule: true,
   useColorScheme: mockUseColorScheme,
 }));
+
+// Mock useSettings from SettingsContext for test environment
+jest.mock('@/context/SettingsContext', () => {
+  const React = require('react');
+  return {
+    useSettings: jest.fn(() => ({
+      units: 'metric',
+    })),
+    SettingsProvider: ({ children }: { children: React.ReactNode }) => children,
+  };
+});

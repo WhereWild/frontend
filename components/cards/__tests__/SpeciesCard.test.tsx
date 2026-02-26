@@ -147,7 +147,10 @@ describe('SpeciesCard', () => {
 
     fireEvent.press(screen.getByTestId('species-card'));
 
-    expect(pushMock).toHaveBeenCalledWith('/species/555/binomial-nomenclature');
+    expect(pushMock).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['555', 'binomial-nomenclature'] },
+    });
   });
 
   it('trims whitespace before slugifying the scientific name', () => {
@@ -161,7 +164,10 @@ describe('SpeciesCard', () => {
 
     fireEvent.press(screen.getByTestId('species-card'));
 
-    expect(pushMock).toHaveBeenCalledWith('/species/555/strix-nebulosa');
+    expect(pushMock).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['555', 'strix-nebulosa'] },
+    });
   });
 
   it('does nothing when no identifier is available', async () => {
