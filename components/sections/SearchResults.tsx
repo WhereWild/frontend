@@ -6,6 +6,7 @@ import {
   ViewStyle,
   StyleProp,
   ListRenderItem,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -121,7 +122,8 @@ export function SearchResults({
         onBlur={onBlur}
         testID={testID ? `${testID}-loading` : undefined}
       >
-        <View style={styles.centerContent}>
+        <View style={[styles.centerContent, styles.loading]}>
+          <ActivityIndicator color={palette.icon.brand.default} />
           <ThemedText variant="body">Loading results...</ThemedText>
         </View>
       </View>
@@ -213,6 +215,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Size.space['400'],
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loading: {
+    gap: Size.space['200'],
   },
   speciesCard: {
     maxWidth: '100%',
