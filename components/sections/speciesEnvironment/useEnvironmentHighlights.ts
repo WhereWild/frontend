@@ -22,6 +22,9 @@ type UseEnvironmentHighlightsParams = {
   /** Optional location filter gid for scoped highlights. */
   locationGid?: string | null;
   /** Callback receiving highlighted catalog numbers. */
+
+  units?: 'metric' | 'imperial' | undefined;
+
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
 };
 
@@ -33,6 +36,7 @@ export function useEnvironmentHighlights({
   isCategorical,
   locationGid,
   onHighlightChange,
+  units,
 }: UseEnvironmentHighlightsParams) {
   const [selectedCategoryValue, setSelectedCategoryValue] = React.useState<number | string | null>(
     null,
@@ -56,7 +60,7 @@ export function useEnvironmentHighlights({
 
   React.useEffect(() => {
     resetHighlightState();
-  }, [locationGid, resetHighlightState, selectedVariable, taxonId]);
+  }, [locationGid, resetHighlightState, selectedVariable, taxonId, units]);
 
   const selectedCategoryKey = selectedCategoryValue !== null ? String(selectedCategoryValue) : null;
   const selectedCategorySampleState = selectedCategoryKey
@@ -97,7 +101,7 @@ export function useEnvironmentHighlights({
       });
       return changed ? next : prev;
     });
-  }, [stats?.categoricalSamples, selectedVariable, locationGid]);
+  }, [stats?.categoricalSamples, selectedVariable, locationGid, units]);
 
   React.useEffect(() => {
     if (
@@ -167,6 +171,7 @@ export function useEnvironmentHighlights({
     selectedVariable,
     taxonId,
     locationGid,
+    units,
   ]);
 
   const handleDensitySelectionChange = React.useCallback((range: DensitySelectionRange | null) => {

@@ -22,6 +22,7 @@ export type SpeciesEnvironmentSectionProps = {
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
   /** Optional geographic filter gid applied to environment requests. */
   locationGid?: string | null;
+  units?: 'metric' | 'imperial' | undefined;
 };
 
 /** Displays environment distribution insights for a species and selected variable. */
@@ -31,6 +32,7 @@ export function SpeciesEnvironmentSection({
   variables,
   onHighlightChange,
   locationGid,
+  units,
 }: SpeciesEnvironmentSectionProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -70,7 +72,9 @@ export function SpeciesEnvironmentSection({
     variables,
     onHighlightChange,
     locationGid,
+    units,
   });
+  
 
   if (!taxonId) {
     return null;
@@ -83,6 +87,7 @@ export function SpeciesEnvironmentSection({
     setSelectedCategoryValue((previous) => (previous === value ? null : value));
   };
 
+  
   const handleRankContextChange = (value: string) => setSelectedRankContext(value);
 
   return (

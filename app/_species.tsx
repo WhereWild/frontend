@@ -19,6 +19,7 @@ import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-nativ
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { useSettings } from '@/context/SettingsContext';
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -86,6 +87,9 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+
+  // <- NEW: read units from settings and forward to environment section
+  const { units } = useSettings();
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
@@ -239,6 +243,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   taxonId={taxonId}
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
+                  units={units} // <- forward units preference
                 />
 
                 <SpeciesOccurrenceMap
@@ -252,13 +257,9 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
           <View style={styles.heatMapSection}>
             <View
-              style={[
-                styles.sectionContent,
-                getResponsiveContentContainerStyle(responsive, {
-                  includeTopPadding: false,
-                }),
-                { maxWidth: responsive.contentWidth },
-              ]}
+              style={[styles.sectionContent, getResponsiveContentContainerStyle(responsive, {
+                includeTopPadding: false,
+              }), { maxWidth: responsive.contentWidth }]}
             >
               <ThemedText variant="heading">Heat Map</ThemedText>
             </View>

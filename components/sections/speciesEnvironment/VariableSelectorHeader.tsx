@@ -57,7 +57,7 @@ export function VariableSelectorHeader({
               const isCategoricalVar = isVariableCategorical(option);
               return {
                 value: option.id,
-                label: !isCategoricalVar && option.units ? `${option.label} (${option.units})` : option.label,
+                label: !isCategoricalVar && option.displayUnits ? `${option.label} (${option.displayUnits})` : option.label,
               };
             })}
             value={selectedVariable}
