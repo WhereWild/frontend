@@ -45,7 +45,6 @@ export function LeadingContent(props: LeadingContentProps) {
           <ThemedText
             variant="heading"
             numberOfLines={1}
-            ellipsizeMode="tail"
             style={styles.title}
           >
             {props.title}
@@ -83,7 +82,6 @@ export function LeadingContent(props: LeadingContentProps) {
           <ThemedText
             variant="heading"
             numberOfLines={1}
-            ellipsizeMode="tail"
             style={styles.title}
           >
             {props.title}
