@@ -1,8 +1,9 @@
 import { Colors } from '@/constants/theme';
+import { fetchSpeciesByTaxonId } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import HomeScreen from '../index';
@@ -18,7 +19,14 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
+jest.mock('@/data/api', () => ({
+  fetchSpeciesByTaxonId: jest.fn(),
+}));
+
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<
+  typeof fetchSpeciesByTaxonId
+>;
 
 const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
   map: {
@@ -52,6 +60,9 @@ describe('Home screen', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
     mockPush.mockClear();
+    mockFetchSpeciesByTaxonId.mockImplementation(
+      () => new Promise(() => undefined),
+    );
   });
 
   it('renders map and recommendation cards from provided data', () => {
@@ -89,5 +100,48 @@ describe('Home screen', () => {
 
     const styles = StyleSheet.flatten(tree.props.style);
     expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
+  });
+
+  it('hydrates recommendation cards from fetched species values', async () => {
+    mockFetchSpeciesByTaxonId.mockImplementation(async (taxonId) => {
+      if (Number(taxonId) === 101) {
+        return {
+          taxon_id: 101,
+          scientific_name: 'Hydratus firstus',
+          common_name: 'Hydrated First',
+          common_names: ['Hydrated First'],
+          image_source: null,
+          _raw: {},
+          description: 'Hydrated description',
+          image_license: null,
+          image_creator: null,
+          image_rights_holder: null,
+          image_references: null,
+          taxonomyPath: null,
+        };
+      }
+
+      return {
+        taxon_id: Number(taxonId),
+        scientific_name: '',
+        common_name: '',
+        common_names: [],
+        image_source: null,
+        _raw: {},
+        description: 'description pending',
+        image_license: null,
+        image_creator: null,
+        image_rights_holder: null,
+        image_references: null,
+        taxonomyPath: null,
+      };
+    });
+
+    render(<HomeScreen data={createData()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Hydrated First')).toBeTruthy();
+      expect(screen.getByText('Hydratus firstus')).toBeTruthy();
+    });
   });
 });

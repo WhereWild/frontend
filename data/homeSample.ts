@@ -16,7 +16,7 @@ export const mockHomePageData: HomePageData = {
   recommendations: {
     items: [
       {
-        taxonId: 6378250,
+        taxonId: 11498251,
         commonName: 'Common Spinystar',
         commonNames: ['Common Spinystar'],
         scientificName: 'Escobaria vivipara var. vivipara',
@@ -24,7 +24,7 @@ export const mockHomePageData: HomePageData = {
         imageSource: escobariaViviparaImage,
       },
       {
-        taxonId: 2480446,
+        taxonId: 7904574,
         commonName: 'Bald Eagle',
         commonNames: ['Bald Eagle'],
         scientificName: 'Haliaeetus leucocephalus',
