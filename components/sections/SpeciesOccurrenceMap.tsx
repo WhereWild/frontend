@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -211,7 +211,8 @@ export function SpeciesOccurrenceMap({
 
   if (loading) {
     return (
-      <View style={styles.feedback}>
+      <View style={[styles.feedback, styles.loadingFeedback]}>
+        <ActivityIndicator color={palette.icon.brand.default} />
         <ThemedText variant="bodySmall">Loading observations map…</ThemedText>
       </View>
     );
@@ -300,5 +301,8 @@ const styles = StyleSheet.create({
     padding: Size.space['300'],
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingFeedback: {
+    gap: Size.space['200'],
   },
 });
