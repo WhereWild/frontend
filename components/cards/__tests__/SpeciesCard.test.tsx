@@ -225,7 +225,7 @@ describe('SpeciesCard', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('does not display a description when the compact size is used', () => {
+  it('does not display a description on any card size', () => {
     render(
       <SpeciesCard
         {...baseProps}
@@ -242,7 +242,7 @@ describe('SpeciesCard', () => {
         testID="species-card"
       />,
     );
-    
-    expect(screen.getByTestId('species-card-description')).toBeTruthy();
+
+    expect(screen.queryByTestId('species-card-description')).toBeNull();
     });
 });
