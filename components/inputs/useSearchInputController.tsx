@@ -88,7 +88,7 @@ export const useSearchInputController = ({
           : palette.background.default.tertiary;
   const textColor = disabled
     ? palette.text.disabled.onDisabled
-    : palette.text.default.tertiary;
+    : palette.text.default.default;
 
   const handleChangeText = (nextValue: string) => {
     if (!isControlled) {
