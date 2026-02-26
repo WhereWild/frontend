@@ -73,11 +73,23 @@ export type EnvironmentalDataEntry = {
  */
 export type SpeciesOverview = {
   description: string;
+  sections?: SpeciesOverviewSection[];
   imageSource: ImageSourcePropType;
   imageLicense?: string;
   imageCreator?: string;
   imageRightsHolder?: string;
   imageReferences?: string;
+};
+
+export type SpeciesOverviewLine = {
+  prefix?: string;
+  body: string;
+};
+
+export type SpeciesOverviewSection = {
+  id: string;
+  title: string;
+  lines: SpeciesOverviewLine[];
 };
 
 export type HeatmapSnapshot = {
@@ -152,6 +164,7 @@ export type SpeciesApiNormalized = {
 
 export type SpeciesApiDetail = SpeciesApiNormalized & {
   description: string;
+  description_sections?: SpeciesOverviewSection[];
   image_license?: string | null;
   image_creator?: string | null;
   image_rights_holder?: string | null;

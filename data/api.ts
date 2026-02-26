@@ -11,6 +11,7 @@ import type {
   LocationSearchResult,
   SpeciesOccurrence,
 } from './types';
+import { parseSpeciesApiDetail } from './speciesDetailParser';
 import { normalizeCommonNames } from './commonNames';
 import {
   parseEnvironmentCategorySampleResponse,
@@ -222,38 +223,7 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<S
   const url = `${BACKEND_BASE}/api/species/${encoded}`;
   const item = await fetchJsonOrThrow(url, `Failed to fetch species ${taxonId}`);
   const normalized = normalizeToJsonShape(item);
-  const detailSource = asRecord(item);
-  return {
-    ...normalized,
-    description:
-      typeof detailSource.description === 'string'
-        ? detailSource.description
-        : 'description pending',
-    image_license:
-      typeof detailSource.image_license === 'string'
-        ? detailSource.image_license
-        : (typeof detailSource.imageLicense === 'string' ? detailSource.imageLicense : null),
-    image_creator:
-      typeof detailSource.image_creator === 'string'
-        ? detailSource.image_creator
-        : (typeof detailSource.imageCreator === 'string' ? detailSource.imageCreator : null),
-    image_rights_holder:
-      typeof detailSource.image_rights_holder === 'string'
-        ? detailSource.image_rights_holder
-        : (typeof detailSource.imageRightsHolder === 'string'
-          ? detailSource.imageRightsHolder
-          : null),
-    image_references:
-      typeof detailSource.image_references === 'string'
-        ? detailSource.image_references
-        : (typeof detailSource.imageReferences === 'string' ? detailSource.imageReferences : null),
-    taxonomyPath:
-      typeof detailSource.taxonomy_path === 'string'
-        ? detailSource.taxonomy_path
-        : typeof detailSource.taxonomyPath === 'string'
-          ? detailSource.taxonomyPath
-          : null,
-  };
+  return parseSpeciesApiDetail(item, normalized);
 }
 
 export async function fetchEnvironmentVariables(options?: { units?: string | null }) {

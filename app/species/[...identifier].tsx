@@ -1,7 +1,7 @@
 import { fetchSpeciesByTaxonId } from '@/data/api';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import type { SpeciesOverviewSection, SpeciesPageData } from '@/data/types';
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
@@ -22,6 +22,7 @@ type SpeciesBasics = {
   image_creator?: string | null;
   image_rights_holder?: string | null;
   image_references?: string | null;
+  description_sections?: SpeciesOverviewSection[];
 };
 
 type SpeciesRouteParams = {
@@ -66,6 +67,7 @@ const buildSpeciesPageData = (
     overview: {
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
+      sections: payload.description_sections,
       imageSource: normalizeImageSource(payload) ?? fallback.overview.imageSource,
       imageLicense: payload.image_license ?? fallback.overview.imageLicense,
       imageCreator: payload.image_creator ?? fallback.overview.imageCreator,

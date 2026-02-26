@@ -2,7 +2,7 @@ import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import SpeciesScreen, { LOCATION_SEARCH_LIMIT, type SpeciesScreenData } from '../_species';
 
 const mockPush = jest.fn();
@@ -256,6 +256,38 @@ describe('Species screen', () => {
     expect(screen.getByText('Snowball Cactus')).toBeTruthy();
   });
 
+  it('renders overview sub-sections when structured description sections are provided', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          overview: {
+            description: 'Summary: A sample species used for testing.',
+            sections: [
+              {
+                id: 'summary',
+                title: 'Summary',
+                lines: [{ body: 'A sample species used for testing.' }],
+              },
+              {
+                id: 'habitat',
+                title: 'Habitat',
+                lines: [{ prefix: 'Often in:', body: 'dry uplands' }],
+              },
+            ],
+            imageSource: { uri: 'test-image' },
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Overview')).toBeTruthy();
+    expect(screen.getByText('Summary')).toBeTruthy();
+    expect(screen.getByText('Habitat')).toBeTruthy();
+    expect(screen.getByText(/Often in:\s+dry uplands/)).toBeTruthy();
+  });
+
   it('falls back to single commonName when commonNames list is empty', async () => {
     render(
       <SpeciesScreen
@@ -395,6 +427,98 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(screen.getByText('Map error: Failed to load observations.')).toBeTruthy();
     });
+  });
+
+  it('renders plain overview description when no parsed sections are available', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          overview: {
+            description: '   ',
+            imageSource: { uri: 'test-image' },
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Overview')).toBeTruthy();
+    expect(screen.queryByText('Summary')).toBeNull();
+  });
+
+  it('renders attribution and opens iNaturalist link when references are provided', async () => {
+    const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce(true);
+    render(
+      <SpeciesScreen
+        data={createData({
+          overview: {
+            description: 'A sample species used for testing.',
+            imageSource: { uri: 'test-image' },
+            imageCreator: 'A Photographer',
+            imageLicense: 'CC-BY',
+            imageReferences: '/observations/12345',
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Photo by A Photographer')).toBeTruthy();
+    expect(screen.getByText('CC-BY')).toBeTruthy();
+    fireEvent.press(screen.getByText('View on iNaturalist'));
+    expect(openUrlSpy).toHaveBeenCalledWith('https://www.inaturalist.org/observations/12345');
+    openUrlSpy.mockRestore();
+  });
+
+  it('uses absolute image reference URLs without rewriting them', async () => {
+    const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce(true);
+    render(
+      <SpeciesScreen
+        data={createData({
+          overview: {
+            description: 'A sample species used for testing.',
+            imageSource: { uri: 'test-image' },
+            imageReferences: 'https://www.inaturalist.org/observations/999',
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(screen.getByText('View on iNaturalist'));
+    expect(openUrlSpy).toHaveBeenCalledWith('https://www.inaturalist.org/observations/999');
+    openUrlSpy.mockRestore();
+  });
+
+  it('ignores overview lines with empty bodies', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          overview: {
+            description: 'Summary: A sample species used for testing.',
+            sections: [
+              {
+                id: 'summary',
+                title: 'Summary',
+                lines: [
+                  { body: 'Visible line' },
+                  { body: '   ' },
+                  { prefix: 'Test:', body: '   ' },
+                ],
+              },
+            ],
+            imageSource: { uri: 'test-image' },
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Visible line')).toBeTruthy();
   });
 
 });
