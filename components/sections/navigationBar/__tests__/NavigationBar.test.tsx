@@ -4,8 +4,8 @@ import { create } from 'react-test-renderer';
 import {
   __NAVIGATION_BAR_TESTING__,
   NavigationBar,
-} from '../../sections/NavigationBar';
-import { NavigationBarTab } from '../../sections/NavigationBarTab';
+} from '../NavigationBar';
+import { NavigationBarTab } from '../NavigationBarTab';
 import { View } from 'react-native';
 
 const HORIZONTAL_MIN_TAB_WIDTH = 96;

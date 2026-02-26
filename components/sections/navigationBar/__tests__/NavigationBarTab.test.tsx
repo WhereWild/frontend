@@ -6,7 +6,7 @@ import { IconSearch } from '@/assets/icons';
 import {
   __NAVIGATION_BAR_TAB_TESTING__,
   NavigationBarTab,
-} from '../../sections/NavigationBarTab';
+} from '../NavigationBarTab';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: () => 'light',

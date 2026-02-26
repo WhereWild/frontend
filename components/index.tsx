@@ -63,15 +63,8 @@ export type { NavigationPillProps } from './navigation/NavigationPill';
 export { NavigationPillList } from './navigation/NavigationPillList';
 export type { NavigationPillListProps } from './navigation/NavigationPillList';
 
-export { NavigationBarTab } from './sections/NavigationBarTab';
-export type {
-  NavigationBarTabProps,
-  NavigationBarTabState,
-  NavigationBarTabVariant,
-} from './sections/NavigationBarTab';
-
-export { NavigationBar } from './sections/NavigationBar';
-export type { NavigationBarProps } from './sections/NavigationBar';
+export { NavigationBar } from './sections/navigationBar/NavigationBar';
+export type { NavigationBarProps } from './sections/navigationBar/NavigationBar';
 
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
 
