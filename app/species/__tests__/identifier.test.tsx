@@ -317,6 +317,13 @@ describe('SpeciesBasicsPage', () => {
         common_names: ['Prairie Smoke', 'Old Man\'s Whiskers'],
         scientific_name: 'Geum triflorum',
         description: 'Feathery seed-heads add spring interest.',
+        description_sections: [
+          {
+            id: 'summary',
+            title: 'Summary',
+            lines: [{ body: 'Feathery seed-heads add spring interest.' }],
+          },
+        ],
         image_source: 'https://example.com/prairie-smoke.png',
       } as any;
 
@@ -326,6 +333,7 @@ describe('SpeciesBasicsPage', () => {
       expect(result.commonNames).toEqual(['Prairie Smoke', 'Old Man\'s Whiskers']);
       expect(result.scientificName).toBe('Geum triflorum');
       expect(result.overview.description).toBe(payload.description);
+      expect(result.overview.sections).toEqual(payload.description_sections);
       expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
     });
 
