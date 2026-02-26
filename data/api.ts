@@ -256,26 +256,32 @@ export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<S
   };
 }
 
-export async function fetchEnvironmentVariables() {
-  const url = `${BACKEND_BASE}/variables`;
+export async function fetchEnvironmentVariables(options?: { units?: string | null }) {
+  const params = new URLSearchParams();
+  if (options?.units) params.set('unit_system', options.units);
+  const url = `${BACKEND_BASE}/variables${params.toString() ? `?${params.toString()}` : ''}`;
   const payload = await fetchJsonOrThrow(url, 'Failed to fetch variables');
   return parseEnvironmentVariableDefinitions(payload);
 }
 
 type LocationOptions = {
   location?: string | null;
+  units?: string | null;
 };
 
 export async function fetchSpeciesEnvironment(
   taxonId: string | number,
   variableId: string,
-  options?: LocationOptions,
+  options?: { location?: string | null; units?: string | null },
 ): Promise<SpeciesEnvironmentStats> {
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const params = new URLSearchParams();
   if (options?.location) {
     params.set('location', options.location);
+  }
+  if (options?.units) {
+    params.set('unit_system', options.units);
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
@@ -432,12 +438,13 @@ export type EnvironmentSliceParams = {
   max: number;
   limit?: number;
   location?: string | null;
+  units?: string | null;
 };
 
 export async function fetchEnvironmentRangeSlice(
   params: EnvironmentSliceParams,
 ): Promise<SpeciesEnvironmentSliceResponse> {
-  const { taxonId, variableId, min, max, limit, location } = params;
+  const { taxonId, variableId, min, max, limit, location, units } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const query = new URLSearchParams({
@@ -450,6 +457,9 @@ export async function fetchEnvironmentRangeSlice(
   if (location) {
     query.set('location', location);
   }
+  if (units) {
+    query.set('unit_system', units);
+  }
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
   const payload = await fetchJsonOrThrow(
     url,
@@ -461,7 +471,9 @@ export async function fetchEnvironmentRangeSlice(
 type CategorySampleOptions = {
   limit?: number;
   location?: string | null;
+  units?: string | null;
 };
+
 
 export async function fetchSpeciesEnvironmentCategorySamples(
   taxonId: string | number,
@@ -478,6 +490,9 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   }
   if (options?.location) {
     query.set('location', options.location);
+  }
+  if (options?.units) {
+    query.set('unit_system', options.units);
   }
   const queryString = query.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;
