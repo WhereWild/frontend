@@ -1,7 +1,7 @@
 import Head from 'expo-router/head';
-import React, { useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { PageHeader, ThemedText, SelectField } from '@/components';
+import { PageHeader, ThemedText, SelectField, ButtonDanger } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -30,6 +30,11 @@ export default function Settings() {
     { label: 'Español', value: 'es' },
     { label: 'Français', value: 'fr' },
   ];
+  const restoreDefaults = () => {
+    setRegion('utah');
+    setUnits('metric');
+    setLanguage('en');
+  }
 
   return (
     <>
@@ -105,8 +110,19 @@ export default function Settings() {
               </View>
             </View>
           </View>
+          <View style={[styles.sectionContent, getResponsiveContentContainerStyle(responsive, { includeWidth: false, includeTopPadding: false }), { maxWidth: responsive.contentWidth }]}>
+            <ThemedText variant="heading">Danger Zone</ThemedText>
 
-          {/* Notifications and Danger Zone intentionally omitted per design instructions */}
+            <View style={{ marginTop: Size.space['300'] }}>
+              <ButtonDanger
+                variant="primary"
+                size="medium"
+                accessibilityLabel="Restore default settings"
+                onPress={restoreDefaults}
+                label="Restore default Settings"
+              />
+            </View>
+            </View>
 
         </ScrollView>
       </View>
