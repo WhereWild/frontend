@@ -30,36 +30,15 @@ jest.mock('expo-splash-screen', () => ({
   hideAsync: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock('expo-router', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  
-  // Global array to record Stack props for testing
-  const recordedStackProps = [];
-  
-  function Stack(props) {
-    recordedStackProps.push(props);
-    return React.createElement(View, { ...props, testID: 'app-stack' });
-  }
-  
-  Stack.Screen = function Screen(props) {
-    return React.createElement(View, props);
-  };
-  
-  // Expose the array for tests to access
-  Stack.__recordedProps = recordedStackProps;
-  
-  return {
-    useRouter: () => ({
-      push: jest.fn(),
-      replace: jest.fn(),
-      back: jest.fn(),
-    }),
-    useLocalSearchParams: () => ({}),
-    Link: 'Link',
-    Stack,
-  };
-});
+jest.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
+  useLocalSearchParams: () => ({}),
+  Link: 'Link',
+}));
 
 // Mock react-native-webview to avoid native module access in Jest.
 jest.mock('react-native-webview', () => {
