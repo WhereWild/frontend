@@ -74,7 +74,6 @@ export function SpeciesEnvironmentSection({
     locationGid,
     units,
   });
-  
 
   if (!taxonId) {
     return null;
@@ -84,10 +83,9 @@ export function SpeciesEnvironmentSection({
   const showError = !loading && Boolean(error);
 
   const handleCategorySelect = (value: string | number) => {
-    setSelectedCategoryValue((previous: string | number | null) => (previous === value ? null : value));
+    setSelectedCategoryValue((previous) => (previous === value ? null : value));
   };
 
-  
   const handleRankContextChange = (value: string) => setSelectedRankContext(value);
 
   return (
