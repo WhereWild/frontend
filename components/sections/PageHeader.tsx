@@ -29,7 +29,7 @@ import { SearchResults } from './SearchResults';
 import { ThemedText } from '../text/ThemedText';
 import { Portal } from '../Portal';
 import { fetchSpeciesList } from '@/data/api';
-import { SpeciesSummary } from '@/data/types';
+import { SpeciesApiNormalized, SpeciesSummary } from '@/data/types';
 import { toKebabCase } from '@/utils/string';
 
 // Allows callers to forward styling/behavior props to SearchInput while keeping PageHeader in control of its value.
@@ -37,28 +37,31 @@ type SearchInputPassthroughProps = Partial<
   Omit<SearchInputProps, 'value' | 'onQueryChange' | 'onSubmitSearch' | 'placeholder'>
 >;
 
-const mapSearchResultToSummary = (entry: any): SpeciesSummary | null => {
-  const rawId = typeof entry?.taxon_id === 'number' ? entry?.taxon_id : Number(entry?.taxon_id ?? NaN);
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+const mapSearchResultToSummary = (entry: SpeciesApiNormalized): SpeciesSummary | null => {
+  const rawId = typeof entry.taxon_id === 'number' ? entry.taxon_id : Number(entry.taxon_id ?? NaN);
   if (!Number.isFinite(rawId)) {
     return null;
   }
   const scientificName =
-    (typeof entry?.scientific_name === 'string' && entry.scientific_name.length > 0)
+    (typeof entry.scientific_name === 'string' && entry.scientific_name.length > 0)
       ? entry.scientific_name
       : `Taxon #${rawId}`;
   const normalizeName = (value?: string) =>
     typeof value === 'string' && value.length > 0 ? value.replace(/_/g, ' ') : value;
-  const commonName = normalizeName(entry?.common_name) ?? scientificName;
+  const commonName = normalizeName(entry.common_name) ?? scientificName;
+  const raw = asRecord(entry._raw);
+  const rawDescription = raw.description;
   const description =
-    (typeof entry?.description === 'string' && entry.description.length > 0)
-      ? entry.description
-      : (typeof entry?._raw?.description === 'string' && entry._raw.description.length > 0)
-        ? entry._raw.description
-        : 'Tap to view species details';
+    (typeof rawDescription === 'string' && rawDescription.length > 0)
+      ? rawDescription
+      : 'Tap to view species details';
   const imageSource =
-    typeof entry?.image_source === 'string'
+    typeof entry.image_source === 'string'
       ? { uri: entry.image_source }
-      : entry?.image_source;
+      : undefined;
 
   return {
     taxonId: rawId,
@@ -97,6 +100,7 @@ export type PageHeaderProps = {
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
 const SEARCH_RESULT_LIMIT = 9;
+const SEARCH_BLUR_GRACE_MS = 100;
 
 export function PageHeader({
   title = 'WhereWild',
@@ -176,18 +180,34 @@ export function PageHeader({
     </>
   );
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SpeciesSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [wrapperHeight, setWrapperHeight] = useState<number | null>(null);
+  const [mobileHeaderLayout, setMobileHeaderLayout] = useState<{
+    y: number;
+    height: number;
+  } | null>(null);
   const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
-  const [isSearchResultsHovered, setIsSearchResultsHovered] = useState(false);
+  const [isSearchBlurGraceActive, setIsSearchBlurGraceActive] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ top: number; right: number } | null>(null);
-  const [isInGracePeriod, setIsInGracePeriod] = useState(false);
-  const [showResultsAfterGrace, setShowResultsAfterGrace] = useState(true);
+  const searchBlurGraceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState(() =>
+    typeof initialQuery === 'string' ? initialQuery : '',
+  );
+  const previousInitialQueryRef = React.useRef(initialQuery);
+
+  useEffect(() => {
+    if (initialQuery === previousInitialQueryRef.current) {
+      return;
+    }
+
+    previousInitialQueryRef.current = initialQuery;
+    setSearchQuery(typeof initialQuery === 'string' ? initialQuery : '');
+  }, [initialQuery]);
 
   useEffect(() => {
     if (!isCompact && isMenuOpen) {
@@ -195,19 +215,32 @@ export function PageHeader({
     }
   }, [isCompact, isMenuOpen]);
 
+  const cancelSearchBlurGrace = React.useCallback(() => {
+    if (searchBlurGraceTimerRef.current) {
+      clearTimeout(searchBlurGraceTimerRef.current);
+      searchBlurGraceTimerRef.current = null;
+    }
+    setIsSearchBlurGraceActive(false);
+  }, []);
+
+  const startSearchBlurGrace = React.useCallback(() => {
+    if (searchBlurGraceTimerRef.current) {
+      clearTimeout(searchBlurGraceTimerRef.current);
+    }
+    setIsSearchBlurGraceActive(true);
+    searchBlurGraceTimerRef.current = setTimeout(() => {
+      setIsSearchBlurGraceActive(false);
+      searchBlurGraceTimerRef.current = null;
+    }, SEARCH_BLUR_GRACE_MS);
+  }, []);
+
   useEffect(() => {
-    if (isInGracePeriod && !isSearchBarFocused && !isSearchResultsHovered) {
-      const handle = setTimeout(() => {
-        setIsInGracePeriod(false);
-        setShowResultsAfterGrace(false);
-      }, 400);
-      return () => clearTimeout(handle);
-    }
-    if ((isSearchBarFocused || isSearchResultsHovered) && isInGracePeriod) {
-      setIsInGracePeriod(false);
-      setShowResultsAfterGrace(true);
-    }
-  }, [isInGracePeriod, isSearchBarFocused, isSearchResultsHovered]);
+    return () => {
+      if (searchBlurGraceTimerRef.current) {
+        clearTimeout(searchBlurGraceTimerRef.current);
+      }
+    };
+  }, []);
 
   const measureMenuAnchor = React.useCallback(() => {
     if (!menuButtonRef.current) {
@@ -224,14 +257,6 @@ export function PageHeader({
       measureMenuAnchor();
     }
   }, [isMenuOpen, isCompact, measureMenuAnchor]);
-
-  useEffect(() => {
-    // Update search query when initialQuery prop changes
-    const querToSet = typeof initialQuery === 'string' ? initialQuery : '';
-    if (querToSet !== searchQuery) {
-      setSearchQuery(querToSet);
-    }
-  }, [initialQuery]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -267,7 +292,7 @@ export function PageHeader({
         }
         const mapped = payload
           .map(mapSearchResultToSummary)
-          .filter((entry: any): entry is SpeciesSummary => Boolean(entry))
+          .filter((result): result is SpeciesSummary => Boolean(result))
           .slice(0, SEARCH_RESULT_LIMIT);
         setSearchResults(mapped);
         if (onSearchResultsChanged) {
@@ -304,109 +329,134 @@ export function PageHeader({
     wrapperHeight &&
     hasQuery &&
     showSearchResultsDropdown &&
-    (isCompact || isSearchBarFocused || isSearchResultsHovered || isInGracePeriod) &&
-    showResultsAfterGrace;
+    (isSearchBarFocused || isSearchBlurGraceActive);
+
   const searchResultsTop = wrapperHeight ? wrapperHeight + Size.space['200'] : undefined;
-  const searchResultsStyle = searchResultsTop ? { top: searchResultsTop } : undefined;
-  const compactStyle = isCompact && responsive.marginHorizontal
-    ? { left: responsive.marginHorizontal, right: responsive.marginHorizontal }
+  const compactSearchResultsTop = mobileHeaderLayout
+    ? mobileHeaderLayout.y + mobileHeaderLayout.height + Size.space['200']
     : undefined;
-  const finalSearchResultsStyle = compactStyle ? { ...searchResultsStyle, ...compactStyle } : searchResultsStyle;
 
-  const renderSearchResults = () =>
-    searchResultsVisible ? (
-      <SearchResults
-        results={searchResults}
-        isVisible={true}
-        isLoading={searching}
-        emptyMessage={searchError ?? 'No species found'}
-        style={finalSearchResultsStyle}
-        onPointerEnter={() => setIsSearchResultsHovered(true)}
-        onPointerLeave={() => setIsSearchResultsHovered(false)}
-        onTouchStart={() => setIsSearchResultsHovered(true)}
-        onTouchEnd={() => setIsSearchResultsHovered(false)}
-        onSelectResult={(s) => {
-          const segment = toKebabCase((s.scientificName ?? '').trim());
-          if (segment) {
-            router.push({
-              pathname: '/species/[...identifier]',
-              params: { identifier: [s.taxonId.toString(), segment] },
-            });
-          }
-        }}
-        testID="header-search-results"
-      />
-    ) : null;
+  const renderSearchResults = (variant: 'mobile' | 'desktop') =>
+    searchResultsVisible ? (() => {
+      const mobileSearchResultsStyle: StyleProp<ViewStyle> = [
+        {
+          left: responsive.marginHorizontal,
+          right: responsive.marginHorizontal,
+        },
+        compactSearchResultsTop ? { top: compactSearchResultsTop } : null,
+      ];
 
-  const renderSearchContent = (variant: 'mobile' | 'desktop') => (
-    <View
-      style={[
-        styles.searchRow,
-        variant === 'mobile' ? styles.searchRowMobile : styles.searchRowDesktop,
-      ]}
-      testID="page-header-search-row"
-    >
-      <View
-        style={styles.searchWrapper}
-        onLayout={(e) => {
-          setWrapperHeight(e.nativeEvent.layout.height);
-        }}
-        testID="page-header-search-wrapper"
-      >
-        <SearchInput
-          value={searchQuery}
-          onQueryChange={setSearchQuery}
-          onSubmitSearch={submitSearchQuery}
-          placeholder={searchPlaceholder}
-          onFocus={() => setIsSearchBarFocused(true)}
-          onBlur={() => {
-            setIsSearchBarFocused(false);
-            setIsInGracePeriod(true);
+      const desktopSearchResultsStyle: StyleProp<ViewStyle> =
+        searchResultsTop ? { top: searchResultsTop } : undefined;
+
+      const resolvedSearchResultsStyle =
+        variant === 'mobile' ? mobileSearchResultsStyle : desktopSearchResultsStyle;
+
+      return (
+        <SearchResults
+          results={searchResults}
+          isVisible={true}
+          isLoading={searching}
+          emptyMessage={searchError ?? 'No species found'}
+          style={resolvedSearchResultsStyle}
+          onSelectResult={(s) => {
+            cancelSearchBlurGrace();
+            const segment = toKebabCase((s.scientificName ?? '').trim());
+            if (segment) {
+              router.push({
+                pathname: '/species/[...identifier]',
+                params: { identifier: [s.taxonId.toString(), segment] },
+              });
+            }
           }}
-          {...searchInputProps}
+          testID="header-search-results"
         />
+      );
+    })() : null;
 
-        {renderSearchResults()}
-      </View>
+  const renderSearchContent = (variant: 'mobile' | 'desktop') => {
+    const {
+      onFocus: onSearchInputFocus,
+      onBlur: onSearchInputBlur,
+      ...resolvedSearchInputProps
+    } = searchInputProps ?? {};
 
-      {showFilterButton ? (
-        variant === 'mobile' ? (
-          <IconButton
-            variant="neutral"
-            icon={<IconFilter />}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        ) : (
-          <Button
-            variant="neutral"
-            iconStart={<IconFilter />}
-            label={filterLabel}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        )
-      ) : null}
-
-      {variant === 'mobile' ? (
-        <View ref={menuButtonRef} collapsable={false}>
-          <IconButton
-            variant="primary"
-            icon={<IconMenu />}
-            onPress={() => {
-              if (isMenuOpen) {
-                setIsMenuOpen(false);
-                return;
-              }
-              measureMenuAnchor();
-              setIsMenuOpen(true);
+    return (
+      <View
+        style={[
+          styles.searchRow,
+          variant === 'mobile' ? styles.searchRowMobile : styles.searchRowDesktop,
+        ]}
+        testID="page-header-search-row"
+      >
+        <View
+          style={styles.searchWrapper}
+          onLayout={(e) => {
+            setWrapperHeight(e.nativeEvent.layout.height);
+          }}
+          testID="page-header-search-wrapper"
+        >
+          <SearchInput
+            {...resolvedSearchInputProps}
+            value={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSubmitSearch={submitSearchQuery}
+            placeholder={searchPlaceholder}
+            onFocus={(event) => {
+              cancelSearchBlurGrace();
+              setIsSearchBarFocused(true);
+              onSearchInputFocus?.(event);
             }}
-            accessibilityLabel="Open menu"
+            onBlur={(event) => {
+              setIsSearchBarFocused(false);
+              startSearchBlurGrace();
+              onSearchInputBlur?.(event);
+            }}
           />
+
+          {variant === 'desktop' ? renderSearchResults('desktop') : null}
         </View>
-      ) : null}
-    </View>
-  );
+
+        {showFilterButton ? (
+          variant === 'mobile' ? (
+            <IconButton
+              variant="neutral"
+              icon={<IconFilter />}
+              onPress={onFilterPress}
+              accessibilityLabel={filterButtonAccessibilityLabel}
+            />
+          ) : (
+            <Button
+              variant="neutral"
+              iconStart={<IconFilter />}
+              label={filterLabel}
+              onPress={onFilterPress}
+              accessibilityLabel={filterButtonAccessibilityLabel}
+            />
+          )
+        ) : null}
+
+        {variant === 'mobile' ? (
+          <View ref={menuButtonRef} collapsable={false}>
+            <IconButton
+              variant="primary"
+              icon={<IconMenu />}
+              onPress={() => {
+                if (isMenuOpen) {
+                  setIsMenuOpen(false);
+                  return;
+                }
+                measureMenuAnchor();
+                setIsMenuOpen(true);
+              }}
+              accessibilityLabel="Open menu"
+            />
+          </View>
+        ) : null}
+
+      </View>
+    );
+  };
 
   return (
     <View
@@ -433,81 +483,89 @@ export function PageHeader({
           isCompact ? styles.containerMobile : styles.containerDesktop,
         ]}
       >
-      {isCompact ? (
-        <>
-          <View style={styles.mobileHeaderRow}>
+        {isCompact ? (
+          <>
+            <View
+              style={styles.mobileHeaderRow}
+              onLayout={(e) => {
+                const { y, height } = e.nativeEvent.layout;
+                setMobileHeaderLayout({ y, height });
+              }}
+            >
+              <Pressable
+                onPress={navigateHome}
+                style={styles.logoSectionMobile}
+                accessibilityRole="link"
+                accessibilityLabel={logoAccessibilityLabel}
+              >
+                {logoContent}
+              </Pressable>
+
+              {renderSearchContent('mobile')}
+            </View>
+
+            {renderSearchResults('mobile')}
+
+            {isMenuOpen ? (
+              <Portal visible={isMenuOpen} onDismiss={() => setIsMenuOpen(false)}>
+                <Pressable
+                  testID="page-header-menu-backdrop"
+                  style={styles.menuBackdrop}
+                  onPress={() => setIsMenuOpen(false)}
+                />
+                <View
+                  style={[
+                    styles.mobileMenu,
+                    {
+                      backgroundColor: palette.background.default.tertiary,
+                      borderColor: palette.border.default.tertiary,
+                    },
+                    menuAnchor
+                      ? { top: menuAnchor.top + Size.space['600'], right: menuAnchor.right }
+                      : { top: insets.top + Size.space['1600'] + Size.space['300'], right: Size.space['200'] },
+                    Shadows.dropShadow400.style,
+                  ]}
+                >
+                  {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+                    <Button
+                      key={label}
+                      variant={variant}
+                      onPress={onPress}
+                      iconStart={icon}
+                      label={label}
+                      style={styles.mobileMenuButton}
+                    />
+                  ))}
+                </View>
+              </Portal>
+            ) : null}
+          </>
+        ) : (
+          <>
             <Pressable
               onPress={navigateHome}
-              style={styles.logoSectionMobile}
+              style={styles.logoSection}
               accessibilityRole="link"
               accessibilityLabel={logoAccessibilityLabel}
             >
               {logoContent}
             </Pressable>
 
-            {renderSearchContent('mobile')}
-          </View>
+            {renderSearchContent('desktop')}
 
-          {isMenuOpen ? (
-            <Portal visible={isMenuOpen} onDismiss={() => setIsMenuOpen(false)}>
-              <Pressable
-                testID="page-header-menu-backdrop"
-                style={styles.menuBackdrop}
-                onPress={() => setIsMenuOpen(false)}
-              />
-              <View
-                style={[
-                  styles.mobileMenu,
-                  {
-                    backgroundColor: palette.background.default.tertiary,
-                    borderColor: palette.border.default.tertiary,
-                  },
-                  menuAnchor
-                    ? { top: menuAnchor.top + Size.space['600'], right: menuAnchor.right }
-                    : { top: insets.top + Size.space['1600'] + Size.space['300'], right: Size.space['200'] },
-                  Shadows.dropShadow400.style,
-                ]}
-              >
-                {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-                  <Button
-                    key={label}
-                    variant={variant}
-                    onPress={onPress}
-                    iconStart={icon}
-                    label={label}
-                    style={styles.mobileMenuButton}
-                  />
-                ))}
-              </View>
-            </Portal>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <Pressable
-            onPress={navigateHome}
-            style={styles.logoSection}
-            accessibilityRole="link"
-            accessibilityLabel={logoAccessibilityLabel}
-          >
-            {logoContent}
-          </Pressable>
-
-          {renderSearchContent('desktop')}
-
-          <View style={styles.actionsWrapper}>
-            {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
-              <Button
-                key={label}
-                variant={variant}
-                onPress={onPress}
-                iconStart={icon}
-                label={label}
-              />
-            ))}
-          </View>
-        </>
-      )}
+            <View style={styles.actionsWrapper}>
+              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+                <Button
+                  key={label}
+                  variant={variant}
+                  onPress={onPress}
+                  iconStart={icon}
+                  label={label}
+                />
+              ))}
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -580,6 +638,7 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     flex: 1,
+    minWidth: 0, // Allow search input to shrink without overflowing its flex row
     position: 'relative',
   },
   actionsWrapper: {
