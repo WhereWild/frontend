@@ -27,7 +27,7 @@ Key capabilities:
 - Import tokens only from `constants/theme.ts`. Never read from `wdsTokens.ts` directly; it contains raw auto-generated tokens not structured for component use. Always use `constants/theme.ts` to ensure tokens are properly structured and theme-aware for components.
 - Always render text with `ThemedText`; plain `<Text>` is reserved for that component alone.
 - Index `Size` tokens with strings (`Size.space['400']`).
-- Components that toggle borders across states must always define `borderWidth`. Use `borderWidth: 0` for states without a visible border (or when border color matches the background). To prevent layout shifts, should account for the variable border width. Reference `Button` and `NavigationPill` for implementation.
+- Components that toggle borders across states must always define `borderWidth` and do not override it across states. Use `borderColor: 'transparent'` for states without a visible border (or when border color matches the background). Reference `Button` and `NavigationPill` for implementation.
 - Pressable components should have pressed and hover states.
 - Circular components should use `Size.radius['full']` for the border radius instead of the radius of the component.
 - Keep style overrides minimal. Prefer wrapping layout containers over restyling shared components.
