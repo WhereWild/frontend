@@ -134,15 +134,13 @@ export const buildHeadingText = (
   fallbackLabel: string | null | undefined,
   isCategorical: boolean,
   units: string | null | undefined,
-  fallbackUnits: string | null | undefined,
 ) => {
   if (!hasStats) {
     return null;
   }
 
   const resolvedName = variableName ?? fallbackLabel ?? 'Environment';
-  const resolvedUnits = units ?? fallbackUnits;
-  const unitsSuffix = !isCategorical && resolvedUnits ? ` (${resolvedUnits})` : '';
+  const unitsSuffix = !isCategorical && units ? ` (${units})` : '';
   return `${resolvedName}${unitsSuffix}`;
 };
 
