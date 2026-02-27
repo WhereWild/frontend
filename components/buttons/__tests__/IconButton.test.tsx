@@ -1,7 +1,7 @@
 import { Colors, Size } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { Image } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 import type { IconButtonSize, IconButtonVariant } from '../IconButton';
 import { IconButton, __ICON_BUTTON_TESTING__ } from '../IconButton';
 import { ThemedText } from '../../text/ThemedText';
@@ -85,15 +85,9 @@ describe('IconButton Component', () => {
         <IconButton icon={<MockIcon />} accessibilityLabel="Default Size" />
       );
       const button = getByLabelText('Default Size');
-      const styles = button.props.style;
-      expect(styles).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            padding: Size.space['250'],
-            borderRadius: Size.radius['full'],
-          }),
-        ])
-      );
+      const flattenedStyle = StyleSheet.flatten(button.props.style);
+      expect(flattenedStyle.padding).toBe(Size.space['250']);
+      expect(flattenedStyle.borderRadius).toBe(Size.radius['full']);
     });
   });
 
@@ -265,12 +259,9 @@ describe('IconButton Component', () => {
         />
       );
       const button = getByLabelText('Square');
-      const styles = button.props.style;
-      // Square aspect ratio is achieved via single padding value (applies to all sides)
-      const paddingStyle = styles.find((s: any) => s?.padding !== undefined);
-      expect(paddingStyle).toBeDefined();
-      expect(paddingStyle.padding).toBe(Size.space['250']); // Equal padding on all sides
-      expect(paddingStyle.borderRadius).toBe(Size.radius['full']);
+      const flattenedStyle = StyleSheet.flatten(button.props.style);
+      expect(flattenedStyle.padding).toBe(Size.space['250']);
+      expect(flattenedStyle.borderRadius).toBe(Size.radius['full']);
     });
 
     it('maintains square aspect ratio via equal padding (small)', () => {
@@ -282,11 +273,9 @@ describe('IconButton Component', () => {
         />
       );
       const button = getByLabelText('Square');
-      const styles = button.props.style;
-      const paddingStyle = styles.find((s: any) => s?.padding !== undefined);
-      expect(paddingStyle).toBeDefined();
-      expect(paddingStyle.padding).toBe(Size.space['200']);
-      expect(paddingStyle.borderRadius).toBe(Size.radius['full']);
+      const flattenedStyle = StyleSheet.flatten(button.props.style);
+      expect(flattenedStyle.padding).toBe(Size.space['200']);
+      expect(flattenedStyle.borderRadius).toBe(Size.radius['full']);
     });
 
     it('applies pressed brand background token for primary variant', () => {

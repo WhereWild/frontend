@@ -1,16 +1,21 @@
 import React from 'react';
-import { Pressable, TextStyle, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { IconSize } from '../../primitives/Icon';
 import { ThemedText } from '../text/ThemedText';
+import {
+  ButtonIcon,
+  computeButtonSizeStyles,
+  renderButtonIcon,
+  resolveButtonAccessibilityLabel,
+} from './buttonShared';
 
 // Variants aligned with Figma design system Button component
 export type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type ButtonSize = 'small' | 'medium';
 
-type ButtonIconElement = React.ReactElement<{ color?: string; size?: IconSize }>;
-type ButtonIcon = React.ComponentType<{ color?: string; size?: IconSize }> | ButtonIconElement;
+const TRANSPARENT = 'transparent';
 
 export interface ButtonProps {
   variant?: ButtonVariant;
@@ -35,8 +40,6 @@ function computeVariantStyles(
   disabled: boolean
 ) {
   const palette = Colors[mode];
-  const strokeWidth = Size.stroke.border;
-  const transparent = 'transparent';
 
   // Disabled state overrides all variants
   if (disabled) {
@@ -44,8 +47,7 @@ function computeVariantStyles(
       backgroundColor: palette.background.disabled.default,
       color: palette.text.disabled.onDisabled,
       iconColor: palette.icon.disabled.onDisabled,
-      borderColor: transparent,
-      borderWidth: 0,
+      borderColor: TRANSPARENT,
     };
   }
 
@@ -58,8 +60,7 @@ function computeVariantStyles(
         backgroundColor: bg,
         color: palette.text.brand.onBrand,
         iconColor: palette.icon.brand.onBrand,
-        borderColor: transparent,
-        borderWidth: 0,
+        borderColor: TRANSPARENT,
       };
     }
     case 'neutral': {
@@ -70,8 +71,7 @@ function computeVariantStyles(
         backgroundColor: bg,
         color: palette.text.neutral.onNeutralSecondary,
         iconColor: palette.icon.neutral.onNeutralSecondary,
-        borderColor: transparent,
-        borderWidth: 0,
+        borderColor: TRANSPARENT,
       };
     }
     case 'subtle': {
@@ -79,20 +79,18 @@ function computeVariantStyles(
       const isOutlinedState = !(pressed || hovered);
       const bg = pressed
         ? palette.background.neutral.tertiaryPressed
-        : (hovered ? palette.background.neutral.tertiaryHover : transparent);
+        : (hovered ? palette.background.neutral.tertiaryHover : TRANSPARENT);
       const textColor = pressed || hovered
         ? palette.text.neutral.onNeutralTertiary
         : palette.text.neutral.tertiary;
       const iconColor = pressed || hovered
         ? palette.icon.neutral.onNeutralTertiary
         : palette.icon.neutral.tertiary;
-      const borderWidth = strokeWidth;
       return {
         backgroundColor: bg,
         color: textColor,
         iconColor,
-        borderColor: isOutlinedState ? palette.border.neutral.tertiary : transparent,
-        borderWidth,
+        borderColor: isOutlinedState ? palette.border.neutral.tertiary : TRANSPARENT,
       };
     }
     default: {
@@ -100,39 +98,10 @@ function computeVariantStyles(
         backgroundColor: palette.background.default.default,
         color: palette.text.default.default,
         iconColor: palette.icon.default.default,
-        borderColor: transparent,
-        borderWidth: 0,
+        borderColor: TRANSPARENT,
       };
     }
   }
-}
-
-const renderIcon = (icon: ButtonIcon | undefined, color: string, size: IconSize) => {
-  if (!icon) return null;
-
-  if (React.isValidElement(icon)) {
-    const currentProps = icon.props as { color?: string; size?: IconSize };
-    return React.cloneElement(icon, {
-      color: currentProps.color ?? color,
-      size: currentProps.size ?? size,
-    });
-  }
-
-  return React.createElement(icon, { color, size });
-};
-
-// Size-specific styles matching Figma design
-function computeSizeStyles(size: ButtonSize) {
-  if (size === 'small') {
-    return {
-      paddingHorizontal: Size.space['200'],
-      paddingVertical: Size.space['150'],
-    };
-  }
-  return {
-    paddingHorizontal: Size.space['300'],
-    paddingVertical: Size.space['250'],
-  };
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -155,31 +124,21 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={
-        accessibilityLabel ||
-        (label ?? (typeof children === 'string' ? children : undefined))
-      }
-        disabled={disabled}
+      accessibilityLabel={resolveButtonAccessibilityLabel(accessibilityLabel, label, children)}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed, hovered }) => {
-          const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
-        const sizeStyles = computeSizeStyles(size);
-        const borderWidth = variantStyles.borderWidth ?? 0;
-        const paddingHorizontal = Math.max(0, sizeStyles.paddingHorizontal - borderWidth);
-        const paddingVertical = Math.max(0, sizeStyles.paddingVertical - borderWidth);
+        const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
+        const sizeStyles = computeButtonSizeStyles(size);
+        const paddingHorizontal = sizeStyles.paddingHorizontal;
+        const paddingVertical = sizeStyles.paddingVertical;
         return [
+          styles.buttonBase,
           {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: Size.radius['200'], // 8px - matches Figma design
             backgroundColor: variantStyles.backgroundColor,
             borderColor: variantStyles.borderColor,
-            borderWidth: variantStyles.borderWidth,
-            opacity: 1,
             paddingHorizontal,
             paddingVertical,
-            gap: Size.space['200'], // 8px - matches Figma gap
           },
           style,
         ];
@@ -190,8 +149,8 @@ export const Button: React.FC<ButtonProps> = ({
 
         return (
           <>
-            {iconStart && <View>{renderIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
-            <View style={{ minHeight: iconDimension, justifyContent: 'center' }}>
+            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
+            <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
                 variant="singleLineBody"
                 style={[
@@ -204,7 +163,7 @@ export const Button: React.FC<ButtonProps> = ({
                 {label ?? children}
               </ThemedText>
             </View>
-            {iconEnd && <View>{renderIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
+            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
           </>
         );
       }}
@@ -214,5 +173,19 @@ export const Button: React.FC<ButtonProps> = ({
 
 export const __BUTTON_TESTING__ = {
   computeVariantStyles,
-  renderIcon,
+  renderIcon: renderButtonIcon,
 };
+
+const styles = StyleSheet.create({
+  buttonBase: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Size.radius['200'],
+    borderWidth: Size.stroke.border,
+    gap: Size.space['200'],
+  },
+  textContainer: {
+    justifyContent: 'center',
+  },
+});

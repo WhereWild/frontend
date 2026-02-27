@@ -1,16 +1,21 @@
 import React from 'react';
-import { Pressable, TextStyle, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { IconSize } from '../../primitives/Icon';
 import { ThemedText } from '../text/ThemedText';
+import {
+  ButtonIcon,
+  computeButtonSizeStyles,
+  renderButtonIcon,
+  resolveButtonAccessibilityLabel,
+} from './buttonShared';
 
 
 export type ButtonDangerVariant = 'primary' | 'subtle';
 export type ButtonDangerSize = 'small' | 'medium';
 
-type ButtonIconElement = React.ReactElement<{ color?: string; size?: IconSize }>;
-type ButtonIcon = React.ComponentType<{ color?: string; size?: IconSize }> | ButtonIconElement;
+const TRANSPARENT = 'transparent';
 
 export interface ButtonDangerProps {
   variant?: ButtonDangerVariant;
@@ -34,16 +39,13 @@ function computeDangerStyles(
   disabled: boolean,
 ) {
   const palette = Colors[mode];
-  const strokeWidth = Size.stroke.border;
-  const transparent = 'transparent';
 
   if (disabled) {
     return {
       backgroundColor: palette.background.disabled.default,
       color: palette.text.disabled.onDisabled,
       iconColor: palette.icon.disabled.onDisabled,
-      borderColor: transparent,
-      borderWidth: 0,
+      borderColor: TRANSPARENT,
     };
   }
 
@@ -54,55 +56,25 @@ function computeDangerStyles(
         : (hovered ? palette.background.danger.hover : palette.background.danger.default),
       color: palette.text.danger.onDanger,
       iconColor: palette.icon.danger.onDanger,
-      borderColor: transparent,
-      borderWidth: 0,
+      borderColor: TRANSPARENT,
     };
   }
 
   // Subtle variant - transparent background by default, uses secondary backgrounds on interaction
   const isOutlinedState = !(pressed || hovered);
-  const borderWidth = strokeWidth;
   return {
     backgroundColor: pressed
       ? palette.background.danger.secondaryPressed
-      : (hovered ? palette.background.danger.secondaryHover : transparent),
+      : (hovered ? palette.background.danger.secondaryHover : TRANSPARENT),
     color: pressed || hovered
       ? palette.text.danger.onDangerSecondary
       : palette.text.danger.secondary,
     iconColor: pressed || hovered
       ? palette.icon.danger.onDangerSecondary
       : palette.icon.danger.secondary,
-    borderColor: isOutlinedState ? palette.border.danger.secondary : transparent,
-    borderWidth,
+    borderColor: isOutlinedState ? palette.border.danger.secondary : TRANSPARENT,
   };
 }
-
-function computeSizeStyles(size: ButtonDangerSize) {
-  if (size === 'small') {
-    return {
-      paddingHorizontal: Size.space['200'],
-      paddingVertical: Size.space['150'],
-    };
-  }
-  return {
-    paddingHorizontal: Size.space['300'],
-    paddingVertical: Size.space['250'],
-  };
-}
-
-const renderIcon = (icon: ButtonIcon | undefined, color: string, size: IconSize) => {
-  if (!icon) return null;
-
-  if (React.isValidElement(icon)) {
-    const currentProps = icon.props as { color?: string; size?: IconSize };
-    return React.cloneElement(icon, {
-      color: currentProps.color ?? color,
-      size: currentProps.size ?? size,
-    });
-  }
-
-  return React.createElement(icon, { color, size });
-};
 
 export const ButtonDanger: React.FC<ButtonDangerProps> = ({
   variant = 'primary',
@@ -124,47 +96,37 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={
-        accessibilityLabel ||
-        (label ?? (typeof children === 'string' ? children : undefined))
-      }
+      accessibilityLabel={resolveButtonAccessibilityLabel(accessibilityLabel, label, children)}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed, hovered }) => {
-        const v = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
-        const s = computeSizeStyles(size);
-        const borderWidth = v.borderWidth ?? 0;
-        const paddingHorizontal = Math.max(0, s.paddingHorizontal - borderWidth);
-        const paddingVertical = Math.max(0, s.paddingVertical - borderWidth);
+        const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
+        const sizeStyles = computeButtonSizeStyles(size);
+        const paddingHorizontal = sizeStyles.paddingHorizontal;
+        const paddingVertical = sizeStyles.paddingVertical;
         return [
+          styles.buttonBase,
           {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: Size.radius['200'],
-            backgroundColor: v.backgroundColor,
-            borderColor: v.borderColor,
-            borderWidth: v.borderWidth,
-            opacity: 1,
+            backgroundColor: variantStyles.backgroundColor,
+            borderColor: variantStyles.borderColor,
             paddingHorizontal,
             paddingVertical,
-            gap: Size.space['200'],
           },
           style,
         ];
       }}
     >
       {({ pressed, hovered }) => {
-        const v = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
+        const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
         return (
           <>
-            {iconStart && <View>{renderIcon(iconStart, v.iconColor, iconSize)}</View>}
-            <View style={{ minHeight: iconDimension, justifyContent: 'center' }}>
+            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
+            <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
                 variant="singleLineBody"
                 style={[
                   {
-                    color: v.color,
+                    color: variantStyles.color,
                   },
                   textStyle,
                 ]}
@@ -172,7 +134,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
                 {label ?? children}
               </ThemedText>
             </View>
-            {iconEnd && <View>{renderIcon(iconEnd, v.iconColor, iconSize)}</View>}
+            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
           </>
         );
       }}
@@ -182,5 +144,19 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
 
 export const __BUTTON_DANGER_TESTING__ = {
   computeDangerStyles,
-  renderIcon,
+  renderIcon: renderButtonIcon,
 };
+
+const styles = StyleSheet.create({
+  buttonBase: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Size.radius['200'],
+    borderWidth: Size.stroke.border,
+    gap: Size.space['200'],
+  },
+  textContainer: {
+    justifyContent: 'center',
+  },
+});

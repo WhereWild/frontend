@@ -286,14 +286,12 @@ describe('Button Component', () => {
       expect(lightDisabled.color).toBe(Colors.light.text.disabled.onDisabled);
       expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
       expect(lightDisabled.borderColor).toBe('transparent');
-      expect(lightDisabled.borderWidth).toBe(0);
 
       const darkDisabled = __BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, false, true);
       expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
       expect(darkDisabled.color).toBe(Colors.dark.text.disabled.onDisabled);
       expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
       expect(darkDisabled.borderColor).toBe('transparent');
-      expect(darkDisabled.borderWidth).toBe(0);
     });
   });
 
