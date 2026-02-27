@@ -1,4 +1,3 @@
-// useEnvironmentVariableSelection.tsx
 import { fetchEnvironmentVariables } from '@/data/api';
 import React from 'react';
 import {
@@ -18,9 +17,6 @@ type UseEnvironmentVariableSelectionParams = {
   units?: 'metric' | 'imperial' | undefined;
 };
 
-/** Extended variable option with a resolved displayUnits for UI. */
-type EnvVarWithDisplay = EnvironmentVariableOption & { displayUnits?: string | null };
-
 /** Manages variable catalog loading, category filtering, and selected variable state. */
 export function useEnvironmentVariableSelection({
   variableId,
@@ -33,7 +29,6 @@ export function useEnvironmentVariableSelection({
     null,
   );
 
-  // Base resolvedVariables (from props, remote, or defaults)
   const resolvedVariables = React.useMemo(() => {
     if (variables && variables.length > 0) {
       return variables;
@@ -44,69 +39,31 @@ export function useEnvironmentVariableSelection({
     return DEFAULT_VARIABLES;
   }, [remoteVariables, variables]);
 
-  // Helper: resolve a display-friendly unit string given whatever shape the backend/config uses.
-  function resolveDisplayUnits(
-    rawUnits: any, // backend might send string, or { metric, imperial }, or null
-    unitsPref: 'metric' | 'imperial' | undefined,
-  ): string | null {
-    if (!rawUnits) return null;
-
-    if (typeof rawUnits === 'string') {
-      // Already a short label like 'mm' or 'C'
-      return rawUnits;
-    }
-
-    if (typeof rawUnits === 'object') {
-      // Prefer explicit match for user's pref
-      if (unitsPref === 'imperial' && rawUnits.imperial) return rawUnits.imperial;
-      if ((unitsPref === 'metric' || !unitsPref) && rawUnits.metric) return rawUnits.metric;
-
-      // Fallbacks: metric, imperial, or first string-like property found
-      const fallback = rawUnits.metric ?? rawUnits.imperial;
-      if (fallback) return fallback;
-
-      const values = Object.values(rawUnits).filter((v) => typeof v === 'string' && v.length > 0);
-      return (values[0] as string) ?? null;
-    }
-
-    return null;
-  }
-
-  // Attach a displayUnits field to each resolved variable (used by the UI to show parentheses)
-  const resolvedVariablesWithDisplayUnits: EnvVarWithDisplay[] = React.useMemo(() => {
-    return resolvedVariables.map((v) => ({
-      ...v,
-      displayUnits: resolveDisplayUnits((v as any).units, units),
-    }));
-  }, [resolvedVariables, units]);
-
   // Fallback selected variable id
   const fallbackVariable =
-    variableId && variableId.length > 0 ? variableId : resolvedVariablesWithDisplayUnits[0]?.id ?? '';
+    variableId && variableId.length > 0 ? variableId : resolvedVariables[0]?.id ?? '';
   const [selectedVariable, setSelectedVariable] = React.useState(fallbackVariable);
 
   React.useEffect(() => {
     setSelectedVariable(fallbackVariable);
   }, [fallbackVariable]);
 
-  // Categories derived from the variables (now using the augmented array)
   const categories = React.useMemo(() => {
     const categorySet = new Set<string>();
-    resolvedVariablesWithDisplayUnits.forEach((variable) => {
+    resolvedVariables.forEach((variable) => {
       if (variable.category) {
         categorySet.add(variable.category);
       }
     });
     return Array.from(categorySet).sort();
-  }, [resolvedVariablesWithDisplayUnits]);
+  }, [resolvedVariables]);
 
-  // Filtered variables (keeps displayUnits available on each item)
   const filteredVariables = React.useMemo(() => {
     if (!selectedVariableCategory || !categories.length) {
-      return resolvedVariablesWithDisplayUnits;
+      return resolvedVariables;
     }
-    return resolvedVariablesWithDisplayUnits.filter((value) => value.category === selectedVariableCategory);
-  }, [resolvedVariablesWithDisplayUnits, selectedVariableCategory, categories.length]);
+    return resolvedVariables.filter((value) => value.category === selectedVariableCategory);
+  }, [resolvedVariables, selectedVariableCategory, categories.length]);
 
   React.useEffect(() => {
     if (!categories.length) {
@@ -153,12 +110,10 @@ export function useEnvironmentVariableSelection({
     };
   }, [units]);
 
-  // selectedVariableMeta now comes from the augmented variables so it includes displayUnits
   const selectedVariableMeta = React.useMemo(
     () =>
-      (resolvedVariablesWithDisplayUnits.find((option) => option.id === selectedVariable) ??
-        null) as EnvVarWithDisplay | null,
-    [resolvedVariablesWithDisplayUnits, selectedVariable],
+      resolvedVariables.find((option) => option.id === selectedVariable) ?? null,
+    [resolvedVariables, selectedVariable],
   );
 
   const isVariableCategorical = React.useMemo(() => {
@@ -168,21 +123,14 @@ export function useEnvironmentVariableSelection({
     });
   }, [selectedVariable, selectedVariableMeta]);
 
-  // Optional debug: uncomment if you want to see what displayUnits get resolved to
-  /*
-  React.useEffect(() => {
-    console.log('resolvedVariablesWithDisplayUnits', resolvedVariablesWithDisplayUnits);
-  }, [resolvedVariablesWithDisplayUnits]);
-  */
-
   return {
     categories,
     selectedVariableCategory,
     setSelectedVariableCategory,
-    filteredVariables, // items now include displayUnits
+    filteredVariables,
     selectedVariable,
     setSelectedVariable,
-    selectedVariableMeta, // includes displayUnits
+    selectedVariableMeta,
     isVariableCategorical,
   };
 }

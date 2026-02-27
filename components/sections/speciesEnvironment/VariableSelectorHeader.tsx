@@ -55,7 +55,7 @@ export function VariableSelectorHeader({
             variant="tertiary"
             options={filteredVariables.map((option) => {
               const isCategoricalVar = isVariableCategorical(option);
-              const units = option.displayUnits || option.units;
+              const units = option.units;
               return {
                 value: option.id,
                 label: !isCategoricalVar && units ? `${option.label} (${units})` : option.label,

@@ -228,7 +228,6 @@ export function useSpeciesEnvironmentState({
     selectedVariableMeta?.label,
     isCategorical,
     stats?.units,
-    selectedVariableMeta?.displayUnits,
   );
 
   const metaText = buildMetaText({
