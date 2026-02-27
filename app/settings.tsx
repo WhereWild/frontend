@@ -1,5 +1,5 @@
 import Head from 'expo-router/head';
-import React, { useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { PageHeader, ThemedText, SelectField } from '@/components';
 import { Colors, Size } from '@/constants/theme';
@@ -37,7 +37,7 @@ export default function Settings() {
         <title>WhereWild | Settings</title>
       </Head>
 
-      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+      <View testID="settings-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}> 
         <PageHeader />
 
         <ScrollView

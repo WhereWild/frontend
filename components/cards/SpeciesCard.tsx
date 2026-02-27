@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
 import { useRouter } from 'expo-router';
-import type { RelativePathString } from 'expo-router';
 import { toKebabCase } from '@/utils/string';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 export type SpeciesCardSize = 'default' | 'compact';
