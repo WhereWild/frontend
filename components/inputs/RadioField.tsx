@@ -11,8 +11,8 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
 
-const INDICATOR_SIZE = 20;
-const INDICATOR_DOT_SIZE = 12;
+const INDICATOR_SIZE = Size.space['400'] + Size.space['100'];
+const INDICATOR_DOT_SIZE = Size.space['300'];
 const TRANSPARENT = 'transparent';
 
 type IndicatorColors = {
