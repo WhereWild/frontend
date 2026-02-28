@@ -16,6 +16,12 @@ type TabWithKey = {
   key: string;
 };
 
+const STRETCH_DISTANCE_NORMALIZER_PX = 240;
+const STRETCH_BASE_SCALE = 1.1;
+const STRETCH_SCALE_RANGE = 0.2;
+const STRETCH_GROW_RATIO = 0.45;
+const STRETCH_SHRINK_RATIO = 0.55;
+
 type UseNavigationBarIndicatorParams<TTab extends TabWithKey> = {
   tabs: TTab[];
   tabLayouts: Record<string, TabLayout>;
@@ -33,6 +39,8 @@ export type NavigationBarIndicatorModel = {
   indicatorX: Animated.Value;
   /** Animated width for the active indicator. */
   indicatorWidth: Animated.Value;
+  /** Animated horizontal scale to add subtle stretch while indicator moves. */
+  indicatorScaleX: Animated.Value;
   /** Interpolated indicator background color from active to pressed. */
   indicatorBackgroundColor: Animated.AnimatedInterpolation<string | number>;
 };
@@ -54,7 +62,10 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
 }: UseNavigationBarIndicatorParams<TTab>): NavigationBarIndicatorModel {
   const indicatorX = React.useRef(new Animated.Value(0)).current;
   const indicatorWidth = React.useRef(new Animated.Value(0)).current;
+  const indicatorScaleX = React.useRef(new Animated.Value(1)).current;
   const indicatorPressedProgress = React.useRef(new Animated.Value(0)).current;
+  const previousTargetSignatureRef = React.useRef<string | null>(null);
+  const previousTargetXRef = React.useRef<number | null>(null);
 
   const indicatorBackgroundColor = React.useMemo(
     () => indicatorPressedProgress.interpolate({
@@ -64,12 +75,18 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
     [activeColor, indicatorPressedProgress, pressedColor],
   );
 
+  const resetIndicatorStretch = React.useCallback(() => {
+    indicatorScaleX.stopAnimation();
+    indicatorScaleX.setValue(1);
+  }, [indicatorScaleX]);
+
   /** Moves indicator to the latest target tab frame. */
   React.useEffect(() => {
     const targetTabKey = tabs[indicatorTargetIndex]?.key;
     const targetLayout = targetTabKey ? tabLayouts[targetTabKey] : undefined;
 
     if (!targetLayout) {
+      resetIndicatorStretch();
       return;
     }
 
@@ -82,13 +99,51 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
       isResizing,
     });
 
+    const targetSignature = `${targetTabKey ?? ''}|${targetLayout.x}|${targetLayout.width}`;
+    const didTargetChange = previousTargetSignatureRef.current !== targetSignature;
+    const previousTargetX = previousTargetXRef.current;
+    previousTargetSignatureRef.current = targetSignature;
+    previousTargetXRef.current = targetLayout.x;
+
+    let stretchAnimation: Animated.CompositeAnimation | null = null;
+
+    if (didTargetChange && !isResizing) {
+      const travelDistance = previousTargetX === null ? 0 : Math.abs(targetLayout.x - previousTargetX);
+      const didIndicatorMove = travelDistance > 0;
+      const normalizedTravel = Math.min(1, travelDistance / STRETCH_DISTANCE_NORMALIZER_PX);
+      const stretchPeak = STRETCH_BASE_SCALE + normalizedTravel * STRETCH_SCALE_RANGE;
+
+      if (didIndicatorMove) {
+        resetIndicatorStretch();
+        stretchAnimation = Animated.sequence([
+          Animated.timing(indicatorScaleX, {
+            toValue: stretchPeak,
+            duration: Math.max(1, Math.floor(duration * STRETCH_GROW_RATIO)),
+            easing,
+            useNativeDriver: false,
+          }),
+          Animated.timing(indicatorScaleX, {
+            toValue: 1,
+            duration: Math.max(1, Math.ceil(duration * STRETCH_SHRINK_RATIO)),
+            easing,
+            useNativeDriver: false,
+          }),
+        ]);
+        stretchAnimation.start();
+      }
+    }
+
     return () => {
       animation?.stop();
+      stretchAnimation?.stop();
+      resetIndicatorStretch();
     };
   }, [
     duration,
     easing,
     indicatorTargetIndex,
+    resetIndicatorStretch,
+    indicatorScaleX,
     indicatorWidth,
     indicatorX,
     isResizing,
@@ -112,6 +167,7 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
   return {
     indicatorX,
     indicatorWidth,
+    indicatorScaleX,
     indicatorBackgroundColor,
   };
 }

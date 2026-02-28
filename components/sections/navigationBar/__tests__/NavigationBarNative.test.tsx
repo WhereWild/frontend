@@ -1,4 +1,5 @@
 import React from 'react';
+import { Animated } from 'react-native';
 import { render } from '@testing-library/react-native';
 import { IconSearch } from '@/assets/icons';
 import { Colors } from '@/constants/theme';
@@ -12,6 +13,10 @@ import {
 } from '../NavigationBarTab.native';
 
 describe('NavigationBar native behavior', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('renders NavigationBar module without crashing', () => {
     const { toJSON } = render(<NavigationBar />);
     expect(toJSON()).toBeTruthy();
@@ -26,6 +31,39 @@ describe('NavigationBar native behavior', () => {
     );
 
     expect(toJSON()).toBeTruthy();
+  });
+
+  it('animates tab foreground when tone/state key changes after mount', () => {
+    const start = jest.fn();
+    const stop = jest.fn();
+    const timingSpy = jest.spyOn(Animated, 'timing').mockReturnValue({
+      start,
+      stop,
+    } as unknown as Animated.CompositeAnimation);
+
+    const { rerender, unmount } = render(
+      <NavigationBarTab
+        label="Search"
+        icon={IconSearch}
+        state="default"
+        foregroundTone="default"
+      />,
+    );
+
+    rerender(
+      <NavigationBarTab
+        label="Search"
+        icon={IconSearch}
+        state="active"
+        foregroundTone="default"
+      />,
+    );
+
+    expect(timingSpy).toHaveBeenCalled();
+    expect(start).toHaveBeenCalled();
+
+    unmount();
+    expect(stop).toHaveBeenCalled();
   });
 
   it('covers visual-state helpers with exact native values', () => {

@@ -187,6 +187,7 @@ export function NavigationBar({
   const {
     indicatorX,
     indicatorWidth,
+    indicatorScaleX,
     indicatorBackgroundColor,
   } = useNavigationBarIndicator({
     tabs: stableTabs,
@@ -293,7 +294,7 @@ export function NavigationBar({
       style={[
         styles.activeIndicator,
         {
-          transform: [{ translateX: indicatorX }],
+          transform: [{ translateX: indicatorX }, { scaleX: indicatorScaleX }],
           width: indicatorWidth,
           top: activeLayout.y,
           height: activeLayout.height,
