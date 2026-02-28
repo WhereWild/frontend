@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useNavigationBarSelectionModel } from '../useNavigationBarSelectionModel';
 
 describe('useNavigationBarSelectionModel', () => {
@@ -50,6 +50,47 @@ describe('useNavigationBarSelectionModel', () => {
 
     expect(onPressHome).toHaveBeenCalledTimes(1);
     expect(result.current.activeIndex).toBe(1);
+  });
+
+  it('keeps controlled preview pinned until controlled active index catches up', async () => {
+    const onPressHome = jest.fn();
+    const onPressSearch = jest.fn();
+    type ControlledTab = {
+      key: string;
+      state: 'active' | 'default';
+      onPress: () => void;
+    };
+
+    let tabs: ControlledTab[] = [
+      { key: 'home', state: 'active' as const, onPress: onPressHome },
+      { key: 'search', state: 'default' as const, onPress: onPressSearch },
+    ];
+
+    const { result, rerender } = renderHook(
+      ({ tabs: hookTabs }: { tabs: ControlledTab[] }) => useNavigationBarSelectionModel({ tabs: hookTabs }),
+      {
+        initialProps: { tabs },
+      },
+    );
+
+    act(() => {
+      result.current.commitTabSelection(1);
+    });
+
+    expect(onPressSearch).toHaveBeenCalledTimes(1);
+    expect(result.current.activeIndex).toBe(0);
+    expect(result.current.previewIndex).toBe(1);
+
+    tabs = [
+      { key: 'home', state: 'default' as const, onPress: onPressHome },
+      { key: 'search', state: 'active' as const, onPress: onPressSearch },
+    ];
+    rerender({ tabs });
+
+    await waitFor(() => {
+      expect(result.current.activeIndex).toBe(1);
+      expect(result.current.previewIndex).toBeNull();
+    });
   });
 
   it('safely handles committing an out-of-range index', () => {

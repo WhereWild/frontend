@@ -58,4 +58,40 @@ describe('useNavigationBarLayoutModel', () => {
 
     expect(resolveTabVariant).not.toHaveBeenCalled();
   });
+
+  it('does not remeasure when width delta is below threshold', async () => {
+    const tabs = [{ key: 'home' }, { key: 'search' }];
+    const resolveTabVariant = jest.fn((availableWidth: number): 'horizontal' | 'vertical' =>
+      availableWidth >= 300 ? 'horizontal' : 'vertical');
+
+    const { result } = renderHook(() => useNavigationBarLayoutModel({
+      tabs,
+      tabKeys: ['home', 'search'],
+      resolveTabVariant,
+      resizeSettleDelayMs: 50,
+      remeasureThresholdPx: 1,
+    }));
+
+    act(() => {
+      result.current.handleTabsLayout(360, 56);
+      result.current.onTabWidthLayout('home', 120);
+      result.current.onTabWidthLayout('search', 120);
+      result.current.handleTabContainerLayout('home', { x: 0, y: 0, width: 120, height: 40 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+      expect(result.current.resolvedVariant).toBe('horizontal');
+    });
+
+    const stableLayoutsRef = result.current.tabLayouts;
+
+    act(() => {
+      result.current.handleTabContainerLayout('home', { x: 0, y: 0, width: 120, height: 40 });
+      result.current.handleTabsLayout(360.5, 56);
+    });
+
+    expect(result.current.tabLayouts).toBe(stableLayoutsRef);
+    expect(resolveTabVariant).toHaveBeenCalledTimes(1);
+  });
 });

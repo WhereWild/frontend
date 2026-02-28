@@ -82,7 +82,6 @@ describe('useNavigationBarPanResponder', () => {
     expect(setPreviewIndex).toHaveBeenCalledWith(0);
     expect(setPreviewIndex).toHaveBeenCalledWith(1);
     expect(commitTabSelection).toHaveBeenCalledWith(1);
-    expect(setPreviewIndex).toHaveBeenCalledWith(null);
 
     expect(result.current.shouldHandleTabPress()).toBe(false);
     expect(result.current.shouldHandleTabPress()).toBe(true);
@@ -152,7 +151,7 @@ describe('useNavigationBarPanResponder', () => {
     });
 
     expect(commitTabSelection).toHaveBeenCalledWith(0);
-    expect(setPreviewIndex).toHaveBeenLastCalledWith(null);
+    expect(setPreviewIndex).not.toHaveBeenCalledWith(null);
   });
 
   it('returns early when host ref is missing and when host measure is invalid', () => {

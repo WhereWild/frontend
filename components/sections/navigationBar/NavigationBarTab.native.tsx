@@ -131,7 +131,6 @@ export function NavigationBarTab({
     }
 
     foregroundOpacity.stopAnimation();
-    foregroundOpacity.setValue(0);
 
     const animation = Animated.timing(foregroundOpacity, {
       toValue: 1,

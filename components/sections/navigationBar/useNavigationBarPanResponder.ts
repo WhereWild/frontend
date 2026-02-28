@@ -136,7 +136,6 @@ export function useNavigationBarPanResponder({
       // Block the subsequent tab onPress from double-committing the same selection.
       suppressNextTabOnPressRef.current = true;
       commitTabSelection(releasedTabIndex);
-      setPreviewIndexTracked(null);
     },
     onPanResponderTerminate: () => {
       // Gesture was interrupted (e.g., parent took responder); reset touch/preview state.

@@ -67,7 +67,17 @@ export function useNavigationBarSelectionModel<TTab extends SelectableNavigation
     setInternalActiveIndex(controlledActiveIndex);
   }, [controlledActiveIndex, isControlled]);
 
-  /** Commits the selected tab and clears preview state. */
+  React.useEffect(() => {
+    if (!isControlled || previewIndex === null) {
+      return;
+    }
+
+    if (previewIndex === controlledActiveIndex) {
+      setPreviewIndex(null);
+    }
+  }, [controlledActiveIndex, isControlled, previewIndex]);
+
+  /** Commits the selected tab and executes tab onPress callback. */
   const commitTabSelection = React.useCallback((index: number) => {
     const tab = tabs[index];
 
@@ -78,9 +88,11 @@ export function useNavigationBarSelectionModel<TTab extends SelectableNavigation
 
     if (!isControlled) {
       setInternalActiveIndex(index);
+      setPreviewIndex(null);
+    } else {
+      setPreviewIndex(index);
     }
 
-    setPreviewIndex(null);
     tab.onPress?.();
   }, [isControlled, tabs]);
 
