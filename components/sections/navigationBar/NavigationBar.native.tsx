@@ -151,6 +151,10 @@ export function NavigationBar({
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const bottomInset = safeAreaInsets?.bottom ?? 0;
   const safeAreaBottomPadding = Math.max(bottomInset - DEFAULT_BOTTOM_PADDING, 0);
+  const safeAreaBottomPaddingAnimatedRef = React.useRef(
+    new Animated.Value(safeAreaBottomPadding),
+  );
+  const hasAnimatedSafeAreaPaddingRef = React.useRef(false);
   const tabKeys = React.useMemo(() => stableTabs.map((tab) => tab.key), [stableTabs]);
   const {
     activeIndex,
@@ -217,6 +221,27 @@ export function NavigationBar({
 
     commitTabSelection(index);
   }, [commitTabSelection, shouldHandleTabPress]);
+
+  React.useEffect(() => {
+    if (!hasAnimatedSafeAreaPaddingRef.current) {
+      hasAnimatedSafeAreaPaddingRef.current = true;
+      safeAreaBottomPaddingAnimatedRef.current.setValue(safeAreaBottomPadding);
+      return;
+    }
+
+    const animation = Animated.timing(safeAreaBottomPaddingAnimatedRef.current, {
+      toValue: safeAreaBottomPadding,
+      duration: NAV_ANIMATION_DURATION,
+      easing,
+      useNativeDriver: false,
+    });
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [easing, safeAreaBottomPadding]);
 
   React.useEffect(() => {
     measureTabsHostInWindow();
@@ -291,7 +316,7 @@ export function NavigationBar({
   ) : null;
 
   return (
-    <View
+    <Animated.View
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
       testID={testID}
@@ -300,7 +325,7 @@ export function NavigationBar({
         {
           backgroundColor: palette.background.default.secondary,
           borderTopColor: palette.border.default.secondary,
-          paddingBottom: safeAreaBottomPadding,
+          paddingBottom: safeAreaBottomPaddingAnimatedRef.current,
         },
         style,
       ]}
@@ -318,7 +343,7 @@ export function NavigationBar({
           {measuringLayerNode}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
