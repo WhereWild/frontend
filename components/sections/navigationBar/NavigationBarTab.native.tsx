@@ -6,12 +6,11 @@ import { IconSize } from '@/primitives/Icon';
 import { ThemedText } from '@/components/text/ThemedText';
 
 type NavigationBarTabVisualState = 'default' | 'active' | 'pressed';
+export type NavigationBarTabForegroundTone = 'default' | 'brand';
 
 type NavigationBarTabStyles = {
-  backgroundColor: string;
   textColor: string;
   iconColor: string;
-  borderWidth: number;
 };
 
 type NavigationBarTabIconElement = React.ReactElement<{ color?: string; size?: IconSize }>;
@@ -26,9 +25,13 @@ export type NavigationBarTabProps = {
   label: string;
   icon: NavigationBarTabIcon;
   state?: NavigationBarTabState;
+  foregroundTone?: NavigationBarTabForegroundTone;
   variant?: NavigationBarTabVariant;
   onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
   onLayout?: (width: number) => void;
+  onContainerLayout?: (layout: { x: number; y: number; width: number; height: number }) => void;
   accessibilityLabel?: string;
   testID?: string;
   disabled?: boolean;
@@ -61,27 +64,21 @@ const getVisualStyles = (
 
   if (visualState === 'active') {
     return {
-      backgroundColor: palette.background.brand.default,
       textColor: palette.text.brand.onBrand,
       iconColor: palette.icon.brand.onBrand,
-      borderWidth: 0,
     };
   }
 
   if (visualState === 'pressed') {
     return {
-      backgroundColor: palette.background.brand.pressed,
       textColor: palette.text.brand.onBrand,
       iconColor: palette.icon.brand.onBrand,
-      borderWidth: 0,
     };
   }
 
   return {
-    backgroundColor: 'transparent',
     textColor: palette.text.default.default,
     iconColor: palette.icon.default.default,
-    borderWidth: 0,
   };
 };
 
@@ -101,15 +98,20 @@ export function NavigationBarTab({
   label,
   icon,
   state = 'default',
+  foregroundTone = 'default',
   variant = 'horizontal',
   onPress,
+  onPressIn,
+  onPressOut,
   onLayout,
+  onContainerLayout,
   accessibilityLabel,
   testID,
   disabled = false,
   style,
 }: NavigationBarTabProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const isVertical = variant === 'vertical';
 
   return (
@@ -117,31 +119,41 @@ export function NavigationBarTab({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       disabled={disabled}
       testID={testID}
       style={style}
-      onLayout={(event) => onLayout?.(event.nativeEvent.layout.width)}
+      onLayout={(event) => {
+        const { width, height, x, y } = event.nativeEvent.layout;
+        onLayout?.(width);
+        onContainerLayout?.({ x, y, width, height });
+      }}
     >
       {({ pressed, hovered }) => {
         const visualState = resolveVisualState(state, pressed, hovered ?? false);
         const visualStyles = getVisualStyles(mode, visualState);
+        const foregroundColor = foregroundTone === 'brand'
+          ? palette.text.brand.default
+          : visualStyles.textColor;
 
         return (
           <View
             style={[
               styles.base,
               isVertical ? styles.vertical : styles.horizontal,
-              {
-                backgroundColor: visualStyles.backgroundColor,
-                borderWidth: visualStyles.borderWidth,
-              },
+              styles.visualReset,
             ]}
           >
-            {renderIcon(icon, visualStyles.iconColor, TAB_ICON_SIZE)}
+            {renderIcon(
+              icon,
+              foregroundTone === 'brand' ? palette.icon.brand.default : visualStyles.iconColor,
+              TAB_ICON_SIZE,
+            )}
             <ThemedText
               numberOfLines={1}
               variant="singleLineBodyTinyStrong"
-              style={{ color: visualStyles.textColor }}
+              style={{ color: foregroundColor }}
             >
               {label}
             </ThemedText>
@@ -173,6 +185,9 @@ const styles = StyleSheet.create({
     paddingBottom: Size.space['150'],
     paddingHorizontal: Size.space['200'],
     borderRadius: Size.radius['400'],
+  },
+  visualReset: {
+    backgroundColor: 'transparent',
   },
 });
 

@@ -1,5 +1,12 @@
 import React from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import {
+  Animated,
+  type LayoutChangeEvent,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import {
   IconBookmark,
   IconCompass,
@@ -7,7 +14,7 @@ import {
   IconSearch,
   IconSettings,
 } from '@/assets/icons';
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
@@ -17,11 +24,11 @@ import {
   type NavigationBarTabProps,
   type NavigationBarTabVariant,
 } from './NavigationBarTab';
-import {
-  getMeasuredWidthOrFallback,
-  hasAllTabMeasurements,
-  updateMeasuredTabWidths,
-} from './navigationBarMeasurement';
+import { getMeasuredWidthOrFallback } from './navigationBarMeasurement';
+import { useNavigationBarPanResponder } from './useNavigationBarPanResponder';
+import { useNavigationBarLayoutModel } from './useNavigationBarLayoutModel';
+import { useNavigationBarSelectionModel } from './useNavigationBarSelectionModel';
+import { useNavigationBarIndicator } from './useNavigationBarIndicator';
 
 type NavigationBarTabItem = {
   key: string;
@@ -33,10 +40,46 @@ type NavigationBarTabItem = {
   testID?: string;
 };
 
+const areNavigationTabItemsEqual = (
+  previous: NavigationBarTabItem,
+  next: NavigationBarTabItem,
+) => previous.key === next.key
+  && previous.label === next.label
+  && previous.icon === next.icon
+  && previous.state === next.state
+  && previous.onPress === next.onPress
+  && previous.accessibilityLabel === next.accessibilityLabel
+  && previous.testID === next.testID;
+
+const areNavigationTabsEqual = (
+  previousTabs: NavigationBarTabItem[],
+  nextTabs: NavigationBarTabItem[],
+) => previousTabs.length === nextTabs.length
+  && previousTabs.every((previousTab, index) => areNavigationTabItemsEqual(previousTab, nextTabs[index]!));
+
+// Keeps an internal stable tabs reference when callers pass a new array instance
+// with equivalent tab items, so downstream hook dependencies don't churn needlessly.
+const useStableNavigationTabs = (tabs: NavigationBarTabItem[]) => {
+  const stableTabsRef = React.useRef(tabs);
+
+  if (!areNavigationTabsEqual(stableTabsRef.current, tabs)) {
+    stableTabsRef.current = tabs;
+  }
+
+  return stableTabsRef.current;
+};
+
 export type NavigationBarProps = {
+  /**
+   * Ordered tab definitions to render in the bar.
+   * If at least one tab includes `state`, the component treats selection as controlled.
+   */
   tabs?: NavigationBarTabItem[];
+  /** Optional style override for the safe-area root container. */
   style?: StyleProp<ViewStyle>;
+  /** Accessibility label applied to the tablist container. */
   accessibilityLabel?: string;
+  /** Optional test id for the tablist root. */
   testID?: string;
 };
 
@@ -50,7 +93,11 @@ const DEFAULT_TABS: NavigationBarTabItem[] = [
 
 const TAB_GAP = Size.space['200'];
 const DEFAULT_BOTTOM_PADDING = Size.space['200'];
+const NAV_ANIMATION_DURATION = Time.duration.short;
+const RESIZE_SETTLE_DELAY_MS = Time.duration.short;
+const RESIZE_WIDTH_REMEASURE_THRESHOLD_PX = 1;
 
+/** Computes total horizontal space required from measured tab widths + fixed tab gaps. */
 const getRequiredHorizontalWidth = (
   tabCount: number,
   measuredTabWidths: Record<string, number>,
@@ -61,6 +108,7 @@ const getRequiredHorizontalWidth = (
   return totalTabWidth + totalGapWidth;
 };
 
+/** Returns true when the available width can fit all tabs in horizontal mode. */
 const shouldUseHorizontalVariant = (
   availableWidth: number,
   tabCount: number,
@@ -75,6 +123,7 @@ const shouldUseHorizontalVariant = (
   return availableWidth >= requiredWidth;
 };
 
+/** Resolves tab presentation variant based on available host width and measured tab widths. */
 const resolveTabVariant = (
   availableWidth: number,
   tabCount: number,
@@ -91,88 +140,155 @@ export function NavigationBar({
   accessibilityLabel = 'Navigation bar',
   testID,
 }: NavigationBarProps) {
+  // Interface contract:
+  // - Controlled mode: caller provides tab `state` and handles navigation in `onPress`.
+  // - Uncontrolled mode: internal active index updates on selection.
+  // - Drag/press gestures preview tabs and commit on release through tab `onPress`.
+  const stableTabs = useStableNavigationTabs(tabs);
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const responsive = useResponsive();
   const palette = Colors[mode];
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const bottomInset = safeAreaInsets?.bottom ?? 0;
   const safeAreaBottomPadding = Math.max(bottomInset - DEFAULT_BOTTOM_PADDING, 0);
-  // Most of this component's logic is width measurement: it measures tab widths,
-  // adds fixed tab gaps, and picks horizontal vs vertical based on available width.
-  const [availableWidth, setAvailableWidth] = React.useState<number | null>(null);
-  const [measuredTabWidths, setMeasuredTabWidths] = React.useState<Record<string, number>>({});
-  // Keep the last resolved variant visible while we perform hidden measurement for the next width.
-  const [resolvedVariant, setResolvedVariant] = React.useState<NavigationBarTabVariant>('horizontal');
-  // `true` only while the hidden horizontal layer is collecting measurements.
-  const [isMeasuring, setIsMeasuring] = React.useState(true);
-  const tabKeys = React.useMemo(() => tabs.map((tab) => tab.key), [tabs]);
+  const tabKeys = React.useMemo(() => stableTabs.map((tab) => tab.key), [stableTabs]);
+  const {
+    activeIndex,
+    previewIndex,
+    setPreviewIndex,
+    commitTabSelection,
+    resolveDerivedState,
+    resolveTabForegroundTone,
+  } = useNavigationBarSelectionModel({ tabs: stableTabs });
+  const indicatorTargetIndex = previewIndex ?? activeIndex;
+  const {
+    tabKeySignature,
+    resolvedVariant,
+    isMeasuring,
+    tabLayouts,
+    isResizingRef,
+    onTabWidthLayout,
+    handleTabsLayout,
+    handleTabContainerLayout,
+    getTabIndexAtPoint,
+  } = useNavigationBarLayoutModel({
+    tabs: stableTabs,
+    tabKeys,
+    resolveTabVariant,
+    resizeSettleDelayMs: RESIZE_SETTLE_DELAY_MS,
+    remeasureThresholdPx: RESIZE_WIDTH_REMEASURE_THRESHOLD_PX,
+  });
 
-  const onTabWidthLayout = React.useCallback((tabKey: string, width: number) => {
-    setMeasuredTabWidths((prev) => updateMeasuredTabWidths(prev, tabKeys, tabKey, width));
-  }, [tabKeys]);
+  const easing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
+  const {
+    indicatorX,
+    indicatorWidth,
+    indicatorBackgroundColor,
+  } = useNavigationBarIndicator({
+    tabs: stableTabs,
+    tabLayouts,
+    indicatorTargetIndex,
+    previewIndex,
+    isResizing: isResizingRef.current,
+    activeColor: palette.background.brand.default,
+    pressedColor: palette.background.brand.pressed,
+    duration: NAV_ANIMATION_DURATION,
+    easing,
+  });
+
+  const activeTab = stableTabs[activeIndex];
+  const activeLayout = activeTab ? tabLayouts[activeTab.key] : undefined;
+
+  const {
+    tabsHostRef,
+    measureTabsHostInWindow,
+    panHandlers,
+    shouldHandleTabPress,
+  } = useNavigationBarPanResponder({
+    getTabIndexAtPoint,
+    setPreviewIndex,
+    commitTabSelection,
+  });
+
+  const handleTabPress = React.useCallback((index: number) => {
+    if (!shouldHandleTabPress()) {
+      return;
+    }
+
+    commitTabSelection(index);
+  }, [commitTabSelection, shouldHandleTabPress]);
 
   React.useEffect(() => {
-    if (!isMeasuring || availableWidth === null) {
-      return;
-    }
+    measureTabsHostInWindow();
+  }, [measureTabsHostInWindow, resolvedVariant, tabKeySignature]);
 
-    if (tabs.length <= 1) {
-      setResolvedVariant('horizontal');
-      setIsMeasuring(false);
-      return;
-    }
+  const handleTabsHostLayout = React.useCallback((event: LayoutChangeEvent) => {
+    handleTabsLayout(event.nativeEvent.layout.width, event.nativeEvent.layout.height);
+    measureTabsHostInWindow();
+  }, [handleTabsLayout, measureTabsHostInWindow]);
 
-    const finalizeMeasurement = () => {
-      setResolvedVariant(resolveTabVariant(availableWidth, tabs.length, measuredTabWidths, tabKeys));
-      setIsMeasuring(false);
-    };
-
-    if (hasAllTabMeasurements(tabKeys, measuredTabWidths)) {
-      finalizeMeasurement();
-      return;
-    }
-
-    // On some RN/iPadOS resize frames, child onLayout callbacks can arrive one tick later.
-    // Finalizing on the next macrotask avoids getting stuck in measuring mode while still
-    // using whatever widths we have (with min-width fallback for missing tabs).
-    const finalizeWithFallback = setTimeout(finalizeMeasurement, 0);
-    return () => clearTimeout(finalizeWithFallback);
-  }, [availableWidth, isMeasuring, measuredTabWidths, tabKeys, tabs.length]);
-
-  const handleTabsLayout = React.useCallback((width: number) => {
-    if (width <= 0) {
-      return;
-    }
-
-    setAvailableWidth((prev) => {
-      if (prev === width) {
-        return prev;
-      }
-
-      // Re-measure only when width changes.
-      setMeasuredTabWidths({});
-      setIsMeasuring(true);
-      return width;
-    });
-  }, []);
+  const indicatorRadius = resolvedVariant === 'horizontal' ? Size.radius['full'] : Size.radius['400'];
 
   const renderTabs = React.useCallback(
     (variant: NavigationBarTabVariant, shouldMeasure: boolean) =>
-      tabs.map((tab) => (
-        <NavigationBarTab
-          key={`${shouldMeasure ? 'measure' : 'visible'}-${tab.key}`}
-          label={tab.label}
-          icon={tab.icon}
-          state={tab.state ?? 'default'}
-          variant={variant}
-          onPress={tab.onPress}
-          onLayout={shouldMeasure ? (width) => onTabWidthLayout(tab.key, width) : undefined}
-          accessibilityLabel={tab.accessibilityLabel ?? tab.label}
-          testID={tab.testID ?? `navigation-bar-tab-${tab.key}`}
-        />
-      )),
-    [onTabWidthLayout, tabs],
+      stableTabs.map((tab, index) => {
+        return (
+          <NavigationBarTab
+            key={`${shouldMeasure ? 'measure' : 'visible'}-${tab.key}`}
+            label={tab.label}
+            icon={tab.icon}
+            state={resolveDerivedState(index)}
+            foregroundTone={resolveTabForegroundTone(index)}
+            variant={variant}
+            onPress={shouldMeasure ? undefined : () => handleTabPress(index)}
+            onLayout={shouldMeasure ? (width) => onTabWidthLayout(tab.key, width) : undefined}
+            onContainerLayout={
+              shouldMeasure
+                ? undefined
+                : (layout) => handleTabContainerLayout(tab.key, layout)
+            }
+            accessibilityLabel={tab.accessibilityLabel ?? tab.label}
+            testID={tab.testID ?? `navigation-bar-tab-${tab.key}`}
+          />
+        );
+      }),
+    [
+      handleTabContainerLayout,
+      handleTabPress,
+      onTabWidthLayout,
+      resolveDerivedState,
+      resolveTabForegroundTone,
+      stableTabs,
+    ],
   );
+
+  const activeIndicatorNode = activeLayout ? (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.activeIndicator,
+        {
+          transform: [{ translateX: indicatorX }],
+          width: indicatorWidth,
+          top: activeLayout.y,
+          height: activeLayout.height,
+          borderRadius: indicatorRadius,
+          backgroundColor: indicatorBackgroundColor,
+        },
+      ]}
+    />
+  ) : null;
+
+  const measuringLayerNode = isMeasuring ? (
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.tabs, styles.hiddenMeasureLayer]}
+    >
+      {renderTabs('horizontal', true)}
+    </View>
+  ) : null;
 
   return (
     <View
@@ -191,20 +307,15 @@ export function NavigationBar({
     >
       <View style={[styles.barContainer, { marginHorizontal: responsive.marginHorizontal }]}>
         <View
+          ref={tabsHostRef}
           style={styles.tabsHost}
-          onLayout={(event) => handleTabsLayout(event.nativeEvent.layout.width)}
+          onLayout={handleTabsHostLayout}
+          onTouchStart={measureTabsHostInWindow}
+          {...panHandlers}
         >
+          {activeIndicatorNode}
           <View style={styles.tabs}>{renderTabs(resolvedVariant, false)}</View>
-          {isMeasuring ? (
-            <View
-              pointerEvents="none"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={[styles.tabs, styles.hiddenMeasureLayer]}
-            >
-              {renderTabs('horizontal', true)}
-            </View>
-          ) : null}
+          {measuringLayerNode}
         </View>
       </View>
     </View>
@@ -233,6 +344,11 @@ const styles = StyleSheet.create({
     maxWidth: 640,
     position: 'relative',
   },
+  activeIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
   hiddenMeasureLayer: {
     position: 'absolute',
     left: 0,
@@ -245,4 +361,5 @@ const styles = StyleSheet.create({
 export const __NAVIGATION_BAR_TESTING__ = {
   getRequiredHorizontalWidth,
   shouldUseHorizontalVariant,
+  areNavigationTabsEqual,
 };

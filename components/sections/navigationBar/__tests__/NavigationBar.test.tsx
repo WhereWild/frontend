@@ -16,6 +16,8 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 describe('NavigationBar', () => {
+  const createdRenderers: ReturnType<typeof create>[] = [];
+
   const createRenderer = (element: React.ReactElement) => {
     let renderer: ReturnType<typeof create> | undefined;
     act(() => {
@@ -24,8 +26,16 @@ describe('NavigationBar', () => {
     if (!renderer) {
       throw new Error('NavigationBar renderer was not created.');
     }
+
+    createdRenderers.push(renderer);
     return renderer;
   };
+
+  afterEach(() => {
+    act(() => {
+      createdRenderers.splice(0).forEach((renderer) => renderer.unmount());
+    });
+  });
 
   const getTabVariants = (renderer: ReturnType<typeof create>) =>
     renderer.root

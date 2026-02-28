@@ -6,6 +6,7 @@ import { IconSize } from '@/primitives/Icon';
 // Keeps shared imports type-safe while intentionally rendering nothing.
 
 type NavigationBarTabVisualState = 'default' | 'active' | 'pressed';
+export type NavigationBarTabForegroundTone = 'default' | 'brand';
 
 type NavigationBarTabStyles = {
   backgroundColor: string;
@@ -26,9 +27,13 @@ export type NavigationBarTabProps = {
   label: string;
   icon: NavigationBarTabIcon;
   state?: NavigationBarTabState;
+  foregroundTone?: NavigationBarTabForegroundTone;
   variant?: NavigationBarTabVariant;
   onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
   onLayout?: (width: number) => void;
+  onContainerLayout?: (layout: { x: number; y: number; width: number; height: number }) => void;
   accessibilityLabel?: string;
   testID?: string;
   disabled?: boolean;

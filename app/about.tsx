@@ -37,7 +37,7 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
 import { usePathname, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
@@ -386,13 +386,13 @@ export default function About() {
     </View>
   );
 
-  const navigateIfDifferent = (targetPath: '/' | '/about' | '/search') => {
+  const navigateIfDifferent = useCallback((targetPath: '/' | '/about' | '/search') => {
     if (pathname !== targetPath) {
       router.push(targetPath);
     }
-  };
+  }, [pathname, router]);
 
-  const navigationTabs: NonNullable<NavigationBarProps['tabs']> = [
+  const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(() => [
     {
       key: 'home',
       label: 'Home',
@@ -433,7 +433,7 @@ export default function About() {
       onPress: noop,
       accessibilityLabel: 'Settings tab',
     },
-  ];
+  ], [navigateIfDifferent, pathname]);
 
   return (
     <>

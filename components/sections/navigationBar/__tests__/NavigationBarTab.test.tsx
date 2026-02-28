@@ -98,25 +98,21 @@ describe('NavigationBarTab', () => {
     expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, false)).toBe('default');
   });
 
-  it('uses expected token colors for active and default states', () => {
+  it('uses expected token colors for active and default foreground states', () => {
     const active = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('light', 'active');
     const pressed = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('light', 'pressed');
     const idle = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('light', 'default');
     const darkIdle = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('dark', 'default');
 
-    expect(active.backgroundColor).toBe(Colors.light.background.brand.default);
     expect(active.textColor).toBe(Colors.light.text.brand.onBrand);
     expect(active.iconColor).toBe(Colors.light.icon.brand.onBrand);
 
-    expect(pressed.backgroundColor).toBe(Colors.light.background.brand.pressed);
     expect(pressed.textColor).toBe(Colors.light.text.brand.onBrand);
     expect(pressed.iconColor).toBe(Colors.light.icon.brand.onBrand);
 
-    expect(idle.backgroundColor).toBe('transparent');
     expect(idle.textColor).toBe(Colors.light.text.default.default);
     expect(idle.iconColor).toBe(Colors.light.icon.default.default);
 
-    expect(darkIdle.backgroundColor).toBe('transparent');
     expect(darkIdle.textColor).toBe(Colors.dark.text.default.default);
     expect(darkIdle.iconColor).toBe(Colors.dark.icon.default.default);
   });

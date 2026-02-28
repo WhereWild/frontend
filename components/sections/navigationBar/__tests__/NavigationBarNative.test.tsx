@@ -39,17 +39,13 @@ describe('NavigationBar native behavior', () => {
     const darkStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('dark', 'pressed');
 
     expect(lightStyles).toEqual({
-      backgroundColor: 'transparent',
       textColor: Colors.light.text.default.default,
       iconColor: Colors.light.icon.default.default,
-      borderWidth: 0,
     });
 
     expect(darkStyles).toEqual({
-      backgroundColor: Colors.dark.background.brand.pressed,
       textColor: Colors.dark.text.brand.onBrand,
       iconColor: Colors.dark.icon.brand.onBrand,
-      borderWidth: 0,
     });
   });
 
@@ -98,5 +94,58 @@ describe('NavigationBar native behavior', () => {
       ),
     ).toBe(false);
     expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['one'])).toBe(true);
+  });
+
+  it('treats tabs arrays with equivalent item identities as equal', () => {
+    const sharedOnPress = jest.fn();
+    const first = [
+      {
+        key: 'search',
+        label: 'Search',
+        icon: IconSearch,
+        state: 'default' as const,
+        onPress: sharedOnPress,
+        accessibilityLabel: 'Search tab',
+      },
+    ];
+
+    const second = [
+      {
+        key: 'search',
+        label: 'Search',
+        icon: IconSearch,
+        state: 'default' as const,
+        onPress: sharedOnPress,
+        accessibilityLabel: 'Search tab',
+      },
+    ];
+
+    expect(__NAVIGATION_BAR_TESTING__.areNavigationTabsEqual(first, second)).toBe(true);
+  });
+
+  it('treats tabs arrays with changed onPress identity as different', () => {
+    const first = [
+      {
+        key: 'search',
+        label: 'Search',
+        icon: IconSearch,
+        state: 'default' as const,
+        onPress: jest.fn(),
+        accessibilityLabel: 'Search tab',
+      },
+    ];
+
+    const second = [
+      {
+        key: 'search',
+        label: 'Search',
+        icon: IconSearch,
+        state: 'default' as const,
+        onPress: jest.fn(),
+        accessibilityLabel: 'Search tab',
+      },
+    ];
+
+    expect(__NAVIGATION_BAR_TESTING__.areNavigationTabsEqual(first, second)).toBe(false);
   });
 });
