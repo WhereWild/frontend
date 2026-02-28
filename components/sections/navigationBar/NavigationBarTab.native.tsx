@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     minWidth: 64,
     paddingTop: Size.space['200'],
     paddingBottom: Size.space['150'],
-    paddingHorizontal: Size.space['200'],
+    paddingHorizontal: Size.space['300'],
     borderRadius: Size.radius['400'],
   },
   visualReset: {

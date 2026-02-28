@@ -189,11 +189,11 @@ export default function RootLayout() {
     },
     {
       key: 'about',
-      label: 'About',
+      label: 'Components',
       icon: IconInfo,
       state: activeTabPath === '/about' ? 'active' : 'default' as const,
       onPress: () => navigateIfDifferent('/about'),
-      accessibilityLabel: 'About tab',
+      accessibilityLabel: 'Component playground tab',
     },
     {
       key: 'settings',
