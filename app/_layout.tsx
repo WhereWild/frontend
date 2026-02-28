@@ -20,6 +20,7 @@ import {
   NavigationBar,
   type NavigationBarProps,
 } from '@/components';
+import { Time } from '@/constants/theme';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -29,7 +30,7 @@ export default function RootLayout() {
   const pathname = usePathname();
   const navigateIfDifferent = useCallback((targetPath: '/' | '/about' | '/search' | '/settings') => {
     if (pathname !== targetPath) {
-      router.push(targetPath);
+      router.replace(targetPath);
     }
   }, [pathname, router]);
 
@@ -85,7 +86,7 @@ export default function RootLayout() {
     <SettingsProvider>
       <View style={styles.appShell}>
         <View style={styles.content}>
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
         </View>
         <NavigationBar tabs={navigationTabs} />
       </View>

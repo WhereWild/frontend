@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react-native';
 import RootLayout from '../_layout';
 import { useFonts } from 'expo-font';
 import { usePathname, useRouter } from 'expo-router';
+import { Time } from '@/constants/theme';
 
 jest.mock('expo-font', () => ({
   useFonts: jest.fn(),
@@ -52,6 +53,10 @@ describe('Root layout', () => {
     render(<RootLayout />);
 
     expect(screen.getByTestId('app-stack')).toBeTruthy();
-    expect(recordedStackProps.at(-1)?.screenOptions).toEqual({ headerShown: false });
+    expect(recordedStackProps.at(-1)?.screenOptions).toEqual({
+      headerShown: false,
+      animation: 'fade',
+      animationDuration: Time.duration.short,
+    });
   });
 });
