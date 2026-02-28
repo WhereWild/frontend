@@ -1,4 +1,12 @@
-import React from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react';
 import type { NavigationBarTabVariant } from './NavigationBarTab';
 import {
   findTabIndexAtPoint,
@@ -45,7 +53,7 @@ export type NavigationBarLayoutModel = {
   /** Measured frame map for visible tabs used by hit-testing and indicator placement. */
   tabLayouts: Record<string, TabLayout>;
   /** Mutable flag indicating live resize mode for indicator snap behavior. */
-  isResizingRef: React.MutableRefObject<boolean>;
+  isResizingRef: MutableRefObject<boolean>;
   /** Width measurement callback for a tab key. */
   onTabWidthLayout: (tabKey: string, width: number) => void;
   /** Host layout callback that updates resize state and measurement pipeline. */
@@ -67,17 +75,17 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
   resizeSettleDelayMs,
   remeasureThresholdPx,
 }: UseNavigationBarLayoutModelParams<TTab>): NavigationBarLayoutModel {
-  const tabKeySignature = React.useMemo(() => tabKeys.join('|'), [tabKeys]);
-  const [availableWidth, setAvailableWidth] = React.useState<number | null>(null);
-  const [measuredTabWidths, setMeasuredTabWidths] = React.useState<Record<string, number>>({});
-  const [resolvedVariant, setResolvedVariant] = React.useState<NavigationBarTabVariant>('horizontal');
-  const [isMeasuring, setIsMeasuring] = React.useState(true);
-  const [tabLayouts, setTabLayouts] = React.useState<Record<string, TabLayout>>({});
-  const lastHostLayoutRef = React.useRef<HostLayout | null>(null);
-  const isResizingRef = React.useRef(false);
-  const resizeSettleTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabKeySignature = useMemo(() => tabKeys.join('|'), [tabKeys]);
+  const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+  const [measuredTabWidths, setMeasuredTabWidths] = useState<Record<string, number>>({});
+  const [resolvedVariant, setResolvedVariant] = useState<NavigationBarTabVariant>('horizontal');
+  const [isMeasuring, setIsMeasuring] = useState(true);
+  const [tabLayouts, setTabLayouts] = useState<Record<string, TabLayout>>({});
+  const lastHostLayoutRef = useRef<HostLayout | null>(null);
+  const isResizingRef = useRef(false);
+  const resizeSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearResizeSettleTimeout = React.useCallback(() => {
+  const clearResizeSettleTimeout = useCallback(() => {
     if (!resizeSettleTimeoutRef.current) {
       return;
     }
@@ -86,18 +94,18 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
     resizeSettleTimeoutRef.current = null;
   }, []);
 
-  React.useLayoutEffect(() => {
+  useLayoutEffect(() => {
     setTabLayouts({});
   }, [tabKeySignature]);
 
-  React.useEffect(() => clearResizeSettleTimeout, [clearResizeSettleTimeout]);
+  useEffect(() => clearResizeSettleTimeout, [clearResizeSettleTimeout]);
 
   /** Captures measured tab width for horizontal/vertical variant resolution. */
-  const onTabWidthLayout = React.useCallback((tabKey: string, width: number) => {
+  const onTabWidthLayout = useCallback((tabKey: string, width: number) => {
     setMeasuredTabWidths((previous) => updateMeasuredTabWidths(previous, tabKeys, tabKey, width));
   }, [tabKeys]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isMeasuring || availableWidth === null) {
       return;
     }
@@ -125,7 +133,7 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
   }, [availableWidth, isMeasuring, measuredTabWidths, resolveTabVariant, tabKeys, tabs.length]);
 
   /** Handles host layout changes and starts/stops the short resize session window. */
-  const handleTabsLayout = React.useCallback((width: number, height: number) => {
+  const handleTabsLayout = useCallback((width: number, height: number) => {
     if (width <= 0 || height <= 0) {
       return;
     }
@@ -157,7 +165,7 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
   }, [clearResizeSettleTimeout, remeasureThresholdPx, resizeSettleDelayMs]);
 
   /** Stores each visible tab frame for hit-testing and indicator positioning. */
-  const handleTabContainerLayout = React.useCallback((tabKey: string, layout: TabLayout) => {
+  const handleTabContainerLayout = useCallback((tabKey: string, layout: TabLayout) => {
     setTabLayouts((previous) => {
       const existing = previous[tabKey];
 
@@ -179,7 +187,7 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
   }, []);
 
   /** Converts local x/y points into tab indices using latest measured frames. */
-  const getTabIndexAtPoint = React.useCallback((x: number, y: number): number | null =>
+  const getTabIndexAtPoint = useCallback((x: number, y: number): number | null =>
     findTabIndexAtPoint(tabs, tabLayouts, x, y), [tabLayouts, tabs]);
 
   return {
