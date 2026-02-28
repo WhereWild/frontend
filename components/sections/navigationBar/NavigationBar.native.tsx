@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     borderTopWidth: Size.stroke.border,
   },
   barContainer: {
-    height: 80,
+    height: Size.bar.height.tall,
     paddingVertical: Size.space['200'],
     alignItems: 'center',
     justifyContent: 'center',
