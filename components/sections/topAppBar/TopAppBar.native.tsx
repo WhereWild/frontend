@@ -21,7 +21,6 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 export type { TopAppBarProps, TopAppBarVariant } from './TopAppBar.types';
 
-const TOP_APP_BAR_HEIGHT = 64;
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 const DEFAULT_SECONDARY_ACTION_ICON = <IconRotateCcw />;
 const DEFAULT_PRIMARY_ACTION_ICON = <IconFilter />;
@@ -155,7 +154,7 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    height: TOP_APP_BAR_HEIGHT,
+    height: Size.bar.height.short,
     paddingVertical: Size.space['200'],
     flexDirection: 'row',
     alignItems: 'center',
