@@ -46,6 +46,25 @@ describe('NavigationBar', () => {
   const getMeasuringTabNodes = (renderer: ReturnType<typeof create>) =>
     renderer.root.findAllByType(NavigationBarTab).filter((node) => typeof node.props.onLayout === 'function');
 
+  const getVisibleTabNodes = (renderer: ReturnType<typeof create>) =>
+    renderer.root.findAllByType(NavigationBarTab).filter((node) => typeof node.props.onContainerLayout === 'function');
+
+  const getActiveIndicatorNodes = (renderer: ReturnType<typeof create>) =>
+    renderer.root.findAll((node) => {
+      if (node.props.pointerEvents !== 'none') {
+        return false;
+      }
+
+      const style = node.props.style;
+      if (!Array.isArray(style)) {
+        return false;
+      }
+
+      return style.some(
+        (entry) => entry && typeof entry === 'object' && 'transform' in entry && 'backgroundColor' in entry,
+      );
+    });
+
   const getTabsLayoutView = (renderer: ReturnType<typeof create>) => {
     const layoutView = renderer.root
       .findAllByType(View)
@@ -314,6 +333,47 @@ describe('NavigationBar', () => {
     ]);
 
     expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+  });
+
+  it('shows active indicator after initial horizontal measurement without resize', () => {
+    const renderer = createRenderer(<NavigationBar />);
+    const tabsLayoutView = getTabsLayoutView(renderer);
+
+    act(() => {
+      tabsLayoutView.props.onLayout({
+        nativeEvent: {
+          layout: {
+            width: 620,
+            height: 56,
+          },
+        },
+      });
+    });
+
+    measureAllTabs(renderer, [
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+    ]);
+
+    const visibleTabs = getVisibleTabNodes(renderer);
+
+    act(() => {
+      visibleTabs.forEach((tab, index) => {
+        tab.props.onContainerLayout?.({
+          x: index * (HORIZONTAL_MIN_TAB_WIDTH + TAB_GAP),
+          y: 0,
+          width: HORIZONTAL_MIN_TAB_WIDTH,
+          height: 40,
+        });
+      });
+    });
+
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
+    expect(getActiveIndicatorNodes(renderer).length).toBeGreaterThan(0);
   });
 
   it('keeps measuring state unchanged when layout width is zero', () => {

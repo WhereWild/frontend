@@ -86,7 +86,7 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
     resizeSettleTimeoutRef.current = null;
   }, []);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     setTabLayouts({});
   }, [tabKeySignature]);
 
@@ -95,7 +95,7 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
   /** Captures measured tab width for horizontal/vertical variant resolution. */
   const onTabWidthLayout = React.useCallback((tabKey: string, width: number) => {
     setMeasuredTabWidths((previous) => updateMeasuredTabWidths(previous, tabKeys, tabKey, width));
-  }, [tabKeySignature]);
+  }, [tabKeys]);
 
   React.useEffect(() => {
     if (!isMeasuring || availableWidth === null) {
