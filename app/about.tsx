@@ -3,11 +3,6 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconDownload,
-  IconHelpCircle,
-  IconHome,
-  IconInfo,
-  IconSearch,
-  IconSettings,
   IconStar,
   IconTrash,
 } from '@/assets/icons';
@@ -15,7 +10,6 @@ import {
   Button,
   ButtonDanger,
   IconButton,
-  NavigationBar,
   NavigationPillList,
   NearbySpeciesCarousel,
   WebPageHeader,
@@ -28,16 +22,15 @@ import {
   Tabs,
   ThemedText,
 } from '@/components';
-import type { ButtonProps, NavigationBarProps } from '@/components';
+import type { ButtonProps } from '@/components';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
-import { usePathname, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
-import { useCallback, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
@@ -102,8 +95,6 @@ export default function About() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const router = useRouter();
-  const pathname = usePathname();
   const responsive = useResponsive();
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
@@ -385,55 +376,6 @@ export default function About() {
       <ThemedText variant="body">{content}</ThemedText>
     </View>
   );
-
-  const navigateIfDifferent = useCallback((targetPath: '/' | '/about' | '/search') => {
-    if (pathname !== targetPath) {
-      router.push(targetPath);
-    }
-  }, [pathname, router]);
-
-  const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(() => [
-    {
-      key: 'home',
-      label: 'Home',
-      icon: IconHome,
-      state: pathname === '/' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/'),
-      accessibilityLabel: 'Home tab',
-    },
-    {
-      key: 'search',
-      label: 'Search',
-      icon: IconSearch,
-      state: pathname === '/search' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/search'),
-      accessibilityLabel: 'Search tab',
-    },
-    {
-      key: 'help',
-      label: 'Help',
-      icon: IconHelpCircle,
-      state: 'default' as const,
-      onPress: noop,
-      accessibilityLabel: 'Help tab',
-    },
-    {
-      key: 'about',
-      label: 'About',
-      icon: IconInfo,
-      state: pathname === '/about' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/about'),
-      accessibilityLabel: 'About tab',
-    },
-    {
-      key: 'settings',
-      label: 'Settings',
-      icon: IconSettings,
-      state: 'default' as const,
-      onPress: noop,
-      accessibilityLabel: 'Settings tab',
-    },
-  ], [navigateIfDifferent, pathname]);
 
   return (
     <>
@@ -837,7 +779,6 @@ export default function About() {
           </View>
           </ScrollView>
         </View>
-        <NavigationBar tabs={navigationTabs} />
       </View>
     </>
   );
