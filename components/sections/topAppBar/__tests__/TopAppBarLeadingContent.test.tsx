@@ -1,9 +1,17 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { IconFilter } from '@/assets/icons';
-import { LeadingContent, PrimaryAction } from '../TopAppBarParts.native';
+import { LeadingContent } from '../TopAppBarLeadingContent.native';
+import { mockAnimatedTiming } from '../topAppBarTestUtils';
 
-describe('TopAppBarParts', () => {
+describe('TopAppBarLeadingContent', () => {
+  beforeAll(() => {
+    mockAnimatedTiming();
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
   it('renders search leading content with default placeholder and calls search handlers', () => {
     const onSearchValueChange = jest.fn();
     const onSubmitSearch = jest.fn();
@@ -74,54 +82,42 @@ describe('TopAppBarParts', () => {
     expect(onPressLogo).toHaveBeenCalledTimes(1);
   });
 
-  it('returns null when primary action is disabled by hasPrimaryButton=false', () => {
-    const { toJSON } = render(
-      <PrimaryAction
-        hasPrimaryButton={false}
-        shouldRenderPrimaryAsIcon={false}
-        primaryButtonIcon={<IconFilter />}
-        onPressPrimaryButton={jest.fn()}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+  it('transitions leading content from page to search and back to page', () => {
+    const onSearchValueChange = jest.fn();
+    const onSubmitSearch = jest.fn();
+
+    const { rerender } = render(
+      <LeadingContent
+        variant="page"
+        title="Species"
+        onPressBack={jest.fn()}
       />,
     );
 
-    expect(toJSON()).toBeNull();
-  });
-
-  it('renders primary icon action and disables it when no handler is provided', () => {
-    render(
-      <PrimaryAction
-        hasPrimaryButton={true}
-        shouldRenderPrimaryAsIcon={true}
-        primaryButtonIcon={<IconFilter />}
-        onPressPrimaryButton={undefined}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+    rerender(
+      <LeadingContent
+        variant="search"
+        searchValue=""
+        onSearchValueChange={onSearchValueChange}
+        onSubmitSearch={onSubmitSearch}
       />,
     );
 
-    expect(screen.getByLabelText('Filter action')).toBeDisabled();
-  });
+    const searchInput = screen.getByLabelText('Search input');
+    fireEvent.changeText(searchInput, 'fox');
+    fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: 'fox' } });
+    expect(onSearchValueChange).toHaveBeenCalledWith('fox');
+    expect(onSubmitSearch).toHaveBeenCalledWith('fox');
 
-  it('renders primary text action and calls handler on press', () => {
-    const onPressPrimaryButton = jest.fn();
-
-    render(
-      <PrimaryAction
-        hasPrimaryButton={true}
-        shouldRenderPrimaryAsIcon={false}
-        primaryButtonIcon={<IconFilter />}
-        onPressPrimaryButton={onPressPrimaryButton}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+    rerender(
+      <LeadingContent
+        variant="page"
+        title="Species Details"
+        onPressBack={jest.fn()}
       />,
     );
 
-    fireEvent.press(screen.getByLabelText('Filter'));
-    expect(onPressPrimaryButton).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText('Search input')).toBeNull();
+    expect(screen.getByText('Species Details')).toBeTruthy();
   });
 });

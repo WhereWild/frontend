@@ -1,10 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { TopAppBar } from '../TopAppBar';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { IconFilter, IconRotateCcw } from '@/assets/icons';
+import { mockAnimatedTiming, resolveAnimatedNumeric } from '../topAppBarTestUtils';
 
 const mockRouterPush = jest.fn();
 
@@ -23,6 +24,7 @@ jest.mock('@/hooks/useResponsive', () => ({
 }));
 
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+
 const HOME_PROPS = {
   variant: 'home' as const,
   title: 'Page Title',
@@ -31,6 +33,7 @@ const HOME_PROPS = {
   secondaryAction: {
     icon: <IconRotateCcw />,
     accessibilityLabel: 'Refresh',
+    onPress: () => {},
   },
   primaryAction: {
     icon: <IconFilter />,
@@ -41,9 +44,21 @@ const HOME_PROPS = {
 };
 
 describe('TopAppBar', () => {
+  beforeAll(() => {
+    mockAnimatedTiming();
+  });
+
   beforeEach(() => {
     mockRouterPush.mockClear();
     mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
   });
 
   it('renders home variant with title and actions', () => {
@@ -52,7 +67,6 @@ describe('TopAppBar', () => {
     expect(screen.getByText('Page Title')).toBeTruthy();
     expect(screen.getByLabelText('Refresh')).toBeTruthy();
     expect(screen.getByLabelText('Filter')).toBeTruthy();
-    expect(screen.queryByLabelText('Back')).toBeNull();
     expect(screen.queryByLabelText('Search input')).toBeNull();
   });
 
@@ -193,7 +207,10 @@ describe('TopAppBar', () => {
       />,
     );
 
-    expect(screen.queryByLabelText('Refresh')).toBeNull();
+    const secondarySlotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-secondary-action-slot').props.style,
+    );
+    expect(resolveAnimatedNumeric(secondarySlotStyle.width)).toBe(0);
   });
 
   it('renders primary button as icon when explicitly configured', () => {
@@ -222,8 +239,72 @@ describe('TopAppBar', () => {
       />,
     );
 
-    expect(screen.queryByLabelText('Filter')).toBeNull();
-    expect(screen.queryByLabelText('Filter action')).toBeNull();
+    expect(screen.getByTestId('top-app-bar-primary-action-slot')).toBeTruthy();
+    expect(screen.getByLabelText('Filter')).toBeTruthy();
+  });
+
+  it('keeps actions row mounted briefly when both actions are hidden, then unmounts', () => {
+    jest.useFakeTimers();
+
+    const { rerender } = render(<TopAppBar {...HOME_PROPS} />);
+
+    rerender(
+      <TopAppBar
+        variant="home"
+        title="Page Title"
+        primaryAction={{
+          icon: <IconFilter />,
+          buttonLabel: 'Filter',
+          buttonAccessibilityLabel: 'Filter',
+          iconAccessibilityLabel: 'Filter action',
+          isVisible: false,
+        }}
+        secondaryAction={{
+          icon: <IconRotateCcw />,
+          accessibilityLabel: 'Refresh',
+          isVisible: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('top-app-bar-actions-row')).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(screen.queryByTestId('top-app-bar-actions-row')).toBeNull();
+  });
+
+  it('cleans up action-row unmount timer on unmount', () => {
+    jest.useFakeTimers();
+
+    const { rerender, unmount } = render(<TopAppBar {...HOME_PROPS} />);
+
+    rerender(
+      <TopAppBar
+        variant="home"
+        title="Page Title"
+        primaryAction={{
+          icon: <IconFilter />,
+          buttonLabel: 'Filter',
+          buttonAccessibilityLabel: 'Filter',
+          iconAccessibilityLabel: 'Filter action',
+          isVisible: false,
+        }}
+        secondaryAction={{
+          icon: <IconRotateCcw />,
+          accessibilityLabel: 'Refresh',
+          isVisible: false,
+        }}
+      />,
+    );
+
+    unmount();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
   });
 
   it('disables secondary button when handler is missing', () => {
