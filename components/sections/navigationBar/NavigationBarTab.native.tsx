@@ -1,9 +1,10 @@
 import React from 'react';
-import { Animated, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
-import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
+import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
+import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSize } from '@/primitives/Icon';
 import { ThemedText } from '@/components/text/ThemedText';
+import { useNavigationBarTabForegroundTransition } from './useNavigationBarTabForegroundTransition';
 
 type NavigationBarTabVisualState = 'default' | 'active' | 'pressed';
 export type NavigationBarTabForegroundTone = 'default' | 'brand';
@@ -39,7 +40,6 @@ export type NavigationBarTabProps = {
 };
 
 const TAB_ICON_SIZE: IconSize = '24';
-const FOREGROUND_FADE_DURATION = Time.duration.medium;
 
 const resolveVisualState = (
   state: NavigationBarTabState,
@@ -61,16 +61,16 @@ const getVisualStyles = (
   mode: 'light' | 'dark',
   visualState: NavigationBarTabVisualState,
 ): NavigationBarTabStyles => {
+  return resolveDefaultOrOnBrandStyles(mode, visualState !== 'default');
+};
+
+const resolveDefaultOrOnBrandStyles = (
+  mode: 'light' | 'dark',
+  isOnBrand: boolean,
+): NavigationBarTabStyles => {
   const palette = Colors[mode];
 
-  if (visualState === 'active') {
-    return {
-      textColor: palette.text.brand.onBrand,
-      iconColor: palette.icon.brand.onBrand,
-    };
-  }
-
-  if (visualState === 'pressed') {
+  if (isOnBrand) {
     return {
       textColor: palette.text.brand.onBrand,
       iconColor: palette.icon.brand.onBrand,
@@ -81,6 +81,23 @@ const getVisualStyles = (
     textColor: palette.text.default.default,
     iconColor: palette.icon.default.default,
   };
+};
+
+const resolveForegroundColors = (
+  mode: 'light' | 'dark',
+  state: NavigationBarTabState,
+  foregroundTone: NavigationBarTabForegroundTone,
+): NavigationBarTabStyles => {
+  const palette = Colors[mode];
+
+  if (foregroundTone === 'brand') {
+    return {
+      textColor: palette.text.brand.default,
+      iconColor: palette.icon.brand.default,
+    };
+  }
+
+  return resolveDefaultOrOnBrandStyles(mode, state !== 'default');
 };
 
 const renderIcon = (icon: NavigationBarTabIcon, color: string, size: IconSize) => {
@@ -112,39 +129,20 @@ export function NavigationBarTab({
   style,
 }: NavigationBarTabProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
   const isVertical = variant === 'vertical';
-  const foregroundOpacity = React.useRef(new Animated.Value(1)).current;
-  const hasAnimatedForegroundRef = React.useRef(false);
-  const fadeEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
-
+  const targetForegroundColors = React.useMemo(
+    () => resolveForegroundColors(mode, state, foregroundTone),
+    [foregroundTone, mode, state],
+  );
   const foregroundAnimationKey = foregroundTone === 'brand'
     ? `${mode}|brand`
     : state === 'default'
       ? `${mode}|default`
       : `${mode}|on-brand`;
-
-  React.useEffect(() => {
-    if (!hasAnimatedForegroundRef.current) {
-      hasAnimatedForegroundRef.current = true;
-      return;
-    }
-
-    foregroundOpacity.stopAnimation();
-
-    const animation = Animated.timing(foregroundOpacity, {
-      toValue: 1,
-      duration: FOREGROUND_FADE_DURATION,
-      easing: fadeEasing,
-      useNativeDriver: true,
-    });
-
-    animation.start();
-
-    return () => {
-      animation.stop();
-    };
-  }, [fadeEasing, foregroundAnimationKey, foregroundOpacity]);
+  const animatedForegroundColors = useNavigationBarTabForegroundTransition({
+    targetColors: targetForegroundColors,
+    animationKey: foregroundAnimationKey,
+  });
 
   return (
     <Pressable
@@ -165,12 +163,13 @@ export function NavigationBarTab({
       {({ pressed, hovered }) => {
         const visualState = resolveVisualState(state, pressed, hovered ?? false);
         const visualStyles = getVisualStyles(mode, visualState);
-        const foregroundColor = foregroundTone === 'brand'
-          ? palette.text.brand.default
-          : visualStyles.textColor;
-        const iconColor = foregroundTone === 'brand'
-          ? palette.icon.brand.default
-          : visualStyles.iconColor;
+        const hasInteractiveOverride = foregroundTone === 'default' && visualState !== state;
+        const foregroundColor = hasInteractiveOverride
+          ? visualStyles.textColor
+          : animatedForegroundColors.textColor;
+        const iconColor = hasInteractiveOverride
+          ? visualStyles.iconColor
+          : animatedForegroundColors.iconColor;
 
         return (
           <View
@@ -180,8 +179,8 @@ export function NavigationBarTab({
               styles.visualReset,
             ]}
           >
-            <Animated.View style={{ opacity: foregroundOpacity }}>{renderIcon(icon, iconColor, TAB_ICON_SIZE)}</Animated.View>
-            <Animated.View style={{ opacity: foregroundOpacity }}>
+            <View>{renderIcon(icon, iconColor, TAB_ICON_SIZE)}</View>
+            <View>
               <ThemedText
                 numberOfLines={1}
                 variant="singleLineBodyTinyStrong"
@@ -189,7 +188,7 @@ export function NavigationBarTab({
               >
                 {label}
               </ThemedText>
-            </Animated.View>
+            </View>
           </View>
         );
       }}
