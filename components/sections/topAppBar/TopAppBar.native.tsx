@@ -7,6 +7,7 @@ import {
   TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH,
   TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
 } from './TopAppBar.constants';
+import { useAnimatedValueRef } from './TopAppBarAnimatedValue.native';
 import { LeadingContent } from './TopAppBarLeadingContent.native';
 import { PrimaryAction } from './TopAppBarPrimaryAction.native';
 import type {
@@ -208,12 +209,10 @@ export function TopAppBar(props: TopAppBarProps) {
     shouldRenderAnyAction,
   );
   const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
-  const secondaryActionWidth = React.useRef(
-    new Animated.Value(isSecondaryButtonVisible ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0),
+  const secondaryActionWidth = useAnimatedValueRef(
+    isSecondaryButtonVisible ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
   );
-  const secondaryActionOpacity = React.useRef(
-    new Animated.Value(isSecondaryButtonVisible ? 1 : 0),
-  );
+  const secondaryActionOpacity = useAnimatedValueRef(isSecondaryButtonVisible ? 1 : 0);
 
   React.useEffect(() => {
     const wasSearchVariant = previousVariantRef.current === 'search';
@@ -273,7 +272,7 @@ export function TopAppBar(props: TopAppBarProps) {
     return () => {
       animation.stop();
     };
-  }, [animationEasing, isSecondaryButtonVisible]);
+  }, [animationEasing, isSecondaryButtonVisible, secondaryActionOpacity, secondaryActionWidth]);
 
   const defaultHandlePressLogo = React.useCallback(() => {
     router.push('/');

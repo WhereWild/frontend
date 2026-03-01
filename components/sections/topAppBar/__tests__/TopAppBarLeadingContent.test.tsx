@@ -1,7 +1,10 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Time } from '@/constants/theme';
 import { LeadingContent } from '../TopAppBarLeadingContent.native';
+import { TOP_APP_BAR_SEARCH_SLIDE_OFFSET } from '../TopAppBar.constants';
 import { mockAnimatedTiming } from '../topAppBarTestUtils';
+import { Animated } from 'react-native';
 
 describe('TopAppBarLeadingContent', () => {
   beforeAll(() => {
@@ -119,5 +122,65 @@ describe('TopAppBarLeadingContent', () => {
 
     expect(screen.queryByLabelText('Search input')).toBeNull();
     expect(screen.getByText('Species Details')).toBeTruthy();
+  });
+
+  it('animates home to page transition right-to-left', () => {
+    const timingMock = Animated.timing as unknown as jest.Mock;
+
+    const { rerender } = render(
+      <LeadingContent
+        variant="home"
+        title="WhereWild"
+        logoSource={require('@/assets/images/wherewild.png')}
+        logoAccessibilityLabel="WhereWild logo"
+      />,
+    );
+
+    timingMock.mockClear();
+
+    rerender(
+      <LeadingContent
+        variant="page"
+        title="Species"
+        onPressBack={jest.fn()}
+      />,
+    );
+
+    const hasExitLeftAnimation = timingMock.mock.calls.some(([, config]) => {
+      const toValue = (config as { toValue?: unknown } | undefined)?.toValue;
+      return typeof toValue === 'number' && toValue === -TOP_APP_BAR_SEARCH_SLIDE_OFFSET;
+    });
+
+    expect(hasExitLeftAnimation).toBe(true);
+  });
+
+  it('does not run delayed slot tween when transitioning from search to page', () => {
+    const timingMock = Animated.timing as unknown as jest.Mock;
+
+    const { rerender } = render(
+      <LeadingContent
+        variant="search"
+        searchValue=""
+        onSearchValueChange={jest.fn()}
+        onSubmitSearch={jest.fn()}
+      />,
+    );
+
+    timingMock.mockClear();
+
+    rerender(
+      <LeadingContent
+        variant="page"
+        title="Species"
+        onPressBack={jest.fn()}
+      />,
+    );
+
+    const hasShortDurationSlotTween = timingMock.mock.calls.some(([, config]) => {
+      const duration = (config as { duration?: unknown } | undefined)?.duration;
+      return typeof duration === 'number' && duration === Time.duration.short;
+    });
+
+    expect(hasShortDurationSlotTween).toBe(false);
   });
 });

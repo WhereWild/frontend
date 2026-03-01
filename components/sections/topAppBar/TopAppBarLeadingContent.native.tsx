@@ -159,17 +159,24 @@ function NonSearchLeadingContent({
 export function LeadingContent(props: LeadingContentProps) {
   const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
   const [displayedProps, setDisplayedProps] = React.useState<LeadingContentProps>(props);
+  const latestPropsRef = React.useRef<LeadingContentProps>(props);
   const previousVariantRef = React.useRef<LeadingContentProps['variant']>(props.variant);
+  const previousDisplayedVariantRef = React.useRef<LeadingContentProps['variant']>(
+    displayedProps.variant,
+  );
   const activeTransitionRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const contentTranslateX = useAnimatedValueRef(0);
   const contentOpacity = useAnimatedValueRef(1);
 
-  React.useEffect(() => {
-    const previousVariant = previousVariantRef.current;
-    previousVariantRef.current = props.variant;
+  latestPropsRef.current = props;
 
-    if (previousVariant === props.variant) {
-      setDisplayedProps(props);
+  React.useEffect(() => {
+    const latestProps = latestPropsRef.current;
+    const previousVariant = previousVariantRef.current;
+    previousVariantRef.current = latestProps.variant;
+
+    if (previousVariant === latestProps.variant) {
+      setDisplayedProps(latestProps);
       contentTranslateX.current.setValue(0);
       contentOpacity.current.setValue(1);
       return;
@@ -178,11 +185,18 @@ export function LeadingContent(props: LeadingContentProps) {
     // Stop any in-flight transition before starting a new one so stale
     // completion callbacks cannot apply an out-of-date variant state.
     activeTransitionRef.current?.stop();
-    const nextProps = props;
+    const nextProps = latestProps;
+    const isEnteringPageVariant = nextProps.variant === 'page';
+    const exitTranslateX = isEnteringPageVariant
+      ? -TOP_APP_BAR_SEARCH_SLIDE_OFFSET
+      : TOP_APP_BAR_SEARCH_SLIDE_OFFSET;
+    const enterStartTranslateX = isEnteringPageVariant
+      ? TOP_APP_BAR_SEARCH_SLIDE_OFFSET
+      : -TOP_APP_BAR_SEARCH_SLIDE_OFFSET;
 
     const exitAnimation = Animated.parallel([
       Animated.timing(contentTranslateX.current, {
-        toValue: TOP_APP_BAR_SEARCH_SLIDE_OFFSET,
+        toValue: exitTranslateX,
         duration: TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
         easing: animationEasing,
         useNativeDriver: true,
@@ -202,7 +216,7 @@ export function LeadingContent(props: LeadingContentProps) {
       }
 
       setDisplayedProps(nextProps);
-      contentTranslateX.current.setValue(-TOP_APP_BAR_SEARCH_SLIDE_OFFSET);
+      contentTranslateX.current.setValue(enterStartTranslateX);
       contentOpacity.current.setValue(0);
 
       const enterAnimation = Animated.parallel([
@@ -225,7 +239,7 @@ export function LeadingContent(props: LeadingContentProps) {
         activeTransitionRef.current = null;
       });
     });
-  }, [animationEasing, contentOpacity, contentTranslateX, props]);
+  }, [animationEasing, contentOpacity, contentTranslateX, props.variant]);
 
   React.useEffect(() => {
     return () => {
@@ -243,8 +257,20 @@ export function LeadingContent(props: LeadingContentProps) {
   const backSlotOpacity = useAnimatedValueRef(displayedProps.variant === 'page' ? 1 : 0);
 
   React.useEffect(() => {
+    const previousDisplayedVariant = previousDisplayedVariantRef.current;
+    const nextDisplayedVariant = displayedProps.variant;
+    previousDisplayedVariantRef.current = nextDisplayedVariant;
+
     const showLogo = displayedProps.variant === 'home';
     const showBack = displayedProps.variant === 'page';
+
+    if (previousDisplayedVariant === 'search' && nextDisplayedVariant !== 'search') {
+      logoSlotWidth.current.setValue(showLogo ? TOP_APP_BAR_LOGO_SIZE : 0);
+      logoSlotOpacity.current.setValue(showLogo ? 1 : 0);
+      backSlotWidth.current.setValue(showBack ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0);
+      backSlotOpacity.current.setValue(showBack ? 1 : 0);
+      return;
+    }
 
     const animation = Animated.parallel([
       Animated.timing(logoSlotWidth.current, {
