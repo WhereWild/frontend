@@ -94,4 +94,100 @@ describe('useNavigationBarLayoutModel', () => {
     expect(result.current.tabLayouts).toBe(stableLayoutsRef);
     expect(resolveTabVariant).toHaveBeenCalledTimes(1);
   });
+
+  it('preserves measured tab widths across resize remeasure sessions', async () => {
+    const tabs = [{ key: 'home' }, { key: 'search' }];
+    const resolveTabVariant = jest.fn((
+      availableWidth: number,
+      _tabCount: number,
+      _measuredTabWidths: Record<string, number>,
+      _tabKeys: string[],
+    ): 'horizontal' | 'vertical' =>
+      availableWidth >= 240 ? 'horizontal' : 'vertical');
+
+    const { result } = renderHook(() => useNavigationBarLayoutModel({
+      tabs,
+      tabKeys: ['home', 'search'],
+      resolveTabVariant,
+      resizeSettleDelayMs: 50,
+      remeasureThresholdPx: 1,
+    }));
+
+    act(() => {
+      result.current.handleTabsLayout(360, 56);
+      result.current.onTabWidthLayout('home', 130);
+      result.current.onTabWidthLayout('search', 140);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+      expect(result.current.resolvedVariant).toBe('horizontal');
+    });
+
+    act(() => {
+      result.current.handleTabsLayout(250, 56);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+    });
+
+    const secondCallArgs = resolveTabVariant.mock.calls[1];
+    expect(secondCallArgs?.[2]).toEqual({ home: 130, search: 140 });
+  });
+
+  it('does not temporarily switch variant from fallback widths during resize', async () => {
+    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'about' }, { key: 'settings' }];
+    const tabKeys = ['home', 'search', 'about', 'settings'];
+    const tabGap = 8;
+
+    const resolveTabVariant = jest.fn((
+      availableWidth: number,
+      tabCount: number,
+      measuredTabWidths: Record<string, number>,
+      resolverTabKeys: string[],
+    ): 'horizontal' | 'vertical' => {
+      const totalTabWidth = resolverTabKeys.reduce((sum, key) => sum + (measuredTabWidths[key] ?? 96), 0);
+      const requiredWidth = totalTabWidth + Math.max(0, tabCount - 1) * tabGap;
+      return availableWidth >= requiredWidth ? 'horizontal' : 'vertical';
+    });
+
+    const { result } = renderHook(() => useNavigationBarLayoutModel({
+      tabs,
+      tabKeys,
+      resolveTabVariant,
+      resizeSettleDelayMs: 50,
+      remeasureThresholdPx: 1,
+    }));
+
+    act(() => {
+      result.current.handleTabsLayout(470, 56);
+      result.current.onTabWidthLayout('home', 100);
+      result.current.onTabWidthLayout('search', 100);
+      result.current.onTabWidthLayout('about', 108);
+      result.current.onTabWidthLayout('settings', 112);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+      expect(result.current.resolvedVariant).toBe('horizontal');
+    });
+
+    act(() => {
+      result.current.handleTabsLayout(430, 56);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+      expect(result.current.resolvedVariant).toBe('vertical');
+    });
+
+    const secondCallArgs = resolveTabVariant.mock.calls[1];
+    expect(secondCallArgs?.[2]).toEqual({
+      home: 100,
+      search: 100,
+      about: 108,
+      settings: 112,
+    });
+  });
 });

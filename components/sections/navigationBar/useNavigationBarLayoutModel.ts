@@ -158,7 +158,8 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
         return previousWidth;
       }
 
-      setMeasuredTabWidths({});
+      // Preserve last known tab widths while remeasuring to avoid temporary
+      // fallback widths causing horizontal/vertical flicker during resize.
       setIsMeasuring(true);
       return width;
     });
