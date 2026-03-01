@@ -1,0 +1,352 @@
+import { IconChevronLeft } from '@/assets/icons';
+import { IconButton } from '@/components/buttons/IconButton';
+import { SearchInput } from '@/components/inputs/SearchInput';
+import { ThemedText } from '@/components/text/ThemedText';
+import { Size, Time, getReactNativeEasing } from '@/constants/theme';
+import {
+  TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH,
+  TOP_APP_BAR_LOGO_SIZE,
+  TOP_APP_BAR_SEARCH_SLIDE_OFFSET,
+  TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
+} from './TopAppBar.constants';
+import type { LeadingContentProps } from './TopAppBar.types';
+import { useAnimatedValueRef } from './TopAppBarAnimatedValue.native';
+import React from 'react';
+import {
+  Animated,
+  Image,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
+
+type ContentTransitionStyle = {
+  opacity: Animated.Value;
+  transform: [{ translateX: Animated.Value }];
+};
+
+type SearchLeadingContentProps = {
+  leadingSearchProps: Extract<LeadingContentProps, { variant: 'search' }>;
+  contentTransitionStyle: ContentTransitionStyle;
+};
+
+type NonSearchLeadingContentProps = {
+  leadingNonSearchProps: Exclude<LeadingContentProps, { variant: 'search' }>;
+  contentTransitionStyle: ContentTransitionStyle;
+  backSlotWidth: Animated.Value;
+  backSlotOpacity: Animated.Value;
+  logoSlotWidth: Animated.Value;
+  logoSlotOpacity: Animated.Value;
+};
+
+/** Renders search-mode leading content with the search input. */
+function SearchLeadingContent({
+  leadingSearchProps,
+  contentTransitionStyle,
+}: SearchLeadingContentProps) {
+  return (
+    <Animated.View
+      style={[styles.searchWrapper, contentTransitionStyle]}
+      testID="top-app-bar-leading"
+    >
+      <SearchInput
+        value={leadingSearchProps.searchValue}
+        onQueryChange={leadingSearchProps.onSearchValueChange}
+        onSubmitSearch={leadingSearchProps.onSubmitSearch}
+        placeholder={leadingSearchProps.searchPlaceholder ?? 'Search'}
+      />
+    </Animated.View>
+  );
+}
+
+/**
+ * Renders non-search leading content (`home` or `page`) including
+ * animated back/logo slots and the title.
+ */
+function NonSearchLeadingContent({
+  leadingNonSearchProps,
+  contentTransitionStyle,
+  backSlotWidth,
+  backSlotOpacity,
+  logoSlotWidth,
+  logoSlotOpacity,
+}: NonSearchLeadingContentProps) {
+  const shouldShowBackButton = leadingNonSearchProps.variant === 'page';
+  const shouldShowLogo = leadingNonSearchProps.variant === 'home';
+  const onPressBack =
+    leadingNonSearchProps.variant === 'page' ? leadingNonSearchProps.onPressBack : undefined;
+  const logoSource =
+    leadingNonSearchProps.variant === 'home' ? leadingNonSearchProps.logoSource : undefined;
+  const logoAccessibilityLabel =
+    leadingNonSearchProps.variant === 'home'
+      ? leadingNonSearchProps.logoAccessibilityLabel
+      : undefined;
+  const onPressLogo =
+    leadingNonSearchProps.variant === 'home' ? leadingNonSearchProps.onPressLogo : undefined;
+
+  return (
+    <Animated.View
+      style={[styles.leadingRow, contentTransitionStyle]}
+      testID="top-app-bar-leading"
+    >
+      <Animated.View
+        style={[
+          styles.leadingSlot,
+          {
+            width: backSlotWidth,
+            opacity: backSlotOpacity,
+          },
+        ]}
+        pointerEvents={shouldShowBackButton ? 'auto' : 'none'}
+      >
+        <IconButton
+          variant="subtle"
+          icon={<IconChevronLeft />}
+          onPress={shouldShowBackButton ? onPressBack : undefined}
+          accessibilityLabel="Back"
+        />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.leadingSlot,
+          {
+            width: logoSlotWidth,
+            opacity: logoSlotOpacity,
+          },
+        ]}
+        pointerEvents={shouldShowLogo ? 'auto' : 'none'}
+      >
+        {shouldShowLogo && typeof onPressLogo === 'function' ? (
+          <Pressable
+            onPress={onPressLogo}
+            accessibilityRole="button"
+            accessibilityLabel={logoAccessibilityLabel}
+            style={styles.logoPressable}
+          >
+            <Image
+              testID="top-app-bar-home-logo-image"
+              source={logoSource}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityRole="image"
+            />
+          </Pressable>
+        ) : (
+          <Image
+            testID="top-app-bar-home-logo-image"
+            source={logoSource}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel={logoAccessibilityLabel}
+          />
+        )}
+      </Animated.View>
+      <ThemedText
+        variant="heading"
+        numberOfLines={1}
+        style={styles.title}
+      >
+        {leadingNonSearchProps.title}
+      </ThemedText>
+    </Animated.View>
+  );
+}
+
+/**
+ * Variant-aware leading content container that orchestrates animated
+ * transitions between search and non-search modes.
+ */
+export function LeadingContent(props: LeadingContentProps) {
+  const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
+  const [displayedProps, setDisplayedProps] = React.useState<LeadingContentProps>(props);
+  const previousVariantRef = React.useRef<LeadingContentProps['variant']>(props.variant);
+  const activeTransitionRef = React.useRef<Animated.CompositeAnimation | null>(null);
+  const contentTranslateX = useAnimatedValueRef(0);
+  const contentOpacity = useAnimatedValueRef(1);
+
+  React.useEffect(() => {
+    const previousVariant = previousVariantRef.current;
+    previousVariantRef.current = props.variant;
+
+    if (previousVariant === props.variant) {
+      setDisplayedProps(props);
+      contentTranslateX.current.setValue(0);
+      contentOpacity.current.setValue(1);
+      return;
+    }
+
+    // Stop any in-flight transition before starting a new one so stale
+    // completion callbacks cannot apply an out-of-date variant state.
+    activeTransitionRef.current?.stop();
+    const nextProps = props;
+
+    const exitAnimation = Animated.parallel([
+      Animated.timing(contentTranslateX.current, {
+        toValue: TOP_APP_BAR_SEARCH_SLIDE_OFFSET,
+        duration: TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
+        easing: animationEasing,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity.current, {
+        toValue: 0,
+        duration: TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
+        easing: animationEasing,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    activeTransitionRef.current = exitAnimation;
+    exitAnimation.start(({ finished }) => {
+      if (!finished) {
+        return;
+      }
+
+      setDisplayedProps(nextProps);
+      contentTranslateX.current.setValue(-TOP_APP_BAR_SEARCH_SLIDE_OFFSET);
+      contentOpacity.current.setValue(0);
+
+      const enterAnimation = Animated.parallel([
+        Animated.timing(contentTranslateX.current, {
+          toValue: 0,
+          duration: TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
+          easing: animationEasing,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentOpacity.current, {
+          toValue: 1,
+          duration: TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
+          easing: animationEasing,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      activeTransitionRef.current = enterAnimation;
+      enterAnimation.start(() => {
+        activeTransitionRef.current = null;
+      });
+    });
+  }, [animationEasing, contentOpacity, contentTranslateX, props]);
+
+  React.useEffect(() => {
+    return () => {
+      activeTransitionRef.current?.stop();
+    };
+  }, []);
+
+  const logoSlotWidth = useAnimatedValueRef(
+    displayedProps.variant === 'home' ? TOP_APP_BAR_LOGO_SIZE : 0,
+  );
+  const logoSlotOpacity = useAnimatedValueRef(displayedProps.variant === 'home' ? 1 : 0);
+  const backSlotWidth = useAnimatedValueRef(
+    displayedProps.variant === 'page' ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
+  );
+  const backSlotOpacity = useAnimatedValueRef(displayedProps.variant === 'page' ? 1 : 0);
+
+  React.useEffect(() => {
+    const showLogo = displayedProps.variant === 'home';
+    const showBack = displayedProps.variant === 'page';
+
+    const animation = Animated.parallel([
+      Animated.timing(logoSlotWidth.current, {
+        toValue: showLogo ? TOP_APP_BAR_LOGO_SIZE : 0,
+        duration: Time.duration.short,
+        easing: animationEasing,
+        useNativeDriver: false,
+      }),
+      Animated.timing(logoSlotOpacity.current, {
+        toValue: showLogo ? 1 : 0,
+        duration: Time.duration.short,
+        easing: animationEasing,
+        useNativeDriver: false,
+      }),
+      Animated.timing(backSlotWidth.current, {
+        toValue: showBack ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
+        duration: Time.duration.short,
+        easing: animationEasing,
+        useNativeDriver: false,
+      }),
+      Animated.timing(backSlotOpacity.current, {
+        toValue: showBack ? 1 : 0,
+        duration: Time.duration.short,
+        easing: animationEasing,
+        useNativeDriver: false,
+      }),
+    ]);
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [
+    animationEasing,
+    backSlotOpacity,
+    backSlotWidth,
+    displayedProps.variant,
+    logoSlotOpacity,
+    logoSlotWidth,
+  ]);
+
+  const transitionStyle: ContentTransitionStyle = {
+    opacity: contentOpacity.current,
+    transform: [{ translateX: contentTranslateX.current }],
+  };
+
+  if (displayedProps.variant === 'search') {
+    // Prefer live search props while actively in search so input value/handlers
+    // stay current, but fall back to displayed props during exit transitions.
+    const leadingSearchProps = props.variant === 'search' ? props : displayedProps;
+
+    return (
+      <SearchLeadingContent
+        leadingSearchProps={leadingSearchProps}
+        contentTransitionStyle={transitionStyle}
+      />
+    );
+  }
+
+  // Prefer live non-search props while actively in home/page, but fall back to
+  // displayed props during search-exit transitions until swap is complete.
+  const leadingNonSearchProps = props.variant !== 'search' ? props : displayedProps;
+
+  return (
+    <NonSearchLeadingContent
+      leadingNonSearchProps={leadingNonSearchProps}
+      contentTransitionStyle={transitionStyle}
+      backSlotWidth={backSlotWidth.current}
+      backSlotOpacity={backSlotOpacity.current}
+      logoSlotWidth={logoSlotWidth.current}
+      logoSlotOpacity={logoSlotOpacity.current}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  leadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  title: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  logo: {
+    width: TOP_APP_BAR_LOGO_SIZE,
+    height: TOP_APP_BAR_LOGO_SIZE,
+  },
+  leadingSlot: {
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoPressable: {
+    borderRadius: Size.radius['full'],
+  },
+  searchWrapper: {
+    flex: 1,
+    minWidth: 0,
+  },
+});
