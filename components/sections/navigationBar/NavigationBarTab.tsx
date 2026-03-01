@@ -66,7 +66,8 @@ const getVisualStyles = (
   borderWidth: 0,
 });
 
-export function NavigationBarTab(_props: NavigationBarTabProps) {
+export function NavigationBarTab(props: NavigationBarTabProps) {
+  void props;
   return null;
 }
 

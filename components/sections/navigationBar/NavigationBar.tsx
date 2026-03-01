@@ -24,7 +24,8 @@ export type NavigationBarProps = {
   testID?: string;
 };
 
-export function NavigationBar(_props: NavigationBarProps) {
+export function NavigationBar(props: NavigationBarProps) {
+  void props;
   return null;
 }
 
