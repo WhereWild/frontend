@@ -158,6 +158,41 @@ describe('useNavigationBarIndicator', () => {
     sequenceSpy.mockRestore();
   });
 
+  it('animates tab changes even when resize mode is active', () => {
+    const tabs = [{ key: 'home' }, { key: 'search' }];
+    const tabLayouts = {
+      home: { x: 0, y: 0, width: 80, height: 40 },
+      search: { x: 90, y: 0, width: 100, height: 40 },
+    };
+
+    const { rerender } = renderHook((props: {
+      indicatorTargetIndex: number;
+      isResizing: boolean;
+    }) => useNavigationBarIndicator({
+      tabs,
+      tabLayouts,
+      indicatorTargetIndex: props.indicatorTargetIndex,
+      previewIndex: null,
+      isResizing: props.isResizing,
+      activeColor: '#000000',
+      pressedColor: '#111111',
+      duration: 160,
+      easing: (value: number) => value,
+    }), {
+      initialProps: {
+        indicatorTargetIndex: 0,
+        isResizing: false,
+      },
+    });
+
+    rerender({ indicatorTargetIndex: 1, isResizing: true });
+
+    const calls = (animateIndicatorToLayout as jest.Mock).mock.calls;
+    const latestArgs = calls[calls.length - 1]?.[0];
+
+    expect(latestArgs?.isResizing).toBe(false);
+  });
+
   it('skips movement animation when target layout is unavailable', () => {
     const tabs = [{ key: 'home' }, { key: 'search' }];
 

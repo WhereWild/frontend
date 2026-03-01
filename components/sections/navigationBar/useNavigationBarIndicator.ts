@@ -17,7 +17,7 @@ type TabWithKey = {
 };
 
 const STRETCH_DISTANCE_NORMALIZER_PX = 240;
-const STRETCH_BASE_SCALE = 1.1;
+const STRETCH_BASE_SCALE = 1.2;
 const STRETCH_SCALE_RANGE = 0.2;
 const STRETCH_GROW_RATIO = 0.45;
 const STRETCH_SHRINK_RATIO = 0.55;
@@ -66,6 +66,13 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
   const indicatorPressedProgress = React.useRef(new Animated.Value(0)).current;
   const previousTargetSignatureRef = React.useRef<string | null>(null);
   const previousTargetXRef = React.useRef<number | null>(null);
+  // Track tab identity separately from layout signature so we can distinguish
+  // "same tab resized" from "user changed target tab".
+  const previousTargetTabKeyRef = React.useRef<string | null>(null);
+  // Keep explicit animation refs to prevent transient re-renders from canceling
+  // in-flight indicator motion/stretch during fast screen transitions.
+  const indicatorMovementAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
+  const indicatorStretchAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
 
   const indicatorBackgroundColor = React.useMemo(
     () => indicatorPressedProgress.interpolate({
@@ -86,9 +93,20 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
     const targetLayout = targetTabKey ? tabLayouts[targetTabKey] : undefined;
 
     if (!targetLayout) {
+      indicatorMovementAnimationRef.current?.stop();
+      indicatorStretchAnimationRef.current?.stop();
+      indicatorMovementAnimationRef.current = null;
+      indicatorStretchAnimationRef.current = null;
       resetIndicatorStretch();
       return;
     }
+
+    const didTargetTabKeyChange = previousTargetTabKeyRef.current !== targetTabKey;
+    const targetSignature = `${targetTabKey ?? ''}|${targetLayout.x}|${targetLayout.width}`;
+    const didTargetChange = previousTargetSignatureRef.current !== targetSignature;
+    const previousTargetX = previousTargetXRef.current;
+
+    indicatorMovementAnimationRef.current?.stop();
 
     const animation = animateIndicatorToLayout({
       indicatorX,
@@ -96,16 +114,15 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
       targetLayout,
       duration,
       easing,
-      isResizing,
+      // Snap only for "same tab while layout is resizing" so the indicator
+      // does not chase geometry updates, while real tab changes still animate.
+      isResizing: isResizing && !didTargetTabKeyChange,
     });
+    indicatorMovementAnimationRef.current = animation;
 
-    const targetSignature = `${targetTabKey ?? ''}|${targetLayout.x}|${targetLayout.width}`;
-    const didTargetChange = previousTargetSignatureRef.current !== targetSignature;
-    const previousTargetX = previousTargetXRef.current;
     previousTargetSignatureRef.current = targetSignature;
     previousTargetXRef.current = targetLayout.x;
-
-    let stretchAnimation: Animated.CompositeAnimation | null = null;
+    previousTargetTabKeyRef.current = targetTabKey;
 
     if (didTargetChange && !isResizing) {
       const travelDistance = previousTargetX === null ? 0 : Math.abs(targetLayout.x - previousTargetX);
@@ -114,8 +131,11 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
       const stretchPeak = STRETCH_BASE_SCALE + normalizedTravel * STRETCH_SCALE_RANGE;
 
       if (didIndicatorMove) {
+        // Stretch is intentionally tied to user-visible travel changes, not to
+        // resize ticks, to avoid jitter when layout is settling.
+        indicatorStretchAnimationRef.current?.stop();
         resetIndicatorStretch();
-        stretchAnimation = Animated.sequence([
+        const stretchAnimation = Animated.sequence([
           Animated.timing(indicatorScaleX, {
             toValue: stretchPeak,
             duration: Math.max(1, Math.floor(duration * STRETCH_GROW_RATIO)),
@@ -129,15 +149,10 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
             useNativeDriver: false,
           }),
         ]);
+        indicatorStretchAnimationRef.current = stretchAnimation;
         stretchAnimation.start();
       }
     }
-
-    return () => {
-      animation?.stop();
-      stretchAnimation?.stop();
-      resetIndicatorStretch();
-    };
   }, [
     duration,
     easing,
@@ -150,6 +165,16 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
     tabLayouts,
     tabs,
   ]);
+
+  React.useEffect(() => {
+    return () => {
+      indicatorMovementAnimationRef.current?.stop();
+      indicatorStretchAnimationRef.current?.stop();
+      indicatorMovementAnimationRef.current = null;
+      indicatorStretchAnimationRef.current = null;
+      resetIndicatorStretch();
+    };
+  }, [resetIndicatorStretch]);
 
   React.useEffect(() => {
     const animation = animateIndicatorPressedProgress({
