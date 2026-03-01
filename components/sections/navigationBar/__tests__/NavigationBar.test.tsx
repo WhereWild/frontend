@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { create } from 'react-test-renderer';
 import {
   __NAVIGATION_BAR_TESTING__,
@@ -214,7 +214,7 @@ describe('NavigationBar', () => {
     ).toBe(false);
   });
 
-  it('starts horizontal during measuring, then resolves variants from measured width', () => {
+  it('starts horizontal during measuring, then resolves variants from measured width', async () => {
     const renderer = createRenderer(<NavigationBar />);
 
     // Initial render is the measuring fallback: visible layer stays horizontal
@@ -264,10 +264,12 @@ describe('NavigationBar', () => {
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
-    expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+    await waitFor(() => {
+      expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+    });
   });
 
-  it('uses tab onLayout measurements to update variant decisions', () => {
+  it('uses tab onLayout measurements to update variant decisions', async () => {
     const renderer = createRenderer(<NavigationBar />);
     const tabsLayoutView = getTabsLayoutView(renderer);
 
@@ -332,7 +334,9 @@ describe('NavigationBar', () => {
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
-    expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+    await waitFor(() => {
+      expect(getTabVariants(renderer).every((variant) => variant === 'vertical')).toBe(true);
+    });
   });
 
   it('shows active indicator after initial horizontal measurement without resize', () => {

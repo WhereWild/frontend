@@ -82,6 +82,7 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
   const [isMeasuring, setIsMeasuring] = useState(true);
   const [tabLayouts, setTabLayouts] = useState<Record<string, TabLayout>>({});
   const lastHostLayoutRef = useRef<HostLayout | null>(null);
+  const deferRemeasureFinalizeRef = useRef(false);
   const isResizingRef = useRef(false);
   const resizeSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,8 +103,8 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
 
   /** Captures measured tab width for horizontal/vertical variant resolution. */
   const onTabWidthLayout = useCallback((tabKey: string, width: number) => {
-    setMeasuredTabWidths((previous) => updateMeasuredTabWidths(previous, tabKeys, tabKey, width));
-  }, [tabKeys]);
+    setMeasuredTabWidths((previous) => updateMeasuredTabWidths(previous, tabKey, width));
+  }, []);
 
   useEffect(() => {
     if (!isMeasuring || availableWidth === null) {
@@ -113,15 +114,22 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
     if (tabs.length <= 1) {
       setResolvedVariant('horizontal');
       setIsMeasuring(false);
+      deferRemeasureFinalizeRef.current = false;
       return;
     }
 
     const finalizeMeasurement = () => {
       setResolvedVariant(resolveTabVariant(availableWidth, tabs.length, measuredTabWidths, tabKeys));
       setIsMeasuring(false);
+      deferRemeasureFinalizeRef.current = false;
     };
 
     if (hasAllTabMeasurements(tabKeys, measuredTabWidths)) {
+      if (deferRemeasureFinalizeRef.current) {
+        const deferredFinalize = setTimeout(finalizeMeasurement, 0);
+        return () => clearTimeout(deferredFinalize);
+      }
+
       finalizeMeasurement();
       return;
     }
@@ -157,6 +165,8 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
       if (!shouldRemeasureWidth(previousWidth, width, remeasureThresholdPx)) {
         return previousWidth;
       }
+
+      deferRemeasureFinalizeRef.current = previousWidth !== null;
 
       // Preserve last known tab widths while remeasuring to avoid temporary
       // fallback widths causing horizontal/vertical flicker during resize.

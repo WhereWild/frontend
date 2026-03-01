@@ -13,14 +13,15 @@ describe('navigationBarMeasurement', () => {
   it('updates tab widths only when needed', () => {
     const previous = { a: 100 };
 
-    const updated = updateMeasuredTabWidths(previous, ['a', 'b'], 'b', 120);
+    const updated = updateMeasuredTabWidths(previous, 'b', 120);
     expect(updated).toEqual({ a: 100, b: 120 });
 
-    const unchangedSameValue = updateMeasuredTabWidths(updated, ['a', 'b'], 'b', 120);
+    const unchangedSameValue = updateMeasuredTabWidths(updated, 'b', 120);
     expect(unchangedSameValue).toBe(updated);
 
-    const unchangedAllMeasured = updateMeasuredTabWidths(updated, ['a', 'b'], 'a', 110);
-    expect(unchangedAllMeasured).toBe(updated);
+    // Re-measure passes after resize should still accept changed tab widths.
+    const updatedAllMeasured = updateMeasuredTabWidths(updated, 'a', 110);
+    expect(updatedAllMeasured).toEqual({ a: 110, b: 120 });
   });
 
   it('falls back to horizontal minimum width when tab is not measured', () => {

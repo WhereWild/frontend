@@ -190,4 +190,73 @@ describe('useNavigationBarLayoutModel', () => {
       settings: 112,
     });
   });
+
+  it('stays stable across rapid sequential resize updates', async () => {
+    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'about' }, { key: 'settings' }];
+    const tabKeys = ['home', 'search', 'about', 'settings'];
+    const resolveTabVariant = jest.fn((
+      availableWidth: number,
+      tabCount: number,
+      measuredTabWidths: Record<string, number>,
+      resolverTabKeys: string[],
+    ): 'horizontal' | 'vertical' => {
+      const totalTabWidth = resolverTabKeys.reduce((sum, key) => sum + (measuredTabWidths[key] ?? 96), 0);
+      const requiredWidth = totalTabWidth + Math.max(0, tabCount - 1) * 8;
+      return availableWidth >= requiredWidth ? 'horizontal' : 'vertical';
+    });
+
+    const { result } = renderHook(() => useNavigationBarLayoutModel({
+      tabs,
+      tabKeys,
+      resolveTabVariant,
+      resizeSettleDelayMs: 50,
+      remeasureThresholdPx: 1,
+    }));
+
+    act(() => {
+      result.current.handleTabsLayout(500, 56);
+      result.current.onTabWidthLayout('home', 100);
+      result.current.onTabWidthLayout('search', 100);
+      result.current.onTabWidthLayout('about', 108);
+      result.current.onTabWidthLayout('settings', 112);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+      expect(result.current.resolvedVariant).toBe('horizontal');
+    });
+
+    act(() => {
+      result.current.handleTabsLayout(430, 56);
+      result.current.onTabWidthLayout('home', 99);
+      result.current.onTabWidthLayout('search', 99);
+      result.current.onTabWidthLayout('about', 107);
+      result.current.onTabWidthLayout('settings', 111);
+
+      result.current.handleTabsLayout(428, 56);
+      result.current.onTabWidthLayout('home', 98);
+      result.current.onTabWidthLayout('search', 98);
+      result.current.onTabWidthLayout('about', 106);
+      result.current.onTabWidthLayout('settings', 110);
+
+      result.current.handleTabsLayout(426, 56);
+      result.current.onTabWidthLayout('home', 97);
+      result.current.onTabWidthLayout('search', 97);
+      result.current.onTabWidthLayout('about', 105);
+      result.current.onTabWidthLayout('settings', 109);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMeasuring).toBe(false);
+      expect(result.current.resolvedVariant).toBe('vertical');
+    });
+
+    const latestCallArgs = resolveTabVariant.mock.calls.at(-1);
+    expect(latestCallArgs?.[2]).toEqual({
+      home: 97,
+      search: 97,
+      about: 105,
+      settings: 109,
+    });
+  });
 });

@@ -8,18 +8,13 @@ export const hasAllTabMeasurements = (
 
 /**
  * Updates one measured tab width while preserving structural sharing.
- * Skips writes when all widths are already present or when value is unchanged.
+ * Skips writes when value is unchanged.
  */
 export const updateMeasuredTabWidths = (
   previousWidths: Record<string, number>,
-  tabKeys: string[],
   tabKey: string,
   width: number,
 ) => {
-  if (hasAllTabMeasurements(tabKeys, previousWidths)) {
-    return previousWidths;
-  }
-
   if (previousWidths[tabKey] === width) {
     return previousWidths;
   }
