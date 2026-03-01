@@ -235,10 +235,10 @@ describe('NavigationBar', () => {
     });
 
     measureAllTabs(renderer, [
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
@@ -257,10 +257,10 @@ describe('NavigationBar', () => {
     });
 
     measureAllTabs(renderer, [
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
@@ -288,10 +288,10 @@ describe('NavigationBar', () => {
     expect(tabNodes.every((tab) => typeof tab.props.onLayout === 'function')).toBe(true);
 
     measureAllTabs(renderer, [
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
@@ -327,10 +327,10 @@ describe('NavigationBar', () => {
     expect(tabNodesDuringReMeasure.every((tab) => typeof tab.props.onLayout === 'function')).toBe(true);
 
     measureAllTabs(renderer, [
-      240, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
-      HORIZONTAL_MIN_TAB_WIDTH, 
+      240,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
+      HORIZONTAL_MIN_TAB_WIDTH,
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
