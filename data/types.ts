@@ -247,6 +247,7 @@ export type EnvironmentVariableDefinition = {
   category?: string | null;
 };
 
+/** Query parameters for numeric environment slice requests. */
 export type EnvironmentSliceParams = {
   taxonId: number | string;
   variableId: string;
@@ -254,6 +255,7 @@ export type EnvironmentSliceParams = {
   max: number;
   limit?: number;
   location?: string | null;
+  units?: string | null;
 };
 
 export type RelativeRankingEntry = {
