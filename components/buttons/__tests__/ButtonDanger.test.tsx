@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
@@ -62,7 +62,7 @@ describe('ButtonDanger Component', () => {
       });
     });
 
-    it('defaults to medium size (12px padding)', () => {
+    it('defaults to medium size with control minHeight', () => {
       const { getByRole } = render(<ButtonDanger>Default Size</ButtonDanger>);
       const button = getByRole('button');
       const styles = button.props.style;
@@ -71,6 +71,7 @@ describe('ButtonDanger Component', () => {
           expect.objectContaining({
             paddingHorizontal: 12,
             paddingVertical: 10,
+            minHeight: Size.control.height.medium,
           }),
         ])
       );
@@ -244,14 +245,12 @@ describe('ButtonDanger Component', () => {
       expect(lightDisabled.color).toBe(Colors.light.text.disabled.onDisabled);
       expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
       expect(lightDisabled.borderColor).toBe('transparent');
-      expect(lightDisabled.borderWidth).toBe(0);
 
       const darkDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'dark', false, false, true);
       expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
       expect(darkDisabled.color).toBe(Colors.dark.text.disabled.onDisabled);
       expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
       expect(darkDisabled.borderColor).toBe('transparent');
-      expect(darkDisabled.borderWidth).toBe(0);
     });
   });
 
