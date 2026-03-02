@@ -9,14 +9,10 @@ type PressableRef = React.ElementRef<typeof Pressable>;
 type PillState = {
   backgroundColor: string;
   borderColor: string;
-  borderWidth: number;
   textColor: string;
 };
 
-type PillLayout = {
-  paddingHorizontal: number;
-  paddingVertical: number;
-};
+const TRANSPARENT = 'transparent';
 
 const BASE_HORIZONTAL_PADDING = Size.space['250'];
 const BASE_VERTICAL_PADDING = Size.space['150'];
@@ -37,11 +33,6 @@ export type NavigationPillProps = {
   icon?: React.ReactNode;
 };
 
-const getPillLayout = (borderWidth: number): PillLayout => ({
-  paddingHorizontal: Math.max(0, BASE_HORIZONTAL_PADDING - borderWidth),
-  paddingVertical: Math.max(0, BASE_VERTICAL_PADDING - borderWidth),
-});
-
 const getPillState = (
   mode: 'light' | 'dark',
   isActive: boolean,
@@ -53,8 +44,7 @@ const getPillState = (
   if (isActive) {
     return {
       backgroundColor: palette.background.brand.default,
-      borderColor: 'transparent',
-      borderWidth: 0,
+      borderColor: TRANSPARENT,
       textColor: palette.text.brand.onBrand,
     };
   }
@@ -62,8 +52,7 @@ const getPillState = (
   if (pressed) {
     return {
       backgroundColor: palette.background.neutral.tertiaryPressed,
-      borderColor: 'transparent',
-      borderWidth: 0,
+      borderColor: TRANSPARENT,
       textColor: palette.text.neutral.onNeutralTertiary,
     };
   }
@@ -71,16 +60,14 @@ const getPillState = (
   if (hovered) {
     return {
       backgroundColor: palette.background.neutral.tertiaryHover,
-      borderColor: 'transparent',
-      borderWidth: 0,
+      borderColor: TRANSPARENT,
       textColor: palette.text.neutral.onNeutralTertiary,
     };
   }
 
   return {
-    backgroundColor: 'transparent',
+    backgroundColor: TRANSPARENT,
     borderColor: palette.border.neutral.tertiary,
-    borderWidth: Size.stroke.border,
     textColor: palette.text.neutral.tertiary,
   };
 };
@@ -122,7 +109,6 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     >
       {({ pressed, hovered }) => {
         const pillState = getPillState(mode, isActive, pressed, hovered ?? false);
-        const layout = getPillLayout(pillState.borderWidth);
         return (
           <View
             style={[
@@ -130,9 +116,6 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
               {
                 backgroundColor: pillState.backgroundColor,
                 borderColor: pillState.borderColor,
-                borderWidth: pillState.borderWidth,
-                paddingHorizontal: layout.paddingHorizontal,
-                paddingVertical: layout.paddingVertical,
                 width: contentWidth,
               },
             ]}
@@ -166,6 +149,9 @@ const styles = StyleSheet.create({
   },
   pillContent: {
     borderRadius: Size.radius['full'],
+    borderWidth: Size.stroke.border,
+    paddingHorizontal: BASE_HORIZONTAL_PADDING,
+    paddingVertical: BASE_VERTICAL_PADDING,
     alignItems: 'center',
     justifyContent: 'center',
   },
