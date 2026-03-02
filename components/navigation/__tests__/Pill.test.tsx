@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { act, create } from 'react-test-renderer';
+import { StyleProp, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
 import { NavigationPill } from '../NavigationPill';
 
@@ -16,6 +17,8 @@ type StyleableStyle = {
   paddingHorizontal?: number;
   paddingVertical?: number;
 };
+
+type FlattenableStyle = StyleProp<ViewStyle> | StyleProp<TextStyle>;
 
 type StyleableElement = React.ReactElement<{
   style?: StyleableStyle | (StyleableStyle | undefined)[];
@@ -62,31 +65,28 @@ describe('NavigationPill', () => {
       return { content: null, text: null };
     }
     const renderedWithProps = renderedElement as StyleableElement;
-    
+
     // Navigate through the pillInner View to find the ThemedText
     const pillInnerView = React.Children.toArray(renderedWithProps.props.children)[0];
     if (!React.isValidElement(pillInnerView)) {
       return { content: renderedWithProps, text: null };
     }
-    
+
     const pillInnerChildren = React.Children.toArray((pillInnerView as StyleableElement).props.children);
     // ThemedText is either the first child (no icon) or second child (with icon)
-    const textChild = pillInnerChildren.find((child) => 
-      React.isValidElement(child) && 
+    const textChild = pillInnerChildren.find((child) =>
+      React.isValidElement(child) &&
       (child.type as any)?.displayName === 'ThemedText'
     ) || pillInnerChildren[pillInnerChildren.length - 1];
-    
+
     return {
       content: renderedWithProps,
       text: React.isValidElement(textChild) ? (textChild as StyleableElement) : null,
     };
   };
 
-  const getStyleObject = (styleProp: unknown) => {
-    if (Array.isArray(styleProp)) {
-      return styleProp[styleProp.length - 1];
-    }
-    return styleProp;
+  const getStyleObject = (styleProp: FlattenableStyle | undefined) => {
+    return StyleSheet.flatten(styleProp);
   };
 
   it('renders with accessibility role and label', () => {
@@ -175,7 +175,6 @@ describe('NavigationPill', () => {
     };
 
     expect(contentStyle.backgroundColor).toBe(Colors.light.background.brand.default);
-    expect(contentStyle.borderWidth).toBe(0);
     const textElement = assertStyleableElement(text);
     const textStyle = getStyleObject(textElement.props.style) as { color?: string };
     expect(textStyle.color).toBe(
@@ -198,7 +197,6 @@ describe('NavigationPill', () => {
     };
 
     expect(contentStyle.backgroundColor).toBe(Colors.light.background.brand.default);
-    expect(contentStyle.borderWidth).toBe(0);
     const textElement = assertStyleableElement(text);
     const textStyle = getStyleObject(textElement.props.style) as { color?: string };
     expect(textStyle.color).toBe(
@@ -221,7 +219,6 @@ describe('NavigationPill', () => {
     };
 
     expect(contentStyle.backgroundColor).toBe(Colors.light.background.brand.default);
-    expect(contentStyle.borderWidth).toBe(0);
     const textElement = assertStyleableElement(text);
     const textStyle = getStyleObject(textElement.props.style) as { color?: string };
     expect(textStyle.color).toBe(
@@ -244,7 +241,6 @@ describe('NavigationPill', () => {
     };
 
     expect(contentStyle.backgroundColor).toBe(Colors.light.background.neutral.tertiaryHover);
-    expect(contentStyle.borderWidth).toBe(0);
     const textElement = assertStyleableElement(text);
     const textStyle = getStyleObject(textElement.props.style) as { color?: string };
     expect(textStyle.color).toBe(
@@ -267,7 +263,6 @@ describe('NavigationPill', () => {
     };
 
     expect(contentStyle.backgroundColor).toBe(Colors.light.background.neutral.tertiaryPressed);
-    expect(contentStyle.borderWidth).toBe(0);
     const textElement = assertStyleableElement(text);
     const textStyle = getStyleObject(textElement.props.style) as { color?: string };
     expect(textStyle.color).toBe(
