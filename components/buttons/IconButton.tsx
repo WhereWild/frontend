@@ -2,7 +2,7 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { IconSize } from '@/primitives';
 import React from 'react';
-import { AccessibilityProps, Pressable, ViewStyle } from 'react-native';
+import { AccessibilityProps, Pressable, StyleSheet, ViewStyle } from 'react-native';
 
 export type IconButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type IconButtonSize = 'medium' | 'small';
@@ -17,6 +17,8 @@ export type IconButtonProps = {
   style?: ViewStyle;
 } & AccessibilityProps;
 
+const TRANSPARENT = 'transparent';
+
 // Compute variant styles based on state
 function computeVariantStyles(
   variant: IconButtonVariant,
@@ -26,7 +28,6 @@ function computeVariantStyles(
   disabled: boolean,
 ) {
   const palette = Colors[mode];
-  const transparent = 'transparent';
 
   if (disabled) {
     return {
@@ -62,7 +63,7 @@ function computeVariantStyles(
       // Subtle variant starts transparent and uses tertiary backgrounds on interaction
       const bg = pressed
         ? palette.background.neutral.tertiaryPressed
-        : (hovered ? palette.background.neutral.tertiaryHover : transparent);
+        : (hovered ? palette.background.neutral.tertiaryHover : TRANSPARENT);
       const iconColor = pressed || hovered
         ? palette.icon.neutral.onNeutralTertiary
         : palette.icon.neutral.tertiary;
@@ -81,21 +82,20 @@ function computeVariantStyles(
 }
 
 function computeSizeStyles(size: IconButtonSize) {
-  // Figma: 20px glyph with 6px (small) or 10px (medium) padding and a fully rounded pill
-  const borderRadius = Size.radius['full'];
+  // Icon button dimensions follow control tokens by size
   const iconSizeMedium: IconSize = '20';
   const iconSizeSmall: IconSize = '16';
 
   if (size === 'small') {
     return {
-      padding: Size.space['200'],
-      borderRadius,
+      width: Size.control.dimension.medium,
+      height: Size.control.dimension.medium,
       iconSize: iconSizeSmall,
     };
   }
   return {
-    padding: Size.space['250'],
-    borderRadius,
+    width: Size.control.dimension.large,
+    height: Size.control.dimension.large,
     iconSize: iconSizeMedium,
   };
 }
@@ -153,12 +153,11 @@ export const IconButton: React.FC<IconButtonProps> = ({
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         return [
+          styles.buttonBase,
           {
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: sizeStyles.borderRadius,
             backgroundColor: variantStyles.backgroundColor,
-            padding: sizeStyles.padding,
+            width: sizeStyles.width,
+            height: sizeStyles.height,
           },
           style,
         ];
@@ -172,3 +171,11 @@ export const IconButton: React.FC<IconButtonProps> = ({
     </Pressable>
   );
 };
+
+const styles = StyleSheet.create({
+  buttonBase: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Size.radius['full'],
+  },
+});

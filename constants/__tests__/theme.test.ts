@@ -13,6 +13,8 @@ import {
 } from '@/constants/theme';
 import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens, wdsTimeTokens } from '@/constants/wdsTokens';
 
+const REM_TO_PX = 16;
+
 describe('Theme Tokens', () => {
   describe('Colors', () => {
     it('exports Colors with light and dark modes', () => {
@@ -224,6 +226,12 @@ describe('Theme Tokens', () => {
       expect(Size.depth).toBeDefined();
       expect(Size.stroke).toBeDefined();
       expect(Size.blur).toBeDefined();
+      expect(Size.bar).toBeDefined();
+      expect(Size.bar.height).toBeDefined();
+      expect(Size.control).toBeDefined();
+      expect(Size.control.dimension).toBeDefined();
+      expect(Size.control.height).toBeDefined();
+      expect(Size.control.width).toBeDefined();
     });
 
     it('has space tokens with numeric keys', () => {
@@ -233,6 +241,15 @@ describe('Theme Tokens', () => {
       expect(Size.space['400']).toBe(16);
       expect(Size.space['600']).toBe(24);
       expect(Size.space['800']).toBe(32);
+    });
+
+    it('nests text spacing tokens under space.text', () => {
+      expect(Size.space.text.line).toBe(parseFloat(wdsSizeTokens['wds-size-space-text-line']) * REM_TO_PX);
+      expect(Size.space.text.paragraph).toBe(parseFloat(wdsSizeTokens['wds-size-space-text-paragraph']) * REM_TO_PX);
+      expect(Size.space.text.section).toBe(parseFloat(wdsSizeTokens['wds-size-space-text-section']) * REM_TO_PX);
+      expect(Size.space.text.subsection).toBe(parseFloat(wdsSizeTokens['wds-size-space-text-subsection']) * REM_TO_PX);
+      expect((Size.space as Record<string, unknown>)['text-line']).toBeUndefined();
+      expect((Size.space as Record<string, unknown>).textLine).toBeUndefined();
     });
 
     it('converts rem to pixels correctly (16px base)', () => {
@@ -263,8 +280,20 @@ describe('Theme Tokens', () => {
 
     it('has stroke tokens', () => {
       expect(Size.stroke.border).toBe(1);
-      // Stroke tokens may use hyphenated keys like 'focus-ring'
-      expect(Size.stroke['focus-ring'] ?? Size.stroke.focusRing).toBeGreaterThan(0);
+      expect(Size.stroke['focus-ring']).toBeGreaterThan(0);
+      expect(Size.stroke.focusRing).toBe(Size.stroke['focus-ring']);
+    });
+
+    it('exports new non-numeric size token families', () => {
+      expect(Size.bar.height.short).toBe(parseFloat(wdsSizeTokens['wds-size-bar-height-short']) * REM_TO_PX);
+      expect(Size.bar.height.tall).toBe(parseFloat(wdsSizeTokens['wds-size-bar-height-tall']) * REM_TO_PX);
+
+      expect(Size.control.dimension.small).toBe(parseFloat(wdsSizeTokens['wds-size-control-dimension-small']) * REM_TO_PX);
+      expect(Size.control.dimension.medium).toBe(parseFloat(wdsSizeTokens['wds-size-control-dimension-medium']) * REM_TO_PX);
+      expect(Size.control.dimension.large).toBe(parseFloat(wdsSizeTokens['wds-size-control-dimension-large']) * REM_TO_PX);
+
+      expect(Size.control.height.short).toBe(parseFloat(wdsSizeTokens['wds-size-control-height-short']) * REM_TO_PX);
+      expect(Size.control.width.wide).toBe(parseFloat(wdsSizeTokens['wds-size-control-width-wide']) * REM_TO_PX);
     });
 
     it('has depth tokens for shadows', () => {
@@ -279,10 +308,10 @@ describe('Theme Tokens', () => {
     });
 
     it('derives values directly from the size tokens map', () => {
-      expect(Size.space['400']).toBe(parseFloat(wdsSizeTokens['wds-size-space-400']) * 16);
-      expect(Size.radius['200']).toBe(parseFloat(wdsSizeTokens['wds-size-radius-200']) * 16);
+      expect(Size.space['400']).toBe(parseFloat(wdsSizeTokens['wds-size-space-400']) * REM_TO_PX);
+      expect(Size.radius['200']).toBe(parseFloat(wdsSizeTokens['wds-size-radius-200']) * REM_TO_PX);
       expect(Size.depthNegative['negative-025']).toBe(
-        parseFloat(wdsSizeTokens['wds-size-depth-negative-025']) * 16,
+        parseFloat(wdsSizeTokens['wds-size-depth-negative-025']) * REM_TO_PX,
       );
     });
 
