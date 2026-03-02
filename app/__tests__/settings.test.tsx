@@ -41,7 +41,7 @@ jest.mock('@/components', () => {
   const mockReactNative = jest.requireActual('react-native') as typeof import('react-native');
 
   return {
-    PageHeader: () => mockReact.createElement(mockReactNative.View, { testID: 'page-header' }),
+    WebPageHeader: () => mockReact.createElement(mockReactNative.View, { testID: 'page-header' }),
     ThemedText: ({ children }: { children: React.ReactNode }) =>
       mockReact.createElement(mockReactNative.Text, null, children),
     SelectField: (props: Record<string, unknown>) => {
