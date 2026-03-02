@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
   horizontal: {
     flexDirection: 'row',
     minWidth: 96,
+    minHeight: Size.control.height.medium,
     paddingLeft: Size.space['200'],
     paddingRight: Size.space['300'],
     paddingVertical: Size.space['200'],
