@@ -6,13 +6,9 @@
  * profile section normalization only.
  */
 import type { SpeciesOverviewLine, SpeciesOverviewSection } from './types';
-
-type JsonRecord = Record<string, unknown>;
+import { asRecord, type JsonRecord } from './parsers/core';
 
 const FREQUENCY_PREFIX = /^(always|almost always|primarily|often|sometimes|rarely)\s+in\s+(.+)$/i;
-
-const asRecord = (value: unknown): JsonRecord =>
-  value && typeof value === 'object' ? (value as JsonRecord) : {};
 
 const slugifySectionId = (value: string, fallback: string): string => {
   const slug = value
@@ -76,6 +72,9 @@ const normalizeLineBody = (value: string): SpeciesOverviewLine | null => {
   return { body: trimmed };
 };
 
+/**
+ * Builds overview sections from plain multi-line description text.
+ */
 export const parseOverviewSectionsFromDescriptionText = (description: string): SpeciesOverviewSection[] => {
   const rawLines = description
     .split('\n')
@@ -123,6 +122,9 @@ export const parseOverviewSectionsFromDescriptionText = (description: string): S
   return sections;
 };
 
+/**
+ * Parses overview sections from structured detail payloads with text fallback.
+ */
 export const parseOverviewSectionsFromDetailSource = (
   detailSource: JsonRecord,
   description: string,
