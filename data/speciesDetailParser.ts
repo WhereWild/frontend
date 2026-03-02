@@ -7,14 +7,7 @@
  */
 import { parseOverviewSectionsFromDetailSource } from './speciesOverviewParser';
 import type { SpeciesApiDetail, SpeciesApiNormalized } from './types';
-
-type JsonRecord = Record<string, unknown>;
-
-const asRecord = (value: unknown): JsonRecord =>
-  value && typeof value === 'object' ? (value as JsonRecord) : {};
-
-const toOptionalString = (value: unknown): string | null =>
-  typeof value === 'string' ? value : null;
+import { asRecord, toOptionalString } from './parsers/core';
 
 const toFirstString = (...values: unknown[]): string | null => {
   for (const value of values) {
@@ -28,6 +21,9 @@ const toFirstString = (...values: unknown[]): string | null => {
 
 const DESCRIPTION_PENDING = 'description pending';
 
+/**
+ * Parses and normalizes a species detail payload for UI consumption.
+ */
 export const parseSpeciesApiDetail = (
   payload: unknown,
   normalized: SpeciesApiNormalized,
