@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     gap: Size.space['100'],
   },
   overviewLines: {
-    gap: Size.space['50'],
+    gap: Size.space['050'],
   },
   featuredImageWrapper: {
     flex: 1,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   imageAttribution: {
     marginTop: Size.space['100'],
-    gap: Size.space['50'],
+    gap: Size.space['050'],
   },
   commonNamesSection: {
     gap: Size.space['200'],
