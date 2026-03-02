@@ -3,20 +3,20 @@ import {
   WebPageHeader,
   SpeciesPageTitle,
   ThemedText,
-  SpeciesEnvironmentSection
+  SpeciesEnvironmentSection,
+  SpeciesInformationSection,
 } from '@/components';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import { parseOverviewSectionsFromDescriptionText } from '@/data/speciesOverviewParser';
-import type { SpeciesOverviewLine, SpeciesPageData } from '@/data/types';
+import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
@@ -58,46 +58,6 @@ function SectionShell({
     </View>
   );
 }
-
-function CommonNamesList({ names }: { names: string[] }) {
-  return (
-    <View>
-      {names.map((name) => (
-        <View key={name} style={styles.commonNameRow}>
-          <ThemedText
-            variant="body"
-            style={styles.commonNameBullet}
-            accessible={false}
-            importantForAccessibility="no"
-            accessibilityElementsHidden
-          >
-            •
-          </ThemedText>
-          <ThemedText variant="body">{name}</ThemedText>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-const renderOverviewLineText = (line: SpeciesOverviewLine) => {
-  const body = line.body?.trim();
-  if (!body) {
-    return null;
-  }
-  const prefix = line.prefix?.trim();
-  if (!prefix) {
-    return <ThemedText variant="body">{body}</ThemedText>;
-  }
-
-  return (
-    <ThemedText variant="body">
-      <ThemedText variant="bodyStrong">{`${prefix} `}</ThemedText>
-      {body}
-    </ThemedText>
-  );
-};
-
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
   const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
@@ -152,31 +112,6 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
 
-  const hasImageAttribution = Boolean(
-    overview.imageLicense ||
-    overview.imageCreator ||
-    overview.imageRightsHolder ||
-    overview.imageReferences
-  );
-
-  const normalizedCreator = overview.imageCreator?.trim() || '';
-  const normalizedRightsHolder = overview.imageRightsHolder?.trim() || '';
-  const photoBy = normalizedCreator || normalizedRightsHolder;
-
-  const imageReferenceUrl = React.useMemo(() => {
-    const raw = overview.imageReferences?.trim();
-    if (!raw) return null;
-    if (/^https?:\/\//i.test(raw)) return raw;
-    return `https://www.inaturalist.org/${raw.replace(/^\/+/, '')}`;
-  }, [overview.imageReferences]);
-
-  const overviewSections = React.useMemo(() => {
-    if (overview.sections && overview.sections.length > 0) {
-      return overview.sections;
-    }
-    return parseOverviewSectionsFromDescriptionText(overview.description);
-  }, [overview.description, overview.sections]);
-
   return (
     <>
       <Head>
@@ -201,105 +136,46 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
           />
 
           <SectionShell responsive={responsive}>
-              <View style={styles.overviewSection}>
-                <View style={styles.featuredImageWrapper}>
-                  <Image
-                    source={overview.imageSource}
-                    style={[styles.featuredImage]}
-                    resizeMode="cover"
-                    accessibilityLabel={`${commonName} featured image`}
-                  />
-                  {hasImageAttribution && (
-                    <View style={styles.imageAttribution}>
-                      {photoBy && (
-                        <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
-                          Photo by {photoBy}
-                        </ThemedText>
-                      )}
-                      {imageReferenceUrl && (
-                        <ThemedText
-                          variant="bodySmallLink"
-                          onPress={() => Linking.openURL(imageReferenceUrl)}
-                        >
-                          View on iNaturalist
-                        </ThemedText>
-                      )}
-                      {overview.imageLicense && (
-                        <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
-                          {overview.imageLicense}
-                        </ThemedText>
-                      )}
-                    </View>
-                  )}
-                </View>
-                <View style={[styles.overviewText, { maxWidth: responsive.textWidth }]}>
-                  <ThemedText variant="heading">Overview</ThemedText>
-                  {overviewSections.length > 0 ? (
-                    <View style={styles.overviewSections}>
-                      {overviewSections.map((section) => (
-                        <View key={section.id} style={styles.overviewSectionBlock}>
-                          <ThemedText variant="subheading">{section.title}</ThemedText>
-                          <View style={styles.overviewLines}>
-                            {section.lines.map((line, index) => {
-                              const lineNode = renderOverviewLineText(line);
-                              if (!lineNode) {
-                                return null;
-                              }
-                              return (
-                                <View key={`${section.id}-line-${index}`}>
-                                  {lineNode}
-                                </View>
-                              );
-                            })}
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <ThemedText variant="body">{overview.description}</ThemedText>
-                  )}
-                </View>
-              </View>
-
-              <View style={styles.commonNamesSection}>
-                <ThemedText variant="heading">Common Names</ThemedText>
-                <CommonNamesList names={displayCommonNames} />
-              </View>
+            <SpeciesInformationSection
+              commonName={commonName}
+              commonNames={displayCommonNames}
+              overview={overview}
+            />
           </SectionShell>
 
           <NearbySpeciesCarousel species={nearbySpecies} />
 
           {shouldRenderOccurrenceMap && (
             <SectionShell responsive={responsive}>
-                <ThemedText variant="heading">Observation Map</ThemedText>
-                <SpeciesLocationFilters
-                  countryOptions={countryOptions}
-                  stateOptions={stateOptions}
-                  countyOptions={countyOptions}
-                  countryLoading={countryLoading}
-                  stateLoading={stateLoading}
-                  countyLoading={countyLoading}
-                  selectedCountryGid={selectedCountryGid}
-                  selectedStateGid={selectedStateGid}
-                  selectedCountyGid={selectedCountyGid}
-                  onCountryChange={onCountryChange}
-                  onStateChange={onStateChange}
-                  onCountyChange={onCountyChange}
-                />
+              <ThemedText variant="heading">Observation Map</ThemedText>
+              <SpeciesLocationFilters
+                countryOptions={countryOptions}
+                stateOptions={stateOptions}
+                countyOptions={countyOptions}
+                countryLoading={countryLoading}
+                stateLoading={stateLoading}
+                countyLoading={countyLoading}
+                selectedCountryGid={selectedCountryGid}
+                selectedStateGid={selectedStateGid}
+                selectedCountyGid={selectedCountyGid}
+                onCountryChange={onCountryChange}
+                onStateChange={onStateChange}
+                onCountyChange={onCountyChange}
+              />
 
-                <SpeciesEnvironmentSection
-                  taxonId={taxonId}
-                  onHighlightChange={setHighlightedCatalogs}
-                  locationGid={finalLocationGid}
-                  units={units} // <- forward units preference
-                />
+              <SpeciesEnvironmentSection
+                taxonId={taxonId}
+                onHighlightChange={setHighlightedCatalogs}
+                locationGid={finalLocationGid}
+                units={units} // <- forward units preference
+              />
 
-                <SpeciesOccurrenceMap
-                  occurrences={occurrences}
-                  loading={occurrenceLoading}
-                  error={occurrenceError}
-                  highlightedCatalogs={highlightedCatalogs}
-                />
+              <SpeciesOccurrenceMap
+                occurrences={occurrences}
+                loading={occurrenceLoading}
+                error={occurrenceError}
+                highlightedCatalogs={highlightedCatalogs}
+              />
             </SectionShell>
           )}
 
@@ -339,51 +215,6 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['400'],
-  },
-  overviewSection: {
-    flexDirection: 'row-reverse',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    gap: Size.space['400'],
-    flexWrap: 'wrap',
-  },
-  overviewText: {
-    flex: 1,
-    minWidth: 280,
-    gap: Size.space['200'],
-  },
-  overviewSections: {
-    gap: Size.space['200'],
-  },
-  overviewSectionBlock: {
-    gap: Size.space['100'],
-  },
-  overviewLines: {
-    gap: Size.space['050'],
-  },
-  featuredImageWrapper: {
-    flex: 1,
-    minWidth: 240,
-  },
-  featuredImage: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: Size.radius['400'],
-  },
-  imageAttribution: {
-    marginTop: Size.space['100'],
-    gap: Size.space['050'],
-  },
-  commonNamesSection: {
-    gap: Size.space['200'],
-  },
-  commonNameRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Size.space['100'],
-  },
-  commonNameBullet: {
-    minWidth: Size.space['200'],
   },
   heatMapSection: {
     gap: Size.space['400'],
