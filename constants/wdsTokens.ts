@@ -472,7 +472,20 @@ export const wdsSemanticTokens = {
 } as const;
 
 export const wdsSizeTokens = {
+  "wds-size-bar-height-short": "4rem",
+  "wds-size-bar-height-tall": "5rem",
   "wds-size-blur-100": "0.25rem",
+  "wds-size-control-dimension-large": "2.5rem",
+  "wds-size-control-dimension-medium": "2rem",
+  "wds-size-control-dimension-small": "1.5rem",
+  "wds-size-control-dimension-tiny": "1rem",
+  "wds-size-control-height-medium": "2.5rem",
+  "wds-size-control-height-short": "2rem",
+  "wds-size-control-height-tall": "3rem",
+  "wds-size-control-height-tiny": "1.5rem",
+  "wds-size-control-width-medium": "2.5rem",
+  "wds-size-control-width-narrow": "2rem",
+  "wds-size-control-width-wide": "3rem",
   "wds-size-depth-0": "0rem",
   "wds-size-depth-025": "0.0625rem",
   "wds-size-depth-100": "0.25rem",
@@ -514,6 +527,10 @@ export const wdsSizeTokens = {
   "wds-size-space-negative-300": "-0.75rem",
   "wds-size-space-negative-400": "-1rem",
   "wds-size-space-negative-600": "-1.5rem",
+  "wds-size-space-text-line": "0.25rem",
+  "wds-size-space-text-paragraph": "0.5rem",
+  "wds-size-space-text-section": "1rem",
+  "wds-size-space-text-subsection": "0.75rem",
   "wds-size-stroke-border": "0.0625rem",
   "wds-size-stroke-focus-ring": "0.125rem"
 } as const;

@@ -290,7 +290,7 @@ NativeLeafletFrame.displayName = 'NativeLeafletFrame';
 const styles = StyleSheet.create({
   mapWrapper: {
     width: '100%',
-    borderRadius: Size.radius['300'],
+    borderRadius: Size.radius['200'],
     overflow: 'hidden',
   },
   webview: {
