@@ -25,8 +25,8 @@ export type { DataEntryDetail, DataEntryProps } from './lists/DataEntry';
 export { DataEntrySection } from './lists/DataEntrySection';
 export type { DataEntrySectionEntry, DataEntrySectionProps } from './lists/DataEntrySection';
 
-export { PageHeader } from './sections/PageHeader';
-export type { PageHeaderAction, PageHeaderProps } from './sections/PageHeader';
+export { WebPageHeader } from './sections/WebPageHeader';
+export type { WebPageHeaderAction, WebPageHeaderProps } from './sections/WebPageHeader';
 
 export { SearchInput } from './inputs/SearchInput';
 export type { SearchInputProps } from './inputs/SearchInput';
