@@ -13,6 +13,7 @@ import {
   NavigationPillList,
   NearbySpeciesCarousel,
   PageHeader,
+  RadioGroup,
   SearchInput,
   SelectField,
   SwitchField,
@@ -106,6 +107,7 @@ export default function About() {
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
   const [switchValue, setSwitchValue] = useState(true);
+  const [radioGroupValue, setRadioGroupValue] = useState('checked');
   const [selectedTab, setSelectedTab] = useState('overview');
   const [overviewPill, setOverviewPill] = useState('all');
   const [habitatPill, setHabitatPill] = useState('soil');
@@ -158,6 +160,10 @@ export default function About() {
       label: 'Sagarmatha National Park (Everest Region), Province No. 1, Nepal',
       value: 'sagarmatha-nepal',
     },
+  ];
+  const radioOptions = [
+    { label: 'Label', description: 'Description', value: 'checked' },
+    { label: 'Label', description: 'Description', value: 'unchecked' },
   ];
   const buttonRows: ButtonRow[] = [
     {
@@ -518,6 +524,29 @@ export default function About() {
           </View>
 
           <View>
+            <ThemedText variant="heading">Radio Field</ThemedText>
+            <View style={styles.selectGrid}>
+              <View style={styles.radioStateGroup}>
+                <ThemedText variant="body">State=Default</ThemedText>
+                <RadioGroup
+                  options={radioOptions}
+                  value={radioGroupValue}
+                  onValueChange={setRadioGroupValue}
+                />
+              </View>
+
+              <View style={styles.radioStateGroup}>
+                <ThemedText variant="body">State=Disabled</ThemedText>
+                <RadioGroup
+                  options={radioOptions}
+                  value="checked"
+                  disabled
+                />
+              </View>
+            </View>
+          </View>
+
+          <View>
             <ThemedText variant="heading">Species Card</ThemedText>
             <SpeciesCard
               taxonId={speciesSample.taxonId}
@@ -805,5 +834,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Size.space['600'],
+  },
+  radioStateGroup: {
+    width: 340,
+    gap: Size.space['300'],
   },
 });
