@@ -68,6 +68,9 @@ export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
 export { SpeciesPageTitle } from './sections/SpeciesPageTitle';
 export type { SpeciesPageTitleProps } from './sections/SpeciesPageTitle';
 
+export { SpeciesInformationSection } from './sections/SpeciesInformationSection';
+export type { SpeciesInformationSectionProps } from './sections/SpeciesInformationSection';
+
 export { InlineExpandableRows } from './lists/InlineExpandableRows';
 export type {
   InlineExpandableRowEntry, InlineExpandableRowsProps, InlineExpandableRowsSection
