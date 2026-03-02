@@ -4,7 +4,13 @@
  */
 import { Easing, TextStyle } from 'react-native';
 
-import { cssLengthToPx, cssTimeToMs, resolveCssVariables } from './tokenHelpers';
+import {
+  buildTypedTokenGroup,
+  cssLengthToPx,
+  cssTimeToMs,
+  resolveCssVariables,
+  withCamelCaseAliases,
+} from './tokenHelpers';
 import { wdsSemanticTokens, wdsSizeTokens, wdsStyleTokens, wdsTimeTokens } from './wdsTokens';
 import { getResponsive } from './responsive';
 import { createShadows } from './shadows';
@@ -367,40 +373,57 @@ export const SizeTokens = wdsSizeTokens;
 // Raw time tokens (CSS values) for direct variable usage in web contexts if needed.
 export const TimeTokens = wdsTimeTokens;
 
-/**
- * Builds a grouped token map by filtering keys with a prefix, stripping that prefix,
- * and converting each raw token value into a typed value.
- *
- * @template T - Output value type returned by the converter (e.g. number, string, number[]).
- * @param tokens - Source token dictionary to read from.
- * @param prefix - Token key prefix to match and remove from output keys.
- * @param convert - Converter applied to each matched token value.
- * @returns Record keyed by stripped token names with converted values.
- */
-const buildTokenGroup = <T>(
-  tokens: Record<string, string>,
-  prefix: string,
-  convert: (value: string) => T,
-) =>
-  Object.fromEntries(
-    Object.entries(tokens)
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([key, value]) => [key.replace(prefix, ''), convert(value)])
-  ) as Record<string, T>;
+const controlDimensions = withCamelCaseAliases(
+  buildTypedTokenGroup(wdsSizeTokens, 'wds-size-control-dimension-', cssLengthToPx)
+);
+
+const controlHeights = withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-control-height-', cssLengthToPx));
+
+const controlWidths = withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-control-width-', cssLengthToPx));
+
+const spaceTokens = withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-space-', cssLengthToPx));
+
+const {
+  'text-line': textLine,
+  textLine: _textLineAlias,
+  'text-paragraph': textParagraph,
+  textParagraph: _textParagraphAlias,
+  'text-section': textSection,
+  textSection: _textSectionAlias,
+  'text-subsection': textSubsection,
+  textSubsection: _textSubsectionAlias,
+  ...spaceTokensWithoutTextKeys
+} = spaceTokens;
 
 // Groups are organized by semantic intent (spacing, radius, depth, etc.).
 export const Size = {
-  space: buildTokenGroup(wdsSizeTokens, 'wds-size-space-', cssLengthToPx), // Includes negative space tokens (remain negative after conversion)
-  radius: buildTokenGroup(wdsSizeTokens, 'wds-size-radius-', cssLengthToPx),
-  icon: buildTokenGroup(wdsSizeTokens, 'wds-size-icon-', cssLengthToPx),
-  depth: buildTokenGroup(wdsSizeTokens, 'wds-size-depth-', cssLengthToPx),
+  space: {
+    ...spaceTokensWithoutTextKeys,
+    text: {
+      line: textLine,
+      paragraph: textParagraph,
+      section: textSection,
+      subsection: textSubsection,
+    },
+  }, // Includes negative space tokens (remain negative after conversion)
+  radius: withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-radius-', cssLengthToPx)),
+  icon: withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-icon-', cssLengthToPx)),
+  depth: withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-depth-', cssLengthToPx)),
   // Negative depth values are already captured inside depth (they have the same prefix);
   // expose a convenience filtered view if needed.
   depthNegative: Object.fromEntries(
-    Object.entries(buildTokenGroup(wdsSizeTokens, 'wds-size-depth-', cssLengthToPx)).filter(([k]) => k.startsWith('negative-'))
+    Object.entries(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-depth-', cssLengthToPx)).filter(([k]) => k.startsWith('negative-'))
   ),
-  stroke: buildTokenGroup(wdsSizeTokens, 'wds-size-stroke-', cssLengthToPx),
-  blur: buildTokenGroup(wdsSizeTokens, 'wds-size-blur-', cssLengthToPx),
+  stroke: withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-stroke-', cssLengthToPx)),
+  blur: withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-blur-', cssLengthToPx)),
+  bar: {
+    height: withCamelCaseAliases(buildTypedTokenGroup(wdsSizeTokens, 'wds-size-bar-height-', cssLengthToPx)),
+  },
+  control: {
+    dimension: controlDimensions,
+    height: controlHeights,
+    width: controlWidths,
+  },
 } as const;
 
 export type SizeGroup = typeof Size;
@@ -408,13 +431,13 @@ export type SizeGroup = typeof Size;
 // Groups are organized by semantic time intent (durations and easing curves).
 // Duration tokens are parsed into numeric milliseconds (e.g. 200ms -> 200).
 export const Time = {
-  duration: buildTokenGroup(wdsTimeTokens, 'wds-time-duration-', cssTimeToMs),
-  easing: buildTokenGroup(wdsTimeTokens, 'wds-time-easing-', (value) => value),
+  duration: buildTypedTokenGroup(wdsTimeTokens, 'wds-time-duration-', cssTimeToMs),
+  easing: buildTypedTokenGroup(wdsTimeTokens, 'wds-time-easing-', (value) => value),
 } as const;
 
 export type TimeGroup = typeof Time;
 
-export const TimeEasingCurves = buildTokenGroup<number[]>(
+export const TimeEasingCurves = buildTypedTokenGroup(
   wdsTimeTokens,
   'wds-time-easing-',
   parseEasingCurve,
