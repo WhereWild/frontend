@@ -17,15 +17,15 @@ jest.mock('@/hooks/useColorScheme', () => ({
     useColorScheme: jest.fn(() => 'dark'),
 }));
 
-let pageHeaderProps: any;
+let webPageHeaderProps: any;
 
 jest.mock('@/components', () => {
     const { SpeciesCard } = jest.requireActual('@/components/cards/SpeciesCard');
     const { ThemedText } = jest.requireActual('@/components/text/ThemedText');
 
     return {
-        PageHeader: function MockPageHeader(props: any) {
-            pageHeaderProps = props;
+        WebPageHeader: function MockWebPageHeader(props: any) {
+            webPageHeaderProps = props;
             return null;
         },
         SpeciesCard,
@@ -60,7 +60,7 @@ describe('Search screen', () => {
 
     it('captures page header props', () => {
         render(<Search />);
-        expect(pageHeaderProps).toBeDefined();
+        expect(webPageHeaderProps).toBeDefined();
     });
 
     it('displays the Results heading', () => {
@@ -96,7 +96,7 @@ describe('Search screen', () => {
         render(<Search />);
 
         act(() => {
-            pageHeaderProps.onSearchingChanged(true);
+                webPageHeaderProps.onSearchingChanged(true);
         });
         
         expect(screen.getByText('Loading...')).toBeTruthy();
@@ -105,8 +105,8 @@ describe('Search screen', () => {
     it('shows empty state message when no results', () => {
         render(<Search />);
         act(() => {
-            pageHeaderProps.onSearchResultsChanged([]);
-            pageHeaderProps.onSearchingChanged(false);
+                webPageHeaderProps.onSearchResultsChanged([]);
+                webPageHeaderProps.onSearchingChanged(false);
         });
             
         expect(screen.getByText('Enter a search term to see results.')).toBeTruthy();
@@ -115,8 +115,8 @@ describe('Search screen', () => {
     it('updates species card list when search results change', () => {
         render(<Search />);
         act(() => {
-            pageHeaderProps.onSearchResultsChanged(mockSpeciesResults);
-            pageHeaderProps.onSearchingChanged(false);
+                webPageHeaderProps.onSearchResultsChanged(mockSpeciesResults);
+                webPageHeaderProps.onSearchingChanged(false);
         });
             
         expect(screen.queryByText('Enter a search term to see results.')).toBeNull();
