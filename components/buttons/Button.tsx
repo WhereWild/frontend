@@ -22,6 +22,8 @@ export interface ButtonProps {
   size?: ButtonSize;
   disabled?: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
+  delayLongPress?: number;
   children?: React.ReactNode;
   label?: string;
   iconStart?: ButtonIcon;
@@ -109,6 +111,8 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'medium',
   disabled = false,
   onPress,
+  onLongPress,
+  delayLongPress,
   children,
   label,
   iconStart,
@@ -127,6 +131,8 @@ export const Button: React.FC<ButtonProps> = ({
       accessibilityLabel={resolveButtonAccessibilityLabel(accessibilityLabel, label, children)}
       disabled={disabled}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={delayLongPress}
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         const sizeStyles = computeButtonSizeStyles(size);

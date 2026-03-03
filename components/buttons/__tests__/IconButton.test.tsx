@@ -1,5 +1,5 @@
 import { Colors, Size } from '@/constants/theme';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
 import type { IconButtonSize, IconButtonVariant } from '../IconButton';
@@ -181,6 +181,63 @@ describe('IconButton Component', () => {
 
       fireEvent.press(screen.getByLabelText('Disabled'));
       expect(onPress).not.toHaveBeenCalled();
+    });
+
+    it('does not call onLongPress when disabled', () => {
+      const onLongPress = jest.fn();
+
+      render(
+        <IconButton
+          disabled
+          icon={<MockIcon />}
+          onLongPress={onLongPress}
+          accessibilityLabel="Disabled Hold"
+        />,
+      );
+
+      fireEvent(screen.getByLabelText('Disabled Hold'), 'onLongPress');
+      expect(onLongPress).not.toHaveBeenCalled();
+    });
+
+    it('calls long press only after configured delay and fires press out on release', () => {
+      jest.useFakeTimers();
+      const delayLongPress = 250;
+
+      const onLongPress = jest.fn();
+      const onPressOut = jest.fn();
+
+      try {
+        render(
+          <IconButton
+            icon={<MockIcon />}
+            accessibilityLabel="Hold Me"
+            onLongPress={onLongPress}
+            onPressOut={onPressOut}
+            delayLongPress={delayLongPress}
+          />,
+        );
+
+        const button = screen.getByLabelText('Hold Me');
+
+        setTimeout(() => {
+          fireEvent(button, 'onLongPress');
+        }, delayLongPress);
+
+        act(() => {
+          jest.advanceTimersByTime(delayLongPress - 1);
+        });
+        expect(onLongPress).not.toHaveBeenCalled();
+
+        act(() => {
+          jest.advanceTimersByTime(1);
+        });
+        expect(onLongPress).toHaveBeenCalledTimes(1);
+
+        fireEvent(button, 'onPressOut');
+        expect(onPressOut).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
