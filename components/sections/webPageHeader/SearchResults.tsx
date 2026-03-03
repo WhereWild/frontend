@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { ThemedText } from '../text/ThemedText';
+import { ThemedText } from '../../text/ThemedText';
 import type { SpeciesSummary } from '@/data/types';
-import { SpeciesCard } from '../cards/SpeciesCard';
+import { SpeciesCard } from '../../cards/SpeciesCard';
 
 export type SearchResultsProps = {
   /**
