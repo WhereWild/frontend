@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   type PressableStateCallbackType,
   Pressable,
   StyleSheet,
@@ -15,6 +16,7 @@ import { ThemedText } from '@/components/text/ThemedText';
 const INDICATOR_SIZE = Size.control.dimension.tiny;
 const INDICATOR_DOT_SIZE_DIFFERENCE = Size.space['150'];
 const INDICATOR_DOT_SIZE = INDICATOR_SIZE - INDICATOR_DOT_SIZE_DIFFERENCE;
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 type IndicatorColors = {
   backgroundColor: string;
@@ -149,7 +151,7 @@ export function RadioField({
       toValue: isHovered ? 0.92 : 1,
       duration: Time.duration.short,
       easing: getReactNativeEasing('in-and-out'),
-      useNativeDriver: true,
+      useNativeDriver: USE_NATIVE_DRIVER,
     }).start();
   }, [disabled, indicatorOpacity, isHovered]);
 
@@ -158,7 +160,7 @@ export function RadioField({
       toValue: isChecked ? 1 : 0,
       duration: Time.duration.short,
       easing: getReactNativeEasing('in-and-out'),
-      useNativeDriver: true,
+      useNativeDriver: USE_NATIVE_DRIVER,
     }).start();
   }, [dotOpacity, isChecked]);
 
