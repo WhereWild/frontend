@@ -3,12 +3,12 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
-import { ContinuousInsights } from './speciesEnvironment/ContinuousInsights';
-import { DensityChart } from './speciesEnvironment/DensityChart';
-import { StackedCategoryBar } from './speciesEnvironment/StackedCategoryBar';
-import { VariableSelectorHeader } from './speciesEnvironment/VariableSelectorHeader';
-import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './speciesEnvironment/model';
-import { useSpeciesEnvironmentState } from './speciesEnvironment/useSpeciesEnvironmentState';
+import { ContinuousInsights } from './ContinuousInsights';
+import { DensityChart } from './DensityChart';
+import { StackedCategoryBar } from './StackedCategoryBar';
+import { VariableSelectorHeader } from './VariableSelectorHeader';
+import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './model';
+import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 
 /** Props for rendering the species environment analytics section. */
 export type SpeciesEnvironmentSectionProps = {
