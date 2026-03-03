@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Size.space['200'],
+    gap: Size.space.text.line,
   },
   selectFieldContainer: {
     flexShrink: 0,

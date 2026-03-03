@@ -130,7 +130,7 @@ export function SpeciesEnvironmentSection({
             descriptionColor={palette.text.default.secondary}
           />
         ) : (
-          <>
+          <View style={styles.continuousContent}>
             <DensityChart
               curve={densityCurve}
               lineColor={palette.background.brand.default}
@@ -151,7 +151,7 @@ export function SpeciesEnvironmentSection({
               summaryComparisons={summaryComparisons}
               locationFilterActive={locationFilterActive}
             />
-          </>
+          </View>
         )
       ) : null}
     </View>
@@ -178,5 +178,8 @@ const styles = StyleSheet.create({
   },
   errorRow: {
     paddingVertical: Size.space['200'],
+  },
+  continuousContent: {
+    gap: Size.space.text.section,
   },
 });

@@ -116,18 +116,17 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     width: '100%',
-    marginTop: Size.space['600'],
     marginBottom: Size.space['100'],
   },
   rankContextRow: {
     flexDirection: 'column',
-    gap: Size.space['200'],
+    gap: Size.space.text.paragraph,
     alignItems: 'center',
   },
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Size.space['400'],
+    gap: Size.space.text.subsection,
     justifyContent: 'space-evenly',
   },
 });
