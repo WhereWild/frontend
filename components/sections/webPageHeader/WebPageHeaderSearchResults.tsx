@@ -1,7 +1,7 @@
 import { SpeciesSummary } from '@/data/types';
 import React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
-import { SearchResults } from '../SearchResults';
+import { SearchResults } from './SearchResults';
 
 type WebPageHeaderSearchResultsProps = {
   isVisible: boolean;
