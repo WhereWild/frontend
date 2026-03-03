@@ -25,14 +25,14 @@ export type { DataEntryDetail, DataEntryProps } from './lists/DataEntry';
 export { DataEntrySection } from './lists/DataEntrySection';
 export type { DataEntrySectionEntry, DataEntrySectionProps } from './lists/DataEntrySection';
 
-export { WebPageHeader } from './sections/WebPageHeader';
-export type { WebPageHeaderAction, WebPageHeaderProps } from './sections/WebPageHeader';
+export { WebPageHeader } from './sections/webPageHeader/WebPageHeader';
+export type { WebPageHeaderAction, WebPageHeaderProps } from './sections/webPageHeader/WebPageHeader';
 
 export { SearchInput } from './inputs/SearchInput';
 export type { SearchInputProps } from './inputs/SearchInput';
 
-export { SearchResults } from './sections/SearchResults';
-export type { SearchResultsProps } from './sections/SearchResults';
+export { SearchResults } from './sections/webPageHeader/SearchResults';
+export type { SearchResultsProps } from './sections/webPageHeader/SearchResults';
 
 export { SelectField } from './inputs/SelectField';
 export type { SelectFieldProps, SelectOption } from './inputs/SelectField';
