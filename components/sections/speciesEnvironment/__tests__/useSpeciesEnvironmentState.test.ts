@@ -517,4 +517,37 @@ describe('useSpeciesEnvironmentState', () => {
       expect(result.current.selectedVariable).toBe('bio_2');
     });
   });
+
+  it('keeps valid selected rank context and falls back to first option when invalid', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.rankContextOptions.length).toBeGreaterThan(0);
+      expect(result.current.selectedRankContext).toBe(result.current.rankContextOptions[0].key);
+    });
+
+    act(() => {
+      result.current.setSelectedRankContext('Mammalia');
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedRankContext).toBe('Mammalia');
+    });
+
+    act(() => {
+      result.current.setSelectedRankContext('InvalidContext');
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedRankContext).toBe(result.current.rankContextOptions[0].key);
+    });
+  });
 });

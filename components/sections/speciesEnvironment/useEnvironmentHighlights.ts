@@ -10,6 +10,27 @@ import React from 'react';
 import { CategorySampleState, DensitySelectionRange } from './model';
 
 const DENSITY_SLICE_DEBOUNCE_MS = 200;
+type CatalogId = number | string;
+type CategorySampleEntry = NonNullable<SpeciesEnvironmentStats['categoricalSamples']>[number];
+
+const isCatalogId = (id: unknown): id is CatalogId =>
+  typeof id === 'number' || typeof id === 'string';
+
+const toPlaceholderObservations = (ids: CatalogId[]): SpeciesEnvironmentObservation[] =>
+  ids.map((id) => ({
+    catalogNumber: id,
+    value: null,
+    latitude: null,
+    longitude: null,
+  }));
+
+const toCatalogIdsFromObservations = (
+  observations?: SpeciesEnvironmentObservation[] | null,
+): CatalogId[] => (observations ?? []).map((entry) => entry.catalogNumber).filter(isCatalogId);
+
+const toCatalogIdsFromCategorySample = (
+  sample?: CategorySampleEntry,
+): CatalogId[] => (sample?.observationIds ?? []).filter(isCatalogId);
 
 /** Inputs for managing observation highlights from environment interactions. */
 type UseEnvironmentHighlightsParams = {
@@ -99,12 +120,7 @@ export function useEnvironmentHighlights({
           return;
         }
         next[key] = {
-          observations: entry.observationIds.map((id) => ({
-            catalogNumber: id,
-            value: null,
-            latitude: null,
-            longitude: null,
-          })),
+          observations: toPlaceholderObservations(entry.observationIds.filter(isCatalogId)),
           loading: false,
           loaded: true,
           error: null,
@@ -119,29 +135,18 @@ export function useEnvironmentHighlights({
     (nextKey: string) => {
       const cached = categorySamplesByValue[nextKey];
       if (cached?.loaded && !cached.error) {
-        emitHighlightChange(
-          (cached.observations ?? [])
-            .map((entry) => entry.catalogNumber)
-            .filter((id): id is number | string => typeof id === 'number' || typeof id === 'string'),
-        );
+        emitHighlightChange(toCatalogIdsFromObservations(cached.observations));
         return;
       }
 
       if (!locationGid && stats?.categoricalSamples?.length) {
         const preloaded = stats.categoricalSamples.find((entry) => String(entry.value) === nextKey);
-        const preloadedIds = (preloaded?.observationIds ?? []).filter(
-          (id): id is number | string => typeof id === 'number' || typeof id === 'string',
-        );
+        const preloadedIds = toCatalogIdsFromCategorySample(preloaded);
         if (preloadedIds.length) {
           setCategorySamplesByValue((prev) => ({
             ...prev,
             [nextKey]: {
-              observations: preloadedIds.map((id) => ({
-                catalogNumber: id,
-                value: null,
-                latitude: null,
-                longitude: null,
-              })),
+              observations: toPlaceholderObservations(preloadedIds),
               loading: false,
               loaded: true,
               error: null,
@@ -190,11 +195,7 @@ export function useEnvironmentHighlights({
               error: null,
             },
           }));
-          emitHighlightChange(
-            observations
-              .map((entry) => entry.catalogNumber)
-              .filter((id): id is number | string => typeof id === 'number' || typeof id === 'string'),
-          );
+          emitHighlightChange(toCatalogIdsFromObservations(observations));
         } catch (err) {
           if (categoryRequestRef.current !== requestId) {
             return;
@@ -267,11 +268,7 @@ export function useEnvironmentHighlights({
     if (!state?.loaded || state.loading || state.error) {
       return;
     }
-    emitHighlightChange(
-      (state.observations ?? [])
-        .map((entry) => entry.catalogNumber)
-        .filter((id): id is number | string => typeof id === 'number' || typeof id === 'string'),
-    );
+    emitHighlightChange(toCatalogIdsFromObservations(state.observations));
   }, [
     categorySamplesByValue,
     emitHighlightChange,
@@ -327,12 +324,9 @@ export function useEnvironmentHighlights({
           if (cancelled) {
             return;
           }
-          setRangeObservations(response.observations ?? []);
-          emitHighlightChange(
-            (response.observations ?? [])
-              .map((entry) => entry.catalogNumber)
-              .filter((id) => typeof id === 'number' || typeof id === 'string'),
-          );
+          const observations = response.observations ?? [];
+          setRangeObservations(observations);
+          emitHighlightChange(toCatalogIdsFromObservations(observations));
         } catch {
           if (cancelled) {
             return;

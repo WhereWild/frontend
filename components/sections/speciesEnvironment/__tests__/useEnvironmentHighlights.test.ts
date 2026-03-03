@@ -111,6 +111,26 @@ describe('useEnvironmentHighlights', () => {
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
   });
 
+  it('supports function-updater category selection and preloaded resolution before cache sync', async () => {
+    const onHighlightChange = jest.fn();
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: categoricalStats,
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue((previous) => (previous ? null : 'forest'));
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+  });
+
   it('clears category selection when selecting the same value again', async () => {
     const onHighlightChange = jest.fn();
 
@@ -267,6 +287,60 @@ describe('useEnvironmentHighlights', () => {
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([LIVE_CATEGORY_CATALOG]));
   });
 
+  it('falls back to generic error handling for non-Error category fetch rejections', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchSpeciesEnvironmentCategorySamples.mockRejectedValueOnce('network down');
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: { ...categoricalStats, categoricalSamples: [] },
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
+  });
+
+  it('filters invalid catalog IDs from category API observations before emitting highlights', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
+      observations: [
+        { catalogNumber: 'CAT-1', value: null, latitude: null, longitude: null },
+        { catalogNumber: 2, value: null, latitude: null, longitude: null },
+        { catalogNumber: null, value: null, latitude: null, longitude: null },
+        { catalogNumber: undefined, value: null, latitude: null, longitude: null },
+        { catalogNumber: true as any, value: null, latitude: null, longitude: null },
+        { catalogNumber: { id: 'OBJ-1' } as any, value: null, latitude: null, longitude: null },
+      ],
+    } as never);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: { ...categoricalStats, categoricalSamples: [] },
+        isCategorical: true,
+        locationGid: 'USA.1_1',
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['CAT-1', 2]));
+  });
+
   it('cancels in-flight debounced range slice updates on dependency changes (success and failure)', async () => {
     const onHighlightChange = jest.fn();
     const firstSlice = createDeferred<SpeciesEnvironmentSliceResponse>();
@@ -363,5 +437,51 @@ describe('useEnvironmentHighlights', () => {
     });
 
     expect(onHighlightChange.mock.calls.length).toBe(callsBeforeReject);
+  });
+
+  it('emits empty highlights when range slice observations are missing or invalid', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchEnvironmentRangeSlice
+      .mockResolvedValueOnce({
+        speciesId: 1,
+        variable: 'bio_1',
+        range: { min: 1, max: 2 },
+        limit: null,
+        count: 0,
+      } as SpeciesEnvironmentSliceResponse)
+      .mockResolvedValueOnce({
+        speciesId: 1,
+        variable: 'bio_1',
+        range: { min: 3, max: 4 },
+        limit: null,
+        count: 1,
+        observations: [{ catalogNumber: null, value: 3.5, latitude: 0, longitude: 0 }] as never,
+      } as SpeciesEnvironmentSliceResponse);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'bio_1',
+        stats: continuousStats,
+        isCategorical: false,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 1, end: 2 });
+      jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+    });
+
+    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 3, end: 4 });
+      jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+    });
+
+    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
 });

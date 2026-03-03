@@ -2,11 +2,13 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Pressable, Text, View } from 'react-native';
 import { ContinuousInsights } from '../ContinuousInsights';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 const mockView = View;
 const mockPressable = Pressable;
 const mockText = Text;
 const mockReact = React;
+const mockUseColorScheme = jest.mocked(useColorScheme);
 
 type MockPill = { key: string; label: string };
 type NavigationPillListMockProps = {
@@ -33,8 +35,17 @@ jest.mock('@/components/navigation/NavigationPillList', () => ({
     ),
 }));
 
+jest.mock('@/hooks/useColorScheme', () => ({
+  useColorScheme: jest.fn(() => 'light'),
+}));
+
 describe('ContinuousInsights', () => {
   const summary = { min: 1, mean: 5, max: 10 };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseColorScheme.mockReturnValue('light');
+  });
 
   it('renders multi-context rank selector and handles selection', () => {
     const onRankContextChange = jest.fn();
@@ -100,5 +111,71 @@ describe('ContinuousInsights', () => {
     expect(screen.getByText('vs. 0 (+10%)')).toBeTruthy();
     expect(screen.getByText('vs. 4 (+25%)')).toBeTruthy();
     expect(screen.getByText('vs. 9 (+11%)')).toBeTruthy();
+  });
+
+  it('does not render rank context copy when showRankContext is true but no options exist', () => {
+    render(
+      <ContinuousInsights
+        showRankContext={true}
+        rankContextOptions={[]}
+        selectedRankContext={null}
+        onRankContextChange={jest.fn()}
+        summary={summary}
+        summaryRanks={{ min: null, mean: null, max: null }}
+        summaryComparisons={{ min: null, mean: null, max: null }}
+        locationFilterActive={false}
+      />,
+    );
+
+    expect(screen.queryByText(/Select a taxon/)).toBeNull();
+    expect(screen.queryByText(/Rankings within/)).toBeNull();
+    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+  });
+
+  it('renders location-filter summary without comparison text when comparisons are null', () => {
+    render(
+      <ContinuousInsights
+        showRankContext={true}
+        rankContextOptions={[
+          { key: 'Mammalia', label: 'Mammalia' },
+          { key: 'Aves', label: 'Aves' },
+        ]}
+        selectedRankContext={null}
+        onRankContextChange={jest.fn()}
+        summary={summary}
+        summaryRanks={{
+          min: { metric: 'min', label: 'Mammalia', rank: 1, count: 10, percentile: 0.9 },
+          mean: { metric: 'mean', label: 'Mammalia', rank: 2, count: 10, percentile: 0.8 },
+          max: { metric: 'max', label: 'Mammalia', rank: 3, count: 10, percentile: 0.7 },
+        }}
+        summaryComparisons={{ min: null, mean: null, max: null }}
+        locationFilterActive={true}
+      />,
+    );
+
+    expect(screen.getByText(/Select a taxon/)).toBeTruthy();
+    expect(screen.queryByText(/vs\./)).toBeNull();
+    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+    expect(screen.getByText(/Mean\s*:\s*5\.0/)).toBeTruthy();
+    expect(screen.getByText(/Max\s*:\s*10\.0/)).toBeTruthy();
+  });
+
+  it('renders correctly in dark mode', () => {
+    mockUseColorScheme.mockReturnValue('dark');
+
+    render(
+      <ContinuousInsights
+        showRankContext={true}
+        rankContextOptions={[{ key: 'Mammalia', label: 'Mammalia' }]}
+        selectedRankContext={null}
+        onRankContextChange={jest.fn()}
+        summary={summary}
+        summaryRanks={{ min: null, mean: null, max: null }}
+        summaryComparisons={{ min: null, mean: null, max: null }}
+        locationFilterActive={false}
+      />,
+    );
+
+    expect(screen.getByText('Rankings within Mammalia')).toBeTruthy();
   });
 });
