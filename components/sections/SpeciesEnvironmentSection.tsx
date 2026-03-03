@@ -89,14 +89,7 @@ export function SpeciesEnvironmentSection({
   const handleRankContextChange = (value: string) => setSelectedRankContext(value);
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: palette.background.default.secondary,
-        },
-      ]}
-    >
+    <View style={styles.container}>
       <VariableSelectorHeader
         categories={categories}
         selectedVariableCategory={selectedVariableCategory}
@@ -169,8 +162,6 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: Responsive.contentWidth,
-    borderRadius: Size.radius['200'],
-    padding: Size.space['400'],
     alignSelf: 'center',
     gap: Size.space['400'],
   },
