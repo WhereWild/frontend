@@ -40,6 +40,9 @@ export type { SelectFieldProps, SelectOption } from './inputs/SelectField';
 export { SwitchField } from './inputs/SwitchField';
 export type { SwitchFieldProps } from './inputs/SwitchField';
 
+export { NumberSpinner } from './inputs/NumberSpinner';
+export type { NumberSpinnerProps } from './inputs/NumberSpinner';
+
 export { RadioField } from './inputs/RadioField';
 export type { RadioFieldProps } from './inputs/RadioField';
 
