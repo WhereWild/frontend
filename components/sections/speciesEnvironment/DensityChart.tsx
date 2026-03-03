@@ -18,6 +18,12 @@ const CHART_PADDING = Size.space['200'];
 const CHART_HEIGHT = 240;
 const MEAN_LABEL_HALF_WIDTH = 24;
 
+type ClipPathWithUnitsProps = React.ComponentProps<typeof ClipPath> & {
+  clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
+};
+
+const ClipPathWithUnits = ClipPath as React.ComponentType<ClipPathWithUnitsProps>;
+
 /** Selected value range on the density curve. */
 type DensitySelectionRange = {
   start: number;
@@ -164,9 +170,9 @@ export function DensityChart({
       <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 100 ${CHART_HEIGHT}`} preserveAspectRatio="none">
         <Defs>
           {selectionBounds ? (
-            <ClipPath id={clipId} clipPathUnits="userSpaceOnUse">
+            <ClipPathWithUnits id={clipId} clipPathUnits="userSpaceOnUse">
               <Rect x={selectionBounds.left} y={0} width={selectionBounds.width} height={CHART_HEIGHT} />
-            </ClipPath>
+            </ClipPathWithUnits>
           ) : null}
         </Defs>
         <Path d={areaPath} fill={fillColor} opacity={0.3} />
