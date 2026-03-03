@@ -51,25 +51,31 @@ export function VariableSelectorHeader({
 
       <View style={styles.variableHeadingRow}>
         {filteredVariables.length ? (
-          <SelectField
-            variant="tertiary"
-            options={filteredVariables.map((option) => {
-              const isCategoricalVar = isVariableCategorical(option);
-              const units = option.units;
-              return {
-                value: option.id,
-                label: !isCategoricalVar && units ? `${option.label} (${units})` : option.label,
-              };
-            })}
-            value={selectedVariable}
-            onValueChange={onVariableChange}
-            placeholder="Select environment variable"
-          />
+          <View style={styles.selectFieldContainer}>
+            <SelectField
+              variant="secondary"
+              options={filteredVariables.map((option) => {
+                const isCategoricalVar = isVariableCategorical(option);
+                const units = option.units;
+                return {
+                  value: option.id,
+                  label: !isCategoricalVar && units ? `${option.label} (${units})` : option.label,
+                };
+              })}
+              value={selectedVariable}
+              onValueChange={onVariableChange}
+              placeholder="Select environment variable"
+            />
+          </View>
         ) : headingText ? (
           <ThemedText variant="heading">{headingText}</ThemedText>
         ) : null}
 
-        {metaText ? <ThemedText variant="bodySmall">{metaText}</ThemedText> : null}
+        {metaText ? (
+          <ThemedText variant="bodySmall" style={styles.metaText}>
+            {metaText}
+          </ThemedText>
+        ) : null}
       </View>
     </>
   );
@@ -78,8 +84,15 @@ export function VariableSelectorHeader({
 const styles = StyleSheet.create({
   variableHeadingRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: Size.space['200'],
+  },
+  selectFieldContainer: {
+    flexShrink: 0,
+  },
+  metaText: {
+    flexShrink: 0,
   },
 });
