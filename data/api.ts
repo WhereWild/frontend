@@ -58,9 +58,17 @@ export async function fetchSpeciesList(limit?: number, q?: string) {
 /**
  * Fetches and normalizes a single species detail payload.
  */
-export async function fetchSpeciesByTaxonId(taxonId: string | number): Promise<SpeciesApiDetail> {
+export async function fetchSpeciesByTaxonId(
+  taxonId: string | number,
+  options?: { units?: string | null },
+): Promise<SpeciesApiDetail> {
   const encoded = encodeURIComponent(String(taxonId));
-  const url = `${BACKEND_BASE}/api/species/${encoded}`;
+  const params = new URLSearchParams();
+  if (options?.units) {
+    params.set('unit_system', options.units);
+  }
+  const query = params.toString();
+  const url = `${BACKEND_BASE}/api/species/${encoded}${query ? `?${query}` : ''}`;
   const item = await fetchJsonOrThrow(url, `Failed to fetch species ${taxonId}`);
   const normalized = normalizeToJsonShape(item);
   return parseSpeciesApiDetail(item, normalized);

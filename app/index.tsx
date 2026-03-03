@@ -6,6 +6,7 @@ import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle, getResponsiveGapStyle } from '@/constants/responsiveStyles';
+import { useSettings } from '@/context/SettingsContext';
 import Head from 'expo-router/head';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
@@ -28,6 +29,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+  const { units } = useSettings();
   const { map, recommendations } = data;
   const [resolvedRecommendations, setResolvedRecommendations] = React.useState(
     recommendations.items,
@@ -41,7 +43,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
       const hydrated = await Promise.all(
         recommendations.items.map(async (item) => {
           try {
-            const payload = await fetchSpeciesByTaxonId(item.taxonId);
+            const payload = await fetchSpeciesByTaxonId(item.taxonId, { units });
             const commonName = payload.common_name?.trim() || item.commonName;
             const commonNames = payload.common_names?.length ? payload.common_names : item.commonNames;
 
@@ -68,7 +70,7 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
     return () => {
       mounted = false;
     };
-  }, [recommendations.items]);
+  }, [recommendations.items, units]);
 
   return (
     <>

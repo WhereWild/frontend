@@ -112,7 +112,7 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, { units: 'metric' });
     await waitFor(() => {
       expect(screen.getAllByText('Snowy Owl').length).toBeGreaterThan(0);
     });
@@ -130,7 +130,7 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, { units: 'metric' });
     await waitFor(() => {
       expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
     });
@@ -168,7 +168,7 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, { units: 'metric' });
     await waitFor(() => {
       expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
     });
@@ -291,7 +291,7 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('1234');
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('1234', { units: 'metric' });
   });
 
   it('logs an error and renders fallback data when the identifier is non-numeric', async () => {
