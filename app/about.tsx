@@ -12,6 +12,7 @@ import {
   IconButton,
   NavigationPillList,
   NearbySpeciesCarousel,
+  NumberSpinner,
   WebPageHeader,
   RadioGroup,
   SearchInput,
@@ -107,6 +108,11 @@ export default function About() {
   const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
   const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
   const [switchValue, setSwitchValue] = useState(true);
+  const [spinnerValue, setSpinnerValue] = useState(1);
+  const [spinnerAtMinValue] = useState(1);
+  const [spinnerAtMaxValue] = useState(10);
+  const [spinnerNegativeValue, setSpinnerNegativeValue] = useState(0);
+  const [spinnerDisabledValue] = useState(3);
   const [radioGroupValue, setRadioGroupValue] = useState('checked');
   const [selectedTab, setSelectedTab] = useState('overview');
   const [overviewPill, setOverviewPill] = useState('all');
@@ -549,6 +555,50 @@ export default function About() {
                   disabled
                 />
               </View>
+            </View>
+          </View>
+
+          <View>
+            <ThemedText variant="heading">Number Spinner</ThemedText>
+            <View style={styles.selectGrid}>
+              <NumberSpinner
+                label="Label"
+                description="Min 1, max 10"
+                value={spinnerValue}
+                min={1}
+                max={10}
+                onValueChange={setSpinnerValue}
+              />
+              <NumberSpinner
+                label="Label"
+                description="At minimum"
+                value={spinnerAtMinValue}
+                min={1}
+                max={10}
+              />
+              <NumberSpinner
+                label="Label"
+                description="At maximum"
+                value={spinnerAtMaxValue}
+                min={1}
+                max={10}
+              />
+              <NumberSpinner
+                label="Label"
+                description="Allows negatives (-10 to 10)"
+                value={spinnerNegativeValue}
+                min={-10}
+                max={10}
+                onValueChange={setSpinnerNegativeValue}
+              />
+              <NumberSpinner
+                label="Label"
+                description="Disabled"
+                value={spinnerDisabledValue}
+                min={1}
+                max={10}
+                disabled
+              />
             </View>
           </View>
 
