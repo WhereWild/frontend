@@ -9,6 +9,8 @@ import type {
 import React from 'react';
 import { CategorySampleState, DensitySelectionRange } from './model';
 
+const DENSITY_SLICE_DEBOUNCE_MS = 200;
+
 /** Inputs for managing observation highlights from environment interactions. */
 type UseEnvironmentHighlightsParams = {
   /** Taxon ID used for slice/category sample requests. */
@@ -311,35 +313,38 @@ export function useEnvironmentHighlights({
       return;
     }
     let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetchEnvironmentRangeSlice({
-          taxonId,
-          variableId: selectedVariable,
-          min: selectedDensityRange.start,
-          max: selectedDensityRange.end,
-          location: locationGid ?? undefined,
-          units,
-        });
-        if (cancelled) {
-          return;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetchEnvironmentRangeSlice({
+            taxonId,
+            variableId: selectedVariable,
+            min: selectedDensityRange.start,
+            max: selectedDensityRange.end,
+            location: locationGid ?? undefined,
+            units,
+          });
+          if (cancelled) {
+            return;
+          }
+          setRangeObservations(response.observations ?? []);
+          emitHighlightChange(
+            (response.observations ?? [])
+              .map((entry) => entry.catalogNumber)
+              .filter((id) => typeof id === 'number' || typeof id === 'string'),
+          );
+        } catch {
+          if (cancelled) {
+            return;
+          }
+          setRangeObservations([]);
+          emitHighlightChange([]);
         }
-        setRangeObservations(response.observations ?? []);
-        emitHighlightChange(
-          (response.observations ?? [])
-            .map((entry) => entry.catalogNumber)
-            .filter((id) => typeof id === 'number' || typeof id === 'string'),
-        );
-      } catch {
-        if (cancelled) {
-          return;
-        }
-        setRangeObservations([]);
-        emitHighlightChange([]);
-      }
-    })();
+      })();
+    }, DENSITY_SLICE_DEBOUNCE_MS);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [emitHighlightChange, isCategorical, selectedDensityRange, selectedVariable, taxonId, locationGid, units]);
 
