@@ -160,6 +160,26 @@ describe('Button Component', () => {
       expect(onPress).toHaveBeenCalledTimes(1);
     });
 
+    it('calls onLongPress when long pressed', () => {
+      const onLongPress = jest.fn();
+      render(<Button onLongPress={onLongPress}>Long Press Me</Button>);
+
+      fireEvent(screen.getByText('Long Press Me'), 'longPress');
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+    });
+
+    it('supports long press with a custom delayLongPress', () => {
+      const onLongPress = jest.fn();
+      render(
+        <Button delayLongPress={450} onLongPress={onLongPress}>
+          With Delay
+        </Button>
+      );
+
+      fireEvent(screen.getByText('With Delay'), 'longPress');
+      expect(onLongPress).toHaveBeenCalledTimes(1);
+    });
+
     it('does not call onPress when disabled', () => {
       const onPress = jest.fn();
       render(
