@@ -88,6 +88,7 @@ Compose spacing with `Size` tokens and `StyleSheet`. Favor stacking `View`s to c
 - `<img>` → `<Image>`
 - CSS files → `StyleSheet`
 - `className` → `style`
+- For components shown on non-native targets (for example web), do not require the native animation driver; gate `useNativeDriver` with platform checks and fall back to JS driver when needed.
 
 ## Figma MCP Integration Rules
 These rules define how to translate Figma inputs into code for this project and must be followed for every Figma-driven change.
