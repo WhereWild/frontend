@@ -62,7 +62,11 @@ export function DensityChart({
     () => normalizeDensitySamples(samples, densityDomain, CHART_HEIGHT, CHART_PADDING),
     [densityDomain, samples],
   );
-  const clipId = `densitySelection-${React.useId()}`;
+  const rawId = React.useId();
+  const clipId = React.useMemo(
+    () => `densitySelection-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
+    [rawId],
+  );
 
   const selectionBounds = React.useMemo(() => {
     return getSelectionBounds(selection, densityDomain);
@@ -160,7 +164,7 @@ export function DensityChart({
       <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 100 ${CHART_HEIGHT}`} preserveAspectRatio="none">
         <Defs>
           {selectionBounds ? (
-            <ClipPath id={clipId}>
+            <ClipPath id={clipId} clipPathUnits="userSpaceOnUse">
               <Rect x={selectionBounds.left} y={0} width={selectionBounds.width} height={CHART_HEIGHT} />
             </ClipPath>
           ) : null}
@@ -169,14 +173,6 @@ export function DensityChart({
         {selectionBounds ? (
           <>
             <Path d={areaPath} fill={fillColor} opacity={0.6} clipPath={`url(#${clipId})`} />
-            <Path
-              d={linePath}
-              fill="none"
-              stroke={lineColor}
-              strokeWidth={4}
-              vectorEffect="non-scaling-stroke"
-              clipPath={`url(#${clipId})`}
-            />
           </>
         ) : null}
         <Path
