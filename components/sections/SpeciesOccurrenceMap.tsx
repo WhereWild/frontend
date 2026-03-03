@@ -59,7 +59,11 @@ const buildLeafletHtml = (points: SpeciesOccurrence[], markerPalette: MapMarkerP
     <script>
       const points = ${payload};
       const palette = ${palettePayload};
-      const map = L.map('map');
+      const bounds = L.latLngBounds([[-90, -180], [90, 180]]);
+      const map = L.map('map', {
+        maxBounds: bounds,
+        minZoom: 2
+      });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
