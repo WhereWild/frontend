@@ -6,6 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
 import Species from '../_species';
+import { useSettings } from '@/context/SettingsContext';
 
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -109,7 +110,7 @@ const getIdentifierFromParams = (params: SpeciesRouteParams) => {
   };
 };
 
-const useSpeciesBasicsData = (fetchIdentifier?: string) => {
+const useSpeciesBasicsData = (fetchIdentifier?: string, units?: 'metric' | 'imperial') => {
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -126,7 +127,7 @@ const useSpeciesBasicsData = (fetchIdentifier?: string) => {
       setLoading(true);
 
       try {
-        const response = await fetchSpeciesByTaxonId(fetchIdentifier);
+        const response = await fetchSpeciesByTaxonId(fetchIdentifier, { units });
         if (!mounted) {
           return;
         }
@@ -147,7 +148,7 @@ const useSpeciesBasicsData = (fetchIdentifier?: string) => {
     return () => {
       mounted = false;
     };
-  }, [fetchIdentifier]);
+  }, [fetchIdentifier, units]);
 
   return {
     data,
@@ -158,8 +159,9 @@ const useSpeciesBasicsData = (fetchIdentifier?: string) => {
 export default function SpeciesBasicsPage() {
   const params = useLocalSearchParams<SpeciesRouteParams>();
   const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
+  const { units } = useSettings();
 
-  const { data, loading } = useSpeciesBasicsData(fetchIdentifier);
+  const { data, loading } = useSpeciesBasicsData(fetchIdentifier, units);
 
   if (loading && !data) {
     return null;
