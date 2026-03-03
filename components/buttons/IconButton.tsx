@@ -12,6 +12,10 @@ export type IconButtonProps = {
   size?: IconButtonSize;
   disabled?: boolean;
   onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
+  onLongPress?: () => void;
+  delayLongPress?: number;
   icon: React.ReactNode;
   accessibilityLabel: string;
   style?: ViewStyle;
@@ -134,6 +138,10 @@ export const IconButton: React.FC<IconButtonProps> = ({
   size = 'medium',
   disabled = false,
   onPress,
+  onPressIn,
+  onPressOut,
+  onLongPress,
+  delayLongPress,
   icon,
   accessibilityLabel,
   style,
@@ -150,6 +158,10 @@ export const IconButton: React.FC<IconButtonProps> = ({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      onLongPress={onLongPress}
+      delayLongPress={delayLongPress}
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         return [

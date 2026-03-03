@@ -114,6 +114,8 @@ export default function About() {
   const [trackingPill, setTrackingPill] = useState('recent');
   const [imagesPill, setImagesPill] = useState('all');
   const [notesPill, setNotesPill] = useState('notes');
+  const [buttonLongPressCount, setButtonLongPressCount] = useState(0);
+  const [buttonLongPressLastLabel, setButtonLongPressLastLabel] = useState<string | null>(null);
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -165,6 +167,10 @@ export default function About() {
     { label: 'Label', description: 'Description', value: 'checked' },
     { label: 'Label', description: 'Description', value: 'unchecked' },
   ];
+  const handleButtonLongPress = (label: string) => {
+    setButtonLongPressCount((currentCount) => currentCount + 1);
+    setButtonLongPressLastLabel(label);
+  };
   const buttonRows: ButtonRow[] = [
     {
       title: 'Button — Primary',
@@ -715,6 +721,10 @@ export default function About() {
 
           <View>
             <ThemedText variant="heading">Buttons</ThemedText>
+            <ThemedText variant="bodySmall">
+              Long press demo count: {buttonLongPressCount}
+              {buttonLongPressLastLabel ? ` (last: ${buttonLongPressLastLabel})` : ''}
+            </ThemedText>
             {buttonRows.map(({ title, variant, buttons, danger }) => (
               <View key={title}>
                 <ThemedText variant="bodyStrong">{title}</ThemedText>
@@ -733,6 +743,7 @@ export default function About() {
                           iconStart={iconStart}
                           iconEnd={iconEnd}
                           onPress={noop}
+                          onLongPress={disabled ? undefined : () => handleButtonLongPress(label)}
                         >
                           {label}
                         </ButtonDanger>
@@ -748,6 +759,7 @@ export default function About() {
                         iconStart={iconStart}
                         iconEnd={iconEnd}
                         onPress={noop}
+                        onLongPress={disabled ? undefined : () => handleButtonLongPress(label)}
                       >
                         {label}
                       </Button>
@@ -770,6 +782,9 @@ export default function About() {
                       size={size}
                       disabled={disabled}
                       onPress={disabled ? undefined : noop}
+                      onLongPress={
+                        disabled ? undefined : () => handleButtonLongPress(`IconButton (${variant}, ${size})`)
+                      }
                     />
                   ))}
                 </View>
