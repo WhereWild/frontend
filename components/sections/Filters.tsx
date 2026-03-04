@@ -91,38 +91,8 @@ export function Filters({
     <View style={[styles.container, style]}>
       <ThemedText variant="heading">Filters</ThemedText>
 
-      {/* Location */}
-      <View style={styles.section}>
-        <ThemedText variant="subheading">Location</ThemedText>
-        <View style={styles.locationGrid}>
-          <SelectField
-            label="Country"
-            value={countryValue}
-            options={countryOptions}
-            onValueChange={onCountryChange}
-            style={styles.locationField}
-          />
-          <SelectField
-            label="State"
-            description="Only shows administrative regions where the species has been observed"
-            value={stateValue}
-            options={stateOptions}
-            onValueChange={onStateChange}
-            style={styles.locationField}
-          />
-          <SelectField
-            label="County"
-            description="Only shows administrative subregions where the species has been observed"
-            value={countyValue}
-            options={countyOptions}
-            onValueChange={onCountyChange}
-            style={styles.locationField}
-          />
-        </View>
-      </View>
-
       {/* Taxon */}
-      <View style={styles.section}>
+      <View style={styles.subSection}>
         <ThemedText variant="subheading">Taxon</ThemedText>
         <ThemedText variant="body">Base taxon</ThemedText>
         <SearchInput
@@ -148,14 +118,13 @@ export function Filters({
       </View>
 
       {/* Sort */}
-      <View style={styles.section}>
+      <View style={styles.subSection}>
         <ThemedText variant="subheading">Sort</ThemedText>
-        <ThemedText variant="body" style={styles.filterHint}>
+        <ThemedText variant="body">
           Ranking-based filters apply after setting Base taxon and Sort variable.
         </ThemedText>
         <SelectField
           label="Variable"
-          description="What variable to sort by"
           placeholder="Select variable"
           value={sortVariableValue}
           options={sortVariableOptions}
@@ -163,7 +132,6 @@ export function Filters({
         />
         <SelectField
           label="Sorting metric"
-          description="What metric to sort the variable by"
           value={sortMetricValue}
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
@@ -185,8 +153,36 @@ export function Filters({
         </View>
       </View>
 
+      {/* Location */}
+      <View style={styles.subSection}>
+        <ThemedText variant="subheading">Location</ThemedText>
+        <View style={styles.locationGrid}>
+          <SelectField
+            label="Country"
+            value={countryValue}
+            options={countryOptions}
+            onValueChange={onCountryChange}
+            style={styles.locationField}
+          />
+          <SelectField
+            label="State"
+            value={stateValue}
+            options={stateOptions}
+            onValueChange={onStateChange}
+            style={styles.locationField}
+          />
+          <SelectField
+            label="County"
+            value={countyValue}
+            options={countyOptions}
+            onValueChange={onCountyChange}
+            style={styles.locationField}
+          />
+        </View>
+      </View>
+
       {/* Quantity */}
-      <View style={styles.section}>
+      <View style={styles.subSection}>
         <ThemedText variant="subheading">Quantity</ThemedText>
         <NumberSpinner
           label="Number of results"
@@ -224,11 +220,8 @@ const styles = StyleSheet.create({
     minWidth: 240,
     gap: Size.space.text.subsection,
   },
-  section: {
+  subSection: {
     gap: Size.space.text.paragraph,
-  },
-  filterHint: {
-    marginTop: -Size.space.text.line,
   },
   locationGrid: {
     flexDirection: 'column',
