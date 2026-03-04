@@ -1,5 +1,6 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { SpeciesEnvironmentRelativeRank } from '@/data/types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -48,6 +49,8 @@ export function ContinuousInsights({
   summaryComparisons,
   locationFilterActive,
 }: ContinuousInsightsProps) {
+  const { breakpoint } = useResponsive();
+  const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -87,18 +90,20 @@ export function ContinuousInsights({
         </>
       ) : null}
 
-      <View style={[styles.summaryRow, { paddingTop: Size.space['300'] }]}>
+      <View testID="summary-row" style={[styles.summaryRow, { paddingTop: Size.space['300'] }, isStacked && styles.summaryRowStacked]}>
         <SummaryItem
           label="Min"
           value={formatValue(summary?.min, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.min}
           comparison={locationFilterActive ? summaryComparisons.min ?? null : null}
+          stacked={isStacked}
         />
         <SummaryItem
           label="Mean"
           value={formatValue(summary?.mean, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.mean}
           comparison={locationFilterActive ? summaryComparisons.mean ?? null : null}
+          stacked={isStacked}
         />
         <SummaryItem
           label="Max"
@@ -106,6 +111,7 @@ export function ContinuousInsights({
           rank={locationFilterActive ? undefined : summaryRanks.max}
           comparison={locationFilterActive ? summaryComparisons.max ?? null : null}
           isLast
+          stacked={isStacked}
         />
       </View>
     </>
@@ -126,7 +132,9 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Size.space.text.subsection,
     justifyContent: 'space-evenly',
+  },
+  summaryRowStacked: {
+    flexDirection: 'column',
   },
 });

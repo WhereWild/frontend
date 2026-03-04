@@ -18,20 +18,25 @@ type SummaryItemProps = {
   comparison?: string | null;
   /** Removes trailing divider when this card is last in row. */
   isLast?: boolean;
+  /** Indicates stacked single-column layout on phone widths. */
+  stacked?: boolean;
 };
 
 /** Displays one summary metric with optional rank/comparison metadata. */
-export function SummaryItem({ label, value, rank, comparison, isLast }: SummaryItemProps) {
+export function SummaryItem({ label, value, rank, comparison, isLast, stacked }: SummaryItemProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+
+  const borderColor = palette.border.default.default;
 
   return (
     <View
       style={[
         styles.summaryItem,
-        { borderRightColor: palette.border.default.default },
-        isLast && styles.summaryItemLast,
+        stacked ? styles.summaryItemStacked : { borderRightColor: borderColor },
+        stacked && !isLast && { borderBottomColor: borderColor },
+        isLast && !stacked && styles.summaryItemLast,
       ]}
     >
       <ThemedText variant="body">{label}: {value}</ThemedText>
@@ -42,7 +47,10 @@ export function SummaryItem({ label, value, rank, comparison, isLast }: SummaryI
       ) : rank ? (
         <>
           {typeof rank.rank === 'number' && typeof rank.count === 'number' ? (
-            <ThemedText variant="body" style={{ color: palette.text.default.secondary, textAlign: 'center' }}>
+            <ThemedText
+              variant="body"
+              style={{ color: palette.text.default.secondary, textAlign: stacked ? 'left' : 'center' }}
+            >
               Ranks {Math.round(rank.rank).toLocaleString()} / {Math.round(rank.count).toLocaleString()}{' '}
               in {rank.label || 'selected taxon'}
             </ThemedText>
@@ -63,12 +71,20 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     flex: 1,
     minWidth: 140,
-    gap: Size.space['100'],
+    gap: Size.space.text.line,
     alignItems: 'center',
     borderRightWidth: 1,
     paddingHorizontal: Size.space['200'],
   },
   summaryItemLast: {
     borderRightWidth: 0,
+  },
+  summaryItemStacked: {
+    alignItems: 'flex-start',
+    width: '100%',
+    borderRightWidth: 0,
+    borderBottomWidth: 1,
+    paddingVertical: Size.space['200'],
+    paddingHorizontal: 0,
   },
 });

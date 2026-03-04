@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 import { SummaryItem } from '../SummaryItem';
 
@@ -103,5 +104,75 @@ describe('SummaryItem', () => {
     );
 
     expect(screen.getByText(/11th percentile/)).toBeTruthy();
+  });
+
+  describe('stacked prop', () => {
+    it('renders rank content correctly when stacked', () => {
+      render(
+        <SummaryItem
+          label="Min"
+          value="1.0"
+          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          stacked
+        />,
+      );
+
+      expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+      expect(screen.getByText(/Ranks 3 \/ 41 in Mammalia/)).toBeTruthy();
+      expect(screen.getByText(/percentile/)).toBeTruthy();
+    });
+
+    it('applies full-width container style when stacked', () => {
+      const { toJSON } = render(<SummaryItem label="Min" value="1.0" stacked />);
+      const tree = toJSON() as unknown as { props: { style: object } };
+      const style = StyleSheet.flatten(tree.props.style);
+
+      expect(style).toMatchObject({ width: '100%' });
+    });
+
+    it('uses left-aligned rank text when stacked', () => {
+      render(
+        <SummaryItem
+          label="Min"
+          value="1.0"
+          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          stacked
+        />,
+      );
+
+      const rankText = screen.getByText(/Ranks/);
+      const style = StyleSheet.flatten(rankText.props.style);
+      expect(style.textAlign).toBe('left');
+    });
+
+    it('uses centered rank text when not stacked', () => {
+      render(
+        <SummaryItem
+          label="Min"
+          value="1.0"
+          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+        />,
+      );
+
+      const rankText = screen.getByText(/Ranks/);
+      const style = StyleSheet.flatten(rankText.props.style);
+      expect(style.textAlign).toBe('center');
+    });
+
+    it('sets borderBottomColor on non-last stacked item', () => {
+      const { toJSON } = render(<SummaryItem label="Min" value="1.0" stacked />);
+      const tree = toJSON() as unknown as { props: { style: object } };
+      const style = StyleSheet.flatten(tree.props.style);
+
+      expect(style).toHaveProperty('borderBottomColor');
+    });
+
+    it('does not set borderBottomColor on last stacked item', () => {
+      const { toJSON } = render(<SummaryItem label="Max" value="10.0" stacked isLast />);
+      const tree = toJSON() as unknown as { props: { style: object } };
+      const style = StyleSheet.flatten(tree.props.style);
+
+      expect(style).not.toHaveProperty('borderBottomColor');
+    });
   });
 });

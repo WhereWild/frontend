@@ -1,8 +1,9 @@
 import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Pressable, Text, View } from 'react-native';
 import { ContinuousInsights } from '../ContinuousInsights';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const mockView = View;
 const mockPressable = Pressable;
@@ -39,12 +40,19 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
 }));
 
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: jest.fn(),
+}));
+
+const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+
 describe('ContinuousInsights', () => {
   const summary = { min: 1, mean: 5, max: 10 };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseColorScheme.mockReturnValue('light');
+    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
   });
 
   it('renders multi-context rank selector and handles selection', () => {
@@ -177,5 +185,45 @@ describe('ContinuousInsights', () => {
     );
 
     expect(screen.getByText('Rankings within Mammalia')).toBeTruthy();
+  });
+
+  describe('stacking layout', () => {
+    const baseProps = {
+      showRankContext: false,
+      rankContextOptions: [],
+      selectedRankContext: null,
+      onRankContextChange: jest.fn(),
+      summary: { min: 1, mean: 5, max: 10 },
+      summaryRanks: { min: null, mean: null, max: null },
+      summaryComparisons: { min: null, mean: null, max: null },
+      locationFilterActive: false,
+    };
+
+    it('stacks summary items vertically on phone breakpoint', () => {
+      mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+      render(<ContinuousInsights {...baseProps} />);
+
+      const row = screen.getByTestId('summary-row');
+      const style = StyleSheet.flatten(row.props.style);
+      expect(style.flexDirection).toBe('column');
+    });
+
+    it('stacks summary items vertically on tablet breakpoint', () => {
+      mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
+      render(<ContinuousInsights {...baseProps} />);
+
+      const row = screen.getByTestId('summary-row');
+      const style = StyleSheet.flatten(row.props.style);
+      expect(style.flexDirection).toBe('column');
+    });
+
+    it('keeps summary items in a row on desktop breakpoint', () => {
+      mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+      render(<ContinuousInsights {...baseProps} />);
+
+      const row = screen.getByTestId('summary-row');
+      const style = StyleSheet.flatten(row.props.style);
+      expect(style.flexDirection).toBe('row');
+    });
   });
 });
