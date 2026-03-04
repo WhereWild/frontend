@@ -150,6 +150,9 @@ export function Filters({
       {/* Sort */}
       <View style={styles.section}>
         <ThemedText variant="subheading">Sort</ThemedText>
+        <ThemedText variant="body" style={styles.filterHint}>
+          Ranking-based filters apply after setting Base taxon and Sort variable.
+        </ThemedText>
         <SelectField
           label="Variable"
           description="What variable to sort by"
@@ -224,14 +227,15 @@ const styles = StyleSheet.create({
   section: {
     gap: Size.space.text.paragraph,
   },
+  filterHint: {
+    marginTop: -Size.space.text.line,
+  },
   locationGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: Size.space.text.line,
   },
   locationField: {
-    flex: 1,
-    minWidth: 240,
+    width: '100%',
   },
   sortOrderRow: {
     flexDirection: 'row',

@@ -106,6 +106,7 @@ describe('Filters', () => {
 
     it('renders sort field labels and sort order options', () => {
       render(<Filters {...baseProps} />);
+      expect(screen.getByText('Ranking-based filters apply after setting Base taxon and Sort variable.')).toBeTruthy();
       expect(screen.getByText('Variable')).toBeTruthy();
       expect(screen.getByText('Sorting metric')).toBeTruthy();
       expect(screen.getByText('Sort order')).toBeTruthy();
