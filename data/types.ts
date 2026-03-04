@@ -146,6 +146,83 @@ export type SpeciesOccurrence = {
   longitude: number;
 };
 
+export type SpeciesPredictHeatmapCell = {
+  lat: number;
+  lon: number;
+  score: number;
+  nNative: number;
+};
+
+export type SpeciesPredictHeatmap = {
+  speciesKey: number;
+  bbox: [number, number, number, number];
+  resolution: number;
+  nativeResolution: number;
+  nCells: number;
+  cells: SpeciesPredictHeatmapCell[];
+};
+
+export type PredictHeatmapJobRequest = {
+  speciesKey: number | string;
+  minLat: number;
+  minLon: number;
+  maxLat: number;
+  maxLon: number;
+  resolution?: number;
+  includeSource?: boolean;
+  featureMode?: 'auto' | 'prefer_cell_table' | 'cell_table_only' | 'sampled_only';
+  maxCells?: number;
+};
+
+export type PredictHeatmapJobCreateResponse = {
+  jobId: string;
+  status: string;
+  streamUrl: string;
+  cancelUrl: string;
+};
+
+export type PredictHeatmapJobMetaEvent = {
+  type: 'meta';
+  jobId?: string;
+  speciesKey?: number;
+  bbox?: [number, number, number, number];
+  resolution?: number;
+  nativeResolution?: number;
+  requestedCells?: number;
+};
+
+export type PredictHeatmapJobCellEvent = {
+  type: 'cell';
+  lat: number;
+  lon: number;
+  score: number;
+  nNative: number;
+  source?: string;
+};
+
+export type PredictHeatmapJobDoneEvent = {
+  type: 'done';
+  jobId?: string;
+  nCells: number;
+};
+
+export type PredictHeatmapJobCancelledEvent = {
+  type: 'cancelled';
+  jobId?: string;
+  nCells: number;
+};
+
+export type PredictHeatmapJobEvent =
+  | PredictHeatmapJobMetaEvent
+  | PredictHeatmapJobCellEvent
+  | PredictHeatmapJobDoneEvent
+  | PredictHeatmapJobCancelledEvent;
+
+export type PredictHeatmapJobCancelResponse = {
+  jobId?: string;
+  status?: string;
+};
+
 export type LocationSearchResult = {
   gid: string;
   name: string;

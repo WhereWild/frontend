@@ -1,11 +1,12 @@
 import {
   NearbySpeciesCarousel,
+  SwitchField,
   SpeciesPageTitle,
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
 } from '@/components';
-import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
+import { SpeciesOccurrenceMap } from '@/components/sections/speciesOccurrenceMap/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mockHomePageData } from '@/data/homeSample';
@@ -73,6 +74,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [showHeatmapOverlay, setShowHeatmapOverlay] = React.useState(true);
 
   const {
     countryOptions,
@@ -171,6 +173,14 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   onCountyChange={onCountyChange}
                 />
 
+                <SwitchField
+                  label="Prediction Overlay"
+                  description="Show model prediction grid on the map"
+                  value={showHeatmapOverlay}
+                  onValueChange={setShowHeatmapOverlay}
+                  accessibilityLabel="Prediction Overlay"
+                />
+
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   onHighlightChange={setHighlightedCatalogs}
@@ -188,6 +198,8 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
               error={occurrenceError}
               highlightedCatalogs={highlightedCatalogs}
               height={observationMapHeight}
+              speciesKey={taxonId}
+              showHeatmapOverlay={showHeatmapOverlay}
             />
           )}
         </ScrollView>

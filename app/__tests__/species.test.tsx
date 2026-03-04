@@ -84,7 +84,7 @@ jest.mock('@/components/inputs/SelectField', () => {
   };
 });
 
-jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
+jest.mock('@/components/sections/speciesOccurrenceMap/SpeciesOccurrenceMap', () => {
   const ReactNative = jest.requireActual('react-native');
   const { View, Text } = ReactNative;
   return {
@@ -92,18 +92,21 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       occurrences,
       loading,
       error,
+      showHeatmapOverlay,
       height,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
       height?: number;
+      showHeatmapOverlay?: boolean;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
         <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
+        <Text>{`Map overlay: ${showHeatmapOverlay ? 'on' : 'off'}`}</Text>
       </View>
     ),
   };
@@ -268,6 +271,18 @@ describe('Species screen', () => {
     }
   });
 
+  it('toggles prediction overlay switch for occurrence map', async () => {
+    const data = createData();
+    render(<SpeciesScreen data={data} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Map overlay: on')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Prediction Overlay'));
+    expect(screen.getByText('Map overlay: off')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Prediction Overlay'));
+    expect(screen.getByText('Map overlay: on')).toBeTruthy();
+  });
 
   it('falls back to sample data when no data prop is provided', async () => {
     render(<SpeciesScreen />);

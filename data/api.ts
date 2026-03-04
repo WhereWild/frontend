@@ -1,5 +1,9 @@
 import type {
   EnvironmentSliceParams,
+  PredictHeatmapJobCancelResponse,
+  PredictHeatmapJobCreateResponse,
+  PredictHeatmapJobEvent,
+  PredictHeatmapJobRequest,
   SpeciesApiDetail,
 } from './types';
 import { parseSpeciesApiDetail } from './speciesDetailParser';
@@ -21,9 +25,13 @@ import {
 } from './apiLocationHelpers';
 import {
   fetchEnvironmentRangeSlice as fetchEnvironmentRangeSliceHelper,
+  createPredictHeatmapJob as createPredictHeatmapJobHelper,
+  deletePredictHeatmapJob as deletePredictHeatmapJobHelper,
   fetchSpeciesEnvironment as fetchSpeciesEnvironmentHelper,
   fetchSpeciesEnvironmentCategorySamples as fetchSpeciesEnvironmentCategorySamplesHelper,
+  fetchSpeciesPredictHeatmap as fetchSpeciesPredictHeatmapHelper,
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
+  streamPredictHeatmapJob as streamPredictHeatmapJobHelper,
 } from './apiEnvironmentHelpers';
 
 /** Public backend base URL used by app-level data fetchers. */
@@ -146,6 +154,52 @@ export async function fetchSpeciesOccurrences(
   options?: { location?: string | null; units?: string | null },
 ) {
   return fetchSpeciesOccurrencesHelper(taxonId, options);
+}
+
+/**
+ * Fetches predicted heatmap cells for a species across a bounding box.
+ */
+export async function fetchSpeciesPredictHeatmap(
+  speciesKey: string | number,
+  bounds: {
+    minLat: number;
+    minLon: number;
+    maxLat: number;
+    maxLon: number;
+  },
+) {
+  return fetchSpeciesPredictHeatmapHelper(speciesKey, bounds);
+}
+
+/**
+ * Creates a cancellable heatmap job resource.
+ */
+export async function createPredictHeatmapJob(
+  request: PredictHeatmapJobRequest,
+): Promise<PredictHeatmapJobCreateResponse> {
+  return createPredictHeatmapJobHelper(request);
+}
+
+/**
+ * Streams NDJSON events for a heatmap job.
+ */
+export async function streamPredictHeatmapJob(
+  jobId: string,
+  options?: {
+    signal?: AbortSignal;
+    onEvent?: (event: PredictHeatmapJobEvent) => void;
+  },
+) {
+  return streamPredictHeatmapJobHelper(jobId, options);
+}
+
+/**
+ * Cancels a heatmap job.
+ */
+export async function deletePredictHeatmapJob(
+  jobId: string,
+): Promise<PredictHeatmapJobCancelResponse> {
+  return deletePredictHeatmapJobHelper(jobId);
 }
 
 /**
