@@ -76,9 +76,17 @@
       let heatmapRequestCounter = 0;
       let heatmapDebounceTimer = null;
       let heatmapLastAppliedQueryKey = '';
+      let heatmapAccumulatedCells = [];
+      let heatmapAccumulatedRequestId = null;
       const debugPanel = document.getElementById('debug-panel');
       const HEATMAP_DEBOUNCE_MS = Number(heatmapPolicy && heatmapPolicy.debounceMs) || 320;
       const HEATMAP_QUERY_PRECISION = Number(heatmapPolicy && heatmapPolicy.queryPrecision) || 4;
+      const HEATMAP_COLOR_FALLBACK_OPACITY = 0.7;
+      const HEATMAP_TRANSPARENCY_CUTOFF = 0.03;
+      const HEATMAP_OPACITY_EASE_POWER = 0.85;
+      const HEATMAP_OPACITY_BASE = 0.14;
+      const HEATMAP_OPACITY_RANGE = 0.66;
+      const HEATMAP_MIN_DRAWABLE_OPACITY = 0.01;
       const HEATMAP_FEATURE_MODE =
         (heatmapPolicy && heatmapPolicy.featureMode) ||
         'auto';
@@ -95,10 +103,12 @@
               { minZoom: -Infinity, resolution: 0.5 },
             ]);
 
+      // Stabilizes request-key precision so tiny map jitters do not retrigger fetches.
       function roundCoord(value) {
         return Number(value).toFixed(HEATMAP_QUERY_PRECISION);
       }
 
+      // Centralized debug panel renderer for all heatmap request states.
       function setDebugText(lines) {
         if (!debugPanel) {
           return;
@@ -110,10 +120,12 @@
         debugPanel.innerHTML = lines.join('<br/>');
       }
 
+      // Uses parent-frame transport when embedded so browser network tools can inspect calls.
       function shouldDelegateHeatmapFetchToParent() {
         return typeof window !== 'undefined' && window.parent && window.parent !== window;
       }
 
+      // Sends normalized heatmap query payloads to the parent frame bridge.
       function sendHeatmapRequestToParent(payload) {
         if (!shouldDelegateHeatmapFetchToParent()) {
           return;
@@ -121,6 +133,7 @@
         window.parent.postMessage(payload, '*');
       }
 
+      // Applies parent-streamed heatmap payloads while discarding stale requests.
       function applyHeatmapDataFromParent(payload) {
         if (!payload || payload.type !== HEATMAP_DATA_MESSAGE_TYPE) {
           return;
@@ -135,13 +148,20 @@
           ? resolvedResolution
           : resolutionForZoom(map.getZoom());
         const append = Boolean(payload.append);
-        drawHeatmapCells(cells, safeResolution, !append);
+        if (!append || heatmapAccumulatedRequestId !== requestId) {
+          heatmapAccumulatedCells = [...cells];
+          heatmapAccumulatedRequestId = requestId;
+        } else {
+          heatmapAccumulatedCells = heatmapAccumulatedCells.concat(cells);
+        }
+        drawHeatmapCells(heatmapAccumulatedCells, safeResolution, true);
         heatmapLastAppliedQueryKey = String(payload.queryKey || heatmapLastAppliedQueryKey);
         if (Array.isArray(payload.debugLines) && payload.debugLines.length) {
           setDebugText(payload.debugLines);
         }
       }
 
+      // Clears rendered cells and reports request failures for the active request only.
       function applyHeatmapErrorFromParent(payload) {
         if (!payload || payload.type !== HEATMAP_ERROR_MESSAGE_TYPE) {
           return;
@@ -151,6 +171,8 @@
           return;
         }
         heatmapLayerGroup.clearLayers();
+        heatmapAccumulatedCells = [];
+        heatmapAccumulatedRequestId = null;
         if (Array.isArray(payload.debugLines) && payload.debugLines.length) {
           setDebugText(payload.debugLines);
           return;
@@ -158,6 +180,7 @@
         setDebugText(['Heatmap debug: parent request error']);
       }
 
+      // Parses hex tokens from theme colors so scores can be interpolated across channels.
       function parseHexColor(color) {
         if (typeof color !== 'string') {
           return null;
@@ -180,29 +203,36 @@
         return null;
       }
 
+      // Converts model score into a green-to-red color and confidence-weighted opacity.
       function colorForScore(score, minScore, maxScore) {
         const low = parseHexColor(palette.heatmapLow);
-        const mid = parseHexColor(palette.heatmapMid);
         const high = parseHexColor(palette.heatmapHigh);
-        if (!low || !mid || !high || !isFinite(score) || !isFinite(minScore) || !isFinite(maxScore)) {
-          return { fill: palette.heatmapHigh, opacity: 0.5 };
+        if (!low || !high || !isFinite(score) || !isFinite(minScore) || !isFinite(maxScore)) {
+          return { fill: palette.heatmapHigh, opacity: HEATMAP_COLOR_FALLBACK_OPACITY };
         }
         const range = Math.max(maxScore - minScore, 1e-9);
         const t = Math.max(0, Math.min(1, (score - minScore) / range));
 
-        const from = t <= 0.5 ? low : mid;
-        const to = t <= 0.5 ? mid : high;
-        const localT = t <= 0.5 ? t * 2 : (t - 0.5) * 2;
-
-        const r = Math.round(from.r + (to.r - from.r) * localT);
-        const g = Math.round(from.g + (to.g - from.g) * localT);
-        const b = Math.round(from.b + (to.b - from.b) * localT);
+        const r = Math.round(low.r + (high.r - low.r) * t);
+        const g = Math.round(low.g + (high.g - low.g) * t);
+        const b = Math.round(low.b + (high.b - low.b) * t);
+        if (t <= HEATMAP_TRANSPARENCY_CUTOFF) {
+          return {
+            fill: 'rgba(' + r + ',' + g + ',' + b + ',1)',
+            opacity: 0,
+          };
+        }
+        const visibleRangeT =
+          (t - HEATMAP_TRANSPARENCY_CUTOFF) /
+          (1 - HEATMAP_TRANSPARENCY_CUTOFF);
+        const easedOpacity = Math.pow(visibleRangeT, HEATMAP_OPACITY_EASE_POWER);
         return {
           fill: 'rgba(' + r + ',' + g + ',' + b + ',1)',
-          opacity: 0.35 + t * 0.35,
+          opacity: HEATMAP_OPACITY_BASE + easedOpacity * HEATMAP_OPACITY_RANGE,
         };
       }
 
+      // Maps zoom level to backend grid resolution using configurable breakpoints.
       function resolutionForZoom(zoom) {
         for (let index = 0; index < ZOOM_RESOLUTION_BREAKPOINTS.length; index += 1) {
           const entry = ZOOM_RESOLUTION_BREAKPOINTS[index];
@@ -218,6 +248,7 @@
         return 0.5;
       }
 
+      // Renders heatmap cells for the active response, skipping invalid or effectively invisible cells.
       function drawHeatmapCells(cells, resolution, clearFirst) {
         if (clearFirst) {
           heatmapLayerGroup.clearLayers();
@@ -225,8 +256,17 @@
         if (!Array.isArray(cells) || !cells.length || !isFinite(resolution) || resolution <= 0) {
           return;
         }
-        const minScore = 0;
-        const maxScore = 1;
+        const scores = cells
+          .map((cell) => Number(cell && cell.score))
+          .filter((value) => isFinite(value));
+        if (!scores.length) {
+          return;
+        }
+        const observedMinScore = Math.min.apply(null, scores);
+        const observedMaxScore = Math.max.apply(null, scores);
+        const hasMeaningfulRange = observedMaxScore - observedMinScore > 1e-6;
+        const minScore = hasMeaningfulRange ? observedMinScore : 0;
+        const maxScore = hasMeaningfulRange ? observedMaxScore : 1;
         const halfStep = resolution / 2;
         cells.forEach((cell) => {
           const lat = Number(cell && cell.lat);
@@ -236,6 +276,9 @@
             return;
           }
           const color = colorForScore(score, minScore, maxScore);
+          if (!isFinite(color.opacity) || color.opacity <= HEATMAP_MIN_DRAWABLE_OPACITY) {
+            return;
+          }
           const rect = L.rectangle(
             [[lat - halfStep, lon - halfStep], [lat + halfStep, lon + halfStep]],
             {
@@ -251,9 +294,12 @@
         });
       }
 
+      // Builds the current viewport query and delegates fetch execution to the parent bridge.
       async function refreshHeatmapGrid() {
         if (!speciesKey) {
           heatmapLayerGroup.clearLayers();
+          heatmapAccumulatedCells = [];
+          heatmapAccumulatedRequestId = null;
           setDebugText(['Heatmap debug: overlay disabled']);
           return;
         }
@@ -294,6 +340,8 @@
 
         if (shouldDelegateHeatmapFetchToParent()) {
           drawHeatmapCells([], resolution, true);
+          heatmapAccumulatedCells = [];
+          heatmapAccumulatedRequestId = requestId;
           setDebugText([
             'Heatmap debug: delegated to parent fetch',
             'zoom: ' + String(map.getZoom().toFixed(2)),
@@ -311,6 +359,7 @@
         setDebugText(['Heatmap debug: direct iframe fetch disabled']);
       }
 
+      // Debounces zoom/pan churn so heatmap queries stay responsive without flooding the bridge.
       function scheduleHeatmapRefresh() {
         if (heatmapDebounceTimer) {
           clearTimeout(heatmapDebounceTimer);
@@ -320,6 +369,7 @@
         }, HEATMAP_DEBOUNCE_MS);
       }
 
+      // Applies marker highlight state for linked environment selection interactions.
       function applyHighlights(list) {
         const highlightSet = new Set(Array.isArray(list) ? list.map((item) => String(item)) : []);
         markers.forEach((marker, catalog) => {
@@ -331,6 +381,7 @@
         });
       }
 
+      // Normalizes bridge messages and routes them to heatmap or highlight handlers.
       function handleIncomingMessage(payload) {
         let data = payload;
         if (typeof payload === 'string') {

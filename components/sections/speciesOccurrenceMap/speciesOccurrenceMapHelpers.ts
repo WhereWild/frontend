@@ -53,7 +53,6 @@ export type MapMarkerPalette = {
   highlightFill: string;
   highlightStroke: string;
   heatmapLow: string;
-  heatmapMid: string;
   heatmapHigh: string;
 };
 

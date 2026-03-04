@@ -39,7 +39,7 @@ export function SpeciesOccurrenceMap({
   height = 360,
   highlightedCatalogs = [],
   speciesKey,
-  showHeatmapOverlay = true,
+  showHeatmapOverlay = false,
 }: SpeciesOccurrenceMapProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -77,8 +77,7 @@ export function SpeciesOccurrenceMap({
       markerStroke: palette.border.brand.default,
       highlightFill: palette.background.danger.default,
       highlightStroke: palette.border.danger.default,
-      heatmapLow: palette.background.brand.default,
-      heatmapMid: palette.background.positive.default,
+      heatmapLow: palette.background.positive.default,
       heatmapHigh: palette.background.danger.default,
     }),
     [

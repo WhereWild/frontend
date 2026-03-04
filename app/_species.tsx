@@ -74,7 +74,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
-  const [showHeatmapOverlay, setShowHeatmapOverlay] = React.useState(true);
+  const [showHeatmapOverlay, setShowHeatmapOverlay] = React.useState(false);
 
   const {
     countryOptions,

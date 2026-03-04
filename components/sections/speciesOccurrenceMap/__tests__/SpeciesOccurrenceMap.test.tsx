@@ -51,13 +51,17 @@ describe('SpeciesOccurrenceMap', () => {
 
   it('renders map container when occurrences exist (native branch)', () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
-    const { toJSON } = render(
+    render(
       <SpeciesOccurrenceMap
         occurrences={[{ catalogNumber: 1, latitude: 10, longitude: 20 }]}
       />,
     );
 
-    expect(toJSON()).toBeTruthy();
+    expect(screen.getByTestId('mock-webview')).toBeTruthy();
+    expect(
+      screen.queryByText('No precise observation coordinates available for this species.'),
+    ).toBeNull();
+    expect(mockPostMessage).not.toHaveBeenCalled();
   });
 
   it('posts highlight message after native map load completes', () => {
@@ -106,12 +110,15 @@ describe('SpeciesOccurrenceMap', () => {
 
   it('renders map container when occurrences exist (web branch)', () => {
     Object.defineProperty(Platform, 'OS', { value: 'web' });
-    const { toJSON } = render(
+    const { UNSAFE_getByType } = render(
       <SpeciesOccurrenceMap
         occurrences={[{ catalogNumber: 2, latitude: 11, longitude: 21 }]}
       />,
     );
 
-    expect(toJSON()).toBeTruthy();
+    expect(UNSAFE_getByType('iframe')).toBeTruthy();
+    expect(
+      screen.queryByText('No precise observation coordinates available for this species.'),
+    ).toBeNull();
   });
 });

@@ -277,11 +277,11 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.getByText('Map overlay: on')).toBeTruthy();
-    fireEvent.press(screen.getByLabelText('Prediction Overlay'));
     expect(screen.getByText('Map overlay: off')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Prediction Overlay'));
     expect(screen.getByText('Map overlay: on')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Prediction Overlay'));
+    expect(screen.getByText('Map overlay: off')).toBeTruthy();
   });
 
   it('falls back to sample data when no data prop is provided', async () => {
