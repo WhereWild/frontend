@@ -45,6 +45,9 @@ export type WebPageHeaderProps = {
   onFilterPress?: () => void;
   filterLabel?: string;
   filterButtonAccessibilityLabel?: string;
+  showResetFilterButton?: boolean;
+  onResetFilterPress?: () => void;
+  resetFilterButtonAccessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   showSearchResultsDropdown?: boolean;
   initialQuery?: string;
@@ -68,6 +71,9 @@ export function WebPageHeader({
   onFilterPress,
   filterLabel = 'Filter',
   filterButtonAccessibilityLabel = 'Filter search results',
+  showResetFilterButton = true,
+  onResetFilterPress,
+  resetFilterButtonAccessibilityLabel = 'Reset filters',
   style,
   logoAccessibilityLabel = 'Go to home',
   showSearchResultsDropdown = true,
@@ -270,6 +276,9 @@ export function WebPageHeader({
                 onFilterPress={onFilterPress}
                 filterLabel={filterLabel}
                 filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
+                showResetFilterButton={showResetFilterButton}
+                onResetFilterPress={onResetFilterPress}
+                resetFilterButtonAccessibilityLabel={resetFilterButtonAccessibilityLabel}
               />
 
               <WebPageHeaderMobileMenu
@@ -320,6 +329,9 @@ export function WebPageHeader({
               onFilterPress={onFilterPress}
               filterLabel={filterLabel}
               filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
+              showResetFilterButton={showResetFilterButton}
+              onResetFilterPress={onResetFilterPress}
+              resetFilterButtonAccessibilityLabel={resetFilterButtonAccessibilityLabel}
             />
 
             <View style={styles.actionsWrapper}>
@@ -389,8 +401,8 @@ const styles = StyleSheet.create({
     height: Size.space['1600'],
   },
   logoMobile: {
-    width: Size.space['1200'],
-    height: Size.space['1200'],
+    width: Size.control.dimension.large,
+    height: Size.control.dimension.large,
   },
   actionsWrapper: {
     flexDirection: 'row',
