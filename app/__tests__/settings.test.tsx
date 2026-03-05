@@ -42,6 +42,8 @@ jest.mock('@/components', () => {
 
   return {
     WebPageHeader: () => mockReact.createElement(mockReactNative.View, { testID: 'page-header' }),
+    PageTitle: ({ title }: { title: string }) =>
+      mockReact.createElement(mockReactNative.Text, { testID: 'page-title' }, title),
     ThemedText: ({ children }: { children: React.ReactNode }) =>
       mockReact.createElement(mockReactNative.Text, null, children),
     SelectField: (props: Record<string, unknown>) => {
