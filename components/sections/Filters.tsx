@@ -51,6 +51,7 @@ export type FiltersProps = {
   onSortMetricChange?: (value: string) => void;
   sortOrder: 'ascending' | 'descending';
   onSortOrderChange?: (value: 'ascending' | 'descending') => void;
+  rankingFilterHint?: string | null;
 
   /** Quantity */
   numberOfResults: number;
@@ -103,6 +104,7 @@ export function Filters({
   onSortMetricChange,
   sortOrder,
   onSortOrderChange,
+  rankingFilterHint,
   numberOfResults,
   onNumberOfResultsChange,
   minimumSamples,
@@ -227,7 +229,7 @@ export function Filters({
       <View style={styles.subSection}>
         <ThemedText variant="subheading">Sort</ThemedText>
         <ThemedText variant="body">
-          Ranking-based filters apply after setting Base taxon and Sort variable.
+          {rankingFilterHint ?? 'Ranking-based filters apply after setting Base taxon and Sort variable.'}
         </ThemedText>
         <SelectField
           label="Variable"

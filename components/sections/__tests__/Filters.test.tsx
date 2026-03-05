@@ -2,6 +2,8 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Filters, type FiltersProps } from '../Filters';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import type { SpeciesSummary } from '@/data/types';
+import type { View } from 'react-native';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
@@ -44,6 +46,7 @@ const baseProps: FiltersProps = {
   countryOptions,
   stateValue: 'ut',
   stateOptions,
+  countyValue: 'salt-lake',
   countyOptions,
   baseTaxonQuery: '',
   rankValue: 'species',
@@ -240,6 +243,14 @@ describe('Filters', () => {
   });
 
   describe('base taxon suggestions', () => {
+    const suggestion: SpeciesSummary = {
+      taxonId: 1,
+      commonName: 'Gray wolf',
+      commonNames: ['Gray wolf'],
+      scientificName: 'Canis lupus',
+      description: 'Tap to view species details',
+    };
+
     const flushScheduledFrames = () => {
       const callbacks = [...scheduledFrameCallbacks];
       scheduledFrameCallbacks = [];
@@ -268,21 +279,23 @@ describe('Filters', () => {
         current: {
           measure: handleMeasure,
         },
-      } as unknown as React.RefObject<unknown>;
+      } as unknown as React.RefObject<View | null>;
 
       const rendered = render(
         <Filters
           {...baseProps}
           baseTaxonQuery="canis"
           baseTaxonSuggestionsVisible
-          baseTaxonSuggestions={[{ taxonId: 1, scientificName: 'Canis lupus' } as SpeciesSummary]}
+          baseTaxonSuggestions={[suggestion]}
           anchorRefOverride={anchorRef}
         />,
       );
       const anchorView = rendered.UNSAFE_getByProps({ testID: 'filters-base-taxon-anchor' });
       // The renderer can replace ref.current with a host instance during mount.
       // Re-inject the test measure function before firing layout.
-      (anchorRef as { current: { measure: typeof handleMeasure } }).current = { measure: handleMeasure };
+      (anchorRef as unknown as { current: { measure: typeof handleMeasure } }).current = {
+        measure: handleMeasure,
+      };
 
       act(() => {
         fireEvent(anchorView, 'layout', {
@@ -296,7 +309,7 @@ describe('Filters', () => {
 
       expect(requestAnimationFrameSpy).toHaveBeenCalled();
       expect(handleMeasure).toHaveBeenCalled();
-      expect(screen.getByText('Canis lupus')).toBeTruthy();
+      expect(screen.getByText('Gray wolf')).toBeTruthy();
     });
 
     it('cancels scheduled frame on unmount when suggestions are open', () => {
@@ -304,7 +317,7 @@ describe('Filters', () => {
         <Filters
           {...baseProps}
           baseTaxonSuggestionsVisible
-          baseTaxonSuggestions={[{ taxonId: 1, scientificName: 'Canis lupus' } as SpeciesSummary]}
+          baseTaxonSuggestions={[suggestion]}
         />,
       );
 
