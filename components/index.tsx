@@ -69,6 +69,9 @@ export type { NavigationPillProps } from './navigation/NavigationPill';
 export { NavigationPillList } from './navigation/NavigationPillList';
 export type { NavigationPillListProps } from './navigation/NavigationPillList';
 
+export { NavigationBar } from './sections/navigationBar/NavigationBar';
+export type { NavigationBarProps } from './sections/navigationBar/NavigationBar';
+
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
 
 export { PageTitle } from './sections/PageTitle';

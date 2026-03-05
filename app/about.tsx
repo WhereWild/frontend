@@ -411,12 +411,13 @@ export default function About() {
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <WebPageHeader />
 
-        <ScrollView
-          contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
-            includeBottomPadding: true,
-            includeGap: true,
-          })}
-        >
+        <View style={styles.content}>
+          <ScrollView
+            contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
+              includeBottomPadding: true,
+              includeGap: true,
+            })}
+          >
           {__DEV__ ? (
             <View
               style={[
@@ -430,7 +431,7 @@ export default function About() {
               <ThemedText variant="heading">Developer Tools</ThemedText>
               <ThemedText variant="body">Open native playground routes for visual component checks.</ThemedText>
               <Button
-                onPress={() => router.push('/dev/top-app-bar')}
+                onPress={() => router.push('../dev/top-app-bar')}
                 accessibilityLabel="Open top app bar preview"
               >
                 Top App Bar Preview
@@ -948,7 +949,8 @@ export default function About() {
               </View>
             ))}
           </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </View>
     </>
   );
@@ -956,6 +958,9 @@ export default function About() {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  content: {
     flex: 1,
   },
   row: {
