@@ -1,7 +1,7 @@
 import Head from 'expo-router/head';
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { WebPageHeader, ThemedText, SelectField } from '@/components';
+import { WebPageHeader, PageTitle, ThemedText, SelectField } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -46,17 +46,7 @@ export default function Settings() {
             includeGap: true,
           })}
         >
-          <View
-            style={getResponsiveContentContainerStyle(responsive, {
-              includeTopPadding: false,
-              includeWidth: false,
-            })}
-          >
-            <View style={[styles.headerContent, { maxWidth: responsive.contentWidth }]}>
-              <ThemedText variant="titlePage">Settings</ThemedText>
-              <View style={[styles.titleDivider, { backgroundColor: palette.border.brand.secondary }]} />
-            </View>
-          </View>
+          <PageTitle title="Settings" />
 
           <View style={[styles.sectionContent, getResponsiveContentContainerStyle(responsive, { includeWidth: false, includeTopPadding: false }), { maxWidth: responsive.contentWidth }]}>
             <ThemedText variant="heading">Localization</ThemedText>
@@ -126,16 +116,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  headerContent: {
-    width: '100%',
-    alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-    gap: Size.space['200'],
-  },
-  titleDivider: {
-    height: Size.stroke.border,
-    width: '100%',
   },
   sectionContent: {
     width: '100%',
