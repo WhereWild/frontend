@@ -28,6 +28,9 @@ export type { DataEntrySectionEntry, DataEntrySectionProps } from './lists/DataE
 export { WebPageHeader } from './sections/webPageHeader/WebPageHeader';
 export type { WebPageHeaderAction, WebPageHeaderProps } from './sections/webPageHeader/WebPageHeader';
 
+export { TopAppBar } from './sections/topAppBar/TopAppBar';
+export type { TopAppBarProps, TopAppBarVariant } from './sections/topAppBar/TopAppBar';
+
 export { SearchInput } from './inputs/SearchInput';
 export type { SearchInputProps } from './inputs/SearchInput';
 
