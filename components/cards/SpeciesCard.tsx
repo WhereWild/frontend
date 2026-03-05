@@ -69,6 +69,7 @@ export function SpeciesCard({
   taxonId,
   commonName,
   scientificName,
+  description,
   imageSource,
   style,
   testID,
@@ -118,7 +119,7 @@ export function SpeciesCard({
     <Pressable
       onPress={handlePress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${commonName}. ${scientificName}.`}
+      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
       testID={testID}
       style={(state) => [
         styles.container,
@@ -167,6 +168,17 @@ export function SpeciesCard({
             {scientificName}
           </ThemedText>
         </View>
+
+        {size === 'default' && (
+          <ThemedText
+            variant="body"
+            style={styles.description}
+            numberOfLines={3}
+            testID="species-card-description"
+          >
+            {description}
+          </ThemedText>
+        )}
       </View>
     </Pressable>
   );
@@ -220,6 +232,9 @@ const styles = StyleSheet.create({
     minHeight: COMPACT_IMAGE_SIZE,
     justifyContent: 'center',
     gap: Size.space['100'],
+  },
+  description: {
+    marginTop: Size.space['200'],
   },
 });
 
