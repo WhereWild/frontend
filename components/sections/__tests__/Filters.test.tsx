@@ -49,6 +49,7 @@ const baseProps: FiltersProps = {
   countyValue: 'salt-lake',
   countyOptions,
   baseTaxonQuery: '',
+  hasBaseTaxonSelection: true,
   rankValue: 'species',
   rankOptions,
   includeSubspecies: true,
@@ -113,6 +114,24 @@ describe('Filters', () => {
       expect(screen.getByText('Country')).toBeTruthy();
       expect(screen.getByText('State')).toBeTruthy();
       expect(screen.getByText('County')).toBeTruthy();
+    });
+
+    it('shows location hint and disables location controls while no base taxon is selected', () => {
+      render(<Filters {...baseProps} hasBaseTaxonSelection={false} />);
+
+      expect(screen.getByText('Location filters apply after choosing a Base taxon.')).toBeTruthy();
+      expect(screen.getByLabelText('Country').props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText('State').props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText('County').props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('hides location hint and enables location controls after base taxon is selected', () => {
+      render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
+
+      expect(screen.queryByText('Location filters apply after choosing a Base taxon.')).toBeNull();
+      expect(screen.getByLabelText('Country').props.accessibilityState?.disabled).toBe(false);
+      expect(screen.getByLabelText('State').props.accessibilityState?.disabled).toBe(false);
+      expect(screen.getByLabelText('County').props.accessibilityState?.disabled).toBe(false);
     });
 
     it('renders taxon field labels', () => {
@@ -188,6 +207,24 @@ describe('Filters', () => {
       expect(() => {
         fireEvent.press(screen.getByLabelText('Ascending'));
       }).not.toThrow();
+    });
+
+    it('disables sort controls until a base taxon is selected', () => {
+      render(<Filters {...baseProps} hasBaseTaxonSelection={false} />);
+
+      expect(screen.getByLabelText('Variable').props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText('Sorting metric').props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText('Ascending').props.accessibilityState?.disabled).toBe(true);
+      expect(screen.getByLabelText('Descending').props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('keeps sort controls enabled when a base taxon is selected', () => {
+      render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
+
+      expect(screen.getByLabelText('Variable').props.accessibilityState?.disabled).toBe(false);
+      expect(screen.getByLabelText('Sorting metric').props.accessibilityState?.disabled).toBe(false);
+      expect(screen.getByLabelText('Ascending').props.accessibilityState?.disabled).toBe(false);
+      expect(screen.getByLabelText('Descending').props.accessibilityState?.disabled).toBe(false);
     });
   });
 

@@ -36,6 +36,7 @@ export type FiltersProps = {
   baseTaxonSuggestionsVisible?: boolean;
   onBaseTaxonSelect?: (species: SpeciesSummary) => void;
   onBaseTaxonSuggestionsDismiss?: () => void;
+  hasBaseTaxonSelection?: boolean;
   rankValue: string;
   rankOptions: SelectOption[];
   onRankChange?: (value: string) => void;
@@ -91,6 +92,7 @@ export function Filters({
   baseTaxonSuggestionsVisible = false,
   onBaseTaxonSelect,
   onBaseTaxonSuggestionsDismiss,
+  hasBaseTaxonSelection = false,
   rankValue,
   rankOptions,
   onRankChange,
@@ -151,6 +153,8 @@ export function Filters({
     }),
     [baseTaxonQuery, onBaseTaxonQueryChange, onBaseTaxonSubmit, onBaseTaxonFocus, onBaseTaxonBlur],
   );
+
+  const isControlsDisabled = !hasBaseTaxonSelection;
 
   return (
     <View style={[styles.container, style]}>
@@ -237,12 +241,14 @@ export function Filters({
           value={sortVariableValue}
           options={sortVariableOptions}
           onValueChange={onSortVariableChange}
+          disabled={isControlsDisabled}
         />
         <SelectField
           label="Sorting metric"
           value={sortMetricValue}
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
+          disabled={isControlsDisabled}
         />
         <ThemedText variant="body">Sort order</ThemedText>
         <View style={styles.sortOrderRow}>
@@ -251,12 +257,14 @@ export function Filters({
             label="Ascending"
             checked={sortOrder === 'ascending'}
             onValueChange={() => onSortOrderChange?.('ascending')}
+            disabled={isControlsDisabled}
           />
           <RadioField
             style={styles.sortOrderOption}
             label="Descending"
             checked={sortOrder === 'descending'}
             onValueChange={() => onSortOrderChange?.('descending')}
+            disabled={isControlsDisabled}
           />
         </View>
       </View>
@@ -264,12 +272,16 @@ export function Filters({
       {/* Location */}
       <View style={styles.subSection}>
         <ThemedText variant="subheading">Location</ThemedText>
+        {isControlsDisabled ? (
+          <ThemedText variant="body">Location filters apply after choosing a Base taxon.</ThemedText>
+        ) : null}
         <View style={styles.locationGrid}>
           <SelectField
             label="Country"
             value={countryValue}
             options={countryOptions}
             onValueChange={onCountryChange}
+            disabled={isControlsDisabled}
             style={styles.locationField}
           />
           <SelectField
@@ -277,6 +289,7 @@ export function Filters({
             value={stateValue}
             options={stateOptions}
             onValueChange={onStateChange}
+            disabled={isControlsDisabled}
             style={styles.locationField}
           />
           <SelectField
@@ -284,6 +297,7 @@ export function Filters({
             value={countyValue}
             options={countyOptions}
             onValueChange={onCountyChange}
+            disabled={isControlsDisabled}
             style={styles.locationField}
           />
         </View>
