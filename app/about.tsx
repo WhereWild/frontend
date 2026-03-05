@@ -9,6 +9,7 @@ import {
 import {
   Button,
   ButtonDanger,
+  Filters,
   IconButton,
   NavigationPillList,
   NearbySpeciesCarousel,
@@ -122,6 +123,17 @@ export default function About() {
   const [notesPill, setNotesPill] = useState('notes');
   const [buttonLongPressCount, setButtonLongPressCount] = useState(0);
   const [buttonLongPressLastLabel, setButtonLongPressLastLabel] = useState<string | null>(null);
+  const [filterCountry, setFilterCountry] = useState('us');
+  const [filterState, setFilterState] = useState('ut');
+  const [filterCounty, setFilterCounty] = useState('salt-lake');
+  const [filterTaxonQuery, setFilterTaxonQuery] = useState('');
+  const [filterRank, setFilterRank] = useState('species');
+  const [filterIncludeSubspecies, setFilterIncludeSubspecies] = useState(true);
+  const [filterSortVariable, setFilterSortVariable] = useState('');
+  const [filterSortMetric, setFilterSortMetric] = useState('average');
+  const [filterSortOrder, setFilterSortOrder] = useState<'ascending' | 'descending'>('ascending');
+  const [filterNumResults, setFilterNumResults] = useState(10);
+  const [filterMinSamples, setFilterMinSamples] = useState(1);
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -403,6 +415,78 @@ export default function About() {
             includeGap: true,
           })}
         >
+          <View>
+            <ThemedText variant="heading">Filters Demo</ThemedText>
+            <Filters
+              countryValue={filterCountry}
+              countryOptions={[
+                { label: 'United States', value: 'us' },
+                { label: 'Canada', value: 'ca' },
+                { label: 'Mexico', value: 'mx' },
+              ]}
+              onCountryChange={setFilterCountry}
+              stateValue={filterState}
+              stateOptions={[
+                { label: 'Utah', value: 'ut' },
+                { label: 'Colorado', value: 'co' },
+                { label: 'Arizona', value: 'az' },
+              ]}
+              onStateChange={setFilterState}
+              countyValue={filterCounty}
+              countyOptions={[
+                { label: 'Salt Lake', value: 'salt-lake' },
+                { label: 'Utah', value: 'utah' },
+                { label: 'Davis', value: 'davis' },
+              ]}
+              onCountyChange={setFilterCounty}
+              baseTaxonQuery={filterTaxonQuery}
+              onBaseTaxonQueryChange={setFilterTaxonQuery}
+              rankValue={filterRank}
+              rankOptions={[
+                { label: 'Species', value: 'species' },
+                { label: 'Genus', value: 'genus' },
+                { label: 'Family', value: 'family' },
+              ]}
+              onRankChange={setFilterRank}
+              includeSubspecies={filterIncludeSubspecies}
+              onIncludeSubspeciesChange={setFilterIncludeSubspecies}
+              sortVariableValue={filterSortVariable}
+              sortVariableOptions={[
+                { label: 'Temperature', value: 'temperature' },
+                { label: 'Elevation', value: 'elevation' },
+                { label: 'Precipitation', value: 'precipitation' },
+              ]}
+              onSortVariableChange={setFilterSortVariable}
+              sortMetricValue={filterSortMetric}
+              sortMetricOptions={[
+                { label: 'Average', value: 'average' },
+                { label: 'Median', value: 'median' },
+                { label: 'Maximum', value: 'maximum' },
+                { label: 'Minimum', value: 'minimum' },
+              ]}
+              onSortMetricChange={setFilterSortMetric}
+              sortOrder={filterSortOrder}
+              onSortOrderChange={setFilterSortOrder}
+              numberOfResults={filterNumResults}
+              onNumberOfResultsChange={setFilterNumResults}
+              minimumSamples={filterMinSamples}
+              onMinimumSamplesChange={setFilterMinSamples}
+              onResetFilters={() => {
+                setFilterCountry('us');
+                setFilterState('ut');
+                setFilterCounty('salt-lake');
+                setFilterTaxonQuery('');
+                setFilterRank('species');
+                setFilterIncludeSubspecies(true);
+                setFilterSortVariable('');
+                setFilterSortMetric('average');
+                setFilterSortOrder('ascending');
+                setFilterNumResults(10);
+                setFilterMinSamples(1);
+              }}
+            />
+          </View>
+
           <View>
             <ThemedText variant="heading">Search Input</ThemedText>
             <View>

@@ -77,6 +77,9 @@ export type { SpeciesPageTitleProps } from './sections/SpeciesPageTitle';
 export { SpeciesInformationSection } from './sections/SpeciesInformationSection';
 export type { SpeciesInformationSectionProps } from './sections/SpeciesInformationSection';
 
+export { Filters } from './sections/Filters';
+export type { FiltersProps } from './sections/Filters';
+
 export { InlineExpandableRows } from './lists/InlineExpandableRows';
 export type {
   InlineExpandableRowEntry, InlineExpandableRowsProps, InlineExpandableRowsSection
