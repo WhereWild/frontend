@@ -68,6 +68,9 @@ export type { NavigationPillListProps } from './navigation/NavigationPillList';
 
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
 
+export { PageTitle } from './sections/PageTitle';
+export type { PageTitleProps } from './sections/PageTitle';
+
 export { SpeciesPageTitle } from './sections/SpeciesPageTitle';
 export type { SpeciesPageTitleProps } from './sections/SpeciesPageTitle';
 
