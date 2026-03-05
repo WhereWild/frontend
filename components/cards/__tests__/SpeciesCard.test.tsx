@@ -170,6 +170,41 @@ describe('SpeciesCard', () => {
     });
   });
 
+  it('opens species details in a new tab on ctrl/cmd click', () => {
+    const originalOpen = (window as Window & { open?: typeof window.open }).open;
+    const openMock = jest.fn(() => null);
+    (window as Window & { open?: typeof window.open }).open = openMock;
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { ctrlKey: true } });
+
+    expect(openMock).toHaveBeenCalledWith(
+      '/species/555/binomial-nomenclature',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    (window as Window & { open?: typeof window.open }).open = originalOpen;
+  });
+
+  it('opens species details in a new tab before custom onPress on modifier click', () => {
+    const handlePress = jest.fn();
+    const originalOpen = (window as Window & { open?: typeof window.open }).open;
+    const openMock = jest.fn(() => null);
+    (window as Window & { open?: typeof window.open }).open = openMock;
+    render(<SpeciesCard {...baseProps} onPress={handlePress} testID="species-card" />);
+
+    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { metaKey: true } });
+
+    expect(openMock).toHaveBeenCalledWith(
+      '/species/555/binomial-nomenclature',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    expect(handlePress).not.toHaveBeenCalled();
+    (window as Window & { open?: typeof window.open }).open = originalOpen;
+  });
+
   it('does nothing when no identifier is available', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
     render(

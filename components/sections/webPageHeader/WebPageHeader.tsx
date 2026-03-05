@@ -11,7 +11,6 @@ import React from 'react';
 import {
   Image,
   ImageSourcePropType,
-  Pressable,
   useWindowDimensions,
   StyleProp,
   StyleSheet,
@@ -31,6 +30,7 @@ import { WebPageHeaderSearchRow } from './WebPageHeaderSearchRow';
 import { WebPageHeaderMobileMenu } from './WebPageHeaderMobileMenu';
 import type { WebPageHeaderAction, SearchInputPassthroughProps } from './types';
 import type { SearchFilterParams } from '@/data/api';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 
 export type { WebPageHeaderAction } from './types';
 
@@ -134,8 +134,8 @@ export function WebPageHeader({
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
-      { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
-      { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
+      { label: 'About', icon: <IconInfo />, onPress: navigateToAbout, href: '/about', hrefPath: '/about' },
+      { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings, href: '/settings', hrefPath: '/settings' },
     ],
     [navigateToAbout, navigateToSettings],
   );
@@ -268,14 +268,17 @@ export function WebPageHeader({
                 setMobileHeaderLayout({ y, height });
               }}
             >
-              <Pressable
+              <RoutePressable
                 onPress={navigateHome}
+                href="/"
+                hrefPath="/"
+                navigateAfterPress={false}
                 style={styles.logoSectionMobile}
                 accessibilityRole="link"
                 accessibilityLabel={logoAccessibilityLabel}
               >
                 {logoContent}
-              </Pressable>
+              </RoutePressable>
 
               <WebPageHeaderSearchRow
                 variant="mobile"
@@ -321,14 +324,17 @@ export function WebPageHeader({
           </>
         ) : (
           <>
-            <Pressable
+            <RoutePressable
               onPress={navigateHome}
+              href="/"
+              hrefPath="/"
+              navigateAfterPress={false}
               style={styles.logoSection}
               accessibilityRole="link"
               accessibilityLabel={logoAccessibilityLabel}
             >
               {logoContent}
-            </Pressable>
+            </RoutePressable>
 
             <WebPageHeaderSearchRow
               variant="desktop"
@@ -351,11 +357,13 @@ export function WebPageHeader({
             />
 
             <View style={styles.actionsWrapper}>
-              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+              {resolvedActions.map(({ label, icon, onPress, href, hrefPath, variant = 'subtle' }) => (
                 <Button
                   key={label}
                   variant={variant}
                   onPress={onPress}
+                  href={href}
+                  hrefPath={hrefPath}
                   iconStart={icon}
                   label={label}
                 />
