@@ -24,11 +24,10 @@ jest.mock('@/components', () => {
     const { ThemedText } = jest.requireActual('@/components/text/ThemedText');
 
     return {
-        WebPageHeader: function MockWebPageHeader(props: any) {
-            webPageHeaderProps = props;
-            return null;
+        SpeciesCard: function MockSpeciesCard(props: any) {
+            mockSpeciesCardPropsHistory.push(props);
+            return <ActualSpeciesCard {...props} />;
         },
-        SpeciesCard,
         ThemedText,
     };
 });

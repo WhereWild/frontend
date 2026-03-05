@@ -13,7 +13,6 @@ import {
   NavigationPillList,
   NearbySpeciesCarousel,
   NumberSpinner,
-  WebPageHeader,
   RadioGroup,
   SearchInput,
   SelectField,
@@ -395,8 +394,6 @@ export default function About() {
         <title>WhereWild | About</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <WebPageHeader />
-
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
             includeBottomPadding: true,
