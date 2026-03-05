@@ -1,4 +1,4 @@
-import { IconFilter } from '@/assets/icons';
+import { IconFilter, IconRotateCcw } from '@/assets/icons';
 import { Size } from '@/constants/theme';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -24,6 +24,9 @@ type WebPageHeaderSearchRowProps = {
   onFilterPress?: () => void;
   filterLabel: string;
   filterButtonAccessibilityLabel: string;
+  showResetFilterButton: boolean;
+  onResetFilterPress?: () => void;
+  resetFilterButtonAccessibilityLabel: string;
 };
 
 /**
@@ -45,6 +48,9 @@ export function WebPageHeaderSearchRow({
   onFilterPress,
   filterLabel,
   filterButtonAccessibilityLabel,
+  showResetFilterButton,
+  onResetFilterPress,
+  resetFilterButtonAccessibilityLabel,
 }: WebPageHeaderSearchRowProps) {
   const {
     onFocus: onSearchInputFocus,
@@ -87,22 +93,38 @@ export function WebPageHeaderSearchRow({
       </View>
 
       {showFilterButton ? (
-        variant === 'mobile' ? (
-          <IconButton
-            variant="neutral"
-            icon={<IconFilter />}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        ) : (
-          <Button
-            variant="neutral"
-            iconStart={<IconFilter />}
-            label={filterLabel}
-            onPress={onFilterPress}
-            accessibilityLabel={filterButtonAccessibilityLabel}
-          />
-        )
+        <View
+          style={[
+            styles.filterControls,
+            variant === 'mobile' ? styles.filterControlsMobile : styles.filterControlsDesktop,
+          ]}
+        >
+          {showResetFilterButton ? (
+            <IconButton
+              variant="neutral"
+              icon={<IconRotateCcw />}
+              onPress={onResetFilterPress}
+              accessibilityLabel={resetFilterButtonAccessibilityLabel}
+            />
+          ) : null}
+
+          {variant === 'mobile' ? (
+            <IconButton
+              variant="neutral"
+              icon={<IconFilter />}
+              onPress={onFilterPress}
+              accessibilityLabel={filterButtonAccessibilityLabel}
+            />
+          ) : (
+            <Button
+              variant="neutral"
+              iconStart={<IconFilter />}
+              label={filterLabel}
+              onPress={onFilterPress}
+              accessibilityLabel={filterButtonAccessibilityLabel}
+            />
+          )}
+        </View>
       ) : null}
     </View>
   );
@@ -126,5 +148,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     position: 'relative',
+  },
+  filterControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterControlsDesktop: {
+    gap: Size.space['400'],
+  },
+  filterControlsMobile: {
+    gap: Size.space['200'],
   },
 });

@@ -62,6 +62,7 @@ describe('WebPageHeader', () => {
     expect(screen.getByLabelText('About')).toBeTruthy();
     expect(screen.getByLabelText('Settings')).toBeTruthy();
     expect(screen.getByLabelText('Filter search results')).toBeTruthy();
+    expect(screen.getByLabelText('Reset filters')).toBeTruthy();
   });
 
   it('navigates to about when default About action is pressed', () => {
@@ -118,10 +119,38 @@ describe('WebPageHeader', () => {
     expect(handleFilter).toHaveBeenCalledTimes(1);
   });
 
+  it('invokes reset filter handler when reset button is pressed', () => {
+    const handleResetFilter = jest.fn();
+    render(<WebPageHeader onResetFilterPress={handleResetFilter} />);
+
+    fireEvent.press(screen.getByLabelText('Reset filters'));
+    expect(handleResetFilter).toHaveBeenCalledTimes(1);
+  });
+
   it('can hide the filter button', () => {
     render(<WebPageHeader showFilterButton={false} />);
 
     expect(screen.queryByLabelText('Filter search results')).toBeNull();
+    expect(screen.queryByLabelText('Reset filters')).toBeNull();
+  });
+
+  it('can hide the reset filter button only', () => {
+    render(<WebPageHeader showResetFilterButton={false} />);
+
+    expect(screen.queryByLabelText('Reset filters')).toBeNull();
+    expect(screen.getByLabelText('Filter search results')).toBeTruthy();
+  });
+
+  it('does not show reset filter button when filter button is hidden, even if explicitly enabled', () => {
+    render(<WebPageHeader showFilterButton={false} showResetFilterButton={true} />);
+
+    expect(screen.queryByLabelText('Filter search results')).toBeNull();
+    expect(screen.queryByLabelText('Reset filters')).toBeNull();
+  });
+  it('supports a custom desktop filter button label', () => {
+    render(<WebPageHeader filterLabel="Hide filter" />);
+
+    expect(screen.getByText('Hide filter')).toBeTruthy();
   });
 
   it('renders compact layout and exposes actions behind the menu button', () => {
@@ -130,6 +159,7 @@ describe('WebPageHeader', () => {
 
     expect(screen.queryByText('WhereWild')).toBeNull();
     expect(screen.getByLabelText('Filter search results')).toBeTruthy();
+    expect(screen.getByLabelText('Reset filters')).toBeTruthy();
 
     expect(screen.queryByLabelText('About')).toBeNull();
     fireEvent.press(screen.getByLabelText('Open menu'));
