@@ -1,6 +1,9 @@
 import React from 'react';
-import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle, type LayoutRectangle } from 'react-native';
 import { IconRotateCcw } from '@/assets/icons';
+import type { SpeciesSummary } from '@/data/types';
+import { Portal } from '@/components/Portal';
+import { SearchResults } from './webPageHeader/SearchResults';
 import { ButtonDanger } from '@/components/buttons/ButtonDanger';
 import { NumberSpinner } from '@/components/inputs/NumberSpinner';
 import { RadioField } from '@/components/inputs/RadioField';
@@ -26,6 +29,13 @@ export type FiltersProps = {
   baseTaxonQuery: string;
   onBaseTaxonQueryChange?: (value: string) => void;
   onBaseTaxonSubmit?: (value: string) => void;
+  onBaseTaxonFocus?: () => void;
+  onBaseTaxonBlur?: () => void;
+  baseTaxonSuggestions?: SpeciesSummary[];
+  baseTaxonSuggestionsLoading?: boolean;
+  baseTaxonSuggestionsVisible?: boolean;
+  onBaseTaxonSelect?: (species: SpeciesSummary) => void;
+  onBaseTaxonSuggestionsDismiss?: () => void;
   rankValue: string;
   rankOptions: SelectOption[];
   onRankChange?: (value: string) => void;
@@ -51,6 +61,12 @@ export type FiltersProps = {
   /** Reset */
   onResetFilters?: () => void;
 
+  /**
+   * Test-only override for the base-taxon anchor ref.
+   * Do not use in production code.
+   */
+  anchorRefOverride?: React.RefObject<View | null>;
+
   style?: StyleProp<ViewStyle>;
 };
 
@@ -67,6 +83,13 @@ export function Filters({
   baseTaxonQuery,
   onBaseTaxonQueryChange,
   onBaseTaxonSubmit,
+  onBaseTaxonFocus,
+  onBaseTaxonBlur,
+  baseTaxonSuggestions = [],
+  baseTaxonSuggestionsLoading = false,
+  baseTaxonSuggestionsVisible = false,
+  onBaseTaxonSelect,
+  onBaseTaxonSuggestionsDismiss,
   rankValue,
   rankOptions,
   onRankChange,
@@ -85,8 +108,48 @@ export function Filters({
   minimumSamples,
   onMinimumSamplesChange,
   onResetFilters,
+  anchorRefOverride,
   style,
 }: FiltersProps) {
+  const internalAnchorRef = React.useRef<View>(null);
+  const anchorRef = anchorRefOverride ?? internalAnchorRef;
+  const [dropdownPosition, setDropdownPosition] = React.useState<LayoutRectangle | null>(null);
+
+  const measureAnchor = React.useCallback(() => {
+    anchorRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
+      setDropdownPosition({ x: pageX, y: pageY, width, height });
+    });
+  }, [anchorRef]);
+
+  const handleAnchorLayout = React.useCallback(() => {
+    if (!baseTaxonSuggestionsVisible) {
+      return;
+    }
+    measureAnchor();
+  }, [baseTaxonSuggestionsVisible, measureAnchor]);
+
+  React.useEffect(() => {
+    if (!baseTaxonSuggestionsVisible) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      measureAnchor();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [baseTaxonSuggestionsVisible, measureAnchor]);
+
+  const baseTaxonSearchInputProps = React.useMemo(
+    () => ({
+      value: baseTaxonQuery,
+      placeholder: 'Search',
+      onQueryChange: onBaseTaxonQueryChange,
+      onSubmitSearch: onBaseTaxonSubmit,
+      onFocus: onBaseTaxonFocus,
+      onBlur: onBaseTaxonBlur,
+    }),
+    [baseTaxonQuery, onBaseTaxonQueryChange, onBaseTaxonSubmit, onBaseTaxonFocus, onBaseTaxonBlur],
+  );
+
   return (
     <View style={[styles.container, style]}>
       <ThemedText variant="heading">Filters</ThemedText>
@@ -95,12 +158,55 @@ export function Filters({
       <View style={styles.subSection}>
         <ThemedText variant="subheading">Taxon</ThemedText>
         <ThemedText variant="body">Base taxon</ThemedText>
-        <SearchInput
-          value={baseTaxonQuery}
-          placeholder="Search"
-          onQueryChange={onBaseTaxonQueryChange}
-          onSubmitSearch={onBaseTaxonSubmit}
-        />
+        <View testID="filters-base-taxon-anchor" ref={anchorRef} style={styles.suggestionAnchor} onLayout={handleAnchorLayout}>
+          <SearchInput {...baseTaxonSearchInputProps} />
+        </View>
+        <Portal
+          visible={baseTaxonSuggestionsVisible}
+          onDismiss={onBaseTaxonSuggestionsDismiss}
+          accessibilityLabel="Base taxon suggestions"
+          accessibilityHint="Type to refine options or tap outside to dismiss."
+        >
+          <Pressable
+            style={styles.backdrop}
+            onPress={onBaseTaxonSuggestionsDismiss}
+            accessibilityRole="button"
+            accessibilityLabel="Close base taxon suggestions"
+          />
+          {dropdownPosition ? (
+            <View
+              style={[
+                styles.portalInputWrapper,
+                {
+                  top: dropdownPosition.y,
+                  left: dropdownPosition.x,
+                  width: dropdownPosition.width,
+                  height: dropdownPosition.height,
+                },
+              ]}
+            >
+              <SearchInput {...baseTaxonSearchInputProps} autoFocus />
+            </View>
+          ) : null}
+          <SearchResults
+            results={baseTaxonSuggestions}
+            isVisible={baseTaxonSuggestionsVisible && baseTaxonQuery.trim().length > 0}
+            isLoading={baseTaxonSuggestionsLoading}
+            emptyMessage="No matching taxa found"
+            onSelectResult={onBaseTaxonSelect}
+            onPointerEnter={onBaseTaxonFocus}
+            onTouchStart={onBaseTaxonFocus}
+            onFocus={onBaseTaxonFocus}
+            style={dropdownPosition ? [
+              styles.suggestionResults,
+              {
+                top: dropdownPosition.y + dropdownPosition.height + Size.space['200'],
+                left: dropdownPosition.x,
+                width: dropdownPosition.width,
+              },
+            ] : styles.suggestionResults}
+          />
+        </Portal>
         <SelectField
           label="Rank"
           description="Only include taxa at this rank"
@@ -243,5 +349,19 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     alignSelf: 'flex-start',
+  },
+  suggestionAnchor: {
+    position: 'relative',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  portalInputWrapper: {
+    position: 'absolute',
+    zIndex: 10001,
+  },
+  suggestionResults: {
+    position: 'absolute',
+    zIndex: 10002,
   },
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Filters, type FiltersProps } from '../Filters';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -44,7 +44,6 @@ const baseProps: FiltersProps = {
   countryOptions,
   stateValue: 'ut',
   stateOptions,
-  countyValue: 'salt-lake',
   countyOptions,
   baseTaxonQuery: '',
   rankValue: 'species',
@@ -60,8 +59,24 @@ const baseProps: FiltersProps = {
 };
 
 describe('Filters', () => {
+  let requestAnimationFrameSpy: jest.SpyInstance;
+  let cancelAnimationFrameSpy: jest.SpyInstance;
+  let scheduledFrameCallbacks: FrameRequestCallback[];
+
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('light');
+    scheduledFrameCallbacks = [];
+    requestAnimationFrameSpy = jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
+      scheduledFrameCallbacks.push(callback);
+      return scheduledFrameCallbacks.length;
+    });
+    cancelAnimationFrameSpy = jest.spyOn(global, 'cancelAnimationFrame').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
+    jest.restoreAllMocks();
   });
 
   describe('color mode', () => {
@@ -221,6 +236,80 @@ describe('Filters', () => {
       expect(() => {
         fireEvent.press(screen.getByLabelText('Reset filters'));
       }).not.toThrow();
+    });
+  });
+
+  describe('base taxon suggestions', () => {
+    const flushScheduledFrames = () => {
+      const callbacks = [...scheduledFrameCallbacks];
+      scheduledFrameCallbacks = [];
+      callbacks.forEach((callback) => callback(0));
+    };
+
+    it('does not call onBaseTaxonSuggestionsDismiss when clear is pressed', () => {
+      const handleDismiss = jest.fn();
+      render(
+        <Filters
+          {...baseProps}
+          baseTaxonQuery="canis"
+          onBaseTaxonSuggestionsDismiss={handleDismiss}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText('Clear search'));
+      expect(handleDismiss).not.toHaveBeenCalled();
+    });
+
+    it('measures anchor and renders visible suggestions when suggestions are open', () => {
+      const handleMeasure = jest.fn((callback: (...args: number[]) => void) => {
+        callback(0, 0, 320, 48, 16, 24);
+      });
+      const anchorRef = {
+        current: {
+          measure: handleMeasure,
+        },
+      } as unknown as React.RefObject<unknown>;
+
+      const rendered = render(
+        <Filters
+          {...baseProps}
+          baseTaxonQuery="canis"
+          baseTaxonSuggestionsVisible
+          baseTaxonSuggestions={[{ taxonId: 1, scientificName: 'Canis lupus' } as SpeciesSummary]}
+          anchorRefOverride={anchorRef}
+        />,
+      );
+      const anchorView = rendered.UNSAFE_getByProps({ testID: 'filters-base-taxon-anchor' });
+      // The renderer can replace ref.current with a host instance during mount.
+      // Re-inject the test measure function before firing layout.
+      (anchorRef as { current: { measure: typeof handleMeasure } }).current = { measure: handleMeasure };
+
+      act(() => {
+        fireEvent(anchorView, 'layout', {
+          nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 48 } },
+        });
+      });
+
+      act(() => {
+        flushScheduledFrames();
+      });
+
+      expect(requestAnimationFrameSpy).toHaveBeenCalled();
+      expect(handleMeasure).toHaveBeenCalled();
+      expect(screen.getByText('Canis lupus')).toBeTruthy();
+    });
+
+    it('cancels scheduled frame on unmount when suggestions are open', () => {
+      const { unmount } = render(
+        <Filters
+          {...baseProps}
+          baseTaxonSuggestionsVisible
+          baseTaxonSuggestions={[{ taxonId: 1, scientificName: 'Canis lupus' } as SpeciesSummary]}
+        />,
+      );
+
+      unmount();
+      expect(cancelAnimationFrameSpy).toHaveBeenCalledWith(1);
     });
   });
 });
