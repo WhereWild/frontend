@@ -1,4 +1,4 @@
-import { WebPageHeader, SpeciesCard, ThemedText } from '@/components';
+import { SpeciesCard, ThemedText } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { fetchSpeciesByTaxonId } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
@@ -78,8 +78,6 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
         <title>WhereWild | Home</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-        <WebPageHeader/>
-
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}

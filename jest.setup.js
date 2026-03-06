@@ -78,6 +78,15 @@ jest.mock('@/context/SettingsContext', () => {
     useSettings: jest.fn(() => ({
       units: 'metric',
     })),
-    SettingsProvider: ({ children }: { children: React.ReactNode }) => children,
+    // Mirrors runtime fallback behavior for suites rendering components outside
+    // SettingsProvider (for example isolated/unit-level tests).
+    useOptionalSettings: jest.fn(() => ({
+      units: 'metric',
+    })),
+    /**
+     * @param {{ children: React.ReactNode }} props
+     * @returns {React.ReactNode}
+     */
+    SettingsProvider: (props) => props.children,
   };
 });
