@@ -1,7 +1,7 @@
 import Head from 'expo-router/head';
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { WebPageHeader, PageTitle, ThemedText, SelectField } from '@/components';
+import { PageTitle, ThemedText, SelectField } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -38,8 +38,6 @@ export default function Settings() {
       </Head>
 
       <View testID="settings-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}> 
-        <WebPageHeader />
-
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
             includeBottomPadding: true,

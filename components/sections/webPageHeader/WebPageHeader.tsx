@@ -30,6 +30,7 @@ import { WebPageHeaderSearchResults } from './WebPageHeaderSearchResults';
 import { WebPageHeaderSearchRow } from './WebPageHeaderSearchRow';
 import { WebPageHeaderMobileMenu } from './WebPageHeaderMobileMenu';
 import type { WebPageHeaderAction, SearchInputPassthroughProps } from './types';
+import type { SearchFilterParams } from '@/data/api';
 
 export type { WebPageHeaderAction } from './types';
 
@@ -51,8 +52,11 @@ export type WebPageHeaderProps = {
   style?: StyleProp<ViewStyle>;
   showSearchResultsDropdown?: boolean;
   initialQuery?: string;
+  /** Filter parameters forwarded to the species search API. */
+  filterParams?: SearchFilterParams;
   onSearchingChanged?: (searching: boolean) => void;
   onSearchResultsChanged?: (results: SpeciesSummary[]) => void;
+  onSearchContextChanged?: (message: string | null) => void;
 };
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
@@ -78,8 +82,10 @@ export function WebPageHeader({
   logoAccessibilityLabel = 'Go to home',
   showSearchResultsDropdown = true,
   initialQuery,
+  filterParams,
   onSearchingChanged,
   onSearchResultsChanged,
+  onSearchContextChanged,
 }: WebPageHeaderProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -112,11 +118,19 @@ export function WebPageHeader({
     }
   }, [pathname, router]);
 
-  const submitSearchQuery = (query: string) => {
-    if (query !== '') {
-      router.push({ pathname: '/search', params: { query } });
+  /** Submits non-empty queries and avoids redundant navigation when already on `/search`. */
+  const submitSearchQuery = React.useCallback((query: string) => {
+    const trimmed = query.trim();
+    if (trimmed === '') {
+      return;
     }
-  };
+
+    if (pathname === '/search') {
+      return;
+    }
+
+    router.push({ pathname: '/search', params: { query: trimmed } });
+  }, [pathname, router]);
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
@@ -156,8 +170,10 @@ export function WebPageHeader({
     startSearchBlurGrace,
   } = useWebPageHeaderSearch({
     initialQuery,
+    filterParams,
     onSearchingChanged,
     onSearchResultsChanged,
+    onSearchContextChanged,
   });
 
   const hasQuery = debouncedQuery.length > 0;
