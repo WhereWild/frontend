@@ -98,12 +98,14 @@ function NonSearchLeadingContent({
         ]}
         pointerEvents={shouldShowBackButton ? 'auto' : 'none'}
       >
-        <IconButton
-          variant="subtle"
-          icon={<IconChevronLeft />}
-          onPress={shouldShowBackButton ? onPressBack : undefined}
-          accessibilityLabel="Back"
-        />
+        {shouldShowBackButton ? (
+          <IconButton
+            variant="subtle"
+            icon={<IconChevronLeft />}
+            onPress={onPressBack}
+            accessibilityLabel="Back"
+          />
+        ) : null}
       </Animated.View>
       <Animated.View
         style={[
@@ -115,31 +117,33 @@ function NonSearchLeadingContent({
         ]}
         pointerEvents={shouldShowLogo ? 'auto' : 'none'}
       >
-        {shouldShowLogo && typeof onPressLogo === 'function' ? (
-          <Pressable
-            onPress={onPressLogo}
-            accessibilityRole="button"
-            accessibilityLabel={logoAccessibilityLabel}
-            style={styles.logoPressable}
-          >
+        {shouldShowLogo ? (
+          typeof onPressLogo === 'function' ? (
+            <Pressable
+              onPress={onPressLogo}
+              accessibilityRole="button"
+              accessibilityLabel={logoAccessibilityLabel}
+              style={styles.logoPressable}
+            >
+              <Image
+                testID="top-app-bar-home-logo-image"
+                source={logoSource}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityRole="image"
+              />
+            </Pressable>
+          ) : (
             <Image
               testID="top-app-bar-home-logo-image"
               source={logoSource}
               style={styles.logo}
               resizeMode="contain"
               accessibilityRole="image"
+              accessibilityLabel={logoAccessibilityLabel}
             />
-          </Pressable>
-        ) : (
-          <Image
-            testID="top-app-bar-home-logo-image"
-            source={logoSource}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityRole="image"
-            accessibilityLabel={logoAccessibilityLabel}
-          />
-        )}
+          )
+        ) : null}
       </Animated.View>
       <ThemedText
         variant="heading"
@@ -159,6 +163,7 @@ function NonSearchLeadingContent({
 export function LeadingContent(props: LeadingContentProps) {
   const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
   const [displayedProps, setDisplayedProps] = React.useState<LeadingContentProps>(props);
+  const [isTransitioning, setIsTransitioning] = React.useState(false);
   const latestPropsRef = React.useRef<LeadingContentProps>(props);
   const previousVariantRef = React.useRef<LeadingContentProps['variant']>(props.variant);
   const previousDisplayedVariantRef = React.useRef<LeadingContentProps['variant']>(
@@ -177,6 +182,7 @@ export function LeadingContent(props: LeadingContentProps) {
 
     if (previousVariant === latestProps.variant) {
       setDisplayedProps(latestProps);
+      setIsTransitioning(false);
       contentTranslateX.current.setValue(0);
       contentOpacity.current.setValue(1);
       return;
@@ -185,6 +191,7 @@ export function LeadingContent(props: LeadingContentProps) {
     // Stop any in-flight transition before starting a new one so stale
     // completion callbacks cannot apply an out-of-date variant state.
     activeTransitionRef.current?.stop();
+    setIsTransitioning(true);
     const nextProps = latestProps;
     const isEnteringPageVariant = nextProps.variant === 'page';
     const exitTranslateX = isEnteringPageVariant
@@ -237,6 +244,7 @@ export function LeadingContent(props: LeadingContentProps) {
       activeTransitionRef.current = enterAnimation;
       enterAnimation.start(() => {
         activeTransitionRef.current = null;
+        setIsTransitioning(false);
       });
     });
   }, [animationEasing, contentOpacity, contentTranslateX, props.variant]);
@@ -264,7 +272,14 @@ export function LeadingContent(props: LeadingContentProps) {
     const showLogo = displayedProps.variant === 'home';
     const showBack = displayedProps.variant === 'page';
 
-    if (previousDisplayedVariant === 'search' && nextDisplayedVariant !== 'search') {
+    const isEnteringFromSearch =
+      previousDisplayedVariant === 'search' && nextDisplayedVariant !== 'search';
+    const isDirectNonSearchSwap =
+      previousDisplayedVariant !== 'search' &&
+      nextDisplayedVariant !== 'search' &&
+      previousDisplayedVariant !== nextDisplayedVariant;
+
+    if (isEnteringFromSearch || isDirectNonSearchSwap) {
       logoSlotWidth.current.setValue(showLogo ? TOP_APP_BAR_LOGO_SIZE : 0);
       logoSlotOpacity.current.setValue(showLogo ? 1 : 0);
       backSlotWidth.current.setValue(showBack ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0);
@@ -321,7 +336,8 @@ export function LeadingContent(props: LeadingContentProps) {
   if (displayedProps.variant === 'search') {
     // Prefer live search props while actively in search so input value/handlers
     // stay current, but fall back to displayed props during exit transitions.
-    const leadingSearchProps = props.variant === 'search' ? props : displayedProps;
+    const leadingSearchProps =
+      !isTransitioning && props.variant === 'search' ? props : displayedProps;
 
     return (
       <SearchLeadingContent
@@ -333,7 +349,8 @@ export function LeadingContent(props: LeadingContentProps) {
 
   // Prefer live non-search props while actively in home/page, but fall back to
   // displayed props during search-exit transitions until swap is complete.
-  const leadingNonSearchProps = props.variant !== 'search' ? props : displayedProps;
+  const leadingNonSearchProps =
+    !isTransitioning && props.variant !== 'search' ? props : displayedProps;
 
   return (
     <NonSearchLeadingContent
@@ -349,10 +366,10 @@ export function LeadingContent(props: LeadingContentProps) {
 
 const styles = StyleSheet.create({
   leadingRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['200'],
-    flexShrink: 1,
     minWidth: 0,
   },
   title: {
