@@ -68,6 +68,7 @@ export function NearbySpeciesCarousel({
             commonName={item.commonName}
             scientificName={item.scientificName}
             description={item.description}
+            imageSource={item.imageSource}
             style={styles.card}
             variant="tertiary"
           />

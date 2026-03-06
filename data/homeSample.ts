@@ -24,7 +24,7 @@ export const mockHomePageData: HomePageData = {
         imageSource: escobariaViviparaImage,
       },
       {
-        taxonId: 7904574,
+        taxonId: 2480446,
         commonName: 'Bald Eagle',
         commonNames: ['Bald Eagle'],
         scientificName: 'Haliaeetus leucocephalus',
