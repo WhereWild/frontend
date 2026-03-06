@@ -42,16 +42,16 @@ function SectionShell({
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.centeredSection}>
-      <View
-        style={[
-          styles.sectionContent,
-          getResponsiveContentContainerStyle(responsive, {
-            includeTopPadding: false,
-          }),
-          { maxWidth: responsive.contentWidth },
-        ]}
-      >
+    <View
+      style={[
+        styles.centeredSection,
+        getResponsiveContentContainerStyle(responsive, {
+          includeWidth: false,
+          includeTopPadding: false,
+        }),
+      ]}
+    >
+      <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}>
         {children}
       </View>
     </View>
