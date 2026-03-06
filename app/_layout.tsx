@@ -1,4 +1,4 @@
-import { Stack, usePathname, useRouter, type Href } from "expo-router";
+import { Stack, usePathname, useRouter, type Href } from 'expo-router';
 import { useFonts } from 'expo-font';
 import {
   Inter_400Regular,
@@ -18,12 +18,18 @@ import {
 } from '@/assets/icons';
 import {
   NavigationBar,
+  WebPageHeader,
   type NavigationBarProps,
 } from '@/components';
 import { Time } from '@/constants/theme';
 import { SettingsProvider } from '@/context/SettingsContext';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import {
+  resolveHeaderConfigForRoute,
+  WebPageHeaderProvider,
+  useWebPageHeaderConfig,
+} from '@/context/WebPageHeaderContext';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
 
@@ -80,7 +86,34 @@ const hasDismissAll = (value: unknown): value is { dismissAll: () => void } =>
   && 'dismissAll' in value
   && typeof (value as { dismissAll?: unknown }).dismissAll === 'function';
 
-export default function RootLayout() {
+function RootLayoutWebFrame() {
+  const pathname = usePathname();
+  const { config } = useWebPageHeaderConfig();
+  const resolvedConfig = resolveHeaderConfigForRoute(pathname, config);
+
+  return (
+    <View style={styles.appShell}>
+      <WebPageHeader
+        showFilterButton={resolvedConfig.showFilterButton}
+        onFilterPress={resolvedConfig.onFilterPress}
+        filterLabel={resolvedConfig.filterLabel}
+        showResetFilterButton={resolvedConfig.showResetFilterButton}
+        onResetFilterPress={resolvedConfig.onResetFilterPress}
+        showSearchResultsDropdown={resolvedConfig.showSearchResultsDropdown}
+        initialQuery={resolvedConfig.initialQuery}
+        filterParams={resolvedConfig.filterParams}
+        onSearchingChanged={resolvedConfig.onSearchingChanged}
+        onSearchResultsChanged={resolvedConfig.onSearchResultsChanged}
+        onSearchContextChanged={resolvedConfig.onSearchContextChanged}
+      />
+      <View style={styles.content}>
+        <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
+      </View>
+    </View>
+  );
+}
+
+function RootLayoutNativeFrame() {
   const router = useRouter();
   const pathname = usePathname();
   // UI highlight state must be explicit so route restores across tabs immediately
@@ -138,36 +171,39 @@ export default function RootLayout() {
   }, [pathname, rememberRouteForTab]);
 
   const navigateIfDifferent = useCallback((targetPath: TopLevelPath) => {
-    if (activeTabPath !== targetPath) {
-      const targetHistory = tabRouteHistoryRef.current[targetPath] ?? [targetPath];
-      const targetRoute = targetHistory[targetHistory.length - 1] ?? targetPath;
-
-      if (pathname !== targetRoute) {
-        pendingTargetTabRef.current = targetPath;
-
-        // Clearing stack on real tab switches prevents back gestures from jumping
-        // across tabs into previously viewed tab stacks.
-        if (hasCanGoBack(router) && router.canGoBack() && hasDismissAll(router)) {
-          router.dismissAll();
-        }
-
-        if (targetRoute === targetPath) {
-          router.replace(targetPath);
-          return;
-        }
-
-        // Rebuild the destination tab stack from root so back gestures work
-        // within that tab after restore (root -> nested -> nested...).
-        router.replace(targetPath);
-        targetHistory.slice(1).forEach((route) => {
-          const href = toHistoryHref(route);
-
-          if (href) {
-            router.push(href);
-          }
-        });
-      }
+    if (activeTabPath === targetPath) {
+      return;
     }
+
+    const targetHistory = tabRouteHistoryRef.current[targetPath] ?? [targetPath];
+    const targetRoute = targetHistory[targetHistory.length - 1] ?? targetPath;
+
+    if (pathname === targetRoute) {
+      return;
+    }
+
+    pendingTargetTabRef.current = targetPath;
+
+    // Clearing stack on real tab switches prevents back gestures from jumping
+    // across tabs into previously viewed tab stacks.
+    if (hasCanGoBack(router) && router.canGoBack() && hasDismissAll(router)) {
+      router.dismissAll();
+    }
+
+    if (targetRoute === targetPath) {
+      router.replace(targetPath);
+      return;
+    }
+
+    // Rebuild the destination tab stack from root so back gestures work
+    // within that tab after restore (root -> nested -> nested...).
+    router.replace(targetPath);
+    targetHistory.slice(1).forEach((route) => {
+      const href = toHistoryHref(route);
+      if (href) {
+        router.push(href);
+      }
+    });
   }, [activeTabPath, pathname, router]);
 
   const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(() => [
@@ -205,6 +241,17 @@ export default function RootLayout() {
     },
   ], [activeTabPath, navigateIfDifferent]);
 
+  return (
+    <View style={styles.appShell}>
+      <View style={styles.content}>
+        <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
+      </View>
+      <NavigationBar tabs={navigationTabs} />
+    </View>
+  );
+}
+
+export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_600SemiBold,
@@ -220,14 +267,11 @@ export default function RootLayout() {
 
   return (
     <SettingsProvider>
-      <View style={styles.appShell}>
-        <View style={styles.content}>
-          <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
-        </View>
-        <NavigationBar tabs={navigationTabs} />
-      </View>
+      <WebPageHeaderProvider>
+        {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
+      </WebPageHeaderProvider>
     </SettingsProvider>
-  )
+  );
 }
 
 const styles = StyleSheet.create({

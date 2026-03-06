@@ -116,11 +116,10 @@ describe('About screen', () => {
     );
   });
 
-  it('does not push a new route when already viewing About', () => {
+  it('does not trigger navigation from local About screen content', () => {
     mockPathname = '/about';
     render(<About />);
 
-    fireEvent.press(screen.getByLabelText('About'));
     expect(mockPush).not.toHaveBeenCalled();
   });
 

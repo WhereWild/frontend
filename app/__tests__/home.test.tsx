@@ -3,7 +3,7 @@ import { fetchSpeciesByTaxonId } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import HomeScreen from '../index';
@@ -80,14 +80,6 @@ describe('Home screen', () => {
     render(<HomeScreen />);
 
     expect(screen.getByText(mockHomePageData.recommendations.items[0].commonName)).toBeTruthy();
-  });
-
-  it('updates the page header search input state', () => {
-    render(<HomeScreen data={createData()} />);
-
-    const searchInput = screen.getByPlaceholderText('Search');
-    fireEvent.changeText(searchInput, 'lynx');
-    expect(searchInput.props.value).toBe('lynx');
   });
 
   it('applies light mode background color when overridden to be light', () => {

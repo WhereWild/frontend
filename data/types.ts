@@ -262,6 +262,9 @@ export type RelativeRankingEntry = {
   taxonId: number | string;
   scientificName?: string | null;
   commonName?: string | null;
+  imageUrl?: string | null;
+  imageFile?: string | null;
+  imageSource?: string | null;
   rank?: string | null;
   value: number | null;
   position: number;
@@ -281,6 +284,7 @@ export type RelativeRankingResponse = {
   ancestorTaxonId: number;
   rank: string;
   variable: string;
+  units?: string | null;
   metric: string;
   total: number;
   limit: number;

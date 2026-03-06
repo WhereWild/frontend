@@ -67,6 +67,13 @@ export type SearchResultsProps = {
    * Test ID for testing.
    */
   testID?: string;
+
+  /**
+   * Layout mode for the results panel.
+   * - `floating`: absolute-positioned dropdown panel (default)
+   * - `inline`: in-flow panel used inside scrollable page content
+   */
+  layout?: 'floating' | 'inline';
 };
 
 /**
@@ -89,12 +96,13 @@ export function SearchResults({
   onTouchEnd,
   onFocus,
   onBlur,
+  layout = 'floating',
 }: SearchResultsProps) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const panelStyles: StyleProp<ViewStyle> = [
-    styles.container,
+    layout === 'inline' ? styles.containerInline : styles.container,
     styles.panel,
     {
       backgroundColor: palette.background.default.tertiary,
@@ -151,12 +159,48 @@ export function SearchResults({
     );
   }
 
+  if (layout === 'inline') {
+    return (
+      <View
+        style={[
+          panelStyles,
+          { maxHeight },
+        ]}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        testID={testID}
+      >
+        <View style={styles.listContent} testID={testID ? `${testID}-list` : undefined}>
+          {results.map((item) => (
+            <SpeciesCard
+              key={item.taxonId}
+              style={styles.speciesCard}
+              taxonId={item.taxonId}
+              commonName={item.commonName}
+              scientificName={item.scientificName}
+              description={item.description}
+              imageSource={item.imageSource}
+              size="compact"
+              onPress={() => onSelectResult?.(item)}
+              testID={`search-result-${item.taxonId}`}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   const renderResult: ListRenderItem<SpeciesSummary> = ({ item }) => (
     <SpeciesCard
       style={styles.speciesCard}
       taxonId={item.taxonId}
       commonName={item.commonName}
       scientificName={item.scientificName}
+      description={item.description}
       imageSource={item.imageSource}
       size="compact"
       onPress={() => onSelectResult?.(item)}
@@ -200,6 +244,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
+  },
+  containerInline: {
+    position: 'relative',
+    width: '100%',
+    zIndex: 1,
   },
   panel: {
     borderRadius: Size.radius['400'],

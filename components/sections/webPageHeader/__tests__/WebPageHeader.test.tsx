@@ -1,5 +1,5 @@
 import React, { act } from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { Size } from '@/constants/theme';
 import { WebPageHeader } from '../WebPageHeader';
 import { IconHelpCircle } from '@/assets/icons';
@@ -19,9 +19,12 @@ jest.mock('@/hooks/useResponsive', () => ({
 }));
 
 const mockFetchSpeciesList = jest.fn();
+const mockFetchRelativeRankings = jest.fn();
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesList: jest.fn((...args) => mockFetchSpeciesList(...args)),
+  fetchRelativeRankings: jest.fn((...args) => mockFetchRelativeRankings(...args)),
+  BACKEND_BASE: 'https://api.example.test',
 }));
 
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
@@ -51,6 +54,18 @@ describe('WebPageHeader', () => {
     mockPathname = '/';
     mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
     mockFetchSpeciesList.mockResolvedValue([]);
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 0,
+      limit: 10,
+      entries: [],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
   });
 
   it('renders title, search input, and default actions', () => {
@@ -173,14 +188,34 @@ describe('WebPageHeader', () => {
   });
 
   it('submits search queries and ignores empty submissions', async () => {
+    jest.useFakeTimers();
     render(<WebPageHeader />);
 
     const searchInput = screen.getByLabelText('Search input');
     fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: '' } });
+    fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: '   ' } });
     expect(mockPush).not.toHaveBeenCalled();
 
     fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: 'owl' } });
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/search', params: { query: 'owl' } });
+
+    fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: '  hawk  ' } });
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/search', params: { query: 'hawk' } });
+
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
+  });
+
+  it('does not navigate when submitting search from /search route', () => {
+    mockPathname = '/search';
+    render(<WebPageHeader />);
+
+    const searchInput = screen.getByLabelText('Search input');
+    fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: 'owl' } });
+
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('seeds initial query and triggers search callbacks', async () => {
@@ -222,7 +257,19 @@ describe('WebPageHeader', () => {
 
     rerender(<WebPageHeader initialQuery={undefined} />);
 
-    expect(screen.getByLabelText('Search input').props.value).toBe('');
+    expect(screen.getByLabelText('Search input').props.value).toBe('owl');
+  });
+
+  it('persists header search query across remounts when initialQuery is absent', () => {
+    const { unmount } = render(<WebPageHeader />);
+
+    const searchInput = screen.getByLabelText('Search input');
+    fireEvent.changeText(searchInput, 'canis');
+
+    unmount();
+
+    render(<WebPageHeader />);
+    expect(screen.getByLabelText('Search input').props.value).toBe('canis');
   });
 
   it('reports empty results when query is cleared', async () => {
@@ -276,7 +323,7 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'wolf');
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'wolf', undefined);
     });
 
     const result = await screen.findByTestId('search-result-12');
@@ -287,6 +334,568 @@ describe('WebPageHeader', () => {
       pathname: '/species/[...identifier]',
       params: { identifier: ['12', 'canis-lupus'] },
     });
+
+    jest.useRealTimers();
+  });
+
+  it('renders thumbnails for ranking results when image_url is provided', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 1,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 12,
+          scientificName: 'Canis lupus',
+          commonName: 'Gray Wolf',
+          imageUrl: 'https://example.com/wolf.png',
+          value: 1,
+          position: 1,
+          count: 99,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'wolf');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchRelativeRankings).toHaveBeenCalled();
+    });
+
+    const result = await screen.findByTestId('search-result-12');
+    expect(within(result).getByTestId('species-card-image')).toBeTruthy();
+
+    jest.useRealTimers();
+  });
+
+  it('normalizes ranked names and includes ranked value in card description', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 1,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 77,
+          scientificName: 'Canis_lupus',
+          commonName: 'Gray_wolf',
+          value: 12.5,
+          position: 1,
+          count: 9,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'wolf');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const result = await screen.findByTestId('search-result-77');
+    expect(screen.getByText('Canis lupus')).toBeTruthy();
+    expect(result.props.accessibilityLabel).toContain('12.5 | Rank 1 of 1 | Percentile 100% | Samples 9');
+
+    jest.useRealTimers();
+  });
+
+  it('scales fractional ranked percentile values to percentage display', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 10,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 78,
+          scientificName: 'Vulpes vulpes',
+          commonName: 'Red fox',
+          value: 7,
+          position: 2,
+          percentile: 0.95,
+          count: 9,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'fox');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const result = await screen.findByTestId('search-result-78');
+    expect(result.props.accessibilityLabel).toContain('7 | Rank 2 of 10 | Percentile 95% | Samples 9');
+
+    jest.useRealTimers();
+  });
+
+  it('renders ranking thumbnails when image_source is provided directly', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 1,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 45,
+          scientificName: 'Canis latrans',
+          commonName: 'Coyote',
+          imageSource: 'https://example.com/coyote.png',
+          value: 1,
+          position: 1,
+          count: 12,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'coyote');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const result = await screen.findByTestId('search-result-45');
+    const image = within(result).getByTestId('species-card-image');
+    expect(image.props.source).toEqual({ uri: 'https://example.com/coyote.png' });
+
+    jest.useRealTimers();
+  });
+
+  it('renders thumbnails for ranking results when only image_file is provided', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 1,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 44,
+          scientificName: 'Vulpes vulpes',
+          commonName: 'Red Fox',
+          imageFile: 'images/mammals/red fox.png',
+          value: 1,
+          position: 1,
+          count: 10,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'fox');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    const result = await screen.findByTestId('search-result-44');
+    const image = within(result).getByTestId('species-card-image');
+    expect(image.props.source).toEqual({
+      uri: 'https://api.example.test/static/species_images/red%20fox.png',
+    });
+
+    jest.useRealTimers();
+  });
+
+  it('filters out ranking entries with invalid taxon ids', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 1,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 'not-a-number',
+          scientificName: 'Invalid taxon',
+          commonName: 'Invalid',
+          value: 1,
+          position: 1,
+          count: 1,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'invalid');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId(/search-result-/)).toBeNull();
+
+    jest.useRealTimers();
+  });
+
+  it('does not render image source when ranking image fields are blank strings', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 1,
+      limit: 10,
+      entries: [
+        {
+          taxonId: 46,
+          scientificName: 'Urocyon cinereoargenteus',
+          commonName: 'Gray Fox',
+          imageSource: '   ',
+          imageUrl: '  ',
+          imageFile: '   ',
+          value: 1,
+          position: 1,
+          count: 5,
+        },
+      ],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'fox');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByTestId('search-result-46')).toBeTruthy();
+
+    jest.useRealTimers();
+  });
+
+  it('falls back to text search with ancestorTaxonId when ranked results are empty', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 2519,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 0,
+      limit: 10,
+      entries: [],
+      order: 'asc',
+      includeSpeciesLike: true,
+      distribution: null,
+    });
+    mockFetchSpeciesList.mockResolvedValue([
+      {
+        taxon_id: 11498251,
+        scientific_name: 'Pelecyphora vivipara',
+        common_name: 'Spinystar',
+      },
+    ] as any);
+    const handleStatus = jest.fn();
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 2519,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          includeSubspecies: true,
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+        onSearchContextChanged={handleStatus}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'spinystar');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchRelativeRankings).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        10,
+        'spinystar',
+        expect.objectContaining({
+          ancestorTaxonId: 2519,
+          rank: 'species',
+          includeSubspecies: true,
+        }),
+      );
+    });
+
+    expect(handleStatus).toHaveBeenCalledWith(
+      'No ranked matches found for "spinystar". Showing text-search fallback results, which may include broader matches than the selected base taxon.',
+    );
+    expect(await screen.findByText('Spinystar')).toBeTruthy();
+
+    jest.useRealTimers();
+  });
+
+  it('shows fallback context when ranked and fallback searches both return empty', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 2519,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 0,
+      limit: 10,
+      entries: [],
+      order: 'asc',
+      includeSpeciesLike: true,
+      distribution: null,
+    });
+    mockFetchSpeciesList.mockResolvedValue([]);
+    const handleContext = jest.fn();
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 2519,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          includeSubspecies: true,
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+        onSearchContextChanged={handleContext}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'spinystar');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        10,
+        'spinystar',
+        expect.objectContaining({
+          ancestorTaxonId: 2519,
+          rank: 'species',
+          includeSubspecies: true,
+        }),
+      );
+    });
+
+    expect(handleContext).toHaveBeenCalledWith(
+      'No ranked matches found for "spinystar". Showing text-search fallback results, which may include broader matches than the selected base taxon.',
+    );
+    expect(screen.queryByTestId(/search-result-/)).toBeNull();
+
+    jest.useRealTimers();
+  });
+
+  it('surfaces fallback fetch errors after ranked search returns empty', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 2519,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 0,
+      limit: 10,
+      entries: [],
+      order: 'asc',
+      includeSpeciesLike: true,
+      distribution: null,
+    });
+    mockFetchSpeciesList.mockRejectedValue(new Error('Fallback search unavailable'));
+    const handleContext = jest.fn();
+
+    render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 2519,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          includeSubspecies: true,
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+        onSearchContextChanged={handleContext}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'spinystar');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        10,
+        'spinystar',
+        expect.objectContaining({
+          ancestorTaxonId: 2519,
+          rank: 'species',
+          includeSubspecies: true,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(handleContext).toHaveBeenCalledWith('Search failed: Fallback search unavailable');
+    });
+
+    expect(await screen.findByText('Fallback search unavailable')).toBeTruthy();
 
     jest.useRealTimers();
   });
@@ -346,7 +955,7 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'error');
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'error', undefined);
     });
 
     await waitFor(() => {
@@ -389,7 +998,7 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'lynx');
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'lynx', undefined);
     });
 
     const resultsCallsBeforeUnmount = handleResults.mock.calls.length;
@@ -435,7 +1044,7 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'bad');
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'bad', undefined);
     });
 
     const resultsCallsBeforeUnmount = handleResults.mock.calls.length;
@@ -449,6 +1058,143 @@ describe('WebPageHeader', () => {
 
     expect(handleResults).toHaveBeenCalledTimes(resultsCallsBeforeUnmount);
     expect(handleSearching).toHaveBeenCalledTimes(searchingCallsBeforeUnmount);
+
+    jest.useRealTimers();
+  });
+
+  it('ignores in-flight ranking results after unmount', async () => {
+    jest.useFakeTimers();
+    let resolveRankingPromise: ((value: any) => void) | null = null;
+    const rankingPromise = new Promise((resolve) => {
+      resolveRankingPromise = resolve;
+    });
+    mockFetchRelativeRankings.mockReturnValue(rankingPromise as any);
+    const handleResults = jest.fn();
+
+    const { unmount } = render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+        onSearchResultsChanged={handleResults}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'wolf');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchRelativeRankings).toHaveBeenCalled();
+    });
+
+    const resultsCallsBeforeUnmount = handleResults.mock.calls.length;
+    unmount();
+
+    await act(async () => {
+      resolveRankingPromise?.({
+        ancestorTaxonId: 212,
+        rank: 'SPECIES',
+        variable: 'bio_1',
+        metric: 'mean',
+        total: 1,
+        limit: 10,
+        entries: [
+          {
+            taxonId: 12,
+            scientificName: 'Canis lupus',
+            commonName: 'Gray Wolf',
+            value: 1,
+            position: 1,
+            count: 99,
+          },
+        ],
+        order: 'asc',
+        includeSpeciesLike: false,
+        distribution: null,
+      });
+      await Promise.resolve();
+    });
+
+    expect(handleResults).toHaveBeenCalledTimes(resultsCallsBeforeUnmount);
+
+    jest.useRealTimers();
+  });
+
+  it('ignores in-flight fallback text results after unmount', async () => {
+    jest.useFakeTimers();
+    mockFetchRelativeRankings.mockResolvedValue({
+      ancestorTaxonId: 212,
+      rank: 'SPECIES',
+      variable: 'bio_1',
+      metric: 'mean',
+      total: 0,
+      limit: 10,
+      entries: [],
+      order: 'asc',
+      includeSpeciesLike: false,
+      distribution: null,
+    });
+    let resolveFallbackPromise: ((value: any) => void) | null = null;
+    const fallbackPromise = new Promise((resolve) => {
+      resolveFallbackPromise = resolve;
+    });
+    mockFetchSpeciesList.mockReturnValue(fallbackPromise as any);
+    const handleResults = jest.fn();
+
+    const { unmount } = render(
+      <WebPageHeader
+        filterParams={{
+          ancestorTaxonId: 212,
+          sortVariable: 'bio_1',
+          sortMetric: 'mean',
+          rank: 'species',
+          sortOrder: 'asc',
+          numberOfResults: 10,
+        }}
+        onSearchResultsChanged={handleResults}
+      />,
+    );
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'wolf');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        10,
+        'wolf',
+        expect.objectContaining({
+          sortVariable: null,
+          sortMetric: null,
+        }),
+      );
+    });
+
+    const resultsCallsBeforeUnmount = handleResults.mock.calls.length;
+    unmount();
+
+    await act(async () => {
+      resolveFallbackPromise?.([
+        { taxon_id: 99, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+      ]);
+      await Promise.resolve();
+    });
+
+    expect(handleResults).toHaveBeenCalledTimes(resultsCallsBeforeUnmount);
 
     jest.useRealTimers();
   });
@@ -476,7 +1222,7 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'owl');
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'owl', undefined);
     });
 
     expect(await screen.findByText('snowy owl')).toBeTruthy();
@@ -609,6 +1355,68 @@ describe('WebPageHeader', () => {
     });
 
     expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    jest.useRealTimers();
+  });
+
+  it('clears previous blur-grace timer when blur happens repeatedly', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 56, scientific_name: 'Tyto alba', common_name: 'Barn Owl' },
+    ] as any);
+
+    const { unmount } = render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'owl');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    act(() => {
+      searchInput.props.onBlur?.({});
+      jest.advanceTimersByTime(50);
+      searchInput.props.onBlur?.({});
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    unmount();
+    jest.useRealTimers();
+  });
+
+  it('cleans up blur-grace timer on unmount before timeout fires', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 57, scientific_name: 'Athene cunicularia', common_name: 'Burrowing Owl' },
+    ] as any);
+
+    const { unmount } = render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'owl');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    act(() => {
+      searchInput.props.onBlur?.({});
+    });
+
+    unmount();
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
 
     jest.useRealTimers();
   });
