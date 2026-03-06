@@ -608,7 +608,17 @@
     if (Array.isArray(points) && points.length) {
       const observedBounds = [];
       const markerWorldAnchors = [];
-      const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 6 });
+      const clusterGroup = L.markerClusterGroup({
+        spiderfyOnMaxZoom: false,
+        disableClusteringAtZoom: 6,
+        // Chunk large batches so zoom/pan interactions stay responsive.
+        // chunkInterval is in milliseconds; 120ms of work followed by a short 20ms pause
+        // was chosen to balance fast marker rendering for 10k+ points with smooth pan/zoom
+        // interactions, avoiding long main-thread blocks while keeping throughput high.
+        chunkedLoading: true,
+        chunkInterval: 120,
+        chunkDelay: 20,
+      });
       let cluster = false;
       if (points.length >= 10000) {
         cluster = true;
@@ -631,9 +641,14 @@
             );
             markers.set(catalog, marker);
           } else {
+            // No catalog id is available, so use a deterministic fallback key.
             markers.set('fallback-' + String(idx), marker);
           }
-          markerWorldAnchors.push({ marker, latitude, longitude });
+          if (!cluster) {
+            // In non-cluster mode we manually realign marker longitudes on wrapped-world moves.
+            // Clustered markers are managed by MarkerCluster, so we skip anchor tracking there.
+            markerWorldAnchors.push({ marker, latitude, longitude });
+          }
           observedBounds.push([latitude, initialLongitude]);
         }
       });
@@ -655,7 +670,9 @@
         map.setView([0, 0], 2);
       }
 
-      map.on('moveend', syncMarkersToCurrentWorld);
+      if (!cluster) {
+        map.on('moveend', syncMarkersToCurrentWorld);
+      }
     } else {
       map.setView([0, 0], 2);
     }
