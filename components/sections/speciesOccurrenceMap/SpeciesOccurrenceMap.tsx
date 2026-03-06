@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useIsFocused } from '@react-navigation/native';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { SpeciesOccurrence } from '@/data/types';
@@ -41,6 +42,7 @@ export function SpeciesOccurrenceMap({
   speciesKey,
   showHeatmapOverlay = false,
 }: SpeciesOccurrenceMapProps) {
+  const isFocused = useIsFocused();
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -125,10 +127,12 @@ export function SpeciesOccurrenceMap({
     sendHighlightMessage(highlightMessage);
   }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
 
-  React.useEffect(
-    () => setupWebHeatmapBridge(iframeRef, activeHeatmapJobRef),
-    [],
-  );
+  React.useEffect(() => {
+    if (!isFocused) {
+      return () => {};
+    }
+    return setupWebHeatmapBridge(iframeRef, activeHeatmapJobRef);
+  }, [isFocused]);
 
   if (loading) {
     return (

@@ -199,6 +199,37 @@ describe('speciesOccurrenceMapHelpers', () => {
     cleanup();
   });
 
+  it('ignores heatmap messages from other iframe sources', async () => {
+    const addEventListener = jest.fn();
+    const removeEventListener = jest.fn();
+    global.window = {
+      addEventListener,
+      removeEventListener,
+    } as unknown as Window & typeof globalThis;
+
+    const ownFrameWindow = { postMessage: jest.fn() };
+    const foreignFrameWindow = { postMessage: jest.fn() };
+
+    const cleanup = setupWebHeatmapBridge(
+      { current: { contentWindow: ownFrameWindow } as unknown as HTMLIFrameElement },
+      { current: { requestId: null, jobId: null, abortController: null } },
+    );
+
+    const handler = addEventListener.mock.calls[0]?.[1] as (event: MessageEvent<unknown>) => Promise<void>;
+    await handler({
+      source: foreignFrameWindow as unknown as MessageEventSource,
+      data: {
+        type: HEATMAP_FETCH_MESSAGE_TYPE,
+        requestId: 1,
+        queryKey: 'foreign-source',
+        query: { species_key: '99' },
+      },
+    } as MessageEvent<unknown>);
+
+    expect(createPredictHeatmapJob).not.toHaveBeenCalled();
+    cleanup();
+  });
+
   it('ignores non-object incoming payloads', async () => {
     const addEventListener = jest.fn();
     const removeEventListener = jest.fn();

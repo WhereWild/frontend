@@ -250,6 +250,11 @@ export const setupWebHeatmapBridge = (
   }
 
   const handleHeatmapFetchMessage = async (event: MessageEvent<unknown>) => {
+    const expectedSource = iframeRef.current?.contentWindow;
+    if (expectedSource && event.source && event.source !== expectedSource) {
+      return;
+    }
+
     const payload = parseHeatmapFetchMessage(event.data);
     if (!payload) {
       return;
