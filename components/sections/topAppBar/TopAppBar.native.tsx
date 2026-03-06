@@ -137,8 +137,12 @@ function TopAppBarActionsRow({
   isPrimaryIconMode,
   resolvedPrimaryAction,
 }: TopAppBarActionsRowProps) {
+  const actionsRowGapStyle = isSecondaryButtonVisible
+    ? styles.actionsRowWithGap
+    : styles.actionsRowWithoutGap;
+
   return (
-    <View testID="top-app-bar-actions-row" style={styles.actionsRow}>
+    <View testID="top-app-bar-actions-row" style={[styles.actionsRow, actionsRowGapStyle]}>
       <Animated.View
         testID="top-app-bar-secondary-action-slot"
         style={[
@@ -313,8 +317,13 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Size.space['200'],
     flexShrink: 0,
+  },
+  actionsRowWithGap: {
+    gap: Size.space['200'],
+  },
+  actionsRowWithoutGap: {
+    gap: 0,
   },
   secondaryActionSlot: {
     overflow: 'hidden',
