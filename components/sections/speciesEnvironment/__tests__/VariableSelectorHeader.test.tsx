@@ -108,4 +108,23 @@ describe('VariableSelectorHeader', () => {
     expect(screen.getByText('Environment')).toBeTruthy();
     expect(screen.getByText('(Based on 10 observations)')).toBeTruthy();
   });
+
+  it('defaults to first category when selected category is null and omits heading/meta when absent', () => {
+    render(
+      <VariableSelectorHeader
+        categories={['Climate', 'Land cover']}
+        selectedVariableCategory={null}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[]}
+        selectedVariable={'bio_1'}
+        onVariableChange={jest.fn()}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    expect(screen.getByTestId('category-Climate')).toBeTruthy();
+    expect(screen.queryByTestId('selected-variable')).toBeNull();
+    expect(screen.queryByText('Environment')).toBeNull();
+  });
 });

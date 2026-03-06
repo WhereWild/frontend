@@ -92,15 +92,18 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       occurrences,
       loading,
       error,
+      height,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
+      height?: number;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
+        <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
       </View>
     ),
   };
@@ -162,9 +165,6 @@ const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenDa
       description: 'Nearby species description.',
     },
   ],
-  heatmap: {
-    imageSource: { uri: 'heatmap' },
-  },
   ...overrides,
 });
 
@@ -321,6 +321,8 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(screen.getByText('Map loading: no')).toBeTruthy();
     });
+
+    expect(screen.queryByText('Map height: none')).toBeNull();
   });
 
   it('renders dark mode palette and keeps Home recommendation cards in the nearby carousel', async () => {

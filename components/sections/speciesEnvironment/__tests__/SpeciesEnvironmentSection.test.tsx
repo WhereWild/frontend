@@ -2,17 +2,17 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import { SpeciesEnvironmentSection } from '../SpeciesEnvironmentSection';
-import { useSpeciesEnvironmentState } from '../speciesEnvironment/useSpeciesEnvironmentState';
+import { useSpeciesEnvironmentState } from '../useSpeciesEnvironmentState';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
 }));
 
-jest.mock('../speciesEnvironment/useSpeciesEnvironmentState', () => ({
+jest.mock('../useSpeciesEnvironmentState', () => ({
   useSpeciesEnvironmentState: jest.fn(),
 }));
 
-jest.mock('../speciesEnvironment/VariableSelectorHeader', () => ({
+jest.mock('../VariableSelectorHeader', () => ({
   VariableSelectorHeader: ({ headingText, metaText }: { headingText?: string | null; metaText?: string | null }) => {
     const ReactNative = jest.requireActual('react-native');
     const { View, Text } = ReactNative;
@@ -25,7 +25,7 @@ jest.mock('../speciesEnvironment/VariableSelectorHeader', () => ({
   },
 }));
 
-jest.mock('../speciesEnvironment/StackedCategoryBar', () => ({
+jest.mock('../StackedCategoryBar', () => ({
   StackedCategoryBar: ({
     onSelect,
   }: {
@@ -44,7 +44,7 @@ jest.mock('../speciesEnvironment/StackedCategoryBar', () => ({
   },
 }));
 
-jest.mock('../speciesEnvironment/DensityChart', () => ({
+jest.mock('../DensityChart', () => ({
   DensityChart: () => {
     const ReactNative = jest.requireActual('react-native');
     const { Text } = ReactNative;
@@ -52,7 +52,7 @@ jest.mock('../speciesEnvironment/DensityChart', () => ({
   },
 }));
 
-jest.mock('../speciesEnvironment/ContinuousInsights', () => ({
+jest.mock('../ContinuousInsights', () => ({
   ContinuousInsights: ({
     onRankContextChange,
   }: {
@@ -130,6 +130,37 @@ const baseState: SpeciesEnvironmentState = {
 };
 
 describe('SpeciesEnvironmentSection', () => {
+  const treeContainsMinHeight = (node: unknown, minHeight: number): boolean => {
+    if (!node || typeof node !== 'object') {
+      return false;
+    }
+
+    if (Array.isArray(node)) {
+      return node.some((child) => treeContainsMinHeight(child, minHeight));
+    }
+
+    const typedNode = node as {
+      props?: { style?: unknown };
+      children?: unknown;
+    };
+
+    const style = typedNode.props?.style;
+    const styleArray = Array.isArray(style) ? style : style ? [style] : [];
+    const hasMatchingStyle = styleArray.some(
+      (entry) =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        'minHeight' in entry &&
+        (entry as { minHeight?: number }).minHeight === minHeight,
+    );
+
+    if (hasMatchingStyle) {
+      return true;
+    }
+
+    return treeContainsMinHeight(typedNode.children, minHeight);
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseSpeciesEnvironmentState.mockReturnValue(baseState);
@@ -148,8 +179,22 @@ describe('SpeciesEnvironmentSection', () => {
       isVariableCategorical: true,
     });
 
+    const { toJSON } = render(<SpeciesEnvironmentSection taxonId={1} />);
+    const loadingText = screen.getByText('Loading environment data…');
+    expect(loadingText).toBeTruthy();
+    expect(treeContainsMinHeight(toJSON(), 200)).toBe(true);
+  });
+
+  it('does not render error while loading is true', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      loading: true,
+      stats: null,
+      error: 'Should not render while loading',
+    });
+
     render(<SpeciesEnvironmentSection taxonId={1} />);
-    expect(screen.getByText('Loading environment data…')).toBeTruthy();
+    expect(screen.queryByText('Should not render while loading')).toBeNull();
   });
 
   it('renders error state', () => {
@@ -180,6 +225,13 @@ describe('SpeciesEnvironmentSection', () => {
 
     fireEvent.press(screen.getByTestId('pick-categorical'));
     expect(setSelectedCategoryValue).toHaveBeenCalledWith(expect.any(Function));
+
+    const updater = setSelectedCategoryValue.mock.calls[0][0] as (
+      previous: string | number | null,
+    ) => string | number | null;
+    expect(updater('a')).toBeNull();
+    expect(updater('b')).toBe('a');
+    expect(updater(null)).toBe('a');
   });
 
   it('renders continuous branch and forwards rank-context selection', () => {
@@ -199,5 +251,31 @@ describe('SpeciesEnvironmentSection', () => {
 
     fireEvent.press(screen.getByTestId('pick-rank-context'));
     expect(setSelectedRankContext).toHaveBeenCalledWith('Mammalia');
+  });
+
+  it('forwards selection inputs to useSpeciesEnvironmentState', () => {
+    const variables = [
+      { id: 'bio_1', label: 'Annual Temperature', category: 'Climate', valueType: 'continuous', units: 'C' as const },
+    ];
+
+    render(
+      <SpeciesEnvironmentSection
+        taxonId={2}
+        variableId="bio_1"
+        variables={variables}
+        locationGid="USA.1_1"
+        units="imperial"
+      />,
+    );
+
+    expect(mockUseSpeciesEnvironmentState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taxonId: 2,
+        variableId: 'bio_1',
+        variables,
+        locationGid: 'USA.1_1',
+        units: 'imperial',
+      }),
+    );
   });
 });

@@ -16,7 +16,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
@@ -28,7 +28,7 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
+  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -43,16 +43,16 @@ function SectionShell({
   children: React.ReactNode;
 }) {
   return (
-    <View style={styles.centeredSection}>
-      <View
-        style={[
-          styles.sectionContent,
-          getResponsiveContentContainerStyle(responsive, {
-            includeTopPadding: false,
-          }),
-          { maxWidth: responsive.contentWidth },
-        ]}
-      >
+    <View
+      style={[
+        styles.centeredSection,
+        getResponsiveContentContainerStyle(responsive, {
+          includeWidth: false,
+          includeTopPadding: false,
+        }),
+      ]}
+    >
+      <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}>
         {children}
       </View>
     </View>
@@ -60,7 +60,7 @@ function SectionShell({
 }
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, heatmap } =
+  const { taxonId, commonName, commonNames, scientificName, overview  } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -68,6 +68,8 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const responsive = useResponsive();
 
   const { units } = useSettings();
+  const { height: viewportHeight } = useWindowDimensions();
+  const observationMapHeight = Math.round(viewportHeight * 0.75);
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
@@ -119,79 +121,77 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
             includeHorizontalPadding: false,
-            includeGap: true,
+            includeTopPadding: false,
           })}
           bounces={false}
         >
-          <SpeciesPageTitle
-            commonName={commonName}
-            scientificName={scientificName}
+          <View
+            style={{
+              height: responsive.gap,
+              backgroundColor: palette.background.default.default,
+            }}
           />
 
-          <SectionShell responsive={responsive}>
-            <SpeciesInformationSection
+          <View
+            style={[
+              styles.overlayContent,
+              { backgroundColor: palette.background.default.default },
+            ]}
+          >
+            <SpeciesPageTitle
               commonName={commonName}
-              commonNames={displayCommonNames}
-              overview={overview}
+              scientificName={scientificName}
             />
-          </SectionShell>
+
+            <SectionShell responsive={responsive}>
+              <SpeciesInformationSection
+                commonName={commonName}
+                commonNames={displayCommonNames}
+                overview={overview}
+              />
+            </SectionShell>
 
           <NearbySpeciesCarousel species={mockHomePageData.recommendations.items} />
 
-          {shouldRenderOccurrenceMap && (
-            <SectionShell responsive={responsive}>
-              <ThemedText variant="heading">Observation Map</ThemedText>
-              <SpeciesLocationFilters
-                countryOptions={countryOptions}
-                stateOptions={stateOptions}
-                countyOptions={countyOptions}
-                countryLoading={countryLoading}
-                stateLoading={stateLoading}
-                countyLoading={countyLoading}
-                selectedCountryGid={selectedCountryGid}
-                selectedStateGid={selectedStateGid}
-                selectedCountyGid={selectedCountyGid}
-                onCountryChange={onCountryChange}
-                onStateChange={onStateChange}
-                onCountyChange={onCountyChange}
-              />
+            {shouldRenderOccurrenceMap && (
+              <SectionShell responsive={responsive}>
+                <ThemedText variant="heading">Observation Map</ThemedText>
+                <SpeciesLocationFilters
+                  countryOptions={countryOptions}
+                  stateOptions={stateOptions}
+                  countyOptions={countyOptions}
+                  countryLoading={countryLoading}
+                  stateLoading={stateLoading}
+                  countyLoading={countyLoading}
+                  selectedCountryGid={selectedCountryGid}
+                  selectedStateGid={selectedStateGid}
+                  selectedCountyGid={selectedCountyGid}
+                  onCountryChange={onCountryChange}
+                  onStateChange={onStateChange}
+                  onCountyChange={onCountyChange}
+                />
 
-              <SpeciesEnvironmentSection
-                taxonId={taxonId}
-                onHighlightChange={setHighlightedCatalogs}
-                locationGid={finalLocationGid}
-                units={units} // <- forward units preference
-              />
-
-              <SpeciesOccurrenceMap
-                occurrences={occurrences}
-                loading={occurrenceLoading}
-                error={occurrenceError}
-                highlightedCatalogs={highlightedCatalogs}
-              />
-            </SectionShell>
-          )}
-
-          <View style={styles.heatMapSection}>
-            <View
-              style={[
-                styles.sectionContent,
-                getResponsiveContentContainerStyle(responsive, {
-                  includeTopPadding: false,
-                }),
-                { maxWidth: responsive.contentWidth },
-              ]}
-            >
-              <ThemedText variant="heading">Heat Map</ThemedText>
-            </View>
-            <Image
-              source={heatmap.imageSource}
-              resizeMode="cover"
-              style={styles.heatmap}
-              accessibilityLabel="Predicted sightings heat map"
-            />
+                <SpeciesEnvironmentSection
+                  taxonId={taxonId}
+                  onHighlightChange={setHighlightedCatalogs}
+                  locationGid={finalLocationGid}
+                  units={units} // <- forward units preference
+                />
+              </SectionShell>
+            )}
           </View>
-        </ScrollView >
+
+          {shouldRenderOccurrenceMap && (
+            <SpeciesOccurrenceMap
+              occurrences={occurrences}
+              loading={occurrenceLoading}
+              error={occurrenceError}
+              highlightedCatalogs={highlightedCatalogs}
+              height={observationMapHeight}
+            />
+          )}
+        </ScrollView>
+
       </View >
     </>
   );
@@ -201,6 +201,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  overlayContent: {
+    width: '100%',
+    gap: Size.space['400'],
+    paddingBottom: Size.space['400'],
+  },
   centeredSection: {
     width: '100%',
     alignItems: 'center',
@@ -208,12 +213,5 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['400'],
-  },
-  heatMapSection: {
-    gap: Size.space['400'],
-  },
-  heatmap: {
-    width: '100%',
-    aspectRatio: 1440 / 810,
   },
 });
