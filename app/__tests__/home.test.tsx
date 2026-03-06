@@ -5,7 +5,7 @@ import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import HomeScreen from '../index';
 
 const mockPush = jest.fn();
@@ -27,6 +27,27 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColor
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<
   typeof fetchSpeciesByTaxonId
 >;
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+const originalPlatformOS = Platform.OS;
+
+const setPlatformOS = (os: string) => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+};
+
+const restorePlatformOS = () => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    return;
+  }
+
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatformOS,
+  });
+};
 
 const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
   map: {
@@ -58,11 +79,16 @@ const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
 
 describe('Home screen', () => {
   beforeEach(() => {
+    setPlatformOS('ios');
     mockUseColorScheme.mockReturnValue('dark');
     mockPush.mockClear();
     mockFetchSpeciesByTaxonId.mockImplementation(
       () => new Promise(() => undefined),
     );
+  });
+
+  afterEach(() => {
+    restorePlatformOS();
   });
 
   it('renders map and recommendation cards from provided data', () => {
@@ -136,4 +162,5 @@ describe('Home screen', () => {
       expect(screen.getByText('Hydratus firstus')).toBeTruthy();
     });
   });
+
 });

@@ -62,6 +62,8 @@ describe('Components screen', () => {
   it('renders the species component preview with sample data', () => {
     render(<ComponentsScreen />);
 
+    expect(screen.queryByText('Developer Tools')).toBeNull();
+
     expect(screen.getByText('Species Page Components')).toBeTruthy();
     expect(
       screen.getByText('Preview of the composable building blocks used on the species detail page.'),

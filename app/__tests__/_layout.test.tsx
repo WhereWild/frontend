@@ -4,7 +4,6 @@ import { render, screen, waitFor } from '@testing-library/react-native';
 import RootLayout from '../_layout';
 import { useFonts } from 'expo-font';
 import { usePathname, useRouter } from 'expo-router';
-import { Time } from '@/constants/theme';
 
 jest.mock('expo-font', () => ({
   useFonts: jest.fn(),
@@ -12,6 +11,7 @@ jest.mock('expo-font', () => ({
 
 const recordedStackProps: any[] = [];
 const recordedHeaderProps: any[] = [];
+const recordedTopAppBarProps: any[] = [];
 let mockHeaderConfig: any = {};
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
 const originalPlatformOS = Platform.OS;
@@ -55,6 +55,12 @@ jest.mock('@/components', () => ({
     return mockReact.createElement(mockReactNative.View, { testID: 'global-header' });
   },
   NavigationBar: (props: unknown) => mockNavigationBar(props),
+  TopAppBar: (props: any) => {
+    const mockReact = jest.requireActual('react') as typeof React;
+    const mockReactNative = jest.requireActual('react-native') as typeof import('react-native');
+    recordedTopAppBarProps.push(props);
+    return mockReact.createElement(mockReactNative.View, { testID: 'mock-top-app-bar' });
+  },
 }));
 
 jest.mock('@/context/WebPageHeaderContext', () => {
@@ -125,6 +131,7 @@ describe('Root layout', () => {
     mockCanGoBack.mockReturnValue(false);
     recordedStackProps.length = 0;
     recordedHeaderProps.length = 0;
+    recordedTopAppBarProps.length = 0;
     mockHeaderConfig = {};
   });
 
@@ -148,8 +155,7 @@ describe('Root layout', () => {
     expect(screen.getByTestId('app-stack')).toBeTruthy();
     expect(recordedStackProps.at(-1)?.screenOptions).toEqual({
       headerShown: false,
-      animation: 'fade',
-      animationDuration: Time.duration.short,
+      animation: 'none',
     });
   });
 
@@ -174,6 +180,7 @@ describe('Root layout', () => {
     render(<RootLayout />);
 
     expect(recordedHeaderProps).toHaveLength(0);
+    expect(screen.getByTestId('mock-top-app-bar')).toBeTruthy();
   });
 
   it('renders web header on web layout', () => {
@@ -200,6 +207,45 @@ describe('Root layout', () => {
     expect(headerProps.initialQuery).toBe('fox');
     expect(headerProps.filterParams).toEqual({ ancestorTaxonId: 212 });
     expect(screen.queryByTestId('mock-navigation-bar')).toBeNull();
+    expect(screen.queryByTestId('mock-top-app-bar')).toBeNull();
+  });
+
+  it('uses home variant for non-search top-level routes and page variant for species routes', () => {
+    const pathnameState = {
+      value: '/',
+    } as { value: string };
+
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockImplementation(() => pathnameState.value);
+
+    const { rerender } = render(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('WhereWild');
+
+    pathnameState.value = '/species/123';
+    rerender(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('page');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Species');
+
+    pathnameState.value = '/about';
+    rerender(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('WhereWild');
+  });
+
+  it('renders shared search top app bar on search route', () => {
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockReturnValue('/search');
+
+    render(<RootLayout />);
+
+    expect(screen.getByTestId('mock-top-app-bar')).toBeTruthy();
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('search');
   });
 
   it('keeps the previous top-level tab active on species routes', () => {
