@@ -233,7 +233,8 @@ describe('Species screen', () => {
     expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(0);
     expect(screen.getByText('Prickly Test Cactus')).toBeTruthy();
     expect(screen.getByText('Nearby Species')).toBeTruthy();
-    expect(screen.getByText('Neighbor')).toBeTruthy();
+    // SpeciesScreen currently renders Home recommendation cards in this carousel.
+    expect(screen.getByText('Common Spinystar')).toBeTruthy();
     expect(screen.getByText('Heat Map')).toBeTruthy();
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => { });
@@ -322,7 +323,7 @@ describe('Species screen', () => {
     });
   });
 
-  it('renders dark mode palette and hides empty nearby species carousel', async () => {
+  it('renders dark mode palette and keeps Home recommendation cards in the nearby carousel', async () => {
     mockUseColorScheme.mockReturnValue('dark');
     render(
       <SpeciesScreen
@@ -332,7 +333,8 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.queryByText('Nearby Species')).toBeNull();
+    expect(screen.getByText('Nearby Species')).toBeTruthy();
+    expect(screen.getByText('Common Spinystar')).toBeTruthy();
   });
 
   it('hides observation map section when taxonId is not provided', async () => {

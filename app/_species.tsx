@@ -8,6 +8,7 @@ import {
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
+import { mockHomePageData } from '@/data/homeSample';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -59,7 +60,7 @@ function SectionShell({
 }
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
+  const { taxonId, commonName, commonNames, scientificName, overview, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -135,7 +136,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
             />
           </SectionShell>
 
-          <NearbySpeciesCarousel species={nearbySpecies} />
+          <NearbySpeciesCarousel species={mockHomePageData.recommendations.items} />
 
           {shouldRenderOccurrenceMap && (
             <SectionShell responsive={responsive}>
