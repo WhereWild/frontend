@@ -67,7 +67,10 @@ export async function fetchLocationsByHierarchy(
 ): Promise<LocationSearchResult[]> {
   const trimmed = query.trim();
 
-  const params = new URLSearchParams({ q: trimmed });
+  const params = new URLSearchParams();
+  if (trimmed.length > 0) {
+    params.set('q', trimmed);
+  }
   setLocationLevelParam(params, level);
   if (parent) params.set('parent', parent);
   params.set('limit', String(limit));

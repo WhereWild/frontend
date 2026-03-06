@@ -11,6 +11,7 @@ import {
   type RelativeRankingParams,
 } from './apiRankingHelpers';
 import { fetchSpeciesList as fetchSpeciesListHelper, normalizeToJsonShape } from './apiSpeciesSearchHelpers';
+import type { SearchFilterParams } from './apiSpeciesSearchHelpers';
 import { fetchEnvironmentVariables as fetchEnvironmentVariablesHelper } from './apiVariableHelpers';
 import {
   fetchLocations as fetchLocationsHelper,
@@ -48,11 +49,14 @@ export async function fetchLocations(query: string, limit = 8) {
 }
 
 
+/** Filter parameters for species list/search requests. */
+export type { SearchFilterParams };
+
 /**
  * Fetches species rows for search and list surfaces.
  */
-export async function fetchSpeciesList(limit?: number, q?: string) {
-  return fetchSpeciesListHelper(limit, q);
+export async function fetchSpeciesList(limit?: number, q?: string, filters?: SearchFilterParams) {
+  return fetchSpeciesListHelper(limit, q, filters);
 }
 
 /**
