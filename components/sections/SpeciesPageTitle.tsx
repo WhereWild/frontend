@@ -55,6 +55,7 @@ export function SpeciesPageTitle({
           <Button
             variant="neutral"
             iconStart={<IconDownload />}
+            disabled
             onPress={onPressDownload}
             accessibilityLabel={`${downloadLabel} ${commonName}`}
             style={styles.downloadButton}

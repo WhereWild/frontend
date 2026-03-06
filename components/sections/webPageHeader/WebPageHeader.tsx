@@ -98,7 +98,7 @@ export function WebPageHeader({
   const menuButtonRef = React.useRef<View>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
+  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/components') => {
     if (pathname !== targetPath) {
       router.push(targetPath);
     }
@@ -108,8 +108,8 @@ export function WebPageHeader({
     navigateIfDifferent('/');
   }, [navigateIfDifferent]);
 
-  const navigateToAbout = React.useCallback(() => {
-    navigateIfDifferent('/about');
+  const navigateToComponents = React.useCallback(() => {
+    navigateIfDifferent('/components');
   }, [navigateIfDifferent]);
 
   const navigateToSettings = React.useCallback(() => {
@@ -133,11 +133,11 @@ export function WebPageHeader({
   }, [pathname, router]);
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
-      { label: 'Help', icon: <IconHelpCircle /> },
-      { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
+      { label: 'Help', icon: <IconHelpCircle />, disabled: true },
+      { label: 'Components', icon: <IconInfo />, onPress: navigateToComponents },
       { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
     ],
-    [navigateToAbout, navigateToSettings],
+    [navigateToComponents, navigateToSettings],
   );
   const resolvedActions = actions ?? defaultActions;
   const logoContent = (
@@ -351,10 +351,11 @@ export function WebPageHeader({
             />
 
             <View style={styles.actionsWrapper}>
-              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+              {resolvedActions.map(({ label, icon, onPress, disabled, variant = 'subtle' }) => (
                 <Button
                   key={label}
                   variant={variant}
+                  disabled={disabled}
                   onPress={onPress}
                   iconStart={icon}
                   label={label}

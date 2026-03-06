@@ -69,10 +69,11 @@ export function WebPageHeaderMobileMenu({
               Shadows.dropShadow400.style,
             ]}
           >
-            {actions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+            {actions.map(({ label, icon, onPress, disabled, variant = 'subtle' }) => (
               <Button
                 key={label}
                 variant={variant}
+                disabled={disabled}
                 onPress={onPress}
                 iconStart={icon}
                 label={label}

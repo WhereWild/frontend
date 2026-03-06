@@ -31,7 +31,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
+const TOP_LEVEL_PATHS = ['/', '/components', '/search', '/settings'] as const;
 
 type TopLevelPath = (typeof TOP_LEVEL_PATHS)[number];
 
@@ -69,7 +69,7 @@ const toHistoryHref = (route: string): Href | null => {
 
 const buildInitialTabRouteHistory = (): Record<TopLevelPath, string[]> => ({
   '/': ['/'],
-  '/about': ['/about'],
+  '/components': ['/components'],
   '/search': ['/search'],
   '/settings': ['/settings'],
 });
@@ -224,11 +224,11 @@ function RootLayoutNativeFrame() {
       accessibilityLabel: 'Search tab',
     },
     {
-      key: 'about',
+      key: 'components',
       label: 'Components',
       icon: IconInfo,
-      state: activeTabPath === '/about' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/about'),
+      state: activeTabPath === '/components' ? 'active' : 'default' as const,
+      onPress: () => navigateIfDifferent('/components'),
       accessibilityLabel: 'Component playground tab',
     },
     {

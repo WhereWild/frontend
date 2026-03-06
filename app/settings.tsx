@@ -13,7 +13,7 @@ export default function Settings() {
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  const { region, setRegion, units, setUnits, language, setLanguage } = useSettings();
+  const { region, units, setUnits, language } = useSettings();
   const regionOptions = [
     { label: 'Utah', value: 'utah' },
     { label: 'California', value: 'california' },
@@ -57,8 +57,8 @@ export default function Settings() {
                     placeholder="Select a region"
                     options={regionOptions}
                     value={region}
-                    onValueChange={setRegion}
-                    description="Set your default observation region"
+                    disabled
+                    description="Coming soon"
                   />
                 </View>
 
@@ -68,8 +68,8 @@ export default function Settings() {
                     placeholder="Select language"
                     options={languageOptions}
                     value={language}
-                    onValueChange={setLanguage}
-                    description="Preferred UI language"
+                    disabled
+                    description="Coming soon"
                   />
                 </View>
 

@@ -89,21 +89,20 @@ describe('Settings screen', () => {
   });
 
   describe('settings logic', () => {
-    it('wires region and language updates', () => {
+    it('disables region and language fields', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
       render(<Settings />);
 
-      const onRegionChange = getSelectFieldChangeHandler('Region');
-      const onLanguageChange = getSelectFieldChangeHandler('Language');
+      const regionCall = mockSelectField.mock.calls.find(([props]) => props?.label === 'Region');
+      const languageCall = mockSelectField.mock.calls.find(([props]) => props?.label === 'Language');
 
-      act(() => {
-        onRegionChange?.('california');
-        onLanguageChange?.('fr');
-      });
-
-      expect(mockSetRegion).toHaveBeenCalledWith('california');
-      expect(mockSetLanguage).toHaveBeenCalledWith('fr');
+      expect(regionCall?.[0].disabled).toBe(true);
+      expect(languageCall?.[0].disabled).toBe(true);
+      expect(regionCall?.[0].onValueChange).toBeUndefined();
+      expect(languageCall?.[0].onValueChange).toBeUndefined();
+      expect(mockSetRegion).not.toHaveBeenCalled();
+      expect(mockSetLanguage).not.toHaveBeenCalled();
     });
 
     it('only accepts valid units values', () => {

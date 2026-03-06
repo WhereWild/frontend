@@ -3,10 +3,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import About from '../about';
+import ComponentsScreen from '../components';
 
 const mockPush = jest.fn();
-let mockPathname: '/' | '/about' = '/';
+let mockPathname: '/' | '/components' = '/';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -48,7 +48,7 @@ const EXPECTED_TYPOGRAPHY_LABELS = [
   'Single Line Body Tiny Strong',
 ] as const;
 
-describe('About screen', () => {
+describe('Components screen', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockPush.mockClear();
@@ -60,7 +60,7 @@ describe('About screen', () => {
   });
 
   it('renders the species component preview with sample data', () => {
-    render(<About />);
+    render(<ComponentsScreen />);
 
     expect(screen.getByText('Species Page Components')).toBeTruthy();
     expect(
@@ -72,7 +72,7 @@ describe('About screen', () => {
   });
 
   it('updates the playground search status text when typing and clearing', () => {
-    render(<About />);
+    render(<ComponentsScreen />);
 
     const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
     fireEvent.changeText(speciesSearchInput, 'pinyon');
@@ -84,7 +84,7 @@ describe('About screen', () => {
   });
 
   it('records submission events for the playground search input', () => {
-    render(<About />);
+    render(<ComponentsScreen />);
 
     const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
     fireEvent.changeText(speciesSearchInput, 'sage');
@@ -94,7 +94,7 @@ describe('About screen', () => {
   });
 
   it('renders previews for typography, shadow, and time token examples', () => {
-    render(<About />);
+    render(<ComponentsScreen />);
 
     const typographyVariantCount = Object.keys(Typography.light).length;
     expect(EXPECTED_TYPOGRAPHY_LABELS).toHaveLength(typographyVariantCount);
@@ -116,19 +116,19 @@ describe('About screen', () => {
     );
   });
 
-  it('does not trigger navigation from local About screen content', () => {
-    mockPathname = '/about';
-    render(<About />);
+  it('does not trigger navigation from local Components screen content', () => {
+    mockPathname = '/components';
+    render(<ComponentsScreen />);
 
     expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('applies light mode background color when overridden to be light', () => {
     mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<About />).toJSON();
+    const tree = render(<ComponentsScreen />).toJSON();
 
     if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected About to render a single root view');
+      throw new Error('Expected Components screen to render a single root view');
     }
 
     const styles = StyleSheet.flatten(tree.props.style);
