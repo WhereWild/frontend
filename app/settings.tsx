@@ -31,27 +31,45 @@ export default function Settings() {
     { label: 'Français', value: 'fr' },
   ];
 
+  const handleUnitsChange = (value: string) => {
+    if (value === 'metric' || value === 'imperial') {
+      setUnits(value);
+    }
+  };
+
   return (
     <>
       <Head>
         <title>WhereWild | Settings</title>
       </Head>
 
-      <View testID="settings-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}> 
+      <View testID="settings-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <ScrollView
-          contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
-            includeBottomPadding: true,
-            includeGap: true,
-          })}
+          contentContainerStyle={[
+            getResponsiveContentContainerStyle(responsive, {
+              includeHorizontalPadding: false,
+              includeBottomPadding: true,
+              includeGap: true,
+            }),
+            styles.scrollContent,
+          ]}
         >
           <PageTitle title="Settings" />
 
-          <View style={[styles.sectionContent, getResponsiveContentContainerStyle(responsive, { includeWidth: false, includeTopPadding: false }), { maxWidth: responsive.contentWidth }]}>
-            <ThemedText variant="heading">Localization</ThemedText>
+          <View
+            style={[
+              styles.sectionShell,
+              getResponsiveContentContainerStyle(responsive, {
+                includeWidth: false,
+                includeTopPadding: false,
+              }),
+            ]}
+          >
+            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}>
+              <View style={styles.settingsColumn}>
+                <ThemedText variant="heading">Localization</ThemedText>
 
-            <View style={styles.filterContainer}>
-              <View style={styles.filterRow}>
-                <View style={styles.filterItem}>
+                <View style={styles.fieldStack}>
                   <SelectField
                     label="Region"
                     placeholder="Select a region"
@@ -60,9 +78,7 @@ export default function Settings() {
                     disabled
                     description="Coming soon"
                   />
-                </View>
 
-                <View style={styles.filterItem}>
                   <SelectField
                     label="Language"
                     placeholder="Select language"
@@ -71,22 +87,13 @@ export default function Settings() {
                     disabled
                     description="Coming soon"
                   />
-                </View>
 
-                <View style={styles.filterItem}>
                   <SelectField
                     label="Units"
                     placeholder="Select units"
                     options={unitsOptions}
                     value={units}
-                    onValueChange={(v: string) => {
-                      if (v === 'metric' || v === 'imperial') {
-                        setUnits(v);
-                      } else {
-                        // Unexpected value — ignore or fallback to metric
-                        // setUnits('metric');
-                      }
-                    }}
+                    onValueChange={handleUnitsChange}
                     description="Display temperatures and distances"
                   />
                 </View>
@@ -106,30 +113,27 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  row: {
-    marginTop: Size.space['600'],
-    padding: Size.space['400'],
-    borderRadius: Size.radius['200'],
-    borderWidth: Size.stroke.border,
-    flexDirection: 'row',
+  scrollContent: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  sectionShell: {
+    width: '100%',
+    alignItems: 'center',
   },
   sectionContent: {
     width: '100%',
-    gap: Size.space['400'],
     alignItems: 'flex-start',
   },
-  filterContainer: {
-    gap: Size.space['200'],
+  settingsColumn: {
+    width: 240,
+    maxWidth: 800,
+    alignItems: 'flex-start',
+    gap: Size.space['400'],
   },
-  filterRow: {
+  fieldStack: {
+    width: '100%',
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: Size.space['200'],
-  },
-  filterItem: {
-    flexGrow: 1,
-    maxWidth: 720,
   },
 });

@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSettings } from '@/context/SettingsContext';
-import { act, render } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 
