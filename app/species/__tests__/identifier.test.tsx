@@ -15,6 +15,14 @@ jest.mock('expo-router', () => {
   };
 });
 
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useIsFocused: jest.fn(() => true),
+  };
+});
+
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),

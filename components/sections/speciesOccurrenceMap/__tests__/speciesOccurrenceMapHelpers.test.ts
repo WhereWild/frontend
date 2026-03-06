@@ -441,6 +441,63 @@ describe('speciesOccurrenceMapHelpers', () => {
     cleanup();
   });
 
+  it('clamps backend-constrained query parameters before creating jobs', async () => {
+    const addEventListener = jest.fn();
+    const removeEventListener = jest.fn();
+    global.window = {
+      addEventListener,
+      removeEventListener,
+    } as unknown as Window & typeof globalThis;
+
+    const iframePostMessage = jest.fn();
+    const activeHeatmapJobRef: { current: ActiveHeatmapJob } = {
+      current: { requestId: null, jobId: null, abortController: null },
+    };
+
+    (createPredictHeatmapJob as jest.Mock).mockResolvedValue({
+      jobId: 'job-clamped',
+      streamUrl: '/api/predict/heatmap-jobs/job-clamped/stream',
+    });
+    (streamPredictHeatmapJob as jest.Mock).mockImplementation(async () => {});
+
+    const cleanup = setupWebHeatmapBridge(
+      { current: { contentWindow: { postMessage: iframePostMessage } } as unknown as HTMLIFrameElement },
+      activeHeatmapJobRef,
+    );
+
+    const handler = addEventListener.mock.calls[0]?.[1] as (event: MessageEvent<unknown>) => Promise<void>;
+    await handler({
+      data: {
+        type: HEATMAP_FETCH_MESSAGE_TYPE,
+        requestId: 501,
+        queryKey: 'qk-clamp',
+        query: {
+          species_key: '10',
+          min_lat: '-95',
+          min_lon: '-800',
+          max_lat: '95',
+          max_lon: '800',
+          resolution: '20',
+          include_source: 'true',
+          feature_mode: 'auto',
+          max_cells: '5',
+        },
+      },
+    } as MessageEvent<unknown>);
+
+    const createJobPayload = (createPredictHeatmapJob as jest.Mock).mock.calls[0]?.[0];
+    expect(createJobPayload).toEqual(expect.objectContaining({
+      minLon: -180,
+      maxLon: 180,
+      resolution: 10,
+      maxCells: 100,
+    }));
+    expect(createJobPayload.minLat).toBeCloseTo(-85.05112878, 8);
+    expect(createJobPayload.maxLat).toBeCloseTo(85.05112878, 8);
+
+    cleanup();
+  });
+
   it('ignores stale stream events when active request id changes mid-stream', async () => {
     const addEventListener = jest.fn();
     const removeEventListener = jest.fn();

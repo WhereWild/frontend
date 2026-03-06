@@ -6,6 +6,7 @@ import {
   deletePredictHeatmapJob,
   streamPredictHeatmapJob,
 } from '@/data/api';
+import { canonicalizeRequestBounds, clampMaxCells, clampResolution } from './mapViewportUtils';
 
 /**
  * Shared helpers for the species occurrence map iframe/WebView bridge.
@@ -85,8 +86,9 @@ export const DEFAULT_HEATMAP_MAP_POLICY: HeatmapMapPolicy = {
     { minZoom: 10, resolution: 0.025 },
     { minZoom: 8, resolution: 0.05 },
     { minZoom: 6, resolution: 0.1 },
-    { minZoom: 4, resolution: 0.25 },
-    { minZoom: -999, resolution: 0.5 },
+    { minZoom: 4, resolution: 0.5 },
+    { minZoom: 2, resolution: 1 },
+    { minZoom: -999, resolution: 2 },
   ],
 };
 
@@ -267,13 +269,20 @@ export const setupWebHeatmapBridge = (
     try {
       await cancelActiveHeatmapJob(activeHeatmapJobRef);
 
+      const canonicalBounds = canonicalizeRequestBounds(
+        toNumber(payload.query.min_lat, -90),
+        toNumber(payload.query.min_lon, -180),
+        toNumber(payload.query.max_lat, 90),
+        toNumber(payload.query.max_lon, 180),
+      );
+
       const createdJob = await createPredictHeatmapJob({
         speciesKey: payload.query.species_key,
-        minLat: toNumber(payload.query.min_lat, -90),
-        minLon: toNumber(payload.query.min_lon, -180),
-        maxLat: toNumber(payload.query.max_lat, 90),
-        maxLon: toNumber(payload.query.max_lon, 180),
-        resolution: toNumber(payload.query.resolution, 0.25),
+        minLat: canonicalBounds.minLat,
+        minLon: canonicalBounds.minLon,
+        maxLat: canonicalBounds.maxLat,
+        maxLon: canonicalBounds.maxLon,
+        resolution: clampResolution(toNumber(payload.query.resolution, 0.25), 0.25),
         includeSource: String(payload.query.include_source || '').toLowerCase() === 'true',
         featureMode:
           (payload.query.feature_mode as
@@ -281,7 +290,7 @@ export const setupWebHeatmapBridge = (
             | 'prefer_cell_table'
             | 'cell_table_only'
             | 'sampled_only') || 'prefer_cell_table',
-        maxCells: toNumber(payload.query.max_cells, 20000),
+        maxCells: clampMaxCells(toNumber(payload.query.max_cells, 20000), 20000),
       });
 
       const streamSignalController = new AbortController();
@@ -292,7 +301,7 @@ export const setupWebHeatmapBridge = (
       };
 
       const streamUrl = `${BACKEND_BASE}${createdJob.streamUrl}`;
-      if (process.env.NODE_ENV !== 'production') {
+      if (process.env.NODE_ENV === 'development') {
         console.log('[heatmap-top-frame] stream fetch', streamUrl, 'job', createdJob.jobId);
       }
       let resolvedResolution = Number(payload.query.resolution || 0);
