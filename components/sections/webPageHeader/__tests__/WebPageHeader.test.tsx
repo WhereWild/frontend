@@ -74,25 +74,26 @@ describe('WebPageHeader', () => {
     expect(screen.getByText('WhereWild')).toBeTruthy();
     expect(screen.getByPlaceholderText('Search').props.value).toBe('');
     expect(screen.getByLabelText('Help')).toBeTruthy();
-    expect(screen.getByLabelText('About')).toBeTruthy();
+    expect(screen.getByLabelText('Help').props.accessibilityState?.disabled).toBe(true);
+    expect(screen.getByLabelText('Components')).toBeTruthy();
     expect(screen.getByLabelText('Settings')).toBeTruthy();
     expect(screen.getByLabelText('Filter search results')).toBeTruthy();
     expect(screen.getByLabelText('Reset filters')).toBeTruthy();
   });
 
-  it('navigates to about when default About action is pressed', () => {
+  it('navigates to components when default Components action is pressed', () => {
     render(<WebPageHeader />);
 
-    fireEvent.press(screen.getByLabelText('About'));
+    fireEvent.press(screen.getByLabelText('Components'));
 
-    expect(mockPush).toHaveBeenCalledWith('/about');
+    expect(mockPush).toHaveBeenCalledWith('/components');
   });
 
-  it('does not navigate when already on About', () => {
-    mockPathname = '/about';
+  it('does not navigate when already on Components', () => {
+    mockPathname = '/components';
     render(<WebPageHeader />);
 
-    fireEvent.press(screen.getByLabelText('About'));
+    fireEvent.press(screen.getByLabelText('Components'));
 
     expect(mockPush).not.toHaveBeenCalled();
   });
@@ -110,7 +111,7 @@ describe('WebPageHeader', () => {
   });
 
   it('navigates home when logo is pressed from another page', () => {
-    mockPathname = '/about';
+    mockPathname = '/components';
     render(<WebPageHeader />);
 
     const logoLink = screen.getByLabelText('Go to home');
@@ -176,10 +177,11 @@ describe('WebPageHeader', () => {
     expect(screen.getByLabelText('Filter search results')).toBeTruthy();
     expect(screen.getByLabelText('Reset filters')).toBeTruthy();
 
-    expect(screen.queryByLabelText('About')).toBeNull();
+    expect(screen.queryByLabelText('Components')).toBeNull();
     fireEvent.press(screen.getByLabelText('Open menu'));
     expect(screen.getByLabelText('Help')).toBeTruthy();
-    expect(screen.getByLabelText('About')).toBeTruthy();
+    expect(screen.getByLabelText('Help').props.accessibilityState?.disabled).toBe(true);
+    expect(screen.getByLabelText('Components')).toBeTruthy();
     expect(screen.getByLabelText('Settings')).toBeTruthy();
 
     // Close the menu before unmounting to avoid Portal cleanup timeout
@@ -1428,9 +1430,11 @@ describe('WebPageHeader', () => {
     const menuButton = screen.getByLabelText('Open menu');
     fireEvent.press(menuButton);
     expect(screen.getByLabelText('Help')).toBeTruthy();
+    expect(screen.getByLabelText('Components')).toBeTruthy();
 
     fireEvent.press(menuButton);
     expect(screen.queryByLabelText('Help')).toBeNull();
+    expect(screen.queryByLabelText('Components')).toBeNull();
   });
 
   it('applies compact overlay edge insets from responsive margin', async () => {

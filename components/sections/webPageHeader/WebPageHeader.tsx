@@ -114,8 +114,8 @@ export function WebPageHeader({
   }, [pathname, router]);
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
-      { label: 'Help', icon: <IconHelpCircle /> },
-      { label: 'About', icon: <IconInfo />, href: '/about', hrefPath: '/about' },
+      { label: 'Help', icon: <IconHelpCircle />, disabled: true },
+      { label: 'Components', icon: <IconInfo />, href: '/components', hrefPath: '/components' },
       { label: 'Settings', icon: <IconSettings />, href: '/settings', hrefPath: '/settings' },
     ],
     [],
@@ -334,10 +334,11 @@ export function WebPageHeader({
             />
 
             <View style={styles.actionsWrapper}>
-              {resolvedActions.map(({ label, icon, onPress, href, hrefPath, variant = 'subtle' }) => (
+              {resolvedActions.map(({ label, icon, onPress, href, hrefPath, disabled, variant = 'subtle' }) => (
                 <Button
                   key={label}
                   variant={variant}
+                  disabled={disabled}
                   onPress={onPress}
                   href={href}
                   hrefPath={hrefPath}

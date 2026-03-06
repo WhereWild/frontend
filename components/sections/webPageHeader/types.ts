@@ -12,6 +12,7 @@ export type WebPageHeaderAction = {
   label: string;
   icon: ButtonProps['iconStart'];
   onPress?: () => void;
+  disabled?: boolean;
   href?: Href;
   hrefPath?: string;
   variant?: 'neutral' | 'subtle';

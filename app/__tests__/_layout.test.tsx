@@ -230,7 +230,7 @@ describe('Root layout', () => {
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('page');
     expect(recordedTopAppBarProps.at(-1)?.title).toBe('Species');
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/components';
     rerender(<RootLayout />);
 
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
@@ -280,18 +280,18 @@ describe('Root layout', () => {
 
     expect(getTabByKey('home')?.state).toBe('active');
     expect(getTabByKey('search')?.state).toBe('default');
-    expect(getTabByKey('about')?.state).toBe('default');
+    expect(getTabByKey('components')?.state).toBe('default');
     expect(getTabByKey('settings')?.state).toBe('default');
   });
 
-  it('activates About tab on about route', () => {
+  it('activates Components tab on components route', () => {
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
-    mockUsePathname.mockReturnValue('/about');
+    mockUsePathname.mockReturnValue('/components');
 
     render(<RootLayout />);
 
-    expect(getTabByKey('about')?.state).toBe('active');
+    expect(getTabByKey('components')?.state).toBe('active');
     expect(getTabByKey('home')?.state).toBe('default');
     expect(getTabByKey('search')?.state).toBe('default');
     expect(getTabByKey('settings')?.state).toBe('default');
@@ -313,8 +313,8 @@ describe('Root layout', () => {
     expect(mockReplace).toHaveBeenCalledWith('/');
     expect(mockPush).not.toHaveBeenCalled();
 
-    getTabByKey('about')?.onPress?.();
-    expect(mockReplace).toHaveBeenCalledWith('/about');
+    getTabByKey('components')?.onPress?.();
+    expect(mockReplace).toHaveBeenCalledWith('/components');
 
     getTabByKey('settings')?.onPress?.();
     expect(mockReplace).toHaveBeenCalledWith('/settings');
@@ -354,7 +354,7 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/components';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
@@ -370,7 +370,7 @@ describe('Root layout', () => {
 
     await waitFor(() => {
       expect(getTabByKey('search')?.state).toBe('active');
-      expect(getTabByKey('about')?.state).toBe('default');
+      expect(getTabByKey('components')?.state).toBe('default');
     });
   });
 
@@ -391,7 +391,7 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123/photos';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/components';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
@@ -427,7 +427,7 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/components';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
@@ -451,10 +451,10 @@ describe('Root layout', () => {
 
     render(<RootLayout />);
 
-    getTabByKey('about')?.onPress?.();
+    getTabByKey('components')?.onPress?.();
 
     expect(mockDismissAll).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('/about');
+    expect(mockReplace).toHaveBeenCalledWith('/components');
     expect(mockPush).not.toHaveBeenCalled();
   });
 

@@ -33,7 +33,7 @@ describe('SpeciesPageTitle', () => {
     expect(screen.getByText(scientificName)).toBeTruthy();
   });
 
-  it('invokes download handler when button is pressed', () => {
+  it('does not invoke download handler because the button is disabled', () => {
     const handleDownload = jest.fn();
 
     render(
@@ -45,7 +45,7 @@ describe('SpeciesPageTitle', () => {
     );
 
     fireEvent.press(screen.getByLabelText(`Download ${commonName}`));
-    expect(handleDownload).toHaveBeenCalledTimes(1);
+    expect(handleDownload).not.toHaveBeenCalled();
   });
 
   it('shows the default download label', () => {

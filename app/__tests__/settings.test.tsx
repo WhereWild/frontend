@@ -89,32 +89,20 @@ describe('Settings screen', () => {
   });
 
   describe('settings logic', () => {
-    it('renders localization controls', () => {
+    it('disables region and language fields', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
       render(<Settings />);
 
-      expect(screen.getByText('Localization')).toBeTruthy();
-      expect(screen.getByTestId('select-Region')).toBeTruthy();
-      expect(screen.getByTestId('select-Language')).toBeTruthy();
-      expect(screen.getByTestId('select-Units')).toBeTruthy();
-    });
+      const regionCall = mockSelectField.mock.calls.find(([props]) => props?.label === 'Region');
+      const languageCall = mockSelectField.mock.calls.find(([props]) => props?.label === 'Language');
 
-    it('wires region and language updates', () => {
-      mockUseColorScheme.mockReturnValue('dark');
-
-      render(<Settings />);
-
-      const onRegionChange = getSelectFieldChangeHandler('Region');
-      const onLanguageChange = getSelectFieldChangeHandler('Language');
-
-      act(() => {
-        onRegionChange?.('california');
-        onLanguageChange?.('fr');
-      });
-
-      expect(mockSetRegion).toHaveBeenCalledWith('california');
-      expect(mockSetLanguage).toHaveBeenCalledWith('fr');
+      expect(regionCall?.[0].disabled).toBe(true);
+      expect(languageCall?.[0].disabled).toBe(true);
+      expect(regionCall?.[0].onValueChange).toBeUndefined();
+      expect(languageCall?.[0].onValueChange).toBeUndefined();
+      expect(mockSetRegion).not.toHaveBeenCalled();
+      expect(mockSetLanguage).not.toHaveBeenCalled();
     });
 
     it('only accepts valid units values', () => {

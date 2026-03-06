@@ -137,8 +137,8 @@ describe('useNavigationBarLayoutModel', () => {
   });
 
   it('does not temporarily switch variant from fallback widths during resize', async () => {
-    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'about' }, { key: 'settings' }];
-    const tabKeys = ['home', 'search', 'about', 'settings'];
+    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'components' }, { key: 'settings' }];
+    const tabKeys = ['home', 'search', 'components', 'settings'];
     const tabGap = 8;
 
     const resolveTabVariant = jest.fn((
@@ -164,7 +164,7 @@ describe('useNavigationBarLayoutModel', () => {
       result.current.handleTabsLayout(470, 56);
       result.current.onTabWidthLayout('home', 100);
       result.current.onTabWidthLayout('search', 100);
-      result.current.onTabWidthLayout('about', 108);
+      result.current.onTabWidthLayout('components', 108);
       result.current.onTabWidthLayout('settings', 112);
     });
 
@@ -186,14 +186,14 @@ describe('useNavigationBarLayoutModel', () => {
     expect(secondCallArgs?.[2]).toEqual({
       home: 100,
       search: 100,
-      about: 108,
+      components: 108,
       settings: 112,
     });
   });
 
   it('stays stable across rapid sequential resize updates', async () => {
-    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'about' }, { key: 'settings' }];
-    const tabKeys = ['home', 'search', 'about', 'settings'];
+    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'components' }, { key: 'settings' }];
+    const tabKeys = ['home', 'search', 'components', 'settings'];
     const resolveTabVariant = jest.fn((
       availableWidth: number,
       tabCount: number,
@@ -217,7 +217,7 @@ describe('useNavigationBarLayoutModel', () => {
       result.current.handleTabsLayout(500, 56);
       result.current.onTabWidthLayout('home', 100);
       result.current.onTabWidthLayout('search', 100);
-      result.current.onTabWidthLayout('about', 108);
+      result.current.onTabWidthLayout('components', 108);
       result.current.onTabWidthLayout('settings', 112);
     });
 
@@ -230,19 +230,19 @@ describe('useNavigationBarLayoutModel', () => {
       result.current.handleTabsLayout(430, 56);
       result.current.onTabWidthLayout('home', 99);
       result.current.onTabWidthLayout('search', 99);
-      result.current.onTabWidthLayout('about', 107);
+      result.current.onTabWidthLayout('components', 107);
       result.current.onTabWidthLayout('settings', 111);
 
       result.current.handleTabsLayout(428, 56);
       result.current.onTabWidthLayout('home', 98);
       result.current.onTabWidthLayout('search', 98);
-      result.current.onTabWidthLayout('about', 106);
+      result.current.onTabWidthLayout('components', 106);
       result.current.onTabWidthLayout('settings', 110);
 
       result.current.handleTabsLayout(426, 56);
       result.current.onTabWidthLayout('home', 97);
       result.current.onTabWidthLayout('search', 97);
-      result.current.onTabWidthLayout('about', 105);
+      result.current.onTabWidthLayout('components', 105);
       result.current.onTabWidthLayout('settings', 109);
     });
 
@@ -255,7 +255,7 @@ describe('useNavigationBarLayoutModel', () => {
     expect(latestCallArgs?.[2]).toEqual({
       home: 97,
       search: 97,
-      about: 105,
+      components: 105,
       settings: 109,
     });
   });

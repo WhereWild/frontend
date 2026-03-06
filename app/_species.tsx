@@ -15,7 +15,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
@@ -105,10 +105,6 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
 
-  const handleDownload = React.useCallback(() => {
-    Alert.alert('Download started', `Preparing ${commonName} data…`);
-  }, [commonName]);
-
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
@@ -144,8 +140,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
             <SpeciesPageTitle
               commonName={commonName}
               scientificName={scientificName}
-              onPressDownload={handleDownload}
-            />
+              />
 
             <SectionShell responsive={responsive}>
               <SpeciesInformationSection

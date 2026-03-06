@@ -243,7 +243,7 @@ describe('Species screen', () => {
     });
   });
 
-  it('renders species data-driven content and supports download press', async () => {
+  it('renders species data-driven content and keeps download disabled', async () => {
     const data = createData();
     render(<SpeciesScreen data={data} />);
 
@@ -261,7 +261,7 @@ describe('Species screen', () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => { });
     try {
       fireEvent.press(screen.getByText('Download'));
-      expect(alertSpy).toHaveBeenCalledWith('Download started', expect.any(String));
+      expect(alertSpy).not.toHaveBeenCalled();
     } finally {
       alertSpy.mockRestore();
     }

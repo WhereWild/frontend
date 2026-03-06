@@ -92,7 +92,7 @@ const formatTokenLabel = (value: string) =>
     .trim()
     .replace(/^./, (char) => char.toUpperCase());
 
-export default function About() {
+export default function Components() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -403,7 +403,7 @@ export default function About() {
   return (
     <>
       <Head>
-        <title>WhereWild | About</title>
+        <title>WhereWild | Components</title>
       </Head>
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <View style={styles.content}>
