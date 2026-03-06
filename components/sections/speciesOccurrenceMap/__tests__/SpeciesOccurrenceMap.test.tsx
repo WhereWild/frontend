@@ -9,6 +9,10 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
 }));
 
+jest.mock('@react-navigation/native', () => ({
+  useIsFocused: jest.fn(() => true),
+}));
+
 jest.mock('react-native-webview', () => {
   const mockReact = jest.requireActual('react');
   const { View: MockView } = jest.requireActual('react-native');
@@ -110,13 +114,13 @@ describe('SpeciesOccurrenceMap', () => {
 
   it('renders map container when occurrences exist (web branch)', () => {
     Object.defineProperty(Platform, 'OS', { value: 'web' });
-    const { UNSAFE_getByType } = render(
+    const { UNSAFE_getByProps } = render(
       <SpeciesOccurrenceMap
         occurrences={[{ catalogNumber: 2, latitude: 11, longitude: 21 }]}
       />,
     );
 
-    expect(UNSAFE_getByType('iframe')).toBeTruthy();
+    expect(UNSAFE_getByProps({ title: 'Observation map' })).toBeTruthy();
     expect(
       screen.queryByText('No precise observation coordinates available for this species.'),
     ).toBeNull();

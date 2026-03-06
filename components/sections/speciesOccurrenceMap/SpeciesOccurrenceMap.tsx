@@ -46,6 +46,8 @@ export function SpeciesOccurrenceMap({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const mapColorMode: keyof typeof Colors = 'light';
+  const mapPalette = Colors[mapColorMode];
   const webViewRef = React.useRef<WebView>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const activeHeatmapJobRef = React.useRef<ActiveHeatmapJob>({
@@ -75,19 +77,19 @@ export function SpeciesOccurrenceMap({
   const hasOccurrences = occurrences.length > 0;
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
-      markerFill: palette.background.brand.default,
-      markerStroke: palette.border.brand.default,
-      highlightFill: palette.background.danger.default,
-      highlightStroke: palette.border.danger.default,
-      heatmapLow: palette.background.positive.default,
-      heatmapHigh: palette.background.danger.default,
+      markerFill: mapPalette.background.brand.default,
+      markerStroke: mapPalette.border.brand.default,
+      highlightFill: mapPalette.background.danger.default,
+      highlightStroke: mapPalette.border.danger.default,
+      heatmapLow: mapPalette.background.neutral.secondary,
+      heatmapHigh: mapPalette.background.brand.default,
     }),
     [
-      palette.background.brand.default,
-      palette.background.positive.default,
-      palette.background.danger.default,
-      palette.border.brand.default,
-      palette.border.danger.default,
+      mapPalette.background.brand.default,
+      mapPalette.background.danger.default,
+      mapPalette.background.neutral.secondary,
+      mapPalette.border.brand.default,
+      mapPalette.border.danger.default,
     ],
   );
   const highlightKeys = React.useMemo(
@@ -165,7 +167,7 @@ export function SpeciesOccurrenceMap({
     <View
       style={[
         styles.mapWrapper,
-        { height, backgroundColor: palette.background.default.tertiary },
+        { height, backgroundColor: mapPalette.background.default.tertiary },
       ]}
     >
       {Platform.OS === 'web' ? (
