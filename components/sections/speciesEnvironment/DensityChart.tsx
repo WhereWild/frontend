@@ -244,6 +244,7 @@ const styles = StyleSheet.create({
   chartLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: Size.space['800'],
   },
   minLabelContainer: {
     position: 'absolute',
