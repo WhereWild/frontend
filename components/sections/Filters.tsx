@@ -1,8 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, type StyleProp, View, type ViewStyle, type LayoutRectangle } from 'react-native';
+import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 import { IconRotateCcw } from '@/assets/icons';
 import type { SpeciesSummary } from '@/data/types';
-import { Portal } from '@/components/Portal';
 import { SearchResults } from './webPageHeader/SearchResults';
 import { ButtonDanger } from '@/components/buttons/ButtonDanger';
 import { NumberSpinner } from '@/components/inputs/NumberSpinner';
@@ -12,6 +11,13 @@ import { SelectField, type SelectOption } from '@/components/inputs/SelectField'
 import { SwitchField } from '@/components/inputs/SwitchField';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Size } from '@/constants/theme';
+
+const prependAllOption = (options: SelectOption[], label: string): SelectOption[] => {
+  if (options.some((option) => option.value === '')) {
+    return options;
+  }
+  return [{ label, value: '' }, ...options];
+};
 
 export type FiltersProps = {
   /** Location */
@@ -35,7 +41,6 @@ export type FiltersProps = {
   baseTaxonSuggestionsLoading?: boolean;
   baseTaxonSuggestionsVisible?: boolean;
   onBaseTaxonSelect?: (species: SpeciesSummary) => void;
-  onBaseTaxonSuggestionsDismiss?: () => void;
   hasBaseTaxonSelection?: boolean;
   rankValue: string;
   rankOptions: SelectOption[];
@@ -53,6 +58,7 @@ export type FiltersProps = {
   sortOrder: 'ascending' | 'descending';
   onSortOrderChange?: (value: 'ascending' | 'descending') => void;
   rankingFilterHint?: string | null;
+  hasActiveFilters?: boolean;
 
   /** Quantity */
   numberOfResults: number;
@@ -62,12 +68,6 @@ export type FiltersProps = {
 
   /** Reset */
   onResetFilters?: () => void;
-
-  /**
-   * Test-only override for the base-taxon anchor ref.
-   * Do not use in production code.
-   */
-  anchorRefOverride?: React.RefObject<View | null>;
 
   style?: StyleProp<ViewStyle>;
 };
@@ -91,7 +91,6 @@ export function Filters({
   baseTaxonSuggestionsLoading = false,
   baseTaxonSuggestionsVisible = false,
   onBaseTaxonSelect,
-  onBaseTaxonSuggestionsDismiss,
   hasBaseTaxonSelection = false,
   rankValue,
   rankOptions,
@@ -107,41 +106,14 @@ export function Filters({
   sortOrder,
   onSortOrderChange,
   rankingFilterHint,
+  hasActiveFilters = false,
   numberOfResults,
   onNumberOfResultsChange,
   minimumSamples,
   onMinimumSamplesChange,
   onResetFilters,
-  anchorRefOverride,
   style,
 }: FiltersProps) {
-  const internalAnchorRef = React.useRef<View>(null);
-  const anchorRef = anchorRefOverride ?? internalAnchorRef;
-  const [dropdownPosition, setDropdownPosition] = React.useState<LayoutRectangle | null>(null);
-
-  const measureAnchor = React.useCallback(() => {
-    anchorRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      setDropdownPosition({ x: pageX, y: pageY, width, height });
-    });
-  }, [anchorRef]);
-
-  const handleAnchorLayout = React.useCallback(() => {
-    if (!baseTaxonSuggestionsVisible) {
-      return;
-    }
-    measureAnchor();
-  }, [baseTaxonSuggestionsVisible, measureAnchor]);
-
-  React.useEffect(() => {
-    if (!baseTaxonSuggestionsVisible) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      measureAnchor();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [baseTaxonSuggestionsVisible, measureAnchor]);
-
   const baseTaxonSearchInputProps = React.useMemo(
     () => ({
       value: baseTaxonQuery,
@@ -151,10 +123,22 @@ export function Filters({
       onFocus: onBaseTaxonFocus,
       onBlur: onBaseTaxonBlur,
     }),
-    [baseTaxonQuery, onBaseTaxonQueryChange, onBaseTaxonSubmit, onBaseTaxonFocus, onBaseTaxonBlur],
+    [baseTaxonQuery, onBaseTaxonBlur, onBaseTaxonFocus, onBaseTaxonQueryChange, onBaseTaxonSubmit],
   );
 
   const isControlsDisabled = !hasBaseTaxonSelection;
+  const countrySelectOptions = React.useMemo(
+    () => prependAllOption(countryOptions, 'All countries'),
+    [countryOptions],
+  );
+  const stateSelectOptions = React.useMemo(
+    () => prependAllOption(stateOptions, 'All states'),
+    [stateOptions],
+  );
+  const countySelectOptions = React.useMemo(
+    () => prependAllOption(countyOptions, 'All counties'),
+    [countyOptions],
+  );
 
   return (
     <View style={[styles.container, style]}>
@@ -164,55 +148,16 @@ export function Filters({
       <View style={styles.subSection}>
         <ThemedText variant="subheading">Taxon</ThemedText>
         <ThemedText variant="body">Base taxon</ThemedText>
-        <View testID="filters-base-taxon-anchor" ref={anchorRef} style={styles.suggestionAnchor} onLayout={handleAnchorLayout}>
-          <SearchInput {...baseTaxonSearchInputProps} />
-        </View>
-        <Portal
-          visible={baseTaxonSuggestionsVisible}
-          onDismiss={onBaseTaxonSuggestionsDismiss}
-          accessibilityLabel="Base taxon suggestions"
-          accessibilityHint="Type to refine options or tap outside to dismiss."
-        >
-          <Pressable
-            style={styles.backdrop}
-            onPress={onBaseTaxonSuggestionsDismiss}
-            accessibilityRole="button"
-            accessibilityLabel="Close base taxon suggestions"
-          />
-          {dropdownPosition ? (
-            <View
-              style={[
-                styles.portalInputWrapper,
-                {
-                  top: dropdownPosition.y,
-                  left: dropdownPosition.x,
-                  width: dropdownPosition.width,
-                  height: dropdownPosition.height,
-                },
-              ]}
-            >
-              <SearchInput {...baseTaxonSearchInputProps} autoFocus />
-            </View>
-          ) : null}
-          <SearchResults
-            results={baseTaxonSuggestions}
-            isVisible={baseTaxonSuggestionsVisible && baseTaxonQuery.trim().length > 0}
-            isLoading={baseTaxonSuggestionsLoading}
-            emptyMessage="No matching taxa found"
-            onSelectResult={onBaseTaxonSelect}
-            onPointerEnter={onBaseTaxonFocus}
-            onTouchStart={onBaseTaxonFocus}
-            onFocus={onBaseTaxonFocus}
-            style={dropdownPosition ? [
-              styles.suggestionResults,
-              {
-                top: dropdownPosition.y + dropdownPosition.height + Size.space['200'],
-                left: dropdownPosition.x,
-                width: dropdownPosition.width,
-              },
-            ] : styles.suggestionResults}
-          />
-        </Portal>
+        <SearchInput {...baseTaxonSearchInputProps} />
+        <SearchResults
+          results={baseTaxonSuggestions}
+          isVisible={baseTaxonSuggestionsVisible && baseTaxonQuery.trim().length > 0}
+          isLoading={baseTaxonSuggestionsLoading}
+          emptyMessage="No matching taxa found"
+          onSelectResult={onBaseTaxonSelect}
+          style={styles.suggestionResultsInline}
+          layout="inline"
+        />
         <SelectField
           label="Rank"
           description="Only include taxa at this rank"
@@ -279,7 +224,7 @@ export function Filters({
           <SelectField
             label="Country"
             value={countryValue}
-            options={countryOptions}
+            options={countrySelectOptions}
             onValueChange={onCountryChange}
             disabled={isControlsDisabled}
             style={styles.locationField}
@@ -287,7 +232,7 @@ export function Filters({
           <SelectField
             label="State"
             value={stateValue}
-            options={stateOptions}
+            options={stateSelectOptions}
             onValueChange={onStateChange}
             disabled={isControlsDisabled}
             style={styles.locationField}
@@ -295,7 +240,7 @@ export function Filters({
           <SelectField
             label="County"
             value={countyValue}
-            options={countyOptions}
+            options={countySelectOptions}
             onValueChange={onCountyChange}
             disabled={isControlsDisabled}
             style={styles.locationField}
@@ -318,6 +263,7 @@ export function Filters({
           description="Show only results with at least this number of samples"
           value={minimumSamples}
           min={1}
+          disabled={!hasActiveFilters}
           onValueChange={onMinimumSamplesChange}
         />
       </View>
@@ -338,7 +284,6 @@ export function Filters({
 
 const styles = StyleSheet.create({
   container: {
-    maxWidth: 480,
     minWidth: 240,
     gap: Size.space.text.subsection,
   },
@@ -366,18 +311,7 @@ const styles = StyleSheet.create({
   resetButton: {
     alignSelf: 'flex-start',
   },
-  suggestionAnchor: {
-    position: 'relative',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  portalInputWrapper: {
-    position: 'absolute',
-    zIndex: 10001,
-  },
-  suggestionResults: {
-    position: 'absolute',
-    zIndex: 10002,
+  suggestionResultsInline: {
+    marginTop: Size.space['100'],
   },
 });

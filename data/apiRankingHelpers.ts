@@ -14,6 +14,7 @@ import {
   toRequiredString,
 } from './apiShared';
 
+/** Normalizes a raw relative-ranking row into the typed client entry shape. */
 const normalizeRelativeRankingEntry = (entry: unknown): RelativeRankingEntry => {
   const source = asRecord(entry);
   const taxonIdRaw = source.taxon_id ?? source.taxonId ?? source.id;
@@ -26,6 +27,11 @@ const normalizeRelativeRankingEntry = (entry: unknown): RelativeRankingEntry => 
         : String(taxonIdRaw ?? ''),
     scientificName: toOptionalString(source.scientific_name ?? source.scientificName),
     commonName: toOptionalString(source.common_name ?? source.commonName),
+    imageUrl: toOptionalString(source.image_url ?? source.imageUrl),
+    imageFile: toOptionalString(
+      source.image_file ?? source.imageFile ?? source.image_file_name ?? source.imageFileName,
+    ),
+    imageSource: toOptionalString(source.image_source ?? source.imageSource),
     rank: toOptionalString(source.rank ?? source.taxon_rank),
     value: toFiniteNumber(source.value),
     position: toRequiredNumber(source.position, 0),
@@ -41,6 +47,7 @@ export type RelativeRankingParams = {
   rank: string;
   variableId: string;
   metric: string;
+  units?: string | null;
   limit?: number;
   order?: 'asc' | 'desc';
   minSamples?: number;
@@ -102,6 +109,7 @@ export async function fetchRelativeRankings(
     rank,
     variableId,
     metric,
+    units,
     limit,
     order,
     minSamples,
@@ -129,6 +137,9 @@ export async function fetchRelativeRankings(
   if (location) {
     query.set('location', location);
   }
+  if (units) {
+    query.set('unit_system', units);
+  }
   const url = `${BACKEND_BASE}/relative-rankings/${encoded}?${query.toString()}`;
   const payload = asRecord(await fetchJsonOrThrow(url, 'Failed to fetch relative rankings'));
   const entries = Array.isArray(payload.entries)
@@ -147,6 +158,7 @@ export async function fetchRelativeRankings(
     ancestorTaxonId: toRequiredNumber(payload.ancestor_taxon_id, Number(taxonId)),
     rank: toRequiredString(payload.rank, rank),
     variable: toRequiredString(payload.variable, variableId),
+    units: toOptionalString(payload.units ?? payload.variable_units ?? payload.unit),
     metric: toRequiredString(payload.metric, metric),
     total: typeof payload.total === 'number' ? payload.total : entries.length,
     limit: typeof payload.limit === 'number' ? payload.limit : limit ?? entries.length,

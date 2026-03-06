@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Filters, type FiltersProps } from '../Filters';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { SpeciesSummary } from '@/data/types';
-import type { View } from 'react-native';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
@@ -114,6 +113,19 @@ describe('Filters', () => {
       expect(screen.getByText('Country')).toBeTruthy();
       expect(screen.getByText('State')).toBeTruthy();
       expect(screen.getByText('County')).toBeTruthy();
+    });
+
+    it('shows all-options for location fields so users can clear selection', () => {
+      render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
+
+      fireEvent.press(screen.getByLabelText('Country'));
+      expect(screen.getByText('All countries')).toBeTruthy();
+
+      fireEvent.press(screen.getByLabelText('State'));
+      expect(screen.getByText('All states')).toBeTruthy();
+
+      fireEvent.press(screen.getByLabelText('County'));
+      expect(screen.getByText('All counties')).toBeTruthy();
     });
 
     it('shows location hint and disables location controls while no base taxon is selected', () => {
@@ -280,6 +292,17 @@ describe('Filters', () => {
   });
 
   describe('base taxon suggestions', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      act(() => {
+        jest.runOnlyPendingTimers();
+      });
+      jest.useRealTimers();
+    });
+
     const suggestion: SpeciesSummary = {
       taxonId: 1,
       commonName: 'Gray wolf',
@@ -288,68 +311,20 @@ describe('Filters', () => {
       description: 'Tap to view species details',
     };
 
-    const flushScheduledFrames = () => {
-      const callbacks = [...scheduledFrameCallbacks];
-      scheduledFrameCallbacks = [];
-      callbacks.forEach((callback) => callback(0));
-    };
-
-    it('does not call onBaseTaxonSuggestionsDismiss when clear is pressed', () => {
-      const handleDismiss = jest.fn();
+    it('renders visible suggestions when suggestions are open', () => {
       render(
-        <Filters
-          {...baseProps}
-          baseTaxonQuery="canis"
-          onBaseTaxonSuggestionsDismiss={handleDismiss}
-        />,
-      );
-
-      fireEvent.press(screen.getByLabelText('Clear search'));
-      expect(handleDismiss).not.toHaveBeenCalled();
-    });
-
-    it('measures anchor and renders visible suggestions when suggestions are open', () => {
-      const handleMeasure = jest.fn((callback: (...args: number[]) => void) => {
-        callback(0, 0, 320, 48, 16, 24);
-      });
-      const anchorRef = {
-        current: {
-          measure: handleMeasure,
-        },
-      } as unknown as React.RefObject<View | null>;
-
-      const rendered = render(
         <Filters
           {...baseProps}
           baseTaxonQuery="canis"
           baseTaxonSuggestionsVisible
           baseTaxonSuggestions={[suggestion]}
-          anchorRefOverride={anchorRef}
         />,
       );
-      const anchorView = rendered.UNSAFE_getByProps({ testID: 'filters-base-taxon-anchor' });
-      // The renderer can replace ref.current with a host instance during mount.
-      // Re-inject the test measure function before firing layout.
-      (anchorRef as unknown as { current: { measure: typeof handleMeasure } }).current = {
-        measure: handleMeasure,
-      };
 
-      act(() => {
-        fireEvent(anchorView, 'layout', {
-          nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 48 } },
-        });
-      });
-
-      act(() => {
-        flushScheduledFrames();
-      });
-
-      expect(requestAnimationFrameSpy).toHaveBeenCalled();
-      expect(handleMeasure).toHaveBeenCalled();
       expect(screen.getByText('Gray wolf')).toBeTruthy();
     });
 
-    it('cancels scheduled frame on unmount when suggestions are open', () => {
+    it('unmounts cleanly when suggestions are open', () => {
       const { unmount } = render(
         <Filters
           {...baseProps}
@@ -358,8 +333,7 @@ describe('Filters', () => {
         />,
       );
 
-      unmount();
-      expect(cancelAnimationFrameSpy).toHaveBeenCalledWith(1);
+      expect(() => unmount()).not.toThrow();
     });
   });
 });

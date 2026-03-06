@@ -35,3 +35,7 @@ export function useSettings() {
   }
   return ctx;
 }
+
+export function useOptionalSettings() {
+  return useContext(SettingsContext);
+}

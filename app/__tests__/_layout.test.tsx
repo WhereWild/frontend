@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import RootLayout from '../_layout';
 import { useFonts } from 'expo-font';
@@ -11,6 +11,30 @@ jest.mock('expo-font', () => ({
 }));
 
 const recordedStackProps: any[] = [];
+const recordedHeaderProps: any[] = [];
+let mockHeaderConfig: any = {};
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+const originalPlatformOS = Platform.OS;
+const mockNavigationBar = jest.fn((_props?: unknown) => <View testID="mock-navigation-bar" />);
+
+const setPlatformOS = (os: string) => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+};
+
+const restorePlatformOS = () => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    return;
+  }
+
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatformOS,
+  });
+};
 
 function mockStack(props: any) {
   recordedStackProps.push(props);
@@ -23,14 +47,32 @@ jest.mock('expo-router', () => ({
   usePathname: jest.fn(),
 }));
 
+jest.mock('@/components', () => ({
+  WebPageHeader: (props: any) => {
+    const mockReact = jest.requireActual('react') as typeof React;
+    const mockReactNative = jest.requireActual('react-native') as typeof import('react-native');
+    recordedHeaderProps.push(props);
+    return mockReact.createElement(mockReactNative.View, { testID: 'global-header' });
+  },
+  NavigationBar: (props: unknown) => mockNavigationBar(props),
+}));
+
+jest.mock('@/context/WebPageHeaderContext', () => {
+  const actual = jest.requireActual('@/context/WebPageHeaderContext');
+  return {
+    ...actual,
+    WebPageHeaderProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useWebPageHeaderConfig: () => ({
+      config: mockHeaderConfig,
+      setConfig: jest.fn(),
+      resetConfig: jest.fn(),
+    }),
+  };
+});
+
 const mockUseFonts = useFonts as jest.MockedFunction<typeof useFonts>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
-const mockNavigationBar = jest.fn((_props?: unknown) => <View testID="mock-navigation-bar" />);
-
-jest.mock('@/components', () => ({
-  NavigationBar: (props: unknown) => mockNavigationBar(props),
-}));
 
 type NavTab = {
   key: string;
@@ -71,6 +113,7 @@ describe('Root layout', () => {
   });
 
   afterEach(() => {
+    restorePlatformOS();
     mockUseFonts.mockReset();
     mockUseRouter.mockReset();
     mockUsePathname.mockReset();
@@ -81,6 +124,8 @@ describe('Root layout', () => {
     mockCanGoBack.mockReset();
     mockCanGoBack.mockReturnValue(false);
     recordedStackProps.length = 0;
+    recordedHeaderProps.length = 0;
+    mockHeaderConfig = {};
   });
 
   it('renders nothing until fonts are loaded', () => {
@@ -106,6 +151,55 @@ describe('Root layout', () => {
       animation: 'fade',
       animationDuration: Time.duration.short,
     });
+  });
+
+  it('does not render web header on native layout', () => {
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockReturnValue('/settings');
+    mockHeaderConfig = {
+      showFilterButton: true,
+      onFilterPress: jest.fn(),
+      filterLabel: 'Filter',
+      showResetFilterButton: true,
+      onResetFilterPress: jest.fn(),
+      showSearchResultsDropdown: false,
+      initialQuery: 'fox',
+      filterParams: { ancestorTaxonId: 212 },
+      onSearchingChanged: jest.fn(),
+      onSearchResultsChanged: jest.fn(),
+      onSearchContextChanged: jest.fn(),
+    };
+
+    render(<RootLayout />);
+
+    expect(recordedHeaderProps).toHaveLength(0);
+  });
+
+  it('renders web header on web layout', () => {
+    setPlatformOS('web');
+
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockReturnValue('/search');
+    mockHeaderConfig = {
+      showFilterButton: true,
+      filterLabel: 'Filter',
+      showResetFilterButton: true,
+      showSearchResultsDropdown: false,
+      initialQuery: 'fox',
+      filterParams: { ancestorTaxonId: 212 },
+    };
+
+    render(<RootLayout />);
+
+    expect(screen.getByTestId('global-header')).toBeTruthy();
+    const headerProps = recordedHeaderProps.at(-1);
+    expect(headerProps.showFilterButton).toBe(true);
+    expect(headerProps.filterLabel).toBe('Filter');
+    expect(headerProps.initialQuery).toBe('fox');
+    expect(headerProps.filterParams).toEqual({ ancestorTaxonId: 212 });
+    expect(screen.queryByTestId('mock-navigation-bar')).toBeNull();
   });
 
   it('keeps the previous top-level tab active on species routes', () => {
