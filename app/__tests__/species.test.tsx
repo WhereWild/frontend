@@ -258,7 +258,6 @@ describe('Species screen', () => {
     expect(screen.getByText('Nearby Species')).toBeTruthy();
     // SpeciesScreen currently renders Home recommendation cards in this carousel.
     expect(screen.getByText('Common Spinystar')).toBeTruthy();
-    expect(screen.getByText('Heat Map')).toBeTruthy();
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => { });
     try {

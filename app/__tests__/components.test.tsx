@@ -6,13 +6,6 @@ import { StyleSheet } from 'react-native';
 import ComponentsScreen from '../components';
 
 const mockPush = jest.fn();
-let mockPathname: '/' | '/components' = '/';
-
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
-  usePathname: () => mockPathname,
-}));
-
 jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: () => ({ breakpoint: 'desktop' }),
 }));
@@ -52,7 +45,6 @@ describe('Components screen', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockPush.mockClear();
-    mockPathname = '/';
   });
 
   afterEach(() => {
@@ -116,13 +108,6 @@ describe('Components screen', () => {
     expect(screen.getAllByTestId('time-motion-preview-cell')).toHaveLength(
       Object.keys(Time.duration).length * Object.keys(Time.easing).length,
     );
-  });
-
-  it('does not trigger navigation from local Components screen content', () => {
-    mockPathname = '/components';
-    render(<ComponentsScreen />);
-
-    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('applies light mode background color when overridden to be light', () => {

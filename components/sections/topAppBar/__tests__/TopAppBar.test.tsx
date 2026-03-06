@@ -5,7 +5,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { IconFilter, IconRotateCcw } from '@/assets/icons';
-import { Size } from '@/constants/theme';
 import { mockAnimatedTiming, resolveAnimatedNumeric } from '../topAppBarTestUtils';
 
 const mockRouterPush = jest.fn();

@@ -230,7 +230,7 @@ describe('Root layout', () => {
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('page');
     expect(recordedTopAppBarProps.at(-1)?.title).toBe('Species');
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/components';
     rerender(<RootLayout />);
 
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');

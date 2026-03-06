@@ -93,7 +93,6 @@ const formatTokenLabel = (value: string) =>
     .replace(/^./, (char) => char.toUpperCase());
 
 export default function Components() {
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
