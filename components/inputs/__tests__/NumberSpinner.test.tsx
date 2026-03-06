@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import renderer from 'react-test-renderer';
 import { Animated, NativeModules, Platform, StyleSheet } from 'react-native';
-import { Size, Time } from '@/constants/theme';
+import { Colors, Size, Time } from '@/constants/theme';
 import { NumberSpinner } from '../NumberSpinner';
 
 const USE_NATIVE_DRIVER = Platform.OS !== 'web' && !!NativeModules.NativeAnimatedModule;
@@ -249,6 +249,33 @@ describe('NumberSpinner', () => {
     const flattenedStyle = StyleSheet.flatten(spinner.props.style);
 
     expect(flattenedStyle.height).toBe(Size.control.height.medium);
+  });
+
+  it('uses active background color while focused', () => {
+    render(<NumberSpinner value={3} label="Active Test" />);
+
+    const spinner = screen.getByLabelText('Active Test');
+    const input = screen.getByLabelText('Spinner value');
+
+    fireEvent(input, 'focus');
+
+    const focusedStyle = StyleSheet.flatten(spinner.props.style);
+    const focusedColor = focusedStyle.backgroundColor;
+    const matchesLightModeFocusedColor =
+      focusedColor === Colors.light.background.default.secondaryPressed;
+    expect(
+      focusedColor === Colors.light.background.default.secondaryPressed
+      || focusedColor === Colors.dark.background.default.secondaryPressed,
+    ).toBe(true);
+
+    fireEvent(input, 'blur');
+
+    const blurredStyle = StyleSheet.flatten(spinner.props.style);
+    expect(blurredStyle.backgroundColor).toBe(
+      matchesLightModeFocusedColor
+        ? Colors.light.background.default.secondary
+        : Colors.dark.background.default.secondary,
+    );
   });
 
   it('selects text on focus and hints numeric input mode', () => {

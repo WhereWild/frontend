@@ -119,7 +119,7 @@ export function NumberSpinner({
   const descriptionColor = disabled ? palette.text.disabled.default : palette.text.default.secondary;
   const pillBackground = disabled
     ? palette.background.disabled.default
-    : isPressing
+    : isFocused || isPressing
       ? palette.background.default.secondaryPressed
       : palette.background.default.secondary;
   const webOutlineStyle = Platform.OS === 'web'
