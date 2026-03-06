@@ -2,6 +2,28 @@ import type { SpeciesApiNormalized } from './types';
 import { normalizeCommonNames } from './commonNames';
 import { BACKEND_BASE, asRecord, fetchJsonOrThrow, parseNumericTaxonId } from './apiShared';
 
+/** Filter parameters for the species list / search endpoint. */
+export type SearchFilterParams = {
+  /** Most-specific location GID (county > state > country). */
+  locationGid?: string | null;
+  /** Ancestor taxon ID to restrict results to a clade. */
+  ancestorTaxonId?: number | null;
+  /** Restrict to a specific taxonomic rank (e.g. 'species', 'genus'). */
+  rank?: string | null;
+  /** Whether to include subspecies when rank is 'species'. */
+  includeSubspecies?: boolean | null;
+  /** Environment variable to sort by. */
+  sortVariable?: string | null;
+  /** Aggregation metric to sort by (e.g. 'mean', 'median'). */
+  sortMetric?: string | null;
+  /** Sort direction. */
+  sortOrder?: 'asc' | 'desc' | null;
+  /** Minimum number of observations required (inclusive). */
+  minimumSamples?: number | null;
+  /** Maximum number of results to return. Overrides the limit argument when set. */
+  numberOfResults?: number | null;
+};
+
 /**
  * Normalize a backend species item into the `SpeciesApiNormalized` shape,
  * ensuring `image_source` is a full URL to the static image (suitable for RN <Image>)
@@ -48,11 +70,29 @@ export function normalizeToJsonShape(item: unknown): SpeciesApiNormalized {
 
 /**
  * Fetches species rows from the backend search/list endpoint.
+ *
+ * `filters.numberOfResults` takes precedence over the `limit` argument when set.
  */
-export async function fetchSpeciesList(limit?: number, q?: string): Promise<SpeciesApiNormalized[]> {
+export async function fetchSpeciesList(
+  limit?: number,
+  q?: string,
+  filters?: SearchFilterParams,
+): Promise<SpeciesApiNormalized[]> {
+  const effectiveLimit = filters?.numberOfResults ?? limit;
   const params = new URLSearchParams();
-  if (limit) params.set('limit', String(limit));
+  if (effectiveLimit) params.set('limit', String(effectiveLimit));
   if (q) params.set('q', q);
+  if (filters?.locationGid) params.set('location', filters.locationGid);
+  if (filters?.ancestorTaxonId != null) params.set('ancestor_taxon_id', String(filters.ancestorTaxonId));
+  if (filters?.rank) params.set('rank', filters.rank);
+  if (filters?.includeSubspecies != null) params.set('include_subspecies', String(filters.includeSubspecies));
+  if (filters?.sortVariable) params.set('variable', filters.sortVariable);
+  if (filters?.sortMetric) params.set('metric', filters.sortMetric);
+  if (filters?.sortOrder) params.set('order', filters.sortOrder);
+  if (filters?.minimumSamples != null && filters.minimumSamples > 1) {
+    params.set('min_samples', String(filters.minimumSamples));
+  }
+
   const url = `${BACKEND_BASE}/api/species${params.toString() ? `?${params.toString()}` : ''}`;
 
   const data = await fetchJsonOrThrow(url, 'Failed to fetch species list');
