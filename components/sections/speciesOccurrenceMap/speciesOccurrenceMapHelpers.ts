@@ -18,6 +18,7 @@ export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_FETCH_MESSAGE_TYPE = 'heatmap-fetch';
 export const HEATMAP_DATA_MESSAGE_TYPE = 'heatmap-data';
 export const HEATMAP_ERROR_MESSAGE_TYPE = 'heatmap-error';
+export const HEATMAP_SETTINGS_MESSAGE_TYPE = 'heatmap-settings';
 
 export type HighlightMessage = {
   type: typeof HIGHLIGHT_MESSAGE_TYPE;
@@ -102,6 +103,7 @@ export const MAP_TEMPLATE_PLACEHOLDERS = {
   fetchType: '__HEATMAP_FETCH_MESSAGE_TYPE_JSON__',
   dataType: '__HEATMAP_DATA_MESSAGE_TYPE_JSON__',
   errorType: '__HEATMAP_ERROR_MESSAGE_TYPE_JSON__',
+  settingsType: '__HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__',
 } as const;
 
 export const mapTemplateFallback = '<!doctype html><html><body><div id="map"></div></body></html>';
@@ -123,14 +125,13 @@ export const buildLeafletHtml = (
   points: Record<string, unknown>[],
   markerPalette: MapMarkerPalette,
   speciesKey?: number,
-  showHeatmapOverlay = true,
   heatmapPolicy: HeatmapMapPolicy = DEFAULT_HEATMAP_MAP_POLICY,
 ) => {
   let html = mapTemplate;
   const payload = JSON.stringify(points ?? []);
   const palettePayload = JSON.stringify(markerPalette);
   const apiBasePayload = JSON.stringify(BACKEND_BASE);
-  const speciesKeyPayload = showHeatmapOverlay && speciesKey != null ? String(speciesKey) : '';
+  const speciesKeyPayload = speciesKey != null ? String(speciesKey) : '';
   const heatmapPolicyPayload = JSON.stringify(heatmapPolicy);
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.points).join(payload);
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.palette).join(palettePayload);
@@ -140,6 +141,7 @@ export const buildLeafletHtml = (
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.highlightType).join(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.fetchType).join(JSON.stringify(HEATMAP_FETCH_MESSAGE_TYPE));
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.dataType).join(JSON.stringify(HEATMAP_DATA_MESSAGE_TYPE));
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.settingsType).join(JSON.stringify(HEATMAP_SETTINGS_MESSAGE_TYPE));
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.errorType).join(JSON.stringify(HEATMAP_ERROR_MESSAGE_TYPE));
   return html;
 };

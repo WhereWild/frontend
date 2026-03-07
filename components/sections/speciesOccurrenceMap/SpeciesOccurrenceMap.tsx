@@ -97,8 +97,8 @@ export function SpeciesOccurrenceMap({
     [highlightedCatalogs],
   );
   const html = React.useMemo(
-    () => buildLeafletHtml(mapTemplate, occurrences, markerPalette, speciesKey, showHeatmapOverlay),
-    [mapTemplate, markerPalette, occurrences, showHeatmapOverlay, speciesKey],
+    () => buildLeafletHtml(mapTemplate, occurrences, markerPalette, speciesKey),
+    [mapTemplate, markerPalette, occurrences, speciesKey],
   );
   React.useEffect(() => {
     setMapReady(false);
@@ -136,6 +136,19 @@ export function SpeciesOccurrenceMap({
     return setupWebHeatmapBridge(iframeRef, activeHeatmapJobRef);
   }, [isFocused]);
 
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const settingsMessage: HeatmapSettingsMessage = {
+      type: HEATMAP_SETTINGS_MESSAGE_TYPE,
+      enabled: showHeatmapOverlay && speciesKey != null,
+      speciesKey: speciesKey ?? null,
+    };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(settingsMessage, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(settingsMessage));
+    }
+  }, [mapReady, showHeatmapOverlay, speciesKey]);
   if (loading) {
     return (
       <View style={[styles.feedback, styles.loadingFeedback]}>

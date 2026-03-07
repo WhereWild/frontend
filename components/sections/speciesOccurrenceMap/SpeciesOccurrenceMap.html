@@ -47,6 +47,10 @@
     const HEATMAP_FETCH_MESSAGE_TYPE = __HEATMAP_FETCH_MESSAGE_TYPE_JSON__;
     const HEATMAP_DATA_MESSAGE_TYPE = __HEATMAP_DATA_MESSAGE_TYPE_JSON__;
     const HEATMAP_ERROR_MESSAGE_TYPE = __HEATMAP_ERROR_MESSAGE_TYPE_JSON__;
+    const HEATMAP_SETTINGS_MESSAGE_TYPE = __HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__;
+
+    let heatmapOverlayEnabled = false;
+    let activeSpeciesKey = speciesKey;
 
     // OSM uses Web Mercator, so the practical latitude clamp is ~85.0511.
     const MERCATOR_MAX_LAT = 85.05112878;
@@ -490,7 +494,7 @@
 
     // Builds the current viewport query and delegates fetch execution to the parent bridge.
     async function refreshHeatmapGrid() {
-      if (!speciesKey) {
+      if (!heatmapOverlayEnabled || !activeSpeciesKey) {
         heatmapLayerGroup.clearLayers();
         heatmapAccumulatedCells = [];
         heatmapAccumulatedRequestId = null;
@@ -507,7 +511,7 @@
       const east = currentBounds.getEast();
       const requestBounds = canonicalizeRequestBounds(south, west, north, east);
       const queryKey = [
-        speciesKey,
+        activeSpeciesKey,
         String(resolution),
         HEATMAP_FEATURE_MODE,
         String(HEATMAP_MAX_CELLS),
@@ -524,7 +528,7 @@
       }
 
       const queryPayload = {
-        species_key: speciesKey,
+        species_key: activeSpeciesKey,
         min_lat: String(requestBounds.minLat),
         min_lon: String(requestBounds.minLon),
         max_lat: String(requestBounds.maxLat),
@@ -599,6 +603,12 @@
       }
       if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs || []);
+      }
+      if (data && data.type === HEATMAP_SETTINGS_MESSAGE_TYPE) {
+        heatmapOverlayEnabled = Boolean(data.enabled);
+        activeSpeciesKey = data.speciesKey != null ? String(data.speciesKey) : '';
+        heatmapLastAppliedQueryKey = '';
+        scheduleHeatmapRefresh();
       }
     }
 

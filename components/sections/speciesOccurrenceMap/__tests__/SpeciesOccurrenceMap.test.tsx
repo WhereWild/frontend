@@ -81,8 +81,11 @@ describe('SpeciesOccurrenceMap', () => {
     fireEvent(webView, 'loadEnd');
 
     expect(mockPostMessage).toHaveBeenCalled();
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('highlight');
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('101');
+    const highlightCall = mockPostMessage.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('highlight'),
+    );
+    expect(highlightCall).toBeDefined();
+    expect(highlightCall![0]).toContain('101');
   });
 
   it('resets mapReady on html changes and waits for next load event', () => {
@@ -109,7 +112,41 @@ describe('SpeciesOccurrenceMap', () => {
 
     fireEvent(screen.getByTestId('mock-webview'), 'loadEnd');
     expect(mockPostMessage.mock.calls.length).toBeGreaterThan(callCountAfterFirstLoad);
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('20');
+    const highlightCall = mockPostMessage.mock.calls.find(
+      (call, idx) => idx >= callCountAfterFirstLoad && typeof call[0] === 'string' && call[0].includes('highlight'),
+    );
+    expect(highlightCall).toBeDefined();
+    expect(highlightCall![0]).toContain('20');
+  });
+
+  it('updates heatmap settings without waiting for another map load', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios' });
+    const { rerender } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 10, latitude: 10, longitude: 20 }]}
+        speciesKey={10}
+        showHeatmapOverlay={false}
+      />,
+    );
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+    mockPostMessage.mockClear();
+
+    rerender(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 10, latitude: 10, longitude: 20 }]}
+        speciesKey={10}
+        showHeatmapOverlay={true}
+      />,
+    );
+
+    const settingsCall = mockPostMessage.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('heatmap-settings'),
+    );
+    expect(settingsCall).toBeDefined();
+    expect(settingsCall![0]).toContain('"enabled":true');
+    expect(settingsCall![0]).toContain('"speciesKey":10');
   });
 
   it('renders map container when occurrences exist (web branch)', () => {
