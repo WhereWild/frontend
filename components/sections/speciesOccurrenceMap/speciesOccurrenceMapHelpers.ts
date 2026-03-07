@@ -19,10 +19,35 @@ export const HEATMAP_FETCH_MESSAGE_TYPE = 'heatmap-fetch';
 export const HEATMAP_DATA_MESSAGE_TYPE = 'heatmap-data';
 export const HEATMAP_ERROR_MESSAGE_TYPE = 'heatmap-error';
 export const HEATMAP_SETTINGS_MESSAGE_TYPE = 'heatmap-settings';
+export const MAP_CLICK_MESSAGE_TYPE = 'map-click';
+export const RL_MODE_MESSAGE_TYPE = 'rl-mode';
+export const FEEDBACK_DOTS_MESSAGE_TYPE = 'feedback-dots';
 
 export type HighlightMessage = {
   type: typeof HIGHLIGHT_MESSAGE_TYPE;
   catalogs: string[];
+};
+
+export type MapClickMessage = {
+  type: typeof MAP_CLICK_MESSAGE_TYPE;
+  lat: number;
+  lon: number;
+};
+
+export type RlModeMessage = {
+  type: typeof RL_MODE_MESSAGE_TYPE;
+  enabled: boolean;
+};
+
+export type FeedbackDot = {
+  lat: number;
+  lon: number;
+  present: boolean;
+};
+
+export type FeedbackDotsMessage = {
+  type: typeof FEEDBACK_DOTS_MESSAGE_TYPE;
+  dots: FeedbackDot[];
 };
 
 export type HeatmapFetchMessage = {
@@ -49,6 +74,13 @@ export type HeatmapErrorMessage = {
   debugLines?: string[];
 };
 
+export type HeatmapSettingsMessage = {
+  type: typeof HEATMAP_SETTINGS_MESSAGE_TYPE;
+  enabled: boolean;
+  speciesKey: number | null;
+  headVariant: HeatmapHeadVariant;
+};
+
 export type MapMarkerPalette = {
   markerFill: string;
   markerStroke: string;
@@ -56,6 +88,10 @@ export type MapMarkerPalette = {
   highlightStroke: string;
   heatmapLow: string;
   heatmapHigh: string;
+  feedbackPositiveFill: string;
+  feedbackPositiveStroke: string;
+  feedbackNegativeFill: string;
+  feedbackNegativeStroke: string;
 };
 
 export type ActiveHeatmapJob = {
@@ -76,6 +112,8 @@ export type HeatmapMapPolicy = {
   maxCells: number;
   zoomResolutionBreakpoints: HeatmapZoomResolutionBreakpoint[];
 };
+
+export type HeatmapHeadVariant = 'original' | 'reinforced';
 
 export const DEFAULT_HEATMAP_MAP_POLICY: HeatmapMapPolicy = {
   debounceMs: 320,
@@ -104,6 +142,10 @@ export const MAP_TEMPLATE_PLACEHOLDERS = {
   dataType: '__HEATMAP_DATA_MESSAGE_TYPE_JSON__',
   errorType: '__HEATMAP_ERROR_MESSAGE_TYPE_JSON__',
   settingsType: '__HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__',
+  mapClickType: '__MAP_CLICK_MESSAGE_TYPE_JSON__',
+  rlModeType: '__RL_MODE_MESSAGE_TYPE_JSON__',
+  feedbackDotsType: '__FEEDBACK_DOTS_MESSAGE_TYPE_JSON__',
+  heatmapHeadVariant: '__HEATMAP_HEAD_VARIANT_JSON__',
 } as const;
 
 export const mapTemplateFallback = '<!doctype html><html><body><div id="map"></div></body></html>';
@@ -126,6 +168,7 @@ export const buildLeafletHtml = (
   markerPalette: MapMarkerPalette,
   speciesKey?: number,
   heatmapPolicy: HeatmapMapPolicy = DEFAULT_HEATMAP_MAP_POLICY,
+  heatmapHeadVariant: HeatmapHeadVariant = 'original',
 ) => {
   let html = mapTemplate;
   const payload = JSON.stringify(points ?? []);
@@ -133,6 +176,7 @@ export const buildLeafletHtml = (
   const apiBasePayload = JSON.stringify(BACKEND_BASE);
   const speciesKeyPayload = speciesKey != null ? String(speciesKey) : '';
   const heatmapPolicyPayload = JSON.stringify(heatmapPolicy);
+  const heatmapHeadVariantPayload = JSON.stringify(heatmapHeadVariant);
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.points).join(payload);
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.palette).join(palettePayload);
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.apiBase).join(apiBasePayload);
@@ -143,6 +187,10 @@ export const buildLeafletHtml = (
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.dataType).join(JSON.stringify(HEATMAP_DATA_MESSAGE_TYPE));
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.settingsType).join(JSON.stringify(HEATMAP_SETTINGS_MESSAGE_TYPE));
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.errorType).join(JSON.stringify(HEATMAP_ERROR_MESSAGE_TYPE));
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.mapClickType).join(JSON.stringify(MAP_CLICK_MESSAGE_TYPE));
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.rlModeType).join(JSON.stringify(RL_MODE_MESSAGE_TYPE));
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.feedbackDotsType).join(JSON.stringify(FEEDBACK_DOTS_MESSAGE_TYPE));
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.heatmapHeadVariant).join(heatmapHeadVariantPayload);
   return html;
 };
 
@@ -285,6 +333,7 @@ export const setupWebHeatmapBridge = (
         maxLat: canonicalBounds.maxLat,
         maxLon: canonicalBounds.maxLon,
         resolution: clampResolution(toNumber(payload.query.resolution, 0.25), 0.25),
+        headVariant: payload.query.head_variant === 'reinforced' ? 'reinforced' : 'original',
         includeSource: String(payload.query.include_source || '').toLowerCase() === 'true',
         featureMode:
           (payload.query.feature_mode as

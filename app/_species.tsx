@@ -5,6 +5,7 @@ import {
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
+  ReinforcementSection,
 } from '@/components';
 import { SpeciesOccurrenceMap } from '@/components/sections/speciesOccurrenceMap/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
@@ -22,6 +23,7 @@ import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFil
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
+import { useReinforcement } from '@/hooks/species/useReinforcement';
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -61,7 +63,7 @@ function SectionShell({
 }
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview  } =
+  const { taxonId, commonName, commonNames, scientificName, overview } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -75,6 +77,18 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [showHeatmapOverlay, setShowHeatmapOverlay] = React.useState(false);
+  const [useReinforcedHeatmap, setUseReinforcedHeatmap] = React.useState(false);
+
+  const reinforcement = useReinforcement(taxonId);
+
+  const handleMapClick = React.useCallback(
+    (lat: number, lon: number) => {
+      if (reinforcement.enabled) {
+        reinforcement.submitFeedback(lat, lon);
+      }
+    },
+    [reinforcement],
+  );
 
   const {
     countryOptions,
@@ -107,6 +121,21 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   React.useEffect(() => {
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
+
+  React.useEffect(() => {
+    if (!showHeatmapOverlay) {
+      setUseReinforcedHeatmap(false);
+    }
+  }, [showHeatmapOverlay]);
+
+  const reinforcedPredictionsDisabled =
+    !showHeatmapOverlay || reinforcement.isReinforcedHeadStatusLoading || !reinforcement.hasReinforcedHead;
+
+  React.useEffect(() => {
+    if (reinforcedPredictionsDisabled) {
+      setUseReinforcedHeatmap(false);
+    }
+  }, [reinforcedPredictionsDisabled]);
 
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
@@ -153,7 +182,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
               />
             </SectionShell>
 
-          <NearbySpeciesCarousel species={mockHomePageData.recommendations.items} />
+            <NearbySpeciesCarousel species={mockHomePageData.recommendations.items} />
 
             {shouldRenderOccurrenceMap && (
               <SectionShell responsive={responsive}>
@@ -173,6 +202,13 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   onCountyChange={onCountyChange}
                 />
 
+                <SpeciesEnvironmentSection
+                  taxonId={taxonId}
+                  onHighlightChange={setHighlightedCatalogs}
+                  locationGid={finalLocationGid}
+                  units={units}
+                />
+
                 <SwitchField
                   label="Prediction Overlay"
                   description="Show model prediction grid on the map"
@@ -181,12 +217,27 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   accessibilityLabel="Prediction Overlay"
                 />
 
-                <SpeciesEnvironmentSection
-                  taxonId={taxonId}
-                  onHighlightChange={setHighlightedCatalogs}
-                  locationGid={finalLocationGid}
-                  units={units} // <- forward units preference
+                <SwitchField
+                  label="Reinforced Predictions"
+                  description="Request the reinforced prediction head for heatmap cells"
+                  value={useReinforcedHeatmap}
+                  onValueChange={setUseReinforcedHeatmap}
+                  disabled={reinforcedPredictionsDisabled}
+                  accessibilityLabel="Reinforced Predictions"
                 />
+
+                {!showHeatmapOverlay ? (
+                  <ThemedText variant="bodySmall">
+                    Reinforced predictions require Prediction Overlay to be enabled.
+                  </ThemedText>
+                ) : null}
+                {!reinforcement.hasReinforcedHead ? (
+                  <ThemedText variant="bodySmall">
+                    Reinforced predictions require an available reinforced head for this species.
+                  </ThemedText>
+                ) : null}
+
+                <ReinforcementSection reinforcement={reinforcement} />
               </SectionShell>
             )}
           </View>
@@ -200,6 +251,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
               height={observationMapHeight}
               speciesKey={taxonId}
               showHeatmapOverlay={showHeatmapOverlay}
+              heatmapHeadVariant={useReinforcedHeatmap ? 'reinforced' : 'original'}
+              rlModeEnabled={reinforcement.enabled}
+              onMapClick={handleMapClick}
+              feedbackDots={reinforcement.feedbackLog}
             />
           )}
         </ScrollView>

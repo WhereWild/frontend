@@ -10,6 +10,7 @@ const mockPush = jest.fn();
 jest.mock('@/data/api', () => ({
   fetchSpeciesLocations: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
+  fetchReinforcedHeads: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
   fetchSpeciesEnvironment: jest.fn(),
   fetchEnvironmentRangeSlice: jest.fn(),
@@ -17,6 +18,7 @@ jest.mock('@/data/api', () => ({
 }));
 
 const mockedApiModule = jest.requireMock('@/data/api') as {
+  fetchReinforcedHeads: jest.Mock;
   fetchEnvironmentVariables: jest.Mock;
   fetchSpeciesEnvironment: jest.Mock;
   fetchEnvironmentRangeSlice: jest.Mock;
@@ -153,6 +155,7 @@ afterEach(() => {
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
   mockFetchSpeciesOccurrences.mockResolvedValue([]);
+  mockedApiModule.fetchReinforcedHeads.mockResolvedValue([]);
   mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
   mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
   mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
@@ -227,6 +230,7 @@ describe('Species screen', () => {
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
+    mockedApiModule.fetchReinforcedHeads.mockResolvedValue([]);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
     mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
     mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({

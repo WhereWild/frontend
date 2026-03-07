@@ -233,6 +233,7 @@ export async function createPredictHeatmapJob(
     max_lat: request.maxLat,
     max_lon: request.maxLon,
     resolution: request.resolution,
+    head_variant: request.headVariant,
     include_source: request.includeSource,
     feature_mode: request.featureMode,
     max_cells: request.maxCells,

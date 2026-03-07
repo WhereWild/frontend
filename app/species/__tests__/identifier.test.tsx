@@ -26,6 +26,7 @@ jest.mock('@react-navigation/native', () => {
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
+  fetchReinforcedHeads: jest.fn(),
   fetchLocationsByHierarchy: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
   fetchSpeciesEnvironment: jest.fn(),
@@ -35,6 +36,7 @@ jest.mock('@/data/api', () => ({
 
 const mockedApiModule = jest.requireMock('@/data/api') as {
   fetchSpeciesOccurrences: jest.Mock;
+  fetchReinforcedHeads: jest.Mock;
   fetchLocationsByHierarchy: jest.Mock;
   fetchEnvironmentVariables: jest.Mock;
   fetchSpeciesEnvironment: jest.Mock;
@@ -70,6 +72,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
     mockedApiModule.fetchSpeciesOccurrences.mockResolvedValue([]);
+    mockedApiModule.fetchReinforcedHeads.mockResolvedValue([]);
     mockedApiModule.fetchLocationsByHierarchy.mockResolvedValue([]);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
     mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);

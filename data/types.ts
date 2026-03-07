@@ -169,6 +169,7 @@ export type PredictHeatmapJobRequest = {
   maxLat: number;
   maxLon: number;
   resolution?: number;
+  headVariant?: 'original' | 'reinforced';
   includeSource?: boolean;
   featureMode?: 'auto' | 'prefer_cell_table' | 'cell_table_only' | 'sampled_only';
   maxCells?: number;
@@ -376,4 +377,41 @@ export type RelativeRankingOptionsResponse = {
   ancestorTaxonId: number;
   rank: string;
   options: RelativeRankingOption[];
+};
+
+// --- Reinforcement Learning Types ---
+
+export type ReinforceFeedbackRequest = {
+  speciesKey: number;
+  lat: number;
+  lon: number;
+  present: boolean;
+  lr?: number;
+  steps?: number;
+};
+
+export type ReinforceFeedbackResponse = {
+  speciesKey: number;
+  feedbackCount: number;
+  point: { lat: number; lon: number };
+  originalScore: number;
+  reinforcedScore: number;
+};
+
+export type ReinforcedSpeciesInfo = {
+  speciesKey: number;
+  feedbackCount: number;
+};
+
+export type ReinforcementFeedbackEntry = {
+  lat: number;
+  lon: number;
+  present: boolean;
+};
+
+export type ReinforcedHeadLoadResponse = {
+  speciesKey: number;
+  status: string;
+  feedbackCount: number;
+  feedback: ReinforcementFeedbackEntry[];
 };

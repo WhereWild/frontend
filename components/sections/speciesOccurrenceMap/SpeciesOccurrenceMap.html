@@ -43,14 +43,22 @@
     const apiBase = __API_BASE_JSON__;
     const speciesKey = __SPECIES_KEY_JSON__;
     const heatmapPolicy = __HEATMAP_POLICY_JSON__;
+    const heatmapHeadVariant = __HEATMAP_HEAD_VARIANT_JSON__;
     const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
     const HEATMAP_FETCH_MESSAGE_TYPE = __HEATMAP_FETCH_MESSAGE_TYPE_JSON__;
     const HEATMAP_DATA_MESSAGE_TYPE = __HEATMAP_DATA_MESSAGE_TYPE_JSON__;
     const HEATMAP_ERROR_MESSAGE_TYPE = __HEATMAP_ERROR_MESSAGE_TYPE_JSON__;
     const HEATMAP_SETTINGS_MESSAGE_TYPE = __HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__;
+    const MAP_CLICK_MESSAGE_TYPE = __MAP_CLICK_MESSAGE_TYPE_JSON__;
+    const RL_MODE_MESSAGE_TYPE = __RL_MODE_MESSAGE_TYPE_JSON__;
+    const FEEDBACK_DOTS_MESSAGE_TYPE = __FEEDBACK_DOTS_MESSAGE_TYPE_JSON__;
 
+    let rlModeEnabled = false;
+    let feedbackDotsLayer = null;
+    let feedbackDotWorldAnchors = [];
     let heatmapOverlayEnabled = false;
     let activeSpeciesKey = speciesKey;
+    let activeHeatmapHeadVariant = String(heatmapHeadVariant || 'original');
 
     // OSM uses Web Mercator, so the practical latitude clamp is ~85.0511.
     const MERCATOR_MAX_LAT = 85.05112878;
@@ -512,6 +520,7 @@
       const requestBounds = canonicalizeRequestBounds(south, west, north, east);
       const queryKey = [
         activeSpeciesKey,
+        activeHeatmapHeadVariant,
         String(resolution),
         HEATMAP_FEATURE_MODE,
         String(HEATMAP_MAX_CELLS),
@@ -534,6 +543,7 @@
         max_lat: String(requestBounds.maxLat),
         max_lon: String(requestBounds.maxLon),
         resolution: String(resolution),
+        head_variant: activeHeatmapHeadVariant,
         include_source: 'true',
         feature_mode: HEATMAP_FEATURE_MODE,
         max_cells: String(HEATMAP_MAX_CELLS),
@@ -583,6 +593,66 @@
       });
     }
 
+    // Renders feedback dots: info (brand) for positive, warning for negative.
+    function applyFeedbackDots(dots) {
+      if (feedbackDotsLayer) {
+        map.removeLayer(feedbackDotsLayer);
+      }
+      feedbackDotWorldAnchors = [];
+      feedbackDotsLayer = L.layerGroup();
+      var positiveDotStyle = {
+        radius: 6,
+        fillColor: palette.feedbackPositiveFill,
+        color: palette.feedbackPositiveStroke,
+        weight: 2,
+        opacity: 0.95,
+        fillOpacity: 0.85,
+      };
+      var negativeDotStyle = {
+        radius: 6,
+        fillColor: palette.feedbackNegativeFill,
+        color: palette.feedbackNegativeStroke,
+        weight: 2,
+        opacity: 0.95,
+        fillOpacity: 0.85,
+      };
+      if (Array.isArray(dots)) {
+        var centerLongitude = map.getCenter().lng;
+        dots.forEach(function (dot) {
+          if (typeof dot.lat === 'number' && typeof dot.lon === 'number') {
+            var style = dot.present ? positiveDotStyle : negativeDotStyle;
+            var label = dot.present ? 'Positive' : 'Negative';
+            var latitude = clampLatitude(dot.lat);
+            var canonicalLongitude = Number(dot.lon);
+            if (!isFinite(latitude) || !isFinite(canonicalLongitude)) {
+              return;
+            }
+            var alignedLongitude = alignLongitudeToView(canonicalLongitude, centerLongitude);
+            var marker = L.circleMarker([latitude, alignedLongitude], style)
+              .bindPopup(label + ' feedback')
+              .addTo(feedbackDotsLayer);
+            feedbackDotWorldAnchors.push({
+              marker: marker,
+              latitude: latitude,
+              longitude: canonicalLongitude,
+            });
+          }
+        });
+      }
+      feedbackDotsLayer.addTo(map);
+    }
+
+    function syncFeedbackDotsToCurrentWorld() {
+      if (!feedbackDotWorldAnchors.length) {
+        return;
+      }
+      var centerLongitude = map.getCenter().lng;
+      feedbackDotWorldAnchors.forEach(function (entry) {
+        var alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
+        entry.marker.setLatLng([entry.latitude, alignedLongitude]);
+      });
+    }
+
     // Normalizes bridge messages and routes them to heatmap or highlight handlers.
     function handleIncomingMessage(payload) {
       let data = payload;
@@ -604,9 +674,18 @@
       if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs || []);
       }
+      if (data && data.type === RL_MODE_MESSAGE_TYPE) {
+        rlModeEnabled = Boolean(data.enabled);
+        document.getElementById('map').style.cursor = rlModeEnabled ? 'crosshair' : '';
+      }
+      if (data && data.type === FEEDBACK_DOTS_MESSAGE_TYPE) {
+        applyFeedbackDots(data.dots || []);
+      }
       if (data && data.type === HEATMAP_SETTINGS_MESSAGE_TYPE) {
         heatmapOverlayEnabled = Boolean(data.enabled);
         activeSpeciesKey = data.speciesKey != null ? String(data.speciesKey) : '';
+        activeHeatmapHeadVariant =
+          data.headVariant === 'reinforced' ? 'reinforced' : 'original';
         heatmapLastAppliedQueryKey = '';
         scheduleHeatmapRefresh();
       }
@@ -687,8 +766,22 @@
       map.setView([0, 0], 2);
     }
 
+    map.on('click', function (e) {
+      if (!rlModeEnabled) return;
+      var latlng = e.latlng;
+      var payload = {
+        type: MAP_CLICK_MESSAGE_TYPE,
+        lat: latlng.lat,
+        lon: latlng.lng,
+      };
+      if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, '*');
+      }
+    });
+
     map.on('zoomend', scheduleHeatmapRefresh);
     map.on('moveend', scheduleHeatmapRefresh);
+    map.on('moveend', syncFeedbackDotsToCurrentWorld);
     scheduleHeatmapRefresh();
     applyHighlights([]);
   </script>

@@ -10,11 +10,20 @@ import {
   buildLeafletHtml,
   mapTemplateFallback,
   type MapMarkerPalette,
+  type HeatmapHeadVariant,
+  type HeatmapSettingsMessage,
   loadMapTemplate,
   setupWebHeatmapBridge,
   toHighlightMessagePayload,
   type ActiveHeatmapJob,
   type HighlightMessage,
+  HEATMAP_SETTINGS_MESSAGE_TYPE,
+  MAP_CLICK_MESSAGE_TYPE,
+  RL_MODE_MESSAGE_TYPE,
+  FEEDBACK_DOTS_MESSAGE_TYPE,
+  type RlModeMessage,
+  type FeedbackDot,
+  type FeedbackDotsMessage,
 } from './speciesOccurrenceMapHelpers';
 
 type SpeciesOccurrenceMapProps = {
@@ -25,6 +34,10 @@ type SpeciesOccurrenceMapProps = {
   highlightedCatalogs?: (number | string)[];
   speciesKey?: number;
   showHeatmapOverlay?: boolean;
+  heatmapHeadVariant?: HeatmapHeadVariant;
+  rlModeEnabled?: boolean;
+  onMapClick?: (lat: number, lon: number) => void;
+  feedbackDots?: FeedbackDot[];
 };
 
 /**
@@ -41,6 +54,10 @@ export function SpeciesOccurrenceMap({
   highlightedCatalogs = [],
   speciesKey,
   showHeatmapOverlay = false,
+  heatmapHeadVariant = 'original',
+  rlModeEnabled = false,
+  onMapClick,
+  feedbackDots = [],
 }: SpeciesOccurrenceMapProps) {
   const isFocused = useIsFocused();
   const scheme = useColorScheme();
@@ -83,13 +100,21 @@ export function SpeciesOccurrenceMap({
       highlightStroke: mapPalette.border.danger.default,
       heatmapLow: mapPalette.background.neutral.secondary,
       heatmapHigh: mapPalette.background.brand.default,
+      feedbackPositiveFill: mapPalette.background.positive.default,
+      feedbackPositiveStroke: mapPalette.border.positive.default,
+      feedbackNegativeFill: mapPalette.background.warning.default,
+      feedbackNegativeStroke: mapPalette.border.warning.default,
     }),
     [
       mapPalette.background.brand.default,
+      mapPalette.background.positive.default,
       mapPalette.background.danger.default,
       mapPalette.background.neutral.secondary,
+      mapPalette.background.warning.default,
       mapPalette.border.brand.default,
+      mapPalette.border.positive.default,
       mapPalette.border.danger.default,
+      mapPalette.border.warning.default,
     ],
   );
   const highlightKeys = React.useMemo(
@@ -97,7 +122,15 @@ export function SpeciesOccurrenceMap({
     [highlightedCatalogs],
   );
   const html = React.useMemo(
-    () => buildLeafletHtml(mapTemplate, occurrences, markerPalette, speciesKey),
+    () =>
+      buildLeafletHtml(
+        mapTemplate,
+        occurrences,
+        markerPalette,
+        speciesKey,
+      ),
+    // Heatmap visibility/head variant are pushed via postMessage to avoid
+    // remounting the map and losing pan/zoom state.
     [mapTemplate, markerPalette, occurrences, speciesKey],
   );
   React.useEffect(() => {
@@ -136,19 +169,65 @@ export function SpeciesOccurrenceMap({
     return setupWebHeatmapBridge(iframeRef, activeHeatmapJobRef);
   }, [isFocused]);
 
+  /** Sends RL mode state to the map runtime so it can change cursor and behaviour. */
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const rlMessage: RlModeMessage = { type: RL_MODE_MESSAGE_TYPE, enabled: rlModeEnabled };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(rlMessage, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(rlMessage));
+    }
+  }, [mapReady, rlModeEnabled]);
+
+  /** Sends feedback dots to the map so they render as info/warning circleMarkers. */
+  React.useEffect(() => {
+    if (!mapReady) return;
+    const dotsMessage: FeedbackDotsMessage = { type: FEEDBACK_DOTS_MESSAGE_TYPE, dots: feedbackDots };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(dotsMessage, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(dotsMessage));
+    }
+  }, [mapReady, feedbackDots]);
+
+  /** Updates heatmap runtime settings without remounting the map (preserves view/zoom). */
   React.useEffect(() => {
     if (!mapReady) return;
     const settingsMessage: HeatmapSettingsMessage = {
       type: HEATMAP_SETTINGS_MESSAGE_TYPE,
       enabled: showHeatmapOverlay && speciesKey != null,
       speciesKey: speciesKey ?? null,
+      headVariant: heatmapHeadVariant,
     };
+
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage(settingsMessage, '*');
     } else {
       webViewRef.current?.postMessage(JSON.stringify(settingsMessage));
     }
-  }, [mapReady, showHeatmapOverlay, speciesKey]);
+  }, [heatmapHeadVariant, mapReady, showHeatmapOverlay, speciesKey]);
+
+  /** Listens for map-click messages from the iframe when RL mode is active. */
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || !onMapClick) return () => {};
+
+    const handleMapClick = (event: MessageEvent<unknown>) => {
+      const expectedSource = iframeRef.current?.contentWindow;
+      if (expectedSource && event.source && event.source !== expectedSource) return;
+      const data = event.data as Record<string, unknown> | null;
+      if (!data || data.type !== MAP_CLICK_MESSAGE_TYPE) return;
+      const lat = Number(data.lat);
+      const lon = Number(data.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        onMapClick(lat, lon);
+      }
+    };
+
+    window.addEventListener('message', handleMapClick);
+    return () => window.removeEventListener('message', handleMapClick);
+  }, [onMapClick]);
+
   if (loading) {
     return (
       <View style={[styles.feedback, styles.loadingFeedback]}>

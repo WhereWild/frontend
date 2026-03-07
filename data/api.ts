@@ -33,6 +33,14 @@ import {
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
   streamPredictHeatmapJob as streamPredictHeatmapJobHelper,
 } from './apiEnvironmentHelpers';
+import {
+  submitReinforcementFeedback as submitReinforcementFeedbackHelper,
+  fetchReinforcedHeads as fetchReinforcedHeadsHelper,
+  fetchReinforcementFeedback as fetchReinforcementFeedbackHelper,
+  deleteReinforcedHead as deleteReinforcedHeadHelper,
+  saveReinforcedHead as saveReinforcedHeadHelper,
+  loadReinforcedHead as loadReinforcedHeadHelper,
+} from './apiReinforcementHelpers';
 
 /** Public backend base URL used by app-level data fetchers. */
 export { BACKEND_BASE };
@@ -212,4 +220,62 @@ export async function fetchSpeciesLocations(
   limit = 500,
 ) {
   return fetchSpeciesLocationsHelper(taxonId, level, parent, limit);
+}
+
+// --- Reinforcement Learning ---
+
+export type {
+  ReinforceFeedbackRequest,
+  ReinforceFeedbackResponse,
+  ReinforcedSpeciesInfo,
+  ReinforcementFeedbackEntry,
+  ReinforcedHeadLoadResponse,
+} from './types';
+
+/**
+ * Submits reinforcement feedback (present/absent) for a species at a coordinate.
+ */
+export async function submitReinforcementFeedback(
+  ...args: Parameters<typeof submitReinforcementFeedbackHelper>
+) {
+  return submitReinforcementFeedbackHelper(...args);
+}
+
+/**
+ * Lists all species with reinforced heads in memory.
+ */
+export async function fetchReinforcedHeads() {
+  return fetchReinforcedHeadsHelper();
+}
+
+/**
+ * Gets all feedback entries for a species.
+ */
+export async function fetchReinforcementFeedback(speciesKey: number) {
+  return fetchReinforcementFeedbackHelper(speciesKey);
+}
+
+/**
+ * Deletes the reinforced head and all feedback for a species.
+ */
+export async function deleteReinforcedHead(speciesKey: number) {
+  return deleteReinforcedHeadHelper(speciesKey);
+}
+
+/**
+ * Saves a reinforced head to disk.
+ */
+export async function saveReinforcedHead(
+  ...args: Parameters<typeof saveReinforcedHeadHelper>
+) {
+  return saveReinforcedHeadHelper(...args);
+}
+
+/**
+ * Loads a previously saved reinforced head from disk.
+ */
+export async function loadReinforcedHead(
+  ...args: Parameters<typeof loadReinforcedHeadHelper>
+) {
+  return loadReinforcedHeadHelper(...args);
 }

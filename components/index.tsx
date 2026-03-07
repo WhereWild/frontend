@@ -96,3 +96,6 @@ export type { NearbySpeciesCarouselProps } from './NearbySpeciesCarousel';
 
 export { SpeciesEnvironmentSection } from './sections/speciesEnvironment/SpeciesEnvironmentSection';
 export type { SpeciesEnvironmentSectionProps } from './sections/speciesEnvironment/SpeciesEnvironmentSection';
+
+export { ReinforcementSection } from './sections/ReinforcementSection';
+export type { ReinforcementSectionProps } from './sections/ReinforcementSection';

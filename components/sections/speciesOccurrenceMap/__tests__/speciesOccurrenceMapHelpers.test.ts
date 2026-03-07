@@ -56,6 +56,8 @@ describe('speciesOccurrenceMapHelpers', () => {
       '__HEATMAP_FETCH_MESSAGE_TYPE_JSON__',
       '__HEATMAP_DATA_MESSAGE_TYPE_JSON__',
       '__HEATMAP_ERROR_MESSAGE_TYPE_JSON__',
+      '__HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__',
+      '__HEATMAP_HEAD_VARIANT_JSON__',
     ].join('|');
 
     const html = buildLeafletHtml(
@@ -68,10 +70,14 @@ describe('speciesOccurrenceMapHelpers', () => {
         highlightStroke: '#444444',
         heatmapLow: '#555555',
         heatmapHigh: '#777777',
+        feedbackPositiveFill: '#00aa00',
+        feedbackPositiveStroke: '#008800',
+        feedbackNegativeFill: '#ffaa00',
+        feedbackNegativeStroke: '#ff8800',
       },
       123,
-      true,
       DEFAULT_HEATMAP_MAP_POLICY,
+      'reinforced',
     );
 
     expect(html).toContain('latitude');
@@ -82,10 +88,12 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain('"heatmap-fetch"');
     expect(html).toContain('"heatmap-data"');
     expect(html).toContain('"heatmap-error"');
+    expect(html).toContain('"heatmap-settings"');
+    expect(html).toContain('"reinforced"');
     expect(html).not.toContain('__HEATMAP_POLICY_JSON__');
   });
 
-  it('buildLeafletHtml clears species key when overlay is disabled', () => {
+  it('buildLeafletHtml keeps species key when provided', () => {
     const template = '__SPECIES_KEY_JSON__|__HEATMAP_POLICY_JSON__';
 
     const html = buildLeafletHtml(
@@ -98,14 +106,16 @@ describe('speciesOccurrenceMapHelpers', () => {
         highlightStroke: '#444444',
         heatmapLow: '#555555',
         heatmapHigh: '#777777',
+        feedbackPositiveFill: '#00aa00',
+        feedbackPositiveStroke: '#008800',
+        feedbackNegativeFill: '#ffaa00',
+        feedbackNegativeStroke: '#ff8800',
       },
       123,
-      false,
       DEFAULT_HEATMAP_MAP_POLICY,
     );
 
-    expect(html).toContain('""');
-    expect(html).not.toContain('"123"');
+    expect(html).toContain('"123"');
     expect(html).not.toContain('__SPECIES_KEY_JSON__');
   });
 
@@ -359,6 +369,7 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     expect(createPredictHeatmapJob).toHaveBeenCalledWith(expect.objectContaining({
       speciesKey: '314',
+      headVariant: 'original',
       minLat: 10,
       maxLon: 40,
       maxCells: 100,
@@ -415,6 +426,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         queryKey: 'qk-source-counts',
         query: {
           species_key: '314',
+          head_variant: 'reinforced',
           min_lat: '10',
           min_lon: '20',
           max_lat: '30',
@@ -436,6 +448,9 @@ describe('speciesOccurrenceMapHelpers', () => {
         ]),
       }),
       '*',
+    );
+    expect(createPredictHeatmapJob).toHaveBeenCalledWith(
+      expect.objectContaining({ headVariant: 'reinforced' }),
     );
 
     cleanup();
