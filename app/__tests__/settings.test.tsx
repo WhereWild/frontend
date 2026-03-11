@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSettings } from '@/context/SettingsContext';
-import { act, render } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -89,6 +89,17 @@ describe('Settings screen', () => {
   });
 
   describe('settings logic', () => {
+    it('renders localization controls', () => {
+      mockUseColorScheme.mockReturnValue('dark');
+
+      render(<Settings />);
+
+      expect(screen.getByText('Localization')).toBeTruthy();
+      expect(screen.getByTestId('select-Region')).toBeTruthy();
+      expect(screen.getByTestId('select-Language')).toBeTruthy();
+      expect(screen.getByTestId('select-Units')).toBeTruthy();
+    });
+
     it('wires region and language updates', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
