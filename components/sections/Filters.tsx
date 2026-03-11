@@ -116,6 +116,7 @@ export function Filters({
 }: FiltersProps) {
   const baseTaxonSearchInputProps = React.useMemo(
     () => ({
+      variant: 'secondary' as const,
       value: baseTaxonQuery,
       placeholder: 'Search',
       onQueryChange: onBaseTaxonQueryChange,
