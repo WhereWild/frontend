@@ -17,6 +17,7 @@ import {
 const ControllerHarness = React.forwardRef<SearchInputViewProps, Partial<UseSearchInputControllerArgs>>(
   (props, ref) => {
     const viewProps = useSearchInputController({
+      variant: props.variant ?? 'tertiary',
       value: props.value,
       defaultValue: props.defaultValue ?? '',
       placeholder: props.placeholder ?? 'Search',
@@ -115,6 +116,39 @@ describe('useSearchInputController', () => {
 
     expect(flattenContainer(controllerRef.current).backgroundColor).toBe(
       palette.background.default.tertiary,
+    );
+  });
+
+  it('uses secondary background tokens when variant is secondary', () => {
+    const controllerRef = React.createRef<SearchInputViewProps>();
+    render(
+      <ControllerHarness
+        ref={controllerRef}
+        defaultValue="seed"
+        disabled={false}
+        variant="secondary"
+      />,
+    );
+
+    const palette = Colors.dark;
+    expect(flattenContainer(controllerRef.current).backgroundColor).toBe(
+      palette.background.default.secondary,
+    );
+
+    act(() => {
+      controllerRef.current?.containerHandlers.onHoverIn?.();
+    });
+
+    expect(flattenContainer(controllerRef.current).backgroundColor).toBe(
+      palette.background.default.secondaryHover,
+    );
+
+    act(() => {
+      controllerRef.current?.containerHandlers.onPressIn?.();
+    });
+
+    expect(flattenContainer(controllerRef.current).backgroundColor).toBe(
+      palette.background.default.secondaryPressed,
     );
   });
 
