@@ -9,12 +9,27 @@ type RoutePressableProps = Omit<PressableProps, 'onPress'> & {
   navigateAfterPress?: boolean;
 };
 
-const shouldOpenInNewTab = (event?: GestureResponderEvent) => {
-  const nativeEvent = event?.nativeEvent as
-    | ({ ctrlKey?: boolean; metaKey?: boolean; button?: number } & object)
-    | undefined;
+type RoutePressNativeEvent = {
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+  button?: number;
+} & object;
 
-  return Boolean(nativeEvent?.ctrlKey || nativeEvent?.metaKey || nativeEvent?.button === 1);
+type OpenTarget = 'new_window' | 'new_tab' | 'same_tab';
+
+const resolveOpenTarget = (event?: GestureResponderEvent): OpenTarget => {
+  const nativeEvent = event?.nativeEvent as RoutePressNativeEvent | undefined;
+
+  if (nativeEvent?.shiftKey) {
+    return 'new_window';
+  }
+
+  if (nativeEvent?.ctrlKey || nativeEvent?.metaKey || nativeEvent?.button === 1) {
+    return 'new_tab';
+  }
+
+  return 'same_tab';
 };
 
 /**
@@ -31,9 +46,21 @@ export function RoutePressable({
   const router = useRouter();
 
   const handlePress = React.useCallback((event: GestureResponderEvent) => {
-    if (href && hrefPath && shouldOpenInNewTab(event) && typeof window !== 'undefined' && typeof window.open === 'function') {
-      window.open(hrefPath, '_blank', 'noopener,noreferrer');
-      return;
+    if (href && hrefPath && typeof window !== 'undefined' && typeof window.open === 'function') {
+      const openTarget = resolveOpenTarget(event);
+      if (openTarget === 'new_window') {
+        // Avoid popup-style window features so browsers keep normal chrome/bookmarks UI.
+        const openedWindow = window.open(hrefPath, '_blank');
+        if (openedWindow) {
+          openedWindow.opener = null;
+        }
+        return;
+      }
+
+      if (openTarget === 'new_tab') {
+        window.open(hrefPath, '_blank', 'noopener,noreferrer');
+        return;
+      }
     }
 
     onPress?.(event);
@@ -55,4 +82,3 @@ export function RoutePressable({
     />
   );
 }
-
