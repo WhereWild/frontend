@@ -37,6 +37,7 @@ jest.mock('@/components', () => {
   };
 });
 
+
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
 const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
