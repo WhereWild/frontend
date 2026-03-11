@@ -11,6 +11,7 @@ import { createContainerHandlers, handleClearValue, submitSearchValue } from './
  */
 
 export type UseSearchInputControllerArgs = {
+  variant: 'secondary' | 'tertiary';
   value?: string;
   defaultValue: string;
   placeholder: string;
@@ -36,6 +37,7 @@ type TextInputFocusHandlerEvent = Parameters<NonNullable<TextInputProps['onFocus
 type TextInputSubmitHandlerEvent = Parameters<NonNullable<TextInputProps['onSubmitEditing']>>[0];
 
 export const useSearchInputController = ({
+  variant,
   value,
   defaultValue,
   placeholder,
@@ -76,16 +78,27 @@ export const useSearchInputController = ({
   }, [currentValue]);
 
   const palette = Colors[mode];
+  const background = variant === 'secondary'
+    ? {
+      default: palette.background.default.secondary,
+      hover: palette.background.default.secondaryHover,
+      pressed: palette.background.default.secondaryPressed,
+    }
+    : {
+      default: palette.background.default.tertiary,
+      hover: palette.background.default.tertiaryHover,
+      pressed: palette.background.default.tertiaryPressed,
+    };
   // Map interaction state -> semantic tokens so hover/press/focus follow the design system.
   const backgroundColor = disabled
     ? palette.background.disabled.default
     : isFocused
-      ? palette.background.default.tertiary
+      ? background.default
       : isPressing
-        ? palette.background.default.tertiaryPressed
+        ? background.pressed
         : isHovered
-          ? palette.background.default.tertiaryHover
-          : palette.background.default.tertiary;
+          ? background.hover
+          : background.default;
   const textColor = disabled
     ? palette.text.disabled.onDisabled
     : palette.text.default.default;
