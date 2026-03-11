@@ -49,6 +49,22 @@ describe('SpeciesOccurrenceMap', () => {
     expect(screen.getByText('No precise observation coordinates available for this species.')).toBeTruthy();
   });
 
+  it('renders map container for heatmap-only mode without occurrences', () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios' });
+    render(
+      <SpeciesOccurrenceMap
+        occurrences={[]}
+        showMarkers={false}
+        heatmapTileUrl="https://tiles.example.test/{z}/{x}/{y}.png"
+      />,
+    );
+
+    expect(
+      screen.queryByText('No precise observation coordinates available for this species.'),
+    ).toBeNull();
+    expect(screen.getByTestId('mock-webview')).toBeTruthy();
+  });
+
   it('renders map container when occurrences exist (native branch)', () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
     const { toJSON } = render(
