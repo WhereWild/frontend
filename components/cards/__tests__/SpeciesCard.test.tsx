@@ -243,6 +243,22 @@ describe('SpeciesCard', () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it('opens species details in a new window on shift click', () => {
+    const originalOpen = (window as Window & { open?: typeof window.open }).open;
+    const openMock = jest.fn(() => null);
+    (window as Window & { open?: typeof window.open }).open = openMock;
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { shiftKey: true } });
+
+    expect(openMock).toHaveBeenCalledWith(
+      '/species/555/binomial-nomenclature',
+      '_blank',
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    (window as Window & { open?: typeof window.open }).open = originalOpen;
+  });
+
   it('does nothing when no identifier is available', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
     render(
