@@ -33,7 +33,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixSection';
 import Head from 'expo-router/head';
-import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
