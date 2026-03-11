@@ -13,6 +13,12 @@ export type SearchInputProps = Omit<
   TextInputProps,
   'onChange' | 'onChangeText' | 'style' | 'value' | 'defaultValue' | 'placeholder' | 'editable'
 > & {
+  /** 
+   * Denotes the background color family, defaults to tertiary
+   * because SearchInput is most commonly used in contexts with secondary backgrounds 
+   * (e.g. headers, top bars)
+   */
+  variant?: 'secondary' | 'tertiary';
   value?: string;
   defaultValue?: string;
   placeholder?: string;
@@ -33,6 +39,7 @@ export type SearchInputProps = Omit<
  * Public SearchInput component: wires consumer props into the controller hook + view.
  */
 export const SearchInput: React.FC<SearchInputProps> = ({
+  variant = 'tertiary',
   value,
   defaultValue = '',
   placeholder = 'Search',
@@ -47,6 +54,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 }) => {
   // Delegate state + event wiring to the controller so this component stays a thin facade.
   const viewProps = useSearchInputController({
+    variant,
     value,
     defaultValue,
     placeholder,
