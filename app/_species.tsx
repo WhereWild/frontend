@@ -20,6 +20,7 @@ import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFil
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
+import { fetchSpeciesByTaxonId } from '@/data/api';
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -70,6 +71,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [locationOverview, setLocationOverview] = React.useState<{
+    description?: string;
+    sections?: SpeciesPageData['overview']['sections'];
+  } | null>(null);
 
   const {
     countryOptions,
@@ -102,6 +107,54 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   React.useEffect(() => {
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    if (!taxonId || !finalLocationGid) {
+      setLocationOverview(null);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    (async () => {
+      try {
+        const response = await fetchSpeciesByTaxonId(taxonId, {
+          units,
+          location: finalLocationGid,
+        });
+        if (!mounted) {
+          return;
+        }
+        setLocationOverview({
+          description: response?.description ?? undefined,
+          sections: response?.description_sections,
+        });
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        console.error(`Failed to refresh location-aware description for ${taxonId}:`, error);
+        setLocationOverview(null);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [finalLocationGid, taxonId, units]);
+
+  const resolvedOverview = React.useMemo(() => {
+    if (!locationOverview) {
+      return overview;
+    }
+    return {
+      ...overview,
+      description: locationOverview.description ?? overview.description,
+      sections: locationOverview.sections,
+    };
+  }, [locationOverview, overview]);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -136,7 +189,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
             <SpeciesInformationSection
               commonName={commonName}
               commonNames={displayCommonNames}
-              overview={overview}
+              overview={resolvedOverview}
             />
           </SectionShell>
 

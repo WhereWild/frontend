@@ -125,6 +125,21 @@ describe('data/api common name normalization', () => {
     expect(global.fetch).toHaveBeenCalledWith(`${BACKEND_BASE}/api/species/2?unit_system=imperial`);
   });
 
+  it('includes location when fetching species detail with location option', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        taxon_id: 2,
+        scientific_name: 'Puma concolor',
+        common_names: ['Cougar'],
+      }),
+    });
+
+    await fetchSpeciesByTaxonId(2, { location: 'country-us' });
+
+    expect(global.fetch).toHaveBeenCalledWith(`${BACKEND_BASE}/api/species/2?location=country-us`);
+  });
+
   it('normalizes camelCase commonNames when snake_case common_names is absent', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,

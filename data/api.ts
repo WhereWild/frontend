@@ -64,12 +64,15 @@ export async function fetchSpeciesList(limit?: number, q?: string, filters?: Sea
  */
 export async function fetchSpeciesByTaxonId(
   taxonId: string | number,
-  options?: { units?: string | null },
+  options?: { units?: string | null; location?: string | null },
 ): Promise<SpeciesApiDetail> {
   const encoded = encodeURIComponent(String(taxonId));
   const params = new URLSearchParams();
   if (options?.units) {
     params.set('unit_system', options.units);
+  }
+  if (options?.location) {
+    params.set('location', options.location);
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/api/species/${encoded}${query ? `?${query}` : ''}`;

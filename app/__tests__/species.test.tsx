@@ -1,4 +1,4 @@
-import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
+import { fetchSpeciesByTaxonId, fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
@@ -8,6 +8,7 @@ import SpeciesScreen, { LOCATION_SEARCH_LIMIT, type SpeciesScreenData } from '..
 const mockPush = jest.fn();
 
 jest.mock('@/data/api', () => ({
+  fetchSpeciesByTaxonId: jest.fn(),
   fetchSpeciesLocations: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
@@ -114,6 +115,9 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColor
 const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
   typeof fetchSpeciesLocations
 >;
+const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<
+  typeof fetchSpeciesByTaxonId
+>;
 const mockFetchSpeciesOccurrences = fetchSpeciesOccurrences as jest.MockedFunction<
   typeof fetchSpeciesOccurrences
 >;
@@ -124,6 +128,16 @@ afterEach(() => {
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
+  mockFetchSpeciesByTaxonId.mockResolvedValue({
+    taxon_id: 0,
+    scientific_name: '',
+    common_name: '',
+    common_names: [],
+    image_source: null,
+    _raw: null,
+    description: 'description pending',
+    description_sections: undefined,
+  });
   mockFetchSpeciesOccurrences.mockResolvedValue([]);
   mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
   mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
@@ -200,6 +214,16 @@ describe('Species screen', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      taxon_id: 0,
+      scientific_name: '',
+      common_name: '',
+      common_names: [],
+      image_source: null,
+      _raw: null,
+      description: 'description pending',
+      description_sections: undefined,
+    });
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
     mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
@@ -389,6 +413,12 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, { location: 'country-us' });
     });
+    await waitFor(() => {
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(
+        13579,
+        expect.objectContaining({ location: 'country-us' }),
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('select-State-option-state-ut')).toBeTruthy();
@@ -398,6 +428,12 @@ describe('Species screen', () => {
 
     await waitFor(() => {
       expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, { location: 'state-ut' });
+    });
+    await waitFor(() => {
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(
+        13579,
+        expect.objectContaining({ location: 'state-ut' }),
+      );
     });
   });
 
