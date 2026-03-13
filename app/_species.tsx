@@ -1,6 +1,7 @@
 import {
   NearbySpeciesCarousel,
   SpeciesPageTitle,
+  SwitchField,
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
@@ -15,17 +16,11 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
-import { useLayoutChrome } from '../context/LayoutChromeContext';
-
-const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
-const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
-const WEB_HEADER_HEIGHT_COMPACT = Size.control.dimension.large + Size.space['400'] * 2;
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -33,47 +28,12 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies'
+  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
 
 type ResponsiveState = ReturnType<typeof useResponsive>;
-type SpeciesMapBreakpoint = ResponsiveState['breakpoint'];
-
-export const calculateObservationMapHeight = ({
-  breakpoint,
-  measuredWebHeaderHeight,
-  platform,
-  safeAreaBottom,
-  safeAreaTop,
-  viewportHeight,
-}: {
-  breakpoint: SpeciesMapBreakpoint;
-  measuredWebHeaderHeight?: number;
-  platform: string;
-  safeAreaBottom: number;
-  safeAreaTop: number;
-  viewportHeight: number;
-}) => {
-  const excludedViewportHeight = platform === 'web'
-    ? (measuredWebHeaderHeight && measuredWebHeaderHeight > 0
-      ? measuredWebHeaderHeight
-      : (breakpoint === 'desktop' ? WEB_HEADER_HEIGHT_DESKTOP : WEB_HEADER_HEIGHT_COMPACT))
-      + safeAreaTop
-      + safeAreaBottom
-    : Size.bar.height.short + Size.bar.height.tall + safeAreaTop + safeAreaBottom;
-  const availableViewportHeight = Math.max(0, viewportHeight - excludedViewportHeight);
-  return Math.round(availableViewportHeight * 0.75);
-};
-
-export const shouldRenderObservationMapFrame = ({
-  measuredWebHeaderHeight,
-  platform,
-}: {
-  measuredWebHeaderHeight: number;
-  platform: string;
-}) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
 function SectionShell({
   responsive,
@@ -83,16 +43,16 @@ function SectionShell({
   children: React.ReactNode;
 }) {
   return (
-    <View
-      style={[
-        styles.centeredSection,
-        getResponsiveContentContainerStyle(responsive, {
-          includeWidth: false,
-          includeTopPadding: false,
-        }),
-      ]}
-    >
-      <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}>
+    <View style={styles.centeredSection}>
+      <View
+        style={[
+          styles.sectionContent,
+          getResponsiveContentContainerStyle(responsive, {
+            includeTopPadding: false,
+          }),
+          { maxWidth: responsive.contentWidth },
+        ]}
+      >
         {children}
       </View>
     </View>
@@ -100,34 +60,20 @@ function SectionShell({
 }
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies } =
+  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  const { webHeaderHeight } = useLayoutChrome();
-  const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
-  const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
   const { units } = useSettings();
-  const { height: viewportHeight } = useWindowDimensions();
-  const observationMapHeight = React.useMemo(() => {
-    return calculateObservationMapHeight({
-      breakpoint: responsive.breakpoint,
-      measuredWebHeaderHeight: webHeaderHeight,
-      platform: Platform.OS,
-      safeAreaBottom: insets.bottom,
-      safeAreaTop: insets.top,
-      viewportHeight,
-    });
-  }, [insets.bottom, insets.top, responsive.breakpoint, viewportHeight, webHeaderHeight]);
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
-  const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
-    measuredWebHeaderHeight: webHeaderHeight,
-    platform: Platform.OS,
-  });
+  const hasLiveHeatmap = heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
+  const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
+  const [showObservations, setShowObservations] = React.useState<boolean>(true);
+  const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(hasLiveHeatmap);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
 
   const {
@@ -162,6 +108,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
 
+  React.useEffect(() => {
+    setShowLiveHeatmap(hasLiveHeatmap);
+  }, [hasLiveHeatmap, heatmap.liveTileUrl]);
+
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
@@ -183,78 +133,84 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
             includeHorizontalPadding: false,
-            includeTopPadding: false,
+            includeGap: true,
           })}
           bounces={false}
         >
-          <View
-            style={{
-              height: responsive.gap,
-              backgroundColor: palette.background.default.default,
-            }}
+          <SpeciesPageTitle
+            commonName={commonName}
+            scientificName={scientificName}
+            onPressDownload={handleDownload}
           />
 
-          <View
-            style={[
-              styles.overlayContent,
-              { backgroundColor: palette.background.default.default },
-            ]}
-          >
-            <SpeciesPageTitle
+          <SectionShell responsive={responsive}>
+            <SpeciesInformationSection
               commonName={commonName}
-              scientificName={scientificName}
-              onPressDownload={handleDownload}
+              commonNames={displayCommonNames}
+              overview={overview}
             />
+          </SectionShell>
 
+          <NearbySpeciesCarousel species={nearbySpecies} />
+
+          {shouldRenderOccurrenceMap && (
             <SectionShell responsive={responsive}>
-              <SpeciesInformationSection
-                commonName={commonName}
-                commonNames={displayCommonNames}
-                overview={overview}
+              <ThemedText variant="heading">Observation Map</ThemedText>
+              <SpeciesLocationFilters
+                countryOptions={countryOptions}
+                stateOptions={stateOptions}
+                countyOptions={countyOptions}
+                countryLoading={countryLoading}
+                stateLoading={stateLoading}
+                countyLoading={countyLoading}
+                selectedCountryGid={selectedCountryGid}
+                selectedStateGid={selectedStateGid}
+                selectedCountyGid={selectedCountyGid}
+                onCountryChange={onCountryChange}
+                onStateChange={onStateChange}
+                onCountyChange={onCountyChange}
               />
+
+              <SpeciesEnvironmentSection
+                taxonId={taxonId}
+                onHighlightChange={setHighlightedCatalogs}
+                locationGid={finalLocationGid}
+                units={units} // <- forward units preference
+              />
+              <View style={styles.mapControls}>
+                <SwitchField
+                  label="Show observations"
+                  value={showObservations}
+                  onValueChange={setShowObservations}
+                />
+                <SwitchField
+                  label="Show predictive heatmap"
+                  value={showLiveHeatmap}
+                  disabled={!hasLiveHeatmap}
+                  description={
+                    hasLiveHeatmap
+                      ? undefined
+                      : hasAnyHeatmap
+                        ? 'Live heatmap overlay is unavailable for this model right now.'
+                        : 'No heatmap is available for this species right now.'
+                  }
+                  onValueChange={setShowLiveHeatmap}
+                />
+              </View>
+
+              <SpeciesOccurrenceMap
+                occurrences={occurrences}
+                loading={occurrenceLoading}
+                error={occurrenceError}
+                highlightedCatalogs={highlightedCatalogs}
+                showMarkers={showObservations}
+                heatmapTileUrl={showLiveHeatmap ? heatmap.liveTileUrl : null}
+                heatmapOpacity={0.72}
+              />
+              <View style={styles.mapBottomSpacing} />
             </SectionShell>
-
-            <NearbySpeciesCarousel species={nearbySpecies} />
-
-            {shouldRenderOccurrenceMap && (
-              <SectionShell responsive={responsive}>
-                <ThemedText variant="heading">Observation Map</ThemedText>
-                <SpeciesLocationFilters
-                  countryOptions={countryOptions}
-                  stateOptions={stateOptions}
-                  countyOptions={countyOptions}
-                  countryLoading={countryLoading}
-                  stateLoading={stateLoading}
-                  countyLoading={countyLoading}
-                  selectedCountryGid={selectedCountryGid}
-                  selectedStateGid={selectedStateGid}
-                  selectedCountyGid={selectedCountyGid}
-                  onCountryChange={onCountryChange}
-                  onStateChange={onStateChange}
-                  onCountyChange={onCountyChange}
-                />
-
-                <SpeciesEnvironmentSection
-                  taxonId={taxonId}
-                  onHighlightChange={setHighlightedCatalogs}
-                  locationGid={finalLocationGid}
-                  units={units} // <- forward units preference
-                />
-              </SectionShell>
-            )}
-          </View>
-
-          {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
-            <SpeciesOccurrenceMap
-              occurrences={occurrences}
-              loading={occurrenceLoading}
-              error={occurrenceError}
-              highlightedCatalogs={highlightedCatalogs}
-              height={observationMapHeight}
-            />
           )}
-        </ScrollView>
-
+        </ScrollView >
       </View >
     </>
   );
@@ -264,11 +220,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  overlayContent: {
-    width: '100%',
-    gap: Size.space['400'],
-    paddingBottom: Size.space['400'],
-  },
   centeredSection: {
     width: '100%',
     alignItems: 'center',
@@ -276,5 +227,12 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['400'],
+  },
+  mapControls: {
+    width: '100%',
+    gap: Size.space['200'],
+  },
+  mapBottomSpacing: {
+    height: Size.space['300'],
   },
 });

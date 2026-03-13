@@ -1,17 +1,9 @@
 import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
-import { Size } from '@/constants/theme';
-import * as LayoutChromeModule from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { Alert, Linking, Platform } from 'react-native';
-import * as ReactNative from 'react-native';
-import SpeciesScreen, {
-  calculateObservationMapHeight,
-  LOCATION_SEARCH_LIMIT,
-  shouldRenderObservationMapFrame,
-  type SpeciesScreenData,
-} from '../_species';
+import { Alert, Linking } from 'react-native';
+import SpeciesScreen, { LOCATION_SEARCH_LIMIT, type SpeciesScreenData } from '../_species';
 
 const mockPush = jest.fn();
 
@@ -100,18 +92,21 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       occurrences,
       loading,
       error,
-      height,
+      heatmapTileUrl,
+      showMarkers,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
-      height?: number;
+      heatmapTileUrl?: string | null;
+      showMarkers?: boolean;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
-        <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
+        <Text>{`Map markers: ${showMarkers === false ? 'hidden' : 'shown'}`}</Text>
+        <Text>{`Map heatmap: ${heatmapTileUrl ?? 'none'}`}</Text>
       </View>
     ),
   };
@@ -128,34 +123,10 @@ const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
 const mockFetchSpeciesOccurrences = fetchSpeciesOccurrences as jest.MockedFunction<
   typeof fetchSpeciesOccurrences
 >;
-const useLayoutChromeSpy = jest.spyOn(LayoutChromeModule, 'useLayoutChrome');
-const useWindowDimensionsSpy = jest.spyOn(ReactNative, 'useWindowDimensions');
-const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
-const originalPlatformOS = Platform.OS;
-
-const setPlatformOS = (os: string) => {
-  Object.defineProperty(Platform, 'OS', {
-    configurable: true,
-    value: os,
-  });
-};
-
-const restorePlatformOS = () => {
-  if (originalPlatformDescriptor) {
-    Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
-    return;
-  }
-
-  Object.defineProperty(Platform, 'OS', {
-    configurable: true,
-    value: originalPlatformOS,
-  });
-};
 
 afterEach(() => {
   jest.restoreAllMocks();
   jest.clearAllMocks();
-  restorePlatformOS();
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
@@ -177,8 +148,6 @@ afterEach(() => {
     observations: [],
     count: 0,
   });
-  useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
-  useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
 });
 
 const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenData => ({
@@ -199,6 +168,12 @@ const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenDa
       description: 'Nearby species description.',
     },
   ],
+  heatmap: {
+    imageSource: { uri: 'heatmap' },
+    liveAvailable: false,
+    liveTileUrl: null,
+    liveModelId: null,
+  },
   ...overrides,
 });
 
@@ -232,9 +207,6 @@ const waitForSpeciesEffectsToSettle = async (hasTaxonId = true) => {
 
 describe('Species screen', () => {
   beforeEach(() => {
-    setPlatformOS('ios');
-    useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
-    useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
@@ -271,6 +243,8 @@ describe('Species screen', () => {
     expect(screen.getByText('Prickly Test Cactus')).toBeTruthy();
     expect(screen.getByText('Nearby Species')).toBeTruthy();
     expect(screen.getByText('Neighbor')).toBeTruthy();
+    expect(screen.getByText('Show observations')).toBeTruthy();
+    expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => { });
     try {
@@ -280,7 +254,6 @@ describe('Species screen', () => {
       alertSpy.mockRestore();
     }
   });
-
 
   it('falls back to sample data when no data prop is provided', async () => {
     render(<SpeciesScreen />);
@@ -357,68 +330,6 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(screen.getByText('Map loading: no')).toBeTruthy();
     });
-
-    expect(screen.queryByText('Map height: none')).toBeNull();
-  });
-
-  it('calculates native map height from viewport minus app chrome and safe areas', () => {
-    expect(
-      calculateObservationMapHeight({
-        breakpoint: 'phone',
-        platform: 'ios',
-        safeAreaBottom: 16,
-        safeAreaTop: 24,
-        viewportHeight: 1000,
-      }),
-    ).toBe(Math.round((1000 - Size.bar.height.short - Size.bar.height.tall - 24 - 16) * 0.75));
-  });
-
-  it('calculates web map height from viewport minus header and safe areas', () => {
-    expect(
-      calculateObservationMapHeight({
-        breakpoint: 'desktop',
-        measuredWebHeaderHeight: 112,
-        platform: 'web',
-        safeAreaBottom: 0,
-        safeAreaTop: 20,
-        viewportHeight: 1000,
-      }),
-    ).toBe(Math.round((1000 - 112 - 20) * 0.75));
-  });
-
-  it('falls back to token-based web header height before runtime measurement is available', () => {
-    expect(
-      calculateObservationMapHeight({
-        breakpoint: 'desktop',
-        platform: 'web',
-        safeAreaBottom: 0,
-        safeAreaTop: 20,
-        viewportHeight: 1000,
-      }),
-    ).toBe(Math.round((1000 - (Size.space['1600'] + Size.space['200'] * 2) - 20) * 0.75));
-  });
-
-  it('holds web map render until the header height has been measured', () => {
-    expect(
-      shouldRenderObservationMapFrame({
-        measuredWebHeaderHeight: 0,
-        platform: 'web',
-      }),
-    ).toBe(false);
-
-    expect(
-      shouldRenderObservationMapFrame({
-        measuredWebHeaderHeight: 112,
-        platform: 'web',
-      }),
-    ).toBe(true);
-
-    expect(
-      shouldRenderObservationMapFrame({
-        measuredWebHeaderHeight: 0,
-        platform: 'ios',
-      }),
-    ).toBe(true);
   });
 
   it('renders dark mode palette and hides empty nearby species carousel', async () => {
@@ -456,6 +367,56 @@ describe('Species screen', () => {
 
     expect(screen.getByText('Observation Map')).toBeTruthy();
     expect(screen.getByText('Filter Observations by Location')).toBeTruthy();
+  });
+
+  it('renders independent observation and heatmap toggles above the map', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            liveAvailable: true,
+            liveTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+            liveModelId: 'taxon_13579_gbt_20260313T000000Z',
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Show observations')).toBeTruthy();
+    expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
+    expect(screen.getByText('Map markers: shown')).toBeTruthy();
+    expect(
+      screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Heat Map')).toBeNull();
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show observations' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Map markers: hidden')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show predictive heatmap' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Map heatmap: none')).toBeTruthy();
+    });
+  });
+
+  it('shows a disabled heatmap toggle instead of a separate fallback section when no live overlay exists', async () => {
+    render(<SpeciesScreen data={createData()} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Show observations')).toBeTruthy();
+    expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
+    expect(
+      screen.getByText('Live heatmap overlay is unavailable for this model right now.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Heat Map')).toBeNull();
   });
 
   it('updates map query when users change location filters', async () => {

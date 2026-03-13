@@ -94,6 +94,9 @@ export type SpeciesOverviewSection = {
 
 export type HeatmapSnapshot = {
   imageSource: ImageSourcePropType;
+  liveAvailable?: boolean;
+  liveTileUrl?: string | null;
+  liveModelId?: string | null;
 };
 
 /**
@@ -170,6 +173,10 @@ export type SpeciesApiDetail = SpeciesApiNormalized & {
   image_rights_holder?: string | null;
   image_references?: string | null;
   taxonomyPath?: string | null;
+  heatmap?: {
+    available?: boolean;
+    resolved_model_id?: string | null;
+  } | null;
 };
 
 export type SpeciesEnvironmentSliceResponse = {

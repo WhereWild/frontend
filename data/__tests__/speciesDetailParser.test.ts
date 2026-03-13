@@ -82,4 +82,21 @@ describe('speciesDetailParser', () => {
       },
     ]);
   });
+
+  it('maps backend heatmap metadata when available', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        heatmap: {
+          available: true,
+          resolved_model_id: 'taxon_99_gbt_20260313T065439Z',
+        },
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.heatmap).toEqual({
+      available: true,
+      resolved_model_id: 'taxon_99_gbt_20260313T065439Z',
+    });
+  });
 });
