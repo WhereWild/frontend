@@ -1,4 +1,4 @@
-import { SpeciesCard, ThemedText, Filters, TopAppBar } from '@/components';
+import { SpeciesCard, ThemedText, Filters } from '@/components';
 import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -10,6 +10,7 @@ import { ActivityIndicator, Animated, Platform, ScrollView, StyleSheet, View } f
 import { useLocalSearchParams } from 'expo-router';
 import type { SpeciesSummary } from '@/data/types';
 import { useWebPageHeaderConfig } from '@/context/WebPageHeaderContext';
+import { useNativeTopAppBarConfig } from '@/context/NativeTopAppBarContext';
 
 const FILTERS_COLUMN_MAX_WIDTH = 480;
 const FILTERS_COLUMN_MIN_WIDTH = 240;
@@ -23,6 +24,8 @@ export default function Search() {
   const responsive = useResponsive();
   const isSmallDisplay = responsive.breakpoint === 'phone';
   const { setConfig, resetConfig } = useWebPageHeaderConfig();
+  const { setConfig: setNativeTopAppBarConfig, resetConfig: resetNativeTopAppBarConfig } =
+    useNativeTopAppBarConfig();
   const [searchResults, setSearchResults] = useState<SpeciesSummary[]>([]);
   const initialQuery = useLocalSearchParams<{ query?: string }>().query;
   const [searching, setSearching] = useState(false);
@@ -106,6 +109,43 @@ export default function Search() {
     onSearchingChanged,
     resetConfig,
     setConfig,
+  ]);
+
+  useEffect(() => {
+    if (!isNative) {
+      return;
+    }
+
+    setNativeTopAppBarConfig({
+      searchValue: nativeSearch.searchQuery,
+      onSearchValueChange: nativeSearch.setSearchQuery,
+      onSubmitSearch: nativeSearch.setSearchQuery,
+      primaryAction: {
+        onPress: onFilterPress,
+        buttonLabel: filterVisible ? 'Hide Filter' : 'Filter',
+        buttonAccessibilityLabel: filterVisible ? 'Hide Filter' : 'Filter',
+        iconAccessibilityLabel: filterVisible ? 'Hide filter panel' : 'Show filter panel',
+      },
+      secondaryAction: {
+        isVisible: filters.hasActiveFilters,
+        onPress: filters.onResetFilters,
+        accessibilityLabel: 'Reset filters',
+      },
+    });
+
+    return () => {
+      resetNativeTopAppBarConfig();
+    };
+  }, [
+    filterVisible,
+    filters.hasActiveFilters,
+    filters.onResetFilters,
+    isNative,
+    nativeSearch.searchQuery,
+    nativeSearch.setSearchQuery,
+    onFilterPress,
+    resetNativeTopAppBarConfig,
+    setNativeTopAppBarConfig,
   ]);
 
   const colorScheme = useColorScheme();
@@ -211,26 +251,6 @@ export default function Search() {
     },
   ];
 
-  const topAppBar = isNative ? (
-    <TopAppBar
-      variant="search"
-      searchValue={nativeSearch.searchQuery}
-      onSearchValueChange={nativeSearch.setSearchQuery}
-      onSubmitSearch={nativeSearch.setSearchQuery}
-      primaryAction={{
-        onPress: onFilterPress,
-        buttonLabel: filterVisible ? 'Hide Filter' : 'Filter',
-        buttonAccessibilityLabel: filterVisible ? 'Hide Filter' : 'Filter',
-        iconAccessibilityLabel: filterVisible ? 'Hide filter panel' : 'Show filter panel',
-      }}
-      secondaryAction={{
-        isVisible: filters.hasActiveFilters,
-        onPress: filters.onResetFilters,
-        accessibilityLabel: 'Reset filters',
-      }}
-    />
-  ) : null;
-
   const filterPanel = isFilterMounted ? (
     <Animated.View
       style={[
@@ -286,7 +306,6 @@ export default function Search() {
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
-      {topAppBar}
       <ScrollView
         contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
           includeHorizontalPadding: false,

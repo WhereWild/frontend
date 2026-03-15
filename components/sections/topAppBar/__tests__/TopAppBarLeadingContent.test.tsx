@@ -183,4 +183,34 @@ describe('TopAppBarLeadingContent', () => {
 
     expect(hasShortDurationSlotTween).toBe(false);
   });
+
+  it('does not run delayed slot tween when transitioning directly from home to page', () => {
+    const timingMock = Animated.timing as unknown as jest.Mock;
+
+    const { rerender } = render(
+      <LeadingContent
+        variant="home"
+        title="WhereWild"
+        logoSource={require('@/assets/images/wherewild.png')}
+        logoAccessibilityLabel="WhereWild logo"
+      />,
+    );
+
+    timingMock.mockClear();
+
+    rerender(
+      <LeadingContent
+        variant="page"
+        title="Species"
+        onPressBack={jest.fn()}
+      />,
+    );
+
+    const hasShortDurationSlotTween = timingMock.mock.calls.some(([, config]) => {
+      const duration = (config as { duration?: unknown } | undefined)?.duration;
+      return typeof duration === 'number' && duration === Time.duration.short;
+    });
+
+    expect(hasShortDurationSlotTween).toBe(false);
+  });
 });
