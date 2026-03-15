@@ -5,7 +5,6 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH,
-  TOP_APP_BAR_SEARCH_TRANSITION_DURATION,
 } from './TopAppBar.constants';
 import { useAnimatedValueRef } from './TopAppBarAnimatedValue.native';
 import { LeadingContent } from './TopAppBarLeadingContent.native';
@@ -194,10 +193,8 @@ export function TopAppBar(props: TopAppBarProps) {
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
   const safeAreaTopInset = insets.top;
-  const previousVariantRef = React.useRef(props.variant);
 
   const isPhoneBreakpoint = responsive.breakpoint === 'phone';
-  const [shouldRenderSpacer, setShouldRenderSpacer] = React.useState(props.variant !== 'search');
   const isPrimaryIconMode =
     resolvedPrimaryAction.mode === 'icon' ||
     (resolvedPrimaryAction.mode === 'responsive' && isPhoneBreakpoint);
@@ -213,25 +210,6 @@ export function TopAppBar(props: TopAppBarProps) {
     isSecondaryButtonVisible ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
   );
   const secondaryActionOpacity = useAnimatedValueRef(isSecondaryButtonVisible ? 1 : 0);
-
-  React.useEffect(() => {
-    const wasSearchVariant = previousVariantRef.current === 'search';
-    const isSearchVariant = props.variant === 'search';
-    previousVariantRef.current = props.variant;
-
-    if (wasSearchVariant === isSearchVariant) {
-      setShouldRenderSpacer(!isSearchVariant);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      setShouldRenderSpacer(!isSearchVariant);
-    }, TOP_APP_BAR_SEARCH_TRANSITION_DURATION);
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [props.variant]);
 
   React.useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -303,7 +281,6 @@ export function TopAppBar(props: TopAppBarProps) {
         <LeadingContent
           {...leadingContentProps}
         />
-        {shouldRenderSpacer ? <View style={styles.spacer} /> : null}
         {shouldKeepActionsRowMounted ? (
           <TopAppBarActionsRow
             isSecondaryButtonVisible={isSecondaryButtonVisible}
@@ -332,11 +309,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['200'],
-  },
-  spacer: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 1,
   },
   actionsRow: {
     flexDirection: 'row',
