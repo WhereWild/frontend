@@ -31,7 +31,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
 import Head from 'expo-router/head';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -94,7 +93,6 @@ const formatTokenLabel = (value: string) =>
     .replace(/^./, (char) => char.toUpperCase());
 
 export default function About() {
-  const router = useRouter();
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -415,27 +413,6 @@ export default function About() {
               includeGap: true,
             })}
           >
-          {__DEV__ ? (
-            <View
-              style={[
-                styles.devToolsCard,
-                {
-                  backgroundColor: palette.background.default.secondary,
-                  borderColor: palette.border.default.default,
-                },
-              ]}
-            >
-              <ThemedText variant="heading">Developer Tools</ThemedText>
-              <ThemedText variant="body">Open native playground routes for visual component checks.</ThemedText>
-              <Button
-                onPress={() => router.push('../dev/top-app-bar')}
-                accessibilityLabel="Open top app bar preview"
-              >
-                Top App Bar Preview
-              </Button>
-            </View>
-          ) : null}
-
           <View>
             <ThemedText variant="heading">Filters Demo</ThemedText>
             <Filters
@@ -966,12 +943,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     gap: Size.space['300'],
     flexWrap: 'wrap',
-  },
-  devToolsCard: {
-    padding: Size.space['300'],
-    gap: Size.space['200'],
-    borderRadius: Size.radius['200'],
-    borderWidth: Size.stroke.border,
   },
   speciesPreview: {
     gap: Size.space['400'],

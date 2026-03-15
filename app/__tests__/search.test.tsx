@@ -42,6 +42,8 @@ const mockFilterParams = {
 
 const mockSetHeaderConfig = jest.fn();
 const mockResetHeaderConfig = jest.fn();
+const mockSetNativeTopAppBarConfig = jest.fn();
+const mockResetNativeTopAppBarConfig = jest.fn();
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
 const originalPlatformOS = Platform.OS;
 
@@ -116,9 +118,15 @@ jest.mock('@/context/WebPageHeaderContext', () => ({
     }),
 }));
 
+jest.mock('@/context/NativeTopAppBarContext', () => ({
+    useNativeTopAppBarConfig: () => ({
+        setConfig: mockSetNativeTopAppBarConfig,
+        resetConfig: mockResetNativeTopAppBarConfig,
+    }),
+}));
+
 let mockFiltersProps: any;
 let mockSpeciesCardPropsHistory: any[];
-let mockTopAppBarProps: any;
 
 jest.mock('@/components', () => {
     const { SpeciesCard: ActualSpeciesCard } = jest.requireActual('@/components/cards/SpeciesCard');
@@ -130,10 +138,6 @@ jest.mock('@/components', () => {
             return <ActualSpeciesCard {...props} />;
         },
         ThemedText,
-        TopAppBar: function MockTopAppBar(props: any) {
-            mockTopAppBarProps = props;
-            return null;
-        },
         Filters: function MockFilters(props: any) {
             mockFiltersProps = props;
             return null;
@@ -185,8 +189,9 @@ describe('Search screen', () => {
         mockPush.mockClear();
         mockSetHeaderConfig.mockClear();
         mockResetHeaderConfig.mockClear();
+        mockSetNativeTopAppBarConfig.mockClear();
+        mockResetNativeTopAppBarConfig.mockClear();
         mockFiltersProps = undefined;
-        mockTopAppBarProps = undefined;
         mockSpeciesCardPropsHistory = [];
         mockFiltersResult.hasActiveFilters = false;
         mockFiltersResult.onResetFilters.mockClear();
@@ -206,19 +211,19 @@ describe('Search screen', () => {
         expect(screen.getByText('Results')).toBeTruthy();
     });
 
-    it('renders native top app bar in search variant', () => {
+    it('configures native top app bar through shared layout context on native', () => {
         setPlatformOS('ios');
         render(<Search />);
 
-        expect(mockTopAppBarProps).toBeDefined();
-        expect(mockTopAppBarProps.variant).toBe('search');
+        expect(mockSetNativeTopAppBarConfig).toHaveBeenCalled();
+        expect(getLatestHeaderConfig().showFilterButton).toBe(true);
     });
 
-    it('does not render native top app bar on web', () => {
+    it('does not configure native top app bar context on web', () => {
         setPlatformOS('web');
         render(<Search />);
 
-        expect(mockTopAppBarProps).toBeUndefined();
+        expect(mockSetNativeTopAppBarConfig).not.toHaveBeenCalled();
     });
 
     it('applies dark mode background color by default', () => {
