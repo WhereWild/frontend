@@ -5,6 +5,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { IconFilter, IconRotateCcw } from '@/assets/icons';
+import { Size } from '@/constants/theme';
 import { mockAnimatedTiming, resolveAnimatedNumeric } from '../topAppBarTestUtils';
 
 const mockRouterPush = jest.fn();
@@ -211,6 +212,34 @@ describe('TopAppBar', () => {
       screen.getByTestId('top-app-bar-secondary-action-slot').props.style,
     );
     expect(resolveAnimatedNumeric(secondarySlotStyle.width)).toBe(0);
+  });
+
+  it('collapses actions-row gap when secondary action is hidden and primary is visible in search', () => {
+    render(
+      <TopAppBar
+        variant="search"
+        searchValue=""
+        onSearchValueChange={() => {}}
+        onSubmitSearch={() => {}}
+        secondaryAction={{
+          icon: <IconRotateCcw />,
+          accessibilityLabel: 'Refresh',
+          isVisible: false,
+        }}
+        primaryAction={{
+          icon: <IconFilter />,
+          buttonLabel: 'Filter',
+          buttonAccessibilityLabel: 'Filter',
+          iconAccessibilityLabel: 'Filter action',
+          isVisible: true,
+          mode: 'icon',
+        }}
+      />,
+    );
+
+    const actionsRowStyle = StyleSheet.flatten(screen.getByTestId('top-app-bar-actions-row').props.style);
+    expect(actionsRowStyle.gap).toBe(0);
+
   });
 
   it('renders primary button as icon when explicitly configured', () => {
