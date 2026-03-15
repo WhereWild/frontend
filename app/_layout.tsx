@@ -18,6 +18,7 @@ import {
 } from '@/assets/icons';
 import {
   NavigationBar,
+  TopAppBar,
   WebPageHeader,
   type NavigationBarProps,
 } from '@/components';
@@ -28,10 +29,19 @@ import {
   WebPageHeaderProvider,
   useWebPageHeaderConfig,
 } from '@/context/WebPageHeaderContext';
+import {
+  NativeTopAppBarProvider,
+  resolveNativeTopAppBarConfigForRoute,
+  useNativeTopAppBarConfig,
+} from '@/context/NativeTopAppBarContext';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
+const NOOP = () => {};
+const NOOP_SEARCH_HANDLER = (_value: string) => {};
+const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
+const SPECIES_STACK_ANIMATION = 'fade' as const;
 
 type TopLevelPath = (typeof TOP_LEVEL_PATHS)[number];
 
@@ -116,6 +126,11 @@ function RootLayoutWebFrame() {
 function RootLayoutNativeFrame() {
   const router = useRouter();
   const pathname = usePathname();
+  const { config: nativeTopAppBarConfig } = useNativeTopAppBarConfig();
+  const resolvedNativeTopAppBarConfig = resolveNativeTopAppBarConfigForRoute(pathname, nativeTopAppBarConfig);
+  const handlePressBack = useCallback(() => {
+    router.back();
+  }, [router]);
   // UI highlight state must be explicit so route restores across tabs immediately
   // reflect the intended active tab, even before deeper screens finish rendering.
   const [activeTabPath, setActiveTabPath] = useState<TopLevelPath>('/');
@@ -206,6 +221,48 @@ function RootLayoutNativeFrame() {
     });
   }, [activeTabPath, pathname, router]);
 
+  const nativeTopAppBar = React.useMemo(() => {
+    if (pathname === '/search') {
+      return (
+        <TopAppBar
+          variant="search"
+          searchValue={resolvedNativeTopAppBarConfig.searchValue ?? ''}
+          onSearchValueChange={resolvedNativeTopAppBarConfig.onSearchValueChange ?? NOOP_SEARCH_HANDLER}
+          onSubmitSearch={resolvedNativeTopAppBarConfig.onSubmitSearch ?? NOOP_SEARCH_HANDLER}
+          searchPlaceholder={resolvedNativeTopAppBarConfig.searchPlaceholder}
+          primaryAction={resolvedNativeTopAppBarConfig.primaryAction}
+          secondaryAction={resolvedNativeTopAppBarConfig.secondaryAction}
+        />
+      );
+    }
+
+    if (isSpeciesPath(pathname)) {
+      return (
+        <TopAppBar
+          variant="page"
+          title="Species"
+          onPressBack={handlePressBack}
+          primaryAction={{ isVisible: false }}
+          secondaryAction={{ isVisible: false }}
+        />
+      );
+    }
+
+    if (isTopLevelPath(pathname)) {
+      return (
+        <TopAppBar
+          variant="home"
+          title="WhereWild"
+          onPressLogo={NOOP}
+          primaryAction={{ isVisible: false }}
+          secondaryAction={{ isVisible: false }}
+        />
+      );
+    }
+
+    return null;
+  }, [handlePressBack, pathname, resolvedNativeTopAppBarConfig]);
+
   const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(() => [
     {
       key: 'home',
@@ -243,8 +300,19 @@ function RootLayoutNativeFrame() {
 
   return (
     <View style={styles.appShell}>
+      {nativeTopAppBar}
       <View style={styles.content}>
-        <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
+        {/* Keep native route transitions disabled by default to avoid cross-route
+            jank; only species screens opt into fade for in-flow detail transitions. */}
+        <Stack screenOptions={{ headerShown: false, animation: NATIVE_STACK_DEFAULT_ANIMATION }}>
+          <Stack.Screen
+            name="species/[...identifier]"
+            options={{
+              animation: SPECIES_STACK_ANIMATION,
+              animationDuration: Time.duration.short,
+            }}
+          />
+        </Stack>
       </View>
       <NavigationBar tabs={navigationTabs} />
     </View>
@@ -268,7 +336,9 @@ export default function RootLayout() {
   return (
     <SettingsProvider>
       <WebPageHeaderProvider>
-        {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
+        <NativeTopAppBarProvider>
+          {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
+        </NativeTopAppBarProvider>
       </WebPageHeaderProvider>
     </SettingsProvider>
   );
