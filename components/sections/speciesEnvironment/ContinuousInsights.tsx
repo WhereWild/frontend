@@ -1,4 +1,6 @@
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { SpeciesEnvironmentRelativeRank } from '@/data/types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -34,10 +36,6 @@ type ContinuousInsightsProps = {
   summaryComparisons: Record<string, string | null>;
   /** Indicates whether comparisons should be shown instead of rank labels. */
   locationFilterActive: boolean;
-  /** Divider/border color token for section separators. */
-  borderColor: string;
-  /** Secondary text color token for helper copy. */
-  secondaryTextColor: string;
 };
 
 /** Renders rank-context controls and min/mean/max summary cards for continuous variables. */
@@ -50,18 +48,22 @@ export function ContinuousInsights({
   summaryRanks,
   summaryComparisons,
   locationFilterActive,
-  borderColor,
-  secondaryTextColor,
 }: ContinuousInsightsProps) {
+  const { breakpoint } = useResponsive();
+  const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
+  const scheme = useColorScheme();
+  const mode = scheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+
   return (
     <>
       {showRankContext && rankContextOptions.length > 1 ? (
         <>
-          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+          <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
           <View style={styles.rankContextRow}>
             <ThemedText
-              variant="bodySmall"
-              style={{ color: secondaryTextColor, textAlign: 'center' }}
+              variant="body"
+              style={{ textAlign: 'center' }}
             >
               Select a taxon to see how this compares to related species.
             </ThemedText>
@@ -76,27 +78,32 @@ export function ContinuousInsights({
         </>
       ) : showRankContext && rankContextOptions.length === 1 ? (
         <>
-          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+          <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
           <View style={styles.rankContextRow}>
-            <ThemedText variant="bodySmall">
+            <ThemedText
+              variant="body"
+              style={{ textAlign: 'center' }}
+            >
               Rankings within {rankContextOptions[0].label}
             </ThemedText>
           </View>
         </>
       ) : null}
 
-      <View style={[styles.summaryRow, { paddingTop: Size.space['300'] }]}>
+      <View testID="summary-row" style={[styles.summaryRow, { paddingTop: Size.space['300'] }, isStacked && styles.summaryRowStacked]}>
         <SummaryItem
           label="Min"
           value={formatValue(summary?.min, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.min}
           comparison={locationFilterActive ? summaryComparisons.min ?? null : null}
+          stacked={isStacked}
         />
         <SummaryItem
           label="Mean"
           value={formatValue(summary?.mean, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.mean}
           comparison={locationFilterActive ? summaryComparisons.mean ?? null : null}
+          stacked={isStacked}
         />
         <SummaryItem
           label="Max"
@@ -104,6 +111,7 @@ export function ContinuousInsights({
           rank={locationFilterActive ? undefined : summaryRanks.max}
           comparison={locationFilterActive ? summaryComparisons.max ?? null : null}
           isLast
+          stacked={isStacked}
         />
       </View>
     </>
@@ -114,18 +122,19 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     width: '100%',
-    marginTop: Size.space['600'],
     marginBottom: Size.space['100'],
   },
   rankContextRow: {
     flexDirection: 'column',
-    gap: Size.space['200'],
+    gap: Size.space.text.paragraph,
     alignItems: 'center',
   },
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Size.space['400'],
     justifyContent: 'space-evenly',
+  },
+  summaryRowStacked: {
+    flexDirection: 'column',
   },
 });
