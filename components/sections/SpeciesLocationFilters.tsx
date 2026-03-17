@@ -2,6 +2,7 @@ import { SelectField } from '@/components/inputs/SelectField';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Size } from '@/constants/theme';
 import type { LocationOption } from '@/hooks/species/locationHelpers';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -34,6 +35,8 @@ export function SpeciesLocationFilters({
   onStateChange,
   onCountyChange,
 }: SpeciesLocationFiltersProps) {
+  const { breakpoint } = useResponsive();
+  const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
   const toNullableGid = React.useCallback((value: string) => (value ? String(value) : null), []);
 
   const selectItems = React.useMemo(
@@ -87,9 +90,9 @@ export function SpeciesLocationFilters({
     <View style={styles.filterContainer}>
       <ThemedText variant="subheading">Filter Observations by Location</ThemedText>
 
-      <View style={styles.filterRow}>
+      <View testID="filter-row" style={[styles.filterRow, isStacked && styles.filterRowStacked]}>
         {selectItems.map((item) => (
-          <View key={item.key} style={styles.filterItem}>
+          <View key={item.key} style={[styles.filterItem, isStacked && styles.filterItemStacked]}>
             <SelectField
               label={item.label}
               placeholder={item.placeholder}
@@ -109,7 +112,7 @@ export default SpeciesLocationFilters;
 
 const styles = StyleSheet.create({
   filterContainer: {
-    gap: Size.space['200'],
+    gap: Size.space.text.paragraph,
   },
   filterRow: {
     flexDirection: 'row',
@@ -121,5 +124,13 @@ const styles = StyleSheet.create({
   filterItem: {
     flexGrow: 1,
     maxWidth: 720,
+  },
+  filterRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  filterItemStacked: {
+    width: '100%',
+    maxWidth: '100%',
   },
 });

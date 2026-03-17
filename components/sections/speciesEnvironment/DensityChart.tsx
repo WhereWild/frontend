@@ -16,9 +16,13 @@ import {
 
 const CHART_PADDING = Size.space['200'];
 const CHART_HEIGHT = 240;
-const LABEL_HINT_SIZE = 16;
-const LABEL_HINT_LINE_HEIGHT = 16;
 const MEAN_LABEL_HALF_WIDTH = 24;
+
+type ClipPathWithUnitsProps = React.ComponentProps<typeof ClipPath> & {
+  clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
+};
+
+const ClipPathWithUnits = ClipPath as React.ComponentType<ClipPathWithUnitsProps>;
 
 /** Selected value range on the density curve. */
 type DensitySelectionRange = {
@@ -64,7 +68,11 @@ export function DensityChart({
     () => normalizeDensitySamples(samples, densityDomain, CHART_HEIGHT, CHART_PADDING),
     [densityDomain, samples],
   );
-  const clipId = `densitySelection-${React.useId()}`;
+  const rawId = React.useId();
+  const clipId = React.useMemo(
+    () => `densitySelection-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
+    [rawId],
+  );
 
   const selectionBounds = React.useMemo(() => {
     return getSelectionBounds(selection, densityDomain);
@@ -162,23 +170,15 @@ export function DensityChart({
       <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 100 ${CHART_HEIGHT}`} preserveAspectRatio="none">
         <Defs>
           {selectionBounds ? (
-            <ClipPath id={clipId}>
+            <ClipPathWithUnits id={clipId} clipPathUnits="userSpaceOnUse">
               <Rect x={selectionBounds.left} y={0} width={selectionBounds.width} height={CHART_HEIGHT} />
-            </ClipPath>
+            </ClipPathWithUnits>
           ) : null}
         </Defs>
         <Path d={areaPath} fill={fillColor} opacity={0.3} />
         {selectionBounds ? (
           <>
             <Path d={areaPath} fill={fillColor} opacity={0.6} clipPath={`url(#${clipId})`} />
-            <Path
-              d={linePath}
-              fill="none"
-              stroke={lineColor}
-              strokeWidth={4}
-              vectorEffect="non-scaling-stroke"
-              clipPath={`url(#${clipId})`}
-            />
           </>
         ) : null}
         <Path
@@ -204,7 +204,7 @@ export function DensityChart({
         {summary?.min != null && (
           <View style={styles.minLabelContainer}>
             <ThemedText variant="bodySmall">{formatValue(summary.min, 1)}</ThemedText>
-            <ThemedText variant="bodySmall" style={styles.labelHint}>
+            <ThemedText variant="bodySmall">
               min
             </ThemedText>
           </View>
@@ -218,7 +218,7 @@ export function DensityChart({
             }}
           >
             <ThemedText variant="bodySmall">{formatValue(summary?.mean, 1)}</ThemedText>
-            <ThemedText variant="bodySmall" style={styles.labelHint}>
+            <ThemedText variant="bodySmall">
               mean
             </ThemedText>
           </View>
@@ -226,7 +226,7 @@ export function DensityChart({
         {summary?.max != null && (
           <View style={styles.maxLabelContainer}>
             <ThemedText variant="bodySmall">{formatValue(summary.max, 1)}</ThemedText>
-            <ThemedText variant="bodySmall" style={styles.labelHint}>
+            <ThemedText variant="bodySmall">
               max
             </ThemedText>
           </View>
@@ -244,6 +244,7 @@ const styles = StyleSheet.create({
   chartLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: Size.space['800'],
   },
   minLabelContainer: {
     position: 'absolute',
@@ -262,10 +263,6 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     gap: 0,
-  },
-  labelHint: {
-    fontSize: LABEL_HINT_SIZE,
-    lineHeight: LABEL_HINT_LINE_HEIGHT,
   },
   emptyChart: {
     height: CHART_HEIGHT,
