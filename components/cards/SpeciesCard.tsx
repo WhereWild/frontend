@@ -5,7 +5,6 @@ import React from 'react';
 import {
   Image,
   ImageSourcePropType,
-  Pressable,
   PressableStateCallbackType,
   StyleProp,
   StyleSheet,
@@ -13,8 +12,9 @@ import {
   ViewStyle,
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
-import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { toKebabCase } from '@/utils/string';
+import { RoutePressable } from '../navigation/RoutePressable';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 export type SpeciesCardSize = 'default' | 'compact';
 
@@ -26,6 +26,7 @@ export type SpeciesCardProps = {
   imageSource?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  /** Overrides default same-tab route navigation on press; web modifier-click can still open the species route in a new tab/window when route data is valid. */
   onPress?: () => void;
   variant?: SpeciesCardVariant;
   size?: SpeciesCardSize;
@@ -80,12 +81,26 @@ export function SpeciesCard({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const router = useRouter();
 
   const placeholderBackground = palette.background.neutral.default;
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
+  const trimmedScientificName = scientificName?.trim();
+  const scientificSegment = trimmedScientificName ? toKebabCase(trimmedScientificName) : '';
+  const hasValidTaxonId = typeof taxonId === 'number';
+  const hasValidScientificName = Boolean(trimmedScientificName);
+  const hasValidSegment = Boolean(scientificSegment);
+  const href = (hasValidTaxonId && hasValidSegment
+    ? {
+      pathname: '/species/[...identifier]',
+      params: { identifier: [taxonId.toString(), scientificSegment] },
+    }
+    : undefined) as Href | undefined;
+  const hrefPath = hasValidTaxonId && hasValidSegment
+    ? `/species/${taxonId}/${scientificSegment}`
+    : undefined;
+
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -97,27 +112,23 @@ export function SpeciesCard({
       return;
     }
 
-    const trimmedScientificName = scientificName?.trim();
-    if (!trimmedScientificName) {
+    if (!hasValidScientificName) {
       console.error('SpeciesCard requires a scientific name to navigate');
       return;
     }
 
-    const scientificSegment = toKebabCase(trimmedScientificName);
-    if (!scientificSegment) {
+    if (!hasValidSegment) {
       console.error('SpeciesCard: scientific name could not be converted to a valid URL segment');
       return;
     }
-
-    router.push({
-      pathname: '/species/[...identifier]',
-      params: { identifier: [taxonId.toString(), scientificSegment] },
-    });
   };
 
   return (
-    <Pressable
+    <RoutePressable
       onPress={handlePress}
+      href={href}
+      hrefPath={hrefPath}
+      navigateAfterPress={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
       testID={testID}
@@ -180,7 +191,7 @@ export function SpeciesCard({
           </ThemedText>
         )}
       </View>
-    </Pressable>
+    </RoutePressable>
   );
 }
 
