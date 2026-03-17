@@ -13,10 +13,12 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
+  usePathname: jest.fn(() => '/'),
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
+const originalWindowOpen = window.open;
 
 let pushMock: jest.Mock;
 let routerStub: Router;
@@ -53,6 +55,10 @@ describe('SpeciesCard', () => {
     mockUseRouter.mockReturnValue(routerStub);
   });
 
+  afterEach(() => {
+    window.open = originalWindowOpen;
+  });
+
   const baseProps = {
     taxonId: 555,
     commonName: 'Common Name',
@@ -86,6 +92,28 @@ describe('SpeciesCard', () => {
     fireEvent.press(screen.getByTestId('species-card'));
 
     expect(handlePress).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires a custom onPress even when route data is invalid', () => {
+    const handlePress = jest.fn();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+
+    render(
+      <SpeciesCard
+        {...baseProps}
+        taxonId={undefined as unknown as number}
+        scientificName=""
+        onPress={handlePress}
+        testID="species-card"
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('species-card'));
+
+    expect(handlePress).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 
   it('maps hover and pressed states to the secondary palette by default', () => {
@@ -170,6 +198,51 @@ describe('SpeciesCard', () => {
     });
   });
 
+  it('opens species details in a new tab on ctrl/cmd click', () => {
+    const openMock = jest.fn(() => null);
+    window.open = openMock;
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { ctrlKey: true } });
+
+    expect(openMock).toHaveBeenCalledWith(
+      '/species/555/binomial-nomenclature',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('opens species details in a new tab before custom onPress on modifier click', () => {
+    const handlePress = jest.fn();
+    const openMock = jest.fn(() => null);
+    window.open = openMock;
+    render(<SpeciesCard {...baseProps} onPress={handlePress} testID="species-card" />);
+
+    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { metaKey: true } });
+
+    expect(openMock).toHaveBeenCalledWith(
+      '/species/555/binomial-nomenclature',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    expect(handlePress).not.toHaveBeenCalled();
+  });
+
+  it('opens species details in a new window on shift click', () => {
+    const openMock = jest.fn(() => null);
+    window.open = openMock;
+    render(<SpeciesCard {...baseProps} testID="species-card" />);
+
+    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { shiftKey: true } });
+
+    expect(openMock).toHaveBeenCalledWith(
+      '/species/555/binomial-nomenclature',
+      '_blank',
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
   it('does nothing when no identifier is available', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
     render(
@@ -229,6 +302,16 @@ describe('SpeciesCard', () => {
       'SpeciesCard: scientific name could not be converted to a valid URL segment',
     );
     consoleErrorSpy.mockRestore();
+  });
+
+  it('does not navigate after calling a custom onPress', () => {
+    const handlePress = jest.fn();
+    render(<SpeciesCard {...baseProps} onPress={handlePress} testID="species-card" />);
+
+    fireEvent.press(screen.getByTestId('species-card'));
+
+    expect(handlePress).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it('does not display a description when compact, and displays it by default', () => {
