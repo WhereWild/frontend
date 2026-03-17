@@ -92,15 +92,18 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       occurrences,
       loading,
       error,
+      height,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
+      height?: number;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
+        <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
       </View>
     ),
   };
@@ -184,9 +187,6 @@ const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenDa
       description: 'Nearby species description.',
     },
   ],
-  heatmap: {
-    imageSource: { uri: 'heatmap' },
-  },
   ...overrides,
 });
 
@@ -257,7 +257,6 @@ describe('Species screen', () => {
     expect(screen.getByText('Prickly Test Cactus')).toBeTruthy();
     expect(screen.getByText('Nearby Species')).toBeTruthy();
     expect(screen.getByText('Neighbor')).toBeTruthy();
-    expect(screen.getByText('Heat Map')).toBeTruthy();
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => { });
     try {
@@ -344,6 +343,8 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(screen.getByText('Map loading: no')).toBeTruthy();
     });
+
+    expect(screen.queryByText('Map height: none')).toBeNull();
   });
 
   it('renders dark mode palette and hides empty nearby species carousel', async () => {
