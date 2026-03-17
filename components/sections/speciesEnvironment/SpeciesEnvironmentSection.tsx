@@ -3,12 +3,12 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
-import { ContinuousInsights } from './speciesEnvironment/ContinuousInsights';
-import { DensityChart } from './speciesEnvironment/DensityChart';
-import { StackedCategoryBar } from './speciesEnvironment/StackedCategoryBar';
-import { VariableSelectorHeader } from './speciesEnvironment/VariableSelectorHeader';
-import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './speciesEnvironment/model';
-import { useSpeciesEnvironmentState } from './speciesEnvironment/useSpeciesEnvironmentState';
+import { ContinuousInsights } from './ContinuousInsights';
+import { DensityChart } from './DensityChart';
+import { StackedCategoryBar } from './StackedCategoryBar';
+import { VariableSelectorHeader } from './VariableSelectorHeader';
+import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './model';
+import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 
 /** Props for rendering the species environment analytics section. */
 export type SpeciesEnvironmentSectionProps = {
@@ -89,14 +89,9 @@ export function SpeciesEnvironmentSection({
   const handleRankContextChange = (value: string) => setSelectedRankContext(value);
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: palette.background.default.secondary,
-        },
-      ]}
-    >
+    <View style={styles.container}>
+      <ThemedText variant="subheading">Species Environment</ThemedText>
+
       <VariableSelectorHeader
         categories={categories}
         selectedVariableCategory={selectedVariableCategory}
@@ -137,7 +132,7 @@ export function SpeciesEnvironmentSection({
             descriptionColor={palette.text.default.secondary}
           />
         ) : (
-          <>
+          <View style={styles.continuousContent}>
             <DensityChart
               curve={densityCurve}
               lineColor={palette.background.brand.default}
@@ -157,10 +152,8 @@ export function SpeciesEnvironmentSection({
               summaryRanks={summaryRanks}
               summaryComparisons={summaryComparisons}
               locationFilterActive={locationFilterActive}
-              borderColor={palette.border.default.default}
-              secondaryTextColor={palette.text.default.secondary}
             />
-          </>
+          </View>
         )
       ) : null}
     </View>
@@ -171,10 +164,8 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: Responsive.contentWidth,
-    borderRadius: Size.radius['200'],
-    padding: Size.space['400'],
     alignSelf: 'center',
-    gap: Size.space['400'],
+    gap: Size.space.text.paragraph,
   },
   loadingPlaceholder: {
     justifyContent: 'center',
@@ -189,5 +180,8 @@ const styles = StyleSheet.create({
   },
   errorRow: {
     paddingVertical: Size.space['200'],
+  },
+  continuousContent: {
+    gap: Size.space.text.section,
   },
 });

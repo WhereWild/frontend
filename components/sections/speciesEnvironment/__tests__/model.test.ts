@@ -20,9 +20,9 @@ describe('speciesEnvironment model helpers', () => {
   });
 
   it('formats comparison labels with deltas', () => {
-    expect(formatComparisonLabel(12, 10, 0)).toBe('vs 10 (+20%)');
-    expect(formatComparisonLabel(8, 10, 0)).toBe('vs 10 (-20%)');
-    expect(formatComparisonLabel(10, 10, 0)).toBe('vs 10 (0%)');
+    expect(formatComparisonLabel(12, 10, 0)).toBe('vs. 10 (+20%) globally');
+    expect(formatComparisonLabel(8, 10, 0)).toBe('vs. 10 (-20%) globally');
+    expect(formatComparisonLabel(10, 10, 0)).toBe('vs. 10 (0%) globally');
   });
 
   it('returns null comparison when values are invalid', () => {
@@ -94,7 +94,7 @@ describe('speciesEnvironment model helpers', () => {
   });
 
   it('formats comparison label without percent when baseline is zero', () => {
-    expect(formatComparisonLabel(10, 0, 0)).toBe('vs 0');
+    expect(formatComparisonLabel(10, 0, 0)).toBe('vs. 0 globally');
   });
 
   it('builds categorical summary from reduced distribution when summary count is unavailable', () => {
