@@ -1,9 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+import { StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { IconSize } from '../../primitives/Icon';
 import { ThemedText } from '../text/ThemedText';
+import { RoutePressable } from '../navigation/RoutePressable';
+import type { Href } from 'expo-router';
 import {
   ButtonIcon,
   computeButtonSizeStyles,
@@ -26,6 +28,9 @@ export interface ButtonProps {
   delayLongPress?: number;
   children?: React.ReactNode;
   label?: string;
+  href?: Href;
+  hrefPath?: string;
+  navigateAfterPress?: boolean;
   iconStart?: ButtonIcon;
   iconEnd?: ButtonIcon;
   style?: ViewStyle;
@@ -115,6 +120,9 @@ export const Button: React.FC<ButtonProps> = ({
   delayLongPress,
   children,
   label,
+  href,
+  hrefPath,
+  navigateAfterPress,
   iconStart,
   iconEnd,
   style,
@@ -126,11 +134,14 @@ export const Button: React.FC<ButtonProps> = ({
   const iconDimension = Number(iconSize);
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <RoutePressable
+      accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={resolveButtonAccessibilityLabel(accessibilityLabel, label, children)}
       disabled={disabled}
       onPress={onPress}
+      href={href}
+      hrefPath={hrefPath}
+      navigateAfterPress={navigateAfterPress}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
       style={({ pressed, hovered }) => {
@@ -175,7 +186,7 @@ export const Button: React.FC<ButtonProps> = ({
           </>
         );
       }}
-    </Pressable>
+    </RoutePressable>
   );
 };
 
