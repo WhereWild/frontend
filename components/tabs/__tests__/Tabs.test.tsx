@@ -161,13 +161,32 @@ describe('computeTabLayout', () => {
     ).toEqual({ tabWidths: {}, shouldScroll: false });
   });
 
-  it('uses equal widths when all labels fit', () => {
+  it('distributes tab widths evenly when all labels fit without scrolling', () => {
     const { tabWidths, shouldScroll } = computeTabLayout(baseArgs);
     expect(shouldScroll).toBe(false);
     expect(tabWidths.one).toBeCloseTo(100);
     expect(tabWidths.two).toBeCloseTo(100);
     expect(tabWidths.three).toBeCloseTo(100);
     expect(tabWidths.four).toBeCloseTo(100);
+  });
+
+  it('allocates extra width on top of required content width in non-scroll mode', () => {
+    const { tabWidths, shouldScroll } = computeTabLayout({
+      ...baseArgs,
+      tabs: [
+        { key: 'one', label: 'One' },
+        { key: 'two', label: 'Two' },
+        { key: 'three', label: 'Three' },
+      ],
+      containerWidth: 360,
+      labelWidths: { one: 100, two: 60, three: 60 },
+      horizontalPadding: 20,
+    });
+
+    expect(shouldScroll).toBe(false);
+    expect(tabWidths.one).toBeCloseTo(146.666, 2);
+    expect(tabWidths.two).toBeCloseTo(106.666, 2);
+    expect(tabWidths.three).toBeCloseTo(106.666, 2);
   });
 
   it('shrinks shorter tabs first when slack can cover deficits', () => {
@@ -206,5 +225,25 @@ describe('computeTabLayout', () => {
     expect(tabWidths.one).toBeCloseTo(160);
     expect(tabWidths.two).toBeCloseTo(80);
     expect(tabWidths.three).toBeCloseTo(80);
+  });
+
+  it('applies minimum tab width when scrolling, without forcing scroll by itself', () => {
+    const { tabWidths, shouldScroll } = computeTabLayout({
+      ...baseArgs,
+      tabs: [
+        { key: 'one', label: 'One' },
+        { key: 'two', label: 'Two' },
+        { key: 'three', label: 'Three' },
+      ],
+      containerWidth: 240,
+      labelWidths: { one: 200, two: 10, three: 10 },
+      horizontalPadding: 20,
+      minimumTabWidth: 96,
+    });
+
+    expect(shouldScroll).toBe(true);
+    expect(tabWidths.one).toBeCloseTo(220);
+    expect(tabWidths.two).toBeCloseTo(96);
+    expect(tabWidths.three).toBeCloseTo(96);
   });
 });
