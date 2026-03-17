@@ -1,5 +1,6 @@
 import type { ButtonProps } from '../../buttons/Button';
 import type { SearchInputProps } from '../../inputs/SearchInput';
+import type { Href } from 'expo-router';
 
 /** Optional SearchInput props that WebPageHeader allows consumers to pass through. */
 export type SearchInputPassthroughProps = Partial<
@@ -11,5 +12,7 @@ export type WebPageHeaderAction = {
   label: string;
   icon: ButtonProps['iconStart'];
   onPress?: () => void;
+  href?: Href;
+  hrefPath?: string;
   variant?: 'neutral' | 'subtle';
 };

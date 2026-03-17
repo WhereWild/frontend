@@ -11,7 +11,6 @@ import React from 'react';
 import {
   Image,
   ImageSourcePropType,
-  Pressable,
   useWindowDimensions,
   StyleProp,
   StyleSheet,
@@ -31,6 +30,7 @@ import { WebPageHeaderSearchRow } from './WebPageHeaderSearchRow';
 import { WebPageHeaderMobileMenu } from './WebPageHeaderMobileMenu';
 import type { WebPageHeaderAction, SearchInputPassthroughProps } from './types';
 import type { SearchFilterParams } from '@/data/api';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 
 export type { WebPageHeaderAction } from './types';
 
@@ -98,25 +98,6 @@ export function WebPageHeader({
   const menuButtonRef = React.useRef<View>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const navigateIfDifferent = React.useCallback((targetPath: '/' | '/about') => {
-    if (pathname !== targetPath) {
-      router.push(targetPath);
-    }
-  }, [pathname, router]);
-
-  const navigateHome = React.useCallback(() => {
-    navigateIfDifferent('/');
-  }, [navigateIfDifferent]);
-
-  const navigateToAbout = React.useCallback(() => {
-    navigateIfDifferent('/about');
-  }, [navigateIfDifferent]);
-
-  const navigateToSettings = React.useCallback(() => {
-    if (pathname !== '/settings') {
-      router.push('/settings');
-    }
-  }, [pathname, router]);
 
   /** Submits non-empty queries and avoids redundant navigation when already on `/search`. */
   const submitSearchQuery = React.useCallback((query: string) => {
@@ -134,10 +115,10 @@ export function WebPageHeader({
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
-      { label: 'About', icon: <IconInfo />, onPress: navigateToAbout },
-      { label: 'Settings', icon: <IconSettings />, onPress: navigateToSettings },
+      { label: 'About', icon: <IconInfo />, href: '/about', hrefPath: '/about' },
+      { label: 'Settings', icon: <IconSettings />, href: '/settings', hrefPath: '/settings' },
     ],
-    [navigateToAbout, navigateToSettings],
+    [],
   );
   const resolvedActions = actions ?? defaultActions;
   const logoContent = (
@@ -268,14 +249,15 @@ export function WebPageHeader({
                 setMobileHeaderLayout({ y, height });
               }}
             >
-              <Pressable
-                onPress={navigateHome}
+              <RoutePressable
+                href="/"
+                hrefPath="/"
                 style={styles.logoSectionMobile}
                 accessibilityRole="link"
                 accessibilityLabel={logoAccessibilityLabel}
               >
                 {logoContent}
-              </Pressable>
+              </RoutePressable>
 
               <WebPageHeaderSearchRow
                 variant="mobile"
@@ -321,14 +303,15 @@ export function WebPageHeader({
           </>
         ) : (
           <>
-            <Pressable
-              onPress={navigateHome}
+            <RoutePressable
+              href="/"
+              hrefPath="/"
               style={styles.logoSection}
               accessibilityRole="link"
               accessibilityLabel={logoAccessibilityLabel}
             >
               {logoContent}
-            </Pressable>
+            </RoutePressable>
 
             <WebPageHeaderSearchRow
               variant="desktop"
@@ -351,11 +334,13 @@ export function WebPageHeader({
             />
 
             <View style={styles.actionsWrapper}>
-              {resolvedActions.map(({ label, icon, onPress, variant = 'subtle' }) => (
+              {resolvedActions.map(({ label, icon, onPress, href, hrefPath, variant = 'subtle' }) => (
                 <Button
                   key={label}
                   variant={variant}
                   onPress={onPress}
+                  href={href}
+                  hrefPath={hrefPath}
                   iconStart={icon}
                   label={label}
                 />
