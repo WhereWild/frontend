@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   categoryDescription: {},
   stackedCategoryContainer: {
-    gap: Size.space['300'],
+    gap: Size.space.text.section,
   },
   stackedBarTrack: {
     height: 32,

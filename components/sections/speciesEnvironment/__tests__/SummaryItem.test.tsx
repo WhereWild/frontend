@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 import { SummaryItem } from '../SummaryItem';
 
@@ -8,11 +9,10 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 describe('SummaryItem', () => {
   it('renders comparison text branch', () => {
-    render(<SummaryItem label="Mean" value="12.3" comparison="vs 10 (+23%)" />);
+    render(<SummaryItem label="Mean" value="12.3" comparison="vs. 10 (+23%)" />);
 
-    expect(screen.getByText('Mean')).toBeTruthy();
-    expect(screen.getByText('12.3')).toBeTruthy();
-    expect(screen.getByText('vs 10 (+23%)')).toBeTruthy();
+    expect(screen.getByText(/Mean\s*:\s*12\.3/)).toBeTruthy();
+    expect(screen.getByText('vs. 10 (+23%)')).toBeTruthy();
   });
 
   it('renders rank branch with percentile', () => {
@@ -24,8 +24,7 @@ describe('SummaryItem', () => {
       />,
     );
 
-    expect(screen.getByText('Max')).toBeTruthy();
-    expect(screen.getByText('22')).toBeTruthy();
+    expect(screen.getByText(/Max\s*:\s*22/)).toBeTruthy();
     expect(screen.getByText(/Ranks/)).toBeTruthy();
     expect(screen.getByText(/percentile/)).toBeTruthy();
   });
@@ -33,8 +32,7 @@ describe('SummaryItem', () => {
   it('renders only label/value when no rank/comparison', () => {
     render(<SummaryItem label="Min" value="1.0" />);
 
-    expect(screen.getByText('Min')).toBeTruthy();
-    expect(screen.getByText('1.0')).toBeTruthy();
+    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
   });
 
   it('formats low percentile as less than one percent', () => {
@@ -106,5 +104,75 @@ describe('SummaryItem', () => {
     );
 
     expect(screen.getByText(/11th percentile/)).toBeTruthy();
+  });
+
+  describe('stacked prop', () => {
+    it('renders rank content correctly when stacked', () => {
+      render(
+        <SummaryItem
+          label="Min"
+          value="1.0"
+          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          stacked
+        />,
+      );
+
+      expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+      expect(screen.getByText(/Ranks 3 \/ 41 in Mammalia/)).toBeTruthy();
+      expect(screen.getByText(/percentile/)).toBeTruthy();
+    });
+
+    it('applies full-width container style when stacked', () => {
+      const { toJSON } = render(<SummaryItem label="Min" value="1.0" stacked />);
+      const tree = toJSON() as unknown as { props: { style: object } };
+      const style = StyleSheet.flatten(tree.props.style);
+
+      expect(style).toMatchObject({ width: '100%' });
+    });
+
+    it('uses left-aligned rank text when stacked', () => {
+      render(
+        <SummaryItem
+          label="Min"
+          value="1.0"
+          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          stacked
+        />,
+      );
+
+      const rankText = screen.getByText(/Ranks/);
+      const style = StyleSheet.flatten(rankText.props.style);
+      expect(style.textAlign).toBe('left');
+    });
+
+    it('uses centered rank text when not stacked', () => {
+      render(
+        <SummaryItem
+          label="Min"
+          value="1.0"
+          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+        />,
+      );
+
+      const rankText = screen.getByText(/Ranks/);
+      const style = StyleSheet.flatten(rankText.props.style);
+      expect(style.textAlign).toBe('center');
+    });
+
+    it('sets borderBottomColor on non-last stacked item', () => {
+      const { toJSON } = render(<SummaryItem label="Min" value="1.0" stacked />);
+      const tree = toJSON() as unknown as { props: { style: object } };
+      const style = StyleSheet.flatten(tree.props.style);
+
+      expect(style).toHaveProperty('borderBottomColor');
+    });
+
+    it('does not set borderBottomColor on last stacked item', () => {
+      const { toJSON } = render(<SummaryItem label="Max" value="10.0" stacked isLast />);
+      const tree = toJSON() as unknown as { props: { style: object } };
+      const style = StyleSheet.flatten(tree.props.style);
+
+      expect(style).not.toHaveProperty('borderBottomColor');
+    });
   });
 });
