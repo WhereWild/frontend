@@ -94,5 +94,5 @@ export type {
 export { NearbySpeciesCarousel } from './NearbySpeciesCarousel';
 export type { NearbySpeciesCarouselProps } from './NearbySpeciesCarousel';
 
-export { SpeciesEnvironmentSection } from './sections/SpeciesEnvironmentSection';
-export type { SpeciesEnvironmentSectionProps } from './sections/SpeciesEnvironmentSection';
+export { SpeciesEnvironmentSection } from './sections/speciesEnvironment/SpeciesEnvironmentSection';
+export type { SpeciesEnvironmentSectionProps } from './sections/speciesEnvironment/SpeciesEnvironmentSection';

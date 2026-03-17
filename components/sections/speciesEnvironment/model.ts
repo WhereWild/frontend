@@ -131,10 +131,10 @@ export const formatComparisonLabel = (
   const percent =
     Math.abs(baseline) > 1e-9 ? ((delta / Math.abs(baseline)) * 100).toFixed(0) : null;
   if (percent === null || Number.isNaN(Number(percent))) {
-    return `vs ${baselineText}`;
+    return `vs. ${baselineText} globally`;
   }
   const signed = delta > 0 ? `+${percent}%` : delta < 0 ? `${percent}%` : `${percent}%`;
-  return `vs ${baselineText} (${signed})`;
+  return `vs. ${baselineText} (${signed}) globally`;
 };
 
 /** Computes summary statistics for categorical distributions. */
