@@ -53,9 +53,11 @@ const isTopLevelPath = (value: string): value is TopLevelPath =>
 const isSpeciesPath = (value: string): value is `/species/${string}` =>
   value.startsWith('/species/');
 
+const toTopLevelHref = (route: TopLevelPath): Href => route as Href;
+
 const toHistoryHref = (route: string): Href | null => {
   if (isTopLevelPath(route)) {
-    return route;
+    return toTopLevelHref(route);
   }
 
   if (!isSpeciesPath(route)) {
@@ -206,13 +208,13 @@ function RootLayoutNativeFrame() {
     }
 
     if (targetRoute === targetPath) {
-      router.replace(targetPath);
+      router.replace(toTopLevelHref(targetPath));
       return;
     }
 
     // Rebuild the destination tab stack from root so back gestures work
     // within that tab after restore (root -> nested -> nested...).
-    router.replace(targetPath);
+    router.replace(toTopLevelHref(targetPath));
     targetHistory.slice(1).forEach((route) => {
       const href = toHistoryHref(route);
       if (href) {

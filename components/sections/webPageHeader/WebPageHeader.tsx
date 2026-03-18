@@ -6,7 +6,7 @@ import {
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter, type Href } from 'expo-router';
 import React from 'react';
 import {
   Image,
@@ -115,7 +115,7 @@ export function WebPageHeader({
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle />, disabled: true },
-      { label: 'Components', icon: <IconInfo />, href: '/components', hrefPath: '/components' },
+      { label: 'Components', icon: <IconInfo />, href: '/components' as Href, hrefPath: '/components' },
       { label: 'Settings', icon: <IconSettings />, href: '/settings', hrefPath: '/settings' },
     ],
     [],

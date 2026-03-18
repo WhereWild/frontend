@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSettings } from '@/context/SettingsContext';
-import { act, render, screen } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -72,8 +72,8 @@ describe('Settings screen', () => {
     it('applies dark mode background color', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
-      const screen = render(<Settings />);
-      const settingsScreen = screen.getByTestId('settings-screen');
+      const renderResult = render(<Settings />);
+      const settingsScreen = renderResult.getByTestId('settings-screen');
       const settingsScreenStyle = StyleSheet.flatten(settingsScreen.props.style);
       expect(settingsScreenStyle.backgroundColor).toBe(Colors.dark.background.default.default);
     });
@@ -81,8 +81,8 @@ describe('Settings screen', () => {
     it('applies light mode background color', () => {
       mockUseColorScheme.mockReturnValue('light');
 
-      const screen = render(<Settings />);
-      const settingsScreen = screen.getByTestId('settings-screen');
+      const renderResult = render(<Settings />);
+      const settingsScreen = renderResult.getByTestId('settings-screen');
       const settingsScreenStyle = StyleSheet.flatten(settingsScreen.props.style);
       expect(settingsScreenStyle.backgroundColor).toBe(Colors.light.background.default.default);
     });

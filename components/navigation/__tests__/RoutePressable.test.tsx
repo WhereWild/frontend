@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Href } from 'expo-router';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { RoutePressable } from '../RoutePressable';
@@ -6,6 +7,7 @@ import { RoutePressable } from '../RoutePressable';
 const mockPush = jest.fn();
 let mockPathname = '/';
 const originalWindowOpen = window.open;
+const componentsHref = '/components' as Href;
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -31,7 +33,7 @@ describe('RoutePressable', () => {
     mockPathname = '/components';
 
     render(
-      <RoutePressable href="/components" testID="route-pressable">
+      <RoutePressable href={componentsHref} testID="route-pressable">
         <ThemedText>Components</ThemedText>
       </RoutePressable>,
     );
@@ -45,7 +47,7 @@ describe('RoutePressable', () => {
     mockPathname = '/';
 
     render(
-      <RoutePressable href="/components" testID="route-pressable">
+      <RoutePressable href={componentsHref} testID="route-pressable">
         <ThemedText>Components</ThemedText>
       </RoutePressable>,
     );
@@ -83,7 +85,7 @@ describe('RoutePressable', () => {
 
     render(
       <RoutePressable
-        href="/components"
+        href={componentsHref}
         hrefPath="/components"
         onPress={handlePress}
         testID="route-pressable"
@@ -105,7 +107,7 @@ describe('RoutePressable', () => {
     window.open = openMock;
 
     render(
-      <RoutePressable href="/components" hrefPath="/components" testID="route-pressable">
+      <RoutePressable href={componentsHref} hrefPath="/components" testID="route-pressable">
         <ThemedText>Components</ThemedText>
       </RoutePressable>,
     );
@@ -121,7 +123,7 @@ describe('RoutePressable', () => {
     const handlePress = jest.fn();
 
     render(
-      <RoutePressable href="/components" onPress={handlePress} testID="route-pressable">
+      <RoutePressable href={componentsHref} onPress={handlePress} testID="route-pressable">
         <ThemedText>Components</ThemedText>
       </RoutePressable>,
     );
@@ -137,7 +139,7 @@ describe('RoutePressable', () => {
 
     render(
       <RoutePressable
-        href="/components"
+        href={componentsHref}
         onPress={handlePress}
         navigateAfterPress={true}
         testID="route-pressable"
