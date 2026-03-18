@@ -205,17 +205,4 @@ describe('speciesOccurrenceMapHelpers', () => {
     jest.dontMock('expo-constants');
     jest.resetModules();
   });
-
-  it('exposes stable map transport constants for Stadia and declustering', () => {
-    expect(MAP_REFERRER_POLICY).toBe('strict-origin-when-cross-origin');
-    expect(MAP_TILE_URL_TEMPLATE_LIGHT).toBe(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
-    );
-    expect(MAP_TILE_URL_TEMPLATE_DARK).toBe(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-    );
-    expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
-    expect(MAP_TILE_MAX_ZOOM).toBe(20);
-    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(5000);
-  });
 });

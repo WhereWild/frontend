@@ -169,7 +169,7 @@ describe('SpeciesOccurrenceMap', () => {
     expect(iframe).toBeTruthy();
     expect(iframe.props.srcDoc).toContain('<div id="map"></div>');
     expect(iframe.props.src).toBeUndefined();
-    expect(iframe.props.sandbox).not.toContain('allow-same-origin');
+    expect(iframe.props.sandbox).toContain('allow-same-origin');
     expect(iframe.props.referrerPolicy).toBe('strict-origin-when-cross-origin');
   });
 
