@@ -20,9 +20,6 @@ module.exports = {
     '**/__tests__/**/*.[jt]s?(x)',
     '**/?(*.)+(spec|test).[jt]s?(x)'
   ],
-  testPathIgnorePatterns: [
-    '<rootDir>/speciesOccurrenceMap Reference/'
-  ],
   collectCoverageFrom: [
     'components/**/*.{ts,tsx}',
     'hooks/**/*.{ts,tsx}',
