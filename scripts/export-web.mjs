@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { existsSync, renameSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { parse } from 'dotenv';
 
 const args = process.argv.slice(2);
 
@@ -31,34 +32,24 @@ if (sawBackendFlag && (!backendUrl || backendUrl.startsWith('--'))) {
   process.exit(1);
 }
 
-// Move .env.local so export uses prod .env or the CLI override.
-const localEnvPath = '.env.local';
-const localEnvBackupPath = '.env.local.bak.export';
-const hasLocalEnv = existsSync(localEnvPath);
-let renamedLocalEnv = false;
 let exitCode = 1;
 
 try {
-  if (hasLocalEnv) {
-    // Avoid overwriting an existing backup, which may indicate a previous failed run.
-    if (existsSync(localEnvBackupPath)) {
-      console.error(
-        `Refusing to rename "${localEnvPath}" because "${localEnvBackupPath}" already exists. ` +
-          'Please resolve this conflict (e.g., restore or remove the backup file) and try again.'
-      );
-      throw new Error(`Backup file "${localEnvBackupPath}" already exists`);
-    }
+  let env = { ...process.env };
+  const dotenvPath = '.env';
 
-    renameSync(localEnvPath, localEnvBackupPath);
-    renamedLocalEnv = true;
+  if (existsSync(dotenvPath)) {
+    env = {
+      ...parse(readFileSync(dotenvPath)),
+      ...process.env,
+    };
   }
 
-  const env = { ...process.env };
+  env.EXPO_NO_DOTENV = '1';
 
-  // If a CLI backend URL is provided, skip dotenv entirely and use that value.
+  // A CLI backend URL always wins over the loaded .env value.
   if (backendUrl) {
-    env.EXPO_PUBLIC_BACKEND_URL = backendUrl;
-    env.EXPO_NO_DOTENV = '1';
+    env.APP_BACKEND_URL = backendUrl;
   }
 
   const result = spawnSync(
@@ -76,21 +67,9 @@ try {
   );
 
   exitCode = result.status ?? 1;
-} finally {
-  if (renamedLocalEnv && existsSync(localEnvBackupPath)) {
-    try {
-      renameSync(localEnvBackupPath, localEnvPath);
-    } catch (error) {
-      console.error(
-        `Failed to restore "${localEnvPath}" from backup "${localEnvBackupPath}". ` +
-          'Please restore the file manually.',
-        error
-      );
-      if (exitCode === 0) {
-        exitCode = 1;
-      }
-    }
-  }
+} catch (error) {
+  console.error('[export-web.mjs] Error while exporting:', error);
+  exitCode = 1;
 }
 
 process.exit(exitCode);
