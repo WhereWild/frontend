@@ -161,7 +161,10 @@ export default function About() {
           return;
         }
         const mapped: EnvironmentVariableOption[] = variables
-          .filter((entry) => (entry.category ?? '').toLowerCase() !== 'temporal')
+          .filter((entry) => {
+            const cat = (entry.category ?? '').toLowerCase();
+            return cat !== 'temporal' && cat !== 'recent weather';
+          })
           .map((entry) => ({
             id: entry.id,
             label: entry.name ?? normalizeLabel(entry.id),
