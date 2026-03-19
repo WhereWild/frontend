@@ -1,9 +1,10 @@
+import Constants from 'expo-constants';
 import { asRecord, toOptionalString, type JsonRecord } from './parsers/core';
 
-const ENV_BACKEND_BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
+const runtimeBackendBase = Constants.expoConfig?.extra?.backendUrl;
 
 /** Base URL for backend API requests. */
-export const BACKEND_BASE = ENV_BACKEND_BASE || 'http://localhost:8000';
+export const BACKEND_BASE = runtimeBackendBase || 'http://localhost:8000';
 
 /** Shared JSON object shape used by parser helpers. */
 export type { JsonRecord };
