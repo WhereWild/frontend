@@ -6,12 +6,16 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
+  HEATMAP_SETTINGS_MESSAGE_TYPE,
   buildLeafletHtml,
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
   loadMapTemplate,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
+  setupWebHeatmapBridge,
+  type ActiveHeatmapJob,
+  type HeatmapSettingsMessage,
   type HighlightMessage,
   type MapMarkerPalette,
   toHighlightMessagePayload,
@@ -27,6 +31,8 @@ type SpeciesOccurrenceMapProps = {
   heatmapOpacity?: number;
   minZoom?: number;
   showMarkers?: boolean;
+  speciesKey?: number;
+  showHeatmapOverlay?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -39,6 +45,8 @@ export function SpeciesOccurrenceMap({
   heatmapOpacity = 0.6,
   minZoom = 2,
   showMarkers = true,
+  speciesKey,
+  showHeatmapOverlay = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
@@ -47,15 +55,21 @@ export function SpeciesOccurrenceMap({
   const palette = Colors[mode];
   const webViewRef = React.useRef<WebView>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
+  const activeHeatmapJobRef = React.useRef<ActiveHeatmapJob>({
+    requestId: null,
+    jobId: null,
+    abortController: null,
+  });
   const [mapReady, setMapReady] = React.useState(false);
   const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
   const [templateLoadWarning, setTemplateLoadWarning] = React.useState<string | null>(null);
   const [templateLoadError, setTemplateLoadError] = React.useState<string | null>(null);
 
   const hasOccurrences = occurrences.length > 0;
+  const hasHeatmapLayer = Boolean(heatmapTileUrl) || (showHeatmapOverlay && speciesKey != null);
 
   React.useEffect(() => {
-    if (loading || error || (!hasOccurrences && !heatmapTileUrl)) {
+    if (loading || error || (!hasOccurrences && !hasHeatmapLayer)) {
       return;
     }
 
@@ -94,15 +108,23 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasOccurrences, heatmapTileUrl, loading]);
+  }, [error, hasHeatmapLayer, hasOccurrences, loading]);
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
       markerFill: palette.background.brand.default,
       markerStroke: palette.border.brand.default,
       highlightFill: palette.background.danger.default,
       highlightStroke: palette.border.danger.default,
+      heatmapLow: palette.background.neutral.secondary,
+      heatmapHigh: palette.background.brand.default,
     }),
-    [palette.background.brand.default, palette.background.danger.default, palette.border.brand.default, palette.border.danger.default],
+    [
+      palette.background.brand.default,
+      palette.background.danger.default,
+      palette.background.neutral.secondary,
+      palette.border.brand.default,
+      palette.border.danger.default,
+    ],
   );
   const highlightKeys = React.useMemo(
     () => highlightedCatalogs.map((id) => String(id)),
@@ -118,8 +140,9 @@ export function SpeciesOccurrenceMap({
       heatmapOpacity,
       minZoom,
       showMarkers,
+      speciesKey,
     });
-  }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, tileUrlTemplate]);
+  }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, speciesKey, tileUrlTemplate]);
 
   React.useEffect(() => {
     setMapReady(false);
@@ -130,8 +153,8 @@ export function SpeciesOccurrenceMap({
     [highlightKeys],
   );
 
-  const sendHighlightMessage = React.useCallback(
-    (message: HighlightMessage) => {
+  const postRuntimeMessage = React.useCallback(
+    (message: HighlightMessage | HeatmapSettingsMessage) => {
       if (Platform.OS === 'web') {
         iframeRef.current?.contentWindow?.postMessage(message, '*');
       } else {
@@ -145,8 +168,23 @@ export function SpeciesOccurrenceMap({
     if (!mapReady || !hasOccurrences) {
       return;
     }
-    sendHighlightMessage(highlightMessage);
-  }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
+    postRuntimeMessage(highlightMessage);
+  }, [hasOccurrences, highlightMessage, mapReady, postRuntimeMessage]);
+
+  React.useEffect(() => {
+    return setupWebHeatmapBridge(iframeRef, activeHeatmapJobRef);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mapReady) {
+      return;
+    }
+    postRuntimeMessage({
+      type: HEATMAP_SETTINGS_MESSAGE_TYPE,
+      enabled: showHeatmapOverlay && speciesKey != null,
+      speciesKey: speciesKey ?? null,
+    });
+  }, [mapReady, postRuntimeMessage, showHeatmapOverlay, speciesKey]);
 
   if (loading) {
     return (
@@ -165,7 +203,7 @@ export function SpeciesOccurrenceMap({
     );
   }
 
-  if (!hasOccurrences && showMarkers && !heatmapTileUrl) {
+  if (!hasOccurrences && showMarkers && !hasHeatmapLayer) {
     return (
       <View style={styles.feedback}>
         <ThemedText variant="bodySmall">

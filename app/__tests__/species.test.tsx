@@ -101,17 +101,23 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       loading,
       error,
       height,
+      speciesKey,
+      showHeatmapOverlay,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
       height?: number;
+      speciesKey?: number;
+      showHeatmapOverlay?: boolean;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
         <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
+        <Text>{`Map species key: ${speciesKey ?? 'none'}`}</Text>
+        <Text>{`Map heatmap: ${showHeatmapOverlay ? 'on' : 'off'}`}</Text>
       </View>
     ),
   };

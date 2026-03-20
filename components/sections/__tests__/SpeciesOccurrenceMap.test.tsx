@@ -107,8 +107,29 @@ describe('SpeciesOccurrenceMap', () => {
     fireEvent(webView, 'loadEnd');
 
     expect(mockPostMessage).toHaveBeenCalled();
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('highlight');
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('101');
+    const highlightCall = mockPostMessage.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('highlight'),
+    );
+    expect(highlightCall?.[0]).toContain('highlight');
+    expect(highlightCall?.[0]).toContain('101');
+  });
+
+  it('posts heatmap settings after native map load completes', async () => {
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+      speciesKey: 101,
+      showHeatmapOverlay: true,
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+
+    const settingsCall = mockPostMessage.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('heatmap-settings'),
+    );
+    expect(settingsCall).toBeDefined();
+    expect(settingsCall?.[0]).toContain('"enabled":true');
+    expect(settingsCall?.[0]).toContain('"speciesKey":101');
   });
 
   it('resets mapReady on html changes and waits for next load event', async () => {

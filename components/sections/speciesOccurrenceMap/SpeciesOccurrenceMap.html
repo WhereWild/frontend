@@ -16,16 +16,37 @@
         margin: 0;
         padding: 0;
       }
+
+      #debug-panel {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.65);
+        color: #ffffff;
+        font: 12px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        padding: 6px 8px;
+        border-radius: 4px;
+        pointer-events: none;
+        max-width: 280px;
+      }
     </style>
   </head>
   <body>
     <div id="map"></div>
+    <div id="debug-panel" aria-live="polite">Heatmap debug: overlay disabled</div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
       const points = __POINTS_JSON__;
       const palette = __PALETTE_JSON__;
+      const speciesKey = __SPECIES_KEY_JSON__;
+      const heatmapPolicy = __HEATMAP_POLICY_JSON__;
       const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
+      const HEATMAP_FETCH_MESSAGE_TYPE = __HEATMAP_FETCH_MESSAGE_TYPE_JSON__;
+      const HEATMAP_DATA_MESSAGE_TYPE = __HEATMAP_DATA_MESSAGE_TYPE_JSON__;
+      const HEATMAP_ERROR_MESSAGE_TYPE = __HEATMAP_ERROR_MESSAGE_TYPE_JSON__;
+      const HEATMAP_SETTINGS_MESSAGE_TYPE = __HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__;
 
       const MERCATOR_MAX_LAT = 85.05112878;
       const TILE_SIZE = 256;
@@ -40,9 +61,23 @@
       const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
       const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
       const SHOW_MARKERS = __SHOW_MARKERS__;
+      const HEATMAP_DEBOUNCE_MS = Number(heatmapPolicy && heatmapPolicy.debounceMs) || 320;
+      const HEATMAP_QUERY_PRECISION = Number(heatmapPolicy && heatmapPolicy.queryPrecision) || 4;
+      const HEATMAP_MAX_CELLS = Number(heatmapPolicy && heatmapPolicy.maxCells) || 250000;
+      const HEATMAP_FEATURE_MODE =
+        (heatmapPolicy && heatmapPolicy.featureMode) ||
+        'auto';
+      const HEATMAP_ZOOM_RESOLUTION_BREAKPOINTS =
+        (heatmapPolicy && Array.isArray(heatmapPolicy.zoomResolutionBreakpoints)
+          ? heatmapPolicy.zoomResolutionBreakpoints
+          : []);
       const mapBounds = L.latLngBounds(
         [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
       );
+      const debugPanel = document.getElementById('debug-panel');
+
+      let heatmapOverlayEnabled = false;
+      let activeSpeciesKey = speciesKey;
 
       function clampLatitude(value) {
         return Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, Number(value)));
@@ -66,6 +101,68 @@
         return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM, Math.log2(width / TILE_SIZE));
       }
 
+      function setDebugText(lines) {
+        if (!debugPanel) {
+          return;
+        }
+        debugPanel.textContent = Array.isArray(lines) && lines.length
+          ? lines.join(' | ')
+          : 'Heatmap debug: unavailable';
+      }
+
+      function shouldDelegateHeatmapFetchToParent() {
+        return typeof window !== 'undefined' && Boolean(window.parent) && window.parent !== window;
+      }
+
+      function roundQueryValue(value) {
+        return Number(value).toFixed(HEATMAP_QUERY_PRECISION);
+      }
+
+      function resolutionForZoom(zoom) {
+        if (!HEATMAP_ZOOM_RESOLUTION_BREAKPOINTS.length) {
+          return 0.25;
+        }
+        for (let index = 0; index < HEATMAP_ZOOM_RESOLUTION_BREAKPOINTS.length; index += 1) {
+          const breakpoint = HEATMAP_ZOOM_RESOLUTION_BREAKPOINTS[index];
+          if (Number(zoom) >= Number(breakpoint.minZoom)) {
+            return Number(breakpoint.resolution) || 0.25;
+          }
+        }
+        return Number(HEATMAP_ZOOM_RESOLUTION_BREAKPOINTS.at(-1).resolution) || 0.25;
+      }
+
+      function parseHexColor(value) {
+        if (typeof value !== 'string') {
+          return null;
+        }
+        const normalized = value.trim().replace('#', '');
+        if (!/^[\da-fA-F]{6}$/.test(normalized)) {
+          return null;
+        }
+        return {
+          red: parseInt(normalized.slice(0, 2), 16),
+          green: parseInt(normalized.slice(2, 4), 16),
+          blue: parseInt(normalized.slice(4, 6), 16),
+        };
+      }
+
+      function heatmapColorForScore(score) {
+        const low = parseHexColor(palette.heatmapLow);
+        const high = parseHexColor(palette.heatmapHigh);
+        const t = Math.max(0, Math.min(1, Number(score) || 0));
+        if (!low || !high) {
+          return {
+            fill: palette.heatmapHigh,
+            opacity: 0.2 + t * 0.6,
+          };
+        }
+        const mix = (start, end) => Math.round(start + (end - start) * t);
+        return {
+          fill: `rgb(${mix(low.red, high.red)}, ${mix(low.green, high.green)}, ${mix(low.blue, high.blue)})`,
+          opacity: 0.2 + t * 0.6,
+        };
+      }
+
       const map = L.map('map', {
         maxBounds: mapBounds,
         maxBoundsViscosity: 1,
@@ -78,7 +175,10 @@
       }
 
       applyMinZoomForSize();
-      map.on('resize', applyMinZoomForSize);
+      map.on('resize', () => {
+        applyMinZoomForSize();
+        scheduleHeatmapRefresh();
+      });
 
       const tileLayer = L.tileLayer(TILE_URL, {
         attribution: TILE_ATTRIBUTION,
@@ -119,6 +219,146 @@
         fillOpacity: 0.95,
       };
       const markers = new Map();
+      const heatmapLayerGroup = L.layerGroup().addTo(map);
+      let heatmapRequestCounter = 0;
+      let heatmapDebounceTimer = null;
+      let heatmapLastAppliedQueryKey = '';
+      let heatmapAccumulatedCells = [];
+      let heatmapAccumulatedRequestId = null;
+
+      function drawHeatmapCells(cells, resolution, clearFirst) {
+        if (clearFirst) {
+          heatmapLayerGroup.clearLayers();
+        }
+        const halfCell = Math.max(Number(resolution) || 0, 0.001) / 2;
+        const centerLongitude = map.getCenter().lng;
+        (Array.isArray(cells) ? cells : []).forEach((cell) => {
+          const latitude = Number(cell.lat);
+          const longitude = Number(cell.lon);
+          const score = Number(cell.score);
+          if (!isFinite(latitude) || !isFinite(longitude) || !isFinite(score) || score <= 0) {
+            return;
+          }
+          const alignedLongitude = alignLongitudeToView(longitude, centerLongitude);
+          const color = heatmapColorForScore(score);
+          L.rectangle(
+            [
+              [latitude - halfCell, alignedLongitude - halfCell],
+              [latitude + halfCell, alignedLongitude + halfCell],
+            ],
+            {
+              stroke: false,
+              fillColor: color.fill,
+              fillOpacity: color.opacity,
+            },
+          ).addTo(heatmapLayerGroup);
+        });
+      }
+
+      function sendHeatmapRequestToParent(payload) {
+        if (!shouldDelegateHeatmapFetchToParent()) {
+          setDebugText(['Heatmap debug: direct iframe fetch disabled']);
+          return;
+        }
+        window.parent.postMessage(payload, '*');
+      }
+
+      function applyHeatmapDataFromParent(payload) {
+        if (!payload || payload.type !== HEATMAP_DATA_MESSAGE_TYPE) {
+          return;
+        }
+        const requestId = Number(payload.requestId);
+        if (!isFinite(requestId) || requestId !== heatmapRequestCounter) {
+          return;
+        }
+        const cells = Array.isArray(payload.cells) ? payload.cells : [];
+        const resolution = Number(payload.resolution) || resolutionForZoom(map.getZoom());
+        if (!payload.append || heatmapAccumulatedRequestId !== requestId) {
+          heatmapAccumulatedCells = cells.slice();
+          heatmapAccumulatedRequestId = requestId;
+        } else {
+          heatmapAccumulatedCells = heatmapAccumulatedCells.concat(cells);
+        }
+        drawHeatmapCells(heatmapAccumulatedCells, resolution, true);
+        heatmapLastAppliedQueryKey = String(payload.queryKey || heatmapLastAppliedQueryKey);
+        setDebugText([
+          'Heatmap debug: cells rendered',
+          `count=${heatmapAccumulatedCells.length}`,
+          `resolution=${roundQueryValue(resolution)}`,
+        ]);
+      }
+
+      function applyHeatmapErrorFromParent(payload) {
+        if (!payload || payload.type !== HEATMAP_ERROR_MESSAGE_TYPE) {
+          return;
+        }
+        const requestId = Number(payload.requestId);
+        if (!isFinite(requestId) || requestId !== heatmapRequestCounter) {
+          return;
+        }
+        heatmapLayerGroup.clearLayers();
+        heatmapAccumulatedCells = [];
+        heatmapAccumulatedRequestId = null;
+        setDebugText([
+          'Heatmap debug: parent request error',
+          String(payload.message || 'unknown error'),
+        ]);
+      }
+
+      function refreshHeatmapGrid() {
+        if (!heatmapOverlayEnabled || !activeSpeciesKey) {
+          heatmapLayerGroup.clearLayers();
+          heatmapAccumulatedCells = [];
+          heatmapAccumulatedRequestId = null;
+          setDebugText(['Heatmap debug: overlay disabled']);
+          return;
+        }
+
+        const currentBounds = map.getBounds();
+        const resolution = resolutionForZoom(map.getZoom());
+        const query = {
+          species_key: String(activeSpeciesKey),
+          min_lat: roundQueryValue(currentBounds.getSouth()),
+          min_lon: roundQueryValue(currentBounds.getWest()),
+          max_lat: roundQueryValue(currentBounds.getNorth()),
+          max_lon: roundQueryValue(currentBounds.getEast()),
+          resolution: roundQueryValue(resolution),
+          feature_mode: String(HEATMAP_FEATURE_MODE),
+          max_cells: String(HEATMAP_MAX_CELLS),
+        };
+        const queryKey = Object.values(query).join('|');
+
+        if (queryKey === heatmapLastAppliedQueryKey) {
+          drawHeatmapCells(heatmapAccumulatedCells, resolution, true);
+          setDebugText(['Heatmap debug: reused last query']);
+          return;
+        }
+
+        const requestId = ++heatmapRequestCounter;
+        drawHeatmapCells([], resolution, true);
+        heatmapAccumulatedCells = [];
+        heatmapAccumulatedRequestId = requestId;
+        setDebugText([
+          'Heatmap debug: delegated to parent fetch',
+          `request=${requestId}`,
+          `resolution=${query.resolution}`,
+        ]);
+        sendHeatmapRequestToParent({
+          type: HEATMAP_FETCH_MESSAGE_TYPE,
+          requestId,
+          queryKey,
+          query,
+        });
+      }
+
+      function scheduleHeatmapRefresh() {
+        if (heatmapDebounceTimer) {
+          clearTimeout(heatmapDebounceTimer);
+        }
+        heatmapDebounceTimer = setTimeout(() => {
+          refreshHeatmapGrid();
+        }, HEATMAP_DEBOUNCE_MS);
+      }
 
       function applyHighlights(list) {
         const highlightSet = new Set(
@@ -133,7 +373,7 @@
         });
       }
 
-      function handleHighlightMessage(payload) {
+      function handleRuntimeMessage(payload) {
         let data = payload;
         if (typeof payload === 'string') {
           try {
@@ -145,10 +385,22 @@
         if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
           applyHighlights(data.catalogs || []);
         }
+        if (data && data.type === HEATMAP_DATA_MESSAGE_TYPE) {
+          applyHeatmapDataFromParent(data);
+        }
+        if (data && data.type === HEATMAP_ERROR_MESSAGE_TYPE) {
+          applyHeatmapErrorFromParent(data);
+        }
+        if (data && data.type === HEATMAP_SETTINGS_MESSAGE_TYPE) {
+          heatmapOverlayEnabled = Boolean(data.enabled);
+          activeSpeciesKey = data.speciesKey ? String(data.speciesKey) : '';
+          heatmapLastAppliedQueryKey = '';
+          scheduleHeatmapRefresh();
+        }
       }
 
-      document.addEventListener('message', (event) => handleHighlightMessage(event.data));
-      window.addEventListener('message', (event) => handleHighlightMessage(event.data));
+      document.addEventListener('message', (event) => handleRuntimeMessage(event.data));
+      window.addEventListener('message', (event) => handleRuntimeMessage(event.data));
 
       if (SHOW_MARKERS && Array.isArray(points) && points.length) {
         const observedBounds = [];
@@ -253,10 +505,6 @@
             return;
           }
 
-          // MarkerCluster still groups by projected map coordinates. We only
-          // re-anchor each child marker into the currently viewed wrapped world
-          // copy before rebuilding, so clusters do not jump as a single layer
-          // by +/-360 degrees when the viewport crosses the antimeridian.
           if (!syncClusterMarkersToCurrentWorld()) {
             return;
           }
@@ -375,14 +623,21 @@
           map.setView([0, 0], BASE_MIN_ZOOM);
         }
 
-        map.on('moveend', refreshVisibleMarkerPresentation);
-        map.on('zoomend', refreshVisibleMarkerPresentation);
+        map.on('moveend', () => {
+          refreshVisibleMarkerPresentation();
+          scheduleHeatmapRefresh();
+        });
+        map.on('zoomend', () => {
+          refreshVisibleMarkerPresentation();
+          scheduleHeatmapRefresh();
+        });
         refreshVisibleMarkerPresentation();
       } else {
         map.setView([0, 0], BASE_MIN_ZOOM);
       }
 
       applyHighlights([]);
+      scheduleHeatmapRefresh();
     </script>
   </body>
 </html>

@@ -1,6 +1,7 @@
 import {
   NearbySpeciesCarousel,
   SpeciesPageTitle,
+  SwitchField,
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
@@ -129,6 +130,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     platform: Platform.OS,
   });
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [showHeatmapOverlay, setShowHeatmapOverlay] = React.useState(false);
 
   const {
     countryOptions,
@@ -234,6 +236,14 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   onCountyChange={onCountyChange}
                 />
 
+                <SwitchField
+                  label="Prediction Overlay"
+                  description="Show model prediction grid on the map"
+                  value={showHeatmapOverlay}
+                  onValueChange={setShowHeatmapOverlay}
+                  accessibilityLabel="Prediction Overlay"
+                />
+
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   onHighlightChange={setHighlightedCatalogs}
@@ -262,6 +272,8 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 error={occurrenceError}
                 highlightedCatalogs={highlightedCatalogs}
                 height={observationMapHeight}
+                speciesKey={taxonId}
+                showHeatmapOverlay={showHeatmapOverlay}
               />
             )}
           </View>
