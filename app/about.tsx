@@ -205,13 +205,29 @@ export default function About() {
     variableId: 'landcover',
     variables: aboutMapVariables,
   });
-  const aboutVariableTileUrl = useMemo(
-    () =>
-      `${BACKEND_BASE}/api/variables/${encodeURIComponent(
-        mapSelectedVariable || 'landcover',
-      )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${Date.now()}`,
-    [mapSelectedVariable],
-  );
+  const [selectedWindow, setSelectedWindow] = useState<string>('live');
+
+  const WINDOW_OPTIONS = [
+    { value: 'live', label: 'Live (current)' },
+    { value: '1h',   label: 'Last 1 hour' },
+    { value: '8h',   label: 'Last 8 hours' },
+    { value: '24h',  label: 'Last 24 hours' },
+    { value: '3d',   label: 'Last 3 days' },
+    { value: '7d',   label: 'Last 7 days' },
+    { value: '30d',  label: 'Last 30 days' },
+    { value: '90d',  label: 'Last 90 days' },
+  ];
+
+  const isLiveWeather = (mapSelectedVariableCategory ?? '').toLowerCase() === 'live weather';
+
+  const aboutVariableTileUrl = useMemo(() => {
+    const base = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
+      mapSelectedVariable || 'landcover',
+    )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${Date.now()}`;
+    return isLiveWeather && selectedWindow !== 'live'
+      ? `${base}&window=${selectedWindow}`
+      : base;
+  }, [mapSelectedVariable, isLiveWeather, selectedWindow]);
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -1020,6 +1036,15 @@ export default function About() {
               headingText={mapSelectedVariableMeta?.label ?? 'Map Variable'}
               metaText={`Tile variable id: ${mapSelectedVariable}`}
             />
+            {isLiveWeather && (
+              <SelectField
+                variant="tertiary"
+                options={WINDOW_OPTIONS}
+                value={selectedWindow}
+                onValueChange={setSelectedWindow}
+                placeholder="Aggregation window"
+              />
+            )}
             <ThemedText variant="bodySmall">
               Pick a variable to test tile rendering. Only backend map-enabled variables will display.
             </ThemedText>
