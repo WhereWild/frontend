@@ -113,7 +113,12 @@ export function SpeciesOccurrenceMap({
     if (!mapTemplate) {
       return null;
     }
-    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate, heatmapTileUrl, heatmapOpacity, minZoom, showMarkers);
+    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate, {
+      heatmapTileUrl,
+      heatmapOpacity,
+      minZoom,
+      showMarkers,
+    });
   }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, tileUrlTemplate]);
 
   React.useEffect(() => {

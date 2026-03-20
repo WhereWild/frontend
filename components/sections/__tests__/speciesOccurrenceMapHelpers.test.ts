@@ -1,6 +1,10 @@
 import { Asset } from 'expo-asset';
+import { Platform } from 'react-native';
+import { waitFor } from '@testing-library/react-native';
 import {
   buildLeafletHtml,
+  HEATMAP_DATA_MESSAGE_TYPE,
+  HEATMAP_FETCH_MESSAGE_TYPE,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
   loadFallbackMapTemplate,
@@ -12,8 +16,19 @@ import {
   MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
+  setupWebHeatmapBridge,
   toHighlightMessagePayload,
 } from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+
+const mockCreatePredictHeatmapJob = jest.fn();
+const mockDeletePredictHeatmapJob = jest.fn();
+const mockStreamPredictHeatmapJob = jest.fn();
+
+jest.mock('@/data/api', () => ({
+  createPredictHeatmapJob: (...args: unknown[]) => mockCreatePredictHeatmapJob(...args),
+  deletePredictHeatmapJob: (...args: unknown[]) => mockDeletePredictHeatmapJob(...args),
+  streamPredictHeatmapJob: (...args: unknown[]) => mockStreamPredictHeatmapJob(...args),
+}));
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -29,23 +44,35 @@ jest.mock('expo-constants', () => ({
 describe('speciesOccurrenceMapHelpers', () => {
   const originalFetch = global.fetch;
   const validTemplateHtml = '<html><body><div id="map"></div><script>__POINTS_JSON__</script></body></html>';
+  const originalWindow = global.window;
+  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
 
   afterEach(() => {
     global.fetch = originalFetch;
+    global.window = originalWindow;
+    mockCreatePredictHeatmapJob.mockReset();
+    mockDeletePredictHeatmapJob.mockReset();
+    mockStreamPredictHeatmapJob.mockReset();
     jest.clearAllMocks();
+    if (originalPlatformDescriptor) {
+      Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    }
   });
 
   it('buildLeafletHtml replaces the runtime placeholders', () => {
     const html = buildLeafletHtml(
-      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__',
+      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__SPECIES_KEY_JSON__|__HEATMAP_POLICY_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__|__HEATMAP_FETCH_MESSAGE_TYPE_JSON__|__HEATMAP_DATA_MESSAGE_TYPE_JSON__|__HEATMAP_ERROR_MESSAGE_TYPE_JSON__|__HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__',
       [{ latitude: 1, longitude: 2 }],
       {
         markerFill: '#111111',
         markerStroke: '#222222',
         highlightFill: '#333333',
         highlightStroke: '#444444',
+        heatmapLow: '#555555',
+        heatmapHigh: '#666666',
       },
       getMapTileUrlTemplate('light'),
+      { speciesKey: 101 },
     );
 
     expect(html).toContain('latitude');
@@ -57,7 +84,11 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain(JSON.stringify(MAP_TILE_ATTRIBUTION));
     expect(html).toContain(String(MAP_TILE_MAX_ZOOM));
     expect(html).toContain(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
+    expect(html).toContain('101');
+    expect(html).toContain('zoomResolutionBreakpoints');
     expect(html).toContain(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
+    expect(html).toContain(JSON.stringify(HEATMAP_FETCH_MESSAGE_TYPE));
+    expect(html).toContain(JSON.stringify(HEATMAP_DATA_MESSAGE_TYPE));
     expect(html).not.toContain('__POINTS_JSON__');
   });
 
@@ -74,6 +105,8 @@ describe('speciesOccurrenceMapHelpers', () => {
         markerStroke: '#222222',
         highlightFill: '#333333',
         highlightStroke: '#444444',
+        heatmapLow: '#555555',
+        heatmapHigh: '#666666',
       },
       getMapTileUrlTemplate('light'),
     );
@@ -204,5 +237,91 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     jest.dontMock('expo-constants');
     jest.resetModules();
+  });
+
+  it('bridges heatmap fetch requests from the iframe and streams cell batches back', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+
+    const listeners = new Map<string, EventListener>();
+    global.window = {
+      ...originalWindow,
+      addEventListener: jest.fn((type: string, listener: EventListener) => {
+        listeners.set(type, listener);
+      }),
+      removeEventListener: jest.fn((type: string) => {
+        listeners.delete(type);
+      }),
+    } as unknown as Window & typeof globalThis;
+
+    const postMessage = jest.fn();
+    const iframeWindow = { postMessage };
+    const iframeRef = {
+      current: {
+        contentWindow: iframeWindow,
+      },
+    } as unknown as { current: HTMLIFrameElement | null };
+    const activeHeatmapJobRef = {
+      current: {
+        requestId: null,
+        jobId: null,
+        abortController: null,
+      },
+    };
+
+    mockCreatePredictHeatmapJob.mockResolvedValue({
+      jobId: 'job-1',
+      status: 'queued',
+      streamUrl: '/stream',
+      cancelUrl: '/cancel',
+    });
+    mockDeletePredictHeatmapJob.mockResolvedValue({ status: 'deleted' });
+    mockStreamPredictHeatmapJob.mockImplementation(
+      async (_jobId: string, options?: { onEvent?: (event: Record<string, unknown>) => void }) => {
+        options?.onEvent?.({ type: 'meta', resolution: 0.5 });
+        options?.onEvent?.({ type: 'cell', lat: 1, lon: 2, score: 0.7, nNative: 3 });
+        options?.onEvent?.({ type: 'done', nCells: 1 });
+      },
+    );
+
+    const cleanup = setupWebHeatmapBridge(iframeRef, activeHeatmapJobRef);
+    const listener = listeners.get('message');
+
+    expect(listener).toBeDefined();
+
+    listener?.({
+      source: iframeWindow,
+      data: {
+        type: HEATMAP_FETCH_MESSAGE_TYPE,
+        requestId: 7,
+        queryKey: 'species-101',
+        query: {
+          species_key: '101',
+          min_lat: '-10',
+          min_lon: '20',
+          max_lat: '10',
+          max_lon: '40',
+          resolution: '0.5',
+        },
+      },
+    } as unknown as MessageEvent<unknown>);
+
+    await waitFor(() => {
+      expect(mockCreatePredictHeatmapJob).toHaveBeenCalledWith(expect.objectContaining({
+        speciesKey: '101',
+        resolution: 0.5,
+      }));
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: HEATMAP_DATA_MESSAGE_TYPE,
+          requestId: 7,
+          queryKey: 'species-101',
+          cells: [{ lat: 1, lon: 2, score: 0.7, nNative: 3 }],
+        }),
+        '*',
+      );
+    });
+
+    cleanup();
+    expect(global.window.removeEventListener).toHaveBeenCalled();
   });
 });
