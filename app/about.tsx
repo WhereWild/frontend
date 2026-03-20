@@ -206,6 +206,7 @@ export default function About() {
     variables: aboutMapVariables,
   });
   const [selectedWindow, setSelectedWindow] = useState<string>('live');
+  const [selectedForecast, setSelectedForecast] = useState<string>('now');
 
   const WINDOW_OPTIONS = [
     { value: 'live', label: 'Live (current)' },
@@ -218,16 +219,27 @@ export default function About() {
     { value: '90d',  label: 'Last 90 days' },
   ];
 
+  const FORECAST_OPTIONS = [
+    { value: 'now', label: 'Now' },
+    { value: '1h',  label: '+1 hour' },
+    { value: '8h',  label: '+8 hours' },
+    { value: '24h', label: '+24 hours' },
+    { value: '3d',  label: '+3 days' },
+    { value: '7d',  label: '+7 days' },
+  ];
+
   const isLiveWeather = (mapSelectedVariableCategory ?? '').toLowerCase() === 'live weather';
 
   const aboutVariableTileUrl = useMemo(() => {
     const base = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
       mapSelectedVariable || 'landcover',
     )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${Date.now()}`;
-    return isLiveWeather && selectedWindow !== 'live'
-      ? `${base}&window=${selectedWindow}`
-      : base;
-  }, [mapSelectedVariable, isLiveWeather, selectedWindow]);
+    if (!isLiveWeather) return base;
+    const withWindow = selectedWindow !== 'live' ? `${base}&window=${selectedWindow}` : base;
+    return selectedForecast !== 'now'
+      ? `${withWindow}&forecast=${selectedForecast}`
+      : withWindow;
+  }, [mapSelectedVariable, isLiveWeather, selectedWindow, selectedForecast]);
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -1041,8 +1053,17 @@ export default function About() {
                 variant="tertiary"
                 options={WINDOW_OPTIONS}
                 value={selectedWindow}
-                onValueChange={setSelectedWindow}
+                onValueChange={(v) => { setSelectedWindow(v); setSelectedForecast('now'); }}
                 placeholder="Aggregation window"
+              />
+            )}
+            {isLiveWeather && (
+              <SelectField
+                variant="tertiary"
+                options={FORECAST_OPTIONS}
+                value={selectedForecast}
+                onValueChange={setSelectedForecast}
+                placeholder="Forecast offset"
               />
             )}
             <ThemedText variant="bodySmall">
