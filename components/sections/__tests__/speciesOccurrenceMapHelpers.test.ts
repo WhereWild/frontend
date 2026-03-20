@@ -278,7 +278,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     mockStreamPredictHeatmapJob.mockImplementation(
       async (_jobId: string, options?: { onEvent?: (event: Record<string, unknown>) => void }) => {
         options?.onEvent?.({ type: 'meta', resolution: 0.5 });
-        options?.onEvent?.({ type: 'cell', lat: 1, lon: 2, score: 0.7, nNative: 3 });
+        options?.onEvent?.({ type: 'cell', lat: 1, lon: 2, score: 0.7, nNative: 3, source: 'cell_table' });
         options?.onEvent?.({ type: 'done', nCells: 1 });
       },
     );
@@ -301,6 +301,7 @@ describe('speciesOccurrenceMapHelpers', () => {
           max_lat: '10',
           max_lon: '40',
           resolution: '0.5',
+          include_source: 'true',
         },
       },
     } as unknown as MessageEvent<unknown>);
@@ -309,13 +310,14 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(mockCreatePredictHeatmapJob).toHaveBeenCalledWith(expect.objectContaining({
         speciesKey: '101',
         resolution: 0.5,
+        includeSource: true,
       }));
       expect(postMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           type: HEATMAP_DATA_MESSAGE_TYPE,
           requestId: 7,
           queryKey: 'species-101',
-          cells: [{ lat: 1, lon: 2, score: 0.7, nNative: 3 }],
+          cells: [{ lat: 1, lon: 2, score: 0.7, nNative: 3, source: 'cell_table' }],
         }),
         '*',
       );

@@ -163,6 +163,22 @@
         };
       }
 
+      function summarizeHeatmapSources(cells) {
+        const counts = new Map();
+        (Array.isArray(cells) ? cells : []).forEach((cell) => {
+          const rawSource = typeof cell.source === 'string' ? cell.source.trim() : '';
+          const sourceKey = rawSource || 'unknown';
+          counts.set(sourceKey, (counts.get(sourceKey) || 0) + 1);
+        });
+        if (!counts.size) {
+          return 'sources=none';
+        }
+        return `sources=${Array.from(counts.entries())
+          .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+          .map(([key, count]) => `${key}:${count}`)
+          .join(',')}`;
+      }
+
       const map = L.map('map', {
         maxBounds: mapBounds,
         maxBoundsViscosity: 1,
@@ -285,6 +301,7 @@
           'Heatmap debug: cells rendered',
           `count=${heatmapAccumulatedCells.length}`,
           `resolution=${roundQueryValue(resolution)}`,
+          summarizeHeatmapSources(heatmapAccumulatedCells),
         ]);
       }
 
@@ -323,6 +340,7 @@
           max_lat: roundQueryValue(currentBounds.getNorth()),
           max_lon: roundQueryValue(currentBounds.getEast()),
           resolution: roundQueryValue(resolution),
+          include_source: 'true',
           feature_mode: String(HEATMAP_FEATURE_MODE),
           max_cells: String(HEATMAP_MAX_CELLS),
         };

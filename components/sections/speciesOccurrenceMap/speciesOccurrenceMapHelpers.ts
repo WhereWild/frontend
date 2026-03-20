@@ -432,6 +432,7 @@ export const setupWebHeatmapBridge = (
               lon: streamEvent.lon,
               score: streamEvent.score,
               nNative: streamEvent.nNative,
+              source: streamEvent.source,
             });
             flushBatch(false);
             return;
