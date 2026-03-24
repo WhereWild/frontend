@@ -10,7 +10,6 @@ dist/
 web-build/
 expo-env.d.ts
 dist.zip
-.env.local.bak*
 
 # Native
 .kotlin/
@@ -40,7 +39,7 @@ coverage/
 *.pem
 
 # local env files
-.env*.local
+.env*
 
 # typescript
 *.tsbuildinfo
