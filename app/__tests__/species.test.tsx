@@ -1,9 +1,17 @@
 import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
+import { Size } from '@/constants/theme';
+import * as LayoutChromeModule from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { Alert, Linking, Platform } from 'react-native';
-import SpeciesScreen, { LOCATION_SEARCH_LIMIT, type SpeciesScreenData } from '../_species';
+import * as ReactNative from 'react-native';
+import SpeciesScreen, {
+  calculateObservationMapHeight,
+  LOCATION_SEARCH_LIMIT,
+  shouldRenderObservationMapFrame,
+  type SpeciesScreenData,
+} from '../_species';
 
 const mockPush = jest.fn();
 
@@ -120,6 +128,8 @@ const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
 const mockFetchSpeciesOccurrences = fetchSpeciesOccurrences as jest.MockedFunction<
   typeof fetchSpeciesOccurrences
 >;
+const useLayoutChromeSpy = jest.spyOn(LayoutChromeModule, 'useLayoutChrome');
+const useWindowDimensionsSpy = jest.spyOn(ReactNative, 'useWindowDimensions');
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
 const originalPlatformOS = Platform.OS;
 
@@ -167,6 +177,8 @@ afterEach(() => {
     observations: [],
     count: 0,
   });
+  useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
+  useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
 });
 
 const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenData => ({
@@ -221,6 +233,8 @@ const waitForSpeciesEffectsToSettle = async (hasTaxonId = true) => {
 describe('Species screen', () => {
   beforeEach(() => {
     setPlatformOS('ios');
+    useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
+    useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
@@ -345,6 +359,66 @@ describe('Species screen', () => {
     });
 
     expect(screen.queryByText('Map height: none')).toBeNull();
+  });
+
+  it('calculates native map height from viewport minus app chrome and safe areas', () => {
+    expect(
+      calculateObservationMapHeight({
+        breakpoint: 'phone',
+        platform: 'ios',
+        safeAreaBottom: 16,
+        safeAreaTop: 24,
+        viewportHeight: 1000,
+      }),
+    ).toBe(Math.round((1000 - Size.bar.height.short - Size.bar.height.tall - 24 - 16) * 0.75));
+  });
+
+  it('calculates web map height from viewport minus header and safe areas', () => {
+    expect(
+      calculateObservationMapHeight({
+        breakpoint: 'desktop',
+        measuredWebHeaderHeight: 112,
+        platform: 'web',
+        safeAreaBottom: 0,
+        safeAreaTop: 20,
+        viewportHeight: 1000,
+      }),
+    ).toBe(Math.round((1000 - 112 - 20) * 0.75));
+  });
+
+  it('falls back to token-based web header height before runtime measurement is available', () => {
+    expect(
+      calculateObservationMapHeight({
+        breakpoint: 'desktop',
+        platform: 'web',
+        safeAreaBottom: 0,
+        safeAreaTop: 20,
+        viewportHeight: 1000,
+      }),
+    ).toBe(Math.round((1000 - (Size.space['1600'] + Size.space['200'] * 2) - 20) * 0.75));
+  });
+
+  it('holds web map render until the header height has been measured', () => {
+    expect(
+      shouldRenderObservationMapFrame({
+        measuredWebHeaderHeight: 0,
+        platform: 'web',
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldRenderObservationMapFrame({
+        measuredWebHeaderHeight: 112,
+        platform: 'web',
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldRenderObservationMapFrame({
+        measuredWebHeaderHeight: 0,
+        platform: 'ios',
+      }),
+    ).toBe(true);
   });
 
   it('renders dark mode palette and hides empty nearby species carousel', async () => {
