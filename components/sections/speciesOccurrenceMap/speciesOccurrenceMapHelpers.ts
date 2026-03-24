@@ -127,13 +127,14 @@ export const DEFAULT_HEATMAP_MAP_POLICY: HeatmapMapPolicy = {
   featureMode: 'auto',
   maxCells: 250000,
   zoomResolutionBreakpoints: [
-    { minZoom: 11, resolution: 0.0125 },
-    { minZoom: 10, resolution: 0.025 },
-    { minZoom: 8, resolution: 0.05 },
-    { minZoom: 6, resolution: 0.1 },
-    { minZoom: 4, resolution: 0.5 },
-    { minZoom: 2, resolution: 1 },
-    { minZoom: -999, resolution: 2 },
+    { minZoom: 12, resolution: 0.0125 },
+    { minZoom: 11, resolution: 0.025 },
+    { minZoom: 10, resolution: 0.05 },
+    { minZoom: 8, resolution: 0.1 },
+    { minZoom: 6, resolution: 0.2 },
+    { minZoom: 4, resolution: 1 },
+    { minZoom: 2, resolution: 2 },
+    { minZoom: -999, resolution: 4 },
   ],
 };
 

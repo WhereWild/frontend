@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { waitFor } from '@testing-library/react-native';
 import {
   buildLeafletHtml,
+  DEFAULT_HEATMAP_MAP_POLICY,
   HEATMAP_DATA_MESSAGE_TYPE,
   HEATMAP_FETCH_MESSAGE_TYPE,
   getMapTileUrlTemplate,
@@ -237,6 +238,19 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     jest.dontMock('expo-constants');
     jest.resetModules();
+  });
+
+  it('uses heatmap request breakpoints with an extra-fine zoomed-in tier', () => {
+    expect(DEFAULT_HEATMAP_MAP_POLICY.zoomResolutionBreakpoints).toEqual([
+      { minZoom: 12, resolution: 0.0125 },
+      { minZoom: 11, resolution: 0.025 },
+      { minZoom: 10, resolution: 0.05 },
+      { minZoom: 8, resolution: 0.1 },
+      { minZoom: 6, resolution: 0.2 },
+      { minZoom: 4, resolution: 1 },
+      { minZoom: 2, resolution: 2 },
+      { minZoom: -999, resolution: 4 },
+    ]);
   });
 
   it('bridges heatmap fetch requests from the iframe and streams cell batches back', async () => {
