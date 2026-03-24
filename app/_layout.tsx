@@ -23,6 +23,7 @@ import {
   type NavigationBarProps,
 } from '@/components';
 import { Time } from '@/constants/theme';
+import { LayoutChromeProvider, useLayoutChrome } from '@/context/LayoutChromeContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import {
   resolveHeaderConfigForRoute,
@@ -35,7 +36,7 @@ import {
   useNativeTopAppBarConfig,
 } from '@/context/NativeTopAppBarContext';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native';
 
 const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
 const NOOP = () => {};
@@ -99,7 +100,11 @@ const hasDismissAll = (value: unknown): value is { dismissAll: () => void } =>
 function RootLayoutWebFrame() {
   const pathname = usePathname();
   const { config } = useWebPageHeaderConfig();
+  const { setWebHeaderHeight } = useLayoutChrome();
   const resolvedConfig = resolveHeaderConfigForRoute(pathname, config);
+  const handleHeaderLayout = useCallback((event: LayoutChangeEvent) => {
+    setWebHeaderHeight(event.nativeEvent.layout.height);
+  }, [setWebHeaderHeight]);
 
   return (
     <View style={styles.appShell}>
@@ -115,6 +120,7 @@ function RootLayoutWebFrame() {
         onSearchingChanged={resolvedConfig.onSearchingChanged}
         onSearchResultsChanged={resolvedConfig.onSearchResultsChanged}
         onSearchContextChanged={resolvedConfig.onSearchContextChanged}
+        onLayout={handleHeaderLayout}
       />
       <View style={styles.content}>
         <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
@@ -335,11 +341,13 @@ export default function RootLayout() {
 
   return (
     <SettingsProvider>
-      <WebPageHeaderProvider>
-        <NativeTopAppBarProvider>
-          {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
-        </NativeTopAppBarProvider>
-      </WebPageHeaderProvider>
+      <LayoutChromeProvider>
+        <WebPageHeaderProvider>
+          <NativeTopAppBarProvider>
+            {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
+          </NativeTopAppBarProvider>
+        </WebPageHeaderProvider>
+      </LayoutChromeProvider>
     </SettingsProvider>
   );
 }
