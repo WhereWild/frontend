@@ -1,5 +1,5 @@
-import { SpeciesCard, ThemedText } from '@/components';
-import { Colors, Size } from '@/constants/theme';
+import { ActiveNearYouSection, LocalMapSection } from '@/components';
+import { Colors } from '@/constants/theme';
 import { fetchSpeciesByTaxonId } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
@@ -10,9 +10,8 @@ import { useSettings } from '@/context/SettingsContext';
 import Head from 'expo-router/head';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-const MAP_HEIGHT = 640;
 const SIDEBAR_WIDTH = 400;
 
 type HomeScreenProps = {
@@ -82,33 +81,17 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}
         >
-          <View style={[styles.layout, getResponsiveGapStyle(responsive)]}> 
-            <View style={styles.mapSection}>
-              <ThemedText variant="heading">Local Map</ThemedText>
+          <View style={[styles.layout, getResponsiveGapStyle(responsive)]}>
+            <LocalMapSection
+              heatmapImage={map.heatmapImage}
+              controlsImage={map.controlsImage}
+              style={styles.mapSection}
+            />
 
-              <View>
-                <Image source={map.heatmapImage} style={styles.mapImage} resizeMode="cover" />
-                <Image source={map.controlsImage} style={styles.mapControls} resizeMode="contain" />
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.sidebar,
-              ]}
-            >
-              <ThemedText variant="heading">Active Near You</ThemedText>
-
-              <View style={styles.recommendations}>
-                {resolvedRecommendations.map((species) => (
-                  <SpeciesCard
-                    key={species.taxonId}
-                    {...species}
-                    style={styles.speciesCard}
-                  />
-                ))}
-              </View>
-            </View>
+            <ActiveNearYouSection
+              recommendations={resolvedRecommendations}
+              style={styles.sidebar}
+            />
           </View>
         </ScrollView>
       </View>
@@ -129,33 +112,9 @@ const styles = StyleSheet.create({
   mapSection: {
     flex: 1,
     minWidth: 320,
-    gap: Size.space['400'],
-  },
-  mapContainer: {
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  mapImage: {
-    width: '100%',
-    height: MAP_HEIGHT,
-  },
-  mapControls: {
-    position: 'absolute',
-    top: Size.space['200'],
-    left: Size.space['200'],
-    width: 26,
-    height: 52,
   },
   sidebar: {
-    gap: Size.space['400'],
     flexBasis: SIDEBAR_WIDTH,
     maxWidth: SIDEBAR_WIDTH,
-  },
-  recommendations: {
-    gap: Size.space['400'],
-    width: '100%',
-  },
-  speciesCard: {
-    maxWidth: '100%',
   },
 });
