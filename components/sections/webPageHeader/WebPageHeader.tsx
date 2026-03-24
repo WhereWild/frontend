@@ -11,6 +11,7 @@ import React from 'react';
 import {
   Image,
   ImageSourcePropType,
+  LayoutChangeEvent,
   useWindowDimensions,
   StyleProp,
   StyleSheet,
@@ -57,6 +58,7 @@ export type WebPageHeaderProps = {
   onSearchingChanged?: (searching: boolean) => void;
   onSearchResultsChanged?: (results: SpeciesSummary[]) => void;
   onSearchContextChanged?: (message: string | null) => void;
+  onLayout?: (event: LayoutChangeEvent) => void;
 };
 
 const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
@@ -86,6 +88,7 @@ export function WebPageHeader({
   onSearchingChanged,
   onSearchResultsChanged,
   onSearchContextChanged,
+  onLayout,
 }: WebPageHeaderProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -222,6 +225,7 @@ export function WebPageHeader({
         isCompact ? { marginTop: insets.top } : null,
         style,
       ]}
+      onLayout={onLayout}
       accessibilityRole="header"
     >
       <View

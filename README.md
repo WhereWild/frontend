@@ -120,6 +120,10 @@ This app does not require any environment variables for local development, but i
 
 - `.env.local` is used for the default local development flow, including `npm start`
 - `.env` is used by `npm run start:prod` and by production web exports
+- Optional: `APP_STADIA_MAPS_API_KEY` adds explicit Stadia tile authentication.
+    - Recommended for native/mobile builds.
+    - Also useful on web if domain or localhost-based Stadia auth is not working in your environment.
+- The Stadia Maps key is exposed to the app through Expo runtime config (`Constants.expoConfig.extra.stadiaMapsApiKey`) using the same plain-env naming convention as other app runtime settings.
 - The backend base URL is exposed to the app through Expo runtime config (`Constants.expoConfig.extra.backendUrl`) so switching between local and prod startup modes does not depend on Metro reusing or invalidating previously inlined env transforms
 - `npm run start:prod` and `npm run export:web` disable Expo's automatic dotenv loading and load `.env` in memory instead, so `.env.local` is ignored for those commands without renaming files on disk
 - You can override the backend URL per command:

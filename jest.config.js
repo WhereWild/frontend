@@ -45,7 +45,8 @@ module.exports = {
     : {}),
   coverageReporters: ['json', 'json-summary', 'lcov', 'text', 'cobertura'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1'
+    '^@/(.*)$': '<rootDir>/$1',
+    '\\.(html)$': '<rootDir>/test-utils/fileMock.js'
   },
   testEnvironment: 'node'
 };
