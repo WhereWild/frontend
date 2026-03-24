@@ -5,6 +5,17 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
+import {
+  buildLeafletHtml,
+  getMapTileUrlTemplate,
+  loadFallbackMapTemplate,
+  loadMapTemplate,
+  MAP_DOCUMENT_BASE_URL,
+  MAP_REFERRER_POLICY,
+  type HighlightMessage,
+  type MapMarkerPalette,
+  toHighlightMessagePayload,
+} from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
@@ -14,145 +25,6 @@ type SpeciesOccurrenceMapProps = {
   highlightedCatalogs?: (number | string)[];
 };
 
-const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
-
-type HighlightMessage = {
-  type: typeof HIGHLIGHT_MESSAGE_TYPE;
-  catalogs: string[];
-};
-
-type MapMarkerPalette = {
-  markerFill: string;
-  markerStroke: string;
-  highlightFill: string;
-  highlightStroke: string;
-};
-
-const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage => ({
-  type: HIGHLIGHT_MESSAGE_TYPE,
-  catalogs,
-});
-
-const buildLeafletHtml = (points: SpeciesOccurrence[], markerPalette: MapMarkerPalette) => {
-  const payload = JSON.stringify(points ?? []);
-  const palettePayload = JSON.stringify(markerPalette);
-  return `<!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    <style>
-      html, body, #map {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <script>
-      const points = ${payload};
-      const palette = ${palettePayload};
-      const bounds = L.latLngBounds([[-90, -180], [90, 180]]);
-      const map = L.map('map', {
-        maxBounds: bounds,
-        minZoom: 2
-      });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-      const markerStyle = {
-        radius: 4,
-        fillColor: palette.markerFill,
-        color: palette.markerStroke,
-        weight: 1,
-        opacity: 0.9,
-        fillOpacity: 0.9,
-      };
-      const highlightStyle = {
-        radius: 5,
-        fillColor: palette.highlightFill,
-        color: palette.highlightStroke,
-        weight: 1,
-        opacity: 0.95,
-        fillOpacity: 0.95,
-      };
-      const markers = new Map();
-      function applyHighlights(list) {
-        const highlightSet = new Set(
-          Array.isArray(list) ? list.map((item) => String(item)) : [],
-        );
-        markers.forEach((marker, catalog) => {
-          if (highlightSet.has(catalog)) {
-            marker.setStyle(highlightStyle);
-          } else {
-            marker.setStyle(markerStyle);
-          }
-        });
-      }
-      function handleHighlightMessage(payload) {
-        let data = payload;
-        if (typeof payload === 'string') {
-          try {
-            data = JSON.parse(payload);
-          } catch (err) {
-            return;
-          }
-        }
-        if (data && data.type === '${HIGHLIGHT_MESSAGE_TYPE}') {
-          applyHighlights(data.catalogs || []);
-        }
-      }
-      document.addEventListener('message', (event) => handleHighlightMessage(event.data));
-      window.addEventListener('message', (event) => handleHighlightMessage(event.data));
-      if (Array.isArray(points) && points.length) {
-        const bounds = [];
-        const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: false, disableClusteringAtZoom: 6 });
-        let cluster = false;
-        if (points.length >= 10000) {
-          cluster = true;
-        }
-        points.forEach((pt, idx) => {
-          if (typeof pt.latitude === 'number' && typeof pt.longitude === 'number') {
-            const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
-            const marker = L.circleMarker([pt.latitude, pt.longitude]);
-            if (cluster) {
-              clusterGroup.addLayer(marker);
-            } else {
-              map.addLayer(marker);  
-            }
-            if (catalog.length) {
-              marker.bindPopup('<a href="https://www.inaturalist.org/observations/' + catalog + '" target="_blank">Observation #' + catalog + '</a>');
-              markers.set(catalog, marker);
-            } else {
-              markers.set('fallback-' + String(idx), marker);
-            }
-            bounds.push([pt.latitude, pt.longitude]);
-          }
-        });
-        if (cluster) {
-          map.addLayer(clusterGroup);
-        }
-        if (bounds.length) {
-          map.fitBounds(bounds, { padding: [20, 20] });
-        } else {
-          map.setView([0, 0], 2);
-        }
-      } else {
-        map.setView([0, 0], 2);
-      }
-      applyHighlights([]);
-    </script>
-  </body>
-</html>`;
-};
-
 export function SpeciesOccurrenceMap({
   occurrences,
   loading = false,
@@ -160,14 +32,61 @@ export function SpeciesOccurrenceMap({
   height = 360,
   highlightedCatalogs = [],
 }: SpeciesOccurrenceMapProps) {
+  const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
+  const rendererLoadErrorMessage = 'Unable to load the map renderer.';
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const webViewRef = React.useRef<WebView>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
+  const [templateLoadWarning, setTemplateLoadWarning] = React.useState<string | null>(null);
+  const [templateLoadError, setTemplateLoadError] = React.useState<string | null>(null);
 
   const hasOccurrences = occurrences.length > 0;
+
+  React.useEffect(() => {
+    if (loading || error || !hasOccurrences) {
+      return;
+    }
+
+    let isMounted = true;
+
+    void (async () => {
+      const templateContent = await loadMapTemplate();
+      if (!isMounted) {
+        return;
+      }
+
+      if (templateContent) {
+        setMapTemplate(templateContent);
+        setTemplateLoadWarning(null);
+        setTemplateLoadError(null);
+        return;
+      }
+
+      const fallbackTemplate = await loadFallbackMapTemplate();
+      if (!isMounted) {
+        return;
+      }
+
+      if (fallbackTemplate) {
+        setMapTemplate(fallbackTemplate);
+        setTemplateLoadWarning(fallbackWarningMessage);
+        setTemplateLoadError(null);
+        return;
+      }
+
+      setMapTemplate(null);
+      setTemplateLoadWarning(null);
+      setTemplateLoadError(rendererLoadErrorMessage);
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [error, hasOccurrences, loading]);
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
       markerFill: palette.background.brand.default,
@@ -181,10 +100,13 @@ export function SpeciesOccurrenceMap({
     () => highlightedCatalogs.map((id) => String(id)),
     [highlightedCatalogs],
   );
-  const html = React.useMemo(
-    () => buildLeafletHtml(occurrences, markerPalette),
-    [markerPalette, occurrences],
-  );
+  const tileUrlTemplate = React.useMemo(() => getMapTileUrlTemplate(mode), [mode]);
+  const html = React.useMemo(() => {
+    if (!mapTemplate) {
+      return null;
+    }
+    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate);
+  }, [mapTemplate, markerPalette, occurrences, tileUrlTemplate]);
 
   React.useEffect(() => {
     setMapReady(false);
@@ -240,30 +162,59 @@ export function SpeciesOccurrenceMap({
     );
   }
 
+  if (templateLoadError) {
+    return (
+      <View style={styles.feedback}>
+        <ThemedText variant="bodySmall">{templateLoadError}</ThemedText>
+      </View>
+    );
+  }
+
+  if (!html) {
+    return (
+      <View style={[styles.feedback, styles.loadingFeedback]}>
+        <ActivityIndicator color={palette.icon.brand.default} />
+        <ThemedText variant="bodySmall">Loading map renderer…</ThemedText>
+      </View>
+    );
+  }
+
   return (
-    <View
-      style={[
-        styles.mapWrapper,
-        { height, backgroundColor: palette.background.default.tertiary },
-      ]}
-    >
-      {Platform.OS === 'web' ? (
-        <NativeLeafletFrame
-          ref={iframeRef}
-          html={html}
-          onLoad={() => setMapReady(true)}
-        />
-      ) : (
-        <WebView
-          ref={webViewRef}
-          style={styles.webview}
-          originWhitelist={['*']}
-          source={{ html }}
-          automaticallyAdjustContentInsets={false}
-          scrollEnabled={false}
-          onLoadEnd={() => setMapReady(true)}
-        />
-      )}
+    <View style={styles.container}>
+      {templateLoadWarning ? (
+        <View
+          style={[
+            styles.templateWarning,
+            { backgroundColor: palette.background.default.secondary },
+          ]}
+        >
+          <ThemedText variant="bodySmall">{templateLoadWarning}</ThemedText>
+        </View>
+      ) : null}
+      <View
+        style={[
+          styles.mapWrapper,
+          { height, backgroundColor: palette.background.default.tertiary },
+        ]}
+      >
+        {Platform.OS === 'web' ? (
+          <NativeLeafletFrame
+            ref={iframeRef}
+            html={html}
+            onLoad={() => setMapReady(true)}
+          />
+        ) : (
+          <WebView
+            ref={webViewRef}
+            style={styles.webview}
+            originWhitelist={['*']}
+            source={{ html, baseUrl: MAP_DOCUMENT_BASE_URL }}
+            automaticallyAdjustContentInsets={false}
+            scrollEnabled={false}
+            onLoadEnd={() => setMapReady(true)}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -274,8 +225,8 @@ type NativeLeafletFrameProps = {
 };
 
 const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFrameProps>(
-  ({ html, onLoad }, ref) =>
-    React.createElement('iframe', {
+  ({ html, onLoad }, ref) => {
+    return React.createElement('iframe', {
       ref,
       srcDoc: html,
       style: {
@@ -286,18 +237,28 @@ const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFram
       title: 'Observation map',
       loading: 'lazy',
       sandbox: 'allow-scripts allow-popups',
+      referrerPolicy: MAP_REFERRER_POLICY,
       onLoad,
-    }),
+    });
+  },
 );
 NativeLeafletFrame.displayName = 'NativeLeafletFrame';
 
 const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    gap: Size.space['200'],
+  },
   mapWrapper: {
     width: '100%',
     overflow: 'hidden',
   },
   webview: {
     flex: 1,
+  },
+  templateWarning: {
+    width: '100%',
+    padding: Size.space['200'],
   },
   feedback: {
     width: '100%',

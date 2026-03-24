@@ -15,11 +15,17 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
+import { useLayoutChrome } from '../context/LayoutChromeContext';
+
+const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
+const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
+const WEB_HEADER_HEIGHT_COMPACT = Size.control.dimension.large + Size.space['400'] * 2;
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -33,6 +39,41 @@ export type SpeciesScreenData = Pick<
 export const LOCATION_SEARCH_LIMIT = 500;
 
 type ResponsiveState = ReturnType<typeof useResponsive>;
+type SpeciesMapBreakpoint = ResponsiveState['breakpoint'];
+
+export const calculateObservationMapHeight = ({
+  breakpoint,
+  measuredWebHeaderHeight,
+  platform,
+  safeAreaBottom,
+  safeAreaTop,
+  viewportHeight,
+}: {
+  breakpoint: SpeciesMapBreakpoint;
+  measuredWebHeaderHeight?: number;
+  platform: string;
+  safeAreaBottom: number;
+  safeAreaTop: number;
+  viewportHeight: number;
+}) => {
+  const excludedViewportHeight = platform === 'web'
+    ? (measuredWebHeaderHeight && measuredWebHeaderHeight > 0
+      ? measuredWebHeaderHeight
+      : (breakpoint === 'desktop' ? WEB_HEADER_HEIGHT_DESKTOP : WEB_HEADER_HEIGHT_COMPACT))
+      + safeAreaTop
+      + safeAreaBottom
+    : Size.bar.height.short + Size.bar.height.tall + safeAreaTop + safeAreaBottom;
+  const availableViewportHeight = Math.max(0, viewportHeight - excludedViewportHeight);
+  return Math.round(availableViewportHeight * 0.75);
+};
+
+export const shouldRenderObservationMapFrame = ({
+  measuredWebHeaderHeight,
+  platform,
+}: {
+  measuredWebHeaderHeight: number;
+  platform: string;
+}) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
 function SectionShell({
   responsive,
@@ -65,12 +106,28 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
+  const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
+  const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
   const { units } = useSettings();
   const { height: viewportHeight } = useWindowDimensions();
-  const observationMapHeight = Math.round(viewportHeight * 0.75);
+  const observationMapHeight = React.useMemo(() => {
+    return calculateObservationMapHeight({
+      breakpoint: responsive.breakpoint,
+      measuredWebHeaderHeight: webHeaderHeight,
+      platform: Platform.OS,
+      safeAreaBottom: insets.bottom,
+      safeAreaTop: insets.top,
+      viewportHeight,
+    });
+  }, [insets.bottom, insets.top, responsive.breakpoint, viewportHeight, webHeaderHeight]);
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
+  const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
+    measuredWebHeaderHeight: webHeaderHeight,
+    platform: Platform.OS,
+  });
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
 
   const {
@@ -185,7 +242,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
             )}
           </View>
 
-          {shouldRenderOccurrenceMap && (
+          {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
             <SpeciesOccurrenceMap
               occurrences={occurrences}
               loading={occurrenceLoading}
