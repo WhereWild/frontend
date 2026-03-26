@@ -1,6 +1,6 @@
 import Head from 'expo-router/head';
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { PageTitle, ThemedText, SelectField } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -39,9 +39,11 @@ export default function Settings() {
 
   return (
     <>
-      <Head>
-        <title>WhereWild | Settings</title>
-      </Head>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>WhereWild | Settings</title>
+        </Head>
+      ) : null}
 
       <View testID="settings-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <ScrollView

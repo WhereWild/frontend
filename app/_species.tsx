@@ -172,9 +172,11 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   return (
     <>
-      <Head>
-        <title>{`WhereWild | ${commonName}`}</title>
-      </Head>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>{`WhereWild | ${commonName}`}</title>
+        </Head>
+      ) : null}
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
       >
