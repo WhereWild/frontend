@@ -16,7 +16,15 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+
+const FORECAST_OPTIONS: { label: string; hours: number }[] = [
+  { label: 'Now', hours: 0 },
+  { label: '+8h', hours: 8 },
+  { label: '+24h', hours: 24 },
+  { label: '+3d', hours: 72 },
+  { label: '+7d', hours: 168 },
+];
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
@@ -74,7 +82,13 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
   const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(hasLiveHeatmap);
+  const [forecastHours, setForecastHours] = React.useState<number>(0);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+
+  const activeTileUrl = React.useMemo(() => {
+    if (!showLiveHeatmap || !heatmap.liveTileUrl) return null;
+    return `${heatmap.liveTileUrl}&forecast_hours=${forecastHours}`;
+  }, [showLiveHeatmap, heatmap.liveTileUrl, forecastHours]);
 
   const {
     countryOptions,
@@ -196,6 +210,49 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   }
                   onValueChange={setShowLiveHeatmap}
                 />
+                {hasLiveHeatmap && showLiveHeatmap && (
+                  <View style={styles.forecastPicker}>
+                    <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+                      Weather window
+                    </ThemedText>
+                    <View style={styles.forecastOptions}>
+                      {FORECAST_OPTIONS.map((opt) => {
+                        const active = forecastHours === opt.hours;
+                        return (
+                          <Pressable
+                            key={opt.hours}
+                            onPress={() => setForecastHours(opt.hours)}
+                            style={[
+                              styles.forecastChip,
+                              {
+                                backgroundColor: active
+                                  ? palette.background.brand.default
+                                  : palette.background.default.secondary,
+                                borderColor: active
+                                  ? palette.border.brand.default
+                                  : palette.border.default.default,
+                              },
+                            ]}
+                            accessibilityRole="radio"
+                            accessibilityState={{ checked: active }}
+                            accessibilityLabel={`Forecast ${opt.label}`}
+                          >
+                            <ThemedText
+                              variant="bodySmall"
+                              style={{
+                                color: active
+                                  ? palette.text.brand.onBrand
+                                  : palette.text.default.default,
+                              }}
+                            >
+                              {opt.label}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
               </View>
 
               <SpeciesOccurrenceMap
@@ -204,7 +261,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 error={occurrenceError}
                 highlightedCatalogs={highlightedCatalogs}
                 showMarkers={showObservations}
-                heatmapTileUrl={showLiveHeatmap ? heatmap.liveTileUrl : null}
+                heatmapTileUrl={activeTileUrl}
                 heatmapOpacity={0.72}
               />
               <View style={styles.mapBottomSpacing} />
@@ -231,6 +288,20 @@ const styles = StyleSheet.create({
   mapControls: {
     width: '100%',
     gap: Size.space['200'],
+  },
+  forecastPicker: {
+    gap: Size.space['100'],
+  },
+  forecastOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['100'],
+  },
+  forecastChip: {
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
+    borderRadius: Size.radius['100'],
+    borderWidth: 1,
   },
   mapBottomSpacing: {
     height: Size.space['300'],
