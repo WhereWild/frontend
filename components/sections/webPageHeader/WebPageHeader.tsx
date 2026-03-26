@@ -2,6 +2,7 @@ import {
   IconHelpCircle,
   IconInfo,
   IconSettings,
+  IconUpload,
 } from '@/assets/icons';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -119,6 +120,7 @@ export function WebPageHeader({
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
       { label: 'About', icon: <IconInfo />, href: '/about', hrefPath: '/about' },
+      { label: 'Upload', icon: <IconUpload />, href: '/upload', hrefPath: '/upload' },
       { label: 'Settings', icon: <IconSettings />, href: '/settings', hrefPath: '/settings' },
     ],
     [],
