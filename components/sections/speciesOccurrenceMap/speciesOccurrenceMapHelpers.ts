@@ -4,7 +4,12 @@ import Constants from 'expo-constants';
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.app/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
-export const MAP_TILE_API_KEY = Constants.expoConfig?.extra?.stadiaMapsApiKey?.trim() || null;
+const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
+
+export const MAP_TILE_API_KEY =
+  typeof rawMapTileApiKey === 'string' && rawMapTileApiKey.trim().length > 0
+    ? rawMapTileApiKey.trim()
+    : null;
 export const MAP_TILE_URL_TEMPLATE_LIGHT = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
 export const MAP_TILE_URL_TEMPLATE_DARK = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
 export const MAP_TILE_ATTRIBUTION =
