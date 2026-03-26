@@ -17,6 +17,7 @@ import {
   RadioGroup,
   SearchInput,
   SelectField,
+  SpeciesOccurrenceMap,
   SwitchField,
   SpeciesCard,
   SpeciesPageTitle,
@@ -25,16 +26,28 @@ import {
 } from '@/components';
 import type { ButtonProps } from '@/components';
 import { Colors, Shadows, Size } from '@/constants/theme';
+import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
 import Head from 'expo-router/head';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+import { normalizeLabel } from '@/components/sections/speciesEnvironment/model';
+import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
+import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
+const ABOUT_LANDCOVER_MAP_HEIGHT = 520;
+const ABOUT_LANDCOVER_MIN_ZOOM = 4;
+const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
+  { id: 'landcover', label: 'Land Cover', valueType: 'categorical', category: 'Categorical' },
+  { id: 'koppen_geiger', label: 'Köppen-Geiger', valueType: 'categorical', category: 'Categorical' },
+  { id: 'bio_1', label: 'Annual Mean Temperature', units: 'C', valueType: 'continuous', category: 'Bioclim' },
+];
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -133,6 +146,68 @@ export default function About() {
   const [filterSortOrder, setFilterSortOrder] = useState<'ascending' | 'descending'>('ascending');
   const [filterNumResults, setFilterNumResults] = useState(10);
   const [filterMinSamples, setFilterMinSamples] = useState(1);
+  const [aboutMapVariables, setAboutMapVariables] = useState<EnvironmentVariableOption[]>(
+    ABOUT_MAP_FALLBACK_VARIABLES,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const variables = await fetchEnvironmentVariables();
+        if (cancelled || !variables.length) {
+          return;
+        }
+        const mapped: EnvironmentVariableOption[] = variables
+          .filter((entry) => (entry.category ?? '').toLowerCase() !== 'temporal')
+          .map((entry) => ({
+            id: entry.id,
+            label: entry.name ?? normalizeLabel(entry.id),
+            units: entry.units ?? null,
+            valueType: entry.valueType ?? null,
+            category: entry.category ?? 'Other',
+          }))
+          .sort((a, b) => {
+            const byCategory = (a.category ?? '').localeCompare(b.category ?? '');
+            if (byCategory !== 0) {
+              return byCategory;
+            }
+            return a.label.localeCompare(b.label);
+          });
+
+        if (mapped.length > 0) {
+          setAboutMapVariables(mapped);
+        }
+      } catch {
+        // Keep fallback options when variable catalog is unavailable.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const {
+    categories: mapVariableCategories,
+    selectedVariableCategory: mapSelectedVariableCategory,
+    setSelectedVariableCategory: setMapSelectedVariableCategory,
+    filteredVariables: mapFilteredVariables,
+    selectedVariable: mapSelectedVariable,
+    setSelectedVariable: setMapSelectedVariable,
+    selectedVariableMeta: mapSelectedVariableMeta,
+  } = useEnvironmentVariableSelection({
+    variableId: 'landcover',
+    variables: aboutMapVariables,
+  });
+  const aboutVariableTileUrl = useMemo(
+    () =>
+      `${BACKEND_BASE}/api/variables/${encodeURIComponent(
+        mapSelectedVariable || 'landcover',
+      )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${Date.now()}`,
+    [mapSelectedVariable],
+  );
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -925,6 +1000,36 @@ export default function About() {
               </View>
             ))}
           </View>
+
+          <View style={styles.aboutMapSection}>
+            <ThemedText variant="heading">Variable Tile Map</ThemedText>
+            <ThemedText variant="body">
+              Backend-served variable tiles using the same overview and tile extraction flow as SDM.
+            </ThemedText>
+            <VariableSelectorHeader
+              categories={mapVariableCategories}
+              selectedVariableCategory={mapSelectedVariableCategory}
+              onCategoryChange={setMapSelectedVariableCategory}
+              filteredVariables={mapFilteredVariables}
+              selectedVariable={mapSelectedVariable}
+              onVariableChange={setMapSelectedVariable}
+              headingText={mapSelectedVariableMeta?.label ?? 'Map Variable'}
+              metaText={`Tile variable id: ${mapSelectedVariable}`}
+            />
+            <ThemedText variant="bodySmall">
+              Pick a variable to test tile rendering. Only backend map-enabled variables will display.
+            </ThemedText>
+            <SpeciesOccurrenceMap
+              occurrences={[]}
+              loading={false}
+              error={null}
+              height={ABOUT_LANDCOVER_MAP_HEIGHT}
+              heatmapTileUrl={aboutVariableTileUrl}
+              heatmapOpacity={0.85}
+              minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
+              showMarkers={false}
+            />
+          </View>
           </ScrollView>
         </View>
       </View>
@@ -991,5 +1096,8 @@ const styles = StyleSheet.create({
   radioStateGroup: {
     width: 340,
     gap: Size.space['300'],
+  },
+  aboutMapSection: {
+    gap: Size.space['250'],
   },
 });
