@@ -21,6 +21,11 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
+jest.mock('@/data/api', () => ({
+  BACKEND_BASE: 'https://api.example.test',
+  fetchEnvironmentVariables: jest.fn(async () => []),
+}));
+
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
 const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
@@ -65,6 +70,7 @@ describe('About screen', () => {
     expect(screen.queryByText('Developer Tools')).toBeNull();
 
     expect(screen.getByText('Species Page Components')).toBeTruthy();
+    expect(screen.getByText('Variable Tile Map')).toBeTruthy();
     expect(
       screen.getByText('Preview of the composable building blocks used on the species detail page.'),
     ).toBeTruthy();
