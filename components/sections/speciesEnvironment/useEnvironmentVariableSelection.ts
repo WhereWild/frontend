@@ -87,6 +87,9 @@ export function useEnvironmentVariableSelection({
 
   // Load remote vars when units or other deps change
   React.useEffect(() => {
+    if (variables && variables.length > 0) {
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -108,7 +111,7 @@ export function useEnvironmentVariableSelection({
     return () => {
       cancelled = true;
     };
-  }, [units]);
+  }, [units, variables]);
 
   const selectedVariableMeta = React.useMemo(
     () =>

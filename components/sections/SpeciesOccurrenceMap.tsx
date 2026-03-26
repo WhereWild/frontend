@@ -23,6 +23,10 @@ type SpeciesOccurrenceMapProps = {
   error?: string | null;
   height?: number;
   highlightedCatalogs?: (number | string)[];
+  heatmapTileUrl?: string | null;
+  heatmapOpacity?: number;
+  minZoom?: number;
+  showMarkers?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -31,6 +35,10 @@ export function SpeciesOccurrenceMap({
   error = null,
   height = 360,
   highlightedCatalogs = [],
+  heatmapTileUrl = null,
+  heatmapOpacity = 0.6,
+  minZoom = 2,
+  showMarkers = true,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
@@ -47,7 +55,7 @@ export function SpeciesOccurrenceMap({
   const hasOccurrences = occurrences.length > 0;
 
   React.useEffect(() => {
-    if (loading || error || !hasOccurrences) {
+    if (loading || error || (!hasOccurrences && !heatmapTileUrl)) {
       return;
     }
 
@@ -86,7 +94,7 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasOccurrences, loading]);
+  }, [error, hasOccurrences, heatmapTileUrl, loading]);
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
       markerFill: palette.background.brand.default,
@@ -105,8 +113,8 @@ export function SpeciesOccurrenceMap({
     if (!mapTemplate) {
       return null;
     }
-    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate);
-  }, [mapTemplate, markerPalette, occurrences, tileUrlTemplate]);
+    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate, heatmapTileUrl, heatmapOpacity, minZoom, showMarkers);
+  }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, tileUrlTemplate]);
 
   React.useEffect(() => {
     setMapReady(false);
@@ -152,7 +160,7 @@ export function SpeciesOccurrenceMap({
     );
   }
 
-  if (!hasOccurrences) {
+  if (!hasOccurrences && showMarkers && !heatmapTileUrl) {
     return (
       <View style={styles.feedback}>
         <ThemedText variant="bodySmall">
