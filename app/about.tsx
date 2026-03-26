@@ -32,7 +32,7 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
 import Head from 'expo-router/head';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 
@@ -402,9 +402,11 @@ export default function About() {
 
   return (
     <>
-      <Head>
-        <title>WhereWild | About</title>
-      </Head>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>WhereWild | About</title>
+        </Head>
+      ) : null}
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <View style={styles.content}>
           <ScrollView
