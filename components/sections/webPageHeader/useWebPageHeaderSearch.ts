@@ -251,7 +251,12 @@ export function useWebPageHeaderSearch({
   const [isSearchBlurGraceActive, setIsSearchBlurGraceActive] = React.useState(false);
 
   const previousInitialQueryRef = React.useRef(initialQuery);
+  const debouncedQueryRef = React.useRef(debouncedQuery);
   const searchBlurGraceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    debouncedQueryRef.current = debouncedQuery;
+  }, [debouncedQuery]);
 
   React.useEffect(() => {
     if (!enabled) {
@@ -309,7 +314,10 @@ export function useWebPageHeaderSearch({
     }
 
     const handle = setTimeout(() => {
-      setDebouncedQuery(searchQuery.trim());
+      const trimmedQuery = searchQuery.trim();
+      if (trimmedQuery !== debouncedQueryRef.current) {
+        setDebouncedQuery(trimmedQuery);
+      }
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(handle);

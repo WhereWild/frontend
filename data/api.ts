@@ -26,6 +26,78 @@ import {
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
 } from './apiEnvironmentHelpers';
 
+export type UploadFileValue =
+  | File
+  | Blob
+  | {
+    uri: string;
+    name: string;
+    type?: string;
+  };
+
+export type UploadFileParams = {
+  file: UploadFileValue;
+  fieldName?: string;
+  filename?: string;
+  endpoint?: string;
+};
+
+export type UploadFileResponse = {
+  blob: Blob;
+  filename: string | null;
+  contentType: string | null;
+  status: number;
+};
+
+const resolveUploadEndpoint = (endpoint: string) =>
+  endpoint.startsWith('http://') || endpoint.startsWith('https://')
+    ? endpoint
+    : `${BACKEND_BASE}${endpoint}`;
+
+const parseFilenameFromContentDisposition = (contentDisposition: string | null): string | null => {
+  if (!contentDisposition) {
+    return null;
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const plainMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return plainMatch?.[1] ?? null;
+};
+
+const appendUploadPayload = (
+  formData: FormData,
+  fieldName: string,
+  file: UploadFileValue,
+  filename?: string,
+) => {
+  if ('uri' in file) {
+    formData.append(
+      fieldName,
+      {
+        uri: file.uri,
+        name: filename ?? file.name,
+        type: file.type ?? 'application/octet-stream',
+      } as unknown as Blob,
+    );
+    return;
+  }
+
+  if (typeof File !== 'undefined' && file instanceof File) {
+    formData.append(fieldName, file, filename ?? file.name);
+    return;
+  }
+
+  formData.append(fieldName, file, filename);
+};
+
 /** Public backend base URL used by app-level data fetchers. */
 export { BACKEND_BASE };
 
@@ -158,4 +230,34 @@ export async function fetchSpeciesLocations(
   limit = 500,
 ) {
   return fetchSpeciesLocationsHelper(taxonId, level, parent, limit);
+}
+
+/**
+ * Uploads a file to the backend upload endpoint and returns the binary file response.
+ */
+export async function uploadRawObservations(
+  params: UploadFileParams,
+): Promise<UploadFileResponse> {
+  const fieldName = params.fieldName ?? 'file';
+  const endpoint = resolveUploadEndpoint('/upload/raw-observations');
+  const formData = new FormData();
+
+  appendUploadPayload(formData, fieldName, params.file, params.filename);
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`Failed to upload file: ${response.status}${errorBody ? ` ${errorBody}` : ''}`);
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: parseFilenameFromContentDisposition(response.headers.get('content-disposition')),
+    contentType: response.headers.get('content-type'),
+    status: response.status,
+  };
 }
