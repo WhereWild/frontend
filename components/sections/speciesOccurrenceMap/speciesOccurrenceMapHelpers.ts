@@ -27,6 +27,10 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   points: '__POINTS_JSON__',
   palette: '__PALETTE_JSON__',
   highlightType: '__HIGHLIGHT_MESSAGE_TYPE_JSON__',
+  heatmapTileUrl: '__HEATMAP_TILE_URL_JSON__',
+  heatmapOpacity: '__HEATMAP_OPACITY__',
+  minZoom: '__MIN_ZOOM__',
+  showMarkers: '__SHOW_MARKERS__',
 } as const;
 
 export type HighlightMessage = {
@@ -80,6 +84,10 @@ export const buildLeafletHtml = (
   points: Record<string, unknown>[],
   markerPalette: MapMarkerPalette,
   tileUrlTemplate: string,
+  heatmapTileUrl?: string | null,
+  heatmapOpacity?: number,
+  minZoom?: number,
+  showMarkers?: boolean,
 ) => {
   let html = mapTemplate;
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.documentBaseUrl).join(MAP_DOCUMENT_BASE_URL);
@@ -102,6 +110,18 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.highlightType)
     .join(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapTileUrl)
+    .join(heatmapTileUrl ? JSON.stringify(heatmapTileUrl) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapOpacity)
+    .join(String(typeof heatmapOpacity === 'number' ? heatmapOpacity : 0.6));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.minZoom)
+    .join(String(typeof minZoom === 'number' ? minZoom : 2));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.showMarkers)
+    .join(showMarkers !== false ? 'true' : 'false');
   return html;
 };
 
