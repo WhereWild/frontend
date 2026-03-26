@@ -10,7 +10,7 @@ import { useSettings } from '@/context/SettingsContext';
 import Head from 'expo-router/head';
 import React from 'react';
 import type { ImageSourcePropType } from 'react-native';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 const SIDEBAR_WIDTH = 400;
 
@@ -73,9 +73,11 @@ export default function HomeScreen({ data = mockHomePageData }: HomeScreenProps)
 
   return (
     <>
-      <Head>
-        <title>WhereWild | Home</title>
-      </Head>
+      {Platform.OS === 'web' ? (
+        <Head>
+          <title>WhereWild | Home</title>
+        </Head>
+      ) : null}
       <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
