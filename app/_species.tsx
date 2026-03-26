@@ -80,15 +80,17 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const hasLiveHeatmap = heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
   const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
+  const hasPhenology = heatmap.phenologyAvailable === true;
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
   const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(hasLiveHeatmap);
+  const [applyPhenology, setApplyPhenology] = React.useState<boolean>(true);
   const [forecastHours, setForecastHours] = React.useState<number>(0);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
 
   const activeTileUrl = React.useMemo(() => {
     if (!showLiveHeatmap || !heatmap.liveTileUrl) return null;
-    return `${heatmap.liveTileUrl}&forecast_hours=${forecastHours}`;
-  }, [showLiveHeatmap, heatmap.liveTileUrl, forecastHours]);
+    return `${heatmap.liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}`;
+  }, [showLiveHeatmap, heatmap.liveTileUrl, forecastHours, applyPhenology]);
 
   const {
     countryOptions,
@@ -236,6 +238,49 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                             accessibilityRole="radio"
                             accessibilityState={{ checked: active }}
                             accessibilityLabel={`Forecast ${opt.label}`}
+                          >
+                            <ThemedText
+                              variant="bodySmall"
+                              style={{
+                                color: active
+                                  ? palette.text.brand.onBrand
+                                  : palette.text.default.default,
+                              }}
+                            >
+                              {opt.label}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+                {hasLiveHeatmap && showLiveHeatmap && hasPhenology && (
+                  <View style={styles.forecastPicker}>
+                    <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+                      Model
+                    </ThemedText>
+                    <View style={styles.forecastOptions}>
+                      {([{ label: 'Habitat', value: false }, { label: 'Habitat + flowering', value: true }] as const).map((opt) => {
+                        const active = applyPhenology === opt.value;
+                        return (
+                          <Pressable
+                            key={String(opt.value)}
+                            onPress={() => setApplyPhenology(opt.value)}
+                            style={[
+                              styles.forecastChip,
+                              {
+                                backgroundColor: active
+                                  ? palette.background.brand.default
+                                  : palette.background.default.secondary,
+                                borderColor: active
+                                  ? palette.border.brand.default
+                                  : palette.border.default.default,
+                              },
+                            ]}
+                            accessibilityRole="radio"
+                            accessibilityState={{ checked: active }}
+                            accessibilityLabel={opt.label}
                           >
                             <ThemedText
                               variant="bodySmall"

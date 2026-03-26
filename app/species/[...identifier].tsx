@@ -92,6 +92,7 @@ const buildSpeciesPageData = (
       liveAvailable: liveHeatmapAvailable,
       liveTileUrl,
       liveModelId: resolvedModelId,
+      phenologyAvailable: payload.heatmap?.phenology_available === true,
     },
   };
 };

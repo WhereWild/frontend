@@ -97,6 +97,7 @@ export type HeatmapSnapshot = {
   liveAvailable?: boolean;
   liveTileUrl?: string | null;
   liveModelId?: string | null;
+  phenologyAvailable?: boolean;
 };
 
 /**
@@ -176,6 +177,7 @@ export type SpeciesApiDetail = SpeciesApiNormalized & {
   heatmap?: {
     available?: boolean;
     resolved_model_id?: string | null;
+    phenology_available?: boolean;
   } | null;
 };
 

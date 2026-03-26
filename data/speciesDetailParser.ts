@@ -55,6 +55,7 @@ export const parseSpeciesApiDetail = (
             heatmapSource.resolved_model_id,
             heatmapSource.resolvedModelId,
           ),
+          phenology_available: toOptionalBoolean(heatmapSource.phenology_available),
         }
       : null,
   };
