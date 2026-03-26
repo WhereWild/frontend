@@ -46,6 +46,8 @@ type DensityChartProps = {
   selection?: DensitySelectionRange | null;
   /** Called when drag selection changes or clears. */
   onSelectionChange?: (range: DensitySelectionRange | null) => void;
+  pinValue?: number | null;
+  pinLoading?: boolean;
 };
 
 /** Displays an interactive density chart with draggable range selection. */
@@ -57,6 +59,8 @@ export function DensityChart({
   summary,
   selection,
   onSelectionChange,
+  pinValue,
+  pinLoading,
 }: DensityChartProps) {
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
@@ -154,6 +158,10 @@ export function DensityChart({
     summary?.mean != null
       ? ((summary.mean - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
+  const pinPosition =
+    pinValue != null && !pinLoading && densityDomain.spanX > 0
+      ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
+      : null;
 
   return (
     <View
@@ -195,6 +203,16 @@ export function DensityChart({
             stroke={baselineColor}
             strokeWidth={1}
             strokeDasharray="4 4"
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : null}
+        {pinPosition != null && Number.isFinite(pinPosition) ? (
+          <Path
+            d={`M${pinPosition},0 L${pinPosition},${CHART_HEIGHT}`}
+            fill="none"
+            stroke="#F59E0B"
+            strokeWidth={2}
+            strokeDasharray="4 3"
             vectorEffect="non-scaling-stroke"
           />
         ) : null}

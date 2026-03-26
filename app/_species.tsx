@@ -129,6 +129,11 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     platform: Platform.OS,
   });
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [pinnedObservation, setPinnedObservation] = React.useState<{
+    catalogNumber: string;
+    lat: number;
+    lon: number;
+  } | null>(null);
 
   const {
     countryOptions,
@@ -162,9 +167,22 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
 
+    React.useEffect(() => {
+    setPinnedObservation(null);
+  }, [finalLocationGid, taxonId]);
+
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
+
+  const handlePinObservation = React.useCallback(
+    (catalogNumber: string, lat: number, lon: number) => {
+      setPinnedObservation((prev) =>
+        prev?.catalogNumber === catalogNumber ? null : { catalogNumber, lat, lon },
+      );
+    },
+    [],
+  );
 
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
@@ -239,6 +257,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
                   units={units} // <- forward units preference
+                  pinnedObservation={pinnedObservation}
                 />
               </SectionShell>
             )}
@@ -251,6 +270,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
               error={occurrenceError}
               highlightedCatalogs={highlightedCatalogs}
               height={observationMapHeight}
+              onPinObservation={handlePinObservation}
             />
           )}
         </ScrollView>

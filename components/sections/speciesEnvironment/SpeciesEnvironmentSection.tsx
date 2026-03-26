@@ -23,6 +23,7 @@ export type SpeciesEnvironmentSectionProps = {
   /** Optional geographic filter gid applied to environment requests. */
   locationGid?: string | null;
   units?: 'metric' | 'imperial' | undefined;
+  pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
 };
 
 /** Displays environment distribution insights for a species and selected variable. */
@@ -33,12 +34,13 @@ export function SpeciesEnvironmentSection({
   onHighlightChange,
   locationGid,
   units,
+  pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
-  const {
+const {
     categories,
     selectedVariableCategory,
     setSelectedVariableCategory,
@@ -66,6 +68,8 @@ export function SpeciesEnvironmentSection({
     summaryRanks,
     summaryComparisons,
     locationFilterActive,
+    pinnedValue,
+    pinnedLoading,
   } = useSpeciesEnvironmentState({
     taxonId,
     variableId,
@@ -73,6 +77,7 @@ export function SpeciesEnvironmentSection({
     onHighlightChange,
     locationGid,
     units,
+    pinnedObservation,
   });
 
   if (!taxonId) {
@@ -141,6 +146,8 @@ export function SpeciesEnvironmentSection({
               summary={summary}
               selection={selectedDensityRange}
               onSelectionChange={handleDensitySelectionChange}
+              pinValue={pinnedValue}
+              pinLoading={pinnedLoading}
             />
 
             <ContinuousInsights

@@ -14,7 +14,9 @@ import {
   MAP_REFERRER_POLICY,
   type HighlightMessage,
   type MapMarkerPalette,
+  type PinObservationMessage,
   toHighlightMessagePayload,
+  isPinObservationMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
 type SpeciesOccurrenceMapProps = {
@@ -27,6 +29,7 @@ type SpeciesOccurrenceMapProps = {
   heatmapOpacity?: number;
   minZoom?: number;
   showMarkers?: boolean;
+  onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -39,6 +42,7 @@ export function SpeciesOccurrenceMap({
   heatmapOpacity = 0.6,
   minZoom = 2,
   showMarkers = true,
+  onPinObservation,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
@@ -142,6 +146,23 @@ export function SpeciesOccurrenceMap({
     }
     sendHighlightMessage(highlightMessage);
   }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
+  
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+    const handler = (event: MessageEvent) => {
+      if (isPinObservationMessage(event.data)) {
+        onPinObservation?.(
+          event.data.catalogNumber,
+          event.data.latitude,
+          event.data.longitude,
+        );
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [onPinObservation]);
 
   if (loading) {
     return (
@@ -220,6 +241,18 @@ export function SpeciesOccurrenceMap({
             automaticallyAdjustContentInsets={false}
             scrollEnabled={false}
             onLoadEnd={() => setMapReady(true)}
+            onMessage={(event) => {
+              try {
+                const msg = JSON.parse(event.nativeEvent.data) as unknown;
+                if (isPinObservationMessage(msg)) {
+                  onPinObservation?.(
+                    msg.catalogNumber,
+                    msg.latitude,
+                    msg.longitude,
+                  );
+                }
+              } catch {}
+            }}
           />
         )}
       </View>
@@ -244,7 +277,7 @@ const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFram
       },
       title: 'Observation map',
       loading: 'lazy',
-      sandbox: 'allow-scripts allow-popups',
+      sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
       referrerPolicy: MAP_REFERRER_POLICY,
       onLoad,
     });

@@ -2,7 +2,8 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
-export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
+export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
+export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.app/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
 
@@ -36,11 +37,31 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   heatmapOpacity: '__HEATMAP_OPACITY__',
   minZoom: '__MIN_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
+  pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
 } as const;
 
 export type HighlightMessage = {
   type: typeof HIGHLIGHT_MESSAGE_TYPE;
   catalogs: string[];
+};
+
+export type PinObservationMessage = {
+  type: typeof PIN_OBSERVATION_MESSAGE_TYPE;
+  catalogNumber: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type MapInboundMessage = HighlightMessage | PinObservationMessage;
+
+export const isPinObservationMessage = (msg: unknown): msg is PinObservationMessage => {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    m.type === PIN_OBSERVATION_MESSAGE_TYPE &&
+    typeof m.latitude === 'number' &&
+    typeof m.longitude === 'number'
+  );
 };
 
 export type MapMarkerPalette = {
@@ -127,8 +148,12 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.showMarkers)
     .join(showMarkers !== false ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationType)
+    .join(JSON.stringify(PIN_OBSERVATION_MESSAGE_TYPE));
   return html;
 };
+
 
 const loadHtmlAsset = async (templateModule: number): Promise<string | null> => {
   try {

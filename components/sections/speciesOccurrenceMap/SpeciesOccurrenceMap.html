@@ -26,6 +26,7 @@
       const points = __POINTS_JSON__;
       const palette = __PALETTE_JSON__;
       const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
+      const PIN_OBSERVATION_MESSAGE_TYPE = __PIN_OBSERVATION_MESSAGE_TYPE_JSON__;
 
       const MERCATOR_MAX_LAT = 85.05112878;
       const TILE_SIZE = 256;
@@ -120,6 +121,20 @@
       };
       const markers = new Map();
 
+      function sendPinMessage(catalogNumber, latitude, longitude) {
+        const msg = {
+          type: PIN_OBSERVATION_MESSAGE_TYPE,
+          catalogNumber: catalogNumber,
+          latitude: latitude,
+          longitude: longitude,
+        };
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        } else {
+          window.parent.postMessage(msg, '*');
+        }
+      }
+
       function applyHighlights(list) {
         const highlightSet = new Set(
           Array.isArray(list) ? list.map((item) => String(item)) : [],
@@ -167,13 +182,12 @@
         const visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
         let showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
-        function buildObservationPopup(catalogHref, catalogLabel) {
+        function buildObservationPopup(catalogHref, catalogLabel, latitude, longitude) {
           if (!catalogHref || !catalogLabel) {
             return '';
           }
-          return (
-            '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>'
-          );
+          var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
+          var pinBtn = '<button style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;" onclick="sendPinMessage(\'' + catalogLabel + '\',' + latitude + ',' + longitude + ')">Highlight in Environmental Features</button>';          return inatLink + pinBtn;
         }
 
         function applyEntryStyle(entry, style) {
@@ -253,10 +267,6 @@
             return;
           }
 
-          // MarkerCluster still groups by projected map coordinates. We only
-          // re-anchor each child marker into the currently viewed wrapped world
-          // copy before rebuilding, so clusters do not jump as a single layer
-          // by +/-360 degrees when the viewport crosses the antimeridian.
           if (!syncClusterMarkersToCurrentWorld()) {
             return;
           }
@@ -322,7 +332,7 @@
           const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
           const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
           const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
-          const popupHtml = buildObservationPopup(pt.popupCatalogHref, pt.popupCatalogLabel);
+          const popupHtml = buildObservationPopup(pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
 
           if (useVisibilityManagedClustering && clusterGroup) {
             const clusterMarker = L.circleMarker([latitude, initialLongitude], markerStyle);
