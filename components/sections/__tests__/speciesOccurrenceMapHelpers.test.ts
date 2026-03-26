@@ -183,4 +183,26 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(getMapTileUrlTemplate('dark')).toContain('alidade_smooth_dark');
     expect(getMapTileUrlTemplate('light')).toContain('api_key=test-stadia-key');
   });
+
+  it('treats a non-string Stadia config value as absent', () => {
+    jest.resetModules();
+    jest.doMock('expo-constants', () => ({
+      __esModule: true,
+      default: {
+        expoConfig: {
+          extra: {
+            stadiaMapsApiKey: { token: 'unexpected-object' },
+          },
+        },
+      },
+    }));
+
+    const isolatedHelpers = jest.requireActual('../speciesOccurrenceMap/speciesOccurrenceMapHelpers') as typeof import('../speciesOccurrenceMap/speciesOccurrenceMapHelpers');
+
+    expect(isolatedHelpers.MAP_TILE_API_KEY).toBeNull();
+    expect(isolatedHelpers.getMapTileUrlTemplate('light')).toBe(MAP_TILE_URL_TEMPLATE_LIGHT);
+
+    jest.dontMock('expo-constants');
+    jest.resetModules();
+  });
 });
