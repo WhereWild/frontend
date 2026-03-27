@@ -95,7 +95,7 @@ describe('SpeciesOccurrenceMap', () => {
 
     const webView = screen.getByTestId('mock-webview');
     expect(webView).toBeTruthy();
-    expect(webView.props.source.baseUrl).toBe('https://wherewild.app/');
+    expect(webView.props.source.baseUrl).toBe('https://wherewild.net/');
   });
 
   it('posts highlight message after native map load completes', async () => {

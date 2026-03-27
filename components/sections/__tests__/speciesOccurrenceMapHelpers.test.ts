@@ -162,7 +162,7 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('exposes a stable document base url for map referrers', () => {
-    expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.app/');
+    expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.net/');
   });
 
   it('exposes stable map transport constants for Stadia and declustering', () => {
