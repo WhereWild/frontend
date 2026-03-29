@@ -1,0 +1,10 @@
+.git
+.gitlab
+.expo
+.npm
+node_modules
+coverage
+dist
+dist-ios
+dist-android
+*.log
