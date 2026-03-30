@@ -12,13 +12,15 @@ This project has some VS Code helper configured. Open `front-end.code-workspace`
 ### Prerequisites
 
 1. Install Node v24.13.0
-2. Install dependencies
+2. For mobile development, follow https://docs.expo.dev/get-started/set-up-your-environment
+    - We have Expo Application Services set up
+3. Install dependencies
 
    ```bash
    npm install
    ```
 
-3. Clone WhereWild's fork of Figma's Simple Design System repository alongside this repository (not in it). Assuming PWD is this repository,
+4. Clone WhereWild's fork of Figma's Simple Design System repository alongside this repository (not in it). Assuming PWD is this repository,
 
    ```bash
    git clone https://github.com/KellyNyanbinary/wherewild-design-system.git ../wherewild-design-system
