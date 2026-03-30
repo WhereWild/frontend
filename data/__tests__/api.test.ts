@@ -1,5 +1,6 @@
 import {
   BACKEND_BASE,
+  fetchSpeciesHeatmapMetadata,
   fetchSpeciesByTaxonId,
   fetchSpeciesList,
   fetchSpeciesLocations,
@@ -335,5 +336,26 @@ describe('data/api common name normalization', () => {
     await expect(fetchSpeciesLocations(42, 'country')).rejects.toThrow(
       'Failed to fetch species locations for 42: 503 backend unavailable',
     );
+  });
+
+  it('fetches and normalizes species heatmap tile metadata', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        available: true,
+        species_key: 42,
+        native_resolution: 0.125,
+        tile_url: '/api/species/42/heatmap/tiles/{z}/{x}/{y}.png',
+      }),
+    });
+
+    await expect(fetchSpeciesHeatmapMetadata(42)).resolves.toEqual({
+      available: true,
+      speciesKey: 42,
+      nativeResolution: 0.125,
+      tileUrl: '/api/species/42/heatmap/tiles/{z}/{x}/{y}.png',
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(`${BACKEND_BASE}/api/species/42/heatmap`);
   });
 });

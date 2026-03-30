@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react-native';
 import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier]';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
-import { fetchSpeciesByTaxonId } from '@/data/api';
+import { fetchSpeciesByTaxonId, fetchSpeciesHeatmapMetadata } from '@/data/api';
 
 jest.mock('expo-router', () => {
   const actual = jest.requireActual('expo-router');
@@ -17,6 +17,7 @@ jest.mock('expo-router', () => {
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
+  fetchSpeciesHeatmapMetadata: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
   fetchLocationsByHierarchy: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
@@ -26,6 +27,7 @@ jest.mock('@/data/api', () => ({
 }));
 
 const mockedApiModule = jest.requireMock('@/data/api') as {
+  fetchSpeciesHeatmapMetadata: jest.Mock;
   fetchSpeciesOccurrences: jest.Mock;
   fetchLocationsByHierarchy: jest.Mock;
   fetchEnvironmentVariables: jest.Mock;
@@ -38,6 +40,9 @@ const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typ
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
+const mockFetchSpeciesHeatmapMetadata = fetchSpeciesHeatmapMetadata as jest.MockedFunction<
+  typeof fetchSpeciesHeatmapMetadata
+>;
 
 const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -61,6 +66,12 @@ describe('SpeciesBasicsPage', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
+    mockFetchSpeciesHeatmapMetadata.mockResolvedValue({
+      available: true,
+      speciesKey: Number(SAMPLE_TAXON_ID),
+      nativeResolution: 0.25,
+      tileUrl: '/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png',
+    });
     mockedApiModule.fetchSpeciesOccurrences.mockResolvedValue([]);
     mockedApiModule.fetchLocationsByHierarchy.mockResolvedValue([]);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);

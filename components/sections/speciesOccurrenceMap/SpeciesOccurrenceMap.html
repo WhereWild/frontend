@@ -77,6 +77,10 @@
       const debugPanel = document.getElementById('debug-panel');
 
       let heatmapOverlayEnabled = false;
+      let heatmapOverlayMode = 'cells';
+      let heatmapTileUrl = '';
+      let heatmapTileLayer = null;
+      let heatmapTileLoadCount = 0;
       let activeSpeciesKey = speciesKey;
 
       function clampLatitude(value) {
@@ -108,6 +112,18 @@
         debugPanel.textContent = Array.isArray(lines) && lines.length
           ? lines.join(' | ')
           : 'Heatmap debug: unavailable';
+      }
+
+      function summarizeTileUrl(url) {
+        if (typeof url !== 'string' || !url.trim()) {
+          return 'tileUrl=none';
+        }
+        try {
+          const parsed = new URL(url, document.baseURI);
+          return `tileUrl=${parsed.origin}${parsed.pathname}`;
+        } catch {
+          return `tileUrl=${url}`;
+        }
       }
 
       function shouldDelegateHeatmapFetchToParent() {
@@ -279,8 +295,78 @@
         window.parent.postMessage(payload, '*');
       }
 
+      function createHeatmapTileLayer(url) {
+        heatmapTileLoadCount = 0;
+        const overlayLayer = L.tileLayer(url, {
+          opacity: 0.65,
+          referrerPolicy: TILE_REFERRER_POLICY,
+          zIndex: 350,
+        });
+        const originalCreateOverlayTile = overlayLayer.createTile;
+        overlayLayer.createTile = function(coords, done) {
+          const tile = originalCreateOverlayTile.call(this, coords, done);
+          tile.referrerPolicy = TILE_REFERRER_POLICY;
+          return tile;
+        };
+        overlayLayer.on('loading', () => {
+          setDebugText([
+            'Heatmap debug: tile overlay loading',
+            summarizeTileUrl(url),
+          ]);
+        });
+        overlayLayer.on('tileload', () => {
+          heatmapTileLoadCount += 1;
+        });
+        overlayLayer.on('load', () => {
+          setDebugText([
+            'Heatmap debug: tile overlay loaded',
+            `tiles=${heatmapTileLoadCount}`,
+            summarizeTileUrl(url),
+          ]);
+        });
+        overlayLayer.on('tileerror', (event) => {
+          const coords = event && event.coords
+            ? `z=${event.coords.z} x=${event.coords.x} y=${event.coords.y}`
+            : 'tile=unknown';
+          setDebugText([
+            'Heatmap debug: tile overlay error',
+            coords,
+            summarizeTileUrl(url),
+          ]);
+        });
+        return overlayLayer;
+      }
+
+      function clearHeatmapTileLayer() {
+        if (!heatmapTileLayer) {
+          return;
+        }
+        map.removeLayer(heatmapTileLayer);
+        heatmapTileLayer = null;
+      }
+
+      function ensureHeatmapTileLayer(url) {
+        if (!url) {
+          clearHeatmapTileLayer();
+          return;
+        }
+        if (heatmapTileLayer && heatmapTileUrl === url) {
+          if (!map.hasLayer(heatmapTileLayer)) {
+            heatmapTileLayer.addTo(map);
+          }
+          return;
+        }
+
+        clearHeatmapTileLayer();
+        heatmapTileUrl = url;
+        heatmapTileLayer = createHeatmapTileLayer(url).addTo(map);
+      }
+
       function applyHeatmapDataFromParent(payload) {
         if (!payload || payload.type !== HEATMAP_DATA_MESSAGE_TYPE) {
+          return;
+        }
+        if (heatmapOverlayMode !== 'cells') {
           return;
         }
         const requestId = Number(payload.requestId);
@@ -309,6 +395,9 @@
         if (!payload || payload.type !== HEATMAP_ERROR_MESSAGE_TYPE) {
           return;
         }
+        if (heatmapOverlayMode !== 'cells') {
+          return;
+        }
         const requestId = Number(payload.requestId);
         if (!isFinite(requestId) || requestId !== heatmapRequestCounter) {
           return;
@@ -325,11 +414,33 @@
       function refreshHeatmapGrid() {
         if (!heatmapOverlayEnabled || !activeSpeciesKey) {
           heatmapLayerGroup.clearLayers();
+          clearHeatmapTileLayer();
           heatmapAccumulatedCells = [];
           heatmapAccumulatedRequestId = null;
           setDebugText(['Heatmap debug: overlay disabled']);
           return;
         }
+
+        if (heatmapOverlayMode === 'tiles') {
+          heatmapLayerGroup.clearLayers();
+          heatmapAccumulatedCells = [];
+          heatmapAccumulatedRequestId = null;
+
+          if (!heatmapTileUrl) {
+            clearHeatmapTileLayer();
+            setDebugText(['Heatmap debug: tile overlay unavailable']);
+            return;
+          }
+
+          setDebugText([
+            'Heatmap debug: tile overlay requested',
+            summarizeTileUrl(heatmapTileUrl),
+          ]);
+          ensureHeatmapTileLayer(heatmapTileUrl);
+          return;
+        }
+
+        clearHeatmapTileLayer();
 
         const currentBounds = map.getBounds();
         const resolution = resolutionForZoom(map.getZoom());
@@ -411,8 +522,16 @@
         }
         if (data && data.type === HEATMAP_SETTINGS_MESSAGE_TYPE) {
           heatmapOverlayEnabled = Boolean(data.enabled);
+          heatmapOverlayMode = data.overlayMode === 'tiles' ? 'tiles' : 'cells';
           activeSpeciesKey = data.speciesKey ? String(data.speciesKey) : '';
+          heatmapTileUrl = typeof data.tileUrl === 'string' ? data.tileUrl : '';
           heatmapLastAppliedQueryKey = '';
+          setDebugText([
+            'Heatmap debug: settings received',
+            `enabled=${heatmapOverlayEnabled}`,
+            `mode=${heatmapOverlayMode}`,
+            summarizeTileUrl(heatmapTileUrl),
+          ]);
           scheduleHeatmapRefresh();
         }
       }

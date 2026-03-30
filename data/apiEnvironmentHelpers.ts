@@ -5,6 +5,7 @@ import type {
   PredictHeatmapJobEvent,
   PredictHeatmapJobRequest,
   SpeciesEnvironmentCategorySampleResponse,
+  SpeciesHeatmapMetadata,
   SpeciesPredictHeatmap,
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
@@ -217,6 +218,30 @@ export async function fetchSpeciesPredictHeatmap(
           && typeof entry.score === 'number'
           && typeof entry.nNative === 'number',
       ),
+  };
+}
+
+/**
+ * Fetches tile-surface metadata for a species heatmap.
+ */
+export async function fetchSpeciesHeatmapMetadata(
+  speciesKey: string | number,
+): Promise<SpeciesHeatmapMetadata> {
+  const encodedSpeciesKey = encodeURIComponent(String(speciesKey));
+  const payload = asRecord(
+    await fetchJsonOrThrow(
+      `${BACKEND_BASE}/api/species/${encodedSpeciesKey}/heatmap`,
+      `Failed to fetch heatmap metadata for ${speciesKey}`,
+    ),
+  );
+
+  return {
+    available: Boolean(payload.available),
+    speciesKey: toFiniteNumber(payload.species_key) ?? Number(speciesKey),
+    nativeResolution: toFiniteNumber(payload.native_resolution) ?? 0,
+    tileUrl: typeof payload.tile_url === 'string' && payload.tile_url.trim().length > 0
+      ? payload.tile_url
+      : null,
   };
 }
 

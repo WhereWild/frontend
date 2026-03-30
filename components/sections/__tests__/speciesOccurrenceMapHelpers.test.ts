@@ -2,8 +2,10 @@ import { Asset } from 'expo-asset';
 import { Platform } from 'react-native';
 import { waitFor } from '@testing-library/react-native';
 import {
+  buildSpeciesHeatmapTileUrl,
   buildLeafletHtml,
   DEFAULT_HEATMAP_MAP_POLICY,
+  DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS,
   HEATMAP_DATA_MESSAGE_TYPE,
   HEATMAP_FETCH_MESSAGE_TYPE,
   getMapTileUrlTemplate,
@@ -17,17 +19,20 @@ import {
   MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
+  resolveSpeciesHeatmapTileOverlay,
   setupWebHeatmapBridge,
   toHighlightMessagePayload,
 } from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
 const mockCreatePredictHeatmapJob = jest.fn();
 const mockDeletePredictHeatmapJob = jest.fn();
+const mockFetchSpeciesHeatmapMetadata = jest.fn();
 const mockStreamPredictHeatmapJob = jest.fn();
 
 jest.mock('@/data/api', () => ({
   createPredictHeatmapJob: (...args: unknown[]) => mockCreatePredictHeatmapJob(...args),
   deletePredictHeatmapJob: (...args: unknown[]) => mockDeletePredictHeatmapJob(...args),
+  fetchSpeciesHeatmapMetadata: (...args: unknown[]) => mockFetchSpeciesHeatmapMetadata(...args),
   streamPredictHeatmapJob: (...args: unknown[]) => mockStreamPredictHeatmapJob(...args),
 }));
 
@@ -53,6 +58,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     global.window = originalWindow;
     mockCreatePredictHeatmapJob.mockReset();
     mockDeletePredictHeatmapJob.mockReset();
+    mockFetchSpeciesHeatmapMetadata.mockReset();
     mockStreamPredictHeatmapJob.mockReset();
     jest.clearAllMocks();
     if (originalPlatformDescriptor) {
@@ -251,6 +257,29 @@ describe('speciesOccurrenceMapHelpers', () => {
       { minZoom: 2, resolution: 2 },
       { minZoom: -999, resolution: 4 },
     ]);
+  });
+
+  it('builds a heatmap tile URL with the configured query parameters', () => {
+    expect(buildSpeciesHeatmapTileUrl('/api/species/101/heatmap/tiles/{z}/{x}/{y}.png')).toBe(
+      'http://localhost:8000/api/species/101/heatmap/tiles/{z}/{x}/{y}.png?tile_size=256&feature_mode=prefer_cell_table&max_native_zoom=8',
+    );
+  });
+
+  it('resolves available heatmap tile metadata into a concrete overlay URL', async () => {
+    mockFetchSpeciesHeatmapMetadata.mockResolvedValue({
+      available: true,
+      speciesKey: 101,
+      nativeResolution: 0.25,
+      tileUrl: '/api/species/101/heatmap/tiles/{z}/{x}/{y}.png',
+    });
+
+    await expect(resolveSpeciesHeatmapTileOverlay(101, DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS)).resolves.toEqual({
+      available: true,
+      speciesKey: 101,
+      nativeResolution: 0.25,
+      tileUrl: '/api/species/101/heatmap/tiles/{z}/{x}/{y}.png',
+      resolvedTileUrl: 'http://localhost:8000/api/species/101/heatmap/tiles/{z}/{x}/{y}.png?tile_size=256&feature_mode=prefer_cell_table&max_native_zoom=8',
+    });
   });
 
   it('bridges heatmap fetch requests from the iframe and streams cell batches back', async () => {

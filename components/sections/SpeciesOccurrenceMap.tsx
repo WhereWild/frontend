@@ -3,9 +3,11 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import type { SpeciesOccurrence } from '@/data/types';
+import type { SpeciesHeatmapMetadata, SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
+  buildSpeciesHeatmapTileUrl,
+  DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS,
   HEATMAP_SETTINGS_MESSAGE_TYPE,
   buildLeafletHtml,
   getMapTileUrlTemplate,
@@ -13,6 +15,7 @@ import {
   loadMapTemplate,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
+  resolveSpeciesHeatmapTileOverlay,
   setupWebHeatmapBridge,
   type ActiveHeatmapJob,
   type HeatmapSettingsMessage,
@@ -33,6 +36,8 @@ type SpeciesOccurrenceMapProps = {
   showMarkers?: boolean;
   speciesKey?: number;
   showHeatmapOverlay?: boolean;
+  heatmapTileOverlayMetadata?: SpeciesHeatmapMetadata | null;
+  showHeatmapTileOverlay?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -47,6 +52,8 @@ export function SpeciesOccurrenceMap({
   showMarkers = true,
   speciesKey,
   showHeatmapOverlay = false,
+  heatmapTileOverlayMetadata = null,
+  showHeatmapTileOverlay = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
@@ -64,9 +71,14 @@ export function SpeciesOccurrenceMap({
   const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
   const [templateLoadWarning, setTemplateLoadWarning] = React.useState<string | null>(null);
   const [templateLoadError, setTemplateLoadError] = React.useState<string | null>(null);
+  const [heatmapTileOverlayUrl, setHeatmapTileOverlayUrl] = React.useState<string | null>(null);
+  const [heatmapTileNativeResolution, setHeatmapTileNativeResolution] = React.useState<number>(0);
+  const [heatmapTileOverlayNotice, setHeatmapTileOverlayNotice] = React.useState<string | null>(null);
 
   const hasOccurrences = occurrences.length > 0;
-  const hasHeatmapLayer = Boolean(heatmapTileUrl) || (showHeatmapOverlay && speciesKey != null);
+  const hasHeatmapLayer = Boolean(heatmapTileUrl)
+    || (showHeatmapOverlay && speciesKey != null)
+    || (showHeatmapTileOverlay && heatmapTileOverlayMetadata?.available && Boolean(heatmapTileOverlayMetadata.tileUrl));
 
   React.useEffect(() => {
     if (loading || error || (!hasOccurrences && !hasHeatmapLayer)) {
@@ -148,6 +160,60 @@ export function SpeciesOccurrenceMap({
     setMapReady(false);
   }, [html]);
 
+  React.useEffect(() => {
+    if (!showHeatmapTileOverlay || speciesKey == null) {
+      setHeatmapTileOverlayUrl(null);
+      setHeatmapTileNativeResolution(0);
+      setHeatmapTileOverlayNotice(null);
+      return;
+    }
+
+    if (heatmapTileOverlayMetadata) {
+      const resolvedTileUrl = heatmapTileOverlayMetadata.available && heatmapTileOverlayMetadata.tileUrl
+        ? buildSpeciesHeatmapTileUrl(heatmapTileOverlayMetadata.tileUrl, DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS)
+        : null;
+      setHeatmapTileOverlayUrl(resolvedTileUrl);
+      setHeatmapTileNativeResolution(heatmapTileOverlayMetadata.nativeResolution);
+      setHeatmapTileOverlayNotice(
+        resolvedTileUrl
+          ? null
+          : 'Prediction tiles are not available for this species yet. Falling back to the streamed prediction overlay when enabled.',
+      );
+      return;
+    }
+
+    let isMounted = true;
+
+    void resolveSpeciesHeatmapTileOverlay(speciesKey, DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS)
+      .then((metadata) => {
+        if (!isMounted) {
+          return;
+        }
+        const resolvedTileUrl = metadata.available ? metadata.resolvedTileUrl : null;
+        setHeatmapTileOverlayUrl(resolvedTileUrl);
+        setHeatmapTileNativeResolution(metadata.nativeResolution);
+        setHeatmapTileOverlayNotice(
+          resolvedTileUrl
+            ? null
+            : 'Prediction tiles are not available for this species yet. Falling back to the streamed prediction overlay when enabled.',
+        );
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+        setHeatmapTileOverlayUrl(null);
+        setHeatmapTileNativeResolution(0);
+        setHeatmapTileOverlayNotice(
+          'Unable to load prediction tiles right now. Falling back to the streamed prediction overlay when enabled.',
+        );
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [heatmapTileOverlayMetadata, showHeatmapTileOverlay, speciesKey]);
+
   const highlightMessage = React.useMemo(
     () => toHighlightMessagePayload(highlightKeys),
     [highlightKeys],
@@ -179,12 +245,28 @@ export function SpeciesOccurrenceMap({
     if (!mapReady) {
       return;
     }
+    const tileOverlayEnabled = Boolean(showHeatmapTileOverlay && speciesKey != null && heatmapTileOverlayUrl);
+    const cellOverlayEnabled = Boolean(showHeatmapOverlay && speciesKey != null && !tileOverlayEnabled);
     postRuntimeMessage({
       type: HEATMAP_SETTINGS_MESSAGE_TYPE,
-      enabled: showHeatmapOverlay && speciesKey != null,
+      enabled: cellOverlayEnabled || tileOverlayEnabled,
       speciesKey: speciesKey ?? null,
+      overlayMode: tileOverlayEnabled ? 'tiles' : 'cells',
+      tileUrl: tileOverlayEnabled ? heatmapTileOverlayUrl : null,
+      tileSize: DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS.tileSize,
+      maxNativeZoom: DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS.maxNativeZoom,
+      featureMode: DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS.featureMode,
+      nativeResolution: heatmapTileNativeResolution,
     });
-  }, [mapReady, postRuntimeMessage, showHeatmapOverlay, speciesKey]);
+  }, [
+    heatmapTileNativeResolution,
+    heatmapTileOverlayUrl,
+    mapReady,
+    postRuntimeMessage,
+    showHeatmapOverlay,
+    showHeatmapTileOverlay,
+    speciesKey,
+  ]);
 
   if (loading) {
     return (
@@ -240,6 +322,16 @@ export function SpeciesOccurrenceMap({
           ]}
         >
           <ThemedText variant="bodySmall">{templateLoadWarning}</ThemedText>
+        </View>
+      ) : null}
+      {heatmapTileOverlayNotice ? (
+        <View
+          style={[
+            styles.templateWarning,
+            { backgroundColor: palette.background.default.secondary },
+          ]}
+        >
+          <ThemedText variant="bodySmall">{heatmapTileOverlayNotice}</ThemedText>
         </View>
       ) : null}
       <View

@@ -4,8 +4,11 @@ import { Platform } from 'react-native';
 import {
   createPredictHeatmapJob,
   deletePredictHeatmapJob,
+  fetchSpeciesHeatmapMetadata,
   streamPredictHeatmapJob,
 } from '@/data/api';
+import { BACKEND_BASE } from '@/data/apiShared';
+import type { SpeciesHeatmapMetadata } from '@/data/types';
 import {
   canonicalizeRequestBounds,
   clampMaxCells,
@@ -91,6 +94,24 @@ export type HeatmapSettingsMessage = {
   type: typeof HEATMAP_SETTINGS_MESSAGE_TYPE;
   enabled: boolean;
   speciesKey: number | null;
+  overlayMode?: 'cells' | 'tiles';
+  tileUrl?: string | null;
+  tileSize?: number;
+  maxNativeZoom?: number;
+  featureMode?: 'prefer_cell_table' | 'cell_table_only';
+  nativeResolution?: number;
+};
+
+export type HeatmapTileOverlayOptions = {
+  tileSize: number;
+  maxNativeZoom: number;
+  featureMode: 'prefer_cell_table' | 'cell_table_only';
+};
+
+export const DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS: HeatmapTileOverlayOptions = {
+  tileSize: 256,
+  maxNativeZoom: 8,
+  featureMode: 'prefer_cell_table',
 };
 
 export type MapMarkerPalette = {
@@ -151,6 +172,34 @@ export const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage 
   type: HIGHLIGHT_MESSAGE_TYPE,
   catalogs,
 });
+
+export const buildSpeciesHeatmapTileUrl = (
+  tileUrlTemplate: string,
+  options: HeatmapTileOverlayOptions = DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS,
+) => {
+  const absoluteTileUrlTemplate = /^https?:\/\//i.test(tileUrlTemplate)
+    ? tileUrlTemplate
+    : `${BACKEND_BASE.replace(/\/$/, '')}/${tileUrlTemplate.replace(/^\//, '')}`;
+  const query = new URLSearchParams({
+    tile_size: String(options.tileSize),
+    feature_mode: options.featureMode,
+    max_native_zoom: String(options.maxNativeZoom),
+  });
+  return `${absoluteTileUrlTemplate}${absoluteTileUrlTemplate.includes('?') ? '&' : '?'}${query.toString()}`;
+};
+
+export const resolveSpeciesHeatmapTileOverlay = async (
+  speciesKey: number,
+  options: HeatmapTileOverlayOptions = DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS,
+): Promise<SpeciesHeatmapMetadata & { resolvedTileUrl: string | null }> => {
+  const metadata = await fetchSpeciesHeatmapMetadata(speciesKey);
+  return {
+    ...metadata,
+    resolvedTileUrl: metadata.tileUrl
+      ? buildSpeciesHeatmapTileUrl(metadata.tileUrl, options)
+      : null,
+  };
+};
 
 export const getMapTileUrlTemplate = (mode: MapTileMode) => {
   const baseTemplate = mode === 'dark' ? MAP_TILE_URL_TEMPLATE_DARK : MAP_TILE_URL_TEMPLATE_LIGHT;

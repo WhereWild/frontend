@@ -26,6 +26,7 @@
       const points = __POINTS_JSON__;
       const palette = __PALETTE_JSON__;
       const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
+      const HEATMAP_SETTINGS_MESSAGE_TYPE = __HEATMAP_SETTINGS_MESSAGE_TYPE_JSON__;
 
       const MERCATOR_MAX_LAT = 85.05112878;
       const TILE_SIZE = 256;
@@ -118,6 +119,51 @@
         fillOpacity: 0.95,
       };
       const markers = new Map();
+      let heatmapTileLayer = null;
+      let heatmapTileUrl = '';
+
+      function createHeatmapTileLayer(url) {
+        const overlayLayer = L.tileLayer(url, {
+          opacity: 0.65,
+          referrerPolicy: TILE_REFERRER_POLICY,
+          zIndex: 350,
+        });
+        const originalCreateOverlayTile = overlayLayer.createTile;
+        overlayLayer.createTile = function(coords, done) {
+          const tile = originalCreateOverlayTile.call(this, coords, done);
+          tile.referrerPolicy = TILE_REFERRER_POLICY;
+          return tile;
+        };
+        return overlayLayer;
+      }
+
+      function clearHeatmapTileLayer() {
+        if (!heatmapTileLayer) {
+          return;
+        }
+        map.removeLayer(heatmapTileLayer);
+        heatmapTileLayer = null;
+      }
+
+      function handleHeatmapSettings(data) {
+        if (!data || data.type !== HEATMAP_SETTINGS_MESSAGE_TYPE) {
+          return;
+        }
+        if (!data.enabled || data.overlayMode !== 'tiles' || !data.tileUrl) {
+          heatmapTileUrl = '';
+          clearHeatmapTileLayer();
+          return;
+        }
+        if (heatmapTileLayer && heatmapTileUrl === data.tileUrl) {
+          if (!map.hasLayer(heatmapTileLayer)) {
+            heatmapTileLayer.addTo(map);
+          }
+          return;
+        }
+        clearHeatmapTileLayer();
+        heatmapTileUrl = data.tileUrl;
+        heatmapTileLayer = createHeatmapTileLayer(data.tileUrl).addTo(map);
+      }
 
       function applyHighlights(list) {
         const highlightSet = new Set(
@@ -143,6 +189,9 @@
         }
         if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
           applyHighlights(data.catalogs || []);
+        }
+        if (data && data.type === HEATMAP_SETTINGS_MESSAGE_TYPE) {
+          handleHeatmapSettings(data);
         }
       }
 

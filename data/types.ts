@@ -162,6 +162,13 @@ export type SpeciesPredictHeatmap = {
   cells: SpeciesPredictHeatmapCell[];
 };
 
+export type SpeciesHeatmapMetadata = {
+  available: boolean;
+  speciesKey: number;
+  nativeResolution: number;
+  tileUrl: string | null;
+};
+
 export type PredictHeatmapJobRequest = {
   speciesKey: string | number;
   minLat: number;

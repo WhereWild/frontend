@@ -5,6 +5,7 @@ import type {
   PredictHeatmapJobEvent,
   PredictHeatmapJobRequest,
   SpeciesApiDetail,
+  SpeciesHeatmapMetadata,
 } from './types';
 import { parseSpeciesApiDetail } from './speciesDetailParser';
 import { BACKEND_BASE, fetchJsonOrThrow } from './apiShared';
@@ -29,6 +30,7 @@ import {
   deletePredictHeatmapJob as deletePredictHeatmapJobHelper,
   fetchSpeciesEnvironment as fetchSpeciesEnvironmentHelper,
   fetchSpeciesEnvironmentCategorySamples as fetchSpeciesEnvironmentCategorySamplesHelper,
+  fetchSpeciesHeatmapMetadata as fetchSpeciesHeatmapMetadataHelper,
   fetchSpeciesPredictHeatmap as fetchSpeciesPredictHeatmapHelper,
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
   streamPredictHeatmapJob as streamPredictHeatmapJobHelper,
@@ -241,6 +243,15 @@ export async function fetchSpeciesPredictHeatmap(
   },
 ) {
   return fetchSpeciesPredictHeatmapHelper(speciesKey, bounds);
+}
+
+/**
+ * Fetches tile-backed heatmap metadata for a species.
+ */
+export async function fetchSpeciesHeatmapMetadata(
+  speciesKey: string | number,
+): Promise<SpeciesHeatmapMetadata> {
+  return fetchSpeciesHeatmapMetadataHelper(speciesKey);
 }
 
 /**
