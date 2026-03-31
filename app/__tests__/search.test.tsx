@@ -347,9 +347,9 @@ describe('Search screen', () => {
             expect(getLatestHeaderConfig().showFilterButton).toBe(true);
         });
 
-        it('hides the filters panel by default', () => {
+        it('defaults the filter control to the closed state', () => {
             render(<Search />);
-            expect(mockFiltersProps).toBeUndefined();
+            expect(getLatestHeaderConfig().filterLabel).toBe('Filter');
         });
 
         it('shows the filters panel when header filter button is pressed once', () => {

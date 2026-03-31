@@ -50,9 +50,70 @@ export function StackedCategoryBar({
   onSelect,
   descriptionColor,
 }: StackedCategoryBarProps) {
-  const validCategories = categories.filter(
-    (category) => Number.isFinite(category.fraction) && category.fraction >= 0,
+  const validCategories = React.useMemo(
+    () => categories.filter(
+      (category) => Number.isFinite(category.fraction) && category.fraction >= 0,
+    ),
+    [categories],
   );
+  const displayCategories = React.useMemo(() => {
+    const topCategories = validCategories.slice(0, CATEGORY_DISPLAY_LIMIT);
+    const otherCategories = validCategories.slice(CATEGORY_DISPLAY_LIMIT);
+
+    const otherCategory: SpeciesEnvironmentCategory | null =
+      otherCategories.length > 0
+        ? {
+          value: '__other__',
+          className: 'Other',
+          fraction: otherCategories.reduce((sum, cat) => sum + cat.fraction, 0),
+          count: otherCategories.reduce(
+            (sum, cat) =>
+              sum + (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
+            0,
+          ),
+          description: otherCategories
+            .map((cat, index) => {
+              if (index === 0) return cat.className;
+              return cat.className.charAt(0).toLowerCase() + cat.className.slice(1);
+            })
+            .join(', '),
+        }
+        : null;
+
+    return otherCategory ? [...topCategories, otherCategory] : topCategories;
+  }, [validCategories]);
+  const selectedCategory = React.useMemo(
+    () => selectedValue !== null
+      ? displayCategories.find((cat) => String(cat.value) === String(selectedValue)) ?? null
+      : null,
+    [displayCategories, selectedValue],
+  );
+  const pills = React.useMemo(
+    () => displayCategories.map((category, index) => {
+      const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      return {
+        key: String(category.value),
+        label: category.className,
+        icon: (
+          <View
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 6,
+              backgroundColor: baseColor,
+            }}
+          />
+        ),
+      };
+    }),
+    [displayCategories],
+  );
+  const handlePillSelectionChange = React.useCallback((key: string) => {
+    const value = displayCategories.find((cat) => String(cat.value) === key)?.value;
+    if (value !== undefined) {
+      onSelect?.(value);
+    }
+  }, [displayCategories, onSelect]);
 
   if (!validCategories.length) {
     return (
@@ -62,39 +123,16 @@ export function StackedCategoryBar({
     );
   }
 
-  const topCategories = validCategories.slice(0, CATEGORY_DISPLAY_LIMIT);
-  const otherCategories = validCategories.slice(CATEGORY_DISPLAY_LIMIT);
-
-  const otherCategory: SpeciesEnvironmentCategory | null =
-    otherCategories.length > 0
-      ? {
-        value: '__other__',
-        className: 'Other',
-        fraction: otherCategories.reduce((sum, cat) => sum + cat.fraction, 0),
-        count: otherCategories.reduce(
-          (sum, cat) =>
-            sum + (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
-          0,
-        ),
-        description: otherCategories
-          .map((cat, index) => {
-            if (index === 0) return cat.className;
-            return cat.className.charAt(0).toLowerCase() + cat.className.slice(1);
-          })
-          .join(', '),
-      }
-      : null;
-
-  const displayCategories = otherCategory ? [...topCategories, otherCategory] : topCategories;
-
-  const selectedCategory =
-    selectedValue !== null
-      ? displayCategories.find((cat) => String(cat.value) === String(selectedValue))
-      : null;
+  const selectedCategoryDescription = selectedCategory
+    ? getSelectedCategoryDescription(selectedCategory)
+    : null;
+  const descriptionDisplayText = selectedCategoryDescription?.trim().length
+    ? selectedCategoryDescription
+    : ' ';
 
   return (
-    <View style={styles.stackedCategoryContainer}>
-      <View style={styles.stackedBarTrack}>
+    <View collapsable={false} style={styles.stackedCategoryContainer}>
+      <View collapsable={false} style={styles.stackedBarTrack}>
         {displayCategories.map((category, index) => {
           const fraction = category.fraction;
           const percent = Math.min(100, Math.max(0, fraction * 100));
@@ -103,6 +141,7 @@ export function StackedCategoryBar({
 
           return (
             <Pressable
+              collapsable={false}
               key={String(category.value)}
               testID={`stacked-segment-${index}`}
               onPress={() => onSelect?.(category.value)}
@@ -119,39 +158,24 @@ export function StackedCategoryBar({
       </View>
 
       <NavigationPillList
-        pills={displayCategories.map((category, index) => {
-          const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-          return {
-            key: String(category.value),
-            label: category.className,
-            icon: (
-              <View
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 6,
-                  backgroundColor: baseColor,
-                }}
-              />
-            ),
-          };
-        })}
+        pills={pills}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
-        onSelectionChange={(key) => {
-          const value = displayCategories.find((cat) => String(cat.value) === key)?.value;
-          if (value !== undefined) {
-            onSelect?.(value);
-          }
-        }}
+        onSelectionChange={handlePillSelectionChange}
         direction="horizontal"
         accessibilityLabel="Category selection"
       />
 
-      {selectedCategory ? (
-        <ThemedText variant="bodySmall" style={[styles.categoryDescription, { color: descriptionColor }]}>
-          {getSelectedCategoryDescription(selectedCategory)}
+      <View collapsable={false} style={styles.categoryDescriptionSlot}>
+        <ThemedText
+          variant="bodySmall"
+          style={[
+            styles.categoryDescription,
+            { color: descriptionColor },
+          ]}
+        >
+          {descriptionDisplayText}
         </ThemedText>
-      ) : null}
+      </View>
     </View>
   );
 }
@@ -162,7 +186,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  categoryDescription: {},
+  categoryDescription: {
+    minHeight: 20,
+  },
+  categoryDescriptionSlot: {
+    minHeight: 20,
+  },
   stackedCategoryContainer: {
     gap: Size.space.text.section,
   },

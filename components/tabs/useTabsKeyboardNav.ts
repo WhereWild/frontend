@@ -11,6 +11,7 @@ type UseTabsKeyboardNavArgs = {
   tabs: KeyboardTabItem[];
   selectedKey: string;
   onSelectionChange: (key: string) => void;
+  enabled?: boolean;
 };
 
 type UseTabsKeyboardNavResult = {
@@ -27,6 +28,7 @@ export const useTabsKeyboardNav = ({
   tabs,
   selectedKey,
   onSelectionChange,
+  enabled = true,
 }: UseTabsKeyboardNavArgs): UseTabsKeyboardNavResult => {
   const tabRefs = useRef<(React.ElementRef<typeof Tab> | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -55,6 +57,10 @@ export const useTabsKeyboardNav = ({
 
   // Keeps roving focus aligned with selected tab on first render and controlled updates.
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     if (selectedIndex < 0) {
       return;
     }
@@ -68,7 +74,7 @@ export const useTabsKeyboardNav = ({
     if (focusedIndex === null) {
       setFocusedIndex(selectedIndex);
     }
-  }, [focusedIndex, selectedIndex, selectedKey]);
+  }, [enabled, focusedIndex, selectedIndex, selectedKey]);
 
   // Returns wrapped next index for left/right keyboard navigation.
   const getNextIndex = useCallback(
@@ -83,6 +89,10 @@ export const useTabsKeyboardNav = ({
   // Handles arrow key focus movement and Enter/Space activation.
   const onKeyDownForIndex = useCallback(
     (index: number) => (event: KeyEvent) => {
+      if (!enabled) {
+        return;
+      }
+
       const key = event.nativeEvent?.key;
       if (!key) return;
 
@@ -103,7 +113,7 @@ export const useTabsKeyboardNav = ({
         }
       }
     },
-    [focusTab, focusedIndex, getNextIndex, handleSelectionChange, tabs],
+    [enabled, focusTab, focusedIndex, getNextIndex, handleSelectionChange, tabs],
   );
 
   // Stores each tab ref for keyboard focus movement.

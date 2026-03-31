@@ -5,6 +5,7 @@ import {
   ScrollView,
   TextInput,
   View,
+  type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -65,7 +66,7 @@ export type SelectFieldViewProps = {
     accessibilityLabel: string;
     disabled: boolean;
     icon: React.ReactNode;
-    onPress: () => void;
+    onPress: (event?: GestureResponderEvent) => void;
     accessibilityRole?: 'none';
     extraProps?: Record<string, unknown> | null;
   };
@@ -140,6 +141,7 @@ export const useSelectFieldController = ({
   // Track when the select just opened so we can ignore the initial blur caused by
   // autoFocus mounting the portal input (focus/blur churn that would otherwise close the list).
   const justOpenedRef = React.useRef(false);
+  const isClosingRef = React.useRef(false);
   const [isFocused, setIsFocused] = React.useState(false);
 
   // Controlled value is the single source of truth for selection.
@@ -167,6 +169,11 @@ export const useSelectFieldController = ({
     if (isDisabled) {
       return;
     }
+    isClosingRef.current = false;
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
     // Mark that we just opened so blur handler ignores the initial focus/blur churn.
     justOpenedRef.current = true;
     setTimeout(() => {
@@ -181,12 +188,30 @@ export const useSelectFieldController = ({
   }, [allowSearch, isDisabled, onOpenChange, selectedLabel]);
 
   const closeSelect = React.useCallback(() => {
+    if (isClosingRef.current) {
+      return;
+    }
+
+    isClosingRef.current = true;
+
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+
     setIsOpen(false);
     setQuery('');
     // Clear focus ring when leaving the field via selection or blur.
     setIsFocused(false);
     onOpenChange?.(false);
   }, [onOpenChange]);
+
+  React.useEffect(() => () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+  }, []);
 
   const measureDropdownAnchor = React.useCallback(() => {
     const node = fieldWrapperRef.current;
@@ -634,7 +659,10 @@ export const useSelectFieldController = ({
       accessibilityRole: 'none',
       disabled: isDisabled,
       icon: iconNode,
-      onPress: isOpen ? closeSelect : toggleSelect,
+      onPress: (event?: GestureResponderEvent) => {
+        event?.stopPropagation?.();
+        (isOpen ? closeSelect : toggleSelect)();
+      },
       extraProps: webIconButtonProps,
     },
     options: optionsViewModel,

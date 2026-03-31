@@ -40,17 +40,37 @@ const findByAccessibilityLabel = (
   return node;
 };
 
-const createTestTree = (props: SelectFieldViewProps) => {
+const findHostNodesByTestId = (
+  tree: renderer.ReactTestRenderer | null,
+  testID: string,
+): ReactTestInstance[] => {
+  if (!tree) {
+    throw new Error(`Expected test renderer tree for ${testID}.`);
+  }
+
+  return tree.root.findAll(
+    (item: ReactTestInstance) => item.props?.testID === testID && typeof item.type === 'string',
+  );
+};
+
+const createTestTree = (props: SelectFieldViewProps): {
+  tree: renderer.ReactTestRenderer;
+  cleanup: () => void;
+} => {
   let tree: renderer.ReactTestRenderer | null = null;
   rendererAct(() => {
     tree = renderer.create(<SelectFieldView {...props} />);
   });
+  if (!tree) {
+    throw new Error('Expected test renderer tree for SelectFieldView.');
+  }
+  const renderedTree = tree as renderer.ReactTestRenderer;
   const cleanup = () => {
     rendererAct(() => {
-      tree?.unmount();
+      renderedTree.unmount();
     });
   };
-  return { tree, cleanup };
+  return { tree: renderedTree, cleanup };
 };
 
 const createOption = (overrides: Partial<SelectFieldViewProps['options'][number]> = {}) => ({
@@ -130,6 +150,14 @@ describe('SelectFieldView', () => {
     expect(screen.getByText('Pick one')).toBeTruthy();
   });
 
+  it('does not mount the portal while closed', () => {
+    const props = createProps({ isOpen: false });
+    render(<SelectFieldView {...props} />);
+
+    expect(screen.queryByLabelText('Close dropdown')).toBeNull();
+    expect(screen.queryByLabelText('Label options')).toBeNull();
+  });
+
   it('renders portal input and option handlers when open with search', () => {
     const props = createProps({ isOpen: true, allowSearch: true });
     render(<SelectFieldView {...props} />);
@@ -156,10 +184,14 @@ describe('SelectFieldView', () => {
       allowSearch: false,
       inputProps: { accessibilityLabel: 'Hidden input' },
     });
-    render(<SelectFieldView {...props} />);
+    const { tree, cleanup } = createTestTree(props);
 
-    expect(screen.getByLabelText('Hidden input')).toBeTruthy();
-    expect(screen.getByLabelText('Select Hello World')).toBeTruthy();
+    try {
+      expect(findHostNodesByTestId(tree, 'select-field-portal-input')).toHaveLength(1);
+      expect(findByAccessibilityLabel(tree, 'Select Hello World')).toBeTruthy();
+    } finally {
+      cleanup();
+    }
   });
 
   it('uses placeholder fallback for portal accessibility label', () => {
@@ -193,9 +225,49 @@ describe('SelectFieldView', () => {
       dropdownPosition: null,
       inputProps: { accessibilityLabel: 'Hidden input' },
     });
-    render(<SelectFieldView {...props} />);
+    const { tree, cleanup } = createTestTree(props);
 
-    expect(screen.getByLabelText('Hidden input')).toBeTruthy();
+    try {
+      expect(findHostNodesByTestId(tree, 'select-field-portal-input')).toHaveLength(1);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('keeps portal host slots mounted across open dropdown rerenders', () => {
+    const initialProps = createProps({
+      isOpen: true,
+      allowSearch: true,
+      dropdownPosition: { top: 100, left: 20, width: 220, height: 40 },
+    });
+    const { tree, cleanup } = createTestTree(initialProps);
+
+    try {
+      expect(findHostNodesByTestId(tree, 'select-field-portal-backdrop-slot')).toHaveLength(1);
+      expect(findHostNodesByTestId(tree, 'select-field-portal-input-slot')).toHaveLength(1);
+      expect(findHostNodesByTestId(tree, 'select-field-portal-icon-slot')).toHaveLength(1);
+      expect(findHostNodesByTestId(tree, 'select-field-portal-options-slot')).toHaveLength(1);
+
+      rendererAct(() => {
+        tree.update(
+          <SelectFieldView
+            {...createProps({
+              isOpen: true,
+              allowSearch: false,
+              dropdownPosition: null,
+              inputProps: { accessibilityLabel: 'Hidden input' },
+            })}
+          />,
+        );
+      });
+
+      expect(findHostNodesByTestId(tree, 'select-field-portal-backdrop-slot')).toHaveLength(1);
+      expect(findHostNodesByTestId(tree, 'select-field-portal-input-slot')).toHaveLength(1);
+      expect(findHostNodesByTestId(tree, 'select-field-portal-icon-slot')).toHaveLength(1);
+      expect(findHostNodesByTestId(tree, 'select-field-portal-options-slot')).toHaveLength(1);
+    } finally {
+      cleanup();
+    }
   });
 
   it('applies field and option style branches', () => {

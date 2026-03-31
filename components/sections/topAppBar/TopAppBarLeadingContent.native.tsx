@@ -17,6 +17,7 @@ import {
   Image,
   Pressable,
   StyleSheet,
+  View,
 } from 'react-native';
 
 type ContentTransitionStyle = {
@@ -85,10 +86,12 @@ function NonSearchLeadingContent({
 
   return (
     <Animated.View
+      collapsable={false}
       style={[styles.leadingRow, contentTransitionStyle]}
       testID="top-app-bar-leading"
     >
       <Animated.View
+        collapsable={false}
         style={[
           styles.leadingSlot,
           {
@@ -98,16 +101,23 @@ function NonSearchLeadingContent({
         ]}
         pointerEvents={shouldShowBackButton ? 'auto' : 'none'}
       >
-        {shouldShowBackButton ? (
+        <View
+          collapsable={false}
+          accessibilityElementsHidden={!shouldShowBackButton}
+          importantForAccessibility={shouldShowBackButton ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={shouldShowBackButton ? 'auto' : 'none'}
+        >
           <IconButton
             variant="subtle"
             icon={<IconChevronLeft />}
-            onPress={onPressBack}
+            onPress={shouldShowBackButton ? onPressBack : undefined}
+            disabled={!shouldShowBackButton || typeof onPressBack !== 'function'}
             accessibilityLabel="Back"
           />
-        ) : null}
+        </View>
       </Animated.View>
       <Animated.View
+        collapsable={false}
         style={[
           styles.leadingSlot,
           {
@@ -117,33 +127,28 @@ function NonSearchLeadingContent({
         ]}
         pointerEvents={shouldShowLogo ? 'auto' : 'none'}
       >
-        {shouldShowLogo ? (
-          typeof onPressLogo === 'function' ? (
-            <Pressable
-              onPress={onPressLogo}
-              accessibilityRole="button"
-              accessibilityLabel={logoAccessibilityLabel}
-              style={styles.logoPressable}
-            >
-              <Image
-                testID="top-app-bar-home-logo-image"
-                source={logoSource}
-                style={styles.logo}
-                resizeMode="contain"
-                accessibilityRole="image"
-              />
-            </Pressable>
-          ) : (
+        <View
+          collapsable={false}
+          accessibilityElementsHidden={!shouldShowLogo}
+          importantForAccessibility={shouldShowLogo ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={shouldShowLogo ? 'auto' : 'none'}
+        >
+          <Pressable
+            onPress={shouldShowLogo ? onPressLogo : undefined}
+            disabled={!shouldShowLogo || typeof onPressLogo !== 'function'}
+            accessibilityRole={typeof onPressLogo === 'function' ? 'button' : 'image'}
+            accessibilityLabel={logoAccessibilityLabel}
+            style={styles.logoPressable}
+          >
             <Image
               testID="top-app-bar-home-logo-image"
               source={logoSource}
               style={styles.logo}
               resizeMode="contain"
               accessibilityRole="image"
-              accessibilityLabel={logoAccessibilityLabel}
             />
-          )
-        ) : null}
+          </Pressable>
+        </View>
       </Animated.View>
       <ThemedText
         variant="heading"
@@ -381,7 +386,6 @@ const styles = StyleSheet.create({
     height: TOP_APP_BAR_LOGO_SIZE,
   },
   leadingSlot: {
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
