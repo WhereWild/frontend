@@ -13,7 +13,6 @@ variables:
   NODE_VERSION: "24.13.0"
   NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
   EXPO_CACHE_DIR: "$CI_PROJECT_DIR/.expo-cache"
-  DESIGN_SYSTEM_PATH: "$CI_PROJECT_DIR/.design-system"
   DOCKER_TLS_CERTDIR: ""
   DOCKER_HOST: "tcp://docker:2375"
   DOCKER_DRIVER: overlay2
@@ -123,18 +122,12 @@ validate:tokens:
   needs: [deps:install]
   script:
     - npm ci --include=dev --cache .npm --prefer-offline
-    - |
-      rm -rf "$DESIGN_SYSTEM_PATH"
-      git clone --depth 1 https://github.com/KellyNyanbinary/WhereWild-Design-System.git "$DESIGN_SYSTEM_PATH"
     - npm run sync-theme
     - |
       if [ -n "$(git status --porcelain constants/wdsTokens.ts constants/wds-theme.css)" ]; then
         echo "Design tokens are out of sync! Run 'npm run sync-theme' locally."
         exit 1
       fi
-  # Because there is only one design system branch, it is possible for another
-  # dev's unrelated design system changes result in this pipeline failing.
-  allow_failure: true
 
 # Build validation (ensures app can build)
 validate:expo-export:
