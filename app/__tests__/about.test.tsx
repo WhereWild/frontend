@@ -26,6 +26,17 @@ jest.mock('@/data/api', () => ({
   fetchEnvironmentVariables: jest.fn(async () => []),
 }));
 
+jest.mock('@/components', () => {
+  const actual = jest.requireActual('@/components');
+  const mockReact = jest.requireActual('react');
+  const { View: MockView } = jest.requireActual('react-native');
+
+  return {
+    ...actual,
+    SpeciesOccurrenceMap: () => mockReact.createElement(MockView, { testID: 'species-occurrence-map-mock' }),
+  };
+});
+
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
 const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
