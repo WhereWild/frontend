@@ -9,6 +9,18 @@ import {
   createContainerHandlers,
 } from './searchInputHelpers';
 
+/**
+ * Minimal keyboard event shape used by web-only navigation handlers.
+ * `key` is available when a caller forwards a normalized event directly,
+ * while `nativeEvent.key` covers the React Native Web key press path.
+ */
+export type SearchInputKeyDownEvent = {
+  key?: string;
+  nativeEvent?: { key?: string };
+  preventDefault?: () => void;
+  stopPropagation?: () => void;
+};
+
 export type SearchInputProps = Omit<
   TextInputProps,
   'onChange' | 'onChangeText' | 'style' | 'value' | 'defaultValue' | 'placeholder' | 'editable'
@@ -33,6 +45,8 @@ export type SearchInputProps = Omit<
   onSubmitSearch?: (value: string) => void;
   /** Invoked after the clear icon resets the field. */
   onClear?: () => void;
+  /** Web-only keydown handler used for keyboard navigation patterns. */
+  onKeyDown?: (event: SearchInputKeyDownEvent) => void;
 };
 
 /**

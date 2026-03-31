@@ -10,6 +10,7 @@ type UseWebPageHeaderSearchLayoutOptions = {
   showSearchResultsDropdown: boolean;
   isSearchBarFocused: boolean;
   isSearchBlurGraceActive: boolean;
+  isSearchPreviewDismissed?: boolean;
 };
 
 /**
@@ -22,6 +23,7 @@ export function useWebPageHeaderSearchLayout({
   showSearchResultsDropdown,
   isSearchBarFocused,
   isSearchBlurGraceActive,
+  isSearchPreviewDismissed = false,
 }: UseWebPageHeaderSearchLayoutOptions) {
   const [wrapperHeight, setWrapperHeight] = React.useState<number | null>(null);
   const [mobileHeaderLayout, setMobileHeaderLayout] = React.useState<{
@@ -33,6 +35,7 @@ export function useWebPageHeaderSearchLayout({
     wrapperHeight &&
     hasQuery &&
     showSearchResultsDropdown &&
+    !isSearchPreviewDismissed &&
     (isSearchBarFocused || isSearchBlurGraceActive)
   );
 
