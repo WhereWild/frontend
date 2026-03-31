@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
-export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.app/';
+export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
 

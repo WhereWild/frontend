@@ -2,7 +2,6 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { uploadRawObservations } from '@/data/api';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import Upload from '../upload';
 
 jest.mock('expo-router/head', () => ({
   __esModule: true,
@@ -22,11 +21,12 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockGetDocumentAsync = jest.fn();
+jest.mock('expo-document-picker');
+const { getDocumentAsync: mockGetDocumentAsync } = require('expo-document-picker') as {
+  getDocumentAsync: jest.Mock;
+};
 
-jest.mock('expo-document-picker', () => ({
-  getDocumentAsync: (...args: unknown[]) => mockGetDocumentAsync(...args),
-}));
+const Upload = require('../upload').default;
 
 jest.mock('@/data/api', () => ({
   uploadRawObservations: jest.fn(),
