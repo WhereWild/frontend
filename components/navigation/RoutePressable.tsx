@@ -1,12 +1,14 @@
 import * as ExpoRouter from 'expo-router';
 import React from 'react';
 import { GestureResponderEvent, Pressable, type PressableProps } from 'react-native';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 
 type RoutePressableProps = Omit<PressableProps, 'onPress'> & {
   href?: ExpoRouter.Href;
   hrefPath?: string;
   onPress?: (event: GestureResponderEvent) => void;
   navigateAfterPress?: boolean;
+  showPointerCursor?: boolean;
 };
 
 type RoutePressNativeEvent = {
@@ -41,8 +43,10 @@ export function RoutePressable({
   hrefPath,
   onPress,
   navigateAfterPress,
+  showPointerCursor = true,
   ...pressableProps
 }: RoutePressableProps) {
+  const { disabled, style, ...restPressableProps } = pressableProps;
   const router = ExpoRouter.useRouter();
   const pathname = ExpoRouter.usePathname();
   const isStringHref = typeof href === 'string';
@@ -91,8 +95,20 @@ export function RoutePressable({
 
   return (
     <Pressable
-      {...pressableProps}
+      {...restPressableProps}
+      disabled={disabled}
       onPress={handlePress}
+      style={(state) => {
+        const resolvedStyle = typeof style === 'function' ? style(state) : style;
+        const normalizedStyle = Array.isArray(resolvedStyle)
+          ? resolvedStyle
+          : [resolvedStyle];
+
+        return [
+          showPointerCursor ? getInteractiveCursorStyle(disabled ?? false) : null,
+          ...normalizedStyle,
+        ];
+      }}
     />
   );
 }

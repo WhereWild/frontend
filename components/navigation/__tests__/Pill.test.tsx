@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { act, create } from 'react-test-renderer';
-import { StyleProp, StyleSheet, TextStyle, ViewStyle } from 'react-native';
+import { Platform, StyleProp, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { Colors, Size } from '@/constants/theme';
 import { NavigationPill } from '../NavigationPill';
 
@@ -43,7 +43,64 @@ const assertStyleableElement = (element: StyleableElement | null) => {
   return element;
 };
 
+const flattenChildren = (children: React.ReactNode): React.ReactNode[] => {
+  const nodes = React.Children.toArray(children);
+
+  return nodes.flatMap((child) => {
+    if (!React.isValidElement(child)) {
+      return [child];
+    }
+
+    if (child.type === React.Fragment) {
+      return flattenChildren((child as React.ReactElement<{ children?: React.ReactNode }>).props.children);
+    }
+
+    return [child];
+  });
+};
+
+const findNestedStyledText = (node: React.ReactNode): React.ReactElement | null => {
+  if (!React.isValidElement(node)) {
+    return null;
+  }
+
+  const styleProp = (node.props as { style?: unknown } | undefined)?.style;
+  const styleEntries = Array.isArray(styleProp) ? styleProp : styleProp ? [styleProp] : [];
+  const hasTextColor = styleEntries.some(
+    (entry) => typeof entry === 'object' && entry !== null && 'color' in entry,
+  );
+
+  if (hasTextColor) {
+    return node;
+  }
+
+  const children = flattenChildren((node as React.ReactElement<{ children?: React.ReactNode }>).props.children);
+  for (const child of children) {
+    const match = findNestedStyledText(child);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+};
+
 describe('NavigationPill', () => {
+  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+
+  const setPlatformOS = (os: 'ios' | 'web') => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      get: () => os,
+    });
+  };
+
+  afterEach(() => {
+    if (originalPlatformDescriptor) {
+      Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    }
+  });
+
   const getRenderedPillContent = (
     props: Omit<React.ComponentProps<typeof NavigationPill>, 'onPress'>,
     pressed = false,
@@ -55,32 +112,24 @@ describe('NavigationPill', () => {
         onPress={jest.fn()}
       />
     );
-    const pressable = renderer.root.findByProps({ accessibilityRole: 'radio' });
-    const childrenProp = pressable.props.children;
-    const rendered = typeof childrenProp === 'function'
-      ? childrenProp({ pressed, hovered })
-      : childrenProp;
-    const renderedElement = Array.isArray(rendered) ? rendered[0] : rendered;
-    if (!React.isValidElement(renderedElement)) {
-      return { content: null, text: null };
-    }
-    const renderedWithProps = renderedElement as StyleableElement;
+    const updatedPressable = renderer.root.findByProps({ accessibilityRole: 'radio' });
 
-    // Navigate through the pillInner View to find the ThemedText
-    const pillInnerView = React.Children.toArray(renderedWithProps.props.children)[0];
-    if (!React.isValidElement(pillInnerView)) {
-      return { content: renderedWithProps, text: null };
-    }
+    act(() => {
+      if (hovered) {
+        updatedPressable.props.onHoverIn?.();
+      }
+      if (pressed) {
+        updatedPressable.props.onPressIn?.();
+      }
+    });
 
-    const pillInnerChildren = React.Children.toArray((pillInnerView as StyleableElement).props.children);
-    // ThemedText is either the first child (no icon) or second child (with icon)
-    const textChild = pillInnerChildren.find((child) =>
-      React.isValidElement(child) &&
-      (child.type as any)?.displayName === 'ThemedText'
-    ) || pillInnerChildren[pillInnerChildren.length - 1];
+    const nextPressable = renderer.root.findByProps({ accessibilityRole: 'radio' });
+    const styleProp = nextPressable.props.style;
+    const rendered = nextPressable.props.children;
+    const textChild = findNestedStyledText(rendered);
 
     return {
-      content: renderedWithProps,
+      content: styleProp,
       text: React.isValidElement(textChild) ? (textChild as StyleableElement) : null,
     };
   };
@@ -144,7 +193,7 @@ describe('NavigationPill', () => {
     expect(content).not.toBeNull();
     expect(text).not.toBeNull();
 
-    const contentStyle = getStyleObject((content as StyleableElement).props.style) as {
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
       backgroundColor?: string;
       borderColor?: string;
       borderWidth?: number;
@@ -169,7 +218,7 @@ describe('NavigationPill', () => {
     expect(content).not.toBeNull();
     expect(text).not.toBeNull();
 
-    const contentStyle = getStyleObject((content as StyleableElement).props.style) as {
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
       backgroundColor?: string;
       borderWidth?: number;
     };
@@ -191,7 +240,7 @@ describe('NavigationPill', () => {
     expect(content).not.toBeNull();
     expect(text).not.toBeNull();
 
-    const contentStyle = getStyleObject((content as StyleableElement).props.style) as {
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
       backgroundColor?: string;
       borderWidth?: number;
     };
@@ -213,7 +262,7 @@ describe('NavigationPill', () => {
     expect(content).not.toBeNull();
     expect(text).not.toBeNull();
 
-    const contentStyle = getStyleObject((content as StyleableElement).props.style) as {
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
       backgroundColor?: string;
       borderWidth?: number;
     };
@@ -227,6 +276,14 @@ describe('NavigationPill', () => {
   });
 
   it('renders hover visuals when inactive hover', () => {
+    setPlatformOS('web');
+    Object.assign(global, {
+      window: {
+        innerWidth: 1280,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      },
+    });
     const { content, text } = getRenderedPillContent(
       { id: 'one', label: 'One', isActive: false },
       false,
@@ -235,7 +292,7 @@ describe('NavigationPill', () => {
     expect(content).not.toBeNull();
     expect(text).not.toBeNull();
 
-    const contentStyle = getStyleObject((content as StyleableElement).props.style) as {
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
       backgroundColor?: string;
       borderWidth?: number;
     };
@@ -257,7 +314,7 @@ describe('NavigationPill', () => {
     expect(content).not.toBeNull();
     expect(text).not.toBeNull();
 
-    const contentStyle = getStyleObject((content as StyleableElement).props.style) as {
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
       backgroundColor?: string;
       borderWidth?: number;
     };
@@ -268,5 +325,49 @@ describe('NavigationPill', () => {
     expect(textStyle.color).toBe(
       Colors.light.text.neutral.onNeutralTertiary
     );
+  });
+
+  it('keeps stable content wrappers across rerenders', () => {
+    const renderer = createRenderer(
+      <NavigationPill
+        id="one"
+        label="One"
+        isActive={false}
+        onPress={jest.fn()}
+      />
+    );
+
+    const getStableWrapperCount = () => renderer.root.findAll(
+      (node) => typeof node.type === 'string' && node.props?.collapsable === false,
+    ).length;
+
+    const initialWrapperCount = getStableWrapperCount();
+
+    act(() => {
+      renderer.update(
+        <NavigationPill
+          id="one"
+          label="One"
+          isActive={true}
+          onPress={jest.fn()}
+        />
+      );
+    });
+
+    expect(getStableWrapperCount()).toBe(initialWrapperCount);
+
+    act(() => {
+      renderer.update(
+        <NavigationPill
+          id="one"
+          label="One"
+          isActive={true}
+          icon={<></>}
+          onPress={jest.fn()}
+        />
+      );
+    });
+
+    expect(getStableWrapperCount()).toBe(initialWrapperCount);
   });
 });

@@ -116,16 +116,29 @@ describe('Filters', () => {
     });
 
     it('shows all-options for location fields so users can clear selection', () => {
-      render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
+      const rendered = render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
 
-      fireEvent.press(screen.getByLabelText('Country'));
-      expect(screen.getByText('All countries')).toBeTruthy();
+      const findPressableByAccessibilityLabel = (label: string) => {
+        const matches = rendered.UNSAFE_root.findAll(
+          (node) => node.props?.accessibilityLabel === label && typeof node.props?.onPress === 'function',
+        );
+        if (matches.length === 0) {
+          throw new Error(`Expected node with accessibilityLabel ${label}.`);
+        }
 
-      fireEvent.press(screen.getByLabelText('State'));
-      expect(screen.getByText('All states')).toBeTruthy();
+        return matches[0];
+      };
 
-      fireEvent.press(screen.getByLabelText('County'));
-      expect(screen.getByText('All counties')).toBeTruthy();
+      fireEvent.press(findPressableByAccessibilityLabel('Country'));
+      expect(findPressableByAccessibilityLabel('Select All countries')).toBeTruthy();
+      fireEvent.press(findPressableByAccessibilityLabel('Select All countries'));
+
+      fireEvent.press(findPressableByAccessibilityLabel('State'));
+      expect(findPressableByAccessibilityLabel('Select All states')).toBeTruthy();
+      fireEvent.press(findPressableByAccessibilityLabel('Select All states'));
+
+      fireEvent.press(findPressableByAccessibilityLabel('County'));
+      expect(findPressableByAccessibilityLabel('Select All counties')).toBeTruthy();
     });
 
     it('shows location hint and disables location controls while no base taxon is selected', () => {

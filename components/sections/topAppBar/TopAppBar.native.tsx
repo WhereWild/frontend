@@ -142,11 +142,11 @@ function TopAppBarActionsRow({
     : styles.actionsRowWithoutGap;
 
   return (
-    <View testID="top-app-bar-actions-row" style={[styles.actionsRow, actionsRowGapStyle]}>
+    <View collapsable={false} testID="top-app-bar-actions-row" style={[styles.actionsRow, actionsRowGapStyle]}>
       <Animated.View
+        collapsable={false}
         testID="top-app-bar-secondary-action-slot"
         style={[
-          styles.secondaryActionSlot,
           {
             width: secondaryActionWidth,
             opacity: secondaryActionOpacity,
@@ -154,13 +154,20 @@ function TopAppBarActionsRow({
         ]}
         pointerEvents={isSecondaryButtonVisible ? 'auto' : 'none'}
       >
-        <IconButton
-          variant="neutral"
-          icon={resolvedSecondaryAction.icon}
-          onPress={resolvedSecondaryAction.onPress}
-          disabled={!isSecondaryActionEnabled}
-          accessibilityLabel={resolvedSecondaryAction.accessibilityLabel}
-        />
+        <View
+          collapsable={false}
+          accessibilityElementsHidden={!isSecondaryButtonVisible}
+          importantForAccessibility={isSecondaryButtonVisible ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={isSecondaryButtonVisible ? 'auto' : 'none'}
+        >
+          <IconButton
+            variant="neutral"
+            icon={resolvedSecondaryAction.icon}
+            onPress={resolvedSecondaryAction.onPress}
+            disabled={!isSecondaryActionEnabled}
+            accessibilityLabel={resolvedSecondaryAction.accessibilityLabel}
+          />
+        </View>
       </Animated.View>
       <PrimaryAction
         hasPrimaryButton={isPrimaryButtonVisible}
@@ -204,34 +211,12 @@ export function TopAppBar(props: TopAppBarProps) {
     (resolvedPrimaryAction.mode === 'responsive' && isPhoneBreakpoint);
   const isSecondaryButtonVisible = resolvedSecondaryAction.isVisible;
   const isPrimaryButtonVisible = resolvedPrimaryAction.isVisible;
-  const shouldRenderAnyAction = isSecondaryButtonVisible || isPrimaryButtonVisible;
   const isSecondaryActionEnabled = typeof resolvedSecondaryAction.onPress === 'function';
-  const [shouldKeepActionsRowMounted, setShouldKeepActionsRowMounted] = React.useState(
-    shouldRenderAnyAction,
-  );
   const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
   const secondaryActionWidth = useAnimatedValueRef(
     isSecondaryButtonVisible ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
   );
   const secondaryActionOpacity = useAnimatedValueRef(isSecondaryButtonVisible ? 1 : 0);
-
-  React.useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
-    if (shouldRenderAnyAction) {
-      setShouldKeepActionsRowMounted(true);
-    } else {
-      timeout = setTimeout(() => {
-        setShouldKeepActionsRowMounted(false);
-      }, Time.duration.short);
-    }
-
-    return () => {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-    };
-  }, [shouldRenderAnyAction]);
 
   React.useEffect(() => {
     const animation = Animated.parallel([
@@ -285,18 +270,16 @@ export function TopAppBar(props: TopAppBarProps) {
         <LeadingContent
           {...leadingContentProps}
         />
-        {shouldKeepActionsRowMounted ? (
-          <TopAppBarActionsRow
-            isSecondaryButtonVisible={isSecondaryButtonVisible}
-            resolvedSecondaryAction={resolvedSecondaryAction}
-            isSecondaryActionEnabled={isSecondaryActionEnabled}
-            secondaryActionWidth={secondaryActionWidth.current}
-            secondaryActionOpacity={secondaryActionOpacity.current}
-            isPrimaryButtonVisible={isPrimaryButtonVisible}
-            isPrimaryIconMode={isPrimaryIconMode}
-            resolvedPrimaryAction={resolvedPrimaryAction}
-          />
-        ) : null}
+        <TopAppBarActionsRow
+          isSecondaryButtonVisible={isSecondaryButtonVisible}
+          resolvedSecondaryAction={resolvedSecondaryAction}
+          isSecondaryActionEnabled={isSecondaryActionEnabled}
+          secondaryActionWidth={secondaryActionWidth.current}
+          secondaryActionOpacity={secondaryActionOpacity.current}
+          isPrimaryButtonVisible={isPrimaryButtonVisible}
+          isPrimaryIconMode={isPrimaryIconMode}
+          resolvedPrimaryAction={resolvedPrimaryAction}
+        />
       </View>
     </View>
   );
@@ -324,8 +307,5 @@ const styles = StyleSheet.create({
   },
   actionsRowWithoutGap: {
     gap: 0,
-  },
-  secondaryActionSlot: {
-    overflow: 'hidden',
   },
 });

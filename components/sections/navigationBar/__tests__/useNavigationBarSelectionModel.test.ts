@@ -52,7 +52,7 @@ describe('useNavigationBarSelectionModel', () => {
     expect(result.current.activeIndex).toBe(1);
   });
 
-  it('keeps controlled preview pinned until controlled active index catches up', async () => {
+  it('keeps preview state until controlled active index catches up', async () => {
     const onPressHome = jest.fn();
     const onPressSearch = jest.fn();
     type ControlledTab = {
@@ -74,6 +74,7 @@ describe('useNavigationBarSelectionModel', () => {
     );
 
     act(() => {
+      result.current.setPreviewIndex(1);
       result.current.commitTabSelection(1);
     });
 
@@ -91,6 +92,24 @@ describe('useNavigationBarSelectionModel', () => {
       expect(result.current.activeIndex).toBe(1);
       expect(result.current.previewIndex).toBeNull();
     });
+  });
+
+  it('clears preview immediately when controlled commit targets the active tab', () => {
+    const onPressHome = jest.fn();
+    const tabs = [
+      { key: 'home', state: 'active' as const, onPress: onPressHome },
+      { key: 'search', state: 'default' as const, onPress: jest.fn() },
+    ];
+
+    const { result } = renderHook(() => useNavigationBarSelectionModel({ tabs }));
+
+    act(() => {
+      result.current.setPreviewIndex(0);
+      result.current.commitTabSelection(0);
+    });
+
+    expect(onPressHome).toHaveBeenCalledTimes(1);
+    expect(result.current.previewIndex).toBeNull();
   });
 
   it('safely handles committing an out-of-range index', () => {
