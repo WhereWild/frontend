@@ -49,9 +49,10 @@ describe('DensityChart', () => {
       />,
     );
 
+    const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 200 } } });
+    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
     fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
     fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 180 } });
     fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 180 } });
@@ -98,9 +99,10 @@ describe('DensityChart', () => {
       />,
     );
 
+    const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 200 } } });
+    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
     fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 80 } });
     fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 80 } });
 
@@ -125,13 +127,69 @@ describe('DensityChart', () => {
     expect(queryByText('min')).toBeTruthy();
     expect(queryByText('max')).toBeTruthy();
 
+    const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 200 } } });
+    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
     fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
     fireEvent(responderNode, 'responderTerminate', { nativeEvent: { locationX: 20 } });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
+  });
+
+  it('preserves the last dragged range when responder terminates mid-drag', () => {
+    const onSelectionChange = jest.fn();
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+
+    const chartSurface = getByTestId('density-chart-surface');
+    const responderNode = getByTestId('density-chart-responder');
+
+    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
+    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
+    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 120 } });
+    fireEvent(responderNode, 'responderTerminate', { nativeEvent: { locationX: 130 } });
+
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 1, end: 6 });
+  });
+
+  it('rejects responder termination once dragging is active', () => {
+    const onSelectionChange = jest.fn();
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [0, 10], density: [0.4, 0.4] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 2, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+
+    const chartSurface = getByTestId('density-chart-surface');
+    const responderNode = getByTestId('density-chart-responder');
+
+    expect(
+      responderNode.props.onResponderTerminationRequest({ nativeEvent: { locationX: 10 } }),
+    ).toBe(true);
+
+    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
+    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
+    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 80 } });
+
+    expect(
+      responderNode.props.onResponderTerminationRequest({ nativeEvent: { locationX: 80 } }),
+    ).toBe(false);
   });
 
   it('renders highlighted selection overlay when selection has width and formats invalid summary values', () => {
@@ -143,7 +201,7 @@ describe('DensityChart', () => {
         baselineColor="#000"
         summary={{ count: 3, min: Number.NaN, mean: 5, max: 10 }}
         selection={{ start: 1, end: 9 }}
-      />, 
+      />,
     );
 
     expect(screen.getByText('—')).toBeTruthy();
