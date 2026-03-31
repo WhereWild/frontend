@@ -13,7 +13,9 @@
 			"figma.figma-vscode-extension",
 			"expo.vscode-expo-tools",
 			"dbaeumer.vscode-eslint",
-			"davidanson.vscode-markdownlint"
+			"davidanson.vscode-markdownlint",
+			"orta.vscode-jest",
+			"msjsdiag.vscode-react-native"
 		]
 	}
 }
