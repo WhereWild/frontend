@@ -60,6 +60,7 @@ export function DensityChart({
 }: DensityChartProps) {
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
+  const dragValue = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
   const samples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const hasCurveData = samples.length > 0;
@@ -96,6 +97,7 @@ export function DensityChart({
         return;
       }
       dragOrigin.current = value;
+      dragValue.current = value;
       hasDragged.current = false;
     },
     [getValueForLocation],
@@ -110,6 +112,7 @@ export function DensityChart({
       if (value === null) {
         return;
       }
+      dragValue.current = value;
       hasDragged.current = true;
       onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
     },
@@ -125,17 +128,52 @@ export function DensityChart({
       const value =
         event && Number.isFinite(event.nativeEvent.locationX)
           ? getValueForLocation(event.nativeEvent.locationX)
-          : dragOrigin.current;
+          : dragValue.current ?? dragOrigin.current;
+      if (value !== null) {
+        dragValue.current = value;
+      }
       if (!hasDragged.current || value === null) {
         onSelectionChange?.(null);
       } else {
         onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
       }
       dragOrigin.current = null;
+      dragValue.current = null;
       hasDragged.current = false;
     },
     [getValueForLocation, onSelectionChange],
   );
+
+  const handleSelectionTerminate = React.useCallback(() => {
+    if (dragOrigin.current === null) {
+      onSelectionChange?.(null);
+      return;
+    }
+
+    const value = dragValue.current ?? dragOrigin.current;
+
+    if (!hasDragged.current || value === null) {
+      onSelectionChange?.(null);
+    } else {
+      onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
+    }
+
+    dragOrigin.current = null;
+    dragValue.current = null;
+    hasDragged.current = false;
+  }, [onSelectionChange]);
+
+  const shouldSetSelectionResponder = () => {
+    return true;
+  };
+
+  const shouldKeepSelectionResponder = () => {
+    return dragOrigin.current !== null;
+  };
+
+  const shouldAllowSelectionTermination = () => {
+    return dragOrigin.current === null || !hasDragged.current;
+  };
 
   if (!hasCurveData || !normalized.length) {
     return (
@@ -156,50 +194,54 @@ export function DensityChart({
       : null;
 
   return (
-    <View
-      testID="density-chart-responder"
-      style={styles.chartWrapper}
-      onLayout={handleLayout}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderGrant={handleSelectionStart}
-      onResponderMove={handleSelectionMove}
-      onResponderRelease={handleSelectionEnd}
-      onResponderTerminate={() => handleSelectionEnd()}
-    >
-      <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 100 ${CHART_HEIGHT}`} preserveAspectRatio="none">
-        <Defs>
+    <View style={styles.chartWrapper}>
+      <View testID="density-chart-surface" style={styles.chartSurface} onLayout={handleLayout}>
+        <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 100 ${CHART_HEIGHT}`} preserveAspectRatio="none">
+          <Defs>
+            {selectionBounds ? (
+              <ClipPathWithUnits id={clipId} clipPathUnits="userSpaceOnUse">
+                <Rect x={selectionBounds.left} y={0} width={selectionBounds.width} height={CHART_HEIGHT} />
+              </ClipPathWithUnits>
+            ) : null}
+          </Defs>
+          <Path d={areaPath} fill={fillColor} opacity={0.3} />
           {selectionBounds ? (
-            <ClipPathWithUnits id={clipId} clipPathUnits="userSpaceOnUse">
-              <Rect x={selectionBounds.left} y={0} width={selectionBounds.width} height={CHART_HEIGHT} />
-            </ClipPathWithUnits>
-          ) : null}
-        </Defs>
-        <Path d={areaPath} fill={fillColor} opacity={0.3} />
-        {selectionBounds ? (
-          <>
             <Path d={areaPath} fill={fillColor} opacity={0.6} clipPath={`url(#${clipId})`} />
-          </>
-        ) : null}
-        <Path
-          d={`M${start.x},0 L${end.x},0 L${end.x},${CHART_HEIGHT} L${start.x},${CHART_HEIGHT} Z`}
-          fill="none"
-          stroke={baselineColor}
-          strokeWidth={2}
-          vectorEffect="non-scaling-stroke"
-        />
-        {meanPosition != null && Number.isFinite(meanPosition) ? (
+          ) : null}
           <Path
-            d={`M${meanPosition},0 L${meanPosition},${CHART_HEIGHT}`}
+            d={`M${start.x},0 L${end.x},0 L${end.x},${CHART_HEIGHT} L${start.x},${CHART_HEIGHT} Z`}
             fill="none"
             stroke={baselineColor}
-            strokeWidth={1}
-            strokeDasharray="4 4"
+            strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
-        ) : null}
-        <Path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      </Svg>
+          {meanPosition != null && Number.isFinite(meanPosition) ? (
+            <Path
+              d={`M${meanPosition},0 L${meanPosition},${CHART_HEIGHT}`}
+              fill="none"
+              stroke={baselineColor}
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
+          <Path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        </Svg>
+        <View
+          collapsable={false}
+          testID="density-chart-responder"
+          style={styles.chartResponder}
+          onStartShouldSetResponder={shouldSetSelectionResponder}
+          onStartShouldSetResponderCapture={shouldSetSelectionResponder}
+          onMoveShouldSetResponder={shouldKeepSelectionResponder}
+          onMoveShouldSetResponderCapture={shouldKeepSelectionResponder}
+          onResponderGrant={handleSelectionStart}
+          onResponderMove={handleSelectionMove}
+          onResponderRelease={handleSelectionEnd}
+          onResponderTerminationRequest={shouldAllowSelectionTermination}
+          onResponderTerminate={handleSelectionTerminate}
+        />
+      </View>
       <View style={styles.chartLabels}>
         {summary?.min != null && (
           <View style={styles.minLabelContainer}>
@@ -240,6 +282,13 @@ const styles = StyleSheet.create({
   chartWrapper: {
     gap: Size.space['200'],
     paddingTop: Size.space['100'],
+  },
+  chartSurface: {
+    position: 'relative',
+    height: CHART_HEIGHT,
+  },
+  chartResponder: {
+    ...StyleSheet.absoluteFillObject,
   },
   chartLabels: {
     flexDirection: 'row',
