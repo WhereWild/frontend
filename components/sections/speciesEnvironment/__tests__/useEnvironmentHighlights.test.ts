@@ -192,6 +192,31 @@ describe('useEnvironmentHighlights', () => {
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
   });
 
+  it('skips preloaded category cache hydration when location filtering is active', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
+      observations: [{ catalogNumber: 'LOC-1', value: null, latitude: null, longitude: null }],
+    } as never);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: categoricalStats,
+        isCategorical: true,
+        locationGid: 'USA.1_1',
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['LOC-1']));
+  });
+
   it('emits empty highlights via non-categorical early return when preloaded path is unavailable', async () => {
     const onHighlightChange = jest.fn();
 
@@ -352,6 +377,130 @@ describe('useEnvironmentHighlights', () => {
 
     await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['CAT-1', 2]));
+  });
+
+  it('fetches category observations when no matching preloaded category sample exists', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
+      observations: [{ catalogNumber: 'FETCH-1', value: null, latitude: null, longitude: null }],
+    } as never);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: {
+          ...categoricalStats,
+          categoricalSamples: [{ value: 'desert', observationIds: ['D-1'] }],
+        },
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['FETCH-1']));
+  });
+
+  it('preserves loaded cached category observations when stats rerender with duplicate preloaded ids', async () => {
+    const onHighlightChange = jest.fn();
+
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      { stats: SpeciesEnvironmentStats }
+    >(
+      ({ stats }) =>
+        useEnvironmentHighlights({
+          taxonId: 1,
+          selectedVariable: 'landcover',
+          stats,
+          isCategorical: true,
+          onHighlightChange,
+        }),
+      {
+        initialProps: { stats: categoricalStats },
+      },
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+
+    rerender({
+      stats: {
+        ...categoricalStats,
+        categoricalSamples: [{ value: 'forest', observationIds: ['NEW-1', 'NEW-2'] }],
+      },
+    });
+
+    act(() => {
+      result.current.setSelectedCategoryValue(null);
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenLastCalledWith([]));
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenLastCalledWith(['A1', 'B2']));
+    expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
+  });
+
+  it('emits empty highlights when category API omits observations', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({} as never);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: { ...categoricalStats, categoricalSamples: [] },
+        isCategorical: true,
+        locationGid: 'USA.1_1',
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
+  });
+
+  it('clears highlights when category selection is explicitly reset to null', async () => {
+    const onHighlightChange = jest.fn();
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: categoricalStats,
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+
+    act(() => {
+      result.current.setSelectedCategoryValue(null);
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
+    expect(result.current.selectedCategoryValue).toBeNull();
   });
 
   it('cancels in-flight debounced range slice updates on dependency changes (success and failure)', async () => {

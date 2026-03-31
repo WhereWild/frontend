@@ -1,6 +1,66 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Tabs, __TABS_TESTING__ } from '../Tabs';
+
+jest.mock('../Tab', () => {
+  const React = require('react');
+  const { Pressable, Text, View } = require('react-native');
+
+  return {
+    Tab: React.forwardRef(
+      (
+        {
+          id,
+          label,
+          isActive,
+          onPress,
+          onKeyDown,
+          onFocus,
+          onLabelLayout,
+          focusable,
+          tabIndex,
+          accessibilityLabel,
+          testID,
+        }: {
+          id: string;
+          label: string;
+          isActive: boolean;
+          onPress: (id: string) => void;
+          onKeyDown?: (event: { nativeEvent?: { key?: string } }) => void;
+          onFocus?: () => void;
+          onLabelLayout?: (width: number) => void;
+          focusable?: boolean;
+          tabIndex?: 0 | -1;
+          accessibilityLabel?: string;
+          testID?: string;
+        },
+        ref: React.ForwardedRef<typeof Pressable>
+      ) => (
+        <Pressable
+          ref={ref}
+          accessibilityRole="tab"
+          accessibilityLabel={accessibilityLabel ?? label}
+          accessibilityState={{ selected: isActive }}
+          onPress={() => onPress(id)}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+          focusable={focusable}
+          tabIndex={tabIndex}
+          testID={testID}
+        >
+          <Text>{label}</Text>
+          {onLabelLayout ? (
+            <View
+              testID={`${id}-measure`}
+              onLayout={(event) => onLabelLayout(event.nativeEvent.layout.width)}
+            />
+          ) : null}
+        </Pressable>
+      )
+    ),
+  };
+});
 
 const tabs = [
   { key: 'one', label: 'One' },
@@ -33,6 +93,18 @@ const TabsHarness = ({
 };
 
 describe('Tabs', () => {
+  it('uses the default accessibility label when one is not provided', () => {
+    render(
+      <Tabs
+        tabs={tabs}
+        selectedKey="one"
+        onSelectionChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText('Tabs')).toBeDefined();
+  });
+
   it('renders with accessibility roles and labels', () => {
     render(<TabsHarness accessibilityLabel="Species tabs" />);
 
@@ -133,6 +205,61 @@ describe('Tabs', () => {
     render(<TabsHarness initialKey="two" />);
 
     expect(screen.queryByTestId('tabs-separator-0')).toBeNull();
+  });
+
+  it('renders without a scroll container when there are no tabs', () => {
+    const { UNSAFE_queryByType } = render(
+      <Tabs
+        tabs={[]}
+        selectedKey="missing"
+        onSelectionChange={jest.fn()}
+      />
+    );
+
+    expect(UNSAFE_queryByType(ScrollView)).toBeNull();
+    expect(screen.getByLabelText('Tabs')).toBeDefined();
+  });
+
+  it('starts scrollable before labels are measured, then switches to fixed layout once they fit', () => {
+    const viewWidths = { one: 120, two: 110, three: 100, four: 90 };
+    const rendered = render(<TabsHarness accessibilityLabel="Measured tabs" />);
+
+    expect(rendered.UNSAFE_getByType(ScrollView)).toBeDefined();
+
+    const wrapper = rendered.UNSAFE_getAllByType(View)[0];
+    fireEvent(wrapper, 'layout', { nativeEvent: { layout: { width: 700 } } });
+
+    for (const tab of tabs) {
+      fireEvent(screen.getByTestId(`${tab.key}-measure`), 'layout', {
+        nativeEvent: { layout: { width: viewWidths[tab.key as keyof typeof viewWidths] } },
+      });
+    }
+
+    expect(rendered.UNSAFE_queryByType(ScrollView)).toBeNull();
+  });
+
+  it('keeps the largest measured label width for a tab when later measurements shrink', () => {
+    const rendered = render(<TabsHarness accessibilityLabel="Stable tabs" />);
+    const wrapper = rendered.UNSAFE_getAllByType(View)[0];
+
+    fireEvent(wrapper, 'layout', { nativeEvent: { layout: { width: 500 } } });
+    fireEvent(screen.getByTestId('one-measure'), 'layout', {
+      nativeEvent: { layout: { width: 140 } },
+    });
+    fireEvent(screen.getByTestId('one-measure'), 'layout', {
+      nativeEvent: { layout: { width: 80 } },
+    });
+    fireEvent(screen.getByTestId('two-measure'), 'layout', {
+      nativeEvent: { layout: { width: 60 } },
+    });
+    fireEvent(screen.getByTestId('three-measure'), 'layout', {
+      nativeEvent: { layout: { width: 60 } },
+    });
+    fireEvent(screen.getByTestId('four-measure'), 'layout', {
+      nativeEvent: { layout: { width: 60 } },
+    });
+
+    expect(rendered.UNSAFE_queryByType(ScrollView)).toBeNull();
   });
 });
 
