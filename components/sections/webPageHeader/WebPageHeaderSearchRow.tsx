@@ -4,7 +4,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button } from '../../buttons/Button';
 import { IconButton } from '../../buttons/IconButton';
-import { SearchInput } from '../../inputs/SearchInput';
+import { SearchInput, type SearchInputKeyDownEvent } from '../../inputs/SearchInput';
 import type { SearchInputPassthroughProps } from './types';
 
 type SearchVariant = 'mobile' | 'desktop';
@@ -18,6 +18,7 @@ type WebPageHeaderSearchRowProps = {
   searchPlaceholder: string;
   onSearchFocus: () => void;
   onSearchBlur: () => void;
+  onSearchKeyDown?: (event: SearchInputKeyDownEvent) => void;
   onSearchWrapperLayout: (height: number) => void;
   desktopSearchResults: React.ReactNode;
   showFilterButton: boolean;
@@ -28,6 +29,10 @@ type WebPageHeaderSearchRowProps = {
   onResetFilterPress?: () => void;
   resetFilterButtonAccessibilityLabel: string;
 };
+
+type SearchInputFocusHandler = NonNullable<SearchInputPassthroughProps['onFocus']>;
+type SearchInputBlurHandler = NonNullable<SearchInputPassthroughProps['onBlur']>;
+type SearchInputKeyPressHandler = NonNullable<SearchInputPassthroughProps['onKeyPress']>;
 
 /**
  * Header search row UI: search input + optional filter control.
@@ -42,6 +47,7 @@ export function WebPageHeaderSearchRow({
   searchPlaceholder,
   onSearchFocus,
   onSearchBlur,
+  onSearchKeyDown,
   onSearchWrapperLayout,
   desktopSearchResults,
   showFilterButton,
@@ -55,8 +61,26 @@ export function WebPageHeaderSearchRow({
   const {
     onFocus: onSearchInputFocus,
     onBlur: onSearchInputBlur,
+    onKeyDown: onSearchInputKeyDown,
+    onKeyPress: onSearchInputKeyPress,
     ...resolvedSearchInputProps
   } = searchInputProps ?? {};
+
+  const handleSearchFocus = React.useCallback<SearchInputFocusHandler>((event) => {
+    onSearchFocus();
+    onSearchInputFocus?.(event);
+  }, [onSearchFocus, onSearchInputFocus]);
+
+  const handleSearchBlur = React.useCallback<SearchInputBlurHandler>((event) => {
+    onSearchBlur();
+    onSearchInputBlur?.(event);
+  }, [onSearchBlur, onSearchInputBlur]);
+
+  const handleSearchKeyPress = React.useCallback<SearchInputKeyPressHandler>((event) => {
+    // React Native Web delivers the header navigation keys through this path for the search input.
+    onSearchKeyDown?.(event as SearchInputKeyDownEvent);
+    onSearchInputKeyPress?.(event);
+  }, [onSearchInputKeyPress, onSearchKeyDown]);
 
   return (
     <View
@@ -79,14 +103,10 @@ export function WebPageHeaderSearchRow({
           onQueryChange={setSearchQuery}
           onSubmitSearch={onSubmitSearch}
           placeholder={searchPlaceholder}
-          onFocus={(event) => {
-            onSearchFocus();
-            onSearchInputFocus?.(event);
-          }}
-          onBlur={(event) => {
-            onSearchBlur();
-            onSearchInputBlur?.(event);
-          }}
+          onFocus={handleSearchFocus}
+          onBlur={handleSearchBlur}
+          onKeyDown={onSearchInputKeyDown}
+          onKeyPress={handleSearchKeyPress}
         />
 
         {variant === 'desktop' ? desktopSearchResults : null}

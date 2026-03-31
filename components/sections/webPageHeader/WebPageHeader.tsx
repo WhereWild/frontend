@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { Button } from '../../buttons/Button';
+import type { SearchInputKeyDownEvent } from '../../inputs/SearchInput';
 import { ThemedText } from '../../text/ThemedText';
 import { SpeciesSummary } from '@/data/types';
 import { toKebabCase } from '@/utils/string';
@@ -165,6 +166,8 @@ export function WebPageHeader({
   });
 
   const hasQuery = debouncedQuery.length > 0;
+  const [activeSearchResultIndex, setActiveSearchResultIndex] = React.useState(-1);
+  const [isSearchPreviewDismissed, setIsSearchPreviewDismissed] = React.useState(false);
 
   const {
     searchResultsVisible,
@@ -177,6 +180,7 @@ export function WebPageHeader({
     showSearchResultsDropdown,
     isSearchBarFocused,
     isSearchBlurGraceActive,
+    isSearchPreviewDismissed,
   });
 
   const {
@@ -203,6 +207,7 @@ export function WebPageHeader({
 
   const handleSearchFocus = React.useCallback(() => {
     cancelSearchBlurGrace();
+    setIsSearchPreviewDismissed(false);
     setIsSearchBarFocused(true);
   }, [cancelSearchBlurGrace, setIsSearchBarFocused]);
 
@@ -210,6 +215,63 @@ export function WebPageHeader({
     setIsSearchBarFocused(false);
     startSearchBlurGrace();
   }, [setIsSearchBarFocused, startSearchBlurGrace]);
+
+  React.useEffect(() => {
+    setActiveSearchResultIndex(-1);
+    setIsSearchPreviewDismissed(false);
+  }, [searchQuery]);
+
+  React.useEffect(() => {
+    if (!searchResultsVisible || searchResults.length === 0) {
+      setActiveSearchResultIndex(-1);
+      return;
+    }
+
+    setActiveSearchResultIndex((currentIndex) =>
+      currentIndex >= searchResults.length ? -1 : currentIndex
+    );
+  }, [searchResults, searchResultsVisible]);
+
+  const handleSearchKeyDown = React.useCallback((event: SearchInputKeyDownEvent) => {
+    const key = event.key ?? event.nativeEvent?.key;
+    if (!key) {
+      return;
+    }
+
+    if (key === 'Escape' && searchResultsVisible) {
+      event.preventDefault?.();
+      setActiveSearchResultIndex(-1);
+      setIsSearchPreviewDismissed(true);
+      return;
+    }
+
+    if (!searchResultsVisible || searchResults.length === 0) {
+      return;
+    }
+
+    if (key === 'ArrowDown' || key === 'ArrowUp') {
+      event.preventDefault?.();
+      setActiveSearchResultIndex((currentIndex) => {
+        if (currentIndex < 0) {
+          return key === 'ArrowDown' ? 0 : searchResults.length - 1;
+        }
+
+        const direction = key === 'ArrowDown' ? 1 : -1;
+        return (currentIndex + direction + searchResults.length) % searchResults.length;
+      });
+      return;
+    }
+
+    if (key === 'Enter' && activeSearchResultIndex >= 0) {
+      const activeResult = searchResults[activeSearchResultIndex];
+      if (!activeResult) {
+        return;
+      }
+
+      event.preventDefault?.();
+      handleSelectSearchResult(activeResult);
+    }
+  }, [activeSearchResultIndex, handleSelectSearchResult, searchResults, searchResultsVisible]);
 
   const desktopSearchResults = (
     <WebPageHeaderSearchResults
@@ -219,6 +281,7 @@ export function WebPageHeader({
       errorMessage={searchError}
       style={getSearchResultsStyle('desktop')}
       onSelectResult={handleSelectSearchResult}
+      activeResultIndex={activeSearchResultIndex}
     />
   );
 
@@ -276,6 +339,7 @@ export function WebPageHeader({
                 searchPlaceholder={searchPlaceholder}
                 onSearchFocus={handleSearchFocus}
                 onSearchBlur={handleSearchBlur}
+                onSearchKeyDown={handleSearchKeyDown}
                 onSearchWrapperLayout={setWrapperHeight}
                 desktopSearchResults={desktopSearchResults}
                 showFilterButton={showFilterButton}
@@ -307,6 +371,7 @@ export function WebPageHeader({
               errorMessage={searchError}
               style={getSearchResultsStyle('mobile')}
               onSelectResult={handleSelectSearchResult}
+              activeResultIndex={activeSearchResultIndex}
             />
           </>
         ) : (
@@ -330,6 +395,7 @@ export function WebPageHeader({
               searchPlaceholder={searchPlaceholder}
               onSearchFocus={handleSearchFocus}
               onSearchBlur={handleSearchBlur}
+              onSearchKeyDown={handleSearchKeyDown}
               onSearchWrapperLayout={setWrapperHeight}
               desktopSearchResults={desktopSearchResults}
               showFilterButton={showFilterButton}
