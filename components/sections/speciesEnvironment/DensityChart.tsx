@@ -2,7 +2,8 @@ import type { SpeciesEnvironmentDensity, SpeciesEnvironmentSummary } from '@/dat
 import React from 'react';
 import { LayoutChangeEvent, GestureResponderEvent, StyleSheet, View } from 'react-native';
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
 import { formatValue } from './model';
 import {
@@ -63,6 +64,8 @@ export function DensityChart({
   pinValue,
   pinLoading,
 }: DensityChartProps) {
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
@@ -146,10 +149,13 @@ export function DensityChart({
     summary?.mean != null
       ? ((summary.mean - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
-  const pinPosition =
+  const pinRawPosition =
     pinValue != null && !pinLoading && densityDomain.spanX > 0
       ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
+  const pinIsOOD = pinRawPosition != null && (pinRawPosition < 0 || pinRawPosition > 100);
+  const pinIsLow = pinIsOOD && pinRawPosition != null && pinRawPosition < 0;
+  const pinPosition = pinIsOOD ? null : pinRawPosition;
 
   // Nudge mean and pin labels apart if they overlap. Hide pin label if it
   // gets too close to the fixed min/max labels. All calculations in pixels.
@@ -214,6 +220,7 @@ export function DensityChart({
   const areaPath = [`M${start.x},${CHART_HEIGHT}`, `L${start.x},${start.y}`, ...areaSegments, `L${end.x},${CHART_HEIGHT}`, 'Z'].join(' ');
 
   return (
+    <>
     <View
       testID="density-chart-responder"
       style={styles.chartWrapper}
@@ -256,11 +263,11 @@ export function DensityChart({
             vectorEffect="non-scaling-stroke"
           />
         ) : null}
-        {pinPosition != null && Number.isFinite(pinPosition) ? (
+        {pinPosition != null && Number.isFinite(pinPosition) && !pinIsOOD ? (
           <Path
             d={`M${pinPosition},0 L${pinPosition},${CHART_HEIGHT}`}
             fill="none"
-            stroke="#F59E0B"
+            stroke={palette.background.warning.default}
             strokeWidth={2}
             strokeDasharray="4 3"
             vectorEffect="non-scaling-stroke"
@@ -308,6 +315,23 @@ export function DensityChart({
         )}
       </View>
     </View>
+
+    {pinIsOOD && pinValue != null ? (
+      <View
+        style={[
+          styles.oodWarningBlock,
+          {
+            backgroundColor: palette.background.warning.secondary,
+            borderColor: palette.border.warning.default,
+          },
+        ]}
+      >
+        <ThemedText variant="bodySmall" style={{ color: palette.text.warning.default }}>
+          Location value ({formatValue(pinValue, 1)}) is {pinIsLow ? 'below' : 'above'} this species&apos; observed range
+        </ThemedText>
+      </View>
+    ) : null}
+    </>
   );
 }
 
@@ -343,5 +367,12 @@ const styles = StyleSheet.create({
     height: CHART_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  oodWarningBlock: {
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingVertical: Size.space['100'],
+    paddingHorizontal: Size.space['200'],
+    alignSelf: 'flex-start',
   },
 });
