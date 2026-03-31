@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSize } from '@/primitives/Icon';
@@ -146,6 +147,7 @@ export function NavigationBarTab({
 
   return (
     <Pressable
+      collapsable={false}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
@@ -173,14 +175,16 @@ export function NavigationBarTab({
 
         return (
           <View
+            collapsable={false}
             style={[
+              getInteractiveCursorStyle(disabled),
               styles.base,
               isVertical ? styles.vertical : styles.horizontal,
               styles.visualReset,
             ]}
           >
-            <View>{renderIcon(icon, iconColor, TAB_ICON_SIZE)}</View>
-            <View>
+            <View collapsable={false}>{renderIcon(icon, iconColor, TAB_ICON_SIZE)}</View>
+            <View collapsable={false}>
               <ThemedText
                 numberOfLines={1}
                 variant="singleLineBodyTinyStrong"

@@ -25,7 +25,7 @@ export function useEnvironmentVariableSelection({
 }: UseEnvironmentVariableSelectionParams) {
   const [remoteVariables, setRemoteVariables] =
     React.useState<EnvironmentVariableOption[] | null>(null);
-  const [selectedVariableCategory, setSelectedVariableCategory] = React.useState<string | null>(
+  const [selectedVariableCategory, setSelectedVariableCategoryState] = React.useState<string | null>(
     null,
   );
 
@@ -72,7 +72,7 @@ export function useEnvironmentVariableSelection({
     if (selectedVariableCategory && categories.includes(selectedVariableCategory)) {
       return;
     }
-    setSelectedVariableCategory(categories[0]);
+    setSelectedVariableCategoryState(categories[0]);
   }, [categories, selectedVariableCategory]);
 
   React.useEffect(() => {
@@ -84,6 +84,12 @@ export function useEnvironmentVariableSelection({
     }
     setSelectedVariable(filteredVariables[0].id);
   }, [selectedVariableCategory, filteredVariables, selectedVariable]);
+
+  const setSelectedVariableCategory = React.useCallback((nextCategory: string) => {
+    setSelectedVariableCategoryState((previousCategory) =>
+      previousCategory === nextCategory ? previousCategory : nextCategory,
+    );
+  }, []);
 
   // Load remote vars when units or other deps change
   React.useEffect(() => {

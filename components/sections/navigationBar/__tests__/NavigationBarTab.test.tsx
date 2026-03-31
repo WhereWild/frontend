@@ -1,4 +1,5 @@
 import React from 'react';
+import { create } from 'react-test-renderer';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Svg } from 'react-native-svg';
 import { Colors } from '@/constants/theme';
@@ -115,5 +116,35 @@ describe('NavigationBarTab', () => {
 
     expect(darkIdle.textColor).toBe(Colors.dark.text.default.default);
     expect(darkIdle.iconColor).toBe(Colors.dark.icon.default.default);
+  });
+
+  it('keeps the tab content wrapper mounted for Fabric stability', () => {
+    let renderer: ReturnType<typeof create> | undefined;
+
+    act(() => {
+      renderer = create(
+        <NavigationBarTab
+          label="Search"
+          icon={IconSearch}
+        />,
+      );
+    });
+
+    if (!renderer) {
+      throw new Error('Renderer was not created.');
+    }
+
+    const stableRenderer = renderer;
+
+    const stableWrapperNodes = stableRenderer.root.findAll((node) =>
+      node.props.collapsable === false
+      && Array.isArray(node.children)
+      && node.children.length === 2);
+
+    expect(stableWrapperNodes.length).toBeGreaterThan(0);
+
+    act(() => {
+      stableRenderer.unmount();
+    });
   });
 });

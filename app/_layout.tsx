@@ -22,6 +22,7 @@ import {
   WebPageHeader,
   type NavigationBarProps,
 } from '@/components';
+import { NativePortalHost, NativePortalProvider } from '@/components/NativePortalHost';
 import { Time } from '@/constants/theme';
 import { LayoutChromeProvider, useLayoutChrome } from '@/context/LayoutChromeContext';
 import { SettingsProvider } from '@/context/SettingsContext';
@@ -39,8 +40,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native';
 
 const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
-const NOOP = () => {};
-const NOOP_SEARCH_HANDLER = (_value: string) => {};
+const NOOP = () => { };
+const NOOP_SEARCH_HANDLER = (_value: string) => { };
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
 const SPECIES_STACK_ANIMATION = 'fade' as const;
 
@@ -125,6 +126,7 @@ function RootLayoutWebFrame() {
       <View style={styles.content}>
         <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
       </View>
+      <NativePortalHost />
     </View>
   );
 }
@@ -321,6 +323,7 @@ function RootLayoutNativeFrame() {
         </Stack>
       </View>
       <NavigationBar tabs={navigationTabs} />
+      <NativePortalHost />
     </View>
   );
 }
@@ -341,13 +344,15 @@ export default function RootLayout() {
 
   return (
     <SettingsProvider>
-      <LayoutChromeProvider>
-        <WebPageHeaderProvider>
-          <NativeTopAppBarProvider>
-            {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
-          </NativeTopAppBarProvider>
-        </WebPageHeaderProvider>
-      </LayoutChromeProvider>
+      <NativePortalProvider>
+        <LayoutChromeProvider>
+          <WebPageHeaderProvider>
+            <NativeTopAppBarProvider>
+              {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
+            </NativeTopAppBarProvider>
+          </WebPageHeaderProvider>
+        </LayoutChromeProvider>
+      </NativePortalProvider>
     </SettingsProvider>
   );
 }

@@ -54,43 +54,71 @@ export function ContinuousInsights({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const hasMultipleRankContexts = showRankContext && rankContextOptions.length > 1;
+  const hasSingleRankContext = showRankContext && rankContextOptions.length === 1;
+  const showRankContextSection = hasMultipleRankContexts || hasSingleRankContext;
+  const rankContextMessage = hasMultipleRankContexts
+    ? 'Select a taxon to see how this compares to related species.'
+    : hasSingleRankContext
+      ? `Rankings within ${rankContextOptions[0].label}`
+      : ' ';
+  const selectedRankContextKey = rankContextOptions.length > 0
+    ? selectedRankContext ?? rankContextOptions[0].key
+    : '';
 
   return (
-    <>
-      {showRankContext && rankContextOptions.length > 1 ? (
-        <>
-          <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
-          <View style={styles.rankContextRow}>
-            <ThemedText
-              variant="body"
-              style={{ textAlign: 'center' }}
+    <View collapsable={false} style={styles.container}>
+      <View
+        collapsable={false}
+        testID="continuous-insights-rank-context-slot"
+        accessibilityElementsHidden={!showRankContextSection}
+        importantForAccessibility={showRankContextSection ? 'auto' : 'no-hide-descendants'}
+        style={[styles.rankContextSection, !showRankContextSection && styles.hiddenSlot]}
+      >
+        <View
+          collapsable={false}
+          testID="continuous-insights-rank-context-content-slot"
+          style={!showRankContextSection ? styles.hiddenSlot : undefined}
+        >
+          <View
+            style={[
+              styles.divider,
+              { backgroundColor: palette.border.default.default, pointerEvents: 'none' },
+            ]}
+          />
+          <View collapsable={false} style={styles.rankContextRow}>
+            <View collapsable={false} style={styles.rankContextMessageSlot}>
+              <ThemedText
+                variant="body"
+                style={{ textAlign: 'center' }}
+              >
+                {rankContextMessage}
+              </ThemedText>
+            </View>
+            <View
+              collapsable={false}
+              testID="continuous-insights-rank-context-selector-slot"
+              accessibilityElementsHidden={!hasMultipleRankContexts}
+              importantForAccessibility={hasMultipleRankContexts ? 'auto' : 'no-hide-descendants'}
+              style={!hasMultipleRankContexts ? styles.hiddenSlot : undefined}
             >
-              Select a taxon to see how this compares to related species.
-            </ThemedText>
-            <NavigationPillList
-              pills={rankContextOptions}
-              selectedKey={selectedRankContext ?? rankContextOptions[0].key}
-              onSelectionChange={onRankContextChange}
-              direction="horizontal"
-              accessibilityLabel="Rank context selection"
-            />
+              <NavigationPillList
+                pills={hasMultipleRankContexts ? rankContextOptions : []}
+                selectedKey={selectedRankContextKey}
+                onSelectionChange={onRankContextChange}
+                direction="horizontal"
+                accessibilityLabel="Rank context selection"
+              />
+            </View>
           </View>
-        </>
-      ) : showRankContext && rankContextOptions.length === 1 ? (
-        <>
-          <View style={[styles.divider, { backgroundColor: palette.border.default.default }]} />
-          <View style={styles.rankContextRow}>
-            <ThemedText
-              variant="body"
-              style={{ textAlign: 'center' }}
-            >
-              Rankings within {rankContextOptions[0].label}
-            </ThemedText>
-          </View>
-        </>
-      ) : null}
+        </View>
+      </View>
 
-      <View testID="summary-row" style={[styles.summaryRow, { paddingTop: Size.space['300'] }, isStacked && styles.summaryRowStacked]}>
+      <View
+        collapsable={false}
+        testID="summary-row"
+        style={[styles.summaryRow, { paddingTop: Size.space['300'] }, isStacked && styles.summaryRowStacked]}
+      >
         <SummaryItem
           label="Min"
           value={formatValue(summary?.min, 1)}
@@ -114,15 +142,31 @@ export function ContinuousInsights({
           stacked={isStacked}
         />
       </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+  },
   divider: {
     height: 1,
     width: '100%',
     marginBottom: Size.space['100'],
+  },
+  hiddenSlot: {
+    opacity: 0,
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  rankContextMessageSlot: {
+    width: '100%',
+  },
+  rankContextSection: {
+    width: '100%',
   },
   rankContextRow: {
     flexDirection: 'column',

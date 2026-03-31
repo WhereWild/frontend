@@ -50,20 +50,7 @@ describe('NavigationBar', () => {
     renderer.root.findAllByType(NavigationBarTab).filter((node) => typeof node.props.onContainerLayout === 'function');
 
   const getActiveIndicatorNodes = (renderer: ReturnType<typeof create>) =>
-    renderer.root.findAll((node) => {
-      if (node.props.pointerEvents !== 'none') {
-        return false;
-      }
-
-      const style = node.props.style;
-      if (!Array.isArray(style)) {
-        return false;
-      }
-
-      return style.some(
-        (entry) => entry && typeof entry === 'object' && 'transform' in entry && 'backgroundColor' in entry,
-      );
-    });
+    renderer.root.findAll((node) => node.props?.testID === 'navigation-bar-active-indicator');
 
   const getTabsLayoutView = (renderer: ReturnType<typeof create>) => {
     const layoutView = renderer.root
@@ -242,8 +229,9 @@ describe('NavigationBar', () => {
       HORIZONTAL_MIN_TAB_WIDTH
     ]);
 
-    // After finalize, the hidden measuring layer should be removed.
-    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    // After finalize, the hidden measuring layer stays mounted to keep the
+    // native host tree stable during teardown and reload.
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(5);
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
 
     act(() => {
@@ -298,7 +286,7 @@ describe('NavigationBar', () => {
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
 
     const tabNodesAfterFinalize = getMeasuringTabNodes(renderer);
-    expect(tabNodesAfterFinalize).toHaveLength(0);
+    expect(tabNodesAfterFinalize).toHaveLength(5);
 
     act(() => {
       tabsLayoutView.props.onLayout({
@@ -311,7 +299,7 @@ describe('NavigationBar', () => {
     });
 
     const tabNodesAfterSameWidth = getMeasuringTabNodes(renderer);
-    expect(tabNodesAfterSameWidth).toHaveLength(0);
+    expect(tabNodesAfterSameWidth).toHaveLength(5);
 
     act(() => {
       tabsLayoutView.props.onLayout({
@@ -375,7 +363,7 @@ describe('NavigationBar', () => {
       });
     });
 
-    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(5);
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
     expect(getActiveIndicatorNodes(renderer).length).toBeGreaterThan(0);
   });
@@ -422,7 +410,7 @@ describe('NavigationBar', () => {
       });
     });
 
-    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(1);
     expect(getTabVariants(renderer)).toEqual(['horizontal']);
   });
 
@@ -449,7 +437,7 @@ describe('NavigationBar', () => {
       remainingTabs.forEach((tab) => tab.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH));
     });
 
-    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(5);
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
   });
 
@@ -475,7 +463,7 @@ describe('NavigationBar', () => {
       firstTab?.props.onLayout?.(HORIZONTAL_MIN_TAB_WIDTH);
     });
 
-    expect(getMeasuringTabNodes(renderer)).toHaveLength(0);
+    expect(getMeasuringTabNodes(renderer)).toHaveLength(5);
     expect(getTabVariants(renderer).every((variant) => variant === 'horizontal')).toBe(true);
   });
 

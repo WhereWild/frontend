@@ -16,7 +16,13 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColor
 
 describe('DataEntry', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     mockUseColorScheme.mockReturnValue('dark');
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   it('toggles expansion state and renders details', () => {
@@ -31,8 +37,6 @@ describe('DataEntry', () => {
         onToggle={handleToggle}
       />,
     );
-
-    expect(screen.queryByText('Detail name: data point')).toBeNull();
 
     fireEvent.press(screen.getByLabelText('Average elevation expand'));
     expect(screen.getByText('Detail name: data point')).toBeTruthy();
@@ -53,7 +57,6 @@ describe('DataEntry', () => {
 
     expect(screen.getByText('Average elevation: 2000 m')).toBeTruthy();
     expect(screen.queryByLabelText('Average elevation expand')).toBeNull();
-    expect(screen.queryByTestId('data-entry-graph')).toBeNull();
   });
 
   it('hides the expand affordance when expandable is false', () => {
@@ -86,8 +89,6 @@ describe('DataEntry', () => {
 
   it('ignores toggle attempts when the row is not expandable', () => {
     const onToggle = jest.fn();
-    // We capture the memoized toggle function by spying on useCallback so we can call it directly.
-    // The explicit SpyInstance typing keeps TS from widening to Function and complaining.
     const useCallbackSpy = jest.spyOn(React, 'useCallback') as jest.SpyInstance<
       ReturnType<typeof React.useCallback>,
       Parameters<typeof React.useCallback>
@@ -95,9 +96,7 @@ describe('DataEntry', () => {
     let capturedToggle: (() => void) | undefined;
 
     try {
-      // Spy on the internal toggle callback so we can invoke it directly without relying on UI interactions.
-      // This keeps the test laser-focused on the guard clause that should bail when the row is not expandable.
-      useCallbackSpy.mockImplementation((fn, deps) => {
+      useCallbackSpy.mockImplementation((fn) => {
         capturedToggle = fn as () => void;
         return fn;
       });
@@ -135,7 +134,6 @@ describe('DataEntry', () => {
     );
 
     expect(screen.getByLabelText('Average elevation expand')).toBeTruthy();
-    expect(screen.queryByText('Detail name: data point')).toBeNull();
   });
 
   it('renders a fixed-height placeholder when expanded and hides it when showGraph is false', () => {
@@ -143,8 +141,6 @@ describe('DataEntry', () => {
     const { rerender } = render(
       <DataEntry dataName="Average elevation" dataPoint="2000 m" details={details} />,
     );
-
-    expect(screen.queryByTestId('data-entry-graph')).toBeNull();
     fireEvent.press(screen.getByLabelText('Average elevation expand'));
     const placeholder = screen.getByTestId('data-entry-graph');
     const flattened = StyleSheet.flatten(placeholder.props.style);

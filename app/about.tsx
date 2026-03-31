@@ -40,6 +40,77 @@ import { normalizeLabel } from '@/components/sections/speciesEnvironment/model';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
+const OVERVIEW_PILLS = [
+  { key: 'all', label: 'All' },
+  { key: 'nearby', label: 'Nearby' },
+  { key: 'seasonal', label: 'Seasonal' },
+  { key: 'rare', label: 'Rare Finds' },
+  { key: 'favorites', label: 'Favorites' },
+  { key: 'alerts', label: 'Alerts' },
+];
+
+const HABITAT_PILLS = [
+  { key: 'soil', label: 'Soil' },
+  { key: 'elevation', label: 'Elevation' },
+  { key: 'climate', label: 'Climate' },
+  { key: 'canopy', label: 'Canopy Cover' },
+];
+
+const TRACKING_PILLS = [
+  { key: 'recent', label: 'Recent' },
+  { key: 'verified', label: 'Verified' },
+  { key: 'unverified', label: 'Needs Review' },
+  { key: 'community', label: 'Community Notes' },
+];
+
+const IMAGES_PILLS = [
+  { key: 'all', label: 'All Images' },
+  { key: 'macro', label: 'Macro' },
+  { key: 'habitat', label: 'Habitat' },
+  { key: 'seasonal', label: 'Seasonal Color' },
+];
+
+const NOTES_PILLS = [
+  { key: 'notes', label: 'Notes' },
+  { key: 'care', label: 'Care Tips' },
+  { key: 'hazards', label: 'Hazards' },
+];
+
+const OVERVIEW_CONTENT: Record<string, string> = {
+  all: 'Showing all recent observations and modeled occurrences in your region.',
+  nearby: 'Nearby sightings within a 10 km radius based on recent reports.',
+  seasonal: 'Seasonal activity highlights based on the current month.',
+  rare: 'Rare finds include uncommon or low-frequency sightings.',
+  favorites: 'Your starred species and saved locations.',
+  alerts: 'Active alerts for unusual sightings or conditions.',
+};
+
+const HABITAT_CONTENT: Record<string, string> = {
+  soil: 'Soil acidity, texture, and moisture indicators for the species.',
+  elevation: 'Typical elevation range where the species thrives.',
+  climate: 'Temperature and precipitation trends for this habitat.',
+  canopy: 'Canopy cover estimates and light availability.',
+};
+
+const TRACKING_CONTENT: Record<string, string> = {
+  recent: 'Most recent sightings from verified observers.',
+  verified: 'Observations with confirmed IDs and supporting media.',
+  unverified: 'Reports awaiting community review or expert confirmation.',
+  community: 'Notes and insights from the local community.',
+};
+
+const IMAGES_CONTENT: Record<string, string> = {
+  all: 'A mix of macro, habitat, and seasonal imagery.',
+  macro: 'Close-up details for identification and morphology.',
+  habitat: 'Contextual images showing surrounding vegetation.',
+  seasonal: 'Seasonal color changes and flowering stages.',
+};
+
+const NOTES_CONTENT: Record<string, string> = {
+  notes: 'General field notes and observations for this species.',
+  care: 'Care considerations for conservation and restoration efforts.',
+  hazards: 'Safety notes, toxins, or environmental hazards.',
+};
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 const ABOUT_LANDCOVER_MAP_HEIGHT = 520;
 const ABOUT_LANDCOVER_MIN_ZOOM = 4;
@@ -389,77 +460,64 @@ export default function About() {
     { key: 'notes', label: 'Field Notes' },
   ];
 
-  const overviewPills = [
-    { key: 'all', label: 'All' },
-    { key: 'nearby', label: 'Nearby' },
-    { key: 'seasonal', label: 'Seasonal' },
-    { key: 'rare', label: 'Rare Finds' },
-    { key: 'favorites', label: 'Favorites' },
-    { key: 'alerts', label: 'Alerts' },
-  ];
-
-  const habitatPills = [
-    { key: 'soil', label: 'Soil' },
-    { key: 'elevation', label: 'Elevation' },
-    { key: 'climate', label: 'Climate' },
-    { key: 'canopy', label: 'Canopy Cover' },
-  ];
-
-  const trackingPills = [
-    { key: 'recent', label: 'Recent' },
-    { key: 'verified', label: 'Verified' },
-    { key: 'unverified', label: 'Needs Review' },
-    { key: 'community', label: 'Community Notes' },
-  ];
-
-  const imagesPills = [
-    { key: 'all', label: 'All Images' },
-    { key: 'macro', label: 'Macro' },
-    { key: 'habitat', label: 'Habitat' },
-    { key: 'seasonal', label: 'Seasonal Color' },
-  ];
-
-  const notesPills = [
-    { key: 'notes', label: 'Notes' },
-    { key: 'care', label: 'Care Tips' },
-    { key: 'hazards', label: 'Hazards' },
-  ];
-
-  const overviewContent: Record<string, string> = {
-    all: 'Showing all recent observations and modeled occurrences in your region.',
-    nearby: 'Nearby sightings within a 10 km radius based on recent reports.',
-    seasonal: 'Seasonal activity highlights based on the current month.',
-    rare: 'Rare finds include uncommon or low-frequency sightings.',
-    favorites: 'Your starred species and saved locations.',
-    alerts: 'Active alerts for unusual sightings or conditions.',
-  };
-
-  const habitatContent: Record<string, string> = {
-    soil: 'Soil acidity, texture, and moisture indicators for the species.',
-    elevation: 'Typical elevation range where the species thrives.',
-    climate: 'Temperature and precipitation trends for this habitat.',
-    canopy: 'Canopy cover estimates and light availability.',
-  };
-
-  const trackingContent: Record<string, string> = {
-    recent: 'Most recent sightings from verified observers.',
-    verified: 'Observations with confirmed IDs and supporting media.',
-    unverified: 'Reports awaiting community review or expert confirmation.',
-    community: 'Notes and insights from the local community.',
-  };
-
-  const imagesContent: Record<string, string> = {
-    all: 'A mix of macro, habitat, and seasonal imagery.',
-    macro: 'Close-up details for identification and morphology.',
-    habitat: 'Contextual images showing surrounding vegetation.',
-    seasonal: 'Seasonal color changes and flowering stages.',
-  };
-
-  const notesContent: Record<string, string> = {
-    notes: 'General field notes and observations for this species.',
-    care: 'Care considerations for conservation and restoration efforts.',
-    hazards: 'Safety notes, toxins, or environmental hazards.',
-  };
+  const selectedTabSection = useMemo(() => {
+    switch (selectedTab) {
+      case 'habitat':
+        return {
+          title: 'Vertical list',
+          pills: HABITAT_PILLS,
+          selectedKey: habitatPill,
+          onSelectionChange: setHabitatPill,
+          direction: 'vertical' as const,
+          accessibilityLabel: 'Habitat filters',
+          content: HABITAT_CONTENT[habitatPill],
+        };
+      case 'tracking':
+        return {
+          title: 'Mixed label lengths',
+          pills: TRACKING_PILLS,
+          selectedKey: trackingPill,
+          onSelectionChange: setTrackingPill,
+          accessibilityLabel: 'Tracking filters',
+          content: TRACKING_CONTENT[trackingPill],
+        };
+      case 'images':
+        return {
+          title: 'Image categories',
+          pills: IMAGES_PILLS,
+          selectedKey: imagesPill,
+          onSelectionChange: setImagesPill,
+          accessibilityLabel: 'Image filters',
+          content: IMAGES_CONTENT[imagesPill],
+        };
+      case 'notes':
+        return {
+          title: 'Notes sections',
+          pills: NOTES_PILLS,
+          selectedKey: notesPill,
+          onSelectionChange: setNotesPill,
+          accessibilityLabel: 'Notes filters',
+          content: NOTES_CONTENT[notesPill],
+        };
+      case 'overview':
+      default:
+        return {
+          title: 'Horizontal wrap',
+          pills: OVERVIEW_PILLS,
+          selectedKey: overviewPill,
+          onSelectionChange: setOverviewPill,
+          accessibilityLabel: 'Overview filters',
+          content: OVERVIEW_CONTENT[overviewPill],
+        };
+    }
+  }, [
+    habitatPill,
+    imagesPill,
+    notesPill,
+    overviewPill,
+    selectedTab,
+    trackingPill,
+  ]);
 
   const renderPillContentCard = (content: string) => (
     <View
@@ -811,67 +869,17 @@ export default function About() {
               />
             </View>
             <View style={styles.pillExamples}>
-              {selectedTab === 'overview' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Horizontal wrap</ThemedText>
-                  <NavigationPillList
-                    pills={overviewPills}
-                    selectedKey={overviewPill}
-                    onSelectionChange={setOverviewPill}
-                    accessibilityLabel="Overview filters"
-                  />
-                  {renderPillContentCard(overviewContent[overviewPill])}
-                </View>
-              )}
-              {selectedTab === 'habitat' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Vertical list</ThemedText>
-                  <NavigationPillList
-                    pills={habitatPills}
-                    selectedKey={habitatPill}
-                    onSelectionChange={setHabitatPill}
-                    direction="vertical"
-                    accessibilityLabel="Habitat filters"
-                  />
-                  {renderPillContentCard(habitatContent[habitatPill])}
-                </View>
-              )}
-              {selectedTab === 'tracking' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Mixed label lengths</ThemedText>
-                  <NavigationPillList
-                    pills={trackingPills}
-                    selectedKey={trackingPill}
-                    onSelectionChange={setTrackingPill}
-                    accessibilityLabel="Tracking filters"
-                  />
-                  {renderPillContentCard(trackingContent[trackingPill])}
-                </View>
-              )}
-              {selectedTab === 'images' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Image categories</ThemedText>
-                  <NavigationPillList
-                    pills={imagesPills}
-                    selectedKey={imagesPill}
-                    onSelectionChange={setImagesPill}
-                    accessibilityLabel="Image filters"
-                  />
-                  {renderPillContentCard(imagesContent[imagesPill])}
-                </View>
-              )}
-              {selectedTab === 'notes' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Notes sections</ThemedText>
-                  <NavigationPillList
-                    pills={notesPills}
-                    selectedKey={notesPill}
-                    onSelectionChange={setNotesPill}
-                    accessibilityLabel="Notes filters"
-                  />
-                  {renderPillContentCard(notesContent[notesPill])}
-                </View>
-              )}
+              <View style={styles.pillExampleGroup}>
+                <ThemedText variant="bodySmallStrong">{selectedTabSection.title}</ThemedText>
+                <NavigationPillList
+                  pills={selectedTabSection.pills}
+                  selectedKey={selectedTabSection.selectedKey}
+                  onSelectionChange={selectedTabSection.onSelectionChange}
+                  direction={selectedTabSection.direction}
+                  accessibilityLabel={selectedTabSection.accessibilityLabel}
+                />
+                {renderPillContentCard(selectedTabSection.content)}
+              </View>
             </View>
           </View>
 

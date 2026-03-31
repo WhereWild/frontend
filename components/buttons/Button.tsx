@@ -23,6 +23,7 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
+  showPointerCursor?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
   delayLongPress?: number;
@@ -115,6 +116,7 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'medium',
   disabled = false,
+  showPointerCursor = true,
   onPress,
   onLongPress,
   delayLongPress,
@@ -138,6 +140,7 @@ export const Button: React.FC<ButtonProps> = ({
       accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={resolveButtonAccessibilityLabel(accessibilityLabel, label, children)}
       disabled={disabled}
+      showPointerCursor={showPointerCursor}
       onPress={onPress}
       href={href}
       hrefPath={hrefPath}
@@ -167,7 +170,7 @@ export const Button: React.FC<ButtonProps> = ({
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
 
         return (
-          <>
+          <View style={styles.innerContent} collapsable={false}>
             {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
             <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
@@ -183,7 +186,7 @@ export const Button: React.FC<ButtonProps> = ({
               </ThemedText>
             </View>
             {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
-          </>
+          </View>
         );
       }}
     </RoutePressable>
@@ -202,6 +205,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Size.radius['200'],
     borderWidth: Size.stroke.border,
+  },
+  innerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Size.space['200'],
   },
   textContainer: {
