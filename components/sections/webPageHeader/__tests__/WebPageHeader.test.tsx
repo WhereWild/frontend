@@ -1253,6 +1253,260 @@ describe('WebPageHeader', () => {
     jest.useRealTimers();
   });
 
+  it('moves the preview highlight down with arrow keys and selects the active result on enter', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 11, scientific_name: 'Vulpes vulpes', common_name: 'Red Fox' },
+      { taxon_id: 12, scientific_name: 'Canis latrans', common_name: 'Coyote' },
+    ] as any);
+
+    render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'ca');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('header-search-results');
+
+    const firstArrowPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowDown' },
+      preventDefault: firstArrowPreventDefault,
+    });
+
+    const secondArrowPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowDown' },
+      preventDefault: secondArrowPreventDefault,
+    });
+
+    const enterPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'Enter' },
+      preventDefault: enterPreventDefault,
+    });
+
+    expect(firstArrowPreventDefault).toHaveBeenCalledTimes(1);
+    expect(secondArrowPreventDefault).toHaveBeenCalledTimes(1);
+    expect(enterPreventDefault).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['12', 'canis-latrans'] },
+    });
+
+    jest.useRealTimers();
+  });
+
+  it('moves the preview highlight up to the last result when nothing is active yet', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 21, scientific_name: 'Buteo jamaicensis', common_name: 'Red-tailed Hawk' },
+      { taxon_id: 22, scientific_name: 'Strix varia', common_name: 'Barred Owl' },
+    ] as any);
+
+    render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'owl');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('header-search-results');
+
+    const arrowPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowUp' },
+      preventDefault: arrowPreventDefault,
+    });
+
+    const enterPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'Enter' },
+      preventDefault: enterPreventDefault,
+    });
+
+    expect(arrowPreventDefault).toHaveBeenCalledTimes(1);
+    expect(enterPreventDefault).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['22', 'strix-varia'] },
+    });
+
+    jest.useRealTimers();
+  });
+
+  it('moves the preview highlight up from an active result and wraps to the previous item', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 31, scientific_name: 'Lynx rufus', common_name: 'Bobcat' },
+      { taxon_id: 32, scientific_name: 'Puma concolor', common_name: 'Mountain Lion' },
+    ] as any);
+
+    render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'cat');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('header-search-results');
+
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowDown' },
+      preventDefault: jest.fn(),
+    });
+
+    const arrowPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowUp' },
+      preventDefault: arrowPreventDefault,
+    });
+
+    const enterPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'Enter' },
+      preventDefault: enterPreventDefault,
+    });
+
+    expect(arrowPreventDefault).toHaveBeenCalledTimes(1);
+    expect(enterPreventDefault).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['32', 'puma-concolor'] },
+    });
+
+    jest.useRealTimers();
+  });
+
+  it('ignores preview key presses when the event does not expose a key', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 41, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+    ] as any);
+
+    render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'wolf');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('header-search-results');
+
+    const preventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', { preventDefault });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
+
+  it('closes the preview on escape without clearing the query and reopens on query change', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 61, scientific_name: 'Canis latrans', common_name: 'Coyote' },
+      { taxon_id: 62, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+    ] as any);
+
+    render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'can');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByTestId('header-search-results')).toBeTruthy();
+
+    const escapePreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'Escape' },
+      preventDefault: escapePreventDefault,
+    });
+
+    expect(escapePreventDefault).toHaveBeenCalledTimes(1);
+    expect(searchInput.props.value).toBe('can');
+    expect(screen.queryByTestId('header-search-results')).toBeNull();
+
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'cani');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    expect(searchInput.props.value).toBe('cani');
+    expect(await screen.findByTestId('header-search-results')).toBeTruthy();
+
+    jest.useRealTimers();
+  });
+
+  it('clears the active preview selection when refreshed results shrink below the active index', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([
+      { taxon_id: 51, scientific_name: 'Vulpes vulpes', common_name: 'Red Fox' },
+      { taxon_id: 52, scientific_name: 'Urocyon cinereoargenteus', common_name: 'Gray Fox' },
+    ] as any);
+
+    const { rerender } = render(<WebPageHeader />);
+    setupSearchVisibility();
+
+    const searchInput = screen.getByLabelText('Search input');
+    await act(async () => {
+      fireEvent.changeText(searchInput, 'fox');
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS);
+      await Promise.resolve();
+    });
+
+    await screen.findByTestId('header-search-results');
+
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowDown' },
+      preventDefault: jest.fn(),
+    });
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'ArrowDown' },
+      preventDefault: jest.fn(),
+    });
+
+    await act(async () => {
+      rerender(<WebPageHeader filterParams={{ numberOfResults: 1 }} />);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesList).toHaveBeenLastCalledWith(undefined, 'fox', { numberOfResults: 1 });
+    });
+
+    mockPush.mockClear();
+
+    const enterPreventDefault = jest.fn();
+    fireEvent(searchInput, 'keyPress', {
+      nativeEvent: { key: 'Enter' },
+      preventDefault: enterPreventDefault,
+    });
+
+    expect(enterPreventDefault).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
+
   it('hides results when dropdown visibility is disabled', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([

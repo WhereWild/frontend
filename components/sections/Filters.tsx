@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 import { IconRotateCcw } from '@/assets/icons';
 import type { SpeciesSummary } from '@/data/types';
-import { SearchResults } from './webPageHeader/SearchResults';
+import { SearchResults } from '../lists/SearchResults';
 import { ButtonDanger } from '@/components/buttons/ButtonDanger';
 import { NumberSpinner } from '@/components/inputs/NumberSpinner';
 import { RadioField } from '@/components/inputs/RadioField';
