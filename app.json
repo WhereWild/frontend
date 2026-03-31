@@ -1,26 +1,28 @@
 {
   "expo": {
-    "name": "where-wild-front-end",
-    "slug": "where-wild-front-end",
-    "version": "1.0.0",
+    "name": "wherewild",
+    "slug": "wherewild",
+    "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/wherewild.png",
-    "scheme": "wherewildfrontend",
+    "scheme": "wherewild",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "icon": "./assets/images/wherewild.icon",
       "supportsTablet": true,
-      "bundleIdentifier": "com.kellynyanbinary.wherewildfrontend",
+      "bundleIdentifier": "com.wherewild.wherewild",
       "infoPlist": {
         "UIApplicationSupportsIndirectInputEvents": true,
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.wherewild.wherewild",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/wherewild-android-foreground.png",
+        "backgroundImage": "./assets/images/wherewild-android-background.png",
+        "monochromeImage": "./assets/images/wherewild-android-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -51,7 +53,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "711ccf41-0063-421a-b7d6-92c37c1af002"
+        "projectId": "d3ad3c1f-1bc6-45c4-915d-cb561fcd61c3"
       }
     }
   }

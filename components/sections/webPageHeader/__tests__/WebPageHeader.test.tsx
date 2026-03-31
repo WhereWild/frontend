@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { Size } from '@/constants/theme';
 import { WebPageHeader } from '../WebPageHeader';
 import { IconHelpCircle } from '@/assets/icons';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet, View } from 'react-native';
 
@@ -18,6 +19,10 @@ jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
+jest.mock('@/hooks/useColorScheme', () => ({
+  useColorScheme: jest.fn(),
+}));
+
 const mockFetchSpeciesList = jest.fn();
 const mockFetchRelativeRankings = jest.fn();
 
@@ -28,9 +33,12 @@ jest.mock('@/data/api', () => ({
 }));
 
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
 
 const SEARCH_WRAPPER_LAYOUT_HEIGHT = 40;
 const SEARCH_DEBOUNCE_MS = 400;
+const DEFAULT_LOGO_LIGHT = require('@/assets/images/wherewild.png');
+const DEFAULT_LOGO_DARK = require('@/assets/images/wherewild-dark-background.png');
 
 describe('WebPageHeader', () => {
   const setupSearchVisibility = () => {
@@ -52,6 +60,7 @@ describe('WebPageHeader', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockPathname = '/';
+    mockUseColorScheme.mockReturnValue('light');
     mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
     mockFetchSpeciesList.mockResolvedValue([]);
     mockFetchRelativeRankings.mockResolvedValue({
@@ -78,6 +87,20 @@ describe('WebPageHeader', () => {
     expect(screen.getByLabelText('Settings')).toBeTruthy();
     expect(screen.getByLabelText('Filter search results')).toBeTruthy();
     expect(screen.getByLabelText('Reset filters')).toBeTruthy();
+  });
+
+  it('uses the dark-background logo asset in dark mode', () => {
+    mockUseColorScheme.mockReturnValue('dark');
+
+    render(<WebPageHeader />);
+
+    expect(screen.getByLabelText('WhereWild logo').props.source).toBe(DEFAULT_LOGO_DARK);
+  });
+
+  it('uses the light logo asset by default in light mode', () => {
+    render(<WebPageHeader />);
+
+    expect(screen.getByLabelText('WhereWild logo').props.source).toBe(DEFAULT_LOGO_LIGHT);
   });
 
   it('navigates to about when default About action is pressed', () => {

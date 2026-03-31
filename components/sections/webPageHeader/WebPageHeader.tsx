@@ -62,7 +62,8 @@ export type WebPageHeaderProps = {
   onLayout?: (event: LayoutChangeEvent) => void;
 };
 
-const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
+const DEFAULT_LOGO_LIGHT = require('@/assets/images/wherewild.png');
+const DEFAULT_LOGO_DARK = require('@/assets/images/wherewild-dark-background.png');
 
 /**
  * App-level header with navigation actions, search input, and optional compact menu.
@@ -70,7 +71,7 @@ const DEFAULT_LOGO = require('@/assets/images/wherewild.png');
  */
 export function WebPageHeader({
   title = 'WhereWild',
-  logoSource = DEFAULT_LOGO,
+  logoSource,
   searchPlaceholder = 'Search',
   searchInputProps,
   actions,
@@ -94,6 +95,7 @@ export function WebPageHeader({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const resolvedLogoSource = logoSource ?? (mode === 'dark' ? DEFAULT_LOGO_DARK : DEFAULT_LOGO_LIGHT);
   const responsive = useResponsive();
   const isCompact = responsive.breakpoint !== 'desktop';
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -129,7 +131,7 @@ export function WebPageHeader({
   const logoContent = (
     <>
       <Image
-        source={logoSource}
+        source={resolvedLogoSource}
         style={isCompact ? styles.logoMobile : styles.logo}
         resizeMode="contain"
         accessibilityLabel="WhereWild logo"
