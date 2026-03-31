@@ -87,6 +87,8 @@ export type MapMarkerPalette = {
   markerStroke: string;
   highlightFill: string;
   highlightStroke: string;
+  pinFill: string;
+  pinStroke: string;
 };
 
 export const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage => ({

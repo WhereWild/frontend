@@ -125,6 +125,7 @@ export function useSpeciesEnvironmentState({
     rangeObservations,
     pinnedValue,
     pinnedLoading,
+    pinnedNoData,
   } = useEnvironmentHighlights({
     taxonId,
     selectedVariable,
@@ -274,5 +275,6 @@ export function useSpeciesEnvironmentState({
     locationFilterActive,
     pinnedValue,
     pinnedLoading,
+    pinnedNoData,
   };
 }

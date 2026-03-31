@@ -80,6 +80,7 @@ export function useEnvironmentHighlights({
   const lastEmittedSignatureRef = React.useRef<string | null>(null);
   const [pinnedValue, setPinnedValue] = React.useState<number | null>(null);
   const [pinnedLoading, setPinnedLoading] = React.useState(false);
+  const [pinnedNoData, setPinnedNoData] = React.useState(false);
   const pinnedRequestRef = React.useRef(0);
 
   const emitHighlightChange = React.useCallback(
@@ -109,33 +110,43 @@ export function useEnvironmentHighlights({
 
   React.useEffect(() => {
     setPinnedValue(null);
+    setPinnedNoData(false);
     pinnedRequestRef.current += 1;
   }, [selectedVariable, locationGid, taxonId, units]);
 
   React.useEffect(() => {
     if (!pinnedObservation || !selectedVariable) {
       setPinnedValue(null);
+      setPinnedNoData(false);
       return;
     }
     const requestId = ++pinnedRequestRef.current;
     setPinnedLoading(true);
+    setPinnedNoData(false);
     void (async () => {
       try {
-    const result = await fetchPointEnvironmentValue(
-      pinnedObservation.lat,
-      pinnedObservation.lon,
-      selectedVariable,
-      { units },
-    );
-    if (pinnedRequestRef.current !== requestId) {
-      return;
-    }
-    setPinnedValue(result.value);
+        const result = await fetchPointEnvironmentValue(
+          pinnedObservation.lat,
+          pinnedObservation.lon,
+          selectedVariable,
+          { units },
+        );
+        if (pinnedRequestRef.current !== requestId) {
+          return;
+        }
+        if (result.value === null) {
+          setPinnedValue(null);
+          setPinnedNoData(true);
+        } else {
+          setPinnedValue(result.value);
+          setPinnedNoData(false);
+        }
       } catch {
         if (pinnedRequestRef.current !== requestId) {
           return;
         }
         setPinnedValue(null);
+        setPinnedNoData(true);
       } finally {
         if (pinnedRequestRef.current === requestId) {
           setPinnedLoading(false);
@@ -394,5 +405,6 @@ export function useEnvironmentHighlights({
     rangeObservations,
     pinnedValue,
     pinnedLoading,
+    pinnedNoData,
   };
 }

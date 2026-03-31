@@ -105,8 +105,10 @@ export function SpeciesOccurrenceMap({
       markerStroke: palette.border.brand.default,
       highlightFill: palette.background.danger.default,
       highlightStroke: palette.border.danger.default,
+      pinFill: palette.background.warning.default,
+      pinStroke: palette.border.warning.default,
     }),
-    [palette.background.brand.default, palette.background.danger.default, palette.border.brand.default, palette.border.danger.default],
+    [palette.background.brand.default, palette.background.danger.default, palette.background.warning.default, palette.border.brand.default, palette.border.danger.default, palette.border.warning.default],
   );
   const highlightKeys = React.useMemo(
     () => highlightedCatalogs.map((id) => String(id)),

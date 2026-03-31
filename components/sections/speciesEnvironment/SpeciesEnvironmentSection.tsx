@@ -70,6 +70,7 @@ const {
     locationFilterActive,
     pinnedValue,
     pinnedLoading,
+    pinnedNoData,
   } = useSpeciesEnvironmentState({
     taxonId,
     variableId,
@@ -125,6 +126,22 @@ const {
       {showError ? (
         <View style={styles.errorRow}>
           <ThemedText variant="bodySmall">{error}</ThemedText>
+        </View>
+      ) : null}
+
+      {pinnedNoData && !pinnedLoading ? (
+        <View
+          style={[
+            styles.noDataBanner,
+            {
+              backgroundColor: palette.background.warning.secondary,
+              borderColor: palette.border.warning.default,
+            },
+          ]}
+        >
+          <ThemedText variant="bodySmall" style={{ color: palette.text.warning.default }}>
+            No data at the selected location
+          </ThemedText>
         </View>
       ) : null}
 
@@ -190,5 +207,12 @@ const styles = StyleSheet.create({
   },
   continuousContent: {
     gap: Size.space.text.section,
+  },
+  noDataBanner: {
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingVertical: Size.space['100'],
+    paddingHorizontal: Size.space['200'],
+    alignSelf: 'flex-start',
   },
 });
