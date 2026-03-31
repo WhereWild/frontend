@@ -8,7 +8,6 @@ import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { usePathname, useRouter } from 'expo-router';
-import type { Href } from 'expo-router';
 import React from 'react';
 import {
   Image,
@@ -121,7 +120,7 @@ export function WebPageHeader({
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
       { label: 'About', icon: <IconInfo />, href: '/about', hrefPath: '/about' },
-      { label: 'Upload', icon: <IconUpload />, href: '/upload' as Href, hrefPath: '/upload' },
+      { label: 'Upload', icon: <IconUpload />, href: '/upload', hrefPath: '/upload' },
       { label: 'Settings', icon: <IconSettings />, href: '/settings', hrefPath: '/settings' },
     ],
     [],

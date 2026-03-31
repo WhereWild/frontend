@@ -14,7 +14,6 @@ import {
   MAP_REFERRER_POLICY,
   type HighlightMessage,
   type MapMarkerPalette,
-  type PinObservationMessage,
   toHighlightMessagePayload,
   isPinObservationMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
