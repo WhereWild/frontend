@@ -121,8 +121,10 @@ export function SpeciesOccurrenceMap({
   }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, tileUrlTemplate]);
 
   React.useEffect(() => {
-    setMapReady(false);
-  }, [html]);
+    if (mapReady) {
+      setMapReady(false);
+    }
+  }, [html, mapReady]);
 
   const highlightMessage = React.useMemo(
     () => toHighlightMessagePayload(highlightKeys),
@@ -151,6 +153,12 @@ export function SpeciesOccurrenceMap({
     if (Platform.OS !== 'web') {
       return;
     }
+    if (
+      typeof window === 'undefined' ||
+      typeof window.addEventListener !== 'function'
+    ) {
+      return;
+    }
     const handler = (event: MessageEvent) => {
       if (isPinObservationMessage(event.data)) {
         onPinObservation?.(
@@ -161,7 +169,11 @@ export function SpeciesOccurrenceMap({
       }
     };
     window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
+    return () => {
+      if (typeof window.removeEventListener === 'function') {
+        window.removeEventListener('message', handler);
+      }
+    };
   }, [onPinObservation]);
 
   if (loading) {

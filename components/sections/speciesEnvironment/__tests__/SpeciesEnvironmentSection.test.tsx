@@ -127,6 +127,8 @@ const baseState: SpeciesEnvironmentState = {
   summaryRanks: { min: null, mean: null, max: null, std: null, range99: null },
   summaryComparisons: { min: null, mean: null, max: null, std: null, range99: null },
   locationFilterActive: false,
+  pinnedValue: null,
+  pinnedLoading: false,
 };
 
 describe('SpeciesEnvironmentSection', () => {
