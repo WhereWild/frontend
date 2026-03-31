@@ -49,3 +49,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# generated theme sync helper output
+scripts/tokens/tokenVariableSyntaxAndDescriptionSnippet.js

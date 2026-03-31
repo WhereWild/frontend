@@ -20,14 +20,6 @@ This project has some VS Code helper configured. Open `front-end.code-workspace`
    npm install
    ```
 
-4. Clone WhereWild's fork of Figma's Simple Design System repository alongside this repository (not in it). Assuming PWD is this repository,
-
-   ```bash
-   git clone https://github.com/KellyNyanbinary/wherewild-design-system.git ../wherewild-design-system
-   ```
-
-   This folder is also listed as a dependency in the VS Code workspace.
-
 ### Starting
 
 Start the app
@@ -114,7 +106,22 @@ Run
 npm run sync-theme
 ```
 
-to sync the design tokens from the design system repository.
+to regenerate `constants/wds-theme.css` and `constants/wdsTokens.ts` from the
+bundled Figma token/style snapshots in `scripts/tokens/`.
+
+If you have Figma REST credentials available, run
+
+```bash
+FIGMA_ACCESS_TOKEN=... FIGMA_FILE_KEY=... npm run sync-theme:rest
+```
+
+to refresh `scripts/tokens/tokens.json` and `scripts/tokens/styles.json` before
+generating the theme files.
+
+If you do not have REST API access, export fresh snapshots with the bundled
+Figma plugins in `scripts/tokens/figma-plugin-token-json/` and
+`scripts/tokens/figma-plugin-styles-json/`, replace the JSON files under
+`scripts/tokens/`, then run `npm run sync-theme` again.
 
 ## Environment variables
 
