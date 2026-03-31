@@ -69,6 +69,7 @@ const {
     summaryComparisons,
     locationFilterActive,
     pinnedValue,
+    pinnedClassName,
     pinnedLoading,
     pinnedNoData,
   } = useSpeciesEnvironmentState({
@@ -152,6 +153,8 @@ const {
             selectedValue={selectedCategoryValue}
             onSelect={handleCategorySelect}
             descriptionColor={palette.text.default.secondary}
+            pinnedValue={pinnedValue}
+            pinnedClassName={pinnedClassName}
           />
         ) : (
           <View style={styles.continuousContent}>

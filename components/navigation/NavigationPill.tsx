@@ -31,6 +31,8 @@ export type NavigationPillProps = {
   accessibilityLabel?: string;
   testID?: string;
   icon?: React.ReactNode;
+  /** When true, renders a dashed warning-color border to indicate the pinned observation's category. */
+  isPinned?: boolean;
 };
 
 const getPillState = (
@@ -87,10 +89,12 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     accessibilityLabel,
     testID,
     icon,
+    isPinned,
   },
   ref
 ) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
 
   return (
     <Pressable
@@ -109,6 +113,10 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     >
       {({ pressed, hovered }) => {
         const pillState = getPillState(mode, isActive, pressed, hovered ?? false);
+        const pinnedBorderStyle =
+          isPinned && !isActive
+            ? { borderColor: palette.border.warning.default, borderStyle: 'dashed' as const }
+            : undefined;
         return (
           <View
             style={[
@@ -118,6 +126,7 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
                 borderColor: pillState.borderColor,
                 width: contentWidth,
               },
+              pinnedBorderStyle,
             ]}
             onLayout={(event) => {
               onContentLayout?.(event.nativeEvent.layout.width);

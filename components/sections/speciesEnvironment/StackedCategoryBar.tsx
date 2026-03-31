@@ -1,5 +1,6 @@
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import type { SpeciesEnvironmentCategory } from '@/data/types';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -29,6 +30,10 @@ type StackedCategoryBarProps = {
   onSelect?: (value: number | string) => void;
   /** Text color token for category description copy. */
   descriptionColor: string;
+  /** Category value of the pinned observation to highlight with a dashed outline. */
+  pinnedValue?: number | string | null;
+  /** Human-readable class name for the pinned value, from the backend legend. */
+  pinnedClassName?: string | null;
 };
 
 /** Builds human-readable description text for the selected category. */
@@ -49,7 +54,12 @@ export function StackedCategoryBar({
   selectedValue,
   onSelect,
   descriptionColor,
+  pinnedValue,
+  pinnedClassName,
 }: StackedCategoryBarProps) {
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+
   const validCategories = categories.filter(
     (category) => Number.isFinite(category.fraction) && category.fraction >= 0,
   );
@@ -87,6 +97,24 @@ export function StackedCategoryBar({
 
   const displayCategories = otherCategory ? [...topCategories, otherCategory] : topCategories;
 
+  const { resolvedPinnedKey, pinnedInOtherLabel } = React.useMemo(() => {
+    if (pinnedValue === null || pinnedValue === undefined) {
+      return { resolvedPinnedKey: null, pinnedInOtherLabel: null };
+    }
+    const pinnedStr = String(pinnedValue);
+    if (topCategories.some((cat) => String(cat.value) === pinnedStr)) {
+      return { resolvedPinnedKey: pinnedStr, pinnedInOtherLabel: null };
+    }
+    const inOther = otherCategories.find((cat) => String(cat.value) === pinnedStr);
+    if (otherCategory && inOther) {
+      return { resolvedPinnedKey: '__other__', pinnedInOtherLabel: inOther.className };
+    }
+    return { resolvedPinnedKey: null, pinnedInOtherLabel: null };
+  }, [otherCategories, otherCategory, pinnedValue, topCategories]);
+
+  const pinnedIsOutOfDistribution =
+    pinnedValue !== null && pinnedValue !== undefined && resolvedPinnedKey === null;
+
   const selectedCategory =
     selectedValue !== null
       ? displayCategories.find((cat) => String(cat.value) === String(selectedValue))
@@ -100,6 +128,7 @@ export function StackedCategoryBar({
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           const backgroundColor = category.color ?? categoryColor;
+          const isPinned = resolvedPinnedKey !== null && resolvedPinnedKey === String(category.value);
 
           return (
             <Pressable
@@ -112,6 +141,9 @@ export function StackedCategoryBar({
                   width: `${percent}%`,
                   backgroundColor,
                 },
+                isPinned
+                  ? { borderWidth: 2, borderStyle: 'dashed', borderColor: palette.border.warning.default }
+                  : null,
               ]}
             />
           );
@@ -119,11 +151,13 @@ export function StackedCategoryBar({
       </View>
 
       <NavigationPillList
+        pinnedKey={resolvedPinnedKey ?? undefined}
         pills={displayCategories.map((category, index) => {
           const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          const isOtherPinned = pinnedInOtherLabel && String(category.value) === '__other__';
           return {
             key: String(category.value),
-            label: category.className,
+            label: isOtherPinned ? `Other (${pinnedInOtherLabel})` : category.className,
             icon: (
               <View
                 style={{
@@ -146,6 +180,34 @@ export function StackedCategoryBar({
         direction="horizontal"
         accessibilityLabel="Category selection"
       />
+
+      {pinnedIsOutOfDistribution && pinnedClassName ? (
+        <View style={[styles.pinnedCategoryPill, { borderColor: palette.border.warning.default }]}>
+          <ThemedText variant="singleLineBody" style={{ color: palette.text.warning.default }} numberOfLines={1}>
+            {pinnedClassName}
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {pinnedIsOutOfDistribution ? (
+        <View
+          style={[
+            styles.oodWarningBlock,
+            {
+              backgroundColor: palette.background.warning.secondary,
+              borderColor: palette.border.warning.default,
+            },
+          ]}
+        >
+          <ThemedText variant="bodySmall" style={{ color: palette.text.warning.default }}>
+            {'Never been observed in '}
+            {pinnedClassName
+              ? pinnedClassName.charAt(0).toLowerCase() + pinnedClassName.slice(1)
+              : 'this location\u2019s category'}
+            {'.'}
+          </ThemedText>
+        </View>
+      ) : null}
 
       {selectedCategory ? (
         <ThemedText variant="bodySmall" style={[styles.categoryDescription, { color: descriptionColor }]}>
@@ -174,5 +236,20 @@ const styles = StyleSheet.create({
   },
   stackedBarSegment: {
     height: '100%',
+  },
+  pinnedCategoryPill: {
+    borderWidth: Size.stroke.border,
+    borderStyle: 'dashed',
+    borderRadius: Size.radius['full'],
+    paddingVertical: Size.space['150'],
+    paddingHorizontal: Size.space['250'],
+    alignSelf: 'flex-start',
+  },
+  oodWarningBlock: {
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingVertical: Size.space['100'],
+    paddingHorizontal: Size.space['200'],
+    alignSelf: 'flex-start',
   },
 });

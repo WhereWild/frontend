@@ -141,7 +141,6 @@
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
       postMessage({ type: PIN_OBSERVATION_MESSAGE_TYPE, catalogNumber: catalogNumber, latitude: latitude, longitude: longitude });
-      map.closePopup();
     }
 
     function sendLocationPinMessage(latitude, longitude) {

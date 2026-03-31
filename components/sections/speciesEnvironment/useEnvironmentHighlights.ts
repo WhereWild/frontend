@@ -79,6 +79,7 @@ export function useEnvironmentHighlights({
   const categoryRequestRef = React.useRef(0);
   const lastEmittedSignatureRef = React.useRef<string | null>(null);
   const [pinnedValue, setPinnedValue] = React.useState<number | null>(null);
+  const [pinnedClassName, setPinnedClassName] = React.useState<string | null>(null);
   const [pinnedLoading, setPinnedLoading] = React.useState(false);
   const [pinnedNoData, setPinnedNoData] = React.useState(false);
   const pinnedRequestRef = React.useRef(0);
@@ -110,6 +111,7 @@ export function useEnvironmentHighlights({
 
   React.useEffect(() => {
     setPinnedValue(null);
+    setPinnedClassName(null);
     setPinnedNoData(false);
     pinnedRequestRef.current += 1;
   }, [selectedVariable, locationGid, taxonId, units]);
@@ -136,9 +138,11 @@ export function useEnvironmentHighlights({
         }
         if (result.value === null) {
           setPinnedValue(null);
+          setPinnedClassName(null);
           setPinnedNoData(true);
         } else {
           setPinnedValue(result.value);
+          setPinnedClassName(result.className);
           setPinnedNoData(false);
         }
       } catch {
@@ -146,6 +150,7 @@ export function useEnvironmentHighlights({
           return;
         }
         setPinnedValue(null);
+        setPinnedClassName(null);
         setPinnedNoData(true);
       } finally {
         if (pinnedRequestRef.current === requestId) {
@@ -404,6 +409,7 @@ export function useEnvironmentHighlights({
     handleDensitySelectionChange,
     rangeObservations,
     pinnedValue,
+    pinnedClassName,
     pinnedLoading,
     pinnedNoData,
   };

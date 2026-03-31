@@ -124,6 +124,7 @@ export function useSpeciesEnvironmentState({
     handleDensitySelectionChange,
     rangeObservations,
     pinnedValue,
+    pinnedClassName,
     pinnedLoading,
     pinnedNoData,
   } = useEnvironmentHighlights({
@@ -274,6 +275,7 @@ export function useSpeciesEnvironmentState({
     summaryComparisons,
     locationFilterActive,
     pinnedValue,
+    pinnedClassName,
     pinnedLoading,
     pinnedNoData,
   };

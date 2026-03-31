@@ -6,6 +6,8 @@ export type PointEnvironmentResult = {
   lat: number;
   lon: number;
   value: number | null;
+  /** Human-readable class name for categorical variables, null for continuous or unknown. */
+  className: string | null;
 };
 
 /**
@@ -39,5 +41,6 @@ export async function fetchPointEnvironmentValue(
     lat: typeof source.lat === 'number' ? source.lat : lat,
     lon: typeof source.lon === 'number' ? source.lon : lon,
     value: typeof source.value === 'number' ? source.value : null,
+    className: typeof source.class_name === 'string' ? source.class_name : null,
   };
 }

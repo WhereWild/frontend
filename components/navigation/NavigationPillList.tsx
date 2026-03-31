@@ -19,6 +19,8 @@ export type NavigationPillListProps = {
   accessibilityLabel?: string;
   testID?: string;
   onFocusRequest?: (index: number) => void;
+  /** Key of the pinned item to highlight with a dashed border. */
+  pinnedKey?: string;
 };
 
 type KeyEvent = { nativeEvent?: { key?: string }; preventDefault?: () => void };
@@ -35,6 +37,7 @@ export function NavigationPillList({
   accessibilityLabel = 'Navigation pills',
   testID,
   onFocusRequest,
+  pinnedKey,
 }: NavigationPillListProps) {
   const pillRefs = useRef<NavigationPillRef[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -167,6 +170,7 @@ export function NavigationPillList({
               accessibilityLabel={pill.accessibilityLabel ?? pill.label}
               testID={pill.testID}
               icon={pill.icon}
+              isPinned={pinnedKey !== undefined && pill.key === pinnedKey}
             />
           </View>
         );
