@@ -127,7 +127,6 @@ export function useEnvironmentHighlights({
       selectedVariable,
       { units },
     );
-    console.log('pinned result:', result);
     if (pinnedRequestRef.current !== requestId) {
       return;
     }
