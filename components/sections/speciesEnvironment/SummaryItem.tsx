@@ -29,9 +29,21 @@ export function SummaryItem({ label, value, rank, comparison, isLast, stacked }:
   const palette = Colors[mode];
 
   const borderColor = palette.border.default.default;
+  const rankText =
+    typeof rank?.rank === 'number' && typeof rank.count === 'number'
+      ? `Ranks ${Math.round(rank.rank).toLocaleString()} / ${Math.round(rank.count).toLocaleString()} in ${rank.label || 'selected taxon'}`
+      : ' ';
+  const percentileText =
+    typeof rank?.percentile === 'number' && Number.isFinite(rank.percentile)
+      ? `(${formatPercent(rank.percentile)} percentile)`
+      : ' ';
+  const secondaryText = comparison ?? rankText;
+  const secondaryDisplayText = secondaryText.trim().length > 0 ? secondaryText : ' ';
+  const percentileDisplayText = percentileText.trim().length > 0 && !comparison ? percentileText : ' ';
 
   return (
     <View
+      collapsable={false}
       style={[
         styles.summaryItem,
         stacked ? styles.summaryItemStacked : { borderRightColor: borderColor },
@@ -40,28 +52,28 @@ export function SummaryItem({ label, value, rank, comparison, isLast, stacked }:
       ]}
     >
       <ThemedText variant="body">{label}: {value}</ThemedText>
-      {comparison ? (
-        <ThemedText variant="body" style={{ color: palette.text.default.secondary }}>
-          {comparison}
+      <View collapsable={false} style={styles.detailSlot}>
+        <ThemedText
+          variant="body"
+          style={[
+            styles.detailLine,
+            { color: palette.text.default.secondary, textAlign: stacked ? 'left' : 'center' },
+          ]}
+        >
+          {secondaryDisplayText}
         </ThemedText>
-      ) : rank ? (
-        <>
-          {typeof rank.rank === 'number' && typeof rank.count === 'number' ? (
-            <ThemedText
-              variant="body"
-              style={{ color: palette.text.default.secondary, textAlign: stacked ? 'left' : 'center' }}
-            >
-              Ranks {Math.round(rank.rank).toLocaleString()} / {Math.round(rank.count).toLocaleString()}{' '}
-              in {rank.label || 'selected taxon'}
-            </ThemedText>
-          ) : null}
-          {typeof rank.percentile === 'number' && Number.isFinite(rank.percentile) ? (
-            <ThemedText variant="bodySmall" style={{ color: palette.text.default.tertiary }}>
-              ({formatPercent(rank.percentile)} percentile)
-            </ThemedText>
-          ) : null}
-        </>
-      ) : null}
+      </View>
+      <View collapsable={false} style={styles.detailSlot}>
+        <ThemedText
+          variant="bodySmall"
+          style={[
+            styles.detailLine,
+            { color: palette.text.default.tertiary, textAlign: stacked ? 'left' : 'center' },
+          ]}
+        >
+          {percentileDisplayText}
+        </ThemedText>
+      </View>
     </View>
   );
 }
@@ -86,5 +98,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     paddingVertical: Size.space['200'],
     paddingHorizontal: 0,
+  },
+  detailLine: {
+    minHeight: 20,
+  },
+  detailSlot: {
+    minHeight: 20,
+    width: '100%',
   },
 });

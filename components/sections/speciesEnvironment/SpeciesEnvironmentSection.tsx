@@ -26,7 +26,7 @@ export type SpeciesEnvironmentSectionProps = {
 };
 
 /** Displays environment distribution insights for a species and selected variable. */
-export function SpeciesEnvironmentSection({
+function SpeciesEnvironmentSectionComponent({
   taxonId,
   variableId = DEFAULT_VARIABLE,
   variables,
@@ -34,6 +34,30 @@ export function SpeciesEnvironmentSection({
   locationGid,
   units,
 }: SpeciesEnvironmentSectionProps) {
+  const stableDisplayRef = React.useRef<{
+    headingText: string | null;
+    metaText: string | null;
+    isCategorical: boolean;
+    categoricalDistribution: ReturnType<typeof useSpeciesEnvironmentState>['categoricalDistribution'];
+    selectedCategoryValue: ReturnType<typeof useSpeciesEnvironmentState>['selectedCategoryValue'];
+    densityCurve: ReturnType<typeof useSpeciesEnvironmentState>['densityCurve'];
+    summary: ReturnType<typeof useSpeciesEnvironmentState>['summary'];
+    selectedDensityRange: ReturnType<typeof useSpeciesEnvironmentState>['selectedDensityRange'];
+    showRankContext: boolean;
+    rankContextOptions: ReturnType<typeof useSpeciesEnvironmentState>['rankContextOptions'];
+    selectedRankContext: ReturnType<typeof useSpeciesEnvironmentState>['selectedRankContext'];
+    summaryRanks: ReturnType<typeof useSpeciesEnvironmentState>['summaryRanks'];
+    summaryComparisons: ReturnType<typeof useSpeciesEnvironmentState>['summaryComparisons'];
+    locationFilterActive: boolean;
+  } | null>(null);
+  const stableContentScopeRef = React.useRef('');
+  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${units ?? ''}`;
+
+  if (stableContentScopeRef.current !== stableContentScope) {
+    stableContentScopeRef.current = stableContentScope;
+    stableDisplayRef.current = null;
+  }
+
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -79,83 +103,199 @@ export function SpeciesEnvironmentSection({
     return null;
   }
 
-  const showLoading = loading && !stats;
+  const shouldPreservePreviousUi = loading && !stats;
+  const shouldClearPreservedUi = !loading && !stats;
+
+  if (shouldClearPreservedUi) {
+    stableDisplayRef.current = null;
+  }
+
+  const showLoading = loading && !stats && !stableDisplayRef.current;
+  const showUpdating = loading && !stats && Boolean(stableDisplayRef.current);
   const showError = !loading && Boolean(error);
 
   const handleCategorySelect = (value: string | number) => {
-    setSelectedCategoryValue((previous) => (previous === value ? null : value));
+    React.startTransition(() => {
+      setSelectedCategoryValue((previous) => (previous === value ? null : value));
+    });
   };
 
-  const handleRankContextChange = (value: string) => setSelectedRankContext(value);
+  const handleRankContextChange = (value: string) => {
+    React.startTransition(() => {
+      setSelectedRankContext(value);
+    });
+  };
+
+  const handleVariableCategoryChange = (value: string) => {
+    React.startTransition(() => {
+      setSelectedVariableCategory(value);
+    });
+  };
+
+  const handleVariableChange = (value: string) => {
+    React.startTransition(() => {
+      setSelectedVariable(value);
+    });
+  };
+
+  const displayState = stats
+    ? {
+        headingText,
+        metaText,
+        isCategorical,
+        categoricalDistribution,
+        selectedCategoryValue,
+        densityCurve,
+        summary,
+        selectedDensityRange,
+        showRankContext,
+        rankContextOptions,
+        selectedRankContext,
+        summaryRanks,
+        summaryComparisons,
+        locationFilterActive,
+      }
+    : shouldPreservePreviousUi
+      ? stableDisplayRef.current
+      : null;
+
+  if (stats) {
+    stableDisplayRef.current = displayState;
+  }
+
+  const hasDisplayState = Boolean(displayState);
+  const displayHeadingText = displayState?.headingText ?? null;
+  const displayMetaText = displayState?.metaText ?? null;
+  const showCategoricalContent = Boolean(displayState?.isCategorical);
+  const showContinuousContent = Boolean(displayState && !displayState.isCategorical);
 
   return (
-    <View style={styles.container}>
+    <View collapsable={false} style={styles.container}>
       <ThemedText variant="subheading">Species Environment</ThemedText>
 
       <VariableSelectorHeader
         categories={categories}
         selectedVariableCategory={selectedVariableCategory}
-        onCategoryChange={setSelectedVariableCategory}
+        onCategoryChange={handleVariableCategoryChange}
         filteredVariables={filteredVariables}
         selectedVariable={selectedVariable}
-        onVariableChange={setSelectedVariable}
-        headingText={headingText}
-        metaText={metaText}
+        onVariableChange={handleVariableChange}
+        headingText={displayHeadingText}
+        metaText={displayMetaText}
       />
 
-      {showLoading ? (
+      <View collapsable={false} style={styles.statusSlot}>
         <View
+          collapsable={false}
+          testID="species-environment-loading-slot"
+          accessibilityElementsHidden={!showLoading}
+          importantForAccessibility={showLoading ? 'auto' : 'no-hide-descendants'}
           style={[
-            styles.loadingPlaceholder,
-            isVariableCategorical
-              ? styles.loadingPlaceholderCategorical
-              : styles.loadingPlaceholderContinuous,
+            styles.statusContentSlot,
+            !showLoading && styles.hiddenContentSlot,
           ]}
         >
-          <ActivityIndicator color={palette.icon.brand.default} />
-          <ThemedText variant="bodySmall">Loading environment data…</ThemedText>
+          <View
+            style={[
+              styles.loadingPlaceholder,
+              isVariableCategorical
+                ? styles.loadingPlaceholderCategorical
+                : styles.loadingPlaceholderContinuous,
+            ]}
+          >
+            <ActivityIndicator color={palette.icon.brand.default} />
+            <ThemedText variant="bodySmall">Loading environment data…</ThemedText>
+          </View>
         </View>
-      ) : null}
-
-      {showError ? (
-        <View style={styles.errorRow}>
-          <ThemedText variant="bodySmall">{error}</ThemedText>
+        <View
+          collapsable={false}
+          testID="species-environment-updating-slot"
+          accessibilityElementsHidden={!showUpdating}
+          importantForAccessibility={showUpdating ? 'auto' : 'no-hide-descendants'}
+          style={[
+            styles.statusContentSlot,
+            !showUpdating && styles.hiddenContentSlot,
+          ]}
+        >
+          <View style={styles.updatingIndicatorRow}>
+            <ActivityIndicator size="small" color={palette.icon.brand.default} />
+            <ThemedText variant="bodySmall">Updating environment data…</ThemedText>
+          </View>
         </View>
-      ) : null}
+        <View
+          collapsable={false}
+          testID="species-environment-error-slot"
+          accessibilityElementsHidden={!showError}
+          importantForAccessibility={showError ? 'auto' : 'no-hide-descendants'}
+          style={[
+            styles.statusContentSlot,
+            !showError && styles.hiddenContentSlot,
+          ]}
+        >
+          <View style={styles.errorRow}>
+            <ThemedText variant="bodySmall">{error}</ThemedText>
+          </View>
+        </View>
+      </View>
 
-      {stats ? (
-        isCategorical ? (
+      <View
+        collapsable={false}
+        testID="species-environment-display-slot"
+        accessibilityElementsHidden={!hasDisplayState}
+        importantForAccessibility={hasDisplayState ? 'auto' : 'no-hide-descendants'}
+        style={[
+          styles.contentRegion,
+          !hasDisplayState && styles.hiddenContentSlot,
+          { pointerEvents: showUpdating ? 'none' : 'auto' },
+        ]}
+      >
+        <View
+          collapsable={false}
+          testID="species-environment-categorical-slot"
+          accessibilityElementsHidden={!showCategoricalContent}
+          importantForAccessibility={showCategoricalContent ? 'auto' : 'no-hide-descendants'}
+          style={!showCategoricalContent ? styles.hiddenContentSlot : undefined}
+        >
           <StackedCategoryBar
-            categories={categoricalDistribution}
-            selectedValue={selectedCategoryValue}
+            categories={displayState?.categoricalDistribution ?? []}
+            selectedValue={displayState?.selectedCategoryValue ?? null}
             onSelect={handleCategorySelect}
             descriptionColor={palette.text.default.secondary}
           />
-        ) : (
-          <View style={styles.continuousContent}>
-            <DensityChart
-              curve={densityCurve}
-              lineColor={palette.background.brand.default}
-              fillColor={palette.background.brand.default}
-              baselineColor={palette.border.neutral.default}
-              summary={summary}
-              selection={selectedDensityRange}
-              onSelectionChange={handleDensitySelectionChange}
-            />
+        </View>
 
-            <ContinuousInsights
-              showRankContext={showRankContext}
-              rankContextOptions={rankContextOptions}
-              selectedRankContext={selectedRankContext}
-              onRankContextChange={handleRankContextChange}
-              summary={summary}
-              summaryRanks={summaryRanks}
-              summaryComparisons={summaryComparisons}
-              locationFilterActive={locationFilterActive}
-            />
-          </View>
-        )
-      ) : null}
+        <View
+          collapsable={false}
+          testID="species-environment-continuous-slot"
+          accessibilityElementsHidden={!showContinuousContent}
+          importantForAccessibility={showContinuousContent ? 'auto' : 'no-hide-descendants'}
+          style={[
+            styles.continuousContent,
+            !showContinuousContent && styles.hiddenContentSlot,
+          ]}
+        >
+          <DensityChart
+            curve={displayState?.densityCurve}
+            lineColor={palette.background.brand.default}
+            fillColor={palette.background.brand.default}
+            baselineColor={palette.border.neutral.default}
+            summary={displayState?.summary}
+            selection={displayState?.selectedDensityRange ?? null}
+            onSelectionChange={handleDensitySelectionChange}
+          />
+
+          <ContinuousInsights
+            showRankContext={displayState?.showRankContext ?? false}
+            rankContextOptions={displayState?.rankContextOptions ?? []}
+            selectedRankContext={displayState?.selectedRankContext ?? null}
+            onRankContextChange={handleRankContextChange}
+            summary={displayState?.summary}
+            summaryRanks={displayState?.summaryRanks ?? { min: null, mean: null, max: null }}
+            summaryComparisons={displayState?.summaryComparisons ?? { min: null, mean: null, max: null }}
+            locationFilterActive={displayState?.locationFilterActive ?? false}
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -181,7 +321,31 @@ const styles = StyleSheet.create({
   errorRow: {
     paddingVertical: Size.space['200'],
   },
+  updatingIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  statusSlot: {
+    width: '100%',
+  },
+  statusContentSlot: {
+    width: '100%',
+  },
+  contentRegion: {
+    width: '100%',
+  },
   continuousContent: {
     gap: Size.space.text.section,
   },
+  hiddenContentSlot: {
+    opacity: 0,
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
 });
+
+export const SpeciesEnvironmentSection = React.memo(SpeciesEnvironmentSectionComponent);
+SpeciesEnvironmentSection.displayName = 'SpeciesEnvironmentSection';

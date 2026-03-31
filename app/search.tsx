@@ -31,7 +31,6 @@ export default function Search() {
   const [searching, setSearching] = useState(false);
   const [searchContext, setSearchContext] = useState<string | null>(null);
   const [filterVisible, setFilterVisible] = useState(false);
-  const [isFilterMounted, setIsFilterMounted] = useState(false);
   const [layoutWidth, setLayoutWidth] = useState(0);
   const filterTranslateX = useRef(new Animated.Value(0));
   const filterTranslateY = useRef(new Animated.Value(0));
@@ -164,7 +163,6 @@ export default function Search() {
     const hiddenTranslateY = shouldStack ? -FILTER_SLIDE_OFFSET : 0;
 
     if (filterVisible) {
-      setIsFilterMounted(true);
       translateX.setValue(hiddenTranslateX);
       translateY.setValue(hiddenTranslateY);
       opacity.setValue(0);
@@ -197,10 +195,6 @@ export default function Search() {
       };
     }
 
-    if (!isFilterMounted) {
-      return;
-    }
-
     hideAnimation = Animated.parallel([
       Animated.timing(translateX, {
         toValue: hiddenTranslateX,
@@ -222,16 +216,12 @@ export default function Search() {
       }),
     ]);
 
-    hideAnimation.start(({ finished }) => {
-      if (finished) {
-        setIsFilterMounted(false);
-      }
-    });
+    hideAnimation.start();
 
     return () => {
       hideAnimation?.stop();
     };
-  }, [filterVisible, isFilterMounted]);
+  }, [filterVisible]);
 
   const animatedFilterStyle = {
     opacity: filterOpacity.current,
@@ -251,12 +241,16 @@ export default function Search() {
     },
   ];
 
-  const filterPanel = isFilterMounted ? (
+  const filterPanel = (
     <Animated.View
+      accessibilityElementsHidden={!filterVisible}
+      importantForAccessibility={filterVisible ? 'auto' : 'no-hide-descendants'}
       style={[
         styles.filters,
         shouldExpandFilters && styles.filtersFullWidth,
         animatedFilterStyle,
+        { pointerEvents: filterVisible ? 'auto' : 'none' },
+        !filterVisible ? styles.filtersHidden : undefined,
       ]}
     >
       <Filters
@@ -265,7 +259,7 @@ export default function Search() {
         hasBaseTaxonSelection={isBaseTaxonSelected}
       />
     </Animated.View>
-  ) : null;
+  );
 
   const resultsColumn = (
     <View style={styles.main}>
@@ -281,12 +275,20 @@ export default function Search() {
         )}
       </View>
       <View style={styles.results}>
-        {searching ? (
+        <View
+          collapsable={false}
+          accessibilityElementsHidden={!searching}
+          importantForAccessibility={searching ? 'auto' : 'no-hide-descendants'}
+          style={[
+            { pointerEvents: 'none' },
+            !searching ? styles.resultsLoadingRowHidden : undefined,
+          ]}
+        >
           <View style={styles.resultsLoadingRow}>
             <ActivityIndicator color={palette.icon.brand.default} />
             <ThemedText variant="subheading">Loading...</ThemedText>
           </View>
-        ) : null}
+        </View>
         {searchResults.map((item) => (
           <SpeciesCard
             key={item.taxonId}
@@ -355,6 +357,11 @@ const styles = StyleSheet.create({
     flexBasis: '100%',
     maxWidth: '100%',
   },
+  filtersHidden: {
+    opacity: 0,
+    maxHeight: 0,
+    overflow: 'hidden',
+  },
   filtersContent: {
     width: '100%',
   },
@@ -377,6 +384,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['400'],
+  },
+  resultsLoadingRowHidden: {
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
   },
   results: {
     flexDirection: 'column',

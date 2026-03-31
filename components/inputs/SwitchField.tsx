@@ -7,6 +7,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -107,6 +108,7 @@ export function SwitchField({
     };
 
     return [
+      getInteractiveCursorStyle(disabled),
       styles.switch,
       dynamicTrackStyle,
     ];

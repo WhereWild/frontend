@@ -9,6 +9,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -176,6 +177,7 @@ export function RadioField({
           onHoverOut={() => setIsHovered(false)}
           onPress={onSelect}
           testID={testID}
+          style={getInteractiveCursorStyle(disabled)}
         >
           {({ hovered, pressed }: PressableStateCallbackType) => {
             const indicatorColors = getIndicatorColors(

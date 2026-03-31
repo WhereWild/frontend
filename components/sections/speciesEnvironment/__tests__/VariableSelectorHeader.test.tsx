@@ -12,6 +12,7 @@ type MockTab = { key: string; label: string };
 type TabsMockProps = {
   tabs: MockTab[];
   onSelectionChange?: (key: string) => void;
+  disableNativeHoverVisuals?: boolean;
 };
 
 type MockOption = { value: string; label: string };
@@ -22,10 +23,10 @@ type SelectFieldMockProps = {
 };
 
 jest.mock('@/components/tabs/Tabs', () => ({
-  Tabs: ({ tabs, onSelectionChange }: TabsMockProps) =>
+  Tabs: ({ tabs, onSelectionChange, disableNativeHoverVisuals }: TabsMockProps) =>
     mockReact.createElement(
       mockView,
-      null,
+      { testID: disableNativeHoverVisuals ? 'tabs-native-hover-disabled' : undefined },
       tabs.map((tab) =>
         mockReact.createElement(
           mockPressable,
@@ -86,6 +87,7 @@ describe('VariableSelectorHeader', () => {
 
     fireEvent.press(screen.getByTestId('category-Land cover'));
     expect(onCategoryChange).toHaveBeenCalledWith('Land cover');
+    expect(screen.getByTestId('tabs-native-hover-disabled')).toBeTruthy();
 
     fireEvent.press(screen.getByTestId('option-landcover'));
     expect(onVariableChange).toHaveBeenCalledWith('landcover');

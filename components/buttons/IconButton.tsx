@@ -1,25 +1,38 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { IconSize } from '@/primitives';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import React from 'react';
-import { AccessibilityProps, Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { AccessibilityProps, GestureResponderEvent, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 
 export type IconButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type IconButtonSize = 'medium' | 'small';
 
-export type IconButtonProps = {
+type IconButtonBaseProps = {
   variant?: IconButtonVariant;
   size?: IconButtonSize;
   disabled?: boolean;
-  onPress?: () => void;
-  onPressIn?: () => void;
-  onPressOut?: () => void;
-  onLongPress?: () => void;
+  showPointerCursor?: boolean;
+  hovered?: boolean;
+  pressed?: boolean;
+  onPress?: (event: GestureResponderEvent) => void;
+  onPressIn?: (event: GestureResponderEvent) => void;
+  onPressOut?: (event: GestureResponderEvent) => void;
+  onLongPress?: (event: GestureResponderEvent) => void;
   delayLongPress?: number;
   icon: React.ReactNode;
-  accessibilityLabel: string;
   style?: ViewStyle;
 } & AccessibilityProps;
+
+export type IconButtonProps =
+  | (IconButtonBaseProps & {
+      interactive?: true;
+      accessibilityLabel: string;
+    })
+  | (IconButtonBaseProps & {
+      interactive: false;
+      accessibilityLabel?: string;
+    });
 
 const TRANSPARENT = 'transparent';
 
@@ -137,6 +150,10 @@ export const IconButton: React.FC<IconButtonProps> = ({
   variant = 'primary',
   size = 'medium',
   disabled = false,
+  showPointerCursor = true,
+  interactive = true,
+  hovered = false,
+  pressed = false,
   onPress,
   onPressIn,
   onPressOut,
@@ -152,6 +169,30 @@ export const IconButton: React.FC<IconButtonProps> = ({
 
   const sizeStyles = React.useMemo(() => computeSizeStyles(size), [size]);
 
+  if (!interactive) {
+    const variantStyles = computeVariantStyles(variant, mode, pressed, hovered, disabled);
+
+    return (
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[
+          showPointerCursor ? getInteractiveCursorStyle(disabled) : null,
+          styles.buttonBase,
+          {
+            backgroundColor: variantStyles.backgroundColor,
+            pointerEvents: 'none',
+            width: sizeStyles.width,
+            height: sizeStyles.height,
+          },
+          style,
+        ]}
+      >
+        {renderIcon(icon, variantStyles.iconColor, sizeStyles.iconSize)}
+      </View>
+    );
+  }
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -165,6 +206,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         return [
+          showPointerCursor ? getInteractiveCursorStyle(disabled) : null,
           styles.buttonBase,
           {
             backgroundColor: variantStyles.backgroundColor,

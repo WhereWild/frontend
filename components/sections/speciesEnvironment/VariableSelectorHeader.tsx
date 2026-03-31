@@ -45,6 +45,7 @@ export function VariableSelectorHeader({
           tabs={categories.map((cat) => ({ key: cat, label: cat }))}
           selectedKey={selectedVariableCategory ?? categories[0]}
           onSelectionChange={onCategoryChange}
+          disableNativeHoverVisuals
           accessibilityLabel="Environment variable categories"
         />
       ) : null}
