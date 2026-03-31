@@ -34,8 +34,8 @@ export type { TopAppBarProps, TopAppBarVariant } from './sections/topAppBar/TopA
 export { SearchInput } from './inputs/SearchInput';
 export type { SearchInputProps } from './inputs/SearchInput';
 
-export { SearchResults } from './sections/webPageHeader/SearchResults';
-export type { SearchResultsProps } from './sections/webPageHeader/SearchResults';
+export { SearchResults } from './lists/SearchResults';
+export type { SearchResultsProps } from './lists/SearchResults';
 
 export { SelectField } from './inputs/SelectField';
 export type { SelectFieldProps, SelectOption } from './inputs/SelectField';
