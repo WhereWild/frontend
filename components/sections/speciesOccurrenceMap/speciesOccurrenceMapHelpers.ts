@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
+export const PIN_LOCATION_MESSAGE_TYPE = 'pin_location';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -38,6 +39,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   minZoom: '__MIN_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
   pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
+  pinLocationType: '__PIN_LOCATION_MESSAGE_TYPE_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -52,13 +54,29 @@ export type PinObservationMessage = {
   longitude: number;
 };
 
-export type MapInboundMessage = HighlightMessage | PinObservationMessage;
+export type PinLocationMessage = {
+  type: typeof PIN_LOCATION_MESSAGE_TYPE;
+  latitude: number;
+  longitude: number;
+};
+
+export type MapInboundMessage = HighlightMessage | PinObservationMessage | PinLocationMessage;
 
 export const isPinObservationMessage = (msg: unknown): msg is PinObservationMessage => {
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
   return (
     m.type === PIN_OBSERVATION_MESSAGE_TYPE &&
+    typeof m.latitude === 'number' &&
+    typeof m.longitude === 'number'
+  );
+};
+
+export const isPinLocationMessage = (msg: unknown): msg is PinLocationMessage => {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    m.type === PIN_LOCATION_MESSAGE_TYPE &&
     typeof m.latitude === 'number' &&
     typeof m.longitude === 'number'
   );
@@ -151,6 +169,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationType)
     .join(JSON.stringify(PIN_OBSERVATION_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.pinLocationType)
+    .join(JSON.stringify(PIN_LOCATION_MESSAGE_TYPE));
   return html;
 };
 

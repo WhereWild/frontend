@@ -29,6 +29,7 @@
     const palette = __PALETTE_JSON__;
     const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
     const PIN_OBSERVATION_MESSAGE_TYPE = __PIN_OBSERVATION_MESSAGE_TYPE_JSON__;
+    const PIN_LOCATION_MESSAGE_TYPE = __PIN_LOCATION_MESSAGE_TYPE_JSON__;
 
     const MERCATOR_MAX_LAT = 85.05112878;
     const TILE_SIZE = 256;
@@ -122,20 +123,29 @@
       fillOpacity: 0.95,
     };
     const markers = new Map();
+    var locationPin = null;
+    const pinIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#F59E0B;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);"></div>',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
 
-    function sendPinMessage(catalogNumber, latitude, longitude) {
-      const msg = {
-        type: PIN_OBSERVATION_MESSAGE_TYPE,
-        catalogNumber: catalogNumber,
-        latitude: latitude,
-        longitude: longitude,
-      };
+    function postMessage(msg) {
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
         window.parent.postMessage(msg, '*');
       }
+    }
+
+    function sendPinMessage(catalogNumber, latitude, longitude) {
+      postMessage({ type: PIN_OBSERVATION_MESSAGE_TYPE, catalogNumber: catalogNumber, latitude: latitude, longitude: longitude });
       map.closePopup();
+    }
+
+    function sendLocationPinMessage(latitude, longitude) {
+      postMessage({ type: PIN_LOCATION_MESSAGE_TYPE, latitude: latitude, longitude: longitude });
     }
 
     function applyHighlights(list) {
@@ -185,13 +195,11 @@
       const visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
       let showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
-      function buildObservationPopup(catalogHref, catalogLabel, latitude, longitude) {
+      function buildObservationPopup(catalogHref, catalogLabel) {
         if (!catalogHref || !catalogLabel) {
           return '';
         }
-        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
-        var pinBtn = '<button style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;" onclick="sendPinMessage(\'' + catalogLabel + '\',' + latitude + ',' + longitude + ')">Highlight in Environmental Features</button>';
-        return inatLink + pinBtn;
+        return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
       }
 
       function applyEntryStyle(entry, style) {
@@ -219,6 +227,12 @@
           entry.directMarker = L.circleMarker([entry.latitude, alignedLongitude], markerStyle);
           if (entry.popupHtml) {
             entry.directMarker.bindPopup(entry.popupHtml);
+          }
+          if (entry.key && !entry.key.startsWith('fallback-')) {
+            entry.directMarker.on('click', (function(e) {
+              L.DomEvent.stopPropagation(e);
+              sendPinMessage(entry.key, entry.latitude, entry.longitude);
+            }));
           }
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
@@ -340,12 +354,18 @@
         const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
         const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
         const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
-        const popupHtml = buildObservationPopup(pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
+        const popupHtml = buildObservationPopup(pt.popupCatalogHref, pt.popupCatalogLabel);
 
         if (useVisibilityManagedClustering && clusterGroup) {
           const clusterMarker = L.circleMarker([latitude, initialLongitude], markerStyle);
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
+          }
+          if (catalog) {
+            clusterMarker.on('click', function(e) {
+              L.DomEvent.stopPropagation(e);
+              sendPinMessage(catalog, latitude, canonicalLongitude);
+            });
           }
 
           const markerEntry = {
@@ -369,6 +389,12 @@
           const marker = L.circleMarker([latitude, initialLongitude], markerStyle);
           if (popupHtml) {
             marker.bindPopup(popupHtml);
+          }
+          if (catalog) {
+            marker.on('click', function(e) {
+              L.DomEvent.stopPropagation(e);
+              sendPinMessage(catalog, latitude, canonicalLongitude);
+            });
           }
           map.addLayer(marker);
           directMarkerAnchors.push({
@@ -399,6 +425,22 @@
     } else {
       map.setView([0, 0], BASE_MIN_ZOOM);
     }
+
+    map.on('click', function(e) {
+      var lat = e.latlng.lat;
+      var lon = e.latlng.lng;
+      var isSameSpot = locationPin !== null &&
+        Math.abs(locationPin.getLatLng().lat - lat) < 0.00005 &&
+        Math.abs(locationPin.getLatLng().lng - lon) < 0.00005;
+      if (locationPin) {
+        map.removeLayer(locationPin);
+        locationPin = null;
+      }
+      if (!isSameSpot) {
+        locationPin = L.marker([lat, lon], { icon: pinIcon, interactive: false }).addTo(map);
+      }
+      sendLocationPinMessage(lat, lon);
+    });
 
     applyHighlights([]);
   </script>

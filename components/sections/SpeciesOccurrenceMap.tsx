@@ -16,6 +16,7 @@ import {
   type MapMarkerPalette,
   toHighlightMessagePayload,
   isPinObservationMessage,
+  isPinLocationMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
 type SpeciesOccurrenceMapProps = {
@@ -165,6 +166,8 @@ export function SpeciesOccurrenceMap({
           event.data.latitude,
           event.data.longitude,
         );
+      } else if (isPinLocationMessage(event.data)) {
+        onPinObservation?.('', event.data.latitude, event.data.longitude);
       }
     };
     window.addEventListener('message', handler);
@@ -261,6 +264,8 @@ export function SpeciesOccurrenceMap({
                     msg.latitude,
                     msg.longitude,
                   );
+                } else if (isPinLocationMessage(msg)) {
+                  onPinObservation?.('', msg.latitude, msg.longitude);
                 }
               } catch {}
             }}

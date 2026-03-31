@@ -177,9 +177,20 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
-      setPinnedObservation((prev) =>
-        prev?.catalogNumber === catalogNumber ? null : { catalogNumber, lat, lon },
-      );
+      if (!catalogNumber) {
+        // Map-click location pin — toggle by position.
+        setPinnedObservation((prev) =>
+          prev && !prev.catalogNumber &&
+          Math.abs(prev.lat - lat) < 0.00005 &&
+          Math.abs(prev.lon - lon) < 0.00005
+            ? null
+            : { catalogNumber: '', lat, lon },
+        );
+      } else {
+        setPinnedObservation((prev) =>
+          prev?.catalogNumber === catalogNumber ? null : { catalogNumber, lat, lon },
+        );
+      }
     },
     [],
   );
