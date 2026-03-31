@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import {
   fetchEnvironmentRangeSlice,
+  fetchPointEnvironmentValue,
   fetchSpeciesEnvironmentCategorySamples,
 } from '@/data/api';
 import type { SpeciesEnvironmentSliceResponse, SpeciesEnvironmentStats } from '@/data/types';
@@ -8,14 +9,19 @@ import { useEnvironmentHighlights } from '../useEnvironmentHighlights';
 
 jest.mock('@/data/api', () => ({
   fetchEnvironmentRangeSlice: jest.fn(),
+  fetchPointEnvironmentValue: jest.fn(),
   fetchSpeciesEnvironmentCategorySamples: jest.fn(),
 }));
 
 const mockFetchEnvironmentRangeSlice = jest.mocked(fetchEnvironmentRangeSlice);
+const mockFetchPointEnvironmentValue = jest.mocked(fetchPointEnvironmentValue);
 const mockFetchSpeciesEnvironmentCategorySamples = jest.mocked(fetchSpeciesEnvironmentCategorySamples);
 type EnvironmentHighlightsHookResult = ReturnType<typeof useEnvironmentHighlights>;
 type VariableProps = { variable: string };
 type MockCategoryResponse = { observations: { catalogNumber: string }[] };
+type PinnedProps = {
+  pinnedObservation: { catalogNumber: string; lat: number; lon: number } | null;
+};
 // Slightly above the hook debounce (200ms) so debounced work reliably flushes in tests.
 const DEBOUNCE_SETTLE_MS = 220;
 const STALE_CATEGORY_CATALOG = 'STALE_CATEGORY_CATALOG';
@@ -77,6 +83,13 @@ describe('useEnvironmentHighlights', () => {
       count: 1,
       observations: [{ catalogNumber: '42', value: 1.5, latitude: 0, longitude: 0 }],
     } satisfies SpeciesEnvironmentSliceResponse);
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'bio_1',
+      units: 'C',
+      lat: 40.2,
+      lon: -105.1,
+      value: 3.5,
+    });
   });
 
   afterEach(() => {
@@ -483,5 +496,141 @@ describe('useEnvironmentHighlights', () => {
 
     await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
+  });
+
+  it('loads pinned values and updates loading state for pinned observations', async () => {
+    jest.useRealTimers();
+    try {
+      mockFetchPointEnvironmentValue.mockResolvedValue({
+        variable: 'bio_1',
+        units: 'C',
+        lat: 40.2,
+        lon: -105.1,
+        value: 7.25,
+      });
+
+      const { result } = renderHook(() =>
+        useEnvironmentHighlights({
+          taxonId: 1,
+          selectedVariable: 'bio_1',
+          stats: continuousStats,
+          isCategorical: false,
+          pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+        }),
+      );
+
+      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(40.2, -105.1, 'bio_1', { units: undefined });
+
+      await waitFor(() => {
+        expect(result.current.pinnedValue).toBe(7.25);
+        expect(result.current.pinnedLoading).toBe(false);
+      });
+    } finally {
+      jest.useFakeTimers();
+    }
+  });
+
+  it('ignores stale pinned responses after pinned observation changes', async () => {
+    const first = createDeferred<{ value: number | null }>();
+    const second = createDeferred<{ value: number | null }>();
+    mockFetchPointEnvironmentValue
+      .mockImplementationOnce(() => first.promise as never)
+      .mockImplementationOnce(() => second.promise as never);
+
+    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, PinnedProps>(
+      ({ pinnedObservation }) =>
+        useEnvironmentHighlights({
+          taxonId: 1,
+          selectedVariable: 'bio_1',
+          stats: continuousStats,
+          isCategorical: false,
+          pinnedObservation,
+        }),
+      {
+        initialProps: { pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 } },
+      },
+    );
+
+    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1));
+
+    rerender({ pinnedObservation: { catalogNumber: 'PIN-2', lat: 40.3, lon: -105.2 } });
+    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      first.resolve({ value: 1.11 });
+      await Promise.resolve();
+    });
+
+    expect(result.current.pinnedValue).toBeNull();
+
+    await act(async () => {
+      second.resolve({ value: 8.88 });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.pinnedValue).toBe(8.88);
+      expect(result.current.pinnedLoading).toBe(false);
+    });
+  });
+
+  it('resets pinned value to null when pinned fetch fails or pin is cleared', async () => {
+    mockFetchPointEnvironmentValue.mockRejectedValueOnce(new Error('pin failed'));
+
+    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, PinnedProps>(
+      ({ pinnedObservation }) =>
+        useEnvironmentHighlights({
+          taxonId: 1,
+          selectedVariable: 'bio_1',
+          stats: continuousStats,
+          isCategorical: false,
+          pinnedObservation,
+        }),
+      {
+        initialProps: { pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 } },
+      },
+    );
+
+    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(result.current.pinnedValue).toBeNull();
+      expect(result.current.pinnedLoading).toBe(false);
+    });
+
+    rerender({ pinnedObservation: null });
+    await waitFor(() => expect(result.current.pinnedValue).toBeNull());
+  });
+
+  it('defers category resolution until stats become available', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
+      observations: [{ catalogNumber: 'X-1', value: null, latitude: null, longitude: null }],
+    } as never);
+
+    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, { stats: SpeciesEnvironmentStats | null }>(
+      ({ stats }) =>
+        useEnvironmentHighlights({
+          taxonId: 1,
+          selectedVariable: 'landcover',
+          stats,
+          isCategorical: true,
+          locationGid: 'USA.1_1',
+          onHighlightChange,
+        }),
+      {
+        initialProps: { stats: null },
+      },
+    );
+
+    act(() => {
+      result.current.setSelectedCategoryValue('forest');
+    });
+
+    expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
+
+    rerender({ stats: { ...categoricalStats, categoricalSamples: [] } });
+
+    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['X-1']));
   });
 });

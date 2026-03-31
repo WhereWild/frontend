@@ -256,6 +256,10 @@
               return;
             }
 
+          // MarkerCluster still groups by projected map coordinates. We only
+          // re-anchor each child marker into the currently viewed wrapped world
+          // copy before rebuilding, so clusters do not jump as a single layer
+          // by +/-360 degrees when the viewport crosses the antimeridian.
             entry.clusterMarker.setLatLng([entry.latitude, alignedLongitude]);
             entry.alignedLongitude = alignedLongitude;
             changed = true;
