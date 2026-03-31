@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -31,6 +32,7 @@ export type NavigationPillProps = {
   accessibilityLabel?: string;
   testID?: string;
   icon?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
 const getPillState = (
@@ -87,14 +89,19 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     accessibilityLabel,
     testID,
     icon,
+    style,
   },
   ref
 ) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const [isPressed, setIsPressed] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
+  const pillState = getPillState(mode, isActive, isPressed, isHovered);
 
   return (
     <Pressable
       ref={ref}
+      collapsable={false}
       accessibilityRole="radio"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: isActive }}
@@ -102,40 +109,44 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
       focusable={focusable}
       testID={testID}
       onPress={() => onPress(id)}
-      style={styles.pill}
+      onPressIn={() => setIsPressed(true)}
+      onPressOut={() => setIsPressed(false)}
+      onHoverIn={() => setIsHovered(true)}
+      onHoverOut={() => setIsHovered(false)}
+      onLayout={(event) => {
+        onContentLayout?.(event.nativeEvent.layout.width);
+      }}
+      style={[
+        getInteractiveCursorStyle(),
+        styles.pill,
+        style,
+        {
+          backgroundColor: pillState.backgroundColor,
+          borderColor: pillState.borderColor,
+          width: contentWidth,
+        },
+      ]}
       // @ts-expect-error react-native-web supports onKeyDown for keyboard accessibility.
       onKeyDown={onKeyDown}
       tabIndex={tabIndex}
     >
-      {({ pressed, hovered }) => {
-        const pillState = getPillState(mode, isActive, pressed, hovered ?? false);
-        return (
-          <View
-            style={[
-              styles.pillContent,
-              {
-                backgroundColor: pillState.backgroundColor,
-                borderColor: pillState.borderColor,
-                width: contentWidth,
-              },
-            ]}
-            onLayout={(event) => {
-              onContentLayout?.(event.nativeEvent.layout.width);
-            }}
+      <View style={styles.innerContent} collapsable={false}>
+        <View
+          collapsable={false}
+          style={[styles.iconSlot, !icon && styles.hiddenIconSlot]}
+        >
+          {icon}
+        </View>
+        <View collapsable={false} style={styles.labelSlot}>
+          <ThemedText
+            variant="singleLineBody"
+            style={{ color: pillState.textColor }}
+            numberOfLines={1}
           >
-            <View style={styles.pillInner}>
-              {icon && <View>{icon}</View>}
-              <ThemedText
-                variant="singleLineBody"
-                style={{ color: pillState.textColor }}
-                numberOfLines={1}
-              >
-                {label}
-              </ThemedText>
-            </View>
-          </View>
-        );
-      }}
+            {label}
+          </ThemedText>
+        </View>
+      </View>
     </Pressable>
   );
 });
@@ -144,20 +155,26 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
 const styles = StyleSheet.create({
   pill: {
     borderRadius: Size.radius['full'],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillContent: {
-    borderRadius: Size.radius['full'],
     borderWidth: Size.stroke.border,
     paddingHorizontal: BASE_HORIZONTAL_PADDING,
     paddingVertical: BASE_VERTICAL_PADDING,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
   },
-  pillInner: {
+  innerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Size.space['100'],
+  },
+  iconSlot: {
+    marginRight: Size.space['100'],
+  },
+  hiddenIconSlot: {
+    width: 0,
+    marginRight: 0,
+    overflow: 'hidden',
+  },
+  labelSlot: {
+    flexShrink: 1,
   },
 });

@@ -244,15 +244,27 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
             )}
           </View>
 
-          {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
-            <SpeciesOccurrenceMap
-              occurrences={occurrences}
-              loading={occurrenceLoading}
-              error={occurrenceError}
-              highlightedCatalogs={highlightedCatalogs}
-              height={observationMapHeight}
-            />
-          )}
+          {/* Always mount the map container to keep ScrollView child indices
+              stable — toggling between a component and null shifts Fabric indices
+              and causes unmount crashes on iPadOS with mouse/Pencil input. */}
+          <View
+            collapsable={false}
+            style={
+              shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender
+                ? undefined
+                : styles.hiddenMapSlot
+            }
+          >
+            {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
+              <SpeciesOccurrenceMap
+                occurrences={occurrences}
+                loading={occurrenceLoading}
+                error={occurrenceError}
+                highlightedCatalogs={highlightedCatalogs}
+                height={observationMapHeight}
+              />
+            )}
+          </View>
         </ScrollView>
 
       </View >
@@ -268,6 +280,11 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: Size.space['400'],
     paddingBottom: Size.space['400'],
+  },
+  hiddenMapSlot: {
+    width: 0,
+    height: 0,
+    overflow: 'hidden' as const,
   },
   centeredSection: {
     width: '100%',

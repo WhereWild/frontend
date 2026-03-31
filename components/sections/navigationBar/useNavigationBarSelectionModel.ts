@@ -89,12 +89,14 @@ export function useNavigationBarSelectionModel<TTab extends SelectableNavigation
     if (!isControlled) {
       setInternalActiveIndex(index);
       setPreviewIndex(null);
-    } else {
-      setPreviewIndex(index);
+    } else if (index === controlledActiveIndex) {
+      // In controlled mode, clear any pressed preview immediately when the user
+      // re-selects the already-active tab instead of waiting for the sync effect.
+      setPreviewIndex(null);
     }
 
     tab.onPress?.();
-  }, [isControlled, tabs]);
+  }, [controlledActiveIndex, isControlled, tabs]);
 
   /** Resolves each tab's interaction state from active + preview indices. */
   const resolveDerivedState = React.useCallback((index: number): NavigationBarTabState => {

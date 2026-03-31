@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { IconButton } from '@/components/buttons/IconButton';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Portal } from '@/components/Portal';
 import { Size } from '@/constants/theme';
@@ -81,228 +82,258 @@ export const SelectFieldView = ({
       ? `${placeholder} options`
       : 'Select options';
   const portalAccessibilityHint = 'Swipe through options and double tap to select.';
+  const showSearchPlaceholder = isOpen && allowSearch;
+  const hasDropdownPosition = Boolean(dropdownPosition);
+  const shouldShowPortalInput = allowSearch && hasDropdownPosition;
+  const portalFieldFrame = dropdownPosition
+    ? {
+      top: dropdownPosition.top - dropdownPosition.height - Size.space['100'],
+      left: dropdownPosition.left,
+      width: dropdownPosition.width,
+      height: dropdownPosition.height,
+    }
+    : null;
+  const portalOptionsFrame = dropdownPosition
+    ? {
+      top: dropdownPosition.top,
+      left: dropdownPosition.left,
+      width: dropdownPosition.width,
+    }
+    : null;
 
   return (
-    <View style={[styles.container, containerStyle]}>
-      {label ? (
-        <ThemedText variant="body" style={{ color: labelColor }}>
-          {label}
-        </ThemedText>
-      ) : null}
-      {description ? (
-        <ThemedText variant="body" style={{ color: descriptionColor }}>
-          {description}
-        </ThemedText>
-      ) : null}
-      <View ref={fieldWrapperRef} onLayout={onFieldWrapperLayout} style={styles.fieldWrapper}>
-        <Pressable
-          ref={fieldPressableRef}
-          {...fieldPressableProps}
-          style={({ pressed, hovered }) => [
-            styles.field,
-            {
-              backgroundColor: pressed
-                ? fieldBackgroundPressed
-                : hovered
-                  ? fieldBackgroundHover
-                  : fieldBackgroundDefault,
-            },
-            ...fieldStyleOverrides,
-          ]}
-        >
-          {isOpen && allowSearch ? (
-            /* 
-             * When the dropdown is open with search enabled, we render the actual TextInput
-             * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
-             *
-             * This View is a non-interactive placeholder that keeps the field row height and
-             * layout stable while the real input lives in the portal overlay. The fixed
-             * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
-             * opening/closing the dropdown does not cause the field to jump or resize.
-             *
-             * If you change the height or layout of the portal input, update this placeholder
-             * accordingly so that the dual-input pattern (placeholder here + real input in
-             * the Portal) continues to behave and look consistent.
-             */
-            <View style={[styles.input, { height: PLACEHOLDER_INPUT_HEIGHT }]} />
-          ) : (
-            <ThemedText
-              variant="singleLineBody"
-              style={{ color: showPlaceholder ? placeholderColor : valueColor, flex: 1 }}
-            >
-              {valueText || placeholder}
-            </ThemedText>
-          )}
-          {/*
-           * Anti-pattern: changing the key forces a remount to clear a stuck hover state when
-           * the dropdown closes via the backdrop (Safari/overlay click can swallow hover-out).
-           * This is the smallest, reliable fix without adding hover overrides to IconButton.
-           */}
-          <IconButton
-            key={isOpen ? 'open' : 'closed'}
-            variant="subtle"
-            size="small"
-            icon={iconButtonProps.icon}
-            accessibilityLabel={iconButtonProps.accessibilityLabel}
-            accessibilityRole={iconButtonProps.accessibilityRole}
-            disabled={iconButtonProps.disabled}
-            onPress={iconButtonProps.onPress}
-            {...(iconButtonProps.extraProps ?? {})}
-          />
-        </Pressable>
+    <>
+      <View style={[styles.container, containerStyle]}>
+        {label ? (
+          <ThemedText variant="body" style={{ color: labelColor }}>
+            {label}
+          </ThemedText>
+        ) : null}
+        {description ? (
+          <ThemedText variant="body" style={{ color: descriptionColor }}>
+            {description}
+          </ThemedText>
+        ) : null}
+        <View ref={fieldWrapperRef} onLayout={onFieldWrapperLayout} style={styles.fieldWrapper}>
+          <Pressable
+            ref={fieldPressableRef}
+            {...fieldPressableProps}
+            style={({ pressed, hovered }) => [
+              getInteractiveCursorStyle(iconButtonProps.disabled),
+              styles.field,
+              {
+                backgroundColor: pressed
+                  ? fieldBackgroundPressed
+                  : hovered
+                    ? fieldBackgroundHover
+                    : fieldBackgroundDefault,
+              },
+              ...fieldStyleOverrides,
+            ]}
+          >
+            {({ pressed, hovered }) => (
+              <View style={styles.fieldContent} collapsable={false}>
+                <View style={styles.fieldValueSlot} collapsable={false}>
+                  <View
+                    collapsable={false}
+                    style={showSearchPlaceholder ? styles.hiddenContentSlot : undefined}
+                  >
+                    <ThemedText
+                      variant="singleLineBody"
+                      style={{ color: showPlaceholder ? placeholderColor : valueColor, flex: 1 }}
+                    >
+                      {valueText || placeholder}
+                    </ThemedText>
+                  </View>
+                  <View
+                    collapsable={false}
+                    style={!showSearchPlaceholder ? styles.hiddenContentSlot : undefined}
+                  >
+                    {
+                  /* 
+                   * When the dropdown is open with search enabled, we render the actual TextInput
+                   * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
+                   *
+                   * This View is a non-interactive placeholder that keeps the field row height and
+                   * layout stable while the real input lives in the portal overlay. The fixed
+                   * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
+                   * opening/closing the dropdown does not cause the field to jump or resize.
+                   *
+                   * If you change the height or layout of the portal input, update this placeholder
+                   * accordingly so that the dual-input pattern (placeholder here + real input in
+                   * the Portal) continues to behave and look consistent.
+                   */
+                    }
+                    <View style={[styles.input, { height: PLACEHOLDER_INPUT_HEIGHT }]} />
+                  </View>
+                </View>
+                <View style={styles.fieldIconSlot} collapsable={false}>
+                {/*
+                 * The select icon visually reads as a button, but the field owns the interaction.
+                 * Rendering it as a non-interactive visual avoids nested pressables toggling the
+                 * same control while preserving whole-button hover/press affordances.
+                 */}
+                <IconButton
+                  variant="subtle"
+                  size="small"
+                  interactive={false}
+                  hovered={hovered ?? false}
+                  pressed={pressed}
+                  icon={iconButtonProps.icon}
+
+                  disabled={iconButtonProps.disabled}
+                />
+                </View>
+              </View>
+            )}
+          </Pressable>
+        </View>
+        {errorMessage ? (
+          <ThemedText variant="body" style={{ color: errorColor }}>
+            {errorMessage}
+          </ThemedText>
+        ) : null}
       </View>
-      <Portal
-        visible={isOpen}
-        onDismiss={onDismiss}
-        accessibilityLabel={portalAccessibilityLabel}
-        accessibilityHint={portalAccessibilityHint}
-      >
-        <Pressable
-          style={styles.backdrop}
-          onPress={onDismiss}
-          accessibilityRole="button"
-          accessibilityLabel="Close dropdown"
-        />
-        {/* Input inside Portal for keyboard events */}
-        {allowSearch && dropdownPosition ? (
+      {isOpen ? (
+        <Portal
+          visible={true}
+          onDismiss={onDismiss}
+          accessibilityLabel={portalAccessibilityLabel}
+          accessibilityHint={portalAccessibilityHint}
+        >
+          <View collapsable={false} testID="select-field-portal-backdrop-slot" style={styles.backdropSlot}>
+            <Pressable
+              style={styles.backdrop}
+              onPress={onDismiss}
+              accessibilityRole="button"
+              accessibilityLabel="Close dropdown"
+            />
+          </View>
           <View
+            collapsable={false}
+            testID="select-field-portal-input-slot"
+            accessibilityElementsHidden={!shouldShowPortalInput}
+            importantForAccessibility={shouldShowPortalInput ? 'auto' : 'no-hide-descendants'}
             style={[
               styles.portalInputWrapper,
-              {
-                top: dropdownPosition.top - dropdownPosition.height - Size.space['100'],
-                left: dropdownPosition.left,
-                width: dropdownPosition.width,
-                height: dropdownPosition.height,
-              },
+              portalFieldFrame,
+              !shouldShowPortalInput && styles.hiddenPortalSlot,
             ]}
           >
             <TextInput
+              testID="select-field-portal-input"
               ref={inputRef}
               {...inputProps}
-              style={[styles.portalInput, inputProps.style]}
+              style={[
+                styles.portalInput,
+                inputProps.style,
+                !shouldShowPortalInput && styles.hiddenPortalInput,
+              ]}
             />
           </View>
-        ) : (
-          /* Hidden input to capture keyboard events for non-searchable variant */
-          <TextInput
-            ref={inputRef}
-            {...inputProps}
-          />
-        )}
-        {dropdownPosition ? (
           <View
+            collapsable={false}
+            testID="select-field-portal-icon-slot"
+            accessibilityElementsHidden={!hasDropdownPosition}
+            importantForAccessibility={hasDropdownPosition ? 'auto' : 'no-hide-descendants'}
             style={[
               styles.portalFieldIconRow,
-              {
-                top: dropdownPosition.top - dropdownPosition.height - Size.space['100'],
-                left: dropdownPosition.left,
-                width: dropdownPosition.width,
-                height: dropdownPosition.height,
-              },
+              portalFieldFrame,
+              !hasDropdownPosition && styles.hiddenPortalSlot,
             ]}
           >
             <IconButton
               variant="subtle"
               size="small"
+              interactive={false}
               icon={iconButtonProps.icon}
               accessibilityLabel={iconButtonProps.accessibilityLabel}
-              accessibilityRole={iconButtonProps.accessibilityRole}
               disabled={iconButtonProps.disabled}
-              onPress={iconButtonProps.onPress}
-              {...(iconButtonProps.extraProps ?? {})}
             />
           </View>
-        ) : null}
-        <View
-          style={[
-            styles.optionsContainer,
-            dropShadowStyle,
-            {
-              pointerEvents: 'auto',
-            },
-            dropdownPosition
-              ? {
-                top: dropdownPosition.top,
-                left: dropdownPosition.left,
-                width: dropdownPosition.width,
-              }
-              : null,
-            ...optionsContainerStyleOverrides,
-          ]}
-        >
-          <ScrollView
-            ref={scrollViewRef}
-            style={[styles.optionsScroll, scrollViewStyle]}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="none"
-            {...scrollViewRest}
+          <View
+            collapsable={false}
+            testID="select-field-portal-options-slot"
+            accessibilityElementsHidden={!hasDropdownPosition}
+            importantForAccessibility={hasDropdownPosition ? 'auto' : 'no-hide-descendants'}
+            style={[
+              styles.optionsContainer,
+              dropShadowStyle,
+              { pointerEvents: 'auto' },
+              portalOptionsFrame,
+              !hasDropdownPosition && styles.hiddenPortalSlot,
+              ...optionsContainerStyleOverrides,
+            ]}
           >
-            {options.map((option, index) => {
-              return (
-                <Pressable
-                  key={option.key}
-                  accessibilityRole="button"
-                  accessibilityLabel={option.accessibilityLabel}
-                  onPress={option.onPress}
-                  onPressIn={option.onPressIn}
-                  onPressOut={option.onPressOut}
-                  onTouchStart={option.onTouchStart}
-                  onTouchEnd={option.onTouchEnd}
-                  onLayout={option.onLayout}
-                  style={({ pressed, hovered }) => [
-                    styles.optionRow,
-                    {
-                      marginBottom: index === options.length - 1 ? 0 : Size.space['050'],
-                    },
-                    {
-                      backgroundColor: option.isSelected
-                        ? optionActiveBackgroundColor
-                        : pressed
-                          ? optionPressedBackgroundColor
-                          : hovered
-                            ? optionHoverBackgroundColor
-                            : option.isHighlighted
-                              ? optionFocusedBackgroundColor
-                              : 'transparent',
-                      ...(Platform.OS === 'web'
-                        ? (
-                          {
-                            // Safari does not render the auto outline for non-focusable nodes.
-                            // Use a solid outline with explicit color as a fallback focus ring.
-                            outlineStyle: option.isHighlighted
-                              ? (isWebKitBrowser() ? 'solid' : 'auto')
-                              : 'none',
-                            outlineWidth: Size.stroke.focusRing,
-                            outlineColor: isWebKitBrowser() ? optionFocusedRingColor : undefined,
-                          } as any
-                        )
-                        : null),
-                    },
-                  ]}
-                  {...(option.pressableProps ?? {})}
-                >
-                  <ThemedText
-                    variant={option.isSelected ? 'bodyStrong' : 'body'}
-                    style={{
-                      color: option.isSelected
-                        ? optionActiveTextColor
-                        : optionDefaultTextColor,
-                    }}
+            <ScrollView
+              ref={scrollViewRef}
+              style={[styles.optionsScroll, scrollViewStyle]}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode="none"
+              {...scrollViewRest}
+            >
+              {options.map((option, index) => {
+                return (
+                  <Pressable
+                    key={option.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={option.accessibilityLabel}
+                    onPress={option.onPress}
+                    onPressIn={option.onPressIn}
+                    onPressOut={option.onPressOut}
+                    onTouchStart={option.onTouchStart}
+                    onTouchEnd={option.onTouchEnd}
+                    onLayout={option.onLayout}
+                    style={({ pressed, hovered }) => [
+                      styles.optionRow,
+                      {
+                        marginBottom: index === options.length - 1 ? 0 : Size.space['050'],
+                      },
+                      {
+                        backgroundColor: option.isSelected
+                          ? optionActiveBackgroundColor
+                          : pressed
+                            ? optionPressedBackgroundColor
+                            : hovered
+                              ? optionHoverBackgroundColor
+                              : option.isHighlighted
+                                ? optionFocusedBackgroundColor
+                                : 'transparent',
+                        ...(Platform.OS === 'web'
+                          ? (
+                            {
+                              // Safari does not render the auto outline for non-focusable nodes.
+                              // Use a solid outline with explicit color as a fallback focus ring.
+                              outlineStyle: option.isHighlighted
+                                ? (isWebKitBrowser() ? 'solid' : 'auto')
+                                : 'none',
+                              outlineWidth: Size.stroke.focusRing,
+                              outlineColor: isWebKitBrowser() ? optionFocusedRingColor : undefined,
+                            } as any
+                          )
+                          : null),
+                      },
+                    ]}
+                    {...(option.pressableProps ?? {})}
                   >
-                    {option.label}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </Portal>
-      {errorMessage ? (
-        <ThemedText variant="body" style={{ color: errorColor }}>
-          {errorMessage}
-        </ThemedText>
+                    <ThemedText
+                      variant={option.isSelected ? 'bodyStrong' : 'body'}
+                      style={{
+                        color: option.isSelected
+                          ? optionActiveTextColor
+                          : optionDefaultTextColor,
+                      }}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </Portal>
       ) : null}
-    </View>
+    </>
   );
 };
 
@@ -326,18 +357,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: Size.radius['200'],
   },
+  fieldContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  fieldValueSlot: {
+    flex: 1,
+  },
+  fieldIconSlot: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   input: {
     flex: 1,
     padding: 0,
   },
+  hiddenContentSlot: {
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  backdropSlot: {
+    ...StyleSheet.absoluteFillObject,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
+  },
+  hiddenPortalSlot: {
+    opacity: 0,
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
   },
   portalInputWrapper: {
     position: 'absolute',
     height: FIELD_HEIGHT,
     justifyContent: 'center',
     paddingHorizontal: Size.space['400'],
+  },
+  hiddenPortalInput: {
+    opacity: 0,
+    width: 0,
+    height: 0,
+    pointerEvents: 'none',
   },
   portalFieldIconRow: {
     position: 'absolute',

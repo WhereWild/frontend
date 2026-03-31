@@ -316,6 +316,34 @@ describe('useSpeciesEnvironmentState', () => {
     });
   });
 
+  it('updates category and fallback variable together when switching categories', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: [
+          { id: 'bio_1', label: 'Temp 1', category: 'Climate', valueType: 'continuous', units: 'C' },
+          { id: 'bio_12', label: 'Annual Rain', category: 'Rainfall', valueType: 'continuous', units: 'mm' },
+        ],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedVariableCategory).toBe('Climate');
+      expect(result.current.selectedVariable).toBe('bio_1');
+    });
+
+    act(() => {
+      result.current.setSelectedVariableCategory('Rainfall');
+    });
+
+    expect(result.current.selectedVariableCategory).toBe('Rainfall');
+    expect(result.current.selectedVariable).toBe('bio_12');
+  });
+
   it('computes histogram fallback ranks when relative ranks are unavailable', async () => {
     mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue({

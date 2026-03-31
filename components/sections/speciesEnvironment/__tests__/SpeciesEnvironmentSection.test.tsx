@@ -130,6 +130,11 @@ const baseState: SpeciesEnvironmentState = {
 };
 
 describe('SpeciesEnvironmentSection', () => {
+  const findHostNodesByTestId = (
+    root: ReturnType<typeof render>['UNSAFE_root'],
+    testID: string,
+  ) => root.findAll((node) => node.props?.testID === testID && typeof node.type === 'string');
+
   const treeContainsMinHeight = (node: unknown, minHeight: number): boolean => {
     if (!node || typeof node !== 'object') {
       return false;
@@ -227,6 +232,8 @@ describe('SpeciesEnvironmentSection', () => {
 
     render(<SpeciesEnvironmentSection taxonId={1} />);
     expect(screen.getByText('categorical-view')).toBeTruthy();
+    expect(screen.queryByText('density-view')).toBeNull();
+    expect(screen.queryByText('continuous-view')).toBeNull();
 
     fireEvent.press(screen.getByTestId('pick-categorical'));
     expect(setSelectedCategoryValue).toHaveBeenCalledWith(expect.any(Function));
@@ -251,11 +258,148 @@ describe('SpeciesEnvironmentSection', () => {
     });
 
     render(<SpeciesEnvironmentSection taxonId={1} />);
+    expect(screen.queryByText('categorical-view')).toBeNull();
     expect(screen.getByText('density-view')).toBeTruthy();
     expect(screen.getByText('continuous-view')).toBeTruthy();
 
     fireEvent.press(screen.getByTestId('pick-rank-context'));
     expect(setSelectedRankContext).toHaveBeenCalledWith('Mammalia');
+  });
+
+  it('keeps the last rendered content mounted while a new variable is loading', () => {
+    let phase: 'ready' | 'loading' = 'ready';
+    mockUseSpeciesEnvironmentState.mockImplementation(() => {
+      if (phase === 'ready') {
+        return {
+          ...baseState,
+          stats: baseContinuousStats,
+          isCategorical: false,
+          densityCurve: baseContinuousStats.densityCurve ?? null,
+          summary: baseContinuousStats.summary,
+          headingText: 'Annual Temperature (C)',
+          metaText: '(Based on 10 observations)',
+        };
+      }
+
+      return {
+        ...baseState,
+        loading: true,
+        stats: null,
+      };
+    });
+
+    const { rerender } = render(<SpeciesEnvironmentSection taxonId={1} variableId="bio_1" />);
+    expect(screen.getByText('density-view')).toBeTruthy();
+    expect(screen.getByText('continuous-view')).toBeTruthy();
+
+    phase = 'loading';
+    rerender(<SpeciesEnvironmentSection taxonId={1} variableId="bio_2" />);
+
+    expect(screen.getByText('density-view')).toBeTruthy();
+    expect(screen.getByText('continuous-view')).toBeTruthy();
+    expect(screen.getByText('Annual Temperature (C)')).toBeTruthy();
+    expect(screen.getByText('(Based on 10 observations)')).toBeTruthy();
+    expect(screen.getByText('Updating environment data…')).toBeTruthy();
+    expect(screen.queryByText('Loading environment data…')).toBeNull();
+  });
+
+  it('keeps display and branch host slots mounted across rerenders', () => {
+    let phase: 'continuous' | 'loading' | 'categorical' = 'continuous';
+    mockUseSpeciesEnvironmentState.mockImplementation(() => {
+      if (phase === 'continuous') {
+        return {
+          ...baseState,
+          stats: baseContinuousStats,
+          isCategorical: false,
+          densityCurve: baseContinuousStats.densityCurve ?? null,
+          summary: baseContinuousStats.summary,
+        };
+      }
+
+      if (phase === 'loading') {
+        return {
+          ...baseState,
+          loading: true,
+          stats: null,
+        };
+      }
+
+      return {
+        ...baseState,
+        stats: baseCategoricalStats,
+        isCategorical: true,
+        categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+        summary: baseCategoricalStats.summary,
+      };
+    });
+
+    const rendered = render(<SpeciesEnvironmentSection taxonId={1} />);
+
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-display-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-categorical-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-continuous-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-loading-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-updating-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-error-slot')).toHaveLength(1);
+
+    phase = 'loading';
+    rendered.rerender(<SpeciesEnvironmentSection taxonId={1} variableId="bio_2" />);
+
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-display-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-categorical-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-continuous-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-loading-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-updating-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-error-slot')).toHaveLength(1);
+
+    phase = 'categorical';
+    rendered.rerender(<SpeciesEnvironmentSection taxonId={1} variableId="landcover" />);
+
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-display-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-categorical-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-continuous-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-loading-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-updating-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(rendered.UNSAFE_root, 'species-environment-error-slot')).toHaveLength(1);
+  });
+
+  it('clears preserved content and header when a new variable load fails', () => {
+    let phase: 'ready' | 'error' = 'ready';
+    mockUseSpeciesEnvironmentState.mockImplementation(() => {
+      if (phase === 'ready') {
+        return {
+          ...baseState,
+          stats: baseContinuousStats,
+          isCategorical: false,
+          densityCurve: baseContinuousStats.densityCurve ?? null,
+          summary: baseContinuousStats.summary,
+          headingText: 'Annual Temperature (C)',
+          metaText: '(Based on 10 observations)',
+        };
+      }
+
+      return {
+        ...baseState,
+        loading: false,
+        stats: null,
+        error: 'Failed to load environment stats',
+        headingText: null,
+        metaText: null,
+      };
+    });
+
+    const { rerender } = render(<SpeciesEnvironmentSection taxonId={1} variableId="bio_1" />);
+    expect(screen.getByText('density-view')).toBeTruthy();
+    expect(screen.getByText('(Based on 10 observations)')).toBeTruthy();
+
+    phase = 'error';
+    rerender(<SpeciesEnvironmentSection taxonId={1} variableId="bio_2" />);
+
+    expect(screen.getByText('Failed to load environment stats')).toBeTruthy();
+    expect(screen.queryByText('density-view')).toBeNull();
+    expect(screen.queryByText('continuous-view')).toBeNull();
+    expect(screen.queryByText('Annual Temperature (C)')).toBeNull();
+    expect(screen.queryByText('(Based on 10 observations)')).toBeNull();
   });
 
   it('forwards selection inputs to useSpeciesEnvironmentState', () => {
