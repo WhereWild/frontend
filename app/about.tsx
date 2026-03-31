@@ -31,7 +31,7 @@ import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
-import { TimeEasingMatrixSection } from './TimeEasingMatrixSection';
+import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixSection';
 import Head from 'expo-router/head';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
