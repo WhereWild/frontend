@@ -16,6 +16,7 @@
     "lint": "expo lint",
     "lint:fix": "expo lint --fix",
     "typecheck": "tsc --noEmit",
+    "audit:fabric": "node ./scripts/audit-fabric-risks.mjs",
     "sync-theme": "node ./scripts/sync-theme.cjs",
     "sync-theme:offline": "node ./scripts/sync-theme.cjs --skip-rest-api",
     "sync-theme:rest": "node ./scripts/sync-theme.cjs --rest-api"

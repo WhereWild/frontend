@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { create, act } from 'react-test-renderer';
 import { ContinuousInsights } from '../ContinuousInsights';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -45,6 +46,11 @@ jest.mock('@/hooks/useResponsive', () => ({
 }));
 
 const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+
+const findHostNodesByTestId = (root: ReturnType<typeof create>['root'], testID: string) =>
+  root.findAll(
+    (node) => typeof node.type === 'string' && node.props?.testID === testID,
+  );
 
 describe('ContinuousInsights', () => {
   const summary = { min: 1, mean: 5, max: 10 };
@@ -138,6 +144,76 @@ describe('ContinuousInsights', () => {
     expect(screen.queryByText(/Select a taxon/)).toBeNull();
     expect(screen.queryByText(/Rankings within/)).toBeNull();
     expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+  });
+
+  it('keeps rank-context host slots mounted across selector visibility changes', () => {
+    let rendered: ReturnType<typeof create>;
+
+    act(() => {
+      rendered = create(
+        <ContinuousInsights
+          showRankContext={true}
+          rankContextOptions={[
+            { key: 'Mammalia', label: 'Mammalia' },
+            { key: 'Aves', label: 'Aves' },
+          ]}
+          selectedRankContext={'Mammalia'}
+          onRankContextChange={jest.fn()}
+          summary={summary}
+          summaryRanks={{ min: null, mean: null, max: null }}
+          summaryComparisons={{ min: null, mean: null, max: null }}
+          locationFilterActive={false}
+        />,
+      );
+    });
+
+    const initialRoot = rendered!.root;
+    expect(findHostNodesByTestId(initialRoot, 'continuous-insights-rank-context-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(initialRoot, 'continuous-insights-rank-context-content-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(initialRoot, 'continuous-insights-rank-context-selector-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(initialRoot, 'summary-row')).toHaveLength(1);
+
+    act(() => {
+      rendered!.update(
+        <ContinuousInsights
+          showRankContext={true}
+          rankContextOptions={[{ key: 'Mammalia', label: 'Mammalia' }]}
+          selectedRankContext={'Mammalia'}
+          onRankContextChange={jest.fn()}
+          summary={summary}
+          summaryRanks={{ min: null, mean: null, max: null }}
+          summaryComparisons={{ min: null, mean: null, max: null }}
+          locationFilterActive={false}
+        />,
+      );
+    });
+
+    const singleContextRoot = rendered!.root;
+    expect(findHostNodesByTestId(singleContextRoot, 'continuous-insights-rank-context-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(singleContextRoot, 'continuous-insights-rank-context-content-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(singleContextRoot, 'continuous-insights-rank-context-selector-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(singleContextRoot, 'summary-row')).toHaveLength(1);
+
+    act(() => {
+      rendered!.update(
+        <ContinuousInsights
+          showRankContext={true}
+          rankContextOptions={[]}
+          selectedRankContext={null}
+          onRankContextChange={jest.fn()}
+          summary={summary}
+          summaryRanks={{ min: null, mean: null, max: null }}
+          summaryComparisons={{ min: null, mean: null, max: null }}
+          locationFilterActive={false}
+        />,
+      );
+    });
+
+    const emptyContextRoot = rendered!.root;
+    expect(findHostNodesByTestId(emptyContextRoot, 'continuous-insights-rank-context-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(emptyContextRoot, 'continuous-insights-rank-context-content-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(emptyContextRoot, 'continuous-insights-rank-context-selector-slot')).toHaveLength(1);
+    expect(findHostNodesByTestId(emptyContextRoot, 'summary-row')).toHaveLength(1);
   });
 
   it('renders location-filter summary without comparison text when comparisons are null', () => {

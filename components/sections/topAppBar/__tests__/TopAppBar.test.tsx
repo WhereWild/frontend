@@ -194,7 +194,18 @@ describe('TopAppBar', () => {
     expect(screen.queryByLabelText('Refresh')).toBeNull();
     expect(screen.queryByLabelText('Filter')).toBeNull();
     expect(screen.queryByLabelText('Filter action')).toBeNull();
-    expect(screen.queryByTestId('top-app-bar-actions-row')).toBeNull();
+    const actionsRow = screen.getByTestId('top-app-bar-actions-row');
+    expect(actionsRow).toBeTruthy();
+
+    const secondarySlotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-secondary-action-slot').props.style,
+    );
+    const primarySlotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-primary-action-slot').props.style,
+    );
+
+    expect(resolveAnimatedNumeric(secondarySlotStyle.width)).toBe(0);
+    expect(resolveAnimatedNumeric(primarySlotStyle.width)).toBe(0);
   });
 
   it('hides secondary button when secondaryAction.isVisible is false', () => {
@@ -268,11 +279,15 @@ describe('TopAppBar', () => {
       />,
     );
 
-    expect(screen.getByTestId('top-app-bar-primary-action-slot')).toBeTruthy();
-    expect(screen.getByLabelText('Filter')).toBeTruthy();
+    const primarySlotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-primary-action-slot').props.style,
+    );
+    expect(resolveAnimatedNumeric(primarySlotStyle.width)).toBe(0);
+    expect(screen.queryByLabelText('Filter')).toBeNull();
+    expect(screen.queryByLabelText('Filter action')).toBeNull();
   });
 
-  it('keeps actions row mounted briefly when both actions are hidden, then unmounts', () => {
+  it('keeps actions row mounted and collapses both slots when both actions are hidden', () => {
     jest.useFakeTimers();
 
     const { rerender } = render(<TopAppBar {...HOME_PROPS} />);
@@ -302,13 +317,21 @@ describe('TopAppBar', () => {
       jest.advanceTimersByTime(100);
     });
 
-    expect(screen.queryByTestId('top-app-bar-actions-row')).toBeNull();
+    expect(screen.getByTestId('top-app-bar-actions-row')).toBeTruthy();
+
+    const secondarySlotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-secondary-action-slot').props.style,
+    );
+    const primarySlotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-primary-action-slot').props.style,
+    );
+
+    expect(resolveAnimatedNumeric(secondarySlotStyle.width)).toBe(0);
+    expect(resolveAnimatedNumeric(primarySlotStyle.width)).toBe(0);
   });
 
-  it('cleans up action-row unmount timer on unmount', () => {
-    jest.useFakeTimers();
-
-    const { rerender, unmount } = render(<TopAppBar {...HOME_PROPS} />);
+  it('keeps the actions row mounted after unmount-triggering config changes', () => {
+    const { rerender } = render(<TopAppBar {...HOME_PROPS} />);
 
     rerender(
       <TopAppBar
@@ -329,11 +352,7 @@ describe('TopAppBar', () => {
       />,
     );
 
-    unmount();
-
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
+    expect(screen.getByTestId('top-app-bar-actions-row')).toBeTruthy();
   });
 
   it('disables secondary button when handler is missing', () => {

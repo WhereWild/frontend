@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { IconSize } from '../../primitives/Icon';
@@ -112,6 +113,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
         const paddingVertical = sizeStyles.paddingVertical;
         const minHeight = sizeStyles.minHeight;
         return [
+          getInteractiveCursorStyle(disabled),
           styles.buttonBase,
           {
             backgroundColor: variantStyles.backgroundColor,
@@ -127,7 +129,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
       {({ pressed, hovered }) => {
         const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
         return (
-          <>
+          <View style={styles.innerContent} collapsable={false}>
             {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
             <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
@@ -143,7 +145,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
               </ThemedText>
             </View>
             {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
-          </>
+          </View>
         );
       }}
     </Pressable>
@@ -162,6 +164,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Size.radius['200'],
     borderWidth: Size.stroke.border,
+  },
+  innerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Size.space['200'],
   },
   textContainer: {

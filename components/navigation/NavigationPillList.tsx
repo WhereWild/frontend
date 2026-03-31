@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Size } from '@/constants/theme';
 import { NavigationPill } from './NavigationPill';
 
@@ -36,10 +36,27 @@ export function NavigationPillList({
   testID,
   onFocusRequest,
 }: NavigationPillListProps) {
+  const isWeb = Platform.OS === 'web';
   const pillRefs = useRef<NavigationPillRef[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [pillWidths, setPillWidths] = useState<Record<string, number>>({});
   const isHorizontal = direction === 'horizontal';
+  const useNativeStableHorizontalRow = isHorizontal && !isWeb;
+  const stableNativeHorizontalPillsRef = useRef<NavigationPillItem[]>(pills);
+
+  if (useNativeStableHorizontalRow) {
+    const currentByKey = new Map(pills.map((pill) => [pill.key, pill] as const));
+    const hiddenPills = stableNativeHorizontalPillsRef.current.filter(
+      (pill) => !currentByKey.has(pill.key),
+    );
+
+    stableNativeHorizontalPillsRef.current = [...pills, ...hiddenPills];
+  } else {
+    stableNativeHorizontalPillsRef.current = pills;
+  }
+
+  const renderedPills = useNativeStableHorizontalRow ? stableNativeHorizontalPillsRef.current : pills;
+  const currentPillKeys = useMemo(() => new Set(pills.map((pill) => pill.key)), [pills]);
 
   const selectedIndex = useMemo(
     () => pills.findIndex((pill) => pill.key === selectedKey),
@@ -58,11 +75,15 @@ export function NavigationPillList({
   }, [isHorizontal, pillWidths]);
 
   useEffect(() => {
+    if (!isWeb) {
+      return;
+    }
+
     if (selectedIndex < 0) {
       return;
     }
     setFocusedIndex(selectedIndex);
-  }, [selectedIndex]);
+  }, [isWeb, selectedIndex]);
 
   const handleSelectionChange = useCallback(
     (key: string) => {
@@ -132,42 +153,73 @@ export function NavigationPillList({
 
   return (
     <View
+      collapsable={false}
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
       testID={testID}
       style={[
         styles.list,
-        isHorizontal ? styles.listHorizontal : styles.listVertical,
+        isHorizontal
+          ? useNativeStableHorizontalRow
+            ? styles.listHorizontalNative
+            : styles.listHorizontal
+          : styles.listVertical,
       ]}
     >
-      {pills.map((pill, index) => {
-        const isActive = pill.key === selectedKey;
+      {renderedPills.map((pill, index) => {
+        const isVisible = currentPillKeys.has(pill.key);
+        const isActive = isVisible && pill.key === selectedKey;
         const tabbableIndex = focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
-        const isTabbable = index === tabbableIndex;
+        const isTabbable = isWeb && isVisible && index === tabbableIndex;
+        const hasTrailingVisibleSibling = renderedPills
+          .slice(index + 1)
+          .some((nextPill) => currentPillKeys.has(nextPill.key));
+        const pillSpacingStyle = isHorizontal
+          ? useNativeStableHorizontalRow
+            ? isVisible && hasTrailingVisibleSibling
+              ? styles.pillSpacingHorizontalNative
+              : undefined
+            : styles.pillSpacingHorizontal
+          : isVisible && hasTrailingVisibleSibling
+            ? styles.pillSpacingVertical
+            : undefined;
+
+        const pillNode = (
+          <NavigationPill
+            ref={(node) => {
+              pillRefs.current[index] = node;
+            }}
+            id={pill.key}
+            label={pill.label}
+            isActive={isActive}
+            onPress={handleSelectionChange}
+            onKeyDown={isWeb ? onKeyDownForIndex(index) : undefined}
+            onFocus={isWeb ? () => setFocusedIndex(index) : undefined}
+            onContentLayout={(width) => updateVerticalPillWidth(pill.key, width)}
+            contentWidth={!isHorizontal ? maxPillWidth ?? undefined : undefined}
+            focusable={isWeb ? isTabbable : undefined}
+            tabIndex={isWeb ? (isTabbable ? 0 : -1) : undefined}
+            accessibilityLabel={pill.accessibilityLabel ?? pill.label}
+            testID={pill.testID}
+            icon={pill.icon}
+            style={!isVisible ? styles.hiddenPill : undefined}
+          />
+        );
 
         return (
           <View
             key={pill.key}
-            style={!isHorizontal ? styles.pillWrapperVertical : undefined}
+            collapsable={false}
+            accessibilityElementsHidden={!isVisible}
+            importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+            style={[
+              styles.pillWrapper,
+              isHorizontal ? styles.pillWrapperHorizontal : styles.pillWrapperVertical,
+              pillSpacingStyle,
+              !isVisible && styles.hiddenPillWrapper,
+            ]}
           >
-            <NavigationPill
-              ref={(node) => {
-                pillRefs.current[index] = node;
-              }}
-              id={pill.key}
-              label={pill.label}
-              isActive={isActive}
-              onPress={handleSelectionChange}
-              onKeyDown={onKeyDownForIndex(index)}
-              onFocus={() => setFocusedIndex(index)}
-              onContentLayout={(width) => updateVerticalPillWidth(pill.key, width)}
-              contentWidth={!isHorizontal ? maxPillWidth ?? undefined : undefined}
-              focusable={isTabbable}
-              tabIndex={isTabbable ? 0 : -1}
-              accessibilityLabel={pill.accessibilityLabel ?? pill.label}
-              testID={pill.testID}
-              icon={pill.icon}
-            />
+            {pillNode}
           </View>
         );
       })}
@@ -176,10 +228,13 @@ export function NavigationPillList({
 }
 
 const styles = StyleSheet.create({
-  list: {
-    gap: Size.space['200'],
-  },
+  list: {},
   listHorizontal: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+  },
+  listHorizontalNative: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
@@ -188,7 +243,35 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'flex-start',
   },
+  pillWrapper: {
+    alignSelf: 'flex-start',
+  },
+  pillWrapperHorizontal: {
+    flexShrink: 0,
+  },
   pillWrapperVertical: {
     alignSelf: 'flex-start',
+  },
+  pillSpacingHorizontal: {
+    marginRight: Size.space['200'],
+    marginBottom: Size.space['200'],
+  },
+  pillSpacingHorizontalNative: {
+    marginRight: Size.space['200'],
+    marginBottom: Size.space['200'],
+  },
+  pillSpacingVertical: {
+    marginBottom: Size.space['200'],
+  },
+  hiddenPillWrapper: {
+    width: 0,
+    height: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    opacity: 0,
+    overflow: 'hidden',
+  },
+  hiddenPill: {
+    pointerEvents: 'none',
   },
 });

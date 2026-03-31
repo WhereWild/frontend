@@ -46,6 +46,7 @@ export function DataEntry({
   const hasDetails = details.length > 0;
   const isExpandable = expandable && hasDetails;
   const [expanded, setExpanded] = React.useState(!isExpandable);
+  const showDetails = isExpandable ? expanded : hasDetails;
 
   const handleToggle = React.useCallback(() => {
     if (!isExpandable) {
@@ -83,7 +84,20 @@ export function DataEntry({
           <ThemedText variant="body">
             {dataName}: {dataPoint}
           </ThemedText>
-          {expanded ? <IconChevronUp /> : <IconChevronDown />}
+          <View style={styles.iconSlot} collapsable={false}>
+            <View
+              collapsable={false}
+              style={!expanded ? styles.hiddenIcon : undefined}
+            >
+              <IconChevronUp />
+            </View>
+            <View
+              collapsable={false}
+              style={expanded ? styles.hiddenIcon : undefined}
+            >
+              <IconChevronDown />
+            </View>
+          </View>
         </Pressable>
       ) : (
         <View
@@ -95,10 +109,13 @@ export function DataEntry({
           </ThemedText>
         </View>
       )}
-      {(
-        isExpandable ? expanded : hasDetails
-      ) ? (
-        <View style={styles.details}>
+      <View
+        style={[styles.details, !showDetails ? styles.detailsHidden : undefined]}
+        collapsable={false}
+        accessibilityElementsHidden={!showDetails}
+        importantForAccessibility={showDetails ? 'auto' : 'no-hide-descendants'}
+        pointerEvents={showDetails ? 'auto' : 'none'}
+      >
           {showGraph ? (
             <View
               style={[
@@ -124,8 +141,7 @@ export function DataEntry({
               {label}: {value}
             </ThemedText>
           ))}
-        </View>
-      ) : null}
+      </View>
     </View>
   );
 }
@@ -142,10 +158,26 @@ const styles = StyleSheet.create({
     padding: Size.space['100'],
     borderRadius: Size.radius['100'],
   },
+  iconSlot: {
+    width: Size.space['400'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hiddenIcon: {
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
   details: {
     gap: Size.space['050'],
     width: '100%',
     paddingLeft: Size.space['800'],
+  },
+  detailsHidden: {
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
   },
   graphContainer: {
     width: '100%',

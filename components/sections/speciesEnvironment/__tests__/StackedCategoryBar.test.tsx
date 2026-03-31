@@ -12,11 +12,16 @@ const mockRNText = Text;
 type MockPill = { key: string; label: string };
 type NavigationPillListMockProps = {
   pills: MockPill[];
+  selectedKey?: string;
   onSelectionChange?: (key: string) => void;
 };
 
+const mockNavigationPillList = jest.fn<void, [NavigationPillListMockProps]>();
+
 jest.mock('@/components/navigation/NavigationPillList', () => ({
-  NavigationPillList: ({ pills, onSelectionChange }: NavigationPillListMockProps) => {
+  NavigationPillList: (props: NavigationPillListMockProps) => {
+    mockNavigationPillList(props);
+    const { pills, onSelectionChange } = props;
     return mockReactLocal.createElement(
       mockRNView,
       null,
@@ -45,6 +50,10 @@ jest.mock('@/components/navigation/NavigationPillList', () => ({
 }));
 
 describe('StackedCategoryBar', () => {
+  beforeEach(() => {
+    mockNavigationPillList.mockClear();
+  });
+
   it('applies the fixed fallback category color palette to stacked segments', () => {
     render(
       <StackedCategoryBar
@@ -224,5 +233,37 @@ describe('StackedCategoryBar', () => {
 
     expect(screen.getByText('Other')).toBeTruthy();
     expect(screen.getByText(/Together these account/)).toBeTruthy();
+  });
+
+  it('keeps the pill model stable when only selectedValue changes', () => {
+    const categories: SpeciesEnvironmentCategory[] = [
+      { value: 'forest', className: 'Forest', count: 6, fraction: 0.6 },
+      { value: 'grass', className: 'Grassland', count: 4, fraction: 0.4 },
+    ];
+
+    const rendered = render(
+      <StackedCategoryBar
+        categories={categories}
+        selectedValue={'forest'}
+        onSelect={jest.fn()}
+        descriptionColor="#666"
+      />,
+    );
+
+    const initialProps = mockNavigationPillList.mock.calls.at(-1)?.[0];
+    expect(initialProps?.pills).toBeTruthy();
+
+    rendered.rerender(
+      <StackedCategoryBar
+        categories={categories}
+        selectedValue={'grass'}
+        onSelect={jest.fn()}
+        descriptionColor="#666"
+      />,
+    );
+
+    const updatedProps = mockNavigationPillList.mock.calls.at(-1)?.[0];
+    expect(updatedProps?.pills).toBe(initialProps?.pills);
+    expect(updatedProps?.selectedKey).toBe('grass');
   });
 });

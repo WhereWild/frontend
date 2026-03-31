@@ -77,15 +77,15 @@ const createLayoutEvent = (y = 12, height = 24): LayoutChangeEvent =>
 } as LayoutChangeEvent);
 
 const createScrollEvent = (y = 0): NativeSyntheticEvent<NativeScrollEvent> =>
-  ({
-    nativeEvent: {
-      contentOffset: { x: 0, y },
-      contentInset: { top: 0, right: 0, bottom: 0, left: 0 },
-      contentSize: { width: 0, height: 0 },
-      layoutMeasurement: { width: 0, height: 0 },
-      zoomScale: 1,
-    },
-  } as NativeSyntheticEvent<NativeScrollEvent>);
+({
+  nativeEvent: {
+    contentOffset: { x: 0, y },
+    contentInset: { top: 0, right: 0, bottom: 0, left: 0 },
+    contentSize: { width: 0, height: 0 },
+    layoutMeasurement: { width: 0, height: 0 },
+    zoomScale: 1,
+  },
+} as NativeSyntheticEvent<NativeScrollEvent>);
 
 const createPressEvent = () => undefined as unknown as Parameters<
   NonNullable<SelectFieldViewProps['fieldPressableProps']['onPress']>
@@ -608,6 +608,23 @@ describe('useSelectFieldController', () => {
     expect(focusSpy).toHaveBeenCalled();
   });
 
+  it('stops propagation when the select icon button is pressed', () => {
+    const onOpenChange = jest.fn();
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+
+    const stopPropagation = jest.fn();
+
+    act(() => {
+      controllerRef.current?.iconButtonProps.onPress({ stopPropagation } as unknown as Parameters<
+        NonNullable<SelectFieldViewProps['iconButtonProps']['onPress']>
+      >[0]);
+    });
+
+    expect(stopPropagation).toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+
   it('scrolls up when the highlighted option is above the visible area', () => {
     const controllerRef = React.createRef<SelectFieldViewProps>();
     render(<ControllerHarness ref={controllerRef} />);
@@ -712,6 +729,23 @@ describe('useSelectFieldController', () => {
         Object.defineProperty(Platform, 'OS', originalDescriptor);
       }
     }
+  });
+
+  it('ignores duplicate dismiss calls after opening', () => {
+    const onOpenChange = jest.fn();
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+
+    act(() => {
+      controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
+    });
+
+    act(() => {
+      controllerRef.current?.onDismiss();
+      controllerRef.current?.onDismiss();
+    });
+
+    expect(onOpenChange.mock.calls).toEqual([[true], [false]]);
   });
 
   it('restores focus to the field on web after selection', () => {
