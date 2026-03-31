@@ -1,7 +1,7 @@
 import { SpeciesSummary } from '@/data/types';
 import React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
-import { SearchResults } from './SearchResults';
+import { SearchResults } from '../../lists/SearchResults';
 
 type WebPageHeaderSearchResultsProps = {
   isVisible: boolean;
@@ -10,6 +10,7 @@ type WebPageHeaderSearchResultsProps = {
   errorMessage: string | null;
   style: StyleProp<ViewStyle>;
   onSelectResult: (result: SpeciesSummary) => void;
+  activeResultIndex?: number;
 };
 
 /**
@@ -23,6 +24,7 @@ export function WebPageHeaderSearchResults({
   errorMessage,
   style,
   onSelectResult,
+  activeResultIndex,
 }: WebPageHeaderSearchResultsProps) {
   if (!isVisible) {
     return null;
@@ -36,6 +38,7 @@ export function WebPageHeaderSearchResults({
       emptyMessage={errorMessage ?? 'No species found'}
       style={style}
       onSelectResult={onSelectResult}
+      activeResultIndex={activeResultIndex}
       testID="header-search-results"
     />
   );
