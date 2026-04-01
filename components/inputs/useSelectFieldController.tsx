@@ -18,6 +18,7 @@ import {
 import { Colors, Shadows, Size, Typography, type ColorPalette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
+import { useNativePortalHostFrame } from '@/components/NativePortalHost';
 import { SelectFieldProps, SelectOption } from "./SelectField";
 import { stripDiacritics } from '@/utils/stripDiacritics';
 
@@ -116,6 +117,7 @@ export const useSelectFieldController = ({
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const portalHostFrame = useNativePortalHostFrame();
   const [isOpen, setIsOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   // Keep highlight null until keyboard navigation starts; avoids preselecting an option.
@@ -214,19 +216,26 @@ export const useSelectFieldController = ({
   }, []);
 
   const measureDropdownAnchor = React.useCallback(() => {
-    const node = fieldWrapperRef.current;
+    const node = fieldPressableRef.current ?? fieldWrapperRef.current;
     if (!node || !node.measureInWindow) {
       return;
     }
     node.measureInWindow((x, y, width, height) => {
+      const resolvedLeft = Platform.OS === 'web' || !portalHostFrame
+        ? x
+        : x - portalHostFrame.left;
+      const resolvedTop = Platform.OS === 'web' || !portalHostFrame
+        ? y
+        : y - portalHostFrame.top;
+
       setDropdownPosition({
-        left: x,
+        left: resolvedLeft,
+        top: resolvedTop,
         width,
         height,
-        top: y + height + Size.space['100'],
       });
     });
-  }, []);
+  }, [portalHostFrame]);
 
   const focusFieldPressable = React.useCallback(() => {
     if (Platform.OS !== 'web') {

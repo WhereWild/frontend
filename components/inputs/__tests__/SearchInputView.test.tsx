@@ -104,4 +104,19 @@ describe('SearchInputView', () => {
       }
     });
   });
+
+  it('pins the control to the semantic medium height with centered input text', () => {
+    const { styles } = jest.requireActual('../SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
+    const containerStyle = StyleSheet.flatten(styles.container);
+    const inputStyle = StyleSheet.flatten(styles.input);
+
+    expect(containerStyle).toMatchObject({
+      minHeight: 40,
+    });
+    expect(inputStyle).toMatchObject({
+      height: '100%',
+      padding: 0,
+      textAlignVertical: 'center',
+    });
+  });
 });

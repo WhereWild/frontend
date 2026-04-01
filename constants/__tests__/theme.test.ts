@@ -111,13 +111,13 @@ describe('Theme Tokens', () => {
       expect(Typography.light.body.fontFamily).toBeDefined();
       expect(typeof Typography.light.body.fontFamily).toBe('string');
       expect(Typography.light.body.fontSize).toBeGreaterThan(0);
-      expect(Typography.light.body.fontWeight).toBeDefined();
+      expect(Typography.light.body.fontWeight).toBeUndefined();
 
       expect(Typography.dark.body).toBeDefined();
       expect(Typography.dark.body.fontFamily).toBeDefined();
       expect(typeof Typography.dark.body.fontFamily).toBe('string');
       expect(Typography.dark.body.fontSize).toBeGreaterThan(0);
-      expect(Typography.dark.body.fontWeight).toBeDefined();
+      expect(Typography.dark.body.fontWeight).toBeUndefined();
     });
 
     it('has heading typography tokens', () => {
@@ -155,11 +155,15 @@ describe('Theme Tokens', () => {
     it('converts CSS shorthands into Expo font metadata', () => {
       const bodyStyle = Typography.light.body;
       const bodySmallLinkStyle = Typography.light.bodySmallLink;
+      const titlePageStyle = Typography.light.titlePage;
 
       expect(bodyStyle.fontFamily).toBe('Inter_400Regular');
+      expect(bodyStyle.fontWeight).toBeUndefined();
       expect(bodyStyle.fontSize).toBe(Responsive.rootFontSize);
       expect(bodyStyle.lineHeight).toBeCloseTo(Responsive.rootFontSize * 1.4);
       expect(bodyStyle.color).toBe(Colors.light.text.default.default);
+      expect(titlePageStyle.fontFamily).toBe('Domine_700Bold');
+      expect(titlePageStyle.fontWeight).toBeUndefined();
       expect(bodySmallLinkStyle.fontFamily).toBe('Inter_400Regular');
       expect(bodySmallLinkStyle.color).toBe(Colors.light.text.brand.default);
       expect(Typography.light.bodySmallLink.textDecorationLine).toBe('underline');
@@ -181,6 +185,7 @@ describe('Theme Tokens', () => {
       const style = parseFontShorthand('normal 500 1rem "unknown", serif', 'unknown' as never);
 
       expect(style.fontFamily).toBe('System');
+      expect(style.fontWeight).toBe('500');
       expect(style.lineHeight).toBeCloseTo(19.2); // 16px * 1.2 default ratio
       expect(getExpoFontName('"unknown", serif', '500')).toBe('System');
     });
