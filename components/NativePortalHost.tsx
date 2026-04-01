@@ -1,5 +1,10 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+
+type PortalHostFrame = {
+  left: number;
+  top: number;
+};
 
 type PortalEntry = {
   id: string;
@@ -10,9 +15,11 @@ type PortalEntry = {
 
 type NativePortalStore = {
   getSnapshot: () => PortalEntry[];
+  getHostFrame: () => PortalHostFrame | null;
   subscribe: (listener: () => void) => () => void;
   upsertPortal: (entry: PortalEntry) => void;
   removePortal: (id: string) => void;
+  setHostFrame: (frame: PortalHostFrame) => void;
 };
 
 const NativePortalHostContext = React.createContext<NativePortalStore | null>(null);
@@ -27,6 +34,7 @@ const arePortalEntriesEqual = (left: PortalEntry, right: PortalEntry) => left ==
 
 const createNativePortalStore = (): NativePortalStore => {
   let portals: PortalEntry[] = [];
+  let hostFrame: PortalHostFrame | null = null;
   const listeners = new Set<() => void>();
 
   const notify = () => {
@@ -35,6 +43,7 @@ const createNativePortalStore = (): NativePortalStore => {
 
   return {
     getSnapshot: () => portals,
+    getHostFrame: () => hostFrame,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
@@ -71,6 +80,14 @@ const createNativePortalStore = (): NativePortalStore => {
       portals = nextPortals;
       notify();
     },
+    setHostFrame: (frame: PortalHostFrame) => {
+      if (hostFrame?.left === frame.left && hostFrame?.top === frame.top) {
+        return;
+      }
+
+      hostFrame = frame;
+      notify();
+    },
   };
 };
 
@@ -100,12 +117,23 @@ export function useNativePortalHost() {
   return React.useContext(NativePortalHostContext);
 }
 
+export function useNativePortalHostFrame() {
+  const store = useNativePortalHost();
+
+  return React.useSyncExternalStore(
+    store?.subscribe ?? (() => () => { }),
+    store?.getHostFrame ?? (() => null),
+    store?.getHostFrame ?? (() => null),
+  );
+}
+
 /**
  * Renders native overlay content above the app shell while leaving the main
  * React tree stable. Only this host rerenders when portal entries change.
  */
 export function NativePortalHost() {
   const store = useNativePortalHost();
+  const hostRef = React.useRef<View | null>(null);
 
   const portals = React.useSyncExternalStore(
     store?.subscribe ?? (() => () => { }),
@@ -113,12 +141,35 @@ export function NativePortalHost() {
     store?.getSnapshot ?? (() => []),
   );
 
+  const measureHostFrame = React.useCallback(() => {
+    if (!store || !hostRef.current || !hostRef.current.measureInWindow) {
+      return;
+    }
+
+    hostRef.current.measureInWindow((left, top) => {
+      store.setHostFrame({ left, top });
+    });
+  }, [store]);
+
+  const handleHostLayout = React.useCallback((_event: LayoutChangeEvent) => {
+    measureHostFrame();
+  }, [measureHostFrame]);
+
+  React.useEffect(() => {
+    measureHostFrame();
+  }, [measureHostFrame]);
+
   if (!store || Platform.OS === 'web') {
     return null;
   }
 
   return (
-    <View collapsable={false} style={[styles.host, styles.pointerEventsBoxNone]}>
+    <View
+      ref={hostRef}
+      collapsable={false}
+      onLayout={handleHostLayout}
+      style={[styles.host, styles.pointerEventsBoxNone]}
+    >
       {portals.map((portal) => (
         <View
           key={portal.id}
