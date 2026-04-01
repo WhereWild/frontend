@@ -87,7 +87,7 @@ export const SelectFieldView = ({
   const shouldShowPortalInput = allowSearch && hasDropdownPosition;
   const portalFieldFrame = dropdownPosition
     ? {
-      top: dropdownPosition.top - dropdownPosition.height - Size.space['100'],
+      top: dropdownPosition.top,
       left: dropdownPosition.left,
       width: dropdownPosition.width,
       height: dropdownPosition.height,
@@ -95,7 +95,7 @@ export const SelectFieldView = ({
     : null;
   const portalOptionsFrame = dropdownPosition
     ? {
-      top: dropdownPosition.top,
+      top: dropdownPosition.top + dropdownPosition.height + Size.space['100'],
       left: dropdownPosition.left,
       width: dropdownPosition.width,
     }
@@ -150,39 +150,39 @@ export const SelectFieldView = ({
                     style={!showSearchPlaceholder ? styles.hiddenContentSlot : undefined}
                   >
                     {
-                  /* 
-                   * When the dropdown is open with search enabled, we render the actual TextInput
-                   * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
-                   *
-                   * This View is a non-interactive placeholder that keeps the field row height and
-                   * layout stable while the real input lives in the portal overlay. The fixed
-                   * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
-                   * opening/closing the dropdown does not cause the field to jump or resize.
-                   *
-                   * If you change the height or layout of the portal input, update this placeholder
-                   * accordingly so that the dual-input pattern (placeholder here + real input in
-                   * the Portal) continues to behave and look consistent.
-                   */
+                      /* 
+                       * When the dropdown is open with search enabled, we render the actual TextInput
+                       * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
+                       *
+                       * This View is a non-interactive placeholder that keeps the field row height and
+                       * layout stable while the real input lives in the portal overlay. The fixed
+                       * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
+                       * opening/closing the dropdown does not cause the field to jump or resize.
+                       *
+                       * If you change the height or layout of the portal input, update this placeholder
+                       * accordingly so that the dual-input pattern (placeholder here + real input in
+                       * the Portal) continues to behave and look consistent.
+                       */
                     }
                     <View style={[styles.input, { height: PLACEHOLDER_INPUT_HEIGHT }]} />
                   </View>
                 </View>
                 <View style={styles.fieldIconSlot} collapsable={false}>
-                {/*
+                  {/*
                  * The select icon visually reads as a button, but the field owns the interaction.
                  * Rendering it as a non-interactive visual avoids nested pressables toggling the
                  * same control while preserving whole-button hover/press affordances.
                  */}
-                <IconButton
-                  variant="subtle"
-                  size="small"
-                  interactive={false}
-                  hovered={hovered ?? false}
-                  pressed={pressed}
-                  icon={iconButtonProps.icon}
+                  <IconButton
+                    variant="subtle"
+                    size="small"
+                    interactive={false}
+                    hovered={hovered ?? false}
+                    pressed={pressed}
+                    icon={iconButtonProps.icon}
 
-                  disabled={iconButtonProps.disabled}
-                />
+                    disabled={iconButtonProps.disabled}
+                  />
                 </View>
               </View>
             )}
@@ -417,7 +417,10 @@ const styles = StyleSheet.create({
   },
   portalInput: {
     flex: 1,
+    height: '100%',
     padding: 0,
+    textAlignVertical: 'center',
+    ...(Platform.OS === 'android' ? ({ includeFontPadding: false } as const) : {}),
   },
   optionsContainer: {
     position: 'absolute',
