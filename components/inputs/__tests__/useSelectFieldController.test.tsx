@@ -8,9 +8,16 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Size } from '@/constants/theme';
+import { useNativePortalHostFrame } from '@/components/NativePortalHost';
 import type { SelectFieldProps } from '../SelectField';
 import type { SelectFieldViewProps } from '../useSelectFieldController';
 import { useSelectFieldController } from '../useSelectFieldController';
+
+jest.mock('@/components/NativePortalHost', () => ({
+  __esModule: true,
+  useNativePortalHostFrame: jest.fn(() => null),
+}));
+
 type WebKeyDownEvent = {
   key: string;
   preventDefault?: () => void;
@@ -95,6 +102,7 @@ describe('useSelectFieldController', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.useRealTimers();
+    (useNativePortalHostFrame as jest.Mock).mockReturnValue(null);
   });
 
   it('measures dropdown position when measureInWindow is available', () => {
@@ -103,21 +111,79 @@ describe('useSelectFieldController', () => {
 
     act(() => {
       if (controllerRef.current) {
-        controllerRef.current.fieldWrapperRef.current = {
+        controllerRef.current.fieldPressableRef.current = {
           measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => {
             cb(10, 20, 120, 40);
           },
-        } as unknown as SelectFieldViewProps['fieldWrapperRef']['current'];
+        } as unknown as SelectFieldViewProps['fieldPressableRef']['current'];
         controllerRef.current.onFieldWrapperLayout();
       }
     });
 
     expect(controllerRef.current?.dropdownPosition).toEqual({
       left: 10,
+      top: 20,
       width: 120,
       height: 40,
-      top: 20 + 40 + Size.space['100'],
     });
+  });
+
+  it('subtracts the native portal host frame from measured coordinates', () => {
+    (useNativePortalHostFrame as jest.Mock).mockReturnValue({ left: 3, top: 7 });
+
+    const controllerRef = React.createRef<SelectFieldViewProps>();
+    render(<ControllerHarness ref={controllerRef} />);
+
+    act(() => {
+      if (controllerRef.current) {
+        controllerRef.current.fieldPressableRef.current = {
+          measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => {
+            cb(10, 20, 120, 40);
+          },
+        } as unknown as SelectFieldViewProps['fieldPressableRef']['current'];
+        controllerRef.current.onFieldWrapperLayout();
+      }
+    });
+
+    expect(controllerRef.current?.dropdownPosition).toEqual({
+      left: 7,
+      top: 13,
+      width: 120,
+      height: 40,
+    });
+  });
+
+  it('does not subtract the native portal host frame on web', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    (useNativePortalHostFrame as jest.Mock).mockReturnValue({ left: 3, top: 7 });
+
+    try {
+      const controllerRef = React.createRef<SelectFieldViewProps>();
+      render(<ControllerHarness ref={controllerRef} />);
+
+      act(() => {
+        if (controllerRef.current) {
+          controllerRef.current.fieldPressableRef.current = {
+            measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => {
+              cb(10, 20, 120, 40);
+            },
+          } as unknown as SelectFieldViewProps['fieldPressableRef']['current'];
+          controllerRef.current.onFieldWrapperLayout();
+        }
+      });
+
+      expect(controllerRef.current?.dropdownPosition).toEqual({
+        left: 10,
+        top: 20,
+        width: 120,
+        height: 40,
+      });
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(Platform, 'OS', originalDescriptor);
+      }
+    }
   });
 
   it('ignores blur while an option press is in progress', () => {
