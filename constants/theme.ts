@@ -269,10 +269,11 @@ const parseFontShorthand = (
   const fontStyle = style as TextStyle['fontStyle'];
   const fontWeight = weight as TextStyle['fontWeight'];
   const fontFamily = getExpoFontName(family, weight) as TextStyle['fontFamily'];
+  const isMappedExpoFont = fontFamily !== 'System';
 
   return {
     fontStyle,
-    fontWeight,
+    fontWeight: isMappedExpoFont ? undefined : fontWeight,
     fontSize,
     lineHeight: fontSize * (FONT_LINE_HEIGHTS[variant] ?? 1.2), // look up line height and fall back to 1.2
     fontFamily,
