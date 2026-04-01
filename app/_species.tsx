@@ -9,9 +9,8 @@ import {
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
-import { fetchSpeciesHeatmapMetadata } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesHeatmapMetadata, SpeciesPageData } from '@/data/types';
+import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -133,8 +132,6 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [showHeatmapOverlay, setShowHeatmapOverlay] = React.useState(false);
   const [showHeatmapTileOverlay, setShowHeatmapTileOverlay] = React.useState(false);
-  const [heatmapTileMetadata, setHeatmapTileMetadata] = React.useState<SpeciesHeatmapMetadata | null>(null);
-  const [heatmapTileMetadataLoading, setHeatmapTileMetadataLoading] = React.useState(false);
 
   const {
     countryOptions,
@@ -168,48 +165,6 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     setHighlightedCatalogs([]);
   }, [finalLocationGid, taxonId]);
 
-  React.useEffect(() => {
-    if (!taxonId) {
-      setHeatmapTileMetadata(null);
-      setHeatmapTileMetadataLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-    setHeatmapTileMetadataLoading(true);
-
-    void fetchSpeciesHeatmapMetadata(taxonId)
-      .then((metadata) => {
-        if (!isMounted) {
-          return;
-        }
-        setHeatmapTileMetadata(metadata);
-      })
-      .catch(() => {
-        if (!isMounted) {
-          return;
-        }
-        setHeatmapTileMetadata(null);
-      })
-      .finally(() => {
-        if (!isMounted) {
-          return;
-        }
-        setHeatmapTileMetadataLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [taxonId]);
-
-  React.useEffect(() => {
-    if (heatmapTileMetadata?.available) {
-      return;
-    }
-    setShowHeatmapTileOverlay(false);
-  }, [heatmapTileMetadata?.available]);
-
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
@@ -218,25 +173,11 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
 
-  const heatmapTileToggleDescription = React.useMemo(() => {
-    if (heatmapTileMetadataLoading) {
-      return 'Checking whether backend-rendered prediction tiles are available for this species';
-    }
-    if (heatmapTileMetadata?.available) {
-      return 'Use backend-rendered prediction heatmap tiles when available';
-    }
-    return 'Prediction tiles are not available for this species';
-  }, [heatmapTileMetadata?.available, heatmapTileMetadataLoading]);
-
-  const heatmapTileToggleDisabled = heatmapTileMetadataLoading || !heatmapTileMetadata?.available;
-
   return (
     <>
-      {Platform.OS === 'web' ? (
-        <Head>
-          <title>{`WhereWild | ${commonName}`}</title>
-        </Head>
-      ) : null}
+      <Head>
+        <title>{`WhereWild | ${commonName}`}</title>
+      </Head>
       <View
         style={[styles.screen, { backgroundColor: palette.background.default.default }]}
       >
@@ -304,10 +245,9 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
                 <SwitchField
                   label="Prediction Tiles"
-                  description={heatmapTileToggleDescription}
+                  description="Use backend-rendered prediction heatmap tiles when available"
                   value={showHeatmapTileOverlay}
                   onValueChange={setShowHeatmapTileOverlay}
-                  disabled={heatmapTileToggleDisabled}
                   accessibilityLabel="Prediction Tiles"
                 />
 
@@ -341,7 +281,6 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 height={observationMapHeight}
                 speciesKey={taxonId}
                 showHeatmapOverlay={showHeatmapOverlay}
-                heatmapTileOverlayMetadata={heatmapTileMetadata}
                 showHeatmapTileOverlay={showHeatmapTileOverlay}
               />
             )}

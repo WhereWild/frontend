@@ -304,7 +304,7 @@ export async function uploadRawObservations(
   params: UploadFileParams,
 ): Promise<UploadFileResponse> {
   const fieldName = params.fieldName ?? 'file';
-  const endpoint = resolveUploadEndpoint('/upload/raw-observations');
+  const endpoint = resolveUploadEndpoint(params.endpoint ?? '/upload/raw-observations');
   const formData = new FormData();
 
   appendUploadPayload(formData, fieldName, params.file, params.filename);

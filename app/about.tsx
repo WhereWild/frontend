@@ -113,7 +113,6 @@ const NOTES_CONTENT: Record<string, string> = {
 };
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 const ABOUT_LANDCOVER_MAP_HEIGHT = 520;
-const ABOUT_LANDCOVER_MIN_ZOOM = 4;
 const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
   { id: 'landcover', label: 'Land Cover', valueType: 'categorical', category: 'Categorical' },
   { id: 'koppen_geiger', label: 'Köppen-Geiger', valueType: 'categorical', category: 'Categorical' },
@@ -1033,9 +1032,6 @@ export default function About() {
               error={null}
               height={ABOUT_LANDCOVER_MAP_HEIGHT}
               heatmapTileUrl={aboutVariableTileUrl}
-              heatmapOpacity={0.85}
-              minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
-              showMarkers={false}
             />
           </View>
           </ScrollView>

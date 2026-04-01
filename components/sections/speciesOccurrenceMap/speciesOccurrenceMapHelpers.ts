@@ -20,7 +20,7 @@ export const HEATMAP_FETCH_MESSAGE_TYPE = 'heatmap-fetch';
 export const HEATMAP_DATA_MESSAGE_TYPE = 'heatmap-data';
 export const HEATMAP_ERROR_MESSAGE_TYPE = 'heatmap-error';
 export const HEATMAP_SETTINGS_MESSAGE_TYPE = 'heatmap-settings';
-export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
+export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.app/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
 
@@ -33,7 +33,7 @@ export const MAP_TILE_URL_TEMPLATE_DARK = 'https://tiles.stadiamaps.com/tiles/al
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
-export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 5000;
+export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 1000;
 
 export type MapTileMode = 'light' | 'dark';
 
@@ -52,10 +52,6 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   speciesKey: '__SPECIES_KEY_JSON__',
   heatmapPolicy: '__HEATMAP_POLICY_JSON__',
   highlightType: '__HIGHLIGHT_MESSAGE_TYPE_JSON__',
-  heatmapTileUrl: '__HEATMAP_TILE_URL_JSON__',
-  heatmapOpacity: '__HEATMAP_OPACITY__',
-  minZoom: '__MIN_ZOOM__',
-  showMarkers: '__SHOW_MARKERS__',
   fetchType: '__HEATMAP_FETCH_MESSAGE_TYPE_JSON__',
   dataType: '__HEATMAP_DATA_MESSAGE_TYPE_JSON__',
   errorType: '__HEATMAP_ERROR_MESSAGE_TYPE_JSON__',
@@ -119,8 +115,8 @@ export type MapMarkerPalette = {
   markerStroke: string;
   highlightFill: string;
   highlightStroke: string;
-  heatmapLow?: string;
-  heatmapHigh?: string;
+  heatmapLow: string;
+  heatmapHigh: string;
 };
 
 export type ActiveHeatmapJob = {
@@ -157,15 +153,6 @@ export const DEFAULT_HEATMAP_MAP_POLICY: HeatmapMapPolicy = {
     { minZoom: 2, resolution: 2 },
     { minZoom: -999, resolution: 4 },
   ],
-};
-
-export type BuildLeafletHtmlOptions = {
-  heatmapTileUrl?: string | null;
-  heatmapOpacity?: number;
-  minZoom?: number;
-  showMarkers?: boolean;
-  speciesKey?: number | null;
-  heatmapPolicy?: HeatmapMapPolicy;
 };
 
 export const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage => ({
@@ -235,17 +222,9 @@ export const buildLeafletHtml = (
   points: Record<string, unknown>[],
   markerPalette: MapMarkerPalette,
   tileUrlTemplate: string,
-  options: BuildLeafletHtmlOptions = {},
+  speciesKey?: number,
+  heatmapPolicy: HeatmapMapPolicy = DEFAULT_HEATMAP_MAP_POLICY,
 ) => {
-  const {
-    heatmapTileUrl = null,
-    heatmapOpacity = 0.6,
-    minZoom = 2,
-    showMarkers = true,
-    speciesKey = null,
-    heatmapPolicy = DEFAULT_HEATMAP_MAP_POLICY,
-  } = options;
-
   let html = mapTemplate;
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.documentBaseUrl).join(MAP_DOCUMENT_BASE_URL);
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.referrerPolicy).join(MAP_REFERRER_POLICY);
@@ -273,18 +252,6 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.highlightType)
     .join(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapTileUrl)
-    .join(heatmapTileUrl ? JSON.stringify(heatmapTileUrl) : 'null');
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapOpacity)
-    .join(String(heatmapOpacity));
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.minZoom)
-    .join(String(minZoom));
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.showMarkers)
-    .join(showMarkers ? 'true' : 'false');
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.fetchType)
     .join(JSON.stringify(HEATMAP_FETCH_MESSAGE_TYPE));

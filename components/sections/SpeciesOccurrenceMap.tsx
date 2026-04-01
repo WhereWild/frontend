@@ -3,10 +3,9 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import type { SpeciesHeatmapMetadata, SpeciesOccurrence } from '@/data/types';
+import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
-  buildSpeciesHeatmapTileUrl,
   DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS,
   HEATMAP_SETTINGS_MESSAGE_TYPE,
   buildLeafletHtml,
@@ -31,12 +30,8 @@ type SpeciesOccurrenceMapProps = {
   height?: number;
   highlightedCatalogs?: (number | string)[];
   heatmapTileUrl?: string | null;
-  heatmapOpacity?: number;
-  minZoom?: number;
-  showMarkers?: boolean;
   speciesKey?: number;
   showHeatmapOverlay?: boolean;
-  heatmapTileOverlayMetadata?: SpeciesHeatmapMetadata | null;
   showHeatmapTileOverlay?: boolean;
 };
 
@@ -47,12 +42,8 @@ export function SpeciesOccurrenceMap({
   height = 360,
   highlightedCatalogs = [],
   heatmapTileUrl = null,
-  heatmapOpacity = 0.6,
-  minZoom = 2,
-  showMarkers = true,
   speciesKey,
   showHeatmapOverlay = false,
-  heatmapTileOverlayMetadata = null,
   showHeatmapTileOverlay = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -78,10 +69,11 @@ export function SpeciesOccurrenceMap({
   const hasOccurrences = occurrences.length > 0;
   const hasHeatmapLayer = Boolean(heatmapTileUrl)
     || (showHeatmapOverlay && speciesKey != null)
-    || (showHeatmapTileOverlay && heatmapTileOverlayMetadata?.available && Boolean(heatmapTileOverlayMetadata.tileUrl));
+    || (showHeatmapTileOverlay && speciesKey != null);
+  const hasMapContent = hasOccurrences || hasHeatmapLayer;
 
   React.useEffect(() => {
-    if (loading || error || (!hasOccurrences && !hasHeatmapLayer)) {
+    if (loading || error || !hasMapContent) {
       return;
     }
 
@@ -120,7 +112,7 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasHeatmapLayer, hasOccurrences, loading]);
+  }, [error, hasMapContent, loading]);
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
       markerFill: palette.background.brand.default,
@@ -147,14 +139,8 @@ export function SpeciesOccurrenceMap({
     if (!mapTemplate) {
       return null;
     }
-    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate, {
-      heatmapTileUrl,
-      heatmapOpacity,
-      minZoom,
-      showMarkers,
-      speciesKey,
-    });
-  }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, speciesKey, tileUrlTemplate]);
+    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate, speciesKey);
+  }, [mapTemplate, markerPalette, occurrences, speciesKey, tileUrlTemplate]);
 
   React.useEffect(() => {
     setMapReady(false);
@@ -165,20 +151,6 @@ export function SpeciesOccurrenceMap({
       setHeatmapTileOverlayUrl(null);
       setHeatmapTileNativeResolution(0);
       setHeatmapTileOverlayNotice(null);
-      return;
-    }
-
-    if (heatmapTileOverlayMetadata) {
-      const resolvedTileUrl = heatmapTileOverlayMetadata.available && heatmapTileOverlayMetadata.tileUrl
-        ? buildSpeciesHeatmapTileUrl(heatmapTileOverlayMetadata.tileUrl, DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS)
-        : null;
-      setHeatmapTileOverlayUrl(resolvedTileUrl);
-      setHeatmapTileNativeResolution(heatmapTileOverlayMetadata.nativeResolution);
-      setHeatmapTileOverlayNotice(
-        resolvedTileUrl
-          ? null
-          : 'Prediction tiles are not available for this species yet. Falling back to the streamed prediction overlay when enabled.',
-      );
       return;
     }
 
@@ -212,7 +184,7 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [heatmapTileOverlayMetadata, showHeatmapTileOverlay, speciesKey]);
+  }, [showHeatmapTileOverlay, speciesKey]);
 
   const highlightMessage = React.useMemo(
     () => toHighlightMessagePayload(highlightKeys),
@@ -245,20 +217,24 @@ export function SpeciesOccurrenceMap({
     if (!mapReady) {
       return;
     }
-    const tileOverlayEnabled = Boolean(showHeatmapTileOverlay && speciesKey != null && heatmapTileOverlayUrl);
+    const resolvedTileUrl = showHeatmapTileOverlay && speciesKey != null
+      ? heatmapTileOverlayUrl
+      : heatmapTileUrl;
+    const tileOverlayEnabled = Boolean(resolvedTileUrl);
     const cellOverlayEnabled = Boolean(showHeatmapOverlay && speciesKey != null && !tileOverlayEnabled);
     postRuntimeMessage({
       type: HEATMAP_SETTINGS_MESSAGE_TYPE,
       enabled: cellOverlayEnabled || tileOverlayEnabled,
       speciesKey: speciesKey ?? null,
       overlayMode: tileOverlayEnabled ? 'tiles' : 'cells',
-      tileUrl: tileOverlayEnabled ? heatmapTileOverlayUrl : null,
+      tileUrl: tileOverlayEnabled ? resolvedTileUrl : null,
       tileSize: DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS.tileSize,
       maxNativeZoom: DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS.maxNativeZoom,
       featureMode: DEFAULT_HEATMAP_TILE_OVERLAY_OPTIONS.featureMode,
       nativeResolution: heatmapTileNativeResolution,
     });
   }, [
+    heatmapTileUrl,
     heatmapTileNativeResolution,
     heatmapTileOverlayUrl,
     mapReady,
@@ -285,7 +261,7 @@ export function SpeciesOccurrenceMap({
     );
   }
 
-  if (!hasOccurrences && showMarkers && !hasHeatmapLayer) {
+  if (!hasMapContent) {
     return (
       <View style={styles.feedback}>
         <ThemedText variant="bodySmall">

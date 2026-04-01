@@ -1,4 +1,4 @@
-import { fetchSpeciesHeatmapMetadata, fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
+import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
 import { Size } from '@/constants/theme';
 import * as LayoutChromeModule from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -16,7 +16,6 @@ import SpeciesScreen, {
 const mockPush = jest.fn();
 
 jest.mock('@/data/api', () => ({
-  fetchSpeciesHeatmapMetadata: jest.fn(),
   fetchSpeciesLocations: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
@@ -135,9 +134,6 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColor
 const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
   typeof fetchSpeciesLocations
 >;
-const mockFetchSpeciesHeatmapMetadata = fetchSpeciesHeatmapMetadata as jest.MockedFunction<
-  typeof fetchSpeciesHeatmapMetadata
->;
 const mockFetchSpeciesOccurrences = fetchSpeciesOccurrences as jest.MockedFunction<
   typeof fetchSpeciesOccurrences
 >;
@@ -171,12 +167,6 @@ afterEach(() => {
   restorePlatformOS();
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
-  mockFetchSpeciesHeatmapMetadata.mockResolvedValue({
-    available: true,
-    speciesKey: 13579,
-    nativeResolution: 0.25,
-    tileUrl: '/api/species/13579/heatmap/tiles/{z}/{x}/{y}.png',
-  });
   mockFetchSpeciesLocations.mockResolvedValue([]);
   mockFetchSpeciesOccurrences.mockResolvedValue([]);
   mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
@@ -255,12 +245,6 @@ describe('Species screen', () => {
     useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
     useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
     mockUseColorScheme.mockReturnValue('dark');
-    mockFetchSpeciesHeatmapMetadata.mockResolvedValue({
-      available: true,
-      speciesKey: 13579,
-      nativeResolution: 0.25,
-      tileUrl: '/api/species/13579/heatmap/tiles/{z}/{x}/{y}.png',
-    });
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
@@ -495,118 +479,6 @@ describe('Species screen', () => {
       expect(screen.getByText('Map heatmap: on')).toBeTruthy();
       expect(screen.getByText('Map heatmap tiles: on')).toBeTruthy();
     });
-  });
-
-  it('disables the tile toggle when the species has no prediction tiles', async () => {
-    mockFetchSpeciesHeatmapMetadata.mockResolvedValueOnce({
-      available: false,
-      speciesKey: 13579,
-      nativeResolution: 0,
-      tileUrl: null,
-    });
-
-    render(<SpeciesScreen data={createData()} />);
-
-    await waitForSpeciesEffectsToSettle();
-
-    const tileToggle = screen.getByLabelText('Prediction Tiles');
-    expect(tileToggle.props.accessibilityState).toEqual({ checked: false, disabled: true });
-    expect(screen.getByText('Prediction tiles are not available for this species')).toBeTruthy();
-
-    fireEvent.press(tileToggle);
-
-    await waitFor(() => {
-      expect(screen.getByText('Map heatmap tiles: off')).toBeTruthy();
-    });
-  });
-
-  it('keeps the tile toggle disabled when heatmap metadata fails to load', async () => {
-    mockFetchSpeciesHeatmapMetadata.mockRejectedValueOnce(new Error('metadata down'));
-
-    render(<SpeciesScreen data={createData()} />);
-
-    await waitForSpeciesEffectsToSettle();
-
-    const tileToggle = screen.getByLabelText('Prediction Tiles');
-    expect(tileToggle.props.accessibilityState).toEqual({ checked: false, disabled: true });
-    expect(screen.getByText('Prediction tiles are not available for this species')).toBeTruthy();
-  });
-
-  it('shows a loading description while heatmap tile metadata is pending', async () => {
-    mockFetchSpeciesHeatmapMetadata.mockReturnValueOnce(new Promise(() => { }));
-
-    render(<SpeciesScreen data={createData()} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Checking whether backend-rendered prediction tiles are available for this species')).toBeTruthy();
-    });
-
-    const tileToggle = screen.getByLabelText('Prediction Tiles');
-    expect(tileToggle.props.accessibilityState).toEqual({ checked: false, disabled: true });
-  });
-
-  it('ignores late heatmap metadata success after unmount', async () => {
-    let resolveMetadata: ((value: {
-      available: boolean;
-      speciesKey: number;
-      nativeResolution: number;
-      tileUrl: string | null;
-    }) => void) | undefined;
-
-    mockFetchSpeciesHeatmapMetadata.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveMetadata = resolve;
-      }),
-    );
-
-    const { unmount } = render(<SpeciesScreen data={createData()} />);
-    unmount();
-
-    await act(async () => {
-      resolveMetadata?.({
-        available: true,
-        speciesKey: 13579,
-        nativeResolution: 0.25,
-        tileUrl: '/api/species/13579/heatmap/tiles/{z}/{x}/{y}.png',
-      });
-      await Promise.resolve();
-    });
-  });
-
-  it('ignores late heatmap metadata failure after unmount', async () => {
-    let rejectMetadata: ((reason?: unknown) => void) | undefined;
-
-    mockFetchSpeciesHeatmapMetadata.mockReturnValueOnce(
-      new Promise((_, reject) => {
-        rejectMetadata = reject;
-      }),
-    );
-
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
-    const { unmount } = render(<SpeciesScreen data={createData()} />);
-    unmount();
-
-    await act(async () => {
-      rejectMetadata?.(new Error('Delayed metadata failure'));
-      await Promise.resolve();
-    });
-
-    expect(consoleSpy).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
-  });
-
-  it('renders no map controls when taxonId is missing and skips tile metadata fetch', async () => {
-    render(
-      <SpeciesScreen
-        data={createData({ taxonId: 0 })}
-      />,
-    );
-
-    expect(screen.queryByLabelText('Prediction Tiles')).toBeNull();
-
-    await waitForSpeciesEffectsToSettle(false);
-
-    expect(mockFetchSpeciesHeatmapMetadata).not.toHaveBeenCalled();
   });
 
   it('updates map query when users change location filters', async () => {

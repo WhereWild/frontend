@@ -84,10 +84,9 @@ describe('SpeciesOccurrenceMap', () => {
     expect(screen.getByText('No precise observation coordinates available for this species.')).toBeTruthy();
   });
 
-  it('renders map container for heatmap-only mode without occurrences', async () => {
+  it('renders map container for direct tile-overlay mode without occurrences', async () => {
     await renderMapWithOccurrences('ios', {
       occurrences: [],
-      showMarkers: false,
       heatmapTileUrl: 'https://tiles.example.test/{z}/{x}/{y}.png',
     });
 
@@ -97,26 +96,6 @@ describe('SpeciesOccurrenceMap', () => {
     expect(screen.getByTestId('mock-webview')).toBeTruthy();
   });
 
-  it('renders the map container for tile-overlay mode without occurrences when metadata is available', async () => {
-    await renderMapWithOccurrences('ios', {
-      occurrences: [],
-      showMarkers: false,
-      speciesKey: 101,
-      showHeatmapTileOverlay: true,
-      heatmapTileOverlayMetadata: {
-        available: true,
-        speciesKey: 101,
-        nativeResolution: 0.25,
-        tileUrl: '/api/species/101/heatmap/tiles/{z}/{x}/{y}.png',
-      },
-    });
-
-    expect(
-      screen.queryByText('No precise observation coordinates available for this species.'),
-    ).toBeNull();
-    expect(screen.getByTestId('mock-webview')).toBeTruthy();
-    expect(resolveSpeciesHeatmapTileOverlaySpy).not.toHaveBeenCalled();
-  });
   it('renders map container when occurrences exist (native branch)', async () => {
     await renderMapWithOccurrences('ios', {
       occurrences: [{ catalogNumber: 1, latitude: 10, longitude: 20 }],
@@ -124,7 +103,7 @@ describe('SpeciesOccurrenceMap', () => {
 
     const webView = screen.getByTestId('mock-webview');
     expect(webView).toBeTruthy();
-    expect(webView.props.source.baseUrl).toBe('https://wherewild.net/');
+    expect(webView.props.source.baseUrl).toBe('https://wherewild.app/');
   });
 
   it('posts highlight message after native map load completes', async () => {
@@ -201,83 +180,6 @@ describe('SpeciesOccurrenceMap', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Prediction tiles are not available for this species yet. Falling back to the streamed prediction overlay when enabled.')).toBeTruthy();
-    });
-  });
-
-  it('shows the unavailable-tiles notice from provided metadata without refetching', async () => {
-    await renderMapWithOccurrences('ios', {
-      occurrences: [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
-      speciesKey: 101,
-      showHeatmapTileOverlay: true,
-      heatmapTileOverlayMetadata: {
-        available: false,
-        speciesKey: 101,
-        nativeResolution: 0.25,
-        tileUrl: null,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Prediction tiles are not available for this species yet. Falling back to the streamed prediction overlay when enabled.')).toBeTruthy();
-    });
-    expect(resolveSpeciesHeatmapTileOverlaySpy).not.toHaveBeenCalled();
-  });
-
-  it('shows an error notice when tile metadata loading fails', async () => {
-    resolveSpeciesHeatmapTileOverlaySpy.mockRejectedValueOnce(new Error('tile metadata failed'));
-
-    await renderMapWithOccurrences('ios', {
-      occurrences: [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
-      speciesKey: 101,
-      showHeatmapTileOverlay: true,
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Unable to load prediction tiles right now. Falling back to the streamed prediction overlay when enabled.')).toBeTruthy();
-    });
-  });
-
-  it('clears tile overlay state when tile mode is turned off', async () => {
-    const { rerender } = render(
-      <SpeciesOccurrenceMap
-        occurrences={[{ catalogNumber: 101, latitude: 10, longitude: 20 }]}
-        speciesKey={101}
-        showHeatmapTileOverlay={true}
-        heatmapTileOverlayMetadata={{
-          available: true,
-          speciesKey: 101,
-          nativeResolution: 0.25,
-          tileUrl: '/api/species/101/heatmap/tiles/{z}/{x}/{y}.png',
-        }}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
-
-    fireEvent(screen.getByTestId('mock-webview'), 'loadEnd');
-
-    rerender(
-      <SpeciesOccurrenceMap
-        occurrences={[{ catalogNumber: 101, latitude: 10, longitude: 20 }]}
-        speciesKey={101}
-        showHeatmapTileOverlay={false}
-        heatmapTileOverlayMetadata={{
-          available: true,
-          speciesKey: 101,
-          nativeResolution: 0.25,
-          tileUrl: '/api/species/101/heatmap/tiles/{z}/{x}/{y}.png',
-        }}
-      />,
-    );
-
-    await waitFor(() => {
-      const settingsCall = mockPostMessage.mock.calls.findLast(
-        (call) => typeof call[0] === 'string' && call[0].includes('heatmap-settings'),
-      );
-      expect(settingsCall?.[0]).toContain('"enabled":false');
-      expect(settingsCall?.[0]).toContain('"tileUrl":null');
     });
   });
 

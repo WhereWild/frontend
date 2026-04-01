@@ -79,7 +79,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         heatmapHigh: '#666666',
       },
       getMapTileUrlTemplate('light'),
-      { speciesKey: 101 },
+      101,
     );
 
     expect(html).toContain('latitude');
@@ -202,7 +202,7 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('exposes a stable document base url for map referrers', () => {
-    expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.net/');
+    expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.app/');
   });
 
   it('exposes stable map transport constants for Stadia and declustering', () => {
@@ -215,7 +215,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     );
     expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);
-    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(5000);
+    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(1000);
   });
 
   it('resolves a tile template for both light and dark map modes', () => {
