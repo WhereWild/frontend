@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import renderer, { act as rendererAct } from 'react-test-renderer';
 import type { ReactTestInstance } from 'react-test-renderer';
@@ -176,6 +176,28 @@ describe('SelectFieldView', () => {
     expect(props.options[0].onPressIn).toHaveBeenCalled();
     expect(props.options[0].onPressOut).toHaveBeenCalled();
     expect(props.options[0].onPress).toHaveBeenCalled();
+  });
+
+  it('centers the opened portal input text without altering the closed field styling', () => {
+    const props = createProps({
+      isOpen: true,
+      allowSearch: true,
+      inputProps: {
+        placeholder: 'Pick one',
+        accessibilityLabel: 'Select input',
+        style: { color: 'black' },
+      },
+    });
+    render(<SelectFieldView {...props} />);
+
+    const input = screen.getByTestId('select-field-portal-input');
+    const flattenedStyle = StyleSheet.flatten(input.props.style);
+
+    expect(flattenedStyle).toMatchObject({
+      height: '100%',
+      padding: 0,
+      textAlignVertical: 'center',
+    });
   });
 
   it('renders a hidden input when open without search', () => {

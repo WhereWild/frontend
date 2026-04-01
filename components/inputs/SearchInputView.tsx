@@ -41,17 +41,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: Size.control.height.medium,
     borderRadius: Size.radius.full,
     paddingHorizontal: Size.space['100'],
-    paddingVertical: Size.space['100'],
     gap: Size.space['100'],
     // Default outline stays off until the controller toggles it back on for native focus rings.
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
   input: {
     flex: 1,
+    height: '100%',
     minWidth: 0,
     maxWidth: '100%',
+    padding: 0,
+    textAlignVertical: 'center',
     // Keep placeholder-visible-first-run design without double outlines on web focus.
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0 } as any) : {}),
   },
