@@ -787,6 +787,134 @@ describe('useEnvironmentHighlights', () => {
     expect(result.current.pinnedLoading).toBe(false);
   });
 
+  it('issues a single range slice for a non-wrapping circular selection (start <= end)', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchEnvironmentRangeSlice.mockResolvedValue({
+      speciesId: 1,
+      variable: 'aspect_deg',
+      range: { min: 45, max: 135 },
+      limit: null,
+      count: 1,
+      observations: [{ catalogNumber: 'E-1', value: 90, latitude: 1, longitude: 1 }],
+    } satisfies SpeciesEnvironmentSliceResponse);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'aspect_deg',
+        stats: continuousStats,
+        isCategorical: false,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 45, end: 135 });
+      jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+    });
+
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['E-1']));
+    expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1);
+    expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+      expect.objectContaining({ min: 45, max: 135 }),
+    );
+  });
+
+  it('issues two range slices and merges results for a wrap-around circular selection (start > end)', async () => {
+    const onHighlightChange = jest.fn();
+    mockFetchEnvironmentRangeSlice
+      .mockResolvedValueOnce({
+        speciesId: 1,
+        variable: 'aspect_deg',
+        range: { min: 315, max: 360 },
+        limit: null,
+        count: 1,
+        observations: [{ catalogNumber: 'NW-1', value: 340, latitude: 1, longitude: 1 }],
+      } satisfies SpeciesEnvironmentSliceResponse)
+      .mockResolvedValueOnce({
+        speciesId: 1,
+        variable: 'aspect_deg',
+        range: { min: 0, max: 45 },
+        limit: null,
+        count: 1,
+        observations: [{ catalogNumber: 'NE-1', value: 20, latitude: 2, longitude: 2 }],
+      } satisfies SpeciesEnvironmentSliceResponse);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'aspect_deg',
+        stats: continuousStats,
+        isCategorical: false,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 315, end: 45 });
+      jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+    });
+
+    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+
+    expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+      expect.objectContaining({ min: 315, max: 360 }),
+    );
+    expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+      expect.objectContaining({ min: 0, max: 45 }),
+    );
+
+    await waitFor(() => {
+      const emitted = onHighlightChange.mock.calls.at(-1)?.[0] as string[];
+      expect(emitted).toEqual(expect.arrayContaining(['NW-1', 'NE-1']));
+      expect(emitted).toHaveLength(2);
+    });
+  });
+
+  it('deduplicates observations that appear in both slices of a wrap-around range', async () => {
+    const onHighlightChange = jest.fn();
+    const sharedObs = { catalogNumber: 'DUP-1', value: 0, latitude: 0, longitude: 0 };
+    mockFetchEnvironmentRangeSlice
+      .mockResolvedValueOnce({
+        speciesId: 1,
+        variable: 'aspect_deg',
+        range: { min: 350, max: 360 },
+        limit: null,
+        count: 1,
+        observations: [sharedObs],
+      } satisfies SpeciesEnvironmentSliceResponse)
+      .mockResolvedValueOnce({
+        speciesId: 1,
+        variable: 'aspect_deg',
+        range: { min: 0, max: 10 },
+        limit: null,
+        count: 1,
+        observations: [sharedObs],
+      } satisfies SpeciesEnvironmentSliceResponse);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'aspect_deg',
+        stats: continuousStats,
+        isCategorical: false,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 350, end: 10 });
+      jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+    });
+
+    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+
+    await waitFor(() => {
+      const emitted = onHighlightChange.mock.calls.at(-1)?.[0] as string[];
+      expect(emitted).toEqual(['DUP-1']);
+    });
+  });
+
   it('defers category resolution until stats become available', async () => {
     const onHighlightChange = jest.fn();
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
