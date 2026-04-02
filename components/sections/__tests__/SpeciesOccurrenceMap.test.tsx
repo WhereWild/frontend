@@ -112,6 +112,36 @@ describe('SpeciesOccurrenceMap', () => {
     expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('101');
   });
 
+  it('posts updated highlight messages after the native map is already ready', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios' });
+    const { rerender } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 101, latitude: 10, longitude: 20 }]}
+        highlightedCatalogs={[101]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading map renderer…')).toBeNull();
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+    const initialCallCount = mockPostMessage.mock.calls.length;
+
+    rerender(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 101, latitude: 10, longitude: 20 }]}
+        highlightedCatalogs={[202]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockPostMessage.mock.calls.length).toBeGreaterThan(initialCallCount);
+    });
+    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('202');
+  });
+
   it('resets mapReady on html changes and waits for next load event', async () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
     const { rerender } = render(
