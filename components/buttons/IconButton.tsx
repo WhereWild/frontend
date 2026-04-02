@@ -4,6 +4,11 @@ import type { IconSize } from '@/primitives';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import React from 'react';
 import { AccessibilityProps, GestureResponderEvent, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
+import {
+  getButtonSurfaceTransitionStyle,
+  renderButtonIconElement,
+  useHoverOnlyButtonTransitions,
+} from './buttonShared';
 
 export type IconButtonVariant = 'primary' | 'neutral' | 'subtle';
 export type IconButtonSize = 'medium' | 'small';
@@ -117,27 +122,13 @@ function computeSizeStyles(size: IconButtonSize) {
   };
 }
 
-const renderIcon = (iconNode: React.ReactNode, color: string, iconSize?: IconSize) => {
-  if (!React.isValidElement(iconNode)) {
-    return iconNode;
-  }
-
-  const currentProps = iconNode.props as { color?: string; size?: IconSize };
-  const nextProps: Record<string, unknown> = {};
-
-  if (currentProps.color == null) {
-    nextProps.color = color;
-  }
-
-  if (iconSize && currentProps.size == null) {
-    nextProps.size = iconSize;
-  }
-
-  if (Object.keys(nextProps).length === 0) {
-    return iconNode;
-  }
-
-  return React.cloneElement(iconNode, nextProps);
+const renderIcon = (
+  iconNode: React.ReactNode,
+  color: string,
+  iconSize?: IconSize,
+  animate = true,
+) => {
+  return renderButtonIconElement(iconNode, color, iconSize, { animate });
 };
 
 export const __ICON_BUTTON_TESTING__ = {
@@ -166,6 +157,10 @@ export const IconButton: React.FC<IconButtonProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const { hoverOnlyTransitionHandlers, shouldAnimateTransitions } = useHoverOnlyButtonTransitions({
+    onPressIn,
+    onPressOut,
+  });
 
   const sizeStyles = React.useMemo(() => computeSizeStyles(size), [size]);
 
@@ -199,15 +194,15 @@ export const IconButton: React.FC<IconButtonProps> = ({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={onPress}
-      onPressIn={onPressIn}
-      onPressOut={onPressOut}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
+      {...hoverOnlyTransitionHandlers}
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         return [
           showPointerCursor ? getInteractiveCursorStyle(disabled) : null,
           styles.buttonBase,
+          getButtonSurfaceTransitionStyle(shouldAnimateTransitions),
           {
             backgroundColor: variantStyles.backgroundColor,
             width: sizeStyles.width,
@@ -220,7 +215,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     >
       {({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
-        return renderIcon(icon, variantStyles.iconColor, sizeStyles.iconSize);
+        return renderIcon(icon, variantStyles.iconColor, sizeStyles.iconSize, shouldAnimateTransitions);
       }}
     </Pressable>
   );

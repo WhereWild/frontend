@@ -8,8 +8,11 @@ import { ThemedText } from '../text/ThemedText';
 import {
   ButtonIcon,
   computeButtonSizeStyles,
+  getButtonSurfaceTransitionStyle,
+  getButtonTextTransitionStyle,
   renderButtonIcon,
   resolveButtonAccessibilityLabel,
+  useHoverOnlyButtonTransitions,
 } from './buttonShared';
 
 
@@ -97,6 +100,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const iconSize: IconSize = '16';
   const iconDimension = Number(iconSize);
+  const { hoverOnlyTransitionHandlers, shouldAnimateTransitions } = useHoverOnlyButtonTransitions();
 
   return (
     <Pressable
@@ -106,6 +110,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
+      {...hoverOnlyTransitionHandlers}
       style={({ pressed, hovered }) => {
         const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
         const sizeStyles = computeButtonSizeStyles(size);
@@ -115,6 +120,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
         return [
           getInteractiveCursorStyle(disabled),
           styles.buttonBase,
+          getButtonSurfaceTransitionStyle(shouldAnimateTransitions),
           {
             backgroundColor: variantStyles.backgroundColor,
             borderColor: variantStyles.borderColor,
@@ -130,11 +136,12 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
         const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
         return (
           <View style={styles.innerContent} collapsable={false}>
-            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
+            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize, { animate: shouldAnimateTransitions })}</View>}
             <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
                 variant="singleLineBody"
                 style={[
+                  getButtonTextTransitionStyle(shouldAnimateTransitions),
                   {
                     color: variantStyles.color,
                   },
@@ -144,7 +151,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
                 {label ?? children}
               </ThemedText>
             </View>
-            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
+            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize, { animate: shouldAnimateTransitions })}</View>}
           </View>
         );
       }}

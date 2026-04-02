@@ -2,9 +2,12 @@ import { Colors, Size } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
+import { Path } from 'react-native-svg';
 import type { ButtonSize, ButtonVariant } from '../Button';
 import { Button, __BUTTON_TESTING__ } from '../Button';
 import { ThemedText } from '../../text/ThemedText';
+import { IconHelpCircle } from '@/assets/icons';
+import { withPlatformOS } from '../../../test-utils/withPlatformOS';
 
 const createIconProbe = () => {
   const calls: { color?: string }[] = [];
@@ -112,6 +115,30 @@ describe('Button Component', () => {
 
       expect(screen.getByTestId('button-icon-start')).toBeDefined();
       expect(screen.getByText('Save')).toBeDefined();
+    });
+
+    it('renders generated svg button icons with style-driven stroke on web', () => {
+      withPlatformOS('web', () => {
+        const { getByTestId, UNSAFE_getAllByType, unmount } = render(
+          <Button
+            label="Help"
+            iconStart={<IconHelpCircle testID="button-help-icon" />}
+          />
+        );
+
+        const icon = getByTestId('button-help-icon');
+        const iconStyle = StyleSheet.flatten(icon.props.style);
+        expect(iconStyle).toEqual(
+          expect.objectContaining({
+            color: Colors.dark.icon.brand.onBrand,
+          })
+        );
+
+        const [firstPath] = UNSAFE_getAllByType(Path);
+        expect(firstPath.props.stroke).toBe('currentColor');
+
+        unmount();
+      }, { ensureWebWindowListeners: true });
     });
 
     it('renders asset iconEnd when provided', () => {
@@ -338,8 +365,14 @@ describe('Button Component', () => {
 
       const rendered = __BUTTON_TESTING__.renderIcon(Icon, '#111111', '16');
       expect(React.isValidElement(rendered)).toBe(true);
-      expect(rendered?.props.color).toBe('#111111');
-      expect(rendered?.props.size).toBe('16');
+      if (!React.isValidElement(rendered)) {
+        throw new Error('Expected icon render helper to return a React element');
+      }
+
+      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+
+      expect(renderedIcon.props.color).toBe('#111111');
+      expect(renderedIcon.props.size).toBe('16');
     });
 
     it('preserves existing icon element props without overriding', () => {
@@ -352,8 +385,14 @@ describe('Button Component', () => {
       const iconElement = <Icon color="#abc123" size="24" />;
 
       const rendered = __BUTTON_TESTING__.renderIcon(iconElement, '#111111', '16');
-      expect(rendered?.props.color).toBe('#abc123');
-      expect(rendered?.props.size).toBe('24');
+      if (!React.isValidElement(rendered)) {
+        throw new Error('Expected icon render helper to return a React element');
+      }
+
+      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+
+      expect(renderedIcon.props.color).toBe('#abc123');
+      expect(renderedIcon.props.size).toBe('24');
     });
   });
 });
