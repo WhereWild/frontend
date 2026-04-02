@@ -3,8 +3,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
+import { AspectCompassChart } from './AspectCompassChart';
 import { ContinuousInsights } from './ContinuousInsights';
 import { DensityChart } from './DensityChart';
+import { PolarDensityChart } from './PolarDensityChart';
 import { StackedCategoryBar } from './StackedCategoryBar';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
 import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './model';
@@ -261,12 +263,23 @@ const {
           importantForAccessibility={showCategoricalContent ? 'auto' : 'no-hide-descendants'}
           style={!showCategoricalContent ? styles.hiddenContentSlot : undefined}
         >
-          <StackedCategoryBar
-            categories={displayState?.categoricalDistribution ?? []}
-            selectedValue={displayState?.selectedCategoryValue ?? null}
-            onSelect={handleCategorySelect}
-            descriptionColor={palette.text.default.secondary}
-          />
+          {selectedVariable === 'aspect' ? (
+            <AspectCompassChart
+              categories={displayState?.categoricalDistribution ?? []}
+              selectedValue={displayState?.selectedCategoryValue ?? null}
+              onSelect={handleCategorySelect}
+              descriptionColor={palette.text.default.secondary}
+              fillColor={palette.background.brand.default}
+              selectedFillColor={palette.background.brand.default}
+            />
+          ) : (
+            <StackedCategoryBar
+              categories={displayState?.categoricalDistribution ?? []}
+              selectedValue={displayState?.selectedCategoryValue ?? null}
+              onSelect={handleCategorySelect}
+              descriptionColor={palette.text.default.secondary}
+            />
+          )}
         </View>
 
         <View
@@ -279,28 +292,43 @@ const {
             !showContinuousContent && styles.hiddenContentSlot,
           ]}
         >
-          <DensityChart
-            curve={displayState?.densityCurve}
-            lineColor={palette.background.brand.default}
-            fillColor={palette.background.brand.default}
-            baselineColor={palette.border.neutral.default}
-            summary={displayState?.summary}
-            selection={displayState?.selectedDensityRange ?? null}
-            onSelectionChange={handleDensitySelectionChange}
-            pinValue={pinnedValue}
-            pinLoading={pinnedLoading}
-          />
+          {selectedVariable === 'aspect_deg' ? (
+            <PolarDensityChart
+              curve={displayState?.densityCurve}
+              fillColor={palette.background.brand.default}
+              lineColor={palette.background.brand.default}
+              guideColor={palette.text.default.secondary}
+              selection={displayState?.selectedDensityRange ?? null}
+              onSelectionChange={handleDensitySelectionChange}
+              pinValue={pinnedValue}
+              pinLoading={pinnedLoading}
+            />
+          ) : (
+            <>
+              <DensityChart
+                curve={displayState?.densityCurve}
+                lineColor={palette.background.brand.default}
+                fillColor={palette.background.brand.default}
+                baselineColor={palette.border.neutral.default}
+                summary={displayState?.summary}
+                selection={displayState?.selectedDensityRange ?? null}
+                onSelectionChange={handleDensitySelectionChange}
+                pinValue={pinnedValue}
+                pinLoading={pinnedLoading}
+              />
 
-          <ContinuousInsights
-            showRankContext={displayState?.showRankContext ?? false}
-            rankContextOptions={displayState?.rankContextOptions ?? []}
-            selectedRankContext={displayState?.selectedRankContext ?? null}
-            onRankContextChange={handleRankContextChange}
-            summary={displayState?.summary}
-            summaryRanks={displayState?.summaryRanks ?? { min: null, mean: null, max: null }}
-            summaryComparisons={displayState?.summaryComparisons ?? { min: null, mean: null, max: null }}
-            locationFilterActive={displayState?.locationFilterActive ?? false}
-          />
+              <ContinuousInsights
+                showRankContext={displayState?.showRankContext ?? false}
+                rankContextOptions={displayState?.rankContextOptions ?? []}
+                selectedRankContext={displayState?.selectedRankContext ?? null}
+                onRankContextChange={handleRankContextChange}
+                summary={displayState?.summary}
+                summaryRanks={displayState?.summaryRanks ?? { min: null, mean: null, max: null }}
+                summaryComparisons={displayState?.summaryComparisons ?? { min: null, mean: null, max: null }}
+                locationFilterActive={displayState?.locationFilterActive ?? false}
+              />
+            </>
+          )}
         </View>
       </View>
     </View>

@@ -356,22 +356,48 @@ export function useEnvironmentHighlights({
       emitHighlightChange([]);
       return;
     }
+    const { start, end } = selectedDensityRange;
+    // Circular variables (e.g. aspect_deg 0–360°) can produce a wrap-around arc
+    // where start > end (e.g. 315° → 45°). Split into two linear slices and merge.
+    const isWrapped = start > end;
     let cancelled = false;
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetchEnvironmentRangeSlice({
-            taxonId,
-            variableId: selectedVariable,
-            min: selectedDensityRange.start,
-            max: selectedDensityRange.end,
-            location: locationGid ?? undefined,
-            units,
-          });
+          const sliceParams = isWrapped
+            ? [
+                { min: start, max: 360 },
+                { min: 0, max: end },
+              ]
+            : [{ min: start, max: end }];
+
+          const responses = await Promise.all(
+            sliceParams.map((range) =>
+              fetchEnvironmentRangeSlice({
+                taxonId,
+                variableId: selectedVariable,
+                min: range.min,
+                max: range.max,
+                location: locationGid ?? undefined,
+                units,
+              }),
+            ),
+          );
+
           if (cancelled) {
             return;
           }
-          const observations = response.observations ?? [];
+          const seen = new Set<number | string>();
+          const observations: SpeciesEnvironmentObservation[] = [];
+          for (const response of responses) {
+            for (const obs of response.observations ?? []) {
+              const id = obs.catalogNumber;
+              if (id !== null && id !== undefined && !seen.has(id)) {
+                seen.add(id);
+                observations.push(obs);
+              }
+            }
+          }
           setRangeObservations(observations);
           emitHighlightChange(toCatalogIdsFromObservations(observations));
         } catch {
