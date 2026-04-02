@@ -1,384 +1,445 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="referrer" content="__REFERRER_POLICY__" />
-    <base href="__DOCUMENT_BASE_URL__" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    <style>
-      html,
-      body,
-      #map {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="__REFERRER_POLICY__" />
+  <base href="__DOCUMENT_BASE_URL__" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    html,
+    body,
+    #map {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script>
+    const points = __POINTS_JSON__;
+    const palette = __PALETTE_JSON__;
+    const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
+    const PIN_OBSERVATION_MESSAGE_TYPE = __PIN_OBSERVATION_MESSAGE_TYPE_JSON__;
+
+    const MERCATOR_MAX_LAT = 85.05112878;
+    const TILE_SIZE = 256;
+    const BASE_MIN_ZOOM = 2;
+    const MAX_LONGITUDE_BOUND = 1000000000;
+    const TILE_REFERRER_POLICY = __REFERRER_POLICY_JSON__;
+    const TILE_URL = __TILE_URL_JSON__;
+    const TILE_ATTRIBUTION = __TILE_ATTRIBUTION_JSON__;
+    const TILE_MAX_ZOOM = __TILE_MAX_ZOOM__;
+    const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
+    const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
+    const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
+    const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
+    const SHOW_MARKERS = __SHOW_MARKERS__;
+    const mapBounds = L.latLngBounds(
+      [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
+    );
+
+    function clampLatitude(value) {
+      return Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, Number(value)));
+    }
+
+    function alignLongitudeToView(value, anchorLongitude) {
+      const numeric = Number(value);
+      const anchor = Number(anchorLongitude);
+      if (!isFinite(numeric) || !isFinite(anchor)) {
+        return numeric;
       }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-    <script>
-      const points = __POINTS_JSON__;
-      const palette = __PALETTE_JSON__;
-      const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
+      const worldOffset = Math.round((anchor - numeric) / 360);
+      return numeric + worldOffset * 360;
+    }
 
-      const MERCATOR_MAX_LAT = 85.05112878;
-      const TILE_SIZE = 256;
-      const BASE_MIN_ZOOM = 2;
-      const MAX_LONGITUDE_BOUND = 1000000000;
-      const TILE_REFERRER_POLICY = __REFERRER_POLICY_JSON__;
-      const TILE_URL = __TILE_URL_JSON__;
-      const TILE_ATTRIBUTION = __TILE_ATTRIBUTION_JSON__;
-      const TILE_MAX_ZOOM = __TILE_MAX_ZOOM__;
-      const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
-      const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
-      const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
-      const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
-      const SHOW_MARKERS = __SHOW_MARKERS__;
-      const mapBounds = L.latLngBounds(
-        [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
-      );
-
-      function clampLatitude(value) {
-        return Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, Number(value)));
+    function minZoomForMaxLongitudeSpan(sizeX) {
+      const width = Number(sizeX);
+      if (!isFinite(width) || width <= 0) {
+        return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM);
       }
+      return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM, Math.log2(width / TILE_SIZE));
+    }
 
-      function alignLongitudeToView(value, anchorLongitude) {
-        const numeric = Number(value);
-        const anchor = Number(anchorLongitude);
-        if (!isFinite(numeric) || !isFinite(anchor)) {
-          return numeric;
-        }
-        const worldOffset = Math.round((anchor - numeric) / 360);
-        return numeric + worldOffset * 360;
-      }
+    const map = L.map('map', {
+      maxBounds: mapBounds,
+      maxBoundsViscosity: 1,
+      minZoom: BASE_MIN_ZOOM,
+      worldCopyJump: true,
+    });
 
-      function minZoomForMaxLongitudeSpan(sizeX) {
-        const width = Number(sizeX);
-        if (!isFinite(width) || width <= 0) {
-          return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM);
-        }
-        return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM, Math.log2(width / TILE_SIZE));
-      }
+    function applyMinZoomForSize() {
+      map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));
+    }
 
-      const map = L.map('map', {
-        maxBounds: mapBounds,
-        maxBoundsViscosity: 1,
-        minZoom: BASE_MIN_ZOOM,
-        worldCopyJump: true,
-      });
+    applyMinZoomForSize();
+    map.on('resize', applyMinZoomForSize);
 
-      function applyMinZoomForSize() {
-        map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));
-      }
+    const tileLayer = L.tileLayer(TILE_URL, {
+      attribution: TILE_ATTRIBUTION,
+      maxZoom: TILE_MAX_ZOOM,
+      referrerPolicy: TILE_REFERRER_POLICY,
+    });
 
-      applyMinZoomForSize();
-      map.on('resize', applyMinZoomForSize);
+    const originalCreateTile = tileLayer.createTile;
+    tileLayer.createTile = function (coords, done) {
+      const tile = originalCreateTile.call(this, coords, done);
+      tile.referrerPolicy = TILE_REFERRER_POLICY;
+      return tile;
+    };
+    tileLayer.addTo(map);
 
-      const tileLayer = L.tileLayer(TILE_URL, {
-        attribution: TILE_ATTRIBUTION,
+    if (HEATMAP_TILE_URL) {
+      L.tileLayer(HEATMAP_TILE_URL, {
+        opacity: HEATMAP_OPACITY,
+        tileSize: 256,
         maxZoom: TILE_MAX_ZOOM,
-        referrerPolicy: TILE_REFERRER_POLICY,
+      }).addTo(map);
+    }
+
+    const markerStyle = {
+      radius: 4,
+      fillColor: palette.markerFill,
+      color: palette.markerStroke,
+      weight: 1,
+      opacity: 0.9,
+      fillOpacity: 0.9,
+    };
+    const highlightStyle = {
+      radius: 5,
+      fillColor: palette.highlightFill,
+      color: palette.highlightStroke,
+      weight: 1,
+      opacity: 0.95,
+      fillOpacity: 0.95,
+    };
+    const activeHighlightCatalogs = new Set();
+    const markers = new Map();
+
+    function sendPinMessage(catalogNumber, latitude, longitude) {
+      const msg = {
+        type: PIN_OBSERVATION_MESSAGE_TYPE,
+        catalogNumber: catalogNumber,
+        latitude: latitude,
+        longitude: longitude,
+      };
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        window.parent.postMessage(msg, window.location.origin);
+      }
+      map.closePopup();
+    }
+
+    function handlePinButtonClick(event) {
+      const clickTarget = event && event.target;
+      const pinButton = clickTarget && typeof clickTarget.closest === 'function'
+        ? clickTarget.closest('[data-pin-observation="true"]')
+        : null;
+      if (!pinButton || !pinButton.dataset) {
+        return;
+      }
+
+      const catalogNumber = pinButton.dataset.catalogNumber
+        ? decodeURIComponent(pinButton.dataset.catalogNumber)
+        : '';
+      const latitude = Number(pinButton.dataset.latitude);
+      const longitude = Number(pinButton.dataset.longitude);
+      if (!catalogNumber || !isFinite(latitude) || !isFinite(longitude)) {
+        return;
+      }
+
+      event.preventDefault?.();
+      sendPinMessage(catalogNumber, latitude, longitude);
+    }
+
+    function styleForCatalog(catalog) {
+      return activeHighlightCatalogs.has(catalog) ? highlightStyle : markerStyle;
+    }
+
+    function applyHighlights(list) {
+      activeHighlightCatalogs.clear();
+      if (Array.isArray(list)) {
+        list.forEach((item) => {
+          activeHighlightCatalogs.add(String(item));
+        });
+      }
+      markers.forEach((marker, catalog) => {
+        marker.setStyle(styleForCatalog(catalog));
       });
+    }
 
-      const originalCreateTile = tileLayer.createTile;
-      tileLayer.createTile = function(coords, done) {
-        const tile = originalCreateTile.call(this, coords, done);
-        tile.referrerPolicy = TILE_REFERRER_POLICY;
-        return tile;
-      };
-      tileLayer.addTo(map);
+    function handleHighlightMessage(payload) {
+      let data = payload;
+      if (typeof payload === 'string') {
+        try {
+          data = JSON.parse(payload);
+        } catch {
+          return;
+        }
+      }
+      if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
+        applyHighlights(data.catalogs || []);
+      }
+    }
 
-      if (HEATMAP_TILE_URL) {
-        L.tileLayer(HEATMAP_TILE_URL, {
-          opacity: HEATMAP_OPACITY,
-          tileSize: 256,
-          maxZoom: TILE_MAX_ZOOM,
-        }).addTo(map);
+    document.addEventListener('click', handlePinButtonClick);
+    document.addEventListener('message', (event) => handleHighlightMessage(event.data));
+    window.addEventListener('message', (event) => handleHighlightMessage(event.data));
+
+    if (SHOW_MARKERS && Array.isArray(points) && points.length) {
+      const observedBounds = [];
+      const directMarkerAnchors = [];
+      const markerEntries = [];
+      const useVisibilityManagedClustering =
+        points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+      const clusterGroup = useVisibilityManagedClustering
+        ? L.markerClusterGroup({
+          spiderfyOnMaxZoom: false,
+          chunkedLoading: true,
+          chunkInterval: 120,
+          chunkDelay: 20,
+        })
+        : null;
+      const visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
+      let showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
+
+      function buildObservationPopup(catalogHref, catalogLabel, latitude, longitude) {
+        if (!catalogHref || !catalogLabel) {
+          return '';
+        }
+        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
+        var pinBtn = '<button type="button" data-pin-observation="true" data-catalog-number="' + catalogHref + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+        return inatLink + pinBtn;
       }
 
-      const markerStyle = {
-        radius: 4,
-        fillColor: palette.markerFill,
-        color: palette.markerStroke,
-        weight: 1,
-        opacity: 0.9,
-        fillOpacity: 0.9,
-      };
-      const highlightStyle = {
-        radius: 5,
-        fillColor: palette.highlightFill,
-        color: palette.highlightStroke,
-        weight: 1,
-        opacity: 0.95,
-        fillOpacity: 0.95,
-      };
-      const markers = new Map();
+      function applyEntryStyle(entry, style) {
+        entry.clusterMarker?.setStyle(style);
+        entry.directMarker?.setStyle(style);
+      }
 
-      function applyHighlights(list) {
-        const highlightSet = new Set(
-          Array.isArray(list) ? list.map((item) => String(item)) : [],
-        );
-        markers.forEach((marker, catalog) => {
-          if (highlightSet.has(catalog)) {
-            marker.setStyle(highlightStyle);
-          } else {
-            marker.setStyle(markerStyle);
+      function visibleEntriesForCurrentView(centerLongitude) {
+        const currentBounds = map.getBounds();
+        const visibleEntries = [];
+        markerEntries.forEach((entry) => {
+          const alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
+          if (currentBounds.contains(L.latLng(entry.latitude, alignedLongitude))) {
+            visibleEntries.push({ entry, alignedLongitude });
           }
         });
+        return visibleEntries;
       }
 
-      function handleHighlightMessage(payload) {
-        let data = payload;
-        if (typeof payload === 'string') {
-          try {
-            data = JSON.parse(payload);
-          } catch {
-            return;
-          }
+      function ensureVisibleDirectMarker(entry, alignedLongitude) {
+        if (!visibleMarkerLayer) {
+          return;
         }
-        if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
-          applyHighlights(data.catalogs || []);
-        }
-      }
-
-      document.addEventListener('message', (event) => handleHighlightMessage(event.data));
-      window.addEventListener('message', (event) => handleHighlightMessage(event.data));
-
-      if (SHOW_MARKERS && Array.isArray(points) && points.length) {
-        const observedBounds = [];
-        const directMarkerAnchors = [];
-        const markerEntries = [];
-        const useVisibilityManagedClustering =
-          points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
-        const clusterGroup = useVisibilityManagedClustering
-          ? L.markerClusterGroup({
-              spiderfyOnMaxZoom: false,
-              chunkedLoading: true,
-              chunkInterval: 120,
-              chunkDelay: 20,
-            })
-          : null;
-        const visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
-        let showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
-
-        function buildObservationPopup(catalogHref, catalogLabel) {
-          if (!catalogHref || !catalogLabel) {
-            return '';
-          }
-          return (
-            '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>'
+        if (!entry.directMarker) {
+          entry.directMarker = L.circleMarker(
+            [entry.latitude, alignedLongitude],
+            styleForCatalog(entry.key),
           );
-        }
-
-        function applyEntryStyle(entry, style) {
-          entry.clusterMarker?.setStyle(style);
-          entry.directMarker?.setStyle(style);
-        }
-
-        function visibleEntriesForCurrentView(centerLongitude) {
-          const currentBounds = map.getBounds();
-          const visibleEntries = [];
-          markerEntries.forEach((entry) => {
-            const alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
-            if (currentBounds.contains(L.latLng(entry.latitude, alignedLongitude))) {
-              visibleEntries.push({ entry, alignedLongitude });
-            }
-          });
-          return visibleEntries;
-        }
-
-        function ensureVisibleDirectMarker(entry, alignedLongitude) {
-          if (!visibleMarkerLayer) {
-            return;
+          if (entry.popupHtml) {
+            entry.directMarker.bindPopup(entry.popupHtml);
           }
-          if (!entry.directMarker) {
-            entry.directMarker = L.circleMarker([entry.latitude, alignedLongitude], markerStyle);
-            if (entry.popupHtml) {
-              entry.directMarker.bindPopup(entry.popupHtml);
-            }
-            visibleMarkerLayer.addLayer(entry.directMarker);
-          } else {
-            entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
-          }
+          visibleMarkerLayer.addLayer(entry.directMarker);
+        } else {
+          entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
+          entry.directMarker.setStyle(styleForCatalog(entry.key));
+        }
+        entry.alignedLongitude = alignedLongitude;
+      }
+
+      function removeVisibleDirectMarker(entry) {
+        if (!visibleMarkerLayer || !entry.directMarker) {
+          return;
+        }
+        visibleMarkerLayer.removeLayer(entry.directMarker);
+        entry.directMarker = null;
+      }
+
+      function syncDirectMarkersToCurrentWorld() {
+        const centerLongitude = map.getCenter().lng;
+        directMarkerAnchors.forEach((entry) => {
+          const alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
+          entry.marker.setLatLng([entry.latitude, alignedLongitude]);
           entry.alignedLongitude = alignedLongitude;
+        });
+      }
+
+      function syncClusterMarkersToCurrentWorld() {
+        if (!clusterGroup) {
+          return false;
         }
 
-        function removeVisibleDirectMarker(entry) {
-          if (!visibleMarkerLayer || !entry.directMarker) {
+        const centerLongitude = map.getCenter().lng;
+        let changed = false;
+
+        markerEntries.forEach((entry) => {
+          const alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
+          if (entry.alignedLongitude === alignedLongitude) {
             return;
           }
-          visibleMarkerLayer.removeLayer(entry.directMarker);
-          entry.directMarker = null;
+
+          entry.clusterMarker.setLatLng([entry.latitude, alignedLongitude]);
+          entry.alignedLongitude = alignedLongitude;
+          changed = true;
+        });
+
+        return changed;
+      }
+
+      function rebuildClusterGroupIfNeeded() {
+        if (!clusterGroup || showingVisibleIndividualMarkers) {
+          return;
         }
 
-        function syncDirectMarkersToCurrentWorld() {
-          const centerLongitude = map.getCenter().lng;
-          directMarkerAnchors.forEach((entry) => {
-            const alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
-            entry.marker.setLatLng([entry.latitude, alignedLongitude]);
-            entry.alignedLongitude = alignedLongitude;
-          });
+        if (!syncClusterMarkersToCurrentWorld()) {
+          return;
         }
 
-        function syncClusterMarkersToCurrentWorld() {
-          if (!clusterGroup) {
-            return false;
+        map.removeLayer(clusterGroup);
+        clusterGroup.addTo(map);
+      }
+
+      function refreshVisibleMarkerPresentation() {
+        if (!useVisibilityManagedClustering || !clusterGroup || !visibleMarkerLayer) {
+          syncDirectMarkersToCurrentWorld();
+          return;
+        }
+
+        const centerLongitude = map.getCenter().lng;
+        const visibleEntries = visibleEntriesForCurrentView(centerLongitude);
+        const shouldShowVisibleIndividuals =
+          visibleEntries.length > 0 &&
+          visibleEntries.length <= MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+
+        if (shouldShowVisibleIndividuals) {
+          if (!showingVisibleIndividualMarkers) {
+            map.removeLayer(clusterGroup);
+            visibleMarkerLayer.addTo(map);
+            showingVisibleIndividualMarkers = true;
           }
 
-          const centerLongitude = map.getCenter().lng;
-          let changed = false;
+          const visibleKeys = new Set();
+          visibleEntries.forEach(({ entry, alignedLongitude }) => {
+            visibleKeys.add(entry.key);
+            ensureVisibleDirectMarker(entry, alignedLongitude);
+          });
 
           markerEntries.forEach((entry) => {
-            const alignedLongitude = alignLongitudeToView(entry.longitude, centerLongitude);
-            if (entry.alignedLongitude === alignedLongitude) {
-              return;
+            if (!visibleKeys.has(entry.key)) {
+              removeVisibleDirectMarker(entry);
             }
-
-            entry.clusterMarker.setLatLng([entry.latitude, alignedLongitude]);
-            entry.alignedLongitude = alignedLongitude;
-            changed = true;
           });
-
-          return changed;
+          return;
         }
 
-        function rebuildClusterGroupIfNeeded() {
-          if (!clusterGroup || showingVisibleIndividualMarkers) {
-            return;
-          }
-
-          if (!syncClusterMarkersToCurrentWorld()) {
-            return;
-          }
-
-          map.removeLayer(clusterGroup);
+        markerEntries.forEach(removeVisibleDirectMarker);
+        if (showingVisibleIndividualMarkers) {
+          map.removeLayer(visibleMarkerLayer);
           clusterGroup.addTo(map);
+          showingVisibleIndividualMarkers = false;
         }
 
-        function refreshVisibleMarkerPresentation() {
-          if (!useVisibilityManagedClustering || !clusterGroup || !visibleMarkerLayer) {
-            syncDirectMarkersToCurrentWorld();
-            return;
-          }
+        rebuildClusterGroupIfNeeded();
+      }
 
-          const centerLongitude = map.getCenter().lng;
-          const visibleEntries = visibleEntriesForCurrentView(centerLongitude);
-          const shouldShowVisibleIndividuals =
-            visibleEntries.length > 0 &&
-            visibleEntries.length <= MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
-
-          if (shouldShowVisibleIndividuals) {
-            if (!showingVisibleIndividualMarkers) {
-              map.removeLayer(clusterGroup);
-              visibleMarkerLayer.addTo(map);
-              showingVisibleIndividualMarkers = true;
-            }
-
-            const visibleKeys = new Set();
-            visibleEntries.forEach(({ entry, alignedLongitude }) => {
-              visibleKeys.add(entry.key);
-              ensureVisibleDirectMarker(entry, alignedLongitude);
-            });
-
-            markerEntries.forEach((entry) => {
-              if (!visibleKeys.has(entry.key)) {
-                removeVisibleDirectMarker(entry);
-              }
-            });
-            return;
-          }
-
-          markerEntries.forEach(removeVisibleDirectMarker);
-          if (showingVisibleIndividualMarkers) {
-            map.removeLayer(visibleMarkerLayer);
-            clusterGroup.addTo(map);
-            showingVisibleIndividualMarkers = false;
-          }
-
-          rebuildClusterGroupIfNeeded();
+      points.forEach((pt, idx) => {
+        if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') {
+          return;
         }
 
-        points.forEach((pt, idx) => {
-          if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') {
-            return;
-          }
+        const latitude = clampLatitude(pt.latitude);
+        const canonicalLongitude = Number(pt.longitude);
+        if (!isFinite(latitude) || !isFinite(canonicalLongitude)) {
+          return;
+        }
 
-          const latitude = clampLatitude(pt.latitude);
-          const canonicalLongitude = Number(pt.longitude);
-          if (!isFinite(latitude) || !isFinite(canonicalLongitude)) {
-            return;
-          }
-
-          const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
-          const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
-          const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
-          const popupHtml = buildObservationPopup(pt.popupCatalogHref, pt.popupCatalogLabel);
-
-          if (useVisibilityManagedClustering && clusterGroup) {
-            const clusterMarker = L.circleMarker([latitude, initialLongitude], markerStyle);
-            if (popupHtml) {
-              clusterMarker.bindPopup(popupHtml);
-            }
-
-            const markerEntry = {
-              key: markerKey,
-              latitude,
-              longitude: canonicalLongitude,
-              alignedLongitude: initialLongitude,
-              popupHtml,
-              clusterMarker,
-              directMarker: null,
-            };
-
-            clusterGroup.addLayer(clusterMarker);
-            markerEntries.push(markerEntry);
-            markers.set(markerKey, {
-              setStyle(style) {
-                applyEntryStyle(markerEntry, style);
-              },
-            });
-          } else {
-            const marker = L.circleMarker([latitude, initialLongitude], markerStyle);
-            if (popupHtml) {
-              marker.bindPopup(popupHtml);
-            }
-            map.addLayer(marker);
-            directMarkerAnchors.push({
-              marker,
-              latitude,
-              longitude: canonicalLongitude,
-              alignedLongitude: initialLongitude,
-            });
-            markers.set(markerKey, marker);
-          }
-
-          observedBounds.push([latitude, initialLongitude]);
-        });
+        const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
+        const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
+        const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
+        const popupHtml = buildObservationPopup(
+          pt.popupCatalogHref,
+          pt.popupCatalogLabel,
+          latitude,
+          canonicalLongitude,
+        );
 
         if (useVisibilityManagedClustering && clusterGroup) {
-          map.addLayer(clusterGroup);
-        }
+          const clusterMarker = L.circleMarker(
+            [latitude, initialLongitude],
+            styleForCatalog(markerKey),
+          );
+          if (popupHtml) {
+            clusterMarker.bindPopup(popupHtml);
+          }
 
-        if (observedBounds.length) {
-          map.fitBounds(observedBounds, { padding: [20, 20] });
+          const markerEntry = {
+            key: markerKey,
+            latitude,
+            longitude: canonicalLongitude,
+            alignedLongitude: initialLongitude,
+            popupHtml,
+            clusterMarker,
+            directMarker: null,
+          };
+
+          clusterGroup.addLayer(clusterMarker);
+          markerEntries.push(markerEntry);
+          markers.set(markerKey, {
+            setStyle(style) {
+              applyEntryStyle(markerEntry, style);
+            },
+          });
         } else {
-          map.setView([0, 0], BASE_MIN_ZOOM);
+          const marker = L.circleMarker(
+            [latitude, initialLongitude],
+            styleForCatalog(markerKey),
+          );
+          if (popupHtml) {
+            marker.bindPopup(popupHtml);
+          }
+          map.addLayer(marker);
+          directMarkerAnchors.push({
+            marker,
+            latitude,
+            longitude: canonicalLongitude,
+            alignedLongitude: initialLongitude,
+          });
+          markers.set(markerKey, marker);
         }
 
-        map.on('moveend', refreshVisibleMarkerPresentation);
-        map.on('zoomend', refreshVisibleMarkerPresentation);
-        refreshVisibleMarkerPresentation();
+        observedBounds.push([latitude, initialLongitude]);
+      });
+
+      if (useVisibilityManagedClustering && clusterGroup) {
+        map.addLayer(clusterGroup);
+      }
+
+      if (observedBounds.length) {
+        map.fitBounds(observedBounds, { padding: [20, 20] });
       } else {
         map.setView([0, 0], BASE_MIN_ZOOM);
       }
 
-      applyHighlights([]);
-    </script>
-  </body>
+      map.on('moveend', refreshVisibleMarkerPresentation);
+      map.on('zoomend', refreshVisibleMarkerPresentation);
+      refreshVisibleMarkerPresentation();
+    } else {
+      map.setView([0, 0], BASE_MIN_ZOOM);
+    }
+
+    applyHighlights([]);
+  </script>
+</body>
+
 </html>
