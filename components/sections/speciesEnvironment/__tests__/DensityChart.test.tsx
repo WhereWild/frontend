@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { View } from 'react-native';
+import type { ReactTestInstance } from 'react-test-renderer';
 import { DensityChart } from '../DensityChart';
 
 const mockReactLocal = React;
@@ -18,6 +19,32 @@ jest.mock('react-native-svg', () => {
     Rect: Mock,
   };
 });
+
+const getNonNullRangeCalls = (mockFn: jest.Mock) =>
+  mockFn.mock.calls.filter(
+    (call) => call[0] && typeof call[0].start === 'number' && typeof call[0].end === 'number',
+  );
+
+const getLabelContainerStyle = (label: string) => {
+  let current = screen.getByText(label) as ReactTestInstance | null;
+
+  while (current) {
+    const style = current.props.style;
+    const resolvedStyle = Array.isArray(style) ? Object.assign({}, ...style) : style;
+
+    if (resolvedStyle && typeof resolvedStyle === 'object' && 'left' in resolvedStyle) {
+      return resolvedStyle as {
+        left?: string;
+        marginLeft?: number;
+        width?: number;
+      };
+    }
+
+    current = current.parent;
+  }
+
+  throw new Error(`Could not find positioned container for label: ${label}`);
+};
 
 describe('DensityChart', () => {
   it('renders empty state when curve is missing', () => {
@@ -58,9 +85,7 @@ describe('DensityChart', () => {
     fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 180 } });
 
     expect(onSelectionChange).toHaveBeenCalled();
-    const rangeCalls = onSelectionChange.mock.calls.filter(
-      (call) => call[0] && typeof call[0].start === 'number' && typeof call[0].end === 'number',
-    );
+    const rangeCalls = getNonNullRangeCalls(onSelectionChange);
     expect(rangeCalls.length).toBeGreaterThan(0);
   });
 
@@ -229,6 +254,171 @@ describe('DensityChart', () => {
     fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 30 } });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
+  });
+
+  it('ignores move updates when layout becomes unavailable after drag start', () => {
+    const onSelectionChange = jest.fn();
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+
+    const responderNode = getByTestId('density-chart-responder');
+
+    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 200 } } });
+    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
+    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 0 } } });
+    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 180 } });
+    fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 180 } });
+
+    expect(getNonNullRangeCalls(onSelectionChange)).toHaveLength(0);
+    expect(onSelectionChange).toHaveBeenCalledWith(null);
+  });
+
+  it('does not render a selected pin label while pin data is loading', () => {
+    const { getByTestId, queryByText } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={5}
+        pinLoading
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+
+    expect(queryByText('Selected')).toBeNull();
+  });
+
+  it('renders a selected pin label for zero-span curves when edge labels are absent', () => {
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [1, 1], density: [0.3, 0.6] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={null}
+        selection={null}
+        pinValue={1}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+
+    expect(screen.getByText('Selected')).toBeTruthy();
+    expect(screen.getByText('1.0')).toBeTruthy();
+  });
+
+  it('hides the selected pin label when it overlaps the min label', () => {
+    const { getByTestId, queryByText } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={0.2}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+
+    expect(queryByText('Selected')).toBeNull();
+  });
+
+  it('hides the selected pin label when it overlaps the max label', () => {
+    const { getByTestId, queryByText } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={9.8}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+
+    expect(queryByText('Selected')).toBeNull();
+  });
+
+  it('renders the selected pin label when pin and mean overlap after layout', () => {
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={5.2}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 300 } },
+    });
+
+    const meanStyle = getLabelContainerStyle('mean');
+    const pinStyle = getLabelContainerStyle('Selected');
+
+    expect(screen.getByText('Selected')).toBeTruthy();
+    expect(screen.getByText('5.2')).toBeTruthy();
+    expect(parseFloat(meanStyle.left ?? '0')).toBeLessThan(50);
+    expect(parseFloat(pinStyle.left ?? '0')).toBeGreaterThan(52);
+  });
+
+  it('renders the selected pin label when pin overlaps mean from the opposite side', () => {
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={4.8}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 300 } },
+    });
+
+    const meanStyle = getLabelContainerStyle('mean');
+    const pinStyle = getLabelContainerStyle('Selected');
+
+    expect(screen.getByText('Selected')).toBeTruthy();
+    expect(screen.getByText('4.8')).toBeTruthy();
+    expect(parseFloat(meanStyle.left ?? '0')).toBeGreaterThan(50);
+    expect(parseFloat(pinStyle.left ?? '0')).toBeLessThan(48);
   });
 
   it('handles zero-span and zero-density curves', () => {
