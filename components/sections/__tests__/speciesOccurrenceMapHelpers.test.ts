@@ -3,6 +3,8 @@ import {
   buildLeafletHtml,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
+  isPinObservationEventFromFrame,
+  isPinObservationMessage,
   loadFallbackMapTemplate,
   loadMapTemplate,
   MAP_TILE_ATTRIBUTION,
@@ -11,6 +13,7 @@ import {
   MAP_TILE_URL_TEMPLATE_LIGHT,
   MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS,
   MAP_DOCUMENT_BASE_URL,
+  PIN_OBSERVATION_MESSAGE_TYPE,
   MAP_REFERRER_POLICY,
   toHighlightMessagePayload,
 } from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
@@ -89,6 +92,64 @@ describe('speciesOccurrenceMapHelpers', () => {
       type: HIGHLIGHT_MESSAGE_TYPE,
       catalogs: ['10', '20'],
     });
+  });
+
+  it('accepts only well-formed pin observation messages', () => {
+    expect(
+      isPinObservationMessage({
+        type: PIN_OBSERVATION_MESSAGE_TYPE,
+        catalogNumber: '123',
+        latitude: 10,
+        longitude: 20,
+      }),
+    ).toBe(true);
+
+    expect(
+      isPinObservationMessage({
+        type: PIN_OBSERVATION_MESSAGE_TYPE,
+        latitude: 10,
+        longitude: 20,
+      }),
+    ).toBe(false);
+
+    expect(
+      isPinObservationMessage({
+        type: PIN_OBSERVATION_MESSAGE_TYPE,
+        catalogNumber: 123,
+        latitude: 10,
+        longitude: 20,
+      }),
+    ).toBe(false);
+  });
+
+  it('only trusts pin observation messages from the active iframe window', () => {
+    const frameWindow = {} as Window;
+    const otherWindow = {} as Window;
+    const validEvent = {
+      source: frameWindow,
+      data: {
+        type: PIN_OBSERVATION_MESSAGE_TYPE,
+        catalogNumber: '123',
+        latitude: 10,
+        longitude: 20,
+      },
+    } as Pick<MessageEvent, 'data' | 'source'>;
+
+    expect(isPinObservationEventFromFrame(validEvent, frameWindow)).toBe(true);
+    expect(isPinObservationEventFromFrame(validEvent, otherWindow)).toBe(false);
+    expect(
+      isPinObservationEventFromFrame(
+        {
+          source: frameWindow,
+          data: {
+            type: PIN_OBSERVATION_MESSAGE_TYPE,
+            latitude: 10,
+            longitude: 20,
+          },
+        } as Pick<MessageEvent, 'data' | 'source'>,
+        frameWindow,
+      ),
+    ).toBe(false);
   });
 
   it('loads the external html template through expo-asset', async () => {

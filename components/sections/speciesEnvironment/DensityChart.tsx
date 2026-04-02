@@ -17,6 +17,7 @@ import {
 const CHART_PADDING = Size.space['200'];
 const CHART_HEIGHT = 240;
 const MEAN_LABEL_HALF_WIDTH = 24;
+const PIN_LABEL_HALF_WIDTH = 36;
 
 type ClipPathWithUnitsProps = React.ComponentProps<typeof ClipPath> & {
   clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
@@ -46,6 +47,8 @@ type DensityChartProps = {
   selection?: DensitySelectionRange | null;
   /** Called when drag selection changes or clears. */
   onSelectionChange?: (range: DensitySelectionRange | null) => void;
+  pinValue?: number | null;
+  pinLoading?: boolean;
 };
 
 /** Displays an interactive density chart with draggable range selection. */
@@ -57,6 +60,8 @@ export function DensityChart({
   summary,
   selection,
   onSelectionChange,
+  pinValue,
+  pinLoading,
 }: DensityChartProps) {
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
@@ -175,6 +180,63 @@ export function DensityChart({
     return dragOrigin.current === null || !hasDragged.current;
   };
 
+  const meanPosition =
+    summary?.mean != null
+      ? ((summary.mean - densityDomain.minX) / densityDomain.spanX) * 100
+      : null;
+  const pinPosition =
+    pinValue != null && !pinLoading && densityDomain.spanX > 0
+      ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
+      : null;
+
+  // Nudge mean and pin labels apart if they overlap. Hide pin label if it
+  // gets too close to the fixed min/max labels. All calculations in pixels.
+  const { meanLeft, pinLeft, pinLabelVisible } = React.useMemo(() => {
+    if (chartWidth === 0) {
+      return { meanLeft: meanPosition, pinLeft: pinPosition, pinLabelVisible: true };
+    }
+
+    const gap = 4; // minimum pixel gap between label edges
+    const meanHalf = MEAN_LABEL_HALF_WIDTH;
+    const pinHalf = PIN_LABEL_HALF_WIDTH;
+    const MIN_LABEL_WIDTH = MEAN_LABEL_HALF_WIDTH * 2;
+    const MAX_LABEL_WIDTH = MEAN_LABEL_HALF_WIDTH * 2;
+
+    // Start with raw pixel centers.
+    let meanCenter = meanPosition != null ? (meanPosition / 100) * chartWidth : null;
+    let pinCenter = pinPosition != null ? (pinPosition / 100) * chartWidth : null;
+
+    // Hide pin label if it overlaps min or max labels.
+    let pinLabelVisible = true;
+    if (pinCenter != null) {
+      const pinLeftEdge = pinCenter - pinHalf;
+      const pinRightEdge = pinCenter + pinHalf;
+      if (summary?.min != null && pinLeftEdge < MIN_LABEL_WIDTH + gap) {
+        pinLabelVisible = false;
+      }
+      if (summary?.max != null && pinRightEdge > chartWidth - MAX_LABEL_WIDTH - gap) {
+        pinLabelVisible = false;
+      }
+    }
+
+    // Nudge mean and pin apart symmetrically.
+    if (meanCenter != null && pinCenter != null) {
+      const overlap = meanHalf + pinHalf + gap - Math.abs(meanCenter - pinCenter);
+      if (overlap > 0) {
+        const shift = overlap / 2;
+        const direction = meanCenter <= pinCenter ? -1 : 1;
+        meanCenter = meanCenter + direction * shift;
+        pinCenter = pinCenter - direction * shift;
+      }
+    }
+
+    return {
+      meanLeft: meanCenter != null ? (meanCenter / chartWidth) * 100 : meanPosition,
+      pinLeft: pinCenter != null ? (pinCenter / chartWidth) * 100 : pinPosition,
+      pinLabelVisible,
+    };
+  }, [meanPosition, pinPosition, chartWidth, summary?.min, summary?.max]);
+
   if (!hasCurveData || !normalized.length) {
     return (
       <View style={styles.emptyChart}>
@@ -188,10 +250,6 @@ export function DensityChart({
   const linePath = normalized.map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
   const areaSegments = normalized.slice(1).map(({ x, y }) => `L${x},${y}`);
   const areaPath = [`M${start.x},${CHART_HEIGHT}`, `L${start.x},${start.y}`, ...areaSegments, `L${end.x},${CHART_HEIGHT}`, 'Z'].join(' ');
-  const meanPosition =
-    summary?.mean != null
-      ? ((summary.mean - densityDomain.minX) / densityDomain.spanX) * 100
-      : null;
 
   return (
     <View style={styles.chartWrapper}>
@@ -225,6 +283,16 @@ export function DensityChart({
               vectorEffect="non-scaling-stroke"
             />
           ) : null}
+          {pinPosition != null && Number.isFinite(pinPosition) ? (
+            <Path
+              d={`M${pinPosition},0 L${pinPosition},${CHART_HEIGHT}`}
+              fill="none"
+              stroke="#F59E0B"
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
           <Path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} vectorEffect="non-scaling-stroke" />
         </Svg>
         <View
@@ -246,31 +314,38 @@ export function DensityChart({
         {summary?.min != null && (
           <View style={styles.minLabelContainer}>
             <ThemedText variant="bodySmall">{formatValue(summary.min, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">
-              min
-            </ThemedText>
+            <ThemedText variant="bodySmall">min</ThemedText>
           </View>
         )}
-        {meanPosition != null && Number.isFinite(meanPosition) ? (
+        {meanLeft != null && Number.isFinite(meanLeft) ? (
           <View
             style={{
               ...styles.meanLabelContainer,
-              left: `${meanPosition}%`,
+              left: `${meanLeft}%`,
               marginLeft: -MEAN_LABEL_HALF_WIDTH,
             }}
           >
             <ThemedText variant="bodySmall">{formatValue(summary?.mean, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">
-              mean
-            </ThemedText>
+            <ThemedText variant="bodySmall">mean</ThemedText>
+          </View>
+        ) : null}
+        {pinLeft != null && Number.isFinite(pinLeft) && pinLabelVisible ? (
+          <View
+            style={{
+              ...styles.meanLabelContainer,
+              left: `${pinLeft}%`,
+              marginLeft: -PIN_LABEL_HALF_WIDTH,
+              width: PIN_LABEL_HALF_WIDTH * 2,
+            }}
+          >
+            <ThemedText variant="bodySmall">{formatValue(pinValue, 1)}</ThemedText>
+            <ThemedText variant="bodySmall">Selected</ThemedText>
           </View>
         ) : null}
         {summary?.max != null && (
           <View style={styles.maxLabelContainer}>
             <ThemedText variant="bodySmall">{formatValue(summary.max, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">
-              max
-            </ThemedText>
+            <ThemedText variant="bodySmall">max</ThemedText>
           </View>
         )}
       </View>

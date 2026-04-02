@@ -100,6 +100,8 @@ const appendUploadPayload = (
 
 /** Public backend base URL used by app-level data fetchers. */
 export { BACKEND_BASE };
+export { fetchPointEnvironmentValue } from './apiPointLookup';
+export type { PointEnvironmentResult } from './apiPointLookup';
 
 /**
  * Searches locations with optional hierarchy constraints.

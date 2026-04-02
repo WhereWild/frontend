@@ -1,6 +1,7 @@
 import {
   fetchEnvironmentRangeSlice,
   fetchSpeciesEnvironmentCategorySamples,
+  fetchPointEnvironmentValue,
 } from '@/data/api';
 import type {
   SpeciesEnvironmentObservation,
@@ -48,6 +49,8 @@ type UseEnvironmentHighlightsParams = {
   units?: 'metric' | 'imperial' | undefined;
   /** Callback receiving highlighted catalog numbers. */
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
+  /** Pinned observation for manual highlighting. */
+  pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
 };
 
 /** Handles category/range selections and resolves corresponding highlighted observations. */
@@ -59,6 +62,7 @@ export function useEnvironmentHighlights({
   locationGid,
   units,
   onHighlightChange,
+  pinnedObservation,
 }: UseEnvironmentHighlightsParams) {
   const [selectedCategoryValue, setSelectedCategoryValueState] = React.useState<
     number | string | null
@@ -74,6 +78,9 @@ export function useEnvironmentHighlights({
   );
   const categoryRequestRef = React.useRef(0);
   const lastEmittedSignatureRef = React.useRef<string | null>(null);
+  const [pinnedValue, setPinnedValue] = React.useState<number | null>(null);
+  const [pinnedLoading, setPinnedLoading] = React.useState(false);
+  const pinnedRequestRef = React.useRef(0);
 
   const emitHighlightChange = React.useCallback(
     (ids: (number | string)[]) => {
@@ -99,6 +106,46 @@ export function useEnvironmentHighlights({
   React.useEffect(() => {
     resetHighlightState();
   }, [locationGid, resetHighlightState, selectedVariable, taxonId, units]);
+
+  React.useEffect(() => {
+    setPinnedValue(null);
+    setPinnedLoading(false);
+    pinnedRequestRef.current += 1;
+  }, [selectedVariable, locationGid, taxonId, units]);
+
+  React.useEffect(() => {
+    if (!pinnedObservation || !selectedVariable) {
+      pinnedRequestRef.current += 1;
+      setPinnedValue(null);
+      setPinnedLoading(false);
+      return;
+    }
+    const requestId = ++pinnedRequestRef.current;
+    setPinnedLoading(true);
+    void (async () => {
+      try {
+        const result = await fetchPointEnvironmentValue(
+          pinnedObservation.lat,
+          pinnedObservation.lon,
+          selectedVariable,
+          { units },
+        );
+        if (pinnedRequestRef.current !== requestId) {
+          return;
+        }
+        setPinnedValue(result.value);
+      } catch {
+        if (pinnedRequestRef.current !== requestId) {
+          return;
+        }
+        setPinnedValue(null);
+      } finally {
+        if (pinnedRequestRef.current === requestId) {
+          setPinnedLoading(false);
+        }
+      }
+    })();
+  }, [pinnedObservation, selectedVariable, units]);
 
   React.useEffect(() => {
     if (!stats?.categoricalSamples || !stats.categoricalSamples.length) {
@@ -348,5 +395,7 @@ export function useEnvironmentHighlights({
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
+    pinnedValue,
+    pinnedLoading,
   };
 }
