@@ -3,7 +3,7 @@
 [![pipeline status](https://capstone.cs.utah.edu/wherewild/front-end/badges/main/pipeline.svg)](https://capstone.cs.utah.edu/wherewild/front-end/-/commits/main)
 [![coverage report](https://capstone.cs.utah.edu/wherewild/front-end/badges/main/coverage.svg)](https://capstone.cs.utah.edu/wherewild/front-end/-/commits/main)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+WhereWild is an [Expo](https://expo.dev) front-end application for exploring species data, environmental summaries, and prediction-driven map views across mobile and web.
 
 ## Get started
 
@@ -12,7 +12,7 @@ This project has some VS Code helper configured. Open `front-end.code-workspace`
 ### Prerequisites
 
 1. Install Node v24.13.0
-2. For mobile development, follow https://docs.expo.dev/get-started/set-up-your-environment
+2. For mobile development, follow [the Expo environment setup guide](https://docs.expo.dev/get-started/set-up-your-environment)
     - We have Expo Application Services set up
 3. Install dependencies
 
@@ -22,16 +22,16 @@ This project has some VS Code helper configured. Open `front-end.code-workspace`
 
 ### Starting
 
-Start the app
+Use the default local development flow:
 
 ```bash
 npm start
 ```
 
-Use production env values when starting:
+Use the production-like local flow that ignores `.env.local` and reads `.env` directly:
 
 ```bash
-npm run start:prod
+npm run start:production-config
 ```
 
 In the output, you'll find options to open the app in a
@@ -47,10 +47,8 @@ You can start developing by editing the files inside the **app** directory. This
 
 ### Start
 
-- `npm start` uses `.env.local` if present
-    - You likely want to create `.env.local` containing `APP_BACKEND_URL=http://localhost:8000`
-- `npm run start:prod` uses `.env` even if `.env.local` is present.
-    - It disables Expo's automatic dotenv loading and injects `.env` into the Expo process directly.
+- `npm start` uses Expo's default dotenv precedence, so `.env.local` overrides `.env` when present, and it defaults `APP_VARIANT=development` unless you override it in your shell.
+- `npm run start:production-config` disables Expo's automatic dotenv loading, reads `.env` directly, ignores `.env.local`, and explicitly defaults `APP_VARIANT=production` unless you override it in your shell.
 
 ### Tests
 
@@ -127,14 +125,15 @@ Figma plugins in `scripts/tokens/figma-plugin-token-json/` and
 
 This app does not require any environment variables for local development, but it supports overrides:
 
-- `.env.local` is used for the default local development flow, including `npm start`
-- `.env` is used by `npm run start:prod` and by production web exports
+- For local development, prefer `.env.local`. `npm start` follows Expo's default dotenv precedence, so local shell variables win over `.env.local`, and `.env.local` wins over `.env`.
+- `npm start` defaults `APP_VARIANT=development` unless you override it in your shell.
+- `npm run start:production-config` and `npm run export:web` disable Expo's automatic dotenv loading, read `.env` directly, ignore `.env.local`, and default `APP_VARIANT=production` unless you override it in your shell.
+- EAS cloud builds use EAS-hosted environment variables. Local `.env*` files are not uploaded because `.env*` is gitignored in this repo.
 - Optional: `APP_STADIA_MAPS_API_KEY` adds explicit Stadia tile authentication.
     - Recommended for native/mobile builds.
     - Also useful on web if domain or localhost-based Stadia auth is not working in your environment.
 - The Stadia Maps key is exposed to the app through Expo runtime config (`Constants.expoConfig.extra.stadiaMapsApiKey`) using the same plain-env naming convention as other app runtime settings.
 - The backend base URL is exposed to the app through Expo runtime config (`Constants.expoConfig.extra.backendUrl`) so switching between local and prod startup modes does not depend on Metro reusing or invalidating previously inlined env transforms
-- `npm run start:prod` and `npm run export:web` disable Expo's automatic dotenv loading and load `.env` in memory instead, so `.env.local` is ignored for those commands without renaming files on disk
 - You can override the backend URL per command:
 
     ```bash
@@ -173,7 +172,10 @@ APP_API_TIMEOUT_MS=5000
 
 ```js
 extra: {
-    ...appJson.expo.extra,
+    router: {},
+    eas: {
+        projectId: 'your-project-id',
+    },
     backendUrl: process.env.APP_BACKEND_URL || fallbackBackendUrl,
     apiTimeoutMs: process.env.APP_API_TIMEOUT_MS || '5000',
 },
@@ -199,6 +201,40 @@ In practice:
 - `.env` key: `APP_API_TIMEOUT_MS`
 - Expo runtime key: `apiTimeoutMs`
 - App access: `Constants.expoConfig?.extra?.apiTimeoutMs`
+
+## Build variants
+
+This repo uses a single dynamic `app.config.js` as the Expo config source of truth.
+
+- `APP_VARIANT=development` builds the development app.
+- `APP_VARIANT=preview` builds the preview app.
+- `APP_VARIANT=production` builds the production app.
+
+`app.config.js` uses `APP_VARIANT` to switch:
+
+- app display name
+- app scheme
+- iOS bundle identifier
+- Android package name
+
+The backend URL is not variant-specific in this repo. Set `APP_BACKEND_URL` once in EAS environment variables if all three variants should use the same backend.
+
+Current EAS build profiles:
+
+- `development` sets `APP_VARIANT=development`
+- `preview` sets `APP_VARIANT=preview`
+- `production` sets `APP_VARIANT=production`
+
+This allows all three apps to be installed on one device at the same time because each profile produces a unique iOS bundle identifier and Android package name.
+
+### Precedence and development builds
+
+There are two moments where config is evaluated:
+
+- EAS cloud build time: EAS-hosted environment variables win because the build runs on EAS infrastructure and local `.env` files are not part of that environment.
+- Local CLI time: `npm start`, `npm run start:production-config`, and `npm run export:web` evaluate `app.config.js` on your machine. `npm start` defaults `APP_VARIANT=development`, while the production-like commands default `APP_VARIANT=production`.
+
+In practice, a development build created by EAS gets its native identity from the EAS profile at build time, but when that installed build connects to your local development server, the runtime config served by Expo comes from your local environment.
 
 ## CI
 
