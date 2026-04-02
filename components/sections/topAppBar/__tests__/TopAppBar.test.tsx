@@ -469,4 +469,17 @@ describe('TopAppBar', () => {
     expect(withInsetStyles.paddingTop).toBe(24);
   });
 
+  it('renders a dedicated shadow surface behind the top app bar content', () => {
+    render(<TopAppBar {...HOME_PROPS} />);
+
+    const safeAreaStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-safe-area').props.style);
+    const surfaceStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-surface').props.style);
+    const containerStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-container').props.style);
+
+    expect(safeAreaStyles.zIndex).toBe(1);
+    expect(surfaceStyles.position).toBe('absolute');
+    expect(surfaceStyles.zIndex).toBe(0);
+    expect(containerStyles.zIndex).toBe(1);
+  });
+
 });
