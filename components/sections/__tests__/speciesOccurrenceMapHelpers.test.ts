@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
 import { Asset } from 'expo-asset';
 import {
   buildLeafletHtml,
@@ -33,6 +36,115 @@ describe('speciesOccurrenceMapHelpers', () => {
   const originalFetch = global.fetch;
   const validTemplateHtml = '<html><body><div id="map"></div><script>__POINTS_JSON__</script></body></html>';
 
+  const markerPalette = {
+    markerFill: '#111111',
+    markerStroke: '#222222',
+    highlightFill: '#333333',
+    highlightStroke: '#444444',
+  };
+
+  const extractInlineScript = (html: string) => {
+    const match = html.match(/<script>([\s\S]*)<\/script>\s*<\/body>\s*<\/html>$/);
+    if (!match?.[1]) {
+      throw new Error('Expected inline map script in template');
+    }
+    return match[1];
+  };
+
+  const createLeafletHarness = () => {
+    const eventHandlers = new Map<string, () => void>();
+    const documentListeners = new Map<string, (event: { data: unknown }) => void>();
+    const windowListeners = new Map<string, (event: { data: unknown }) => void>();
+    const createdMarkers: {
+      style: Record<string, unknown>;
+      setStyle: jest.Mock;
+      setLatLng: jest.Mock;
+      bindPopup: jest.Mock;
+    }[] = [];
+    let visibleLongitudePredicate = (_longitude: number) => false;
+
+    const makeLayer = () => ({
+      addTo: jest.fn().mockReturnThis(),
+      addLayer: jest.fn(),
+      removeLayer: jest.fn(),
+    });
+
+    const map = {
+      on: jest.fn((eventName: string, handler: () => void) => {
+        eventHandlers.set(eventName, handler);
+      }),
+      setMinZoom: jest.fn(),
+      getSize: jest.fn(() => ({ x: 256 })),
+      getBounds: jest.fn(() => ({
+        contains: ({ lng }: { lng: number }) => visibleLongitudePredicate(lng),
+      })),
+      getCenter: jest.fn(() => ({ lng: 0 })),
+      removeLayer: jest.fn(),
+      addLayer: jest.fn(),
+      fitBounds: jest.fn(),
+      setView: jest.fn(),
+    };
+
+    const L = {
+      latLngBounds: jest.fn(() => ({})),
+      latLng: jest.fn((lat: number, lng: number) => ({ lat, lng })),
+      map: jest.fn(() => map),
+      tileLayer: jest.fn(() => ({
+        addTo: jest.fn().mockReturnThis(),
+        createTile: jest.fn(() => ({ referrerPolicy: '' })),
+      })),
+      circleMarker: jest.fn((coords: [number, number], style: Record<string, unknown>) => {
+        const marker = {
+          coords,
+          style: { ...style },
+          setStyle: jest.fn((nextStyle: Record<string, unknown>) => {
+            marker.style = { ...nextStyle };
+          }),
+          setLatLng: jest.fn(),
+          bindPopup: jest.fn(),
+        };
+        createdMarkers.push(marker);
+        return marker;
+      }),
+      markerClusterGroup: jest.fn(() => makeLayer()),
+      layerGroup: jest.fn(() => makeLayer()),
+    };
+
+    const document = {
+      addEventListener: jest.fn((eventName: string, handler: (event: { data: unknown }) => void) => {
+        documentListeners.set(eventName, handler);
+      }),
+    };
+
+    const windowObject = {
+      addEventListener: jest.fn((eventName: string, handler: (event: { data: unknown }) => void) => {
+        windowListeners.set(eventName, handler);
+      }),
+    };
+
+    return {
+      context: {
+        L,
+        document,
+        window: windowObject,
+        console,
+        Map,
+        Set,
+        Math,
+        Number,
+        JSON,
+        isFinite,
+      },
+      createdMarkers,
+      eventHandlers,
+      documentListeners,
+      windowListeners,
+      setVisibleLongitudePredicate(predicate: (longitude: number) => boolean) {
+        visibleLongitudePredicate = predicate;
+      },
+    };
+  };
+
   afterEach(() => {
     global.fetch = originalFetch;
     jest.clearAllMocks();
@@ -42,12 +154,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     const html = buildLeafletHtml(
       '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__',
       [{ latitude: 1, longitude: 2 }],
-      {
-        markerFill: '#111111',
-        markerStroke: '#222222',
-        highlightFill: '#333333',
-        highlightStroke: '#444444',
-      },
+      markerPalette,
       getMapTileUrlTemplate('light'),
     );
 
@@ -72,12 +179,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         latitude: 1,
         longitude: 2,
       }],
-      {
-        markerFill: '#111111',
-        markerStroke: '#222222',
-        highlightFill: '#333333',
-        highlightStroke: '#444444',
-      },
+      markerPalette,
       getMapTileUrlTemplate('light'),
     );
 
@@ -85,6 +187,67 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain('abc%22%20onclick%3D%22alert(1)%3Ctag%3E');
     expect(html).toContain('popupCatalogLabel');
     expect(html).toContain('abc&quot; onclick=&quot;alert(1)&lt;tag&gt;');
+  });
+
+  it('renders pin actions without inline JavaScript handlers', () => {
+    const templatePaths = [
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const html = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'abc" onclick="alert(1)', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      );
+
+      expect(html).toContain('data-pin-observation="true"');
+      expect(html).toContain('popupCatalogHref":"abc%22%20onclick%3D%22alert(1)"');
+      expect(html).not.toContain('onclick="sendPinMessage');
+    });
+  });
+
+  it('keeps clustered highlight state when zooming into direct markers', () => {
+    const templatePaths = [
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const html = buildLeafletHtml(
+        rawTemplate,
+        [
+          { catalogNumber: 101, latitude: 10, longitude: 20 },
+          { catalogNumber: 202, latitude: 11, longitude: 40 },
+        ],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      ).replace(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS), '1');
+      const harness = createLeafletHarness();
+      harness.setVisibleLongitudePredicate(() => true);
+
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      expect(harness.createdMarkers).toHaveLength(2);
+
+      harness.windowListeners.get('message')?.({
+        data: toHighlightMessagePayload(['101']),
+      });
+
+      harness.setVisibleLongitudePredicate((longitude) => longitude === 20);
+      harness.eventHandlers.get('zoomend')?.();
+
+      expect(harness.createdMarkers).toHaveLength(3);
+      expect(harness.createdMarkers[2]?.style).toMatchObject({
+        fillColor: markerPalette.highlightFill,
+        color: markerPalette.highlightStroke,
+        radius: 5,
+      });
+    });
   });
 
   it('creates the expected highlight payload', () => {
