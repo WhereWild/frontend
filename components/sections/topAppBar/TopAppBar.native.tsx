@@ -252,13 +252,21 @@ export function TopAppBar(props: TopAppBarProps) {
       style={[
         styles.safeAreaContainer,
         {
-          backgroundColor: palette.background.default.secondary,
           paddingTop: safeAreaTopInset,
         },
-        Shadows.dropShadow200.style,
         style,
       ]}
     >
+      <View
+        style={[
+          styles.surface,
+          {
+            backgroundColor: palette.background.default.secondary,
+          },
+          Shadows.dropShadow200.style,
+        ]}
+        testID="top-app-bar-surface"
+      />
       <View
         style={[
           styles.container,
@@ -288,6 +296,12 @@ export function TopAppBar(props: TopAppBarProps) {
 const styles = StyleSheet.create({
   safeAreaContainer: {
     width: '100%',
+
+    zIndex: 1,
+  },
+  surface: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
   container: {
     width: '100%',
@@ -296,6 +310,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['200'],
+
+    zIndex: 1,
   },
   actionsRow: {
     flexDirection: 'row',
