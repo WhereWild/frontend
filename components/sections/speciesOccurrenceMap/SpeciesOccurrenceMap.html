@@ -121,6 +121,7 @@
       opacity: 0.95,
       fillOpacity: 0.95,
     };
+    const activeHighlightCatalogs = new Set();
     const markers = new Map();
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
@@ -138,16 +139,41 @@
       map.closePopup();
     }
 
+    function handlePinButtonClick(event) {
+      const clickTarget = event && event.target;
+      const pinButton = clickTarget && typeof clickTarget.closest === 'function'
+        ? clickTarget.closest('[data-pin-observation="true"]')
+        : null;
+      if (!pinButton || !pinButton.dataset) {
+        return;
+      }
+
+      const catalogNumber = pinButton.dataset.catalogNumber
+        ? decodeURIComponent(pinButton.dataset.catalogNumber)
+        : '';
+      const latitude = Number(pinButton.dataset.latitude);
+      const longitude = Number(pinButton.dataset.longitude);
+      if (!catalogNumber || !isFinite(latitude) || !isFinite(longitude)) {
+        return;
+      }
+
+      event.preventDefault?.();
+      sendPinMessage(catalogNumber, latitude, longitude);
+    }
+
+    function styleForCatalog(catalog) {
+      return activeHighlightCatalogs.has(catalog) ? highlightStyle : markerStyle;
+    }
+
     function applyHighlights(list) {
-      const highlightSet = new Set(
-        Array.isArray(list) ? list.map((item) => String(item)) : [],
-      );
+      activeHighlightCatalogs.clear();
+      if (Array.isArray(list)) {
+        list.forEach((item) => {
+          activeHighlightCatalogs.add(String(item));
+        });
+      }
       markers.forEach((marker, catalog) => {
-        if (highlightSet.has(catalog)) {
-          marker.setStyle(highlightStyle);
-        } else {
-          marker.setStyle(markerStyle);
-        }
+        marker.setStyle(styleForCatalog(catalog));
       });
     }
 
@@ -165,6 +191,7 @@
       }
     }
 
+    document.addEventListener('click', handlePinButtonClick);
     document.addEventListener('message', (event) => handleHighlightMessage(event.data));
     window.addEventListener('message', (event) => handleHighlightMessage(event.data));
 
@@ -190,7 +217,7 @@
           return '';
         }
         var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
-        var pinBtn = '<button style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;" onclick="sendPinMessage(\'' + catalogLabel + '\',' + latitude + ',' + longitude + ')">Highlight in Environmental Features</button>';
+        var pinBtn = '<button type="button" data-pin-observation="true" data-catalog-number="' + catalogHref + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
         return inatLink + pinBtn;
       }
 
@@ -216,13 +243,17 @@
           return;
         }
         if (!entry.directMarker) {
-          entry.directMarker = L.circleMarker([entry.latitude, alignedLongitude], markerStyle);
+          entry.directMarker = L.circleMarker(
+            [entry.latitude, alignedLongitude],
+            styleForCatalog(entry.key),
+          );
           if (entry.popupHtml) {
             entry.directMarker.bindPopup(entry.popupHtml);
           }
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
           entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
+          entry.directMarker.setStyle(styleForCatalog(entry.key));
         }
         entry.alignedLongitude = alignedLongitude;
       }
@@ -340,10 +371,18 @@
         const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
         const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
         const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
-        const popupHtml = buildObservationPopup(pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
+        const popupHtml = buildObservationPopup(
+          pt.popupCatalogHref,
+          pt.popupCatalogLabel,
+          latitude,
+          canonicalLongitude,
+        );
 
         if (useVisibilityManagedClustering && clusterGroup) {
-          const clusterMarker = L.circleMarker([latitude, initialLongitude], markerStyle);
+          const clusterMarker = L.circleMarker(
+            [latitude, initialLongitude],
+            styleForCatalog(markerKey),
+          );
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
@@ -366,7 +405,10 @@
             },
           });
         } else {
-          const marker = L.circleMarker([latitude, initialLongitude], markerStyle);
+          const marker = L.circleMarker(
+            [latitude, initialLongitude],
+            styleForCatalog(markerKey),
+          );
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
