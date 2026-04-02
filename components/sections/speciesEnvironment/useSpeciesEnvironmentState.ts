@@ -32,6 +32,7 @@ type UseSpeciesEnvironmentStateParams = {
   /** Optional location filter gid for scoped environment views. */
   locationGid?: string | null;
   units?: 'metric' | 'imperial' | undefined;
+  pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
 };
 
 /** Inputs used to derive presentational state from loaded stats and selection metadata. */
@@ -79,6 +80,7 @@ export function useSpeciesEnvironmentState({
   onHighlightChange,
   locationGid,
   units,
+  pinnedObservation,
 }: UseSpeciesEnvironmentStateParams) {
   const {
     categories,
@@ -121,6 +123,8 @@ export function useSpeciesEnvironmentState({
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
+    pinnedValue,
+    pinnedLoading,
   } = useEnvironmentHighlights({
     taxonId,
     selectedVariable,
@@ -129,6 +133,7 @@ export function useSpeciesEnvironmentState({
     locationGid,
     onHighlightChange,
     units,
+    pinnedObservation,
   });
 
   const rangeObservationItems = React.useMemo(
@@ -267,5 +272,7 @@ export function useSpeciesEnvironmentState({
     summaryRanks,
     summaryComparisons,
     locationFilterActive,
+    pinnedValue,
+    pinnedLoading,
   };
 }

@@ -15,8 +15,9 @@ import {
   type HighlightMessage,
   type MapMarkerPalette,
   toHighlightMessagePayload,
+  isPinObservationEventFromFrame,
+  isPinObservationMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
-
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
@@ -27,6 +28,7 @@ type SpeciesOccurrenceMapProps = {
   heatmapOpacity?: number;
   minZoom?: number;
   showMarkers?: boolean;
+  onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -39,6 +41,7 @@ export function SpeciesOccurrenceMap({
   heatmapOpacity = 0.6,
   minZoom = 2,
   showMarkers = true,
+  onPinObservation,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
@@ -95,6 +98,7 @@ export function SpeciesOccurrenceMap({
       isMounted = false;
     };
   }, [error, hasOccurrences, heatmapTileUrl, loading]);
+
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
       markerFill: palette.background.brand.default,
@@ -102,7 +106,12 @@ export function SpeciesOccurrenceMap({
       highlightFill: palette.background.danger.default,
       highlightStroke: palette.border.danger.default,
     }),
-    [palette.background.brand.default, palette.background.danger.default, palette.border.brand.default, palette.border.danger.default],
+    [
+      palette.background.brand.default,
+      palette.background.danger.default,
+      palette.border.brand.default,
+      palette.border.danger.default,
+    ],
   );
   const highlightKeys = React.useMemo(
     () => highlightedCatalogs.map((id) => String(id)),
@@ -113,8 +122,26 @@ export function SpeciesOccurrenceMap({
     if (!mapTemplate) {
       return null;
     }
-    return buildLeafletHtml(mapTemplate, occurrences, markerPalette, tileUrlTemplate, heatmapTileUrl, heatmapOpacity, minZoom, showMarkers);
-  }, [heatmapOpacity, heatmapTileUrl, mapTemplate, markerPalette, minZoom, occurrences, showMarkers, tileUrlTemplate]);
+    return buildLeafletHtml(
+      mapTemplate,
+      occurrences,
+      markerPalette,
+      tileUrlTemplate,
+      heatmapTileUrl,
+      heatmapOpacity,
+      minZoom,
+      showMarkers,
+    );
+  }, [
+    heatmapOpacity,
+    heatmapTileUrl,
+    mapTemplate,
+    markerPalette,
+    minZoom,
+    occurrences,
+    showMarkers,
+    tileUrlTemplate,
+  ]);
 
   React.useEffect(() => {
     setMapReady(false);
@@ -142,6 +169,30 @@ export function SpeciesOccurrenceMap({
     }
     sendHighlightMessage(highlightMessage);
   }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+      return;
+    }
+    const handler = (event: MessageEvent) => {
+      if (isPinObservationEventFromFrame(event, iframeRef.current?.contentWindow)) {
+        onPinObservation?.(
+          event.data.catalogNumber,
+          event.data.latitude,
+          event.data.longitude,
+        );
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => {
+      if (typeof window.removeEventListener === 'function') {
+        window.removeEventListener('message', handler);
+      }
+    };
+  }, [onPinObservation]);
 
   if (loading) {
     return (
@@ -206,11 +257,7 @@ export function SpeciesOccurrenceMap({
         ]}
       >
         {Platform.OS === 'web' ? (
-          <NativeLeafletFrame
-            ref={iframeRef}
-            html={html}
-            onLoad={() => setMapReady(true)}
-          />
+          <NativeLeafletFrame ref={iframeRef} html={html} onLoad={() => setMapReady(true)} />
         ) : (
           <WebView
             ref={webViewRef}
@@ -220,6 +267,14 @@ export function SpeciesOccurrenceMap({
             automaticallyAdjustContentInsets={false}
             scrollEnabled={false}
             onLoadEnd={() => setMapReady(true)}
+            onMessage={(event) => {
+              try {
+                const msg = JSON.parse(event.nativeEvent.data) as unknown;
+                if (isPinObservationMessage(msg)) {
+                  onPinObservation?.(msg.catalogNumber, msg.latitude, msg.longitude);
+                }
+              } catch {}
+            }}
           />
         )}
       </View>
@@ -244,7 +299,7 @@ const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFram
       },
       title: 'Observation map',
       loading: 'lazy',
-      sandbox: 'allow-scripts allow-popups',
+      sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
       referrerPolicy: MAP_REFERRER_POLICY,
       onLoad,
     });
