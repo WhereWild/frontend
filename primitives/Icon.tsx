@@ -12,6 +12,7 @@ import Svg, {
   Rect,
   SvgProps,
 } from 'react-native-svg';
+import { Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -54,10 +55,19 @@ type NormalizedColors = {
   fill: string;
 };
 
+type NormalizeNodeOptions = {
+  useStyleDrivenStroke: boolean;
+};
+
+type WebSvgStyle = NonNullable<SvgProps['style']> & {
+  color?: string;
+};
+
 // Recursively clone every SVG node so we can replace token placeholders and string-based tags.
 const normalizeNode = (
   node: React.ReactNode,
   colors: NormalizedColors,
+  options: NormalizeNodeOptions,
 ): React.ReactNode => {
   if (!React.isValidElement(node)) {
     return node;
@@ -70,14 +80,14 @@ const normalizeNode = (
   const resolvedProps = { ...rest } as Record<string, unknown>;
 
   if (typeof resolvedProps.stroke === 'string' && resolvedProps.stroke.includes(STROKE_TOKEN)) {
-    resolvedProps.stroke = colors.stroke;
+    resolvedProps.stroke = options.useStyleDrivenStroke ? 'currentColor' : colors.stroke;
   }
 
   if (typeof resolvedProps.fill === 'string' && resolvedProps.fill.includes(FILL_TOKEN)) {
     resolvedProps.fill = colors.fill;
   }
 
-  const mappedChildren = React.Children.map(children, (child) => normalizeNode(child, colors));
+  const mappedChildren = React.Children.map(children, (child) => normalizeNode(child, colors, options));
   const mappedType = typeof node.type === 'string' ? ELEMENT_MAP[node.type] : node.type;
 
   if (!mappedType) {
@@ -105,13 +115,17 @@ export function Icon({
 }: IconProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
+  const isWeb = Platform.OS === 'web';
   const resolvedStroke = color ?? Colors[mode].icon.default.default;
   const resolvedFill = fillColor ?? 'none';
+  const webStrokeColorStyle = isWeb
+    ? ({ color: resolvedStroke } as WebSvgStyle)
+    : null;
 
   const sizeValue = Number(size ?? 16);
   // The icon generator in /assets/icons emits DOM-like SVG. Normalize it so themes and RN primitives work.
   const content = React.Children.map(children, (child) =>
-    normalizeNode(child, { stroke: resolvedStroke, fill: resolvedFill }),
+    normalizeNode(child, { stroke: resolvedStroke, fill: resolvedFill }, { useStyleDrivenStroke: isWeb }),
   );
 
   return (
@@ -123,9 +137,13 @@ export function Icon({
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}
       testID={testID}
-      style={style}
+      style={[webStrokeColorStyle, style]}
     >
       {content}
     </Svg>
   );
 }
+
+export const __ICON_TESTING__ = {
+  normalizeNode,
+};
