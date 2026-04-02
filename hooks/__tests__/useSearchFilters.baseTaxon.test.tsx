@@ -262,6 +262,45 @@ describe('useSearchFilters (base taxon)', () => {
     });
   });
 
+  it('does not refetch suggestions after selecting and hiding the base taxon list', async () => {
+    jest.useFakeTimers();
+    mockFetchSpeciesList.mockResolvedValue([createSpecies({ taxon_id: 222, common_name: 'Gray wolf' })]);
+
+    const { result } = renderHook(() => useSearchFilters());
+
+    await waitFor(() => {
+      expect(mockFetchEnvironmentVariables).toHaveBeenCalled();
+    });
+
+    act(() => {
+      result.current.onBaseTaxonQueryChange('can');
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(5, 'can');
+      expect(result.current.baseTaxonSuggestionsVisible).toBe(true);
+    });
+
+    mockFetchSpeciesList.mockClear();
+
+    act(() => {
+      result.current.onBaseTaxonSelect({
+        taxonId: 222,
+        commonName: 'Gray wolf',
+        commonNames: ['Gray wolf'],
+        scientificName: 'Canis lupus',
+        description: '',
+      });
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(result.current.baseTaxonSuggestionsVisible).toBe(false);
+    expect(mockFetchSpeciesList).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
+
   it('normalizes scientific-name selection and nullable filter params', async () => {
     mockFetchRelativeRankingOptions.mockResolvedValueOnce({
       ancestorTaxonId: 333,

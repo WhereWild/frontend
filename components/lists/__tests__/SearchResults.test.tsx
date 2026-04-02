@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { SearchResults, __SEARCH_RESULTS_TESTING__ } from '../SearchResults';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { SpeciesSummary } from '@/data/types';
@@ -10,6 +10,27 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+const originalPlatformOS = Platform.OS;
+
+const setPlatformOS = (os: string) => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+};
+
+const restorePlatformOS = () => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    return;
+  }
+
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatformOS,
+  });
+};
 
 const withMockDomGlobals = <T,>(
   MockHTMLElement: new () => T,
@@ -58,7 +79,12 @@ describe('SearchResults', () => {
   ];
 
   beforeEach(() => {
+    setPlatformOS('ios');
     mockUseColorScheme.mockReturnValue('dark');
+  });
+
+  afterEach(() => {
+    restorePlatformOS();
   });
 
   it('uses the light palette path when color scheme is light', () => {
@@ -74,8 +100,8 @@ describe('SearchResults', () => {
     expect(screen.getByText('Species One')).toBeTruthy();
   });
 
-  it('renders nothing when isVisible is false', () => {
-    const { queryByTestId } = render(
+  it('keeps a hidden floating panel mounted with collapsed layout', () => {
+    const { UNSAFE_getByProps } = render(
       <SearchResults
         results={mockSpecies}
         isVisible={false}
@@ -83,7 +109,24 @@ describe('SearchResults', () => {
       />
     );
 
-    expect(queryByTestId('search-results')).toBeNull();
+    const hiddenList = UNSAFE_getByProps({ testID: 'search-results-list' });
+
+    expect(hiddenList).toBeTruthy();
+  });
+
+  it('keeps inline results mounted while hidden', () => {
+    const { UNSAFE_getByProps } = render(
+      <SearchResults
+        results={mockSpecies}
+        isVisible={false}
+        layout="inline"
+        testID="search-results"
+      />,
+    );
+
+    const hiddenList = UNSAFE_getByProps({ testID: 'search-results-list' });
+
+    expect(hiddenList).toBeTruthy();
   });
 
   it('renders results when isVisible is true', () => {
@@ -110,6 +153,8 @@ describe('SearchResults', () => {
 
     expect(screen.getByText('Loading results...')).toBeTruthy();
     expect(screen.queryByTestId('search-results-list')).toBeNull();
+    expect(screen.getByTestId('search-results-loading')).toBeTruthy();
+    expect(screen.queryByTestId('search-results-empty')).toBeNull();
   });
 
   it('omits loading testID when testID prop is not provided', () => {
@@ -136,6 +181,8 @@ describe('SearchResults', () => {
     );
 
     expect(screen.getByText('No species found')).toBeTruthy();
+    expect(screen.getByTestId('search-results-empty')).toBeTruthy();
+    expect(screen.queryByTestId('search-results-loading')).toBeNull();
   });
 
   it('omits empty testID when testID prop is not provided', () => {

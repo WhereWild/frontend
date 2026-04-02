@@ -218,9 +218,14 @@ export function Filters({
       {/* Location */}
       <View style={styles.subSection}>
         <ThemedText variant="subheading">Location</ThemedText>
-        {isControlsDisabled ? (
+        <View
+          collapsable={false}
+          accessibilityElementsHidden={!isControlsDisabled}
+          importantForAccessibility={isControlsDisabled ? 'auto' : 'no-hide-descendants'}
+          style={!isControlsDisabled ? styles.hiddenHelperTextSlot : undefined}
+        >
           <ThemedText variant="body">Location filters apply after choosing a Base taxon.</ThemedText>
-        ) : null}
+        </View>
         <View style={styles.locationGrid}>
           <SelectField
             label="Country"
@@ -314,5 +319,11 @@ const styles = StyleSheet.create({
   },
   suggestionResultsInline: {
     marginTop: Size.space['100'],
+  },
+  hiddenHelperTextSlot: {
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
   },
 });

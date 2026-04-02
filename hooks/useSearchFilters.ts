@@ -210,6 +210,12 @@ export function useSearchFilters(): UseSearchFiltersResult {
     const trimmed = baseTaxonQuery.trim();
     if (!trimmed) {
       setBaseTaxonSuggestions([]);
+      setBaseTaxonSuggestionsLoading(false);
+      return;
+    }
+
+    if (!baseTaxonSuggestionsVisible) {
+      setBaseTaxonSuggestionsLoading(false);
       return;
     }
 
@@ -236,7 +242,7 @@ export function useSearchFilters(): UseSearchFiltersResult {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [baseTaxonQuery]);
+  }, [baseTaxonQuery, baseTaxonSuggestionsVisible]);
 
   // Debounce quantity spinner values before forwarding to search params.
   React.useEffect(() => {
