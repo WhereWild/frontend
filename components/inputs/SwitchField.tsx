@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import {
-  type PressableStateCallbackType,
+  Animated,
   Pressable,
   StyleSheet,
   type StyleProp,
@@ -8,22 +8,10 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
-import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
+import { SWITCH_FIELD_GEOMETRY, useSwitchFieldController } from './useSwitchFieldController';
 
-const TRANSPARENT = 'transparent';
-
-const TRACK_WIDTH = Size.space['400'] + Size.space['600'];
-const TRACK_HEIGHT = Size.space['600'];
-const THUMB_DIFFERENCE = Size.space['150'];
-const THUMB_SLOT_HEIGHT = TRACK_HEIGHT;
-// Subtract a single border width to align the circular thumb visually with the
-// inner edge of the track. TRACK_HEIGHT already includes both vertical
-// borders; since the thumb slot is positioned from one horizontal side,
-// compensating for the leading border only is intentional (subtracting two
-// borders would make the slot too narrow and misalign the thumb).
-const THUMB_SLOT_WIDTH = TRACK_HEIGHT - Size.stroke.border;
 export type SwitchFieldProps = {
   value?: boolean;
   defaultValue?: boolean;
@@ -45,74 +33,30 @@ export function SwitchField({
   style,
   accessibilityLabel,
 }: SwitchFieldProps) {
-  const [internalValue, setInternalValue] = useState(defaultValue);
-  const isControlled = typeof value === 'boolean';
-  const isOn = isControlled ? value : internalValue;
-
-  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
-
-  const labelColor = disabled ? palette.text.disabled.default : palette.text.default.default;
-  const descriptionColor = disabled ? palette.text.disabled.default : palette.text.default.secondary;
-
-  const trackBackgroundColorDefault = disabled
-    ? palette.background.disabled.default
-    : isOn
-      ? palette.background.brand.default
-      : palette.background.default.secondary;
-  const trackBackgroundColorHover = disabled
-    ? palette.background.disabled.default
-    : isOn
-      ? palette.background.brand.hover
-      : palette.background.default.secondaryHover;
-  const trackBackgroundColorPressed = disabled
-    ? palette.background.disabled.default
-    : isOn
-      ? palette.background.brand.pressed
-      : palette.background.default.secondaryPressed;
-  const trackBorderColor = disabled || isOn
-    ? TRANSPARENT
-    : palette.border.neutral.default;
-  const thumbColor = disabled
-    ? palette.icon.disabled.onDisabled
-    : isOn
-      ? palette.icon.brand.onBrand
-      : palette.icon.neutral.default;
-
-  const visualBorderWidth = disabled || isOn ? 0 : Size.stroke.border;
-  const innerTrackHeight = TRACK_HEIGHT - 2 * visualBorderWidth;
-  const thumbSize = innerTrackHeight - THUMB_DIFFERENCE;
-  const onToggle = useCallback(() => {
-    if (disabled) {
-      return;
-    }
-    const nextValue = !isOn;
-    if (!isControlled) {
-      setInternalValue(nextValue);
-    }
-    onValueChange?.(nextValue);
-  }, [disabled, isControlled, isOn, onValueChange]);
-
-  const pressableStyle = ({ hovered, pressed }: PressableStateCallbackType) => {
-    const backgroundColor = pressed
-      ? trackBackgroundColorPressed
-      : hovered
-        ? trackBackgroundColorHover
-        : trackBackgroundColorDefault;
-
-    const borderColor = trackBorderColor;
-    const dynamicTrackStyle: ViewStyle = {
-      backgroundColor,
-      borderColor,
-      justifyContent: isOn ? 'flex-end' : 'flex-start',
-    };
-
-    return [
-      getInteractiveCursorStyle(disabled),
-      styles.switch,
-      dynamicTrackStyle,
-    ];
-  };
+  const {
+    isOn,
+    labelColor,
+    descriptionColor,
+    hoverProgress,
+    panHandlers,
+    onHoverIn,
+    onHoverOut,
+    onPress,
+    onPressIn,
+    onPressOut,
+    trackBackgroundColor,
+    trackBorderColor,
+    hoverFillColor,
+    hoverBorderColor,
+    thumbAnimatedColor,
+    thumbAnimatedSize,
+    thumbTranslate,
+  } = useSwitchFieldController({
+    value,
+    defaultValue,
+    disabled,
+    onValueChange,
+  });
 
   return (
     <View style={[styles.container, style]}>
@@ -122,27 +66,86 @@ export function SwitchField({
             {label}
           </ThemedText>
         ) : null}
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityLabel={accessibilityLabel ?? label ?? 'Switch field'}
-          accessibilityState={{ checked: isOn, disabled }}
-          disabled={disabled}
-          onPress={onToggle}
-          style={pressableStyle}
+        <View
+          style={styles.switch}
+          {...panHandlers}
         >
-          <View style={styles.thumbSlot}>
-            <View
+          <Animated.View
+            testID="switch-track"
+            style={[
+              styles.trackFill,
+              {
+                pointerEvents: 'none',
+                backgroundColor: trackBackgroundColor,
+              },
+            ]}
+          />
+          <Animated.View
+            testID="switch-border"
+            style={[
+              styles.trackBorder,
+              {
+                pointerEvents: 'none',
+                borderColor: trackBorderColor,
+              },
+            ]}
+          />
+          <Animated.View
+            testID="switch-hover-fill"
+            style={[
+              styles.hoverOverlay,
+              {
+                pointerEvents: 'none',
+                backgroundColor: hoverFillColor,
+                opacity: hoverProgress,
+              },
+            ]}
+          />
+          <Animated.View
+            testID="switch-hover-border"
+            style={[
+              styles.hoverBorder,
+              {
+                pointerEvents: 'none',
+                borderColor: hoverBorderColor,
+                opacity: hoverProgress,
+              },
+            ]}
+          />
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityLabel={accessibilityLabel ?? label ?? 'Switch field'}
+            accessibilityState={{ checked: isOn, disabled }}
+            disabled={disabled}
+            onHoverIn={onHoverIn}
+            onHoverOut={onHoverOut}
+            onPress={onPress}
+            onPressIn={onPressIn}
+            onPressOut={onPressOut}
+            style={[styles.switchInteraction, getInteractiveCursorStyle(disabled)]}
+          >
+            <Animated.View
               style={[
-                styles.thumb,
+                styles.thumbSlot,
                 {
-                  width: thumbSize,
-                  height: thumbSize,
-                  backgroundColor: thumbColor,
+                  transform: [{ translateX: thumbTranslate }],
                 },
               ]}
-            />
-          </View>
-        </Pressable>
+            >
+              <Animated.View
+                testID="switch-thumb"
+                style={[
+                  styles.thumb,
+                  {
+                    width: thumbAnimatedSize,
+                    height: thumbAnimatedSize,
+                    backgroundColor: thumbAnimatedColor,
+                  },
+                ]}
+              />
+            </Animated.View>
+          </Pressable>
+        </View>
       </View>
       {description ? (
         <ThemedText variant="body" style={{ color: descriptionColor }}>
@@ -169,20 +172,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   switch: {
-    width: TRACK_WIDTH,
-    height: TRACK_HEIGHT,
-    borderWidth: Size.stroke.border,
+    width: SWITCH_FIELD_GEOMETRY.trackWidth,
+    height: SWITCH_FIELD_GEOMETRY.trackHeight,
     borderRadius: Size.radius['full'],
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
+    overflow: 'hidden',
+  },
+  trackFill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: Size.radius['full'],
+  },
+  trackBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: SWITCH_FIELD_GEOMETRY.trackBorderWidth,
+    borderRadius: Size.radius['full'],
+  },
+  switchInteraction: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hoverOverlay: {
+    position: 'absolute',
+    top: SWITCH_FIELD_GEOMETRY.trackBorderWidth,
+    right: SWITCH_FIELD_GEOMETRY.trackBorderWidth,
+    bottom: SWITCH_FIELD_GEOMETRY.trackBorderWidth,
+    left: SWITCH_FIELD_GEOMETRY.trackBorderWidth,
+    borderRadius: Size.radius['full'],
+  },
+  hoverBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: SWITCH_FIELD_GEOMETRY.trackBorderWidth,
+    borderRadius: Size.radius['full'],
   },
   thumb: {
     borderRadius: Size.radius['full'],
   },
   thumbSlot: {
-    width: THUMB_SLOT_WIDTH,
-    height: THUMB_SLOT_HEIGHT,
+    width: SWITCH_FIELD_GEOMETRY.trackHeight,
+    height: SWITCH_FIELD_GEOMETRY.trackHeight,
     alignItems: 'center',
     justifyContent: 'center',
   },
