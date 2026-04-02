@@ -71,6 +71,43 @@ jest.mock('../ContinuousInsights', () => ({
   },
 }));
 
+jest.mock('../AspectCompassChart', () => ({
+  AspectCompassChart: ({
+    onSelect,
+  }: {
+    onSelect?: (value: string | number) => void;
+  }) => {
+    const ReactNative = jest.requireActual('react-native');
+    const { Pressable, Text, View } = ReactNative;
+    return (
+      <View>
+        <Text>aspect-compass-view</Text>
+        <Pressable testID="pick-aspect" onPress={() => onSelect?.('N')}>
+          <Text>pick</Text>
+        </Pressable>
+      </View>
+    );
+  },
+}));
+
+const mockPolarDensityChart = jest.fn<React.ReactElement, [{ onSelectionChange?: (range: { start: number; end: number } | null) => void; pinValue?: number | null; pinLoading?: boolean }]>();
+
+jest.mock('../PolarDensityChart', () => ({
+  PolarDensityChart: (props: { onSelectionChange?: (range: { start: number; end: number } | null) => void; pinValue?: number | null; pinLoading?: boolean }) => {
+    mockPolarDensityChart(props);
+    const ReactNative = jest.requireActual('react-native');
+    const { Pressable, Text, View } = ReactNative;
+    return (
+      <View>
+        <Text>polar-density-view</Text>
+        <Pressable testID="pick-polar-range" onPress={() => props.onSelectionChange?.({ start: 0, end: 90 })}>
+          <Text>pick</Text>
+        </Pressable>
+      </View>
+    );
+  },
+}));
+
 const mockUseSpeciesEnvironmentState = jest.mocked(useSpeciesEnvironmentState);
 type SpeciesEnvironmentState = ReturnType<typeof useSpeciesEnvironmentState>;
 
@@ -170,6 +207,7 @@ describe('SpeciesEnvironmentSection', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPolarDensityChart.mockReturnValue(<></>);
     mockUseSpeciesEnvironmentState.mockReturnValue(baseState);
   });
 
@@ -428,5 +466,126 @@ describe('SpeciesEnvironmentSection', () => {
         units: 'imperial',
       }),
     );
+  });
+
+  it('renders AspectCompassChart instead of StackedCategoryBar when variable is "aspect"', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'aspect',
+      stats: baseCategoricalStats,
+      isCategorical: true,
+      categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+      summary: baseCategoricalStats.summary,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="aspect" />);
+
+    expect(screen.getByText('aspect-compass-view')).toBeTruthy();
+    expect(screen.queryByText('categorical-view')).toBeNull();
+  });
+
+  it('still renders StackedCategoryBar for non-aspect categorical variables', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'landcover',
+      stats: baseCategoricalStats,
+      isCategorical: true,
+      categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+      summary: baseCategoricalStats.summary,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="landcover" />);
+
+    expect(screen.getByText('categorical-view')).toBeTruthy();
+    expect(screen.queryByText('aspect-compass-view')).toBeNull();
+  });
+
+  it('renders PolarDensityChart instead of DensityChart when variable is "aspect_deg"', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'aspect_deg',
+      stats: baseContinuousStats,
+      isCategorical: false,
+      densityCurve: baseContinuousStats.densityCurve ?? null,
+      summary: baseContinuousStats.summary,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="aspect_deg" />);
+
+    expect(screen.getByText('polar-density-view')).toBeTruthy();
+    expect(screen.queryByText('density-view')).toBeNull();
+    expect(screen.queryByText('continuous-view')).toBeNull();
+  });
+
+  it('still renders DensityChart + ContinuousInsights for non-aspect_deg continuous variables', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'bio_1',
+      stats: baseContinuousStats,
+      isCategorical: false,
+      densityCurve: baseContinuousStats.densityCurve ?? null,
+      summary: baseContinuousStats.summary,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="bio_1" />);
+
+    expect(screen.getByText('density-view')).toBeTruthy();
+    expect(screen.getByText('continuous-view')).toBeTruthy();
+    expect(screen.queryByText('polar-density-view')).toBeNull();
+  });
+
+  it('forwards aspect category selection through handleCategorySelect', () => {
+    const setSelectedCategoryValue = jest.fn();
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'aspect',
+      stats: baseCategoricalStats,
+      isCategorical: true,
+      categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+      summary: baseCategoricalStats.summary,
+      setSelectedCategoryValue,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="aspect" />);
+
+    fireEvent.press(screen.getByTestId('pick-aspect'));
+    expect(setSelectedCategoryValue).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('forwards pinnedValue and pinnedLoading to PolarDensityChart', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'aspect_deg',
+      stats: baseContinuousStats,
+      isCategorical: false,
+      densityCurve: baseContinuousStats.densityCurve ?? null,
+      summary: baseContinuousStats.summary,
+      pinnedValue: 135,
+      pinnedLoading: false,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="aspect_deg" />);
+
+    expect(mockPolarDensityChart).toHaveBeenCalledWith(
+      expect.objectContaining({ pinValue: 135, pinLoading: false }),
+    );
+  });
+
+  it('forwards polar density selection through handleDensitySelectionChange', () => {
+    const handleDensitySelectionChange = jest.fn();
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'aspect_deg',
+      stats: baseContinuousStats,
+      isCategorical: false,
+      densityCurve: baseContinuousStats.densityCurve ?? null,
+      summary: baseContinuousStats.summary,
+      handleDensitySelectionChange,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="aspect_deg" />);
+
+    fireEvent.press(screen.getByTestId('pick-polar-range'));
+    expect(handleDensitySelectionChange).toHaveBeenCalledWith({ start: 0, end: 90 });
   });
 });

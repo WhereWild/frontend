@@ -11,7 +11,7 @@ const SIGNIFICANT_CATEGORY_THRESHOLD = 0.02;
 /** Default variable shown when no variable is explicitly selected. */
 export const DEFAULT_VARIABLE = 'bio_1';
 /** Variables forced into categorical mode regardless of backend metadata. */
-export const FORCED_CATEGORICAL_VARIABLES = new Set(['landcover']);
+export const FORCED_CATEGORICAL_VARIABLES = new Set(['landcover', 'aspect']);
 
 /** Selectable environment variable metadata used by the section UI. */
 export type EnvironmentVariableOption = {
