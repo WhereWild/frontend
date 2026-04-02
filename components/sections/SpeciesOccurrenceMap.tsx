@@ -299,7 +299,7 @@ const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFram
       },
       title: 'Observation map',
       loading: 'lazy',
-      sandbox: 'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+      sandbox: 'allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox',
       referrerPolicy: MAP_REFERRER_POLICY,
       onLoad,
     });
