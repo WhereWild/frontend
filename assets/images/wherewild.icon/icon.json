@@ -28,7 +28,17 @@
       "layers" : [
         {
           "blend-mode" : "normal",
-          "fill" : "automatic",
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "gray:0.92418,1.00000"
+              }
+            }
+          ],
           "glass" : true,
           "hidden" : false,
           "image-name" : "Leaves.png",
@@ -70,7 +80,17 @@
       "layers" : [
         {
           "blend-mode" : "normal",
-          "fill" : "automatic",
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "gray:0.06964,1.00000"
+              }
+            }
+          ],
           "image-name" : "Trunk.png",
           "name" : "Trunk",
           "opacity" : 1,
