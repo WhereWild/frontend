@@ -6,7 +6,9 @@ import { parse } from 'dotenv';
 
 const passThroughArgs = process.argv.slice(2);
 const requestedDotenvPath = process.env.EXPO_DOTENV;
+const requestedAppVariant = process.env.APP_VARIANT;
 const activeEnvMode = requestedDotenvPath ?? 'expo-default';
+const defaultAppVariant = requestedDotenvPath ? 'production' : 'development';
 const envStatePath = '.expo/start-env-mode';
 
 const shouldManageMetroCache = !passThroughArgs.includes('--clear');
@@ -50,6 +52,10 @@ if (requestedDotenvPath) {
   delete env.EXPO_DOTENV;
 }
 
+if (!requestedAppVariant) {
+  env.APP_VARIANT = defaultAppVariant;
+}
+
 let exitCode = 1;
 
 try {
@@ -60,6 +66,7 @@ try {
   const effectiveArgs = shouldClearCache ? [...passThroughArgs, '--clear'] : passThroughArgs;
 
   console.log('[start.mjs] EXPO_DOTENV:', requestedDotenvPath ?? '(unset)');
+  console.log('[start.mjs] APP_VARIANT:', env.APP_VARIANT ?? '(unset)');
   if (shouldClearCache) {
     console.log(
       `[start.mjs] Switching env mode from ${previousEnvMode} to ${activeEnvMode}; starting Expo with --clear`

@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node ./scripts/start.mjs",
-    "start:prod": "cross-env EXPO_DOTENV=.env node ./scripts/start.mjs",
+    "start:production-config": "cross-env EXPO_DOTENV=.env node ./scripts/start.mjs",
     "android": "node ./scripts/start.mjs --android",
     "ios": "node ./scripts/start.mjs --ios",
     "web": "node ./scripts/start.mjs --web",
