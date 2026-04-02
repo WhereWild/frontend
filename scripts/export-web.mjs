@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { parse } from 'dotenv';
 
 const args = process.argv.slice(2);
+const requestedAppVariant = process.env.APP_VARIANT;
+const defaultAppVariant = 'production';
 
 const passThroughArgs = [];
 let backendUrl;
@@ -47,6 +49,10 @@ try {
 
   env.EXPO_NO_DOTENV = '1';
 
+  if (!requestedAppVariant) {
+    env.APP_VARIANT = defaultAppVariant;
+  }
+
   // A CLI backend URL always wins over the loaded .env value.
   if (backendUrl) {
     env.APP_BACKEND_URL = backendUrl;
@@ -57,7 +63,7 @@ try {
     [
       'expo',
       'export',
-      `-c`,
+      '-c',
       '--platform',
       'web',
       '--output-dir=dist',
