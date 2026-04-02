@@ -284,8 +284,14 @@ describe('ButtonDanger Component', () => {
 
       const rendered = __BUTTON_DANGER_TESTING__.renderIcon(Icon, '#ff0000', '20');
       expect(React.isValidElement(rendered)).toBe(true);
-      expect(rendered?.props.color).toBe('#ff0000');
-      expect(rendered?.props.size).toBe('20');
+      if (!React.isValidElement(rendered)) {
+        throw new Error('Expected icon render helper to return a React element');
+      }
+
+      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+
+      expect(renderedIcon.props.color).toBe('#ff0000');
+      expect(renderedIcon.props.size).toBe('20');
     });
     
     it('preserves existing icon element props without overriding', () => {
@@ -298,8 +304,14 @@ describe('ButtonDanger Component', () => {
       const iconElement = <Icon color="#ff00ff" size="32" />;
 
       const rendered = __BUTTON_DANGER_TESTING__.renderIcon(iconElement, '#ff0000', '20');
-      expect(rendered?.props.color).toBe('#ff00ff');
-      expect(rendered?.props.size).toBe('32');
+      if (!React.isValidElement(rendered)) {
+        throw new Error('Expected icon render helper to return a React element');
+      }
+
+      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+
+      expect(renderedIcon.props.color).toBe('#ff00ff');
+      expect(renderedIcon.props.size).toBe('32');
     });
   });
 });

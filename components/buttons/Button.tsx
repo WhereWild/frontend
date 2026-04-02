@@ -9,8 +9,11 @@ import type { Href } from 'expo-router';
 import {
   ButtonIcon,
   computeButtonSizeStyles,
+  getButtonSurfaceTransitionStyle,
+  getButtonTextTransitionStyle,
   renderButtonIcon,
   resolveButtonAccessibilityLabel,
+  useHoverOnlyButtonTransitions,
 } from './buttonShared';
 
 // Variants aligned with Figma design system Button component
@@ -134,6 +137,7 @@ export const Button: React.FC<ButtonProps> = ({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const iconSize: IconSize = '16'; // Figma default glyph for buttons
   const iconDimension = Number(iconSize);
+  const { hoverOnlyTransitionHandlers, shouldAnimateTransitions } = useHoverOnlyButtonTransitions();
 
   return (
     <RoutePressable
@@ -147,6 +151,7 @@ export const Button: React.FC<ButtonProps> = ({
       navigateAfterPress={navigateAfterPress}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
+      {...hoverOnlyTransitionHandlers}
       style={({ pressed, hovered }) => {
         const variantStyles = computeVariantStyles(variant, mode, pressed, hovered ?? false, disabled);
         const sizeStyles = computeButtonSizeStyles(size);
@@ -155,6 +160,7 @@ export const Button: React.FC<ButtonProps> = ({
         const minHeight = sizeStyles.minHeight;
         return [
           styles.buttonBase,
+          getButtonSurfaceTransitionStyle(shouldAnimateTransitions),
           {
             backgroundColor: variantStyles.backgroundColor,
             borderColor: variantStyles.borderColor,
@@ -171,11 +177,12 @@ export const Button: React.FC<ButtonProps> = ({
 
         return (
           <View style={styles.innerContent} collapsable={false}>
-            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize)}</View>}
+            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize, { animate: shouldAnimateTransitions })}</View>}
             <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
                 variant="singleLineBody"
                 style={[
+                  getButtonTextTransitionStyle(shouldAnimateTransitions),
                   {
                     color: variantStyles.color,
                   },
@@ -185,7 +192,7 @@ export const Button: React.FC<ButtonProps> = ({
                 {label ?? children}
               </ThemedText>
             </View>
-            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize)}</View>}
+            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize, { animate: shouldAnimateTransitions })}</View>}
           </View>
         );
       }}
