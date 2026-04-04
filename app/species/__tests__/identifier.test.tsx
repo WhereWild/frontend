@@ -210,6 +210,29 @@ describe('SpeciesBasicsPage', () => {
     expect(result.overview.imageSource).toBe(providedSource);
   });
 
+  it('builds a live heatmap tile url when backend heatmap metadata is present', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Heatmap Test',
+      scientific_name: 'Heatmap testus',
+      description: 'Species with a live model artifact.',
+      heatmap: {
+        available: true,
+        resolved_model_id: 'taxon_123456_gbt_20260313T065439Z',
+      },
+    } as any);
+
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
+
+    expect(result.heatmap.liveAvailable).toBe(true);
+    expect(result.heatmap.liveTileUrl).toContain(
+      '/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png?model_id=taxon_123456_gbt_20260313T065439Z',
+    );
+  });
+
   it('renders nothing while the identifier data is still loading', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => { }));

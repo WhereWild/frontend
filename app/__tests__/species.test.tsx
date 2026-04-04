@@ -101,17 +101,23 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       loading,
       error,
       height,
+      heatmapTileUrl,
+      showMarkers,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
       height?: number;
+      heatmapTileUrl?: string | null;
+      showMarkers?: boolean;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
         <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
+        <Text>{`Map markers: ${showMarkers === false ? 'hidden' : 'shown'}`}</Text>
+        <Text>{`Map heatmap: ${heatmapTileUrl ?? 'none'}`}</Text>
       </View>
     ),
   };
@@ -282,6 +288,42 @@ describe('Species screen', () => {
     }
   });
 
+
+  it('renders independent observation and heatmap toggles above the map', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            liveAvailable: true,
+            liveTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+            liveModelId: 'taxon_13579_gbt_20260313T000000Z',
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Show observations')).toBeTruthy();
+    expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
+    expect(screen.getByText('Map markers: shown')).toBeTruthy();
+    expect(
+      screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true'),
+    ).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show observations' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Map markers: hidden')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show predictive heatmap' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Map heatmap: none')).toBeTruthy();
+    });
+  });
 
   it('falls back to sample data when no data prop is provided', async () => {
     render(<SpeciesScreen />);

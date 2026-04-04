@@ -16,7 +16,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
@@ -25,6 +25,14 @@ import { useSettings } from '@/context/SettingsContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
+
+const FORECAST_OPTIONS: { label: string; hours: number }[] = [
+  { label: 'Now', hours: 0 },
+  { label: '+8h', hours: 8 },
+  { label: '+24h', hours: 24 },
+  { label: '+3d', hours: 72 },
+  { label: '+7d', hours: 168 },
+];
 const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
 const WEB_HEADER_HEIGHT_COMPACT = Size.control.dimension.large + Size.space['400'] * 2;
 
@@ -131,14 +139,22 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   });
   const hasLiveHeatmap = heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
   const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
+  const hasPhenology = heatmap.phenologyAvailable === true;
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
   const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(hasLiveHeatmap);
+  const [applyPhenology, setApplyPhenology] = React.useState<boolean>(true);
+  const [forecastHours, setForecastHours] = React.useState<number>(0);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [pinnedObservation, setPinnedObservation] = React.useState<{
     catalogNumber: string;
     lat: number;
     lon: number;
   } | null>(null);
+
+  const activeTileUrl = React.useMemo(() => {
+    if (!showLiveHeatmap || !heatmap.liveTileUrl) return null;
+    return `${heatmap.liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}`;
+  }, [showLiveHeatmap, heatmap.liveTileUrl, forecastHours, applyPhenology]);
 
   const {
     countryOptions,
@@ -287,6 +303,92 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                     }
                     onValueChange={setShowLiveHeatmap}
                   />
+                  {hasLiveHeatmap && showLiveHeatmap && (
+                    <View style={styles.forecastPicker}>
+                      <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+                        Weather window
+                      </ThemedText>
+                      <View style={styles.forecastOptions}>
+                        {FORECAST_OPTIONS.map((opt) => {
+                          const active = forecastHours === opt.hours;
+                          return (
+                            <Pressable
+                              key={opt.hours}
+                              onPress={() => setForecastHours(opt.hours)}
+                              style={[
+                                styles.forecastChip,
+                                {
+                                  backgroundColor: active
+                                    ? palette.background.brand.default
+                                    : palette.background.default.secondary,
+                                  borderColor: active
+                                    ? palette.border.brand.default
+                                    : palette.border.default.default,
+                                },
+                              ]}
+                              accessibilityRole="radio"
+                              accessibilityState={{ checked: active }}
+                              accessibilityLabel={`Forecast ${opt.label}`}
+                            >
+                              <ThemedText
+                                variant="bodySmall"
+                                style={{
+                                  color: active
+                                    ? palette.text.brand.onBrand
+                                    : palette.text.default.default,
+                                }}
+                              >
+                                {opt.label}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                  {hasLiveHeatmap && showLiveHeatmap && hasPhenology && (
+                    <View style={styles.forecastPicker}>
+                      <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+                        Model
+                      </ThemedText>
+                      <View style={styles.forecastOptions}>
+                        {([{ label: 'Habitat', value: false }, { label: 'Habitat + flowering', value: true }] as const).map((opt) => {
+                          const active = applyPhenology === opt.value;
+                          return (
+                            <Pressable
+                              key={String(opt.value)}
+                              onPress={() => setApplyPhenology(opt.value)}
+                              style={[
+                                styles.forecastChip,
+                                {
+                                  backgroundColor: active
+                                    ? palette.background.brand.default
+                                    : palette.background.default.secondary,
+                                  borderColor: active
+                                    ? palette.border.brand.default
+                                    : palette.border.default.default,
+                                },
+                              ]}
+                              accessibilityRole="radio"
+                              accessibilityState={{ checked: active }}
+                              accessibilityLabel={opt.label}
+                            >
+                              <ThemedText
+                                variant="bodySmall"
+                                style={{
+                                  color: active
+                                    ? palette.text.brand.onBrand
+                                    : palette.text.default.default,
+                                }}
+                              >
+                                {opt.label}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
                 </View>
               </SectionShell>
             )}
@@ -311,7 +413,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 highlightedCatalogs={highlightedCatalogs}
                 height={observationMapHeight}
                 showMarkers={showObservations}
-                heatmapTileUrl={showLiveHeatmap ? heatmap.liveTileUrl : null}
+                heatmapTileUrl={activeTileUrl}
                 heatmapOpacity={0.72}
                 onPinObservation={handlePinObservation}
               />
@@ -349,5 +451,19 @@ const styles = StyleSheet.create({
   mapControls: {
     width: '100%',
     gap: Size.space['200'],
+  },
+  forecastPicker: {
+    gap: Size.space['100'],
+  },
+  forecastOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['100'],
+  },
+  forecastChip: {
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
+    borderRadius: Size.radius['100'],
+    borderWidth: 1,
   },
 });

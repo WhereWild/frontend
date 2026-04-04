@@ -27,6 +27,7 @@ type SpeciesBasics = {
   heatmap?: {
     available?: boolean;
     resolved_model_id?: string | null;
+    phenology_available?: boolean;
   } | null;
 };
 
@@ -92,6 +93,7 @@ const buildSpeciesPageData = (
       liveAvailable: liveHeatmapAvailable,
       liveTileUrl,
       liveModelId: resolvedModelId,
+      phenologyAvailable: payload.heatmap?.phenology_available === true,
     },
   };
 };
