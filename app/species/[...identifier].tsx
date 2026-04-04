@@ -1,4 +1,4 @@
-import { fetchSpeciesByTaxonId } from '@/data/api';
+import { BACKEND_BASE, fetchSpeciesByTaxonId } from '@/data/api';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesOverviewSection, SpeciesPageData } from '@/data/types';
@@ -24,6 +24,10 @@ type SpeciesBasics = {
   image_rights_holder?: string | null;
   image_references?: string | null;
   description_sections?: SpeciesOverviewSection[];
+  heatmap?: {
+    available?: boolean;
+    resolved_model_id?: string | null;
+  } | null;
 };
 
 type SpeciesRouteParams = {
@@ -59,6 +63,14 @@ const buildSpeciesPageData = (
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
+  const liveHeatmapAvailable = payload.heatmap?.available === true && resolvedTaxonId > 0;
+  const resolvedModelId =
+    typeof payload.heatmap?.resolved_model_id === 'string' && payload.heatmap.resolved_model_id.trim().length > 0
+      ? payload.heatmap.resolved_model_id.trim()
+      : 'auto_gbt';
+  const liveTileUrl = liveHeatmapAvailable
+    ? `${BACKEND_BASE}/api/species/${resolvedTaxonId}/heatmap/tiles/{z}/{x}/{y}.png?model_id=${encodeURIComponent(resolvedModelId)}`
+    : null;
   return {
     ...fallback,
     taxonId: resolvedTaxonId,
@@ -74,6 +86,12 @@ const buildSpeciesPageData = (
       imageCreator: payload.image_creator ?? fallback.overview.imageCreator,
       imageRightsHolder: payload.image_rights_holder ?? fallback.overview.imageRightsHolder,
       imageReferences: payload.image_references ?? fallback.overview.imageReferences,
+    },
+    heatmap: {
+      ...fallback.heatmap,
+      liveAvailable: liveHeatmapAvailable,
+      liveTileUrl,
+      liveModelId: resolvedModelId,
     },
   };
 };

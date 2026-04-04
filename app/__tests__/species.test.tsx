@@ -199,6 +199,7 @@ const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenDa
       description: 'Nearby species description.',
     },
   ],
+  heatmap: { imageSource: null as any },
   ...overrides,
 });
 

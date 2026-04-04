@@ -1,6 +1,7 @@
 import {
   NearbySpeciesCarousel,
   SpeciesPageTitle,
+  SwitchField,
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
@@ -9,7 +10,7 @@ import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import type { HeatmapSnapshot, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -33,7 +34,7 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies'
+  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -100,7 +101,7 @@ function SectionShell({
 }
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies } =
+  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap = {} as HeatmapSnapshot } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -128,6 +129,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
   });
+  const hasLiveHeatmap = heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
+  const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
+  const [showObservations, setShowObservations] = React.useState<boolean>(true);
+  const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(hasLiveHeatmap);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [pinnedObservation, setPinnedObservation] = React.useState<{
     catalogNumber: string;
@@ -170,6 +175,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   React.useEffect(() => {
     setPinnedObservation(null);
   }, [finalLocationGid, taxonId]);
+
+  React.useEffect(() => {
+    setShowLiveHeatmap(hasLiveHeatmap);
+  }, [hasLiveHeatmap, heatmap.liveTileUrl]);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -259,6 +268,26 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   units={units} // <- forward units preference
                   pinnedObservation={pinnedObservation}
                 />
+                <View style={styles.mapControls}>
+                  <SwitchField
+                    label="Show observations"
+                    value={showObservations}
+                    onValueChange={setShowObservations}
+                  />
+                  <SwitchField
+                    label="Show predictive heatmap"
+                    value={showLiveHeatmap}
+                    disabled={!hasLiveHeatmap}
+                    description={
+                      hasLiveHeatmap
+                        ? undefined
+                        : hasAnyHeatmap
+                          ? 'Live heatmap overlay is unavailable for this model right now.'
+                          : 'No heatmap is available for this species right now.'
+                    }
+                    onValueChange={setShowLiveHeatmap}
+                  />
+                </View>
               </SectionShell>
             )}
           </View>
@@ -281,6 +310,9 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 error={occurrenceError}
                 highlightedCatalogs={highlightedCatalogs}
                 height={observationMapHeight}
+                showMarkers={showObservations}
+                heatmapTileUrl={showLiveHeatmap ? heatmap.liveTileUrl : null}
+                heatmapOpacity={0.72}
                 onPinObservation={handlePinObservation}
               />
             )}
@@ -313,5 +345,9 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['400'],
+  },
+  mapControls: {
+    width: '100%',
+    gap: Size.space['200'],
   },
 });
