@@ -142,7 +142,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const hasPhenology = heatmap.phenologyAvailable === true;
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
   const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(hasLiveHeatmap);
-  const [applyPhenology, setApplyPhenology] = React.useState<boolean>(true);
+  const [phenologyMode, setPhenologyMode] = React.useState<'habitat' | 'combined' | 'phenology_only'>('combined');
   const [forecastHours, setForecastHours] = React.useState<number>(0);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [pinnedObservation, setPinnedObservation] = React.useState<{
@@ -153,8 +153,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
   const activeTileUrl = React.useMemo(() => {
     if (!showLiveHeatmap || !heatmap.liveTileUrl) return null;
-    return `${heatmap.liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}`;
-  }, [showLiveHeatmap, heatmap.liveTileUrl, forecastHours, applyPhenology]);
+    const applyPhenology = phenologyMode !== 'habitat';
+    const phenologyOnly = phenologyMode === 'phenology_only';
+    return `${heatmap.liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}&phenology_only=${phenologyOnly ? 'true' : 'false'}`;
+  }, [showLiveHeatmap, heatmap.liveTileUrl, forecastHours, phenologyMode]);
 
   const {
     countryOptions,
@@ -352,12 +354,12 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                         Model
                       </ThemedText>
                       <View style={styles.forecastOptions}>
-                        {([{ label: 'Habitat', value: false }, { label: 'Habitat + flowering', value: true }] as const).map((opt) => {
-                          const active = applyPhenology === opt.value;
+                        {([{ label: 'Habitat', value: 'habitat' }, { label: 'Habitat + flowering', value: 'combined' }, { label: 'Flowering only', value: 'phenology_only' }] as const).map((opt) => {
+                          const active = phenologyMode === opt.value;
                           return (
                             <Pressable
-                              key={String(opt.value)}
-                              onPress={() => setApplyPhenology(opt.value)}
+                              key={opt.value}
+                              onPress={() => setPhenologyMode(opt.value)}
                               style={[
                                 styles.forecastChip,
                                 {
