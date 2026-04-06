@@ -95,6 +95,7 @@ export function useSpeciesEnvironmentState({
     variableId,
     variables,
     units,
+    excludeCategories: ['live_weather', 'Live Weather'],
   });
 
   const locationFilterActive = Boolean(locationGid);

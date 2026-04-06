@@ -15,6 +15,8 @@ type UseEnvironmentVariableSelectionParams = {
   variables?: EnvironmentVariableOption[];
 
   units?: 'metric' | 'imperial' | undefined;
+  /** Category names to exclude from the remote variable catalog. */
+  excludeCategories?: string[];
 };
 
 /** Manages variable catalog loading, category filtering, and selected variable state. */
@@ -22,6 +24,7 @@ export function useEnvironmentVariableSelection({
   variableId,
   variables,
   units,
+  excludeCategories,
 }: UseEnvironmentVariableSelectionParams) {
   const [remoteVariables, setRemoteVariables] =
     React.useState<EnvironmentVariableOption[] | null>(null);
@@ -101,13 +104,18 @@ export function useEnvironmentVariableSelection({
       try {
         const response = await fetchEnvironmentVariables({ units });
         if (!cancelled && response.length) {
-          const mapped: EnvironmentVariableOption[] = response.map((variableDefinition) => ({
-            id: variableDefinition.id,
-            label: variableDefinition.name ?? normalizeLabel(variableDefinition.id),
-            units: variableDefinition.units ?? null,
-            valueType: variableDefinition.valueType ?? null,
-            category: variableDefinition.category ?? null,
-          }));
+          const mapped: EnvironmentVariableOption[] = response
+            .filter((variableDefinition) => {
+              if (!excludeCategories?.length) return true;
+              return !excludeCategories.includes(variableDefinition.category ?? '');
+            })
+            .map((variableDefinition) => ({
+              id: variableDefinition.id,
+              label: variableDefinition.name ?? normalizeLabel(variableDefinition.id),
+              units: variableDefinition.units ?? null,
+              valueType: variableDefinition.valueType ?? null,
+              category: variableDefinition.category ?? null,
+            }));
           setRemoteVariables(mapped);
         }
       } catch (err) {
