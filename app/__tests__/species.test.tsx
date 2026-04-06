@@ -309,7 +309,7 @@ describe('Species screen', () => {
     expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
     expect(screen.getByText('Map markers: shown')).toBeTruthy();
     expect(
-      screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true'),
+      screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true&phenology_only=false'),
     ).toBeTruthy();
 
     fireEvent.press(screen.getByRole('switch', { name: 'Show observations' }));
