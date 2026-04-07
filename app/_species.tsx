@@ -1,6 +1,8 @@
 import {
+  NavigationPillList,
   NearbySpeciesCarousel,
   SpeciesPageTitle,
+  SwitchField,
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
@@ -24,6 +26,21 @@ import { useSettings } from '@/context/SettingsContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
+
+const FORECAST_OPTIONS: { label: string; hours: number }[] = [
+  { label: 'Now', hours: 0 },
+  { label: '+8h', hours: 8 },
+  { label: '+24h', hours: 24 },
+  { label: '+3d', hours: 72 },
+  { label: '+7d', hours: 168 },
+];
+type HeatmapMode = 'habitat' | 'combined' | 'phenology_only';
+type SelectionChipOption<T extends string | number> = {
+  accessibilityLabel: string;
+  label: string;
+  value: T;
+};
+
 const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
 const WEB_HEADER_HEIGHT_COMPACT = Size.control.dimension.large + Size.space['400'] * 2;
 
@@ -33,7 +50,7 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies'
+  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -75,6 +92,104 @@ export const shouldRenderObservationMapFrame = ({
   platform: string;
 }) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
+const getPredictiveHeatmapDescription = (hasLiveHeatmap: boolean, hasAnyHeatmap: boolean) => {
+  if (hasLiveHeatmap) {
+    return undefined;
+  }
+
+  return hasAnyHeatmap
+    ? 'Live heatmap overlay is unavailable for this model right now.'
+    : 'No heatmap is available for this species right now.';
+};
+
+const buildLiveHeatmapTileUrl = ({
+  forecastHours,
+  liveTileUrl,
+  phenologyMode,
+  showLiveHeatmap,
+}: {
+  forecastHours: number;
+  liveTileUrl?: string | null;
+  phenologyMode: HeatmapMode;
+  showLiveHeatmap: boolean;
+}) => {
+  if (!showLiveHeatmap || !liveTileUrl) {
+    return null;
+  }
+
+  const applyPhenology = phenologyMode !== 'habitat';
+  const phenologyOnly = phenologyMode === 'phenology_only';
+  return `${liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}&phenology_only=${phenologyOnly ? 'true' : 'false'}`;
+};
+
+const buildHeatmapModelOptions = (
+  hasPhenology: boolean,
+  conditionsLabel: string,
+): SelectionChipOption<HeatmapMode>[] => {
+  if (!hasPhenology) {
+    return [
+      { accessibilityLabel: 'Habitat', label: 'Habitat', value: 'habitat' },
+      { accessibilityLabel: conditionsLabel, label: conditionsLabel, value: 'combined' },
+    ];
+  }
+
+  return [
+    { accessibilityLabel: 'Habitat', label: 'Habitat', value: 'habitat' },
+    { accessibilityLabel: conditionsLabel, label: conditionsLabel, value: 'combined' },
+    { accessibilityLabel: 'Conditions only', label: 'Conditions only', value: 'phenology_only' },
+  ];
+};
+
+function SelectionChipGroup<T extends string | number>({
+  options,
+  selectedValue,
+  title,
+  onSelect,
+}: {
+  options: SelectionChipOption<T>[];
+  selectedValue: T;
+  title: string;
+  onSelect: (value: T) => void;
+}) {
+  const pills = React.useMemo(
+    () => options.map((option) => ({
+      key: String(option.value),
+      label: option.label,
+      accessibilityLabel: option.accessibilityLabel,
+    })),
+    [options],
+  );
+
+  const optionByKey = React.useMemo(
+    () => new Map(options.map((option) => [String(option.value), option.value] as const)),
+    [options],
+  );
+
+  const handleSelectionChange = React.useCallback(
+    (key: string) => {
+      const nextValue = optionByKey.get(key);
+      if (nextValue !== undefined) {
+        onSelect(nextValue);
+      }
+    },
+    [onSelect, optionByKey],
+  );
+
+  return (
+    <View style={styles.forecastPicker}>
+      <ThemedText variant="bodySmall">
+        {title}
+      </ThemedText>
+      <NavigationPillList
+        pills={pills}
+        selectedKey={String(selectedValue)}
+        onSelectionChange={handleSelectionChange}
+        accessibilityLabel={title}
+      />
+    </View>
+  );
+}
+
 function SectionShell({
   responsive,
   children,
@@ -100,7 +215,7 @@ function SectionShell({
 }
 
 export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies } =
+  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
     data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -128,12 +243,47 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
   });
+  const hasLiveHeatmap = heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
+  const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
+  const hasPhenology = heatmap.phenologyAvailable === true;
+  const hasConditions = hasPhenology || heatmap.fullAvailable === true;
+  const conditionsLabel = hasPhenology ? 'Habitat + flowering' : 'Habitat + conditions';
+  const [showObservations, setShowObservations] = React.useState<boolean>(true);
+  const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(false);
+  const [phenologyMode, setPhenologyMode] = React.useState<HeatmapMode>('combined');
+  const [forecastHours, setForecastHours] = React.useState<number>(0);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
   const [pinnedObservation, setPinnedObservation] = React.useState<{
     catalogNumber: string;
     lat: number;
     lon: number;
   } | null>(null);
+
+  const predictiveHeatmapDescription = React.useMemo(
+    () => getPredictiveHeatmapDescription(hasLiveHeatmap, hasAnyHeatmap),
+    [hasAnyHeatmap, hasLiveHeatmap],
+  );
+  const modelOptions = React.useMemo(
+    () => buildHeatmapModelOptions(hasPhenology, conditionsLabel),
+    [conditionsLabel, hasPhenology],
+  );
+  const forecastOptions = React.useMemo<SelectionChipOption<number>[]>(
+    () => FORECAST_OPTIONS.map((option) => ({
+      accessibilityLabel: `Forecast ${option.label}`,
+      label: option.label,
+      value: option.hours,
+    })),
+    [],
+  );
+  const activeTileUrl = React.useMemo(
+    () => buildLiveHeatmapTileUrl({
+      forecastHours,
+      liveTileUrl: heatmap.liveTileUrl,
+      phenologyMode,
+      showLiveHeatmap,
+    }),
+    [forecastHours, heatmap.liveTileUrl, phenologyMode, showLiveHeatmap],
+  );
 
   const {
     countryOptions,
@@ -170,6 +320,10 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   React.useEffect(() => {
     setPinnedObservation(null);
   }, [finalLocationGid, taxonId]);
+
+  React.useEffect(() => {
+    setShowLiveHeatmap(false);
+  }, [hasLiveHeatmap, heatmap.liveTileUrl]);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -256,9 +410,39 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                   taxonId={taxonId}
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
-                  units={units} // <- forward units preference
+                  units={units}
                   pinnedObservation={pinnedObservation}
                 />
+                <View style={styles.mapControls}>
+                  <SwitchField
+                    label="Show observations"
+                    value={showObservations}
+                    onValueChange={setShowObservations}
+                  />
+                  <SwitchField
+                    label="Show predictive heatmap"
+                    value={showLiveHeatmap}
+                    disabled={!hasLiveHeatmap}
+                    description={predictiveHeatmapDescription}
+                    onValueChange={setShowLiveHeatmap}
+                  />
+                  {hasLiveHeatmap && showLiveHeatmap && (
+                    <SelectionChipGroup
+                      options={forecastOptions}
+                      selectedValue={forecastHours}
+                      title="Weather window"
+                      onSelect={setForecastHours}
+                    />
+                  )}
+                  {hasLiveHeatmap && showLiveHeatmap && hasConditions && (
+                    <SelectionChipGroup
+                      options={modelOptions}
+                      selectedValue={phenologyMode}
+                      title="Model"
+                      onSelect={setPhenologyMode}
+                    />
+                  )}
+                </View>
               </SectionShell>
             )}
           </View>
@@ -281,13 +465,15 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 error={occurrenceError}
                 highlightedCatalogs={highlightedCatalogs}
                 height={observationMapHeight}
+                showMarkers={showObservations}
+                heatmapTileUrl={activeTileUrl}
+                heatmapOpacity={0.72}
                 onPinObservation={handlePinObservation}
               />
             )}
           </View>
         </ScrollView>
-
-      </View >
+      </View>
     </>
   );
 }
@@ -313,5 +499,12 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['400'],
+  },
+  mapControls: {
+    width: '100%',
+    gap: Size.space['200'],
+  },
+  forecastPicker: {
+    gap: Size.space['100'],
   },
 });

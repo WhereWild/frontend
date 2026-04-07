@@ -21,6 +21,13 @@ const toFirstString = (...values: unknown[]): string | null => {
 
 const DESCRIPTION_PENDING = 'description pending';
 
+const toOptionalBoolean = (value: unknown): boolean | undefined => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return undefined;
+};
+
 /**
  * Parses and normalizes a species detail payload for UI consumption.
  */
@@ -30,6 +37,7 @@ export const parseSpeciesApiDetail = (
 ): SpeciesApiDetail => {
   const source = asRecord(payload);
   const description = toFirstString(source.description) ?? DESCRIPTION_PENDING;
+  const heatmapSource = asRecord(source.heatmap);
 
   return {
     ...normalized,
@@ -40,5 +48,20 @@ export const parseSpeciesApiDetail = (
     image_rights_holder: toFirstString(source.image_rights_holder, source.imageRightsHolder),
     image_references: toFirstString(source.image_references, source.imageReferences),
     taxonomyPath: toFirstString(source.taxonomy_path, source.taxonomyPath),
+    heatmap: heatmapSource
+      ? {
+          available: toOptionalBoolean(heatmapSource.available),
+          resolved_model_id: toFirstString(
+            heatmapSource.resolved_model_id,
+            heatmapSource.resolvedModelId,
+          ),
+            phenology_available: toOptionalBoolean(
+              heatmapSource.phenology_available ?? heatmapSource.phenologyAvailable,
+            ),
+            full_available: toOptionalBoolean(
+              heatmapSource.full_available ?? heatmapSource.fullAvailable,
+            ),
+        }
+      : null,
   };
 };

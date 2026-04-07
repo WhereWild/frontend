@@ -239,4 +239,73 @@ describe('SpeciesOccurrenceMap', () => {
 
     expect(screen.queryByTestId('mock-webview')).toBeNull();
   });
+
+  it('forwards native pin-observation messages from the webview', async () => {
+    const handlePinObservation = jest.fn();
+
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 9, latitude: 13, longitude: 23 }],
+      onPinObservation: handlePinObservation,
+    });
+
+    fireEvent(screen.getByTestId('mock-webview'), 'message', {
+      nativeEvent: {
+        data: JSON.stringify({
+          type: 'pin_observation',
+          catalogNumber: 'obs-9',
+          latitude: 13,
+          longitude: 23,
+        }),
+      },
+    });
+
+    expect(handlePinObservation).toHaveBeenCalledWith('obs-9', 13, 23);
+  });
+
+  it('forwards native bounds-changed messages from the webview', async () => {
+    const handleBoundsChange = jest.fn();
+
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 9, latitude: 13, longitude: 23 }],
+      onBoundsChange: handleBoundsChange,
+    });
+
+    fireEvent(screen.getByTestId('mock-webview'), 'message', {
+      nativeEvent: {
+        data: JSON.stringify({
+          type: 'boundsChanged',
+          minLon: -122,
+          minLat: 36,
+          maxLon: -120,
+          maxLat: 38,
+        }),
+      },
+    });
+
+    expect(handleBoundsChange).toHaveBeenCalledWith({
+      type: 'boundsChanged',
+      minLon: -122,
+      minLat: 36,
+      maxLon: -120,
+      maxLat: 38,
+    });
+  });
+
+  it('ignores malformed native messages without crashing', async () => {
+    const handlePinObservation = jest.fn();
+    const handleBoundsChange = jest.fn();
+
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 9, latitude: 13, longitude: 23 }],
+      onBoundsChange: handleBoundsChange,
+      onPinObservation: handlePinObservation,
+    });
+
+    fireEvent(screen.getByTestId('mock-webview'), 'message', {
+      nativeEvent: { data: '{not-json' },
+    });
+
+    expect(handlePinObservation).not.toHaveBeenCalled();
+    expect(handleBoundsChange).not.toHaveBeenCalled();
+  });
 });

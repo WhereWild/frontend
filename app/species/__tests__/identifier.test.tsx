@@ -17,22 +17,27 @@ jest.mock('expo-router', () => {
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
-  fetchSpeciesOccurrences: jest.fn(),
-  fetchLocationsByHierarchy: jest.fn(),
-  fetchEnvironmentVariables: jest.fn(),
-  fetchSpeciesEnvironment: jest.fn(),
-  fetchEnvironmentRangeSlice: jest.fn(),
-  fetchSpeciesEnvironmentCategorySamples: jest.fn(),
 }));
 
-const mockedApiModule = jest.requireMock('@/data/api') as {
-  fetchSpeciesOccurrences: jest.Mock;
-  fetchLocationsByHierarchy: jest.Mock;
-  fetchEnvironmentVariables: jest.Mock;
-  fetchSpeciesEnvironment: jest.Mock;
-  fetchEnvironmentRangeSlice: jest.Mock;
-  fetchSpeciesEnvironmentCategorySamples: jest.Mock;
-};
+jest.mock('@/context/SettingsContext', () => ({
+  useSettings: () => ({ units: 'metric' }),
+}));
+
+jest.mock('../../_species', () => {
+  const ReactNative = jest.requireActual('react-native');
+  const { Text, View } = ReactNative;
+
+  return {
+    __esModule: true,
+    default: ({ data }: { data: typeof mountainBallCactusData }) => (
+      <View>
+        <Text>{data.commonName}</Text>
+        <Text>{data.scientificName}</Text>
+        <Text>{data.overview.description}</Text>
+      </View>
+    ),
+  };
+});
 
 const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
@@ -61,25 +66,6 @@ describe('SpeciesBasicsPage', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
-    mockedApiModule.fetchSpeciesOccurrences.mockResolvedValue([]);
-    mockedApiModule.fetchLocationsByHierarchy.mockResolvedValue([]);
-    mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
-    mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
-    mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
-      speciesId: Number(SAMPLE_TAXON_ID),
-      variable: 'bio_1',
-      range: { min: 0, max: 0 },
-      limit: null,
-      count: 0,
-      observations: [],
-    });
-    mockedApiModule.fetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
-      speciesId: Number(SAMPLE_TAXON_ID),
-      variable: 'landcover',
-      classValue: 'unknown',
-      observations: [],
-      count: 0,
-    });
   });
 
   it('renders fallback data when no identifier parameter is supplied', async () => {
@@ -208,6 +194,54 @@ describe('SpeciesBasicsPage', () => {
     );
 
     expect(result.overview.imageSource).toBe(providedSource);
+  });
+
+  it('builds a live heatmap tile url when backend heatmap metadata is present', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Heatmap Test',
+      scientific_name: 'Heatmap testus',
+      description: 'Species with a live model artifact.',
+      heatmap: {
+        available: true,
+        resolved_model_id: 'taxon_123456_gbt_20260313T065439Z',
+      },
+    } as any);
+
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
+
+    expect(result.heatmap.liveAvailable).toBe(true);
+    expect(result.heatmap.liveTileUrl).toContain(
+      '/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png?model_id=taxon_123456_gbt_20260313T065439Z',
+    );
+  });
+
+  it('defaults heatmap model id and forwards phenology/full availability flags', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Heatmap Defaults',
+      scientific_name: 'Heatmap defaults',
+      description: 'Species with backend availability flags.',
+      heatmap: {
+        available: true,
+        resolved_model_id: '   ',
+        phenology_available: true,
+        full_available: true,
+      },
+    } as any);
+
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
+
+    expect(result.heatmap.liveModelId).toBe('auto_gbt');
+    expect(result.heatmap.liveTileUrl).toContain('model_id=auto_gbt');
+    expect(result.heatmap.phenologyAvailable).toBe(true);
+    expect(result.heatmap.fullAvailable).toBe(true);
   });
 
   it('renders nothing while the identifier data is still loading', () => {

@@ -42,10 +42,17 @@
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
+    const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
+    const INITIAL_LAT = __INITIAL_LAT__;
+    const INITIAL_LON = __INITIAL_LON__;
+    const INITIAL_ZOOM = __INITIAL_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
-    const mapBounds = L.latLngBounds(
-      [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
-    );
+    const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
+    const mapBounds = CUSTOM_MAX_BOUNDS
+      ? L.latLngBounds(CUSTOM_MAX_BOUNDS[0], CUSTOM_MAX_BOUNDS[1])
+      : L.latLngBounds(
+          [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
+        );
 
     function clampLatitude(value) {
       return Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, Number(value)));
@@ -73,7 +80,8 @@
       maxBounds: mapBounds,
       maxBoundsViscosity: 1,
       minZoom: BASE_MIN_ZOOM,
-      worldCopyJump: true,
+      ...(CUSTOM_MAX_ZOOM !== null ? { maxZoom: CUSTOM_MAX_ZOOM } : {}),
+      worldCopyJump: !CUSTOM_MAX_BOUNDS,
     });
 
     function applyMinZoomForSize() {
@@ -439,8 +447,28 @@
       map.on('zoomend', refreshVisibleMarkerPresentation);
       refreshVisibleMarkerPresentation();
     } else {
-      map.setView([0, 0], BASE_MIN_ZOOM);
+      map.setView([INITIAL_LAT, INITIAL_LON], INITIAL_ZOOM);
     }
+
+    function sendBounds() {
+      var b = map.getBounds();
+      var msg = {
+        type: 'boundsChanged',
+        minLon: b.getWest(),
+        minLat: b.getSouth(),
+        maxLon: b.getEast(),
+        maxLat: b.getNorth(),
+      };
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        window.parent.postMessage(msg, '*');
+      }
+    }
+
+    map.on('moveend', sendBounds);
+    map.on('zoomend', sendBounds);
+    sendBounds();
 
     applyHighlights([]);
   </script>
