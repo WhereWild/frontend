@@ -36,6 +36,11 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   heatmapTileUrl: '__HEATMAP_TILE_URL_JSON__',
   heatmapOpacity: '__HEATMAP_OPACITY__',
   minZoom: '__MIN_ZOOM__',
+  maxZoom: '__MAX_ZOOM__',
+  maxBoundsJson: '__MAX_BOUNDS_JSON__',
+  initialLat: '__INITIAL_LAT__',
+  initialLon: '__INITIAL_LON__',
+  initialZoom: '__INITIAL_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
   pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
 } as const;
@@ -126,6 +131,11 @@ export const buildLeafletHtml = (
   heatmapOpacity?: number,
   minZoom?: number,
   showMarkers?: boolean,
+  maxZoom?: number | null,
+  initialLat?: number | null,
+  initialLon?: number | null,
+  initialZoom?: number | null,
+  maxBounds?: [[number, number], [number, number]] | null,
 ) => {
   let html = mapTemplate;
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.documentBaseUrl).join(MAP_DOCUMENT_BASE_URL);
@@ -157,6 +167,21 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.minZoom)
     .join(String(typeof minZoom === 'number' ? minZoom : 2));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.maxZoom)
+    .join(typeof maxZoom === 'number' ? String(maxZoom) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.maxBoundsJson)
+    .join(maxBounds ? JSON.stringify(maxBounds) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialLat)
+    .join(String(typeof initialLat === 'number' ? initialLat : 0));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialLon)
+    .join(String(typeof initialLon === 'number' ? initialLon : 0));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialZoom)
+    .join(String(typeof initialZoom === 'number' ? initialZoom : 2));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.showMarkers)
     .join(showMarkers !== false ? 'true' : 'false');

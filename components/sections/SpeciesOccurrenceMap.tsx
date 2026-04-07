@@ -27,8 +27,14 @@ type SpeciesOccurrenceMapProps = {
   heatmapTileUrl?: string | null;
   heatmapOpacity?: number;
   minZoom?: number;
+  maxZoom?: number | null;
+  initialLat?: number | null;
+  initialLon?: number | null;
+  initialZoom?: number | null;
+  maxBounds?: [[number, number], [number, number]] | null;
   showMarkers?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
+  onBoundsChange?: (bounds: { minLon: number; minLat: number; maxLon: number; maxLat: number }) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -40,8 +46,14 @@ export function SpeciesOccurrenceMap({
   heatmapTileUrl = null,
   heatmapOpacity = 0.6,
   minZoom = 2,
+  maxZoom = null,
+  initialLat = null,
+  initialLon = null,
+  initialZoom = null,
+  maxBounds = null,
   showMarkers = true,
   onPinObservation,
+  onBoundsChange,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
@@ -131,12 +143,22 @@ export function SpeciesOccurrenceMap({
       heatmapOpacity,
       minZoom,
       showMarkers,
+      maxZoom,
+      initialLat,
+      initialLon,
+      initialZoom,
+      maxBounds,
     );
   }, [
     heatmapOpacity,
     heatmapTileUrl,
+    initialLat,
+    initialLon,
+    initialZoom,
     mapTemplate,
     markerPalette,
+    maxBounds,
+    maxZoom,
     minZoom,
     occurrences,
     showMarkers,
@@ -185,6 +207,9 @@ export function SpeciesOccurrenceMap({
           event.data.longitude,
         );
       }
+      if (event.data?.type === 'boundsChanged') {
+        onBoundsChange?.(event.data);
+      }
     };
     window.addEventListener('message', handler);
     return () => {
@@ -192,7 +217,7 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [onPinObservation]);
+  }, [onBoundsChange, onPinObservation]);
 
   if (loading) {
     return (
@@ -269,9 +294,12 @@ export function SpeciesOccurrenceMap({
             onLoadEnd={() => setMapReady(true)}
             onMessage={(event) => {
               try {
-                const msg = JSON.parse(event.nativeEvent.data) as unknown;
+                const msg = JSON.parse(event.nativeEvent.data) as any;
                 if (isPinObservationMessage(msg)) {
                   onPinObservation?.(msg.catalogNumber, msg.latitude, msg.longitude);
+                }
+                if (msg?.type === 'boundsChanged') {
+                  onBoundsChange?.(msg);
                 }
               } catch {}
             }}
