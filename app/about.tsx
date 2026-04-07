@@ -24,7 +24,7 @@ import {
   Tabs,
   ThemedText,
 } from '@/components';
-import type { ButtonProps } from '@/components';
+import type { ButtonProps, SelectOption } from '@/components';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
@@ -40,77 +40,6 @@ import { normalizeLabel } from '@/components/sections/speciesEnvironment/model';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
-const OVERVIEW_PILLS = [
-  { key: 'all', label: 'All' },
-  { key: 'nearby', label: 'Nearby' },
-  { key: 'seasonal', label: 'Seasonal' },
-  { key: 'rare', label: 'Rare Finds' },
-  { key: 'favorites', label: 'Favorites' },
-  { key: 'alerts', label: 'Alerts' },
-];
-
-const HABITAT_PILLS = [
-  { key: 'soil', label: 'Soil' },
-  { key: 'elevation', label: 'Elevation' },
-  { key: 'climate', label: 'Climate' },
-  { key: 'canopy', label: 'Canopy Cover' },
-];
-
-const TRACKING_PILLS = [
-  { key: 'recent', label: 'Recent' },
-  { key: 'verified', label: 'Verified' },
-  { key: 'unverified', label: 'Needs Review' },
-  { key: 'community', label: 'Community Notes' },
-];
-
-const IMAGES_PILLS = [
-  { key: 'all', label: 'All Images' },
-  { key: 'macro', label: 'Macro' },
-  { key: 'habitat', label: 'Habitat' },
-  { key: 'seasonal', label: 'Seasonal Color' },
-];
-
-const NOTES_PILLS = [
-  { key: 'notes', label: 'Notes' },
-  { key: 'care', label: 'Care Tips' },
-  { key: 'hazards', label: 'Hazards' },
-];
-
-const OVERVIEW_CONTENT: Record<string, string> = {
-  all: 'Showing all recent observations and modeled occurrences in your region.',
-  nearby: 'Nearby sightings within a 10 km radius based on recent reports.',
-  seasonal: 'Seasonal activity highlights based on the current month.',
-  rare: 'Rare finds include uncommon or low-frequency sightings.',
-  favorites: 'Your starred species and saved locations.',
-  alerts: 'Active alerts for unusual sightings or conditions.',
-};
-
-const HABITAT_CONTENT: Record<string, string> = {
-  soil: 'Soil acidity, texture, and moisture indicators for the species.',
-  elevation: 'Typical elevation range where the species thrives.',
-  climate: 'Temperature and precipitation trends for this habitat.',
-  canopy: 'Canopy cover estimates and light availability.',
-};
-
-const TRACKING_CONTENT: Record<string, string> = {
-  recent: 'Most recent sightings from verified observers.',
-  verified: 'Observations with confirmed IDs and supporting media.',
-  unverified: 'Reports awaiting community review or expert confirmation.',
-  community: 'Notes and insights from the local community.',
-};
-
-const IMAGES_CONTENT: Record<string, string> = {
-  all: 'A mix of macro, habitat, and seasonal imagery.',
-  macro: 'Close-up details for identification and morphology.',
-  habitat: 'Contextual images showing surrounding vegetation.',
-  seasonal: 'Seasonal color changes and flowering stages.',
-};
-
-const NOTES_CONTENT: Record<string, string> = {
-  notes: 'General field notes and observations for this species.',
-  care: 'Care considerations for conservation and restoration efforts.',
-  hazards: 'Safety notes, toxins, or environmental hazards.',
-};
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 const ABOUT_LANDCOVER_MAP_HEIGHT = 520;
 const ABOUT_LANDCOVER_MIN_ZOOM = 4;
@@ -118,6 +47,27 @@ const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
   { id: 'landcover', label: 'Land Cover', valueType: 'categorical', category: 'Categorical' },
   { id: 'koppen_geiger', label: 'Köppen-Geiger', valueType: 'categorical', category: 'Categorical' },
   { id: 'bio_1', label: 'Annual Mean Temperature', units: 'C', valueType: 'continuous', category: 'Bioclim' },
+];
+const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal', 'recent weather']);
+// Variables in the temporal catalog that are also live-weather display variables.
+const ABOUT_MAP_LIVE_WEATHER_IDS = new Set(['weather_code_simple']);
+const ABOUT_WINDOW_OPTIONS: SelectOption[] = [
+  { value: 'live', label: 'Live (current)' },
+  { value: '1h', label: 'Last 1 hour' },
+  { value: '8h', label: 'Last 8 hours' },
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '3d', label: 'Last 3 days' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: '90d', label: 'Last 90 days' },
+];
+const ABOUT_FORECAST_OPTIONS: SelectOption[] = [
+  { value: 'now', label: 'Now' },
+  { value: '1h', label: '+1 hour' },
+  { value: '8h', label: '+8 hours' },
+  { value: '24h', label: '+24 hours' },
+  { value: '3d', label: '+3 days' },
+  { value: '7d', label: '+7 days' },
 ];
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
@@ -138,7 +88,7 @@ type ButtonEntry = {
   variant?: ButtonVariant;
 };
 
-const noop = () => { };
+const noop = () => {};
 
 const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
 const TYPOGRAPHY_VARIANTS = [
@@ -175,6 +125,54 @@ const formatTokenLabel = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/^./, (char) => char.toUpperCase());
+
+const mapAboutVariableOptions = (variables: Awaited<ReturnType<typeof fetchEnvironmentVariables>>) => {
+  return variables
+    .filter((entry) => {
+      const category = (entry.category ?? '').toLowerCase();
+      if (ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)) return true;
+      return !ABOUT_MAP_EXCLUDED_CATEGORIES.has(category);
+    })
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.name ?? normalizeLabel(entry.id),
+      units: entry.units ?? null,
+      valueType: entry.valueType ?? null,
+      category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id) ? 'Live Weather' : (entry.category ?? 'Other'),
+    }))
+    .sort((left, right) => {
+      const categoryComparison = (left.category ?? '').localeCompare(right.category ?? '');
+      if (categoryComparison !== 0) {
+        return categoryComparison;
+      }
+      return left.label.localeCompare(right.label);
+    });
+};
+
+const buildAboutVariableTileUrl = ({
+  cacheKey,
+  forecast,
+  isLiveWeather,
+  selectedVariable,
+  window,
+}: {
+  cacheKey: number;
+  forecast: string;
+  isLiveWeather: boolean;
+  selectedVariable: string;
+  window: string;
+}) => {
+  const baseUrl = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
+    selectedVariable || 'landcover',
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${cacheKey}`;
+
+  if (!isLiveWeather) {
+    return baseUrl;
+  }
+
+  const withWindow = window !== 'live' ? `${baseUrl}&window=${window}` : baseUrl;
+  return forecast !== 'now' ? `${withWindow}&forecast=${forecast}` : withWindow;
+};
 
 export default function About() {
   const colorScheme = useColorScheme();
@@ -230,22 +228,7 @@ export default function About() {
         if (cancelled || !variables.length) {
           return;
         }
-        const mapped: EnvironmentVariableOption[] = variables
-          .filter((entry) => (entry.category ?? '').toLowerCase() !== 'temporal')
-          .map((entry) => ({
-            id: entry.id,
-            label: entry.name ?? normalizeLabel(entry.id),
-            units: entry.units ?? null,
-            valueType: entry.valueType ?? null,
-            category: entry.category ?? 'Other',
-          }))
-          .sort((a, b) => {
-            const byCategory = (a.category ?? '').localeCompare(b.category ?? '');
-            if (byCategory !== 0) {
-              return byCategory;
-            }
-            return a.label.localeCompare(b.label);
-          });
+        const mapped = mapAboutVariableOptions(variables);
 
         if (mapped.length > 0) {
           setAboutMapVariables(mapped);
@@ -272,13 +255,21 @@ export default function About() {
     variableId: 'landcover',
     variables: aboutMapVariables,
   });
-  const aboutVariableTileUrl = useMemo(
-    () =>
-      `${BACKEND_BASE}/api/variables/${encodeURIComponent(
-        mapSelectedVariable || 'landcover',
-      )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${Date.now()}`,
-    [mapSelectedVariable],
-  );
+  const [selectedWindow, setSelectedWindow] = useState<string>('live');
+  const [selectedForecast, setSelectedForecast] = useState<string>('now');
+  const aboutTileCacheKey = useMemo(() => Date.now(), []);
+
+  const isLiveWeather = (mapSelectedVariableCategory ?? '').toLowerCase() === 'live weather';
+
+  const aboutVariableTileUrl = useMemo(() => {
+    return buildAboutVariableTileUrl({
+      cacheKey: aboutTileCacheKey,
+      forecast: selectedForecast,
+      isLiveWeather,
+      selectedVariable: mapSelectedVariable,
+      window: selectedWindow,
+    });
+  }, [aboutTileCacheKey, isLiveWeather, mapSelectedVariable, selectedForecast, selectedWindow]);
   const speciesSample = mountainBallCactusData;
   const selectOptions = [
     { label: 'Hello World', value: 'hello' },
@@ -460,64 +451,77 @@ export default function About() {
     { key: 'notes', label: 'Field Notes' },
   ];
 
-  const selectedTabSection = useMemo(() => {
-    switch (selectedTab) {
-      case 'habitat':
-        return {
-          title: 'Vertical list',
-          pills: HABITAT_PILLS,
-          selectedKey: habitatPill,
-          onSelectionChange: setHabitatPill,
-          direction: 'vertical' as const,
-          accessibilityLabel: 'Habitat filters',
-          content: HABITAT_CONTENT[habitatPill],
-        };
-      case 'tracking':
-        return {
-          title: 'Mixed label lengths',
-          pills: TRACKING_PILLS,
-          selectedKey: trackingPill,
-          onSelectionChange: setTrackingPill,
-          accessibilityLabel: 'Tracking filters',
-          content: TRACKING_CONTENT[trackingPill],
-        };
-      case 'images':
-        return {
-          title: 'Image categories',
-          pills: IMAGES_PILLS,
-          selectedKey: imagesPill,
-          onSelectionChange: setImagesPill,
-          accessibilityLabel: 'Image filters',
-          content: IMAGES_CONTENT[imagesPill],
-        };
-      case 'notes':
-        return {
-          title: 'Notes sections',
-          pills: NOTES_PILLS,
-          selectedKey: notesPill,
-          onSelectionChange: setNotesPill,
-          accessibilityLabel: 'Notes filters',
-          content: NOTES_CONTENT[notesPill],
-        };
-      case 'overview':
-      default:
-        return {
-          title: 'Horizontal wrap',
-          pills: OVERVIEW_PILLS,
-          selectedKey: overviewPill,
-          onSelectionChange: setOverviewPill,
-          accessibilityLabel: 'Overview filters',
-          content: OVERVIEW_CONTENT[overviewPill],
-        };
-    }
-  }, [
-    habitatPill,
-    imagesPill,
-    notesPill,
-    overviewPill,
-    selectedTab,
-    trackingPill,
-  ]);
+  const overviewPills = [
+    { key: 'all', label: 'All' },
+    { key: 'nearby', label: 'Nearby' },
+    { key: 'seasonal', label: 'Seasonal' },
+    { key: 'rare', label: 'Rare Finds' },
+    { key: 'favorites', label: 'Favorites' },
+    { key: 'alerts', label: 'Alerts' },
+  ];
+
+  const habitatPills = [
+    { key: 'soil', label: 'Soil' },
+    { key: 'elevation', label: 'Elevation' },
+    { key: 'climate', label: 'Climate' },
+    { key: 'canopy', label: 'Canopy Cover' },
+  ];
+
+  const trackingPills = [
+    { key: 'recent', label: 'Recent' },
+    { key: 'verified', label: 'Verified' },
+    { key: 'unverified', label: 'Needs Review' },
+    { key: 'community', label: 'Community Notes' },
+  ];
+
+  const imagesPills = [
+    { key: 'all', label: 'All Images' },
+    { key: 'macro', label: 'Macro' },
+    { key: 'habitat', label: 'Habitat' },
+    { key: 'seasonal', label: 'Seasonal Color' },
+  ];
+
+  const notesPills = [
+    { key: 'notes', label: 'Notes' },
+    { key: 'care', label: 'Care Tips' },
+    { key: 'hazards', label: 'Hazards' },
+  ];
+
+  const overviewContent: Record<string, string> = {
+    all: 'Showing all recent observations and modeled occurrences in your region.',
+    nearby: 'Nearby sightings within a 10 km radius based on recent reports.',
+    seasonal: 'Seasonal activity highlights based on the current month.',
+    rare: 'Rare finds include uncommon or low-frequency sightings.',
+    favorites: 'Your starred species and saved locations.',
+    alerts: 'Active alerts for unusual sightings or conditions.',
+  };
+
+  const habitatContent: Record<string, string> = {
+    soil: 'Soil acidity, texture, and moisture indicators for the species.',
+    elevation: 'Typical elevation range where the species thrives.',
+    climate: 'Temperature and precipitation trends for this habitat.',
+    canopy: 'Canopy cover estimates and light availability.',
+  };
+
+  const trackingContent: Record<string, string> = {
+    recent: 'Most recent sightings from verified observers.',
+    verified: 'Observations with confirmed IDs and supporting media.',
+    unverified: 'Reports awaiting community review or expert confirmation.',
+    community: 'Notes and insights from the local community.',
+  };
+
+  const imagesContent: Record<string, string> = {
+    all: 'A mix of macro, habitat, and seasonal imagery.',
+    macro: 'Close-up details for identification and morphology.',
+    habitat: 'Contextual images showing surrounding vegetation.',
+    seasonal: 'Seasonal color changes and flowering stages.',
+  };
+
+  const notesContent: Record<string, string> = {
+    notes: 'General field notes and observations for this species.',
+    care: 'Care considerations for conservation and restoration efforts.',
+    hazards: 'Safety notes, toxins, or environmental hazards.',
+  };
 
   const renderPillContentCard = (content: string) => (
     <View
@@ -869,17 +873,67 @@ export default function About() {
               />
             </View>
             <View style={styles.pillExamples}>
-              <View style={styles.pillExampleGroup}>
-                <ThemedText variant="bodySmallStrong">{selectedTabSection.title}</ThemedText>
-                <NavigationPillList
-                  pills={selectedTabSection.pills}
-                  selectedKey={selectedTabSection.selectedKey}
-                  onSelectionChange={selectedTabSection.onSelectionChange}
-                  direction={selectedTabSection.direction}
-                  accessibilityLabel={selectedTabSection.accessibilityLabel}
-                />
-                {renderPillContentCard(selectedTabSection.content)}
-              </View>
+              {selectedTab === 'overview' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Horizontal wrap</ThemedText>
+                  <NavigationPillList
+                    pills={overviewPills}
+                    selectedKey={overviewPill}
+                    onSelectionChange={setOverviewPill}
+                    accessibilityLabel="Overview filters"
+                  />
+                  {renderPillContentCard(overviewContent[overviewPill])}
+                </View>
+              )}
+              {selectedTab === 'habitat' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Vertical list</ThemedText>
+                  <NavigationPillList
+                    pills={habitatPills}
+                    selectedKey={habitatPill}
+                    onSelectionChange={setHabitatPill}
+                    direction="vertical"
+                    accessibilityLabel="Habitat filters"
+                  />
+                  {renderPillContentCard(habitatContent[habitatPill])}
+                </View>
+              )}
+              {selectedTab === 'tracking' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Mixed label lengths</ThemedText>
+                  <NavigationPillList
+                    pills={trackingPills}
+                    selectedKey={trackingPill}
+                    onSelectionChange={setTrackingPill}
+                    accessibilityLabel="Tracking filters"
+                  />
+                  {renderPillContentCard(trackingContent[trackingPill])}
+                </View>
+              )}
+              {selectedTab === 'images' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Image categories</ThemedText>
+                  <NavigationPillList
+                    pills={imagesPills}
+                    selectedKey={imagesPill}
+                    onSelectionChange={setImagesPill}
+                    accessibilityLabel="Image filters"
+                  />
+                  {renderPillContentCard(imagesContent[imagesPill])}
+                </View>
+              )}
+              {selectedTab === 'notes' && (
+                <View style={styles.pillExampleGroup}>
+                  <ThemedText variant="bodySmallStrong">Notes sections</ThemedText>
+                  <NavigationPillList
+                    pills={notesPills}
+                    selectedKey={notesPill}
+                    onSelectionChange={setNotesPill}
+                    accessibilityLabel="Notes filters"
+                  />
+                  {renderPillContentCard(notesContent[notesPill])}
+                </View>
+              )}
             </View>
           </View>
 
@@ -1024,6 +1078,24 @@ export default function About() {
               headingText={mapSelectedVariableMeta?.label ?? 'Map Variable'}
               metaText={`Tile variable id: ${mapSelectedVariable}`}
             />
+            {isLiveWeather && (
+              <SelectField
+                variant="tertiary"
+                options={ABOUT_WINDOW_OPTIONS}
+                value={selectedWindow}
+                onValueChange={(v) => { setSelectedWindow(v); setSelectedForecast('now'); }}
+                placeholder="Aggregation window"
+              />
+            )}
+            {isLiveWeather && (
+              <SelectField
+                variant="tertiary"
+                options={ABOUT_FORECAST_OPTIONS}
+                value={selectedForecast}
+                onValueChange={setSelectedForecast}
+                placeholder="Forecast offset"
+              />
+            )}
             <ThemedText variant="bodySmall">
               Pick a variable to test tile rendering. Only backend map-enabled variables will display.
             </ThemedText>

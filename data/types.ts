@@ -19,6 +19,7 @@ export type SpeciesIdentifiers = {
 export type SpeciesSummary = SpeciesIdentifiers & {
   description: string;
   imageSource?: ImageSourcePropType;
+  taxonGroup?: string | null;
 };
 
 /**
@@ -94,6 +95,11 @@ export type SpeciesOverviewSection = {
 
 export type HeatmapSnapshot = {
   imageSource: ImageSourcePropType;
+  liveAvailable?: boolean;
+  liveTileUrl?: string | null;
+  liveModelId?: string | null;
+  phenologyAvailable?: boolean;
+  fullAvailable?: boolean;
 };
 
 /**
@@ -159,6 +165,7 @@ export type SpeciesApiNormalized = {
   common_name: string;
   common_names: string[];
   image_source: string | null;
+  taxon_group?: string | null;
   _raw: unknown;
 };
 
@@ -170,6 +177,12 @@ export type SpeciesApiDetail = SpeciesApiNormalized & {
   image_rights_holder?: string | null;
   image_references?: string | null;
   taxonomyPath?: string | null;
+  heatmap?: {
+    available?: boolean;
+    resolved_model_id?: string | null;
+    phenology_available?: boolean;
+    full_available?: boolean;
+  } | null;
 };
 
 export type SpeciesEnvironmentSliceResponse = {
