@@ -15,6 +15,46 @@ type UseEnvironmentVariableSelectionParams = {
   variables?: EnvironmentVariableOption[];
 
   units?: 'metric' | 'imperial' | undefined;
+  /** Category names to exclude from the remote variable catalog. */
+  excludeCategories?: string[];
+  /** Remap category display names: { 'live weather': 'Recent Weather' } etc. Keys are normalized (lowercase). */
+  remapCategories?: Record<string, string>;
+};
+
+const normalizeVariableCategory = (category: string | null | undefined) =>
+  (category ?? '').trim().toLowerCase();
+
+const shouldIncludeVariableCategory = (
+  category: string | null | undefined,
+  excludedCategories: Set<string>,
+) => {
+  if (!excludedCategories.size) {
+    return true;
+  }
+
+  return !excludedCategories.has(normalizeVariableCategory(category));
+};
+
+const mapEnvironmentVariableOptions = (
+  response: Awaited<ReturnType<typeof fetchEnvironmentVariables>>,
+  excludedCategories: Set<string>,
+  categoryRemap: Record<string, string>,
+): EnvironmentVariableOption[] => {
+  return response
+    .filter((variableDefinition) =>
+      shouldIncludeVariableCategory(variableDefinition.category, excludedCategories),
+    )
+    .map((variableDefinition) => {
+      const normalizedCategory = normalizeVariableCategory(variableDefinition.category);
+      const remappedCategory = categoryRemap[normalizedCategory] ?? variableDefinition.category ?? null;
+      return {
+        id: variableDefinition.id,
+        label: variableDefinition.name ?? normalizeLabel(variableDefinition.id),
+        units: variableDefinition.units ?? null,
+        valueType: variableDefinition.valueType ?? null,
+        category: remappedCategory,
+      };
+    });
 };
 
 /** Manages variable catalog loading, category filtering, and selected variable state. */
@@ -22,18 +62,30 @@ export function useEnvironmentVariableSelection({
   variableId,
   variables,
   units,
+  excludeCategories,
+  remapCategories,
 }: UseEnvironmentVariableSelectionParams) {
   const [remoteVariables, setRemoteVariables] =
     React.useState<EnvironmentVariableOption[] | null>(null);
   const [selectedVariableCategory, setSelectedVariableCategoryState] = React.useState<string | null>(
     null,
   );
+  const excludedCategories = React.useMemo(
+    () => new Set((excludeCategories ?? []).map(normalizeVariableCategory)),
+    [excludeCategories],
+  );
+  const categoryRemap = React.useMemo(
+    () => Object.fromEntries(
+      Object.entries(remapCategories ?? {}).map(([k, v]) => [normalizeVariableCategory(k), v])
+    ),
+    [remapCategories],
+  );
 
   const resolvedVariables = React.useMemo(() => {
     if (variables && variables.length > 0) {
       return variables;
     }
-    if (remoteVariables && remoteVariables.length > 0) {
+    if (remoteVariables !== null) {
       return remoteVariables;
     }
     return DEFAULT_VARIABLES;
@@ -100,16 +152,10 @@ export function useEnvironmentVariableSelection({
     (async () => {
       try {
         const response = await fetchEnvironmentVariables({ units });
-        if (!cancelled && response.length) {
-          const mapped: EnvironmentVariableOption[] = response.map((variableDefinition) => ({
-            id: variableDefinition.id,
-            label: variableDefinition.name ?? normalizeLabel(variableDefinition.id),
-            units: variableDefinition.units ?? null,
-            valueType: variableDefinition.valueType ?? null,
-            category: variableDefinition.category ?? null,
-          }));
-          setRemoteVariables(mapped);
+        if (cancelled) {
+          return;
         }
+        setRemoteVariables(mapEnvironmentVariableOptions(response, excludedCategories, categoryRemap));
       } catch (err) {
         console.warn('Failed to load variable catalog', err);
       }
@@ -117,7 +163,7 @@ export function useEnvironmentVariableSelection({
     return () => {
       cancelled = true;
     };
-  }, [units, variables]);
+  }, [excludedCategories, units, variables]);
 
   const selectedVariableMeta = React.useMemo(
     () =>

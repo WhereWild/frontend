@@ -1,6 +1,7 @@
 import type {
   EnvironmentSliceParams,
   SpeciesApiDetail,
+  SpeciesApiNormalized,
 } from './types';
 import { parseSpeciesApiDetail } from './speciesDetailParser';
 import { BACKEND_BASE, fetchJsonOrThrow } from './apiShared';
@@ -131,6 +132,35 @@ export type { SearchFilterParams };
  */
 export async function fetchSpeciesList(limit?: number, q?: string, filters?: SearchFilterParams) {
   return fetchSpeciesListHelper(limit, q, filters);
+}
+
+/**
+ * Returns per-taxon average probability scores for the given viewport bbox.
+ */
+export type ViewportScoresResult = {
+  scores: Record<string, number>;
+  reasons: Record<string, string[]>;
+};
+
+export async function fetchViewportScores(bounds: {
+  minLon: number; minLat: number; maxLon: number; maxLat: number;
+}): Promise<ViewportScoresResult> {
+  const { minLon, minLat, maxLon, maxLat } = bounds;
+  const url = `${BACKEND_BASE}/api/heatmap/homepage/scores?min_lon=${minLon}&min_lat=${minLat}&max_lon=${maxLon}&max_lat=${maxLat}`;
+  const data = await fetchJsonOrThrow(url, 'Failed to fetch viewport scores');
+  return {
+    scores: (data as any).scores ?? {},
+    reasons: (data as any).reasons ?? {},
+  };
+}
+
+/**
+ * Returns basic species info for every taxon that has a trained SDM model.
+ */
+export async function fetchSpeciesWithModels(): Promise<SpeciesApiNormalized[]> {
+  const url = `${BACKEND_BASE}/api/species/with-models`;
+  const items = await fetchJsonOrThrow(url, 'Failed to fetch species with models');
+  return (items as unknown[]).map((item) => normalizeToJsonShape(item));
 }
 
 /**
