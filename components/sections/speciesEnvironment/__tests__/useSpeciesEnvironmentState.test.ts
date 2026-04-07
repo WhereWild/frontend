@@ -5,6 +5,7 @@ import {
   fetchSpeciesEnvironment,
   fetchEnvironmentRangeSlice,
   fetchSpeciesEnvironmentCategorySamples,
+  fetchPointEnvironmentValue,
 } from '@/data/api';
 import type { EnvironmentVariableOption } from '../model';
 import type {
@@ -19,6 +20,7 @@ jest.mock('@/data/api', () => ({
   fetchSpeciesEnvironment: jest.fn(),
   fetchEnvironmentRangeSlice: jest.fn(),
   fetchSpeciesEnvironmentCategorySamples: jest.fn(),
+  fetchPointEnvironmentValue: jest.fn(),
 }));
 
 const mockFetchEnvironmentVariables = jest.mocked(fetchEnvironmentVariables);
@@ -27,6 +29,7 @@ const mockFetchEnvironmentRangeSlice = jest.mocked(fetchEnvironmentRangeSlice);
 const mockFetchSpeciesEnvironmentCategorySamples = jest.mocked(
   fetchSpeciesEnvironmentCategorySamples,
 );
+const mockFetchPointEnvironmentValue = jest.mocked(fetchPointEnvironmentValue);
 
 const continuousStats: SpeciesEnvironmentStats = {
   speciesId: 1,
@@ -86,6 +89,13 @@ describe('useSpeciesEnvironmentState', () => {
       count: 1,
       observations: [{ catalogNumber: 42, value: 8.5, latitude: 0, longitude: 0 }],
     } satisfies SpeciesEnvironmentSliceResponse);
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'bio_1',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 7.25,
+    });
   });
 
   it('loads variable metadata and continuous stats', async () => {
@@ -179,6 +189,37 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+  });
+
+  it('derives pinnedCategoryValue for categorical variables from the selected location lookup', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 41, className: 'Forest', count: 3, fraction: 0.6 },
+        { value: 52, className: 'Grassland', count: 2, fraction: 0.4 },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 41,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedValue).toBe(41));
+
+    expect(result.current.pinnedCategoryValue).toBe(41);
   });
 
   it('supports location filter mode and clears rank contexts', async () => {

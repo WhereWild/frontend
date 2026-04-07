@@ -110,6 +110,8 @@ type AspectCompassChartProps = {
   categories: SpeciesEnvironmentCategory[];
   /** Currently selected category value, if any. */
   selectedValue: number | string | null;
+  /** Location-derived category value to emphasize, if any. */
+  highlightedValue?: number | string | null;
   /** Called when a wedge or pill is tapped. */
   onSelect?: (value: number | string) => void;
   /** Color for the description text below the chart. */
@@ -118,16 +120,20 @@ type AspectCompassChartProps = {
   fillColor?: string;
   /** Fill color for the selected wedge. */
   selectedFillColor?: string;
+  /** Outline color used for the location-derived highlighted category. */
+  highlightOutlineColor?: string;
 };
 
 /** Renders aspect distribution as an interactive compass rose (polar bar chart). */
 export function AspectCompassChart({
   categories,
   selectedValue,
+  highlightedValue = null,
   onSelect,
   descriptionColor,
   fillColor = '#466237',
   selectedFillColor = '#81B29A',
+  highlightOutlineColor = '#F59E0B',
 }: AspectCompassChartProps) {
   const validCategories = categories.filter(
     (cat) => Number.isFinite(cat.fraction) && cat.fraction >= 0,
@@ -155,6 +161,11 @@ export function AspectCompassChart({
       : null;
 
   const selectedDir = selectedCategory ? resolveDirection(selectedCategory) : null;
+  const highlightedCategory =
+    highlightedValue !== null
+      ? (validCategories.find((cat) => String(cat.value) === String(highlightedValue)) ?? null)
+      : null;
+  const highlightedDir = highlightedCategory ? resolveDirection(highlightedCategory) : null;
 
   // Sort pills in compass order for consistent display
   const orderedCategories = DIR_ORDER.flatMap((dir) => {
@@ -202,6 +213,7 @@ export function AspectCompassChart({
                 : INNER_RADIUS;
 
             const isSelected = selectedDir === dir;
+            const isHighlighted = highlightedDir === dir;
             const wedgeFill = cat.color ?? (isSelected ? selectedFillColor : fillColor);
             const svgAngle = COMPASS_SVG_ANGLES[dir];
             const d = buildWedgePath(svgAngle, outerR);
@@ -209,9 +221,13 @@ export function AspectCompassChart({
             return (
               <Path
                 key={dir}
+                testID={`aspect-wedge-${dir}`}
                 d={d}
                 fill={wedgeFill}
                 opacity={isSelected ? 1 : 0.72}
+                stroke={isHighlighted ? highlightOutlineColor : undefined}
+                strokeWidth={isHighlighted ? 3 : undefined}
+                strokeDasharray={isHighlighted ? '6 4' : undefined}
                 onPress={() => cat && onSelect?.(cat.value)}
               />
             );
@@ -249,12 +265,14 @@ export function AspectCompassChart({
           return { key: String(cat.value), label: dir };
         })}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
+        highlightedKey={highlightedValue !== null ? String(highlightedValue) : undefined}
         onSelectionChange={(key) => {
           const cat = validCategories.find((c) => String(c.value) === key);
           if (cat) onSelect?.(cat.value);
         }}
         direction="horizontal"
         accessibilityLabel="Aspect direction selection"
+        highlightOutlineColor={highlightOutlineColor}
       />
 
       {selectedCategory ? (
