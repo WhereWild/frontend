@@ -71,12 +71,21 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     const map = {
       on: jest.fn((eventName: string, handler: () => void) => {
-        eventHandlers.set(eventName, handler);
+        const existing = eventHandlers.get(eventName);
+        if (existing) {
+          eventHandlers.set(eventName, () => { existing(); handler(); });
+        } else {
+          eventHandlers.set(eventName, handler);
+        }
       }),
       setMinZoom: jest.fn(),
       getSize: jest.fn(() => ({ x: 256 })),
       getBounds: jest.fn(() => ({
         contains: ({ lng }: { lng: number }) => visibleLongitudePredicate(lng),
+        getWest: jest.fn(() => -180),
+        getSouth: jest.fn(() => -90),
+        getEast: jest.fn(() => 180),
+        getNorth: jest.fn(() => 90),
       })),
       getCenter: jest.fn(() => ({ lng: 0 })),
       removeLayer: jest.fn(),
@@ -120,6 +129,9 @@ describe('speciesOccurrenceMapHelpers', () => {
       addEventListener: jest.fn((eventName: string, handler: (event: { data: unknown }) => void) => {
         windowListeners.set(eventName, handler);
       }),
+      parent: {
+        postMessage: jest.fn(),
+      },
     };
 
     return {

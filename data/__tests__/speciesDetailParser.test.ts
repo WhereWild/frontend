@@ -82,4 +82,46 @@ describe('speciesDetailParser', () => {
       },
     ]);
   });
+
+  it('maps backend heatmap metadata when available', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        heatmap: {
+          available: true,
+          resolved_model_id: 'taxon_99_gbt_20260313T065439Z',
+          phenology_available: true,
+          full_available: true,
+        },
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.heatmap).toEqual({
+      available: true,
+      resolved_model_id: 'taxon_99_gbt_20260313T065439Z',
+      phenology_available: true,
+      full_available: true,
+    });
+  });
+
+  it('maps camelCase heatmap aliases when present', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        heatmap: {
+          available: true,
+          resolvedModelId: 'taxon_99_alias',
+          phenologyAvailable: true,
+          fullAvailable: true,
+        },
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.heatmap).toEqual({
+      available: true,
+      resolved_model_id: 'taxon_99_alias',
+      phenology_available: true,
+      full_available: true,
+    });
+  });
 });

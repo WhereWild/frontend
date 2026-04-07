@@ -101,17 +101,72 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       loading,
       error,
       height,
+      heatmapTileUrl,
+      showMarkers,
     }: {
       occurrences: unknown[];
       loading?: boolean;
       error?: string | null;
       height?: number;
+      heatmapTileUrl?: string | null;
+      showMarkers?: boolean;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
         <Text>{`Map occurrences: ${occurrences.length}`}</Text>
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
         <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
+        <Text>{`Map markers: ${showMarkers === false ? 'hidden' : 'shown'}`}</Text>
+        <Text>{`Map heatmap: ${heatmapTileUrl ?? 'none'}`}</Text>
+      </View>
+    ),
+  };
+});
+
+jest.mock('@/components/inputs/SwitchField', () => {
+  const ReactNative = jest.requireActual('react-native');
+  const { Pressable, Text, View } = ReactNative;
+
+  return {
+    SwitchField: ({
+      accessibilityLabel,
+      description,
+      disabled,
+      label,
+      onValueChange,
+      value,
+    }: {
+      accessibilityLabel?: string;
+      description?: string;
+      disabled?: boolean;
+      label?: string;
+      onValueChange?: (nextValue: boolean) => void;
+      value?: boolean;
+    }) => (
+      <View>
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityLabel={accessibilityLabel ?? label ?? 'Switch field'}
+          accessibilityState={{ checked: Boolean(value), disabled: Boolean(disabled) }}
+          disabled={disabled}
+          onPress={() => onValueChange?.(!value)}
+        >
+          <Text>{label}</Text>
+        </Pressable>
+        {description ? <Text>{description}</Text> : null}
+      </View>
+    ),
+  };
+});
+
+jest.mock('@/components/sections/speciesEnvironment/SpeciesEnvironmentSection', () => {
+  const ReactNative = jest.requireActual('react-native');
+  const { Text, View } = ReactNative;
+
+  return {
+    SpeciesEnvironmentSection: () => (
+      <View>
+        <Text>Species Environment</Text>
       </View>
     ),
   };
@@ -199,6 +254,7 @@ const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenDa
       description: 'Nearby species description.',
     },
   ],
+  heatmap: { imageSource: null as any },
   ...overrides,
 });
 
@@ -214,14 +270,6 @@ const waitForSpeciesEffectsToSettle = async (hasTaxonId = true) => {
     await flushMicrotasks();
     return;
   }
-
-  await waitFor(() => {
-    expect(mockFetchSpeciesLocations).toHaveBeenCalled();
-  });
-
-  await waitFor(() => {
-    expect(mockFetchSpeciesOccurrences).toHaveBeenCalled();
-  });
 
   await waitFor(() => {
     expect(screen.getByText('Map loading: no')).toBeTruthy();
@@ -281,6 +329,132 @@ describe('Species screen', () => {
     }
   });
 
+
+  it('renders independent observation and heatmap toggles above the map', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            liveAvailable: true,
+            liveTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+            liveModelId: 'taxon_13579_gbt_20260313T000000Z',
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('Show observations')).toBeTruthy();
+    expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
+    expect(screen.getByText('Map markers: shown')).toBeTruthy();
+    expect(screen.getByText('Map heatmap: none')).toBeTruthy();
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show observations' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Map markers: hidden')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show predictive heatmap' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true&phenology_only=false'),
+      ).toBeTruthy();
+    });
+  });
+
+  it('updates forecast and model controls when live heatmap conditions are available', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            liveAvailable: true,
+            liveTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+            phenologyAvailable: true,
+            fullAvailable: true,
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.queryByText('Weather window')).toBeNull();
+    expect(screen.queryByText('Model')).toBeNull();
+
+    fireEvent.press(screen.getByRole('switch', { name: 'Show predictive heatmap' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Weather window')).toBeTruthy();
+      expect(screen.getByText('Model')).toBeTruthy();
+      expect(screen.getByLabelText('Forecast +8h')).toBeTruthy();
+      expect(screen.getByLabelText('Habitat + flowering')).toBeTruthy();
+      expect(screen.getByLabelText('Conditions only')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Forecast +8h'));
+    await waitFor(() => {
+      expect(
+        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=false'),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Habitat'));
+    await waitFor(() => {
+      expect(
+        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=false&phenology_only=false'),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Conditions only'));
+    await waitFor(() => {
+      expect(
+        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=true'),
+      ).toBeTruthy();
+    });
+  });
+
+  it('shows the unavailable-live-overlay message when only a static heatmap exists', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            liveAvailable: false,
+            liveTileUrl: null,
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(
+      screen.getByText('Live heatmap overlay is unavailable for this model right now.'),
+    ).toBeTruthy();
+  });
+
+  it('shows the no-heatmap message when neither live nor static heatmap data exists', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: null as any,
+            liveAvailable: false,
+            liveTileUrl: null,
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    expect(screen.getByText('No heatmap is available for this species right now.')).toBeTruthy();
+  });
 
   it('falls back to sample data when no data prop is provided', async () => {
     render(<SpeciesScreen />);

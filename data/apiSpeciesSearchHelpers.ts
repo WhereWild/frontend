@@ -58,12 +58,14 @@ export function normalizeToJsonShape(item: unknown): SpeciesApiNormalized {
     typeof rawCommon === 'string' && rawCommon.trim().length > 0
       ? rawCommon.trim()
       : sciName;
+  const taxonGroup = typeof source.taxon_group === 'string' ? source.taxon_group : null;
   return {
     taxon_id: normalizedTaxonId,
     scientific_name: sciName,
     common_name: commonName,
     common_names: commonNames,
     image_source: imageUrl,
+    taxon_group: taxonGroup,
     _raw: item,
   };
 }

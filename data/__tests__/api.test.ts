@@ -3,6 +3,8 @@ import {
   fetchSpeciesByTaxonId,
   fetchSpeciesList,
   fetchSpeciesLocations,
+  fetchSpeciesWithModels,
+  fetchViewportScores,
 } from '../api';
 
 describe('data/api common name normalization', () => {
@@ -275,6 +277,56 @@ describe('data/api common name normalization', () => {
           },
         ],
       },
+    ]);
+  });
+
+  it('fetches viewport scores and falls back to empty score maps when fields are missing', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ scores: { '10': 0.75 } }),
+    });
+
+    const result = await fetchViewportScores({
+      minLon: -122,
+      minLat: 36,
+      maxLon: -120,
+      maxLat: 38,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${BACKEND_BASE}/api/heatmap/homepage/scores?min_lon=-122&min_lat=36&max_lon=-120&max_lat=38`,
+    );
+    expect(result).toEqual({
+      scores: { '10': 0.75 },
+      reasons: {},
+    });
+  });
+
+  it('normalizes species-with-models payloads for homepage hydration', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ([
+        {
+          taxon_id: '11',
+          scientific_name: 'Pinus edulis',
+          common_names: ['Colorado Pinyon'],
+          taxon_group: 'plants',
+          image_file: 'nested/pinyon.png',
+        },
+      ]),
+    });
+
+    const rows = await fetchSpeciesWithModels();
+
+    expect(global.fetch).toHaveBeenCalledWith(`${BACKEND_BASE}/api/species/with-models`);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        taxon_id: 11,
+        common_name: 'Colorado Pinyon',
+        common_names: ['Colorado Pinyon'],
+        taxon_group: 'plants',
+        image_source: `${BACKEND_BASE}/static/species_images/pinyon.png`,
+      }),
     ]);
   });
 
