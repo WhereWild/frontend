@@ -13,11 +13,16 @@ type MockPill = { key: string; label: string };
 type NavigationPillListMockProps = {
   pills: MockPill[];
   selectedKey?: string;
+  highlightedKey?: string;
   onSelectionChange?: (key: string) => void;
+  highlightOutlineColor?: string;
 };
+
+const mockNavigationPillList = jest.fn<void, [NavigationPillListMockProps]>();
 
 jest.mock('@/components/navigation/NavigationPillList', () => ({
   NavigationPillList: (props: NavigationPillListMockProps) => {
+    mockNavigationPillList(props);
     const { pills, onSelectionChange } = props;
     return mockReactLocal.createElement(
       mockRNView,
@@ -44,14 +49,24 @@ jest.mock('react-native-svg', () => {
   const MockPath = ({
     onPress,
     testID,
+    stroke,
+    strokeWidth,
+    strokeDasharray,
   }: {
     onPress?: () => void;
     testID?: string;
     d?: string;
     fill?: string;
     opacity?: number;
+    stroke?: string;
+    strokeWidth?: number;
+    strokeDasharray?: string;
   }) =>
-    mockReactLocal.createElement(mockRNPressable, { onPress, testID }, null);
+    mockReactLocal.createElement(
+      mockRNPressable,
+      { onPress, testID, accessibilityHint: stroke ? `${stroke}|${strokeWidth ?? ''}|${strokeDasharray ?? ''}` : undefined },
+      null,
+    );
 
   const MockPassthrough = ({ children }: { children?: React.ReactNode }) =>
     mockReactLocal.createElement(mockRNView, null, children);
@@ -79,6 +94,10 @@ const makeCategory = (
 });
 
 describe('AspectCompassChart', () => {
+  beforeEach(() => {
+    mockNavigationPillList.mockClear();
+  });
+
   it('renders empty state when categories array is empty', () => {
     render(
       <AspectCompassChart
@@ -113,6 +132,28 @@ describe('AspectCompassChart', () => {
       />,
     );
     expect(screen.getByTestId('svg-root')).toBeTruthy();
+  });
+
+  it('highlights the location-matched wedge and pill', () => {
+    render(
+      <AspectCompassChart
+        categories={[
+          makeCategory('N', 'N', 0.3),
+          makeCategory('S', 'S', 0.2),
+        ]}
+        selectedValue={null}
+        highlightedValue="S"
+        descriptionColor="#666"
+        highlightOutlineColor="#F59E0B"
+      />,
+    );
+
+    expect(screen.getByTestId('aspect-wedge-N').props.accessibilityHint).toBeUndefined();
+    expect(screen.getByTestId('aspect-wedge-S').props.accessibilityHint).toBe('#F59E0B|3|6 4');
+    expect(mockNavigationPillList.mock.calls.at(-1)?.[0]).toMatchObject({
+      highlightedKey: 'S',
+      highlightOutlineColor: '#F59E0B',
+    });
   });
 
   it('renders pills in compass direction order (N→NE→E→…→NW)', () => {

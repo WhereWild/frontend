@@ -46,6 +46,26 @@ const getLabelContainerStyle = (label: string) => {
   throw new Error(`Could not find positioned container for label: ${label}`);
 };
 
+const getPinImageContainerStyle = () => {
+  let current = screen.getByTestId('density-chart-pin-image') as ReactTestInstance | null;
+
+  while (current) {
+    const style = current.props.style;
+    const resolvedStyle = Array.isArray(style) ? Object.assign({}, ...style) : style;
+
+    if (resolvedStyle && typeof resolvedStyle === 'object' && 'left' in resolvedStyle) {
+      return resolvedStyle as {
+        left?: string;
+        opacity?: number;
+      };
+    }
+
+    current = current.parent;
+  }
+
+  throw new Error('Could not find positioned container for density pin image');
+};
+
 describe('DensityChart', () => {
   it('renders empty state when curve is missing', () => {
     render(
@@ -301,6 +321,7 @@ describe('DensityChart', () => {
     });
 
     expect(queryByText('Selected')).toBeNull();
+    expect(getPinImageContainerStyle()).toMatchObject({ opacity: 0, left: '0%' });
   });
 
   it('renders a selected pin label for zero-span curves when edge labels are absent', () => {
@@ -387,9 +408,11 @@ describe('DensityChart', () => {
 
     const meanStyle = getLabelContainerStyle('mean');
     const pinStyle = getLabelContainerStyle('Selected');
+    const pinImageStyle = getPinImageContainerStyle();
 
     expect(screen.getByText('Selected')).toBeTruthy();
     expect(screen.getByText('5.2')).toBeTruthy();
+    expect(pinImageStyle).toMatchObject({ opacity: 1, left: '52%' });
     expect(parseFloat(meanStyle.left ?? '0')).toBeLessThan(50);
     expect(parseFloat(pinStyle.left ?? '0')).toBeGreaterThan(52);
   });

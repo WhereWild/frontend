@@ -13,7 +13,9 @@ type MockPill = { key: string; label: string };
 type NavigationPillListMockProps = {
   pills: MockPill[];
   selectedKey?: string;
+  highlightedKey?: string;
   onSelectionChange?: (key: string) => void;
+  highlightOutlineColor?: string;
 };
 
 const mockNavigationPillList = jest.fn<void, [NavigationPillListMockProps]>();
@@ -73,6 +75,38 @@ describe('StackedCategoryBar', () => {
     expect(screen.getByTestId('stacked-segment-1')).toHaveStyle({ backgroundColor: '#E07A5F' });
     expect(screen.getByTestId('stacked-segment-2')).toHaveStyle({ backgroundColor: '#3D5A80' });
     expect(screen.getByTestId('stacked-segment-3')).toHaveStyle({ backgroundColor: '#F2CC8F' });
+  });
+
+  it('outlines the location-matched category with the highlight color', () => {
+    render(
+      <StackedCategoryBar
+        categories={[
+          { value: 'forest', className: 'Forest', count: 1, fraction: 0.5 },
+          { value: 'grass', className: 'Grassland', count: 1, fraction: 0.5 },
+        ]}
+        selectedValue={null}
+        highlightedValue="grass"
+        onSelect={jest.fn()}
+        descriptionColor="#666"
+        highlightOutlineColor="#F59E0B"
+      />,
+    );
+
+    expect(screen.getByTestId('stacked-segment-0')).toHaveStyle({
+      borderWidth: 3,
+      borderColor: 'transparent',
+      borderStyle: 'solid',
+    });
+    expect(screen.getByTestId('stacked-segment-1')).toHaveStyle({
+      borderWidth: 3,
+      borderColor: '#F59E0B',
+      borderStyle: 'dashed',
+    });
+
+    expect(mockNavigationPillList.mock.calls.at(-1)?.[0]).toMatchObject({
+      highlightedKey: 'grass',
+      highlightOutlineColor: '#F59E0B',
+    });
   });
 
   it('renders empty-state branch', () => {
