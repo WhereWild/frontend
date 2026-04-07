@@ -231,6 +231,50 @@ describe('NavigationPill', () => {
     );
   });
 
+  it('renders highlighted visuals with a thicker dashed border', () => {
+    const { content } = getRenderedPillContent(
+      { id: 'one', label: 'One', isActive: false, isHighlighted: true },
+      false,
+      false,
+    );
+    expect(content).not.toBeNull();
+
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
+      borderColor?: string;
+      borderWidth?: number;
+      borderStyle?: string;
+    };
+
+    expect(contentStyle.borderColor).toBe('#F59E0B');
+    expect(contentStyle.borderWidth).toBe(3);
+    expect(contentStyle.borderStyle).toBe('dashed');
+  });
+
+  it('keeps the dashed highlight border when highlighted and active', () => {
+    const { content, text } = getRenderedPillContent(
+      { id: 'one', label: 'One', isActive: true, isHighlighted: true },
+      false,
+      false,
+    );
+    expect(content).not.toBeNull();
+    expect(text).not.toBeNull();
+
+    const contentStyle = getStyleObject(content as FlattenableStyle) as {
+      backgroundColor?: string;
+      borderColor?: string;
+      borderWidth?: number;
+      borderStyle?: string;
+    };
+
+    expect(contentStyle.backgroundColor).toBe(Colors.light.background.brand.default);
+    expect(contentStyle.borderColor).toBe('#F59E0B');
+    expect(contentStyle.borderWidth).toBe(3);
+    expect(contentStyle.borderStyle).toBe('dashed');
+    const textElement = assertStyleableElement(text);
+    const textStyle = getStyleObject(textElement.props.style) as { color?: string };
+    expect(textStyle.color).toBe(Colors.light.text.brand.onBrand);
+  });
+
   it('keeps active visuals on hover', () => {
     const { content, text } = getRenderedPillContent(
       { id: 'one', label: 'One', isActive: true },

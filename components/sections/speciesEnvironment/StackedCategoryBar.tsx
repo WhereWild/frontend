@@ -25,10 +25,14 @@ type StackedCategoryBarProps = {
   categories: SpeciesEnvironmentCategory[];
   /** Selected category value, if any. */
   selectedValue: number | string | null;
+  /** Location-derived category value to emphasize, if any. */
+  highlightedValue?: number | string | null;
   /** Called when a category is selected from chart or pills. */
   onSelect?: (value: number | string) => void;
   /** Text color token for category description copy. */
   descriptionColor: string;
+  /** Outline color used for the location-derived highlighted category. */
+  highlightOutlineColor?: string;
 };
 
 /** Builds human-readable description text for the selected category. */
@@ -47,8 +51,10 @@ const getSelectedCategoryDescription = (category: SpeciesEnvironmentCategory) =>
 export function StackedCategoryBar({
   categories,
   selectedValue,
+  highlightedValue = null,
   onSelect,
   descriptionColor,
+  highlightOutlineColor = '#F59E0B',
 }: StackedCategoryBarProps) {
   const validCategories = React.useMemo(
     () => categories.filter(
@@ -138,6 +144,8 @@ export function StackedCategoryBar({
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           const backgroundColor = category.color ?? categoryColor;
+          const isHighlighted = highlightedValue !== null &&
+            String(category.value) === String(highlightedValue);
 
           return (
             <Pressable
@@ -150,6 +158,9 @@ export function StackedCategoryBar({
                 {
                   width: `${percent}%`,
                   backgroundColor,
+                  borderWidth: 3,
+                  borderColor: isHighlighted ? highlightOutlineColor : 'transparent',
+                  borderStyle: isHighlighted ? 'dashed' : 'solid',
                 },
               ]}
             />
@@ -160,9 +171,11 @@ export function StackedCategoryBar({
       <NavigationPillList
         pills={pills}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
+        highlightedKey={highlightedValue !== null ? String(highlightedValue) : undefined}
         onSelectionChange={handlePillSelectionChange}
         direction="horizontal"
         accessibilityLabel="Category selection"
+        highlightOutlineColor={highlightOutlineColor}
       />
 
       <View collapsable={false} style={styles.categoryDescriptionSlot}>
@@ -203,5 +216,6 @@ const styles = StyleSheet.create({
   },
   stackedBarSegment: {
     height: '100%',
+    minWidth: 4,
   },
 });
