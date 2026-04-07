@@ -1,6 +1,6 @@
 import type { SpeciesEnvironmentDensity, SpeciesEnvironmentSummary } from '@/data/types';
 import React from 'react';
-import { LayoutChangeEvent, GestureResponderEvent, StyleSheet, View } from 'react-native';
+import { Image, LayoutChangeEvent, GestureResponderEvent, StyleSheet, View } from 'react-native';
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -18,6 +18,9 @@ const CHART_PADDING = Size.space['200'];
 const CHART_HEIGHT = 240;
 const MEAN_LABEL_HALF_WIDTH = 24;
 const PIN_LABEL_HALF_WIDTH = 36;
+const PIN_IMAGE_WIDTH = 22;
+const PIN_IMAGE_HEIGHT = 29;
+const PIN_IMAGE = require('@/assets/images/wherewild.png');
 
 type ClipPathWithUnitsProps = React.ComponentProps<typeof ClipPath> & {
   clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
@@ -188,6 +191,7 @@ export function DensityChart({
     pinValue != null && !pinLoading && densityDomain.spanX > 0
       ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
+  const pinMarkerVisible = pinPosition != null && Number.isFinite(pinPosition);
 
   // Nudge mean and pin labels apart if they overlap. Hide pin label if it
   // gets too close to the fixed min/max labels. All calculations in pixels.
@@ -296,6 +300,23 @@ export function DensityChart({
           <Path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} vectorEffect="non-scaling-stroke" />
         </Svg>
         <View
+          pointerEvents="none"
+          style={[
+            styles.pinImageContainer,
+            {
+              opacity: pinMarkerVisible ? 1 : 0,
+              left: pinMarkerVisible ? `${pinPosition}%` : '0%',
+            },
+          ]}
+        >
+          <Image
+            source={PIN_IMAGE}
+            resizeMode="contain"
+            testID="density-chart-pin-image"
+            style={styles.pinImage}
+          />
+        </View>
+        <View
           collapsable={false}
           testID="density-chart-responder"
           style={styles.chartResponder}
@@ -364,6 +385,15 @@ const styles = StyleSheet.create({
   },
   chartResponder: {
     ...StyleSheet.absoluteFillObject,
+  },
+  pinImageContainer: {
+    position: 'absolute',
+    top: -(PIN_IMAGE_HEIGHT - Size.space['100']),
+    marginLeft: -(PIN_IMAGE_WIDTH / 2),
+  },
+  pinImage: {
+    width: PIN_IMAGE_WIDTH,
+    height: PIN_IMAGE_HEIGHT,
   },
   chartLabels: {
     flexDirection: 'row',

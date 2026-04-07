@@ -10,6 +10,8 @@ type PressableRef = React.ElementRef<typeof Pressable>;
 type PillState = {
   backgroundColor: string;
   borderColor: string;
+  borderStyle: 'solid' | 'dashed';
+  borderWidth: number;
   textColor: string;
 };
 
@@ -22,6 +24,7 @@ export type NavigationPillProps = {
   id: string;
   label: string;
   isActive: boolean;
+  isHighlighted?: boolean;
   onPress: (id: string) => void;
   onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
   onFocus?: () => void;
@@ -33,20 +36,25 @@ export type NavigationPillProps = {
   testID?: string;
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  highlightOutlineColor?: string;
 };
 
 const getPillState = (
   mode: 'light' | 'dark',
   isActive: boolean,
+  isHighlighted: boolean,
   pressed: boolean,
-  hovered: boolean
+  hovered: boolean,
+  highlightOutlineColor: string,
 ): PillState => {
   const palette = Colors[mode];
 
   if (isActive) {
     return {
       backgroundColor: palette.background.brand.default,
-      borderColor: TRANSPARENT,
+      borderColor: isHighlighted ? highlightOutlineColor : TRANSPARENT,
+      borderStyle: isHighlighted ? 'dashed' : 'solid',
+      borderWidth: isHighlighted ? 3 : Size.stroke.border,
       textColor: palette.text.brand.onBrand,
     };
   }
@@ -54,7 +62,9 @@ const getPillState = (
   if (pressed) {
     return {
       backgroundColor: palette.background.neutral.tertiaryPressed,
-      borderColor: TRANSPARENT,
+      borderColor: isHighlighted ? highlightOutlineColor : TRANSPARENT,
+      borderStyle: isHighlighted ? 'dashed' : 'solid',
+      borderWidth: isHighlighted ? 3 : Size.stroke.border,
       textColor: palette.text.neutral.onNeutralTertiary,
     };
   }
@@ -62,14 +72,18 @@ const getPillState = (
   if (hovered) {
     return {
       backgroundColor: palette.background.neutral.tertiaryHover,
-      borderColor: TRANSPARENT,
+      borderColor: isHighlighted ? highlightOutlineColor : TRANSPARENT,
+      borderStyle: isHighlighted ? 'dashed' : 'solid',
+      borderWidth: isHighlighted ? 3 : Size.stroke.border,
       textColor: palette.text.neutral.onNeutralTertiary,
     };
   }
 
   return {
     backgroundColor: TRANSPARENT,
-    borderColor: palette.border.neutral.tertiary,
+    borderColor: isHighlighted ? highlightOutlineColor : palette.border.neutral.tertiary,
+    borderStyle: isHighlighted ? 'dashed' : 'solid',
+    borderWidth: isHighlighted ? 3 : Size.stroke.border,
     textColor: palette.text.neutral.tertiary,
   };
 };
@@ -79,6 +93,7 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     id,
     label,
     isActive,
+    isHighlighted = false,
     onPress,
     onKeyDown,
     onFocus,
@@ -90,13 +105,21 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
     testID,
     icon,
     style,
+    highlightOutlineColor = '#F59E0B',
   },
   ref
 ) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const [isPressed, setIsPressed] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
-  const pillState = getPillState(mode, isActive, isPressed, isHovered);
+  const pillState = getPillState(
+    mode,
+    isActive,
+    isHighlighted,
+    isPressed,
+    isHovered,
+    highlightOutlineColor,
+  );
 
   return (
     <Pressable
@@ -123,6 +146,8 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(func
         {
           backgroundColor: pillState.backgroundColor,
           borderColor: pillState.borderColor,
+          borderStyle: pillState.borderStyle,
+          borderWidth: pillState.borderWidth,
           width: contentWidth,
         },
       ]}

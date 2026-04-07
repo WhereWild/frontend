@@ -53,6 +53,7 @@ function SpeciesEnvironmentSectionComponent({
     summaryRanks: ReturnType<typeof useSpeciesEnvironmentState>['summaryRanks'];
     summaryComparisons: ReturnType<typeof useSpeciesEnvironmentState>['summaryComparisons'];
     locationFilterActive: boolean;
+    pinnedCategoryValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedCategoryValue'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
   const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${units ?? ''}`;
@@ -94,6 +95,7 @@ const {
     summaryRanks,
     summaryComparisons,
     locationFilterActive,
+    pinnedCategoryValue,
     pinnedValue,
     pinnedLoading,
   } = useSpeciesEnvironmentState({
@@ -161,6 +163,7 @@ const {
         summaryRanks,
         summaryComparisons,
         locationFilterActive,
+        pinnedCategoryValue,
       }
     : shouldPreservePreviousUi
       ? stableDisplayRef.current
@@ -267,17 +270,21 @@ const {
             <AspectCompassChart
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
+              highlightedValue={displayState?.pinnedCategoryValue ?? null}
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               fillColor={palette.background.brand.default}
               selectedFillColor={palette.background.brand.default}
+              highlightOutlineColor="#F59E0B"
             />
           ) : (
             <StackedCategoryBar
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
+              highlightedValue={displayState?.pinnedCategoryValue ?? null}
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
+              highlightOutlineColor="#F59E0B"
             />
           )}
         </View>

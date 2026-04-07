@@ -14,11 +14,13 @@ type NavigationPillItem = {
 export type NavigationPillListProps = {
   pills: NavigationPillItem[];
   selectedKey: string;
+  highlightedKey?: string;
   onSelectionChange: (key: string) => void;
   direction?: 'horizontal' | 'vertical';
   accessibilityLabel?: string;
   testID?: string;
   onFocusRequest?: (index: number) => void;
+  highlightOutlineColor?: string;
 };
 
 type KeyEvent = { nativeEvent?: { key?: string }; preventDefault?: () => void };
@@ -30,11 +32,13 @@ type NavigationPillRef = PillRef | null;
 export function NavigationPillList({
   pills,
   selectedKey,
+  highlightedKey,
   onSelectionChange,
   direction = 'horizontal',
   accessibilityLabel = 'Navigation pills',
   testID,
   onFocusRequest,
+  highlightOutlineColor,
 }: NavigationPillListProps) {
   const isWeb = Platform.OS === 'web';
   const pillRefs = useRef<NavigationPillRef[]>([]);
@@ -169,6 +173,7 @@ export function NavigationPillList({
       {renderedPills.map((pill, index) => {
         const isVisible = currentPillKeys.has(pill.key);
         const isActive = isVisible && pill.key === selectedKey;
+        const isHighlighted = isVisible && pill.key === highlightedKey;
         const tabbableIndex = focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
         const isTabbable = isWeb && isVisible && index === tabbableIndex;
         const hasTrailingVisibleSibling = renderedPills
@@ -192,6 +197,7 @@ export function NavigationPillList({
             id={pill.key}
             label={pill.label}
             isActive={isActive}
+            isHighlighted={isHighlighted}
             onPress={handleSelectionChange}
             onKeyDown={isWeb ? onKeyDownForIndex(index) : undefined}
             onFocus={isWeb ? () => setFocusedIndex(index) : undefined}
@@ -202,6 +208,7 @@ export function NavigationPillList({
             accessibilityLabel={pill.accessibilityLabel ?? pill.label}
             testID={pill.testID}
             icon={pill.icon}
+            highlightOutlineColor={highlightOutlineColor}
             style={!isVisible ? styles.hiddenPill : undefined}
           />
         );
