@@ -18,6 +18,7 @@ jest.mock('../NavigationPill', () => {
       id,
       label,
       isActive,
+      isHighlighted,
       onPress,
       onKeyDown,
       onFocus,
@@ -44,6 +45,7 @@ jest.mock('../NavigationPill', () => {
         tabIndex={tabIndex}
         onPress={() => onPress(id)}
         testID={testID ?? `pill-${id}`}
+        accessibilityHint={isHighlighted ? 'highlighted' : undefined}
       >
         {label}
       </PressableWithKeyDown>
@@ -134,6 +136,21 @@ describe('NavigationPillList', () => {
 
     fireEvent.press(screen.getByLabelText('One'));
     expect(onSelectionChange).not.toHaveBeenCalled();
+  });
+
+  it('forwards highlightedKey to the matching pill without affecting selection', () => {
+    render(
+      <NavigationPillList
+        pills={pills}
+        selectedKey="one"
+        highlightedKey="two"
+        onSelectionChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('One').props.accessibilityState?.selected).toBe(true);
+    expect(screen.getByLabelText('Two').props.accessibilityHint).toBe('highlighted');
+    expect(screen.getByLabelText('Three').props.accessibilityHint).toBeUndefined();
   });
 
   it('allows native horizontal pills to wrap onto additional rows', () => {

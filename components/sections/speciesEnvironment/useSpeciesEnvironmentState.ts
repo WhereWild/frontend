@@ -228,6 +228,17 @@ export function useSpeciesEnvironmentState({
 
   const showRankContext = !locationFilterActive && rankContextOptions.length > 0;
 
+  const pinnedCategoryValue = React.useMemo(() => {
+    if (!isCategorical || pinnedValue === null) {
+      return null;
+    }
+
+    return (
+      categoricalDistribution.find((category) => String(category.value) === String(pinnedValue))?.value ??
+      null
+    );
+  }, [categoricalDistribution, isCategorical, pinnedValue]);
+
   const headingText = buildHeadingText(
     Boolean(stats),
     stats?.variableName,
@@ -273,6 +284,7 @@ export function useSpeciesEnvironmentState({
     summaryRanks,
     summaryComparisons,
     locationFilterActive,
+    pinnedCategoryValue,
     pinnedValue,
     pinnedLoading,
   };

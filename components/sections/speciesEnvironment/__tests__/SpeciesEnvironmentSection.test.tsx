@@ -28,14 +28,17 @@ jest.mock('../VariableSelectorHeader', () => ({
 jest.mock('../StackedCategoryBar', () => ({
   StackedCategoryBar: ({
     onSelect,
+    highlightedValue,
   }: {
     onSelect?: (value: string | number) => void;
+    highlightedValue?: string | number | null;
   }) => {
     const ReactNative = jest.requireActual('react-native');
     const { Pressable, Text, View } = ReactNative;
     return (
       <View>
         <Text>categorical-view</Text>
+        <Text>{highlightedValue == null ? 'no-highlighted-category' : `highlighted-${String(highlightedValue)}`}</Text>
         <Pressable testID="pick-categorical" onPress={() => onSelect?.('a')}>
           <Text>pick</Text>
         </Pressable>
@@ -74,14 +77,17 @@ jest.mock('../ContinuousInsights', () => ({
 jest.mock('../AspectCompassChart', () => ({
   AspectCompassChart: ({
     onSelect,
+    highlightedValue,
   }: {
     onSelect?: (value: string | number) => void;
+    highlightedValue?: string | number | null;
   }) => {
     const ReactNative = jest.requireActual('react-native');
     const { Pressable, Text, View } = ReactNative;
     return (
       <View>
         <Text>aspect-compass-view</Text>
+        <Text>{highlightedValue == null ? 'no-highlighted-aspect' : `highlighted-aspect-${String(highlightedValue)}`}</Text>
         <Pressable testID="pick-aspect" onPress={() => onSelect?.('N')}>
           <Text>pick</Text>
         </Pressable>
@@ -164,6 +170,7 @@ const baseState: SpeciesEnvironmentState = {
   summaryRanks: { min: null, mean: null, max: null, std: null, range99: null },
   summaryComparisons: { min: null, mean: null, max: null, std: null, range99: null },
   locationFilterActive: false,
+  pinnedCategoryValue: null,
   pinnedValue: null,
   pinnedLoading: false,
 };
@@ -484,6 +491,22 @@ describe('SpeciesEnvironmentSection', () => {
     expect(screen.queryByText('categorical-view')).toBeNull();
   });
 
+  it('forwards pinnedCategoryValue to AspectCompassChart for categorical highlights', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'aspect',
+      stats: baseCategoricalStats,
+      isCategorical: true,
+      categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+      summary: baseCategoricalStats.summary,
+      pinnedCategoryValue: 'N',
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="aspect" />);
+
+    expect(screen.getByText('highlighted-aspect-N')).toBeTruthy();
+  });
+
   it('still renders StackedCategoryBar for non-aspect categorical variables', () => {
     mockUseSpeciesEnvironmentState.mockReturnValue({
       ...baseState,
@@ -498,6 +521,22 @@ describe('SpeciesEnvironmentSection', () => {
 
     expect(screen.getByText('categorical-view')).toBeTruthy();
     expect(screen.queryByText('aspect-compass-view')).toBeNull();
+  });
+
+  it('forwards pinnedCategoryValue to StackedCategoryBar for categorical highlights', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'landcover',
+      stats: baseCategoricalStats,
+      isCategorical: true,
+      categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+      summary: baseCategoricalStats.summary,
+      pinnedCategoryValue: 'a',
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="landcover" />);
+
+    expect(screen.getByText('highlighted-a')).toBeTruthy();
   });
 
   it('renders PolarDensityChart instead of DensityChart when variable is "aspect_deg"', () => {
