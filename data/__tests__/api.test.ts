@@ -1,5 +1,6 @@
 import {
   BACKEND_BASE,
+  fetchPointEnvironmentValue,
   fetchSpeciesByTaxonId,
   fetchSpeciesList,
   fetchSpeciesLocations,
@@ -125,6 +126,59 @@ describe('data/api common name normalization', () => {
     await fetchSpeciesByTaxonId(2, { units: 'imperial' });
 
     expect(global.fetch).toHaveBeenCalledWith(`${BACKEND_BASE}/api/species/2?unit_system=imperial`);
+  });
+
+  it('parses categorical point lookup responses from class_value fields', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        variable: 'landcover',
+        units: null,
+        lat: 40.2,
+        lon: -105.1,
+        class_value: 90,
+        class_name: 'Urban',
+        description: 'Developed land',
+      }),
+    });
+
+    const result = await fetchPointEnvironmentValue(40.2, -105.1, 'landcover');
+
+    expect(result).toEqual({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 90,
+      valueLabel: 'Urban',
+      valueDescription: 'Developed land',
+    });
+  });
+
+  it('falls back to class_name when categorical point lookup omits class value', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        variable: 'landcover',
+        units: null,
+        lat: 40.2,
+        lon: -105.1,
+        class_name: 'Urban',
+        description: 'Developed land',
+      }),
+    });
+
+    const result = await fetchPointEnvironmentValue(40.2, -105.1, 'landcover');
+
+    expect(result).toEqual({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 'Urban',
+      valueLabel: 'Urban',
+      valueDescription: 'Developed land',
+    });
   });
 
   it('normalizes camelCase commonNames when snake_case common_names is absent', async () => {

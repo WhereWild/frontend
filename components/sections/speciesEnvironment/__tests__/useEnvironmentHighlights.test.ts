@@ -89,6 +89,8 @@ describe('useEnvironmentHighlights', () => {
       lat: 40.2,
       lon: -105.1,
       value: 3.5,
+      valueLabel: null,
+      valueDescription: null,
     });
   });
 
@@ -656,6 +658,8 @@ describe('useEnvironmentHighlights', () => {
         lat: 40.2,
         lon: -105.1,
         value: 7.25,
+        valueLabel: null,
+        valueDescription: null,
       });
 
       const { result } = renderHook(() =>
@@ -680,8 +684,8 @@ describe('useEnvironmentHighlights', () => {
   });
 
   it('ignores stale pinned responses after pinned observation changes', async () => {
-    const first = createDeferred<{ value: number | null }>();
-    const second = createDeferred<{ value: number | null }>();
+    const first = createDeferred<{ value: number | string | null; valueLabel?: string | null; valueDescription?: string | null }>();
+    const second = createDeferred<{ value: number | string | null; valueLabel?: string | null; valueDescription?: string | null }>();
     mockFetchPointEnvironmentValue
       .mockImplementationOnce(() => first.promise as never)
       .mockImplementationOnce(() => second.promise as never);
@@ -706,14 +710,14 @@ describe('useEnvironmentHighlights', () => {
     await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(2));
 
     await act(async () => {
-      first.resolve({ value: 1.11 });
+      first.resolve({ value: 1.11, valueLabel: null, valueDescription: null });
       await Promise.resolve();
     });
 
     expect(result.current.pinnedValue).toBeNull();
 
     await act(async () => {
-      second.resolve({ value: 8.88 });
+      second.resolve({ value: 8.88, valueLabel: null, valueDescription: null });
       await Promise.resolve();
     });
 
@@ -751,7 +755,7 @@ describe('useEnvironmentHighlights', () => {
   });
 
   it('ignores stale pinned success responses after the pin is cleared', async () => {
-    const deferred = createDeferred<{ value: number | null }>();
+    const deferred = createDeferred<{ value: number | string | null; valueLabel?: string | null; valueDescription?: string | null }>();
     mockFetchPointEnvironmentValue.mockImplementationOnce(() => deferred.promise as never);
 
     const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, PinnedProps>(
@@ -779,7 +783,7 @@ describe('useEnvironmentHighlights', () => {
     });
 
     await act(async () => {
-      deferred.resolve({ value: 9.99 });
+      deferred.resolve({ value: 9.99, valueLabel: null, valueDescription: null });
       await Promise.resolve();
     });
 

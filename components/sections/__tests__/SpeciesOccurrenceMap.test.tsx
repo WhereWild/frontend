@@ -108,8 +108,29 @@ describe('SpeciesOccurrenceMap', () => {
     fireEvent(webView, 'loadEnd');
 
     expect(mockPostMessage).toHaveBeenCalled();
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('highlight');
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('101');
+    expect(
+      mockPostMessage.mock.calls.some(
+        ([payload]) =>
+          typeof payload === 'string' &&
+          payload.includes('highlight') &&
+          payload.includes('101'),
+      ),
+    ).toBe(true);
+  });
+
+  it('posts selected point message after native map load completes', async () => {
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+      selectedPoint: { lat: 40, lon: -111 },
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+
+    expect(mockPostMessage).toHaveBeenCalled();
+    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('selected_point');
+    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('40');
+    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('-111');
   });
 
   it('posts updated highlight messages after the native map is already ready', async () => {
@@ -137,9 +158,12 @@ describe('SpeciesOccurrenceMap', () => {
     );
 
     await waitFor(() => {
-      expect(mockPostMessage.mock.calls.length).toBeGreaterThan(initialCallCount);
+      expect(
+        mockPostMessage.mock.calls.slice(initialCallCount).some(
+          ([payload]) => typeof payload === 'string' && payload.includes('202'),
+        ),
+      ).toBe(true);
     });
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('202');
   });
 
   it('resets mapReady on html changes and waits for next load event', async () => {
@@ -174,7 +198,11 @@ describe('SpeciesOccurrenceMap', () => {
 
     fireEvent(screen.getByTestId('mock-webview'), 'loadEnd');
     expect(mockPostMessage.mock.calls.length).toBeGreaterThan(callCountAfterFirstLoad);
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('20');
+    expect(
+      mockPostMessage.mock.calls.slice(callCountAfterFirstLoad).some(
+        ([payload]) => typeof payload === 'string' && payload.includes('20'),
+      ),
+    ).toBe(true);
   });
 
   it('renders map container when occurrences exist (web branch)', async () => {

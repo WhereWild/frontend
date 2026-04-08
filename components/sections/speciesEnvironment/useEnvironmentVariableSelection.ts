@@ -163,7 +163,7 @@ export function useEnvironmentVariableSelection({
     return () => {
       cancelled = true;
     };
-  }, [excludedCategories, units, variables]);
+  }, [categoryRemap, excludedCategories, units, variables]);
 
   const selectedVariableMeta = React.useMemo(
     () =>

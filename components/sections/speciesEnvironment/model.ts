@@ -30,6 +30,12 @@ export type CategorySampleState = {
   error: string | null;
 };
 
+export type PinnedCategoryBadge = {
+  value: number | string;
+  label: string;
+  description?: string | null;
+};
+
 /** Rank context option for switching ancestor-group comparisons. */
 export type RankContextOption = {
   key: string;

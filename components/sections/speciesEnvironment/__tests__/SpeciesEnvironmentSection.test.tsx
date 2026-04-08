@@ -29,9 +29,13 @@ jest.mock('../StackedCategoryBar', () => ({
   StackedCategoryBar: ({
     onSelect,
     highlightedValue,
+    pinnedValue,
+    pinnedClassName,
   }: {
     onSelect?: (value: string | number) => void;
     highlightedValue?: string | number | null;
+    pinnedValue?: string | number | null;
+    pinnedClassName?: string | null;
   }) => {
     const ReactNative = jest.requireActual('react-native');
     const { Pressable, Text, View } = ReactNative;
@@ -39,6 +43,8 @@ jest.mock('../StackedCategoryBar', () => ({
       <View>
         <Text>categorical-view</Text>
         <Text>{highlightedValue == null ? 'no-highlighted-category' : `highlighted-${String(highlightedValue)}`}</Text>
+        <Text>{pinnedValue == null ? 'no-pinned-value' : `pinned-${String(pinnedValue)}`}</Text>
+        <Text>{pinnedClassName == null ? 'no-pinned-class-name' : `pinned-class-${pinnedClassName}`}</Text>
         <Pressable testID="pick-categorical" onPress={() => onSelect?.('a')}>
           <Text>pick</Text>
         </Pressable>
@@ -171,8 +177,11 @@ const baseState: SpeciesEnvironmentState = {
   summaryComparisons: { min: null, mean: null, max: null, std: null, range99: null },
   locationFilterActive: false,
   pinnedCategoryValue: null,
+  pinnedUnobservedCategory: null,
+  pinnedClassName: null,
   pinnedValue: null,
   pinnedLoading: false,
+  pinnedNoData: false,
 };
 
 describe('SpeciesEnvironmentSection', () => {
@@ -537,6 +546,24 @@ describe('SpeciesEnvironmentSection', () => {
     render(<SpeciesEnvironmentSection taxonId={1} variableId="landcover" />);
 
     expect(screen.getByText('highlighted-a')).toBeTruthy();
+  });
+
+  it('forwards raw pinned category data to StackedCategoryBar', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      selectedVariable: 'landcover',
+      stats: baseCategoricalStats,
+      isCategorical: true,
+      categoricalDistribution: baseCategoricalStats.categoricalDistribution ?? [],
+      summary: baseCategoricalStats.summary,
+      pinnedValue: 62,
+      pinnedClassName: 'Closed deciduous broadleaved forest',
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} variableId="landcover" />);
+
+    expect(screen.getByText('pinned-62')).toBeTruthy();
+    expect(screen.getByText('pinned-class-Closed deciduous broadleaved forest')).toBeTruthy();
   });
 
   it('renders PolarDensityChart instead of DensityChart when variable is "aspect_deg"', () => {
