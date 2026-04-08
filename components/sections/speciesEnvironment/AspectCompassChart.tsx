@@ -1,11 +1,12 @@
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import type { SpeciesEnvironmentCategory } from '@/data/types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
-import { formatCategoryPercent, formatValue } from './model';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { formatCategoryPercent, formatValue, type PinnedCategoryBadge } from './model';
 
 const CHART_SIZE = 240;
 const CX = CHART_SIZE / 2;
@@ -112,6 +113,8 @@ type AspectCompassChartProps = {
   selectedValue: number | string | null;
   /** Location-derived category value to emphasize, if any. */
   highlightedValue?: number | string | null;
+  /** Point-derived category that is not present in the observed distribution. */
+  unobservedHighlightedCategory?: PinnedCategoryBadge | null;
   /** Called when a wedge or pill is tapped. */
   onSelect?: (value: number | string) => void;
   /** Color for the description text below the chart. */
@@ -129,12 +132,15 @@ export function AspectCompassChart({
   categories,
   selectedValue,
   highlightedValue = null,
+  unobservedHighlightedCategory = null,
   onSelect,
   descriptionColor,
   fillColor = '#466237',
   selectedFillColor = '#81B29A',
   highlightOutlineColor = '#F59E0B',
 }: AspectCompassChartProps) {
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const validCategories = categories.filter(
     (cat) => Number.isFinite(cat.fraction) && cat.fraction >= 0,
   );
@@ -166,6 +172,9 @@ export function AspectCompassChart({
       ? (validCategories.find((cat) => String(cat.value) === String(highlightedValue)) ?? null)
       : null;
   const highlightedDir = highlightedCategory ? resolveDirection(highlightedCategory) : null;
+  const unobservedPillKey = unobservedHighlightedCategory
+    ? `__unobserved__:${String(unobservedHighlightedCategory.value)}`
+    : null;
 
   // Sort pills in compass order for consistent display
   const orderedCategories = DIR_ORDER.flatMap((dir) => {
@@ -260,13 +269,25 @@ export function AspectCompassChart({
       </View>
 
       <NavigationPillList
-        pills={orderedCategories.map((cat) => {
-          const dir = resolveDirection(cat) ?? cat.className;
-          return { key: String(cat.value), label: dir };
-        })}
+        pills={[
+          ...orderedCategories.map((cat) => {
+            const dir = resolveDirection(cat) ?? cat.className;
+            return { key: String(cat.value), label: dir };
+          }),
+          ...(unobservedHighlightedCategory && unobservedPillKey
+            ? [{ key: unobservedPillKey, label: unobservedHighlightedCategory.label }]
+            : []),
+        ]}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
-        highlightedKey={highlightedValue !== null ? String(highlightedValue) : undefined}
+        highlightedKey={
+          highlightedValue !== null
+            ? String(highlightedValue)
+            : unobservedPillKey ?? undefined
+        }
         onSelectionChange={(key) => {
+          if (key === unobservedPillKey) {
+            return;
+          }
           const cat = validCategories.find((c) => String(c.value) === key);
           if (cat) onSelect?.(cat.value);
         }}
@@ -282,6 +303,23 @@ export function AspectCompassChart({
         >
           {getSelectedDescription(selectedCategory)}
         </ThemedText>
+      ) : unobservedHighlightedCategory ? (
+        <View
+          style={[
+            styles.warningPill,
+            {
+              backgroundColor: palette.background.warning.secondary,
+              borderColor: palette.border.warning.default,
+            },
+          ]}
+        >
+          <ThemedText
+            variant="bodySmall"
+            style={{ color: palette.text.warning.default }}
+          >
+            Species has never been observed in this environment
+          </ThemedText>
+        </View>
       ) : null}
     </View>
   );
@@ -300,4 +338,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   description: {},
+  warningPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
+  },
 });

@@ -342,6 +342,14 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
 
+  const selectedMapPoint = React.useMemo(
+    () =>
+      pinnedObservation?.catalogNumber.startsWith('point:')
+        ? { lat: pinnedObservation.lat, lon: pinnedObservation.lon }
+        : null,
+    [pinnedObservation],
+  );
+
   return (
     <>
       {Platform.OS === 'web' ? (
@@ -464,6 +472,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 loading={occurrenceLoading}
                 error={occurrenceError}
                 highlightedCatalogs={highlightedCatalogs}
+                selectedPoint={selectedMapPoint}
                 height={observationMapHeight}
                 showMarkers={showObservations}
                 heatmapTileUrl={activeTileUrl}
