@@ -33,6 +33,54 @@ const toCatalogIdsFromCategorySample = (
   sample?: CategorySampleEntry,
 ): CatalogId[] => (sample?.observationIds ?? []).filter(isCatalogId);
 
+const normalizeCategoryIdentity = (value: number | string | null | undefined) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : String(value ?? '');
+
+const resolvePinnedCategoryQueryValue = ({
+  stats,
+  pointValue,
+  pointLabel,
+}: {
+  stats: SpeciesEnvironmentStats | null;
+  pointValue: number | string | null;
+  pointLabel: string | null;
+}): number | string | null => {
+  const normalizedPointValue = normalizeCategoryIdentity(pointValue);
+  const normalizedPointLabel = normalizeCategoryIdentity(pointLabel);
+
+  const matchedDistributionValue =
+    stats?.categoricalDistribution?.find((category) => {
+      const normalizedCategoryValue = normalizeCategoryIdentity(category.value);
+      const normalizedCategoryLabel = normalizeCategoryIdentity(category.className);
+      return (
+        normalizedCategoryValue === normalizedPointValue ||
+        normalizedCategoryLabel === normalizedPointValue ||
+        (normalizedPointLabel.length > 0 &&
+          (normalizedCategoryValue === normalizedPointLabel ||
+            normalizedCategoryLabel === normalizedPointLabel))
+      );
+    })?.value ?? null;
+
+  if (matchedDistributionValue !== null) {
+    return matchedDistributionValue;
+  }
+
+  const matchedSampleValue =
+    stats?.categoricalSamples?.find((sample) => {
+      const normalizedSampleValue = normalizeCategoryIdentity(sample.value);
+      return (
+        normalizedSampleValue === normalizedPointValue ||
+        (normalizedPointLabel.length > 0 && normalizedSampleValue === normalizedPointLabel)
+      );
+    })?.value ?? null;
+
+  if (matchedSampleValue !== null) {
+    return matchedSampleValue;
+  }
+
+  return pointLabel ?? pointValue;
+};
+
 /** Inputs for managing observation highlights from environment interactions. */
 type UseEnvironmentHighlightsParams = {
   /** Taxon ID used for slice/category sample requests. */
@@ -78,7 +126,10 @@ export function useEnvironmentHighlights({
   );
   const categoryRequestRef = React.useRef(0);
   const lastEmittedSignatureRef = React.useRef<string | null>(null);
-  const [pinnedValue, setPinnedValue] = React.useState<number | null>(null);
+  const [pinnedValue, setPinnedValue] = React.useState<number | string | null>(null);
+  const [pinnedValueLabel, setPinnedValueLabel] = React.useState<string | null>(null);
+  const [pinnedValueDescription, setPinnedValueDescription] = React.useState<string | null>(null);
+  const [pinnedCategoryObserved, setPinnedCategoryObserved] = React.useState<boolean | null>(null);
   const [pinnedLoading, setPinnedLoading] = React.useState(false);
   const pinnedRequestRef = React.useRef(0);
 
@@ -109,6 +160,9 @@ export function useEnvironmentHighlights({
 
   React.useEffect(() => {
     setPinnedValue(null);
+    setPinnedValueLabel(null);
+    setPinnedValueDescription(null);
+    setPinnedCategoryObserved(null);
     setPinnedLoading(false);
     pinnedRequestRef.current += 1;
   }, [selectedVariable, locationGid, taxonId, units]);
@@ -117,6 +171,9 @@ export function useEnvironmentHighlights({
     if (!pinnedObservation || !selectedVariable) {
       pinnedRequestRef.current += 1;
       setPinnedValue(null);
+      setPinnedValueLabel(null);
+      setPinnedValueDescription(null);
+      setPinnedCategoryObserved(null);
       setPinnedLoading(false);
       return;
     }
@@ -134,18 +191,57 @@ export function useEnvironmentHighlights({
           return;
         }
         setPinnedValue(result.value);
+        setPinnedValueLabel(result.valueLabel);
+        setPinnedValueDescription(result.valueDescription);
+        if (!isCategorical || result.value === null || !taxonId) {
+          setPinnedCategoryObserved(null);
+        } else {
+          try {
+            const categoryQueryValue = resolvePinnedCategoryQueryValue({
+              stats,
+              pointValue: result.value,
+              pointLabel: result.valueLabel,
+            });
+            if (categoryQueryValue === null) {
+              setPinnedCategoryObserved(null);
+              return;
+            }
+            const categoryResponse = await fetchSpeciesEnvironmentCategorySamples(
+              taxonId,
+              selectedVariable,
+              categoryQueryValue,
+              { location: locationGid ?? undefined, units },
+            );
+            if (pinnedRequestRef.current !== requestId) {
+              return;
+            }
+            const observedCount =
+              typeof categoryResponse.count === 'number'
+                ? categoryResponse.count
+                : categoryResponse.observations?.length ?? 0;
+            setPinnedCategoryObserved(observedCount > 0);
+          } catch {
+            if (pinnedRequestRef.current !== requestId) {
+              return;
+            }
+            setPinnedCategoryObserved(null);
+          }
+        }
       } catch {
         if (pinnedRequestRef.current !== requestId) {
           return;
         }
         setPinnedValue(null);
+        setPinnedValueLabel(null);
+        setPinnedValueDescription(null);
+        setPinnedCategoryObserved(null);
       } finally {
         if (pinnedRequestRef.current === requestId) {
           setPinnedLoading(false);
         }
       }
     })();
-  }, [pinnedObservation, selectedVariable, units]);
+  }, [isCategorical, locationGid, pinnedObservation, selectedVariable, stats, taxonId, units]);
 
   React.useEffect(() => {
     if (!stats?.categoricalSamples || !stats.categoricalSamples.length) {
@@ -421,6 +517,11 @@ export function useEnvironmentHighlights({
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
+    pinnedClassName: pinnedValueLabel,
+    pinnedNoData: pinnedValue === null && pinnedValueLabel === null && pinnedValueDescription === null,
+    pinnedValueLabel,
+    pinnedValueDescription,
+    pinnedCategoryObserved,
     pinnedValue,
     pinnedLoading,
   };

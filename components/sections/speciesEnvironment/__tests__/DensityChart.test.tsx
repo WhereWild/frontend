@@ -444,6 +444,52 @@ describe('DensityChart', () => {
     expect(parseFloat(pinStyle.left ?? '0')).toBeLessThan(48);
   });
 
+  it('shows an out-of-range warning and hides the selected pin when the value is above the species range', () => {
+    const { getByTestId, queryByText } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={12}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 300 } },
+    });
+
+    expect(screen.getByText("Location value (12.0) is above this species' observed range")).toBeTruthy();
+    expect(queryByText('Selected')).toBeNull();
+    expect(getPinImageContainerStyle()).toMatchObject({ opacity: 0, left: '0%' });
+  });
+
+  it('shows an out-of-range warning and hides the selected pin when the value is below the species range', () => {
+    const { getByTestId, queryByText } = render(
+      <DensityChart
+        curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
+        lineColor="#000"
+        fillColor="#000"
+        baselineColor="#000"
+        summary={{ count: 3, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        pinValue={-1}
+        pinLoading={false}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'layout', {
+      nativeEvent: { layout: { width: 300 } },
+    });
+
+    expect(screen.getByText("Location value (-1.0) is below this species' observed range")).toBeTruthy();
+    expect(queryByText('Selected')).toBeNull();
+    expect(getPinImageContainerStyle()).toMatchObject({ opacity: 0, left: '0%' });
+  });
+
   it('handles zero-span and zero-density curves', () => {
     render(
       <DensityChart

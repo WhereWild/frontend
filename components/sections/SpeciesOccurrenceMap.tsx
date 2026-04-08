@@ -15,8 +15,10 @@ import {
   type HighlightMessage,
   type MapMarkerPalette,
   toHighlightMessagePayload,
+  toSelectedPointMessagePayload,
   isPinObservationEventFromFrame,
   isPinObservationMessage,
+  type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
@@ -34,6 +36,7 @@ type SpeciesOccurrenceMapProps = {
   maxBounds?: [[number, number], [number, number]] | null;
   showMarkers?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
+  selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (bounds: { minLon: number; minLat: number; maxLon: number; maxLat: number }) => void;
 };
 
@@ -53,6 +56,7 @@ export function SpeciesOccurrenceMap({
   maxBounds = null,
   showMarkers = true,
   onPinObservation,
+  selectedPoint = null,
   onBoundsChange,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -117,6 +121,8 @@ export function SpeciesOccurrenceMap({
       markerStroke: palette.border.brand.default,
       highlightFill: palette.background.danger.default,
       highlightStroke: palette.border.danger.default,
+      selectedPointFill: '#F59E0B',
+      selectedPointStroke: '#F59E0B',
     }),
     [
       palette.background.brand.default,
@@ -173,9 +179,16 @@ export function SpeciesOccurrenceMap({
     () => toHighlightMessagePayload(highlightKeys),
     [highlightKeys],
   );
+  const selectedPointMessage = React.useMemo<SelectedPointMessage>(
+    () =>
+      toSelectedPointMessagePayload(
+        selectedPoint ? { latitude: selectedPoint.lat, longitude: selectedPoint.lon } : null,
+      ),
+    [selectedPoint],
+  );
 
   const sendHighlightMessage = React.useCallback(
-    (message: HighlightMessage) => {
+    (message: HighlightMessage | SelectedPointMessage) => {
       if (Platform.OS === 'web') {
         iframeRef.current?.contentWindow?.postMessage(message, '*');
       } else {
@@ -191,6 +204,13 @@ export function SpeciesOccurrenceMap({
     }
     sendHighlightMessage(highlightMessage);
   }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
+
+  React.useEffect(() => {
+    if (!mapReady || (!hasOccurrences && !heatmapTileUrl)) {
+      return;
+    }
+    sendHighlightMessage(selectedPointMessage);
+  }, [hasOccurrences, heatmapTileUrl, mapReady, selectedPointMessage, sendHighlightMessage]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') {

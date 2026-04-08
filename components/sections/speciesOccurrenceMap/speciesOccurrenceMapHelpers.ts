@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
+export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -43,6 +44,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   initialZoom: '__INITIAL_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
   pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
+  selectedPointType: '__SELECTED_POINT_MESSAGE_TYPE_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -57,7 +59,12 @@ export type PinObservationMessage = {
   longitude: number;
 };
 
-export type MapInboundMessage = HighlightMessage | PinObservationMessage;
+export type SelectedPointMessage = {
+  type: typeof SELECTED_POINT_MESSAGE_TYPE;
+  point: { latitude: number; longitude: number } | null;
+};
+
+export type MapInboundMessage = HighlightMessage | PinObservationMessage | SelectedPointMessage;
 
 export const isPinObservationMessage = (msg: unknown): msg is PinObservationMessage => {
   if (!msg || typeof msg !== 'object') return false;
@@ -86,11 +93,20 @@ export type MapMarkerPalette = {
   markerStroke: string;
   highlightFill: string;
   highlightStroke: string;
+  selectedPointFill: string;
+  selectedPointStroke: string;
 };
 
 export const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage => ({
   type: HIGHLIGHT_MESSAGE_TYPE,
   catalogs,
+});
+
+export const toSelectedPointMessagePayload = (
+  point: { latitude: number; longitude: number } | null,
+): SelectedPointMessage => ({
+  type: SELECTED_POINT_MESSAGE_TYPE,
+  point,
 });
 
 export const getMapTileUrlTemplate = (mode: MapTileMode) => {
@@ -188,6 +204,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationType)
     .join(JSON.stringify(PIN_OBSERVATION_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.selectedPointType)
+    .join(JSON.stringify(SELECTED_POINT_MESSAGE_TYPE));
   return html;
 };
 
