@@ -5,6 +5,7 @@ import {
   EnvironmentVariableOption,
   formatValue,
   isVariableCategorical as isVariableCategoricalOption,
+  type PinnedCategoryBadge,
   RankContextOption,
 } from './model';
 import {
@@ -72,6 +73,13 @@ const resolvePresentationState = ({
   };
 };
 
+const categoryHasObservedSamples = (category: { count: number; fraction: number }) =>
+  (Number.isFinite(category.count) && category.count > 0) ||
+  (Number.isFinite(category.fraction) && category.fraction > 0);
+
+const normalizeCategoryIdentity = (value: number | string | null | undefined) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : String(value ?? '');
+
 /** Composes selection, stats, ranking, and presentation state for SpeciesEnvironmentSection. */
 export function useSpeciesEnvironmentState({
   taxonId,
@@ -124,6 +132,11 @@ export function useSpeciesEnvironmentState({
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
+    pinnedClassName,
+    pinnedNoData,
+    pinnedValueLabel,
+    pinnedValueDescription,
+    pinnedCategoryObserved,
     pinnedValue,
     pinnedLoading,
   } = useEnvironmentHighlights({
@@ -139,7 +152,7 @@ export function useSpeciesEnvironmentState({
 
   const rangeObservationItems = React.useMemo(
     () =>
-      rangeObservations.map((entry) => ({
+    rangeObservations.map((entry) => ({
         id: entry.catalogNumber,
         label:
           typeof entry.value === 'number'
@@ -233,11 +246,52 @@ export function useSpeciesEnvironmentState({
       return null;
     }
 
+    const normalizedPinnedValue = normalizeCategoryIdentity(pinnedValue);
+    const normalizedPinnedLabel = normalizeCategoryIdentity(pinnedValueLabel);
+
     return (
-      categoricalDistribution.find((category) => String(category.value) === String(pinnedValue))?.value ??
-      null
+      categoricalDistribution.find(
+        (category) =>
+          categoryHasObservedSamples(category) &&
+          (
+            normalizeCategoryIdentity(category.value) === normalizedPinnedValue ||
+            normalizeCategoryIdentity(category.className) === normalizedPinnedValue ||
+            (normalizedPinnedLabel.length > 0 &&
+              (
+                normalizeCategoryIdentity(category.value) === normalizedPinnedLabel ||
+                normalizeCategoryIdentity(category.className) === normalizedPinnedLabel
+              ))
+          ),
+      )?.value ?? null
     );
-  }, [categoricalDistribution, isCategorical, pinnedValue]);
+  }, [categoricalDistribution, isCategorical, pinnedValue, pinnedValueLabel]);
+
+  const pinnedUnobservedCategory = React.useMemo<PinnedCategoryBadge | null>(() => {
+    if (!isCategorical || pinnedValue === null) {
+      return null;
+    }
+
+    if (pinnedCategoryObserved === true) {
+      return null;
+    }
+
+    if (pinnedCategoryObserved === null && pinnedCategoryValue !== null) {
+      return null;
+    }
+
+    return {
+      value: pinnedValue,
+      label: pinnedValueLabel?.trim().length ? pinnedValueLabel : String(pinnedValue),
+      description: pinnedValueDescription,
+    };
+  }, [
+    isCategorical,
+    pinnedCategoryObserved,
+    pinnedCategoryValue,
+    pinnedValue,
+    pinnedValueDescription,
+    pinnedValueLabel,
+  ]);
 
   const headingText = buildHeadingText(
     Boolean(stats),
@@ -285,7 +339,10 @@ export function useSpeciesEnvironmentState({
     summaryComparisons,
     locationFilterActive,
     pinnedCategoryValue,
+    pinnedUnobservedCategory,
+    pinnedClassName,
     pinnedValue,
     pinnedLoading,
+    pinnedNoData,
   };
 }

@@ -29,6 +29,7 @@
     const palette = __PALETTE_JSON__;
     const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
     const PIN_OBSERVATION_MESSAGE_TYPE = __PIN_OBSERVATION_MESSAGE_TYPE_JSON__;
+    const SELECTED_POINT_MESSAGE_TYPE = __SELECTED_POINT_MESSAGE_TYPE_JSON__;
 
     const MERCATOR_MAX_LAT = 85.05112878;
     const TILE_SIZE = 256;
@@ -121,8 +122,17 @@
       opacity: 0.95,
       fillOpacity: 0.95,
     };
+    const selectedPointStyle = {
+      radius: 6,
+      fillColor: palette.selectedPointFill,
+      color: palette.selectedPointStroke,
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 1,
+    };
     const activeHighlightCatalogs = new Set();
     const markers = new Map();
+    let selectedPointMarker = null;
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
       const msg = {
@@ -161,6 +171,15 @@
       sendPinMessage(catalogNumber, latitude, longitude);
     }
 
+    function buildPinButtonHtml(catalogNumber, latitude, longitude) {
+      return '<button type="button" data-pin-observation="true" data-catalog-number="' + encodeURIComponent(catalogNumber) + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+    }
+
+    function buildMapClickPopup(latitude, longitude) {
+      const syntheticCatalog = 'point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6);
+      return buildPinButtonHtml(syntheticCatalog, latitude, longitude);
+    }
+
     function styleForCatalog(catalog) {
       return activeHighlightCatalogs.has(catalog) ? highlightStyle : markerStyle;
     }
@@ -188,7 +207,40 @@
       }
       if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs || []);
+        return;
       }
+
+      if (data && data.type === SELECTED_POINT_MESSAGE_TYPE) {
+        applySelectedPoint(data.point || null);
+      }
+    }
+
+    function applySelectedPoint(point) {
+      if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
+        if (selectedPointMarker) {
+          map.removeLayer(selectedPointMarker);
+          selectedPointMarker = null;
+        }
+        return;
+      }
+
+      const latitude = clampLatitude(point.latitude);
+      const longitude = Number(point.longitude);
+      if (!isFinite(latitude) || !isFinite(longitude)) {
+        return;
+      }
+
+      const alignedLongitude = alignLongitudeToView(longitude, map.getCenter().lng);
+      if (!selectedPointMarker) {
+        selectedPointMarker = L.circleMarker(
+          [latitude, alignedLongitude],
+          selectedPointStyle,
+        ).addTo(map);
+        return;
+      }
+
+      selectedPointMarker.setLatLng([latitude, alignedLongitude]);
+      selectedPointMarker.setStyle(selectedPointStyle);
     }
 
     document.addEventListener('click', handlePinButtonClick);
@@ -217,7 +269,7 @@
           return '';
         }
         var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
-        var pinBtn = '<button type="button" data-pin-observation="true" data-catalog-number="' + catalogHref + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+        var pinBtn = buildPinButtonHtml(catalogHref, latitude, longitude);
         return inatLink + pinBtn;
       }
 
@@ -438,7 +490,20 @@
       map.setView([0, 0], BASE_MIN_ZOOM);
     }
 
+    map.on('click', function(event) {
+      const latitude = Number(event.latlng?.lat);
+      const longitude = Number(event.latlng?.lng);
+      if (!isFinite(latitude) || !isFinite(longitude)) {
+        return;
+      }
+      L.popup()
+        .setLatLng(event.latlng)
+        .setContent(buildMapClickPopup(latitude, longitude))
+        .openOn(map);
+    });
+
     applyHighlights([]);
+    applySelectedPoint(null);
   </script>
 </body>
 
