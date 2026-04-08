@@ -54,6 +54,9 @@ function SpeciesEnvironmentSectionComponent({
     summaryComparisons: ReturnType<typeof useSpeciesEnvironmentState>['summaryComparisons'];
     locationFilterActive: boolean;
     pinnedCategoryValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedCategoryValue'];
+    pinnedUnobservedCategory: ReturnType<typeof useSpeciesEnvironmentState>['pinnedUnobservedCategory'];
+    pinnedClassName: ReturnType<typeof useSpeciesEnvironmentState>['pinnedClassName'];
+    pinnedValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedValue'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
   const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${units ?? ''}`;
@@ -96,6 +99,8 @@ const {
     summaryComparisons,
     locationFilterActive,
     pinnedCategoryValue,
+    pinnedUnobservedCategory,
+    pinnedClassName,
     pinnedValue,
     pinnedLoading,
   } = useSpeciesEnvironmentState({
@@ -164,6 +169,9 @@ const {
         summaryComparisons,
         locationFilterActive,
         pinnedCategoryValue,
+        pinnedUnobservedCategory,
+        pinnedClassName,
+        pinnedValue,
       }
     : shouldPreservePreviousUi
       ? stableDisplayRef.current
@@ -178,6 +186,7 @@ const {
   const displayMetaText = displayState?.metaText ?? null;
   const showCategoricalContent = Boolean(displayState?.isCategorical);
   const showContinuousContent = Boolean(displayState && !displayState.isCategorical);
+  const numericPinnedValue = typeof pinnedValue === 'number' ? pinnedValue : null;
 
   return (
     <View collapsable={false} style={styles.container}>
@@ -271,6 +280,7 @@ const {
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
+              unobservedHighlightedCategory={displayState?.pinnedUnobservedCategory ?? null}
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               fillColor={palette.background.brand.default}
@@ -281,7 +291,10 @@ const {
             <StackedCategoryBar
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
+              pinnedValue={displayState?.pinnedValue ?? null}
+              pinnedClassName={displayState?.pinnedClassName ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
+              unobservedHighlightedCategory={displayState?.pinnedUnobservedCategory ?? null}
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               highlightOutlineColor="#F59E0B"
@@ -307,7 +320,7 @@ const {
               guideColor={palette.text.default.secondary}
               selection={displayState?.selectedDensityRange ?? null}
               onSelectionChange={handleDensitySelectionChange}
-              pinValue={pinnedValue}
+              pinValue={numericPinnedValue}
               pinLoading={pinnedLoading}
             />
           ) : (
@@ -320,7 +333,7 @@ const {
                 summary={displayState?.summary}
                 selection={displayState?.selectedDensityRange ?? null}
                 onSelectionChange={handleDensitySelectionChange}
-                pinValue={pinnedValue}
+                pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
               />
 
