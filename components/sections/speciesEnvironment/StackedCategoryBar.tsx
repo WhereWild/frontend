@@ -1,10 +1,11 @@
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import type { SpeciesEnvironmentCategory } from '@/data/types';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
-import { formatCategoryPercent, formatValue } from './model';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { formatCategoryPercent, formatValue, type PinnedCategoryBadge } from './model';
 
 const CATEGORY_DISPLAY_LIMIT = 8;
 const CATEGORY_COLORS = [
@@ -25,8 +26,14 @@ type StackedCategoryBarProps = {
   categories: SpeciesEnvironmentCategory[];
   /** Selected category value, if any. */
   selectedValue: number | string | null;
+  /** Raw category value returned for a pinned map location. */
+  pinnedValue?: number | string | null;
+  /** Human-readable class name returned for a pinned map location. */
+  pinnedClassName?: string | null;
   /** Location-derived category value to emphasize, if any. */
   highlightedValue?: number | string | null;
+  /** Point-derived category that is not present in the observed distribution. */
+  unobservedHighlightedCategory?: PinnedCategoryBadge | null;
   /** Called when a category is selected from chart or pills. */
   onSelect?: (value: number | string) => void;
   /** Text color token for category description copy. */
@@ -51,11 +58,16 @@ const getSelectedCategoryDescription = (category: SpeciesEnvironmentCategory) =>
 export function StackedCategoryBar({
   categories,
   selectedValue,
+  pinnedValue = null,
+  pinnedClassName = null,
   highlightedValue = null,
+  unobservedHighlightedCategory = null,
   onSelect,
   descriptionColor,
   highlightOutlineColor = '#F59E0B',
 }: StackedCategoryBarProps) {
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const validCategories = React.useMemo(
     () => categories.filter(
       (category) => Number.isFinite(category.fraction) && category.fraction >= 0,
@@ -94,12 +106,73 @@ export function StackedCategoryBar({
       : null,
     [displayCategories, selectedValue],
   );
-  const pills = React.useMemo(
-    () => displayCategories.map((category, index) => {
+  const hasOtherCategory = React.useMemo(
+    () => displayCategories.some((category) => String(category.value) === '__other__'),
+    [displayCategories],
+  );
+  const topCategories = React.useMemo(
+    () => validCategories.slice(0, CATEGORY_DISPLAY_LIMIT),
+    [validCategories],
+  );
+  const otherCategories = React.useMemo(
+    () => validCategories.slice(CATEGORY_DISPLAY_LIMIT),
+    [validCategories],
+  );
+  const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
+    if (pinnedValue !== null && pinnedValue !== undefined) {
+      const pinnedKey = String(pinnedValue);
+      if (topCategories.some((category) => String(category.value) === pinnedKey)) {
+        return { resolvedPinnedKey: pinnedKey, pinnedOtherLabel: null };
+      }
+      const otherMatch = otherCategories.find((category) => String(category.value) === pinnedKey);
+      if (hasOtherCategory && otherMatch) {
+        return {
+          resolvedPinnedKey: '__other__',
+          pinnedOtherLabel: otherMatch.className,
+        };
+      }
+      if (pinnedClassName?.trim()) {
+        return {
+          resolvedPinnedKey: '__other__',
+          pinnedOtherLabel: pinnedClassName.trim(),
+        };
+      }
+    }
+
+    if (highlightedValue !== null) {
+      return {
+        resolvedPinnedKey: String(highlightedValue),
+        pinnedOtherLabel: null,
+      };
+    }
+
+    if (unobservedHighlightedCategory) {
+      return {
+        resolvedPinnedKey: '__other__',
+        pinnedOtherLabel: unobservedHighlightedCategory.label,
+      };
+    }
+
+    return { resolvedPinnedKey: null, pinnedOtherLabel: null };
+  }, [
+    hasOtherCategory,
+    highlightedValue,
+    otherCategories,
+    pinnedClassName,
+    pinnedValue,
+    topCategories,
+    unobservedHighlightedCategory,
+  ]);
+  const pills = React.useMemo(() => {
+    const basePills = displayCategories.map((category, index) => {
       const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const isOtherCategory = String(category.value) === '__other__';
       return {
         key: String(category.value),
-        label: category.className,
+        label:
+          isOtherCategory && pinnedOtherLabel
+            ? `Other (${pinnedOtherLabel})`
+            : category.className,
         icon: (
           <View
             style={{
@@ -111,15 +184,33 @@ export function StackedCategoryBar({
           />
         ),
       };
-    }),
-    [displayCategories],
-  );
+    });
+
+    if (!pinnedOtherLabel || !resolvedPinnedKey) {
+      return basePills;
+    }
+
+    if (hasOtherCategory) {
+      return basePills;
+    }
+
+    return [
+      ...basePills,
+      {
+        key: '__other__',
+        label: `Other (${pinnedOtherLabel})`,
+      },
+    ];
+  }, [displayCategories, hasOtherCategory, pinnedOtherLabel, resolvedPinnedKey]);
   const handlePillSelectionChange = React.useCallback((key: string) => {
+    if (key === '__other__' && !hasOtherCategory) {
+      return;
+    }
     const value = displayCategories.find((cat) => String(cat.value) === key)?.value;
     if (value !== undefined) {
       onSelect?.(value);
     }
-  }, [displayCategories, onSelect]);
+  }, [displayCategories, hasOtherCategory, onSelect]);
 
   if (!validCategories.length) {
     return (
@@ -132,9 +223,12 @@ export function StackedCategoryBar({
   const selectedCategoryDescription = selectedCategory
     ? getSelectedCategoryDescription(selectedCategory)
     : null;
+  const effectiveHighlightedValue = resolvedPinnedKey;
   const descriptionDisplayText = selectedCategoryDescription?.trim().length
     ? selectedCategoryDescription
-    : ' ';
+    : pinnedOtherLabel
+      ? 'Species has never been observed in this environment'
+      : ' ';
 
   return (
     <View collapsable={false} style={styles.stackedCategoryContainer}>
@@ -144,8 +238,8 @@ export function StackedCategoryBar({
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           const backgroundColor = category.color ?? categoryColor;
-          const isHighlighted = highlightedValue !== null &&
-            String(category.value) === String(highlightedValue);
+          const isHighlighted = effectiveHighlightedValue !== null &&
+            String(category.value) === String(effectiveHighlightedValue);
 
           return (
             <Pressable
@@ -171,7 +265,11 @@ export function StackedCategoryBar({
       <NavigationPillList
         pills={pills}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
-        highlightedKey={highlightedValue !== null ? String(highlightedValue) : undefined}
+        highlightedKey={
+          effectiveHighlightedValue !== null
+            ? String(effectiveHighlightedValue)
+            : undefined
+        }
         onSelectionChange={handlePillSelectionChange}
         direction="horizontal"
         accessibilityLabel="Category selection"
@@ -179,15 +277,34 @@ export function StackedCategoryBar({
       />
 
       <View collapsable={false} style={styles.categoryDescriptionSlot}>
-        <ThemedText
-          variant="bodySmall"
-          style={[
-            styles.categoryDescription,
-            { color: descriptionColor },
-          ]}
-        >
-          {descriptionDisplayText}
-        </ThemedText>
+        {pinnedOtherLabel && !selectedCategoryDescription ? (
+          <View
+            style={[
+              styles.warningPill,
+              {
+                backgroundColor: palette.background.warning.secondary,
+                borderColor: palette.border.warning.default,
+              },
+            ]}
+          >
+            <ThemedText
+              variant="bodySmall"
+              style={{ color: palette.text.warning.default }}
+            >
+              Species has never been observed in this environment
+            </ThemedText>
+          </View>
+        ) : (
+          <ThemedText
+            variant="bodySmall"
+            style={[
+              styles.categoryDescription,
+              { color: descriptionColor },
+            ]}
+          >
+            {descriptionDisplayText}
+          </ThemedText>
+        )}
       </View>
     </View>
   );
@@ -204,6 +321,13 @@ const styles = StyleSheet.create({
   },
   categoryDescriptionSlot: {
     minHeight: 20,
+  },
+  warningPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
   },
   stackedCategoryContainer: {
     gap: Size.space.text.section,

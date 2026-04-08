@@ -2,8 +2,9 @@ import type { SpeciesEnvironmentDensity, SpeciesEnvironmentSummary } from '@/dat
 import React from 'react';
 import { Image, LayoutChangeEvent, GestureResponderEvent, StyleSheet, View } from 'react-native';
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { formatValue } from './model';
 import {
   buildDensitySamples,
@@ -66,6 +67,8 @@ export function DensityChart({
   pinValue,
   pinLoading,
 }: DensityChartProps) {
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
   const dragValue = React.useRef<number | null>(null);
@@ -187,10 +190,14 @@ export function DensityChart({
     summary?.mean != null
       ? ((summary.mean - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
-  const pinPosition =
+  const pinRawPosition =
     pinValue != null && !pinLoading && densityDomain.spanX > 0
       ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
+  const pinIsOutsideRange =
+    pinRawPosition != null && Number.isFinite(pinRawPosition) && (pinRawPosition < 0 || pinRawPosition > 100);
+  const pinIsBelowRange = pinIsOutsideRange && pinRawPosition != null && pinRawPosition < 0;
+  const pinPosition = pinIsOutsideRange ? null : pinRawPosition;
   const pinMarkerVisible = pinPosition != null && Number.isFinite(pinPosition);
 
   // Nudge mean and pin labels apart if they overlap. Hide pin label if it
@@ -291,7 +298,7 @@ export function DensityChart({
             <Path
               d={`M${pinPosition},0 L${pinPosition},${CHART_HEIGHT}`}
               fill="none"
-              stroke="#F59E0B"
+              stroke={palette.background.warning.default}
               strokeWidth={2}
               strokeDasharray="4 3"
               vectorEffect="non-scaling-stroke"
@@ -370,6 +377,21 @@ export function DensityChart({
           </View>
         )}
       </View>
+      {pinIsOutsideRange && pinValue != null ? (
+        <View
+          style={[
+            styles.outOfRangeWarning,
+            {
+              backgroundColor: palette.background.warning.secondary,
+              borderColor: palette.border.warning.default,
+            },
+          ]}
+        >
+          <ThemedText variant="bodySmall" style={{ color: palette.text.warning.default }}>
+            {`Location value (${formatValue(pinValue, 1)}) is ${pinIsBelowRange ? 'below' : 'above'} this species' observed range`}
+          </ThemedText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -422,5 +444,12 @@ const styles = StyleSheet.create({
     height: CHART_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  outOfRangeWarning: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
   },
 });

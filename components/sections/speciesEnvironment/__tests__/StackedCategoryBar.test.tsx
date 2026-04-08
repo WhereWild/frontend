@@ -109,6 +109,92 @@ describe('StackedCategoryBar', () => {
     });
   });
 
+  it('shows an unobserved highlighted pill and warning copy for pinned map categories', () => {
+    render(
+      <StackedCategoryBar
+        categories={[
+          { value: 'forest', className: 'Forest', count: 1, fraction: 0.5 },
+          { value: 'grass', className: 'Grassland', count: 1, fraction: 0.5 },
+        ]}
+        selectedValue={null}
+        unobservedHighlightedCategory={{ value: 'urban', label: 'Urban', description: 'Developed land' }}
+        onSelect={jest.fn()}
+        descriptionColor="#666"
+        highlightOutlineColor="#F59E0B"
+      />,
+    );
+
+    expect(mockNavigationPillList.mock.calls.at(-1)?.[0]).toMatchObject({
+      highlightedKey: '__other__',
+      highlightOutlineColor: '#F59E0B',
+    });
+    expect(screen.getByText('Other (Urban)')).toBeTruthy();
+    expect(screen.getByText('Species has never been observed in this environment')).toBeTruthy();
+  });
+
+  it('highlights the existing Other category and appends the unobserved label', () => {
+    const categories = Array.from({ length: 9 }).map((_, index) => ({
+      value: `cat-${index}`,
+      className: `Category ${index}`,
+      count: 2,
+      fraction: 0.1,
+    }));
+
+    render(
+      <StackedCategoryBar
+        categories={categories}
+        selectedValue={null}
+        unobservedHighlightedCategory={{ value: 'urban', label: 'Urban', description: null }}
+        onSelect={jest.fn()}
+        descriptionColor="#666"
+        highlightOutlineColor="#F59E0B"
+      />,
+    );
+
+    expect(mockNavigationPillList.mock.calls.at(-1)?.[0]).toMatchObject({
+      highlightedKey: '__other__',
+      highlightOutlineColor: '#F59E0B',
+    });
+    expect(screen.getByText('Other (Urban)')).toBeTruthy();
+    expect(screen.getByTestId('stacked-segment-8')).toHaveStyle({
+      borderWidth: 3,
+      borderColor: '#F59E0B',
+      borderStyle: 'dashed',
+    });
+  });
+
+  it('matches the POC behavior by highlighting Other from the raw pinned value and class name', () => {
+    const categories = Array.from({ length: 9 }).map((_, index) => ({
+      value: index === 8 ? 70 : index + 1,
+      className: index === 8 ? 'Observed Other Class' : `Category ${index}`,
+      count: 2,
+      fraction: 0.1,
+    }));
+
+    render(
+      <StackedCategoryBar
+        categories={categories}
+        selectedValue={null}
+        pinnedValue={62}
+        pinnedClassName="Closed deciduous broadleaved forest"
+        onSelect={jest.fn()}
+        descriptionColor="#666"
+        highlightOutlineColor="#F59E0B"
+      />,
+    );
+
+    expect(mockNavigationPillList.mock.calls.at(-1)?.[0]).toMatchObject({
+      highlightedKey: '__other__',
+      highlightOutlineColor: '#F59E0B',
+    });
+    expect(screen.getByText('Other (Closed deciduous broadleaved forest)')).toBeTruthy();
+    expect(screen.getByTestId('stacked-segment-8')).toHaveStyle({
+      borderWidth: 3,
+      borderColor: '#F59E0B',
+      borderStyle: 'dashed',
+    });
+  });
+
   it('renders empty-state branch', () => {
     render(
       <StackedCategoryBar

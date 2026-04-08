@@ -18,7 +18,9 @@ import {
   MAP_DOCUMENT_BASE_URL,
   PIN_OBSERVATION_MESSAGE_TYPE,
   MAP_REFERRER_POLICY,
+  SELECTED_POINT_MESSAGE_TYPE,
   toHighlightMessagePayload,
+  toSelectedPointMessagePayload,
 } from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
 jest.mock('expo-constants', () => ({
@@ -41,14 +43,25 @@ describe('speciesOccurrenceMapHelpers', () => {
     markerStroke: '#222222',
     highlightFill: '#333333',
     highlightStroke: '#444444',
+    selectedPointFill: '#F59E0B',
+    selectedPointStroke: '#F59E0B',
   };
 
   const extractInlineScript = (html: string) => {
-    const match = html.match(/<script>([\s\S]*)<\/script>\s*<\/body>\s*<\/html>$/);
+    const match = html.match(/<script>([\s\S]*)<\/script>/);
     if (!match?.[1]) {
       throw new Error('Expected inline map script in template');
     }
     return match[1];
+  };
+
+  type MockLeafletMarker = {
+    coords: [number, number];
+    style: Record<string, unknown>;
+    addTo: jest.Mock<MockLeafletMarker, []>;
+    setStyle: jest.Mock<void, [Record<string, unknown>]>;
+    setLatLng: jest.Mock;
+    bindPopup: jest.Mock;
   };
 
   const createLeafletHarness = () => {
@@ -103,9 +116,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         createTile: jest.fn(() => ({ referrerPolicy: '' })),
       })),
       circleMarker: jest.fn((coords: [number, number], style: Record<string, unknown>) => {
-        const marker = {
+        const marker: MockLeafletMarker = {
           coords,
           style: { ...style },
+          addTo: jest.fn(() => marker),
           setStyle: jest.fn((nextStyle: Record<string, unknown>) => {
             marker.style = { ...nextStyle };
           }),
@@ -164,7 +178,7 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   it('buildLeafletHtml replaces the runtime placeholders', () => {
     const html = buildLeafletHtml(
-      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__',
+      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__|__SELECTED_POINT_MESSAGE_TYPE_JSON__',
       [{ latitude: 1, longitude: 2 }],
       markerPalette,
       getMapTileUrlTemplate('light'),
@@ -180,6 +194,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain(String(MAP_TILE_MAX_ZOOM));
     expect(html).toContain(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
     expect(html).toContain(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
+    expect(html).toContain(JSON.stringify(SELECTED_POINT_MESSAGE_TYPE));
     expect(html).not.toContain('__POINTS_JSON__');
   });
 
@@ -266,6 +281,57 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(toHighlightMessagePayload(['10', '20'])).toEqual({
       type: HIGHLIGHT_MESSAGE_TYPE,
       catalogs: ['10', '20'],
+    });
+  });
+
+  it('creates the expected selected point payload', () => {
+    expect(toSelectedPointMessagePayload({ latitude: 40, longitude: -111 })).toEqual({
+      type: SELECTED_POINT_MESSAGE_TYPE,
+      point: { latitude: 40, longitude: -111 },
+    });
+    expect(toSelectedPointMessagePayload(null)).toEqual({
+      type: SELECTED_POINT_MESSAGE_TYPE,
+      point: null,
+    });
+  });
+
+  it('renders and clears the selected point marker from messages', () => {
+    const templatePaths = [
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const html = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      );
+      const harness = createLeafletHarness();
+
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      expect(harness.createdMarkers).toHaveLength(1);
+
+      harness.windowListeners.get('message')?.({
+        data: toSelectedPointMessagePayload({ latitude: 40, longitude: -111 }),
+      });
+
+      expect(harness.createdMarkers).toHaveLength(2);
+      expect(harness.createdMarkers[1]?.style).toMatchObject({
+        fillColor: markerPalette.selectedPointFill,
+        color: markerPalette.selectedPointStroke,
+        radius: 6,
+      });
+
+      harness.windowListeners.get('message')?.({
+        data: toSelectedPointMessagePayload(null),
+      });
+
+      expect(harness.context.L.map).toHaveBeenCalled();
+      expect((harness.context.L.map as jest.Mock).mock.results[0]?.value.removeLayer).toHaveBeenCalled();
     });
   });
 

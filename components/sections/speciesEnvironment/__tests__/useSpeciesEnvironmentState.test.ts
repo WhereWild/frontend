@@ -95,6 +95,8 @@ describe('useSpeciesEnvironmentState', () => {
       lat: 40.2,
       lon: -105.1,
       value: 7.25,
+      valueLabel: null,
+      valueDescription: null,
     });
   });
 
@@ -206,6 +208,15 @@ describe('useSpeciesEnvironmentState', () => {
       lat: 40.2,
       lon: -105.1,
       value: 41,
+      valueLabel: 'Forest',
+      valueDescription: null,
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 41,
+      observations: [{ catalogNumber: 'OBS-1', value: null, latitude: null, longitude: null }],
+      count: 1,
     });
 
     const { result } = renderHook(() =>
@@ -220,6 +231,289 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.pinnedValue).toBe(41));
 
     expect(result.current.pinnedCategoryValue).toBe(41);
+    expect(result.current.pinnedUnobservedCategory).toBeNull();
+  });
+
+  it('surfaces an unobserved pinned categorical badge when the point category is absent', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 41, className: 'Forest', count: 3, fraction: 0.6 },
+        { value: 52, className: 'Grassland', count: 2, fraction: 0.4 },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 90,
+      valueLabel: 'Urban',
+      valueDescription: 'Developed land',
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 90,
+      observations: [],
+      count: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: { catalogNumber: 'PIN-POINT', lat: 40.2, lon: -105.1 },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedValue).toBe(90));
+
+    expect(result.current.pinnedCategoryValue).toBeNull();
+    expect(result.current.pinnedUnobservedCategory).toEqual({
+      value: 90,
+      label: 'Urban',
+      description: 'Developed land',
+    });
+  });
+
+  it('treats zero-count categorical classes as unobserved for pinned point highlights', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 41, className: 'Forest', count: 3, fraction: 0.6 },
+        { value: 52, className: 'Grassland', count: 2, fraction: 0.4 },
+        { value: 90, className: 'Urban', count: 0, fraction: 0 },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 90,
+      valueLabel: 'Urban',
+      valueDescription: 'Developed land',
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 90,
+      observations: [],
+      count: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: { catalogNumber: 'PIN-POINT', lat: 40.2, lon: -105.1 },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedValue).toBe(90));
+
+    expect(result.current.pinnedCategoryValue).toBeNull();
+    expect(result.current.pinnedUnobservedCategory).toEqual({
+      value: 90,
+      label: 'Urban',
+      description: 'Developed land',
+    });
+  });
+
+  it('matches observed categorical classes by label when point lookup omits category value', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 'forest', className: 'Forest', count: 3, fraction: 0.6 },
+        { value: 'grassland', className: 'Grassland', count: 2, fraction: 0.4 },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 'Forest',
+      valueLabel: 'Forest',
+      valueDescription: null,
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 'Forest',
+      observations: [{ catalogNumber: 'OBS-1', value: null, latitude: null, longitude: null }],
+      count: 1,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: { catalogNumber: 'PIN-LABEL', lat: 40.2, lon: -105.1 },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedValue).toBe('Forest'));
+
+    expect(result.current.pinnedCategoryValue).toBe('forest');
+    expect(result.current.pinnedUnobservedCategory).toBeNull();
+  });
+
+  it('surfaces an unobserved categorical badge when point lookup only returns a label', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 'forest', className: 'Forest', count: 3, fraction: 0.6 },
+        { value: 'grassland', className: 'Grassland', count: 2, fraction: 0.4 },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 'Urban',
+      valueLabel: 'Urban',
+      valueDescription: 'Developed land',
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 'Urban',
+      observations: [],
+      count: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: { catalogNumber: 'PIN-LABEL-OOD', lat: 40.2, lon: -105.1 },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedValue).toBe('Urban'));
+
+    expect(result.current.pinnedCategoryValue).toBeNull();
+    expect(result.current.pinnedUnobservedCategory).toEqual({
+      value: 'Urban',
+      label: 'Urban',
+      description: 'Developed land',
+    });
+  });
+
+  it('prefers category sample results over distribution fallback for pinned categorical badges', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 90, className: 'Urban', count: 3, fraction: 0.6 },
+        { value: 52, className: 'Grassland', count: 2, fraction: 0.4 },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: null,
+      lat: 40.2,
+      lon: -105.1,
+      value: 90,
+      valueLabel: 'Urban',
+      valueDescription: 'Developed land',
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 90,
+      observations: [],
+      count: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: { catalogNumber: 'PIN-PRECEDENCE', lat: 40.2, lon: -105.1 },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedValue).toBe(90));
+    await waitFor(() =>
+      expect(result.current.pinnedUnobservedCategory).toEqual({
+        value: 90,
+        label: 'Urban',
+        description: 'Developed land',
+      }),
+    );
+  });
+
+  it('uses the categorical class label for observation checks when point lookup returns a raster class id', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 'forest', className: 'Forest', count: 3, fraction: 0.6 },
+        { value: 'grassland', className: 'Grassland', count: 2, fraction: 0.4 },
+      ],
+      categoricalSamples: [
+        { value: 'forest', observationIds: ['A1', 'B2'] },
+        { value: 'grassland', observationIds: ['C3'] },
+      ],
+    });
+    mockFetchPointEnvironmentValue.mockResolvedValue({
+      variable: 'landcover',
+      units: 'class id',
+      lat: 44.134913443750726,
+      lon: -84.79248046875001,
+      value: 62,
+      valueLabel: 'Closed deciduous broadleaved forest',
+      valueDescription: null,
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 'Closed deciduous broadleaved forest',
+      observations: [],
+      count: 0,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        pinnedObservation: {
+          catalogNumber: 'PIN-REAL-PAYLOAD',
+          lat: 44.134913443750726,
+          lon: -84.79248046875001,
+        },
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
+        1,
+        'landcover',
+        'Closed deciduous broadleaved forest',
+        { location: undefined, units: undefined },
+      ),
+    );
+    await waitFor(() =>
+      expect(result.current.pinnedUnobservedCategory).toEqual({
+        value: 62,
+        label: 'Closed deciduous broadleaved forest',
+        description: null,
+      }),
+    );
   });
 
   it('supports location filter mode and clears rank contexts', async () => {
