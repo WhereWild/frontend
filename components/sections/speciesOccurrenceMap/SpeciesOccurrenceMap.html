@@ -30,6 +30,7 @@
     const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
     const PIN_OBSERVATION_MESSAGE_TYPE = __PIN_OBSERVATION_MESSAGE_TYPE_JSON__;
     const SELECTED_POINT_MESSAGE_TYPE = __SELECTED_POINT_MESSAGE_TYPE_JSON__;
+    const OPEN_EXTERNAL_URL_MESSAGE_TYPE = __OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__;
 
     const MERCATOR_MAX_LAT = 85.05112878;
     const TILE_SIZE = 256;
@@ -161,6 +162,18 @@
       map.closePopup();
     }
 
+    function sendOpenExternalUrlMessage(url) {
+      const msg = {
+        type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
+        url: url,
+      };
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        window.parent.postMessage(msg, '*');
+      }
+    }
+
     function handlePinButtonClick(event) {
       const clickTarget = event && event.target;
       const pinButton = clickTarget && typeof clickTarget.closest === 'function'
@@ -183,13 +196,33 @@
       sendPinMessage(catalogNumber, latitude, longitude);
     }
 
-    function buildPinButtonHtml(catalogNumber, latitude, longitude) {
-      return '<button type="button" data-pin-observation="true" data-catalog-number="' + encodeURIComponent(catalogNumber) + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:6px;padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+    function buildPinButtonHtml(catalogNumber, latitude, longitude, marginTop) {
+      const resolvedMarginTop = typeof marginTop === 'string' ? marginTop : '6px';
+      return '<button type="button" data-pin-observation="true" data-catalog-number="' + encodeURIComponent(catalogNumber) + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:' + resolvedMarginTop + ';padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
     }
 
     function buildMapClickPopup(latitude, longitude) {
       const syntheticCatalog = 'point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6);
       return buildPinButtonHtml(syntheticCatalog, latitude, longitude);
+    }
+
+    function handleExternalLinkClick(event) {
+      const clickTarget = event && event.target;
+      const externalLink = clickTarget && typeof clickTarget.closest === 'function'
+        ? clickTarget.closest('[data-open-external-url="true"]')
+        : null;
+      if (!externalLink) {
+        return false;
+      }
+
+      const url = externalLink.getAttribute('href');
+      if (!url) {
+        return false;
+      }
+
+      event.preventDefault?.();
+      sendOpenExternalUrlMessage(url);
+      return true;
     }
 
     function styleForCatalog(catalog) {
@@ -294,7 +327,12 @@
       refreshVisibleMarkerPresentation();
     }
 
-    document.addEventListener('click', handlePinButtonClick);
+    document.addEventListener('click', (event) => {
+      if (handleExternalLinkClick(event)) {
+        return;
+      }
+      handlePinButtonClick(event);
+    });
     document.addEventListener('message', (event) => handleHighlightMessage(event.data));
     window.addEventListener('message', (event) => handleHighlightMessage(event.data));
 
@@ -351,12 +389,11 @@
           return '';
         }
         var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
-        var pinBtn = '<button type="button" data-pin-observation="true" data-catalog-number="' + catalogHref + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:' + pinButtonMarginTop + ';padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+        var pinBtn = buildPinButtonHtml(catalogHref, latitude, longitude, pinButtonMarginTop);
         if (!LINK_OBSERVATIONS || !catalogLabel) {
           return pinBtn;
         }
-        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
-        var pinBtn = buildPinButtonHtml(catalogHref, latitude, longitude);
+        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
         return inatLink + pinBtn;
       }
 
