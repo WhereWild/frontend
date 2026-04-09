@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
+export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -39,6 +40,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   points: '__POINTS_JSON__',
   palette: '__PALETTE_JSON__',
   highlightType: '__HIGHLIGHT_MESSAGE_TYPE_JSON__',
+  openExternalUrlType: '__OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__',
   heatmapTileUrl: '__HEATMAP_TILE_URL_JSON__',
   heatmapOpacity: '__HEATMAP_OPACITY__',
   minZoom: '__MIN_ZOOM__',
@@ -70,10 +72,16 @@ export type SelectedPointMessage = {
   point: { latitude: number; longitude: number } | null;
 };
 
+export type OpenExternalUrlMessage = {
+  type: typeof OPEN_EXTERNAL_URL_MESSAGE_TYPE;
+  url: string;
+};
+
 export type MapInboundMessage =
   | HighlightMessage
   | PinObservationMessage
-  | SelectedPointMessage;
+  | SelectedPointMessage
+  | OpenExternalUrlMessage;
 
 export const isPinObservationMessage = (
   msg: unknown,
@@ -88,6 +96,14 @@ export const isPinObservationMessage = (
   );
 };
 
+export const isOpenExternalUrlMessage = (
+  msg: unknown,
+): msg is OpenExternalUrlMessage => {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return m.type === OPEN_EXTERNAL_URL_MESSAGE_TYPE && typeof m.url === 'string';
+};
+
 export const isPinObservationEventFromFrame = (
   event: Pick<MessageEvent, 'data' | 'source'>,
   frameWindow: Window | null | undefined,
@@ -99,6 +115,19 @@ export const isPinObservationEventFromFrame = (
   }
 
   return isPinObservationMessage(event.data);
+};
+
+export const isOpenExternalUrlEventFromFrame = (
+  event: Pick<MessageEvent, 'data' | 'source'>,
+  frameWindow: Window | null | undefined,
+): event is Pick<MessageEvent, 'data' | 'source'> & {
+  data: OpenExternalUrlMessage;
+} => {
+  if (!frameWindow || event.source !== frameWindow) {
+    return false;
+  }
+
+  return isOpenExternalUrlMessage(event.data);
 };
 
 export type MapMarkerPalette = {
@@ -203,6 +232,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.highlightType)
     .join(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.openExternalUrlType)
+    .join(JSON.stringify(OPEN_EXTERNAL_URL_MESSAGE_TYPE));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapTileUrl)
     .join(heatmapTileUrl ? JSON.stringify(heatmapTileUrl) : 'null');

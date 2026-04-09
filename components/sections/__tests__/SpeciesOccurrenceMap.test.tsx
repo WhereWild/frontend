@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { SpeciesOccurrenceMap } from '../SpeciesOccurrenceMap';
 import * as speciesOccurrenceMapHelpers from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -45,6 +45,9 @@ describe('SpeciesOccurrenceMap', () => {
     speciesOccurrenceMapHelpers,
     'loadFallbackMapTemplate',
   );
+  const openURLSpy = jest
+    .spyOn(Linking, 'openURL')
+    .mockResolvedValue(undefined);
 
   const resolvedTemplate =
     '<html><body><div id="map"></div><script>leaflet</script></body></html>';
@@ -64,6 +67,7 @@ describe('SpeciesOccurrenceMap', () => {
   afterEach(() => {
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
     mockPostMessage.mockClear();
+    openURLSpy.mockClear();
     loadMapTemplateSpy.mockReset();
     loadFallbackMapTemplateSpy.mockReset();
     global.window = originalWindow;
@@ -258,6 +262,29 @@ describe('SpeciesOccurrenceMap', () => {
     expect(iframe.props.src).toBeUndefined();
     expect(iframe.props.sandbox).toContain('allow-same-origin');
     expect(iframe.props.referrerPolicy).toBe('strict-origin-when-cross-origin');
+  });
+
+  it('opens external observation URLs from native webview messages', async () => {
+    // This harness can reliably assert the native WebView message path only.
+    // The web branch depends on iframe-originated postMessage plus window.open,
+    // which React Native test rendering does not model well enough here.
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'message', {
+      nativeEvent: {
+        data: JSON.stringify({
+          type: 'open_external_url',
+          url: 'https://www.inaturalist.org/observations/123',
+        }),
+      },
+    });
+
+    expect(openURLSpy).toHaveBeenCalledWith(
+      'https://www.inaturalist.org/observations/123',
+    );
   });
 
   it('shows an explicit fallback warning when the external template load fails', async () => {
