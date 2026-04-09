@@ -13,7 +13,8 @@ export default function Settings() {
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  const { region, setRegion, units, setUnits, language, setLanguage } = useSettings();
+  const { region, setRegion, units, setUnits, language, setLanguage } =
+    useSettings();
   const regionOptions = [
     { label: 'Utah', value: 'utah' },
     { label: 'California', value: 'california' },
@@ -45,7 +46,13 @@ export default function Settings() {
         </Head>
       ) : null}
 
-      <View testID="settings-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+      <View
+        testID='settings-screen'
+        style={[
+          styles.screen,
+          { backgroundColor: palette.background.default.default },
+        ]}
+      >
         <ScrollView
           contentContainerStyle={[
             getResponsiveContentContainerStyle(responsive, {
@@ -56,7 +63,7 @@ export default function Settings() {
             styles.scrollContent,
           ]}
         >
-          <PageTitle title="Settings" />
+          <PageTitle title='Settings' />
 
           <View
             style={[
@@ -67,36 +74,41 @@ export default function Settings() {
               }),
             ]}
           >
-            <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}>
+            <View
+              style={[
+                styles.sectionContent,
+                { maxWidth: responsive.contentWidth },
+              ]}
+            >
               <View style={styles.settingsColumn}>
-                <ThemedText variant="heading">Localization</ThemedText>
+                <ThemedText variant='heading'>Localization</ThemedText>
 
                 <View style={styles.fieldStack}>
                   <SelectField
-                    label="Region"
-                    placeholder="Select a region"
+                    label='Region'
+                    placeholder='Select a region'
                     options={regionOptions}
                     value={region}
                     onValueChange={setRegion}
-                    description="Set your default observation region"
+                    description='Set your default observation region'
                   />
 
                   <SelectField
-                    label="Language"
-                    placeholder="Select language"
+                    label='Language'
+                    placeholder='Select language'
                     options={languageOptions}
                     value={language}
                     onValueChange={setLanguage}
-                    description="Preferred UI language"
+                    description='Preferred UI language'
                   />
 
                   <SelectField
-                    label="Units"
-                    placeholder="Select units"
+                    label='Units'
+                    placeholder='Select units'
                     options={unitsOptions}
                     value={units}
                     onValueChange={handleUnitsChange}
-                    description="Display temperatures and distances"
+                    description='Display temperatures and distances'
                   />
                 </View>
               </View>
@@ -104,7 +116,6 @@ export default function Settings() {
           </View>
 
           {/* Notifications and Danger Zone intentionally omitted per design instructions */}
-
         </ScrollView>
       </View>
     </>

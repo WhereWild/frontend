@@ -46,7 +46,7 @@ export function VariableSelectorHeader({
           selectedKey={selectedVariableCategory ?? categories[0]}
           onSelectionChange={onCategoryChange}
           disableNativeHoverVisuals
-          accessibilityLabel="Environment variable categories"
+          accessibilityLabel='Environment variable categories'
         />
       ) : null}
 
@@ -54,26 +54,29 @@ export function VariableSelectorHeader({
         {filteredVariables.length ? (
           <View style={styles.selectFieldContainer}>
             <SelectField
-              variant="secondary"
+              variant='secondary'
               options={filteredVariables.map((option) => {
                 const isCategoricalVar = isVariableCategorical(option);
                 const units = option.units;
                 return {
                   value: option.id,
-                  label: !isCategoricalVar && units ? `${option.label} (${units})` : option.label,
+                  label:
+                    !isCategoricalVar && units
+                      ? `${option.label} (${units})`
+                      : option.label,
                 };
               })}
               value={selectedVariable}
               onValueChange={onVariableChange}
-              placeholder="Select environment variable"
+              placeholder='Select environment variable'
             />
           </View>
         ) : headingText ? (
-          <ThemedText variant="heading">{headingText}</ThemedText>
+          <ThemedText variant='heading'>{headingText}</ThemedText>
         ) : null}
 
         {metaText ? (
-          <ThemedText variant="bodySmall" style={styles.metaText}>
+          <ThemedText variant='bodySmall' style={styles.metaText}>
             {metaText}
           </ThemedText>
         ) : null}

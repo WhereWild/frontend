@@ -1,6 +1,8 @@
 import React from 'react';
 import { act, render, screen, waitFor } from '@testing-library/react-native';
-import SpeciesBasicsPage, { __SPECIES_BASICS_TESTING__ } from '../[...identifier]';
+import SpeciesBasicsPage, {
+  __SPECIES_BASICS_TESTING__,
+} from '../[...identifier]';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import { fetchSpeciesByTaxonId } from '@/data/api';
@@ -39,25 +41,31 @@ jest.mock('../../_species', () => {
   };
 });
 
-const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<typeof useLocalSearchParams>;
+const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<
+  typeof useLocalSearchParams
+>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
-const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<typeof fetchSpeciesByTaxonId>;
+const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<
+  typeof fetchSpeciesByTaxonId
+>;
 
-const flushMicrotasksQueue = () => new Promise((resolve) => setImmediate(resolve));
+const flushMicrotasksQueue = () =>
+  new Promise((resolve) => setImmediate(resolve));
 
-const createRouterMock = () => ({
-  push: jest.fn(),
-  replace: jest.fn(),
-  back: jest.fn(),
-  canGoBack: jest.fn(),
-  navigate: jest.fn(),
-  setParams: jest.fn(),
-  dismiss: jest.fn(),
-  dismissAll: jest.fn(),
-  dismissTo: jest.fn(),
-  refresh: jest.fn(),
-} as unknown as ReturnType<typeof useRouter>);
+const createRouterMock = () =>
+  ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(),
+    navigate: jest.fn(),
+    setParams: jest.fn(),
+    dismiss: jest.fn(),
+    dismissAll: jest.fn(),
+    dismissTo: jest.fn(),
+    refresh: jest.fn(),
+  }) as unknown as ReturnType<typeof useRouter>;
 
 const SAMPLE_TAXON_ID = '123456';
 
@@ -69,7 +77,9 @@ describe('SpeciesBasicsPage', () => {
   });
 
   it('renders fallback data when no identifier parameter is supplied', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
     mockUseLocalSearchParams.mockReturnValue({});
 
     render(<SpeciesBasicsPage />);
@@ -78,7 +88,9 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(screen.queryAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
+    expect(
+      screen.queryAllByText(mountainBallCactusData.commonName).length,
+    ).toBeGreaterThan(0);
 
     consoleSpy.mockRestore();
   });
@@ -98,7 +110,9 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, { units: 'metric' });
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, {
+      units: 'metric',
+    });
     await waitFor(() => {
       expect(screen.getAllByText('Snowy Owl').length).toBeGreaterThan(0);
     });
@@ -107,7 +121,9 @@ describe('SpeciesBasicsPage', () => {
   });
 
   it('falls back to sample data when the fetch request fails', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockRejectedValue(new Error('Network down'));
 
@@ -116,9 +132,13 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, { units: 'metric' });
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, {
+      units: 'metric',
+    });
     await waitFor(() => {
-      expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(mountainBallCactusData.commonName).length,
+      ).toBeGreaterThan(0);
     });
     expect(consoleSpy).toHaveBeenCalledWith(
       `Failed to load species '${SAMPLE_TAXON_ID}':`,
@@ -129,7 +149,9 @@ describe('SpeciesBasicsPage', () => {
   });
 
   it('logs the default failure message when the rejection is not an Error instance', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockRejectedValue('uh oh');
 
@@ -154,9 +176,13 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, { units: 'metric' });
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, {
+      units: 'metric',
+    });
     await waitFor(() => {
-      expect(screen.getAllByText(mountainBallCactusData.commonName).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(mountainBallCactusData.commonName).length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -171,11 +197,13 @@ describe('SpeciesBasicsPage', () => {
     } as any);
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
-      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
       Number(SAMPLE_TAXON_ID),
     );
 
-    expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/preferred.png' });
+    expect(result.overview.imageSource).toEqual({
+      uri: 'https://example.com/preferred.png',
+    });
   });
 
   it('uses the provided React Native image source object when supplied', async () => {
@@ -189,7 +217,7 @@ describe('SpeciesBasicsPage', () => {
     } as any);
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
-      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
       Number(SAMPLE_TAXON_ID),
     );
 
@@ -209,7 +237,7 @@ describe('SpeciesBasicsPage', () => {
     } as any);
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
-      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
       Number(SAMPLE_TAXON_ID),
     );
 
@@ -234,7 +262,7 @@ describe('SpeciesBasicsPage', () => {
     } as any);
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
-      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
       Number(SAMPLE_TAXON_ID),
     );
 
@@ -246,7 +274,7 @@ describe('SpeciesBasicsPage', () => {
 
   it('renders nothing while the identifier data is still loading', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
-    mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => { }));
+    mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => {}));
 
     const { toJSON } = render(<SpeciesBasicsPage />);
 
@@ -262,16 +290,18 @@ describe('SpeciesBasicsPage', () => {
     } as any);
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
-      await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID) as any,
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
       Number(SAMPLE_TAXON_ID),
     );
 
-    expect(result.overview.imageSource).toBe(mountainBallCactusData.overview.imageSource);
+    expect(result.overview.imageSource).toBe(
+      mountainBallCactusData.overview.imageSource,
+    );
   });
 
   it('ignores late success responses after unmounting', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
-    let resolveFetch: (value: any) => void = () => { };
+    let resolveFetch: (value: any) => void = () => {};
     const pendingFetch = new Promise((resolve) => {
       resolveFetch = resolve;
     });
@@ -292,13 +322,15 @@ describe('SpeciesBasicsPage', () => {
 
   it('ignores late error responses after unmounting', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
-    let rejectFetch: (reason?: unknown) => void = () => { };
+    let rejectFetch: (reason?: unknown) => void = () => {};
     const pendingFetch = new Promise((_, reject) => {
       rejectFetch = reject;
     });
     mockFetchSpeciesByTaxonId.mockReturnValue(pendingFetch as any);
 
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     const { unmount } = render(<SpeciesBasicsPage />);
     unmount();
 
@@ -313,7 +345,9 @@ describe('SpeciesBasicsPage', () => {
   });
 
   it('prioritizes taxon id identifiers when provided via path segments', async () => {
-    mockUseLocalSearchParams.mockReturnValue({ identifier: ['1234', 'strix-nebulosa'] });
+    mockUseLocalSearchParams.mockReturnValue({
+      identifier: ['1234', 'strix-nebulosa'],
+    });
     mockFetchSpeciesByTaxonId.mockResolvedValue({
       common_name: 'Great Gray Owl',
       scientific_name: 'Strix nebulosa',
@@ -325,12 +359,18 @@ describe('SpeciesBasicsPage', () => {
       await flushMicrotasksQueue();
     });
 
-    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('1234', { units: 'metric' });
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('1234', {
+      units: 'metric',
+    });
   });
 
   it('logs an error and renders fallback data when the identifier is non-numeric', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
-    mockUseLocalSearchParams.mockReturnValue({ identifier: 'invalid identifier' });
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    mockUseLocalSearchParams.mockReturnValue({
+      identifier: 'invalid identifier',
+    });
 
     render(<SpeciesBasicsPage />);
     await act(async () => {
@@ -338,7 +378,9 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith('Missing numeric taxon ID in route segments.');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Missing numeric taxon ID in route segments.',
+    );
 
     consoleSpy.mockRestore();
   });
@@ -348,7 +390,7 @@ describe('SpeciesBasicsPage', () => {
       const payload = {
         taxon_id: 24680,
         common_name: 'Prairie Smoke',
-        common_names: ['Prairie Smoke', 'Old Man\'s Whiskers'],
+        common_names: ['Prairie Smoke', "Old Man's Whiskers"],
         scientific_name: 'Geum triflorum',
         description: 'Feathery seed-heads add spring interest.',
         description_sections: [
@@ -361,14 +403,22 @@ describe('SpeciesBasicsPage', () => {
         image_source: 'https://example.com/prairie-smoke.png',
       } as any;
 
-      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+        payload,
+        13579,
+      );
       expect(result.taxonId).toBe(24680);
       expect(result.commonName).toBe('Prairie Smoke');
-      expect(result.commonNames).toEqual(['Prairie Smoke', 'Old Man\'s Whiskers']);
+      expect(result.commonNames).toEqual([
+        'Prairie Smoke',
+        "Old Man's Whiskers",
+      ]);
       expect(result.scientificName).toBe('Geum triflorum');
       expect(result.overview.description).toBe(payload.description);
       expect(result.overview.sections).toEqual(payload.description_sections);
-      expect(result.overview.imageSource).toEqual({ uri: 'https://example.com/prairie-smoke.png' });
+      expect(result.overview.imageSource).toEqual({
+        uri: 'https://example.com/prairie-smoke.png',
+      });
     });
 
     it('uses first common_names entry when common_name is missing', () => {
@@ -378,7 +428,10 @@ describe('SpeciesBasicsPage', () => {
         scientific_name: 'Canis lupus',
       } as any;
 
-      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+        payload,
+        13579,
+      );
       expect(result.commonName).toBe('Northern Wolf');
       expect(result.commonNames).toEqual(['Northern Wolf', 'Gray Wolf']);
     });
@@ -391,7 +444,10 @@ describe('SpeciesBasicsPage', () => {
         scientific_name: 'Puma concolor',
       } as any;
 
-      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+        payload,
+        13579,
+      );
       expect(result.commonName).toBe('Cougar');
       expect(result.commonNames).toEqual(['Cougar', 'Mountain Lion']);
     });
@@ -404,14 +460,20 @@ describe('SpeciesBasicsPage', () => {
         scientific_name: 'Canis lupus',
       } as any;
 
-      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(payload, 13579);
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+        payload,
+        13579,
+      );
       expect(result.commonName).toBe('Wolf');
       expect(result.commonNames).toEqual(['Wolf', 'Gray Wolf']);
     });
 
     it('uses the requested taxon id when payload lacks taxon data', () => {
       const fallbackTaxonId = 97531;
-      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData({}, fallbackTaxonId as any);
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+        {},
+        fallbackTaxonId as any,
+      );
       expect(result.taxonId).toBe(fallbackTaxonId);
       expect(result.commonName).toBe(mountainBallCactusData.commonName);
       expect(result.scientificName).toBe(mountainBallCactusData.scientificName);
@@ -428,7 +490,8 @@ describe('SpeciesBasicsPage', () => {
         taxonId: '1111',
       };
 
-      const { fetchIdentifier, requestedTaxonId } = __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
+      const { fetchIdentifier, requestedTaxonId } =
+        __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
 
       expect(fetchIdentifier).toBe('9876');
       expect(requestedTaxonId).toBe(9876);
@@ -439,7 +502,8 @@ describe('SpeciesBasicsPage', () => {
         identifier: ['Invalid ID'],
       };
 
-      const { fetchIdentifier, requestedTaxonId } = __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
+      const { fetchIdentifier, requestedTaxonId } =
+        __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
 
       expect(fetchIdentifier).toBeUndefined();
       expect(requestedTaxonId).toBeUndefined();
@@ -450,7 +514,8 @@ describe('SpeciesBasicsPage', () => {
         identifier: ['', '   '],
       };
 
-      const { fetchIdentifier, requestedTaxonId } = __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
+      const { fetchIdentifier, requestedTaxonId } =
+        __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
 
       expect(fetchIdentifier).toBeUndefined();
       expect(requestedTaxonId).toBeUndefined();
@@ -461,7 +526,8 @@ describe('SpeciesBasicsPage', () => {
         identifier: ['   654321   ', 'trailing-slug'],
       };
 
-      const { fetchIdentifier, requestedTaxonId } = __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
+      const { fetchIdentifier, requestedTaxonId } =
+        __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
 
       expect(fetchIdentifier).toBe('654321');
       expect(requestedTaxonId).toBe(654321);

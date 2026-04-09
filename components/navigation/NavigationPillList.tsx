@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Size } from '@/constants/theme';
 import { NavigationPill } from './NavigationPill';
@@ -49,7 +55,9 @@ export function NavigationPillList({
   const stableNativeHorizontalPillsRef = useRef<NavigationPillItem[]>(pills);
 
   if (useNativeStableHorizontalRow) {
-    const currentByKey = new Map(pills.map((pill) => [pill.key, pill] as const));
+    const currentByKey = new Map(
+      pills.map((pill) => [pill.key, pill] as const),
+    );
     const hiddenPills = stableNativeHorizontalPillsRef.current.filter(
       (pill) => !currentByKey.has(pill.key),
     );
@@ -59,12 +67,17 @@ export function NavigationPillList({
     stableNativeHorizontalPillsRef.current = pills;
   }
 
-  const renderedPills = useNativeStableHorizontalRow ? stableNativeHorizontalPillsRef.current : pills;
-  const currentPillKeys = useMemo(() => new Set(pills.map((pill) => pill.key)), [pills]);
+  const renderedPills = useNativeStableHorizontalRow
+    ? stableNativeHorizontalPillsRef.current
+    : pills;
+  const currentPillKeys = useMemo(
+    () => new Set(pills.map((pill) => pill.key)),
+    [pills],
+  );
 
   const selectedIndex = useMemo(
     () => pills.findIndex((pill) => pill.key === selectedKey),
-    [pills, selectedKey]
+    [pills, selectedKey],
   );
 
   const maxPillWidth = useMemo(() => {
@@ -95,14 +108,17 @@ export function NavigationPillList({
         onSelectionChange(key);
       }
     },
-    [onSelectionChange, selectedKey]
+    [onSelectionChange, selectedKey],
   );
 
-  const focusPill = useCallback((index: number) => {
-    const ref = pillRefs.current[index];
-    ref?.focus?.();
-    onFocusRequest?.(index);
-  }, [onFocusRequest]);
+  const focusPill = useCallback(
+    (index: number) => {
+      const ref = pillRefs.current[index];
+      ref?.focus?.();
+      onFocusRequest?.(index);
+    },
+    [onFocusRequest],
+  );
 
   const updateVerticalPillWidth = useCallback(
     (pillKey: string, width: number) => {
@@ -125,7 +141,7 @@ export function NavigationPillList({
       if (count === 0) return currentIndex;
       return (currentIndex + directionStep + count) % count;
     },
-    [pills.length]
+    [pills.length],
   );
 
   const onKeyDownForIndex = useCallback(
@@ -133,7 +149,9 @@ export function NavigationPillList({
       const key = event.nativeEvent?.key;
       if (!key) return;
 
-      const isForward = isHorizontal ? key === 'ArrowRight' : key === 'ArrowDown';
+      const isForward = isHorizontal
+        ? key === 'ArrowRight'
+        : key === 'ArrowDown';
       const isBackward = isHorizontal ? key === 'ArrowLeft' : key === 'ArrowUp';
 
       if (isForward || isBackward) {
@@ -152,13 +170,13 @@ export function NavigationPillList({
         }
       }
     },
-    [focusPill, getNextIndex, handleSelectionChange, isHorizontal, pills]
+    [focusPill, getNextIndex, handleSelectionChange, isHorizontal, pills],
   );
 
   return (
     <View
       collapsable={false}
-      accessibilityRole="radiogroup"
+      accessibilityRole='radiogroup'
       accessibilityLabel={accessibilityLabel}
       testID={testID}
       style={[
@@ -174,7 +192,8 @@ export function NavigationPillList({
         const isVisible = currentPillKeys.has(pill.key);
         const isActive = isVisible && pill.key === selectedKey;
         const isHighlighted = isVisible && pill.key === highlightedKey;
-        const tabbableIndex = focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
+        const tabbableIndex =
+          focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
         const isTabbable = isWeb && isVisible && index === tabbableIndex;
         const hasTrailingVisibleSibling = renderedPills
           .slice(index + 1)
@@ -201,8 +220,12 @@ export function NavigationPillList({
             onPress={handleSelectionChange}
             onKeyDown={isWeb ? onKeyDownForIndex(index) : undefined}
             onFocus={isWeb ? () => setFocusedIndex(index) : undefined}
-            onContentLayout={(width) => updateVerticalPillWidth(pill.key, width)}
-            contentWidth={!isHorizontal ? maxPillWidth ?? undefined : undefined}
+            onContentLayout={(width) =>
+              updateVerticalPillWidth(pill.key, width)
+            }
+            contentWidth={
+              !isHorizontal ? (maxPillWidth ?? undefined) : undefined
+            }
             focusable={isWeb ? isTabbable : undefined}
             tabIndex={isWeb ? (isTabbable ? 0 : -1) : undefined}
             accessibilityLabel={pill.accessibilityLabel ?? pill.label}
@@ -218,10 +241,14 @@ export function NavigationPillList({
             key={pill.key}
             collapsable={false}
             accessibilityElementsHidden={!isVisible}
-            importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+            importantForAccessibility={
+              isVisible ? 'auto' : 'no-hide-descendants'
+            }
             style={[
               styles.pillWrapper,
-              isHorizontal ? styles.pillWrapperHorizontal : styles.pillWrapperVertical,
+              isHorizontal
+                ? styles.pillWrapperHorizontal
+                : styles.pillWrapperVertical,
               pillSpacingStyle,
               !isVisible && styles.hiddenPillWrapper,
             ]}

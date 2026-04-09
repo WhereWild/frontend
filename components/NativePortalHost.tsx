@@ -1,5 +1,10 @@
 import React from 'react';
-import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 type PortalHostFrame = {
   left: number;
@@ -22,15 +27,16 @@ type NativePortalStore = {
   setHostFrame: (frame: PortalHostFrame) => void;
 };
 
-const NativePortalHostContext = React.createContext<NativePortalStore | null>(null);
+const NativePortalHostContext = React.createContext<NativePortalStore | null>(
+  null,
+);
 
-const arePortalEntriesEqual = (left: PortalEntry, right: PortalEntry) => left === right
-  || (
-    left.id === right.id
-    && left.accessibilityHint === right.accessibilityHint
-    && left.accessibilityLabel === right.accessibilityLabel
-    && left.children === right.children
-  );
+const arePortalEntriesEqual = (left: PortalEntry, right: PortalEntry) =>
+  left === right ||
+  (left.id === right.id &&
+    left.accessibilityHint === right.accessibilityHint &&
+    left.accessibilityLabel === right.accessibilityLabel &&
+    left.children === right.children);
 
 const createNativePortalStore = (): NativePortalStore => {
   let portals: PortalEntry[] = [];
@@ -51,7 +57,9 @@ const createNativePortalStore = (): NativePortalStore => {
       };
     },
     upsertPortal: (entry: PortalEntry) => {
-      const existingIndex = portals.findIndex((portal) => portal.id === entry.id);
+      const existingIndex = portals.findIndex(
+        (portal) => portal.id === entry.id,
+      );
 
       if (existingIndex === -1) {
         portals = [...portals, entry];
@@ -99,7 +107,11 @@ const createNativePortalStore = (): NativePortalStore => {
  * native overlay content inside the app shell instead of creating native modal
  * host views, which sidesteps that teardown path entirely.
  */
-export function NativePortalProvider({ children }: { children: React.ReactNode }) {
+export function NativePortalProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const storeRef = React.useRef<NativePortalStore | null>(null);
 
   if (!storeRef.current) {
@@ -121,7 +133,7 @@ export function useNativePortalHostFrame() {
   const store = useNativePortalHost();
 
   return React.useSyncExternalStore(
-    store?.subscribe ?? (() => () => { }),
+    store?.subscribe ?? (() => () => {}),
     store?.getHostFrame ?? (() => null),
     store?.getHostFrame ?? (() => null),
   );
@@ -136,7 +148,7 @@ export function NativePortalHost() {
   const hostRef = React.useRef<View | null>(null);
 
   const portals = React.useSyncExternalStore(
-    store?.subscribe ?? (() => () => { }),
+    store?.subscribe ?? (() => () => {}),
     store?.getSnapshot ?? (() => []),
     store?.getSnapshot ?? (() => []),
   );
@@ -151,9 +163,12 @@ export function NativePortalHost() {
     });
   }, [store]);
 
-  const handleHostLayout = React.useCallback((_event: LayoutChangeEvent) => {
-    measureHostFrame();
-  }, [measureHostFrame]);
+  const handleHostLayout = React.useCallback(
+    (_event: LayoutChangeEvent) => {
+      measureHostFrame();
+    },
+    [measureHostFrame],
+  );
 
   React.useEffect(() => {
     measureHostFrame();

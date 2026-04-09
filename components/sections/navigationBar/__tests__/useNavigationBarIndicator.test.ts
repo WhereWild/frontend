@@ -27,17 +27,19 @@ describe('useNavigationBarIndicator', () => {
       search: { x: 90, y: 0, width: 100, height: 40 },
     };
 
-    const { result } = renderHook(() => useNavigationBarIndicator({
-      tabs,
-      tabLayouts,
-      indicatorTargetIndex: 1,
-      previewIndex: 1,
-      isResizing: false,
-      activeColor: '#000000',
-      pressedColor: '#111111',
-      duration: 160,
-      easing: (value: number) => value,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarIndicator({
+        tabs,
+        tabLayouts,
+        indicatorTargetIndex: 1,
+        previewIndex: 1,
+        isResizing: false,
+        activeColor: '#000000',
+        pressedColor: '#111111',
+        duration: 160,
+        easing: (value: number) => value,
+      }),
+    );
 
     expect(result.current.indicatorX).toBeInstanceOf(Animated.Value);
     expect(result.current.indicatorWidth).toBeInstanceOf(Animated.Value);
@@ -67,25 +69,26 @@ describe('useNavigationBarIndicator', () => {
       search: { x: 90, y: 0, width: 100, height: 40 },
     };
 
-    const { rerender, unmount } = renderHook((props: {
-      indicatorTargetIndex: number;
-      isResizing: boolean;
-    }) => useNavigationBarIndicator({
-      tabs,
-      tabLayouts,
-      indicatorTargetIndex: props.indicatorTargetIndex,
-      previewIndex: null,
-      isResizing: props.isResizing,
-      activeColor: '#000000',
-      pressedColor: '#111111',
-      duration: 160,
-      easing: (value: number) => value,
-    }), {
-      initialProps: {
-        indicatorTargetIndex: 0,
-        isResizing: false,
+    const { rerender, unmount } = renderHook(
+      (props: { indicatorTargetIndex: number; isResizing: boolean }) =>
+        useNavigationBarIndicator({
+          tabs,
+          tabLayouts,
+          indicatorTargetIndex: props.indicatorTargetIndex,
+          previewIndex: null,
+          isResizing: props.isResizing,
+          activeColor: '#000000',
+          pressedColor: '#111111',
+          duration: 160,
+          easing: (value: number) => value,
+        }),
+      {
+        initialProps: {
+          indicatorTargetIndex: 0,
+          isResizing: false,
+        },
       },
-    });
+    );
 
     rerender({ indicatorTargetIndex: 1, isResizing: false });
 
@@ -106,23 +109,25 @@ describe('useNavigationBarIndicator', () => {
       search: { x: 90, y: 0, width: 100, height: 40 },
     };
 
-    const { result, rerender } = renderHook((props: {
-      indicatorTargetIndex: number;
-    }) => useNavigationBarIndicator({
-      tabs,
-      tabLayouts,
-      indicatorTargetIndex: props.indicatorTargetIndex,
-      previewIndex: null,
-      isResizing: false,
-      activeColor: '#000000',
-      pressedColor: '#111111',
-      duration: 160,
-      easing: (value: number) => value,
-    }), {
-      initialProps: {
-        indicatorTargetIndex: 0,
+    const { result, rerender } = renderHook(
+      (props: { indicatorTargetIndex: number }) =>
+        useNavigationBarIndicator({
+          tabs,
+          tabLayouts,
+          indicatorTargetIndex: props.indicatorTargetIndex,
+          previewIndex: null,
+          isResizing: false,
+          activeColor: '#000000',
+          pressedColor: '#111111',
+          duration: 160,
+          easing: (value: number) => value,
+        }),
+      {
+        initialProps: {
+          indicatorTargetIndex: 0,
+        },
       },
-    });
+    );
 
     const indicatorScaleX = result.current.indicatorScaleX;
     const setValueSpy = jest.spyOn(indicatorScaleX, 'setValue');
@@ -142,17 +147,19 @@ describe('useNavigationBarIndicator', () => {
       search: { x: 90, y: 0, width: 100, height: 40 },
     };
 
-    renderHook(() => useNavigationBarIndicator({
-      tabs,
-      tabLayouts,
-      indicatorTargetIndex: 1,
-      previewIndex: null,
-      isResizing: true,
-      activeColor: '#000000',
-      pressedColor: '#111111',
-      duration: 160,
-      easing: (value: number) => value,
-    }));
+    renderHook(() =>
+      useNavigationBarIndicator({
+        tabs,
+        tabLayouts,
+        indicatorTargetIndex: 1,
+        previewIndex: null,
+        isResizing: true,
+        activeColor: '#000000',
+        pressedColor: '#111111',
+        duration: 160,
+        easing: (value: number) => value,
+      }),
+    );
 
     expect(sequenceSpy).not.toHaveBeenCalled();
     sequenceSpy.mockRestore();
@@ -165,25 +172,26 @@ describe('useNavigationBarIndicator', () => {
       search: { x: 90, y: 0, width: 100, height: 40 },
     };
 
-    const { rerender } = renderHook((props: {
-      indicatorTargetIndex: number;
-      isResizing: boolean;
-    }) => useNavigationBarIndicator({
-      tabs,
-      tabLayouts,
-      indicatorTargetIndex: props.indicatorTargetIndex,
-      previewIndex: null,
-      isResizing: props.isResizing,
-      activeColor: '#000000',
-      pressedColor: '#111111',
-      duration: 160,
-      easing: (value: number) => value,
-    }), {
-      initialProps: {
-        indicatorTargetIndex: 0,
-        isResizing: false,
+    const { rerender } = renderHook(
+      (props: { indicatorTargetIndex: number; isResizing: boolean }) =>
+        useNavigationBarIndicator({
+          tabs,
+          tabLayouts,
+          indicatorTargetIndex: props.indicatorTargetIndex,
+          previewIndex: null,
+          isResizing: props.isResizing,
+          activeColor: '#000000',
+          pressedColor: '#111111',
+          duration: 160,
+          easing: (value: number) => value,
+        }),
+      {
+        initialProps: {
+          indicatorTargetIndex: 0,
+          isResizing: false,
+        },
       },
-    });
+    );
 
     rerender({ indicatorTargetIndex: 1, isResizing: true });
 
@@ -196,17 +204,19 @@ describe('useNavigationBarIndicator', () => {
   it('skips movement animation when target layout is unavailable', () => {
     const tabs = [{ key: 'home' }, { key: 'search' }];
 
-    renderHook(() => useNavigationBarIndicator({
-      tabs,
-      tabLayouts: { home: { x: 0, y: 0, width: 80, height: 40 } },
-      indicatorTargetIndex: 1,
-      previewIndex: null,
-      isResizing: true,
-      activeColor: '#000000',
-      pressedColor: '#111111',
-      duration: 160,
-      easing: (value: number) => value,
-    }));
+    renderHook(() =>
+      useNavigationBarIndicator({
+        tabs,
+        tabLayouts: { home: { x: 0, y: 0, width: 80, height: 40 } },
+        indicatorTargetIndex: 1,
+        previewIndex: null,
+        isResizing: true,
+        activeColor: '#000000',
+        pressedColor: '#111111',
+        duration: 160,
+        easing: (value: number) => value,
+      }),
+    );
 
     expect(animateIndicatorToLayout).not.toHaveBeenCalled();
     expect(animateIndicatorPressedProgress).toHaveBeenCalledTimes(1);

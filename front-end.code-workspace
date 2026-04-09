@@ -1,18 +1,30 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-	],
-	"settings": {},
-	"extensions": {
-		"recommendations": [
-			"figma.figma-vscode-extension",
-			"expo.vscode-expo-tools",
-			"dbaeumer.vscode-eslint",
-			"davidanson.vscode-markdownlint",
-			"orta.vscode-jest",
-			"msjsdiag.vscode-react-native"
-		]
-	}
+  "folders": [
+    {
+      "path": ".",
+    },
+  ],
+  "settings": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+    },
+    "eslint.validate": [
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact",
+    ],
+    "editor.formatOnSave": true,
+  },
+  "extensions": {
+    "recommendations": [
+      "figma.figma-vscode-extension",
+      "expo.vscode-expo-tools",
+      "dbaeumer.vscode-eslint",
+      "davidanson.vscode-markdownlint",
+      "orta.vscode-jest",
+      "msjsdiag.vscode-react-native",
+      "esbenp.prettier-vscode",
+    ],
+  },
 }

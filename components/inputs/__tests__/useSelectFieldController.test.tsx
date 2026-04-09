@@ -37,9 +37,7 @@ const getWebKeyDown = (value: unknown): WebKeyDownHandler | undefined => {
 type OutlineStyle = { outlineStyle?: string };
 
 const isOutlineStyle = (value: unknown): value is OutlineStyle =>
-  value !== null
-  && typeof value === 'object'
-  && 'outlineStyle' in value;
+  value !== null && typeof value === 'object' && 'outlineStyle' in value;
 
 const OPTIONS = [
   { label: 'Hello World', value: 'hello' },
@@ -49,54 +47,56 @@ const OPTIONS = [
   { label: 'Option 5', value: 'option-5' },
 ];
 
-const ControllerHarness = React.forwardRef<SelectFieldViewProps, Partial<SelectFieldProps>>(
-  (props, ref) => {
-    const viewProps = useSelectFieldController({
-      label: props.label,
-      description: props.description,
-      errorMessage: props.errorMessage,
-      placeholder: props.placeholder ?? 'Value',
-      disabled: props.disabled ?? false,
-      allowSearch: props.allowSearch ?? true,
-      options: props.options ?? OPTIONS,
-      value: props.value ?? '',
-      onValueChange: props.onValueChange,
-      onOpenChange: props.onOpenChange,
-      style: props.style,
-    });
+const ControllerHarness = React.forwardRef<
+  SelectFieldViewProps,
+  Partial<SelectFieldProps>
+>((props, ref) => {
+  const viewProps = useSelectFieldController({
+    label: props.label,
+    description: props.description,
+    errorMessage: props.errorMessage,
+    placeholder: props.placeholder ?? 'Value',
+    disabled: props.disabled ?? false,
+    allowSearch: props.allowSearch ?? true,
+    options: props.options ?? OPTIONS,
+    value: props.value ?? '',
+    onValueChange: props.onValueChange,
+    onOpenChange: props.onOpenChange,
+    style: props.style,
+  });
 
-    React.useImperativeHandle(ref, () => viewProps, [viewProps]);
-    return null;
-  },
-);
+  React.useImperativeHandle(ref, () => viewProps, [viewProps]);
+  return null;
+});
 ControllerHarness.displayName = 'ControllerHarness';
 
 const createLayoutEvent = (y = 12, height = 24): LayoutChangeEvent =>
-({
-  nativeEvent: {
-    layout: {
-      x: 0,
-      y,
-      width: 100,
-      height,
+  ({
+    nativeEvent: {
+      layout: {
+        x: 0,
+        y,
+        width: 100,
+        height,
+      },
     },
-  },
-} as LayoutChangeEvent);
+  }) as LayoutChangeEvent;
 
 const createScrollEvent = (y = 0): NativeSyntheticEvent<NativeScrollEvent> =>
-({
-  nativeEvent: {
-    contentOffset: { x: 0, y },
-    contentInset: { top: 0, right: 0, bottom: 0, left: 0 },
-    contentSize: { width: 0, height: 0 },
-    layoutMeasurement: { width: 0, height: 0 },
-    zoomScale: 1,
-  },
-} as NativeSyntheticEvent<NativeScrollEvent>);
+  ({
+    nativeEvent: {
+      contentOffset: { x: 0, y },
+      contentInset: { top: 0, right: 0, bottom: 0, left: 0 },
+      contentSize: { width: 0, height: 0 },
+      layoutMeasurement: { width: 0, height: 0 },
+      zoomScale: 1,
+    },
+  }) as NativeSyntheticEvent<NativeScrollEvent>;
 
-const createPressEvent = () => undefined as unknown as Parameters<
-  NonNullable<SelectFieldViewProps['fieldPressableProps']['onPress']>
->[0];
+const createPressEvent = () =>
+  undefined as unknown as Parameters<
+    NonNullable<SelectFieldViewProps['fieldPressableProps']['onPress']>
+  >[0];
 
 describe('useSelectFieldController', () => {
   afterEach(() => {
@@ -112,7 +112,9 @@ describe('useSelectFieldController', () => {
     act(() => {
       if (controllerRef.current) {
         controllerRef.current.fieldPressableRef.current = {
-          measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => {
+          measureInWindow: (
+            cb: (x: number, y: number, w: number, h: number) => void,
+          ) => {
             cb(10, 20, 120, 40);
           },
         } as unknown as SelectFieldViewProps['fieldPressableRef']['current'];
@@ -129,7 +131,10 @@ describe('useSelectFieldController', () => {
   });
 
   it('subtracts the native portal host frame from measured coordinates', () => {
-    (useNativePortalHostFrame as jest.Mock).mockReturnValue({ left: 3, top: 7 });
+    (useNativePortalHostFrame as jest.Mock).mockReturnValue({
+      left: 3,
+      top: 7,
+    });
 
     const controllerRef = React.createRef<SelectFieldViewProps>();
     render(<ControllerHarness ref={controllerRef} />);
@@ -137,7 +142,9 @@ describe('useSelectFieldController', () => {
     act(() => {
       if (controllerRef.current) {
         controllerRef.current.fieldPressableRef.current = {
-          measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => {
+          measureInWindow: (
+            cb: (x: number, y: number, w: number, h: number) => void,
+          ) => {
             cb(10, 20, 120, 40);
           },
         } as unknown as SelectFieldViewProps['fieldPressableRef']['current'];
@@ -156,7 +163,10 @@ describe('useSelectFieldController', () => {
   it('does not subtract the native portal host frame on web', () => {
     const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
-    (useNativePortalHostFrame as jest.Mock).mockReturnValue({ left: 3, top: 7 });
+    (useNativePortalHostFrame as jest.Mock).mockReturnValue({
+      left: 3,
+      top: 7,
+    });
 
     try {
       const controllerRef = React.createRef<SelectFieldViewProps>();
@@ -165,7 +175,9 @@ describe('useSelectFieldController', () => {
       act(() => {
         if (controllerRef.current) {
           controllerRef.current.fieldPressableRef.current = {
-            measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => {
+            measureInWindow: (
+              cb: (x: number, y: number, w: number, h: number) => void,
+            ) => {
               cb(10, 20, 120, 40);
             },
           } as unknown as SelectFieldViewProps['fieldPressableRef']['current'];
@@ -190,7 +202,9 @@ describe('useSelectFieldController', () => {
     jest.useFakeTimers();
     const onOpenChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+    render(
+      <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+    );
 
     act(() => {
       controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
@@ -256,9 +270,13 @@ describe('useSelectFieldController', () => {
         controllerRef.current.scrollViewRef.current = {
           scrollTo,
         } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
-        controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+        controllerRef.current.scrollViewProps?.onLayout?.(
+          createLayoutEvent(0, viewportHeight),
+        );
         controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(0));
-        controllerRef.current.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
+        controllerRef.current.options[0].onLayout(
+          createLayoutEvent(optionTop, optionHeight),
+        );
       }
     });
 
@@ -268,7 +286,10 @@ describe('useSelectFieldController', () => {
       } as never);
     });
 
-    const expectedY = Math.max(0, optionTop + optionHeight - viewportHeight + Size.space['400']);
+    const expectedY = Math.max(
+      0,
+      optionTop + optionHeight - viewportHeight + Size.space['400'],
+    );
     expect(scrollTo).toHaveBeenCalledWith({ y: expectedY, animated: true });
   });
 
@@ -286,9 +307,13 @@ describe('useSelectFieldController', () => {
         controllerRef.current.scrollViewRef.current = {
           scrollTo,
         } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
-        controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+        controllerRef.current.scrollViewProps?.onLayout?.(
+          createLayoutEvent(0, viewportHeight),
+        );
         controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(0));
-        controllerRef.current.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
+        controllerRef.current.options[0].onLayout(
+          createLayoutEvent(optionTop, optionHeight),
+        );
       }
     });
 
@@ -298,26 +323,37 @@ describe('useSelectFieldController', () => {
       } as never);
     });
 
-    const expectedY = Math.max(0, optionTop + optionHeight - viewportHeight + Size.space['400']);
+    const expectedY = Math.max(
+      0,
+      optionTop + optionHeight - viewportHeight + Size.space['400'],
+    );
     expect(scrollTo).toHaveBeenCalledWith({ y: expectedY, animated: true });
   });
 
   it('selects the second option after two ArrowDown presses', async () => {
     const onValueChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} onValueChange={onValueChange} />);
+    render(
+      <ControllerHarness ref={controllerRef} onValueChange={onValueChange} />,
+    );
 
     await act(async () => {
       controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
     });
     await act(async () => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
     });
     await act(async () => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
     });
     await act(async () => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'Enter' },
+      } as never);
     });
 
     expect(onValueChange).toHaveBeenCalledWith('option-2');
@@ -326,19 +362,27 @@ describe('useSelectFieldController', () => {
   it('wraps to the last option when ArrowUp is pressed after a highlight exists', async () => {
     const onValueChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} onValueChange={onValueChange} />);
+    render(
+      <ControllerHarness ref={controllerRef} onValueChange={onValueChange} />,
+    );
 
     await act(async () => {
       controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
     });
     await act(async () => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
     });
     await act(async () => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowUp' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowUp' },
+      } as never);
     });
     await act(async () => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'Enter' },
+      } as never);
     });
 
     expect(onValueChange).toHaveBeenCalledWith('option-5');
@@ -356,7 +400,9 @@ describe('useSelectFieldController', () => {
     );
 
     act(() => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'Enter' },
+      } as never);
     });
 
     expect(onValueChange).toHaveBeenCalledWith('only');
@@ -365,10 +411,14 @@ describe('useSelectFieldController', () => {
   it('does not select on Enter when multiple options exist and no highlight exists', () => {
     const onValueChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} onValueChange={onValueChange} />);
+    render(
+      <ControllerHarness ref={controllerRef} onValueChange={onValueChange} />,
+    );
 
     act(() => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'Enter' },
+      } as never);
     });
 
     expect(onValueChange).not.toHaveBeenCalled();
@@ -387,8 +437,12 @@ describe('useSelectFieldController', () => {
 
     act(() => {
       controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'Enter' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'Enter' },
+      } as never);
     });
 
     expect(onValueChange).not.toHaveBeenCalled();
@@ -401,7 +455,9 @@ describe('useSelectFieldController', () => {
     try {
       const onOpenChange = jest.fn();
       const controllerRef = React.createRef<SelectFieldViewProps>();
-      render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+      render(
+        <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+      );
 
       act(() => {
         getWebKeyDown(controllerRef.current?.fieldPressableProps)?.({
@@ -467,7 +523,8 @@ describe('useSelectFieldController', () => {
       controllerRef.current?.inputProps.onChangeText?.('Option 4');
     });
 
-    const optionLabels = controllerRef.current?.options.map((option) => option.label) ?? [];
+    const optionLabels =
+      controllerRef.current?.options.map((option) => option.label) ?? [];
     expect(optionLabels).toEqual(['Option 4']);
     expect(controllerRef.current?.options[0].isHighlighted).toBe(true);
   });
@@ -492,7 +549,8 @@ describe('useSelectFieldController', () => {
       controllerRef.current?.inputProps.onChangeText?.('   malaga   ');
     });
 
-    const optionLabels = controllerRef.current?.options.map((option) => option.label) ?? [];
+    const optionLabels =
+      controllerRef.current?.options.map((option) => option.label) ?? [];
     expect(optionLabels).toEqual(['Málaga']);
     expect(controllerRef.current?.options[0].isHighlighted).toBe(true);
   });
@@ -517,14 +575,17 @@ describe('useSelectFieldController', () => {
       controllerRef.current?.inputProps.onChangeText?.('  MALAGA  ');
     });
 
-    const optionLabels = controllerRef.current?.options.map((option) => option.label) ?? [];
+    const optionLabels =
+      controllerRef.current?.options.map((option) => option.label) ?? [];
     expect(optionLabels).toEqual(['Málaga']);
     expect(controllerRef.current?.options[0].isHighlighted).toBe(true);
   });
 
   it('uses the raw value label when it does not exist in options', () => {
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} options={[]} value="missing" />);
+    render(
+      <ControllerHarness ref={controllerRef} options={[]} value='missing' />,
+    );
 
     expect(controllerRef.current?.valueText).toBe('missing');
     expect(controllerRef.current?.showPlaceholder).toBe(false);
@@ -537,7 +598,9 @@ describe('useSelectFieldController', () => {
     try {
       const onOpenChange = jest.fn();
       const controllerRef = React.createRef<SelectFieldViewProps>();
-      render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+      render(
+        <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+      );
 
       act(() => {
         getWebKeyDown(controllerRef.current?.inputProps)?.({
@@ -564,11 +627,14 @@ describe('useSelectFieldController', () => {
       render(<ControllerHarness ref={controllerRef} />);
 
       act(() => {
-        controllerRef.current?.fieldPressableProps.onFocus?.(undefined as never);
+        controllerRef.current?.fieldPressableProps.onFocus?.(
+          undefined as never,
+        );
       });
 
       const focusRingStyle = controllerRef.current?.fieldStyleOverrides.find(
-        (style) => isOutlineStyle(style) && String(style.outlineStyle) === 'auto',
+        (style) =>
+          isOutlineStyle(style) && String(style.outlineStyle) === 'auto',
       );
 
       expect(focusRingStyle?.outlineStyle).toBe('auto');
@@ -587,10 +653,14 @@ describe('useSelectFieldController', () => {
     try {
       const onOpenChange = jest.fn();
       const controllerRef = React.createRef<SelectFieldViewProps>();
-      render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+      render(
+        <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+      );
 
       act(() => {
-        controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
+        controllerRef.current?.fieldPressableProps.onPress?.(
+          createPressEvent(),
+        );
         controllerRef.current?.options[0].onPressIn();
         controllerRef.current?.inputProps.onBlur?.(undefined as never);
       });
@@ -623,7 +693,9 @@ describe('useSelectFieldController', () => {
     try {
       const onOpenChange = jest.fn();
       const controllerRef = React.createRef<SelectFieldViewProps>();
-      render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+      render(
+        <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+      );
 
       const focusSpy = jest.fn();
       if (controllerRef.current) {
@@ -633,7 +705,9 @@ describe('useSelectFieldController', () => {
       }
 
       act(() => {
-        controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
+        controllerRef.current?.fieldPressableProps.onPress?.(
+          createPressEvent(),
+        );
         controllerRef.current?.inputProps.onBlur?.(undefined as never);
       });
 
@@ -677,12 +751,16 @@ describe('useSelectFieldController', () => {
   it('stops propagation when the select icon button is pressed', () => {
     const onOpenChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+    render(
+      <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+    );
 
     const stopPropagation = jest.fn();
 
     act(() => {
-      controllerRef.current?.iconButtonProps.onPress({ stopPropagation } as unknown as Parameters<
+      controllerRef.current?.iconButtonProps.onPress({
+        stopPropagation,
+      } as unknown as Parameters<
         NonNullable<SelectFieldViewProps['iconButtonProps']['onPress']>
       >[0]);
     });
@@ -704,19 +782,30 @@ describe('useSelectFieldController', () => {
       controllerRef.current.scrollViewRef.current = {
         scrollTo,
       } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
-      controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
-      controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(scrollOffset));
+      controllerRef.current.scrollViewProps?.onLayout?.(
+        createLayoutEvent(0, viewportHeight),
+      );
+      controllerRef.current.scrollViewProps?.onScroll?.(
+        createScrollEvent(scrollOffset),
+      );
     }
 
     act(() => {
-      controllerRef.current?.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
+      controllerRef.current?.options[0].onLayout(
+        createLayoutEvent(optionTop, optionHeight),
+      );
     });
 
     act(() => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
     });
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: Math.max(0, optionTop), animated: true });
+    expect(scrollTo).toHaveBeenCalledWith({
+      y: Math.max(0, optionTop),
+      animated: true,
+    });
   });
 
   it('does not scroll when the highlighted option is already visible', () => {
@@ -731,16 +820,22 @@ describe('useSelectFieldController', () => {
       controllerRef.current.scrollViewRef.current = {
         scrollTo,
       } as unknown as SelectFieldViewProps['scrollViewRef']['current'];
-      controllerRef.current.scrollViewProps?.onLayout?.(createLayoutEvent(0, viewportHeight));
+      controllerRef.current.scrollViewProps?.onLayout?.(
+        createLayoutEvent(0, viewportHeight),
+      );
       controllerRef.current.scrollViewProps?.onScroll?.(createScrollEvent(0));
     }
 
     act(() => {
-      controllerRef.current?.options[0].onLayout(createLayoutEvent(optionTop, optionHeight));
+      controllerRef.current?.options[0].onLayout(
+        createLayoutEvent(optionTop, optionHeight),
+      );
     });
 
     act(() => {
-      controllerRef.current?.inputProps.onKeyPress?.({ nativeEvent: { key: 'ArrowDown' } } as never);
+      controllerRef.current?.inputProps.onKeyPress?.({
+        nativeEvent: { key: 'ArrowDown' },
+      } as never);
     });
 
     expect(scrollTo).not.toHaveBeenCalled();
@@ -753,10 +848,14 @@ describe('useSelectFieldController', () => {
     try {
       const onOpenChange = jest.fn();
       const controllerRef = React.createRef<SelectFieldViewProps>();
-      render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+      render(
+        <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+      );
 
       act(() => {
-        controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());
+        controllerRef.current?.fieldPressableProps.onPress?.(
+          createPressEvent(),
+        );
       });
 
       act(() => {
@@ -776,12 +875,16 @@ describe('useSelectFieldController', () => {
     const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
 
-    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => undefined);
+    const dismissSpy = jest
+      .spyOn(Keyboard, 'dismiss')
+      .mockImplementation(() => undefined);
 
     try {
       const onValueChange = jest.fn();
       const controllerRef = React.createRef<SelectFieldViewProps>();
-      render(<ControllerHarness ref={controllerRef} onValueChange={onValueChange} />);
+      render(
+        <ControllerHarness ref={controllerRef} onValueChange={onValueChange} />,
+      );
 
       act(() => {
         controllerRef.current?.options[0].onPress();
@@ -800,7 +903,9 @@ describe('useSelectFieldController', () => {
   it('ignores duplicate dismiss calls after opening', () => {
     const onOpenChange = jest.fn();
     const controllerRef = React.createRef<SelectFieldViewProps>();
-    render(<ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />);
+    render(
+      <ControllerHarness ref={controllerRef} onOpenChange={onOpenChange} />,
+    );
 
     act(() => {
       controllerRef.current?.fieldPressableProps.onPress?.(createPressEvent());

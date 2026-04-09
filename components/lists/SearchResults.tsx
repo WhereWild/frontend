@@ -33,7 +33,8 @@ type ScrollMetrics = {
 const VISIBILITY_BOTTOM_BUFFER = Size.space['600'];
 const VISIBILITY_PADDING = Size.space['400'];
 
-const getSearchResultsListElementId = (instanceId: string) => `${instanceId}-list`;
+const getSearchResultsListElementId = (instanceId: string) =>
+  `${instanceId}-list`;
 
 const getSearchResultsResultElementId = (instanceId: string, index: number) => {
   return `${instanceId}-result-${index}`;
@@ -53,7 +54,10 @@ const getScrollOffsetForActiveResult = (
   const visibleBottom = scrollMetrics.offset + scrollMetrics.height;
 
   if (resultTop + VISIBILITY_BOTTOM_BUFFER >= visibleBottom) {
-    return Math.max(0, resultBottom - scrollMetrics.height + VISIBILITY_PADDING);
+    return Math.max(
+      0,
+      resultBottom - scrollMetrics.height + VISIBILITY_PADDING,
+    );
   }
 
   if (resultBottom <= visibleTop) {
@@ -68,7 +72,10 @@ const keepActiveResultVisible = (
   resultLayout: ResultLayout | undefined,
   scrollMetrics: ScrollMetrics,
 ) => {
-  const nextOffset = getScrollOffsetForActiveResult(resultLayout, scrollMetrics);
+  const nextOffset = getScrollOffsetForActiveResult(
+    resultLayout,
+    scrollMetrics,
+  );
   if (nextOffset === null) {
     return;
   }
@@ -83,14 +90,21 @@ const keepActiveWebResultVisible = (
   listElementId: string | undefined,
   activeResultElementId: string | undefined,
 ) => {
-  if (!listElementId || !activeResultElementId || typeof document === 'undefined') {
+  if (
+    !listElementId ||
+    !activeResultElementId ||
+    typeof document === 'undefined'
+  ) {
     return;
   }
 
   const listElement = document.getElementById(listElementId);
   const resultElement = document.getElementById(activeResultElementId);
 
-  if (!(listElement instanceof HTMLElement) || !(resultElement instanceof HTMLElement)) {
+  if (
+    !(listElement instanceof HTMLElement) ||
+    !(resultElement instanceof HTMLElement)
+  ) {
     return;
   }
 
@@ -100,7 +114,9 @@ const keepActiveWebResultVisible = (
   if (resultRect.top <= listRect.top) {
     listElement.scrollTop = Math.max(
       0,
-      listElement.scrollTop - (listRect.top - resultRect.top) - VISIBILITY_PADDING,
+      listElement.scrollTop -
+        (listRect.top - resultRect.top) -
+        VISIBILITY_PADDING,
     );
     return;
   }
@@ -108,7 +124,9 @@ const keepActiveWebResultVisible = (
   if (resultRect.bottom + VISIBILITY_BOTTOM_BUFFER >= listRect.bottom) {
     listElement.scrollTop = Math.max(
       0,
-      listElement.scrollTop + (resultRect.bottom - listRect.bottom) + VISIBILITY_PADDING,
+      listElement.scrollTop +
+        (resultRect.bottom - listRect.bottom) +
+        VISIBILITY_PADDING,
     );
   }
 };
@@ -212,7 +230,10 @@ export function SearchResults({
   const palette = Colors[mode];
   const listRef = React.useRef<SearchResultsListRef | null>(null);
   const resultLayoutsRef = React.useRef<Record<number, ResultLayout>>({});
-  const scrollMetricsRef = React.useRef<ScrollMetrics>({ height: 0, offset: 0 });
+  const scrollMetricsRef = React.useRef<ScrollMetrics>({
+    height: 0,
+    offset: 0,
+  });
   const [layoutVersion, setLayoutVersion] = React.useState(0);
   const reactId = React.useId();
   // React.useId() may include characters such as ':' that are awkward for DOM lookups,
@@ -260,25 +281,37 @@ export function SearchResults({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [activeResultIndex, instanceId, isLoading, isVisible, layout, layoutVersion, listElementId, maxHeight]);
+  }, [
+    activeResultIndex,
+    instanceId,
+    isLoading,
+    isVisible,
+    layout,
+    layoutVersion,
+    listElementId,
+    maxHeight,
+  ]);
 
-  const updateResultLayout = React.useCallback((index: number, event: LayoutChangeEvent) => {
-    const nextLayout = {
-      y: event.nativeEvent.layout.y,
-      height: event.nativeEvent.layout.height,
-    };
+  const updateResultLayout = React.useCallback(
+    (index: number, event: LayoutChangeEvent) => {
+      const nextLayout = {
+        y: event.nativeEvent.layout.y,
+        height: event.nativeEvent.layout.height,
+      };
 
-    const previousLayout = resultLayoutsRef.current[index];
-    if (
-      previousLayout?.y === nextLayout.y
-      && previousLayout?.height === nextLayout.height
-    ) {
-      return;
-    }
+      const previousLayout = resultLayoutsRef.current[index];
+      if (
+        previousLayout?.y === nextLayout.y &&
+        previousLayout?.height === nextLayout.height
+      ) {
+        return;
+      }
 
-    resultLayoutsRef.current[index] = nextLayout;
-    setLayoutVersion((currentValue) => currentValue + 1);
-  }, []);
+      resultLayoutsRef.current[index] = nextLayout;
+      setLayoutVersion((currentValue) => currentValue + 1);
+    },
+    [],
+  );
 
   const handleListLayout = React.useCallback((event: LayoutChangeEvent) => {
     const nextHeight = event.nativeEvent.layout.height;
@@ -290,9 +323,12 @@ export function SearchResults({
     setLayoutVersion((currentValue) => currentValue + 1);
   }, []);
 
-  const handleListScroll = React.useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollMetricsRef.current.offset = event.nativeEvent.contentOffset.y;
-  }, []);
+  const handleListScroll = React.useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollMetricsRef.current.offset = event.nativeEvent.contentOffset.y;
+    },
+    [],
+  );
 
   if (!isVisible) {
     return null;
@@ -301,9 +337,7 @@ export function SearchResults({
   if (isLoading) {
     return (
       <View
-        style={[
-          panelStyles,
-        ]}
+        style={[panelStyles]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onTouchStart={onTouchStart}
@@ -314,7 +348,7 @@ export function SearchResults({
       >
         <View style={[styles.centerContent, styles.loading]}>
           <ActivityIndicator color={palette.icon.brand.default} />
-          <ThemedText variant="body">Loading results...</ThemedText>
+          <ThemedText variant='body'>Loading results...</ThemedText>
         </View>
       </View>
     );
@@ -323,9 +357,7 @@ export function SearchResults({
   if (results.length === 0) {
     return (
       <View
-        style={[
-          panelStyles,
-        ]}
+        style={[panelStyles]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onTouchStart={onTouchStart}
@@ -335,7 +367,7 @@ export function SearchResults({
         testID={testID ? `${testID}-empty` : undefined}
       >
         <View style={styles.centerContent}>
-          <ThemedText variant="body">{emptyMessage}</ThemedText>
+          <ThemedText variant='body'>{emptyMessage}</ThemedText>
         </View>
       </View>
     );
@@ -344,10 +376,7 @@ export function SearchResults({
   if (layout === 'inline') {
     return (
       <View
-        style={[
-          panelStyles,
-          { maxHeight },
-        ]}
+        style={[panelStyles, { maxHeight }]}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onTouchStart={onTouchStart}
@@ -356,14 +385,20 @@ export function SearchResults({
         onBlur={onBlur}
         testID={testID}
       >
-        <View style={styles.listContent} testID={testID ? `${testID}-list` : undefined}>
+        <View
+          style={styles.listContent}
+          testID={testID ? `${testID}-list` : undefined}
+        >
           {results.map((item, index) => (
             <SpeciesCard
               key={item.taxonId}
               style={[
                 styles.speciesCard,
                 activeResultIndex === index
-                  ? { backgroundColor: palette.background.default.secondaryHover }
+                  ? {
+                      backgroundColor:
+                        palette.background.default.secondaryHover,
+                    }
                   : null,
               ]}
               taxonId={item.taxonId}
@@ -371,7 +406,7 @@ export function SearchResults({
               scientificName={item.scientificName}
               description={item.description}
               imageSource={item.imageSource}
-              size="compact"
+              size='compact'
               onPress={() => onSelectResult?.(item)}
               testID={`search-result-${item.taxonId}`}
             />
@@ -398,7 +433,7 @@ export function SearchResults({
         scientificName={item.scientificName}
         description={item.description}
         imageSource={item.imageSource}
-        size="compact"
+        size='compact'
         onPress={() => onSelectResult?.(item)}
         testID={`search-result-${item.taxonId}`}
       />
@@ -407,10 +442,7 @@ export function SearchResults({
 
   return (
     <View
-      style={[
-        panelStyles,
-        { maxHeight },
-      ]}
+      style={[panelStyles, { maxHeight }]}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onTouchStart={onTouchStart}
@@ -430,8 +462,8 @@ export function SearchResults({
         scrollEventThrottle={16}
         scrollEnabled
         nestedScrollEnabled
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="none"
+        keyboardShouldPersistTaps='always'
+        keyboardDismissMode='none'
         contentContainerStyle={styles.listContent}
         testID={testID ? `${testID}-list` : undefined}
       />

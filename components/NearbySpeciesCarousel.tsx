@@ -47,7 +47,7 @@ export function NearbySpeciesCarousel({
           includeTopPadding: false,
         })}
       >
-        <ThemedText variant="heading">Nearby Species</ThemedText>
+        <ThemedText variant='heading'>Nearby Species</ThemedText>
       </View>
       <ScrollView
         horizontal
@@ -69,7 +69,7 @@ export function NearbySpeciesCarousel({
             scientificName={item.scientificName}
             description={item.description}
             style={styles.card}
-            variant="tertiary"
+            variant='tertiary'
           />
         ))}
       </ScrollView>

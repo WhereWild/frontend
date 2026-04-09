@@ -8,7 +8,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 const countryOptions = [
   { label: 'United States', value: 'us' },
@@ -69,11 +71,15 @@ describe('Filters', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('light');
     scheduledFrameCallbacks = [];
-    requestAnimationFrameSpy = jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
-      scheduledFrameCallbacks.push(callback);
-      return scheduledFrameCallbacks.length;
-    });
-    cancelAnimationFrameSpy = jest.spyOn(global, 'cancelAnimationFrame').mockImplementation(() => {});
+    requestAnimationFrameSpy = jest
+      .spyOn(global, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        scheduledFrameCallbacks.push(callback);
+        return scheduledFrameCallbacks.length;
+      });
+    cancelAnimationFrameSpy = jest
+      .spyOn(global, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -116,11 +122,15 @@ describe('Filters', () => {
     });
 
     it('shows all-options for location fields so users can clear selection', () => {
-      const rendered = render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
+      const rendered = render(
+        <Filters {...baseProps} hasBaseTaxonSelection={true} />,
+      );
 
       const findPressableByAccessibilityLabel = (label: string) => {
         const matches = rendered.UNSAFE_root.findAll(
-          (node) => node.props?.accessibilityLabel === label && typeof node.props?.onPress === 'function',
+          (node) =>
+            node.props?.accessibilityLabel === label &&
+            typeof node.props?.onPress === 'function',
         );
         if (matches.length === 0) {
           throw new Error(`Expected node with accessibilityLabel ${label}.`);
@@ -130,33 +140,59 @@ describe('Filters', () => {
       };
 
       fireEvent.press(findPressableByAccessibilityLabel('Country'));
-      expect(findPressableByAccessibilityLabel('Select All countries')).toBeTruthy();
-      fireEvent.press(findPressableByAccessibilityLabel('Select All countries'));
+      expect(
+        findPressableByAccessibilityLabel('Select All countries'),
+      ).toBeTruthy();
+      fireEvent.press(
+        findPressableByAccessibilityLabel('Select All countries'),
+      );
 
       fireEvent.press(findPressableByAccessibilityLabel('State'));
-      expect(findPressableByAccessibilityLabel('Select All states')).toBeTruthy();
+      expect(
+        findPressableByAccessibilityLabel('Select All states'),
+      ).toBeTruthy();
       fireEvent.press(findPressableByAccessibilityLabel('Select All states'));
 
       fireEvent.press(findPressableByAccessibilityLabel('County'));
-      expect(findPressableByAccessibilityLabel('Select All counties')).toBeTruthy();
+      expect(
+        findPressableByAccessibilityLabel('Select All counties'),
+      ).toBeTruthy();
     });
 
     it('shows location hint and disables location controls while no base taxon is selected', () => {
       render(<Filters {...baseProps} hasBaseTaxonSelection={false} />);
 
-      expect(screen.getByText('Location filters apply after choosing a Base taxon.')).toBeTruthy();
-      expect(screen.getByLabelText('Country').props.accessibilityState?.disabled).toBe(true);
-      expect(screen.getByLabelText('State').props.accessibilityState?.disabled).toBe(true);
-      expect(screen.getByLabelText('County').props.accessibilityState?.disabled).toBe(true);
+      expect(
+        screen.getByText('Location filters apply after choosing a Base taxon.'),
+      ).toBeTruthy();
+      expect(
+        screen.getByLabelText('Country').props.accessibilityState?.disabled,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('State').props.accessibilityState?.disabled,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('County').props.accessibilityState?.disabled,
+      ).toBe(true);
     });
 
     it('hides location hint and enables location controls after base taxon is selected', () => {
       render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
 
-      expect(screen.queryByText('Location filters apply after choosing a Base taxon.')).toBeNull();
-      expect(screen.getByLabelText('Country').props.accessibilityState?.disabled).toBe(false);
-      expect(screen.getByLabelText('State').props.accessibilityState?.disabled).toBe(false);
-      expect(screen.getByLabelText('County').props.accessibilityState?.disabled).toBe(false);
+      expect(
+        screen.queryByText(
+          'Location filters apply after choosing a Base taxon.',
+        ),
+      ).toBeNull();
+      expect(
+        screen.getByLabelText('Country').props.accessibilityState?.disabled,
+      ).toBe(false);
+      expect(
+        screen.getByLabelText('State').props.accessibilityState?.disabled,
+      ).toBe(false);
+      expect(
+        screen.getByLabelText('County').props.accessibilityState?.disabled,
+      ).toBe(false);
     });
 
     it('renders taxon field labels', () => {
@@ -168,7 +204,11 @@ describe('Filters', () => {
 
     it('renders sort field labels and sort order options', () => {
       render(<Filters {...baseProps} />);
-      expect(screen.getByText('Ranking-based filters apply after setting Base taxon and Sort variable.')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Ranking-based filters apply after setting Base taxon and Sort variable.',
+        ),
+      ).toBeTruthy();
       expect(screen.getByText('Variable')).toBeTruthy();
       expect(screen.getByText('Sorting metric')).toBeTruthy();
       expect(screen.getByText('Sort order')).toBeTruthy();
@@ -190,15 +230,23 @@ describe('Filters', () => {
 
   describe('sort order', () => {
     it('marks Ascending as selected and Descending as unselected when sortOrder is "ascending"', () => {
-      render(<Filters {...baseProps} sortOrder="ascending" />);
-      expect(screen.getByLabelText('Ascending').props.accessibilityState.selected).toBe(true);
-      expect(screen.getByLabelText('Descending').props.accessibilityState.selected).toBe(false);
+      render(<Filters {...baseProps} sortOrder='ascending' />);
+      expect(
+        screen.getByLabelText('Ascending').props.accessibilityState.selected,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('Descending').props.accessibilityState.selected,
+      ).toBe(false);
     });
 
     it('marks Descending as selected and Ascending as unselected when sortOrder is "descending"', () => {
-      render(<Filters {...baseProps} sortOrder="descending" />);
-      expect(screen.getByLabelText('Descending').props.accessibilityState.selected).toBe(true);
-      expect(screen.getByLabelText('Ascending').props.accessibilityState.selected).toBe(false);
+      render(<Filters {...baseProps} sortOrder='descending' />);
+      expect(
+        screen.getByLabelText('Descending').props.accessibilityState.selected,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('Ascending').props.accessibilityState.selected,
+      ).toBe(false);
     });
 
     it('calls onSortOrderChange with "ascending" when the Ascending radio is pressed', () => {
@@ -206,7 +254,7 @@ describe('Filters', () => {
       render(
         <Filters
           {...baseProps}
-          sortOrder="descending"
+          sortOrder='descending'
           onSortOrderChange={handleSortOrderChange}
         />,
       );
@@ -219,7 +267,7 @@ describe('Filters', () => {
       render(
         <Filters
           {...baseProps}
-          sortOrder="ascending"
+          sortOrder='ascending'
           onSortOrderChange={handleSortOrderChange}
         />,
       );
@@ -228,7 +276,7 @@ describe('Filters', () => {
     });
 
     it('does not throw when onSortOrderChange is not provided', () => {
-      render(<Filters {...baseProps} sortOrder="ascending" />);
+      render(<Filters {...baseProps} sortOrder='ascending' />);
       expect(() => {
         fireEvent.press(screen.getByLabelText('Ascending'));
       }).not.toThrow();
@@ -237,19 +285,37 @@ describe('Filters', () => {
     it('disables sort controls until a base taxon is selected', () => {
       render(<Filters {...baseProps} hasBaseTaxonSelection={false} />);
 
-      expect(screen.getByLabelText('Variable').props.accessibilityState?.disabled).toBe(true);
-      expect(screen.getByLabelText('Sorting metric').props.accessibilityState?.disabled).toBe(true);
-      expect(screen.getByLabelText('Ascending').props.accessibilityState?.disabled).toBe(true);
-      expect(screen.getByLabelText('Descending').props.accessibilityState?.disabled).toBe(true);
+      expect(
+        screen.getByLabelText('Variable').props.accessibilityState?.disabled,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('Sorting metric').props.accessibilityState
+          ?.disabled,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('Ascending').props.accessibilityState?.disabled,
+      ).toBe(true);
+      expect(
+        screen.getByLabelText('Descending').props.accessibilityState?.disabled,
+      ).toBe(true);
     });
 
     it('keeps sort controls enabled when a base taxon is selected', () => {
       render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
 
-      expect(screen.getByLabelText('Variable').props.accessibilityState?.disabled).toBe(false);
-      expect(screen.getByLabelText('Sorting metric').props.accessibilityState?.disabled).toBe(false);
-      expect(screen.getByLabelText('Ascending').props.accessibilityState?.disabled).toBe(false);
-      expect(screen.getByLabelText('Descending').props.accessibilityState?.disabled).toBe(false);
+      expect(
+        screen.getByLabelText('Variable').props.accessibilityState?.disabled,
+      ).toBe(false);
+      expect(
+        screen.getByLabelText('Sorting metric').props.accessibilityState
+          ?.disabled,
+      ).toBe(false);
+      expect(
+        screen.getByLabelText('Ascending').props.accessibilityState?.disabled,
+      ).toBe(false);
+      expect(
+        screen.getByLabelText('Descending').props.accessibilityState?.disabled,
+      ).toBe(false);
     });
   });
 
@@ -328,7 +394,7 @@ describe('Filters', () => {
       render(
         <Filters
           {...baseProps}
-          baseTaxonQuery="canis"
+          baseTaxonQuery='canis'
           baseTaxonSuggestionsVisible
           baseTaxonSuggestions={[suggestion]}
         />,

@@ -64,7 +64,13 @@ jest.mock('react-native-svg', () => {
   }) =>
     mockReactLocal.createElement(
       mockRNPressable,
-      { onPress, testID, accessibilityHint: stroke ? `${stroke}|${strokeWidth ?? ''}|${strokeDasharray ?? ''}` : undefined },
+      {
+        onPress,
+        testID,
+        accessibilityHint: stroke
+          ? `${stroke}|${strokeWidth ?? ''}|${strokeDasharray ?? ''}`
+          : undefined,
+      },
       null,
     );
 
@@ -103,7 +109,7 @@ describe('AspectCompassChart', () => {
       <AspectCompassChart
         categories={[]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
     expect(screen.getByText('Aspect data unavailable.')).toBeTruthy();
@@ -114,7 +120,7 @@ describe('AspectCompassChart', () => {
       <AspectCompassChart
         categories={[makeCategory('N', 'N', -0.1)]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
     expect(screen.getByText('Aspect data unavailable.')).toBeTruthy();
@@ -123,12 +129,9 @@ describe('AspectCompassChart', () => {
   it('renders the SVG compass when valid categories are provided', () => {
     render(
       <AspectCompassChart
-        categories={[
-          makeCategory(1, 'N', 0.3),
-          makeCategory(5, 'S', 0.2),
-        ]}
+        categories={[makeCategory(1, 'N', 0.3), makeCategory(5, 'S', 0.2)]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
     expect(screen.getByTestId('svg-root')).toBeTruthy();
@@ -137,19 +140,20 @@ describe('AspectCompassChart', () => {
   it('highlights the location-matched wedge and pill', () => {
     render(
       <AspectCompassChart
-        categories={[
-          makeCategory('N', 'N', 0.3),
-          makeCategory('S', 'S', 0.2),
-        ]}
+        categories={[makeCategory('N', 'N', 0.3), makeCategory('S', 'S', 0.2)]}
         selectedValue={null}
-        highlightedValue="S"
-        descriptionColor="#666"
-        highlightOutlineColor="#F59E0B"
+        highlightedValue='S'
+        descriptionColor='#666'
+        highlightOutlineColor='#F59E0B'
       />,
     );
 
-    expect(screen.getByTestId('aspect-wedge-N').props.accessibilityHint).toBeUndefined();
-    expect(screen.getByTestId('aspect-wedge-S').props.accessibilityHint).toBe('#F59E0B|3|6 4');
+    expect(
+      screen.getByTestId('aspect-wedge-N').props.accessibilityHint,
+    ).toBeUndefined();
+    expect(screen.getByTestId('aspect-wedge-S').props.accessibilityHint).toBe(
+      '#F59E0B|3|6 4',
+    );
     expect(mockNavigationPillList.mock.calls.at(-1)?.[0]).toMatchObject({
       highlightedKey: 'S',
       highlightOutlineColor: '#F59E0B',
@@ -166,13 +170,11 @@ describe('AspectCompassChart', () => {
           makeCategory('S', 'S', 0.15),
         ]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
-    const pillLabels = ['N', 'E', 'S', 'W'].map((dir) =>
-      screen.getByText(dir),
-    );
+    const pillLabels = ['N', 'E', 'S', 'W'].map((dir) => screen.getByText(dir));
     expect(pillLabels).toHaveLength(4);
 
     // N pill should appear before E in the rendered order
@@ -190,7 +192,7 @@ describe('AspectCompassChart', () => {
         categories={[makeCategory('N', 'N', 0.4)]}
         selectedValue={null}
         onSelect={onSelect}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -204,23 +206,23 @@ describe('AspectCompassChart', () => {
         categories={[
           makeCategory('N', 'N', 0.4, { description: 'North-facing slopes.' }),
         ]}
-        selectedValue="N"
-        descriptionColor="#666"
+        selectedValue='N'
+        descriptionColor='#666'
       />,
     );
 
     expect(screen.getByText(/North-facing slopes/)).toBeTruthy();
-    expect(screen.getByText(/This accounts for 40% of all observations/)).toBeTruthy();
+    expect(
+      screen.getByText(/This accounts for 40% of all observations/),
+    ).toBeTruthy();
   });
 
   it('shows __other__ aggregated description copy', () => {
     render(
       <AspectCompassChart
-        categories={[
-          makeCategory('__other__', '__other__', 0.25),
-        ]}
-        selectedValue="__other__"
-        descriptionColor="#666"
+        categories={[makeCategory('__other__', '__other__', 0.25)]}
+        selectedValue='__other__'
+        descriptionColor='#666'
       />,
     );
 
@@ -232,7 +234,7 @@ describe('AspectCompassChart', () => {
       <AspectCompassChart
         categories={[makeCategory('N', 'N', 0.5)]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -246,7 +248,7 @@ describe('AspectCompassChart', () => {
         categories={[makeCategory(1, 'North', 0.3)]}
         selectedValue={null}
         onSelect={onSelect}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -263,7 +265,7 @@ describe('AspectCompassChart', () => {
           makeCategory(3, 'Unknown', 0.2),
         ]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -276,7 +278,7 @@ describe('AspectCompassChart', () => {
       <AspectCompassChart
         categories={[makeCategory('SE', 'Unknown', 0.2)]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -291,7 +293,7 @@ describe('AspectCompassChart', () => {
           makeCategory('N', 'N', 0.5),
         ]}
         selectedValue={null}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 

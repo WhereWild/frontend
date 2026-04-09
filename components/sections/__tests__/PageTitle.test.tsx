@@ -10,7 +10,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 describe('PageTitle', () => {
   beforeEach(() => {
@@ -18,12 +20,12 @@ describe('PageTitle', () => {
   });
 
   it('renders the title', () => {
-    render(<PageTitle title="Settings" />);
+    render(<PageTitle title='Settings' />);
     expect(screen.getByText('Settings')).toBeTruthy();
   });
 
   it('renders the divider', () => {
-    render(<PageTitle title="Settings" />);
+    render(<PageTitle title='Settings' />);
     expect(screen.getByTestId('page-title-divider')).toBeTruthy();
   });
 
@@ -31,8 +33,12 @@ describe('PageTitle', () => {
     const onPress = jest.fn();
     render(
       <PageTitle
-        title="Settings"
-        iconButton={{ icon: <IconStar />, accessibilityLabel: 'Bookmark', onPress }}
+        title='Settings'
+        iconButton={{
+          icon: <IconStar />,
+          accessibilityLabel: 'Bookmark',
+          onPress,
+        }}
       />,
     );
     expect(screen.getByLabelText('Bookmark')).toBeTruthy();
@@ -42,7 +48,7 @@ describe('PageTitle', () => {
     const onPress = jest.fn();
     render(
       <PageTitle
-        title="Settings"
+        title='Settings'
         button={{ iconStart: <IconDownload />, children: 'Download', onPress }}
       />,
     );
@@ -53,8 +59,12 @@ describe('PageTitle', () => {
     const onPress = jest.fn();
     render(
       <PageTitle
-        title="Settings"
-        iconButton={{ icon: <IconStar />, accessibilityLabel: 'Bookmark', onPress }}
+        title='Settings'
+        iconButton={{
+          icon: <IconStar />,
+          accessibilityLabel: 'Bookmark',
+          onPress,
+        }}
       />,
     );
     fireEvent.press(screen.getByLabelText('Bookmark'));
@@ -65,8 +75,12 @@ describe('PageTitle', () => {
     const onPress = jest.fn();
     render(
       <PageTitle
-        title="Settings"
-        button={{ children: 'Download', onPress, accessibilityLabel: 'Download' }}
+        title='Settings'
+        button={{
+          children: 'Download',
+          onPress,
+          accessibilityLabel: 'Download',
+        }}
       />,
     );
     fireEvent.press(screen.getByLabelText('Download'));
@@ -74,7 +88,7 @@ describe('PageTitle', () => {
   });
 
   it('omits the buttons container when neither button prop is provided', () => {
-    render(<PageTitle title="Settings" />);
+    render(<PageTitle title='Settings' />);
     // No buttons rendered — title is the only accessible element
     expect(screen.queryByRole('button')).toBeNull();
   });
@@ -82,20 +96,22 @@ describe('PageTitle', () => {
   it('applies the light mode background color', () => {
     mockUseColorScheme.mockReturnValue('light');
 
-    const tree = render(<PageTitle title="Settings" />).toJSON();
+    const tree = render(<PageTitle title='Settings' />).toJSON();
 
     if (!tree || Array.isArray(tree)) {
       throw new Error('Expected a single root view');
     }
 
     const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
+    expect(styles.backgroundColor).toBe(
+      Colors.light.background.default.default,
+    );
   });
 
   it('applies the dark mode background color', () => {
     mockUseColorScheme.mockReturnValue('dark');
 
-    const tree = render(<PageTitle title="Settings" />).toJSON();
+    const tree = render(<PageTitle title='Settings' />).toJSON();
 
     if (!tree || Array.isArray(tree)) {
       throw new Error('Expected a single root view');
@@ -108,20 +124,24 @@ describe('PageTitle', () => {
   it('uses the brand secondary color for the divider in light mode', () => {
     mockUseColorScheme.mockReturnValue('light');
 
-    render(<PageTitle title="Settings" />);
+    render(<PageTitle title='Settings' />);
 
     const divider = screen.getByTestId('page-title-divider');
     const dividerStyles = StyleSheet.flatten(divider.props.style);
-    expect(dividerStyles.backgroundColor).toBe(Colors.light.border.brand.secondary);
+    expect(dividerStyles.backgroundColor).toBe(
+      Colors.light.border.brand.secondary,
+    );
   });
 
   it('uses the brand secondary color for the divider in dark mode', () => {
     mockUseColorScheme.mockReturnValue('dark');
 
-    render(<PageTitle title="Settings" />);
+    render(<PageTitle title='Settings' />);
 
     const divider = screen.getByTestId('page-title-divider');
     const dividerStyles = StyleSheet.flatten(divider.props.style);
-    expect(dividerStyles.backgroundColor).toBe(Colors.dark.border.brand.secondary);
+    expect(dividerStyles.backgroundColor).toBe(
+      Colors.dark.border.brand.secondary,
+    );
   });
 });

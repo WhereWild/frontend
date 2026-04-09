@@ -15,11 +15,17 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
-import { Colors, Shadows, Size, Typography, type ColorPalette } from '@/constants/theme';
+import {
+  Colors,
+  Shadows,
+  Size,
+  Typography,
+  type ColorPalette,
+} from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconChevronDown, IconChevronUp } from '@/assets/icons';
 import { useNativePortalHostFrame } from '@/components/NativePortalHost';
-import { SelectFieldProps, SelectOption } from "./SelectField";
+import { SelectFieldProps, SelectOption } from './SelectField';
 import { stripDiacritics } from '@/utils/stripDiacritics';
 
 export type SelectFieldOptionViewModel = {
@@ -59,7 +65,12 @@ export type SelectFieldViewProps = {
   fieldPressableRef: React.RefObject<FocusableView | null>;
   fieldWrapperRef: React.RefObject<View | null>;
   onFieldWrapperLayout: () => void;
-  dropdownPosition: { top: number; left: number; width: number; height: number } | null;
+  dropdownPosition: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null;
   onDismiss: () => void;
   inputRef: React.RefObject<TextInput | null>;
   inputProps: TextInputProps;
@@ -121,24 +132,33 @@ export const useSelectFieldController = ({
   const [isOpen, setIsOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   // Keep highlight null until keyboard navigation starts; avoids preselecting an option.
-  const [highlightedIndex, setHighlightedIndex] = React.useState<number | null>(null);
+  const [highlightedIndex, setHighlightedIndex] = React.useState<number | null>(
+    null,
+  );
   const isOptionPressingRef = React.useRef(false);
   // Defer blur work so option presses can complete on web before closing.
-  const blurTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   // Disable native outline here; we re-enable it on the wrapper to mimic SearchInput behavior.
-  const webFieldOutlineStyle = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
+  const webFieldOutlineStyle =
+    Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
   // Remove the input's own outline so the focus ring wraps the full field.
-  const webInputOutlineStyle = Platform.OS === 'web'
-    ? ({ outlineStyle: 'none', outlineWidth: 0 } as any)
-    : null;
+  const webInputOutlineStyle =
+    Platform.OS === 'web'
+      ? ({ outlineStyle: 'none', outlineWidth: 0 } as any)
+      : null;
   const inputRef = React.useRef<TextInput>(null);
   const scrollViewRef = React.useRef<ScrollView | null>(null);
   const fieldPressableRef = React.useRef<FocusableView | null>(null);
   const fieldWrapperRef = React.useRef<View | null>(null);
   const scrollMetricsRef = React.useRef({ height: 0, offset: 0 });
-  const [dropdownPosition, setDropdownPosition] = React.useState<
-    { top: number; left: number; width: number; height: number } | null
-  >(null);
+  const [dropdownPosition, setDropdownPosition] = React.useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const optionLayoutsRef = React.useRef<{ y: number; height: number }[]>([]);
   // Track when the select just opened so we can ignore the initial blur caused by
   // autoFocus mounting the portal input (focus/blur churn that would otherwise close the list).
@@ -148,8 +168,11 @@ export const useSelectFieldController = ({
 
   // Controlled value is the single source of truth for selection.
   const resolvedValue = value ?? '';
-  const selectedOption = options.find((option) => option.value === resolvedValue);
-  const selectedLabel = selectedOption?.label ?? (resolvedValue ? String(resolvedValue) : '');
+  const selectedOption = options.find(
+    (option) => option.value === resolvedValue,
+  );
+  const selectedLabel =
+    selectedOption?.label ?? (resolvedValue ? String(resolvedValue) : '');
 
   const isDisabled = disabled;
   const isError = !isDisabled && Boolean(errorMessage);
@@ -208,12 +231,15 @@ export const useSelectFieldController = ({
     onOpenChange?.(false);
   }, [onOpenChange]);
 
-  React.useEffect(() => () => {
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-      blurTimeoutRef.current = null;
-    }
-  }, []);
+  React.useEffect(
+    () => () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
+    },
+    [],
+  );
 
   const measureDropdownAnchor = React.useCallback(() => {
     const node = fieldPressableRef.current ?? fieldWrapperRef.current;
@@ -221,12 +247,12 @@ export const useSelectFieldController = ({
       return;
     }
     node.measureInWindow((x, y, width, height) => {
-      const resolvedLeft = Platform.OS === 'web' || !portalHostFrame
-        ? x
-        : x - portalHostFrame.left;
-      const resolvedTop = Platform.OS === 'web' || !portalHostFrame
-        ? y
-        : y - portalHostFrame.top;
+      const resolvedLeft =
+        Platform.OS === 'web' || !portalHostFrame
+          ? x
+          : x - portalHostFrame.left;
+      const resolvedTop =
+        Platform.OS === 'web' || !portalHostFrame ? y : y - portalHostFrame.top;
 
       setDropdownPosition({
         left: resolvedLeft,
@@ -340,11 +366,12 @@ export const useSelectFieldController = ({
       }
 
       if (key === 'Enter') {
-        const option = highlightedIndex === null
-          ? optionsList.length === 1
-            ? optionsList[0]
-            : null
-          : optionsList[highlightedIndex];
+        const option =
+          highlightedIndex === null
+            ? optionsList.length === 1
+              ? optionsList[0]
+              : null
+            : optionsList[highlightedIndex];
         if (option) {
           handleSelectOption(option);
         }
@@ -398,7 +425,12 @@ export const useSelectFieldController = ({
     };
   };
 
-  const fieldBackgrounds = getFieldBackgrounds(palette, variant, isDisabled, isError);
+  const fieldBackgrounds = getFieldBackgrounds(
+    palette,
+    variant,
+    isDisabled,
+    isError,
+  );
   const fieldBackgroundDefault = fieldBackgrounds.default;
   const fieldBackgroundHover = fieldBackgrounds.hover;
   const fieldBackgroundPressed = fieldBackgrounds.pressed;
@@ -423,33 +455,49 @@ export const useSelectFieldController = ({
 
   const iconNode = isOpen ? <IconChevronUp /> : <IconChevronDown />;
   // Only render the browser focus ring when the wrapper is focused.
-  const webFocusRingStyle: ViewStyle | null = Platform.OS === 'web'
-    ? ({ outlineStyle: isFocused ? 'auto' : 'none' } as any)
-    : null;
+  const webFocusRingStyle: ViewStyle | null =
+    Platform.OS === 'web'
+      ? ({ outlineStyle: isFocused ? 'auto' : 'none' } as any)
+      : null;
   const visibleOptions = allowSearch ? filteredOptions : options;
   // Prevent the chevron button from entering the tab order; focus stays on the field.
-  const webIconButtonProps = Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : null;
-  const webOptionProps = Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : null;
+  const webIconButtonProps =
+    Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : null;
+  const webOptionProps =
+    Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : null;
 
   // Shared keyboard handler for navigation keys.
   const createKeyDownHandler = (allowOpenOnEnterSpace: boolean) =>
     Platform.OS === 'web'
       ? {
-        onKeyDown: (event: { key: string; preventDefault?: () => void; stopPropagation?: () => void }) => {
-          const { key } = event;
-          if (allowOpenOnEnterSpace && !isOpen && (key === 'Enter' || key === ' ')) {
-            event.preventDefault?.();
-            event.stopPropagation?.();
-            openSelect();
-            return;
-          }
-          if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter' || key === 'Escape') {
-            event.preventDefault?.();
-            event.stopPropagation?.();
-          }
-          handleKeyPress(key, visibleOptions);
-        },
-      }
+          onKeyDown: (event: {
+            key: string;
+            preventDefault?: () => void;
+            stopPropagation?: () => void;
+          }) => {
+            const { key } = event;
+            if (
+              allowOpenOnEnterSpace &&
+              !isOpen &&
+              (key === 'Enter' || key === ' ')
+            ) {
+              event.preventDefault?.();
+              event.stopPropagation?.();
+              openSelect();
+              return;
+            }
+            if (
+              key === 'ArrowDown' ||
+              key === 'ArrowUp' ||
+              key === 'Enter' ||
+              key === 'Escape'
+            ) {
+              event.preventDefault?.();
+              event.stopPropagation?.();
+            }
+            handleKeyPress(key, visibleOptions);
+          },
+        }
       : null;
 
   const webKeyDownHandlers = createKeyDownHandler(true);
@@ -517,29 +565,32 @@ export const useSelectFieldController = ({
     isOptionPressingRef.current = false;
   }, []);
 
-  const optionsViewModel: SelectFieldOptionViewModel[] = visibleOptions.map((option, index) => {
-    const isSelected = option.value === resolvedValue;
-    const isHighlighted = highlightedIndex !== null && index === highlightedIndex;
-    return {
-      key: option.value,
-      label: option.label,
-      isSelected,
-      isHighlighted,
-      onPress: () => handleSelectOption(option),
-      onPressIn: markPressing,
-      onPressOut: unmarkPressing,
-      onTouchStart: markPressing,
-      onTouchEnd: unmarkPressing,
-      onLayout: (event) => {
-        optionLayoutsRef.current[index] = {
-          y: event.nativeEvent.layout.y,
-          height: event.nativeEvent.layout.height,
-        };
-      },
-      accessibilityLabel: `Select ${option.label}`,
-      pressableProps: webOptionProps,
-    };
-  });
+  const optionsViewModel: SelectFieldOptionViewModel[] = visibleOptions.map(
+    (option, index) => {
+      const isSelected = option.value === resolvedValue;
+      const isHighlighted =
+        highlightedIndex !== null && index === highlightedIndex;
+      return {
+        key: option.value,
+        label: option.label,
+        isSelected,
+        isHighlighted,
+        onPress: () => handleSelectOption(option),
+        onPressIn: markPressing,
+        onPressOut: unmarkPressing,
+        onTouchStart: markPressing,
+        onTouchEnd: unmarkPressing,
+        onLayout: (event) => {
+          optionLayoutsRef.current[index] = {
+            y: event.nativeEvent.layout.y,
+            height: event.nativeEvent.layout.height,
+          };
+        },
+        accessibilityLabel: `Select ${option.label}`,
+        pressableProps: webOptionProps,
+      };
+    },
+  );
 
   const handleTextChange = (nextValue: string) => {
     setQuery(nextValue);
@@ -562,9 +613,12 @@ export const useSelectFieldController = ({
     ? 'Type to filter options.'
     : 'Use arrow keys to navigate options.';
 
-  const handleScrollViewLayout = React.useCallback((event: LayoutChangeEvent) => {
-    scrollMetricsRef.current.height = event.nativeEvent.layout.height;
-  }, []);
+  const handleScrollViewLayout = React.useCallback(
+    (event: LayoutChangeEvent) => {
+      scrollMetricsRef.current.height = event.nativeEvent.layout.height;
+    },
+    [],
+  );
 
   const handleScrollViewScroll = React.useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -596,11 +650,11 @@ export const useSelectFieldController = ({
       ...fieldPressableBase,
       onPress: isOpen
         ? () => {
-          setIsFocused(true);
-          if (allowSearch && !isDisabled) {
-            inputRef.current?.focus();
+            setIsFocused(true);
+            if (allowSearch && !isDisabled) {
+              inputRef.current?.focus();
+            }
           }
-        }
         : toggleSelect,
       onFocus: () => setIsFocused(true),
       onBlur: () => setIsFocused(false),
@@ -612,57 +666,64 @@ export const useSelectFieldController = ({
     inputRef,
     inputProps: allowSearch
       ? {
-        accessibilityLabel: inputAccessibilityLabel,
-        accessibilityHint: inputAccessibilityHint,
-        value: query,
-        onChangeText: handleTextChange,
-        placeholder,
-        placeholderTextColor: isDisabled
-          ? palette.text.disabled.onDisabled
-          : isError
-            ? palette.text.danger.onDangerSecondary
-            : palette.text.disabled.default,
-        autoFocus: true,
-        editable: !isDisabled,
-        autoCorrect: false,
-        autoCapitalize: 'none',
-        onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
-        style: [
-          webInputOutlineStyle,
-          Typography[mode].singleLineBody,
-          {
-            color: isDisabled
-              ? palette.text.disabled.onDisabled
-              : isError
-                ? palette.text.danger.onDanger
-                : isQueryEmpty
-                  ? palette.text.disabled.default
-                  : palette.text.default.default,
-          },
-        ],
-        onFocus: handleInputFocus,
-        onBlur: handleInputBlur,
-        ...webInputKeyDownHandler,
-      }
+          accessibilityLabel: inputAccessibilityLabel,
+          accessibilityHint: inputAccessibilityHint,
+          value: query,
+          onChangeText: handleTextChange,
+          placeholder,
+          placeholderTextColor: isDisabled
+            ? palette.text.disabled.onDisabled
+            : isError
+              ? palette.text.danger.onDangerSecondary
+              : palette.text.disabled.default,
+          autoFocus: true,
+          editable: !isDisabled,
+          autoCorrect: false,
+          autoCapitalize: 'none',
+          onKeyPress: (event) =>
+            handleKeyPress(event.nativeEvent.key, visibleOptions),
+          style: [
+            webInputOutlineStyle,
+            Typography[mode].singleLineBody,
+            {
+              color: isDisabled
+                ? palette.text.disabled.onDisabled
+                : isError
+                  ? palette.text.danger.onDanger
+                  : isQueryEmpty
+                    ? palette.text.disabled.default
+                    : palette.text.default.default,
+            },
+          ],
+          onFocus: handleInputFocus,
+          onBlur: handleInputBlur,
+          ...webInputKeyDownHandler,
+        }
       : {
-        // Hidden input for keyboard capture in non-searchable mode
-        accessibilityLabel: inputAccessibilityLabel,
-        accessibilityHint: inputAccessibilityHint,
-        value: '',
-        // Only auto-focus this hidden input on web. On native platforms, autoFocus would still
-        // cause the soft keyboard to appear even with showSoftInputOnFocus=false, which is not
-        // desirable for list-only selects that should not summon the on-screen keyboard.
-        autoFocus: Platform.OS === 'web',
-        editable: true,
-        // Prevent on-screen keyboard from appearing on iOS/Android for list-only selects.
-        // This keeps the list-only variant from behaving like a text input while still
-        // allowing hardware keyboard navigation through this hidden input.
-        showSoftInputOnFocus: false,
-        style: { position: 'absolute', opacity: 0, height: 1, width: 1 } as any,
-        onKeyPress: (event) => handleKeyPress(event.nativeEvent.key, visibleOptions),
-        onBlur: handleInputBlur,
-        ...webInputKeyDownHandler,
-      },
+          // Hidden input for keyboard capture in non-searchable mode
+          accessibilityLabel: inputAccessibilityLabel,
+          accessibilityHint: inputAccessibilityHint,
+          value: '',
+          // Only auto-focus this hidden input on web. On native platforms, autoFocus would still
+          // cause the soft keyboard to appear even with showSoftInputOnFocus=false, which is not
+          // desirable for list-only selects that should not summon the on-screen keyboard.
+          autoFocus: Platform.OS === 'web',
+          editable: true,
+          // Prevent on-screen keyboard from appearing on iOS/Android for list-only selects.
+          // This keeps the list-only variant from behaving like a text input while still
+          // allowing hardware keyboard navigation through this hidden input.
+          showSoftInputOnFocus: false,
+          style: {
+            position: 'absolute',
+            opacity: 0,
+            height: 1,
+            width: 1,
+          } as any,
+          onKeyPress: (event) =>
+            handleKeyPress(event.nativeEvent.key, visibleOptions),
+          onBlur: handleInputBlur,
+          ...webInputKeyDownHandler,
+        },
     iconButtonProps: {
       accessibilityLabel: isOpen ? 'Close select' : 'Open select',
       accessibilityRole: 'none',

@@ -8,7 +8,9 @@ jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
-const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+const mockUseResponsive = useResponsive as jest.MockedFunction<
+  typeof useResponsive
+>;
 
 const defaultProps = {
   countryOptions: [{ label: 'United States', value: 'usa-gid' }],
@@ -28,7 +30,9 @@ const defaultProps = {
 describe('SpeciesLocationFilters', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<
+      typeof useResponsive
+    >);
   });
 
   it('renders the section heading and all three filter labels', () => {
@@ -42,7 +46,9 @@ describe('SpeciesLocationFilters', () => {
 
   describe('stacking layout', () => {
     it('stacks filters vertically on phone breakpoint', () => {
-      mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+      mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+        typeof useResponsive
+      >);
       render(<SpeciesLocationFilters {...defaultProps} />);
 
       const row = screen.getByTestId('filter-row');
@@ -51,7 +57,9 @@ describe('SpeciesLocationFilters', () => {
     });
 
     it('stacks filters vertically on tablet breakpoint', () => {
-      mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
+      mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<
+        typeof useResponsive
+      >);
       render(<SpeciesLocationFilters {...defaultProps} />);
 
       const row = screen.getByTestId('filter-row');
@@ -60,7 +68,9 @@ describe('SpeciesLocationFilters', () => {
     });
 
     it('keeps filters in a row on desktop breakpoint', () => {
-      mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+      mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<
+        typeof useResponsive
+      >);
       render(<SpeciesLocationFilters {...defaultProps} />);
 
       const row = screen.getByTestId('filter-row');

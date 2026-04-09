@@ -4,7 +4,7 @@ import { SearchInput } from '../SearchInput';
 
 describe('SearchInput', () => {
   it('renders placeholder text', () => {
-    render(<SearchInput placeholder="Search Species" />);
+    render(<SearchInput placeholder='Search Species' />);
     expect(screen.getByPlaceholderText('Search Species')).toBeTruthy();
   });
 
@@ -13,7 +13,7 @@ describe('SearchInput', () => {
     const handleCharacterAdd = jest.fn();
     render(
       <SearchInput
-        placeholder="Search"
+        placeholder='Search'
         onQueryChange={handleQueryChange}
         onCharacterAdd={handleCharacterAdd}
       />,
@@ -35,12 +35,7 @@ describe('SearchInput', () => {
 
   it('submits the search when the icon is pressed', () => {
     const handleSubmit = jest.fn();
-    render(
-      <SearchInput
-        defaultValue="lynx"
-        onSubmitSearch={handleSubmit}
-      />,
-    );
+    render(<SearchInput defaultValue='lynx' onSubmitSearch={handleSubmit} />);
 
     fireEvent.press(screen.getByLabelText('Start search'));
     expect(handleSubmit).toHaveBeenCalledTimes(1);
@@ -49,16 +44,13 @@ describe('SearchInput', () => {
 
   it('submits the search when return/enter is pressed', () => {
     const handleSubmit = jest.fn();
-    render(
-      <SearchInput
-        defaultValue="lynx"
-        onSubmitSearch={handleSubmit}
-      />,
-    );
+    render(<SearchInput defaultValue='lynx' onSubmitSearch={handleSubmit} />);
 
     const input = screen.getByPlaceholderText('Search');
     fireEvent.changeText(input, 'lynx habitat');
-    fireEvent(input, 'submitEditing', { nativeEvent: { text: 'lynx habitat' } });
+    fireEvent(input, 'submitEditing', {
+      nativeEvent: { text: 'lynx habitat' },
+    });
 
     expect(handleSubmit).toHaveBeenCalledTimes(1);
     expect(handleSubmit).toHaveBeenCalledWith('lynx habitat');
@@ -67,12 +59,7 @@ describe('SearchInput', () => {
   it('falls back to the last typed value when submitEditing has no text payload', () => {
     // Some RN platforms omit nativeEvent.text; verify we still submit what the user typed.
     const handleSubmit = jest.fn();
-    render(
-      <SearchInput
-        defaultValue="lynx"
-        onSubmitSearch={handleSubmit}
-      />,
-    );
+    render(<SearchInput defaultValue='lynx' onSubmitSearch={handleSubmit} />);
 
     const input = screen.getByPlaceholderText('Search');
     fireEvent.changeText(input, 'cougar');
@@ -87,7 +74,7 @@ describe('SearchInput', () => {
     const handleQueryChange = jest.fn();
     render(
       <SearchInput
-        placeholder="Search"
+        placeholder='Search'
         onClear={handleClear}
         onQueryChange={handleQueryChange}
       />,
@@ -107,7 +94,11 @@ describe('SearchInput', () => {
     const handleQueryChange = jest.fn();
     const handleClear = jest.fn();
     const { rerender } = render(
-      <SearchInput value="owl" onQueryChange={handleQueryChange} onClear={handleClear} />,
+      <SearchInput
+        value='owl'
+        onQueryChange={handleQueryChange}
+        onClear={handleClear}
+      />,
     );
 
     const input = screen.getByPlaceholderText('Search');
@@ -120,7 +111,13 @@ describe('SearchInput', () => {
     expect(handleClear).toHaveBeenCalled();
     expect(screen.getByPlaceholderText('Search').props.value).toBe('owl');
 
-    rerender(<SearchInput value="" onQueryChange={handleQueryChange} onClear={handleClear} />);
+    rerender(
+      <SearchInput
+        value=''
+        onQueryChange={handleQueryChange}
+        onClear={handleClear}
+      />,
+    );
     expect(screen.queryByLabelText('Clear search')).toBeNull();
   });
 
@@ -138,9 +135,8 @@ describe('SearchInput', () => {
     expect(handleBlur).toHaveBeenCalledTimes(1);
   });
 
-
   it('disables editing when disabled prop is true', () => {
-    render(<SearchInput disabled defaultValue="discoveries" />);
+    render(<SearchInput disabled defaultValue='discoveries' />);
 
     const input = screen.getByPlaceholderText('Search');
     expect(input.props.editable).toBe(false);
@@ -149,7 +145,13 @@ describe('SearchInput', () => {
 
   it('does not submit when disabled and the icon is pressed', () => {
     const handleSubmit = jest.fn();
-    render(<SearchInput disabled defaultValue="lynx" onSubmitSearch={handleSubmit} />);
+    render(
+      <SearchInput
+        disabled
+        defaultValue='lynx'
+        onSubmitSearch={handleSubmit}
+      />,
+    );
 
     fireEvent.press(screen.getByLabelText('Start search'));
 

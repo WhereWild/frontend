@@ -2,9 +2,19 @@ import { IconSearch, IconX } from '@/assets/icons';
 import { Colors, Typography } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { Platform, TextInput, TextInputProps, TextStyle, ViewStyle } from 'react-native';
+import {
+  Platform,
+  TextInput,
+  TextInputProps,
+  TextStyle,
+  ViewStyle,
+} from 'react-native';
 import { type SearchInputViewProps } from './SearchInputView';
-import { createContainerHandlers, handleClearValue, submitSearchValue } from './searchInputHelpers';
+import {
+  createContainerHandlers,
+  handleClearValue,
+  submitSearchValue,
+} from './searchInputHelpers';
 
 /**
  * Central hook + helper exports for SearchInput. Keeps business logic separate from presentation.
@@ -31,10 +41,15 @@ export type UseSearchInputControllerArgs = {
   characterReader?: (value: string) => string | undefined;
 };
 
-export const readLastCharacter = (value: string): string | undefined => value.at(-1);
+export const readLastCharacter = (value: string): string | undefined =>
+  value.at(-1);
 
-type TextInputFocusHandlerEvent = Parameters<NonNullable<TextInputProps['onFocus']>>[0];
-type TextInputSubmitHandlerEvent = Parameters<NonNullable<TextInputProps['onSubmitEditing']>>[0];
+type TextInputFocusHandlerEvent = Parameters<
+  NonNullable<TextInputProps['onFocus']>
+>[0];
+type TextInputSubmitHandlerEvent = Parameters<
+  NonNullable<TextInputProps['onSubmitEditing']>
+>[0];
 
 export const useSearchInputController = ({
   variant,
@@ -78,17 +93,18 @@ export const useSearchInputController = ({
   }, [currentValue]);
 
   const palette = Colors[mode];
-  const background = variant === 'secondary'
-    ? {
-      default: palette.background.default.secondary,
-      hover: palette.background.default.secondaryHover,
-      pressed: palette.background.default.secondaryPressed,
-    }
-    : {
-      default: palette.background.default.tertiary,
-      hover: palette.background.default.tertiaryHover,
-      pressed: palette.background.default.tertiaryPressed,
-    };
+  const background =
+    variant === 'secondary'
+      ? {
+          default: palette.background.default.secondary,
+          hover: palette.background.default.secondaryHover,
+          pressed: palette.background.default.secondaryPressed,
+        }
+      : {
+          default: palette.background.default.tertiary,
+          hover: palette.background.default.tertiaryHover,
+          pressed: palette.background.default.tertiaryPressed,
+        };
   // Map interaction state -> semantic tokens so hover/press/focus follow the design system.
   const backgroundColor = disabled
     ? palette.background.disabled.default
@@ -139,13 +155,14 @@ export const useSearchInputController = ({
     backgroundColor,
   };
 
-  const webOutlineStyle: ViewStyle | null = Platform.OS === 'web'
-    ? ({
-      // Toggle the browser's native focus ring instead of drawing a custom outline; relies on
-      // TextInput focus/blur handlers staying in sync with actual browser focus.
-      outlineStyle: isFocused ? 'auto' : 'none',
-    } as unknown as ViewStyle)
-    : null;
+  const webOutlineStyle: ViewStyle | null =
+    Platform.OS === 'web'
+      ? ({
+          // Toggle the browser's native focus ring instead of drawing a custom outline; relies on
+          // TextInput focus/blur handlers staying in sync with actual browser focus.
+          outlineStyle: isFocused ? 'auto' : 'none',
+        } as unknown as ViewStyle)
+      : null;
 
   const containerHandlers = createContainerHandlers({
     disabled,
@@ -163,11 +180,11 @@ export const useSearchInputController = ({
 
   const clearButton = showClearButton
     ? {
-      onPress: clearValue,
-      accessibilityLabel: 'Clear search',
-      disabled: false,
-      icon: <IconX />,
-    }
+        onPress: clearValue,
+        accessibilityLabel: 'Clear search',
+        disabled: false,
+        icon: <IconX />,
+      }
     : undefined;
 
   // Forward events to the underlying TextInput so consumers injecting raw TextInput props
@@ -212,7 +229,11 @@ export const useSearchInputController = ({
 
   return {
     disabled,
-    containerStyle: [containerDynamicStyle, webOutlineStyle, containerStyle ?? null],
+    containerStyle: [
+      containerDynamicStyle,
+      webOutlineStyle,
+      containerStyle ?? null,
+    ],
     containerHandlers,
     searchButton,
     clearButton,

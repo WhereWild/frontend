@@ -15,7 +15,10 @@ type NavigationBarTabStyles = {
   iconColor: string;
 };
 
-type NavigationBarTabIconElement = React.ReactElement<{ color?: string; size?: IconSize }>;
+type NavigationBarTabIconElement = React.ReactElement<{
+  color?: string;
+  size?: IconSize;
+}>;
 type NavigationBarTabIcon =
   | React.ComponentType<{ color?: string; size?: IconSize }>
   | NavigationBarTabIconElement;
@@ -33,7 +36,12 @@ export type NavigationBarTabProps = {
   onPressIn?: () => void;
   onPressOut?: () => void;
   onLayout?: (width: number) => void;
-  onContainerLayout?: (layout: { x: number; y: number; width: number; height: number }) => void;
+  onContainerLayout?: (layout: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => void;
   accessibilityLabel?: string;
   testID?: string;
   disabled?: boolean;
@@ -101,7 +109,11 @@ const resolveForegroundColors = (
   return resolveDefaultOrOnBrandStyles(mode, state !== 'default');
 };
 
-const renderIcon = (icon: NavigationBarTabIcon, color: string, size: IconSize) => {
+const renderIcon = (
+  icon: NavigationBarTabIcon,
+  color: string,
+  size: IconSize,
+) => {
   if (React.isValidElement(icon)) {
     const currentProps = icon.props as { color?: string; size?: IconSize };
     return React.cloneElement(icon, {
@@ -135,11 +147,12 @@ export function NavigationBarTab({
     () => resolveForegroundColors(mode, state, foregroundTone),
     [foregroundTone, mode, state],
   );
-  const foregroundAnimationKey = foregroundTone === 'brand'
-    ? `${mode}|brand`
-    : state === 'default'
-      ? `${mode}|default`
-      : `${mode}|on-brand`;
+  const foregroundAnimationKey =
+    foregroundTone === 'brand'
+      ? `${mode}|brand`
+      : state === 'default'
+        ? `${mode}|default`
+        : `${mode}|on-brand`;
   const animatedForegroundColors = useNavigationBarTabForegroundTransition({
     targetColors: targetForegroundColors,
     animationKey: foregroundAnimationKey,
@@ -148,7 +161,7 @@ export function NavigationBarTab({
   return (
     <Pressable
       collapsable={false}
-      accessibilityRole="button"
+      accessibilityRole='button'
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
       onPressIn={onPressIn}
@@ -163,9 +176,14 @@ export function NavigationBarTab({
       }}
     >
       {({ pressed, hovered }) => {
-        const visualState = resolveVisualState(state, pressed, hovered ?? false);
+        const visualState = resolveVisualState(
+          state,
+          pressed,
+          hovered ?? false,
+        );
         const visualStyles = getVisualStyles(mode, visualState);
-        const hasInteractiveOverride = foregroundTone === 'default' && visualState !== state;
+        const hasInteractiveOverride =
+          foregroundTone === 'default' && visualState !== state;
         const foregroundColor = hasInteractiveOverride
           ? visualStyles.textColor
           : animatedForegroundColors.textColor;
@@ -183,11 +201,13 @@ export function NavigationBarTab({
               styles.visualReset,
             ]}
           >
-            <View collapsable={false}>{renderIcon(icon, iconColor, TAB_ICON_SIZE)}</View>
+            <View collapsable={false}>
+              {renderIcon(icon, iconColor, TAB_ICON_SIZE)}
+            </View>
             <View collapsable={false}>
               <ThemedText
                 numberOfLines={1}
-                variant="singleLineBodyTinyStrong"
+                variant='singleLineBodyTinyStrong'
                 style={{ color: foregroundColor }}
               >
                 {label}

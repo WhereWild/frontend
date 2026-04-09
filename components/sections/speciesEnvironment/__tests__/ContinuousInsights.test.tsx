@@ -19,7 +19,10 @@ type NavigationPillListMockProps = {
 };
 
 jest.mock('@/components/navigation/NavigationPillList', () => ({
-  NavigationPillList: ({ pills, onSelectionChange }: NavigationPillListMockProps) =>
+  NavigationPillList: ({
+    pills,
+    onSelectionChange,
+  }: NavigationPillListMockProps) =>
     mockReact.createElement(
       mockView,
       null,
@@ -45,9 +48,14 @@ jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
-const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+const mockUseResponsive = useResponsive as jest.MockedFunction<
+  typeof useResponsive
+>;
 
-const findHostNodesByTestId = (root: ReturnType<typeof create>['root'], testID: string) =>
+const findHostNodesByTestId = (
+  root: ReturnType<typeof create>['root'],
+  testID: string,
+) =>
   root.findAll(
     (node) => typeof node.type === 'string' && node.props?.testID === testID,
   );
@@ -58,7 +66,9 @@ describe('ContinuousInsights', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseColorScheme.mockReturnValue('light');
-    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<
+      typeof useResponsive
+    >);
   });
 
   it('renders multi-context rank selector and handles selection', () => {
@@ -76,7 +86,7 @@ describe('ContinuousInsights', () => {
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
         locationFilterActive={false}
-      />, 
+      />,
     );
 
     expect(screen.getByText(/Select a taxon/)).toBeTruthy();
@@ -113,11 +123,33 @@ describe('ContinuousInsights', () => {
         onRankContextChange={jest.fn()}
         summary={summary}
         summaryRanks={{
-          min: { metric: 'min', label: 'Mammalia', rank: 1, count: 10, percentile: 0.9 },
-          mean: { metric: 'mean', label: 'Mammalia', rank: 2, count: 10, percentile: 0.8 },
-          max: { metric: 'max', label: 'Mammalia', rank: 3, count: 10, percentile: 0.7 },
+          min: {
+            metric: 'min',
+            label: 'Mammalia',
+            rank: 1,
+            count: 10,
+            percentile: 0.9,
+          },
+          mean: {
+            metric: 'mean',
+            label: 'Mammalia',
+            rank: 2,
+            count: 10,
+            percentile: 0.8,
+          },
+          max: {
+            metric: 'max',
+            label: 'Mammalia',
+            rank: 3,
+            count: 10,
+            percentile: 0.7,
+          },
         }}
-        summaryComparisons={{ min: 'vs. 0 (+10%)', mean: 'vs. 4 (+25%)', max: 'vs. 9 (+11%)' }}
+        summaryComparisons={{
+          min: 'vs. 0 (+10%)',
+          mean: 'vs. 4 (+25%)',
+          max: 'vs. 9 (+11%)',
+        }}
         locationFilterActive={true}
       />,
     );
@@ -168,9 +200,24 @@ describe('ContinuousInsights', () => {
     });
 
     const initialRoot = rendered!.root;
-    expect(findHostNodesByTestId(initialRoot, 'continuous-insights-rank-context-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(initialRoot, 'continuous-insights-rank-context-content-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(initialRoot, 'continuous-insights-rank-context-selector-slot')).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        initialRoot,
+        'continuous-insights-rank-context-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        initialRoot,
+        'continuous-insights-rank-context-content-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        initialRoot,
+        'continuous-insights-rank-context-selector-slot',
+      ),
+    ).toHaveLength(1);
     expect(findHostNodesByTestId(initialRoot, 'summary-row')).toHaveLength(1);
 
     act(() => {
@@ -189,10 +236,27 @@ describe('ContinuousInsights', () => {
     });
 
     const singleContextRoot = rendered!.root;
-    expect(findHostNodesByTestId(singleContextRoot, 'continuous-insights-rank-context-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(singleContextRoot, 'continuous-insights-rank-context-content-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(singleContextRoot, 'continuous-insights-rank-context-selector-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(singleContextRoot, 'summary-row')).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        singleContextRoot,
+        'continuous-insights-rank-context-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        singleContextRoot,
+        'continuous-insights-rank-context-content-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        singleContextRoot,
+        'continuous-insights-rank-context-selector-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(singleContextRoot, 'summary-row'),
+    ).toHaveLength(1);
 
     act(() => {
       rendered!.update(
@@ -210,10 +274,27 @@ describe('ContinuousInsights', () => {
     });
 
     const emptyContextRoot = rendered!.root;
-    expect(findHostNodesByTestId(emptyContextRoot, 'continuous-insights-rank-context-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(emptyContextRoot, 'continuous-insights-rank-context-content-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(emptyContextRoot, 'continuous-insights-rank-context-selector-slot')).toHaveLength(1);
-    expect(findHostNodesByTestId(emptyContextRoot, 'summary-row')).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        emptyContextRoot,
+        'continuous-insights-rank-context-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        emptyContextRoot,
+        'continuous-insights-rank-context-content-slot',
+      ),
+    ).toHaveLength(1);
+    expect(
+      findHostNodesByTestId(
+        emptyContextRoot,
+        'continuous-insights-rank-context-selector-slot',
+      ),
+    ).toHaveLength(1);
+    expect(findHostNodesByTestId(emptyContextRoot, 'summary-row')).toHaveLength(
+      1,
+    );
   });
 
   it('renders location-filter summary without comparison text when comparisons are null', () => {
@@ -228,9 +309,27 @@ describe('ContinuousInsights', () => {
         onRankContextChange={jest.fn()}
         summary={summary}
         summaryRanks={{
-          min: { metric: 'min', label: 'Mammalia', rank: 1, count: 10, percentile: 0.9 },
-          mean: { metric: 'mean', label: 'Mammalia', rank: 2, count: 10, percentile: 0.8 },
-          max: { metric: 'max', label: 'Mammalia', rank: 3, count: 10, percentile: 0.7 },
+          min: {
+            metric: 'min',
+            label: 'Mammalia',
+            rank: 1,
+            count: 10,
+            percentile: 0.9,
+          },
+          mean: {
+            metric: 'mean',
+            label: 'Mammalia',
+            rank: 2,
+            count: 10,
+            percentile: 0.8,
+          },
+          max: {
+            metric: 'max',
+            label: 'Mammalia',
+            rank: 3,
+            count: 10,
+            percentile: 0.7,
+          },
         }}
         summaryComparisons={{ min: null, mean: null, max: null }}
         locationFilterActive={true}
@@ -276,7 +375,9 @@ describe('ContinuousInsights', () => {
     };
 
     it('stacks summary items vertically on phone breakpoint', () => {
-      mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+      mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+        typeof useResponsive
+      >);
       render(<ContinuousInsights {...baseProps} />);
 
       const row = screen.getByTestId('summary-row');
@@ -285,7 +386,9 @@ describe('ContinuousInsights', () => {
     });
 
     it('stacks summary items vertically on tablet breakpoint', () => {
-      mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
+      mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<
+        typeof useResponsive
+      >);
       render(<ContinuousInsights {...baseProps} />);
 
       const row = screen.getByTestId('summary-row');
@@ -294,7 +397,9 @@ describe('ContinuousInsights', () => {
     });
 
     it('keeps summary items in a row on desktop breakpoint', () => {
-      mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+      mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<
+        typeof useResponsive
+      >);
       render(<ContinuousInsights {...baseProps} />);
 
       const row = screen.getByTestId('summary-row');

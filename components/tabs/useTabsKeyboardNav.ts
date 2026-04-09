@@ -20,7 +20,9 @@ type UseTabsKeyboardNavResult = {
   setFocusedIndex: (index: number | null) => void;
   handleSelectionChange: (key: string) => void;
   onKeyDownForIndex: (index: number) => (event: KeyEvent) => void;
-  setTabRefForIndex: (index: number) => (node: React.ElementRef<typeof Tab> | null) => void;
+  setTabRefForIndex: (
+    index: number,
+  ) => (node: React.ElementRef<typeof Tab> | null) => void;
 };
 
 // Manages roving focus, keyboard interactions, and controlled selection for tabs.
@@ -113,7 +115,14 @@ export const useTabsKeyboardNav = ({
         }
       }
     },
-    [enabled, focusTab, focusedIndex, getNextIndex, handleSelectionChange, tabs],
+    [
+      enabled,
+      focusTab,
+      focusedIndex,
+      getNextIndex,
+      handleSelectionChange,
+      tabs,
+    ],
   );
 
   // Stores each tab ref for keyboard focus movement.

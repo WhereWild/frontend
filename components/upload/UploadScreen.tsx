@@ -1,5 +1,11 @@
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { PageTitle, ThemedText } from '@/components';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -22,8 +28,8 @@ function UploadStatusMessage({
   message: string;
 }) {
   return (
-    <View style={[styles.statusContainer, { backgroundColor }]}> 
-      <ThemedText variant="bodySmall" style={styles.uploadStatusText}>
+    <View style={[styles.statusContainer, { backgroundColor }]}>
+      <ThemedText variant='bodySmall' style={styles.uploadStatusText}>
         {message}
       </ThemedText>
     </View>
@@ -63,10 +69,22 @@ export function UploadScreen() {
       safeAreaTop: insets.top,
       viewportHeight,
     });
-  }, [insets.bottom, insets.top, responsive.breakpoint, viewportHeight, webHeaderHeight]);
+  }, [
+    insets.bottom,
+    insets.top,
+    responsive.breakpoint,
+    viewportHeight,
+    webHeaderHeight,
+  ]);
 
   return (
-    <View testID="upload-screen" style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+    <View
+      testID='upload-screen'
+      style={[
+        styles.screen,
+        { backgroundColor: palette.background.default.default },
+      ]}
+    >
       <ScrollView
         contentContainerStyle={[
           getResponsiveContentContainerStyle(responsive, {
@@ -77,32 +95,32 @@ export function UploadScreen() {
           styles.scrollContent,
         ]}
       >
-        <PageTitle title="Upload Custom Data" />
+        <PageTitle title='Upload Custom Data' />
 
-        <View style={[styles.content, { maxWidth: responsive.contentWidth }]}> 
-          <ThemedText variant="body" style={styles.description}>
-            Do you have your own set of observational data you would like to analyze?
-            Upload a list of coordinates here, and WhereWild will populate the
-            observations with environmental data.
+        <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
+          <ThemedText variant='body' style={styles.description}>
+            Do you have your own set of observational data you would like to
+            analyze? Upload a list of coordinates here, and WhereWild will
+            populate the observations with environmental data.
           </ThemedText>
 
           <View style={[styles.stepsRow, isMobile && styles.stepsColumn]}>
             <UploadStepCard
-              description="Upload raw observational data including separate fields for latitude and longitude. It will be processed and zipped. Supported file types: CSV, TSV, parquet."
+              description='Upload raw observational data including separate fields for latitude and longitude. It will be processed and zipped. Supported file types: CSV, TSV, parquet.'
               disabled={isProcessingZipped}
               isLoading={isProcessingRaw}
-              label="Upload"
+              label='Upload'
               palette={palette}
-              stepTitle="Step 1"
+              stepTitle='Step 1'
               onPress={processRawObservations}
             />
             <UploadStepCard
-              description="Upload processed data as a zipped file to view the enhanced data set including environmental insights."
+              description='Upload processed data as a zipped file to view the enhanced data set including environmental insights.'
               disabled={isProcessingRaw}
               isLoading={isProcessingZipped}
-              label="Upload"
+              label='Upload'
               palette={palette}
-              stepTitle="Step 2"
+              stepTitle='Step 2'
               onPress={processZippedObservations}
             />
           </View>

@@ -43,11 +43,19 @@ const mapEnvironmentVariableOptions = (
 ): EnvironmentVariableOption[] => {
   return response
     .filter((variableDefinition) =>
-      shouldIncludeVariableCategory(variableDefinition.category, excludedCategories),
+      shouldIncludeVariableCategory(
+        variableDefinition.category,
+        excludedCategories,
+      ),
     )
     .map((variableDefinition) => {
-      const normalizedCategory = normalizeVariableCategory(variableDefinition.category);
-      const remappedCategory = categoryRemap[normalizedCategory] ?? variableDefinition.category ?? null;
+      const normalizedCategory = normalizeVariableCategory(
+        variableDefinition.category,
+      );
+      const remappedCategory =
+        categoryRemap[normalizedCategory] ??
+        variableDefinition.category ??
+        null;
       return {
         id: variableDefinition.id,
         label: variableDefinition.name ?? normalizeLabel(variableDefinition.id),
@@ -67,19 +75,23 @@ export function useEnvironmentVariableSelection({
   remapCategories,
 }: UseEnvironmentVariableSelectionParams) {
   const speciesDataSource = useSpeciesDataSource();
-  const [remoteVariables, setRemoteVariables] =
-    React.useState<EnvironmentVariableOption[] | null>(null);
-  const [selectedVariableCategory, setSelectedVariableCategoryState] = React.useState<string | null>(
-    null,
-  );
+  const [remoteVariables, setRemoteVariables] = React.useState<
+    EnvironmentVariableOption[] | null
+  >(null);
+  const [selectedVariableCategory, setSelectedVariableCategoryState] =
+    React.useState<string | null>(null);
   const excludedCategories = React.useMemo(
     () => new Set((excludeCategories ?? []).map(normalizeVariableCategory)),
     [excludeCategories],
   );
   const categoryRemap = React.useMemo(
-    () => Object.fromEntries(
-      Object.entries(remapCategories ?? {}).map(([k, v]) => [normalizeVariableCategory(k), v])
-    ),
+    () =>
+      Object.fromEntries(
+        Object.entries(remapCategories ?? {}).map(([k, v]) => [
+          normalizeVariableCategory(k),
+          v,
+        ]),
+      ),
     [remapCategories],
   );
 
@@ -95,8 +107,11 @@ export function useEnvironmentVariableSelection({
 
   // Fallback selected variable id
   const fallbackVariable =
-    variableId && variableId.length > 0 ? variableId : resolvedVariables[0]?.id ?? '';
-  const [selectedVariable, setSelectedVariable] = React.useState(fallbackVariable);
+    variableId && variableId.length > 0
+      ? variableId
+      : (resolvedVariables[0]?.id ?? '');
+  const [selectedVariable, setSelectedVariable] =
+    React.useState(fallbackVariable);
 
   React.useEffect(() => {
     setSelectedVariable(fallbackVariable);
@@ -116,14 +131,19 @@ export function useEnvironmentVariableSelection({
     if (!selectedVariableCategory || !categories.length) {
       return resolvedVariables;
     }
-    return resolvedVariables.filter((value) => value.category === selectedVariableCategory);
+    return resolvedVariables.filter(
+      (value) => value.category === selectedVariableCategory,
+    );
   }, [resolvedVariables, selectedVariableCategory, categories.length]);
 
   React.useEffect(() => {
     if (!categories.length) {
       return;
     }
-    if (selectedVariableCategory && categories.includes(selectedVariableCategory)) {
+    if (
+      selectedVariableCategory &&
+      categories.includes(selectedVariableCategory)
+    ) {
       return;
     }
     setSelectedVariableCategoryState(categories[0]);
@@ -133,17 +153,22 @@ export function useEnvironmentVariableSelection({
     if (!selectedVariableCategory || !filteredVariables.length) {
       return;
     }
-    if (filteredVariables.some((variable) => variable.id === selectedVariable)) {
+    if (
+      filteredVariables.some((variable) => variable.id === selectedVariable)
+    ) {
       return;
     }
     setSelectedVariable(filteredVariables[0].id);
   }, [selectedVariableCategory, filteredVariables, selectedVariable]);
 
-  const setSelectedVariableCategory = React.useCallback((nextCategory: string) => {
-    setSelectedVariableCategoryState((previousCategory) =>
-      previousCategory === nextCategory ? previousCategory : nextCategory,
-    );
-  }, []);
+  const setSelectedVariableCategory = React.useCallback(
+    (nextCategory: string) => {
+      setSelectedVariableCategoryState((previousCategory) =>
+        previousCategory === nextCategory ? previousCategory : nextCategory,
+      );
+    },
+    [],
+  );
 
   // Load remote vars when units or other deps change
   React.useEffect(() => {
@@ -153,11 +178,19 @@ export function useEnvironmentVariableSelection({
     let cancelled = false;
     (async () => {
       try {
-        const response = await speciesDataSource.fetchEnvironmentVariables({ units });
+        const response = await speciesDataSource.fetchEnvironmentVariables({
+          units,
+        });
         if (cancelled) {
           return;
         }
-        setRemoteVariables(mapEnvironmentVariableOptions(response, excludedCategories, categoryRemap));
+        setRemoteVariables(
+          mapEnvironmentVariableOptions(
+            response,
+            excludedCategories,
+            categoryRemap,
+          ),
+        );
       } catch (err) {
         console.warn('Failed to load variable catalog', err);
       }
@@ -169,7 +202,8 @@ export function useEnvironmentVariableSelection({
 
   const selectedVariableMeta = React.useMemo(
     () =>
-      resolvedVariables.find((option) => option.id === selectedVariable) ?? null,
+      resolvedVariables.find((option) => option.id === selectedVariable) ??
+      null,
     [resolvedVariables, selectedVariable],
   );
 
