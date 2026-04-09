@@ -103,6 +103,7 @@ const {
     pinnedClassName,
     pinnedValue,
     pinnedLoading,
+    isCircularVariable,
   } = useSpeciesEnvironmentState({
     taxonId,
     variableId,
@@ -275,7 +276,7 @@ const {
           importantForAccessibility={showCategoricalContent ? 'auto' : 'no-hide-descendants'}
           style={!showCategoricalContent ? styles.hiddenContentSlot : undefined}
         >
-          {selectedVariable === 'aspect' ? (
+          {selectedVariable === 'aspect' || selectedVariable === 'Aspect (binned)' ? (
             <AspectCompassChart
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
@@ -312,7 +313,7 @@ const {
             !showContinuousContent && styles.hiddenContentSlot,
           ]}
         >
-          {selectedVariable === 'aspect_deg' ? (
+          {isCircularVariable ? (
             <PolarDensityChart
               curve={displayState?.densityCurve}
               fillColor={palette.background.brand.default}

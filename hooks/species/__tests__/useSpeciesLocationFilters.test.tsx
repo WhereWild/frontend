@@ -1,4 +1,6 @@
 import { fetchSpeciesLocations } from '@/data/api';
+import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import { createSpeciesDataSource, type SpeciesDataSource } from '@/data/speciesDataSource';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { act, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
@@ -11,17 +13,47 @@ const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
   typeof fetchSpeciesLocations
 >;
 
-const HookHarness = React.forwardRef<
-  ReturnType<typeof useSpeciesLocationFilters>,
-  { taxonId?: number; locationSearchLimit?: number }
->(({ taxonId, locationSearchLimit = 500 }, ref) => {
+function HookHarnessInner({
+  taxonId,
+  locationSearchLimit = 500,
+  refHandle,
+}: {
+  taxonId?: number;
+  locationSearchLimit?: number;
+  refHandle: React.ForwardedRef<ReturnType<typeof useSpeciesLocationFilters>>;
+}) {
   const value = useSpeciesLocationFilters({
     taxonId,
     locationSearchLimit,
   });
 
-  React.useImperativeHandle(ref, () => value, [value]);
+  React.useImperativeHandle(refHandle, () => value, [value]);
   return null;
+}
+
+const HookHarness = React.forwardRef<
+  ReturnType<typeof useSpeciesLocationFilters>,
+  { taxonId?: number; locationSearchLimit?: number; dataSource?: SpeciesDataSource }
+>(({ taxonId, locationSearchLimit = 500, dataSource }, ref) => {
+  if (!dataSource) {
+    return (
+      <HookHarnessInner
+        taxonId={taxonId}
+        locationSearchLimit={locationSearchLimit}
+        refHandle={ref}
+      />
+    );
+  }
+
+  return (
+    <SpeciesDataSourceProvider value={dataSource}>
+      <HookHarnessInner
+        taxonId={taxonId}
+        locationSearchLimit={locationSearchLimit}
+        refHandle={ref}
+      />
+    </SpeciesDataSourceProvider>
+  );
 });
 HookHarness.displayName = 'HookHarness';
 
@@ -555,5 +587,109 @@ describe('useSpeciesLocationFilters', () => {
       ref.current?.onCountyChange('county-no-hierarchy');
     });
     expect(ref.current?.selectedCountyGid).toBe('county-no-hierarchy');
+  });
+
+  it('infers parent selections when uploaded hierarchy entries use gids', async () => {
+    const localDataSource = createSpeciesDataSource({
+      locationParentIdentityMode: 'gid',
+      fetchSpeciesLocations: async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
+        }
+        if (level === 'state' && parent === 'country-us') {
+          return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['region-1', 'country-us'] }];
+        }
+        if (level === 'county' && parent === 'state-ut') {
+          return [
+            {
+              gid: 'county-slc',
+              name: 'Salt Lake County',
+              level: 2,
+              hierarchy: ['region-1', 'country-us', 'state-ut'],
+            },
+          ];
+        }
+        return [];
+      },
+    });
+
+    const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
+    render(<HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />);
+
+    await waitFor(() => {
+      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+    });
+
+    await act(async () => {
+      ref.current?.onCountryChange('country-us');
+    });
+
+    await waitFor(() => {
+      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+    });
+
+    await act(async () => {
+      ref.current?.onStateChange('state-ut');
+    });
+
+    await waitFor(() => {
+      expect(ref.current?.countyOptions).toEqual([{ label: 'Salt Lake County', value: 'county-slc' }]);
+    });
+
+    await act(async () => {
+      ref.current?.onCountyChange('county-slc');
+    });
+
+    expect(ref.current?.selectedCountryGid).toBe('country-us');
+    expect(ref.current?.selectedStateGid).toBe('state-ut');
+    expect(ref.current?.selectedCountyGid).toBe('county-slc');
+  });
+
+  it('keeps gid-mode uploaded location results when returned hierarchies still use names', async () => {
+    const localDataSource = createSpeciesDataSource({
+      locationParentIdentityMode: 'gid',
+      fetchSpeciesLocations: async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
+        }
+        if (level === 'state' && parent === 'country-us') {
+          return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
+        }
+        if (level === 'county' && parent === 'state-ut') {
+          return [
+            {
+              gid: 'county-slc',
+              name: 'Salt Lake County',
+              level: 2,
+              hierarchy: ['Region', 'United States', 'Utah'],
+            },
+          ];
+        }
+        return [];
+      },
+    });
+
+    const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
+    render(<HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />);
+
+    await waitFor(() => {
+      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+    });
+
+    await act(async () => {
+      ref.current?.onCountryChange('country-us');
+    });
+
+    await waitFor(() => {
+      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+    });
+
+    await act(async () => {
+      ref.current?.onStateChange('state-ut');
+    });
+
+    await waitFor(() => {
+      expect(ref.current?.countyOptions).toEqual([{ label: 'Salt Lake County', value: 'county-slc' }]);
+    });
   });
 });

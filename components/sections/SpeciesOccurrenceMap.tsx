@@ -35,6 +35,7 @@ type SpeciesOccurrenceMapProps = {
   initialZoom?: number | null;
   maxBounds?: [[number, number], [number, number]] | null;
   showMarkers?: boolean;
+  linkObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (bounds: { minLon: number; minLat: number; maxLon: number; maxLat: number }) => void;
@@ -55,6 +56,7 @@ export function SpeciesOccurrenceMap({
   initialZoom = null,
   maxBounds = null,
   showMarkers = true,
+  linkObservations = true,
   onPinObservation,
   selectedPoint = null,
   onBoundsChange,
@@ -154,6 +156,7 @@ export function SpeciesOccurrenceMap({
       initialLon,
       initialZoom,
       maxBounds,
+      linkObservations
     );
   }, [
     heatmapOpacity,
@@ -168,6 +171,7 @@ export function SpeciesOccurrenceMap({
     minZoom,
     occurrences,
     showMarkers,
+    linkObservations,
     tileUrlTemplate,
   ]);
 
@@ -346,7 +350,7 @@ const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFram
         border: '0',
       },
       title: 'Observation map',
-      loading: 'lazy',
+      loading: 'eager',
       sandbox: 'allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox',
       referrerPolicy: MAP_REFERRER_POLICY,
       onLoad,

@@ -10,7 +10,8 @@ type ParentLookupInput = {
 };
 
 export type ParentLookupResult = {
-  parentToken: string | null;
+  parentRequestToken: string | null;
+  parentFilterToken: string | null;
   parentCacheIdentity: string;
 };
 
@@ -38,18 +39,48 @@ export const findLocationByNameInMap = (
   return null;
 };
 
+const findLocationInMapByHierarchyEntry = (
+  entry: string,
+  map: Record<string, LocationSearchResult>,
+) => {
+  if (!entry) {
+    return null;
+  }
+
+  return map[entry] ?? findLocationByNameInMap(entry, map);
+};
+
+const findLastLocationMatchInHierarchy = (
+  hierarchy: string[],
+  map: Record<string, LocationSearchResult>,
+  endExclusive?: number,
+) => {
+  const endIndex = typeof endExclusive === 'number' ? Math.min(endExclusive, hierarchy.length) : hierarchy.length;
+
+  for (let index = endIndex - 1; index >= 0; index -= 1) {
+    const match = findLocationInMapByHierarchyEntry(hierarchy[index] ?? '', map);
+    if (match) {
+      return { match, index };
+    }
+  }
+
+  return null;
+};
+
 export const resolveParentLookup = ({
   level,
   parentGidOrName,
   countryMap,
   stateMap,
 }: ParentLookupInput): ParentLookupResult => {
-  let parentToken: string | null = null;
+  let parentRequestToken: string | null = null;
+  let parentFilterToken: string | null = null;
   let parentCacheIdentity = 'root';
 
   if (parentGidOrName == null) {
     return {
-      parentToken,
+      parentRequestToken,
+      parentFilterToken,
       parentCacheIdentity,
     };
   }
@@ -57,7 +88,8 @@ export const resolveParentLookup = ({
   const parentInput = String(parentGidOrName).trim();
   if (!parentInput) {
     return {
-      parentToken,
+      parentRequestToken,
+      parentFilterToken,
       parentCacheIdentity,
     };
   }
@@ -68,15 +100,18 @@ export const resolveParentLookup = ({
   const resolvedParent = byGid ?? byName;
 
   if (resolvedParent) {
-    parentToken = resolvedParent.name;
+    parentRequestToken = resolvedParent.name;
+    parentFilterToken = resolvedParent.gid;
     parentCacheIdentity = `gid:${resolvedParent.gid}`;
   } else {
-    parentToken = parentInput;
+    parentRequestToken = parentInput;
+    parentFilterToken = parentInput;
     parentCacheIdentity = `name:${parentInput.toLowerCase()}`;
   }
 
   return {
-    parentToken,
+    parentRequestToken,
+    parentFilterToken,
     parentCacheIdentity,
   };
 };
@@ -135,8 +170,7 @@ export const inferParentSelection = (
   }
 
   if (level === 1) {
-    const countryName = hierarchy[1] ?? '';
-    const countryMatch = findLocationByNameInMap(countryName, countryMap);
+    const countryMatch = findLastLocationMatchInHierarchy(hierarchy, countryMap)?.match;
 
     return {
       stateGid: entry.gid,
@@ -144,10 +178,13 @@ export const inferParentSelection = (
     };
   }
 
-  const stateName = hierarchy[hierarchy.length - 2] ?? '';
-  const countryName = hierarchy[hierarchy.length - 3] ?? hierarchy[1] ?? '';
-  const stateMatch = findLocationByNameInMap(stateName, stateMap);
-  const countryMatch = findLocationByNameInMap(countryName, countryMap);
+  const stateResult = findLastLocationMatchInHierarchy(hierarchy, stateMap);
+  const stateMatch = stateResult?.match;
+  const countryMatch = findLastLocationMatchInHierarchy(
+    hierarchy,
+    countryMap,
+    stateResult?.index,
+  )?.match;
 
   return {
     countyGid: entry.gid,
