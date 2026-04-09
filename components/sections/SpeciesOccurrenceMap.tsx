@@ -1,5 +1,11 @@
 import React from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -16,7 +22,7 @@ import {
   type MapMarkerPalette,
   toHighlightMessagePayload,
   toSelectedPointMessagePayload,
-  isPinObservationEventFromFrame,
+  isOpenExternalUrlMessage,
   isPinObservationMessage,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
@@ -82,6 +88,58 @@ export function SpeciesOccurrenceMap({
   const [templateLoadError, setTemplateLoadError] = React.useState<
     string | null
   >(null);
+
+  const handlePinObservation = React.useCallback(
+    (catalogNumber: string, latitude: number, longitude: number) => {
+      onPinObservation?.(catalogNumber, latitude, longitude);
+    },
+    [onPinObservation],
+  );
+
+  const openExternalUrl = React.useCallback((url: string) => {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      typeof window.open === 'function'
+    ) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    void Linking.openURL(url);
+  }, []);
+
+  const handleNativeMapMessage = React.useCallback(
+    (msg: unknown) => {
+      if (isPinObservationMessage(msg)) {
+        handlePinObservation(msg.catalogNumber, msg.latitude, msg.longitude);
+        return;
+      }
+
+      if (isOpenExternalUrlMessage(msg)) {
+        openExternalUrl(msg.url);
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === 'boundsChanged'
+      ) {
+        onBoundsChange?.(
+          msg as {
+            type: 'boundsChanged';
+            minLon: number;
+            minLat: number;
+            maxLon: number;
+            maxLat: number;
+          },
+        );
+      }
+    },
+    [handlePinObservation, onBoundsChange, openExternalUrl],
+  );
 
   const hasOccurrences = occurrences.length > 0;
 
@@ -248,14 +306,25 @@ export function SpeciesOccurrenceMap({
       return;
     }
     const handler = (event: MessageEvent) => {
+      const frameWindow = iframeRef.current?.contentWindow;
+      const { data, source } = event;
+
       if (
-        isPinObservationEventFromFrame(event, iframeRef.current?.contentWindow)
+        frameWindow &&
+        source === frameWindow &&
+        isPinObservationMessage(data)
       ) {
-        onPinObservation?.(
-          event.data.catalogNumber,
-          event.data.latitude,
-          event.data.longitude,
-        );
+        handlePinObservation(data.catalogNumber, data.latitude, data.longitude);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        isOpenExternalUrlMessage(data)
+      ) {
+        openExternalUrl(data.url);
+        return;
       }
       if (event.data?.type === 'boundsChanged') {
         onBoundsChange?.(event.data);
@@ -267,7 +336,7 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [onBoundsChange, onPinObservation]);
+  }, [handlePinObservation, onBoundsChange, openExternalUrl]);
 
   if (loading) {
     return (
@@ -348,17 +417,9 @@ export function SpeciesOccurrenceMap({
             onLoadEnd={() => setMapReady(true)}
             onMessage={(event) => {
               try {
-                const msg = JSON.parse(event.nativeEvent.data) as any;
-                if (isPinObservationMessage(msg)) {
-                  onPinObservation?.(
-                    msg.catalogNumber,
-                    msg.latitude,
-                    msg.longitude,
-                  );
-                }
-                if (msg?.type === 'boundsChanged') {
-                  onBoundsChange?.(msg);
-                }
+                handleNativeMapMessage(
+                  JSON.parse(event.nativeEvent.data) as unknown,
+                );
               } catch {}
             }}
           />
