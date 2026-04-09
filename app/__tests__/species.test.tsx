@@ -607,7 +607,7 @@ describe('Species screen', () => {
     );
   });
 
-  it('calculates web map height from viewport minus header and safe areas', () => {
+  it('calculates web map height from viewport minus header only', () => {
     expect(
       calculateObservationMapHeight({
         breakpoint: 'desktop',
@@ -617,10 +617,10 @@ describe('Species screen', () => {
         safeAreaTop: 20,
         viewportHeight: 1000,
       }),
-    ).toBe(Math.round((1000 - 112 - 20) * 0.75));
+    ).toBe(Math.round((1000 - 112) * 0.75));
   });
 
-  it('falls back to token-based web header height before runtime measurement is available', () => {
+  it('falls back to token-based web header height before runtime measurement is available on web', () => {
     expect(
       calculateObservationMapHeight({
         breakpoint: 'desktop',
@@ -630,9 +630,7 @@ describe('Species screen', () => {
         viewportHeight: 1000,
       }),
     ).toBe(
-      Math.round(
-        (1000 - (Size.space['1600'] + Size.space['200'] * 2) - 20) * 0.75,
-      ),
+      Math.round((1000 - (Size.space['1600'] + Size.space['200'] * 2)) * 0.75),
     );
   });
 

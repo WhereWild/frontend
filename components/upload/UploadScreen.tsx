@@ -1,13 +1,7 @@
 import React from 'react';
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
-import { PageTitle, ThemedText } from '@/components';
+import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
 import { useLayoutChrome } from '@/context/LayoutChromeContext';
@@ -80,12 +74,9 @@ export function UploadScreen() {
   return (
     <View
       testID='upload-screen'
-      style={[
-        styles.screen,
-        { backgroundColor: palette.background.default.default },
-      ]}
+      style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}
     >
-      <ScrollView
+      <PageScrollContainer
         contentContainerStyle={[
           getResponsiveContentContainerStyle(responsive, {
             includeHorizontalPadding: false,
@@ -156,7 +147,7 @@ export function UploadScreen() {
             />
           ) : null}
         </View>
-      </ScrollView>
+      </PageScrollContainer>
     </View>
   );
 }
@@ -164,6 +155,9 @@ export function UploadScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  screenWeb: {
+    width: '100%',
   },
   scrollContent: {
     alignItems: 'center',

@@ -1,9 +1,7 @@
-import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSettings } from '@/context/SettingsContext';
 import { act, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { StyleSheet } from 'react-native';
 
 import Settings from '../settings';
 
@@ -61,6 +59,21 @@ jest.mock('@/components', () => {
       ),
     ThemedText: ({ children }: { children: React.ReactNode }) =>
       mockReact.createElement(mockReactNative.Text, null, children),
+    PageScrollContainer: ({
+      children,
+      style,
+      testID,
+      contentContainerStyle,
+    }: any) =>
+      mockReact.createElement(
+        mockReactNative.View,
+        { style, testID },
+        mockReact.createElement(
+          mockReactNative.View,
+          { style: contentContainerStyle },
+          children,
+        ),
+      ),
     SelectField: (props: Record<string, unknown>) => {
       mockSelectField(props);
       return mockReact.createElement(mockReactNative.View, {
@@ -82,34 +95,6 @@ describe('Settings screen', () => {
       setUnits: mockSetUnits,
       language: 'en',
       setLanguage: mockSetLanguage,
-    });
-  });
-
-  describe('color mode styles', () => {
-    it('applies dark mode background color', () => {
-      mockUseColorScheme.mockReturnValue('dark');
-
-      const screen = render(<Settings />);
-      const settingsScreen = screen.getByTestId('settings-screen');
-      const settingsScreenStyle = StyleSheet.flatten(
-        settingsScreen.props.style,
-      );
-      expect(settingsScreenStyle.backgroundColor).toBe(
-        Colors.dark.background.default.default,
-      );
-    });
-
-    it('applies light mode background color', () => {
-      mockUseColorScheme.mockReturnValue('light');
-
-      const screen = render(<Settings />);
-      const settingsScreen = screen.getByTestId('settings-screen');
-      const settingsScreenStyle = StyleSheet.flatten(
-        settingsScreen.props.style,
-      );
-      expect(settingsScreenStyle.backgroundColor).toBe(
-        Colors.light.background.default.default,
-      );
     });
   });
 

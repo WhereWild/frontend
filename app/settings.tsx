@@ -1,17 +1,18 @@
 import Head from 'expo-router/head';
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { PageTitle, ThemedText, SelectField } from '@/components';
-import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Platform, StyleSheet, View } from 'react-native';
+import {
+  PageTitle,
+  ThemedText,
+  SelectField,
+  PageScrollContainer,
+} from '@/components';
+import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { useSettings } from '@/context/SettingsContext';
 
 export default function Settings() {
-  const colorScheme = useColorScheme();
-  const mode = colorScheme === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
   const responsive = useResponsive();
   const { region, setRegion, units, setUnits, language, setLanguage } =
     useSettings();
@@ -48,12 +49,9 @@ export default function Settings() {
 
       <View
         testID='settings-screen'
-        style={[
-          styles.screen,
-          { backgroundColor: palette.background.default.default },
-        ]}
+        style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}
       >
-        <ScrollView
+        <PageScrollContainer
           contentContainerStyle={[
             getResponsiveContentContainerStyle(responsive, {
               includeHorizontalPadding: false,
@@ -116,7 +114,7 @@ export default function Settings() {
           </View>
 
           {/* Notifications and Danger Zone intentionally omitted per design instructions */}
-        </ScrollView>
+        </PageScrollContainer>
       </View>
     </>
   );
@@ -125,6 +123,9 @@ export default function Settings() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  screenWeb: {
+    width: '100%',
   },
   scrollContent: {
     alignItems: 'center',
