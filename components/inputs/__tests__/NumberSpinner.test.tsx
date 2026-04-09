@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import renderer from 'react-test-renderer';
 import { Animated, NativeModules, Platform, StyleSheet } from 'react-native';
 import { Size, Time } from '@/constants/theme';
+import { IconButton } from '@/components/buttons/IconButton';
 import { NumberSpinner } from '../NumberSpinner';
 
 const USE_NATIVE_DRIVER =
@@ -214,6 +215,22 @@ describe('NumberSpinner', () => {
     const input = screen.getByLabelText('Spinner value');
     expect(input.props.selectTextOnFocus).toBe(true);
     expect(input.props.inputMode).toBe('numeric');
+  });
+
+  it('lets icon buttons control spinner icon colors', () => {
+    let testRenderer!: renderer.ReactTestRenderer;
+
+    act(() => {
+      testRenderer = renderer.create(
+        <NumberSpinner value={3} min={1} max={10} />,
+      );
+    });
+
+    const iconButtons = testRenderer.root.findAllByType(IconButton);
+
+    expect(iconButtons).toHaveLength(2);
+    expect(iconButtons[0].props.icon.props.color).toBeUndefined();
+    expect(iconButtons[1].props.icon.props.color).toBeUndefined();
   });
 
   it('animates hover overlay in and out using short timing', () => {
