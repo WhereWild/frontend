@@ -1,6 +1,5 @@
 import { fetchEnvironmentVariables } from '@/data/api';
-import { Colors, Shadows, Time, Typography } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Shadows, Time, Typography } from '@/constants/theme';
 import {
   fireEvent,
   render,
@@ -9,7 +8,6 @@ import {
   within,
 } from '@testing-library/react-native';
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import About from '../about';
 
 const mockPush = jest.fn();
@@ -214,15 +212,10 @@ jest.mock(
     };
   },
 );
-
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<
-  typeof useColorScheme
->;
 const mockFetchEnvironmentVariables =
   fetchEnvironmentVariables as jest.MockedFunction<
     typeof fetchEnvironmentVariables
   >;
-
 const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
 const EXPECTED_TYPOGRAPHY_LABELS = [
   'Title Hero',
@@ -337,20 +330,6 @@ describe('About screen', () => {
     render(<About />);
 
     expect(mockPush).not.toHaveBeenCalled();
-  });
-
-  it('applies light mode background color when overridden to be light', () => {
-    mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<About />).toJSON();
-
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected About to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(
-      Colors.light.background.default.default,
-    );
   });
 
   it('switches through each tab showcase and renders the matching pill section', () => {

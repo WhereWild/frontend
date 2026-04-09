@@ -14,6 +14,7 @@ import {
   NavigationPillList,
   NearbySpeciesCarousel,
   NumberSpinner,
+  PageScrollContainer,
   RadioGroup,
   SearchInput,
   SelectField,
@@ -34,7 +35,7 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixSection';
 import Head from 'expo-router/head';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import { normalizeLabel } from '@/components/sections/speciesEnvironment/model';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
@@ -524,14 +525,11 @@ export default function About() {
           <title>WhereWild | About</title>
         </Head>
       ) : null}
-      <View
-        style={[
-          styles.screen,
-          { backgroundColor: palette.background.default.default },
-        ]}
-      >
-        <View style={styles.content}>
-          <ScrollView
+      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+        <View
+          style={Platform.OS === 'web' ? styles.contentWeb : styles.content}
+        >
+          <PageScrollContainer
             contentContainerStyle={getResponsiveContentContainerStyle(
               responsive,
               {
@@ -1124,7 +1122,7 @@ export default function About() {
                 showMarkers={false}
               />
             </View>
-          </ScrollView>
+          </PageScrollContainer>
         </View>
       </View>
     </>
@@ -1135,8 +1133,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  screenWeb: {
+    width: '100%',
+  },
   content: {
     flex: 1,
+  },
+  contentWeb: {
+    width: '100%',
   },
   row: {
     flexDirection: 'row',

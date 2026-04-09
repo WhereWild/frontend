@@ -1,6 +1,7 @@
 import {
   NavigationPillList,
   NearbySpeciesCarousel,
+  PageScrollContainer,
   SpeciesPageTitle,
   SwitchField,
   ThemedText,
@@ -20,7 +21,6 @@ import React from 'react';
 import {
   Alert,
   Platform,
-  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -89,13 +89,11 @@ export const calculateObservationMapHeight = ({
 }) => {
   const excludedViewportHeight =
     platform === 'web'
-      ? (measuredWebHeaderHeight && measuredWebHeaderHeight > 0
-          ? measuredWebHeaderHeight
-          : breakpoint === 'desktop'
-            ? WEB_HEADER_HEIGHT_DESKTOP
-            : WEB_HEADER_HEIGHT_COMPACT) +
-        safeAreaTop +
-        safeAreaBottom
+      ? measuredWebHeaderHeight && measuredWebHeaderHeight > 0
+        ? measuredWebHeaderHeight
+        : breakpoint === 'desktop'
+          ? WEB_HEADER_HEIGHT_DESKTOP
+          : WEB_HEADER_HEIGHT_COMPACT
       : Size.bar.height.short +
         Size.bar.height.tall +
         safeAreaTop +
@@ -426,13 +424,8 @@ export default function Species({
           <title>{`WhereWild | ${commonName}`}</title>
         </Head>
       ) : null}
-      <View
-        style={[
-          styles.screen,
-          { backgroundColor: palette.background.default.default },
-        ]}
-      >
-        <ScrollView
+      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+        <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
             {
@@ -556,7 +549,7 @@ export default function Species({
               />
             )}
           </View>
-        </ScrollView>
+        </PageScrollContainer>
       </View>
     </>
   );
@@ -565,6 +558,9 @@ export default function Species({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  screenWeb: {
+    width: '100%',
   },
   overlayContent: {
     width: '100%',

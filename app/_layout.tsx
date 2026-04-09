@@ -1,4 +1,5 @@
 import { Stack, usePathname, useRouter, type Href } from 'expo-router';
+import Head from 'expo-router/head';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import {
@@ -18,7 +19,7 @@ import {
   NativePortalHost,
   NativePortalProvider,
 } from '@/components/NativePortalHost';
-import { Time } from '@/constants/theme';
+import { Colors, Size, Time } from '@/constants/theme';
 import {
   LayoutChromeProvider,
   useLayoutChrome,
@@ -34,6 +35,8 @@ import {
   resolveNativeTopAppBarConfigForRoute,
   useNativeTopAppBarConfig,
 } from '@/context/NativeTopAppBarContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React, {
   useCallback,
   useEffect,
@@ -48,6 +51,41 @@ const NOOP = () => {};
 const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
 const SPECIES_STACK_ANIMATION = 'fade' as const;
+const WEB_SCROLL_ROOT_STYLE_ID = 'wherewild-web-scroll-root-override';
+const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
+const WEB_HEADER_HEIGHT_COMPACT =
+  Size.control.dimension.large + Size.space['400'] * 2;
+
+// Expo/RN Web injects a fixed-height root with hidden body overflow. On mobile Safari
+// that turns page scroll into a trapped inner scroller, so we override the root chain
+// back to document scrolling and keep the root background aligned with the active theme.
+const buildWebScrollRootCss = (backgroundColor: string) => `
+  html,
+  body {
+    height: auto !important;
+    min-height: 100% !important;
+    background-color: ${backgroundColor} !important;
+  }
+
+  html {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  body {
+    overflow: visible !important;
+  }
+
+  #root,
+  #root > div,
+  #root > div > div {
+    display: block !important;
+    height: auto !important;
+    min-height: 100% !important;
+    flex: 0 0 auto !important;
+    background-color: ${backgroundColor} !important;
+  }
+`;
 
 type TopLevelPath = (typeof TOP_LEVEL_PATHS)[number];
 
@@ -104,9 +142,27 @@ const hasDismissAll = (value: unknown): value is { dismissAll: () => void } =>
 
 function RootLayoutWebFrame() {
   const pathname = usePathname();
+  const colorScheme = useColorScheme();
+  const responsive = useResponsive();
   const { config } = useWebPageHeaderConfig();
-  const { setWebHeaderHeight } = useLayoutChrome();
+  const { webHeaderHeight, setWebHeaderHeight } = useLayoutChrome();
   const resolvedConfig = resolveHeaderConfigForRoute(pathname, config);
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const webHeaderThemeColorLight = Colors.light.background.default.secondary;
+  const webHeaderThemeColorDark = Colors.dark.background.default.secondary;
+  const rootBackgroundColor = Colors[mode].background.default.default;
+  const fallbackWebHeaderHeight =
+    responsive.breakpoint === 'desktop'
+      ? WEB_HEADER_HEIGHT_DESKTOP
+      : WEB_HEADER_HEIGHT_COMPACT;
+  // We need an initial offset before the header measures so first paint does not slide
+  // page content under the fixed header on web.
+  const resolvedWebHeaderHeight =
+    webHeaderHeight > 0 ? webHeaderHeight : fallbackWebHeaderHeight;
+  const webScrollRootCss = useMemo(
+    () => buildWebScrollRootCss(rootBackgroundColor),
+    [rootBackgroundColor],
+  );
   const handleHeaderLayout = useCallback(
     (event: LayoutChangeEvent) => {
       setWebHeaderHeight(event.nativeEvent.layout.height);
@@ -114,44 +170,92 @@ function RootLayoutWebFrame() {
     [setWebHeaderHeight],
   );
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    let styleElement = document.getElementById(
+      WEB_SCROLL_ROOT_STYLE_ID,
+    ) as HTMLStyleElement | null;
+
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = WEB_SCROLL_ROOT_STYLE_ID;
+      document.head.appendChild(styleElement);
+    }
+
+    styleElement.textContent = webScrollRootCss;
+
+    return () => {
+      if (styleElement?.parentNode) {
+        styleElement.parentNode.removeChild(styleElement);
+      }
+    };
+  }, [webScrollRootCss]);
+
   return (
-    <View style={styles.appShell}>
-      <WebPageHeader
-        showFilterButton={resolvedConfig.showFilterButton}
-        onFilterPress={resolvedConfig.onFilterPress}
-        filterLabel={resolvedConfig.filterLabel}
-        showResetFilterButton={resolvedConfig.showResetFilterButton}
-        onResetFilterPress={resolvedConfig.onResetFilterPress}
-        showSearchResultsDropdown={resolvedConfig.showSearchResultsDropdown}
-        initialQuery={resolvedConfig.initialQuery}
-        filterParams={resolvedConfig.filterParams}
-        onSearchingChanged={resolvedConfig.onSearchingChanged}
-        onSearchResultsChanged={resolvedConfig.onSearchResultsChanged}
-        onSearchContextChanged={resolvedConfig.onSearchContextChanged}
-        onLayout={handleHeaderLayout}
-      />
-      <View style={styles.content}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: 'fade',
-            animationDuration: Time.duration.short,
-          }}
+    <>
+      <Head>
+        <meta
+          name='theme-color'
+          content={webHeaderThemeColorLight}
+          media='(prefers-color-scheme: light)'
         />
+        <meta
+          name='theme-color'
+          content={webHeaderThemeColorDark}
+          media='(prefers-color-scheme: dark)'
+        />
+        <style>{webScrollRootCss}</style>
+      </Head>
+      <View style={styles.webAppShell}>
+        {/* Sticky was unreliable in this RN Web layout tree; a fixed wrapper plus measured
+            content offset keeps the header pinned consistently across Safari/WebKit. */}
+        <View style={styles.webHeaderSlot}>
+          <WebPageHeader
+            showFilterButton={resolvedConfig.showFilterButton}
+            onFilterPress={resolvedConfig.onFilterPress}
+            filterLabel={resolvedConfig.filterLabel}
+            showResetFilterButton={resolvedConfig.showResetFilterButton}
+            onResetFilterPress={resolvedConfig.onResetFilterPress}
+            showSearchResultsDropdown={resolvedConfig.showSearchResultsDropdown}
+            initialQuery={resolvedConfig.initialQuery}
+            filterParams={resolvedConfig.filterParams}
+            onSearchingChanged={resolvedConfig.onSearchingChanged}
+            onSearchResultsChanged={resolvedConfig.onSearchResultsChanged}
+            onSearchContextChanged={resolvedConfig.onSearchContextChanged}
+            onLayout={handleHeaderLayout}
+          />
+        </View>
+        <View
+          style={[styles.webContent, { paddingTop: resolvedWebHeaderHeight }]}
+        >
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'fade',
+              animationDuration: Time.duration.short,
+            }}
+          />
+        </View>
+        <NativePortalHost />
       </View>
-      <NativePortalHost />
-    </View>
+    </>
   );
 }
 
 function RootLayoutNativeFrame() {
   const router = useRouter();
   const pathname = usePathname();
+  const colorScheme = useColorScheme();
   const { config: nativeTopAppBarConfig } = useNativeTopAppBarConfig();
   const resolvedNativeTopAppBarConfig = resolveNativeTopAppBarConfigForRoute(
     pathname,
     nativeTopAppBarConfig,
   );
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const rootBackgroundColor = Colors[mode].background.default.default;
   const handlePressBack = useCallback(() => {
     router.back();
   }, [router]);
@@ -182,6 +286,8 @@ function RootLayoutNativeFrame() {
       const existingIndex = history.lastIndexOf(route);
 
       if (existingIndex >= 0) {
+        // When navigating back within a tab, truncate this tab's history to the target entry
+        // so any forward routes that users can no longer reach are removed from the stack.
         tabRouteHistoryRef.current[tab] = history.slice(0, existingIndex + 1);
         return;
       }
@@ -342,7 +448,7 @@ function RootLayoutNativeFrame() {
   );
 
   return (
-    <View style={styles.appShell}>
+    <View style={[styles.appShell, { backgroundColor: rootBackgroundColor }]}>
       {nativeTopAppBar}
       <View style={styles.content}>
         {/* Keep native route transitions disabled by default to avoid cross-route
@@ -351,6 +457,7 @@ function RootLayoutNativeFrame() {
           screenOptions={{
             headerShown: false,
             animation: NATIVE_STACK_DEFAULT_ANIMATION,
+            contentStyle: { backgroundColor: rootBackgroundColor },
           }}
         >
           <Stack.Screen
@@ -407,5 +514,20 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  webAppShell: {
+    width: '100%',
+    minHeight: '100%',
+  },
+  webHeaderSlot: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+    zIndex: 9999,
+  },
+  webContent: {
+    width: '100%',
   },
 });
