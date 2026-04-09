@@ -38,7 +38,8 @@ describe('locationFilterHelpers', () => {
     });
 
     expect(result).toEqual({
-      parentToken: 'United States',
+      parentRequestToken: 'United States',
+      parentFilterToken: 'country-us',
       parentCacheIdentity: 'gid:country-us',
     });
   });
@@ -55,6 +56,14 @@ describe('locationFilterHelpers', () => {
     expect(filterCandidatesByParent(candidates, null)).toHaveLength(2);
   });
 
+  it('keeps candidates when parent token is a gid and hierarchy labels are names', () => {
+    const candidates = [
+      makeLocation({ gid: 'state-ut', name: 'Utah', hierarchy: ['Region', 'United States'] }),
+    ];
+
+    expect(filterCandidatesByParent(candidates, 'country-us')).toEqual([]);
+  });
+
   it('infers parent selection for county entries', () => {
     const countryMap = {
       'country-us': makeLocation({ gid: 'country-us', name: 'United States', level: 0 }),
@@ -69,6 +78,32 @@ describe('locationFilterHelpers', () => {
         name: 'Salt Lake',
         level: 2,
         hierarchy: ['North America', 'United States', 'Utah', 'Salt Lake'],
+      }),
+      countryMap,
+      stateMap,
+    );
+
+    expect(inferred).toEqual({
+      countyGid: 'county-salt-lake',
+      stateGid: 'state-ut',
+      countryGid: 'country-us',
+    });
+  });
+
+  it('infers parent selection from gid-based hierarchy entries', () => {
+    const countryMap = {
+      'country-us': makeLocation({ gid: 'country-us', name: 'United States', level: 0 }),
+    };
+    const stateMap = {
+      'state-ut': makeLocation({ gid: 'state-ut', name: 'Utah', level: 1 }),
+    };
+
+    const inferred = inferParentSelection(
+      makeLocation({
+        gid: 'county-salt-lake',
+        name: 'Salt Lake',
+        level: 2,
+        hierarchy: ['region-1', 'country-us', 'state-ut'],
       }),
       countryMap,
       stateMap,

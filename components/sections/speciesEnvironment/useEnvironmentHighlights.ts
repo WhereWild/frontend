@@ -1,8 +1,7 @@
 import {
-  fetchEnvironmentRangeSlice,
-  fetchSpeciesEnvironmentCategorySamples,
   fetchPointEnvironmentValue,
 } from '@/data/api';
+import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type {
   SpeciesEnvironmentObservation,
   SpeciesEnvironmentStats,
@@ -35,6 +34,9 @@ const toCatalogIdsFromCategorySample = (
 
 const normalizeCategoryIdentity = (value: number | string | null | undefined) =>
   typeof value === 'string' ? value.trim().toLowerCase() : String(value ?? '');
+
+const isSyntheticPinnedPoint = (catalogNumber: string | number) =>
+  typeof catalogNumber === 'string' && catalogNumber.startsWith('point:');
 
 const resolvePinnedCategoryQueryValue = ({
   stats,
@@ -112,6 +114,7 @@ export function useEnvironmentHighlights({
   onHighlightChange,
   pinnedObservation,
 }: UseEnvironmentHighlightsParams) {
+  const speciesDataSource = useSpeciesDataSource();
   const [selectedCategoryValue, setSelectedCategoryValueState] = React.useState<
     number | string | null
   >(null);
@@ -181,18 +184,25 @@ export function useEnvironmentHighlights({
     setPinnedLoading(true);
     void (async () => {
       try {
-        const result = await fetchPointEnvironmentValue(
-          pinnedObservation.lat,
-          pinnedObservation.lon,
-          selectedVariable,
-          { units },
-        );
+        const result = speciesDataSource.fetchObservationEnvironmentValue && !isSyntheticPinnedPoint(pinnedObservation.catalogNumber)
+          ? await speciesDataSource.fetchObservationEnvironmentValue(
+              taxonId ?? '',
+              pinnedObservation.catalogNumber,
+              selectedVariable,
+              { location: locationGid ?? undefined, units },
+            )
+          : await fetchPointEnvironmentValue(
+              pinnedObservation.lat,
+              pinnedObservation.lon,
+              selectedVariable,
+              { units },
+            );
         if (pinnedRequestRef.current !== requestId) {
           return;
         }
         setPinnedValue(result.value);
-        setPinnedValueLabel(result.valueLabel);
-        setPinnedValueDescription(result.valueDescription);
+        setPinnedValueLabel(result.valueLabel ?? null);
+        setPinnedValueDescription(result.valueDescription ?? null);
         if (!isCategorical || result.value === null || !taxonId) {
           setPinnedCategoryObserved(null);
         } else {
@@ -200,13 +210,13 @@ export function useEnvironmentHighlights({
             const categoryQueryValue = resolvePinnedCategoryQueryValue({
               stats,
               pointValue: result.value,
-              pointLabel: result.valueLabel,
+              pointLabel: result.valueLabel ?? null,
             });
             if (categoryQueryValue === null) {
               setPinnedCategoryObserved(null);
               return;
             }
-            const categoryResponse = await fetchSpeciesEnvironmentCategorySamples(
+            const categoryResponse = await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
               taxonId,
               selectedVariable,
               categoryQueryValue,
@@ -241,7 +251,7 @@ export function useEnvironmentHighlights({
         }
       }
     })();
-  }, [isCategorical, locationGid, pinnedObservation, selectedVariable, stats, taxonId, units]);
+  }, [locationGid, isCategorical, pinnedObservation, selectedVariable, speciesDataSource, taxonId, stats, units]);
 
   React.useEffect(() => {
     if (!stats?.categoricalSamples || !stats.categoricalSamples.length) {
@@ -319,7 +329,7 @@ export function useEnvironmentHighlights({
 
       void (async () => {
         try {
-          const response = await fetchSpeciesEnvironmentCategorySamples(
+          const response = await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
             taxonId,
             selectedVariable,
             nextKey,
@@ -365,6 +375,7 @@ export function useEnvironmentHighlights({
       locationGid,
       selectedVariable,
       stats?.categoricalSamples,
+      speciesDataSource,
       taxonId,
       units,
     ],
@@ -469,7 +480,7 @@ export function useEnvironmentHighlights({
 
           const responses = await Promise.all(
             sliceParams.map((range) =>
-              fetchEnvironmentRangeSlice({
+              speciesDataSource.fetchEnvironmentRangeSlice({
                 taxonId,
                 variableId: selectedVariable,
                 min: range.min,
@@ -509,7 +520,7 @@ export function useEnvironmentHighlights({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [emitHighlightChange, isCategorical, selectedDensityRange, selectedVariable, taxonId, locationGid, units]);
+  }, [emitHighlightChange, isCategorical, locationGid, selectedDensityRange, selectedVariable, speciesDataSource, taxonId, units]);
 
   return {
     selectedCategoryValue,
