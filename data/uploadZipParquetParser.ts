@@ -33,11 +33,18 @@ type ZipTableMatchConfig = {
 const buildTableAliases = (...aliases: string[]) => {
   return aliases.flatMap((alias) => {
     const normalizedAlias = alias.trim().toLowerCase();
-    if (normalizedAlias.endsWith('.parquet') || normalizedAlias.endsWith('.csv')) {
+    if (
+      normalizedAlias.endsWith('.parquet') ||
+      normalizedAlias.endsWith('.csv')
+    ) {
       return [normalizedAlias, normalizedAlias.replace(/\.(parquet|csv)$/, '')];
     }
 
-    return [normalizedAlias, `${normalizedAlias}.parquet`, `${normalizedAlias}.csv`];
+    return [
+      normalizedAlias,
+      `${normalizedAlias}.parquet`,
+      `${normalizedAlias}.csv`,
+    ];
   });
 };
 
@@ -87,7 +94,9 @@ const isMatchingTable = (basename: string, aliases: string[]) => {
   return aliases.some((alias) => normalized === alias);
 };
 
-const toTypedRows = <TRow extends Record<string, unknown>>(rows: Record<string, unknown>[]) => {
+const toTypedRows = <TRow extends Record<string, unknown>>(
+  rows: Record<string, unknown>[],
+) => {
   return rows as TRow[];
 };
 
@@ -99,7 +108,7 @@ const asyncBufferFromArrayBuffer = (buffer: ArrayBuffer): AsyncBufferLike => ({
 });
 
 const parseParquetEntryRows = async (filePath: string, buffer: ArrayBuffer) => {
-  const { parquetReadObjects } = await import('hyparquet');
+  const { parquetReadObjects } = await import('hyparquet/src/index.js');
 
   return parquetReadObjects({
     file: asyncBufferFromArrayBuffer(buffer),
@@ -173,7 +182,9 @@ const parseCsvEntryRows = (buffer: ArrayBuffer) => {
     lines.push(currentLine);
   }
 
-  const nonEmptyLines = lines.filter((line, index) => index === 0 || line.trim().length > 0);
+  const nonEmptyLines = lines.filter(
+    (line, index) => index === 0 || line.trim().length > 0,
+  );
   const [headerLine, ...rowLines] = nonEmptyLines;
   if (!headerLine) {
     return [] as Record<string, unknown>[];
@@ -218,15 +229,17 @@ export const resolveParquetEntryPaths = (zip: JSZip) => {
   const matched: Partial<Record<UploadParquetTableKey, string>> = {};
 
   for (const table of UPLOAD_TABLES) {
-    const found = zipEntries.find((entry) => isMatchingTable(entry.basename, table.aliases));
+    const found = zipEntries.find((entry) =>
+      isMatchingTable(entry.basename, table.aliases),
+    );
     if (found) {
       matched[table.key] = found.path;
     }
   }
 
-  const missing = UPLOAD_TABLES
-    .filter((table) => table.required && !matched[table.key])
-    .map((table) => table.aliases[0]);
+  const missing = UPLOAD_TABLES.filter(
+    (table) => table.required && !matched[table.key],
+  ).map((table) => table.aliases[0]);
 
   if (missing.length) {
     throw new UploadZipParseError([
@@ -290,7 +303,9 @@ export const parseUploadedParquetZipToRawBundle = async (
 
   return {
     categoricalStats: toTypedRows<RawCategoricalStatsRow>(categoricalStatsRows),
-    categoricalValueLookup: toTypedRows<RawCategoricalValueLookupRow>(categoricalValueLookupRows),
+    categoricalValueLookup: toTypedRows<RawCategoricalValueLookupRow>(
+      categoricalValueLookupRows,
+    ),
     densityGraph: toTypedRows<RawDensityGraphRow>(densityGraphRows),
     occurrences: toTypedRows<RawOccurrenceRow>(occurrenceRows),
     occurrenceIndex: toTypedRows<RawOccurrenceIndexRow>(occurrenceIndexRows),
