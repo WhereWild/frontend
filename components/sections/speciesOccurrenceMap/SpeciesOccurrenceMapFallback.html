@@ -133,6 +133,8 @@
     const activeHighlightCatalogs = new Set();
     const markers = new Map();
     let selectedPointMarker = null;
+    let selectedCatalogDirectMarker = null;
+    let selectedCatalogKey = null;
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
       const msg = {
@@ -216,44 +218,114 @@
     }
 
     function applySelectedPoint(point) {
+      if (selectedCatalogDirectMarker) {
+        map.removeLayer(selectedCatalogDirectMarker);
+        selectedCatalogDirectMarker = null;
+      }
+
+      restorePreviouslySelectedMarker();
+
+      if (selectedCatalogKey != null) {
+        selectedCatalogKey = null;
+      }
+
+      if (selectedPointMarker) {
+        map.removeLayer(selectedPointMarker);
+        selectedPointMarker = null;
+      }
+
       if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
-        if (selectedPointMarker) {
-          map.removeLayer(selectedPointMarker);
-          selectedPointMarker = null;
-        }
+        refreshVisibleMarkerPresentation();
         return;
       }
 
       const latitude = clampLatitude(point.latitude);
       const longitude = Number(point.longitude);
       if (!isFinite(latitude) || !isFinite(longitude)) {
+        refreshVisibleMarkerPresentation();
         return;
       }
 
       const alignedLongitude = alignLongitudeToView(longitude, map.getCenter().lng);
-      if (!selectedPointMarker) {
-        selectedPointMarker = L.circleMarker(
+      const matchingEntry = markerEntries.length
+        ? markerEntries.find(function(e) {
+            return Math.abs(e.latitude - latitude) < 1e-6 &&
+                   Math.abs(e.longitude - longitude) < 1e-6;
+          })
+        : null;
+
+      if (matchingEntry) {
+        selectedCatalogKey = matchingEntry.key;
+
+        if (visibleMarkerLayer && matchingEntry.directMarker) {
+          visibleMarkerLayer.removeLayer(matchingEntry.directMarker);
+          matchingEntry.directMarker = null;
+        }
+
+        hideClusterMarker(matchingEntry);
+
+        selectedCatalogDirectMarker = L.circleMarker(
           [latitude, alignedLongitude],
           selectedPointStyle,
-        ).addTo(map);
+        );
+        if (matchingEntry.popupHtml) {
+          selectedCatalogDirectMarker.bindPopup(matchingEntry.popupHtml);
+        }
+        map.addLayer(selectedCatalogDirectMarker);
+        refreshVisibleMarkerPresentation();
         return;
       }
 
-      selectedPointMarker.setLatLng([latitude, alignedLongitude]);
-      selectedPointMarker.setStyle(selectedPointStyle);
+      selectedPointMarker = L.circleMarker(
+        [latitude, alignedLongitude],
+        selectedPointStyle,
+      ).addTo(map);
+
+      refreshVisibleMarkerPresentation();
     }
 
     document.addEventListener('click', handlePinButtonClick);
     document.addEventListener('message', (event) => handleHighlightMessage(event.data));
     window.addEventListener('message', (event) => handleHighlightMessage(event.data));
 
+    let markerEntries = [];
+    let clusterGroup = null;
+    let visibleMarkerLayer = null;
+    let showingVisibleIndividualMarkers = false;
+
+    function hideClusterMarker(entry) {
+      if (!clusterGroup || !entry || !entry.clusterMarker || entry.clusterMarkerHidden) {
+        return;
+      }
+      clusterGroup.removeLayer(entry.clusterMarker);
+      entry.clusterMarkerHidden = true;
+    }
+
+    function restoreClusterMarker(entry) {
+      if (!clusterGroup || !entry || !entry.clusterMarker || !entry.clusterMarkerHidden) {
+        return;
+      }
+      clusterGroup.addLayer(entry.clusterMarker);
+      entry.clusterMarkerHidden = false;
+    }
+
+    function restorePreviouslySelectedMarker() {
+      if (selectedCatalogKey == null) {
+        return;
+      }
+
+      const previousEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
+      if (previousEntry) {
+        restoreClusterMarker(previousEntry);
+      }
+    }
+
     if (SHOW_MARKERS && Array.isArray(points) && points.length) {
       const observedBounds = [];
       const directMarkerAnchors = [];
-      const markerEntries = [];
       const useVisibilityManagedClustering =
         points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
-      const clusterGroup = useVisibilityManagedClustering
+      clusterGroup = useVisibilityManagedClustering
         ? L.markerClusterGroup({
           spiderfyOnMaxZoom: false,
           chunkedLoading: true,
@@ -261,8 +333,8 @@
           chunkDelay: 20,
         })
         : null;
-      const visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
-      let showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
+      visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
+      showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogHref, catalogLabel, latitude, longitude) {
         if (!catalogHref || !catalogLabel) {
@@ -292,6 +364,9 @@
 
       function ensureVisibleDirectMarker(entry, alignedLongitude) {
         if (!visibleMarkerLayer) {
+          return;
+        }
+        if (entry.key === selectedCatalogKey) {
           return;
         }
         if (!entry.directMarker) {
@@ -325,6 +400,14 @@
           entry.marker.setLatLng([entry.latitude, alignedLongitude]);
           entry.alignedLongitude = alignedLongitude;
         });
+
+        if (selectedCatalogDirectMarker && selectedCatalogKey != null) {
+          const selEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
+          if (selEntry) {
+            const alignedLon = alignLongitudeToView(selEntry.longitude, centerLongitude);
+            selectedCatalogDirectMarker.setLatLng([selEntry.latitude, alignedLon]);
+          }
+        }
       }
 
       function syncClusterMarkersToCurrentWorld() {
@@ -392,6 +475,14 @@
               removeVisibleDirectMarker(entry);
             }
           });
+
+          if (selectedCatalogDirectMarker && selectedCatalogKey != null) {
+            const selEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
+            if (selEntry) {
+              const alignedLon = alignLongitudeToView(selEntry.longitude, centerLongitude);
+              selectedCatalogDirectMarker.setLatLng([selEntry.latitude, alignedLon]);
+            }
+          }
           return;
         }
 
@@ -403,6 +494,14 @@
         }
 
         rebuildClusterGroupIfNeeded();
+
+        if (selectedCatalogDirectMarker && selectedCatalogKey != null) {
+          const selEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
+          if (selEntry) {
+            const alignedLon = alignLongitudeToView(selEntry.longitude, centerLongitude);
+            selectedCatalogDirectMarker.setLatLng([selEntry.latitude, alignedLon]);
+          }
+        }
       }
 
       points.forEach((pt, idx) => {
@@ -442,6 +541,7 @@
             alignedLongitude: initialLongitude,
             popupHtml,
             clusterMarker,
+            clusterMarkerHidden: false,
             directMarker: null,
           };
 

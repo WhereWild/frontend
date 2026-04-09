@@ -335,6 +335,49 @@ describe('speciesOccurrenceMapHelpers', () => {
     });
   });
 
+  it('hides the matching clustered observation marker while selected and restores it when cleared', () => {
+    const templatePaths = [
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const html = buildLeafletHtml(
+        rawTemplate,
+        [
+          { catalogNumber: 101, latitude: 10, longitude: 20 },
+          { catalogNumber: 202, latitude: 11, longitude: 40 },
+        ],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      ).replace(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS), '1');
+      const harness = createLeafletHarness();
+
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      expect(harness.createdMarkers).toHaveLength(2);
+
+      const targetClusterMarker = harness.createdMarkers[0];
+      const clusterGroup = (harness.context.L.markerClusterGroup as jest.Mock).mock.results[0]?.value;
+
+      expect(clusterGroup).toBeTruthy();
+
+      harness.windowListeners.get('message')?.({
+        data: toSelectedPointMessagePayload({ latitude: 10, longitude: 20 }),
+      });
+
+      expect(harness.createdMarkers).toHaveLength(3);
+      expect(clusterGroup.removeLayer).toHaveBeenCalledWith(targetClusterMarker);
+
+      harness.windowListeners.get('message')?.({
+        data: toSelectedPointMessagePayload(null),
+      });
+
+      expect(clusterGroup.addLayer).toHaveBeenCalledWith(targetClusterMarker);
+    });
+  });
+
   it('accepts only well-formed pin observation messages', () => {
     expect(
       isPinObservationMessage({
