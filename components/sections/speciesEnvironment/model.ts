@@ -11,7 +11,7 @@ const SIGNIFICANT_CATEGORY_THRESHOLD = 0.02;
 /** Default variable shown when no variable is explicitly selected. */
 export const DEFAULT_VARIABLE = 'bio_1';
 /** Variables forced into categorical mode regardless of backend metadata. */
-export const FORCED_CATEGORICAL_VARIABLES = new Set(['landcover', 'aspect']);
+export const FORCED_CATEGORICAL_VARIABLES = new Set(['landcover']);
 
 /** Selectable environment variable metadata used by the section UI. */
 export type EnvironmentVariableOption = {
@@ -57,11 +57,25 @@ export const DEFAULT_VARIABLES: EnvironmentVariableOption[] = [
   { id: 'landcover', label: 'Land Cover', valueType: 'categorical' },
 ];
 
+/** Returns true when variable should render with the polar (circular KDE) chart. */
+export const isVariableCircular = (
+  variable: Pick<EnvironmentVariableOption, 'id' | 'valueType'> | null | undefined,
+): boolean => {
+  if (!variable) return false;
+  if (variable.valueType?.toLowerCase() === 'circular') return true;
+  if (variable.valueType?.toLowerCase() === 'categorical') return false;
+  const lower = variable.id.toLowerCase();
+  return lower === 'aspect_deg' || lower === 'aspect';
+};
+
 /** Returns true when variable should render with categorical UI. */
 export const isVariableCategorical = (
   variable: Pick<EnvironmentVariableOption, 'id' | 'valueType'> | null | undefined,
 ) => {
   if (!variable?.id) {
+    return false;
+  }
+  if (isVariableCircular(variable)) {
     return false;
   }
   const forcedCategorical = FORCED_CATEGORICAL_VARIABLES.has(variable.id.toLowerCase());

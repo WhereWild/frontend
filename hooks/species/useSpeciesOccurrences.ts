@@ -1,4 +1,4 @@
-import { fetchSpeciesOccurrences } from '@/data/api';
+import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type { SpeciesOccurrence } from '@/data/types';
 import React from 'react';
 
@@ -17,6 +17,7 @@ export const useSpeciesOccurrences = ({
   taxonId,
   locationGid,
 }: UseSpeciesOccurrencesParams): UseSpeciesOccurrencesResult => {
+  const speciesDataSource = useSpeciesDataSource();
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -43,7 +44,7 @@ export const useSpeciesOccurrences = ({
 
     (async () => {
       try {
-        const rows = await fetchSpeciesOccurrences(taxonId, {
+        const rows = await speciesDataSource.fetchSpeciesOccurrences(taxonId, {
           location: locationGid ?? undefined,
         });
 
@@ -63,7 +64,7 @@ export const useSpeciesOccurrences = ({
         }
       }
     })();
-  }, [locationGid, taxonId]);
+  }, [locationGid, speciesDataSource, taxonId]);
 
   return {
     occurrences,

@@ -44,6 +44,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   initialZoom: '__INITIAL_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
   pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
+  linkObservations: '__LINK_OBSERVATIONS__',
   selectedPointType: '__SELECTED_POINT_MESSAGE_TYPE_JSON__',
 } as const;
 
@@ -152,6 +153,7 @@ export const buildLeafletHtml = (
   initialLon?: number | null,
   initialZoom?: number | null,
   maxBounds?: [[number, number], [number, number]] | null,
+  linkObservations?: boolean,
 ) => {
   let html = mapTemplate;
   html = html.split(MAP_TEMPLATE_PLACEHOLDERS.documentBaseUrl).join(MAP_DOCUMENT_BASE_URL);
@@ -204,6 +206,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationType)
     .join(JSON.stringify(PIN_OBSERVATION_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.linkObservations)
+    .join(linkObservations !== false ? 'true' : 'false');
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.selectedPointType)
     .join(JSON.stringify(SELECTED_POINT_MESSAGE_TYPE));

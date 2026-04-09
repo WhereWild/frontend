@@ -237,6 +237,52 @@ describe('speciesOccurrenceMapHelpers', () => {
     });
   });
 
+  it('omits external observation links when observation linking is disabled', () => {
+    const templatePaths = [
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
+      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+
+      const linkedHtml = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      );
+      const linkedHarness = createLeafletHarness();
+      vm.runInNewContext(extractInlineScript(linkedHtml), linkedHarness.context);
+      const linkedPopup = linkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+
+      const unlinkedHtml = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+      const unlinkedHarness = createLeafletHarness();
+      vm.runInNewContext(extractInlineScript(unlinkedHtml), unlinkedHarness.context);
+      const unlinkedPopup = unlinkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+
+      expect(linkedPopup).toContain('https://www.inaturalist.org/observations/obs-123');
+      expect(linkedPopup).toContain('Highlight in Environmental Features');
+      expect(unlinkedPopup).toContain('Highlight in Environmental Features');
+      expect(unlinkedPopup).not.toContain('https://www.inaturalist.org/observations/obs-123');
+    });
+  });
+
   it('keeps clustered highlight state when zooming into direct markers', () => {
     const templatePaths = [
       path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
