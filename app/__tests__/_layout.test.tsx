@@ -1,5 +1,7 @@
 import React from 'react';
+import { Colors } from '@/constants/theme';
 import { Platform, View } from 'react-native';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import RootLayout from '../_layout';
 import { useFonts } from 'expo-font';
@@ -7,6 +9,19 @@ import { usePathname, useRouter } from 'expo-router';
 
 jest.mock('expo-font', () => ({
   useFonts: jest.fn(),
+}));
+
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({
+    breakpoint: 'desktop',
+    contentWidth: 1200,
+    marginHorizontal: 32,
+    gap: 24,
+  }),
+}));
+
+jest.mock('@/hooks/useColorScheme', () => ({
+  useColorScheme: jest.fn(() => 'dark'),
 }));
 
 const recordedStackProps: any[] = [];
@@ -94,6 +109,9 @@ jest.mock('@/context/WebPageHeaderContext', () => {
 const mockUseFonts = useFonts as jest.MockedFunction<typeof useFonts>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 type NavTab = {
   key: string;
@@ -138,6 +156,8 @@ describe('Root layout', () => {
     mockUseFonts.mockReset();
     mockUseRouter.mockReset();
     mockUsePathname.mockReset();
+    mockUseColorScheme.mockReset();
+    mockUseColorScheme.mockReturnValue('dark');
     mockNavigationBar.mockReset();
     mockReplace.mockReset();
     mockPush.mockReset();
@@ -164,6 +184,7 @@ describe('Root layout', () => {
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
     mockUsePathname.mockReturnValue('/');
+    mockUseColorScheme.mockReturnValue('dark');
 
     render(<RootLayout />);
 
@@ -171,7 +192,30 @@ describe('Root layout', () => {
     expect(recordedStackProps.at(-1)?.screenOptions).toEqual({
       headerShown: false,
       animation: 'none',
+      contentStyle: { backgroundColor: Colors.dark.background.default.default },
     });
+  });
+
+  it('applies the default background color at the native root', () => {
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockReturnValue('/');
+    mockUseColorScheme.mockReturnValue('light');
+
+    const tree = render(<RootLayout />).toJSON();
+
+    if (!tree || Array.isArray(tree)) {
+      throw new Error('Expected RootLayout to render a single root view');
+    }
+
+    const styles = tree.props.style;
+    expect(styles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          backgroundColor: Colors.light.background.default.default,
+        }),
+      ]),
+    );
   });
 
   it('does not render web header on native layout', () => {

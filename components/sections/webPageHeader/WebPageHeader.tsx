@@ -314,11 +314,7 @@ export function WebPageHeader({
 
   return (
     <View
-      style={[
-        styles.container,
-        isCompact ? { marginTop: insets.top } : null,
-        style,
-      ]}
+      style={[styles.container, style]}
       onLayout={onLayout}
       accessibilityRole='header'
     >

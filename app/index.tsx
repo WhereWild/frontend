@@ -1,5 +1,8 @@
-import { ActiveNearYouSection, LocalMapSection } from '@/components';
-import { Colors } from '@/constants/theme';
+import {
+  ActiveNearYouSection,
+  LocalMapSection,
+  PageScrollContainer,
+} from '@/components';
 import {
   fetchSpeciesWithModels,
   fetchViewportScores,
@@ -12,7 +15,6 @@ import type {
   SpeciesApiNormalized,
   SpeciesSummary,
 } from '@/data/types';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   getResponsiveContentContainerStyle,
@@ -20,7 +22,7 @@ import {
 } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 const SIDEBAR_WIDTH = 400;
 const SCORE_DEBOUNCE_MS = 1200;
@@ -130,9 +132,6 @@ const rankRecommendationsForViewport = (
 };
 
 export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
-  const colorScheme = useColorScheme();
-  const mode = colorScheme === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
   const responsive = useResponsive();
   const providedSeedItems = data?.recommendations?.items;
   const seedItems = providedSeedItems ?? mockHomePageData.recommendations.items;
@@ -226,13 +225,8 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
           <title>WhereWild | Home</title>
         </Head>
       ) : null}
-      <View
-        style={[
-          styles.screen,
-          { backgroundColor: palette.background.default.default },
-        ]}
-      >
-        <ScrollView
+      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+        <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}
         >
@@ -252,7 +246,7 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
               style={styles.sidebar}
             />
           </View>
-        </ScrollView>
+        </PageScrollContainer>
       </View>
     </>
   );
@@ -261,6 +255,9 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  screenWeb: {
+    width: '100%',
   },
   layout: {
     flexDirection: 'row',
