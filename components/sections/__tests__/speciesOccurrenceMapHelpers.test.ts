@@ -6,6 +6,8 @@ import {
   buildLeafletHtml,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
+  isOpenExternalUrlEventFromFrame,
+  isOpenExternalUrlMessage,
   isPinObservationEventFromFrame,
   isPinObservationMessage,
   loadFallbackMapTemplate,
@@ -17,6 +19,7 @@ import {
   MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS,
   MAP_DOCUMENT_BASE_URL,
   PIN_OBSERVATION_MESSAGE_TYPE,
+  OPEN_EXTERNAL_URL_MESSAGE_TYPE,
   MAP_REFERRER_POLICY,
   SELECTED_POINT_MESSAGE_TYPE,
   toHighlightMessagePayload,
@@ -194,7 +197,7 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   it('buildLeafletHtml replaces the runtime placeholders', () => {
     const html = buildLeafletHtml(
-      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__|__SELECTED_POINT_MESSAGE_TYPE_JSON__',
+      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__|__OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__|__SELECTED_POINT_MESSAGE_TYPE_JSON__',
       [{ latitude: 1, longitude: 2 }],
       markerPalette,
       getMapTileUrlTemplate('light'),
@@ -210,6 +213,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain(String(MAP_TILE_MAX_ZOOM));
     expect(html).toContain(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
     expect(html).toContain(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
+    expect(html).toContain(JSON.stringify(OPEN_EXTERNAL_URL_MESSAGE_TYPE));
     expect(html).toContain(JSON.stringify(SELECTED_POINT_MESSAGE_TYPE));
     expect(html).not.toContain('__POINTS_JSON__');
   });
@@ -265,6 +269,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         getMapTileUrlTemplate('light'),
       );
 
+      expect(html).toContain('data-open-external-url="true"');
       expect(html).toContain('data-pin-observation="true"');
       expect(html).toContain(
         'popupCatalogHref":"abc%22%20onclick%3D%22alert(1)"',
@@ -615,6 +620,28 @@ describe('speciesOccurrenceMapHelpers', () => {
     ).toBe(false);
   });
 
+  it('accepts only well-formed open external url messages', () => {
+    expect(
+      isOpenExternalUrlMessage({
+        type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
+        url: 'https://www.inaturalist.org/observations/123',
+      }),
+    ).toBe(true);
+
+    expect(
+      isOpenExternalUrlMessage({
+        type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
+      }),
+    ).toBe(false);
+
+    expect(
+      isOpenExternalUrlMessage({
+        type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
+        url: 123,
+      }),
+    ).toBe(false);
+  });
+
   it('only trusts pin observation messages from the active iframe window', () => {
     const frameWindow = {} as Window;
     const otherWindow = {} as Window;
@@ -643,6 +670,23 @@ describe('speciesOccurrenceMapHelpers', () => {
         frameWindow,
       ),
     ).toBe(false);
+  });
+
+  it('only trusts open external url messages from the active iframe window', () => {
+    const frameWindow = {} as Window;
+    const otherWindow = {} as Window;
+    const validEvent = {
+      source: frameWindow,
+      data: {
+        type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
+        url: 'https://www.inaturalist.org/observations/123',
+      },
+    } as Pick<MessageEvent, 'data' | 'source'>;
+
+    expect(isOpenExternalUrlEventFromFrame(validEvent, frameWindow)).toBe(true);
+    expect(isOpenExternalUrlEventFromFrame(validEvent, otherWindow)).toBe(
+      false,
+    );
   });
 
   it('loads the external html template through expo-asset', async () => {
