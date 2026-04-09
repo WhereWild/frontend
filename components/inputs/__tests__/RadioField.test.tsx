@@ -6,9 +6,14 @@ import { Colors, Time } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { RadioField } from '../RadioField';
 
-const mockedUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockedUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
-const getStyleProperty = (styles: unknown[], propertyName: string): string | undefined => {
+const getStyleProperty = (
+  styles: unknown[],
+  propertyName: string,
+): string | undefined => {
   for (let index = styles.length - 1; index >= 0; index -= 1) {
     const style = styles[index];
     if (typeof style === 'object' && style !== null && propertyName in style) {
@@ -24,16 +29,18 @@ const getStyleProperty = (styles: unknown[], propertyName: string): string | und
 const createTimingToValueMock = () => {
   let lastToValue: number | null = null;
 
-  const timingSpy = jest.spyOn(Animated, 'timing').mockImplementation((value, config) => {
-    return {
-      start: (callback?: (result: { finished: boolean }) => void) => {
-        const targetValue = config.toValue as number;
-        (value as Animated.Value).setValue(targetValue);
-        lastToValue = targetValue;
-        callback?.({ finished: true });
-      },
-    } as any;
-  });
+  const timingSpy = jest
+    .spyOn(Animated, 'timing')
+    .mockImplementation((value, config) => {
+      return {
+        start: (callback?: (result: { finished: boolean }) => void) => {
+          const targetValue = config.toValue as number;
+          (value as Animated.Value).setValue(targetValue);
+          lastToValue = targetValue;
+          callback?.({ finished: true });
+        },
+      } as any;
+    });
 
   return {
     timingSpy,
@@ -58,13 +65,19 @@ describe('RadioField', () => {
   });
 
   it('uses explicit accessibilityLabel when provided', () => {
-    render(<RadioField label="Label" accessibilityLabel="Custom radio" checked={false} />);
+    render(
+      <RadioField
+        label='Label'
+        accessibilityLabel='Custom radio'
+        checked={false}
+      />,
+    );
 
     expect(screen.getByLabelText('Custom radio')).toBeTruthy();
   });
 
   it('renders label and description when provided', () => {
-    render(<RadioField label="Label" description="Description" checked />);
+    render(<RadioField label='Label' description='Description' checked />);
 
     expect(screen.getByText('Label')).toBeTruthy();
     expect(screen.getByText('Description')).toBeTruthy();
@@ -74,7 +87,7 @@ describe('RadioField', () => {
     const handleValueChange = jest.fn();
     render(
       <RadioField
-        label="Radio"
+        label='Radio'
         checked={false}
         onValueChange={handleValueChange}
       />,
@@ -88,7 +101,7 @@ describe('RadioField', () => {
     const handleValueChange = jest.fn();
     render(
       <RadioField
-        label="Radio"
+        label='Radio'
         checked={false}
         onValueChange={handleValueChange}
       />,
@@ -101,11 +114,7 @@ describe('RadioField', () => {
   it('does not emit when already checked', () => {
     const handleValueChange = jest.fn();
     render(
-      <RadioField
-        label="Radio"
-        checked
-        onValueChange={handleValueChange}
-      />,
+      <RadioField label='Radio' checked onValueChange={handleValueChange} />,
     );
 
     fireEvent.press(screen.getByLabelText('Radio'));
@@ -116,7 +125,7 @@ describe('RadioField', () => {
     const handleValueChange = jest.fn();
     render(
       <RadioField
-        label="Disabled radio"
+        label='Disabled radio'
         checked={false}
         disabled
         onValueChange={handleValueChange}
@@ -131,14 +140,17 @@ describe('RadioField', () => {
   });
 
   it('manages checked state internally when uncontrolled', () => {
-    render(<RadioField label="Uncontrolled radio" defaultChecked={false} />);
+    render(<RadioField label='Uncontrolled radio' defaultChecked={false} />);
 
     const control = screen.getByLabelText('Uncontrolled radio');
     expect(control.props.accessibilityState.selected).toBe(false);
 
     fireEvent.press(control);
 
-    expect(screen.getByLabelText('Uncontrolled radio').props.accessibilityState.selected).toBe(true);
+    expect(
+      screen.getByLabelText('Uncontrolled radio').props.accessibilityState
+        .selected,
+    ).toBe(true);
   });
 
   it('applies selected and unselected indicator border colors', () => {
@@ -147,20 +159,38 @@ describe('RadioField', () => {
     let unselectedRenderer: renderer.ReactTestRenderer;
 
     rendererAct(() => {
-      selectedRenderer = renderer.create(<RadioField label="Selected" checked />);
-      unselectedRenderer = renderer.create(<RadioField label="Unselected" checked={false} />);
+      selectedRenderer = renderer.create(
+        <RadioField label='Selected' checked />,
+      );
+      unselectedRenderer = renderer.create(
+        <RadioField label='Unselected' checked={false} />,
+      );
     });
 
-    const selectedNode = selectedRenderer!.root.findByProps({ accessibilityLabel: 'Selected' });
-    const selectedChild = selectedNode.props.children({ pressed: false, hovered: false });
+    const selectedNode = selectedRenderer!.root.findByProps({
+      accessibilityLabel: 'Selected',
+    });
+    const selectedChild = selectedNode.props.children({
+      pressed: false,
+      hovered: false,
+    });
     const selectedStyle = selectedChild.props.style as unknown[];
 
-    const unselectedNode = unselectedRenderer!.root.findByProps({ accessibilityLabel: 'Unselected' });
-    const unselectedChild = unselectedNode.props.children({ pressed: false, hovered: false });
+    const unselectedNode = unselectedRenderer!.root.findByProps({
+      accessibilityLabel: 'Unselected',
+    });
+    const unselectedChild = unselectedNode.props.children({
+      pressed: false,
+      hovered: false,
+    });
     const unselectedStyle = unselectedChild.props.style as unknown[];
 
-    expect(getStyleProperty(selectedStyle, 'borderColor')).toBe(palette.background.brand.default);
-    expect(getStyleProperty(unselectedStyle, 'borderColor')).toBe(palette.border.default.default);
+    expect(getStyleProperty(selectedStyle, 'borderColor')).toBe(
+      palette.background.brand.default,
+    );
+    expect(getStyleProperty(unselectedStyle, 'borderColor')).toBe(
+      palette.border.default.default,
+    );
   });
 
   it('applies hover and pressed styles for checked indicator', () => {
@@ -168,18 +198,32 @@ describe('RadioField', () => {
     let testRenderer: renderer.ReactTestRenderer;
 
     rendererAct(() => {
-      testRenderer = renderer.create(<RadioField label="Checked state" checked />);
+      testRenderer = renderer.create(
+        <RadioField label='Checked state' checked />,
+      );
     });
 
-    const radioNode = testRenderer!.root.findByProps({ accessibilityLabel: 'Checked state' });
-    const hoveredChild = radioNode.props.children({ pressed: false, hovered: true });
+    const radioNode = testRenderer!.root.findByProps({
+      accessibilityLabel: 'Checked state',
+    });
+    const hoveredChild = radioNode.props.children({
+      pressed: false,
+      hovered: true,
+    });
     const hoveredStyle = hoveredChild.props.style as unknown[];
 
-    const pressedChild = radioNode.props.children({ pressed: true, hovered: false });
+    const pressedChild = radioNode.props.children({
+      pressed: true,
+      hovered: false,
+    });
     const pressedStyle = pressedChild.props.style as unknown[];
 
-    expect(getStyleProperty(hoveredStyle, 'backgroundColor')).toBe(palette.background.brand.hover);
-    expect(getStyleProperty(pressedStyle, 'backgroundColor')).toBe(palette.background.brand.default);
+    expect(getStyleProperty(hoveredStyle, 'backgroundColor')).toBe(
+      palette.background.brand.hover,
+    );
+    expect(getStyleProperty(pressedStyle, 'backgroundColor')).toBe(
+      palette.background.brand.default,
+    );
   });
 
   it('applies hover and pressed styles for unchecked indicator', () => {
@@ -187,22 +231,36 @@ describe('RadioField', () => {
     let testRenderer: renderer.ReactTestRenderer;
 
     rendererAct(() => {
-      testRenderer = renderer.create(<RadioField label="Unchecked state" checked={false} />);
+      testRenderer = renderer.create(
+        <RadioField label='Unchecked state' checked={false} />,
+      );
     });
 
-    const radioNode = testRenderer!.root.findByProps({ accessibilityLabel: 'Unchecked state' });
-    const hoveredChild = radioNode.props.children({ pressed: false, hovered: true });
+    const radioNode = testRenderer!.root.findByProps({
+      accessibilityLabel: 'Unchecked state',
+    });
+    const hoveredChild = radioNode.props.children({
+      pressed: false,
+      hovered: true,
+    });
     const hoveredStyle = hoveredChild.props.style as unknown[];
 
-    const pressedChild = radioNode.props.children({ pressed: true, hovered: false });
+    const pressedChild = radioNode.props.children({
+      pressed: true,
+      hovered: false,
+    });
     const pressedStyle = pressedChild.props.style as unknown[];
 
-    expect(getStyleProperty(hoveredStyle, 'backgroundColor')).toBe(palette.background.default.hover);
-    expect(getStyleProperty(pressedStyle, 'backgroundColor')).toBe(palette.background.default.pressed);
+    expect(getStyleProperty(hoveredStyle, 'backgroundColor')).toBe(
+      palette.background.default.hover,
+    );
+    expect(getStyleProperty(pressedStyle, 'backgroundColor')).toBe(
+      palette.background.default.pressed,
+    );
   });
 
   it('exposes radio accessibility role and selected state', () => {
-    render(<RadioField label="A11y radio" checked />);
+    render(<RadioField label='A11y radio' checked />);
 
     const radio = screen.getByLabelText('A11y radio');
     expect(radio.props.accessibilityRole).toBe('radio');
@@ -215,15 +273,26 @@ describe('RadioField', () => {
     let testRenderer: renderer.ReactTestRenderer;
 
     rendererAct(() => {
-      testRenderer = renderer.create(<RadioField label="Light mode" checked={false} />);
+      testRenderer = renderer.create(
+        <RadioField label='Light mode' checked={false} />,
+      );
     });
 
-    const radioNode = testRenderer!.root.findByProps({ accessibilityLabel: 'Light mode' });
-    const defaultChild = radioNode.props.children({ pressed: false, hovered: false });
+    const radioNode = testRenderer!.root.findByProps({
+      accessibilityLabel: 'Light mode',
+    });
+    const defaultChild = radioNode.props.children({
+      pressed: false,
+      hovered: false,
+    });
     const defaultStyle = defaultChild.props.style as unknown[];
 
-    expect(getStyleProperty(defaultStyle, 'backgroundColor')).toBe(palette.background.default.default);
-    expect(getStyleProperty(defaultStyle, 'borderColor')).toBe(palette.border.default.default);
+    expect(getStyleProperty(defaultStyle, 'backgroundColor')).toBe(
+      palette.background.default.default,
+    );
+    expect(getStyleProperty(defaultStyle, 'borderColor')).toBe(
+      palette.border.default.default,
+    );
   });
 
   it('animates indicator opacity on hover in and out using short timing', () => {
@@ -231,9 +300,13 @@ describe('RadioField', () => {
 
     let testRenderer: renderer.ReactTestRenderer;
     rendererAct(() => {
-      testRenderer = renderer.create(<RadioField label="Animated radio" checked={false} />);
+      testRenderer = renderer.create(
+        <RadioField label='Animated radio' checked={false} />,
+      );
     });
-    const control = testRenderer!.root.findByProps({ accessibilityLabel: 'Animated radio' });
+    const control = testRenderer!.root.findByProps({
+      accessibilityLabel: 'Animated radio',
+    });
     timingSpy.mockClear();
 
     act(() => {
@@ -268,11 +341,13 @@ describe('RadioField', () => {
   it('animates dot opacity when checked state changes', () => {
     const { timingSpy, getLastToValue } = createTimingToValueMock();
 
-    const { rerender } = render(<RadioField label="Animated state" checked={false} />);
+    const { rerender } = render(
+      <RadioField label='Animated state' checked={false} />,
+    );
     timingSpy.mockClear();
 
     act(() => {
-      rerender(<RadioField label="Animated state" checked />);
+      rerender(<RadioField label='Animated state' checked />);
     });
 
     expect(timingSpy).toHaveBeenCalledWith(
@@ -289,11 +364,11 @@ describe('RadioField', () => {
   it('fades dot out when checked becomes unchecked', () => {
     const { timingSpy, getLastToValue } = createTimingToValueMock();
 
-    const { rerender } = render(<RadioField label="Fade out state" checked />);
+    const { rerender } = render(<RadioField label='Fade out state' checked />);
     timingSpy.mockClear();
 
     act(() => {
-      rerender(<RadioField label="Fade out state" checked={false} />);
+      rerender(<RadioField label='Fade out state' checked={false} />);
     });
 
     expect(timingSpy).toHaveBeenCalledWith(
@@ -316,7 +391,7 @@ describe('RadioField', () => {
 
     render(
       <RadioField
-        label="Pressed immediate"
+        label='Pressed immediate'
         checked={false}
         onValueChange={handleValueChange}
       />,
@@ -343,14 +418,16 @@ describe('RadioField', () => {
     rendererAct(() => {
       testRenderer = renderer.create(
         <RadioField
-          label="Hover and press"
+          label='Hover and press'
           checked={false}
           onValueChange={handleValueChange}
         />,
       );
     });
 
-    const control = testRenderer!.root.findByProps({ accessibilityLabel: 'Hover and press' });
+    const control = testRenderer!.root.findByProps({
+      accessibilityLabel: 'Hover and press',
+    });
     timingSpy.mockClear();
     startMock.mockClear();
 

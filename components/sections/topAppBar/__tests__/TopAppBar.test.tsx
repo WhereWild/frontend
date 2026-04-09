@@ -5,7 +5,10 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { IconFilter, IconRotateCcw } from '@/assets/icons';
-import { mockAnimatedTiming, resolveAnimatedNumeric } from '../topAppBarTestUtils';
+import {
+  mockAnimatedTiming,
+  resolveAnimatedNumeric,
+} from '../topAppBarTestUtils';
 
 const mockRouterPush = jest.fn();
 
@@ -24,7 +27,9 @@ jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(),
 }));
 
-const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
+const mockUseResponsive = useResponsive as jest.MockedFunction<
+  typeof useResponsive
+>;
 
 const HOME_PROPS = {
   variant: 'home' as const,
@@ -51,7 +56,9 @@ describe('TopAppBar', () => {
 
   beforeEach(() => {
     mockRouterPush.mockClear();
-    mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<
+      typeof useResponsive
+    >);
   });
 
   afterEach(() => {
@@ -74,10 +81,10 @@ describe('TopAppBar', () => {
   it('uses default action icons and labels when action props are omitted', () => {
     render(
       <TopAppBar
-        variant="home"
-        title="Page Title"
+        variant='home'
+        title='Page Title'
         logoSource={require('@/assets/images/wherewild.png')}
-        logoAccessibilityLabel="WhereWild logo"
+        logoAccessibilityLabel='WhereWild logo'
       />,
     );
 
@@ -89,12 +96,7 @@ describe('TopAppBar', () => {
   it('uses default home logo and navigates to home when onPressLogo is omitted', () => {
     const wherewildLogo = require('@/assets/images/wherewild.png');
 
-    render(
-      <TopAppBar
-        variant="home"
-        title="Page Title"
-      />,
-    );
+    render(<TopAppBar variant='home' title='Page Title' />);
 
     const logoButton = screen.getByLabelText('Go to home');
     fireEvent.press(logoButton);
@@ -117,8 +119,8 @@ describe('TopAppBar', () => {
     const onPressBack = jest.fn();
     render(
       <TopAppBar
-        variant="page"
-        title="Species"
+        variant='page'
+        title='Species'
         onPressBack={onPressBack}
         secondaryAction={{
           icon: <IconRotateCcw />,
@@ -144,8 +146,8 @@ describe('TopAppBar', () => {
 
     render(
       <TopAppBar
-        variant="search"
-        searchValue=""
+        variant='search'
+        searchValue=''
         onSearchValueChange={onSearchValueChange}
         onSubmitSearch={onSubmitSearch}
         secondaryAction={{
@@ -172,8 +174,8 @@ describe('TopAppBar', () => {
   it('does not reserve action-row space in search when both actions are hidden', () => {
     render(
       <TopAppBar
-        variant="search"
-        searchValue=""
+        variant='search'
+        searchValue=''
         onSearchValueChange={() => {}}
         onSubmitSearch={() => {}}
         secondaryAction={{
@@ -228,8 +230,8 @@ describe('TopAppBar', () => {
   it('collapses actions-row gap when secondary action is hidden and primary is visible in search', () => {
     render(
       <TopAppBar
-        variant="search"
-        searchValue=""
+        variant='search'
+        searchValue=''
         onSearchValueChange={() => {}}
         onSubmitSearch={() => {}}
         secondaryAction={{
@@ -248,9 +250,10 @@ describe('TopAppBar', () => {
       />,
     );
 
-    const actionsRowStyle = StyleSheet.flatten(screen.getByTestId('top-app-bar-actions-row').props.style);
+    const actionsRowStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-actions-row').props.style,
+    );
     expect(actionsRowStyle.gap).toBe(0);
-
   });
 
   it('renders primary button as icon when explicitly configured', () => {
@@ -294,8 +297,8 @@ describe('TopAppBar', () => {
 
     rerender(
       <TopAppBar
-        variant="home"
-        title="Page Title"
+        variant='home'
+        title='Page Title'
         primaryAction={{
           icon: <IconFilter />,
           buttonLabel: 'Filter',
@@ -335,8 +338,8 @@ describe('TopAppBar', () => {
 
     rerender(
       <TopAppBar
-        variant="home"
-        title="Page Title"
+        variant='home'
+        title='Page Title'
         primaryAction={{
           icon: <IconFilter />,
           buttonLabel: 'Filter',
@@ -384,7 +387,9 @@ describe('TopAppBar', () => {
   });
 
   it('disables icon primary action when handler is missing on phone breakpoint', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+      typeof useResponsive
+    >);
 
     render(
       <TopAppBar
@@ -430,7 +435,9 @@ describe('TopAppBar', () => {
   });
 
   it('renders primary icon button on phone breakpoint', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+      typeof useResponsive
+    >);
 
     render(<TopAppBar {...HOME_PROPS} />);
 
@@ -439,7 +446,9 @@ describe('TopAppBar', () => {
   });
 
   it('renders primary text button on tablet breakpoint', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'tablet' } as ReturnType<
+      typeof useResponsive
+    >);
 
     render(<TopAppBar {...HOME_PROPS} />);
 
@@ -448,7 +457,9 @@ describe('TopAppBar', () => {
   });
 
   it('renders primary text button on desktop breakpoint', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<
+      typeof useResponsive
+    >);
 
     render(<TopAppBar {...HOME_PROPS} />);
 
@@ -465,21 +476,28 @@ describe('TopAppBar', () => {
       </SafeAreaInsetsContext.Provider>,
     );
 
-    const withInsetStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-safe-area').props.style);
+    const withInsetStyles = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-safe-area').props.style,
+    );
     expect(withInsetStyles.paddingTop).toBe(24);
   });
 
   it('renders a dedicated shadow surface behind the top app bar content', () => {
     render(<TopAppBar {...HOME_PROPS} />);
 
-    const safeAreaStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-safe-area').props.style);
-    const surfaceStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-surface').props.style);
-    const containerStyles = StyleSheet.flatten(screen.getByTestId('top-app-bar-container').props.style);
+    const safeAreaStyles = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-safe-area').props.style,
+    );
+    const surfaceStyles = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-surface').props.style,
+    );
+    const containerStyles = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-container').props.style,
+    );
 
     expect(safeAreaStyles.zIndex).toBe(1);
     expect(surfaceStyles.position).toBe('absolute');
     expect(surfaceStyles.zIndex).toBe(0);
     expect(containerStyles.zIndex).toBe(1);
   });
-
 });

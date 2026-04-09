@@ -2,7 +2,13 @@ import { fetchSpeciesLocations, fetchSpeciesOccurrences } from '@/data/api';
 import { Size } from '@/constants/theme';
 import * as LayoutChromeModule from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import React from 'react';
 import { Alert, Linking, Platform } from 'react-native';
 import * as ReactNative from 'react-native';
@@ -57,8 +63,12 @@ jest.mock('@/components/inputs/SelectField', () => {
       return (
         <View>
           <Text>{label}</Text>
-          <Text testID={`select-${label}-value`}>{`Selected: ${value || 'none'}`}</Text>
-          <Text testID={`select-${label}-status`}>{disabled ? 'Disabled' : 'Enabled'}</Text>
+          <Text
+            testID={`select-${label}-value`}
+          >{`Selected: ${value || 'none'}`}</Text>
+          <Text testID={`select-${label}-status`}>
+            {disabled ? 'Disabled' : 'Enabled'}
+          </Text>
           <Pressable
             testID={`select-${label}-next`}
             onPress={() => onValueChange?.(nextValue)}
@@ -145,9 +155,12 @@ jest.mock('@/components/inputs/SwitchField', () => {
     }) => (
       <View>
         <Pressable
-          accessibilityRole="switch"
+          accessibilityRole='switch'
           accessibilityLabel={accessibilityLabel ?? label ?? 'Switch field'}
-          accessibilityState={{ checked: Boolean(value), disabled: Boolean(disabled) }}
+          accessibilityState={{
+            checked: Boolean(value),
+            disabled: Boolean(disabled),
+          }}
           disabled={disabled}
           onPress={() => onValueChange?.(!value)}
         >
@@ -159,33 +172,42 @@ jest.mock('@/components/inputs/SwitchField', () => {
   };
 });
 
-jest.mock('@/components/sections/speciesEnvironment/SpeciesEnvironmentSection', () => {
-  const ReactNative = jest.requireActual('react-native');
-  const { Text, View } = ReactNative;
+jest.mock(
+  '@/components/sections/speciesEnvironment/SpeciesEnvironmentSection',
+  () => {
+    const ReactNative = jest.requireActual('react-native');
+    const { Text, View } = ReactNative;
 
-  return {
-    SpeciesEnvironmentSection: () => (
-      <View>
-        <Text>Species Environment</Text>
-      </View>
-    ),
-  };
-});
+    return {
+      SpeciesEnvironmentSection: () => (
+        <View>
+          <Text>Species Environment</Text>
+        </View>
+      ),
+    };
+  },
+);
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 const mockFetchSpeciesLocations = fetchSpeciesLocations as jest.MockedFunction<
   typeof fetchSpeciesLocations
 >;
-const mockFetchSpeciesOccurrences = fetchSpeciesOccurrences as jest.MockedFunction<
-  typeof fetchSpeciesOccurrences
->;
+const mockFetchSpeciesOccurrences =
+  fetchSpeciesOccurrences as jest.MockedFunction<
+    typeof fetchSpeciesOccurrences
+  >;
 const useLayoutChromeSpy = jest.spyOn(LayoutChromeModule, 'useLayoutChrome');
 const useWindowDimensionsSpy = jest.spyOn(ReactNative, 'useWindowDimensions');
-const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  Platform,
+  'OS',
+);
 const originalPlatformOS = Platform.OS;
 
 const setPlatformOS = (os: string) => {
@@ -232,11 +254,21 @@ afterEach(() => {
     observations: [],
     count: 0,
   });
-  useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
-  useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
+  useLayoutChromeSpy.mockReturnValue({
+    webHeaderHeight: 0,
+    setWebHeaderHeight: jest.fn(),
+  });
+  useWindowDimensionsSpy.mockReturnValue({
+    width: 1280,
+    height: 1000,
+    scale: 1,
+    fontScale: 1,
+  });
 });
 
-const createData = (overrides: Partial<SpeciesScreenData> = {}): SpeciesScreenData => ({
+const createData = (
+  overrides: Partial<SpeciesScreenData> = {},
+): SpeciesScreenData => ({
   taxonId: 13579,
   commonName: 'Test Cactus',
   commonNames: ['Test Cactus', 'Prickly Test Cactus'],
@@ -281,8 +313,16 @@ const waitForSpeciesEffectsToSettle = async (hasTaxonId = true) => {
 describe('Species screen', () => {
   beforeEach(() => {
     setPlatformOS('ios');
-    useLayoutChromeSpy.mockReturnValue({ webHeaderHeight: 0, setWebHeaderHeight: jest.fn() });
-    useWindowDimensionsSpy.mockReturnValue({ width: 1280, height: 1000, scale: 1, fontScale: 1 });
+    useLayoutChromeSpy.mockReturnValue({
+      webHeaderHeight: 0,
+      setWebHeaderHeight: jest.fn(),
+    });
+    useWindowDimensionsSpy.mockReturnValue({
+      width: 1280,
+      height: 1000,
+      scale: 1,
+      fontScale: 1,
+    });
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue([]);
@@ -320,15 +360,17 @@ describe('Species screen', () => {
     expect(screen.getByText('Nearby Species')).toBeTruthy();
     expect(screen.getByText('Neighbor')).toBeTruthy();
 
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => { });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     try {
       fireEvent.press(screen.getByText('Download'));
-      expect(alertSpy).toHaveBeenCalledWith('Download started', expect.any(String));
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Download started',
+        expect.any(String),
+      );
     } finally {
       alertSpy.mockRestore();
     }
   });
-
 
   it('renders independent observation and heatmap toggles above the map', async () => {
     render(
@@ -357,11 +399,15 @@ describe('Species screen', () => {
       expect(screen.getByText('Map markers: hidden')).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByRole('switch', { name: 'Show predictive heatmap' }));
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
 
     await waitFor(() => {
       expect(
-        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true&phenology_only=false'),
+        screen.getByText(
+          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true&phenology_only=false',
+        ),
       ).toBeTruthy();
     });
   });
@@ -386,7 +432,9 @@ describe('Species screen', () => {
     expect(screen.queryByText('Weather window')).toBeNull();
     expect(screen.queryByText('Model')).toBeNull();
 
-    fireEvent.press(screen.getByRole('switch', { name: 'Show predictive heatmap' }));
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Weather window')).toBeTruthy();
@@ -399,21 +447,27 @@ describe('Species screen', () => {
     fireEvent.press(screen.getByLabelText('Forecast +8h'));
     await waitFor(() => {
       expect(
-        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=false'),
+        screen.getByText(
+          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=false',
+        ),
       ).toBeTruthy();
     });
 
     fireEvent.press(screen.getByLabelText('Habitat'));
     await waitFor(() => {
       expect(
-        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=false&phenology_only=false'),
+        screen.getByText(
+          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=false&phenology_only=false',
+        ),
       ).toBeTruthy();
     });
 
     fireEvent.press(screen.getByLabelText('Conditions only'));
     await waitFor(() => {
       expect(
-        screen.getByText('Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=true'),
+        screen.getByText(
+          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=true',
+        ),
       ).toBeTruthy();
     });
   });
@@ -434,7 +488,9 @@ describe('Species screen', () => {
     await waitForSpeciesEffectsToSettle();
 
     expect(
-      screen.getByText('Live heatmap overlay is unavailable for this model right now.'),
+      screen.getByText(
+        'Live heatmap overlay is unavailable for this model right now.',
+      ),
     ).toBeTruthy();
   });
 
@@ -453,7 +509,9 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.getByText('No heatmap is available for this species right now.')).toBeTruthy();
+    expect(
+      screen.getByText('No heatmap is available for this species right now.'),
+    ).toBeTruthy();
   });
 
   it('falls back to sample data when no data prop is provided', async () => {
@@ -461,7 +519,9 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.getAllByText('Mountain Ball Cactus').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Mountain Ball Cactus').length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText('Common Names')).toBeTruthy();
     expect(screen.getByText('Mountain Cactus')).toBeTruthy();
     expect(screen.getByText('Snowball Cactus')).toBeTruthy();
@@ -500,11 +560,7 @@ describe('Species screen', () => {
   });
 
   it('falls back to single commonName when commonNames list is empty', async () => {
-    render(
-      <SpeciesScreen
-        data={createData({ commonNames: [] })}
-      />,
-    );
+    render(<SpeciesScreen data={createData({ commonNames: [] })} />);
 
     await waitForSpeciesEffectsToSettle();
 
@@ -544,7 +600,11 @@ describe('Species screen', () => {
         safeAreaTop: 24,
         viewportHeight: 1000,
       }),
-    ).toBe(Math.round((1000 - Size.bar.height.short - Size.bar.height.tall - 24 - 16) * 0.75));
+    ).toBe(
+      Math.round(
+        (1000 - Size.bar.height.short - Size.bar.height.tall - 24 - 16) * 0.75,
+      ),
+    );
   });
 
   it('calculates web map height from viewport minus header and safe areas', () => {
@@ -569,7 +629,11 @@ describe('Species screen', () => {
         safeAreaTop: 20,
         viewportHeight: 1000,
       }),
-    ).toBe(Math.round((1000 - (Size.space['1600'] + Size.space['200'] * 2) - 20) * 0.75));
+    ).toBe(
+      Math.round(
+        (1000 - (Size.space['1600'] + Size.space['200'] * 2) - 20) * 0.75,
+      ),
+    );
   });
 
   it('holds web map render until the header height has been measured', () => {
@@ -597,11 +661,7 @@ describe('Species screen', () => {
 
   it('renders dark mode palette and hides empty nearby species carousel', async () => {
     mockUseColorScheme.mockReturnValue('dark');
-    render(
-      <SpeciesScreen
-        data={createData({ nearbySpecies: [] })}
-      />,
-    );
+    render(<SpeciesScreen data={createData({ nearbySpecies: [] })} />);
 
     await waitForSpeciesEffectsToSettle();
 
@@ -609,11 +669,7 @@ describe('Species screen', () => {
   });
 
   it('hides observation map section when taxonId is not provided', async () => {
-    render(
-      <SpeciesScreen
-        data={createData({ taxonId: 0 })}
-      />,
-    );
+    render(<SpeciesScreen data={createData({ taxonId: 0 })} />);
 
     expect(screen.queryByText('Observation Map')).toBeNull();
 
@@ -633,34 +689,60 @@ describe('Species screen', () => {
   });
 
   it('updates map query when users change location filters', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_query, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: ['Region'] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_query, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: ['Region'],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-ut',
+              name: 'Utah',
+              level: 1,
+              hierarchy: ['Region', 'United States'],
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
-    mockFetchSpeciesOccurrences.mockImplementation(async (_taxonId, options) => {
-      if (!options?.location || options.location === 'country-us' || options.location === 'state-ut') {
-        return [{ catalogNumber: 'ok', latitude: 1, longitude: 2 }];
-      }
+    mockFetchSpeciesOccurrences.mockImplementation(
+      async (_taxonId, options) => {
+        if (
+          !options?.location ||
+          options.location === 'country-us' ||
+          options.location === 'state-ut'
+        ) {
+          return [{ catalogNumber: 'ok', latitude: 1, longitude: 2 }];
+        }
 
-      return [];
-    });
+        return [];
+      },
+    );
 
     render(<SpeciesScreen data={createData()} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('select-Country-option-country-us')).toBeTruthy();
+      expect(
+        screen.getByTestId('select-Country-option-country-us'),
+      ).toBeTruthy();
     });
 
     fireEvent.press(screen.getByTestId('select-Country-option-country-us'));
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, { location: 'country-us' });
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+        location: 'country-us',
+      });
     });
 
     await waitFor(() => {
@@ -670,12 +752,16 @@ describe('Species screen', () => {
     fireEvent.press(screen.getByTestId('select-State-option-state-ut'));
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, { location: 'state-ut' });
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+        location: 'state-ut',
+      });
     });
   });
 
   it('shows API error message when occurrence fetch rejects with Error', async () => {
-    mockFetchSpeciesOccurrences.mockRejectedValueOnce(new Error('Network down'));
+    mockFetchSpeciesOccurrences.mockRejectedValueOnce(
+      new Error('Network down'),
+    );
 
     render(<SpeciesScreen data={createData()} />);
 
@@ -698,7 +784,9 @@ describe('Species screen', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Map error: Failed to load observations.')).toBeTruthy();
+      expect(
+        screen.getByText('Map error: Failed to load observations.'),
+      ).toBeTruthy();
     });
   });
 
@@ -721,7 +809,9 @@ describe('Species screen', () => {
   });
 
   it('renders attribution and opens iNaturalist link when references are provided', async () => {
-    const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce(true);
+    const openUrlSpy = jest
+      .spyOn(Linking, 'openURL')
+      .mockResolvedValueOnce(true);
     render(
       <SpeciesScreen
         data={createData({
@@ -741,12 +831,16 @@ describe('Species screen', () => {
     expect(screen.getByText('Photo by A Photographer')).toBeTruthy();
     expect(screen.getByText('CC-BY')).toBeTruthy();
     fireEvent.press(screen.getByText('View on iNaturalist'));
-    expect(openUrlSpy).toHaveBeenCalledWith('https://www.inaturalist.org/observations/12345');
+    expect(openUrlSpy).toHaveBeenCalledWith(
+      'https://www.inaturalist.org/observations/12345',
+    );
     openUrlSpy.mockRestore();
   });
 
   it('uses absolute image reference URLs without rewriting them', async () => {
-    const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValueOnce(true);
+    const openUrlSpy = jest
+      .spyOn(Linking, 'openURL')
+      .mockResolvedValueOnce(true);
     render(
       <SpeciesScreen
         data={createData({
@@ -762,7 +856,9 @@ describe('Species screen', () => {
     await waitForSpeciesEffectsToSettle();
 
     fireEvent.press(screen.getByText('View on iNaturalist'));
-    expect(openUrlSpy).toHaveBeenCalledWith('https://www.inaturalist.org/observations/999');
+    expect(openUrlSpy).toHaveBeenCalledWith(
+      'https://www.inaturalist.org/observations/999',
+    );
     openUrlSpy.mockRestore();
   });
 
@@ -793,5 +889,4 @@ describe('Species screen', () => {
 
     expect(screen.getByText('Visible line')).toBeTruthy();
   });
-
 });

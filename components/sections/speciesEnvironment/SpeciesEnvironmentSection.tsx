@@ -25,7 +25,11 @@ export type SpeciesEnvironmentSectionProps = {
   /** Optional geographic filter gid applied to environment requests. */
   locationGid?: string | null;
   units?: 'metric' | 'imperial' | undefined;
-  pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
+  pinnedObservation?: {
+    catalogNumber: string;
+    lat: number;
+    lon: number;
+  } | null;
 };
 
 /** Displays environment distribution insights for a species and selected variable. */
@@ -42,20 +46,38 @@ function SpeciesEnvironmentSectionComponent({
     headingText: string | null;
     metaText: string | null;
     isCategorical: boolean;
-    categoricalDistribution: ReturnType<typeof useSpeciesEnvironmentState>['categoricalDistribution'];
-    selectedCategoryValue: ReturnType<typeof useSpeciesEnvironmentState>['selectedCategoryValue'];
+    categoricalDistribution: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['categoricalDistribution'];
+    selectedCategoryValue: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['selectedCategoryValue'];
     densityCurve: ReturnType<typeof useSpeciesEnvironmentState>['densityCurve'];
     summary: ReturnType<typeof useSpeciesEnvironmentState>['summary'];
-    selectedDensityRange: ReturnType<typeof useSpeciesEnvironmentState>['selectedDensityRange'];
+    selectedDensityRange: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['selectedDensityRange'];
     showRankContext: boolean;
-    rankContextOptions: ReturnType<typeof useSpeciesEnvironmentState>['rankContextOptions'];
-    selectedRankContext: ReturnType<typeof useSpeciesEnvironmentState>['selectedRankContext'];
+    rankContextOptions: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['rankContextOptions'];
+    selectedRankContext: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['selectedRankContext'];
     summaryRanks: ReturnType<typeof useSpeciesEnvironmentState>['summaryRanks'];
-    summaryComparisons: ReturnType<typeof useSpeciesEnvironmentState>['summaryComparisons'];
+    summaryComparisons: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['summaryComparisons'];
     locationFilterActive: boolean;
-    pinnedCategoryValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedCategoryValue'];
-    pinnedUnobservedCategory: ReturnType<typeof useSpeciesEnvironmentState>['pinnedUnobservedCategory'];
-    pinnedClassName: ReturnType<typeof useSpeciesEnvironmentState>['pinnedClassName'];
+    pinnedCategoryValue: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['pinnedCategoryValue'];
+    pinnedUnobservedCategory: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['pinnedUnobservedCategory'];
+    pinnedClassName: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['pinnedClassName'];
     pinnedValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedValue'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
@@ -70,7 +92,7 @@ function SpeciesEnvironmentSectionComponent({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
-const {
+  const {
     categories,
     selectedVariableCategory,
     setSelectedVariableCategory,
@@ -131,7 +153,9 @@ const {
 
   const handleCategorySelect = (value: string | number) => {
     React.startTransition(() => {
-      setSelectedCategoryValue((previous) => (previous === value ? null : value));
+      setSelectedCategoryValue((previous) =>
+        previous === value ? null : value,
+      );
     });
   };
 
@@ -186,12 +210,15 @@ const {
   const displayHeadingText = displayState?.headingText ?? null;
   const displayMetaText = displayState?.metaText ?? null;
   const showCategoricalContent = Boolean(displayState?.isCategorical);
-  const showContinuousContent = Boolean(displayState && !displayState.isCategorical);
-  const numericPinnedValue = typeof pinnedValue === 'number' ? pinnedValue : null;
+  const showContinuousContent = Boolean(
+    displayState && !displayState.isCategorical,
+  );
+  const numericPinnedValue =
+    typeof pinnedValue === 'number' ? pinnedValue : null;
 
   return (
     <View collapsable={false} style={styles.container}>
-      <ThemedText variant="subheading">Species Environment</ThemedText>
+      <ThemedText variant='subheading'>Species Environment</ThemedText>
 
       <VariableSelectorHeader
         categories={categories}
@@ -207,9 +234,11 @@ const {
       <View collapsable={false} style={styles.statusSlot}>
         <View
           collapsable={false}
-          testID="species-environment-loading-slot"
+          testID='species-environment-loading-slot'
           accessibilityElementsHidden={!showLoading}
-          importantForAccessibility={showLoading ? 'auto' : 'no-hide-descendants'}
+          importantForAccessibility={
+            showLoading ? 'auto' : 'no-hide-descendants'
+          }
           style={[
             styles.statusContentSlot,
             !showLoading && styles.hiddenContentSlot,
@@ -224,27 +253,36 @@ const {
             ]}
           >
             <ActivityIndicator color={palette.icon.brand.default} />
-            <ThemedText variant="bodySmall">Loading environment data…</ThemedText>
+            <ThemedText variant='bodySmall'>
+              Loading environment data…
+            </ThemedText>
           </View>
         </View>
         <View
           collapsable={false}
-          testID="species-environment-updating-slot"
+          testID='species-environment-updating-slot'
           accessibilityElementsHidden={!showUpdating}
-          importantForAccessibility={showUpdating ? 'auto' : 'no-hide-descendants'}
+          importantForAccessibility={
+            showUpdating ? 'auto' : 'no-hide-descendants'
+          }
           style={[
             styles.statusContentSlot,
             !showUpdating && styles.hiddenContentSlot,
           ]}
         >
           <View style={styles.updatingIndicatorRow}>
-            <ActivityIndicator size="small" color={palette.icon.brand.default} />
-            <ThemedText variant="bodySmall">Updating environment data…</ThemedText>
+            <ActivityIndicator
+              size='small'
+              color={palette.icon.brand.default}
+            />
+            <ThemedText variant='bodySmall'>
+              Updating environment data…
+            </ThemedText>
           </View>
         </View>
         <View
           collapsable={false}
-          testID="species-environment-error-slot"
+          testID='species-environment-error-slot'
           accessibilityElementsHidden={!showError}
           importantForAccessibility={showError ? 'auto' : 'no-hide-descendants'}
           style={[
@@ -253,16 +291,18 @@ const {
           ]}
         >
           <View style={styles.errorRow}>
-            <ThemedText variant="bodySmall">{error}</ThemedText>
+            <ThemedText variant='bodySmall'>{error}</ThemedText>
           </View>
         </View>
       </View>
 
       <View
         collapsable={false}
-        testID="species-environment-display-slot"
+        testID='species-environment-display-slot'
         accessibilityElementsHidden={!hasDisplayState}
-        importantForAccessibility={hasDisplayState ? 'auto' : 'no-hide-descendants'}
+        importantForAccessibility={
+          hasDisplayState ? 'auto' : 'no-hide-descendants'
+        }
         style={[
           styles.contentRegion,
           !hasDisplayState && styles.hiddenContentSlot,
@@ -271,22 +311,27 @@ const {
       >
         <View
           collapsable={false}
-          testID="species-environment-categorical-slot"
+          testID='species-environment-categorical-slot'
           accessibilityElementsHidden={!showCategoricalContent}
-          importantForAccessibility={showCategoricalContent ? 'auto' : 'no-hide-descendants'}
+          importantForAccessibility={
+            showCategoricalContent ? 'auto' : 'no-hide-descendants'
+          }
           style={!showCategoricalContent ? styles.hiddenContentSlot : undefined}
         >
-          {selectedVariable === 'aspect' || selectedVariable === 'Aspect (binned)' ? (
+          {selectedVariable === 'aspect' ||
+          selectedVariable === 'Aspect (binned)' ? (
             <AspectCompassChart
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
-              unobservedHighlightedCategory={displayState?.pinnedUnobservedCategory ?? null}
+              unobservedHighlightedCategory={
+                displayState?.pinnedUnobservedCategory ?? null
+              }
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               fillColor={palette.background.brand.default}
               selectedFillColor={palette.background.brand.default}
-              highlightOutlineColor="#F59E0B"
+              highlightOutlineColor='#F59E0B'
             />
           ) : (
             <StackedCategoryBar
@@ -295,19 +340,23 @@ const {
               pinnedValue={displayState?.pinnedValue ?? null}
               pinnedClassName={displayState?.pinnedClassName ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
-              unobservedHighlightedCategory={displayState?.pinnedUnobservedCategory ?? null}
+              unobservedHighlightedCategory={
+                displayState?.pinnedUnobservedCategory ?? null
+              }
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
-              highlightOutlineColor="#F59E0B"
+              highlightOutlineColor='#F59E0B'
             />
           )}
         </View>
 
         <View
           collapsable={false}
-          testID="species-environment-continuous-slot"
+          testID='species-environment-continuous-slot'
           accessibilityElementsHidden={!showContinuousContent}
-          importantForAccessibility={showContinuousContent ? 'auto' : 'no-hide-descendants'}
+          importantForAccessibility={
+            showContinuousContent ? 'auto' : 'no-hide-descendants'
+          }
           style={[
             styles.continuousContent,
             !showContinuousContent && styles.hiddenContentSlot,
@@ -344,9 +393,23 @@ const {
                 selectedRankContext={displayState?.selectedRankContext ?? null}
                 onRankContextChange={handleRankContextChange}
                 summary={displayState?.summary}
-                summaryRanks={displayState?.summaryRanks ?? { min: null, mean: null, max: null }}
-                summaryComparisons={displayState?.summaryComparisons ?? { min: null, mean: null, max: null }}
-                locationFilterActive={displayState?.locationFilterActive ?? false}
+                summaryRanks={
+                  displayState?.summaryRanks ?? {
+                    min: null,
+                    mean: null,
+                    max: null,
+                  }
+                }
+                summaryComparisons={
+                  displayState?.summaryComparisons ?? {
+                    min: null,
+                    mean: null,
+                    max: null,
+                  }
+                }
+                locationFilterActive={
+                  displayState?.locationFilterActive ?? false
+                }
               />
             </>
           )}
@@ -403,5 +466,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export const SpeciesEnvironmentSection = React.memo(SpeciesEnvironmentSectionComponent);
+export const SpeciesEnvironmentSection = React.memo(
+  SpeciesEnvironmentSectionComponent,
+);
 SpeciesEnvironmentSection.displayName = 'SpeciesEnvironmentSection';

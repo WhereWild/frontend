@@ -20,7 +20,12 @@ const CONUS_MAX_BOUNDS: [[number, number], [number, number]] = [
 export type LocalMapSectionProps = {
   heatmapTileUrl?: string | null;
   showHeading?: boolean;
-  onBoundsChange?: (bounds: { minLon: number; minLat: number; maxLon: number; maxLat: number }) => void;
+  onBoundsChange?: (bounds: {
+    minLon: number;
+    minLat: number;
+    maxLon: number;
+    maxLat: number;
+  }) => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -32,7 +37,9 @@ export function LocalMapSection({
 }: LocalMapSectionProps) {
   return (
     <View style={[styles.section, style]}>
-      {showHeading ? <ThemedText variant="heading">Local Map</ThemedText> : null}
+      {showHeading ? (
+        <ThemedText variant='heading'>Local Map</ThemedText>
+      ) : null}
       <SpeciesOccurrenceMap
         occurrences={[]}
         heatmapTileUrl={heatmapTileUrl}

@@ -1,7 +1,10 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 import { StyleSheet, Text, TextInput } from 'react-native';
-import { SearchInputView, type SearchInputIconButtonProps } from '../SearchInputView';
+import {
+  SearchInputView,
+  type SearchInputIconButtonProps,
+} from '../SearchInputView';
 
 describe('SearchInputView', () => {
   const createSlot = (
@@ -94,9 +97,16 @@ describe('SearchInputView', () => {
   it('resets outlines for web platform styles', () => {
     jest.isolateModules(() => {
       const RN = jest.requireActual('react-native');
-      const originalDescriptor = Object.getOwnPropertyDescriptor(RN.Platform, 'OS');
-      Object.defineProperty(RN.Platform, 'OS', { configurable: true, value: 'web' });
-      const { styles } = jest.requireActual('../SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
+      const originalDescriptor = Object.getOwnPropertyDescriptor(
+        RN.Platform,
+        'OS',
+      );
+      Object.defineProperty(RN.Platform, 'OS', {
+        configurable: true,
+        value: 'web',
+      });
+      const { styles } =
+        jest.requireActual('../SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
       const containerStyle = StyleSheet.flatten(styles.container);
       expect(containerStyle).toMatchObject({ outlineStyle: 'none' });
       if (originalDescriptor) {
@@ -106,7 +116,8 @@ describe('SearchInputView', () => {
   });
 
   it('pins the control to the semantic medium height with centered input text', () => {
-    const { styles } = jest.requireActual('../SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
+    const { styles } =
+      jest.requireActual('../SearchInputView').__SEARCH_INPUT_VIEW_TESTING__;
     const containerStyle = StyleSheet.flatten(styles.container);
     const inputStyle = StyleSheet.flatten(styles.input);
 

@@ -13,7 +13,7 @@ const createIconProbe = () => {
   const calls: { color?: string }[] = [];
   const IconProbe = (props: { color?: string }) => {
     calls.push(props);
-    return <ThemedText testID="icon-probe" />;
+    return <ThemedText testID='icon-probe' />;
   };
   return { IconProbe, calls };
 };
@@ -26,33 +26,25 @@ describe('Button Component', () => {
     });
 
     it('renders with label prop', () => {
-      render(<Button label="Submit" />);
+      render(<Button label='Submit' />);
       expect(screen.getByText('Submit')).toBeDefined();
     });
 
     it('prioritizes label over children prop', () => {
-      render(<Button label="Label">Children</Button>);
+      render(<Button label='Label'>Children</Button>);
       expect(screen.getByText('Label')).toBeDefined();
       expect(screen.queryByText('Children')).toBeNull();
     });
 
     it('renders with iconStart', () => {
       const IconComponent = () => <>{/* icon */}</>;
-      render(
-        <Button iconStart={<IconComponent />}>
-          Button Text
-        </Button>
-      );
+      render(<Button iconStart={<IconComponent />}>Button Text</Button>);
       expect(screen.getByText('Button Text')).toBeDefined();
     });
 
     it('renders with iconEnd', () => {
       const IconComponent = () => <>{/* icon */}</>;
-      render(
-        <Button iconEnd={<IconComponent />}>
-          Button Text
-        </Button>
-      );
+      render(<Button iconEnd={<IconComponent />}>Button Text</Button>);
       expect(screen.getByText('Button Text')).toBeDefined();
     });
   });
@@ -97,7 +89,7 @@ describe('Button Component', () => {
             paddingVertical: 10,
             minHeight: Size.control.height.medium,
           }),
-        ])
+        ]),
       );
     });
   });
@@ -108,9 +100,9 @@ describe('Button Component', () => {
     it('renders asset iconStart when provided', () => {
       render(
         <Button
-          label="Save"
-          iconStart={<Image source={iconSource} testID="button-icon-start" />}
-        />
+          label='Save'
+          iconStart={<Image source={iconSource} testID='button-icon-start' />}
+        />,
       );
 
       expect(screen.getByTestId('button-icon-start')).toBeDefined();
@@ -118,35 +110,39 @@ describe('Button Component', () => {
     });
 
     it('renders generated svg button icons with style-driven stroke on web', () => {
-      withPlatformOS('web', () => {
-        const { getByTestId, UNSAFE_getAllByType, unmount } = render(
-          <Button
-            label="Help"
-            iconStart={<IconHelpCircle testID="button-help-icon" />}
-          />
-        );
+      withPlatformOS(
+        'web',
+        () => {
+          const { getByTestId, UNSAFE_getAllByType, unmount } = render(
+            <Button
+              label='Help'
+              iconStart={<IconHelpCircle testID='button-help-icon' />}
+            />,
+          );
 
-        const icon = getByTestId('button-help-icon');
-        const iconStyle = StyleSheet.flatten(icon.props.style);
-        expect(iconStyle).toEqual(
-          expect.objectContaining({
-            color: Colors.dark.icon.brand.onBrand,
-          })
-        );
+          const icon = getByTestId('button-help-icon');
+          const iconStyle = StyleSheet.flatten(icon.props.style);
+          expect(iconStyle).toEqual(
+            expect.objectContaining({
+              color: Colors.dark.icon.brand.onBrand,
+            }),
+          );
 
-        const [firstPath] = UNSAFE_getAllByType(Path);
-        expect(firstPath.props.stroke).toBe('currentColor');
+          const [firstPath] = UNSAFE_getAllByType(Path);
+          expect(firstPath.props.stroke).toBe('currentColor');
 
-        unmount();
-      }, { ensureWebWindowListeners: true });
+          unmount();
+        },
+        { ensureWebWindowListeners: true },
+      );
     });
 
     it('renders asset iconEnd when provided', () => {
       render(
         <Button
-          label="Continue"
-          iconEnd={<Image source={iconSource} testID="button-icon-end" />}
-        />
+          label='Continue'
+          iconEnd={<Image source={iconSource} testID='button-icon-end' />}
+        />,
       );
 
       expect(screen.getByTestId('button-icon-end')).toBeDefined();
@@ -157,9 +153,9 @@ describe('Button Component', () => {
       const { IconProbe, calls } = createIconProbe();
 
       render(
-        <Button variant="primary" iconStart={<IconProbe />}>
+        <Button variant='primary' iconStart={<IconProbe />}>
           Icon Color
-        </Button>
+        </Button>,
       );
 
       expect(calls.at(-1)?.color).toBe(Colors.dark.icon.brand.onBrand);
@@ -169,9 +165,7 @@ describe('Button Component', () => {
       const { IconProbe, calls } = createIconProbe();
 
       render(
-        <Button iconEnd={<IconProbe color="#123456" />}>
-          Custom Icon
-        </Button>
+        <Button iconEnd={<IconProbe color='#123456' />}>Custom Icon</Button>,
       );
 
       expect(calls.at(-1)?.color).toBe('#123456');
@@ -200,7 +194,7 @@ describe('Button Component', () => {
       render(
         <Button delayLongPress={450} onLongPress={onLongPress}>
           With Delay
-        </Button>
+        </Button>,
       );
 
       fireEvent(screen.getByText('With Delay'), 'longPress');
@@ -212,7 +206,7 @@ describe('Button Component', () => {
       render(
         <Button disabled onPress={onPress}>
           Disabled
-        </Button>
+        </Button>,
       );
 
       fireEvent.press(screen.getByText('Disabled'));
@@ -226,7 +220,7 @@ describe('Button Component', () => {
       render(
         <Button disabled onPress={onPress}>
           Disabled Button
-        </Button>
+        </Button>,
       );
 
       fireEvent.press(screen.getByText('Disabled Button'));
@@ -237,22 +231,18 @@ describe('Button Component', () => {
   describe('Accessibility', () => {
     it('uses accessibilityLabel when provided', () => {
       const { getByLabelText } = render(
-        <Button accessibilityLabel="Submit Form">Submit</Button>
+        <Button accessibilityLabel='Submit Form'>Submit</Button>,
       );
       expect(getByLabelText('Submit Form')).toBeDefined();
     });
 
     it('falls back to label prop for accessibility when no accessibilityLabel', () => {
-      const { getByLabelText } = render(
-        <Button label="Click Here" />
-      );
+      const { getByLabelText } = render(<Button label='Click Here' />);
       expect(getByLabelText('Click Here')).toBeDefined();
     });
 
     it('falls back to children text for accessibility when no accessibilityLabel or label', () => {
-      const { getByLabelText } = render(
-        <Button>Press Me</Button>
-      );
+      const { getByLabelText } = render(<Button>Press Me</Button>);
       expect(getByLabelText('Press Me')).toBeDefined();
     });
 
@@ -271,71 +261,147 @@ describe('Button Component', () => {
   describe('Styling', () => {
     it('applies custom style prop', () => {
       const customStyle = { marginTop: 20 };
-      const { getByRole } = render(
-        <Button style={customStyle}>Styled</Button>
-      );
+      const { getByRole } = render(<Button style={customStyle}>Styled</Button>);
       const button = getByRole('button');
       expect(button.props.style).toEqual(
-        expect.arrayContaining([expect.objectContaining(customStyle)])
+        expect.arrayContaining([expect.objectContaining(customStyle)]),
       );
     });
 
     it('applies custom textStyle prop', () => {
       const customTextStyle = { fontSize: 20 };
       const { getByText } = render(
-        <Button textStyle={customTextStyle}>Custom Text</Button>
+        <Button textStyle={customTextStyle}>Custom Text</Button>,
       );
-      const flattened = StyleSheet.flatten(getByText('Custom Text').props.style);
+      const flattened = StyleSheet.flatten(
+        getByText('Custom Text').props.style,
+      );
       expect(flattened).toEqual(expect.objectContaining(customTextStyle));
     });
 
     it('applies pressed background tokens for primary variant', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('primary', 'dark', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.brand.pressed);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'primary',
+        'dark',
+        true,
+        false,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.brand.pressed,
+      );
     });
 
     it('applies hover background tokens for primary variant', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('primary', 'light', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.brand.hover);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'primary',
+        'light',
+        false,
+        true,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.light.background.brand.hover,
+      );
     });
 
     it('applies pressed background tokens for neutral variant', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('neutral', 'dark', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.neutral.secondaryPressed);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'neutral',
+        'dark',
+        true,
+        false,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.neutral.secondaryPressed,
+      );
     });
 
     it('applies hover background tokens for neutral variant', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('neutral', 'light', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.neutral.secondaryHover);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'neutral',
+        'light',
+        false,
+        true,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.light.background.neutral.secondaryHover,
+      );
     });
 
     it('applies hover text and icon colors for subtle variant', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.neutral.tertiaryHover);
-      expect(computed.iconColor).toBe(Colors.dark.icon.neutral.onNeutralTertiary);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'subtle',
+        'dark',
+        false,
+        true,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.neutral.tertiaryHover,
+      );
+      expect(computed.iconColor).toBe(
+        Colors.dark.icon.neutral.onNeutralTertiary,
+      );
     });
 
     it('applies pressed colors for subtle variant', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('subtle', 'light', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.neutral.tertiaryPressed);
-      expect(computed.iconColor).toBe(Colors.light.icon.neutral.onNeutralTertiary);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'subtle',
+        'light',
+        true,
+        false,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.light.background.neutral.tertiaryPressed,
+      );
+      expect(computed.iconColor).toBe(
+        Colors.light.icon.neutral.onNeutralTertiary,
+      );
     });
 
     it('applies outlined border when subtle is idle', () => {
-      const computed = __BUTTON_TESTING__.computeVariantStyles('subtle', 'light', false, false, false);
+      const computed = __BUTTON_TESTING__.computeVariantStyles(
+        'subtle',
+        'light',
+        false,
+        false,
+        false,
+      );
       expect(computed.borderColor).toBe(Colors.light.border.neutral.tertiary);
       expect(computed.backgroundColor).toBe('transparent');
     });
 
     it('forces disabled palette regardless of variant or interaction state', () => {
-      const lightDisabled = __BUTTON_TESTING__.computeVariantStyles('neutral', 'light', true, true, true);
-      expect(lightDisabled.backgroundColor).toBe(Colors.light.background.disabled.default);
+      const lightDisabled = __BUTTON_TESTING__.computeVariantStyles(
+        'neutral',
+        'light',
+        true,
+        true,
+        true,
+      );
+      expect(lightDisabled.backgroundColor).toBe(
+        Colors.light.background.disabled.default,
+      );
       expect(lightDisabled.color).toBe(Colors.light.text.disabled.onDisabled);
-      expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
+      expect(lightDisabled.iconColor).toBe(
+        Colors.light.icon.disabled.onDisabled,
+      );
       expect(lightDisabled.borderColor).toBe('transparent');
 
-      const darkDisabled = __BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, false, true);
-      expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
+      const darkDisabled = __BUTTON_TESTING__.computeVariantStyles(
+        'subtle',
+        'dark',
+        false,
+        false,
+        true,
+      );
+      expect(darkDisabled.backgroundColor).toBe(
+        Colors.dark.background.disabled.default,
+      );
       expect(darkDisabled.color).toBe(Colors.dark.text.disabled.onDisabled);
       expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
       expect(darkDisabled.borderColor).toBe('transparent');
@@ -352,13 +418,15 @@ describe('Button Component', () => {
         false,
       );
 
-      expect(computed.backgroundColor).toBe(Colors.dark.background.default.default);
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.default.default,
+      );
       expect(computed.iconColor).toBe(Colors.dark.icon.default.default);
     });
 
     it('renders a component icon with injected defaults', () => {
       const Icon = ({ color, size }: { color?: string; size?: string }) => (
-        <ThemedText accessibilityLabel="icon" style={{ color }}>
+        <ThemedText accessibilityLabel='icon' style={{ color }}>
           {String(size)}
         </ThemedText>
       );
@@ -366,10 +434,15 @@ describe('Button Component', () => {
       const rendered = __BUTTON_TESTING__.renderIcon(Icon, '#111111', '16');
       expect(React.isValidElement(rendered)).toBe(true);
       if (!React.isValidElement(rendered)) {
-        throw new Error('Expected icon render helper to return a React element');
+        throw new Error(
+          'Expected icon render helper to return a React element',
+        );
       }
 
-      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+      const renderedIcon = rendered as React.ReactElement<{
+        color?: string;
+        size?: string;
+      }>;
 
       expect(renderedIcon.props.color).toBe('#111111');
       expect(renderedIcon.props.size).toBe('16');
@@ -377,19 +450,28 @@ describe('Button Component', () => {
 
     it('preserves existing icon element props without overriding', () => {
       const Icon = ({ color, size }: { color?: string; size?: string }) => (
-        <ThemedText accessibilityLabel="icon" style={{ color }}>
+        <ThemedText accessibilityLabel='icon' style={{ color }}>
           {String(size)}
         </ThemedText>
       );
 
-      const iconElement = <Icon color="#abc123" size="24" />;
+      const iconElement = <Icon color='#abc123' size='24' />;
 
-      const rendered = __BUTTON_TESTING__.renderIcon(iconElement, '#111111', '16');
+      const rendered = __BUTTON_TESTING__.renderIcon(
+        iconElement,
+        '#111111',
+        '16',
+      );
       if (!React.isValidElement(rendered)) {
-        throw new Error('Expected icon render helper to return a React element');
+        throw new Error(
+          'Expected icon render helper to return a React element',
+        );
       }
 
-      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+      const renderedIcon = rendered as React.ReactElement<{
+        color?: string;
+        size?: string;
+      }>;
 
       expect(renderedIcon.props.color).toBe('#abc123');
       expect(renderedIcon.props.size).toBe('24');

@@ -21,7 +21,10 @@ export type TabProps = {
   separatorColor?: string;
   separatorHidden?: boolean;
   disableNativeHoverVisuals?: boolean;
-  onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
+  onKeyDown?: (event: {
+    nativeEvent?: { key?: string };
+    preventDefault?: () => void;
+  }) => void;
   onFocus?: () => void;
   onLabelLayout?: (width: number) => void;
   focusable?: boolean;
@@ -30,7 +33,10 @@ export type TabProps = {
   testID?: string;
 };
 
-export type NativeTabProps = Omit<TabProps, 'onKeyDown' | 'focusable' | 'tabIndex'>;
+export type NativeTabProps = Omit<
+  TabProps,
+  'onKeyDown' | 'focusable' | 'tabIndex'
+>;
 
 export const getTabState = (
   mode: 'light' | 'dark',
@@ -40,17 +46,20 @@ export const getTabState = (
 ): TabState => {
   const palette = Colors[mode];
   const borderColor = palette.border.neutral.default;
-  const outerBackgroundColor = isActive ? palette.background.neutral.default : 'transparent';
+  const outerBackgroundColor = isActive
+    ? palette.background.neutral.default
+    : 'transparent';
   const pillBackgroundColor = !isActive
-    ? (pressed
+    ? pressed
       ? palette.background.neutral.pressed
       : hovered
         ? palette.background.neutral.hover
-        : 'transparent')
+        : 'transparent'
     : 'transparent';
-  const textColor = isActive || pressed || hovered
-    ? palette.text.neutral.onNeutral
-    : palette.text.neutral.default;
+  const textColor =
+    isActive || pressed || hovered
+      ? palette.text.neutral.onNeutral
+      : palette.text.neutral.default;
   const borderBottomWidth = Size.stroke.border;
 
   return {
@@ -93,7 +102,7 @@ export function TabContent({
           variant={tabState.textVariant}
           style={{ color: tabState.textColor }}
           numberOfLines={1}
-          ellipsizeMode="tail"
+          ellipsizeMode='tail'
         >
           {label}
         </ThemedText>
@@ -112,10 +121,10 @@ export function TabContent({
         <View
           style={[styles.measurer, { pointerEvents: 'none' }]}
           accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
+          importantForAccessibility='no-hide-descendants'
         >
           <ThemedText
-            variant="singleLineBody"
+            variant='singleLineBody'
             onLayout={(event) => {
               onLabelLayout(event.nativeEvent.layout.width);
             }}

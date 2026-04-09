@@ -7,7 +7,13 @@ import {
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import HomeScreen from '../index';
@@ -23,7 +29,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesWithModels: jest.fn(() => Promise.resolve([])),
-  fetchViewportScores: jest.fn(() => Promise.resolve({ scores: {}, reasons: {} })),
+  fetchViewportScores: jest.fn(() =>
+    Promise.resolve({ scores: {}, reasons: {} }),
+  ),
   BACKEND_BASE: 'https://api.test',
 }));
 
@@ -52,9 +60,9 @@ jest.mock('@/components', () => {
     }) => (
       <View>
         <Text>Active Near You</Text>
-        <Text testID="active-group">{activeGroup ?? 'all'}</Text>
-        <Text testID="loading-state">{loading ? 'loading' : 'idle'}</Text>
-        <Text testID="all-count">{String(allRecommendations.length)}</Text>
+        <Text testID='active-group'>{activeGroup ?? 'all'}</Text>
+        <Text testID='loading-state'>{loading ? 'loading' : 'idle'}</Text>
+        <Text testID='all-count'>{String(allRecommendations.length)}</Text>
         {recommendations.map((species) => (
           <View key={species.taxonId}>
             <Text>{species.commonName}</Text>
@@ -62,10 +70,13 @@ jest.mock('@/components', () => {
             {species.description ? <Text>{species.description}</Text> : null}
           </View>
         ))}
-        <Pressable testID="group-plants" onPress={() => onGroupChange?.('plants')}>
+        <Pressable
+          testID='group-plants'
+          onPress={() => onGroupChange?.('plants')}
+        >
           <Text>Plants</Text>
         </Pressable>
-        <Pressable testID="group-all" onPress={() => onGroupChange?.('all')}>
+        <Pressable testID='group-all' onPress={() => onGroupChange?.('all')}>
           <Text>All</Text>
         </Pressable>
       </View>
@@ -76,21 +87,38 @@ jest.mock('@/components', () => {
     }: {
       heatmapTileUrl?: string | null;
       onBoundsChange?: (bounds: {
-        minLon: number; minLat: number; maxLon: number; maxLat: number;
+        minLon: number;
+        minLat: number;
+        maxLon: number;
+        maxLat: number;
       }) => void;
     }) => (
       <View>
         <Text>Local Map</Text>
-        <Text testID="heatmap-url">{heatmapTileUrl ?? 'none'}</Text>
+        <Text testID='heatmap-url'>{heatmapTileUrl ?? 'none'}</Text>
         <Pressable
-          testID="bounds-primary"
-          onPress={() => onBoundsChange?.({ minLon: -122, minLat: 36, maxLon: -120, maxLat: 38 })}
+          testID='bounds-primary'
+          onPress={() =>
+            onBoundsChange?.({
+              minLon: -122,
+              minLat: 36,
+              maxLon: -120,
+              maxLat: 38,
+            })
+          }
         >
           <Text>Primary Bounds</Text>
         </Pressable>
         <Pressable
-          testID="bounds-secondary"
-          onPress={() => onBoundsChange?.({ minLon: -110, minLat: 32, maxLon: -108, maxLat: 34 })}
+          testID='bounds-secondary'
+          onPress={() =>
+            onBoundsChange?.({
+              minLon: -110,
+              minLat: 32,
+              maxLon: -108,
+              maxLat: 34,
+            })
+          }
         >
           <Text>Secondary Bounds</Text>
         </Pressable>
@@ -99,14 +127,18 @@ jest.mock('@/components', () => {
   };
 });
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
-const mockFetchSpeciesWithModels = fetchSpeciesWithModels as jest.MockedFunction<
-  typeof fetchSpeciesWithModels
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
 >;
+const mockFetchSpeciesWithModels =
+  fetchSpeciesWithModels as jest.MockedFunction<typeof fetchSpeciesWithModels>;
 const mockFetchViewportScores = fetchViewportScores as jest.MockedFunction<
   typeof fetchViewportScores
 >;
-const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  Platform,
+  'OS',
+);
 const originalPlatformOS = Platform.OS;
 
 const setPlatformOS = (os: string) => {
@@ -185,15 +217,21 @@ describe('Home screen', () => {
     expect(screen.getByTestId('heatmap-url').props.children).toContain(
       `${BACKEND_BASE}/api/heatmap/homepage/tiles/{z}/{x}/{y}.png?v=`,
     );
-    expect(screen.getByTestId('heatmap-url').props.children).not.toContain('&group=');
+    expect(screen.getByTestId('heatmap-url').props.children).not.toContain(
+      '&group=',
+    );
   });
 
   it('falls back to mock data immediately while remote models are still unresolved', () => {
-    mockFetchSpeciesWithModels.mockReturnValue(new Promise(() => undefined) as never);
+    mockFetchSpeciesWithModels.mockReturnValue(
+      new Promise(() => undefined) as never,
+    );
 
     render(<HomeScreen />);
 
-    expect(screen.getByText(mockHomePageData.recommendations.items[0].commonName)).toBeTruthy();
+    expect(
+      screen.getByText(mockHomePageData.recommendations.items[0].commonName),
+    ).toBeTruthy();
   });
 
   it('applies light mode background color when overridden to be light', () => {
@@ -205,7 +243,9 @@ describe('Home screen', () => {
     }
 
     const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
+    expect(styles.backgroundColor).toBe(
+      Colors.light.background.default.default,
+    );
   });
 
   it('hydrates recommendations from the with-models API when no data prop is supplied', async () => {
@@ -390,11 +430,15 @@ describe('Home screen', () => {
 
     fireEvent.press(screen.getByTestId('group-plants'));
     expect(screen.getByTestId('active-group').props.children).toBe('plants');
-    expect(screen.getByTestId('heatmap-url').props.children).toContain('&group=plants');
+    expect(screen.getByTestId('heatmap-url').props.children).toContain(
+      '&group=plants',
+    );
 
     fireEvent.press(screen.getByTestId('group-all'));
     expect(screen.getByTestId('active-group').props.children).toBe('all');
-    expect(screen.getByTestId('heatmap-url').props.children).not.toContain('&group=plants');
+    expect(screen.getByTestId('heatmap-url').props.children).not.toContain(
+      '&group=plants',
+    );
   });
 
   it('logs a warning and keeps fallback recommendations when model hydration fails', async () => {
@@ -409,7 +453,9 @@ describe('Home screen', () => {
         expect.any(Error),
       );
     });
-    expect(screen.getByText(mockHomePageData.recommendations.items[0].commonName)).toBeTruthy();
+    expect(
+      screen.getByText(mockHomePageData.recommendations.items[0].commonName),
+    ).toBeTruthy();
 
     warnSpy.mockRestore();
   });

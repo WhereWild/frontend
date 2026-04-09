@@ -59,7 +59,10 @@ export const DEFAULT_VARIABLES: EnvironmentVariableOption[] = [
 
 /** Returns true when variable should render with the polar (circular KDE) chart. */
 export const isVariableCircular = (
-  variable: Pick<EnvironmentVariableOption, 'id' | 'valueType'> | null | undefined,
+  variable:
+    | Pick<EnvironmentVariableOption, 'id' | 'valueType'>
+    | null
+    | undefined,
 ): boolean => {
   if (!variable) return false;
   if (variable.valueType?.toLowerCase() === 'circular') return true;
@@ -70,7 +73,10 @@ export const isVariableCircular = (
 
 /** Returns true when variable should render with categorical UI. */
 export const isVariableCategorical = (
-  variable: Pick<EnvironmentVariableOption, 'id' | 'valueType'> | null | undefined,
+  variable:
+    | Pick<EnvironmentVariableOption, 'id' | 'valueType'>
+    | null
+    | undefined,
 ) => {
   if (!variable?.id) {
     return false;
@@ -78,7 +84,9 @@ export const isVariableCategorical = (
   if (isVariableCircular(variable)) {
     return false;
   }
-  const forcedCategorical = FORCED_CATEGORICAL_VARIABLES.has(variable.id.toLowerCase());
+  const forcedCategorical = FORCED_CATEGORICAL_VARIABLES.has(
+    variable.id.toLowerCase(),
+  );
   if (forcedCategorical) {
     return true;
   }
@@ -149,11 +157,14 @@ export const formatComparisonLabel = (
   const baselineText = formatValue(baseline, digits);
   const delta = current - baseline;
   const percent =
-    Math.abs(baseline) > 1e-9 ? ((delta / Math.abs(baseline)) * 100).toFixed(0) : null;
+    Math.abs(baseline) > 1e-9
+      ? ((delta / Math.abs(baseline)) * 100).toFixed(0)
+      : null;
   if (percent === null || Number.isNaN(Number(percent))) {
     return `vs. ${baselineText} globally`;
   }
-  const signed = delta > 0 ? `+${percent}%` : delta < 0 ? `${percent}%` : `${percent}%`;
+  const signed =
+    delta > 0 ? `+${percent}%` : delta < 0 ? `${percent}%` : `${percent}%`;
   return `vs. ${baselineText} (${signed}) globally`;
 };
 
@@ -172,13 +183,15 @@ export const buildCategoricalSummary = (
   const significantClasses =
     totals?.significantUniqueClasses ??
     (distribution.length
-      ? distribution.filter((entry) => entry.fraction >= SIGNIFICANT_CATEGORY_THRESHOLD).length
+      ? distribution.filter(
+          (entry) => entry.fraction >= SIGNIFICANT_CATEGORY_THRESHOLD,
+        ).length
       : 0);
   const dominant =
     distribution.length > 0
       ? distribution
-        .slice()
-        .sort((a, b) => (b.fraction ?? 0) - (a.fraction ?? 0))[0]
+          .slice()
+          .sort((a, b) => (b.fraction ?? 0) - (a.fraction ?? 0))[0]
       : null;
   return {
     totalSamples,

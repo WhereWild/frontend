@@ -23,10 +23,10 @@ describe('TopAppBar wrapper', () => {
 
     render(
       <TopAppBar
-        variant="home"
-        title="WhereWild"
+        variant='home'
+        title='WhereWild'
         logoSource={require('@/assets/images/wherewild.png')}
-        logoAccessibilityLabel="WhereWild logo"
+        logoAccessibilityLabel='WhereWild logo'
       />,
     );
 
@@ -46,10 +46,10 @@ describe('TopAppBar wrapper', () => {
     expect(() =>
       render(
         <TopAppBar
-          variant="home"
-          title="WhereWild"
+          variant='home'
+          title='WhereWild'
           logoSource={require('@/assets/images/wherewild.png')}
-          logoAccessibilityLabel="WhereWild logo"
+          logoAccessibilityLabel='WhereWild logo'
         />,
       ),
     ).toThrow('TopAppBar is native-only and is not supported on web.');

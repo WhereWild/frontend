@@ -7,7 +7,10 @@ import {
 } from '@/data/api';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
-import type { SpeciesEnvironmentSliceResponse, SpeciesEnvironmentStats } from '@/data/types';
+import type {
+  SpeciesEnvironmentSliceResponse,
+  SpeciesEnvironmentStats,
+} from '@/data/types';
 import { useEnvironmentHighlights } from '../useEnvironmentHighlights';
 
 jest.mock('@/data/api', () => ({
@@ -18,8 +21,12 @@ jest.mock('@/data/api', () => ({
 
 const mockFetchEnvironmentRangeSlice = jest.mocked(fetchEnvironmentRangeSlice);
 const mockFetchPointEnvironmentValue = jest.mocked(fetchPointEnvironmentValue);
-const mockFetchSpeciesEnvironmentCategorySamples = jest.mocked(fetchSpeciesEnvironmentCategorySamples);
-type EnvironmentHighlightsHookResult = ReturnType<typeof useEnvironmentHighlights>;
+const mockFetchSpeciesEnvironmentCategorySamples = jest.mocked(
+  fetchSpeciesEnvironmentCategorySamples,
+);
+type EnvironmentHighlightsHookResult = ReturnType<
+  typeof useEnvironmentHighlights
+>;
 type VariableProps = { variable: string };
 type MockCategoryResponse = { observations: { catalogNumber: string }[] };
 type PinnedProps = {
@@ -53,7 +60,9 @@ const categoricalStats: SpeciesEnvironmentStats = {
   summary: { count: 5, min: null, mean: null, max: null, q01: null, q99: null },
   histogram: null,
   densityCurve: null,
-  categoricalDistribution: [{ value: 'forest', className: 'Forest', count: 5, fraction: 1 }],
+  categoricalDistribution: [
+    { value: 'forest', className: 'Forest', count: 5, fraction: 1 },
+  ],
   categoricalSamples: [{ value: 'forest', observationIds: ['A1', 'B2'] }],
   relativeRanks: [],
 };
@@ -64,7 +73,7 @@ type Deferred<T> = {
   reject: (reason?: unknown) => void;
 };
 
-const createDeferred = <T,>(): Deferred<T> => {
+const createDeferred = <T>(): Deferred<T> => {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
@@ -84,7 +93,9 @@ describe('useEnvironmentHighlights', () => {
       range: { min: 1, max: 2 },
       limit: null,
       count: 1,
-      observations: [{ catalogNumber: '42', value: 1.5, latitude: 0, longitude: 0 }],
+      observations: [
+        { catalogNumber: '42', value: 1.5, latitude: 0, longitude: 0 },
+      ],
     } satisfies SpeciesEnvironmentSliceResponse);
     mockFetchPointEnvironmentValue.mockResolvedValue({
       variable: 'bio_1',
@@ -125,7 +136,9 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
   });
 
@@ -143,10 +156,14 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue((previous) => (previous ? null : 'forest'));
+      result.current.setSelectedCategoryValue((previous) =>
+        previous ? null : 'forest',
+      );
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
   });
 
   it('clears category selection when selecting the same value again', async () => {
@@ -166,7 +183,9 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
 
     act(() => {
       result.current.setSelectedCategoryValue('forest');
@@ -200,7 +219,14 @@ describe('useEnvironmentHighlights', () => {
   it('skips preloaded category cache hydration when location filtering is active', async () => {
     const onHighlightChange = jest.fn();
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
-      observations: [{ catalogNumber: 'LOC-1', value: null, latitude: null, longitude: null }],
+      observations: [
+        {
+          catalogNumber: 'LOC-1',
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
+      ],
     } as never);
 
     const { result } = renderHook(() =>
@@ -218,8 +244,14 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['LOC-1']));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['LOC-1']),
+    );
   });
 
   it('emits empty highlights via non-categorical early return when preloaded path is unavailable', async () => {
@@ -269,21 +301,33 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('desert');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        2,
+      ),
+    );
 
     await act(async () => {
-      first.resolve({ observations: [{ catalogNumber: STALE_CATEGORY_CATALOG }] });
+      first.resolve({
+        observations: [{ catalogNumber: STALE_CATEGORY_CATALOG }],
+      });
       await Promise.resolve();
     });
 
-    expect(onHighlightChange).not.toHaveBeenCalledWith([STALE_CATEGORY_CATALOG]);
+    expect(onHighlightChange).not.toHaveBeenCalledWith([
+      STALE_CATEGORY_CATALOG,
+    ]);
 
     await act(async () => {
-      second.resolve({ observations: [{ catalogNumber: FRESH_CATEGORY_CATALOG }] });
+      second.resolve({
+        observations: [{ catalogNumber: FRESH_CATEGORY_CATALOG }],
+      });
       await Promise.resolve();
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([FRESH_CATEGORY_CATALOG]));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith([FRESH_CATEGORY_CATALOG]),
+    );
   });
 
   it('ignores stale category request failure responses', async () => {
@@ -311,7 +355,11 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('desert');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        2,
+      ),
+    );
 
     const callsBeforeStaleReject = onHighlightChange.mock.calls.length;
 
@@ -323,16 +371,22 @@ describe('useEnvironmentHighlights', () => {
     expect(onHighlightChange.mock.calls.length).toBe(callsBeforeStaleReject);
 
     await act(async () => {
-      second.resolve({ observations: [{ catalogNumber: LIVE_CATEGORY_CATALOG }] });
+      second.resolve({
+        observations: [{ catalogNumber: LIVE_CATEGORY_CATALOG }],
+      });
       await Promise.resolve();
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([LIVE_CATEGORY_CATALOG]));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith([LIVE_CATEGORY_CATALOG]),
+    );
   });
 
   it('falls back to generic error handling for non-Error category fetch rejections', async () => {
     const onHighlightChange = jest.fn();
-    mockFetchSpeciesEnvironmentCategorySamples.mockRejectedValueOnce('network down');
+    mockFetchSpeciesEnvironmentCategorySamples.mockRejectedValueOnce(
+      'network down',
+    );
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
@@ -348,7 +402,11 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
 
@@ -356,12 +414,32 @@ describe('useEnvironmentHighlights', () => {
     const onHighlightChange = jest.fn();
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
       observations: [
-        { catalogNumber: 'CAT-1', value: null, latitude: null, longitude: null },
+        {
+          catalogNumber: 'CAT-1',
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
         { catalogNumber: 2, value: null, latitude: null, longitude: null },
         { catalogNumber: null, value: null, latitude: null, longitude: null },
-        { catalogNumber: undefined, value: null, latitude: null, longitude: null },
-        { catalogNumber: true as any, value: null, latitude: null, longitude: null },
-        { catalogNumber: { id: 'OBJ-1' } as any, value: null, latitude: null, longitude: null },
+        {
+          catalogNumber: undefined,
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
+        {
+          catalogNumber: true as any,
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
+        {
+          catalogNumber: { id: 'OBJ-1' } as any,
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
       ],
     } as never);
 
@@ -380,14 +458,27 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['CAT-1', 2]));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['CAT-1', 2]),
+    );
   });
 
   it('fetches category observations when no matching preloaded category sample exists', async () => {
     const onHighlightChange = jest.fn();
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
-      observations: [{ catalogNumber: 'FETCH-1', value: null, latitude: null, longitude: null }],
+      observations: [
+        {
+          catalogNumber: 'FETCH-1',
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
+      ],
     } as never);
 
     const { result } = renderHook(() =>
@@ -407,8 +498,14 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['FETCH-1']));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['FETCH-1']),
+    );
   });
 
   it('preserves loaded cached category observations when stats rerender with duplicate preloaded ids', async () => {
@@ -435,12 +532,16 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
 
     rerender({
       stats: {
         ...categoricalStats,
-        categoricalSamples: [{ value: 'forest', observationIds: ['NEW-1', 'NEW-2'] }],
+        categoricalSamples: [
+          { value: 'forest', observationIds: ['NEW-1', 'NEW-2'] },
+        ],
       },
     });
 
@@ -454,13 +555,17 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenLastCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenLastCalledWith(['A1', 'B2']),
+    );
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
   });
 
   it('emits empty highlights when category API omits observations', async () => {
     const onHighlightChange = jest.fn();
-    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({} as never);
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce(
+      {} as never,
+    );
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
@@ -477,7 +582,11 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
 
@@ -498,7 +607,9 @@ describe('useEnvironmentHighlights', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
 
     act(() => {
       result.current.setSelectedCategoryValue(null);
@@ -517,7 +628,10 @@ describe('useEnvironmentHighlights', () => {
       .mockImplementationOnce(() => firstSlice.promise)
       .mockImplementationOnce(() => secondSlice.promise);
 
-    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, VariableProps>(
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      VariableProps
+    >(
       ({ variable }) =>
         useEnvironmentHighlights({
           taxonId: 1,
@@ -536,7 +650,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1),
+    );
 
     rerender({ variable: 'bio_2' });
 
@@ -547,7 +663,14 @@ describe('useEnvironmentHighlights', () => {
         range: { min: 1, max: 2 },
         limit: null,
         count: 1,
-        observations: [{ catalogNumber: STALE_RANGE_CATALOG, value: 1.5, latitude: 0, longitude: 0 }],
+        observations: [
+          {
+            catalogNumber: STALE_RANGE_CATALOG,
+            value: 1.5,
+            latitude: 0,
+            longitude: 0,
+          },
+        ],
       });
       await Promise.resolve();
     });
@@ -559,7 +682,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2),
+    );
 
     await act(async () => {
       secondSlice.reject(new Error('failed new slice'));
@@ -572,9 +697,14 @@ describe('useEnvironmentHighlights', () => {
   it('ignores rejected range slice responses when request is cancelled', async () => {
     const onHighlightChange = jest.fn();
     const deferred = createDeferred<SpeciesEnvironmentSliceResponse>();
-    mockFetchEnvironmentRangeSlice.mockImplementationOnce(() => deferred.promise);
+    mockFetchEnvironmentRangeSlice.mockImplementationOnce(
+      () => deferred.promise,
+    );
 
-    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, VariableProps>(
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      VariableProps
+    >(
       ({ variable }) =>
         useEnvironmentHighlights({
           taxonId: 1,
@@ -593,7 +723,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1),
+    );
 
     rerender({ variable: 'bio_2' });
     const callsBeforeReject = onHighlightChange.mock.calls.length;
@@ -622,7 +754,9 @@ describe('useEnvironmentHighlights', () => {
         range: { min: 3, max: 4 },
         limit: null,
         count: 1,
-        observations: [{ catalogNumber: null, value: 3.5, latitude: 0, longitude: 0 }] as never,
+        observations: [
+          { catalogNumber: null, value: 3.5, latitude: 0, longitude: 0 },
+        ] as never,
       } as SpeciesEnvironmentSliceResponse);
 
     const { result } = renderHook(() =>
@@ -640,7 +774,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
 
     act(() => {
@@ -648,7 +784,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
 
@@ -675,7 +813,12 @@ describe('useEnvironmentHighlights', () => {
         }),
       );
 
-      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(40.2, -105.1, 'bio_1', { units: undefined });
+      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(
+        40.2,
+        -105.1,
+        'bio_1',
+        { units: undefined },
+      );
 
       await waitFor(() => {
         expect(result.current.pinnedValue).toBe(7.25);
@@ -705,12 +848,17 @@ describe('useEnvironmentHighlights', () => {
         fetchSpeciesLocations: jest.fn(),
       } as unknown as SpeciesDataSource;
 
-      const SpeciesDataSourceProviderComponent = SpeciesDataSourceProvider as React.ComponentType<{
-        value: SpeciesDataSource;
-        children?: React.ReactNode;
-      }>;
+      const SpeciesDataSourceProviderComponent =
+        SpeciesDataSourceProvider as React.ComponentType<{
+          value: SpeciesDataSource;
+          children?: React.ReactNode;
+        }>;
       const wrapper = ({ children }: { children: React.ReactNode }) =>
-        React.createElement(SpeciesDataSourceProviderComponent, { value: localDataSource }, children);
+        React.createElement(
+          SpeciesDataSourceProviderComponent,
+          { value: localDataSource },
+          children,
+        );
 
       const { result } = renderHook(
         () =>
@@ -719,18 +867,22 @@ describe('useEnvironmentHighlights', () => {
             selectedVariable: 'landcover',
             stats: categoricalStats,
             isCategorical: true,
-            pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+            pinnedObservation: {
+              catalogNumber: 'PIN-1',
+              lat: 40.2,
+              lon: -105.1,
+            },
           }),
         { wrapper },
       );
 
       await waitFor(() => {
-        expect(localDataSource.fetchObservationEnvironmentValue).toHaveBeenCalledWith(
-          1,
-          'PIN-1',
-          'landcover',
-          { location: undefined, units: undefined },
-        );
+        expect(
+          localDataSource.fetchObservationEnvironmentValue,
+        ).toHaveBeenCalledWith(1, 'PIN-1', 'landcover', {
+          location: undefined,
+          units: undefined,
+        });
         expect(result.current.pinnedValue).toBe('forest');
         expect(result.current.pinnedLoading).toBe(false);
       });
@@ -764,12 +916,17 @@ describe('useEnvironmentHighlights', () => {
         fetchSpeciesLocations: jest.fn(),
       } as unknown as SpeciesDataSource;
 
-      const SpeciesDataSourceProviderComponent = SpeciesDataSourceProvider as React.ComponentType<{
-        value: SpeciesDataSource;
-        children?: React.ReactNode;
-      }>;
+      const SpeciesDataSourceProviderComponent =
+        SpeciesDataSourceProvider as React.ComponentType<{
+          value: SpeciesDataSource;
+          children?: React.ReactNode;
+        }>;
       const wrapper = ({ children }: { children: React.ReactNode }) =>
-        React.createElement(SpeciesDataSourceProviderComponent, { value: localDataSource }, children);
+        React.createElement(
+          SpeciesDataSourceProviderComponent,
+          { value: localDataSource },
+          children,
+        );
 
       const { result } = renderHook(
         () =>
@@ -778,16 +935,27 @@ describe('useEnvironmentHighlights', () => {
             selectedVariable: 'bio_1',
             stats: continuousStats,
             isCategorical: false,
-            pinnedObservation: { catalogNumber: 'point:40.200000,-105.100000', lat: 40.2, lon: -105.1 },
+            pinnedObservation: {
+              catalogNumber: 'point:40.200000,-105.100000',
+              lat: 40.2,
+              lon: -105.1,
+            },
           }),
         { wrapper },
       );
 
       await waitFor(() => {
-        expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(40.2, -105.1, 'bio_1', {
-          units: undefined,
-        });
-        expect(localDataSource.fetchObservationEnvironmentValue).not.toHaveBeenCalled();
+        expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(
+          40.2,
+          -105.1,
+          'bio_1',
+          {
+            units: undefined,
+          },
+        );
+        expect(
+          localDataSource.fetchObservationEnvironmentValue,
+        ).not.toHaveBeenCalled();
         expect(result.current.pinnedValue).toBe(7.25);
         expect(result.current.pinnedLoading).toBe(false);
       });
@@ -797,13 +965,24 @@ describe('useEnvironmentHighlights', () => {
   });
 
   it('ignores stale pinned responses after pinned observation changes', async () => {
-    const first = createDeferred<{ value: number | string | null; valueLabel?: string | null; valueDescription?: string | null }>();
-    const second = createDeferred<{ value: number | string | null; valueLabel?: string | null; valueDescription?: string | null }>();
+    const first = createDeferred<{
+      value: number | string | null;
+      valueLabel?: string | null;
+      valueDescription?: string | null;
+    }>();
+    const second = createDeferred<{
+      value: number | string | null;
+      valueLabel?: string | null;
+      valueDescription?: string | null;
+    }>();
     mockFetchPointEnvironmentValue
       .mockImplementationOnce(() => first.promise as never)
       .mockImplementationOnce(() => second.promise as never);
 
-    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, PinnedProps>(
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      PinnedProps
+    >(
       ({ pinnedObservation }) =>
         useEnvironmentHighlights({
           taxonId: 1,
@@ -813,14 +992,22 @@ describe('useEnvironmentHighlights', () => {
           pinnedObservation,
         }),
       {
-        initialProps: { pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 } },
+        initialProps: {
+          pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+        },
       },
     );
 
-    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1),
+    );
 
-    rerender({ pinnedObservation: { catalogNumber: 'PIN-2', lat: 40.3, lon: -105.2 } });
-    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(2));
+    rerender({
+      pinnedObservation: { catalogNumber: 'PIN-2', lat: 40.3, lon: -105.2 },
+    });
+    await waitFor(() =>
+      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(2),
+    );
 
     await act(async () => {
       first.resolve({ value: 1.11, valueLabel: null, valueDescription: null });
@@ -841,9 +1028,14 @@ describe('useEnvironmentHighlights', () => {
   });
 
   it('resets pinned value to null when pinned fetch fails or pin is cleared', async () => {
-    mockFetchPointEnvironmentValue.mockRejectedValueOnce(new Error('pin failed'));
+    mockFetchPointEnvironmentValue.mockRejectedValueOnce(
+      new Error('pin failed'),
+    );
 
-    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, PinnedProps>(
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      PinnedProps
+    >(
       ({ pinnedObservation }) =>
         useEnvironmentHighlights({
           taxonId: 1,
@@ -853,11 +1045,15 @@ describe('useEnvironmentHighlights', () => {
           pinnedObservation,
         }),
       {
-        initialProps: { pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 } },
+        initialProps: {
+          pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+        },
       },
     );
 
-    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1),
+    );
     await waitFor(() => {
       expect(result.current.pinnedValue).toBeNull();
       expect(result.current.pinnedLoading).toBe(false);
@@ -868,10 +1064,19 @@ describe('useEnvironmentHighlights', () => {
   });
 
   it('ignores stale pinned success responses after the pin is cleared', async () => {
-    const deferred = createDeferred<{ value: number | string | null; valueLabel?: string | null; valueDescription?: string | null }>();
-    mockFetchPointEnvironmentValue.mockImplementationOnce(() => deferred.promise as never);
+    const deferred = createDeferred<{
+      value: number | string | null;
+      valueLabel?: string | null;
+      valueDescription?: string | null;
+    }>();
+    mockFetchPointEnvironmentValue.mockImplementationOnce(
+      () => deferred.promise as never,
+    );
 
-    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, PinnedProps>(
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      PinnedProps
+    >(
       ({ pinnedObservation }) =>
         useEnvironmentHighlights({
           taxonId: 1,
@@ -881,11 +1086,15 @@ describe('useEnvironmentHighlights', () => {
           pinnedObservation,
         }),
       {
-        initialProps: { pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 } },
+        initialProps: {
+          pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+        },
       },
     );
 
-    await waitFor(() => expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchPointEnvironmentValue).toHaveBeenCalledTimes(1),
+    );
     expect(result.current.pinnedLoading).toBe(true);
 
     rerender({ pinnedObservation: null });
@@ -896,7 +1105,11 @@ describe('useEnvironmentHighlights', () => {
     });
 
     await act(async () => {
-      deferred.resolve({ value: 9.99, valueLabel: null, valueDescription: null });
+      deferred.resolve({
+        value: 9.99,
+        valueLabel: null,
+        valueDescription: null,
+      });
       await Promise.resolve();
     });
 
@@ -912,7 +1125,9 @@ describe('useEnvironmentHighlights', () => {
       range: { min: 45, max: 135 },
       limit: null,
       count: 1,
-      observations: [{ catalogNumber: 'E-1', value: 90, latitude: 1, longitude: 1 }],
+      observations: [
+        { catalogNumber: 'E-1', value: 90, latitude: 1, longitude: 1 },
+      ],
     } satisfies SpeciesEnvironmentSliceResponse);
 
     const { result } = renderHook(() =>
@@ -930,7 +1145,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['E-1']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['E-1']),
+    );
     expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(1);
     expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
       expect.objectContaining({ min: 45, max: 135 }),
@@ -946,7 +1163,9 @@ describe('useEnvironmentHighlights', () => {
         range: { min: 315, max: 360 },
         limit: null,
         count: 1,
-        observations: [{ catalogNumber: 'NW-1', value: 340, latitude: 1, longitude: 1 }],
+        observations: [
+          { catalogNumber: 'NW-1', value: 340, latitude: 1, longitude: 1 },
+        ],
       } satisfies SpeciesEnvironmentSliceResponse)
       .mockResolvedValueOnce({
         speciesId: 1,
@@ -954,7 +1173,9 @@ describe('useEnvironmentHighlights', () => {
         range: { min: 0, max: 45 },
         limit: null,
         count: 1,
-        observations: [{ catalogNumber: 'NE-1', value: 20, latitude: 2, longitude: 2 }],
+        observations: [
+          { catalogNumber: 'NE-1', value: 20, latitude: 2, longitude: 2 },
+        ],
       } satisfies SpeciesEnvironmentSliceResponse);
 
     const { result } = renderHook(() =>
@@ -972,7 +1193,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2),
+    );
 
     expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
       expect.objectContaining({ min: 315, max: 360 }),
@@ -990,7 +1213,12 @@ describe('useEnvironmentHighlights', () => {
 
   it('deduplicates observations that appear in both slices of a wrap-around range', async () => {
     const onHighlightChange = jest.fn();
-    const sharedObs = { catalogNumber: 'DUP-1', value: 0, latitude: 0, longitude: 0 };
+    const sharedObs = {
+      catalogNumber: 'DUP-1',
+      value: 0,
+      latitude: 0,
+      longitude: 0,
+    };
     mockFetchEnvironmentRangeSlice
       .mockResolvedValueOnce({
         speciesId: 1,
@@ -1024,7 +1252,9 @@ describe('useEnvironmentHighlights', () => {
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2),
+    );
 
     await waitFor(() => {
       const emitted = onHighlightChange.mock.calls.at(-1)?.[0] as string[];
@@ -1035,10 +1265,15 @@ describe('useEnvironmentHighlights', () => {
   it('defers category resolution until stats become available', async () => {
     const onHighlightChange = jest.fn();
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValueOnce({
-      observations: [{ catalogNumber: 'X-1', value: null, latitude: null, longitude: null }],
+      observations: [
+        { catalogNumber: 'X-1', value: null, latitude: null, longitude: null },
+      ],
     } as never);
 
-    const { result, rerender } = renderHook<EnvironmentHighlightsHookResult, { stats: SpeciesEnvironmentStats | null }>(
+    const { result, rerender } = renderHook<
+      EnvironmentHighlightsHookResult,
+      { stats: SpeciesEnvironmentStats | null }
+    >(
       ({ stats }) =>
         useEnvironmentHighlights({
           taxonId: 1,
@@ -1061,7 +1296,13 @@ describe('useEnvironmentHighlights', () => {
 
     rerender({ stats: { ...categoricalStats, categoricalSamples: [] } });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['X-1']));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        1,
+      ),
+    );
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['X-1']),
+    );
   });
 });

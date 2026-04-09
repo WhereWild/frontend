@@ -1,7 +1,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { Platform, Text, View } from 'react-native';
-import { NativePortalHost, NativePortalProvider, useNativePortalHost } from '../NativePortalHost';
+import {
+  NativePortalHost,
+  NativePortalProvider,
+  useNativePortalHost,
+} from '../NativePortalHost';
 
 function PortalProbe({ visible }: { visible: boolean }) {
   const host = useNativePortalHost();
@@ -26,7 +30,10 @@ function PortalProbe({ visible }: { visible: boolean }) {
 }
 
 describe('NativePortalHost', () => {
-  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+    Platform,
+    'OS',
+  );
 
   beforeEach(() => {
     Object.defineProperty(Platform, 'OS', {
@@ -49,15 +56,18 @@ describe('NativePortalHost', () => {
     );
 
     const hostViews = UNSAFE_root.findAllByType(View).filter((node) => {
-      const styleEntries = Array.isArray(node.props.style) ? node.props.style : [node.props.style];
+      const styleEntries = Array.isArray(node.props.style)
+        ? node.props.style
+        : [node.props.style];
 
-      return styleEntries.some((style) =>
-        style?.position === 'absolute'
-        && style?.top === 0
-        && style?.left === 0
-        && style?.right === 0
-        && style?.bottom === 0
-        && style?.zIndex === 100000,
+      return styleEntries.some(
+        (style) =>
+          style?.position === 'absolute' &&
+          style?.top === 0 &&
+          style?.left === 0 &&
+          style?.right === 0 &&
+          style?.bottom === 0 &&
+          style?.zIndex === 100000,
       );
     });
 

@@ -9,13 +9,14 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 describe('InlineExpandableRows', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
   });
-
 
   it('renders provided sections and entries', () => {
     render(
@@ -43,10 +44,14 @@ describe('InlineExpandableRows', () => {
     const tree = render(<InlineExpandableRows />).toJSON();
 
     if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected InlineExpandableRows to render a single root view');
+      throw new Error(
+        'Expected InlineExpandableRows to render a single root view',
+      );
     }
 
     const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.light.background.default.secondary);
+    expect(styles.backgroundColor).toBe(
+      Colors.light.background.default.secondary,
+    );
   });
 });

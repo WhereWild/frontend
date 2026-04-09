@@ -46,26 +46,30 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
-  const [pinnedObservation, setPinnedObservation] = React.useState<PinnedObservation | null>(null);
+  const [pinnedObservation, setPinnedObservation] =
+    React.useState<PinnedObservation | null>(null);
 
   React.useEffect(() => {
     setPinnedObservation(null);
   }, [uploadedBundle, uploadedDataSource]);
 
-  const handlePinObservation = React.useCallback((catalogNumber: string, lat: number, lon: number) => {
-    setPinnedObservation((previous) => {
-      if (
-        previous
-        && previous.catalogNumber === catalogNumber
-        && previous.lat === lat
-        && previous.lon === lon
-      ) {
-        return null;
-      }
+  const handlePinObservation = React.useCallback(
+    (catalogNumber: string, lat: number, lon: number) => {
+      setPinnedObservation((previous) => {
+        if (
+          previous &&
+          previous.catalogNumber === catalogNumber &&
+          previous.lat === lat &&
+          previous.lon === lon
+        ) {
+          return null;
+        }
 
-      return { catalogNumber, lat, lon };
-    });
-  }, []);
+        return { catalogNumber, lat, lon };
+      });
+    },
+    [],
+  );
 
   return (
     <SpeciesDataSourceProvider value={uploadedDataSource}>

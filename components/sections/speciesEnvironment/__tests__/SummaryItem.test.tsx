@@ -9,7 +9,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 describe('SummaryItem', () => {
   it('renders comparison text branch', () => {
-    render(<SummaryItem label="Mean" value="12.3" comparison="vs. 10 (+23%)" />);
+    render(
+      <SummaryItem label='Mean' value='12.3' comparison='vs. 10 (+23%)' />,
+    );
 
     expect(screen.getByText(/Mean\s*:\s*12\.3/)).toBeTruthy();
     expect(screen.getByText('vs. 10 (+23%)')).toBeTruthy();
@@ -18,9 +20,15 @@ describe('SummaryItem', () => {
   it('renders rank branch with percentile', () => {
     render(
       <SummaryItem
-        label="Max"
-        value="22"
-        rank={{ metric: 'max', label: 'Mammalia', rank: 2, count: 100, percentile: 0.9 }}
+        label='Max'
+        value='22'
+        rank={{
+          metric: 'max',
+          label: 'Mammalia',
+          rank: 2,
+          count: 100,
+          percentile: 0.9,
+        }}
       />,
     );
 
@@ -30,7 +38,7 @@ describe('SummaryItem', () => {
   });
 
   it('renders only label/value when no rank/comparison', () => {
-    render(<SummaryItem label="Min" value="1.0" />);
+    render(<SummaryItem label='Min' value='1.0' />);
 
     expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
   });
@@ -38,9 +46,15 @@ describe('SummaryItem', () => {
   it('formats low percentile as less than one percent', () => {
     render(
       <SummaryItem
-        label="Min"
-        value="1"
-        rank={{ metric: 'min', label: 'Context', rank: 1, count: 99, percentile: 0.009 }}
+        label='Min'
+        value='1'
+        rank={{
+          metric: 'min',
+          label: 'Context',
+          rank: 1,
+          count: 99,
+          percentile: 0.009,
+        }}
       />,
     );
 
@@ -50,9 +64,15 @@ describe('SummaryItem', () => {
   it('formats ordinal percentile suffixes for second and third', () => {
     const { rerender } = render(
       <SummaryItem
-        label="Mean"
-        value="2"
-        rank={{ metric: 'mean', label: 'Context', rank: 2, count: 100, percentile: 0.02 }}
+        label='Mean'
+        value='2'
+        rank={{
+          metric: 'mean',
+          label: 'Context',
+          rank: 2,
+          count: 100,
+          percentile: 0.02,
+        }}
       />,
     );
 
@@ -60,9 +80,15 @@ describe('SummaryItem', () => {
 
     rerender(
       <SummaryItem
-        label="Mean"
-        value="3"
-        rank={{ metric: 'mean', label: 'Context', rank: 3, count: 100, percentile: 0.03 }}
+        label='Mean'
+        value='3'
+        rank={{
+          metric: 'mean',
+          label: 'Context',
+          rank: 3,
+          count: 100,
+          percentile: 0.03,
+        }}
       />,
     );
 
@@ -72,8 +98,8 @@ describe('SummaryItem', () => {
   it('renders percentile-only rank details when rank/count are missing', () => {
     render(
       <SummaryItem
-        label="Max"
-        value="30"
+        label='Max'
+        value='30'
         rank={{ metric: 'max', label: 'Context', percentile: 0.5 }}
       />,
     );
@@ -85,9 +111,15 @@ describe('SummaryItem', () => {
   it('does not render percentile text for non-finite percentile values', () => {
     render(
       <SummaryItem
-        label="Mean"
-        value="5"
-        rank={{ metric: 'mean', label: 'Context', rank: 1, count: 10, percentile: Number.NaN }}
+        label='Mean'
+        value='5'
+        rank={{
+          metric: 'mean',
+          label: 'Context',
+          rank: 1,
+          count: 10,
+          percentile: Number.NaN,
+        }}
       />,
     );
 
@@ -97,8 +129,8 @@ describe('SummaryItem', () => {
   it('formats 11th percentile suffix correctly', () => {
     render(
       <SummaryItem
-        label="Mean"
-        value="11"
+        label='Mean'
+        value='11'
         rank={{ metric: 'mean', label: 'Context', percentile: 0.11 }}
       />,
     );
@@ -110,9 +142,15 @@ describe('SummaryItem', () => {
     it('renders rank content correctly when stacked', () => {
       render(
         <SummaryItem
-          label="Min"
-          value="1.0"
-          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          label='Min'
+          value='1.0'
+          rank={{
+            metric: 'min',
+            label: 'Mammalia',
+            rank: 3,
+            count: 41,
+            percentile: 0.08,
+          }}
           stacked
         />,
       );
@@ -123,7 +161,9 @@ describe('SummaryItem', () => {
     });
 
     it('applies full-width container style when stacked', () => {
-      const { toJSON } = render(<SummaryItem label="Min" value="1.0" stacked />);
+      const { toJSON } = render(
+        <SummaryItem label='Min' value='1.0' stacked />,
+      );
       const tree = toJSON() as unknown as { props: { style: object } };
       const style = StyleSheet.flatten(tree.props.style);
 
@@ -133,9 +173,15 @@ describe('SummaryItem', () => {
     it('uses left-aligned rank text when stacked', () => {
       render(
         <SummaryItem
-          label="Min"
-          value="1.0"
-          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          label='Min'
+          value='1.0'
+          rank={{
+            metric: 'min',
+            label: 'Mammalia',
+            rank: 3,
+            count: 41,
+            percentile: 0.08,
+          }}
           stacked
         />,
       );
@@ -148,9 +194,15 @@ describe('SummaryItem', () => {
     it('uses centered rank text when not stacked', () => {
       render(
         <SummaryItem
-          label="Min"
-          value="1.0"
-          rank={{ metric: 'min', label: 'Mammalia', rank: 3, count: 41, percentile: 0.08 }}
+          label='Min'
+          value='1.0'
+          rank={{
+            metric: 'min',
+            label: 'Mammalia',
+            rank: 3,
+            count: 41,
+            percentile: 0.08,
+          }}
         />,
       );
 
@@ -160,7 +212,9 @@ describe('SummaryItem', () => {
     });
 
     it('sets borderBottomColor on non-last stacked item', () => {
-      const { toJSON } = render(<SummaryItem label="Min" value="1.0" stacked />);
+      const { toJSON } = render(
+        <SummaryItem label='Min' value='1.0' stacked />,
+      );
       const tree = toJSON() as unknown as { props: { style: object } };
       const style = StyleSheet.flatten(tree.props.style);
 
@@ -168,7 +222,9 @@ describe('SummaryItem', () => {
     });
 
     it('does not set borderBottomColor on last stacked item', () => {
-      const { toJSON } = render(<SummaryItem label="Max" value="10.0" stacked isLast />);
+      const { toJSON } = render(
+        <SummaryItem label='Max' value='10.0' stacked isLast />,
+      );
       const tree = toJSON() as unknown as { props: { style: object } };
       const style = StyleSheet.flatten(tree.props.style);
 

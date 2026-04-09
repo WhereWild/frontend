@@ -6,10 +6,16 @@ import type { ReactTestInstance } from 'react-test-renderer';
 import { SelectFieldView } from '../SelectFieldView';
 import type { SelectFieldViewProps } from '../useSelectFieldController';
 
-type PressableStyleFunction = (state: { pressed: boolean; hovered: boolean }) => unknown[];
+type PressableStyleFunction = (state: {
+  pressed: boolean;
+  hovered: boolean;
+}) => unknown[];
 
 // Returns the last matching style property to mirror React Native style precedence.
-const getStyleProperty = (styles: unknown[], propertyName: string): string | undefined => {
+const getStyleProperty = (
+  styles: unknown[],
+  propertyName: string,
+): string | undefined => {
   for (let index = styles.length - 1; index >= 0; index -= 1) {
     const item = styles[index];
     if (typeof item === 'object' && item !== null && propertyName in item) {
@@ -29,13 +35,20 @@ const findByAccessibilityLabel = (
   if (!tree) {
     throw new Error(`Expected test renderer tree for ${label}.`);
   }
-  const nodes = tree.root.findAll((item: ReactTestInstance) => item.props?.accessibilityLabel === label);
+  const nodes = tree.root.findAll(
+    (item: ReactTestInstance) => item.props?.accessibilityLabel === label,
+  );
   const node = nodes[0];
   if (!node) {
     const availableLabels = tree.root
-      .findAll((item: ReactTestInstance) => typeof item.props?.accessibilityLabel === 'string')
+      .findAll(
+        (item: ReactTestInstance) =>
+          typeof item.props?.accessibilityLabel === 'string',
+      )
       .map((item) => item.props.accessibilityLabel);
-    throw new Error(`Expected element with accessibility label: ${label}. Available labels: ${availableLabels.join(', ') || 'none'}.`);
+    throw new Error(
+      `Expected element with accessibility label: ${label}. Available labels: ${availableLabels.join(', ') || 'none'}.`,
+    );
   }
   return node;
 };
@@ -49,11 +62,14 @@ const findHostNodesByTestId = (
   }
 
   return tree.root.findAll(
-    (item: ReactTestInstance) => item.props?.testID === testID && typeof item.type === 'string',
+    (item: ReactTestInstance) =>
+      item.props?.testID === testID && typeof item.type === 'string',
   );
 };
 
-const createTestTree = (props: SelectFieldViewProps): {
+const createTestTree = (
+  props: SelectFieldViewProps,
+): {
   tree: renderer.ReactTestRenderer;
   cleanup: () => void;
 } => {
@@ -73,7 +89,9 @@ const createTestTree = (props: SelectFieldViewProps): {
   return { tree: renderedTree, cleanup };
 };
 
-const createOption = (overrides: Partial<SelectFieldViewProps['options'][number]> = {}) => ({
+const createOption = (
+  overrides: Partial<SelectFieldViewProps['options'][number]> = {},
+) => ({
   key: 'hello',
   label: 'Hello World',
   isSelected: false,
@@ -89,7 +107,9 @@ const createOption = (overrides: Partial<SelectFieldViewProps['options'][number]
   ...overrides,
 });
 
-const createProps = (overrides: Partial<SelectFieldViewProps> = {}): SelectFieldViewProps => {
+const createProps = (
+  overrides: Partial<SelectFieldViewProps> = {},
+): SelectFieldViewProps => {
   const option = createOption();
   return {
     label: 'Label',
@@ -109,7 +129,10 @@ const createProps = (overrides: Partial<SelectFieldViewProps> = {}): SelectField
     fieldBackgroundHover: 'lightgray',
     fieldBackgroundPressed: 'gray',
     fieldStyleOverrides: [],
-    fieldPressableProps: { accessibilityLabel: 'Select field', onPress: jest.fn() },
+    fieldPressableProps: {
+      accessibilityLabel: 'Select field',
+      onPress: jest.fn(),
+    },
     fieldPressableRef: React.createRef(),
     fieldWrapperRef: React.createRef(),
     onFieldWrapperLayout: jest.fn(),
@@ -209,7 +232,9 @@ describe('SelectFieldView', () => {
     const { tree, cleanup } = createTestTree(props);
 
     try {
-      expect(findHostNodesByTestId(tree, 'select-field-portal-input')).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-input'),
+      ).toHaveLength(1);
       expect(findByAccessibilityLabel(tree, 'Select Hello World')).toBeTruthy();
     } finally {
       cleanup();
@@ -250,7 +275,9 @@ describe('SelectFieldView', () => {
     const { tree, cleanup } = createTestTree(props);
 
     try {
-      expect(findHostNodesByTestId(tree, 'select-field-portal-input')).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-input'),
+      ).toHaveLength(1);
     } finally {
       cleanup();
     }
@@ -265,10 +292,18 @@ describe('SelectFieldView', () => {
     const { tree, cleanup } = createTestTree(initialProps);
 
     try {
-      expect(findHostNodesByTestId(tree, 'select-field-portal-backdrop-slot')).toHaveLength(1);
-      expect(findHostNodesByTestId(tree, 'select-field-portal-input-slot')).toHaveLength(1);
-      expect(findHostNodesByTestId(tree, 'select-field-portal-icon-slot')).toHaveLength(1);
-      expect(findHostNodesByTestId(tree, 'select-field-portal-options-slot')).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-backdrop-slot'),
+      ).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-input-slot'),
+      ).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-icon-slot'),
+      ).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-options-slot'),
+      ).toHaveLength(1);
 
       rendererAct(() => {
         tree.update(
@@ -283,10 +318,18 @@ describe('SelectFieldView', () => {
         );
       });
 
-      expect(findHostNodesByTestId(tree, 'select-field-portal-backdrop-slot')).toHaveLength(1);
-      expect(findHostNodesByTestId(tree, 'select-field-portal-input-slot')).toHaveLength(1);
-      expect(findHostNodesByTestId(tree, 'select-field-portal-icon-slot')).toHaveLength(1);
-      expect(findHostNodesByTestId(tree, 'select-field-portal-options-slot')).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-backdrop-slot'),
+      ).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-input-slot'),
+      ).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-icon-slot'),
+      ).toHaveLength(1);
+      expect(
+        findHostNodesByTestId(tree, 'select-field-portal-options-slot'),
+      ).toHaveLength(1);
     } finally {
       cleanup();
     }
@@ -319,22 +362,38 @@ describe('SelectFieldView', () => {
     const fieldStyleFn = field.props.style as PressableStyleFunction;
     const pressedFieldStyle = fieldStyleFn({ pressed: true, hovered: false });
     const hoveredFieldStyle = fieldStyleFn({ pressed: false, hovered: true });
-    const pressedFieldBackground = getStyleProperty(pressedFieldStyle, 'backgroundColor');
-    const hoveredFieldBackground = getStyleProperty(hoveredFieldStyle, 'backgroundColor');
+    const pressedFieldBackground = getStyleProperty(
+      pressedFieldStyle,
+      'backgroundColor',
+    );
+    const hoveredFieldBackground = getStyleProperty(
+      hoveredFieldStyle,
+      'backgroundColor',
+    );
 
     expect(pressedFieldBackground).toBe(props.fieldBackgroundPressed);
     expect(hoveredFieldBackground).toBe(props.fieldBackgroundHover);
 
     const highlighted = findByAccessibilityLabel(tree, 'Select Highlighted');
-    const highlightedStyleFn = highlighted.props.style as PressableStyleFunction;
-    const highlightedStyle = highlightedStyleFn({ pressed: false, hovered: false });
-    const highlightedBackground = getStyleProperty(highlightedStyle, 'backgroundColor');
+    const highlightedStyleFn = highlighted.props
+      .style as PressableStyleFunction;
+    const highlightedStyle = highlightedStyleFn({
+      pressed: false,
+      hovered: false,
+    });
+    const highlightedBackground = getStyleProperty(
+      highlightedStyle,
+      'backgroundColor',
+    );
     expect(highlightedBackground).toBe(props.optionFocusedBackgroundColor);
 
     const selected = findByAccessibilityLabel(tree, 'Select Selected');
     const selectedStyleFn = selected.props.style as PressableStyleFunction;
     const selectedStyle = selectedStyleFn({ pressed: false, hovered: false });
-    const selectedBackground = getStyleProperty(selectedStyle, 'backgroundColor');
+    const selectedBackground = getStyleProperty(
+      selectedStyle,
+      'backgroundColor',
+    );
     expect(selectedBackground).toBe(props.optionActiveBackgroundColor);
 
     const hovered = findByAccessibilityLabel(tree, 'Select Hovered');
@@ -365,12 +424,20 @@ describe('SelectFieldView', () => {
     try {
       const option = findByAccessibilityLabel(tree, 'Select Highlighted Web');
       const optionStyleFn = option.props.style as PressableStyleFunction;
-      const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
-      Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+      const originalDescriptor = Object.getOwnPropertyDescriptor(
+        Platform,
+        'OS',
+      );
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: 'web',
+      });
       const originalNavigator = global.navigator;
       Object.defineProperty(global, 'navigator', {
         configurable: true,
-        value: { userAgent: 'Mozilla/5.0 AppleWebKit/605.1.15 Safari/605.1.15' },
+        value: {
+          userAgent: 'Mozilla/5.0 AppleWebKit/605.1.15 Safari/605.1.15',
+        },
       });
 
       try {
@@ -382,9 +449,15 @@ describe('SelectFieldView', () => {
         expect(outlineColor).toBe(props.optionFocusedRingColor);
       } finally {
         if (originalNavigator !== undefined) {
-          Object.defineProperty(global, 'navigator', { configurable: true, value: originalNavigator });
+          Object.defineProperty(global, 'navigator', {
+            configurable: true,
+            value: originalNavigator,
+          });
         } else {
-          Object.defineProperty(global, 'navigator', { configurable: true, value: undefined });
+          Object.defineProperty(global, 'navigator', {
+            configurable: true,
+            value: undefined,
+          });
         }
         if (originalDescriptor) {
           Object.defineProperty(Platform, 'OS', originalDescriptor);
@@ -408,14 +481,26 @@ describe('SelectFieldView', () => {
     });
     const { tree, cleanup } = createTestTree(props);
     try {
-      const option = findByAccessibilityLabel(tree, 'Select Highlighted Web Non Safari');
+      const option = findByAccessibilityLabel(
+        tree,
+        'Select Highlighted Web Non Safari',
+      );
       const optionStyleFn = option.props.style as PressableStyleFunction;
-      const originalDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
-      Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+      const originalDescriptor = Object.getOwnPropertyDescriptor(
+        Platform,
+        'OS',
+      );
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: 'web',
+      });
       const originalNavigator = global.navigator;
       Object.defineProperty(global, 'navigator', {
         configurable: true,
-        value: { userAgent: 'Mozilla/5.0 AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
+        value: {
+          userAgent:
+            'Mozilla/5.0 AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+        },
       });
 
       try {
@@ -425,9 +510,15 @@ describe('SelectFieldView', () => {
         expect(outlineStyle).toBe('auto');
       } finally {
         if (originalNavigator !== undefined) {
-          Object.defineProperty(global, 'navigator', { configurable: true, value: originalNavigator });
+          Object.defineProperty(global, 'navigator', {
+            configurable: true,
+            value: originalNavigator,
+          });
         } else {
-          Object.defineProperty(global, 'navigator', { configurable: true, value: undefined });
+          Object.defineProperty(global, 'navigator', {
+            configurable: true,
+            value: undefined,
+          });
         }
         if (originalDescriptor) {
           Object.defineProperty(Platform, 'OS', originalDescriptor);

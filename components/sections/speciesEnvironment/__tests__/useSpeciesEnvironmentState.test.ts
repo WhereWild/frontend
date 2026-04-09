@@ -41,8 +41,20 @@ const continuousStats: SpeciesEnvironmentStats = {
   histogram: { bins: [0, 10, 20], counts: [10, 10] },
   densityCurve: { points: [1, 10, 19], density: [0.1, 0.9, 0.1] },
   relativeRanks: [
-    { metric: 'mean', label: 'Mammalia', rank: 2, count: 100, percentile: 0.98 },
-    { metric: 'mean', label: 'Chordata', rank: 10, count: 500, percentile: 0.90 },
+    {
+      metric: 'mean',
+      label: 'Mammalia',
+      rank: 2,
+      count: 100,
+      percentile: 0.98,
+    },
+    {
+      metric: 'mean',
+      label: 'Chordata',
+      rank: 10,
+      count: 500,
+      percentile: 0.9,
+    },
   ],
 };
 
@@ -78,6 +90,31 @@ const variableCatalog: EnvironmentVariableDefinition[] = [
   },
 ];
 
+const variableOptions: EnvironmentVariableOption[] = [
+  {
+    id: 'bio_1',
+    label: 'Annual Temperature',
+    units: 'C',
+    valueType: 'continuous',
+    category: 'Climate',
+  },
+  {
+    id: 'landcover',
+    label: 'Land Cover',
+    units: null,
+    valueType: 'categorical',
+    category: 'Categorical',
+  },
+];
+
+const continuousVariableOptions: EnvironmentVariableOption[] = [
+  variableOptions[0],
+];
+
+const categoricalVariableOptions: EnvironmentVariableOption[] = [
+  variableOptions[1],
+];
+
 describe('useSpeciesEnvironmentState', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -87,7 +124,9 @@ describe('useSpeciesEnvironmentState', () => {
       range: { min: 2, max: 12 },
       limit: null,
       count: 1,
-      observations: [{ catalogNumber: 42, value: 8.5, latitude: 0, longitude: 0 }],
+      observations: [
+        { catalogNumber: 42, value: 8.5, latitude: 0, longitude: 0 },
+      ],
     } satisfies SpeciesEnvironmentSliceResponse);
     mockFetchPointEnvironmentValue.mockResolvedValue({
       variable: 'bio_1',
@@ -100,14 +139,28 @@ describe('useSpeciesEnvironmentState', () => {
     });
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('loads variable metadata and continuous stats', async () => {
     mockFetchEnvironmentVariables.mockResolvedValue([
-      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Climate' },
+      {
+        id: 'bio_1',
+        name: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+        category: 'Climate',
+      },
     ]);
     mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: [variableOptions[0]],
+      }),
     );
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
@@ -129,12 +182,17 @@ describe('useSpeciesEnvironmentState', () => {
   });
 
   it('handles variable catalog fetch failure gracefully', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
     mockFetchEnvironmentVariables.mockRejectedValue(new Error('no catalog'));
     mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+      }),
     );
 
     await waitFor(() => {
@@ -157,6 +215,7 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'bio_1',
         onHighlightChange,
+        variables: continuousVariableOptions,
       }),
     );
 
@@ -166,7 +225,9 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.handleDensitySelectionChange({ start: 2, end: 12 });
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([42]));
   });
 
@@ -180,6 +241,7 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'landcover',
         onHighlightChange,
+        variables: categoricalVariableOptions,
       }),
     );
 
@@ -190,7 +252,9 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
   });
 
   it('derives pinnedCategoryValue for categorical variables from the selected location lookup', async () => {
@@ -215,7 +279,14 @@ describe('useSpeciesEnvironmentState', () => {
       speciesId: 1,
       variable: 'landcover',
       classValue: 41,
-      observations: [{ catalogNumber: 'OBS-1', value: null, latitude: null, longitude: null }],
+      observations: [
+        {
+          catalogNumber: 'OBS-1',
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
+      ],
       count: 1,
     });
 
@@ -264,7 +335,11 @@ describe('useSpeciesEnvironmentState', () => {
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'landcover',
-        pinnedObservation: { catalogNumber: 'PIN-POINT', lat: 40.2, lon: -105.1 },
+        pinnedObservation: {
+          catalogNumber: 'PIN-POINT',
+          lat: 40.2,
+          lon: -105.1,
+        },
       }),
     );
 
@@ -310,7 +385,11 @@ describe('useSpeciesEnvironmentState', () => {
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'landcover',
-        pinnedObservation: { catalogNumber: 'PIN-POINT', lat: 40.2, lon: -105.1 },
+        pinnedObservation: {
+          catalogNumber: 'PIN-POINT',
+          lat: 40.2,
+          lon: -105.1,
+        },
       }),
     );
 
@@ -347,7 +426,14 @@ describe('useSpeciesEnvironmentState', () => {
       speciesId: 1,
       variable: 'landcover',
       classValue: 'Forest',
-      observations: [{ catalogNumber: 'OBS-1', value: null, latitude: null, longitude: null }],
+      observations: [
+        {
+          catalogNumber: 'OBS-1',
+          value: null,
+          latitude: null,
+          longitude: null,
+        },
+      ],
       count: 1,
     });
 
@@ -355,7 +441,11 @@ describe('useSpeciesEnvironmentState', () => {
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'landcover',
-        pinnedObservation: { catalogNumber: 'PIN-LABEL', lat: 40.2, lon: -105.1 },
+        pinnedObservation: {
+          catalogNumber: 'PIN-LABEL',
+          lat: 40.2,
+          lon: -105.1,
+        },
       }),
     );
 
@@ -396,7 +486,11 @@ describe('useSpeciesEnvironmentState', () => {
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'landcover',
-        pinnedObservation: { catalogNumber: 'PIN-LABEL-OOD', lat: 40.2, lon: -105.1 },
+        pinnedObservation: {
+          catalogNumber: 'PIN-LABEL-OOD',
+          lat: 40.2,
+          lon: -105.1,
+        },
       }),
     );
 
@@ -441,7 +535,11 @@ describe('useSpeciesEnvironmentState', () => {
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'landcover',
-        pinnedObservation: { catalogNumber: 'PIN-PRECEDENCE', lat: 40.2, lon: -105.1 },
+        pinnedObservation: {
+          catalogNumber: 'PIN-PRECEDENCE',
+          lat: 40.2,
+          lon: -105.1,
+        },
       }),
     );
 
@@ -525,6 +623,7 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'bio_1',
         locationGid: 'USA.1_1',
+        variables: continuousVariableOptions,
       }),
     );
 
@@ -540,7 +639,11 @@ describe('useSpeciesEnvironmentState', () => {
     mockFetchSpeciesEnvironment.mockRejectedValue(new Error('stats failed'));
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: continuousVariableOptions,
+      }),
     );
 
     await waitFor(() => expect(result.current.error).toBe('stats failed'));
@@ -557,11 +660,17 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: continuousVariableOptions,
+      }),
     );
 
     await waitFor(() =>
-      expect(result.current.error).toBe('Received malformed histogram data from environment API'),
+      expect(result.current.error).toBe(
+        'Received malformed histogram data from environment API',
+      ),
     );
     expect(result.current.stats).toBeNull();
   });
@@ -576,6 +685,7 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'bio_1',
         onHighlightChange,
+        variables: continuousVariableOptions,
       }),
     );
 
@@ -584,7 +694,10 @@ describe('useSpeciesEnvironmentState', () => {
     act(() => {
       result.current.handleDensitySelectionChange({ start: 1, end: 2 });
     });
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled());
+
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+    );
 
     act(() => {
       result.current.handleDensitySelectionChange(null);
@@ -599,13 +712,16 @@ describe('useSpeciesEnvironmentState', () => {
       ...categoricalStats,
       categoricalSamples: [],
     });
-    mockFetchSpeciesEnvironmentCategorySamples.mockRejectedValue(new Error('samples failed'));
+    mockFetchSpeciesEnvironmentCategorySamples.mockRejectedValue(
+      new Error('samples failed'),
+    );
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'landcover',
         onHighlightChange,
+        variables: categoricalVariableOptions,
       }),
     );
 
@@ -615,14 +731,20 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
 
   it('does not fetch stats when taxonId is missing', async () => {
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
-
-    renderHook(() => useSpeciesEnvironmentState({ taxonId: undefined, variableId: 'bio_1' }));
+    renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: undefined,
+        variableId: 'bio_1',
+        variables: continuousVariableOptions,
+      }),
+    );
 
     await waitFor(() => {
       expect(mockFetchSpeciesEnvironment).not.toHaveBeenCalled();
@@ -638,8 +760,20 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: '',
         variables: [
-          { id: 'bio_2', label: 'Temp 2', category: 'Zeta', valueType: 'continuous', units: 'C' },
-          { id: 'bio_1', label: 'Temp 1', category: 'Alpha', valueType: 'continuous', units: 'C' },
+          {
+            id: 'bio_2',
+            label: 'Temp 2',
+            category: 'Zeta',
+            valueType: 'continuous',
+            units: 'C',
+          },
+          {
+            id: 'bio_1',
+            label: 'Temp 1',
+            category: 'Alpha',
+            valueType: 'continuous',
+            units: 'C',
+          },
         ],
       }),
     );
@@ -660,8 +794,20 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'bio_1',
         variables: [
-          { id: 'bio_1', label: 'Temp 1', category: 'Climate', valueType: 'continuous', units: 'C' },
-          { id: 'bio_12', label: 'Annual Rain', category: 'Rainfall', valueType: 'continuous', units: 'mm' },
+          {
+            id: 'bio_1',
+            label: 'Temp 1',
+            category: 'Climate',
+            valueType: 'continuous',
+            units: 'C',
+          },
+          {
+            id: 'bio_12',
+            label: 'Annual Rain',
+            category: 'Rainfall',
+            valueType: 'continuous',
+            units: 'mm',
+          },
         ],
       }),
     );
@@ -675,21 +821,42 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.setSelectedVariableCategory('Rainfall');
     });
 
-    expect(result.current.selectedVariableCategory).toBe('Rainfall');
-    expect(result.current.selectedVariable).toBe('bio_12');
+    await waitFor(() => {
+      expect(result.current.selectedVariableCategory).toBe('Rainfall');
+      expect(result.current.selectedVariable).toBe('bio_12');
+    });
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesEnvironment).toHaveBeenCalledWith(1, 'bio_12', {
+        location: undefined,
+        units: undefined,
+      });
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   it('computes histogram fallback ranks when relative ranks are unavailable', async () => {
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue({
       ...continuousStats,
       relativeRanks: [],
       histogram: { bins: [0, 10, 20], counts: [5, 5] },
-      summary: { count: 10, min: 1, mean: 10, max: 19, stddev: 2, q01: 2, q99: 18 },
+      summary: {
+        count: 10,
+        min: 1,
+        mean: 10,
+        max: 19,
+        stddev: 2,
+        q01: 2,
+        q99: 18,
+      },
     });
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: continuousVariableOptions,
+      }),
     );
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
@@ -701,15 +868,35 @@ describe('useSpeciesEnvironmentState', () => {
   });
 
   it('builds baseline comparisons in location filter mode', async () => {
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue({
       ...continuousStats,
-      summary: { count: 10, min: 1, mean: 8, max: 12, stddev: 2, q01: 2, q99: 11 },
-      baselineSummary: { count: 100, min: 0, mean: 10, max: 20, stddev: 4, q01: 1, q99: 19 },
+      summary: {
+        count: 10,
+        min: 1,
+        mean: 8,
+        max: 12,
+        stddev: 2,
+        q01: 2,
+        q99: 11,
+      },
+      baselineSummary: {
+        count: 100,
+        min: 0,
+        mean: 10,
+        max: 20,
+        stddev: 4,
+        q01: 1,
+        q99: 19,
+      },
     });
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1', locationGid: 'USA.1_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        locationGid: 'USA.1_1',
+        variables: continuousVariableOptions,
+      }),
     );
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
@@ -721,7 +908,6 @@ describe('useSpeciesEnvironmentState', () => {
 
   it('fetches category samples with location filter when categorical samples are not preloaded', async () => {
     const onHighlightChange = jest.fn();
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue({
       ...categoricalStats,
       categoricalSamples: [{ value: 'forest', observationIds: ['LOCAL-A'] }],
@@ -731,7 +917,9 @@ describe('useSpeciesEnvironmentState', () => {
       variable: 'landcover',
       classValue: 'forest',
       count: 1,
-      observations: [{ catalogNumber: 'REMOTE-1', value: null, latitude: 0, longitude: 0 }],
+      observations: [
+        { catalogNumber: 'REMOTE-1', value: null, latitude: 0, longitude: 0 },
+      ],
     } satisfies SpeciesEnvironmentCategorySampleResponse);
 
     const { result } = renderHook(() =>
@@ -740,6 +928,7 @@ describe('useSpeciesEnvironmentState', () => {
         variableId: 'landcover',
         locationGid: 'USA.1_1',
         onHighlightChange,
+        variables: categoricalVariableOptions,
       }),
     );
 
@@ -749,7 +938,9 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
+    );
     expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
       1,
       'landcover',
@@ -761,7 +952,6 @@ describe('useSpeciesEnvironmentState', () => {
 
   it('does not fetch category samples when preloaded categorical samples are available', async () => {
     const onHighlightChange = jest.fn();
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue(categoricalStats);
 
     const { result } = renderHook(() =>
@@ -769,6 +959,7 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'landcover',
         onHighlightChange,
+        variables: categoricalVariableOptions,
       }),
     );
 
@@ -778,13 +969,14 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.setSelectedCategoryValue('forest');
     });
 
-    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
   });
 
   it('clears highlights when range slice fetch fails', async () => {
     const onHighlightChange = jest.fn();
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
     mockFetchEnvironmentRangeSlice.mockRejectedValue(new Error('range failed'));
 
@@ -793,6 +985,7 @@ describe('useSpeciesEnvironmentState', () => {
         taxonId: 1,
         variableId: 'bio_1',
         onHighlightChange,
+        variables: continuousVariableOptions,
       }),
     );
 
@@ -802,12 +995,13 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.handleDensitySelectionChange({ start: 3, end: 7 });
     });
 
-    await waitFor(() => expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+    );
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
 
   it('updates meta text for active density selection', async () => {
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
     mockFetchEnvironmentRangeSlice.mockResolvedValue({
       speciesId: 1,
@@ -822,7 +1016,11 @@ describe('useSpeciesEnvironmentState', () => {
     } satisfies SpeciesEnvironmentSliceResponse);
 
     const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({ taxonId: 1, variableId: 'bio_1' }),
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: continuousVariableOptions,
+      }),
     );
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
@@ -842,9 +1040,27 @@ describe('useSpeciesEnvironmentState', () => {
     mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
 
     const initialVariables: EnvironmentVariableOption[] = [
-      { id: 'bio_1', label: 'Temp 1', category: 'Alpha', valueType: 'continuous', units: 'C' },
-      { id: 'bio_2', label: 'Temp 2', category: 'Alpha', valueType: 'continuous', units: 'C' },
-      { id: 'bio_9', label: 'Temp 9', category: 'Zeta', valueType: 'continuous', units: 'C' },
+      {
+        id: 'bio_1',
+        label: 'Temp 1',
+        category: 'Alpha',
+        valueType: 'continuous',
+        units: 'C',
+      },
+      {
+        id: 'bio_2',
+        label: 'Temp 2',
+        category: 'Alpha',
+        valueType: 'continuous',
+        units: 'C',
+      },
+      {
+        id: 'bio_9',
+        label: 'Temp 9',
+        category: 'Zeta',
+        valueType: 'continuous',
+        units: 'C',
+      },
     ];
 
     const { result, rerender } = renderHook(
@@ -868,9 +1084,27 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const updatedVariables: EnvironmentVariableOption[] = [
-      { id: 'bio_3', label: 'Temp 3', category: 'Alpha', valueType: 'continuous', units: 'C' },
-      { id: 'bio_2', label: 'Temp 2', category: 'Alpha', valueType: 'continuous', units: 'C' },
-      { id: 'bio_9', label: 'Temp 9', category: 'Zeta', valueType: 'continuous', units: 'C' },
+      {
+        id: 'bio_3',
+        label: 'Temp 3',
+        category: 'Alpha',
+        valueType: 'continuous',
+        units: 'C',
+      },
+      {
+        id: 'bio_2',
+        label: 'Temp 2',
+        category: 'Alpha',
+        valueType: 'continuous',
+        units: 'C',
+      },
+      {
+        id: 'bio_9',
+        label: 'Temp 9',
+        category: 'Zeta',
+        valueType: 'continuous',
+        units: 'C',
+      },
     ];
 
     rerender({ variables: updatedVariables });
@@ -882,19 +1116,21 @@ describe('useSpeciesEnvironmentState', () => {
   });
 
   it('keeps valid selected rank context and falls back to first option when invalid', async () => {
-    mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue(continuousStats);
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
         taxonId: 1,
         variableId: 'bio_1',
+        variables: continuousVariableOptions,
       }),
     );
 
     await waitFor(() => {
       expect(result.current.rankContextOptions.length).toBeGreaterThan(0);
-      expect(result.current.selectedRankContext).toBe(result.current.rankContextOptions[0].key);
+      expect(result.current.selectedRankContext).toBe(
+        result.current.rankContextOptions[0].key,
+      );
     });
 
     act(() => {
@@ -910,7 +1146,9 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.selectedRankContext).toBe(result.current.rankContextOptions[0].key);
+      expect(result.current.selectedRankContext).toBe(
+        result.current.rankContextOptions[0].key,
+      );
     });
   });
 });

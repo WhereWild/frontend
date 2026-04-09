@@ -60,9 +60,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={null}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
       />,
     );
     expect(screen.getByText('Density curve unavailable.')).toBeTruthy();
@@ -72,9 +72,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={undefined}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
       />,
     );
     expect(screen.getByText('Density curve unavailable.')).toBeTruthy();
@@ -84,9 +84,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={{ points: [0, 90, 180, 270], density: [0, 0, 0, 0] }}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
       />,
     );
     expect(screen.getByText('Density curve unavailable.')).toBeTruthy();
@@ -96,9 +96,9 @@ describe('PolarDensityChart', () => {
     const { UNSAFE_root } = render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
       />,
     );
     expect(screen.queryByText('Density curve unavailable.')).toBeNull();
@@ -110,23 +110,31 @@ describe('PolarDensityChart', () => {
     const { UNSAFE_root } = render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         selection={null}
         onSelectionChange={onSelectionChange}
       />,
     );
 
     const wrapper = UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
+      (node) =>
+        typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
     )[0];
 
-    fireEvent(wrapper, 'responderGrant', { nativeEvent: { locationX: 130, locationY: 130 } });
-    fireEvent(wrapper, 'responderMove', { nativeEvent: { locationX: 200, locationY: 130 } });
+    fireEvent(wrapper, 'responderGrant', {
+      nativeEvent: { locationX: 130, locationY: 130 },
+    });
+    fireEvent(wrapper, 'responderMove', {
+      nativeEvent: { locationX: 200, locationY: 130 },
+    });
 
     const rangeCalls = onSelectionChange.mock.calls.filter(
-      (call) => call[0] && typeof call[0].start === 'number' && typeof call[0].end === 'number',
+      (call) =>
+        call[0] &&
+        typeof call[0].start === 'number' &&
+        typeof call[0].end === 'number',
     );
     expect(rangeCalls.length).toBeGreaterThan(0);
   });
@@ -136,19 +144,22 @@ describe('PolarDensityChart', () => {
     const { UNSAFE_root } = render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         selection={{ start: 45, end: 135 }}
         onSelectionChange={onSelectionChange}
       />,
     );
 
     const wrapper = UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
+      (node) =>
+        typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
     )[0];
 
-    fireEvent(wrapper, 'responderGrant', { nativeEvent: { locationX: 130, locationY: 50 } });
+    fireEvent(wrapper, 'responderGrant', {
+      nativeEvent: { locationX: 130, locationY: 50 },
+    });
     fireEvent(wrapper, 'responderRelease', { nativeEvent: {} });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
@@ -159,19 +170,22 @@ describe('PolarDensityChart', () => {
     const { UNSAFE_root } = render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         selection={null}
         onSelectionChange={onSelectionChange}
       />,
     );
 
     const wrapper = UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
+      (node) =>
+        typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
     )[0];
 
-    fireEvent(wrapper, 'responderGrant', { nativeEvent: { locationX: 130, locationY: 50 } });
+    fireEvent(wrapper, 'responderGrant', {
+      nativeEvent: { locationX: 130, locationY: 50 },
+    });
     fireEvent(wrapper, 'responderTerminate', { nativeEvent: {} });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
@@ -182,24 +196,31 @@ describe('PolarDensityChart', () => {
     const { UNSAFE_root } = render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         selection={null}
         onSelectionChange={onSelectionChange}
       />,
     );
 
     const wrapper = UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
+      (node) =>
+        typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
     )[0];
 
-    fireEvent(wrapper, 'responderGrant', { nativeEvent: { locationX: 130, locationY: 50 } });
-    fireEvent(wrapper, 'responderMove', { nativeEvent: { locationX: 200, locationY: 130 } });
+    fireEvent(wrapper, 'responderGrant', {
+      nativeEvent: { locationX: 130, locationY: 50 },
+    });
+    fireEvent(wrapper, 'responderMove', {
+      nativeEvent: { locationX: 200, locationY: 130 },
+    });
     onSelectionChange.mockClear();
     fireEvent(wrapper, 'responderRelease', { nativeEvent: {} });
 
-    const nullCalls = onSelectionChange.mock.calls.filter((call) => call[0] === null);
+    const nullCalls = onSelectionChange.mock.calls.filter(
+      (call) => call[0] === null,
+    );
     expect(nullCalls).toHaveLength(0);
   });
 
@@ -208,25 +229,32 @@ describe('PolarDensityChart', () => {
     const { UNSAFE_root } = render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         selection={null}
         onSelectionChange={onSelectionChange}
       />,
     );
 
     const wrapper = UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
+      (node) =>
+        typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
     )[0];
 
-    fireEvent(wrapper, 'responderGrant', { nativeEvent: { locationX: 130, locationY: 50 } });
-    fireEvent(wrapper, 'responderMove', { nativeEvent: { locationX: 200, locationY: 130 } });
+    fireEvent(wrapper, 'responderGrant', {
+      nativeEvent: { locationX: 130, locationY: 50 },
+    });
+    fireEvent(wrapper, 'responderMove', {
+      nativeEvent: { locationX: 200, locationY: 130 },
+    });
     fireEvent(wrapper, 'responderRelease', { nativeEvent: {} });
 
     onSelectionChange.mockClear();
 
-    fireEvent(wrapper, 'responderGrant', { nativeEvent: { locationX: 130, locationY: 50 } });
+    fireEvent(wrapper, 'responderGrant', {
+      nativeEvent: { locationX: 130, locationY: 50 },
+    });
     fireEvent(wrapper, 'responderRelease', { nativeEvent: {} });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
@@ -236,9 +264,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={90}
         pinLoading={false}
       />,
@@ -252,9 +280,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={182.7}
         pinLoading={false}
       />,
@@ -267,9 +295,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={90}
         pinLoading={true}
       />,
@@ -283,9 +311,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={null}
         pinLoading={false}
       />,
@@ -298,9 +326,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
       />,
     );
 
@@ -312,9 +340,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={3}
         pinLoading={false}
       />,
@@ -331,9 +359,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={357}
         pinLoading={false}
       />,
@@ -348,9 +376,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
         pinValue={6}
         pinLoading={false}
       />,
@@ -363,9 +391,9 @@ describe('PolarDensityChart', () => {
     render(
       <PolarDensityChart
         curve={validCurve}
-        fillColor="#000"
-        lineColor="#000"
-        guideColor="#999"
+        fillColor='#000'
+        lineColor='#000'
+        guideColor='#999'
       />,
     );
 

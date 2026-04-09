@@ -71,14 +71,17 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
   const previousTargetTabKeyRef = React.useRef<string | null>(null);
   // Keep explicit animation refs to prevent transient re-renders from canceling
   // in-flight indicator motion/stretch during fast screen transitions.
-  const indicatorMovementAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
-  const indicatorStretchAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
+  const indicatorMovementAnimationRef =
+    React.useRef<Animated.CompositeAnimation | null>(null);
+  const indicatorStretchAnimationRef =
+    React.useRef<Animated.CompositeAnimation | null>(null);
 
   const indicatorBackgroundColor = React.useMemo(
-    () => indicatorPressedProgress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [activeColor, pressedColor],
-    }),
+    () =>
+      indicatorPressedProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [activeColor, pressedColor],
+      }),
     [activeColor, indicatorPressedProgress, pressedColor],
   );
 
@@ -101,9 +104,11 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
       return;
     }
 
-    const didTargetTabKeyChange = previousTargetTabKeyRef.current !== targetTabKey;
+    const didTargetTabKeyChange =
+      previousTargetTabKeyRef.current !== targetTabKey;
     const targetSignature = `${targetTabKey ?? ''}|${targetLayout.x}|${targetLayout.width}`;
-    const didTargetChange = previousTargetSignatureRef.current !== targetSignature;
+    const didTargetChange =
+      previousTargetSignatureRef.current !== targetSignature;
     const previousTargetX = previousTargetXRef.current;
 
     indicatorMovementAnimationRef.current?.stop();
@@ -125,10 +130,17 @@ export function useNavigationBarIndicator<TTab extends TabWithKey>({
     previousTargetTabKeyRef.current = targetTabKey;
 
     if (didTargetChange && !isResizing) {
-      const travelDistance = previousTargetX === null ? 0 : Math.abs(targetLayout.x - previousTargetX);
+      const travelDistance =
+        previousTargetX === null
+          ? 0
+          : Math.abs(targetLayout.x - previousTargetX);
       const didIndicatorMove = travelDistance > 0;
-      const normalizedTravel = Math.min(1, travelDistance / STRETCH_DISTANCE_NORMALIZER_PX);
-      const stretchPeak = STRETCH_BASE_SCALE + normalizedTravel * STRETCH_SCALE_RANGE;
+      const normalizedTravel = Math.min(
+        1,
+        travelDistance / STRETCH_DISTANCE_NORMALIZER_PX,
+      );
+      const stretchPeak =
+        STRETCH_BASE_SCALE + normalizedTravel * STRETCH_SCALE_RANGE;
 
       if (didIndicatorMove) {
         // Stretch is intentionally tied to user-visible travel changes, not to

@@ -1,4 +1,8 @@
-import { BACKEND_BASE, fetchSpeciesList, fetchRelativeRankings } from '@/data/api';
+import {
+  BACKEND_BASE,
+  fetchSpeciesList,
+  fetchRelativeRankings,
+} from '@/data/api';
 import type { SearchFilterParams } from '@/data/api';
 import { SpeciesApiNormalized, SpeciesSummary } from '@/data/types';
 import { mapSpeciesApiNormalizedToSummary } from '@/data/speciesSummaryMapper';
@@ -16,12 +20,12 @@ let persistedHeaderSearchQuery = '';
 const canUseRankingSearch = (filterParams?: SearchFilterParams) => {
   const ancestorTaxonId = filterParams?.ancestorTaxonId;
   return (
-    typeof ancestorTaxonId === 'number'
-    && Number.isFinite(ancestorTaxonId)
-    && typeof filterParams?.sortVariable === 'string'
-    && filterParams.sortVariable.length > 0
-    && typeof filterParams?.sortMetric === 'string'
-    && filterParams.sortMetric.length > 0
+    typeof ancestorTaxonId === 'number' &&
+    Number.isFinite(ancestorTaxonId) &&
+    typeof filterParams?.sortVariable === 'string' &&
+    filterParams.sortVariable.length > 0 &&
+    typeof filterParams?.sortMetric === 'string' &&
+    filterParams.sortMetric.length > 0
   );
 };
 
@@ -36,11 +40,13 @@ const extractImageFileName = (imageFile?: string | null) => {
     return '';
   }
 
-  return trimmed
-    .replace(/^images\//, '')
-    .split(/[\\/]/)
-    .filter(Boolean)
-    .pop() ?? '';
+  return (
+    trimmed
+      .replace(/^images\//, '')
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .pop() ?? ''
+  );
 };
 
 /** Normalizes optional string inputs to a trimmed non-empty string, or null. */
@@ -108,40 +114,54 @@ const buildRankedDescription = (
   units?: string | null,
 ) => {
   const normalizedUnits = normalizeUnitLabel(units);
-  const valuePart = typeof entry.value === 'number' && Number.isFinite(entry.value)
-    ? `${formatMetricNumber(entry.value)}${normalizedUnits ? ` ${normalizedUnits}` : ''}`
-    : null;
+  const valuePart =
+    typeof entry.value === 'number' && Number.isFinite(entry.value)
+      ? `${formatMetricNumber(entry.value)}${normalizedUnits ? ` ${normalizedUnits}` : ''}`
+      : null;
 
-  const rankPart = typeof entry.position === 'number'
-    && Number.isFinite(entry.position)
-    && typeof totalResults === 'number'
-    && Number.isFinite(totalResults)
-    && totalResults > 0
-    ? `Rank ${Math.trunc(entry.position)} of ${Math.trunc(totalResults)}`
-    : null;
+  const rankPart =
+    typeof entry.position === 'number' &&
+    Number.isFinite(entry.position) &&
+    typeof totalResults === 'number' &&
+    Number.isFinite(totalResults) &&
+    totalResults > 0
+      ? `Rank ${Math.trunc(entry.position)} of ${Math.trunc(totalResults)}`
+      : null;
 
-  const percentileFromEntry = typeof entry.percentile === 'number' && Number.isFinite(entry.percentile)
-    ? entry.percentile
-    : null;
-  const percentileFromRank = rankPart && typeof entry.position === 'number' && typeof totalResults === 'number'
-    ? (1 - ((entry.position - 1) / totalResults)) * 100
-    : null;
+  const percentileFromEntry =
+    typeof entry.percentile === 'number' && Number.isFinite(entry.percentile)
+      ? entry.percentile
+      : null;
+  const percentileFromRank =
+    rankPart &&
+    typeof entry.position === 'number' &&
+    typeof totalResults === 'number'
+      ? (1 - (entry.position - 1) / totalResults) * 100
+      : null;
   const percentile = percentileFromEntry ?? percentileFromRank;
-  const percentilePercentage = typeof percentile === 'number'
-    ? normalizePercentileToPercentage(percentile)
-    : null;
-  const percentilePart = typeof percentilePercentage === 'number'
-    ? `Percentile ${formatMetricNumber(percentilePercentage)}%`
-    : null;
+  const percentilePercentage =
+    typeof percentile === 'number'
+      ? normalizePercentileToPercentage(percentile)
+      : null;
+  const percentilePart =
+    typeof percentilePercentage === 'number'
+      ? `Percentile ${formatMetricNumber(percentilePercentage)}%`
+      : null;
 
-  const sampleValue = typeof entry.sampleCount === 'number' && Number.isFinite(entry.sampleCount)
-    ? entry.sampleCount
-    : (typeof entry.count === 'number' && Number.isFinite(entry.count) ? entry.count : null);
-  const samplePart = typeof sampleValue === 'number'
-    ? `Samples ${formatMetricNumber(sampleValue)}`
-    : null;
+  const sampleValue =
+    typeof entry.sampleCount === 'number' && Number.isFinite(entry.sampleCount)
+      ? entry.sampleCount
+      : typeof entry.count === 'number' && Number.isFinite(entry.count)
+        ? entry.count
+        : null;
+  const samplePart =
+    typeof sampleValue === 'number'
+      ? `Samples ${formatMetricNumber(sampleValue)}`
+      : null;
 
-  const parts = [valuePart, rankPart, percentilePart, samplePart].filter((part): part is string => Boolean(part));
+  const parts = [valuePart, rankPart, percentilePart, samplePart].filter(
+    (part): part is string => Boolean(part),
+  );
   return parts.length > 0 ? parts.join(' | ') : 'Tap to view species details';
 };
 
@@ -170,7 +190,9 @@ const resolveImageUri = (entry: {
 };
 
 /** Maps normalized species-list entries into card-ready summaries. */
-const mapSearchResultToSummary = (entry: SpeciesApiNormalized): SpeciesSummary | null =>
+const mapSearchResultToSummary = (
+  entry: SpeciesApiNormalized,
+): SpeciesSummary | null =>
   mapSpeciesApiNormalizedToSummary(entry, {
     includeRawDescription: false,
     fallbackDescription: '',
@@ -194,12 +216,14 @@ const mapRelativeRankingToSummary = (
   totalResults?: number | null,
   units?: string | null,
 ): SpeciesSummary | null => {
-  const taxonId = typeof entry.taxonId === 'number' ? entry.taxonId : Number(entry.taxonId);
+  const taxonId =
+    typeof entry.taxonId === 'number' ? entry.taxonId : Number(entry.taxonId);
   if (!Number.isFinite(taxonId)) {
     return null;
   }
 
-  const scientificName = normalizeDisplayName(entry.scientificName) ?? `Taxon #${taxonId}`;
+  const scientificName =
+    normalizeDisplayName(entry.scientificName) ?? `Taxon #${taxonId}`;
   const commonName = normalizeDisplayName(entry.commonName) ?? scientificName;
   const description = buildRankedDescription(entry, totalResults, units);
 
@@ -241,18 +265,25 @@ export function useWebPageHeaderSearch({
   const settings = useOptionalSettings();
   const units = settings?.units;
   const [searchQuery, setSearchQuery] = React.useState(() =>
-    typeof initialQuery === 'string' ? initialQuery : persistedHeaderSearchQuery,
+    typeof initialQuery === 'string'
+      ? initialQuery
+      : persistedHeaderSearchQuery,
   );
   const [debouncedQuery, setDebouncedQuery] = React.useState('');
-  const [searchResults, setSearchResults] = React.useState<SpeciesSummary[]>([]);
+  const [searchResults, setSearchResults] = React.useState<SpeciesSummary[]>(
+    [],
+  );
   const [searching, setSearching] = React.useState(false);
   const [searchError, setSearchError] = React.useState<string | null>(null);
   const [isSearchBarFocused, setIsSearchBarFocused] = React.useState(false);
-  const [isSearchBlurGraceActive, setIsSearchBlurGraceActive] = React.useState(false);
+  const [isSearchBlurGraceActive, setIsSearchBlurGraceActive] =
+    React.useState(false);
 
   const previousInitialQueryRef = React.useRef(initialQuery);
   const debouncedQueryRef = React.useRef(debouncedQuery);
-  const searchBlurGraceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchBlurGraceTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   React.useEffect(() => {
     debouncedQueryRef.current = debouncedQuery;
@@ -378,11 +409,13 @@ export function useWebPageHeaderSearch({
           // Ranking results can be filter-driven even without free-text search.
           const shouldFilterByQuery = loweredQuery.length > 0;
           mapped = rankingPayload.entries
-            .map((entry) => mapRelativeRankingToSummary(
-              entry,
-              rankingPayload.total,
-              rankingPayload.units,
-            ))
+            .map((entry) =>
+              mapRelativeRankingToSummary(
+                entry,
+                rankingPayload.total,
+                rankingPayload.units,
+              ),
+            )
             .filter((result): result is SpeciesSummary => Boolean(result))
             .filter((result) => {
               if (!shouldFilterByQuery) {
@@ -390,7 +423,10 @@ export function useWebPageHeaderSearch({
               }
               const scientific = result.scientificName.toLowerCase();
               const common = result.commonName.toLowerCase();
-              return scientific.includes(loweredQuery) || common.includes(loweredQuery);
+              return (
+                scientific.includes(loweredQuery) ||
+                common.includes(loweredQuery)
+              );
             })
             .slice(0, sliceLimit);
 
@@ -407,7 +443,11 @@ export function useWebPageHeaderSearch({
               numberOfResults: sliceLimit,
             };
 
-            const fallbackPayload = await fetchSpeciesList(sliceLimit, debouncedQuery, fallbackFilters);
+            const fallbackPayload = await fetchSpeciesList(
+              sliceLimit,
+              debouncedQuery,
+              fallbackFilters,
+            );
 
             if (cancelled) {
               return;
@@ -428,7 +468,11 @@ export function useWebPageHeaderSearch({
             ? undefined
             : SEARCH_RESULT_LIMIT * SEARCH_RESULT_OVERFETCH_MULTIPLIER;
           const speciesListFilters = filterParams;
-          const payload = await fetchSpeciesList(defaultLimit, debouncedQuery, speciesListFilters);
+          const payload = await fetchSpeciesList(
+            defaultLimit,
+            debouncedQuery,
+            speciesListFilters,
+          );
 
           if (cancelled) {
             return;
@@ -452,7 +496,9 @@ export function useWebPageHeaderSearch({
         setSearchResults([]);
         onSearchResultsChanged?.([]);
         onSearchContextChanged?.(
-          message === 'Search failed' ? 'Search failed. Please try again.' : `Search failed: ${message}`,
+          message === 'Search failed'
+            ? 'Search failed. Please try again.'
+            : `Search failed: ${message}`,
         );
       } finally {
         if (!cancelled) {

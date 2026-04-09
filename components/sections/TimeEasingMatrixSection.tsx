@@ -33,7 +33,8 @@ const getTokenSurfaceStyle = (palette: Palette): ViewStyle => ({
   backgroundColor: palette.background.default.secondary,
 });
 
-const getProgressFromTick = (tickMs: number, durationMs: number) => (tickMs % durationMs) / durationMs;
+const getProgressFromTick = (tickMs: number, durationMs: number) =>
+  (tickMs % durationMs) / durationMs;
 
 function TimeMotionCell({
   durationKey,
@@ -52,13 +53,20 @@ function TimeMotionCell({
 
   const normalizedProgress = getProgressFromTick(tickMs, durationMs);
   const easedProgress = easingFn(normalizedProgress);
-  const safeProgress = Number.isFinite(easedProgress) ? clamp01(easedProgress) : normalizedProgress;
+  const safeProgress = Number.isFinite(easedProgress)
+    ? clamp01(easedProgress)
+    : normalizedProgress;
 
   const translateX = safeProgress * PREVIEW_TRAVEL_DISTANCE;
-  const opacity = PREVIEW_MIN_OPACITY + safeProgress * (PREVIEW_MAX_OPACITY - PREVIEW_MIN_OPACITY);
+  const opacity =
+    PREVIEW_MIN_OPACITY +
+    safeProgress * (PREVIEW_MAX_OPACITY - PREVIEW_MIN_OPACITY);
 
   return (
-    <View testID="time-motion-preview-cell" style={[styles.motionCell, tokenSurfaceStyle]}>
+    <View
+      testID='time-motion-preview-cell'
+      style={[styles.motionCell, tokenSurfaceStyle]}
+    >
       <View
         style={[
           styles.motionTrack,
@@ -78,12 +86,14 @@ function TimeMotionCell({
           ]}
         />
       </View>
-      <ThemedText variant="bodyTiny">{`${durationMs}ms`}</ThemedText>
+      <ThemedText variant='bodyTiny'>{`${durationMs}ms`}</ThemedText>
     </View>
   );
 }
 
-export function TimeEasingMatrixSection({ palette }: TimeEasingMatrixSectionProps) {
+export function TimeEasingMatrixSection({
+  palette,
+}: TimeEasingMatrixSectionProps) {
   const [tickMs, setTickMs] = useState(() => Date.now());
   const tokenSurfaceStyle = getTokenSurfaceStyle(palette);
 
@@ -99,24 +109,29 @@ export function TimeEasingMatrixSection({ palette }: TimeEasingMatrixSectionProp
 
   return (
     <View>
-      <ThemedText variant="heading">Time + Easing Tokens</ThemedText>
-      <ThemedText variant="body">
-        Durations are rows and easing curves are columns; each cell previews that exact pair.
+      <ThemedText variant='heading'>Time + Easing Tokens</ThemedText>
+      <ThemedText variant='body'>
+        Durations are rows and easing curves are columns; each cell previews
+        that exact pair.
       </ThemedText>
 
       <View style={styles.matrix}>
         <View style={styles.headerRow}>
           <View style={[styles.headerCell, styles.durationHeaderCell]}>
-            <ThemedText variant="bodySmallStrong">Duration \ Easing</ThemedText>
+            <ThemedText variant='bodySmallStrong'>Duration \ Easing</ThemedText>
           </View>
           {TIME_EASING_KEYS.map((easingKey) => (
             <View
               key={easingKey}
-              testID="time-easing-header"
+              testID='time-easing-header'
               style={[styles.headerCell, tokenSurfaceStyle]}
             >
-              <ThemedText variant="bodySmallStrong">{formatTokenLabel(easingKey)}</ThemedText>
-              <ThemedText variant="bodyTiny">{Time.easing[easingKey]}</ThemedText>
+              <ThemedText variant='bodySmallStrong'>
+                {formatTokenLabel(easingKey)}
+              </ThemedText>
+              <ThemedText variant='bodyTiny'>
+                {Time.easing[easingKey]}
+              </ThemedText>
             </View>
           ))}
         </View>
@@ -124,11 +139,15 @@ export function TimeEasingMatrixSection({ palette }: TimeEasingMatrixSectionProp
         {TIME_DURATION_KEYS.map((durationKey) => (
           <View key={durationKey} style={styles.matrixRow}>
             <View
-              testID="time-duration-header"
+              testID='time-duration-header'
               style={[styles.durationCell, tokenSurfaceStyle]}
             >
-              <ThemedText variant="bodySmallStrong">{formatTokenLabel(durationKey)}</ThemedText>
-              <ThemedText variant="bodyTiny">{Time.duration[durationKey]}ms</ThemedText>
+              <ThemedText variant='bodySmallStrong'>
+                {formatTokenLabel(durationKey)}
+              </ThemedText>
+              <ThemedText variant='bodyTiny'>
+                {Time.duration[durationKey]}ms
+              </ThemedText>
             </View>
 
             {TIME_EASING_KEYS.map((easingKey) => (

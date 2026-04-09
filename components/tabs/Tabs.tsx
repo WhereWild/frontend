@@ -1,5 +1,11 @@
 import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { LayoutChangeEvent, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  LayoutChangeEvent,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Tab } from './Tab';
@@ -24,7 +30,11 @@ export type TabsProps = {
 
 type TabsSeparatorProps = { color: string; testID?: string; hidden?: boolean };
 
-const TabsSeparator = ({ color, testID, hidden = false }: TabsSeparatorProps) => (
+const TabsSeparator = ({
+  color,
+  testID,
+  hidden = false,
+}: TabsSeparatorProps) => (
   <View
     collapsable={false}
     testID={testID}
@@ -57,7 +67,8 @@ export function Tabs({
   // Container padding (200 * 2) + pill padding (150 * 2)
   // Extra 2px prevents label ellipsis from appearing at exact-fit widths.
   const textFitBufferPx = 2;
-  const horizontalPadding = Size.space['200'] * 2 + Size.space['150'] * 2 + textFitBufferPx;
+  const horizontalPadding =
+    Size.space['200'] * 2 + Size.space['150'] * 2 + textFitBufferPx;
   const minimumScrollableTabWidthPx = MIN_TAB_WIDTH_PX;
 
   const {
@@ -84,16 +95,27 @@ export function Tabs({
         minimumTabWidth: minimumScrollableTabWidthPx,
         nonScrollFitBufferPx: NON_SCROLL_FIT_BUFFER_PX,
       }),
-    [containerWidth, horizontalPadding, labelWidths, minimumScrollableTabWidthPx, tabs]
+    [
+      containerWidth,
+      horizontalPadding,
+      labelWidths,
+      minimumScrollableTabWidthPx,
+      tabs,
+    ],
   );
 
   const hasMeasuredAllLabels = useMemo(
-    () => tabs.every((tab) => typeof labelWidths[tab.key] === 'number' && labelWidths[tab.key] > 0),
+    () =>
+      tabs.every(
+        (tab) =>
+          typeof labelWidths[tab.key] === 'number' && labelWidths[tab.key] > 0,
+      ),
     [labelWidths, tabs],
   );
 
   const shouldScrollResolved = !hasMeasuredAllLabels ? true : shouldScroll;
-  const shouldShowOverflowOutsideScrollHost = hasMeasuredAllLabels && !overflowSuspended;
+  const shouldShowOverflowOutsideScrollHost =
+    hasMeasuredAllLabels && !overflowSuspended;
 
   useLayoutEffect(() => {
     if (!hasMeasuredAllLabels || containerWidth <= 0 || !overflowSuspended) {
@@ -109,22 +131,22 @@ export function Tabs({
       if (shouldScrollResolved) {
         return resolvedWidth
           ? {
-            width: resolvedWidth,
-            flexGrow: 0,
-            flexBasis: resolvedWidth,
-          }
+              width: resolvedWidth,
+              flexGrow: 0,
+              flexBasis: resolvedWidth,
+            }
           : {
-            width: minimumScrollableTabWidthPx,
-            flexGrow: 0,
-            flexBasis: minimumScrollableTabWidthPx,
-          };
+              width: minimumScrollableTabWidthPx,
+              flexGrow: 0,
+              flexBasis: minimumScrollableTabWidthPx,
+            };
       }
 
       return resolvedWidth
         ? {
-          flexGrow: resolvedWidth,
-          flexBasis: 0,
-        }
+            flexGrow: resolvedWidth,
+            flexBasis: 0,
+          }
         : { flexGrow: 1, flexBasis: 0 };
     },
     [minimumScrollableTabWidthPx, shouldScrollResolved],
@@ -152,9 +174,11 @@ export function Tabs({
     (tab: TabItem, index: number) => {
       const isActive = tab.key === selectedKey;
       const nextIsActive = tabs[index + 1]?.key === selectedKey;
-      const shouldShowSeparator = !isActive && !nextIsActive && index < tabs.length - 1;
+      const shouldShowSeparator =
+        !isActive && !nextIsActive && index < tabs.length - 1;
       const resolvedWidth = tabWidths[tab.key];
-      const tabbableIndex = focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
+      const tabbableIndex =
+        focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
       const isTabbable = isWeb && index === tabbableIndex;
       const tabLayoutStyle = getTabWrapperStyle(resolvedWidth);
 
@@ -200,10 +224,10 @@ export function Tabs({
             testID={tab.testID}
             {...(isWeb
               ? {
-                onKeyDown: onKeyDownForIndex(index),
-                focusable: isTabbable,
-                tabIndex: isTabbable ? 0 : -1,
-              }
+                  onKeyDown: onKeyDownForIndex(index),
+                  focusable: isTabbable,
+                  tabIndex: isTabbable ? 0 : -1,
+                }
               : {})}
           />
           {showSeparatorHosts && index < tabs.length - 1 && (
@@ -251,10 +275,13 @@ export function Tabs({
   const tabsContent = (
     <View
       collapsable={false}
-      accessibilityRole="tablist"
+      accessibilityRole='tablist'
       accessibilityLabel={accessibilityLabel}
       testID={testID}
-      style={[styles.container, shouldScrollResolved ? styles.containerScroll : styles.containerFixed]}
+      style={[
+        styles.container,
+        shouldScrollResolved ? styles.containerScroll : styles.containerFixed,
+      ]}
     >
       {tabs.map(renderTabItem)}
     </View>
@@ -267,16 +294,22 @@ export function Tabs({
       onLayout={onContainerLayout}
     >
       <ScrollView
-        testID="tabs-scroll-host"
+        testID='tabs-scroll-host'
         horizontal
         scrollEnabled={shouldScrollResolved}
         bounces={false}
         showsHorizontalScrollIndicator={false}
-        style={shouldShowOverflowOutsideScrollHost ? styles.scrollHostVisible : undefined}
+        style={
+          shouldShowOverflowOutsideScrollHost
+            ? styles.scrollHostVisible
+            : undefined
+        }
         contentContainerStyle={[
           styles.scrollContent,
           !shouldScrollResolved ? styles.scrollContentFixed : undefined,
-          shouldShowOverflowOutsideScrollHost ? styles.scrollContentVisible : undefined,
+          shouldShowOverflowOutsideScrollHost
+            ? styles.scrollContentVisible
+            : undefined,
         ]}
       >
         {tabsContent}

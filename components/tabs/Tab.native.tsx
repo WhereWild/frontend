@@ -2,7 +2,13 @@ import React, { forwardRef } from 'react';
 import { Pressable } from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { __TAB_TESTING__, TabContent, type NativeTabProps, getTabState, styles } from './Tab.shared';
+import {
+  __TAB_TESTING__,
+  TabContent,
+  type NativeTabProps,
+  getTabState,
+  styles,
+} from './Tab.shared';
 
 type PressableRef = React.ElementRef<typeof Pressable>;
 
@@ -37,7 +43,7 @@ export const Tab = forwardRef<PressableRef, NativeTabProps>(function Tab(
     <Pressable
       ref={ref}
       collapsable={false}
-      accessibilityRole="tab"
+      accessibilityRole='tab'
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: isActive }}
       onFocus={onFocus}

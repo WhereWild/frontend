@@ -9,7 +9,9 @@ import {
 
 describe('speciesEnvironment model helpers', () => {
   it('normalizes labels from snake_case', () => {
-    expect(normalizeLabel('mean_temp_coldest_quarter')).toBe('Mean Temp Coldest Quarter');
+    expect(normalizeLabel('mean_temp_coldest_quarter')).toBe(
+      'Mean Temp Coldest Quarter',
+    );
   });
 
   it('formats values and invalid values', () => {
@@ -83,14 +85,39 @@ describe('speciesEnvironment model helpers', () => {
 
   it('handles invalid histogram inputs', () => {
     expect(estimatePercentileFromHistogram(null, 5)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0], counts: [1] }, 5)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 1], counts: [1, 2] }, 0.5)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 1], counts: [0] }, 0.5)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 1], counts: [1] }, null)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 1], counts: [1] }, Number.POSITIVE_INFINITY)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 1], counts: [1] }, Number.NEGATIVE_INFINITY)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 0, 1], counts: [1, 1] }, 0.5)).toBeNull();
-    expect(estimatePercentileFromHistogram({ bins: [0, 1, 2], counts: [1, -1] }, 0.5)).toBeNull();
+    expect(
+      estimatePercentileFromHistogram({ bins: [0], counts: [1] }, 5),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram({ bins: [0, 1], counts: [1, 2] }, 0.5),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram({ bins: [0, 1], counts: [0] }, 0.5),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram({ bins: [0, 1], counts: [1] }, null),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram(
+        { bins: [0, 1], counts: [1] },
+        Number.POSITIVE_INFINITY,
+      ),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram(
+        { bins: [0, 1], counts: [1] },
+        Number.NEGATIVE_INFINITY,
+      ),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram({ bins: [0, 0, 1], counts: [1, 1] }, 0.5),
+    ).toBeNull();
+    expect(
+      estimatePercentileFromHistogram(
+        { bins: [0, 1, 2], counts: [1, -1] },
+        0.5,
+      ),
+    ).toBeNull();
   });
 
   it('formats comparison label without percent when baseline is zero', () => {
@@ -125,8 +152,17 @@ describe('speciesEnvironment model helpers', () => {
   });
 
   it('validates canonical histogram contract', () => {
-    expect(isValidHistogramContract({ bins: [0, 1, 2], counts: [1, 2] })).toBe(true);
-    expect(isValidHistogramContract({ bins: [0, Number.NaN], counts: [1] })).toBe(false);
-    expect(isValidHistogramContract({ bins: [0, 1], counts: [Number.POSITIVE_INFINITY] })).toBe(false);
+    expect(isValidHistogramContract({ bins: [0, 1, 2], counts: [1, 2] })).toBe(
+      true,
+    );
+    expect(
+      isValidHistogramContract({ bins: [0, Number.NaN], counts: [1] }),
+    ).toBe(false);
+    expect(
+      isValidHistogramContract({
+        bins: [0, 1],
+        counts: [Number.POSITIVE_INFINITY],
+      }),
+    ).toBe(false);
   });
 });

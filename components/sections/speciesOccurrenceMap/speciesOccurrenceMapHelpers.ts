@@ -12,8 +12,10 @@ export const MAP_TILE_API_KEY =
   typeof rawMapTileApiKey === 'string' && rawMapTileApiKey.trim().length > 0
     ? rawMapTileApiKey.trim()
     : null;
-export const MAP_TILE_URL_TEMPLATE_LIGHT = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
-export const MAP_TILE_URL_TEMPLATE_DARK = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
+export const MAP_TILE_URL_TEMPLATE_LIGHT =
+  'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
+export const MAP_TILE_URL_TEMPLATE_DARK =
+  'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
@@ -21,7 +23,10 @@ export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 5000;
 
 export type MapTileMode = 'light' | 'dark';
 
-const REQUIRED_MAP_TEMPLATE_MARKERS = ['<div id="map"></div>', '__POINTS_JSON__'] as const;
+const REQUIRED_MAP_TEMPLATE_MARKERS = [
+  '<div id="map"></div>',
+  '__POINTS_JSON__',
+] as const;
 
 const MAP_TEMPLATE_PLACEHOLDERS = {
   documentBaseUrl: '__DOCUMENT_BASE_URL__',
@@ -65,9 +70,14 @@ export type SelectedPointMessage = {
   point: { latitude: number; longitude: number } | null;
 };
 
-export type MapInboundMessage = HighlightMessage | PinObservationMessage | SelectedPointMessage;
+export type MapInboundMessage =
+  | HighlightMessage
+  | PinObservationMessage
+  | SelectedPointMessage;
 
-export const isPinObservationMessage = (msg: unknown): msg is PinObservationMessage => {
+export const isPinObservationMessage = (
+  msg: unknown,
+): msg is PinObservationMessage => {
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
   return (
@@ -81,7 +91,9 @@ export const isPinObservationMessage = (msg: unknown): msg is PinObservationMess
 export const isPinObservationEventFromFrame = (
   event: Pick<MessageEvent, 'data' | 'source'>,
   frameWindow: Window | null | undefined,
-): event is Pick<MessageEvent, 'data' | 'source'> & { data: PinObservationMessage } => {
+): event is Pick<MessageEvent, 'data' | 'source'> & {
+  data: PinObservationMessage;
+} => {
   if (!frameWindow || event.source !== frameWindow) {
     return false;
   }
@@ -98,7 +110,9 @@ export type MapMarkerPalette = {
   selectedPointStroke: string;
 };
 
-export const toHighlightMessagePayload = (catalogs: string[]): HighlightMessage => ({
+export const toHighlightMessagePayload = (
+  catalogs: string[],
+): HighlightMessage => ({
   type: HIGHLIGHT_MESSAGE_TYPE,
   catalogs,
 });
@@ -111,25 +125,28 @@ export const toSelectedPointMessagePayload = (
 });
 
 export const getMapTileUrlTemplate = (mode: MapTileMode) => {
-  const baseTemplate = mode === 'dark' ? MAP_TILE_URL_TEMPLATE_DARK : MAP_TILE_URL_TEMPLATE_LIGHT;
+  const baseTemplate =
+    mode === 'dark' ? MAP_TILE_URL_TEMPLATE_DARK : MAP_TILE_URL_TEMPLATE_LIGHT;
   return MAP_TILE_API_KEY
     ? `${baseTemplate}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
     : baseTemplate;
 };
 
-const escapeHtml = (value: string) => value
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-  .replaceAll("'", '&#39;');
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 
 const preparePointsForMapHtml = (points: Record<string, unknown>[]) => {
   return (points ?? []).map((point) => {
     const catalogNumber = point.catalogNumber;
-    const catalog = typeof catalogNumber === 'number' || typeof catalogNumber === 'string'
-      ? String(catalogNumber)
-      : '';
+    const catalog =
+      typeof catalogNumber === 'number' || typeof catalogNumber === 'string'
+        ? String(catalogNumber)
+        : '';
 
     return {
       ...point,
@@ -156,23 +173,33 @@ export const buildLeafletHtml = (
   linkObservations?: boolean,
 ) => {
   let html = mapTemplate;
-  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.documentBaseUrl).join(MAP_DOCUMENT_BASE_URL);
-  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.referrerPolicy).join(MAP_REFERRER_POLICY);
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.documentBaseUrl)
+    .join(MAP_DOCUMENT_BASE_URL);
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.referrerPolicy)
+    .join(MAP_REFERRER_POLICY);
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.referrerPolicyJson)
     .join(JSON.stringify(MAP_REFERRER_POLICY));
-  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.tileUrl).join(JSON.stringify(tileUrlTemplate));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.tileUrl)
+    .join(JSON.stringify(tileUrlTemplate));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.tileAttribution)
     .join(JSON.stringify(MAP_TILE_ATTRIBUTION));
-  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.tileMaxZoom).join(String(MAP_TILE_MAX_ZOOM));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.tileMaxZoom)
+    .join(String(MAP_TILE_MAX_ZOOM));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.maxVisibleUnclusteredObservations)
     .join(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.points)
     .join(JSON.stringify(preparePointsForMapHtml(points)));
-  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.palette).join(JSON.stringify(markerPalette));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.palette)
+    .join(JSON.stringify(markerPalette));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.highlightType)
     .join(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
@@ -215,11 +242,15 @@ export const buildLeafletHtml = (
   return html;
 };
 
-
-const loadHtmlAsset = async (templateModule: number): Promise<string | null> => {
+const loadHtmlAsset = async (
+  templateModule: number,
+): Promise<string | null> => {
   try {
     const templateAsset = Asset.fromModule(templateModule);
-    if (!templateAsset.localUri && typeof templateAsset.downloadAsync === 'function') {
+    if (
+      !templateAsset.localUri &&
+      typeof templateAsset.downloadAsync === 'function'
+    ) {
       await templateAsset.downloadAsync();
     }
     const templateUri = templateAsset.localUri ?? templateAsset.uri;
@@ -235,9 +266,9 @@ const loadHtmlAsset = async (templateModule: number): Promise<string | null> => 
       templateContent.includes(marker),
     );
     if (
-      typeof templateContent !== 'string'
-      || templateContent.trim().length === 0
-      || !hasRequiredMarkers
+      typeof templateContent !== 'string' ||
+      templateContent.trim().length === 0 ||
+      !hasRequiredMarkers
     ) {
       return null;
     }

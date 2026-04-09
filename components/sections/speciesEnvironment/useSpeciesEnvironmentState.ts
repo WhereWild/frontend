@@ -34,7 +34,11 @@ type UseSpeciesEnvironmentStateParams = {
   /** Optional location filter gid for scoped environment views. */
   locationGid?: string | null;
   units?: 'metric' | 'imperial' | undefined;
-  pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
+  pinnedObservation?: {
+    catalogNumber: string;
+    lat: number;
+    lon: number;
+  } | null;
 };
 
 /** Inputs used to derive presentational state from loaded stats and selection metadata. */
@@ -52,12 +56,16 @@ const resolvePresentationState = ({
   selectedVariableMeta,
   locationFilterActive,
 }: PresentationInput) => {
-  const baselineSummary = locationFilterActive ? stats?.baselineSummary ?? null : null;
+  const baselineSummary = locationFilterActive
+    ? (stats?.baselineSummary ?? null)
+    : null;
   const summary = stats?.summary;
   const categoricalDistribution = stats?.categoricalDistribution ?? [];
 
   const variableType =
-    stats?.variableType?.toLowerCase?.() ?? selectedVariableMeta?.valueType?.toLowerCase?.() ?? null;
+    stats?.variableType?.toLowerCase?.() ??
+    selectedVariableMeta?.valueType?.toLowerCase?.() ??
+    null;
   const forcedCategorical = isVariableCategoricalOption({
     id: selectedVariable ?? '',
     valueType: variableType,
@@ -69,15 +77,20 @@ const resolvePresentationState = ({
     summary,
     categoricalDistribution,
     isCategorical,
-    densityCurve: isCategorical ? null : stats?.densityCurve ?? null,
+    densityCurve: isCategorical ? null : (stats?.densityCurve ?? null),
   };
 };
 
-const categoryHasObservedSamples = (category: { count: number; fraction: number }) =>
+const categoryHasObservedSamples = (category: {
+  count: number;
+  fraction: number;
+}) =>
   (Number.isFinite(category.count) && category.count > 0) ||
   (Number.isFinite(category.fraction) && category.fraction > 0);
 
-const normalizeCategoryIdentity = (value: number | string | null | undefined) =>
+const normalizeCategoryIdentity = (
+  value: number | string | null | undefined,
+) =>
   typeof value === 'string' ? value.trim().toLowerCase() : String(value ?? '');
 
 /** Composes selection, stats, ranking, and presentation state for SpeciesEnvironmentSection. */
@@ -114,17 +127,22 @@ export function useSpeciesEnvironmentState({
     units,
   });
 
-  const { baselineSummary, summary, categoricalDistribution, isCategorical, densityCurve } =
-    React.useMemo(
-      () =>
-        resolvePresentationState({
-          stats,
-          selectedVariable,
-          selectedVariableMeta,
-          locationFilterActive,
-        }),
-      [locationFilterActive, selectedVariable, selectedVariableMeta, stats],
-    );
+  const {
+    baselineSummary,
+    summary,
+    categoricalDistribution,
+    isCategorical,
+    densityCurve,
+  } = React.useMemo(
+    () =>
+      resolvePresentationState({
+        stats,
+        selectedVariable,
+        selectedVariableMeta,
+        locationFilterActive,
+      }),
+    [locationFilterActive, selectedVariable, selectedVariableMeta, stats],
+  );
 
   const {
     selectedCategoryValue,
@@ -152,7 +170,7 @@ export function useSpeciesEnvironmentState({
 
   const rangeObservationItems = React.useMemo(
     () =>
-    rangeObservations.map((entry) => ({
+      rangeObservations.map((entry) => ({
         id: entry.catalogNumber,
         label:
           typeof entry.value === 'number'
@@ -167,7 +185,9 @@ export function useSpeciesEnvironmentState({
     [locationFilterActive, stats?.relativeRanks],
   );
 
-  const [selectedRankContextState, setSelectedRankContext] = React.useState<string | null>(null);
+  const [selectedRankContextState, setSelectedRankContext] = React.useState<
+    string | null
+  >(null);
 
   const selectedRankContext = React.useMemo(() => {
     if (!rankContextOptions.length) {
@@ -175,7 +195,9 @@ export function useSpeciesEnvironmentState({
     }
     if (
       selectedRankContextState &&
-      rankContextOptions.some((option) => option.key === selectedRankContextState)
+      rankContextOptions.some(
+        (option) => option.key === selectedRankContextState,
+      )
     ) {
       return selectedRankContextState;
     }
@@ -207,7 +229,9 @@ export function useSpeciesEnvironmentState({
       min: resolveRankForMetric('min', summary?.min),
       mean: resolveRankForMetric('mean', summary?.mean),
       max: resolveRankForMetric('max', summary?.max),
-      std: resolveRankForMetric('std', summary?.stddev, { allowHistogramFallback: false }),
+      std: resolveRankForMetric('std', summary?.stddev, {
+        allowHistogramFallback: false,
+      }),
       range99: resolveRankForMetric('1-99 range', summaryRangeValue, {
         allowHistogramFallback: false,
       }),
@@ -231,15 +255,25 @@ export function useSpeciesEnvironmentState({
         summaryRangeValue,
         baselineRangeValue,
       ),
-    [baselineRangeValue, baselineSummary, locationFilterActive, summary, summaryRangeValue],
+    [
+      baselineRangeValue,
+      baselineSummary,
+      locationFilterActive,
+      summary,
+      summaryRangeValue,
+    ],
   );
 
   const categoricalSummary = React.useMemo(
-    () => (isCategorical ? buildCategoricalSummary(categoricalDistribution, summary) : null),
+    () =>
+      isCategorical
+        ? buildCategoricalSummary(categoricalDistribution, summary)
+        : null,
     [categoricalDistribution, isCategorical, summary],
   );
 
-  const showRankContext = !locationFilterActive && rankContextOptions.length > 0;
+  const showRankContext =
+    !locationFilterActive && rankContextOptions.length > 0;
 
   const pinnedCategoryValue = React.useMemo(() => {
     if (!isCategorical || pinnedValue === null) {
@@ -253,45 +287,48 @@ export function useSpeciesEnvironmentState({
       categoricalDistribution.find(
         (category) =>
           categoryHasObservedSamples(category) &&
-          (
-            normalizeCategoryIdentity(category.value) === normalizedPinnedValue ||
-            normalizeCategoryIdentity(category.className) === normalizedPinnedValue ||
+          (normalizeCategoryIdentity(category.value) ===
+            normalizedPinnedValue ||
+            normalizeCategoryIdentity(category.className) ===
+              normalizedPinnedValue ||
             (normalizedPinnedLabel.length > 0 &&
-              (
-                normalizeCategoryIdentity(category.value) === normalizedPinnedLabel ||
-                normalizeCategoryIdentity(category.className) === normalizedPinnedLabel
-              ))
-          ),
+              (normalizeCategoryIdentity(category.value) ===
+                normalizedPinnedLabel ||
+                normalizeCategoryIdentity(category.className) ===
+                  normalizedPinnedLabel))),
       )?.value ?? null
     );
   }, [categoricalDistribution, isCategorical, pinnedValue, pinnedValueLabel]);
 
-  const pinnedUnobservedCategory = React.useMemo<PinnedCategoryBadge | null>(() => {
-    if (!isCategorical || pinnedValue === null) {
-      return null;
-    }
+  const pinnedUnobservedCategory =
+    React.useMemo<PinnedCategoryBadge | null>(() => {
+      if (!isCategorical || pinnedValue === null) {
+        return null;
+      }
 
-    if (pinnedCategoryObserved === true) {
-      return null;
-    }
+      if (pinnedCategoryObserved === true) {
+        return null;
+      }
 
-    if (pinnedCategoryObserved === null && pinnedCategoryValue !== null) {
-      return null;
-    }
+      if (pinnedCategoryObserved === null && pinnedCategoryValue !== null) {
+        return null;
+      }
 
-    return {
-      value: pinnedValue,
-      label: pinnedValueLabel?.trim().length ? pinnedValueLabel : String(pinnedValue),
-      description: pinnedValueDescription,
-    };
-  }, [
-    isCategorical,
-    pinnedCategoryObserved,
-    pinnedCategoryValue,
-    pinnedValue,
-    pinnedValueDescription,
-    pinnedValueLabel,
-  ]);
+      return {
+        value: pinnedValue,
+        label: pinnedValueLabel?.trim().length
+          ? pinnedValueLabel
+          : String(pinnedValue),
+        description: pinnedValueDescription,
+      };
+    }, [
+      isCategorical,
+      pinnedCategoryObserved,
+      pinnedCategoryValue,
+      pinnedValue,
+      pinnedValueDescription,
+      pinnedValueLabel,
+    ]);
 
   const headingText = buildHeadingText(
     Boolean(stats),

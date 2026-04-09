@@ -4,7 +4,14 @@ import type { SpeciesOverview, SpeciesOverviewLine } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import { Image, Linking, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import {
+  Image,
+  Linking,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { ThemedText } from '../text/ThemedText';
 
 export type SpeciesInformationSectionProps = {
@@ -20,15 +27,15 @@ function CommonNamesList({ names }: { names: string[] }) {
       {names.map((name) => (
         <View key={name} style={styles.commonNameRow}>
           <ThemedText
-            variant="body"
+            variant='body'
             style={styles.commonNameBullet}
             accessible={false}
-            importantForAccessibility="no"
+            importantForAccessibility='no'
             accessibilityElementsHidden
           >
             •
           </ThemedText>
-          <ThemedText variant="body">{name}</ThemedText>
+          <ThemedText variant='body'>{name}</ThemedText>
         </View>
       ))}
     </View>
@@ -43,14 +50,10 @@ const renderOverviewLineText = (line: SpeciesOverviewLine) => {
 
   const prefix = line.prefix?.trim();
   if (!prefix) {
-    return <ThemedText variant="body">{body}</ThemedText>;
+    return <ThemedText variant='body'>{body}</ThemedText>;
   }
 
-  return (
-    <ThemedText variant="body">
-      {`${prefix} ${body}`}
-    </ThemedText>
-  );
+  return <ThemedText variant='body'>{`${prefix} ${body}`}</ThemedText>;
 };
 
 export function SpeciesInformationSection({
@@ -95,26 +98,32 @@ export function SpeciesInformationSection({
         <Image
           source={overview.imageSource}
           style={styles.featuredImage}
-          resizeMode="cover"
+          resizeMode='cover'
           accessibilityLabel={`${commonName} featured image`}
         />
         {hasImageAttribution && (
           <View style={styles.imageAttribution}>
             {photoBy && (
-              <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+              <ThemedText
+                variant='bodySmall'
+                style={{ color: palette.text.default.secondary }}
+              >
                 Photo by {photoBy}
               </ThemedText>
             )}
             {imageReferenceUrl && (
               <ThemedText
-                variant="bodySmallLink"
+                variant='bodySmallLink'
                 onPress={() => Linking.openURL(imageReferenceUrl)}
               >
                 View on iNaturalist
               </ThemedText>
             )}
             {overview.imageLicense && (
-              <ThemedText variant="bodySmall" style={{ color: palette.text.default.secondary }}>
+              <ThemedText
+                variant='bodySmall'
+                style={{ color: palette.text.default.secondary }}
+              >
                 {overview.imageLicense}
               </ThemedText>
             )}
@@ -131,12 +140,12 @@ export function SpeciesInformationSection({
         ]}
       >
         <View style={styles.textSection}>
-          <ThemedText variant="heading">Overview</ThemedText>
+          <ThemedText variant='heading'>Overview</ThemedText>
           {overviewSections.length > 0 ? (
             <View style={styles.textSubsectionContainer}>
               {overviewSections.map((section) => (
                 <View key={section.id} style={styles.textSubsection}>
-                  <ThemedText variant="subheading">{section.title}</ThemedText>
+                  <ThemedText variant='subheading'>{section.title}</ThemedText>
                   <View style={styles.textBody}>
                     {section.lines.map((line, index) => {
                       const lineNode = renderOverviewLineText(line);
@@ -144,19 +153,23 @@ export function SpeciesInformationSection({
                         return null;
                       }
 
-                      return <View key={`${section.id}-line-${index}`}>{lineNode}</View>;
+                      return (
+                        <View key={`${section.id}-line-${index}`}>
+                          {lineNode}
+                        </View>
+                      );
                     })}
                   </View>
                 </View>
               ))}
             </View>
           ) : (
-            <ThemedText variant="body">{overview.description}</ThemedText>
+            <ThemedText variant='body'>{overview.description}</ThemedText>
           )}
         </View>
 
         <View style={styles.textSection}>
-          <ThemedText variant="heading">Common Names</ThemedText>
+          <ThemedText variant='heading'>Common Names</ThemedText>
           <CommonNamesList names={commonNames} />
         </View>
       </View>
