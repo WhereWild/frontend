@@ -342,9 +342,11 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
 
+  // Show the yellow selected-point dot for ANY pinned item — both real
+  // observations and map-click "point:" entries — using the stored lat/lon.
   const selectedMapPoint = React.useMemo(
     () =>
-      pinnedObservation?.catalogNumber.startsWith('point:')
+      pinnedObservation != null
         ? { lat: pinnedObservation.lat, lon: pinnedObservation.lon }
         : null,
     [pinnedObservation],
