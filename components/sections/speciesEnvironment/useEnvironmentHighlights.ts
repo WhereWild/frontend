@@ -1,6 +1,4 @@
-import {
-  fetchPointEnvironmentValue,
-} from '@/data/api';
+import { fetchPointEnvironmentValue } from '@/data/api';
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type {
   SpeciesEnvironmentObservation,
@@ -11,12 +9,16 @@ import { CategorySampleState, DensitySelectionRange } from './model';
 
 const DENSITY_SLICE_DEBOUNCE_MS = 200;
 type CatalogId = number | string;
-type CategorySampleEntry = NonNullable<SpeciesEnvironmentStats['categoricalSamples']>[number];
+type CategorySampleEntry = NonNullable<
+  SpeciesEnvironmentStats['categoricalSamples']
+>[number];
 
 const isCatalogId = (id: unknown): id is CatalogId =>
   typeof id === 'number' || typeof id === 'string';
 
-const toPlaceholderObservations = (ids: CatalogId[]): SpeciesEnvironmentObservation[] =>
+const toPlaceholderObservations = (
+  ids: CatalogId[],
+): SpeciesEnvironmentObservation[] =>
   ids.map((id) => ({
     catalogNumber: id,
     value: null,
@@ -26,13 +28,16 @@ const toPlaceholderObservations = (ids: CatalogId[]): SpeciesEnvironmentObservat
 
 const toCatalogIdsFromObservations = (
   observations?: SpeciesEnvironmentObservation[] | null,
-): CatalogId[] => (observations ?? []).map((entry) => entry.catalogNumber).filter(isCatalogId);
+): CatalogId[] =>
+  (observations ?? []).map((entry) => entry.catalogNumber).filter(isCatalogId);
 
 const toCatalogIdsFromCategorySample = (
   sample?: CategorySampleEntry,
 ): CatalogId[] => (sample?.observationIds ?? []).filter(isCatalogId);
 
-const normalizeCategoryIdentity = (value: number | string | null | undefined) =>
+const normalizeCategoryIdentity = (
+  value: number | string | null | undefined,
+) =>
   typeof value === 'string' ? value.trim().toLowerCase() : String(value ?? '');
 
 const isSyntheticPinnedPoint = (catalogNumber: string | number) =>
@@ -53,7 +58,9 @@ const resolvePinnedCategoryQueryValue = ({
   const matchedDistributionValue =
     stats?.categoricalDistribution?.find((category) => {
       const normalizedCategoryValue = normalizeCategoryIdentity(category.value);
-      const normalizedCategoryLabel = normalizeCategoryIdentity(category.className);
+      const normalizedCategoryLabel = normalizeCategoryIdentity(
+        category.className,
+      );
       return (
         normalizedCategoryValue === normalizedPointValue ||
         normalizedCategoryLabel === normalizedPointValue ||
@@ -72,7 +79,8 @@ const resolvePinnedCategoryQueryValue = ({
       const normalizedSampleValue = normalizeCategoryIdentity(sample.value);
       return (
         normalizedSampleValue === normalizedPointValue ||
-        (normalizedPointLabel.length > 0 && normalizedSampleValue === normalizedPointLabel)
+        (normalizedPointLabel.length > 0 &&
+          normalizedSampleValue === normalizedPointLabel)
       );
     })?.value ?? null;
 
@@ -100,7 +108,11 @@ type UseEnvironmentHighlightsParams = {
   /** Callback receiving highlighted catalog numbers. */
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
   /** Pinned observation for manual highlighting. */
-  pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
+  pinnedObservation?: {
+    catalogNumber: string;
+    lat: number;
+    lon: number;
+  } | null;
 };
 
 /** Handles category/range selections and resolves corresponding highlighted observations. */
@@ -121,18 +133,25 @@ export function useEnvironmentHighlights({
   const [categorySamplesByValue, setCategorySamplesByValue] = React.useState<
     Record<string, CategorySampleState>
   >({});
-  const [selectedDensityRange, setSelectedDensityRange] = React.useState<DensitySelectionRange | null>(
-    null,
-  );
-  const [rangeObservations, setRangeObservations] = React.useState<SpeciesEnvironmentObservation[]>(
-    [],
-  );
+  const [selectedDensityRange, setSelectedDensityRange] =
+    React.useState<DensitySelectionRange | null>(null);
+  const [rangeObservations, setRangeObservations] = React.useState<
+    SpeciesEnvironmentObservation[]
+  >([]);
   const categoryRequestRef = React.useRef(0);
   const lastEmittedSignatureRef = React.useRef<string | null>(null);
-  const [pinnedValue, setPinnedValue] = React.useState<number | string | null>(null);
-  const [pinnedValueLabel, setPinnedValueLabel] = React.useState<string | null>(null);
-  const [pinnedValueDescription, setPinnedValueDescription] = React.useState<string | null>(null);
-  const [pinnedCategoryObserved, setPinnedCategoryObserved] = React.useState<boolean | null>(null);
+  const [pinnedValue, setPinnedValue] = React.useState<number | string | null>(
+    null,
+  );
+  const [pinnedValueLabel, setPinnedValueLabel] = React.useState<string | null>(
+    null,
+  );
+  const [pinnedValueDescription, setPinnedValueDescription] = React.useState<
+    string | null
+  >(null);
+  const [pinnedCategoryObserved, setPinnedCategoryObserved] = React.useState<
+    boolean | null
+  >(null);
   const [pinnedLoading, setPinnedLoading] = React.useState(false);
   const pinnedRequestRef = React.useRef(0);
 
@@ -184,19 +203,21 @@ export function useEnvironmentHighlights({
     setPinnedLoading(true);
     void (async () => {
       try {
-        const result = speciesDataSource.fetchObservationEnvironmentValue && !isSyntheticPinnedPoint(pinnedObservation.catalogNumber)
-          ? await speciesDataSource.fetchObservationEnvironmentValue(
-              taxonId ?? '',
-              pinnedObservation.catalogNumber,
-              selectedVariable,
-              { location: locationGid ?? undefined, units },
-            )
-          : await fetchPointEnvironmentValue(
-              pinnedObservation.lat,
-              pinnedObservation.lon,
-              selectedVariable,
-              { units },
-            );
+        const result =
+          speciesDataSource.fetchObservationEnvironmentValue &&
+          !isSyntheticPinnedPoint(pinnedObservation.catalogNumber)
+            ? await speciesDataSource.fetchObservationEnvironmentValue(
+                taxonId ?? '',
+                pinnedObservation.catalogNumber,
+                selectedVariable,
+                { location: locationGid ?? undefined, units },
+              )
+            : await fetchPointEnvironmentValue(
+                pinnedObservation.lat,
+                pinnedObservation.lon,
+                selectedVariable,
+                { units },
+              );
         if (pinnedRequestRef.current !== requestId) {
           return;
         }
@@ -216,19 +237,20 @@ export function useEnvironmentHighlights({
               setPinnedCategoryObserved(null);
               return;
             }
-            const categoryResponse = await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
-              taxonId,
-              selectedVariable,
-              categoryQueryValue,
-              { location: locationGid ?? undefined, units },
-            );
+            const categoryResponse =
+              await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
+                taxonId,
+                selectedVariable,
+                categoryQueryValue,
+                { location: locationGid ?? undefined, units },
+              );
             if (pinnedRequestRef.current !== requestId) {
               return;
             }
             const observedCount =
               typeof categoryResponse.count === 'number'
                 ? categoryResponse.count
-                : categoryResponse.observations?.length ?? 0;
+                : (categoryResponse.observations?.length ?? 0);
             setPinnedCategoryObserved(observedCount > 0);
           } catch {
             if (pinnedRequestRef.current !== requestId) {
@@ -251,7 +273,16 @@ export function useEnvironmentHighlights({
         }
       }
     })();
-  }, [locationGid, isCategorical, pinnedObservation, selectedVariable, speciesDataSource, taxonId, stats, units]);
+  }, [
+    locationGid,
+    isCategorical,
+    pinnedObservation,
+    selectedVariable,
+    speciesDataSource,
+    taxonId,
+    stats,
+    units,
+  ]);
 
   React.useEffect(() => {
     if (!stats?.categoricalSamples || !stats.categoricalSamples.length) {
@@ -265,7 +296,10 @@ export function useEnvironmentHighlights({
       const next = { ...prev };
       stats.categoricalSamples?.forEach((entry) => {
         const key = String(entry.value);
-        if (!Array.isArray(entry.observationIds) || !entry.observationIds.length) {
+        if (
+          !Array.isArray(entry.observationIds) ||
+          !entry.observationIds.length
+        ) {
           return;
         }
         const existing = next[key];
@@ -273,7 +307,9 @@ export function useEnvironmentHighlights({
           return;
         }
         next[key] = {
-          observations: toPlaceholderObservations(entry.observationIds.filter(isCatalogId)),
+          observations: toPlaceholderObservations(
+            entry.observationIds.filter(isCatalogId),
+          ),
           loading: false,
           loaded: true,
           error: null,
@@ -293,7 +329,9 @@ export function useEnvironmentHighlights({
       }
 
       if (!locationGid && stats?.categoricalSamples?.length) {
-        const preloaded = stats.categoricalSamples.find((entry) => String(entry.value) === nextKey);
+        const preloaded = stats.categoricalSamples.find(
+          (entry) => String(entry.value) === nextKey,
+        );
         const preloadedIds = toCatalogIdsFromCategorySample(preloaded);
         if (preloadedIds.length) {
           setCategorySamplesByValue((prev) => ({
@@ -329,12 +367,13 @@ export function useEnvironmentHighlights({
 
       void (async () => {
         try {
-          const response = await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
-            taxonId,
-            selectedVariable,
-            nextKey,
-            { location: locationGid ?? undefined, units },
-          );
+          const response =
+            await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
+              taxonId,
+              selectedVariable,
+              nextKey,
+              { location: locationGid ?? undefined, units },
+            );
           if (categoryRequestRef.current !== requestId) {
             return;
           }
@@ -354,7 +393,9 @@ export function useEnvironmentHighlights({
             return;
           }
           const errorMessage =
-            err instanceof Error ? err.message : 'Failed to load category observations.';
+            err instanceof Error
+              ? err.message
+              : 'Failed to load category observations.';
           setCategorySamplesByValue((prev) => ({
             ...prev,
             [nextKey]: {
@@ -385,11 +426,14 @@ export function useEnvironmentHighlights({
     (nextValueOrUpdater: React.SetStateAction<number | string | null>) => {
       const nextValue =
         typeof nextValueOrUpdater === 'function'
-          ? (nextValueOrUpdater as (previous: number | string | null) => number | string | null)(
-            selectedCategoryValue,
-          )
+          ? (
+              nextValueOrUpdater as (
+                previous: number | string | null,
+              ) => number | string | null
+            )(selectedCategoryValue)
           : nextValueOrUpdater;
-      const currentKey = selectedCategoryValue !== null ? String(selectedCategoryValue) : null;
+      const currentKey =
+        selectedCategoryValue !== null ? String(selectedCategoryValue) : null;
       const nextKey = nextValue !== null ? String(nextValue) : null;
 
       if (!nextKey || nextKey === currentKey) {
@@ -414,7 +458,11 @@ export function useEnvironmentHighlights({
   );
 
   React.useEffect(() => {
-    if (!isCategorical || !onHighlightChange || selectedCategoryValue === null) {
+    if (
+      !isCategorical ||
+      !onHighlightChange ||
+      selectedCategoryValue === null
+    ) {
       return;
     }
     const key = String(selectedCategoryValue);
@@ -449,9 +497,12 @@ export function useEnvironmentHighlights({
     stats,
   ]);
 
-  const handleDensitySelectionChange = React.useCallback((range: DensitySelectionRange | null) => {
-    setSelectedDensityRange(range);
-  }, []);
+  const handleDensitySelectionChange = React.useCallback(
+    (range: DensitySelectionRange | null) => {
+      setSelectedDensityRange(range);
+    },
+    [],
+  );
 
   React.useEffect(() => {
     if (isCategorical) {
@@ -520,7 +571,16 @@ export function useEnvironmentHighlights({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [emitHighlightChange, isCategorical, locationGid, selectedDensityRange, selectedVariable, speciesDataSource, taxonId, units]);
+  }, [
+    emitHighlightChange,
+    isCategorical,
+    locationGid,
+    selectedDensityRange,
+    selectedVariable,
+    speciesDataSource,
+    taxonId,
+    units,
+  ]);
 
   return {
     selectedCategoryValue,
@@ -529,7 +589,10 @@ export function useEnvironmentHighlights({
     handleDensitySelectionChange,
     rangeObservations,
     pinnedClassName: pinnedValueLabel,
-    pinnedNoData: pinnedValue === null && pinnedValueLabel === null && pinnedValueDescription === null,
+    pinnedNoData:
+      pinnedValue === null &&
+      pinnedValueLabel === null &&
+      pinnedValueDescription === null,
     pinnedValueLabel,
     pinnedValueDescription,
     pinnedCategoryObserved,

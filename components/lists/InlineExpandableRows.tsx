@@ -2,7 +2,10 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { DataEntrySection, type DataEntrySectionEntry } from './DataEntrySection';
+import {
+  DataEntrySection,
+  type DataEntrySectionEntry,
+} from './DataEntrySection';
 
 export type InlineExpandableRowEntry = DataEntrySectionEntry;
 

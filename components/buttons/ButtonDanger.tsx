@@ -1,5 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  TextStyle,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
@@ -14,7 +20,6 @@ import {
   resolveButtonAccessibilityLabel,
   useHoverOnlyButtonTransitions,
 } from './buttonShared';
-
 
 export type ButtonDangerVariant = 'primary' | 'subtle';
 export type ButtonDangerSize = 'small' | 'medium';
@@ -59,7 +64,9 @@ function computeDangerStyles(
     return {
       backgroundColor: pressed
         ? palette.background.danger.pressed
-        : (hovered ? palette.background.danger.hover : palette.background.danger.default),
+        : hovered
+          ? palette.background.danger.hover
+          : palette.background.danger.default,
       color: palette.text.danger.onDanger,
       iconColor: palette.icon.danger.onDanger,
       borderColor: TRANSPARENT,
@@ -71,14 +78,20 @@ function computeDangerStyles(
   return {
     backgroundColor: pressed
       ? palette.background.danger.secondaryPressed
-      : (hovered ? palette.background.danger.secondaryHover : TRANSPARENT),
-    color: pressed || hovered
-      ? palette.text.danger.onDangerSecondary
-      : palette.text.danger.secondary,
-    iconColor: pressed || hovered
-      ? palette.icon.danger.onDangerSecondary
-      : palette.icon.danger.secondary,
-    borderColor: isOutlinedState ? palette.border.danger.secondary : TRANSPARENT,
+      : hovered
+        ? palette.background.danger.secondaryHover
+        : TRANSPARENT,
+    color:
+      pressed || hovered
+        ? palette.text.danger.onDangerSecondary
+        : palette.text.danger.secondary,
+    iconColor:
+      pressed || hovered
+        ? palette.icon.danger.onDangerSecondary
+        : palette.icon.danger.secondary,
+    borderColor: isOutlinedState
+      ? palette.border.danger.secondary
+      : TRANSPARENT,
   };
 }
 
@@ -100,19 +113,30 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const iconSize: IconSize = '16';
   const iconDimension = Number(iconSize);
-  const { hoverOnlyTransitionHandlers, shouldAnimateTransitions } = useHoverOnlyButtonTransitions();
+  const { hoverOnlyTransitionHandlers, shouldAnimateTransitions } =
+    useHoverOnlyButtonTransitions();
 
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={resolveButtonAccessibilityLabel(accessibilityLabel, label, children)}
+      accessibilityRole='button'
+      accessibilityLabel={resolveButtonAccessibilityLabel(
+        accessibilityLabel,
+        label,
+        children,
+      )}
       disabled={disabled}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
       {...hoverOnlyTransitionHandlers}
       style={({ pressed, hovered }) => {
-        const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
+        const variantStyles = computeDangerStyles(
+          variant,
+          mode,
+          pressed,
+          hovered ?? false,
+          disabled,
+        );
         const sizeStyles = computeButtonSizeStyles(size);
         const paddingHorizontal = sizeStyles.paddingHorizontal;
         const paddingVertical = sizeStyles.paddingVertical;
@@ -133,13 +157,28 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
       }}
     >
       {({ pressed, hovered }) => {
-        const variantStyles = computeDangerStyles(variant, mode, pressed, hovered ?? false, disabled);
+        const variantStyles = computeDangerStyles(
+          variant,
+          mode,
+          pressed,
+          hovered ?? false,
+          disabled,
+        );
         return (
           <View style={styles.innerContent} collapsable={false}>
-            {iconStart && <View>{renderButtonIcon(iconStart, variantStyles.iconColor, iconSize, { animate: shouldAnimateTransitions })}</View>}
+            {iconStart && (
+              <View>
+                {renderButtonIcon(
+                  iconStart,
+                  variantStyles.iconColor,
+                  iconSize,
+                  { animate: shouldAnimateTransitions },
+                )}
+              </View>
+            )}
             <View style={[styles.textContainer, { minHeight: iconDimension }]}>
               <ThemedText
-                variant="singleLineBody"
+                variant='singleLineBody'
                 style={[
                   getButtonTextTransitionStyle(shouldAnimateTransitions),
                   {
@@ -151,7 +190,13 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
                 {label ?? children}
               </ThemedText>
             </View>
-            {iconEnd && <View>{renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize, { animate: shouldAnimateTransitions })}</View>}
+            {iconEnd && (
+              <View>
+                {renderButtonIcon(iconEnd, variantStyles.iconColor, iconSize, {
+                  animate: shouldAnimateTransitions,
+                })}
+              </View>
+            )}
           </View>
         );
       }}

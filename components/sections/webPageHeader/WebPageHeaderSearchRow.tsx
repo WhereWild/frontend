@@ -4,7 +4,10 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button } from '../../buttons/Button';
 import { IconButton } from '../../buttons/IconButton';
-import { SearchInput, type SearchInputKeyDownEvent } from '../../inputs/SearchInput';
+import {
+  SearchInput,
+  type SearchInputKeyDownEvent,
+} from '../../inputs/SearchInput';
 import type { SearchInputPassthroughProps } from './types';
 
 type SearchVariant = 'mobile' | 'desktop';
@@ -30,9 +33,15 @@ type WebPageHeaderSearchRowProps = {
   resetFilterButtonAccessibilityLabel: string;
 };
 
-type SearchInputFocusHandler = NonNullable<SearchInputPassthroughProps['onFocus']>;
-type SearchInputBlurHandler = NonNullable<SearchInputPassthroughProps['onBlur']>;
-type SearchInputKeyPressHandler = NonNullable<SearchInputPassthroughProps['onKeyPress']>;
+type SearchInputFocusHandler = NonNullable<
+  SearchInputPassthroughProps['onFocus']
+>;
+type SearchInputBlurHandler = NonNullable<
+  SearchInputPassthroughProps['onBlur']
+>;
+type SearchInputKeyPressHandler = NonNullable<
+  SearchInputPassthroughProps['onKeyPress']
+>;
 
 /**
  * Header search row UI: search input + optional filter control.
@@ -66,21 +75,30 @@ export function WebPageHeaderSearchRow({
     ...resolvedSearchInputProps
   } = searchInputProps ?? {};
 
-  const handleSearchFocus = React.useCallback<SearchInputFocusHandler>((event) => {
-    onSearchFocus();
-    onSearchInputFocus?.(event);
-  }, [onSearchFocus, onSearchInputFocus]);
+  const handleSearchFocus = React.useCallback<SearchInputFocusHandler>(
+    (event) => {
+      onSearchFocus();
+      onSearchInputFocus?.(event);
+    },
+    [onSearchFocus, onSearchInputFocus],
+  );
 
-  const handleSearchBlur = React.useCallback<SearchInputBlurHandler>((event) => {
-    onSearchBlur();
-    onSearchInputBlur?.(event);
-  }, [onSearchBlur, onSearchInputBlur]);
+  const handleSearchBlur = React.useCallback<SearchInputBlurHandler>(
+    (event) => {
+      onSearchBlur();
+      onSearchInputBlur?.(event);
+    },
+    [onSearchBlur, onSearchInputBlur],
+  );
 
-  const handleSearchKeyPress = React.useCallback<SearchInputKeyPressHandler>((event) => {
-    // React Native Web delivers the header navigation keys through this path for the search input.
-    onSearchKeyDown?.(event as SearchInputKeyDownEvent);
-    onSearchInputKeyPress?.(event);
-  }, [onSearchInputKeyPress, onSearchKeyDown]);
+  const handleSearchKeyPress = React.useCallback<SearchInputKeyPressHandler>(
+    (event) => {
+      // React Native Web delivers the header navigation keys through this path for the search input.
+      onSearchKeyDown?.(event as SearchInputKeyDownEvent);
+      onSearchInputKeyPress?.(event);
+    },
+    [onSearchInputKeyPress, onSearchKeyDown],
+  );
 
   return (
     <View
@@ -88,14 +106,14 @@ export function WebPageHeaderSearchRow({
         styles.searchRow,
         variant === 'mobile' ? styles.searchRowMobile : styles.searchRowDesktop,
       ]}
-      testID="page-header-search-row"
+      testID='page-header-search-row'
     >
       <View
         style={styles.searchWrapper}
         onLayout={(event) => {
           onSearchWrapperLayout(event.nativeEvent.layout.height);
         }}
-        testID="page-header-search-wrapper"
+        testID='page-header-search-wrapper'
       >
         <SearchInput
           {...resolvedSearchInputProps}
@@ -116,12 +134,14 @@ export function WebPageHeaderSearchRow({
         <View
           style={[
             styles.filterControls,
-            variant === 'mobile' ? styles.filterControlsMobile : styles.filterControlsDesktop,
+            variant === 'mobile'
+              ? styles.filterControlsMobile
+              : styles.filterControlsDesktop,
           ]}
         >
           {showResetFilterButton ? (
             <IconButton
-              variant="neutral"
+              variant='neutral'
               icon={<IconRotateCcw />}
               onPress={onResetFilterPress}
               accessibilityLabel={resetFilterButtonAccessibilityLabel}
@@ -130,14 +150,14 @@ export function WebPageHeaderSearchRow({
 
           {variant === 'mobile' ? (
             <IconButton
-              variant="neutral"
+              variant='neutral'
               icon={<IconFilter />}
               onPress={onFilterPress}
               accessibilityLabel={filterButtonAccessibilityLabel}
             />
           ) : (
             <Button
-              variant="neutral"
+              variant='neutral'
               iconStart={<IconFilter />}
               label={filterLabel}
               onPress={onFilterPress}

@@ -9,7 +9,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 const SAMPLE_SPECIES = [
   {
@@ -17,14 +19,16 @@ const SAMPLE_SPECIES = [
     commonName: 'Utah Juniper',
     commonNames: ['Utah Juniper'],
     scientificName: 'Juniperus osteosperma',
-    description: 'Evergreen shrub or small tree adapted to high desert plateaus.',
+    description:
+      'Evergreen shrub or small tree adapted to high desert plateaus.',
   },
   {
     taxonId: 185700,
     commonName: 'Sagebrush',
     commonNames: ['Sagebrush'],
     scientificName: 'Artemisia tridentata',
-    description: 'Shrub with aromatic foliage often co-occurring with alpine cacti.',
+    description:
+      'Shrub with aromatic foliage often co-occurring with alpine cacti.',
   },
 ];
 
@@ -32,8 +36,6 @@ describe('NearbySpeciesCarousel', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
   });
-
-
 
   it('renders section heading and provided species cards', () => {
     render(<NearbySpeciesCarousel species={SAMPLE_SPECIES} />);
@@ -53,13 +55,17 @@ describe('NearbySpeciesCarousel', () => {
   it('applies light mode background color when overridden to be light', () => {
     mockUseColorScheme.mockReturnValue('light');
 
-    const tree = render(<NearbySpeciesCarousel species={SAMPLE_SPECIES} />).toJSON();
+    const tree = render(
+      <NearbySpeciesCarousel species={SAMPLE_SPECIES} />,
+    ).toJSON();
 
     if (!tree || Array.isArray(tree)) {
       throw new Error('Expected NearbySpeciesCarousel to render a root view');
     }
 
     const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.light.background.default.secondary);
+    expect(styles.backgroundColor).toBe(
+      Colors.light.background.default.secondary,
+    );
   });
 });

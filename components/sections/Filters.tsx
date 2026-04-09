@@ -7,12 +7,18 @@ import { ButtonDanger } from '@/components/buttons/ButtonDanger';
 import { NumberSpinner } from '@/components/inputs/NumberSpinner';
 import { RadioField } from '@/components/inputs/RadioField';
 import { SearchInput } from '@/components/inputs/SearchInput';
-import { SelectField, type SelectOption } from '@/components/inputs/SelectField';
+import {
+  SelectField,
+  type SelectOption,
+} from '@/components/inputs/SelectField';
 import { SwitchField } from '@/components/inputs/SwitchField';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Size } from '@/constants/theme';
 
-const prependAllOption = (options: SelectOption[], label: string): SelectOption[] => {
+const prependAllOption = (
+  options: SelectOption[],
+  label: string,
+): SelectOption[] => {
   if (options.some((option) => option.value === '')) {
     return options;
   }
@@ -124,7 +130,13 @@ export function Filters({
       onFocus: onBaseTaxonFocus,
       onBlur: onBaseTaxonBlur,
     }),
-    [baseTaxonQuery, onBaseTaxonBlur, onBaseTaxonFocus, onBaseTaxonQueryChange, onBaseTaxonSubmit],
+    [
+      baseTaxonQuery,
+      onBaseTaxonBlur,
+      onBaseTaxonFocus,
+      onBaseTaxonQueryChange,
+      onBaseTaxonSubmit,
+    ],
   );
 
   const isControlsDisabled = !hasBaseTaxonSelection;
@@ -143,32 +155,34 @@ export function Filters({
 
   return (
     <View style={[styles.container, style]}>
-      <ThemedText variant="heading">Filters</ThemedText>
+      <ThemedText variant='heading'>Filters</ThemedText>
 
       {/* Taxon */}
       <View style={styles.subSection}>
-        <ThemedText variant="subheading">Taxon</ThemedText>
-        <ThemedText variant="body">Base taxon</ThemedText>
+        <ThemedText variant='subheading'>Taxon</ThemedText>
+        <ThemedText variant='body'>Base taxon</ThemedText>
         <SearchInput {...baseTaxonSearchInputProps} />
         <SearchResults
           results={baseTaxonSuggestions}
-          isVisible={baseTaxonSuggestionsVisible && baseTaxonQuery.trim().length > 0}
+          isVisible={
+            baseTaxonSuggestionsVisible && baseTaxonQuery.trim().length > 0
+          }
           isLoading={baseTaxonSuggestionsLoading}
-          emptyMessage="No matching taxa found"
+          emptyMessage='No matching taxa found'
           onSelectResult={onBaseTaxonSelect}
           style={styles.suggestionResultsInline}
-          layout="inline"
+          layout='inline'
         />
         <SelectField
-          label="Rank"
-          description="Only include taxa at this rank"
+          label='Rank'
+          description='Only include taxa at this rank'
           value={rankValue}
           options={rankOptions}
           onValueChange={onRankChange}
         />
         <SwitchField
-          label="Include subspecies"
-          description="Whether or not to include subspecies in the results when filtering to the species level"
+          label='Include subspecies'
+          description='Whether or not to include subspecies in the results when filtering to the species level'
           value={includeSubspecies}
           onValueChange={onIncludeSubspeciesChange}
           style={styles.switchFieldFull}
@@ -177,37 +191,38 @@ export function Filters({
 
       {/* Sort */}
       <View style={styles.subSection}>
-        <ThemedText variant="subheading">Sort</ThemedText>
-        <ThemedText variant="body">
-          {rankingFilterHint ?? 'Ranking-based filters apply after setting Base taxon and Sort variable.'}
+        <ThemedText variant='subheading'>Sort</ThemedText>
+        <ThemedText variant='body'>
+          {rankingFilterHint ??
+            'Ranking-based filters apply after setting Base taxon and Sort variable.'}
         </ThemedText>
         <SelectField
-          label="Variable"
-          placeholder="Select variable"
+          label='Variable'
+          placeholder='Select variable'
           value={sortVariableValue}
           options={sortVariableOptions}
           onValueChange={onSortVariableChange}
           disabled={isControlsDisabled}
         />
         <SelectField
-          label="Sorting metric"
+          label='Sorting metric'
           value={sortMetricValue}
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
           disabled={isControlsDisabled}
         />
-        <ThemedText variant="body">Sort order</ThemedText>
+        <ThemedText variant='body'>Sort order</ThemedText>
         <View style={styles.sortOrderRow}>
           <RadioField
             style={styles.sortOrderOption}
-            label="Ascending"
+            label='Ascending'
             checked={sortOrder === 'ascending'}
             onValueChange={() => onSortOrderChange?.('ascending')}
             disabled={isControlsDisabled}
           />
           <RadioField
             style={styles.sortOrderOption}
-            label="Descending"
+            label='Descending'
             checked={sortOrder === 'descending'}
             onValueChange={() => onSortOrderChange?.('descending')}
             disabled={isControlsDisabled}
@@ -217,13 +232,15 @@ export function Filters({
 
       {/* Location */}
       <View style={styles.subSection}>
-        <ThemedText variant="subheading">Location</ThemedText>
+        <ThemedText variant='subheading'>Location</ThemedText>
         {isControlsDisabled ? (
-          <ThemedText variant="body">Location filters apply after choosing a Base taxon.</ThemedText>
+          <ThemedText variant='body'>
+            Location filters apply after choosing a Base taxon.
+          </ThemedText>
         ) : null}
         <View style={styles.locationGrid}>
           <SelectField
-            label="Country"
+            label='Country'
             value={countryValue}
             options={countrySelectOptions}
             onValueChange={onCountryChange}
@@ -231,7 +248,7 @@ export function Filters({
             style={styles.locationField}
           />
           <SelectField
-            label="State"
+            label='State'
             value={stateValue}
             options={stateSelectOptions}
             onValueChange={onStateChange}
@@ -239,7 +256,7 @@ export function Filters({
             style={styles.locationField}
           />
           <SelectField
-            label="County"
+            label='County'
             value={countyValue}
             options={countySelectOptions}
             onValueChange={onCountyChange}
@@ -251,17 +268,17 @@ export function Filters({
 
       {/* Quantity */}
       <View style={styles.subSection}>
-        <ThemedText variant="subheading">Quantity</ThemedText>
+        <ThemedText variant='subheading'>Quantity</ThemedText>
         <NumberSpinner
-          label="Number of results"
-          description="How many results to return"
+          label='Number of results'
+          description='How many results to return'
           value={numberOfResults}
           min={1}
           onValueChange={onNumberOfResultsChange}
         />
         <NumberSpinner
-          label="Minimum samples"
-          description="Show only results with at least this number of samples"
+          label='Minimum samples'
+          description='Show only results with at least this number of samples'
           value={minimumSamples}
           min={1}
           disabled={!hasActiveFilters}
@@ -271,8 +288,8 @@ export function Filters({
 
       {/* Reset */}
       <ButtonDanger
-        variant="primary"
-        size="medium"
+        variant='primary'
+        size='medium'
         iconStart={<IconRotateCcw />}
         onPress={onResetFilters}
         style={styles.resetButton}

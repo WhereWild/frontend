@@ -14,33 +14,37 @@ import {
   type UseSearchInputControllerArgs,
 } from '../useSearchInputController';
 
-const ControllerHarness = React.forwardRef<SearchInputViewProps, Partial<UseSearchInputControllerArgs>>(
-  (props, ref) => {
-    const viewProps = useSearchInputController({
-      variant: props.variant ?? 'tertiary',
-      value: props.value,
-      defaultValue: props.defaultValue ?? '',
-      placeholder: props.placeholder ?? 'Search',
-      disabled: props.disabled ?? false,
-      containerStyle: props.containerStyle,
-      inputStyle: props.inputStyle,
-      onQueryChange: props.onQueryChange,
-      onCharacterAdd: props.onCharacterAdd,
-      onSubmitSearch: props.onSubmitSearch,
-      onClear: props.onClear,
-      textInputProps: props.textInputProps ?? {},
-      characterReader: props.characterReader,
-    });
-    React.useImperativeHandle(ref, () => viewProps, [viewProps]);
-    return null;
-  },
-);
+const ControllerHarness = React.forwardRef<
+  SearchInputViewProps,
+  Partial<UseSearchInputControllerArgs>
+>((props, ref) => {
+  const viewProps = useSearchInputController({
+    variant: props.variant ?? 'tertiary',
+    value: props.value,
+    defaultValue: props.defaultValue ?? '',
+    placeholder: props.placeholder ?? 'Search',
+    disabled: props.disabled ?? false,
+    containerStyle: props.containerStyle,
+    inputStyle: props.inputStyle,
+    onQueryChange: props.onQueryChange,
+    onCharacterAdd: props.onCharacterAdd,
+    onSubmitSearch: props.onSubmitSearch,
+    onClear: props.onClear,
+    textInputProps: props.textInputProps ?? {},
+    characterReader: props.characterReader,
+  });
+  React.useImperativeHandle(ref, () => viewProps, [viewProps]);
+  return null;
+});
 ControllerHarness.displayName = 'ControllerHarness';
 
 describe('useSearchInputController', () => {
   const flattenContainer = (controller?: SearchInputViewProps | null) => {
-    const containerStyle: StyleProp<ViewStyle> = controller?.containerStyle ?? [];
-    const normalizedStyle = Array.isArray(containerStyle) ? containerStyle : [containerStyle];
+    const containerStyle: StyleProp<ViewStyle> =
+      controller?.containerStyle ?? [];
+    const normalizedStyle = Array.isArray(containerStyle)
+      ? containerStyle
+      : [containerStyle];
     return StyleSheet.flatten(normalizedStyle) ?? {};
   };
 
@@ -69,7 +73,11 @@ describe('useSearchInputController', () => {
   it('resets interaction states after disabling and re-enabling', () => {
     const controllerRef = React.createRef<SearchInputViewProps>();
     const { rerender } = render(
-      <ControllerHarness ref={controllerRef} defaultValue="seed" disabled={false} />,
+      <ControllerHarness
+        ref={controllerRef}
+        defaultValue='seed'
+        disabled={false}
+      />,
     );
 
     expect(controllerRef.current).toBeTruthy();
@@ -84,18 +92,34 @@ describe('useSearchInputController', () => {
       controllerRef.current?.containerHandlers.onPressIn?.();
     });
 
-    expect(getBackgroundColor()).toBe(palette.background.default.tertiaryPressed);
+    expect(getBackgroundColor()).toBe(
+      palette.background.default.tertiaryPressed,
+    );
 
-    rerender(<ControllerHarness ref={controllerRef} defaultValue="seed" disabled />);
+    rerender(
+      <ControllerHarness ref={controllerRef} defaultValue='seed' disabled />,
+    );
     expect(getBackgroundColor()).toBe(palette.background.disabled.default);
 
-    rerender(<ControllerHarness ref={controllerRef} defaultValue="seed" disabled={false} />);
+    rerender(
+      <ControllerHarness
+        ref={controllerRef}
+        defaultValue='seed'
+        disabled={false}
+      />,
+    );
     expect(getBackgroundColor()).toBe(palette.background.default.tertiary);
   });
 
   it('uses hover colors when only hovering', () => {
     const controllerRef = React.createRef<SearchInputViewProps>();
-    render(<ControllerHarness ref={controllerRef} defaultValue="seed" disabled={false} />);
+    render(
+      <ControllerHarness
+        ref={controllerRef}
+        defaultValue='seed'
+        disabled={false}
+      />,
+    );
 
     const palette = Colors.dark;
     expect(flattenContainer(controllerRef.current).backgroundColor).toBe(
@@ -124,9 +148,9 @@ describe('useSearchInputController', () => {
     render(
       <ControllerHarness
         ref={controllerRef}
-        defaultValue="seed"
+        defaultValue='seed'
         disabled={false}
-        variant="secondary"
+        variant='secondary'
       />,
     );
 
@@ -158,11 +182,18 @@ describe('useSearchInputController', () => {
 
     try {
       const controllerRef = React.createRef<SearchInputViewProps>();
-      render(<ControllerHarness ref={controllerRef} defaultValue="seed" disabled={false} />);
+      render(
+        <ControllerHarness
+          ref={controllerRef}
+          defaultValue='seed'
+          disabled={false}
+        />,
+      );
 
       expect(controllerRef.current).toBeTruthy();
       const getOutlineStyle = () =>
-        (StyleSheet.flatten(controllerRef.current?.containerStyle ?? []) ?? {}).outlineStyle;
+        (StyleSheet.flatten(controllerRef.current?.containerStyle ?? []) ?? {})
+          .outlineStyle;
 
       expect(getOutlineStyle()).toBe('none');
 
@@ -188,7 +219,7 @@ describe('useSearchInputController', () => {
     render(
       <ControllerHarness
         ref={controllerRef}
-        defaultValue=""
+        defaultValue=''
         disabled={false}
         onCharacterAdd={onCharacterAdd}
       />,
@@ -212,7 +243,7 @@ describe('useSearchInputController', () => {
     render(
       <ControllerHarness
         ref={controllerRef}
-        defaultValue=""
+        defaultValue=''
         disabled={false}
         onCharacterAdd={onCharacterAdd}
         characterReader={() => undefined}

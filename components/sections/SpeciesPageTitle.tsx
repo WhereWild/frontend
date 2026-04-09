@@ -45,15 +45,11 @@ export function SpeciesPageTitle({
       <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
         <View style={styles.titleRow}>
           <View style={styles.nameColumn}>
-            <ThemedText variant="titlePage">
-              {commonName}
-            </ThemedText>
-            <ThemedText variant="bodyEmphasis">
-              {scientificName}
-            </ThemedText>
+            <ThemedText variant='titlePage'>{commonName}</ThemedText>
+            <ThemedText variant='bodyEmphasis'>{scientificName}</ThemedText>
           </View>
           <Button
-            variant="neutral"
+            variant='neutral'
             iconStart={<IconDownload />}
             onPress={onPressDownload}
             accessibilityLabel={`${downloadLabel} ${commonName}`}
@@ -69,7 +65,7 @@ export function SpeciesPageTitle({
               backgroundColor: palette.border.brand.secondary,
             },
           ]}
-          testID="species-page-title-divider"
+          testID='species-page-title-divider'
         />
       </View>
     </View>

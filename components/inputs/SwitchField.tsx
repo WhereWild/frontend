@@ -10,7 +10,10 @@ import {
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
-import { SWITCH_FIELD_GEOMETRY, useSwitchFieldController } from './useSwitchFieldController';
+import {
+  SWITCH_FIELD_GEOMETRY,
+  useSwitchFieldController,
+} from './useSwitchFieldController';
 
 export type SwitchFieldProps = {
   value?: boolean;
@@ -62,16 +65,16 @@ export function SwitchField({
     <View style={[styles.container, style]}>
       <View style={styles.row}>
         {label ? (
-          <ThemedText variant="body" style={[styles.label, { color: labelColor }]}>
+          <ThemedText
+            variant='body'
+            style={[styles.label, { color: labelColor }]}
+          >
             {label}
           </ThemedText>
         ) : null}
-        <View
-          style={styles.switch}
-          {...panHandlers}
-        >
+        <View style={styles.switch} {...panHandlers}>
           <Animated.View
-            testID="switch-track"
+            testID='switch-track'
             style={[
               styles.trackFill,
               {
@@ -81,7 +84,7 @@ export function SwitchField({
             ]}
           />
           <Animated.View
-            testID="switch-border"
+            testID='switch-border'
             style={[
               styles.trackBorder,
               {
@@ -91,7 +94,7 @@ export function SwitchField({
             ]}
           />
           <Animated.View
-            testID="switch-hover-fill"
+            testID='switch-hover-fill'
             style={[
               styles.hoverOverlay,
               {
@@ -102,7 +105,7 @@ export function SwitchField({
             ]}
           />
           <Animated.View
-            testID="switch-hover-border"
+            testID='switch-hover-border'
             style={[
               styles.hoverBorder,
               {
@@ -113,7 +116,7 @@ export function SwitchField({
             ]}
           />
           <Pressable
-            accessibilityRole="switch"
+            accessibilityRole='switch'
             accessibilityLabel={accessibilityLabel ?? label ?? 'Switch field'}
             accessibilityState={{ checked: isOn, disabled }}
             disabled={disabled}
@@ -122,7 +125,10 @@ export function SwitchField({
             onPress={onPress}
             onPressIn={onPressIn}
             onPressOut={onPressOut}
-            style={[styles.switchInteraction, getInteractiveCursorStyle(disabled)]}
+            style={[
+              styles.switchInteraction,
+              getInteractiveCursorStyle(disabled),
+            ]}
           >
             <Animated.View
               style={[
@@ -133,7 +139,7 @@ export function SwitchField({
               ]}
             >
               <Animated.View
-                testID="switch-thumb"
+                testID='switch-thumb'
                 style={[
                   styles.thumb,
                   {
@@ -148,7 +154,7 @@ export function SwitchField({
         </View>
       </View>
       {description ? (
-        <ThemedText variant="body" style={{ color: descriptionColor }}>
+        <ThemedText variant='body' style={{ color: descriptionColor }}>
           {description}
         </ThemedText>
       ) : null}

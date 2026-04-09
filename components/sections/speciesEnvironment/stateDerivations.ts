@@ -51,7 +51,8 @@ export const resolveMetricRank = ({
   allowHistogramFallback,
 }: ResolveRankParams): SpeciesEnvironmentRelativeRank | null => {
   const fallbackEnabled =
-    allowHistogramFallback ?? ['min', 'mean', 'max'].includes(metric.toLowerCase());
+    allowHistogramFallback ??
+    ['min', 'mean', 'max'].includes(metric.toLowerCase());
 
   if (!stats) {
     return null;
@@ -59,18 +60,28 @@ export const resolveMetricRank = ({
 
   const normalizedMetric = metric.toLowerCase();
   const rawCandidates =
-    stats.relativeRanks?.filter((entry) => entry.metric?.toLowerCase?.() === normalizedMetric) ??
-    [];
+    stats.relativeRanks?.filter(
+      (entry) => entry.metric?.toLowerCase?.() === normalizedMetric,
+    ) ?? [];
   const filteredCandidates = selectedRankContext
-    ? rawCandidates.filter((entry) => (entry.label ?? entry.context ?? '') === selectedRankContext)
+    ? rawCandidates.filter(
+        (entry) => (entry.label ?? entry.context ?? '') === selectedRankContext,
+      )
     : rawCandidates;
-  const prioritized = filteredCandidates.length ? filteredCandidates : rawCandidates;
+  const prioritized = filteredCandidates.length
+    ? filteredCandidates
+    : rawCandidates;
 
   if (prioritized.length) {
     return (
       prioritized
-        .filter((entry) => typeof entry.rank === 'number' || typeof entry.percentile === 'number')
-        .sort((left, right) => (right.count ?? 0) - (left.count ?? 0))[0] ?? null
+        .filter(
+          (entry) =>
+            typeof entry.rank === 'number' ||
+            typeof entry.percentile === 'number',
+        )
+        .sort((left, right) => (right.count ?? 0) - (left.count ?? 0))[0] ??
+      null
     );
   }
 
@@ -78,7 +89,10 @@ export const resolveMetricRank = ({
     return null;
   }
 
-  const fallbackPercentile = estimatePercentileFromHistogram(stats.histogram ?? null, value);
+  const fallbackPercentile = estimatePercentileFromHistogram(
+    stats.histogram ?? null,
+    value,
+  );
   if (fallbackPercentile === null) {
     return null;
   }
@@ -109,10 +123,26 @@ export const buildSummaryComparisons = (
   }
 
   return {
-    min: formatComparisonLabel(summary?.min ?? null, baselineSummary?.min ?? null, 1),
-    mean: formatComparisonLabel(summary?.mean ?? null, baselineSummary?.mean ?? null, 1),
-    max: formatComparisonLabel(summary?.max ?? null, baselineSummary?.max ?? null, 1),
-    std: formatComparisonLabel(summary?.stddev ?? null, baselineSummary?.stddev ?? null, 1),
+    min: formatComparisonLabel(
+      summary?.min ?? null,
+      baselineSummary?.min ?? null,
+      1,
+    ),
+    mean: formatComparisonLabel(
+      summary?.mean ?? null,
+      baselineSummary?.mean ?? null,
+      1,
+    ),
+    max: formatComparisonLabel(
+      summary?.max ?? null,
+      baselineSummary?.max ?? null,
+      1,
+    ),
+    std: formatComparisonLabel(
+      summary?.stddev ?? null,
+      baselineSummary?.stddev ?? null,
+      1,
+    ),
     range99: formatComparisonLabel(summaryRangeValue, baselineRangeValue, 1),
   };
 };
@@ -162,12 +192,16 @@ export const buildMetaText = ({
   }
 
   return `(Based on ${formatValue(
-    isCategorical ? categoricalTotalSamples ?? summaryCount ?? 0 : summaryCount ?? 0,
+    isCategorical
+      ? (categoricalTotalSamples ?? summaryCount ?? 0)
+      : (summaryCount ?? 0),
   )} observations)`;
 };
 
 /** Resolves 1st-to-99th percentile span from summary quantiles. */
-export const resolveRangeValue = (summary: SpeciesEnvironmentSummary | null | undefined) => {
+export const resolveRangeValue = (
+  summary: SpeciesEnvironmentSummary | null | undefined,
+) => {
   if (typeof summary?.q01 !== 'number' || typeof summary?.q99 !== 'number') {
     return null;
   }

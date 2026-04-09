@@ -31,7 +31,7 @@ describe('RoutePressable', () => {
     mockPathname = '/about';
 
     render(
-      <RoutePressable href="/about" testID="route-pressable">
+      <RoutePressable href='/about' testID='route-pressable'>
         <ThemedText>About</ThemedText>
       </RoutePressable>,
     );
@@ -45,7 +45,7 @@ describe('RoutePressable', () => {
     mockPathname = '/';
 
     render(
-      <RoutePressable href="/about" testID="route-pressable">
+      <RoutePressable href='/about' testID='route-pressable'>
         <ThemedText>About</ThemedText>
       </RoutePressable>,
     );
@@ -64,8 +64,8 @@ describe('RoutePressable', () => {
           pathname: '/species/[...identifier]',
           params: { identifier: ['555', 'binomial-nomenclature'] },
         }}
-        hrefPath="/species/555/binomial-nomenclature"
-        testID="route-pressable"
+        hrefPath='/species/555/binomial-nomenclature'
+        testID='route-pressable'
       >
         <ThemedText>Species</ThemedText>
       </RoutePressable>,
@@ -83,18 +83,24 @@ describe('RoutePressable', () => {
 
     render(
       <RoutePressable
-        href="/about"
-        hrefPath="/about"
+        href='/about'
+        hrefPath='/about'
         onPress={handlePress}
-        testID="route-pressable"
+        testID='route-pressable'
       >
         <ThemedText>About</ThemedText>
       </RoutePressable>,
     );
 
-    fireEvent(screen.getByTestId('route-pressable'), 'press', { nativeEvent: { ctrlKey: true } });
+    fireEvent(screen.getByTestId('route-pressable'), 'press', {
+      nativeEvent: { ctrlKey: true },
+    });
 
-    expect(openMock).toHaveBeenCalledWith('/about', '_blank', 'noopener,noreferrer');
+    expect(openMock).toHaveBeenCalledWith(
+      '/about',
+      '_blank',
+      'noopener,noreferrer',
+    );
     expect(handlePress).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
@@ -105,12 +111,14 @@ describe('RoutePressable', () => {
     window.open = openMock;
 
     render(
-      <RoutePressable href="/about" hrefPath="/about" testID="route-pressable">
+      <RoutePressable href='/about' hrefPath='/about' testID='route-pressable'>
         <ThemedText>About</ThemedText>
       </RoutePressable>,
     );
 
-    fireEvent(screen.getByTestId('route-pressable'), 'press', { nativeEvent: { shiftKey: true } });
+    fireEvent(screen.getByTestId('route-pressable'), 'press', {
+      nativeEvent: { shiftKey: true },
+    });
 
     expect(openMock).toHaveBeenCalledWith('/about', '_blank');
     expect(openedWindow.opener).toBeNull();
@@ -121,7 +129,11 @@ describe('RoutePressable', () => {
     const handlePress = jest.fn();
 
     render(
-      <RoutePressable href="/about" onPress={handlePress} testID="route-pressable">
+      <RoutePressable
+        href='/about'
+        onPress={handlePress}
+        testID='route-pressable'
+      >
         <ThemedText>About</ThemedText>
       </RoutePressable>,
     );
@@ -137,10 +149,10 @@ describe('RoutePressable', () => {
 
     render(
       <RoutePressable
-        href="/about"
+        href='/about'
         onPress={handlePress}
         navigateAfterPress={true}
-        testID="route-pressable"
+        testID='route-pressable'
       >
         <ThemedText>About</ThemedText>
       </RoutePressable>,

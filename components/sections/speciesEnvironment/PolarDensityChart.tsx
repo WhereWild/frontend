@@ -96,7 +96,10 @@ export function PolarDensityChart({
   const hasDragged = React.useRef(false);
 
   const handleTouchStart = React.useCallback((e: GestureResponderEvent) => {
-    dragOrigin.current = touchToDeg(e.nativeEvent.locationX, e.nativeEvent.locationY);
+    dragOrigin.current = touchToDeg(
+      e.nativeEvent.locationX,
+      e.nativeEvent.locationY,
+    );
     hasDragged.current = false;
   }, []);
 
@@ -104,7 +107,10 @@ export function PolarDensityChart({
     (e: GestureResponderEvent) => {
       if (dragOrigin.current === null) return;
       hasDragged.current = true;
-      const currentDeg = touchToDeg(e.nativeEvent.locationX, e.nativeEvent.locationY);
+      const currentDeg = touchToDeg(
+        e.nativeEvent.locationX,
+        e.nativeEvent.locationY,
+      );
       onSelectionChange?.({ start: dragOrigin.current, end: currentDeg });
     },
     [onSelectionChange],
@@ -121,7 +127,7 @@ export function PolarDensityChart({
   if (!samples.length) {
     return (
       <View style={styles.empty}>
-        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
+        <ThemedText variant='bodySmall'>Density curve unavailable.</ThemedText>
       </View>
     );
   }
@@ -130,7 +136,7 @@ export function PolarDensityChart({
   if (!maxDensity) {
     return (
       <View style={styles.empty}>
-        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
+        <ThemedText variant='bodySmall'>Density curve unavailable.</ThemedText>
       </View>
     );
   }
@@ -181,7 +187,7 @@ export function PolarDensityChart({
             cx={CX}
             cy={CY}
             r={INNER_RADIUS + fraction * (MAX_RADIUS - INNER_RADIUS)}
-            fill="none"
+            fill='none'
             stroke={guideColor}
             strokeWidth={0.5}
             opacity={0.2}
@@ -215,14 +221,19 @@ export function PolarDensityChart({
         <Path d={densityPath} fill={fillColor} opacity={0.35} />
 
         {/* Density stroke */}
-        <Path d={densityPath} fill="none" stroke={lineColor} strokeWidth={1.5} />
+        <Path
+          d={densityPath}
+          fill='none'
+          stroke={lineColor}
+          strokeWidth={1.5}
+        />
 
         {/* Inner baseline ring */}
         <Circle
           cx={CX}
           cy={CY}
           r={INNER_RADIUS}
-          fill="none"
+          fill='none'
           stroke={guideColor}
           strokeWidth={1}
           opacity={0.4}
@@ -236,20 +247,20 @@ export function PolarDensityChart({
               y1={pinPoint.inner.y}
               x2={pinPoint.outer.x}
               y2={pinPoint.outer.y}
-              stroke="#F59E0B"
+              stroke='#F59E0B'
               strokeWidth={2}
-              strokeDasharray="4 3"
-              pointerEvents="none"
+              strokeDasharray='4 3'
+              pointerEvents='none'
             />
             <SvgText
               x={pinPoint.label.x}
               y={pinPoint.label.y}
-              textAnchor="middle"
-              alignmentBaseline="middle"
+              textAnchor='middle'
+              alignmentBaseline='middle'
               fontSize={10}
-              fill="#F59E0B"
-              fontWeight="bold"
-              pointerEvents="none"
+              fill='#F59E0B'
+              fontWeight='bold'
+              pointerEvents='none'
             >
               {`${Math.round(pinValue!)}°`}
             </SvgText>
@@ -268,12 +279,12 @@ export function PolarDensityChart({
               key={label}
               x={x}
               y={y}
-              textAnchor="middle"
-              alignmentBaseline="middle"
+              textAnchor='middle'
+              alignmentBaseline='middle'
               fontSize={11}
               fill={guideColor}
               opacity={0.7}
-              pointerEvents="none"
+              pointerEvents='none'
             >
               {label}
             </SvgText>

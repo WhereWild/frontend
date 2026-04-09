@@ -7,7 +7,9 @@ import { ThemedText } from '../ThemedText';
 
 jest.mock('@/hooks/useTypographyStyles');
 
-const mockUseTypographyStyles = useTypographyStyles as jest.MockedFunction<typeof useTypographyStyles>;
+const mockUseTypographyStyles = useTypographyStyles as jest.MockedFunction<
+  typeof useTypographyStyles
+>;
 
 const withPlatformOS = (platform: string, run: () => void) => {
   const originalPlatform = Platform.OS;
@@ -29,8 +31,18 @@ const withPlatformOS = (platform: string, run: () => void) => {
 beforeEach(() => {
   mockUseTypographyStyles.mockReturnValue({
     body: { color: '#111111', fontSize: 16 },
-    bodySmallLink: { color: '#006600', fontSize: 12, textDecorationLine: 'underline', textDecorationColor: 'transparent' },
-    link: { color: '#00ff00', fontSize: 14, textDecorationLine: 'underline', textDecorationColor: 'transparent' },
+    bodySmallLink: {
+      color: '#006600',
+      fontSize: 12,
+      textDecorationLine: 'underline',
+      textDecorationColor: 'transparent',
+    },
+    link: {
+      color: '#00ff00',
+      fontSize: 14,
+      textDecorationLine: 'underline',
+      textDecorationColor: 'transparent',
+    },
   } as any);
 });
 
@@ -44,29 +56,37 @@ describe('ThemedText', () => {
     const text = screen.getByText('Hello');
     const style = text.props.style;
 
-    expect(style).toEqual(expect.objectContaining({ color: '#111111', fontSize: 16 }));
-    expect(style).toEqual(expect.not.objectContaining({ textDecorationLine: 'underline' }));
-    expect(style).toEqual(expect.not.objectContaining({ textDecorationColor: expect.anything() }));
+    expect(style).toEqual(
+      expect.objectContaining({ color: '#111111', fontSize: 16 }),
+    );
+    expect(style).toEqual(
+      expect.not.objectContaining({ textDecorationLine: 'underline' }),
+    );
+    expect(style).toEqual(
+      expect.not.objectContaining({ textDecorationColor: expect.anything() }),
+    );
   });
 
   it('applies requested variant and merges custom styles', () => {
     render(
-      <ThemedText variant="link" style={{ textTransform: 'uppercase' }}>
+      <ThemedText variant='link' style={{ textTransform: 'uppercase' }}>
         Read More
-      </ThemedText>
+      </ThemedText>,
     );
 
     const text = screen.getByText('Read More');
     expect(text.props.style).toEqual(
-      expect.objectContaining({ color: '#00ff00', textTransform: 'uppercase' })
+      expect.objectContaining({ color: '#00ff00', textTransform: 'uppercase' }),
     );
   });
 
   it('applies bodySmallLink variant styles', () => {
-    render(<ThemedText variant="bodySmallLink">Learn More</ThemedText>);
+    render(<ThemedText variant='bodySmallLink'>Learn More</ThemedText>);
 
     const text = screen.getByText('Learn More');
-    expect(text.props.style).toEqual(expect.objectContaining({ color: '#006600', fontSize: 12 }));
+    expect(text.props.style).toEqual(
+      expect.objectContaining({ color: '#006600', fontSize: 12 }),
+    );
   });
 
   it('warns and falls back when an unknown variant is provided', () => {
@@ -74,11 +94,7 @@ describe('ThemedText', () => {
     (global as any).__DEV__ = true;
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    render(
-      <ThemedText variant={'mystery' as any}>
-        Unknown
-      </ThemedText>,
-    );
+    render(<ThemedText variant={'mystery' as any}>Unknown</ThemedText>);
 
     expect(warnSpy).toHaveBeenCalledWith(
       'ThemedText: unknown variant "mystery". Falling back to "body".',
@@ -94,10 +110,12 @@ describe('ThemedText', () => {
         start: startMock,
       } as any);
 
-      render(<ThemedText variant="link">Read More</ThemedText>);
+      render(<ThemedText variant='link'>Read More</ThemedText>);
       const text = screen.getByText('Read More');
 
-      expect(text.props.style).toEqual(expect.objectContaining({ color: '#00ff00' }));
+      expect(text.props.style).toEqual(
+        expect.objectContaining({ color: '#00ff00' }),
+      );
 
       act(() => {
         text.props.onHoverIn({} as any);
@@ -114,7 +132,7 @@ describe('ThemedText', () => {
           toValue: 1,
           duration: Time.duration.short,
           useNativeDriver: false,
-        })
+        }),
       );
       expect(timingSpy).toHaveBeenNthCalledWith(
         2,
@@ -123,7 +141,7 @@ describe('ThemedText', () => {
           toValue: 0,
           duration: Time.duration.short,
           useNativeDriver: false,
-        })
+        }),
       );
       expect(startMock).toHaveBeenCalledTimes(2);
     });
@@ -136,7 +154,7 @@ describe('ThemedText', () => {
         start: startMock,
       } as any);
 
-      render(<ThemedText variant="bodySmallLink">Learn More</ThemedText>);
+      render(<ThemedText variant='bodySmallLink'>Learn More</ThemedText>);
       const text = screen.getByText('Learn More');
 
       act(() => {
@@ -152,7 +170,7 @@ describe('ThemedText', () => {
         expect.objectContaining({
           toValue: 1,
           duration: Time.duration.short,
-        })
+        }),
       );
       expect(timingSpy).toHaveBeenNthCalledWith(
         2,
@@ -160,7 +178,7 @@ describe('ThemedText', () => {
         expect.objectContaining({
           toValue: 0,
           duration: Time.duration.short,
-        })
+        }),
       );
       expect(startMock).toHaveBeenCalledTimes(2);
     });
@@ -170,28 +188,28 @@ describe('ThemedText', () => {
     withPlatformOS('web', () => {
       const timingSpy = jest.spyOn(Animated, 'timing');
 
-      render(<ThemedText variant="link">Read More</ThemedText>);
+      render(<ThemedText variant='link'>Read More</ThemedText>);
       const text = screen.getByText('Read More');
 
       expect(text.props.style).toEqual(
         expect.objectContaining({
           textDecorationColor: 'transparent',
           transitionDuration: `${Time.duration.short}ms`,
-        })
+        }),
       );
 
       act(() => {
         text.props.onMouseEnter({} as any);
       });
       expect(screen.getByText('Read More').props.style).toEqual(
-        expect.objectContaining({ textDecorationColor: '#00ff00' })
+        expect.objectContaining({ textDecorationColor: '#00ff00' }),
       );
 
       act(() => {
         screen.getByText('Read More').props.onMouseLeave({} as any);
       });
       expect(screen.getByText('Read More').props.style).toEqual(
-        expect.objectContaining({ textDecorationColor: 'transparent' })
+        expect.objectContaining({ textDecorationColor: 'transparent' }),
       );
 
       expect(timingSpy).not.toHaveBeenCalled();
@@ -205,9 +223,13 @@ describe('ThemedText', () => {
       const onPressOutSpy = jest.fn();
 
       render(
-        <ThemedText variant="link" onPressIn={onPressInSpy} onPressOut={onPressOutSpy}>
+        <ThemedText
+          variant='link'
+          onPressIn={onPressInSpy}
+          onPressOut={onPressOutSpy}
+        >
           Read More
-        </ThemedText>
+        </ThemedText>,
       );
 
       const text = screen.getByText('Read More');
@@ -217,7 +239,7 @@ describe('ThemedText', () => {
       });
       expect(onPressInSpy).toHaveBeenCalledTimes(1);
       expect(screen.getByText('Read More').props.style).toEqual(
-        expect.objectContaining({ textDecorationColor: '#00ff00' })
+        expect.objectContaining({ textDecorationColor: '#00ff00' }),
       );
 
       act(() => {
@@ -225,7 +247,7 @@ describe('ThemedText', () => {
       });
       expect(onPressOutSpy).toHaveBeenCalledTimes(1);
       expect(screen.getByText('Read More').props.style).toEqual(
-        expect.objectContaining({ textDecorationColor: 'transparent' })
+        expect.objectContaining({ textDecorationColor: 'transparent' }),
       );
 
       expect(timingSpy).not.toHaveBeenCalled();
@@ -233,7 +255,7 @@ describe('ThemedText', () => {
   });
 
   it('does not attach animation handlers for non-link variants', () => {
-    render(<ThemedText variant="body">Body</ThemedText>);
+    render(<ThemedText variant='body'>Body</ThemedText>);
     const text = screen.getByText('Body');
 
     expect(text.props.onHoverIn).toBeUndefined();

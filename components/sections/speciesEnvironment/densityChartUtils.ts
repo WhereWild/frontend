@@ -24,7 +24,10 @@ export type DensityDomain = {
 export const buildDensitySamples = (
   curve: SpeciesEnvironmentDensity | null | undefined,
 ): DensitySamplePoint[] => {
-  const pointCount = Math.min(curve?.points?.length ?? 0, curve?.density?.length ?? 0);
+  const pointCount = Math.min(
+    curve?.points?.length ?? 0,
+    curve?.density?.length ?? 0,
+  );
   const samples: DensitySamplePoint[] = [];
 
   if (!curve || pointCount <= 0) {
@@ -43,11 +46,19 @@ export const buildDensitySamples = (
 };
 
 /** Computes chart domain bounds and safe extents from density samples. */
-export const getDensityDomain = (samples: DensitySamplePoint[]): DensityDomain => {
-  const minX = samples.length ? Math.min(...samples.map((sample) => sample.x)) : 0;
-  const maxX = samples.length ? Math.max(...samples.map((sample) => sample.x)) : 1;
+export const getDensityDomain = (
+  samples: DensitySamplePoint[],
+): DensityDomain => {
+  const minX = samples.length
+    ? Math.min(...samples.map((sample) => sample.x))
+    : 0;
+  const maxX = samples.length
+    ? Math.max(...samples.map((sample) => sample.x))
+    : 1;
   const spanX = maxX - minX || 1;
-  const maxY = samples.length ? Math.max(...samples.map((sample) => sample.y)) : 1;
+  const maxY = samples.length
+    ? Math.max(...samples.map((sample) => sample.y))
+    : 1;
 
   return {
     minX,
@@ -66,7 +77,8 @@ export const normalizeDensitySamples = (
 ) =>
   samples.map((sample) => ({
     x: ((sample.x - domain.minX) / domain.spanX) * 100,
-    y: chartHeight - (sample.y / domain.safeMaxY) * (chartHeight - chartPadding),
+    y:
+      chartHeight - (sample.y / domain.safeMaxY) * (chartHeight - chartPadding),
   }));
 
 /** Resolves SVG selection rectangle bounds for the active selection range. */
@@ -78,10 +90,18 @@ export const getSelectionBounds = (
     return null;
   }
 
-  const leftValue = Math.max(domain.minX, Math.min(domain.maxX, selection.start));
-  const rightValue = Math.max(domain.minX, Math.min(domain.maxX, selection.end));
-  const leftRatio = ((Math.min(leftValue, rightValue) - domain.minX) / domain.spanX) * 100;
-  const rightRatio = ((Math.max(leftValue, rightValue) - domain.minX) / domain.spanX) * 100;
+  const leftValue = Math.max(
+    domain.minX,
+    Math.min(domain.maxX, selection.start),
+  );
+  const rightValue = Math.max(
+    domain.minX,
+    Math.min(domain.maxX, selection.end),
+  );
+  const leftRatio =
+    ((Math.min(leftValue, rightValue) - domain.minX) / domain.spanX) * 100;
+  const rightRatio =
+    ((Math.max(leftValue, rightValue) - domain.minX) / domain.spanX) * 100;
 
   if (!Number.isFinite(leftRatio) || !Number.isFinite(rightRatio)) {
     return null;

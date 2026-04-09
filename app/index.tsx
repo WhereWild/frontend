@@ -1,12 +1,23 @@
 import { ActiveNearYouSection, LocalMapSection } from '@/components';
 import { Colors } from '@/constants/theme';
-import { fetchSpeciesWithModels, fetchViewportScores, BACKEND_BASE } from '@/data/api';
+import {
+  fetchSpeciesWithModels,
+  fetchViewportScores,
+  BACKEND_BASE,
+} from '@/data/api';
 import type { ViewportScoresResult } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
-import type { HomePageData, SpeciesApiNormalized, SpeciesSummary } from '@/data/types';
+import type {
+  HomePageData,
+  SpeciesApiNormalized,
+  SpeciesSummary,
+} from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { getResponsiveContentContainerStyle, getResponsiveGapStyle } from '@/constants/responsiveStyles';
+import {
+  getResponsiveContentContainerStyle,
+  getResponsiveGapStyle,
+} from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -15,7 +26,13 @@ const SIDEBAR_WIDTH = 400;
 const SCORE_DEBOUNCE_MS = 1200;
 const RECOMMENDATION_SCORE_THRESHOLD = 0.25;
 const MAX_RECOMMENDATIONS = 10;
-const HOMEPAGE_GROUP_ORDER = ['arthropods', 'birds', 'animals', 'fungi', 'plants'] as const;
+const HOMEPAGE_GROUP_ORDER = [
+  'arthropods',
+  'birds',
+  'animals',
+  'fungi',
+  'plants',
+] as const;
 
 type ViewportBounds = {
   minLon: number;
@@ -42,20 +59,25 @@ const withScoreReason = (
   return description ? { ...item, description } : item;
 };
 
-const buildHomepageHeatmapTileUrl = (sessionStamp: number, group: string | null) => {
+const buildHomepageHeatmapTileUrl = (
+  sessionStamp: number,
+  group: string | null,
+) => {
   const groupParam = group && group !== 'all' ? `&group=${group}` : '';
   return `${BACKEND_BASE}/api/heatmap/homepage/tiles/{z}/{x}/{y}.png?v=${sessionStamp}${groupParam}`;
 };
 
 const buildRecommendationSeedKey = (items: SpeciesSummary[]) =>
   items
-    .map((item) => [
-      item.taxonId,
-      item.commonName,
-      item.scientificName,
-      item.description,
-      item.taxonGroup ?? '',
-    ].join(':'))
+    .map((item) =>
+      [
+        item.taxonId,
+        item.commonName,
+        item.scientificName,
+        item.description,
+        item.taxonGroup ?? '',
+      ].join(':'),
+    )
     .join('|');
 
 const mapSpeciesWithModelToSummary = (
@@ -94,13 +116,16 @@ const rankRecommendationsForViewport = (
 
   const additional = scored.filter(
     (item) =>
-      !pinnedIds.has(item.taxonId)
-      && (scores[String(item.taxonId)] ?? 0) >= RECOMMENDATION_SCORE_THRESHOLD,
+      !pinnedIds.has(item.taxonId) &&
+      (scores[String(item.taxonId)] ?? 0) >= RECOMMENDATION_SCORE_THRESHOLD,
   );
 
   return {
     allScored: scored,
-    recommendations: [...pinned, ...additional.slice(0, MAX_RECOMMENDATIONS - pinned.length)],
+    recommendations: [
+      ...pinned,
+      ...additional.slice(0, MAX_RECOMMENDATIONS - pinned.length),
+    ],
   };
 };
 
@@ -111,24 +136,32 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
   const responsive = useResponsive();
   const providedSeedItems = data?.recommendations?.items;
   const seedItems = providedSeedItems ?? mockHomePageData.recommendations.items;
-  const [recommendations, setRecommendations] = React.useState<SpeciesSummary[]>(seedItems);
+  const [recommendations, setRecommendations] =
+    React.useState<SpeciesSummary[]>(seedItems);
   const [allScored, setAllScored] = React.useState<SpeciesSummary[]>(seedItems);
   const [scoresLoading, setScoresLoading] = React.useState(false);
   const [heatmapGroup, setHeatmapGroup] = React.useState<string | null>(null);
   const allSpeciesRef = React.useRef<SpeciesSummary[]>(seedItems);
-  const lastAppliedSeedKeyRef = React.useRef(buildRecommendationSeedKey(seedItems));
+  const lastAppliedSeedKeyRef = React.useRef(
+    buildRecommendationSeedKey(seedItems),
+  );
   const sessionStamp = React.useRef(Date.now());
   const heatmapTileUrl = React.useMemo(
     () => buildHomepageHeatmapTileUrl(sessionStamp.current, heatmapGroup),
     [heatmapGroup],
   );
-  const scoreRequestRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scoreRequestRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  const applyRecommendationState = React.useCallback((items: SpeciesSummary[]) => {
-    allSpeciesRef.current = items;
-    setRecommendations(items);
-    setAllScored(items);
-  }, []);
+  const applyRecommendationState = React.useCallback(
+    (items: SpeciesSummary[]) => {
+      allSpeciesRef.current = items;
+      setRecommendations(items);
+      setAllScored(items);
+    },
+    [],
+  );
 
   React.useEffect(() => {
     const nextSeedKey = buildRecommendationSeedKey(seedItems);
@@ -152,7 +185,9 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
         console.warn('[HomeScreen] failed to fetch species with models', e);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [applyRecommendationState, data]);
 
   React.useEffect(() => {
@@ -191,7 +226,12 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
           <title>WhereWild | Home</title>
         </Head>
       ) : null}
-      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+      <View
+        style={[
+          styles.screen,
+          { backgroundColor: palette.background.default.default },
+        ]}
+      >
         <ScrollView
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}

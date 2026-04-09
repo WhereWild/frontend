@@ -125,7 +125,9 @@ export function RadioField({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
-  const labelColor = disabled ? palette.text.disabled.default : palette.text.default.default;
+  const labelColor = disabled
+    ? palette.text.disabled.default
+    : palette.text.default.default;
   const descriptionColor = disabled
     ? palette.text.disabled.default
     : palette.text.default.secondary;
@@ -169,7 +171,7 @@ export function RadioField({
     <View style={[styles.container, style]}>
       <View style={styles.row}>
         <Pressable
-          accessibilityRole="radio"
+          accessibilityRole='radio'
           accessibilityLabel={accessibilityLabel ?? label ?? 'Radio field'}
           accessibilityState={{ selected: isChecked, disabled }}
           disabled={disabled}
@@ -213,7 +215,10 @@ export function RadioField({
           }}
         </Pressable>
         {label ? (
-          <ThemedText variant="body" style={[styles.label, { color: labelColor }]}>
+          <ThemedText
+            variant='body'
+            style={[styles.label, { color: labelColor }]}
+          >
             {label}
           </ThemedText>
         ) : null}
@@ -221,7 +226,10 @@ export function RadioField({
       {description ? (
         <View style={styles.descriptionRow}>
           <View style={styles.spacer} />
-          <ThemedText variant="body" style={[styles.label, { color: descriptionColor }]}>
+          <ThemedText
+            variant='body'
+            style={[styles.label, { color: descriptionColor }]}
+          >
             {description}
           </ThemedText>
         </View>

@@ -4,7 +4,10 @@ import type { Href } from 'expo-router';
 
 /** Optional SearchInput props that WebPageHeader allows consumers to pass through. */
 export type SearchInputPassthroughProps = Partial<
-  Omit<SearchInputProps, 'value' | 'onQueryChange' | 'onSubmitSearch' | 'placeholder'>
+  Omit<
+    SearchInputProps,
+    'value' | 'onQueryChange' | 'onSubmitSearch' | 'placeholder'
+  >
 >;
 
 /** Action model for right-side header actions and compact menu items. */

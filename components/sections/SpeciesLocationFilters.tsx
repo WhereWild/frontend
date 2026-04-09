@@ -37,7 +37,10 @@ export function SpeciesLocationFilters({
 }: SpeciesLocationFiltersProps) {
   const { breakpoint } = useResponsive();
   const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
-  const toNullableGid = React.useCallback((value: string) => (value ? String(value) : null), []);
+  const toNullableGid = React.useCallback(
+    (value: string) => (value ? String(value) : null),
+    [],
+  );
 
   const selectItems = React.useMemo(
     () => [
@@ -56,7 +59,8 @@ export function SpeciesLocationFilters({
         placeholder: stateLoading ? 'Loading…' : 'Select',
         options: [{ label: 'All states', value: '' }, ...stateOptions],
         value: selectedStateGid ?? '',
-        disabled: !selectedCountryGid || stateLoading || stateOptions.length === 0,
+        disabled:
+          !selectedCountryGid || stateLoading || stateOptions.length === 0,
         onChange: (value: string) => onStateChange(toNullableGid(value)),
       },
       {
@@ -65,7 +69,8 @@ export function SpeciesLocationFilters({
         placeholder: countyLoading ? 'Loading…' : 'Select',
         options: [{ label: 'All counties', value: '' }, ...countyOptions],
         value: selectedCountyGid ?? '',
-        disabled: !selectedStateGid || countyLoading || countyOptions.length === 0,
+        disabled:
+          !selectedStateGid || countyLoading || countyOptions.length === 0,
         onChange: (value: string) => onCountyChange(toNullableGid(value)),
       },
     ],
@@ -88,11 +93,19 @@ export function SpeciesLocationFilters({
 
   return (
     <View style={styles.filterContainer}>
-      <ThemedText variant="subheading">Filter Observations by Location</ThemedText>
+      <ThemedText variant='subheading'>
+        Filter Observations by Location
+      </ThemedText>
 
-      <View testID="filter-row" style={[styles.filterRow, isStacked && styles.filterRowStacked]}>
+      <View
+        testID='filter-row'
+        style={[styles.filterRow, isStacked && styles.filterRowStacked]}
+      >
         {selectItems.map((item) => (
-          <View key={item.key} style={[styles.filterItem, isStacked && styles.filterItemStacked]}>
+          <View
+            key={item.key}
+            style={[styles.filterItem, isStacked && styles.filterItemStacked]}
+          >
             <SelectField
               label={item.label}
               placeholder={item.placeholder}

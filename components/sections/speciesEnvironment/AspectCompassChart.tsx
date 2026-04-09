@@ -6,7 +6,11 @@ import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { formatCategoryPercent, formatValue, type PinnedCategoryBadge } from './model';
+import {
+  formatCategoryPercent,
+  formatValue,
+  type PinnedCategoryBadge,
+} from './model';
 
 const CHART_SIZE = 240;
 const CX = CHART_SIZE / 2;
@@ -59,12 +63,19 @@ const FULL_NAME_TO_DIR: Record<string, string> = {
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 
 /** Resolves a category to its short compass direction key (N/NE/E/...). */
-const resolveDirection = (category: SpeciesEnvironmentCategory): string | null => {
-  if (COMPASS_SVG_ANGLES[category.className] !== undefined) return category.className;
-  if (FULL_NAME_TO_DIR[category.className]) return FULL_NAME_TO_DIR[category.className];
+const resolveDirection = (
+  category: SpeciesEnvironmentCategory,
+): string | null => {
+  if (COMPASS_SVG_ANGLES[category.className] !== undefined)
+    return category.className;
+  if (FULL_NAME_TO_DIR[category.className])
+    return FULL_NAME_TO_DIR[category.className];
   const numVal = Number(category.value);
   if (NUMERIC_ID_TO_DIR[numVal]) return NUMERIC_ID_TO_DIR[numVal];
-  if (typeof category.value === 'string' && COMPASS_SVG_ANGLES[category.value] !== undefined)
+  if (
+    typeof category.value === 'string' &&
+    COMPASS_SVG_ANGLES[category.value] !== undefined
+  )
     return category.value;
   return null;
 };
@@ -99,7 +110,9 @@ const buildWedgePath = (svgAngleDeg: number, outerR: number): string => {
 
 const getSelectedDescription = (category: SpeciesEnvironmentCategory) => {
   const accountPhrase =
-    String(category.value) === '__other__' ? 'Together these account' : 'This accounts';
+    String(category.value) === '__other__'
+      ? 'Together these account'
+      : 'This accounts';
   const summarySentence = `${accountPhrase} for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
   if (!category.description) return summarySentence;
   const cleaned = category.description.replace(/\.$/, '');
@@ -148,7 +161,7 @@ export function AspectCompassChart({
   if (!validCategories.length) {
     return (
       <View style={styles.empty}>
-        <ThemedText variant="bodySmall">Aspect data unavailable.</ThemedText>
+        <ThemedText variant='bodySmall'>Aspect data unavailable.</ThemedText>
       </View>
     );
   }
@@ -163,15 +176,23 @@ export function AspectCompassChart({
 
   const selectedCategory =
     selectedValue !== null
-      ? (validCategories.find((cat) => String(cat.value) === String(selectedValue)) ?? null)
+      ? (validCategories.find(
+          (cat) => String(cat.value) === String(selectedValue),
+        ) ?? null)
       : null;
 
-  const selectedDir = selectedCategory ? resolveDirection(selectedCategory) : null;
+  const selectedDir = selectedCategory
+    ? resolveDirection(selectedCategory)
+    : null;
   const highlightedCategory =
     highlightedValue !== null
-      ? (validCategories.find((cat) => String(cat.value) === String(highlightedValue)) ?? null)
+      ? (validCategories.find(
+          (cat) => String(cat.value) === String(highlightedValue),
+        ) ?? null)
       : null;
-  const highlightedDir = highlightedCategory ? resolveDirection(highlightedCategory) : null;
+  const highlightedDir = highlightedCategory
+    ? resolveDirection(highlightedCategory)
+    : null;
   const unobservedPillKey = unobservedHighlightedCategory
     ? `__unobserved__:${String(unobservedHighlightedCategory.value)}`
     : null;
@@ -195,8 +216,8 @@ export function AspectCompassChart({
             cx={CX}
             cy={CY}
             r={MAX_OUTER_RADIUS}
-            fill="none"
-            stroke="#888888"
+            fill='none'
+            stroke='#888888'
             strokeWidth={0.5}
             opacity={0.2}
           />
@@ -205,8 +226,8 @@ export function AspectCompassChart({
             cx={CX}
             cy={CY}
             r={INNER_RADIUS}
-            fill="none"
-            stroke="#888888"
+            fill='none'
+            stroke='#888888'
             strokeWidth={0.5}
             opacity={0.2}
           />
@@ -218,12 +239,15 @@ export function AspectCompassChart({
 
             const outerR =
               maxFraction > 0
-                ? INNER_RADIUS + (cat.fraction / maxFraction) * (MAX_OUTER_RADIUS - INNER_RADIUS)
+                ? INNER_RADIUS +
+                  (cat.fraction / maxFraction) *
+                    (MAX_OUTER_RADIUS - INNER_RADIUS)
                 : INNER_RADIUS;
 
             const isSelected = selectedDir === dir;
             const isHighlighted = highlightedDir === dir;
-            const wedgeFill = cat.color ?? (isSelected ? selectedFillColor : fillColor);
+            const wedgeFill =
+              cat.color ?? (isSelected ? selectedFillColor : fillColor);
             const svgAngle = COMPASS_SVG_ANGLES[dir];
             const d = buildWedgePath(svgAngle, outerR);
 
@@ -255,8 +279,8 @@ export function AspectCompassChart({
                 key={`label-${dir}`}
                 x={lx}
                 y={ly}
-                textAnchor="middle"
-                alignmentBaseline="middle"
+                textAnchor='middle'
+                alignmentBaseline='middle'
                 fontSize={isSelected ? 13 : 10}
                 fontWeight={isSelected ? 'bold' : 'normal'}
                 fill={isSelected ? fillColor : '#999999'}
@@ -275,14 +299,19 @@ export function AspectCompassChart({
             return { key: String(cat.value), label: dir };
           }),
           ...(unobservedHighlightedCategory && unobservedPillKey
-            ? [{ key: unobservedPillKey, label: unobservedHighlightedCategory.label }]
+            ? [
+                {
+                  key: unobservedPillKey,
+                  label: unobservedHighlightedCategory.label,
+                },
+              ]
             : []),
         ]}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
         highlightedKey={
           highlightedValue !== null
             ? String(highlightedValue)
-            : unobservedPillKey ?? undefined
+            : (unobservedPillKey ?? undefined)
         }
         onSelectionChange={(key) => {
           if (key === unobservedPillKey) {
@@ -291,14 +320,14 @@ export function AspectCompassChart({
           const cat = validCategories.find((c) => String(c.value) === key);
           if (cat) onSelect?.(cat.value);
         }}
-        direction="horizontal"
-        accessibilityLabel="Aspect direction selection"
+        direction='horizontal'
+        accessibilityLabel='Aspect direction selection'
         highlightOutlineColor={highlightOutlineColor}
       />
 
       {selectedCategory ? (
         <ThemedText
-          variant="bodySmall"
+          variant='bodySmall'
           style={[styles.description, { color: descriptionColor }]}
         >
           {getSelectedDescription(selectedCategory)}
@@ -314,7 +343,7 @@ export function AspectCompassChart({
           ]}
         >
           <ThemedText
-            variant="bodySmall"
+            variant='bodySmall'
             style={{ color: palette.text.warning.default }}
           >
             Species has never been observed in this environment

@@ -44,9 +44,25 @@ const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
 const ABOUT_LANDCOVER_MAP_HEIGHT = 520;
 const ABOUT_LANDCOVER_MIN_ZOOM = 4;
 const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
-  { id: 'landcover', label: 'Land Cover', valueType: 'categorical', category: 'Categorical' },
-  { id: 'koppen_geiger', label: 'Köppen-Geiger', valueType: 'categorical', category: 'Categorical' },
-  { id: 'bio_1', label: 'Annual Mean Temperature', units: 'C', valueType: 'continuous', category: 'Bioclim' },
+  {
+    id: 'landcover',
+    label: 'Land Cover',
+    valueType: 'categorical',
+    category: 'Categorical',
+  },
+  {
+    id: 'koppen_geiger',
+    label: 'Köppen-Geiger',
+    valueType: 'categorical',
+    category: 'Categorical',
+  },
+  {
+    id: 'bio_1',
+    label: 'Annual Mean Temperature',
+    units: 'C',
+    valueType: 'continuous',
+    category: 'Bioclim',
+  },
 ];
 const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal', 'recent weather']);
 // Variables in the temporal catalog that are also live-weather display variables.
@@ -126,7 +142,9 @@ const formatTokenLabel = (value: string) =>
     .trim()
     .replace(/^./, (char) => char.toUpperCase());
 
-const mapAboutVariableOptions = (variables: Awaited<ReturnType<typeof fetchEnvironmentVariables>>) => {
+const mapAboutVariableOptions = (
+  variables: Awaited<ReturnType<typeof fetchEnvironmentVariables>>,
+) => {
   return variables
     .filter((entry) => {
       const category = (entry.category ?? '').toLowerCase();
@@ -138,10 +156,14 @@ const mapAboutVariableOptions = (variables: Awaited<ReturnType<typeof fetchEnvir
       label: entry.name ?? normalizeLabel(entry.id),
       units: entry.units ?? null,
       valueType: entry.valueType ?? null,
-      category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id) ? 'Live Weather' : (entry.category ?? 'Other'),
+      category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)
+        ? 'Live Weather'
+        : (entry.category ?? 'Other'),
     }))
     .sort((left, right) => {
-      const categoryComparison = (left.category ?? '').localeCompare(right.category ?? '');
+      const categoryComparison = (left.category ?? '').localeCompare(
+        right.category ?? '',
+      );
       if (categoryComparison !== 0) {
         return categoryComparison;
       }
@@ -170,7 +192,8 @@ const buildAboutVariableTileUrl = ({
     return baseUrl;
   }
 
-  const withWindow = window !== 'live' ? `${baseUrl}&window=${window}` : baseUrl;
+  const withWindow =
+    window !== 'live' ? `${baseUrl}&window=${window}` : baseUrl;
   return forecast !== 'now' ? `${withWindow}&forecast=${forecast}` : withWindow;
 };
 
@@ -181,14 +204,6 @@ export default function About() {
   const responsive = useResponsive();
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchEvent, setLastSearchEvent] = useState('Waiting for input…');
-  const [selectSearchableValue, setSelectSearchableValue] = useState('');
-  const [selectSearchableTertiaryValue, setSelectSearchableTertiaryValue] = useState('');
-  const [selectSearchablePlaceholderValue, setSelectSearchablePlaceholderValue] = useState('');
-  const [selectSearchableDisabledValue] = useState('hello');
-  const [selectSearchableErrorValue, setSelectSearchableErrorValue] = useState('hello');
-  const [selectListOnlyValue, setSelectListOnlyValue] = useState('');
-  const [selectListOnlyPlaceholderValue, setSelectListOnlyPlaceholderValue] = useState('');
-  const [selectLongPlaceValue, setSelectLongPlaceValue] = useState('');
   const [switchValue, setSwitchValue] = useState(true);
   const [spinnerValue, setSpinnerValue] = useState(1);
   const [spinnerAtMinValue] = useState(1);
@@ -203,7 +218,9 @@ export default function About() {
   const [imagesPill, setImagesPill] = useState('all');
   const [notesPill, setNotesPill] = useState('notes');
   const [buttonLongPressCount, setButtonLongPressCount] = useState(0);
-  const [buttonLongPressLastLabel, setButtonLongPressLastLabel] = useState<string | null>(null);
+  const [buttonLongPressLastLabel, setButtonLongPressLastLabel] = useState<
+    string | null
+  >(null);
   const [filterCountry, setFilterCountry] = useState('us');
   const [filterState, setFilterState] = useState('ut');
   const [filterCounty, setFilterCounty] = useState('salt-lake');
@@ -212,12 +229,14 @@ export default function About() {
   const [filterIncludeSubspecies, setFilterIncludeSubspecies] = useState(true);
   const [filterSortVariable, setFilterSortVariable] = useState('');
   const [filterSortMetric, setFilterSortMetric] = useState('average');
-  const [filterSortOrder, setFilterSortOrder] = useState<'ascending' | 'descending'>('ascending');
+  const [filterSortOrder, setFilterSortOrder] = useState<
+    'ascending' | 'descending'
+  >('ascending');
   const [filterNumResults, setFilterNumResults] = useState(10);
   const [filterMinSamples, setFilterMinSamples] = useState(1);
-  const [aboutMapVariables, setAboutMapVariables] = useState<EnvironmentVariableOption[]>(
-    ABOUT_MAP_FALLBACK_VARIABLES,
-  );
+  const [aboutMapVariables, setAboutMapVariables] = useState<
+    EnvironmentVariableOption[]
+  >(ABOUT_MAP_FALLBACK_VARIABLES);
 
   useEffect(() => {
     let cancelled = false;
@@ -259,7 +278,8 @@ export default function About() {
   const [selectedForecast, setSelectedForecast] = useState<string>('now');
   const aboutTileCacheKey = useMemo(() => Date.now(), []);
 
-  const isLiveWeather = (mapSelectedVariableCategory ?? '').toLowerCase() === 'live weather';
+  const isLiveWeather =
+    (mapSelectedVariableCategory ?? '').toLowerCase() === 'live weather';
 
   const aboutVariableTileUrl = useMemo(() => {
     return buildAboutVariableTileUrl({
@@ -269,54 +289,14 @@ export default function About() {
       selectedVariable: mapSelectedVariable,
       window: selectedWindow,
     });
-  }, [aboutTileCacheKey, isLiveWeather, mapSelectedVariable, selectedForecast, selectedWindow]);
+  }, [
+    aboutTileCacheKey,
+    isLiveWeather,
+    mapSelectedVariable,
+    selectedForecast,
+    selectedWindow,
+  ]);
   const speciesSample = mountainBallCactusData;
-  const selectOptions = [
-    { label: 'Hello World', value: 'hello' },
-    { label: 'Option 2', value: 'option-2' },
-    { label: 'Option 3', value: 'option-3' },
-    { label: 'Option 4', value: 'option-4' },
-    { label: 'Option 5', value: 'option-5' },
-    { label: 'Option 6', value: 'option-6' },
-    { label: 'Option 7', value: 'option-7' },
-    { label: 'Option 8', value: 'option-8' },
-    { label: 'Option 9', value: 'option-9' },
-    { label: 'Option 10', value: 'option-10' },
-  ];
-  const longPlaceOptions = [
-    {
-      label: 'Parque Nacional Torres del Paine, Región de Magallanes y de la Antártica Chilena, Chile',
-      value: 'torres-del-paine-chile',
-    },
-    {
-      label: 'Grosser Aletschgletscher and Jungfrau-Aletsch UNESCO World Heritage Site, Switzerland',
-      value: 'jungfrau-aletsch-switzerland',
-    },
-    {
-      label: 'Wadi Rum Protected Area (Valley of the Moon), Aqaba Governorate, Jordan',
-      value: 'wadi-rum-jordan',
-    },
-    {
-      label: 'Papahānaumokuākea Marine National Monument, Northwestern Hawaiian Islands, USA',
-      value: 'papahanaumokuakea-usa',
-    },
-    {
-      label: 'Kluane / Wrangell-St. Elias / Glacier Bay / Tatshenshini-Alsek World Heritage Site, Canada-USA',
-      value: 'kluane-wrangell-glacier-bay',
-    },
-    {
-      label: 'Te Urewera Forest and Lake Waikaremoana, North Island, Aotearoa New Zealand',
-      value: 'te-urewera-new-zealand',
-    },
-    {
-      label: 'Bialowieza Forest (Białowieża), Podlaskie Voivodeship, Poland-Belarus',
-      value: 'bialowieza-forest',
-    },
-    {
-      label: 'Sagarmatha National Park (Everest Region), Province No. 1, Nepal',
-      value: 'sagarmatha-nepal',
-    },
-  ];
   const radioOptions = [
     { label: 'Label', description: 'Description', value: 'checked' },
     { label: 'Label', description: 'Description', value: 'unchecked' },
@@ -533,7 +513,7 @@ export default function About() {
         },
       ]}
     >
-      <ThemedText variant="body">{content}</ThemedText>
+      <ThemedText variant='body'>{content}</ThemedText>
     </View>
   );
 
@@ -544,572 +524,606 @@ export default function About() {
           <title>WhereWild | About</title>
         </Head>
       ) : null}
-      <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+      <View
+        style={[
+          styles.screen,
+          { backgroundColor: palette.background.default.default },
+        ]}
+      >
         <View style={styles.content}>
           <ScrollView
-            contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
-              includeBottomPadding: true,
-              includeGap: true,
-            })}
+            contentContainerStyle={getResponsiveContentContainerStyle(
+              responsive,
+              {
+                includeBottomPadding: true,
+                includeGap: true,
+              },
+            )}
           >
-          <View>
-            <ThemedText variant="heading">Filters Demo</ThemedText>
-            <Filters
-              countryValue={filterCountry}
-              countryOptions={[
-                { label: 'United States', value: 'us' },
-                { label: 'Canada', value: 'ca' },
-                { label: 'Mexico', value: 'mx' },
-              ]}
-              onCountryChange={setFilterCountry}
-              stateValue={filterState}
-              stateOptions={[
-                { label: 'Utah', value: 'ut' },
-                { label: 'Colorado', value: 'co' },
-                { label: 'Arizona', value: 'az' },
-              ]}
-              onStateChange={setFilterState}
-              countyValue={filterCounty}
-              countyOptions={[
-                { label: 'Salt Lake', value: 'salt-lake' },
-                { label: 'Utah', value: 'utah' },
-                { label: 'Davis', value: 'davis' },
-              ]}
-              onCountyChange={setFilterCounty}
-              baseTaxonQuery={filterTaxonQuery}
-              onBaseTaxonQueryChange={setFilterTaxonQuery}
-              rankValue={filterRank}
-              rankOptions={[
-                { label: 'Species', value: 'species' },
-                { label: 'Genus', value: 'genus' },
-                { label: 'Family', value: 'family' },
-              ]}
-              onRankChange={setFilterRank}
-              includeSubspecies={filterIncludeSubspecies}
-              onIncludeSubspeciesChange={setFilterIncludeSubspecies}
-              sortVariableValue={filterSortVariable}
-              sortVariableOptions={[
-                { label: 'Temperature', value: 'temperature' },
-                { label: 'Elevation', value: 'elevation' },
-                { label: 'Precipitation', value: 'precipitation' },
-              ]}
-              onSortVariableChange={setFilterSortVariable}
-              sortMetricValue={filterSortMetric}
-              sortMetricOptions={[
-                { label: 'Average', value: 'average' },
-                { label: 'Median', value: 'median' },
-                { label: 'Maximum', value: 'maximum' },
-                { label: 'Minimum', value: 'minimum' },
-              ]}
-              onSortMetricChange={setFilterSortMetric}
-              sortOrder={filterSortOrder}
-              onSortOrderChange={setFilterSortOrder}
-              numberOfResults={filterNumResults}
-              onNumberOfResultsChange={setFilterNumResults}
-              minimumSamples={filterMinSamples}
-              onMinimumSamplesChange={setFilterMinSamples}
-              onResetFilters={() => {
-                setFilterCountry('us');
-                setFilterState('ut');
-                setFilterCounty('salt-lake');
-                setFilterTaxonQuery('');
-                setFilterRank('species');
-                setFilterIncludeSubspecies(true);
-                setFilterSortVariable('');
-                setFilterSortMetric('average');
-                setFilterSortOrder('ascending');
-                setFilterNumResults(10);
-                setFilterMinSamples(1);
-              }}
-            />
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Search Input</ThemedText>
             <View>
-              <SearchInput
-                value={searchQuery}
-                placeholder="Search species"
-                onQueryChange={(value) => {
-                  setSearchQuery(value);
-                  setLastSearchEvent(value ? `Query changed: ${value}` : 'Search cleared');
+              <ThemedText variant='heading'>Filters Demo</ThemedText>
+              <Filters
+                countryValue={filterCountry}
+                countryOptions={[
+                  { label: 'United States', value: 'us' },
+                  { label: 'Canada', value: 'ca' },
+                  { label: 'Mexico', value: 'mx' },
+                ]}
+                onCountryChange={setFilterCountry}
+                stateValue={filterState}
+                stateOptions={[
+                  { label: 'Utah', value: 'ut' },
+                  { label: 'Colorado', value: 'co' },
+                  { label: 'Arizona', value: 'az' },
+                ]}
+                onStateChange={setFilterState}
+                countyValue={filterCounty}
+                countyOptions={[
+                  { label: 'Salt Lake', value: 'salt-lake' },
+                  { label: 'Utah', value: 'utah' },
+                  { label: 'Davis', value: 'davis' },
+                ]}
+                onCountyChange={setFilterCounty}
+                baseTaxonQuery={filterTaxonQuery}
+                onBaseTaxonQueryChange={setFilterTaxonQuery}
+                rankValue={filterRank}
+                rankOptions={[
+                  { label: 'Species', value: 'species' },
+                  { label: 'Genus', value: 'genus' },
+                  { label: 'Family', value: 'family' },
+                ]}
+                onRankChange={setFilterRank}
+                includeSubspecies={filterIncludeSubspecies}
+                onIncludeSubspeciesChange={setFilterIncludeSubspecies}
+                sortVariableValue={filterSortVariable}
+                sortVariableOptions={[
+                  { label: 'Temperature', value: 'temperature' },
+                  { label: 'Elevation', value: 'elevation' },
+                  { label: 'Precipitation', value: 'precipitation' },
+                ]}
+                onSortVariableChange={setFilterSortVariable}
+                sortMetricValue={filterSortMetric}
+                sortMetricOptions={[
+                  { label: 'Average', value: 'average' },
+                  { label: 'Median', value: 'median' },
+                  { label: 'Maximum', value: 'maximum' },
+                  { label: 'Minimum', value: 'minimum' },
+                ]}
+                onSortMetricChange={setFilterSortMetric}
+                sortOrder={filterSortOrder}
+                onSortOrderChange={setFilterSortOrder}
+                numberOfResults={filterNumResults}
+                onNumberOfResultsChange={setFilterNumResults}
+                minimumSamples={filterMinSamples}
+                onMinimumSamplesChange={setFilterMinSamples}
+                onResetFilters={() => {
+                  setFilterCountry('us');
+                  setFilterState('ut');
+                  setFilterCounty('salt-lake');
+                  setFilterTaxonQuery('');
+                  setFilterRank('species');
+                  setFilterIncludeSubspecies(true);
+                  setFilterSortVariable('');
+                  setFilterSortMetric('average');
+                  setFilterSortOrder('ascending');
+                  setFilterNumResults(10);
+                  setFilterMinSamples(1);
                 }}
-                onCharacterAdd={(char, value) => {
-                  setLastSearchEvent(`Added "${char}" -> ${value}`);
-                }}
-                onSubmitSearch={(value) => {
-                  setLastSearchEvent(`Search submitted with "${value}"`);
-                }}
-                onClear={() => {
-                  setLastSearchEvent('Search cleared');
-                }}
-                autoCorrect={false}
-                returnKeyType="search"
-                accessibilityLabel="Search species"
               />
             </View>
-            <ThemedText variant="body">{lastSearchEvent}</ThemedText>
-            <ThemedText variant="bodyStrong">Disabled</ThemedText>
+
             <View>
-              <SearchInput
-                placeholder="Search species"
-                accessibilityLabel="Search species"
-                disabled
-              />
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Select Field</ThemedText>
-            <View style={styles.selectGrid}>
-              <SelectField
-                label="Label (Searchable)"
-                description="Type to filter"
-                value={selectSearchableValue}
-                placeholder="Value"
-                options={selectOptions}
-                onValueChange={setSelectSearchableValue}
-              />
-              <SelectField
-                label="Label (Searchable, tertiary)"
-                description="Type to filter"
-                value={selectSearchableTertiaryValue}
-                options={selectOptions}
-                variant="tertiary"
-                onValueChange={setSelectSearchableTertiaryValue}
-              />
-              <SelectField
-                label="Label (Searchable - Placeholder)"
-                description="No selection"
-                value={selectSearchablePlaceholderValue}
-                placeholder="Value"
-                options={selectOptions}
-                onValueChange={setSelectSearchablePlaceholderValue}
-              />
-              <SelectField
-                label="Label (Searchable - Disabled)"
-                description="Disabled"
-                value={selectSearchableDisabledValue}
-                placeholder="Value"
-                options={selectOptions}
-                disabled
-              />
-              <SelectField
-                label="Label (Searchable - Error)"
-                description="Shows error"
-                value={selectSearchableErrorValue}
-                placeholder="Value"
-                options={selectOptions}
-                onValueChange={setSelectSearchableErrorValue}
-                errorMessage="Error"
-              />
-              <SelectField
-                label="Label (List Only)"
-                description="No text entry"
-                value={selectListOnlyValue}
-                placeholder="Value"
-                options={selectOptions}
-                allowSearch={false}
-                onValueChange={setSelectListOnlyValue}
-              />
-              <SelectField
-                label="Label (List Only - Placeholder)"
-                description="No selection"
-                value={selectListOnlyPlaceholderValue}
-                placeholder="Value"
-                options={selectOptions}
-                allowSearch={false}
-                onValueChange={setSelectListOnlyPlaceholderValue}
-              />
-              <SelectField
-                label="Label (Searchable - Long place names)"
-                description="Type to filter"
-                value={selectLongPlaceValue}
-                placeholder="Start typing a place name"
-                options={longPlaceOptions}
-                onValueChange={setSelectLongPlaceValue}
-              />
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Switch Field</ThemedText>
-            <View style={styles.selectGrid}>
-              <SwitchField
-                label="Label"
-                description="Description"
-                value={switchValue}
-                onValueChange={setSwitchValue}
-              />
-              <SwitchField
-                label="Label"
-                description="Description"
-                value={false}
-                disabled
-              />
-              <SwitchField
-                label="Label"
-                description="Description"
-                value={true}
-                disabled
-              />
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Radio Field</ThemedText>
-            <View style={styles.selectGrid}>
-              <View style={styles.radioStateGroup}>
-                <ThemedText variant="body">State=Default</ThemedText>
-                <RadioGroup
-                  options={radioOptions}
-                  value={radioGroupValue}
-                  onValueChange={setRadioGroupValue}
+              <ThemedText variant='heading'>Search Input</ThemedText>
+              <View>
+                <SearchInput
+                  value={searchQuery}
+                  placeholder='Search species'
+                  onQueryChange={(value) => {
+                    setSearchQuery(value);
+                    setLastSearchEvent(
+                      value ? `Query changed: ${value}` : 'Search cleared',
+                    );
+                  }}
+                  onCharacterAdd={(char, value) => {
+                    setLastSearchEvent(`Added "${char}" -> ${value}`);
+                  }}
+                  onSubmitSearch={(value) => {
+                    setLastSearchEvent(`Search submitted with "${value}"`);
+                  }}
+                  onClear={() => {
+                    setLastSearchEvent('Search cleared');
+                  }}
+                  autoCorrect={false}
+                  returnKeyType='search'
+                  accessibilityLabel='Search species'
                 />
               </View>
-
-              <View style={styles.radioStateGroup}>
-                <ThemedText variant="body">State=Disabled</ThemedText>
-                <RadioGroup
-                  options={radioOptions}
-                  value="checked"
+              <ThemedText variant='body'>{lastSearchEvent}</ThemedText>
+              <ThemedText variant='bodyStrong'>Disabled</ThemedText>
+              <View>
+                <SearchInput
+                  placeholder='Search species'
+                  accessibilityLabel='Search species'
                   disabled
                 />
               </View>
             </View>
-          </View>
 
-          <View>
-            <ThemedText variant="heading">Number Spinner</ThemedText>
-            <View style={styles.selectGrid}>
-              <NumberSpinner
-                label="Label"
-                description="Min 1, max 10"
-                value={spinnerValue}
-                min={1}
-                max={10}
-                onValueChange={setSpinnerValue}
+            <View>
+              <ThemedText variant='heading'>Number Spinner</ThemedText>
+              <View style={styles.selectGrid}>
+                <NumberSpinner
+                  label='Label'
+                  description='Min 1, max 10'
+                  value={spinnerValue}
+                  min={1}
+                  max={10}
+                  onValueChange={setSpinnerValue}
+                />
+                <NumberSpinner
+                  label='Label'
+                  description='At minimum'
+                  value={spinnerAtMinValue}
+                  min={1}
+                  max={10}
+                />
+                <NumberSpinner
+                  label='Label'
+                  description='At maximum'
+                  value={spinnerAtMaxValue}
+                  min={1}
+                  max={10}
+                />
+                <NumberSpinner
+                  label='Label'
+                  description='Allows negatives (-10 to 10)'
+                  value={spinnerNegativeValue}
+                  min={-10}
+                  max={10}
+                  onValueChange={setSpinnerNegativeValue}
+                />
+                <NumberSpinner
+                  label='Label'
+                  description='Disabled'
+                  value={spinnerDisabledValue}
+                  min={1}
+                  max={10}
+                  disabled
+                />
+              </View>
+            </View>
+
+            <View>
+              <ThemedText variant='heading'>Species Card</ThemedText>
+              <SpeciesCard
+                taxonId={speciesSample.taxonId}
+                commonName='Common Name'
+                scientificName='Binomial nomenclature'
+                description='Description'
+                imageSource={SPECIES_CARD_IMAGE}
               />
-              <NumberSpinner
-                label="Label"
-                description="At minimum"
-                value={spinnerAtMinValue}
-                min={1}
-                max={10}
-              />
-              <NumberSpinner
-                label="Label"
-                description="At maximum"
-                value={spinnerAtMaxValue}
-                min={1}
-                max={10}
-              />
-              <NumberSpinner
-                label="Label"
-                description="Allows negatives (-10 to 10)"
-                value={spinnerNegativeValue}
-                min={-10}
-                max={10}
-                onValueChange={setSpinnerNegativeValue}
-              />
-              <NumberSpinner
-                label="Label"
-                description="Disabled"
-                value={spinnerDisabledValue}
-                min={1}
-                max={10}
-                disabled
+              <ThemedText variant='bodyStrong'>
+                Mini (search results)
+              </ThemedText>
+              <SpeciesCard
+                taxonId={12345}
+                commonName='Common Name'
+                scientificName='Binomial nomenclature'
+                imageSource={SPECIES_CARD_IMAGE}
+                size='compact'
               />
             </View>
-          </View>
 
-          <View>
-            <ThemedText variant="heading">Species Card</ThemedText>
-            <SpeciesCard
-              taxonId={speciesSample.taxonId}
-              commonName="Common Name"
-              scientificName="Binomial nomenclature"
-              description="Description"
-              imageSource={SPECIES_CARD_IMAGE}
-            />
-            <ThemedText variant="bodyStrong">Mini (search results)</ThemedText>
-            <SpeciesCard
-              taxonId={12345}
-              commonName="Common Name"
-              scientificName="Binomial nomenclature"
-              imageSource={SPECIES_CARD_IMAGE}
-              size="compact"
-            />
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Species Page Components</ThemedText>
-            <ThemedText variant="body">
-              Preview of the composable building blocks used on the species detail page.
-            </ThemedText>
-            <View
-              style={[
-                styles.speciesPreview,
-              ]}
-            >
-              <SpeciesPageTitle
-                commonName={speciesSample.commonName}
-                scientificName={speciesSample.scientificName}
-                onPressDownload={noop}
-              />
-              <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
+            <View>
+              <ThemedText variant='heading'>Species Page Components</ThemedText>
+              <ThemedText variant='body'>
+                Preview of the composable building blocks used on the species
+                detail page.
+              </ThemedText>
+              <View style={[styles.speciesPreview]}>
+                <SpeciesPageTitle
+                  commonName={speciesSample.commonName}
+                  scientificName={speciesSample.scientificName}
+                  onPressDownload={noop}
+                />
+                <NearbySpeciesCarousel species={speciesSample.nearbySpecies} />
+              </View>
             </View>
-          </View>
 
-          <View>
-            <ThemedText variant="heading">Tabs</ThemedText>
-            <ThemedText variant="body">Controlled tabs with keyboard navigation.</ThemedText>
-            <View style={styles.tabsRow}>
-              <Tabs
-                tabs={tabsSample}
-                selectedKey={selectedTab}
-                onSelectionChange={setSelectedTab}
-                accessibilityLabel="Species tabs"
-              />
-            </View>
-            <View style={styles.pillExamples}>
-              {selectedTab === 'overview' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Horizontal wrap</ThemedText>
-                  <NavigationPillList
-                    pills={overviewPills}
-                    selectedKey={overviewPill}
-                    onSelectionChange={setOverviewPill}
-                    accessibilityLabel="Overview filters"
-                  />
-                  {renderPillContentCard(overviewContent[overviewPill])}
-                </View>
-              )}
-              {selectedTab === 'habitat' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Vertical list</ThemedText>
-                  <NavigationPillList
-                    pills={habitatPills}
-                    selectedKey={habitatPill}
-                    onSelectionChange={setHabitatPill}
-                    direction="vertical"
-                    accessibilityLabel="Habitat filters"
-                  />
-                  {renderPillContentCard(habitatContent[habitatPill])}
-                </View>
-              )}
-              {selectedTab === 'tracking' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Mixed label lengths</ThemedText>
-                  <NavigationPillList
-                    pills={trackingPills}
-                    selectedKey={trackingPill}
-                    onSelectionChange={setTrackingPill}
-                    accessibilityLabel="Tracking filters"
-                  />
-                  {renderPillContentCard(trackingContent[trackingPill])}
-                </View>
-              )}
-              {selectedTab === 'images' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Image categories</ThemedText>
-                  <NavigationPillList
-                    pills={imagesPills}
-                    selectedKey={imagesPill}
-                    onSelectionChange={setImagesPill}
-                    accessibilityLabel="Image filters"
-                  />
-                  {renderPillContentCard(imagesContent[imagesPill])}
-                </View>
-              )}
-              {selectedTab === 'notes' && (
-                <View style={styles.pillExampleGroup}>
-                  <ThemedText variant="bodySmallStrong">Notes sections</ThemedText>
-                  <NavigationPillList
-                    pills={notesPills}
-                    selectedKey={notesPill}
-                    onSelectionChange={setNotesPill}
-                    accessibilityLabel="Notes filters"
-                  />
-                  {renderPillContentCard(notesContent[notesPill])}
-                </View>
-              )}
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Typography Tokens</ThemedText>
-            <ThemedText variant="body">Preview of every WhereWild typography variant.</ThemedText>
-            <View style={styles.tokenSection}>
-              {TYPOGRAPHY_VARIANTS.map((variant) => (
-                <View
-                  key={variant}
-                  testID="typography-sample"
-                  style={[
-                    styles.typographyExample,
-                    { borderBottomColor: palette.border.default.default },
-                  ]}
-                >
-                  <ThemedText variant="bodySmallStrong">{formatTokenLabel(variant)}</ThemedText>
-                  <ThemedText variant={variant}>
-                    {TYPOGRAPHY_SAMPLE_TEXT}
-                  </ThemedText>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View>
-            <ThemedText variant="heading">Shadow Tokens</ThemedText>
-            <ThemedText variant="body">React Native previews for each drop shadow token.</ThemedText>
-            <View style={styles.shadowGrid}>
-              {SHADOW_TOKEN_KEYS.map((tokenName) => {
-                const shadowToken = Shadows[tokenName];
-                return (
-                  <View
-                    key={tokenName}
-                    testID="shadow-sample"
-                    style={[
-                      styles.shadowCard,
-                      {
-                        backgroundColor: palette.background.default.secondary,
-                      },
-                      shadowToken.style,
-                    ]}
-                  >
-                    <ThemedText variant="bodySmallStrong">{formatTokenLabel(tokenName)}</ThemedText>
-                    <ThemedText variant="body">{SHADOW_SAMPLE_TEXT}</ThemedText>
-                    <ThemedText variant="bodySmall">
-                      {shadowToken.layers.length} layer{shadowToken.layers.length === 1 ? '' : 's'}
+            <View>
+              <ThemedText variant='heading'>Tabs</ThemedText>
+              <ThemedText variant='body'>
+                Controlled tabs with keyboard navigation.
+              </ThemedText>
+              <View style={styles.tabsRow}>
+                <Tabs
+                  tabs={tabsSample}
+                  selectedKey={selectedTab}
+                  onSelectionChange={setSelectedTab}
+                  accessibilityLabel='Species tabs'
+                />
+              </View>
+              <View style={styles.pillExamples}>
+                {selectedTab === 'overview' && (
+                  <View style={styles.pillExampleGroup}>
+                    <ThemedText variant='bodySmallStrong'>
+                      Horizontal wrap
                     </ThemedText>
+                    <NavigationPillList
+                      pills={overviewPills}
+                      selectedKey={overviewPill}
+                      onSelectionChange={setOverviewPill}
+                      accessibilityLabel='Overview filters'
+                    />
+                    {renderPillContentCard(overviewContent[overviewPill])}
                   </View>
-                );
-              })}
-            </View>
-          </View>
+                )}
+                {selectedTab === 'habitat' && (
+                  <View style={styles.pillExampleGroup}>
+                    <ThemedText variant='bodySmallStrong'>
+                      Vertical list
+                    </ThemedText>
+                    <NavigationPillList
+                      pills={habitatPills}
+                      selectedKey={habitatPill}
+                      onSelectionChange={setHabitatPill}
+                      direction='vertical'
+                      accessibilityLabel='Habitat filters'
+                    />
+                    {renderPillContentCard(habitatContent[habitatPill])}
+                  </View>
+                )}
+                {selectedTab === 'tracking' && (
+                  <View style={styles.pillExampleGroup}>
+                    <ThemedText variant='bodySmallStrong'>
+                      Mixed label lengths
+                    </ThemedText>
+                    <NavigationPillList
+                      pills={trackingPills}
+                      selectedKey={trackingPill}
+                      onSelectionChange={setTrackingPill}
+                      accessibilityLabel='Tracking filters'
+                    />
+                    {renderPillContentCard(trackingContent[trackingPill])}
+                  </View>
+                )}
+                {selectedTab === 'images' && (
+                  <View style={styles.pillExampleGroup}>
+                    <ThemedText variant='bodySmallStrong'>
+                      Image categories
+                    </ThemedText>
+                    <NavigationPillList
+                      pills={imagesPills}
+                      selectedKey={imagesPill}
+                      onSelectionChange={setImagesPill}
+                      accessibilityLabel='Image filters'
+                    />
+                    {renderPillContentCard(imagesContent[imagesPill])}
+                  </View>
+                )}
+                {selectedTab === 'notes' && (
+                  <View style={styles.pillExampleGroup}>
+                    <ThemedText variant='bodySmallStrong'>
+                      Notes sections
+                    </ThemedText>
+                    <NavigationPillList
+                      pills={notesPills}
+                      selectedKey={notesPill}
+                      onSelectionChange={setNotesPill}
+                      accessibilityLabel='Notes filters'
+                    />
+                    {renderPillContentCard(notesContent[notesPill])}
+                  </View>
+                )}
+              </View>
 
-          <TimeEasingMatrixSection palette={palette} />
+              <View>
+                <ThemedText variant='heading'>Switch Field</ThemedText>
+                <View style={styles.selectGrid}>
+                  <SwitchField
+                    label='Label'
+                    description='Description'
+                    value={switchValue}
+                    onValueChange={setSwitchValue}
+                  />
+                  <SwitchField
+                    label='Label'
+                    description='Description'
+                    value={false}
+                    disabled
+                  />
+                  <SwitchField
+                    label='Label'
+                    description='Description'
+                    value={true}
+                    disabled
+                  />
+                </View>
+              </View>
 
-          <View>
-            <ThemedText variant="heading">Buttons</ThemedText>
-            <ThemedText variant="bodySmall">
-              Long press demo count: {buttonLongPressCount}
-              {buttonLongPressLastLabel ? ` (last: ${buttonLongPressLastLabel})` : ''}
-            </ThemedText>
-            {buttonRows.map(({ title, variant, buttons, danger }) => (
-              <View key={title}>
-                <ThemedText variant="bodyStrong">{title}</ThemedText>
-                <View style={styles.row}>
-                  {buttons.map(({ label, size, iconStart, iconEnd, disabled, variant: overrideVariant }) => {
-                    const buttonVariant = overrideVariant ?? variant;
+              <View>
+                <ThemedText variant='heading'>Radio Field</ThemedText>
+                <View style={styles.selectGrid}>
+                  <View style={styles.radioStateGroup}>
+                    <ThemedText variant='body'>State=Default</ThemedText>
+                    <RadioGroup
+                      options={radioOptions}
+                      value={radioGroupValue}
+                      onValueChange={setRadioGroupValue}
+                    />
+                  </View>
 
-                    if (danger) {
-                      const dangerVariant = buttonVariant === 'subtle' ? 'subtle' : 'primary';
-                      return (
-                        <ButtonDanger
-                          key={label}
-                          size={size}
-                          variant={dangerVariant}
-                          disabled={disabled}
-                          iconStart={iconStart}
-                          iconEnd={iconEnd}
-                          onPress={noop}
-                          onLongPress={disabled ? undefined : () => handleButtonLongPress(label)}
-                        >
-                          {label}
-                        </ButtonDanger>
-                      );
-                    }
+                  <View style={styles.radioStateGroup}>
+                    <ThemedText variant='body'>State=Disabled</ThemedText>
+                    <RadioGroup
+                      options={radioOptions}
+                      value='checked'
+                      disabled
+                    />
+                  </View>
+                </View>
+              </View>
 
+              <View>
+                <ThemedText variant='heading'>Number Spinner</ThemedText>
+                <View style={styles.selectGrid}>
+                  <NumberSpinner
+                    label='Label'
+                    description='Min 1, max 10'
+                    value={spinnerValue}
+                    min={1}
+                    max={10}
+                    onValueChange={setSpinnerValue}
+                  />
+                  <NumberSpinner
+                    label='Label'
+                    description='At minimum'
+                    value={spinnerAtMinValue}
+                    min={1}
+                    max={10}
+                  />
+                  <NumberSpinner
+                    label='Label'
+                    description='At maximum'
+                    value={spinnerAtMaxValue}
+                    min={1}
+                    max={10}
+                  />
+                  <NumberSpinner
+                    label='Label'
+                    description='Allows negatives (-10 to 10)'
+                    value={spinnerNegativeValue}
+                    min={-10}
+                    max={10}
+                    onValueChange={setSpinnerNegativeValue}
+                  />
+                  <NumberSpinner
+                    label='Label'
+                    description='Disabled'
+                    value={spinnerDisabledValue}
+                    min={1}
+                    max={10}
+                    disabled
+                  />
+                </View>
+              </View>
+
+              <View>
+                <ThemedText variant='heading'>Typography Tokens</ThemedText>
+                <ThemedText variant='body'>
+                  Preview of every WhereWild typography variant.
+                </ThemedText>
+                <View style={styles.tokenSection}>
+                  {TYPOGRAPHY_VARIANTS.map((variant) => (
+                    <View
+                      key={variant}
+                      testID='typography-sample'
+                      style={[
+                        styles.typographyExample,
+                        { borderBottomColor: palette.border.default.default },
+                      ]}
+                    >
+                      <ThemedText variant='bodySmallStrong'>
+                        {formatTokenLabel(variant)}
+                      </ThemedText>
+                      <ThemedText variant={variant}>
+                        {TYPOGRAPHY_SAMPLE_TEXT}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View>
+                <ThemedText variant='heading'>Shadow Tokens</ThemedText>
+                <ThemedText variant='body'>
+                  React Native previews for each drop shadow token.
+                </ThemedText>
+                <View style={styles.shadowGrid}>
+                  {SHADOW_TOKEN_KEYS.map((tokenName) => {
+                    const shadowToken = Shadows[tokenName];
                     return (
-                      <Button
-                        key={label}
-                        size={size}
-                        variant={buttonVariant}
-                        disabled={disabled}
-                        iconStart={iconStart}
-                        iconEnd={iconEnd}
-                        onPress={noop}
-                        onLongPress={disabled ? undefined : () => handleButtonLongPress(label)}
+                      <View
+                        key={tokenName}
+                        testID='shadow-sample'
+                        style={[
+                          styles.shadowCard,
+                          {
+                            backgroundColor:
+                              palette.background.default.secondary,
+                          },
+                          shadowToken.style,
+                        ]}
                       >
-                        {label}
-                      </Button>
+                        <ThemedText variant='bodySmallStrong'>
+                          {formatTokenLabel(tokenName)}
+                        </ThemedText>
+                        <ThemedText variant='body'>
+                          {SHADOW_SAMPLE_TEXT}
+                        </ThemedText>
+                        <ThemedText variant='bodySmall'>
+                          {shadowToken.layers.length} layer
+                          {shadowToken.layers.length === 1 ? '' : 's'}
+                        </ThemedText>
+                      </View>
                     );
                   })}
                 </View>
               </View>
-            ))}
 
-            {iconButtonVariants.map(({ title, variant }) => (
-              <View key={title}>
-                <ThemedText variant="bodyStrong">{title}</ThemedText>
-                <View style={styles.row}>
-                  {iconButtonStates.map(({ size, disabled }) => (
-                    <IconButton
-                      key={`${size}-${disabled}`}
-                      variant={variant}
-                      icon={<IconStar />}
-                      accessibilityLabel="Star"
-                      size={size}
-                      disabled={disabled}
-                      onPress={disabled ? undefined : noop}
-                      onLongPress={
-                        disabled ? undefined : () => handleButtonLongPress(`IconButton (${variant}, ${size})`)
-                      }
-                    />
-                  ))}
-                </View>
+              <TimeEasingMatrixSection palette={palette} />
+
+              <View>
+                <ThemedText variant='heading'>Buttons</ThemedText>
+                <ThemedText variant='bodySmall'>
+                  Long press demo count: {buttonLongPressCount}
+                  {buttonLongPressLastLabel
+                    ? ` (last: ${buttonLongPressLastLabel})`
+                    : ''}
+                </ThemedText>
+                {buttonRows.map(({ title, variant, buttons, danger }) => (
+                  <View key={title}>
+                    <ThemedText variant='bodyStrong'>{title}</ThemedText>
+                    <View style={styles.row}>
+                      {buttons.map(
+                        ({
+                          label,
+                          size,
+                          iconStart,
+                          iconEnd,
+                          disabled,
+                          variant: overrideVariant,
+                        }) => {
+                          const buttonVariant = overrideVariant ?? variant;
+
+                          if (danger) {
+                            const dangerVariant =
+                              buttonVariant === 'subtle' ? 'subtle' : 'primary';
+                            return (
+                              <ButtonDanger
+                                key={label}
+                                size={size}
+                                variant={dangerVariant}
+                                disabled={disabled}
+                                iconStart={iconStart}
+                                iconEnd={iconEnd}
+                                onPress={noop}
+                                onLongPress={
+                                  disabled
+                                    ? undefined
+                                    : () => handleButtonLongPress(label)
+                                }
+                              >
+                                {label}
+                              </ButtonDanger>
+                            );
+                          }
+
+                          return (
+                            <Button
+                              key={label}
+                              size={size}
+                              variant={buttonVariant}
+                              disabled={disabled}
+                              iconStart={iconStart}
+                              iconEnd={iconEnd}
+                              onPress={noop}
+                              onLongPress={
+                                disabled
+                                  ? undefined
+                                  : () => handleButtonLongPress(label)
+                              }
+                            >
+                              {label}
+                            </Button>
+                          );
+                        },
+                      )}
+                    </View>
+                  </View>
+                ))}
+
+                {iconButtonVariants.map(({ title, variant }) => (
+                  <View key={title}>
+                    <ThemedText variant='bodyStrong'>{title}</ThemedText>
+                    <View style={styles.row}>
+                      {iconButtonStates.map(({ size, disabled }) => (
+                        <IconButton
+                          key={`${size}-${disabled}`}
+                          variant={variant}
+                          icon={<IconStar />}
+                          accessibilityLabel='Star'
+                          size={size}
+                          disabled={disabled}
+                          onPress={disabled ? undefined : noop}
+                          onLongPress={
+                            disabled
+                              ? undefined
+                              : () =>
+                                  handleButtonLongPress(
+                                    `IconButton (${variant}, ${size})`,
+                                  )
+                          }
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </View>
 
-          <View style={styles.aboutMapSection}>
-            <ThemedText variant="heading">Variable Tile Map</ThemedText>
-            <ThemedText variant="body">
-              Backend-served variable tiles using the same overview and tile extraction flow as SDM.
-            </ThemedText>
-            <VariableSelectorHeader
-              categories={mapVariableCategories}
-              selectedVariableCategory={mapSelectedVariableCategory}
-              onCategoryChange={setMapSelectedVariableCategory}
-              filteredVariables={mapFilteredVariables}
-              selectedVariable={mapSelectedVariable}
-              onVariableChange={setMapSelectedVariable}
-              headingText={mapSelectedVariableMeta?.label ?? 'Map Variable'}
-              metaText={`Tile variable id: ${mapSelectedVariable}`}
-            />
-            {isLiveWeather && (
-              <SelectField
-                variant="tertiary"
-                options={ABOUT_WINDOW_OPTIONS}
-                value={selectedWindow}
-                onValueChange={(v) => { setSelectedWindow(v); setSelectedForecast('now'); }}
-                placeholder="Aggregation window"
+            <View style={styles.aboutMapSection}>
+              <ThemedText variant='heading'>Variable Tile Map</ThemedText>
+              <ThemedText variant='body'>
+                Backend-served variable tiles using the same overview and tile
+                extraction flow as SDM.
+              </ThemedText>
+              <VariableSelectorHeader
+                categories={mapVariableCategories}
+                selectedVariableCategory={mapSelectedVariableCategory}
+                onCategoryChange={setMapSelectedVariableCategory}
+                filteredVariables={mapFilteredVariables}
+                selectedVariable={mapSelectedVariable}
+                onVariableChange={setMapSelectedVariable}
+                headingText={mapSelectedVariableMeta?.label ?? 'Map Variable'}
+                metaText={`Tile variable id: ${mapSelectedVariable}`}
               />
-            )}
-            {isLiveWeather && (
-              <SelectField
-                variant="tertiary"
-                options={ABOUT_FORECAST_OPTIONS}
-                value={selectedForecast}
-                onValueChange={setSelectedForecast}
-                placeholder="Forecast offset"
+              {isLiveWeather && (
+                <SelectField
+                  variant='tertiary'
+                  options={ABOUT_WINDOW_OPTIONS}
+                  value={selectedWindow}
+                  onValueChange={(v) => {
+                    setSelectedWindow(v);
+                    setSelectedForecast('now');
+                  }}
+                  placeholder='Aggregation window'
+                />
+              )}
+              {isLiveWeather && (
+                <SelectField
+                  variant='tertiary'
+                  options={ABOUT_FORECAST_OPTIONS}
+                  value={selectedForecast}
+                  onValueChange={setSelectedForecast}
+                  placeholder='Forecast offset'
+                />
+              )}
+              <ThemedText variant='bodySmall'>
+                Pick a variable to test tile rendering. Only backend map-enabled
+                variables will display.
+              </ThemedText>
+              <SpeciesOccurrenceMap
+                occurrences={[]}
+                loading={false}
+                error={null}
+                height={ABOUT_LANDCOVER_MAP_HEIGHT}
+                heatmapTileUrl={aboutVariableTileUrl}
+                heatmapOpacity={0.85}
+                minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
+                showMarkers={false}
               />
-            )}
-            <ThemedText variant="bodySmall">
-              Pick a variable to test tile rendering. Only backend map-enabled variables will display.
-            </ThemedText>
-            <SpeciesOccurrenceMap
-              occurrences={[]}
-              loading={false}
-              error={null}
-              height={ABOUT_LANDCOVER_MAP_HEIGHT}
-              heatmapTileUrl={aboutVariableTileUrl}
-              heatmapOpacity={0.85}
-              minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
-              showMarkers={false}
-            />
-          </View>
+            </View>
           </ScrollView>
         </View>
       </View>

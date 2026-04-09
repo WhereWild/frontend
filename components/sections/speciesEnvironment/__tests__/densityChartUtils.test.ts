@@ -44,7 +44,10 @@ describe('densityChartUtils', () => {
   it('returns selection bounds only when width is positive', () => {
     const domain = { minX: 0, maxX: 10, spanX: 10, safeMaxY: 1 };
 
-    expect(getSelectionBounds({ start: 2, end: 8 }, domain)).toEqual({ left: 20, width: 60 });
+    expect(getSelectionBounds({ start: 2, end: 8 }, domain)).toEqual({
+      left: 20,
+      width: 60,
+    });
     expect(getSelectionBounds({ start: 5, end: 5 }, domain)).toBeNull();
   });
 

@@ -49,7 +49,10 @@ export const computeTabLayout = ({
     (width) => width + nonScrollFitBufferPx <= equalWidth,
   );
   if (canUseEqualWidths) {
-    const totalRequiredWidth = contentRequiredWidths.reduce((sum, width) => sum + width, 0);
+    const totalRequiredWidth = contentRequiredWidths.reduce(
+      (sum, width) => sum + width,
+      0,
+    );
     const remainingWidth = Math.max(0, containerWidth - totalRequiredWidth);
     const extraPerTab = tabs.length > 0 ? remainingWidth / tabs.length : 0;
 
@@ -62,12 +65,17 @@ export const computeTabLayout = ({
     };
   }
 
-  const deficits = contentRequiredWidths.map((width) => Math.max(0, width - equalWidth));
+  const deficits = contentRequiredWidths.map((width) =>
+    Math.max(0, width - equalWidth),
+  );
   const totalDeficit = deficits.reduce((sum, value) => sum + value, 0);
-  const slacks = contentRequiredWidths.map((width) => Math.max(0, equalWidth - width));
+  const slacks = contentRequiredWidths.map((width) =>
+    Math.max(0, equalWidth - width),
+  );
   const totalSlack = slacks.reduce((sum, value) => sum + value, 0);
   const shouldScroll = totalDeficit > totalSlack;
-  const widthWithScrollFloor = (width: number) => (shouldScroll ? Math.max(width, minTabWidth) : width);
+  const widthWithScrollFloor = (width: number) =>
+    shouldScroll ? Math.max(width, minTabWidth) : width;
 
   const desiredWidths = contentRequiredWidths.map((width, index) => {
     if (width >= equalWidth) {

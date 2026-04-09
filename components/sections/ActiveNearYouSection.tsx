@@ -11,15 +11,22 @@ import { NavigationPillList } from '../navigation/NavigationPillList';
 type SpeciesSummary = HomePageData['recommendations']['items'][number];
 
 const GROUP_LABELS: Record<string, string> = {
-  all:         'All',
-  plants:      'Plants',
-  animals:     'Animals',
-  birds:       'Birds',
-  fungi:       'Fungi',
-  arthropods:  'Arthropods',
+  all: 'All',
+  plants: 'Plants',
+  animals: 'Animals',
+  birds: 'Birds',
+  fungi: 'Fungi',
+  arthropods: 'Arthropods',
 };
 
-const GROUP_ORDER = ['all', 'plants', 'animals', 'birds', 'fungi', 'arthropods'];
+const GROUP_ORDER = [
+  'all',
+  'plants',
+  'animals',
+  'birds',
+  'fungi',
+  'arthropods',
+];
 
 export type ActiveNearYouSectionProps = {
   recommendations: SpeciesSummary[];
@@ -47,7 +54,9 @@ export function ActiveNearYouSection({
   const setActiveGroup = onGroupChange ?? setActiveGroupInternal;
 
   const availableGroups = React.useMemo(() => {
-    const present = new Set(allRecommendations.map((s) => s.taxonGroup).filter(Boolean));
+    const present = new Set(
+      allRecommendations.map((s) => s.taxonGroup).filter(Boolean),
+    );
     return GROUP_ORDER.filter((g) => g === 'all' || present.has(g));
   }, [allRecommendations]);
 
@@ -71,9 +80,15 @@ export function ActiveNearYouSection({
   return (
     <View style={[styles.section, style]}>
       <View style={styles.headingRow}>
-        {showHeading ? <ThemedText variant="heading">Active Near You</ThemedText> : null}
+        {showHeading ? (
+          <ThemedText variant='heading'>Active Near You</ThemedText>
+        ) : null}
         {loading ? (
-          <ActivityIndicator size="small" color={palette.icon.brand.default} style={styles.spinner} />
+          <ActivityIndicator
+            size='small'
+            color={palette.icon.brand.default}
+            style={styles.spinner}
+          />
         ) : null}
       </View>
 
@@ -89,7 +104,11 @@ export function ActiveNearYouSection({
         style={styles.scroll}
       >
         {displayed.map((species) => (
-          <SpeciesCard key={species.taxonId} {...species} style={styles.speciesCard} />
+          <SpeciesCard
+            key={species.taxonId}
+            {...species}
+            style={styles.speciesCard}
+          />
         ))}
       </ScrollView>
     </View>

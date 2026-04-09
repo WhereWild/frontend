@@ -6,7 +6,9 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { RadioGroup, type RadioGroupOption } from '../RadioGroup';
 import { RadioField } from '../RadioField';
 
-const mockedUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockedUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 const OPTIONS: RadioGroupOption[] = [
   { label: 'One', value: 'one', description: 'One description' },
@@ -22,10 +24,10 @@ describe('RadioGroup', () => {
   it('renders group label, description, and options', () => {
     render(
       <RadioGroup
-        label="Group label"
-        description="Group description"
+        label='Group label'
+        description='Group description'
         options={OPTIONS}
-        value="one"
+        value='one'
       />,
     );
 
@@ -39,9 +41,9 @@ describe('RadioGroup', () => {
     const handleValueChange = jest.fn();
     render(
       <RadioGroup
-        label="Group"
+        label='Group'
         options={OPTIONS}
-        value="one"
+        value='one'
         onValueChange={handleValueChange}
       />,
     );
@@ -55,9 +57,9 @@ describe('RadioGroup', () => {
     const handleValueChange = jest.fn();
     render(
       <RadioGroup
-        label="Group"
+        label='Group'
         options={OPTIONS}
-        value="one"
+        value='one'
         onValueChange={handleValueChange}
       />,
     );
@@ -68,20 +70,23 @@ describe('RadioGroup', () => {
   });
 
   it('manages selected value internally when uncontrolled', () => {
-    render(
-      <RadioGroup
-        options={OPTIONS}
-        defaultValue="one"
-      />,
-    );
+    render(<RadioGroup options={OPTIONS} defaultValue='one' />);
 
-    expect(screen.getByLabelText('One').props.accessibilityState.selected).toBe(true);
-    expect(screen.getByLabelText('Two').props.accessibilityState.selected).toBe(false);
+    expect(screen.getByLabelText('One').props.accessibilityState.selected).toBe(
+      true,
+    );
+    expect(screen.getByLabelText('Two').props.accessibilityState.selected).toBe(
+      false,
+    );
 
     fireEvent.press(screen.getByLabelText('Two'));
 
-    expect(screen.getByLabelText('One').props.accessibilityState.selected).toBe(false);
-    expect(screen.getByLabelText('Two').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByLabelText('One').props.accessibilityState.selected).toBe(
+      false,
+    );
+    expect(screen.getByLabelText('Two').props.accessibilityState.selected).toBe(
+      true,
+    );
   });
 
   it('respects per-option disabled state', () => {
@@ -91,9 +96,13 @@ describe('RadioGroup', () => {
       <RadioGroup
         options={[
           { label: 'Enabled', value: 'enabled' },
-          { label: 'Option disabled', value: 'option-disabled', disabled: true },
+          {
+            label: 'Option disabled',
+            value: 'option-disabled',
+            disabled: true,
+          },
         ]}
-        value="enabled"
+        value='enabled'
         onValueChange={handleValueChange}
       />,
     );
@@ -108,7 +117,7 @@ describe('RadioGroup', () => {
     render(
       <RadioGroup
         options={OPTIONS}
-        value="one"
+        value='one'
         disabled
         onValueChange={handleValueChange}
       />,
@@ -120,11 +129,7 @@ describe('RadioGroup', () => {
 
   it('exposes radiogroup accessibility role', () => {
     render(
-      <RadioGroup
-        label="Accessibility group"
-        options={OPTIONS}
-        value="one"
-      />,
+      <RadioGroup label='Accessibility group' options={OPTIONS} value='one' />,
     );
 
     const group = screen.getByLabelText('Accessibility group');
@@ -139,14 +144,16 @@ describe('RadioGroup', () => {
       testRenderer = renderer.create(
         <RadioGroup
           options={OPTIONS}
-          value="one"
+          value='one'
           onValueChange={onValueChange}
         />,
       );
     });
 
     const radioFields = testRenderer!.root.findAllByType(RadioField);
-    const firstOnValueChange = radioFields[0]?.props.onValueChange as (() => void) | undefined;
+    const firstOnValueChange = radioFields[0]?.props.onValueChange as
+      | (() => void)
+      | undefined;
     firstOnValueChange?.();
     expect(onValueChange).not.toHaveBeenCalled();
 
@@ -154,7 +161,7 @@ describe('RadioGroup', () => {
       testRenderer!.update(
         <RadioGroup
           options={OPTIONS}
-          value="one"
+          value='one'
           disabled
           onValueChange={onValueChange}
         />,
@@ -162,7 +169,9 @@ describe('RadioGroup', () => {
     });
 
     const disabledFields = testRenderer!.root.findAllByType(RadioField);
-    const secondOnValueChange = disabledFields[1]?.props.onValueChange as (() => void) | undefined;
+    const secondOnValueChange = disabledFields[1]?.props.onValueChange as
+      | (() => void)
+      | undefined;
     secondOnValueChange?.();
     expect(onValueChange).not.toHaveBeenCalled();
   });
@@ -171,18 +180,17 @@ describe('RadioGroup', () => {
     mockedUseColorScheme.mockReturnValue('light');
     const palette = Colors.light;
 
-    render(
-      <RadioGroup
-        label="Light group"
-        options={OPTIONS}
-        value="one"
-      />,
-    );
+    render(<RadioGroup label='Light group' options={OPTIONS} value='one' />);
 
     const label = screen.getByText('Light group');
-    const labelStyle = Array.isArray(label.props.style) ? label.props.style : [label.props.style];
+    const labelStyle = Array.isArray(label.props.style)
+      ? label.props.style
+      : [label.props.style];
     const colorLayer = labelStyle.find(
-      (entry: unknown) => typeof entry === 'object' && entry !== null && 'color' in (entry as Record<string, unknown>),
+      (entry: unknown) =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        'color' in (entry as Record<string, unknown>),
     ) as { color?: string } | undefined;
 
     expect(colorLayer?.color).toBe(palette.text.default.default);

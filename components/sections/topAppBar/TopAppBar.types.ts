@@ -1,8 +1,4 @@
-import type {
-  ImageSourcePropType,
-  StyleProp,
-  ViewStyle,
-} from 'react-native';
+import type { ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import type { ReactElement } from 'react';
 import type { IconSize } from '@/primitives';
 

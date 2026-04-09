@@ -15,7 +15,10 @@ type NavigationBarTabStyles = {
   borderWidth: number;
 };
 
-type NavigationBarTabIconElement = React.ReactElement<{ color?: string; size?: IconSize }>;
+type NavigationBarTabIconElement = React.ReactElement<{
+  color?: string;
+  size?: IconSize;
+}>;
 type NavigationBarTabIcon =
   | React.ComponentType<{ color?: string; size?: IconSize }>
   | NavigationBarTabIconElement;
@@ -33,7 +36,12 @@ export type NavigationBarTabProps = {
   onPressIn?: () => void;
   onPressOut?: () => void;
   onLayout?: (width: number) => void;
-  onContainerLayout?: (layout: { x: number; y: number; width: number; height: number }) => void;
+  onContainerLayout?: (layout: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => void;
   accessibilityLabel?: string;
   testID?: string;
   disabled?: boolean;

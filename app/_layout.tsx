@@ -1,30 +1,28 @@
 import { Stack, usePathname, useRouter, type Href } from 'expo-router';
 import { useFonts } from 'expo-font';
-import {
-  Inter_400Regular,
-  Inter_600SemiBold,
-} from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import {
   Domine_400Regular,
   Domine_600SemiBold,
   Domine_700Bold,
 } from '@expo-google-fonts/domine';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono';
-import {
-  IconHome,
-  IconInfo,
-  IconSearch,
-  IconSettings,
-} from '@/assets/icons';
+import { IconHome, IconInfo, IconSearch, IconSettings } from '@/assets/icons';
 import {
   NavigationBar,
   TopAppBar,
   WebPageHeader,
   type NavigationBarProps,
 } from '@/components';
-import { NativePortalHost, NativePortalProvider } from '@/components/NativePortalHost';
+import {
+  NativePortalHost,
+  NativePortalProvider,
+} from '@/components/NativePortalHost';
 import { Time } from '@/constants/theme';
-import { LayoutChromeProvider, useLayoutChrome } from '@/context/LayoutChromeContext';
+import {
+  LayoutChromeProvider,
+  useLayoutChrome,
+} from '@/context/LayoutChromeContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import {
   resolveHeaderConfigForRoute,
@@ -36,12 +34,18 @@ import {
   resolveNativeTopAppBarConfigForRoute,
   useNativeTopAppBarConfig,
 } from '@/context/NativeTopAppBarContext';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native';
 
 const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
-const NOOP = () => { };
-const NOOP_SEARCH_HANDLER = (_value: string) => { };
+const NOOP = () => {};
+const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
 const SPECIES_STACK_ANIMATION = 'fade' as const;
 
@@ -87,25 +91,28 @@ const buildInitialTabRouteHistory = (): Record<TopLevelPath, string[]> => ({
 });
 
 const hasCanGoBack = (value: unknown): value is { canGoBack: () => boolean } =>
-  typeof value === 'object'
-  && value !== null
-  && 'canGoBack' in value
-  && typeof (value as { canGoBack?: unknown }).canGoBack === 'function';
+  typeof value === 'object' &&
+  value !== null &&
+  'canGoBack' in value &&
+  typeof (value as { canGoBack?: unknown }).canGoBack === 'function';
 
 const hasDismissAll = (value: unknown): value is { dismissAll: () => void } =>
-  typeof value === 'object'
-  && value !== null
-  && 'dismissAll' in value
-  && typeof (value as { dismissAll?: unknown }).dismissAll === 'function';
+  typeof value === 'object' &&
+  value !== null &&
+  'dismissAll' in value &&
+  typeof (value as { dismissAll?: unknown }).dismissAll === 'function';
 
 function RootLayoutWebFrame() {
   const pathname = usePathname();
   const { config } = useWebPageHeaderConfig();
   const { setWebHeaderHeight } = useLayoutChrome();
   const resolvedConfig = resolveHeaderConfigForRoute(pathname, config);
-  const handleHeaderLayout = useCallback((event: LayoutChangeEvent) => {
-    setWebHeaderHeight(event.nativeEvent.layout.height);
-  }, [setWebHeaderHeight]);
+  const handleHeaderLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      setWebHeaderHeight(event.nativeEvent.layout.height);
+    },
+    [setWebHeaderHeight],
+  );
 
   return (
     <View style={styles.appShell}>
@@ -124,7 +131,13 @@ function RootLayoutWebFrame() {
         onLayout={handleHeaderLayout}
       />
       <View style={styles.content}>
-        <Stack screenOptions={{ headerShown: false, animation: 'fade', animationDuration: Time.duration.short }} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'fade',
+            animationDuration: Time.duration.short,
+          }}
+        />
       </View>
       <NativePortalHost />
     </View>
@@ -135,7 +148,10 @@ function RootLayoutNativeFrame() {
   const router = useRouter();
   const pathname = usePathname();
   const { config: nativeTopAppBarConfig } = useNativeTopAppBarConfig();
-  const resolvedNativeTopAppBarConfig = resolveNativeTopAppBarConfigForRoute(pathname, nativeTopAppBarConfig);
+  const resolvedNativeTopAppBarConfig = resolveNativeTopAppBarConfigForRoute(
+    pathname,
+    nativeTopAppBarConfig,
+  );
   const handlePressBack = useCallback(() => {
     router.back();
   }, [router]);
@@ -150,30 +166,35 @@ function RootLayoutNativeFrame() {
   const pendingTargetTabRef = useRef<TopLevelPath | null>(null);
   // Stores a per-tab route stack so each tab can restore its own in-tab history
   // (not just a single last route) when users switch away and come back.
-  const tabRouteHistoryRef = useRef<Record<TopLevelPath, string[]>>(buildInitialTabRouteHistory());
+  const tabRouteHistoryRef = useRef<Record<TopLevelPath, string[]>>(
+    buildInitialTabRouteHistory(),
+  );
 
-  const rememberRouteForTab = useCallback((tab: TopLevelPath, route: string) => {
-    const history = tabRouteHistoryRef.current[tab];
-    const currentTop = history[history.length - 1];
+  const rememberRouteForTab = useCallback(
+    (tab: TopLevelPath, route: string) => {
+      const history = tabRouteHistoryRef.current[tab];
+      const currentTop = history[history.length - 1];
 
-    if (currentTop === route) {
-      return;
-    }
+      if (currentTop === route) {
+        return;
+      }
 
-    const existingIndex = history.lastIndexOf(route);
+      const existingIndex = history.lastIndexOf(route);
 
-    if (existingIndex >= 0) {
-      tabRouteHistoryRef.current[tab] = history.slice(0, existingIndex + 1);
-      return;
-    }
+      if (existingIndex >= 0) {
+        tabRouteHistoryRef.current[tab] = history.slice(0, existingIndex + 1);
+        return;
+      }
 
-    if (isTopLevelPath(route)) {
-      tabRouteHistoryRef.current[tab] = [route];
-      return;
-    }
+      if (isTopLevelPath(route)) {
+        tabRouteHistoryRef.current[tab] = [route];
+        return;
+      }
 
-    tabRouteHistoryRef.current[tab] = [...history, route];
-  }, []);
+      tabRouteHistoryRef.current[tab] = [...history, route];
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isTopLevelPath(pathname)) {
@@ -186,57 +207,68 @@ function RootLayoutNativeFrame() {
 
     // Non-top-level routes are associated with whichever tab initiated them.
     // This preserves tab ownership for deep-linked screens while navigating.
-    const associatedTab = pendingTargetTabRef.current ?? lastTopLevelPathRef.current;
+    const associatedTab =
+      pendingTargetTabRef.current ?? lastTopLevelPathRef.current;
     lastTopLevelPathRef.current = associatedTab;
     rememberRouteForTab(associatedTab, pathname);
     pendingTargetTabRef.current = null;
     setActiveTabPath(associatedTab);
   }, [pathname, rememberRouteForTab]);
 
-  const navigateIfDifferent = useCallback((targetPath: TopLevelPath) => {
-    if (activeTabPath === targetPath) {
-      return;
-    }
-
-    const targetHistory = tabRouteHistoryRef.current[targetPath] ?? [targetPath];
-    const targetRoute = targetHistory[targetHistory.length - 1] ?? targetPath;
-
-    if (pathname === targetRoute) {
-      return;
-    }
-
-    pendingTargetTabRef.current = targetPath;
-
-    // Clearing stack on real tab switches prevents back gestures from jumping
-    // across tabs into previously viewed tab stacks.
-    if (hasCanGoBack(router) && router.canGoBack() && hasDismissAll(router)) {
-      router.dismissAll();
-    }
-
-    if (targetRoute === targetPath) {
-      router.replace(targetPath);
-      return;
-    }
-
-    // Rebuild the destination tab stack from root so back gestures work
-    // within that tab after restore (root -> nested -> nested...).
-    router.replace(targetPath);
-    targetHistory.slice(1).forEach((route) => {
-      const href = toHistoryHref(route);
-      if (href) {
-        router.push(href);
+  const navigateIfDifferent = useCallback(
+    (targetPath: TopLevelPath) => {
+      if (activeTabPath === targetPath) {
+        return;
       }
-    });
-  }, [activeTabPath, pathname, router]);
+
+      const targetHistory = tabRouteHistoryRef.current[targetPath] ?? [
+        targetPath,
+      ];
+      const targetRoute = targetHistory[targetHistory.length - 1] ?? targetPath;
+
+      if (pathname === targetRoute) {
+        return;
+      }
+
+      pendingTargetTabRef.current = targetPath;
+
+      // Clearing stack on real tab switches prevents back gestures from jumping
+      // across tabs into previously viewed tab stacks.
+      if (hasCanGoBack(router) && router.canGoBack() && hasDismissAll(router)) {
+        router.dismissAll();
+      }
+
+      if (targetRoute === targetPath) {
+        router.replace(targetPath);
+        return;
+      }
+
+      // Rebuild the destination tab stack from root so back gestures work
+      // within that tab after restore (root -> nested -> nested...).
+      router.replace(targetPath);
+      targetHistory.slice(1).forEach((route) => {
+        const href = toHistoryHref(route);
+        if (href) {
+          router.push(href);
+        }
+      });
+    },
+    [activeTabPath, pathname, router],
+  );
 
   const nativeTopAppBar = React.useMemo(() => {
     if (pathname === '/search') {
       return (
         <TopAppBar
-          variant="search"
+          variant='search'
           searchValue={resolvedNativeTopAppBarConfig.searchValue ?? ''}
-          onSearchValueChange={resolvedNativeTopAppBarConfig.onSearchValueChange ?? NOOP_SEARCH_HANDLER}
-          onSubmitSearch={resolvedNativeTopAppBarConfig.onSubmitSearch ?? NOOP_SEARCH_HANDLER}
+          onSearchValueChange={
+            resolvedNativeTopAppBarConfig.onSearchValueChange ??
+            NOOP_SEARCH_HANDLER
+          }
+          onSubmitSearch={
+            resolvedNativeTopAppBarConfig.onSubmitSearch ?? NOOP_SEARCH_HANDLER
+          }
           searchPlaceholder={resolvedNativeTopAppBarConfig.searchPlaceholder}
           primaryAction={resolvedNativeTopAppBarConfig.primaryAction}
           secondaryAction={resolvedNativeTopAppBarConfig.secondaryAction}
@@ -247,8 +279,8 @@ function RootLayoutNativeFrame() {
     if (isSpeciesPath(pathname)) {
       return (
         <TopAppBar
-          variant="page"
-          title="Species"
+          variant='page'
+          title='Species'
           onPressBack={handlePressBack}
           primaryAction={{ isVisible: false }}
           secondaryAction={{ isVisible: false }}
@@ -259,8 +291,8 @@ function RootLayoutNativeFrame() {
     if (isTopLevelPath(pathname)) {
       return (
         <TopAppBar
-          variant="home"
-          title="WhereWild"
+          variant='home'
+          title='WhereWild'
           onPressLogo={NOOP}
           primaryAction={{ isVisible: false }}
           secondaryAction={{ isVisible: false }}
@@ -271,40 +303,43 @@ function RootLayoutNativeFrame() {
     return null;
   }, [handlePressBack, pathname, resolvedNativeTopAppBarConfig]);
 
-  const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(() => [
-    {
-      key: 'home',
-      label: 'Home',
-      icon: IconHome,
-      state: activeTabPath === '/' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/'),
-      accessibilityLabel: 'Home tab',
-    },
-    {
-      key: 'search',
-      label: 'Search',
-      icon: IconSearch,
-      state: activeTabPath === '/search' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/search'),
-      accessibilityLabel: 'Search tab',
-    },
-    {
-      key: 'about',
-      label: 'Components',
-      icon: IconInfo,
-      state: activeTabPath === '/about' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/about'),
-      accessibilityLabel: 'Component playground tab',
-    },
-    {
-      key: 'settings',
-      label: 'Settings',
-      icon: IconSettings,
-      state: activeTabPath === '/settings' ? 'active' : 'default' as const,
-      onPress: () => navigateIfDifferent('/settings'),
-      accessibilityLabel: 'Settings tab',
-    },
-  ], [activeTabPath, navigateIfDifferent]);
+  const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(
+    () => [
+      {
+        key: 'home',
+        label: 'Home',
+        icon: IconHome,
+        state: activeTabPath === '/' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/'),
+        accessibilityLabel: 'Home tab',
+      },
+      {
+        key: 'search',
+        label: 'Search',
+        icon: IconSearch,
+        state: activeTabPath === '/search' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/search'),
+        accessibilityLabel: 'Search tab',
+      },
+      {
+        key: 'about',
+        label: 'Components',
+        icon: IconInfo,
+        state: activeTabPath === '/about' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/about'),
+        accessibilityLabel: 'Component playground tab',
+      },
+      {
+        key: 'settings',
+        label: 'Settings',
+        icon: IconSettings,
+        state: activeTabPath === '/settings' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/settings'),
+        accessibilityLabel: 'Settings tab',
+      },
+    ],
+    [activeTabPath, navigateIfDifferent],
+  );
 
   return (
     <View style={styles.appShell}>
@@ -312,9 +347,14 @@ function RootLayoutNativeFrame() {
       <View style={styles.content}>
         {/* Keep native route transitions disabled by default to avoid cross-route
             jank; only species screens opt into fade for in-flow detail transitions. */}
-        <Stack screenOptions={{ headerShown: false, animation: NATIVE_STACK_DEFAULT_ANIMATION }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: NATIVE_STACK_DEFAULT_ANIMATION,
+          }}
+        >
           <Stack.Screen
-            name="species/[...identifier]"
+            name='species/[...identifier]'
             options={{
               animation: SPECIES_STACK_ANIMATION,
               animationDuration: Time.duration.short,
@@ -348,7 +388,11 @@ export default function RootLayout() {
         <LayoutChromeProvider>
           <WebPageHeaderProvider>
             <NativeTopAppBarProvider>
-              {Platform.OS === 'web' ? <RootLayoutWebFrame /> : <RootLayoutNativeFrame />}
+              {Platform.OS === 'web' ? (
+                <RootLayoutWebFrame />
+              ) : (
+                <RootLayoutNativeFrame />
+              )}
             </NativeTopAppBarProvider>
           </WebPageHeaderProvider>
         </LayoutChromeProvider>
