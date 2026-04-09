@@ -1,4 +1,3 @@
-import { Colors } from '@/constants/theme';
 import {
   BACKEND_BASE,
   fetchSpeciesWithModels,
@@ -15,7 +14,7 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import React from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import HomeScreen from '../index';
 
 jest.mock('expo-router', () => ({
@@ -80,6 +79,9 @@ jest.mock('@/components', () => {
           <Text>All</Text>
         </Pressable>
       </View>
+    ),
+    PageScrollContainer: ({ children }: { children?: React.ReactNode }) => (
+      <View>{children}</View>
     ),
     LocalMapSection: ({
       heatmapTileUrl,
@@ -232,20 +234,6 @@ describe('Home screen', () => {
     expect(
       screen.getByText(mockHomePageData.recommendations.items[0].commonName),
     ).toBeTruthy();
-  });
-
-  it('applies light mode background color when overridden to be light', () => {
-    mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<HomeScreen data={createData()} />).toJSON();
-
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected HomeScreen to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(
-      Colors.light.background.default.default,
-    );
   });
 
   it('hydrates recommendations from the with-models API when no data prop is supplied', async () => {

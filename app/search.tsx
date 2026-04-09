@@ -1,4 +1,9 @@
-import { SpeciesCard, ThemedText, Filters } from '@/components';
+import {
+  SpeciesCard,
+  ThemedText,
+  Filters,
+  PageScrollContainer,
+} from '@/components';
 import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -13,7 +18,6 @@ import {
   ActivityIndicator,
   Animated,
   Platform,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -326,13 +330,8 @@ export default function Search() {
   );
 
   return (
-    <View
-      style={[
-        styles.screen,
-        { backgroundColor: palette.background.default.default },
-      ]}
-    >
-      <ScrollView
+    <View style={isWeb ? styles.screenWeb : styles.screen}>
+      <PageScrollContainer
         contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
           includeHorizontalPadding: false,
           includeTopPadding: false,
@@ -351,7 +350,7 @@ export default function Search() {
             {resultsColumn}
           </View>
         </View>
-      </ScrollView>
+      </PageScrollContainer>
     </View>
   );
 }
@@ -359,6 +358,9 @@ export default function Search() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  screenWeb: {
+    width: '100%',
   },
   content: {
     width: '100%',
