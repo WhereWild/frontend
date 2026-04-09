@@ -1,9 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import React from 'react';
 import {
   fetchEnvironmentRangeSlice,
   fetchPointEnvironmentValue,
   fetchSpeciesEnvironmentCategorySamples,
 } from '@/data/api';
+import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { SpeciesEnvironmentSliceResponse, SpeciesEnvironmentStats } from '@/data/types';
 import { useEnvironmentHighlights } from '../useEnvironmentHighlights';
 
@@ -675,6 +678,116 @@ describe('useEnvironmentHighlights', () => {
       expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(40.2, -105.1, 'bio_1', { units: undefined });
 
       await waitFor(() => {
+        expect(result.current.pinnedValue).toBe(7.25);
+        expect(result.current.pinnedLoading).toBe(false);
+      });
+    } finally {
+      jest.useFakeTimers();
+    }
+  });
+
+  it('uses the species data source pinned-value lookup when available', async () => {
+    jest.useRealTimers();
+    try {
+      const localDataSource = {
+        fetchEnvironmentVariables: jest.fn(),
+        fetchSpeciesEnvironment: jest.fn(),
+        fetchEnvironmentRangeSlice: jest.fn(),
+        fetchSpeciesEnvironmentCategorySamples: jest.fn(),
+        fetchObservationEnvironmentValue: jest.fn().mockResolvedValue({
+          variable: 'landcover',
+          value: 'forest',
+          valueLabel: 'Forest',
+          valueDescription: 'Dense tree cover',
+          units: null,
+        }),
+        fetchSpeciesOccurrences: jest.fn(),
+        fetchSpeciesLocations: jest.fn(),
+      } as unknown as SpeciesDataSource;
+
+      const SpeciesDataSourceProviderComponent = SpeciesDataSourceProvider as React.ComponentType<{
+        value: SpeciesDataSource;
+        children?: React.ReactNode;
+      }>;
+      const wrapper = ({ children }: { children: React.ReactNode }) =>
+        React.createElement(SpeciesDataSourceProviderComponent, { value: localDataSource }, children);
+
+      const { result } = renderHook(
+        () =>
+          useEnvironmentHighlights({
+            taxonId: 1,
+            selectedVariable: 'landcover',
+            stats: categoricalStats,
+            isCategorical: true,
+            pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+          }),
+        { wrapper },
+      );
+
+      await waitFor(() => {
+        expect(localDataSource.fetchObservationEnvironmentValue).toHaveBeenCalledWith(
+          1,
+          'PIN-1',
+          'landcover',
+          { location: undefined, units: undefined },
+        );
+        expect(result.current.pinnedValue).toBe('forest');
+        expect(result.current.pinnedLoading).toBe(false);
+      });
+
+      expect(mockFetchPointEnvironmentValue).not.toHaveBeenCalled();
+    } finally {
+      jest.useFakeTimers();
+    }
+  });
+
+  it('falls back to coordinate lookup for synthetic map-click pins even when a local data source is present', async () => {
+    jest.useRealTimers();
+    try {
+      mockFetchPointEnvironmentValue.mockResolvedValue({
+        variable: 'bio_1',
+        units: 'C',
+        lat: 40.2,
+        lon: -105.1,
+        value: 7.25,
+        valueLabel: null,
+        valueDescription: null,
+      });
+
+      const localDataSource = {
+        fetchEnvironmentVariables: jest.fn(),
+        fetchSpeciesEnvironment: jest.fn(),
+        fetchEnvironmentRangeSlice: jest.fn(),
+        fetchSpeciesEnvironmentCategorySamples: jest.fn(),
+        fetchObservationEnvironmentValue: jest.fn(),
+        fetchSpeciesOccurrences: jest.fn(),
+        fetchSpeciesLocations: jest.fn(),
+      } as unknown as SpeciesDataSource;
+
+      const SpeciesDataSourceProviderComponent = SpeciesDataSourceProvider as React.ComponentType<{
+        value: SpeciesDataSource;
+        children?: React.ReactNode;
+      }>;
+      const wrapper = ({ children }: { children: React.ReactNode }) =>
+        React.createElement(SpeciesDataSourceProviderComponent, { value: localDataSource }, children);
+
+      const { result } = renderHook(
+        () =>
+          useEnvironmentHighlights({
+            taxonId: 1,
+            selectedVariable: 'bio_1',
+            stats: continuousStats,
+            isCategorical: false,
+            pinnedObservation: { catalogNumber: 'point:40.200000,-105.100000', lat: 40.2, lon: -105.1 },
+          }),
+        { wrapper },
+      );
+
+      await waitFor(() => {
+        expect(mockFetchPointEnvironmentValue).toHaveBeenCalledWith(40.2, -105.1, 'bio_1', {
+          units: undefined,
+        });
+        expect(localDataSource.fetchObservationEnvironmentValue).not.toHaveBeenCalled();
         expect(result.current.pinnedValue).toBe(7.25);
         expect(result.current.pinnedLoading).toBe(false);
       });

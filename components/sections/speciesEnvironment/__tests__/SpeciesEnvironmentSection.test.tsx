@@ -182,6 +182,7 @@ const baseState: SpeciesEnvironmentState = {
   pinnedValue: null,
   pinnedLoading: false,
   pinnedNoData: false,
+  isCircularVariable: false,
 };
 
 describe('SpeciesEnvironmentSection', () => {
@@ -570,6 +571,7 @@ describe('SpeciesEnvironmentSection', () => {
     mockUseSpeciesEnvironmentState.mockReturnValue({
       ...baseState,
       selectedVariable: 'aspect_deg',
+      isCircularVariable: true,
       stats: baseContinuousStats,
       isCategorical: false,
       densityCurve: baseContinuousStats.densityCurve ?? null,
@@ -622,6 +624,7 @@ describe('SpeciesEnvironmentSection', () => {
     mockUseSpeciesEnvironmentState.mockReturnValue({
       ...baseState,
       selectedVariable: 'aspect_deg',
+      isCircularVariable: true,
       stats: baseContinuousStats,
       isCategorical: false,
       densityCurve: baseContinuousStats.densityCurve ?? null,
@@ -642,6 +645,7 @@ describe('SpeciesEnvironmentSection', () => {
     mockUseSpeciesEnvironmentState.mockReturnValue({
       ...baseState,
       selectedVariable: 'aspect_deg',
+      isCircularVariable: true,
       stats: baseContinuousStats,
       isCategorical: false,
       densityCurve: baseContinuousStats.densityCurve ?? null,
