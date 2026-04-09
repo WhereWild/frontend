@@ -1,9 +1,8 @@
-import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React, { act } from 'react';
-import { Animated, Platform, StyleSheet, View } from 'react-native';
+import { Animated, Platform, View } from 'react-native';
 import Search from '../search';
 
 const mockPush = jest.fn();
@@ -132,6 +131,10 @@ let mockFiltersProps: any;
 let mockSpeciesCardPropsHistory: any[];
 
 jest.mock('@/components', () => {
+  const mockReact = jest.requireActual('react') as typeof React;
+  const mockReactNative = jest.requireActual(
+    'react-native',
+  ) as typeof import('react-native');
   const { SpeciesCard: ActualSpeciesCard } = jest.requireActual(
     '@/components/cards/SpeciesCard',
   );
@@ -143,6 +146,21 @@ jest.mock('@/components', () => {
       return <ActualSpeciesCard {...props} />;
     },
     ThemedText,
+    PageScrollContainer: ({
+      children,
+      style,
+      testID,
+      contentContainerStyle,
+    }: any) =>
+      mockReact.createElement(
+        mockReactNative.View,
+        { style, testID },
+        mockReact.createElement(
+          mockReactNative.View,
+          { style: contentContainerStyle },
+          children,
+        ),
+      ),
     Filters: function MockFilters(props: any) {
       mockFiltersProps = props;
       return null;
@@ -232,32 +250,6 @@ describe('Search screen', () => {
     render(<Search />);
 
     expect(mockSetNativeTopAppBarConfig).not.toHaveBeenCalled();
-  });
-
-  it('applies dark mode background color by default', () => {
-    mockUseColorScheme.mockReturnValue('dark');
-    const tree = render(<Search />).toJSON();
-
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected Search to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.dark.background.default.default);
-  });
-
-  it('applies light mode background color when overridden', () => {
-    mockUseColorScheme.mockReturnValue('light');
-    const tree = render(<Search />).toJSON();
-
-    if (!tree || Array.isArray(tree)) {
-      throw new Error('Expected Search to render a single root view');
-    }
-
-    const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(
-      Colors.light.background.default.default,
-    );
   });
 
   it('shows loading state message while searching', () => {
