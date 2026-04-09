@@ -4,23 +4,37 @@ import { useNavigationBarLayoutModel } from '../useNavigationBarLayoutModel';
 describe('useNavigationBarLayoutModel', () => {
   it('resolves variant from measured tab widths and supports hit-testing', async () => {
     const tabs = [{ key: 'home' }, { key: 'search' }];
-    const resolveTabVariant = jest.fn((availableWidth: number): 'horizontal' | 'vertical' =>
-      availableWidth >= 300 ? 'horizontal' : 'vertical');
+    const resolveTabVariant = jest.fn(
+      (availableWidth: number): 'horizontal' | 'vertical' =>
+        availableWidth >= 300 ? 'horizontal' : 'vertical',
+    );
 
-    const { result } = renderHook(() => useNavigationBarLayoutModel({
-      tabs,
-      tabKeys: ['home', 'search'],
-      resolveTabVariant,
-      resizeSettleDelayMs: 50,
-      remeasureThresholdPx: 1,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarLayoutModel({
+        tabs,
+        tabKeys: ['home', 'search'],
+        resolveTabVariant,
+        resizeSettleDelayMs: 50,
+        remeasureThresholdPx: 1,
+      }),
+    );
 
     act(() => {
       result.current.handleTabsLayout(360, 56);
       result.current.onTabWidthLayout('home', 120);
       result.current.onTabWidthLayout('search', 120);
-      result.current.handleTabContainerLayout('home', { x: 0, y: 0, width: 120, height: 40 });
-      result.current.handleTabContainerLayout('search', { x: 130, y: 0, width: 120, height: 40 });
+      result.current.handleTabContainerLayout('home', {
+        x: 0,
+        y: 0,
+        width: 120,
+        height: 40,
+      });
+      result.current.handleTabContainerLayout('search', {
+        x: 130,
+        y: 0,
+        width: 120,
+        height: 40,
+      });
     });
 
     await waitFor(() => {
@@ -37,15 +51,19 @@ describe('useNavigationBarLayoutModel', () => {
 
   it('keeps measuring horizontal when there is one tab', async () => {
     const tabs = [{ key: 'home' }];
-    const resolveTabVariant = jest.fn((): 'horizontal' | 'vertical' => 'vertical');
+    const resolveTabVariant = jest.fn(
+      (): 'horizontal' | 'vertical' => 'vertical',
+    );
 
-    const { result } = renderHook(() => useNavigationBarLayoutModel({
-      tabs,
-      tabKeys: ['home'],
-      resolveTabVariant,
-      resizeSettleDelayMs: 50,
-      remeasureThresholdPx: 1,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarLayoutModel({
+        tabs,
+        tabKeys: ['home'],
+        resolveTabVariant,
+        resizeSettleDelayMs: 50,
+        remeasureThresholdPx: 1,
+      }),
+    );
 
     act(() => {
       result.current.handleTabsLayout(180, 56);
@@ -61,22 +79,31 @@ describe('useNavigationBarLayoutModel', () => {
 
   it('does not remeasure when width delta is below threshold', async () => {
     const tabs = [{ key: 'home' }, { key: 'search' }];
-    const resolveTabVariant = jest.fn((availableWidth: number): 'horizontal' | 'vertical' =>
-      availableWidth >= 300 ? 'horizontal' : 'vertical');
+    const resolveTabVariant = jest.fn(
+      (availableWidth: number): 'horizontal' | 'vertical' =>
+        availableWidth >= 300 ? 'horizontal' : 'vertical',
+    );
 
-    const { result } = renderHook(() => useNavigationBarLayoutModel({
-      tabs,
-      tabKeys: ['home', 'search'],
-      resolveTabVariant,
-      resizeSettleDelayMs: 50,
-      remeasureThresholdPx: 1,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarLayoutModel({
+        tabs,
+        tabKeys: ['home', 'search'],
+        resolveTabVariant,
+        resizeSettleDelayMs: 50,
+        remeasureThresholdPx: 1,
+      }),
+    );
 
     act(() => {
       result.current.handleTabsLayout(360, 56);
       result.current.onTabWidthLayout('home', 120);
       result.current.onTabWidthLayout('search', 120);
-      result.current.handleTabContainerLayout('home', { x: 0, y: 0, width: 120, height: 40 });
+      result.current.handleTabContainerLayout('home', {
+        x: 0,
+        y: 0,
+        width: 120,
+        height: 40,
+      });
     });
 
     await waitFor(() => {
@@ -87,7 +114,12 @@ describe('useNavigationBarLayoutModel', () => {
     const stableLayoutsRef = result.current.tabLayouts;
 
     act(() => {
-      result.current.handleTabContainerLayout('home', { x: 0, y: 0, width: 120, height: 40 });
+      result.current.handleTabContainerLayout('home', {
+        x: 0,
+        y: 0,
+        width: 120,
+        height: 40,
+      });
       result.current.handleTabsLayout(360.5, 56);
     });
 
@@ -97,21 +129,25 @@ describe('useNavigationBarLayoutModel', () => {
 
   it('preserves measured tab widths across resize remeasure sessions', async () => {
     const tabs = [{ key: 'home' }, { key: 'search' }];
-    const resolveTabVariant = jest.fn((
-      availableWidth: number,
-      _tabCount: number,
-      _measuredTabWidths: Record<string, number>,
-      _tabKeys: string[],
-    ): 'horizontal' | 'vertical' =>
-      availableWidth >= 240 ? 'horizontal' : 'vertical');
+    const resolveTabVariant = jest.fn(
+      (
+        availableWidth: number,
+        _tabCount: number,
+        _measuredTabWidths: Record<string, number>,
+        _tabKeys: string[],
+      ): 'horizontal' | 'vertical' =>
+        availableWidth >= 240 ? 'horizontal' : 'vertical',
+    );
 
-    const { result } = renderHook(() => useNavigationBarLayoutModel({
-      tabs,
-      tabKeys: ['home', 'search'],
-      resolveTabVariant,
-      resizeSettleDelayMs: 50,
-      remeasureThresholdPx: 1,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarLayoutModel({
+        tabs,
+        tabKeys: ['home', 'search'],
+        resolveTabVariant,
+        resizeSettleDelayMs: 50,
+        remeasureThresholdPx: 1,
+      }),
+    );
 
     act(() => {
       result.current.handleTabsLayout(360, 56);
@@ -137,28 +173,41 @@ describe('useNavigationBarLayoutModel', () => {
   });
 
   it('does not temporarily switch variant from fallback widths during resize', async () => {
-    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'about' }, { key: 'settings' }];
+    const tabs = [
+      { key: 'home' },
+      { key: 'search' },
+      { key: 'about' },
+      { key: 'settings' },
+    ];
     const tabKeys = ['home', 'search', 'about', 'settings'];
     const tabGap = 8;
 
-    const resolveTabVariant = jest.fn((
-      availableWidth: number,
-      tabCount: number,
-      measuredTabWidths: Record<string, number>,
-      resolverTabKeys: string[],
-    ): 'horizontal' | 'vertical' => {
-      const totalTabWidth = resolverTabKeys.reduce((sum, key) => sum + (measuredTabWidths[key] ?? 96), 0);
-      const requiredWidth = totalTabWidth + Math.max(0, tabCount - 1) * tabGap;
-      return availableWidth >= requiredWidth ? 'horizontal' : 'vertical';
-    });
+    const resolveTabVariant = jest.fn(
+      (
+        availableWidth: number,
+        tabCount: number,
+        measuredTabWidths: Record<string, number>,
+        resolverTabKeys: string[],
+      ): 'horizontal' | 'vertical' => {
+        const totalTabWidth = resolverTabKeys.reduce(
+          (sum, key) => sum + (measuredTabWidths[key] ?? 96),
+          0,
+        );
+        const requiredWidth =
+          totalTabWidth + Math.max(0, tabCount - 1) * tabGap;
+        return availableWidth >= requiredWidth ? 'horizontal' : 'vertical';
+      },
+    );
 
-    const { result } = renderHook(() => useNavigationBarLayoutModel({
-      tabs,
-      tabKeys,
-      resolveTabVariant,
-      resizeSettleDelayMs: 50,
-      remeasureThresholdPx: 1,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarLayoutModel({
+        tabs,
+        tabKeys,
+        resolveTabVariant,
+        resizeSettleDelayMs: 50,
+        remeasureThresholdPx: 1,
+      }),
+    );
 
     act(() => {
       result.current.handleTabsLayout(470, 56);
@@ -192,26 +241,38 @@ describe('useNavigationBarLayoutModel', () => {
   });
 
   it('stays stable across rapid sequential resize updates', async () => {
-    const tabs = [{ key: 'home' }, { key: 'search' }, { key: 'about' }, { key: 'settings' }];
+    const tabs = [
+      { key: 'home' },
+      { key: 'search' },
+      { key: 'about' },
+      { key: 'settings' },
+    ];
     const tabKeys = ['home', 'search', 'about', 'settings'];
-    const resolveTabVariant = jest.fn((
-      availableWidth: number,
-      tabCount: number,
-      measuredTabWidths: Record<string, number>,
-      resolverTabKeys: string[],
-    ): 'horizontal' | 'vertical' => {
-      const totalTabWidth = resolverTabKeys.reduce((sum, key) => sum + (measuredTabWidths[key] ?? 96), 0);
-      const requiredWidth = totalTabWidth + Math.max(0, tabCount - 1) * 8;
-      return availableWidth >= requiredWidth ? 'horizontal' : 'vertical';
-    });
+    const resolveTabVariant = jest.fn(
+      (
+        availableWidth: number,
+        tabCount: number,
+        measuredTabWidths: Record<string, number>,
+        resolverTabKeys: string[],
+      ): 'horizontal' | 'vertical' => {
+        const totalTabWidth = resolverTabKeys.reduce(
+          (sum, key) => sum + (measuredTabWidths[key] ?? 96),
+          0,
+        );
+        const requiredWidth = totalTabWidth + Math.max(0, tabCount - 1) * 8;
+        return availableWidth >= requiredWidth ? 'horizontal' : 'vertical';
+      },
+    );
 
-    const { result } = renderHook(() => useNavigationBarLayoutModel({
-      tabs,
-      tabKeys,
-      resolveTabVariant,
-      resizeSettleDelayMs: 50,
-      remeasureThresholdPx: 1,
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarLayoutModel({
+        tabs,
+        tabKeys,
+        resolveTabVariant,
+        resizeSettleDelayMs: 50,
+        remeasureThresholdPx: 1,
+      }),
+    );
 
     act(() => {
       result.current.handleTabsLayout(500, 56);

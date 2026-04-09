@@ -21,7 +21,11 @@ jest.mock('@/hooks/useResponsive', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaInsetsContext: {
     Provider: ({ children }: { children: React.ReactNode }) => children,
-    Consumer: ({ children }: { children: (value: { bottom: number } | null) => React.ReactNode }) => children(null),
+    Consumer: ({
+      children,
+    }: {
+      children: (value: { bottom: number } | null) => React.ReactNode;
+    }) => children(null),
     _currentValue: null,
   },
 }));
@@ -204,7 +208,9 @@ describe('NavigationBar press guard integration', () => {
     const commitTabSelection = jest.fn();
     const setPreviewIndex = jest.fn();
 
-    (useNavigationBarLayoutModel as jest.Mock).mockImplementation(() => layoutModel);
+    (useNavigationBarLayoutModel as jest.Mock).mockImplementation(
+      () => layoutModel,
+    );
     (useNavigationBarIndicator as jest.Mock).mockReturnValue({
       indicatorX: { __mock: 'x' },
       indicatorWidth: { __mock: 'w' },
@@ -247,13 +253,19 @@ describe('NavigationBar press guard integration', () => {
 
     const stableRenderer = renderer;
 
-    const getMeasuringHost = () => stableRenderer.root.findAllByProps({
-      testID: 'navigation-bar-measuring-layer',
-    }).filter((node) => typeof node.type === 'string');
+    const getMeasuringHost = () =>
+      stableRenderer.root
+        .findAllByProps({
+          testID: 'navigation-bar-measuring-layer',
+        })
+        .filter((node) => typeof node.type === 'string');
 
-    const getIndicatorHost = () => stableRenderer.root.findAllByProps({
-      testID: 'navigation-bar-active-indicator',
-    }).filter((node) => typeof node.type === 'string');
+    const getIndicatorHost = () =>
+      stableRenderer.root
+        .findAllByProps({
+          testID: 'navigation-bar-active-indicator',
+        })
+        .filter((node) => typeof node.type === 'string');
 
     expect(getMeasuringHost()).toHaveLength(1);
     expect(getIndicatorHost()).toHaveLength(1);

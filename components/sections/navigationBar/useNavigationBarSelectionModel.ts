@@ -20,7 +20,9 @@ type SelectableNavigationTab = {
   onPress?: () => void;
 };
 
-type UseNavigationBarSelectionModelParams<TTab extends SelectableNavigationTab> = {
+type UseNavigationBarSelectionModelParams<
+  TTab extends SelectableNavigationTab,
+> = {
   tabs: TTab[];
 };
 
@@ -43,7 +45,9 @@ export type NavigationBarSelectionModel = {
  * Manages active/preview tab selection state and tab commit behavior.
  * Supports both controlled (incoming active state) and uncontrolled selection.
  */
-export function useNavigationBarSelectionModel<TTab extends SelectableNavigationTab>({
+export function useNavigationBarSelectionModel<
+  TTab extends SelectableNavigationTab,
+>({
   tabs,
 }: UseNavigationBarSelectionModelParams<TTab>): NavigationBarSelectionModel {
   const controlledActiveIndex = React.useMemo(() => {
@@ -51,13 +55,17 @@ export function useNavigationBarSelectionModel<TTab extends SelectableNavigation
     return foundIndex >= 0 ? foundIndex : 0;
   }, [tabs]);
 
-  const [internalActiveIndex, setInternalActiveIndex] = React.useState(controlledActiveIndex);
+  const [internalActiveIndex, setInternalActiveIndex] = React.useState(
+    controlledActiveIndex,
+  );
   const [previewIndex, setPreviewIndex] = React.useState<number | null>(null);
   const isControlled = React.useMemo(
     () => tabs.some((tab) => typeof tab.state === 'string'),
     [tabs],
   );
-  const activeIndex = isControlled ? controlledActiveIndex : internalActiveIndex;
+  const activeIndex = isControlled
+    ? controlledActiveIndex
+    : internalActiveIndex;
 
   React.useEffect(() => {
     if (!isControlled) {
@@ -78,35 +86,48 @@ export function useNavigationBarSelectionModel<TTab extends SelectableNavigation
   }, [controlledActiveIndex, isControlled, previewIndex]);
 
   /** Commits the selected tab and executes tab onPress callback. */
-  const commitTabSelection = React.useCallback((index: number) => {
-    const tab = tabs[index];
+  const commitTabSelection = React.useCallback(
+    (index: number) => {
+      const tab = tabs[index];
 
-    if (!tab) {
-      setPreviewIndex(null);
-      return;
-    }
+      if (!tab) {
+        setPreviewIndex(null);
+        return;
+      }
 
-    if (!isControlled) {
-      setInternalActiveIndex(index);
-      setPreviewIndex(null);
-    } else if (index === controlledActiveIndex) {
-      // In controlled mode, clear any pressed preview immediately when the user
-      // re-selects the already-active tab instead of waiting for the sync effect.
-      setPreviewIndex(null);
-    }
+      if (!isControlled) {
+        setInternalActiveIndex(index);
+        setPreviewIndex(null);
+      } else if (index === controlledActiveIndex) {
+        // In controlled mode, clear any pressed preview immediately when the user
+        // re-selects the already-active tab instead of waiting for the sync effect.
+        setPreviewIndex(null);
+      }
 
-    tab.onPress?.();
-  }, [controlledActiveIndex, isControlled, tabs]);
+      tab.onPress?.();
+    },
+    [controlledActiveIndex, isControlled, tabs],
+  );
 
   /** Resolves each tab's interaction state from active + preview indices. */
-  const resolveDerivedState = React.useCallback((index: number): NavigationBarTabState => {
-    return resolveNavigationTabState(index, activeIndex, previewIndex);
-  }, [activeIndex, previewIndex]);
+  const resolveDerivedState = React.useCallback(
+    (index: number): NavigationBarTabState => {
+      return resolveNavigationTabState(index, activeIndex, previewIndex);
+    },
+    [activeIndex, previewIndex],
+  );
 
   /** Resolves foreground tone to keep visual contrast consistent during preview moves. */
-  const resolveTabForegroundTone = React.useCallback((index: number): NavigationBarTabForegroundTone => {
-    return resolveNavigationTabForegroundTone(index, activeIndex, previewIndex);
-  }, [activeIndex, previewIndex]);
+  const resolveTabForegroundTone = React.useCallback(
+    (index: number): NavigationBarTabForegroundTone => {
+      return resolveNavigationTabForegroundTone(
+        index,
+        activeIndex,
+        previewIndex,
+      );
+    },
+    [activeIndex, previewIndex],
+  );
 
   return {
     activeIndex,

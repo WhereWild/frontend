@@ -1,6 +1,15 @@
-import type { SpeciesEnvironmentDensity, SpeciesEnvironmentSummary } from '@/data/types';
+import type {
+  SpeciesEnvironmentDensity,
+  SpeciesEnvironmentSummary,
+} from '@/data/types';
 import React from 'react';
-import { Image, LayoutChangeEvent, GestureResponderEvent, StyleSheet, View } from 'react-native';
+import {
+  Image,
+  LayoutChangeEvent,
+  GestureResponderEvent,
+  StyleSheet,
+  View,
+} from 'react-native';
 import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
 import { Colors, Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -27,7 +36,8 @@ type ClipPathWithUnitsProps = React.ComponentProps<typeof ClipPath> & {
   clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
 };
 
-const ClipPathWithUnits = ClipPath as React.ComponentType<ClipPathWithUnitsProps>;
+const ClipPathWithUnits =
+  ClipPath as React.ComponentType<ClipPathWithUnitsProps>;
 
 /** Selected value range on the density curve. */
 type DensitySelectionRange = {
@@ -75,9 +85,18 @@ export function DensityChart({
   const hasDragged = React.useRef(false);
   const samples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const hasCurveData = samples.length > 0;
-  const densityDomain = React.useMemo(() => getDensityDomain(samples), [samples]);
+  const densityDomain = React.useMemo(
+    () => getDensityDomain(samples),
+    [samples],
+  );
   const normalized = React.useMemo(
-    () => normalizeDensitySamples(samples, densityDomain, CHART_HEIGHT, CHART_PADDING),
+    () =>
+      normalizeDensitySamples(
+        samples,
+        densityDomain,
+        CHART_HEIGHT,
+        CHART_PADDING,
+      ),
     [densityDomain, samples],
   );
   const rawId = React.useId();
@@ -139,7 +158,7 @@ export function DensityChart({
       const value =
         event && Number.isFinite(event.nativeEvent.locationX)
           ? getValueForLocation(event.nativeEvent.locationX)
-          : dragValue.current ?? dragOrigin.current;
+          : (dragValue.current ?? dragOrigin.current);
       if (value !== null) {
         dragValue.current = value;
       }
@@ -195,8 +214,11 @@ export function DensityChart({
       ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
   const pinIsOutsideRange =
-    pinRawPosition != null && Number.isFinite(pinRawPosition) && (pinRawPosition < 0 || pinRawPosition > 100);
-  const pinIsBelowRange = pinIsOutsideRange && pinRawPosition != null && pinRawPosition < 0;
+    pinRawPosition != null &&
+    Number.isFinite(pinRawPosition) &&
+    (pinRawPosition < 0 || pinRawPosition > 100);
+  const pinIsBelowRange =
+    pinIsOutsideRange && pinRawPosition != null && pinRawPosition < 0;
   const pinPosition = pinIsOutsideRange ? null : pinRawPosition;
   const pinMarkerVisible = pinPosition != null && Number.isFinite(pinPosition);
 
@@ -204,7 +226,11 @@ export function DensityChart({
   // gets too close to the fixed min/max labels. All calculations in pixels.
   const { meanLeft, pinLeft, pinLabelVisible } = React.useMemo(() => {
     if (chartWidth === 0) {
-      return { meanLeft: meanPosition, pinLeft: pinPosition, pinLabelVisible: true };
+      return {
+        meanLeft: meanPosition,
+        pinLeft: pinPosition,
+        pinLabelVisible: true,
+      };
     }
 
     const gap = 4; // minimum pixel gap between label edges
@@ -214,8 +240,10 @@ export function DensityChart({
     const MAX_LABEL_WIDTH = MEAN_LABEL_HALF_WIDTH * 2;
 
     // Start with raw pixel centers.
-    let meanCenter = meanPosition != null ? (meanPosition / 100) * chartWidth : null;
-    let pinCenter = pinPosition != null ? (pinPosition / 100) * chartWidth : null;
+    let meanCenter =
+      meanPosition != null ? (meanPosition / 100) * chartWidth : null;
+    let pinCenter =
+      pinPosition != null ? (pinPosition / 100) * chartWidth : null;
 
     // Hide pin label if it overlaps min or max labels.
     let pinLabelVisible = true;
@@ -225,14 +253,18 @@ export function DensityChart({
       if (summary?.min != null && pinLeftEdge < MIN_LABEL_WIDTH + gap) {
         pinLabelVisible = false;
       }
-      if (summary?.max != null && pinRightEdge > chartWidth - MAX_LABEL_WIDTH - gap) {
+      if (
+        summary?.max != null &&
+        pinRightEdge > chartWidth - MAX_LABEL_WIDTH - gap
+      ) {
         pinLabelVisible = false;
       }
     }
 
     // Nudge mean and pin apart symmetrically.
     if (meanCenter != null && pinCenter != null) {
-      const overlap = meanHalf + pinHalf + gap - Math.abs(meanCenter - pinCenter);
+      const overlap =
+        meanHalf + pinHalf + gap - Math.abs(meanCenter - pinCenter);
       if (overlap > 0) {
         const shift = overlap / 2;
         const direction = meanCenter <= pinCenter ? -1 : 1;
@@ -242,7 +274,8 @@ export function DensityChart({
     }
 
     return {
-      meanLeft: meanCenter != null ? (meanCenter / chartWidth) * 100 : meanPosition,
+      meanLeft:
+        meanCenter != null ? (meanCenter / chartWidth) * 100 : meanPosition,
       pinLeft: pinCenter != null ? (pinCenter / chartWidth) * 100 : pinPosition,
       pinLabelVisible,
     };
@@ -251,63 +284,96 @@ export function DensityChart({
   if (!hasCurveData || !normalized.length) {
     return (
       <View style={styles.emptyChart}>
-        <ThemedText variant="bodySmall">Density curve unavailable.</ThemedText>
+        <ThemedText variant='bodySmall'>Density curve unavailable.</ThemedText>
       </View>
     );
   }
 
   const start = normalized[0];
   const end = normalized[normalized.length - 1];
-  const linePath = normalized.map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
+  const linePath = normalized
+    .map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x},${y}`)
+    .join(' ');
   const areaSegments = normalized.slice(1).map(({ x, y }) => `L${x},${y}`);
-  const areaPath = [`M${start.x},${CHART_HEIGHT}`, `L${start.x},${start.y}`, ...areaSegments, `L${end.x},${CHART_HEIGHT}`, 'Z'].join(' ');
+  const areaPath = [
+    `M${start.x},${CHART_HEIGHT}`,
+    `L${start.x},${start.y}`,
+    ...areaSegments,
+    `L${end.x},${CHART_HEIGHT}`,
+    'Z',
+  ].join(' ');
 
   return (
     <View style={styles.chartWrapper}>
-      <View testID="density-chart-surface" style={styles.chartSurface} onLayout={handleLayout}>
-        <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 100 ${CHART_HEIGHT}`} preserveAspectRatio="none">
+      <View
+        testID='density-chart-surface'
+        style={styles.chartSurface}
+        onLayout={handleLayout}
+      >
+        <Svg
+          width='100%'
+          height={CHART_HEIGHT}
+          viewBox={`0 0 100 ${CHART_HEIGHT}`}
+          preserveAspectRatio='none'
+        >
           <Defs>
             {selectionBounds ? (
-              <ClipPathWithUnits id={clipId} clipPathUnits="userSpaceOnUse">
-                <Rect x={selectionBounds.left} y={0} width={selectionBounds.width} height={CHART_HEIGHT} />
+              <ClipPathWithUnits id={clipId} clipPathUnits='userSpaceOnUse'>
+                <Rect
+                  x={selectionBounds.left}
+                  y={0}
+                  width={selectionBounds.width}
+                  height={CHART_HEIGHT}
+                />
               </ClipPathWithUnits>
             ) : null}
           </Defs>
           <Path d={areaPath} fill={fillColor} opacity={0.3} />
           {selectionBounds ? (
-            <Path d={areaPath} fill={fillColor} opacity={0.6} clipPath={`url(#${clipId})`} />
+            <Path
+              d={areaPath}
+              fill={fillColor}
+              opacity={0.6}
+              clipPath={`url(#${clipId})`}
+            />
           ) : null}
           <Path
             d={`M${start.x},0 L${end.x},0 L${end.x},${CHART_HEIGHT} L${start.x},${CHART_HEIGHT} Z`}
-            fill="none"
+            fill='none'
             stroke={baselineColor}
             strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
+            vectorEffect='non-scaling-stroke'
           />
           {meanPosition != null && Number.isFinite(meanPosition) ? (
             <Path
               d={`M${meanPosition},0 L${meanPosition},${CHART_HEIGHT}`}
-              fill="none"
+              fill='none'
               stroke={baselineColor}
               strokeWidth={1}
-              strokeDasharray="4 4"
-              vectorEffect="non-scaling-stroke"
+              strokeDasharray='4 4'
+              vectorEffect='non-scaling-stroke'
             />
           ) : null}
           {pinPosition != null && Number.isFinite(pinPosition) ? (
             <Path
               d={`M${pinPosition},0 L${pinPosition},${CHART_HEIGHT}`}
-              fill="none"
+              fill='none'
               stroke={palette.background.warning.default}
               strokeWidth={2}
-              strokeDasharray="4 3"
-              vectorEffect="non-scaling-stroke"
+              strokeDasharray='4 3'
+              vectorEffect='non-scaling-stroke'
             />
           ) : null}
-          <Path d={linePath} fill="none" stroke={lineColor} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+          <Path
+            d={linePath}
+            fill='none'
+            stroke={lineColor}
+            strokeWidth={2}
+            vectorEffect='non-scaling-stroke'
+          />
         </Svg>
         <View
-          pointerEvents="none"
+          pointerEvents='none'
           style={[
             styles.pinImageContainer,
             {
@@ -318,14 +384,14 @@ export function DensityChart({
         >
           <Image
             source={PIN_IMAGE}
-            resizeMode="contain"
-            testID="density-chart-pin-image"
+            resizeMode='contain'
+            testID='density-chart-pin-image'
             style={styles.pinImage}
           />
         </View>
         <View
           collapsable={false}
-          testID="density-chart-responder"
+          testID='density-chart-responder'
           style={styles.chartResponder}
           onStartShouldSetResponder={shouldSetSelectionResponder}
           onStartShouldSetResponderCapture={shouldSetSelectionResponder}
@@ -341,8 +407,10 @@ export function DensityChart({
       <View style={styles.chartLabels}>
         {summary?.min != null && (
           <View style={styles.minLabelContainer}>
-            <ThemedText variant="bodySmall">{formatValue(summary.min, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">min</ThemedText>
+            <ThemedText variant='bodySmall'>
+              {formatValue(summary.min, 1)}
+            </ThemedText>
+            <ThemedText variant='bodySmall'>min</ThemedText>
           </View>
         )}
         {meanLeft != null && Number.isFinite(meanLeft) ? (
@@ -353,8 +421,10 @@ export function DensityChart({
               marginLeft: -MEAN_LABEL_HALF_WIDTH,
             }}
           >
-            <ThemedText variant="bodySmall">{formatValue(summary?.mean, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">mean</ThemedText>
+            <ThemedText variant='bodySmall'>
+              {formatValue(summary?.mean, 1)}
+            </ThemedText>
+            <ThemedText variant='bodySmall'>mean</ThemedText>
           </View>
         ) : null}
         {pinLeft != null && Number.isFinite(pinLeft) && pinLabelVisible ? (
@@ -366,14 +436,18 @@ export function DensityChart({
               width: PIN_LABEL_HALF_WIDTH * 2,
             }}
           >
-            <ThemedText variant="bodySmall">{formatValue(pinValue, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">Selected</ThemedText>
+            <ThemedText variant='bodySmall'>
+              {formatValue(pinValue, 1)}
+            </ThemedText>
+            <ThemedText variant='bodySmall'>Selected</ThemedText>
           </View>
         ) : null}
         {summary?.max != null && (
           <View style={styles.maxLabelContainer}>
-            <ThemedText variant="bodySmall">{formatValue(summary.max, 1)}</ThemedText>
-            <ThemedText variant="bodySmall">max</ThemedText>
+            <ThemedText variant='bodySmall'>
+              {formatValue(summary.max, 1)}
+            </ThemedText>
+            <ThemedText variant='bodySmall'>max</ThemedText>
           </View>
         )}
       </View>
@@ -387,7 +461,10 @@ export function DensityChart({
             },
           ]}
         >
-          <ThemedText variant="bodySmall" style={{ color: palette.text.warning.default }}>
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.warning.default }}
+          >
             {`Location value (${formatValue(pinValue, 1)}) is ${pinIsBelowRange ? 'below' : 'above'} this species' observed range`}
           </ThemedText>
         </View>

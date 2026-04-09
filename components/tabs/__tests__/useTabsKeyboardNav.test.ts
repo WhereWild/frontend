@@ -1,11 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { useTabsKeyboardNav } from '../useTabsKeyboardNav';
 
-const tabs = [
-  { key: 'one' },
-  { key: 'two' },
-  { key: 'three' },
-];
+const tabs = [{ key: 'one' }, { key: 'two' }, { key: 'three' }];
 
 describe('useTabsKeyboardNav', () => {
   type HookProps = { selectedKey: string };

@@ -13,7 +13,7 @@ const createIconProbe = () => {
   const calls: { color?: string; size?: string }[] = [];
   const IconProbe = (props: { color?: string; size?: string }) => {
     calls.push(props);
-    return <ThemedText testID="icon-button-probe" />;
+    return <ThemedText testID='icon-button-probe' />;
   };
   return { IconProbe, calls };
 };
@@ -21,18 +21,13 @@ const createIconProbe = () => {
 describe('IconButton Component', () => {
   describe('Rendering', () => {
     it('renders with icon prop', () => {
-      render(
-        <IconButton icon={<MockIcon />} accessibilityLabel="Close" />
-      );
+      render(<IconButton icon={<MockIcon />} accessibilityLabel='Close' />);
       expect(screen.getByText('Icon')).toBeDefined();
     });
 
     it('requires accessibilityLabel for screen readers', () => {
       const { getByLabelText } = render(
-        <IconButton
-          icon={<MockIcon />}
-          accessibilityLabel="Settings"
-        />
+        <IconButton icon={<MockIcon />} accessibilityLabel='Settings' />,
       );
       expect(getByLabelText('Settings')).toBeDefined();
     });
@@ -48,7 +43,7 @@ describe('IconButton Component', () => {
             variant={variant}
             icon={<MockIcon />}
             accessibilityLabel={variant}
-          />
+          />,
         );
         expect(screen.getByText('Icon')).toBeDefined();
       });
@@ -56,7 +51,7 @@ describe('IconButton Component', () => {
 
     it('defaults to primary variant when no variant specified', () => {
       const { getByRole } = render(
-        <IconButton icon={<MockIcon />} accessibilityLabel="Default" />
+        <IconButton icon={<MockIcon />} accessibilityLabel='Default' />,
       );
       const button = getByRole('button');
       expect(button).toBeDefined();
@@ -74,7 +69,7 @@ describe('IconButton Component', () => {
             size={size}
             icon={<MockIcon />}
             accessibilityLabel={size}
-          />
+          />,
         );
         expect(screen.getByText('Icon')).toBeDefined();
       });
@@ -82,7 +77,7 @@ describe('IconButton Component', () => {
 
     it('defaults to medium size tokens for dimension and radius', () => {
       const { getByLabelText } = render(
-        <IconButton icon={<MockIcon />} accessibilityLabel="Default Size" />
+        <IconButton icon={<MockIcon />} accessibilityLabel='Default Size' />,
       );
       const button = getByLabelText('Default Size');
       const flattenedStyle = StyleSheet.flatten(button.props.style);
@@ -98,9 +93,9 @@ describe('IconButton Component', () => {
     it('renders asset icon node inside the button', () => {
       render(
         <IconButton
-          icon={<Image source={iconSource} testID="icon-button-asset" />}
-          accessibilityLabel="Asset Icon"
-        />
+          icon={<Image source={iconSource} testID='icon-button-asset' />}
+          accessibilityLabel='Asset Icon'
+        />,
       );
 
       expect(screen.getByTestId('icon-button-asset')).toBeDefined();
@@ -111,9 +106,9 @@ describe('IconButton Component', () => {
       render(
         <IconButton
           disabled
-          icon={<Image source={iconSource} testID="icon-button-disabled" />}
-          accessibilityLabel="Disabled Asset Icon"
-        />
+          icon={<Image source={iconSource} testID='icon-button-disabled' />}
+          accessibilityLabel='Disabled Asset Icon'
+        />,
       );
 
       expect(screen.getByTestId('icon-button-disabled')).toBeDefined();
@@ -123,14 +118,14 @@ describe('IconButton Component', () => {
       const { IconProbe, calls } = createIconProbe();
 
       render(
-        <IconButton icon={<IconProbe />} accessibilityLabel="Semantic Icon" />
+        <IconButton icon={<IconProbe />} accessibilityLabel='Semantic Icon' />,
       );
 
       expect(calls.at(-1)).toEqual(
         expect.objectContaining({
           color: Colors.dark.icon.brand.onBrand,
           size: '20',
-        })
+        }),
       );
     });
 
@@ -139,16 +134,16 @@ describe('IconButton Component', () => {
 
       render(
         <IconButton
-          icon={<IconProbe color="#123456" size="40" />}
-          accessibilityLabel="Custom Icon Props"
-        />
+          icon={<IconProbe color='#123456' size='40' />}
+          accessibilityLabel='Custom Icon Props'
+        />,
       );
 
       expect(calls.at(-1)).toEqual(
         expect.objectContaining({
           color: '#123456',
           size: '40',
-        })
+        }),
       );
     });
   });
@@ -160,8 +155,8 @@ describe('IconButton Component', () => {
         <IconButton
           icon={<MockIcon />}
           onPress={onPress}
-          accessibilityLabel="Press Me"
-        />
+          accessibilityLabel='Press Me'
+        />,
       );
 
       fireEvent.press(screen.getByLabelText('Press Me'));
@@ -175,8 +170,8 @@ describe('IconButton Component', () => {
           disabled
           icon={<MockIcon />}
           onPress={onPress}
-          accessibilityLabel="Disabled"
-        />
+          accessibilityLabel='Disabled'
+        />,
       );
 
       fireEvent.press(screen.getByLabelText('Disabled'));
@@ -191,7 +186,7 @@ describe('IconButton Component', () => {
           disabled
           icon={<MockIcon />}
           onLongPress={onLongPress}
-          accessibilityLabel="Disabled Hold"
+          accessibilityLabel='Disabled Hold'
         />,
       );
 
@@ -210,7 +205,7 @@ describe('IconButton Component', () => {
         render(
           <IconButton
             icon={<MockIcon />}
-            accessibilityLabel="Hold Me"
+            accessibilityLabel='Hold Me'
             onLongPress={onLongPress}
             onPressOut={onPressOut}
             delayLongPress={delayLongPress}
@@ -249,8 +244,8 @@ describe('IconButton Component', () => {
           disabled
           icon={<MockIcon />}
           onPress={onPress}
-          accessibilityLabel="Disabled Button"
-        />
+          accessibilityLabel='Disabled Button'
+        />,
       );
 
       fireEvent.press(screen.getByLabelText('Disabled Button'));
@@ -261,20 +256,14 @@ describe('IconButton Component', () => {
   describe('Accessibility', () => {
     it('requires accessibilityLabel', () => {
       const { getByLabelText } = render(
-        <IconButton
-          icon={<MockIcon />}
-          accessibilityLabel="Menu"
-        />
+        <IconButton icon={<MockIcon />} accessibilityLabel='Menu' />,
       );
       expect(getByLabelText('Menu')).toBeDefined();
     });
 
     it('sets accessibilityRole to button', () => {
       const { getByRole } = render(
-        <IconButton
-          icon={<MockIcon />}
-          accessibilityLabel="Icon Button"
-        />
+        <IconButton icon={<MockIcon />} accessibilityLabel='Icon Button' />,
       );
       expect(getByRole('button')).toBeDefined();
     });
@@ -284,8 +273,8 @@ describe('IconButton Component', () => {
         <IconButton
           disabled
           icon={<MockIcon />}
-          accessibilityLabel="Disabled"
-        />
+          accessibilityLabel='Disabled'
+        />,
       );
       const button = getByRole('button');
       expect(button.props.accessibilityState?.disabled).toBe(true);
@@ -299,22 +288,22 @@ describe('IconButton Component', () => {
         <IconButton
           icon={<MockIcon />}
           style={customStyle}
-          accessibilityLabel="Styled"
-        />
+          accessibilityLabel='Styled'
+        />,
       );
       const button = getByLabelText('Styled');
       expect(button.props.style).toMatchObject(
-        expect.arrayContaining([expect.objectContaining(customStyle)])
+        expect.arrayContaining([expect.objectContaining(customStyle)]),
       );
     });
 
     it('uses large control dimension for medium size', () => {
       const { getByLabelText } = render(
         <IconButton
-          size="medium"
+          size='medium'
           icon={<MockIcon />}
-          accessibilityLabel="Square"
-        />
+          accessibilityLabel='Square'
+        />,
       );
       const button = getByLabelText('Square');
       const flattenedStyle = StyleSheet.flatten(button.props.style);
@@ -326,10 +315,10 @@ describe('IconButton Component', () => {
     it('uses medium control dimension for small size', () => {
       const { getByLabelText } = render(
         <IconButton
-          size="small"
+          size='small'
           icon={<MockIcon />}
-          accessibilityLabel="Square"
-        />
+          accessibilityLabel='Square'
+        />,
       );
       const button = getByLabelText('Square');
       const flattenedStyle = StyleSheet.flatten(button.props.style);
@@ -339,31 +328,81 @@ describe('IconButton Component', () => {
     });
 
     it('applies pressed brand background token for primary variant', () => {
-      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles('primary', 'dark', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.brand.pressed);
+      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles(
+        'primary',
+        'dark',
+        true,
+        false,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.brand.pressed,
+      );
     });
 
     it('uses neutral hover token for neutral variant', () => {
-      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles('neutral', 'dark', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.neutral.secondaryHover);
-      expect(computed.iconColor).toBe(Colors.dark.icon.neutral.onNeutralSecondary);
+      const computed = __ICON_BUTTON_TESTING__.computeVariantStyles(
+        'neutral',
+        'dark',
+        false,
+        true,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.neutral.secondaryHover,
+      );
+      expect(computed.iconColor).toBe(
+        Colors.dark.icon.neutral.onNeutralSecondary,
+      );
     });
 
     it('keeps subtle variant transparent idle but swaps tokens on hover', () => {
-      const idle = __ICON_BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, false, false);
-      const hover = __ICON_BUTTON_TESTING__.computeVariantStyles('subtle', 'dark', false, true, false);
+      const idle = __ICON_BUTTON_TESTING__.computeVariantStyles(
+        'subtle',
+        'dark',
+        false,
+        false,
+        false,
+      );
+      const hover = __ICON_BUTTON_TESTING__.computeVariantStyles(
+        'subtle',
+        'dark',
+        false,
+        true,
+        false,
+      );
       expect(idle.backgroundColor).toBe('transparent');
-      expect(hover.backgroundColor).toBe(Colors.dark.background.neutral.tertiaryHover);
+      expect(hover.backgroundColor).toBe(
+        Colors.dark.background.neutral.tertiaryHover,
+      );
       expect(hover.iconColor).toBe(Colors.dark.icon.neutral.onNeutralTertiary);
     });
 
     it('falls back to disabled palette regardless of variant', () => {
-      const lightDisabled = __ICON_BUTTON_TESTING__.computeVariantStyles('primary', 'light', false, false, true);
-      expect(lightDisabled.backgroundColor).toBe(Colors.light.background.disabled.default);
-      expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
+      const lightDisabled = __ICON_BUTTON_TESTING__.computeVariantStyles(
+        'primary',
+        'light',
+        false,
+        false,
+        true,
+      );
+      expect(lightDisabled.backgroundColor).toBe(
+        Colors.light.background.disabled.default,
+      );
+      expect(lightDisabled.iconColor).toBe(
+        Colors.light.icon.disabled.onDisabled,
+      );
 
-      const darkDisabled = __ICON_BUTTON_TESTING__.computeVariantStyles('neutral', 'dark', true, true, true);
-      expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
+      const darkDisabled = __ICON_BUTTON_TESTING__.computeVariantStyles(
+        'neutral',
+        'dark',
+        true,
+        true,
+        true,
+      );
+      expect(darkDisabled.backgroundColor).toBe(
+        Colors.dark.background.disabled.default,
+      );
       expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
     });
   });
@@ -378,23 +417,29 @@ describe('IconButton Component', () => {
         false,
       );
 
-      expect(computed.backgroundColor).toBe(Colors.dark.background.default.default);
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.default.default,
+      );
       expect(computed.iconColor).toBe(Colors.dark.icon.default.default);
     });
 
     it('returns raw node when icon is not a React element', () => {
-      expect(__ICON_BUTTON_TESTING__.renderIcon('glyph', '#123456')).toBe('glyph');
+      expect(__ICON_BUTTON_TESTING__.renderIcon('glyph', '#123456')).toBe(
+        'glyph',
+      );
     });
 
     it('does not clone icons that already set color and size', () => {
       const Icon = (props: { color?: string; size?: string }) => (
-        <ThemedText accessibilityLabel="icon" style={{ color: props.color }}>
+        <ThemedText accessibilityLabel='icon' style={{ color: props.color }}>
           Icon
         </ThemedText>
       );
-      const icon = <Icon color="#abcdef" size="40" />;
+      const icon = <Icon color='#abcdef' size='40' />;
 
-      expect(__ICON_BUTTON_TESTING__.renderIcon(icon, '#000000', '20')).toBe(icon);
+      expect(__ICON_BUTTON_TESTING__.renderIcon(icon, '#000000', '20')).toBe(
+        icon,
+      );
     });
   });
 });

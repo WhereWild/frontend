@@ -10,7 +10,7 @@ const createIconProbe = () => {
   const calls: { color?: string }[] = [];
   const IconProbe = (props: { color?: string }) => {
     calls.push(props);
-    return <ThemedText testID="danger-icon-probe" />;
+    return <ThemedText testID='danger-icon-probe' />;
   };
   return { IconProbe, calls };
 };
@@ -23,12 +23,12 @@ describe('ButtonDanger Component', () => {
     });
 
     it('renders with label prop', () => {
-      render(<ButtonDanger label="Remove" />);
+      render(<ButtonDanger label='Remove' />);
       expect(screen.getByText('Remove')).toBeDefined();
     });
 
     it('prioritizes label over children prop', () => {
-      render(<ButtonDanger label="Label">Children</ButtonDanger>);
+      render(<ButtonDanger label='Label'>Children</ButtonDanger>);
       expect(screen.getByText('Label')).toBeDefined();
       expect(screen.queryByText('Children')).toBeNull();
     });
@@ -73,7 +73,7 @@ describe('ButtonDanger Component', () => {
             paddingVertical: 10,
             minHeight: Size.control.height.medium,
           }),
-        ])
+        ]),
       );
     });
   });
@@ -84,9 +84,9 @@ describe('ButtonDanger Component', () => {
     it('renders asset iconStart when provided', () => {
       render(
         <ButtonDanger
-          label="Delete"
-          iconStart={<Image source={iconSource} testID="danger-icon-start" />}
-        />
+          label='Delete'
+          iconStart={<Image source={iconSource} testID='danger-icon-start' />}
+        />,
       );
 
       expect(screen.getByTestId('danger-icon-start')).toBeDefined();
@@ -96,9 +96,9 @@ describe('ButtonDanger Component', () => {
     it('renders asset iconEnd when provided', () => {
       render(
         <ButtonDanger
-          label="Archive"
-          iconEnd={<Image source={iconSource} testID="danger-icon-end" />}
-        />
+          label='Archive'
+          iconEnd={<Image source={iconSource} testID='danger-icon-end' />}
+        />,
       );
 
       expect(screen.getByTestId('danger-icon-end')).toBeDefined();
@@ -109,9 +109,9 @@ describe('ButtonDanger Component', () => {
       const { IconProbe, calls } = createIconProbe();
 
       render(
-        <ButtonDanger variant="primary" iconStart={<IconProbe />}>
+        <ButtonDanger variant='primary' iconStart={<IconProbe />}>
           Icon
-        </ButtonDanger>
+        </ButtonDanger>,
       );
 
       expect(calls.at(-1)?.color).toBe(Colors.dark.icon.danger.onDanger);
@@ -121,9 +121,9 @@ describe('ButtonDanger Component', () => {
       const { IconProbe, calls } = createIconProbe();
 
       render(
-        <ButtonDanger iconEnd={<IconProbe color="#ff00ff" />}>
+        <ButtonDanger iconEnd={<IconProbe color='#ff00ff' />}>
           Icon
-        </ButtonDanger>
+        </ButtonDanger>,
       );
 
       expect(calls.at(-1)?.color).toBe('#ff00ff');
@@ -141,7 +141,9 @@ describe('ButtonDanger Component', () => {
 
     it('calls onLongPress when long pressed', () => {
       const onLongPress = jest.fn();
-      render(<ButtonDanger onLongPress={onLongPress}>Hold Delete</ButtonDanger>);
+      render(
+        <ButtonDanger onLongPress={onLongPress}>Hold Delete</ButtonDanger>,
+      );
 
       fireEvent(screen.getByText('Hold Delete'), 'longPress');
       expect(onLongPress).toHaveBeenCalledTimes(1);
@@ -152,7 +154,7 @@ describe('ButtonDanger Component', () => {
       render(
         <ButtonDanger delayLongPress={450} onLongPress={onLongPress}>
           With Delay
-        </ButtonDanger>
+        </ButtonDanger>,
       );
 
       fireEvent(screen.getByText('With Delay'), 'longPress');
@@ -164,7 +166,7 @@ describe('ButtonDanger Component', () => {
       render(
         <ButtonDanger disabled onPress={onPress}>
           Disabled Delete
-        </ButtonDanger>
+        </ButtonDanger>,
       );
 
       fireEvent.press(screen.getByText('Disabled Delete'));
@@ -178,7 +180,7 @@ describe('ButtonDanger Component', () => {
       render(
         <ButtonDanger disabled onPress={onPress}>
           Cannot Delete
-        </ButtonDanger>
+        </ButtonDanger>,
       );
 
       fireEvent.press(screen.getByText('Cannot Delete'));
@@ -189,9 +191,7 @@ describe('ButtonDanger Component', () => {
   describe('Accessibility', () => {
     it('uses accessibilityLabel when provided', () => {
       const { getByLabelText } = render(
-        <ButtonDanger accessibilityLabel="Delete Account">
-          Delete
-        </ButtonDanger>
+        <ButtonDanger accessibilityLabel='Delete Account'>Delete</ButtonDanger>,
       );
       expect(getByLabelText('Delete Account')).toBeDefined();
     });
@@ -203,7 +203,7 @@ describe('ButtonDanger Component', () => {
 
     it('indicates disabled state in accessibility', () => {
       const { getByRole } = render(
-        <ButtonDanger disabled>Disabled</ButtonDanger>
+        <ButtonDanger disabled>Disabled</ButtonDanger>,
       );
       const button = getByRole('button');
       expect(button.props.accessibilityState?.disabled).toBe(true);
@@ -214,60 +214,122 @@ describe('ButtonDanger Component', () => {
     it('applies custom style prop', () => {
       const customStyle = { marginTop: 20 };
       const { getByRole } = render(
-        <ButtonDanger style={customStyle}>Styled</ButtonDanger>
+        <ButtonDanger style={customStyle}>Styled</ButtonDanger>,
       );
       const button = getByRole('button');
       expect(button.props.style).toEqual(
-        expect.arrayContaining([expect.objectContaining(customStyle)])
+        expect.arrayContaining([expect.objectContaining(customStyle)]),
       );
     });
 
     it('applies custom textStyle prop', () => {
       const customTextStyle = { fontSize: 20 };
       const { getByText } = render(
-        <ButtonDanger textStyle={customTextStyle}>Custom Text</ButtonDanger>
+        <ButtonDanger textStyle={customTextStyle}>Custom Text</ButtonDanger>,
       );
-      const flattened = StyleSheet.flatten(getByText('Custom Text').props.style);
+      const flattened = StyleSheet.flatten(
+        getByText('Custom Text').props.style,
+      );
       expect(flattened).toEqual(expect.objectContaining(customTextStyle));
     });
 
     it('uses pressed danger background token', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'dark', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.danger.pressed);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'primary',
+        'dark',
+        true,
+        false,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.danger.pressed,
+      );
     });
 
     it('uses hover danger background token', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'light', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.danger.hover);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'primary',
+        'light',
+        false,
+        true,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.light.background.danger.hover,
+      );
     });
 
     it('uses hover colors for subtle danger variant', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'dark', false, true, false);
-      expect(computed.backgroundColor).toBe(Colors.dark.background.danger.secondaryHover);
-      expect(computed.iconColor).toBe(Colors.dark.icon.danger.onDangerSecondary);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'subtle',
+        'dark',
+        false,
+        true,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.dark.background.danger.secondaryHover,
+      );
+      expect(computed.iconColor).toBe(
+        Colors.dark.icon.danger.onDangerSecondary,
+      );
     });
 
     it('uses pressed colors for subtle danger variant', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'light', true, false, false);
-      expect(computed.backgroundColor).toBe(Colors.light.background.danger.secondaryPressed);
-      expect(computed.iconColor).toBe(Colors.light.icon.danger.onDangerSecondary);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'subtle',
+        'light',
+        true,
+        false,
+        false,
+      );
+      expect(computed.backgroundColor).toBe(
+        Colors.light.background.danger.secondaryPressed,
+      );
+      expect(computed.iconColor).toBe(
+        Colors.light.icon.danger.onDangerSecondary,
+      );
     });
 
     it('shows outlined border when subtle danger is idle', () => {
-      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'light', false, false, false);
+      const computed = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'subtle',
+        'light',
+        false,
+        false,
+        false,
+      );
       expect(computed.borderColor).toBe(Colors.light.border.danger.secondary);
       expect(computed.backgroundColor).toBe('transparent');
     });
 
     it('locks disabled palette across variants and modes', () => {
-      const lightDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles('primary', 'light', true, true, true);
-      expect(lightDisabled.backgroundColor).toBe(Colors.light.background.disabled.default);
+      const lightDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'primary',
+        'light',
+        true,
+        true,
+        true,
+      );
+      expect(lightDisabled.backgroundColor).toBe(
+        Colors.light.background.disabled.default,
+      );
       expect(lightDisabled.color).toBe(Colors.light.text.disabled.onDisabled);
-      expect(lightDisabled.iconColor).toBe(Colors.light.icon.disabled.onDisabled);
+      expect(lightDisabled.iconColor).toBe(
+        Colors.light.icon.disabled.onDisabled,
+      );
       expect(lightDisabled.borderColor).toBe('transparent');
 
-      const darkDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles('subtle', 'dark', false, false, true);
-      expect(darkDisabled.backgroundColor).toBe(Colors.dark.background.disabled.default);
+      const darkDisabled = __BUTTON_DANGER_TESTING__.computeDangerStyles(
+        'subtle',
+        'dark',
+        false,
+        false,
+        true,
+      );
+      expect(darkDisabled.backgroundColor).toBe(
+        Colors.dark.background.disabled.default,
+      );
       expect(darkDisabled.color).toBe(Colors.dark.text.disabled.onDisabled);
       expect(darkDisabled.iconColor).toBe(Colors.dark.icon.disabled.onDisabled);
       expect(darkDisabled.borderColor).toBe('transparent');
@@ -277,38 +339,56 @@ describe('ButtonDanger Component', () => {
   describe('__BUTTON_DANGER_TESTING__ helpers', () => {
     it('renders a component icon with injected defaults', () => {
       const Icon = ({ color, size }: { color?: string; size?: string }) => (
-        <ThemedText accessibilityLabel="danger-icon" style={{ color }}>
+        <ThemedText accessibilityLabel='danger-icon' style={{ color }}>
           {String(size)}
         </ThemedText>
       );
 
-      const rendered = __BUTTON_DANGER_TESTING__.renderIcon(Icon, '#ff0000', '20');
+      const rendered = __BUTTON_DANGER_TESTING__.renderIcon(
+        Icon,
+        '#ff0000',
+        '20',
+      );
       expect(React.isValidElement(rendered)).toBe(true);
       if (!React.isValidElement(rendered)) {
-        throw new Error('Expected icon render helper to return a React element');
+        throw new Error(
+          'Expected icon render helper to return a React element',
+        );
       }
 
-      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+      const renderedIcon = rendered as React.ReactElement<{
+        color?: string;
+        size?: string;
+      }>;
 
       expect(renderedIcon.props.color).toBe('#ff0000');
       expect(renderedIcon.props.size).toBe('20');
     });
-    
+
     it('preserves existing icon element props without overriding', () => {
       const Icon = ({ color, size }: { color?: string; size?: string }) => (
-        <ThemedText accessibilityLabel="icon" style={{ color }}>
+        <ThemedText accessibilityLabel='icon' style={{ color }}>
           {String(size)}
         </ThemedText>
       );
 
-      const iconElement = <Icon color="#ff00ff" size="32" />;
+      const iconElement = <Icon color='#ff00ff' size='32' />;
 
-      const rendered = __BUTTON_DANGER_TESTING__.renderIcon(iconElement, '#ff0000', '20');
+      const rendered = __BUTTON_DANGER_TESTING__.renderIcon(
+        iconElement,
+        '#ff0000',
+        '20',
+      );
       if (!React.isValidElement(rendered)) {
-        throw new Error('Expected icon render helper to return a React element');
+        throw new Error(
+          'Expected icon render helper to return a React element',
+        );
       }
 
-      const renderedIcon = rendered as React.ReactElement<{ color?: string; size?: string }>;
+      const renderedIcon = rendered as React.ReactElement<{
+        color?: string;
+        size?: string;
+      }>;
 
       expect(renderedIcon.props.color).toBe('#ff00ff');
       expect(renderedIcon.props.size).toBe('32');

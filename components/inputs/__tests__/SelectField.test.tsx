@@ -15,7 +15,9 @@ const findHostNodeByTestId = (
   root: ReturnType<typeof render>['UNSAFE_root'],
   testID: string,
 ) => {
-  const matches = root.findAll((node) => node.props?.testID === testID && typeof node.type === 'string');
+  const matches = root.findAll(
+    (node) => node.props?.testID === testID && typeof node.type === 'string',
+  );
   if (matches.length === 0) {
     throw new Error(`Expected host node with testID ${testID}.`);
   }
@@ -27,7 +29,9 @@ const findByAccessibilityLabel = (
   root: ReturnType<typeof render>['UNSAFE_root'],
   label: string,
 ) => {
-  const matches = root.findAll((node) => node.props?.accessibilityLabel === label);
+  const matches = root.findAll(
+    (node) => node.props?.accessibilityLabel === label,
+  );
   if (matches.length === 0) {
     throw new Error(`Expected node with accessibilityLabel ${label}.`);
   }
@@ -40,10 +44,14 @@ const findPressableByAccessibilityLabel = (
   label: string,
 ) => {
   const matches = root.findAll(
-    (node) => node.props?.accessibilityLabel === label && typeof node.props?.onPress === 'function',
+    (node) =>
+      node.props?.accessibilityLabel === label &&
+      typeof node.props?.onPress === 'function',
   );
   if (matches.length === 0) {
-    throw new Error(`Expected pressable node with accessibilityLabel ${label}.`);
+    throw new Error(
+      `Expected pressable node with accessibilityLabel ${label}.`,
+    );
   }
 
   return matches[0] as ReactTestInstance;
@@ -53,10 +61,10 @@ describe('SelectField', () => {
   it('renders label and placeholder when empty', () => {
     render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
       />,
     );
 
@@ -67,50 +75,65 @@ describe('SelectField', () => {
   it('opens and filters options while typing', () => {
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
 
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent.changeText(input, 'Option 4');
 
-    expect(findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 4')).toBeTruthy();
-    expect(() => findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 2')).toThrow();
+    expect(
+      findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 4'),
+    ).toBeTruthy();
+    expect(() =>
+      findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 2'),
+    ).toThrow();
   });
 
   it('renders option press targets when opened', () => {
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    expect(findPressableByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 3')).toBeTruthy();
+    expect(
+      findPressableByAccessibilityLabel(
+        rendered.UNSAFE_root,
+        'Select Option 3',
+      ),
+    ).toBeTruthy();
   });
 
   it('supports keyboard selection when searchable', () => {
     const handleValueChange = jest.fn();
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         onValueChange={handleValueChange}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowDown' } });
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
 
@@ -121,16 +144,19 @@ describe('SelectField', () => {
     const handleValueChange = jest.fn();
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         onValueChange={handleValueChange}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowUp' } });
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
 
@@ -141,16 +167,19 @@ describe('SelectField', () => {
     const handleValueChange = jest.fn();
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         onValueChange={handleValueChange}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
 
     expect(handleValueChange).not.toHaveBeenCalled();
@@ -160,16 +189,19 @@ describe('SelectField', () => {
     const handleOpenChange = jest.fn();
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         onOpenChange={handleOpenChange}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'Escape' } });
 
     expect(handleOpenChange).toHaveBeenCalledWith(true);
@@ -180,16 +212,19 @@ describe('SelectField', () => {
     const handleValueChange = jest.fn();
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={[]}
-        value=""
+        value=''
         onValueChange={handleValueChange}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowDown' } });
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
 
@@ -200,17 +235,20 @@ describe('SelectField', () => {
     const handleValueChange = jest.fn();
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         allowSearch={false}
         onValueChange={handleValueChange}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
-    const input = findHostNodeByTestId(rendered.UNSAFE_root, 'select-field-portal-input');
+    const input = findHostNodeByTestId(
+      rendered.UNSAFE_root,
+      'select-field-portal-input',
+    );
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'ArrowDown' } });
     fireEvent(input, 'keyPress', { nativeEvent: { key: 'Enter' } });
 
@@ -220,10 +258,10 @@ describe('SelectField', () => {
   it('does not open when disabled', () => {
     render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         disabled
       />,
     );
@@ -236,11 +274,11 @@ describe('SelectField', () => {
   it('renders error text when provided', () => {
     render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
-        errorMessage="Error"
+        value=''
+        errorMessage='Error'
       />,
     );
 
@@ -250,10 +288,10 @@ describe('SelectField', () => {
   it('renders selected value when provided', () => {
     render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value="option-2"
+        value='option-2'
       />,
     );
 
@@ -263,28 +301,32 @@ describe('SelectField', () => {
   it('renders a list-only variant without a text input', () => {
     const rendered = render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         allowSearch={false}
       />,
     );
 
     fireEvent.press(screen.getByLabelText('Label'));
     expect(screen.queryByPlaceholderText('Value')).toBeNull();
-    expect(findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 2')).toBeTruthy();
-    expect(findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Hello World')).toBeTruthy();
+    expect(
+      findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Option 2'),
+    ).toBeTruthy();
+    expect(
+      findByAccessibilityLabel(rendered.UNSAFE_root, 'Select Hello World'),
+    ).toBeTruthy();
   });
 
   it('calls onOpenChange and closes on backdrop press', () => {
     const handleOpenChange = jest.fn();
     render(
       <SelectField
-        label="Label"
-        placeholder="Value"
+        label='Label'
+        placeholder='Value'
         options={OPTIONS}
-        value=""
+        value=''
         onOpenChange={handleOpenChange}
       />,
     );

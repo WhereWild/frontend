@@ -3,7 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { IconFilter } from '@/assets/icons';
 import { StyleSheet } from 'react-native';
 import { PrimaryAction } from '../TopAppBarPrimaryAction.native';
-import { mockAnimatedTiming, resolveAnimatedNumeric } from '../topAppBarTestUtils';
+import {
+  mockAnimatedTiming,
+  resolveAnimatedNumeric,
+} from '../topAppBarTestUtils';
 
 describe('TopAppBarPrimaryAction', () => {
   beforeAll(() => {
@@ -21,13 +24,15 @@ describe('TopAppBarPrimaryAction', () => {
         shouldRenderPrimaryAsIcon={false}
         primaryButtonIcon={<IconFilter />}
         onPressPrimaryButton={jest.fn()}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
       />,
     );
 
-    const slotStyle = StyleSheet.flatten(screen.getByTestId('top-app-bar-primary-action-slot').props.style);
+    const slotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-primary-action-slot').props.style,
+    );
     expect(resolveAnimatedNumeric(slotStyle.width)).toBe(0);
     expect(resolveAnimatedNumeric(slotStyle.opacity)).toBe(0);
   });
@@ -39,9 +44,9 @@ describe('TopAppBarPrimaryAction', () => {
         shouldRenderPrimaryAsIcon={true}
         primaryButtonIcon={<IconFilter />}
         onPressPrimaryButton={undefined}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
       />,
     );
 
@@ -57,9 +62,9 @@ describe('TopAppBarPrimaryAction', () => {
         shouldRenderPrimaryAsIcon={false}
         primaryButtonIcon={<IconFilter />}
         onPressPrimaryButton={onPressPrimaryButton}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
       />,
     );
 
@@ -74,17 +79,25 @@ describe('TopAppBarPrimaryAction', () => {
         shouldRenderPrimaryAsIcon={false}
         primaryButtonIcon={<IconFilter />}
         onPressPrimaryButton={jest.fn()}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
       />,
     );
 
-    fireEvent(view.UNSAFE_getByProps({ testID: 'top-app-bar-primary-action-measure-layout' }), 'layout', {
-      nativeEvent: { layout: { width: 40, height: 10, x: 0, y: 0 } },
-    });
+    fireEvent(
+      view.UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-measure-layout',
+      }),
+      'layout',
+      {
+        nativeEvent: { layout: { width: 40, height: 10, x: 0, y: 0 } },
+      },
+    );
 
-    const slotStyle = StyleSheet.flatten(screen.getByTestId('top-app-bar-primary-action-slot').props.style);
+    const slotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-primary-action-slot').props.style,
+    );
     expect(resolveAnimatedNumeric(slotStyle.width)).toBe(0);
   });
 
@@ -95,17 +108,25 @@ describe('TopAppBarPrimaryAction', () => {
         shouldRenderPrimaryAsIcon={false}
         primaryButtonIcon={<IconFilter />}
         onPressPrimaryButton={jest.fn()}
-        primaryIconButtonAccessibilityLabel="Filter action"
-        primaryButtonAccessibilityLabel="Filter"
-        primaryButtonLabel="Filter"
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
       />,
     );
 
-    fireEvent(view.UNSAFE_getByProps({ testID: 'top-app-bar-primary-action-measure-layout' }), 'layout', {
-      nativeEvent: { layout: { width: 120, height: 10, x: 0, y: 0 } },
-    });
+    fireEvent(
+      view.UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-measure-layout',
+      }),
+      'layout',
+      {
+        nativeEvent: { layout: { width: 120, height: 10, x: 0, y: 0 } },
+      },
+    );
 
-    const slotStyle = StyleSheet.flatten(screen.getByTestId('top-app-bar-primary-action-slot').props.style);
+    const slotStyle = StyleSheet.flatten(
+      screen.getByTestId('top-app-bar-primary-action-slot').props.style,
+    );
     expect(resolveAnimatedNumeric(slotStyle.width)).toBe(120);
   });
 });

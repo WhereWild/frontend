@@ -37,7 +37,9 @@ type SpeciesRouteParams = {
 };
 
 // Converts backend image variants into a React Native-friendly ImageSource.
-const normalizeImageSource = (payload: SpeciesBasics): ImageSourcePropType | undefined => {
+const normalizeImageSource = (
+  payload: SpeciesBasics,
+): ImageSourcePropType | undefined => {
   if (payload.image_source) {
     return typeof payload.image_source === 'string'
       ? { uri: payload.image_source }
@@ -60,14 +62,20 @@ const buildSpeciesPageData = (
   const fallback = mountainBallCactusData;
   const normalizedCommonName =
     typeof payload.common_name === 'string' ? payload.common_name.trim() : '';
-  const commonNames = buildCommonNamesWithPrimary(normalizedCommonName, payload.common_names);
+  const commonNames = buildCommonNamesWithPrimary(
+    normalizedCommonName,
+    payload.common_names,
+  );
   const resolvedCommonName = commonNames[0] ?? fallback.commonName;
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
-  const resolvedTaxonId = payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
-  const liveHeatmapAvailable = payload.heatmap?.available === true && resolvedTaxonId > 0;
+  const resolvedTaxonId =
+    payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
+  const liveHeatmapAvailable =
+    payload.heatmap?.available === true && resolvedTaxonId > 0;
   const resolvedModelId =
-    typeof payload.heatmap?.resolved_model_id === 'string' && payload.heatmap.resolved_model_id.trim().length > 0
+    typeof payload.heatmap?.resolved_model_id === 'string' &&
+    payload.heatmap.resolved_model_id.trim().length > 0
       ? payload.heatmap.resolved_model_id.trim()
       : 'auto_gbt';
   const liveTileUrl = liveHeatmapAvailable
@@ -83,11 +91,14 @@ const buildSpeciesPageData = (
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
       sections: payload.description_sections,
-      imageSource: normalizeImageSource(payload) ?? fallback.overview.imageSource,
+      imageSource:
+        normalizeImageSource(payload) ?? fallback.overview.imageSource,
       imageLicense: payload.image_license ?? fallback.overview.imageLicense,
       imageCreator: payload.image_creator ?? fallback.overview.imageCreator,
-      imageRightsHolder: payload.image_rights_holder ?? fallback.overview.imageRightsHolder,
-      imageReferences: payload.image_references ?? fallback.overview.imageReferences,
+      imageRightsHolder:
+        payload.image_rights_holder ?? fallback.overview.imageRightsHolder,
+      imageReferences:
+        payload.image_references ?? fallback.overview.imageReferences,
     },
     heatmap: {
       ...fallback.heatmap,
@@ -132,7 +143,10 @@ const getIdentifierFromParams = (params: SpeciesRouteParams) => {
   };
 };
 
-const useSpeciesBasicsData = (fetchIdentifier?: string, units?: 'metric' | 'imperial') => {
+const useSpeciesBasicsData = (
+  fetchIdentifier?: string,
+  units?: 'metric' | 'imperial',
+) => {
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -149,7 +163,9 @@ const useSpeciesBasicsData = (fetchIdentifier?: string, units?: 'metric' | 'impe
       setLoading(true);
 
       try {
-        const response = await fetchSpeciesByTaxonId(fetchIdentifier, { units });
+        const response = await fetchSpeciesByTaxonId(fetchIdentifier, {
+          units,
+        });
         if (!mounted) {
           return;
         }
@@ -158,7 +174,8 @@ const useSpeciesBasicsData = (fetchIdentifier?: string, units?: 'metric' | 'impe
         if (!mounted) {
           return;
         }
-        const message = err instanceof Error ? err.message : 'Failed to load species';
+        const message =
+          err instanceof Error ? err.message : 'Failed to load species';
         console.error(`Failed to load species '${fetchIdentifier}':`, message);
       } finally {
         if (mounted) {

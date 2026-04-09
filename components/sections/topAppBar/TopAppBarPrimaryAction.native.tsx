@@ -8,12 +8,7 @@ import {
 import type { PrimaryActionProps } from './TopAppBar.types';
 import { useAnimatedValueRef } from './TopAppBarAnimatedValue.native';
 import React from 'react';
-import {
-  Animated,
-  LayoutChangeEvent,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Animated, LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 type PrimaryActionVisibleContentProps = {
   isIconButton: boolean;
@@ -46,18 +41,20 @@ function PrimaryActionVisibleContent({
   const showButtonVariant = hasPrimaryButton && !isIconButton;
 
   return (
-    <View collapsable={false} >
+    <View collapsable={false}>
       <View
         collapsable={false}
         accessibilityElementsHidden={!showIconVariant}
-        importantForAccessibility={showIconVariant ? 'auto' : 'no-hide-descendants'}
+        importantForAccessibility={
+          showIconVariant ? 'auto' : 'no-hide-descendants'
+        }
         style={[
           { pointerEvents: showIconVariant ? 'auto' : 'none' },
           !showIconVariant ? styles.hiddenVariantSlot : undefined,
         ]}
       >
         <IconButton
-          variant="primary"
+          variant='primary'
           icon={primaryButtonIcon}
           onPress={showIconVariant ? onPressPrimaryButton : undefined}
           disabled={!isPrimaryActionEnabled || !hasPrimaryButton}
@@ -67,7 +64,9 @@ function PrimaryActionVisibleContent({
       <View
         collapsable={false}
         accessibilityElementsHidden={!showButtonVariant}
-        importantForAccessibility={showButtonVariant ? 'auto' : 'no-hide-descendants'}
+        importantForAccessibility={
+          showButtonVariant ? 'auto' : 'no-hide-descendants'
+        }
         style={[
           { pointerEvents: showButtonVariant ? 'auto' : 'none' },
           !showButtonVariant ? styles.hiddenVariantSlot : undefined,
@@ -75,7 +74,7 @@ function PrimaryActionVisibleContent({
       >
         <View style={{ width: contentWidth }}>
           <Button
-            variant="primary"
+            variant='primary'
             iconStart={primaryButtonIcon}
             label={primaryButtonLabel}
             onPress={showButtonVariant ? onPressPrimaryButton : undefined}
@@ -101,14 +100,20 @@ export function PrimaryAction({
   primaryButtonAccessibilityLabel,
   primaryButtonLabel,
 }: PrimaryActionProps) {
-  const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
-  const [measuredTextButtonWidth, setMeasuredTextButtonWidth] = React.useState(0);
+  const animationEasing = React.useMemo(
+    () => getReactNativeEasing('in-and-out'),
+    [],
+  );
+  const [measuredTextButtonWidth, setMeasuredTextButtonWidth] =
+    React.useState(0);
   const previousHasPrimaryButtonRef = React.useRef(hasPrimaryButton);
   const shouldRenderIconButton = shouldRenderPrimaryAsIcon;
   const visiblePrimaryWidth = shouldRenderIconButton
     ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH
     : measuredTextButtonWidth;
-  const primaryActionWidth = useAnimatedValueRef(hasPrimaryButton ? visiblePrimaryWidth : 0);
+  const primaryActionWidth = useAnimatedValueRef(
+    hasPrimaryButton ? visiblePrimaryWidth : 0,
+  );
   const primaryActionOpacity = useAnimatedValueRef(hasPrimaryButton ? 1 : 0);
 
   React.useEffect(() => {
@@ -141,33 +146,49 @@ export function PrimaryAction({
     return () => {
       animation.stop();
     };
-  }, [animationEasing, hasPrimaryButton, primaryActionOpacity, primaryActionWidth, visiblePrimaryWidth]);
+  }, [
+    animationEasing,
+    hasPrimaryButton,
+    primaryActionOpacity,
+    primaryActionWidth,
+    visiblePrimaryWidth,
+  ]);
 
-  const handlePrimaryButtonLayout = React.useCallback((event: LayoutChangeEvent) => {
-    const measuredWidth = Math.ceil(event.nativeEvent.layout.width);
+  const handlePrimaryButtonLayout = React.useCallback(
+    (event: LayoutChangeEvent) => {
+      const measuredWidth = Math.ceil(event.nativeEvent.layout.width);
 
-    if (measuredWidth <= TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH) {
-      return;
-    }
+      if (measuredWidth <= TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH) {
+        return;
+      }
 
-    setMeasuredTextButtonWidth((previousWidth) =>
-      previousWidth === measuredWidth ? previousWidth : measuredWidth,
-    );
-  }, []);
+      setMeasuredTextButtonWidth((previousWidth) =>
+        previousWidth === measuredWidth ? previousWidth : measuredWidth,
+      );
+    },
+    [],
+  );
 
   const isPrimaryActionEnabled = typeof onPressPrimaryButton === 'function';
 
   return (
-    <View collapsable={false} style={styles.primaryActionRow} testID="top-app-bar-filter-button-wrapper">
+    <View
+      collapsable={false}
+      style={styles.primaryActionRow}
+      testID='top-app-bar-filter-button-wrapper'
+    >
       <View
         collapsable={false}
         accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        importantForAccessibility='no-hide-descendants'
         style={[styles.primaryActionMeasureLayer, { pointerEvents: 'none' }]}
       >
-        <View testID="top-app-bar-primary-action-measure-layout" onLayout={handlePrimaryButtonLayout}>
+        <View
+          testID='top-app-bar-primary-action-measure-layout'
+          onLayout={handlePrimaryButtonLayout}
+        >
           <Button
-            variant="primary"
+            variant='primary'
             iconStart={primaryButtonIcon}
             label={primaryButtonLabel}
             onPress={undefined}
@@ -178,7 +199,7 @@ export function PrimaryAction({
       </View>
       <Animated.View
         collapsable={false}
-        testID="top-app-bar-primary-action-slot"
+        testID='top-app-bar-primary-action-slot'
         style={[
           {
             pointerEvents: hasPrimaryButton ? 'auto' : 'none',
@@ -194,7 +215,9 @@ export function PrimaryAction({
           contentWidth={visiblePrimaryWidth}
           primaryButtonIcon={primaryButtonIcon}
           onPressPrimaryButton={onPressPrimaryButton}
-          primaryIconButtonAccessibilityLabel={primaryIconButtonAccessibilityLabel}
+          primaryIconButtonAccessibilityLabel={
+            primaryIconButtonAccessibilityLabel
+          }
           primaryButtonAccessibilityLabel={primaryButtonAccessibilityLabel}
           primaryButtonLabel={primaryButtonLabel}
         />

@@ -36,7 +36,8 @@ jest.mock('expo-constants', () => ({
 
 describe('speciesOccurrenceMapHelpers', () => {
   const originalFetch = global.fetch;
-  const validTemplateHtml = '<html><body><div id="map"></div><script>__POINTS_JSON__</script></body></html>';
+  const validTemplateHtml =
+    '<html><body><div id="map"></div><script>__POINTS_JSON__</script></body></html>';
 
   const markerPalette = {
     markerFill: '#111111',
@@ -66,8 +67,14 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   const createLeafletHarness = () => {
     const eventHandlers = new Map<string, () => void>();
-    const documentListeners = new Map<string, (event: { data: unknown }) => void>();
-    const windowListeners = new Map<string, (event: { data: unknown }) => void>();
+    const documentListeners = new Map<
+      string,
+      (event: { data: unknown }) => void
+    >();
+    const windowListeners = new Map<
+      string,
+      (event: { data: unknown }) => void
+    >();
     const createdMarkers: {
       style: Record<string, unknown>;
       setStyle: jest.Mock;
@@ -86,7 +93,10 @@ describe('speciesOccurrenceMapHelpers', () => {
       on: jest.fn((eventName: string, handler: () => void) => {
         const existing = eventHandlers.get(eventName);
         if (existing) {
-          eventHandlers.set(eventName, () => { existing(); handler(); });
+          eventHandlers.set(eventName, () => {
+            existing();
+            handler();
+          });
         } else {
           eventHandlers.set(eventName, handler);
         }
@@ -115,34 +125,40 @@ describe('speciesOccurrenceMapHelpers', () => {
         addTo: jest.fn().mockReturnThis(),
         createTile: jest.fn(() => ({ referrerPolicy: '' })),
       })),
-      circleMarker: jest.fn((coords: [number, number], style: Record<string, unknown>) => {
-        const marker: MockLeafletMarker = {
-          coords,
-          style: { ...style },
-          addTo: jest.fn(() => marker),
-          setStyle: jest.fn((nextStyle: Record<string, unknown>) => {
-            marker.style = { ...nextStyle };
-          }),
-          setLatLng: jest.fn(),
-          bindPopup: jest.fn(),
-        };
-        createdMarkers.push(marker);
-        return marker;
-      }),
+      circleMarker: jest.fn(
+        (coords: [number, number], style: Record<string, unknown>) => {
+          const marker: MockLeafletMarker = {
+            coords,
+            style: { ...style },
+            addTo: jest.fn(() => marker),
+            setStyle: jest.fn((nextStyle: Record<string, unknown>) => {
+              marker.style = { ...nextStyle };
+            }),
+            setLatLng: jest.fn(),
+            bindPopup: jest.fn(),
+          };
+          createdMarkers.push(marker);
+          return marker;
+        },
+      ),
       markerClusterGroup: jest.fn(() => makeLayer()),
       layerGroup: jest.fn(() => makeLayer()),
     };
 
     const document = {
-      addEventListener: jest.fn((eventName: string, handler: (event: { data: unknown }) => void) => {
-        documentListeners.set(eventName, handler);
-      }),
+      addEventListener: jest.fn(
+        (eventName: string, handler: (event: { data: unknown }) => void) => {
+          documentListeners.set(eventName, handler);
+        },
+      ),
     };
 
     const windowObject = {
-      addEventListener: jest.fn((eventName: string, handler: (event: { data: unknown }) => void) => {
-        windowListeners.set(eventName, handler);
-      }),
+      addEventListener: jest.fn(
+        (eventName: string, handler: (event: { data: unknown }) => void) => {
+          windowListeners.set(eventName, handler);
+        },
+      ),
       parent: {
         postMessage: jest.fn(),
       },
@@ -201,11 +217,13 @@ describe('speciesOccurrenceMapHelpers', () => {
   it('prepares popup-safe catalog fields before injecting map points', () => {
     const html = buildLeafletHtml(
       '__POINTS_JSON__',
-      [{
-        catalogNumber: 'abc" onclick="alert(1)<tag>',
-        latitude: 1,
-        longitude: 2,
-      }],
+      [
+        {
+          catalogNumber: 'abc" onclick="alert(1)<tag>',
+          latitude: 1,
+          longitude: 2,
+        },
+      ],
       markerPalette,
       getMapTileUrlTemplate('light'),
     );
@@ -218,29 +236,57 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   it('renders pin actions without inline JavaScript handlers', () => {
     const templatePaths = [
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
     ];
 
     templatePaths.forEach((templatePath) => {
       const rawTemplate = fs.readFileSync(templatePath, 'utf8');
       const html = buildLeafletHtml(
         rawTemplate,
-        [{ catalogNumber: 'abc" onclick="alert(1)', latitude: 1, longitude: 2 }],
+        [
+          {
+            catalogNumber: 'abc" onclick="alert(1)',
+            latitude: 1,
+            longitude: 2,
+          },
+        ],
         markerPalette,
         getMapTileUrlTemplate('light'),
       );
 
       expect(html).toContain('data-pin-observation="true"');
-      expect(html).toContain('popupCatalogHref":"abc%22%20onclick%3D%22alert(1)"');
+      expect(html).toContain(
+        'popupCatalogHref":"abc%22%20onclick%3D%22alert(1)"',
+      );
       expect(html).not.toContain('onclick="sendPinMessage');
     });
   });
 
   it('omits external observation links when observation linking is disabled', () => {
     const templatePaths = [
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
     ];
 
     templatePaths.forEach((templatePath) => {
@@ -253,8 +299,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         getMapTileUrlTemplate('light'),
       );
       const linkedHarness = createLeafletHarness();
-      vm.runInNewContext(extractInlineScript(linkedHtml), linkedHarness.context);
-      const linkedPopup = linkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+      vm.runInNewContext(
+        extractInlineScript(linkedHtml),
+        linkedHarness.context,
+      );
+      const linkedPopup =
+        linkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
 
       const unlinkedHtml = buildLeafletHtml(
         rawTemplate,
@@ -273,20 +323,106 @@ describe('speciesOccurrenceMapHelpers', () => {
         false,
       );
       const unlinkedHarness = createLeafletHarness();
-      vm.runInNewContext(extractInlineScript(unlinkedHtml), unlinkedHarness.context);
-      const unlinkedPopup = unlinkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+      vm.runInNewContext(
+        extractInlineScript(unlinkedHtml),
+        unlinkedHarness.context,
+      );
+      const unlinkedPopup =
+        unlinkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
 
-      expect(linkedPopup).toContain('https://www.inaturalist.org/observations/obs-123');
+      expect(linkedPopup).toContain(
+        'https://www.inaturalist.org/observations/obs-123',
+      );
       expect(linkedPopup).toContain('Highlight in Environmental Features');
       expect(unlinkedPopup).toContain('Highlight in Environmental Features');
-      expect(unlinkedPopup).not.toContain('https://www.inaturalist.org/observations/obs-123');
+      expect(unlinkedPopup).not.toContain(
+        'https://www.inaturalist.org/observations/obs-123',
+      );
+    });
+  });
+
+  it('omits external observation links when observation linking is disabled', () => {
+    const templatePaths = [
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+
+      const linkedHtml = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      );
+      const linkedHarness = createLeafletHarness();
+      vm.runInNewContext(
+        extractInlineScript(linkedHtml),
+        linkedHarness.context,
+      );
+      const linkedPopup =
+        linkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+
+      const unlinkedHtml = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+      const unlinkedHarness = createLeafletHarness();
+      vm.runInNewContext(
+        extractInlineScript(unlinkedHtml),
+        unlinkedHarness.context,
+      );
+      const unlinkedPopup =
+        unlinkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+
+      expect(linkedPopup).toContain(
+        'https://www.inaturalist.org/observations/obs-123',
+      );
+      expect(linkedPopup).toContain('Highlight in Environmental Features');
+      expect(unlinkedPopup).toContain('Highlight in Environmental Features');
+      expect(unlinkedPopup).not.toContain(
+        'https://www.inaturalist.org/observations/obs-123',
+      );
     });
   });
 
   it('keeps clustered highlight state when zooming into direct markers', () => {
     const templatePaths = [
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
     ];
 
     templatePaths.forEach((templatePath) => {
@@ -331,7 +467,9 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('creates the expected selected point payload', () => {
-    expect(toSelectedPointMessagePayload({ latitude: 40, longitude: -111 })).toEqual({
+    expect(
+      toSelectedPointMessagePayload({ latitude: 40, longitude: -111 }),
+    ).toEqual({
       type: SELECTED_POINT_MESSAGE_TYPE,
       point: { latitude: 40, longitude: -111 },
     });
@@ -343,8 +481,18 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   it('renders and clears the selected point marker from messages', () => {
     const templatePaths = [
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
     ];
 
     templatePaths.forEach((templatePath) => {
@@ -377,14 +525,26 @@ describe('speciesOccurrenceMapHelpers', () => {
       });
 
       expect(harness.context.L.map).toHaveBeenCalled();
-      expect((harness.context.L.map as jest.Mock).mock.results[0]?.value.removeLayer).toHaveBeenCalled();
+      expect(
+        (harness.context.L.map as jest.Mock).mock.results[0]?.value.removeLayer,
+      ).toHaveBeenCalled();
     });
   });
 
   it('hides the matching clustered observation marker while selected and restores it when cleared', () => {
     const templatePaths = [
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMap.html'),
-      path.join(__dirname, '..', 'speciesOccurrenceMap', 'SpeciesOccurrenceMapFallback.html'),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
     ];
 
     templatePaths.forEach((templatePath) => {
@@ -405,7 +565,8 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(harness.createdMarkers).toHaveLength(2);
 
       const targetClusterMarker = harness.createdMarkers[0];
-      const clusterGroup = (harness.context.L.markerClusterGroup as jest.Mock).mock.results[0]?.value;
+      const clusterGroup = (harness.context.L.markerClusterGroup as jest.Mock)
+        .mock.results[0]?.value;
 
       expect(clusterGroup).toBeTruthy();
 
@@ -414,7 +575,9 @@ describe('speciesOccurrenceMapHelpers', () => {
       });
 
       expect(harness.createdMarkers).toHaveLength(3);
-      expect(clusterGroup.removeLayer).toHaveBeenCalledWith(targetClusterMarker);
+      expect(clusterGroup.removeLayer).toHaveBeenCalledWith(
+        targetClusterMarker,
+      );
 
       harness.windowListeners.get('message')?.({
         data: toSelectedPointMessagePayload(null),
@@ -496,7 +659,9 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     await expect(loadMapTemplate()).resolves.toBe(validTemplateHtml);
     expect(downloadAsync).toHaveBeenCalled();
-    expect(global.fetch).toHaveBeenCalledWith('mock://SpeciesOccurrenceMap.html');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'mock://SpeciesOccurrenceMap.html',
+    );
   });
 
   it('returns null when the external html template fetch fails', async () => {
@@ -529,7 +694,9 @@ describe('speciesOccurrenceMapHelpers', () => {
     });
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      text: jest.fn().mockResolvedValue('<html><body><h1>App Shell</h1></body></html>'),
+      text: jest
+        .fn()
+        .mockResolvedValue('<html><body><h1>App Shell</h1></body></html>'),
     } as unknown as Response);
 
     await expect(loadMapTemplate()).resolves.toBeNull();
@@ -549,7 +716,9 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     await expect(loadFallbackMapTemplate()).resolves.toBe(validTemplateHtml);
     expect(downloadAsync).toHaveBeenCalled();
-    expect(global.fetch).toHaveBeenCalledWith('mock://SpeciesOccurrenceMapFallback.html');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'mock://SpeciesOccurrenceMapFallback.html',
+    );
   });
 
   it('exposes a stable document base url for map referrers', () => {
@@ -588,10 +757,14 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
     }));
 
-    const isolatedHelpers = jest.requireActual('../speciesOccurrenceMap/speciesOccurrenceMapHelpers') as typeof import('../speciesOccurrenceMap/speciesOccurrenceMapHelpers');
+    const isolatedHelpers = jest.requireActual(
+      '../speciesOccurrenceMap/speciesOccurrenceMapHelpers',
+    ) as typeof import('../speciesOccurrenceMap/speciesOccurrenceMapHelpers');
 
     expect(isolatedHelpers.MAP_TILE_API_KEY).toBeNull();
-    expect(isolatedHelpers.getMapTileUrlTemplate('light')).toBe(MAP_TILE_URL_TEMPLATE_LIGHT);
+    expect(isolatedHelpers.getMapTileUrlTemplate('light')).toBe(
+      MAP_TILE_URL_TEMPLATE_LIGHT,
+    );
 
     jest.dontMock('expo-constants');
     jest.resetModules();

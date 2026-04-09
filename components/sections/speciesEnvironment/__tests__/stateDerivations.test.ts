@@ -23,7 +23,9 @@ describe('stateDerivations', () => {
     q99: 10,
   };
 
-  const makeStats = (overrides?: Partial<SpeciesEnvironmentStats>): SpeciesEnvironmentStats => ({
+  const makeStats = (
+    overrides?: Partial<SpeciesEnvironmentStats>,
+  ): SpeciesEnvironmentStats => ({
     speciesId: 1,
     variable: 'bio_1',
     variableName: 'Annual Temperature',
@@ -34,10 +36,38 @@ describe('stateDerivations', () => {
 
   it('skips missing labels and duplicate labels when deriving rank context options', () => {
     const relativeRanks: SpeciesEnvironmentRelativeRank[] = [
-      { metric: 'mean', label: null, context: null, rank: 1, count: 10, percentile: 0.9 },
-      { metric: 'mean', label: 'Mammalia', context: null, rank: 2, count: 10, percentile: 0.8 },
-      { metric: 'max', label: 'Mammalia', context: null, rank: 3, count: 20, percentile: 0.7 },
-      { metric: 'min', label: null, context: 'Chordata', rank: 4, count: 30, percentile: 0.6 },
+      {
+        metric: 'mean',
+        label: null,
+        context: null,
+        rank: 1,
+        count: 10,
+        percentile: 0.9,
+      },
+      {
+        metric: 'mean',
+        label: 'Mammalia',
+        context: null,
+        rank: 2,
+        count: 10,
+        percentile: 0.8,
+      },
+      {
+        metric: 'max',
+        label: 'Mammalia',
+        context: null,
+        rank: 3,
+        count: 20,
+        percentile: 0.7,
+      },
+      {
+        metric: 'min',
+        label: null,
+        context: 'Chordata',
+        rank: 4,
+        count: 30,
+        percentile: 0.6,
+      },
     ];
 
     const options = getRankContextOptions(false, relativeRanks);
@@ -49,7 +79,11 @@ describe('stateDerivations', () => {
   });
 
   it('returns empty options when location filter is active or ranks are missing', () => {
-    expect(getRankContextOptions(true, [{ metric: 'mean' } as SpeciesEnvironmentRelativeRank])).toEqual([]);
+    expect(
+      getRankContextOptions(true, [
+        { metric: 'mean' } as SpeciesEnvironmentRelativeRank,
+      ]),
+    ).toEqual([]);
     expect(getRankContextOptions(false, null)).toEqual([]);
     expect(getRankContextOptions(false, [])).toEqual([]);
   });
@@ -57,8 +91,20 @@ describe('stateDerivations', () => {
   it('resolves preferred metric rank by selected context, then falls back to raw candidates', () => {
     const stats = makeStats({
       relativeRanks: [
-        { metric: 'mean', label: 'Mammalia', rank: 5, count: 50, percentile: 0.8 },
-        { metric: 'mean', label: 'Chordata', rank: 4, count: 200, percentile: 0.9 },
+        {
+          metric: 'mean',
+          label: 'Mammalia',
+          rank: 5,
+          count: 50,
+          percentile: 0.8,
+        },
+        {
+          metric: 'mean',
+          label: 'Chordata',
+          rank: 4,
+          count: 200,
+          percentile: 0.9,
+        },
       ],
       histogram: null,
     });
@@ -128,8 +174,12 @@ describe('stateDerivations', () => {
 
   it('builds heading and meta text across categorical, continuous, selected-range, and empty-stats states', () => {
     expect(buildHeadingText(false, 'Temp', 'Fallback', false, 'C')).toBeNull();
-    expect(buildHeadingText(true, null, 'Fallback', false, 'C')).toBe('Fallback (C)');
-    expect(buildHeadingText(true, 'Land Cover', 'Fallback', true, '%')).toBe('Land Cover');
+    expect(buildHeadingText(true, null, 'Fallback', false, 'C')).toBe(
+      'Fallback (C)',
+    );
+    expect(buildHeadingText(true, 'Land Cover', 'Fallback', true, '%')).toBe(
+      'Land Cover',
+    );
 
     expect(
       buildMetaText({
@@ -167,7 +217,13 @@ describe('stateDerivations', () => {
 
   it('builds summary comparisons and resolves q01-q99 range values', () => {
     const disabled = buildSummaryComparisons(false, null, null, null, null);
-    expect(disabled).toEqual({ min: null, mean: null, max: null, std: null, range99: null });
+    expect(disabled).toEqual({
+      min: null,
+      mean: null,
+      max: null,
+      std: null,
+      range99: null,
+    });
 
     const enabled = buildSummaryComparisons(
       true,
@@ -182,7 +238,18 @@ describe('stateDerivations', () => {
     expect(enabled.std).toContain('vs.');
     expect(enabled.range99).toContain('vs.');
 
-    expect(resolveRangeValue({ count: 1, min: 0, mean: 0, max: 0, q01: 1, q99: 11 })).toBe(10);
-    expect(resolveRangeValue({ count: 1, min: 0, mean: 0, max: 0, q01: null, q99: 11 })).toBeNull();
+    expect(
+      resolveRangeValue({ count: 1, min: 0, mean: 0, max: 0, q01: 1, q99: 11 }),
+    ).toBe(10);
+    expect(
+      resolveRangeValue({
+        count: 1,
+        min: 0,
+        mean: 0,
+        max: 0,
+        q01: null,
+        q99: 11,
+      }),
+    ).toBeNull();
   });
 });

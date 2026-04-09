@@ -21,8 +21,8 @@ describe('TopAppBarLeadingContent', () => {
 
     render(
       <LeadingContent
-        variant="search"
-        searchValue=""
+        variant='search'
+        searchValue=''
         onSearchValueChange={onSearchValueChange}
         onSubmitSearch={onSubmitSearch}
       />,
@@ -43,8 +43,8 @@ describe('TopAppBarLeadingContent', () => {
 
     render(
       <LeadingContent
-        variant="page"
-        title="Species"
+        variant='page'
+        title='Species'
         onPressBack={onPressBack}
       />,
     );
@@ -57,10 +57,10 @@ describe('TopAppBarLeadingContent', () => {
   it('renders home leading content as image when logo is not pressable', () => {
     render(
       <LeadingContent
-        variant="home"
-        title="WhereWild"
+        variant='home'
+        title='WhereWild'
         logoSource={require('@/assets/images/wherewild.png')}
-        logoAccessibilityLabel="WhereWild logo"
+        logoAccessibilityLabel='WhereWild logo'
       />,
     );
 
@@ -73,10 +73,10 @@ describe('TopAppBarLeadingContent', () => {
 
     render(
       <LeadingContent
-        variant="home"
-        title="WhereWild"
+        variant='home'
+        title='WhereWild'
         logoSource={require('@/assets/images/wherewild.png')}
-        logoAccessibilityLabel="WhereWild logo"
+        logoAccessibilityLabel='WhereWild logo'
         onPressLogo={onPressLogo}
       />,
     );
@@ -90,17 +90,13 @@ describe('TopAppBarLeadingContent', () => {
     const onSubmitSearch = jest.fn();
 
     const { rerender } = render(
-      <LeadingContent
-        variant="page"
-        title="Species"
-        onPressBack={jest.fn()}
-      />,
+      <LeadingContent variant='page' title='Species' onPressBack={jest.fn()} />,
     );
 
     rerender(
       <LeadingContent
-        variant="search"
-        searchValue=""
+        variant='search'
+        searchValue=''
         onSearchValueChange={onSearchValueChange}
         onSubmitSearch={onSubmitSearch}
       />,
@@ -114,8 +110,8 @@ describe('TopAppBarLeadingContent', () => {
 
     rerender(
       <LeadingContent
-        variant="page"
-        title="Species Details"
+        variant='page'
+        title='Species Details'
         onPressBack={jest.fn()}
       />,
     );
@@ -129,26 +125,25 @@ describe('TopAppBarLeadingContent', () => {
 
     const { rerender } = render(
       <LeadingContent
-        variant="home"
-        title="WhereWild"
+        variant='home'
+        title='WhereWild'
         logoSource={require('@/assets/images/wherewild.png')}
-        logoAccessibilityLabel="WhereWild logo"
+        logoAccessibilityLabel='WhereWild logo'
       />,
     );
 
     timingMock.mockClear();
 
     rerender(
-      <LeadingContent
-        variant="page"
-        title="Species"
-        onPressBack={jest.fn()}
-      />,
+      <LeadingContent variant='page' title='Species' onPressBack={jest.fn()} />,
     );
 
     const hasExitLeftAnimation = timingMock.mock.calls.some(([, config]) => {
       const toValue = (config as { toValue?: unknown } | undefined)?.toValue;
-      return typeof toValue === 'number' && toValue === -TOP_APP_BAR_SEARCH_SLIDE_OFFSET;
+      return (
+        typeof toValue === 'number' &&
+        toValue === -TOP_APP_BAR_SEARCH_SLIDE_OFFSET
+      );
     });
 
     expect(hasExitLeftAnimation).toBe(true);
@@ -159,8 +154,8 @@ describe('TopAppBarLeadingContent', () => {
 
     const { rerender } = render(
       <LeadingContent
-        variant="search"
-        searchValue=""
+        variant='search'
+        searchValue=''
         onSearchValueChange={jest.fn()}
         onSubmitSearch={jest.fn()}
       />,
@@ -169,17 +164,16 @@ describe('TopAppBarLeadingContent', () => {
     timingMock.mockClear();
 
     rerender(
-      <LeadingContent
-        variant="page"
-        title="Species"
-        onPressBack={jest.fn()}
-      />,
+      <LeadingContent variant='page' title='Species' onPressBack={jest.fn()} />,
     );
 
-    const hasShortDurationSlotTween = timingMock.mock.calls.some(([, config]) => {
-      const duration = (config as { duration?: unknown } | undefined)?.duration;
-      return typeof duration === 'number' && duration === Time.duration.short;
-    });
+    const hasShortDurationSlotTween = timingMock.mock.calls.some(
+      ([, config]) => {
+        const duration = (config as { duration?: unknown } | undefined)
+          ?.duration;
+        return typeof duration === 'number' && duration === Time.duration.short;
+      },
+    );
 
     expect(hasShortDurationSlotTween).toBe(false);
   });
@@ -189,27 +183,26 @@ describe('TopAppBarLeadingContent', () => {
 
     const { rerender } = render(
       <LeadingContent
-        variant="home"
-        title="WhereWild"
+        variant='home'
+        title='WhereWild'
         logoSource={require('@/assets/images/wherewild.png')}
-        logoAccessibilityLabel="WhereWild logo"
+        logoAccessibilityLabel='WhereWild logo'
       />,
     );
 
     timingMock.mockClear();
 
     rerender(
-      <LeadingContent
-        variant="page"
-        title="Species"
-        onPressBack={jest.fn()}
-      />,
+      <LeadingContent variant='page' title='Species' onPressBack={jest.fn()} />,
     );
 
-    const hasShortDurationSlotTween = timingMock.mock.calls.some(([, config]) => {
-      const duration = (config as { duration?: unknown } | undefined)?.duration;
-      return typeof duration === 'number' && duration === Time.duration.short;
-    });
+    const hasShortDurationSlotTween = timingMock.mock.calls.some(
+      ([, config]) => {
+        const duration = (config as { duration?: unknown } | undefined)
+          ?.duration;
+        return typeof duration === 'number' && duration === Time.duration.short;
+      },
+    );
 
     expect(hasShortDurationSlotTween).toBe(false);
   });

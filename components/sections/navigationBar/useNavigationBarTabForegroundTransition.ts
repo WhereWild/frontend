@@ -60,7 +60,10 @@ export const useNavigationBarTabForegroundTransition = ({
   const foregroundProgress = React.useRef(new Animated.Value(1)).current;
   const hasAnimatedForegroundRef = React.useRef(false);
   const animatedForegroundListenerIdRef = React.useRef<string | null>(null);
-  const fadeEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
+  const fadeEasing = React.useMemo(
+    () => getReactNativeEasing('in-and-out'),
+    [],
+  );
   const [animatedColors, setAnimatedColors] = React.useState<ForegroundColors>({
     textColor: targetTextColor,
     iconColor: targetIconColor,
@@ -87,8 +90,8 @@ export const useNavigationBarTabForegroundTransition = ({
     const toIconColor = targetIconColor;
 
     if (
-      fromColors.textColor === toTextColor
-      && fromColors.iconColor === toIconColor
+      fromColors.textColor === toTextColor &&
+      fromColors.iconColor === toIconColor
     ) {
       // Avoid restarting an animation when effective colors are unchanged.
       setAnimatedColors({
@@ -101,12 +104,14 @@ export const useNavigationBarTabForegroundTransition = ({
     foregroundProgress.stopAnimation();
     foregroundProgress.setValue(0);
 
-    animatedForegroundListenerIdRef.current = foregroundProgress.addListener(({ value }) => {
-      setAnimatedColors({
-        textColor: mixColor(fromColors.textColor, toTextColor, value),
-        iconColor: mixColor(fromColors.iconColor, toIconColor, value),
-      });
-    });
+    animatedForegroundListenerIdRef.current = foregroundProgress.addListener(
+      ({ value }) => {
+        setAnimatedColors({
+          textColor: mixColor(fromColors.textColor, toTextColor, value),
+          iconColor: mixColor(fromColors.iconColor, toIconColor, value),
+        });
+      },
+    );
 
     const animation = Animated.timing(foregroundProgress, {
       toValue: 1,
@@ -117,7 +122,9 @@ export const useNavigationBarTabForegroundTransition = ({
 
     animation.start(({ finished }) => {
       if (animatedForegroundListenerIdRef.current) {
-        foregroundProgress.removeListener(animatedForegroundListenerIdRef.current);
+        foregroundProgress.removeListener(
+          animatedForegroundListenerIdRef.current,
+        );
         animatedForegroundListenerIdRef.current = null;
       }
 
@@ -133,7 +140,9 @@ export const useNavigationBarTabForegroundTransition = ({
       // Stop in-flight animation/listeners so interrupted transitions don't leak updates.
       animation.stop();
       if (animatedForegroundListenerIdRef.current) {
-        foregroundProgress.removeListener(animatedForegroundListenerIdRef.current);
+        foregroundProgress.removeListener(
+          animatedForegroundListenerIdRef.current,
+        );
         animatedForegroundListenerIdRef.current = null;
       }
     };

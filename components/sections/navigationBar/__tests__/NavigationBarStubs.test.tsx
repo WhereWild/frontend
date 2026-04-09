@@ -18,24 +18,45 @@ describe('NavigationBar stubs', () => {
 
   it('renders NavigationBarTab stub as null', () => {
     const { toJSON } = render(
-      <NavigationBarTab
-        label="Search"
-        icon={IconSearch}
-      />,
+      <NavigationBarTab label='Search' icon={IconSearch} />,
     );
 
     expect(toJSON()).toBeNull();
   });
 
   it('covers stub tab helper exports', () => {
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('active', false, false)).toBe('active');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('pressed', false, false)).toBe('pressed');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', true, false)).toBe('pressed');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, true)).toBe('pressed');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, false)).toBe('default');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('active', false, false),
+    ).toBe('active');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState(
+        'pressed',
+        false,
+        false,
+      ),
+    ).toBe('pressed');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', true, false),
+    ).toBe('pressed');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, true),
+    ).toBe('pressed');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState(
+        'default',
+        false,
+        false,
+      ),
+    ).toBe('default');
 
-    const lightStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('light', 'default');
-    const darkStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('dark', 'pressed');
+    const lightStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles(
+      'light',
+      'default',
+    );
+    const darkStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles(
+      'dark',
+      'pressed',
+    );
 
     expect(lightStyles).toEqual({
       backgroundColor: 'transparent',
@@ -54,11 +75,13 @@ describe('NavigationBar stubs', () => {
 
   it('covers stub NavigationBar helper exports', () => {
     expect(
-      __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
-        5,
-        { one: 100 },
-        ['one', 'two', 'three', 'four', 'five'],
-      ),
+      __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(5, { one: 100 }, [
+        'one',
+        'two',
+        'three',
+        'four',
+        'five',
+      ]),
     ).toBe(0);
 
     expect(

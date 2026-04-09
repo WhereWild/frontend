@@ -131,7 +131,9 @@ describe('searchInputHelpers', () => {
   describe('createContainerHandlers', () => {
     it('focuses input via container handlers when enabled', () => {
       const focus = jest.fn();
-      const inputRef = { current: { focus } } as unknown as React.RefObject<TextInput>;
+      const inputRef = {
+        current: { focus },
+      } as unknown as React.RefObject<TextInput>;
       const handlers = createContainerHandlers({
         disabled: false,
         inputRef,
@@ -146,7 +148,9 @@ describe('searchInputHelpers', () => {
 
     it('skips focus when disabled and toggles hover/press setters', () => {
       const focus = jest.fn();
-      const inputRef = { current: { focus } } as unknown as React.RefObject<TextInput>;
+      const inputRef = {
+        current: { focus },
+      } as unknown as React.RefObject<TextInput>;
       const setIsHovered = jest.fn();
       const setIsPressing = jest.fn();
 

@@ -17,7 +17,14 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
@@ -42,7 +49,8 @@ type SelectionChipOption<T extends string | number> = {
 };
 
 const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
-const WEB_HEADER_HEIGHT_COMPACT = Size.control.dimension.large + Size.space['400'] * 2;
+const WEB_HEADER_HEIGHT_COMPACT =
+  Size.control.dimension.large + Size.space['400'] * 2;
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -50,7 +58,13 @@ type SpeciesScreenProps = {
 
 export type SpeciesScreenData = Pick<
   SpeciesPageData,
-  'taxonId' | 'scientificName' | 'commonName' | 'commonNames' | 'overview' | 'nearbySpecies' | 'heatmap'
+  | 'taxonId'
+  | 'scientificName'
+  | 'commonName'
+  | 'commonNames'
+  | 'overview'
+  | 'nearbySpecies'
+  | 'heatmap'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -73,14 +87,23 @@ export const calculateObservationMapHeight = ({
   safeAreaTop: number;
   viewportHeight: number;
 }) => {
-  const excludedViewportHeight = platform === 'web'
-    ? (measuredWebHeaderHeight && measuredWebHeaderHeight > 0
-      ? measuredWebHeaderHeight
-      : (breakpoint === 'desktop' ? WEB_HEADER_HEIGHT_DESKTOP : WEB_HEADER_HEIGHT_COMPACT))
-      + safeAreaTop
-      + safeAreaBottom
-    : Size.bar.height.short + Size.bar.height.tall + safeAreaTop + safeAreaBottom;
-  const availableViewportHeight = Math.max(0, viewportHeight - excludedViewportHeight);
+  const excludedViewportHeight =
+    platform === 'web'
+      ? (measuredWebHeaderHeight && measuredWebHeaderHeight > 0
+          ? measuredWebHeaderHeight
+          : breakpoint === 'desktop'
+            ? WEB_HEADER_HEIGHT_DESKTOP
+            : WEB_HEADER_HEIGHT_COMPACT) +
+        safeAreaTop +
+        safeAreaBottom
+      : Size.bar.height.short +
+        Size.bar.height.tall +
+        safeAreaTop +
+        safeAreaBottom;
+  const availableViewportHeight = Math.max(
+    0,
+    viewportHeight - excludedViewportHeight,
+  );
   return Math.round(availableViewportHeight * 0.75);
 };
 
@@ -92,7 +115,10 @@ export const shouldRenderObservationMapFrame = ({
   platform: string;
 }) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
-const getPredictiveHeatmapDescription = (hasLiveHeatmap: boolean, hasAnyHeatmap: boolean) => {
+const getPredictiveHeatmapDescription = (
+  hasLiveHeatmap: boolean,
+  hasAnyHeatmap: boolean,
+) => {
   if (hasLiveHeatmap) {
     return undefined;
   }
@@ -129,14 +155,26 @@ const buildHeatmapModelOptions = (
   if (!hasPhenology) {
     return [
       { accessibilityLabel: 'Habitat', label: 'Habitat', value: 'habitat' },
-      { accessibilityLabel: conditionsLabel, label: conditionsLabel, value: 'combined' },
+      {
+        accessibilityLabel: conditionsLabel,
+        label: conditionsLabel,
+        value: 'combined',
+      },
     ];
   }
 
   return [
     { accessibilityLabel: 'Habitat', label: 'Habitat', value: 'habitat' },
-    { accessibilityLabel: conditionsLabel, label: conditionsLabel, value: 'combined' },
-    { accessibilityLabel: 'Conditions only', label: 'Conditions only', value: 'phenology_only' },
+    {
+      accessibilityLabel: conditionsLabel,
+      label: conditionsLabel,
+      value: 'combined',
+    },
+    {
+      accessibilityLabel: 'Conditions only',
+      label: 'Conditions only',
+      value: 'phenology_only',
+    },
   ];
 };
 
@@ -152,16 +190,20 @@ function SelectionChipGroup<T extends string | number>({
   onSelect: (value: T) => void;
 }) {
   const pills = React.useMemo(
-    () => options.map((option) => ({
-      key: String(option.value),
-      label: option.label,
-      accessibilityLabel: option.accessibilityLabel,
-    })),
+    () =>
+      options.map((option) => ({
+        key: String(option.value),
+        label: option.label,
+        accessibilityLabel: option.accessibilityLabel,
+      })),
     [options],
   );
 
   const optionByKey = React.useMemo(
-    () => new Map(options.map((option) => [String(option.value), option.value] as const)),
+    () =>
+      new Map(
+        options.map((option) => [String(option.value), option.value] as const),
+      ),
     [options],
   );
 
@@ -177,9 +219,7 @@ function SelectionChipGroup<T extends string | number>({
 
   return (
     <View style={styles.forecastPicker}>
-      <ThemedText variant="bodySmall">
-        {title}
-      </ThemedText>
+      <ThemedText variant='bodySmall'>{title}</ThemedText>
       <NavigationPillList
         pills={pills}
         selectedKey={String(selectedValue)}
@@ -207,16 +247,27 @@ function SectionShell({
         }),
       ]}
     >
-      <View style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}>
+      <View
+        style={[styles.sectionContent, { maxWidth: responsive.contentWidth }]}
+      >
         {children}
       </View>
     </View>
   );
 }
 
-export default function Species({ data = mountainBallCactusData }: SpeciesScreenProps) {
-  const { taxonId, commonName, commonNames, scientificName, overview, nearbySpecies, heatmap } =
-    data;
+export default function Species({
+  data = mountainBallCactusData,
+}: SpeciesScreenProps) {
+  const {
+    taxonId,
+    commonName,
+    commonNames,
+    scientificName,
+    overview,
+    nearbySpecies,
+    heatmap,
+  } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -236,23 +287,35 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
       safeAreaTop: insets.top,
       viewportHeight,
     });
-  }, [insets.bottom, insets.top, responsive.breakpoint, viewportHeight, webHeaderHeight]);
+  }, [
+    insets.bottom,
+    insets.top,
+    responsive.breakpoint,
+    viewportHeight,
+    webHeaderHeight,
+  ]);
 
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
   });
-  const hasLiveHeatmap = heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
+  const hasLiveHeatmap =
+    heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
   const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
   const hasPhenology = heatmap.phenologyAvailable === true;
   const hasConditions = hasPhenology || heatmap.fullAvailable === true;
-  const conditionsLabel = hasPhenology ? 'Habitat + flowering' : 'Habitat + conditions';
+  const conditionsLabel = hasPhenology
+    ? 'Habitat + flowering'
+    : 'Habitat + conditions';
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
   const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(false);
-  const [phenologyMode, setPhenologyMode] = React.useState<HeatmapMode>('combined');
+  const [phenologyMode, setPhenologyMode] =
+    React.useState<HeatmapMode>('combined');
   const [forecastHours, setForecastHours] = React.useState<number>(0);
-  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<(number | string)[]>([]);
+  const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<
+    (number | string)[]
+  >([]);
   const [pinnedObservation, setPinnedObservation] = React.useState<{
     catalogNumber: string;
     lat: number;
@@ -268,20 +331,22 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
     [conditionsLabel, hasPhenology],
   );
   const forecastOptions = React.useMemo<SelectionChipOption<number>[]>(
-    () => FORECAST_OPTIONS.map((option) => ({
-      accessibilityLabel: `Forecast ${option.label}`,
-      label: option.label,
-      value: option.hours,
-    })),
+    () =>
+      FORECAST_OPTIONS.map((option) => ({
+        accessibilityLabel: `Forecast ${option.label}`,
+        label: option.label,
+        value: option.hours,
+      })),
     [],
   );
   const activeTileUrl = React.useMemo(
-    () => buildLiveHeatmapTileUrl({
-      forecastHours,
-      liveTileUrl: heatmap.liveTileUrl,
-      phenologyMode,
-      showLiveHeatmap,
-    }),
+    () =>
+      buildLiveHeatmapTileUrl({
+        forecastHours,
+        liveTileUrl: heatmap.liveTileUrl,
+        phenologyMode,
+        showLiveHeatmap,
+      }),
     [forecastHours, heatmap.liveTileUrl, phenologyMode, showLiveHeatmap],
   );
 
@@ -332,7 +397,9 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
       setPinnedObservation((prev) =>
-        prev?.catalogNumber === catalogNumber ? null : { catalogNumber, lat, lon },
+        prev?.catalogNumber === catalogNumber
+          ? null
+          : { catalogNumber, lat, lon },
       );
     },
     [],
@@ -360,13 +427,19 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
         </Head>
       ) : null}
       <View
-        style={[styles.screen, { backgroundColor: palette.background.default.default }]}
+        style={[
+          styles.screen,
+          { backgroundColor: palette.background.default.default },
+        ]}
       >
         <ScrollView
-          contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
-            includeHorizontalPadding: false,
-            includeTopPadding: false,
-          })}
+          contentContainerStyle={getResponsiveContentContainerStyle(
+            responsive,
+            {
+              includeHorizontalPadding: false,
+              includeTopPadding: false,
+            },
+          )}
           bounces={false}
         >
           <View
@@ -400,7 +473,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
 
             {shouldRenderOccurrenceMap && (
               <SectionShell responsive={responsive}>
-                <ThemedText variant="heading">Observation Map</ThemedText>
+                <ThemedText variant='heading'>Observation Map</ThemedText>
                 <SpeciesLocationFilters
                   countryOptions={countryOptions}
                   stateOptions={stateOptions}
@@ -425,12 +498,12 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                 />
                 <View style={styles.mapControls}>
                   <SwitchField
-                    label="Show observations"
+                    label='Show observations'
                     value={showObservations}
                     onValueChange={setShowObservations}
                   />
                   <SwitchField
-                    label="Show predictive heatmap"
+                    label='Show predictive heatmap'
                     value={showLiveHeatmap}
                     disabled={!hasLiveHeatmap}
                     description={predictiveHeatmapDescription}
@@ -440,7 +513,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                     <SelectionChipGroup
                       options={forecastOptions}
                       selectedValue={forecastHours}
-                      title="Weather window"
+                      title='Weather window'
                       onSelect={setForecastHours}
                     />
                   )}
@@ -448,7 +521,7 @@ export default function Species({ data = mountainBallCactusData }: SpeciesScreen
                     <SelectionChipGroup
                       options={modelOptions}
                       selectedValue={phenologyMode}
-                      title="Model"
+                      title='Model'
                       onSelect={setPhenologyMode}
                     />
                   )}

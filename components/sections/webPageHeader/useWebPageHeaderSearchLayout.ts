@@ -36,28 +36,36 @@ export function useWebPageHeaderSearchLayout({
     hasQuery &&
     showSearchResultsDropdown &&
     !isSearchPreviewDismissed &&
-    (isSearchBarFocused || isSearchBlurGraceActive)
+    (isSearchBarFocused || isSearchBlurGraceActive),
   );
 
-  const searchResultsTop = wrapperHeight ? wrapperHeight + Size.space['200'] : undefined;
+  const searchResultsTop = wrapperHeight
+    ? wrapperHeight + Size.space['200']
+    : undefined;
   const mobileSearchResultsTop = mobileHeaderLayout
     ? mobileHeaderLayout.y + mobileHeaderLayout.height + Size.space['200']
     : undefined;
 
-  const getSearchResultsStyle = React.useCallback((variant: SearchVariant): StyleProp<ViewStyle> => {
-    const mobileSearchResultsStyle: StyleProp<ViewStyle> = [
-      {
-        left: marginHorizontal,
-        right: marginHorizontal,
-      },
-      mobileSearchResultsTop ? { top: mobileSearchResultsTop } : null,
-    ];
+  const getSearchResultsStyle = React.useCallback(
+    (variant: SearchVariant): StyleProp<ViewStyle> => {
+      const mobileSearchResultsStyle: StyleProp<ViewStyle> = [
+        {
+          left: marginHorizontal,
+          right: marginHorizontal,
+        },
+        mobileSearchResultsTop ? { top: mobileSearchResultsTop } : null,
+      ];
 
-    const desktopSearchResultsStyle: StyleProp<ViewStyle> =
-      searchResultsTop ? { top: searchResultsTop } : undefined;
+      const desktopSearchResultsStyle: StyleProp<ViewStyle> = searchResultsTop
+        ? { top: searchResultsTop }
+        : undefined;
 
-    return variant === 'mobile' ? mobileSearchResultsStyle : desktopSearchResultsStyle;
-  }, [mobileSearchResultsTop, marginHorizontal, searchResultsTop]);
+      return variant === 'mobile'
+        ? mobileSearchResultsStyle
+        : desktopSearchResultsStyle;
+    },
+    [mobileSearchResultsTop, marginHorizontal, searchResultsTop],
+  );
 
   return {
     searchResultsVisible,

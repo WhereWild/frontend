@@ -1,11 +1,15 @@
 import { IconFilter, IconRotateCcw } from '@/assets/icons';
 import { IconButton } from '@/components/buttons/IconButton';
-import { Colors, Shadows, Size, Time, getReactNativeEasing } from '@/constants/theme';
+import {
+  Colors,
+  Shadows,
+  Size,
+  Time,
+  getReactNativeEasing,
+} from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import {
-  TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH,
-} from './TopAppBar.constants';
+import { TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH } from './TopAppBar.constants';
 import { useAnimatedValueRef } from './TopAppBarAnimatedValue.native';
 import { LeadingContent } from './TopAppBarLeadingContent.native';
 import { PrimaryAction } from './TopAppBarPrimaryAction.native';
@@ -16,11 +20,7 @@ import type {
 } from './TopAppBar.types';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import {
-  Animated,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 export type { TopAppBarProps, TopAppBarVariant } from './TopAppBar.types';
@@ -84,7 +84,8 @@ const resolvePrimaryAction = (
   icon: primaryAction?.icon ?? DEFAULT_PRIMARY_ACTION_ICON,
   buttonLabel: primaryAction?.buttonLabel ?? 'Filter',
   buttonAccessibilityLabel: primaryAction?.buttonAccessibilityLabel ?? 'Filter',
-  iconAccessibilityLabel: primaryAction?.iconAccessibilityLabel ?? 'Filter action',
+  iconAccessibilityLabel:
+    primaryAction?.iconAccessibilityLabel ?? 'Filter action',
   onPress: primaryAction?.onPress,
 });
 
@@ -118,7 +119,8 @@ const resolveLeadingContentProps = (
     variant: 'home',
     title: props.title,
     logoSource: props.logoSource ?? DEFAULT_HOME_LOGO,
-    logoAccessibilityLabel: props.logoAccessibilityLabel ?? DEFAULT_HOME_LOGO_ACCESSIBILITY_LABEL,
+    logoAccessibilityLabel:
+      props.logoAccessibilityLabel ?? DEFAULT_HOME_LOGO_ACCESSIBILITY_LABEL,
     onPressLogo: props.onPressLogo ?? defaultHandlePressLogo,
   };
 };
@@ -142,10 +144,14 @@ function TopAppBarActionsRow({
     : styles.actionsRowWithoutGap;
 
   return (
-    <View collapsable={false} testID="top-app-bar-actions-row" style={[styles.actionsRow, actionsRowGapStyle]}>
+    <View
+      collapsable={false}
+      testID='top-app-bar-actions-row'
+      style={[styles.actionsRow, actionsRowGapStyle]}
+    >
       <Animated.View
         collapsable={false}
-        testID="top-app-bar-secondary-action-slot"
+        testID='top-app-bar-secondary-action-slot'
         style={[
           {
             width: secondaryActionWidth,
@@ -157,11 +163,13 @@ function TopAppBarActionsRow({
         <View
           collapsable={false}
           accessibilityElementsHidden={!isSecondaryButtonVisible}
-          importantForAccessibility={isSecondaryButtonVisible ? 'auto' : 'no-hide-descendants'}
+          importantForAccessibility={
+            isSecondaryButtonVisible ? 'auto' : 'no-hide-descendants'
+          }
           pointerEvents={isSecondaryButtonVisible ? 'auto' : 'none'}
         >
           <IconButton
-            variant="neutral"
+            variant='neutral'
             icon={resolvedSecondaryAction.icon}
             onPress={resolvedSecondaryAction.onPress}
             disabled={!isSecondaryActionEnabled}
@@ -174,8 +182,12 @@ function TopAppBarActionsRow({
         shouldRenderPrimaryAsIcon={isPrimaryIconMode}
         primaryButtonIcon={resolvedPrimaryAction.icon}
         onPressPrimaryButton={resolvedPrimaryAction.onPress}
-        primaryIconButtonAccessibilityLabel={resolvedPrimaryAction.iconAccessibilityLabel}
-        primaryButtonAccessibilityLabel={resolvedPrimaryAction.buttonAccessibilityLabel}
+        primaryIconButtonAccessibilityLabel={
+          resolvedPrimaryAction.iconAccessibilityLabel
+        }
+        primaryButtonAccessibilityLabel={
+          resolvedPrimaryAction.buttonAccessibilityLabel
+        }
         primaryButtonLabel={resolvedPrimaryAction.buttonLabel}
       />
     </View>
@@ -211,17 +223,25 @@ export function TopAppBar(props: TopAppBarProps) {
     (resolvedPrimaryAction.mode === 'responsive' && isPhoneBreakpoint);
   const isSecondaryButtonVisible = resolvedSecondaryAction.isVisible;
   const isPrimaryButtonVisible = resolvedPrimaryAction.isVisible;
-  const isSecondaryActionEnabled = typeof resolvedSecondaryAction.onPress === 'function';
-  const animationEasing = React.useMemo(() => getReactNativeEasing('in-and-out'), []);
+  const isSecondaryActionEnabled =
+    typeof resolvedSecondaryAction.onPress === 'function';
+  const animationEasing = React.useMemo(
+    () => getReactNativeEasing('in-and-out'),
+    [],
+  );
   const secondaryActionWidth = useAnimatedValueRef(
     isSecondaryButtonVisible ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
   );
-  const secondaryActionOpacity = useAnimatedValueRef(isSecondaryButtonVisible ? 1 : 0);
+  const secondaryActionOpacity = useAnimatedValueRef(
+    isSecondaryButtonVisible ? 1 : 0,
+  );
 
   React.useEffect(() => {
     const animation = Animated.parallel([
       Animated.timing(secondaryActionWidth.current, {
-        toValue: isSecondaryButtonVisible ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH : 0,
+        toValue: isSecondaryButtonVisible
+          ? TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH
+          : 0,
         duration: Time.duration.short,
         easing: animationEasing,
         useNativeDriver: false,
@@ -239,16 +259,24 @@ export function TopAppBar(props: TopAppBarProps) {
     return () => {
       animation.stop();
     };
-  }, [animationEasing, isSecondaryButtonVisible, secondaryActionOpacity, secondaryActionWidth]);
+  }, [
+    animationEasing,
+    isSecondaryButtonVisible,
+    secondaryActionOpacity,
+    secondaryActionWidth,
+  ]);
 
   const defaultHandlePressLogo = React.useCallback(() => {
     router.push('/');
   }, [router]);
-  const leadingContentProps = resolveLeadingContentProps(props, defaultHandlePressLogo);
+  const leadingContentProps = resolveLeadingContentProps(
+    props,
+    defaultHandlePressLogo,
+  );
 
   return (
     <View
-      testID="top-app-bar-safe-area"
+      testID='top-app-bar-safe-area'
       style={[
         styles.safeAreaContainer,
         {
@@ -265,19 +293,17 @@ export function TopAppBar(props: TopAppBarProps) {
           },
           Shadows.dropShadow200.style,
         ]}
-        testID="top-app-bar-surface"
+        testID='top-app-bar-surface'
       />
       <View
         style={[
           styles.container,
           { paddingHorizontal: responsive.marginHorizontal },
         ]}
-        accessibilityRole="header"
-        testID="top-app-bar-container"
+        accessibilityRole='header'
+        testID='top-app-bar-container'
       >
-        <LeadingContent
-          {...leadingContentProps}
-        />
+        <LeadingContent {...leadingContentProps} />
         <TopAppBarActionsRow
           isSecondaryButtonVisible={isSecondaryButtonVisible}
           resolvedSecondaryAction={resolvedSecondaryAction}

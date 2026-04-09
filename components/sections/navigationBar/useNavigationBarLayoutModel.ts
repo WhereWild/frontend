@@ -15,7 +15,10 @@ import {
   type HostLayout,
   type TabLayout,
 } from './navigationBarHelpers';
-import { hasAllTabMeasurements, updateMeasuredTabWidths } from './navigationBarMeasurement';
+import {
+  hasAllTabMeasurements,
+  updateMeasuredTabWidths,
+} from './navigationBarMeasurement';
 
 /**
  * Returns:
@@ -77,14 +80,19 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
 }: UseNavigationBarLayoutModelParams<TTab>): NavigationBarLayoutModel {
   const tabKeySignature = useMemo(() => tabKeys.join('|'), [tabKeys]);
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
-  const [measuredTabWidths, setMeasuredTabWidths] = useState<Record<string, number>>({});
-  const [resolvedVariant, setResolvedVariant] = useState<NavigationBarTabVariant>('horizontal');
+  const [measuredTabWidths, setMeasuredTabWidths] = useState<
+    Record<string, number>
+  >({});
+  const [resolvedVariant, setResolvedVariant] =
+    useState<NavigationBarTabVariant>('horizontal');
   const [isMeasuring, setIsMeasuring] = useState(true);
   const [tabLayouts, setTabLayouts] = useState<Record<string, TabLayout>>({});
   const lastHostLayoutRef = useRef<HostLayout | null>(null);
   const deferRemeasureFinalizeRef = useRef(false);
   const isResizingRef = useRef(false);
-  const resizeSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeSettleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const clearResizeSettleTimeout = useCallback(() => {
     if (!resizeSettleTimeoutRef.current) {
@@ -103,7 +111,9 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
 
   /** Captures measured tab width for horizontal/vertical variant resolution. */
   const onTabWidthLayout = useCallback((tabKey: string, width: number) => {
-    setMeasuredTabWidths((previous) => updateMeasuredTabWidths(previous, tabKey, width));
+    setMeasuredTabWidths((previous) =>
+      updateMeasuredTabWidths(previous, tabKey, width),
+    );
   }, []);
 
   useEffect(() => {
@@ -119,7 +129,14 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
     }
 
     const finalizeMeasurement = () => {
-      setResolvedVariant(resolveTabVariant(availableWidth, tabs.length, measuredTabWidths, tabKeys));
+      setResolvedVariant(
+        resolveTabVariant(
+          availableWidth,
+          tabs.length,
+          measuredTabWidths,
+          tabKeys,
+        ),
+      );
       setIsMeasuring(false);
       deferRemeasureFinalizeRef.current = false;
     };
@@ -138,68 +155,84 @@ export function useNavigationBarLayoutModel<TTab extends TabWithKey>({
     // can populate remaining widths before settling with fallback values.
     const finalizeWithFallback = setTimeout(finalizeMeasurement, 0);
     return () => clearTimeout(finalizeWithFallback);
-  }, [availableWidth, isMeasuring, measuredTabWidths, resolveTabVariant, tabKeys, tabs.length]);
+  }, [
+    availableWidth,
+    isMeasuring,
+    measuredTabWidths,
+    resolveTabVariant,
+    tabKeys,
+    tabs.length,
+  ]);
 
   /** Handles host layout changes and starts/stops the short resize session window. */
-  const handleTabsLayout = useCallback((width: number, height: number) => {
-    if (width <= 0 || height <= 0) {
-      return;
-    }
-
-    const previousLayout = lastHostLayoutRef.current;
-    if (!hasHostLayoutChanged(previousLayout, width, height)) {
-      return;
-    }
-
-    lastHostLayoutRef.current = { width, height };
-    isResizingRef.current = true;
-
-    clearResizeSettleTimeout();
-
-    resizeSettleTimeoutRef.current = setTimeout(() => {
-      isResizingRef.current = false;
-      resizeSettleTimeoutRef.current = null;
-    }, resizeSettleDelayMs);
-
-    setAvailableWidth((previousWidth) => {
-      if (!shouldRemeasureWidth(previousWidth, width, remeasureThresholdPx)) {
-        return previousWidth;
+  const handleTabsLayout = useCallback(
+    (width: number, height: number) => {
+      if (width <= 0 || height <= 0) {
+        return;
       }
 
-      deferRemeasureFinalizeRef.current = previousWidth !== null;
+      const previousLayout = lastHostLayoutRef.current;
+      if (!hasHostLayoutChanged(previousLayout, width, height)) {
+        return;
+      }
 
-      // Preserve last known tab widths while remeasuring to avoid temporary
-      // fallback widths causing horizontal/vertical flicker during resize.
-      setIsMeasuring(true);
-      return width;
-    });
-  }, [clearResizeSettleTimeout, remeasureThresholdPx, resizeSettleDelayMs]);
+      lastHostLayoutRef.current = { width, height };
+      isResizingRef.current = true;
+
+      clearResizeSettleTimeout();
+
+      resizeSettleTimeoutRef.current = setTimeout(() => {
+        isResizingRef.current = false;
+        resizeSettleTimeoutRef.current = null;
+      }, resizeSettleDelayMs);
+
+      setAvailableWidth((previousWidth) => {
+        if (!shouldRemeasureWidth(previousWidth, width, remeasureThresholdPx)) {
+          return previousWidth;
+        }
+
+        deferRemeasureFinalizeRef.current = previousWidth !== null;
+
+        // Preserve last known tab widths while remeasuring to avoid temporary
+        // fallback widths causing horizontal/vertical flicker during resize.
+        setIsMeasuring(true);
+        return width;
+      });
+    },
+    [clearResizeSettleTimeout, remeasureThresholdPx, resizeSettleDelayMs],
+  );
 
   /** Stores each visible tab frame for hit-testing and indicator positioning. */
-  const handleTabContainerLayout = useCallback((tabKey: string, layout: TabLayout) => {
-    setTabLayouts((previous) => {
-      const existing = previous[tabKey];
+  const handleTabContainerLayout = useCallback(
+    (tabKey: string, layout: TabLayout) => {
+      setTabLayouts((previous) => {
+        const existing = previous[tabKey];
 
-      if (
-        existing
-        && existing.x === layout.x
-        && existing.y === layout.y
-        && existing.width === layout.width
-        && existing.height === layout.height
-      ) {
-        return previous;
-      }
+        if (
+          existing &&
+          existing.x === layout.x &&
+          existing.y === layout.y &&
+          existing.width === layout.width &&
+          existing.height === layout.height
+        ) {
+          return previous;
+        }
 
-      return {
-        ...previous,
-        [tabKey]: layout,
-      };
-    });
-  }, []);
+        return {
+          ...previous,
+          [tabKey]: layout,
+        };
+      });
+    },
+    [],
+  );
 
   /** Converts local x/y points into tab indices using latest measured frames. */
-  const getTabIndexAtPoint = useCallback((x: number, y: number): number | null =>
-    findTabIndexAtPoint(tabs, tabLayouts, x, y), [tabLayouts, tabs]);
+  const getTabIndexAtPoint = useCallback(
+    (x: number, y: number): number | null =>
+      findTabIndexAtPoint(tabs, tabLayouts, x, y),
+    [tabLayouts, tabs],
+  );
 
   return {
     tabKeySignature,
