@@ -1,5 +1,8 @@
 import { Animated } from 'react-native';
-import type { NavigationBarTabForegroundTone, NavigationBarTabState } from './NavigationBarTab';
+import type {
+  NavigationBarTabForegroundTone,
+  NavigationBarTabState,
+} from './NavigationBarTab';
 
 export type TabLayout = {
   x: number;
@@ -22,14 +25,18 @@ export const hasHostLayoutChanged = (
   previousLayout: HostLayout | null,
   width: number,
   height: number,
-) => !previousLayout || previousLayout.width !== width || previousLayout.height !== height;
+) =>
+  !previousLayout ||
+  previousLayout.width !== width ||
+  previousLayout.height !== height;
 
 /** Returns true when width delta exceeds the configured remeasure threshold. */
 export const shouldRemeasureWidth = (
   previousWidth: number | null,
   nextWidth: number,
   thresholdPx: number,
-) => previousWidth === null || Math.abs(previousWidth - nextWidth) > thresholdPx;
+) =>
+  previousWidth === null || Math.abs(previousWidth - nextWidth) > thresholdPx;
 
 /** Hit-tests tab layouts and returns the tab index at a local x/y point. */
 export const findTabIndexAtPoint = <TTab extends TabWithKey>(
@@ -69,7 +76,10 @@ export const resolveNavigationTabState = (
   activeIndex: number,
   previewIndex: number | null,
 ): NavigationBarTabState => {
-  if (index === activeIndex && isIndicatorAwayFromActiveTab(activeIndex, previewIndex)) {
+  if (
+    index === activeIndex &&
+    isIndicatorAwayFromActiveTab(activeIndex, previewIndex)
+  ) {
     return 'default';
   }
 
@@ -90,7 +100,10 @@ export const resolveNavigationTabForegroundTone = (
   activeIndex: number,
   previewIndex: number | null,
 ): NavigationBarTabForegroundTone => {
-  if (index === activeIndex && isIndicatorAwayFromActiveTab(activeIndex, previewIndex)) {
+  if (
+    index === activeIndex &&
+    isIndicatorAwayFromActiveTab(activeIndex, previewIndex)
+  ) {
     return 'brand';
   }
 

@@ -4,20 +4,32 @@ import { UploadPreview } from '@/components/upload/UploadPreview';
 
 jest.mock('@/components', () => {
   const ReactLocal = jest.requireActual('react') as typeof import('react');
-  const { Text } = jest.requireActual('react-native') as typeof import('react-native');
+  const { Text } = jest.requireActual(
+    'react-native',
+  ) as typeof import('react-native');
 
   return {
     SpeciesEnvironmentSection: (props: {
-      pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
+      pinnedObservation?: {
+        catalogNumber: string;
+        lat: number;
+        lon: number;
+      } | null;
     }) => {
       return ReactLocal.createElement(
         Text,
         { testID: 'upload-preview-pinned-observation' },
-        props.pinnedObservation ? props.pinnedObservation.catalogNumber : 'none',
+        props.pinnedObservation
+          ? props.pinnedObservation.catalogNumber
+          : 'none',
       );
     },
     SpeciesOccurrenceMap: (props: {
-      onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
+      onPinObservation?: (
+        catalogNumber: string,
+        lat: number,
+        lon: number,
+      ) => void;
     }) => {
       return ReactLocal.createElement(
         Text,
@@ -51,12 +63,16 @@ describe('UploadPreview', () => {
       />,
     );
 
-    expect(screen.getByTestId('upload-preview-pinned-observation').props.children).toBe('none');
+    expect(
+      screen.getByTestId('upload-preview-pinned-observation').props.children,
+    ).toBe('none');
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('upload-preview-pin-trigger'));
     });
 
-    expect(screen.getByTestId('upload-preview-pinned-observation').props.children).toBe('obs_1');
+    expect(
+      screen.getByTestId('upload-preview-pinned-observation').props.children,
+    ).toBe('obs_1');
   });
 });

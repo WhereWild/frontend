@@ -16,7 +16,9 @@ jest.mock('expo-router', () => ({
   usePathname: jest.fn(() => '/'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const originalWindowOpen = window.open;
 
@@ -39,7 +41,9 @@ const createRouterStub = (overrides: Partial<Router> = {}): Router => ({
   ...overrides,
 });
 
-type HoverAwarePressableState = PressableStateCallbackType & { hovered?: boolean };
+type HoverAwarePressableState = PressableStateCallbackType & {
+  hovered?: boolean;
+};
 const createPressableState = (
   state: Partial<HoverAwarePressableState> = {},
 ): HoverAwarePressableState => ({
@@ -87,7 +91,13 @@ describe('SpeciesCard', () => {
 
   it('fires the onPress callback when tapped', () => {
     const handlePress = jest.fn();
-    render(<SpeciesCard {...baseProps} onPress={handlePress} testID="species-card" />);
+    render(
+      <SpeciesCard
+        {...baseProps}
+        onPress={handlePress}
+        testID='species-card'
+      />,
+    );
 
     fireEvent.press(screen.getByTestId('species-card'));
 
@@ -96,15 +106,17 @@ describe('SpeciesCard', () => {
 
   it('fires a custom onPress even when route data is invalid', () => {
     const handlePress = jest.fn();
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     render(
       <SpeciesCard
         {...baseProps}
         taxonId={undefined as unknown as number}
-        scientificName=""
+        scientificName=''
         onPress={handlePress}
-        testID="species-card"
+        testID='species-card'
       />,
     );
 
@@ -119,17 +131,26 @@ describe('SpeciesCard', () => {
   it('maps hover and pressed states to the secondary palette by default', () => {
     const palette = Colors.light;
     expect(
-      __SPECIES_CARD_TESTING__.resolveSpeciesCardBackground(palette, createPressableState({
-        pressed: true,
-      })),
+      __SPECIES_CARD_TESTING__.resolveSpeciesCardBackground(
+        palette,
+        createPressableState({
+          pressed: true,
+        }),
+      ),
     ).toBe(palette.background.default.secondaryPressed);
     expect(
-      __SPECIES_CARD_TESTING__.resolveSpeciesCardBackground(palette, createPressableState({
-        hovered: true,
-      })),
+      __SPECIES_CARD_TESTING__.resolveSpeciesCardBackground(
+        palette,
+        createPressableState({
+          hovered: true,
+        }),
+      ),
     ).toBe(palette.background.default.secondaryHover);
     expect(
-      __SPECIES_CARD_TESTING__.resolveSpeciesCardBackground(palette, createPressableState({})),
+      __SPECIES_CARD_TESTING__.resolveSpeciesCardBackground(
+        palette,
+        createPressableState({}),
+      ),
     ).toBe(palette.background.default.secondary);
   });
 
@@ -171,7 +192,7 @@ describe('SpeciesCard', () => {
   });
 
   it('navigates using the provided identifiers when pressed', () => {
-    render(<SpeciesCard {...baseProps} testID="species-card" />);
+    render(<SpeciesCard {...baseProps} testID='species-card' />);
 
     fireEvent.press(screen.getByTestId('species-card'));
 
@@ -185,8 +206,8 @@ describe('SpeciesCard', () => {
     render(
       <SpeciesCard
         {...baseProps}
-        scientificName="  Strix nebulosa  "
-        testID="species-card"
+        scientificName='  Strix nebulosa  '
+        testID='species-card'
       />,
     );
 
@@ -201,9 +222,11 @@ describe('SpeciesCard', () => {
   it('opens species details in a new tab on ctrl/cmd click', () => {
     const openMock = jest.fn(() => null);
     window.open = openMock;
-    render(<SpeciesCard {...baseProps} testID="species-card" />);
+    render(<SpeciesCard {...baseProps} testID='species-card' />);
 
-    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { ctrlKey: true } });
+    fireEvent(screen.getByTestId('species-card'), 'press', {
+      nativeEvent: { ctrlKey: true },
+    });
 
     expect(openMock).toHaveBeenCalledWith(
       '/species/555/binomial-nomenclature',
@@ -217,9 +240,17 @@ describe('SpeciesCard', () => {
     const handlePress = jest.fn();
     const openMock = jest.fn(() => null);
     window.open = openMock;
-    render(<SpeciesCard {...baseProps} onPress={handlePress} testID="species-card" />);
+    render(
+      <SpeciesCard
+        {...baseProps}
+        onPress={handlePress}
+        testID='species-card'
+      />,
+    );
 
-    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { metaKey: true } });
+    fireEvent(screen.getByTestId('species-card'), 'press', {
+      nativeEvent: { metaKey: true },
+    });
 
     expect(openMock).toHaveBeenCalledWith(
       '/species/555/binomial-nomenclature',
@@ -232,9 +263,11 @@ describe('SpeciesCard', () => {
   it('opens species details in a new window on shift click', () => {
     const openMock = jest.fn(() => null);
     window.open = openMock;
-    render(<SpeciesCard {...baseProps} testID="species-card" />);
+    render(<SpeciesCard {...baseProps} testID='species-card' />);
 
-    fireEvent(screen.getByTestId('species-card'), 'press', { nativeEvent: { shiftKey: true } });
+    fireEvent(screen.getByTestId('species-card'), 'press', {
+      nativeEvent: { shiftKey: true },
+    });
 
     expect(openMock).toHaveBeenCalledWith(
       '/species/555/binomial-nomenclature',
@@ -244,14 +277,16 @@ describe('SpeciesCard', () => {
   });
 
   it('does nothing when no identifier is available', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
     render(
       <SpeciesCard
         {...baseProps}
         taxonId={undefined as unknown as number}
-        commonName=""
-        scientificName=""
-        testID="species-card"
+        commonName=''
+        scientificName=''
+        testID='species-card'
       />,
     );
 
@@ -262,36 +297,40 @@ describe('SpeciesCard', () => {
     });
 
     expect(pushMock).not.toHaveBeenCalled();
-    expect(consoleErrorSpy).toHaveBeenCalledWith('SpeciesCard requires a taxonId to navigate');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'SpeciesCard requires a taxonId to navigate',
+    );
     consoleErrorSpy.mockRestore();
   });
 
   it('logs when the provided scientific name is missing', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     render(
-      <SpeciesCard
-        {...baseProps}
-        scientificName=""
-        testID="species-card"
-      />,
+      <SpeciesCard {...baseProps} scientificName='' testID='species-card' />,
     );
 
     fireEvent.press(screen.getByTestId('species-card'));
 
     expect(pushMock).not.toHaveBeenCalled();
-    expect(consoleErrorSpy).toHaveBeenCalledWith('SpeciesCard requires a scientific name to navigate');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'SpeciesCard requires a scientific name to navigate',
+    );
     consoleErrorSpy.mockRestore();
   });
 
   it('logs when the scientific name cannot be converted to a slug', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     render(
       <SpeciesCard
         {...baseProps}
         scientificName={'!!!'}
-        testID="species-card"
+        testID='species-card'
       />,
     );
 
@@ -306,7 +345,13 @@ describe('SpeciesCard', () => {
 
   it('does not navigate after calling a custom onPress', () => {
     const handlePress = jest.fn();
-    render(<SpeciesCard {...baseProps} onPress={handlePress} testID="species-card" />);
+    render(
+      <SpeciesCard
+        {...baseProps}
+        onPress={handlePress}
+        testID='species-card'
+      />,
+    );
 
     fireEvent.press(screen.getByTestId('species-card'));
 
@@ -315,24 +360,12 @@ describe('SpeciesCard', () => {
   });
 
   it('does not display a description when compact, and displays it by default', () => {
-    render(
-      <SpeciesCard
-        {...baseProps}
-        size='compact'
-        testID="species-card"
-      />,
-    );
+    render(<SpeciesCard {...baseProps} size='compact' testID='species-card' />);
 
     expect(screen.queryByTestId('species-card-description')).toBeNull();
 
-    render(
-      <SpeciesCard
-        {...baseProps}
-        testID="species-card"
-      />,
-    );
+    render(<SpeciesCard {...baseProps} testID='species-card' />);
 
     expect(screen.getByTestId('species-card-description')).toBeTruthy();
   });
-
 });

@@ -12,13 +12,20 @@ import {
 } from 'react-native';
 import { IconMinus, IconPlus } from '@/assets/icons';
 import { IconButton } from '@/components/buttons/IconButton';
-import { Colors, Size, Time, Typography, getReactNativeEasing } from '@/constants/theme';
+import {
+  Colors,
+  Size,
+  Time,
+  Typography,
+  getReactNativeEasing,
+} from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
 
 type NumberSpinnerValueChangeContext = 'increment' | 'decrement' | 'input';
 
-const USE_NATIVE_DRIVER = Platform.OS !== 'web' && !!NativeModules.NativeAnimatedModule;
+const USE_NATIVE_DRIVER =
+  Platform.OS !== 'web' && !!NativeModules.NativeAnimatedModule;
 const HOLD_REPEAT_INTERVAL_MS = 100;
 const HOLD_REPEAT_DELAY_MS = 250;
 
@@ -35,7 +42,10 @@ export type NumberSpinnerProps = {
   accessibilityLabel?: string;
   decrementAccessibilityLabel?: string;
   incrementAccessibilityLabel?: string;
-  onValueChange?: (value: number, context: NumberSpinnerValueChangeContext) => void;
+  onValueChange?: (
+    value: number,
+    context: NumberSpinnerValueChangeContext,
+  ) => void;
 };
 
 const clampValue = (value: number, min?: number, max?: number) => {
@@ -90,8 +100,12 @@ export function NumberSpinner({
   onValueChange,
 }: NumberSpinnerProps) {
   const inputRef = useRef<TextInput>(null);
-  const [internalValue, setInternalValue] = useState(clampValue(defaultValue, min, max));
-  const [draftValue, setDraftValue] = useState(String(clampValue(defaultValue, min, max)));
+  const [internalValue, setInternalValue] = useState(
+    clampValue(defaultValue, min, max),
+  );
+  const [draftValue, setDraftValue] = useState(
+    String(clampValue(defaultValue, min, max)),
+  );
   const [isFocused, setIsFocused] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -103,7 +117,11 @@ export function NumberSpinner({
   const suppressTapDecrementRef = useRef(false);
   const hoverOverlayOpacity = hoverOverlayOpacityRef.current;
   const isControlled = typeof value === 'number';
-  const currentValue = clampValue(isControlled ? value : internalValue, min, max);
+  const currentValue = clampValue(
+    isControlled ? value : internalValue,
+    min,
+    max,
+  );
   currentValueRef.current = currentValue;
 
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -115,17 +133,24 @@ export function NumberSpinner({
   const decrementDisabled = disabled || isAtMin;
   const incrementDisabled = disabled || isAtMax;
 
-  const labelColor = disabled ? palette.text.disabled.default : palette.text.default.default;
-  const descriptionColor = disabled ? palette.text.disabled.default : palette.text.default.secondary;
+  const labelColor = disabled
+    ? palette.text.disabled.default
+    : palette.text.default.default;
+  const descriptionColor = disabled
+    ? palette.text.disabled.default
+    : palette.text.default.secondary;
   const pillBackground = disabled
     ? palette.background.disabled.default
     : isPressing
       ? palette.background.default.secondaryPressed
       : palette.background.default.secondary;
-  const webOutlineStyle = Platform.OS === 'web'
-    ? ({ outlineStyle: isFocused ? 'auto' : 'none' } as unknown as ViewStyle)
-    : null;
-  const valueColor = disabled ? palette.text.disabled.onDisabled : palette.text.default.default;
+  const webOutlineStyle =
+    Platform.OS === 'web'
+      ? ({ outlineStyle: isFocused ? 'auto' : 'none' } as unknown as ViewStyle)
+      : null;
+  const valueColor = disabled
+    ? palette.text.disabled.onDisabled
+    : palette.text.default.default;
 
   useEffect(() => {
     if (!disabled) {
@@ -172,7 +197,10 @@ export function NumberSpinner({
     ? palette.icon.disabled.onDisabled
     : palette.icon.default.default;
 
-  const commitValue = (nextValue: number, context: NumberSpinnerValueChangeContext) => {
+  const commitValue = (
+    nextValue: number,
+    context: NumberSpinnerValueChangeContext,
+  ) => {
     const clamped = clampValue(nextValue, min, max);
     const current = currentValueRef.current;
 
@@ -201,23 +229,27 @@ export function NumberSpinner({
     stopHold();
 
     const current = currentValueRef.current;
-    const firstValue = direction === 'increment'
-      ? current + step
-      : current - step;
+    const firstValue =
+      direction === 'increment' ? current + step : current - step;
     commitValue(firstValue, direction);
 
     holdIntervalRef.current = setInterval(() => {
       const nextCurrent = currentValueRef.current;
 
-      if ((direction === 'increment' && typeof max === 'number' && nextCurrent >= max)
-        || (direction === 'decrement' && typeof min === 'number' && nextCurrent <= min)) {
+      if (
+        (direction === 'increment' &&
+          typeof max === 'number' &&
+          nextCurrent >= max) ||
+        (direction === 'decrement' &&
+          typeof min === 'number' &&
+          nextCurrent <= min)
+      ) {
         stopHold();
         return;
       }
 
-      const nextValue = direction === 'increment'
-        ? nextCurrent + step
-        : nextCurrent - step;
+      const nextValue =
+        direction === 'increment' ? nextCurrent + step : nextCurrent - step;
       commitValue(nextValue, direction);
     }, HOLD_REPEAT_INTERVAL_MS);
   };
@@ -264,13 +296,13 @@ export function NumberSpinner({
   return (
     <View style={[styles.container, style]}>
       {label ? (
-        <ThemedText variant="body" style={{ color: labelColor }}>
+        <ThemedText variant='body' style={{ color: labelColor }}>
           {label}
         </ThemedText>
       ) : null}
 
       {description ? (
-        <ThemedText variant="body" style={{ color: descriptionColor }}>
+        <ThemedText variant='body' style={{ color: descriptionColor }}>
           {description}
         </ThemedText>
       ) : null}
@@ -298,7 +330,7 @@ export function NumberSpinner({
         accessible={false}
         focusable={false}
         {...(Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : {})}
-        accessibilityRole="adjustable"
+        accessibilityRole='adjustable'
         accessibilityLabel={accessibilityLabel ?? label ?? 'Number spinner'}
         accessibilityValue={{
           now: currentValue,
@@ -307,7 +339,7 @@ export function NumberSpinner({
         }}
       >
         <Animated.View
-          pointerEvents="none"
+          pointerEvents='none'
           style={[
             styles.hoverOverlay,
             {
@@ -319,9 +351,9 @@ export function NumberSpinner({
 
         <View style={styles.contentRow}>
           <IconButton
-            variant="subtle"
-            size="small"
-            icon={<IconMinus size="16" color={decrementColor} />}
+            variant='subtle'
+            size='small'
+            icon={<IconMinus size='16' color={decrementColor} />}
             accessibilityLabel={decrementAccessibilityLabel}
             disabled={decrementDisabled}
             onLongPress={() => {
@@ -345,9 +377,13 @@ export function NumberSpinner({
             value={draftValue}
             editable={!disabled}
             focusable={!disabled}
-            {...(Platform.OS === 'web' ? ({ tabIndex: disabled ? -1 : 0 } as any) : {})}
-            inputMode="numeric"
-            keyboardType={allowNegativeInput ? 'numbers-and-punctuation' : 'number-pad'}
+            {...(Platform.OS === 'web'
+              ? ({ tabIndex: disabled ? -1 : 0 } as any)
+              : {})}
+            inputMode='numeric'
+            keyboardType={
+              allowNegativeInput ? 'numbers-and-punctuation' : 'number-pad'
+            }
             selectTextOnFocus
             onChangeText={normalizeAndCommitInput}
             onFocus={() => {
@@ -367,13 +403,13 @@ export function NumberSpinner({
                 color: valueColor,
               },
             ]}
-            accessibilityLabel="Spinner value"
+            accessibilityLabel='Spinner value'
           />
 
           <IconButton
-            variant="subtle"
-            size="small"
-            icon={<IconPlus size="16" color={incrementColor} />}
+            variant='subtle'
+            size='small'
+            icon={<IconPlus size='16' color={incrementColor} />}
             accessibilityLabel={incrementAccessibilityLabel}
             disabled={incrementDisabled}
             onLongPress={() => {
@@ -431,6 +467,8 @@ const styles = StyleSheet.create({
     padding: 0,
     textAlign: 'center',
     textAlignVertical: 'center',
-    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0 } as any) : {}),
+    ...(Platform.OS === 'web'
+      ? ({ outlineStyle: 'none', outlineWidth: 0 } as any)
+      : {}),
   },
 });

@@ -2,17 +2,27 @@ import React, { forwardRef } from 'react';
 import { Pressable, View, type PressableProps } from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { __TAB_TESTING__, TabContent, type TabProps, getTabState, styles } from './Tab.shared';
+import {
+  __TAB_TESTING__,
+  TabContent,
+  type TabProps,
+  getTabState,
+  styles,
+} from './Tab.shared';
 
 type PressableRef = React.ElementRef<typeof Pressable>;
 type PressableWithKeyDownProps = PressableProps & {
-  onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
+  onKeyDown?: (event: {
+    nativeEvent?: { key?: string };
+    preventDefault?: () => void;
+  }) => void;
   tabIndex?: 0 | -1;
 };
 
-const PressableWithKeyDown = Pressable as unknown as React.ForwardRefExoticComponent<
-  PressableWithKeyDownProps & React.RefAttributes<View>
->;
+const PressableWithKeyDown =
+  Pressable as unknown as React.ForwardRefExoticComponent<
+    PressableWithKeyDownProps & React.RefAttributes<View>
+  >;
 
 export const Tab = forwardRef<PressableRef, TabProps>(function Tab(
   {
@@ -38,7 +48,7 @@ export const Tab = forwardRef<PressableRef, TabProps>(function Tab(
   return (
     <PressableWithKeyDown
       ref={ref}
-      accessibilityRole="tab"
+      accessibilityRole='tab'
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: isActive }}
       onKeyDown={onKeyDown}

@@ -39,17 +39,17 @@ export function WebPageHeaderMobileMenu({
     <>
       <View ref={menuButtonRef} collapsable={false}>
         <IconButton
-          variant="primary"
+          variant='primary'
           icon={<IconMenu />}
           onPress={onToggleMenu}
-          accessibilityLabel="Open menu"
+          accessibilityLabel='Open menu'
         />
       </View>
 
       {isMenuOpen ? (
         <Portal visible={isMenuOpen} onDismiss={onCloseMenu}>
           <Pressable
-            testID="page-header-menu-backdrop"
+            testID='page-header-menu-backdrop'
             style={styles.menuBackdrop}
             onPress={onCloseMenu}
           />
@@ -61,26 +61,38 @@ export function WebPageHeaderMobileMenu({
                 borderColor,
               },
               menuAnchor
-                ? { top: menuAnchor.top + Size.space['600'], right: menuAnchor.right }
+                ? {
+                    top: menuAnchor.top + Size.space['600'],
+                    right: menuAnchor.right,
+                  }
                 : {
-                  top: insetsTop + Size.space['1600'] + Size.space['300'],
-                  right: Size.space['200'],
-                },
+                    top: insetsTop + Size.space['1600'] + Size.space['300'],
+                    right: Size.space['200'],
+                  },
               Shadows.dropShadow400.style,
             ]}
           >
-            {actions.map(({ label, icon, onPress, href, hrefPath, variant = 'subtle' }) => (
-              <Button
-                key={label}
-                variant={variant}
-                onPress={onPress}
-                href={href}
-                hrefPath={hrefPath}
-                iconStart={icon}
-                label={label}
-                style={styles.mobileMenuButton}
-              />
-            ))}
+            {actions.map(
+              ({
+                label,
+                icon,
+                onPress,
+                href,
+                hrefPath,
+                variant = 'subtle',
+              }) => (
+                <Button
+                  key={label}
+                  variant={variant}
+                  onPress={onPress}
+                  href={href}
+                  hrefPath={hrefPath}
+                  iconStart={icon}
+                  label={label}
+                  style={styles.mobileMenuButton}
+                />
+              ),
+            )}
           </View>
         </Portal>
       ) : null}

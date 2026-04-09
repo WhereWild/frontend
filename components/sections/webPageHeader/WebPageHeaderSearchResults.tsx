@@ -39,7 +39,7 @@ export function WebPageHeaderSearchResults({
       style={style}
       onSelectResult={onSelectResult}
       activeResultIndex={activeResultIndex}
-      testID="header-search-results"
+      testID='header-search-results'
     />
   );
 }

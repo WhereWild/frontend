@@ -5,7 +5,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { formatCategoryPercent, formatValue, type PinnedCategoryBadge } from './model';
+import {
+  formatCategoryPercent,
+  formatValue,
+  type PinnedCategoryBadge,
+} from './model';
 
 const CATEGORY_DISPLAY_LIMIT = 8;
 const CATEGORY_COLORS = [
@@ -43,9 +47,13 @@ type StackedCategoryBarProps = {
 };
 
 /** Builds human-readable description text for the selected category. */
-const getSelectedCategoryDescription = (category: SpeciesEnvironmentCategory) => {
+const getSelectedCategoryDescription = (
+  category: SpeciesEnvironmentCategory,
+) => {
   const accountPhrase =
-    String(category.value) === '__other__' ? 'Together these account' : 'This accounts';
+    String(category.value) === '__other__'
+      ? 'Together these account'
+      : 'This accounts';
   const summarySentence = `${accountPhrase} for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
   if (!category.description) {
     return summarySentence;
@@ -69,9 +77,11 @@ export function StackedCategoryBar({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const validCategories = React.useMemo(
-    () => categories.filter(
-      (category) => Number.isFinite(category.fraction) && category.fraction >= 0,
-    ),
+    () =>
+      categories.filter(
+        (category) =>
+          Number.isFinite(category.fraction) && category.fraction >= 0,
+      ),
     [categories],
   );
   const displayCategories = React.useMemo(() => {
@@ -81,33 +91,45 @@ export function StackedCategoryBar({
     const otherCategory: SpeciesEnvironmentCategory | null =
       otherCategories.length > 0
         ? {
-          value: '__other__',
-          className: 'Other',
-          fraction: otherCategories.reduce((sum, cat) => sum + cat.fraction, 0),
-          count: otherCategories.reduce(
-            (sum, cat) =>
-              sum + (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
-            0,
-          ),
-          description: otherCategories
-            .map((cat, index) => {
-              if (index === 0) return cat.className;
-              return cat.className.charAt(0).toLowerCase() + cat.className.slice(1);
-            })
-            .join(', '),
-        }
+            value: '__other__',
+            className: 'Other',
+            fraction: otherCategories.reduce(
+              (sum, cat) => sum + cat.fraction,
+              0,
+            ),
+            count: otherCategories.reduce(
+              (sum, cat) =>
+                sum +
+                (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
+              0,
+            ),
+            description: otherCategories
+              .map((cat, index) => {
+                if (index === 0) return cat.className;
+                return (
+                  cat.className.charAt(0).toLowerCase() + cat.className.slice(1)
+                );
+              })
+              .join(', '),
+          }
         : null;
 
     return otherCategory ? [...topCategories, otherCategory] : topCategories;
   }, [validCategories]);
   const selectedCategory = React.useMemo(
-    () => selectedValue !== null
-      ? displayCategories.find((cat) => String(cat.value) === String(selectedValue)) ?? null
-      : null,
+    () =>
+      selectedValue !== null
+        ? (displayCategories.find(
+            (cat) => String(cat.value) === String(selectedValue),
+          ) ?? null)
+        : null,
     [displayCategories, selectedValue],
   );
   const hasOtherCategory = React.useMemo(
-    () => displayCategories.some((category) => String(category.value) === '__other__'),
+    () =>
+      displayCategories.some(
+        (category) => String(category.value) === '__other__',
+      ),
     [displayCategories],
   );
   const topCategories = React.useMemo(
@@ -121,10 +143,14 @@ export function StackedCategoryBar({
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
     if (pinnedValue !== null && pinnedValue !== undefined) {
       const pinnedKey = String(pinnedValue);
-      if (topCategories.some((category) => String(category.value) === pinnedKey)) {
+      if (
+        topCategories.some((category) => String(category.value) === pinnedKey)
+      ) {
         return { resolvedPinnedKey: pinnedKey, pinnedOtherLabel: null };
       }
-      const otherMatch = otherCategories.find((category) => String(category.value) === pinnedKey);
+      const otherMatch = otherCategories.find(
+        (category) => String(category.value) === pinnedKey,
+      );
       if (hasOtherCategory && otherMatch) {
         return {
           resolvedPinnedKey: '__other__',
@@ -165,7 +191,8 @@ export function StackedCategoryBar({
   ]);
   const pills = React.useMemo(() => {
     const basePills = displayCategories.map((category, index) => {
-      const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const baseColor =
+        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
       const isOtherCategory = String(category.value) === '__other__';
       return {
         key: String(category.value),
@@ -201,21 +228,31 @@ export function StackedCategoryBar({
         label: `Other (${pinnedOtherLabel})`,
       },
     ];
-  }, [displayCategories, hasOtherCategory, pinnedOtherLabel, resolvedPinnedKey]);
-  const handlePillSelectionChange = React.useCallback((key: string) => {
-    if (key === '__other__' && !hasOtherCategory) {
-      return;
-    }
-    const value = displayCategories.find((cat) => String(cat.value) === key)?.value;
-    if (value !== undefined) {
-      onSelect?.(value);
-    }
-  }, [displayCategories, hasOtherCategory, onSelect]);
+  }, [
+    displayCategories,
+    hasOtherCategory,
+    pinnedOtherLabel,
+    resolvedPinnedKey,
+  ]);
+  const handlePillSelectionChange = React.useCallback(
+    (key: string) => {
+      if (key === '__other__' && !hasOtherCategory) {
+        return;
+      }
+      const value = displayCategories.find(
+        (cat) => String(cat.value) === key,
+      )?.value;
+      if (value !== undefined) {
+        onSelect?.(value);
+      }
+    },
+    [displayCategories, hasOtherCategory, onSelect],
+  );
 
   if (!validCategories.length) {
     return (
       <View style={styles.emptyChart}>
-        <ThemedText variant="bodySmall">Categories unavailable.</ThemedText>
+        <ThemedText variant='bodySmall'>Categories unavailable.</ThemedText>
       </View>
     );
   }
@@ -238,7 +275,8 @@ export function StackedCategoryBar({
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
           const backgroundColor = category.color ?? categoryColor;
-          const isHighlighted = effectiveHighlightedValue !== null &&
+          const isHighlighted =
+            effectiveHighlightedValue !== null &&
             String(category.value) === String(effectiveHighlightedValue);
 
           return (
@@ -253,7 +291,9 @@ export function StackedCategoryBar({
                   width: `${percent}%`,
                   backgroundColor,
                   borderWidth: 3,
-                  borderColor: isHighlighted ? highlightOutlineColor : 'transparent',
+                  borderColor: isHighlighted
+                    ? highlightOutlineColor
+                    : 'transparent',
                   borderStyle: isHighlighted ? 'dashed' : 'solid',
                 },
               ]}
@@ -271,8 +311,8 @@ export function StackedCategoryBar({
             : undefined
         }
         onSelectionChange={handlePillSelectionChange}
-        direction="horizontal"
-        accessibilityLabel="Category selection"
+        direction='horizontal'
+        accessibilityLabel='Category selection'
         highlightOutlineColor={highlightOutlineColor}
       />
 
@@ -288,7 +328,7 @@ export function StackedCategoryBar({
             ]}
           >
             <ThemedText
-              variant="bodySmall"
+              variant='bodySmall'
               style={{ color: palette.text.warning.default }}
             >
               Species has never been observed in this environment
@@ -296,11 +336,8 @@ export function StackedCategoryBar({
           </View>
         ) : (
           <ThemedText
-            variant="bodySmall"
-            style={[
-              styles.categoryDescription,
-              { color: descriptionColor },
-            ]}
+            variant='bodySmall'
+            style={[styles.categoryDescription, { color: descriptionColor }]}
           >
             {descriptionDisplayText}
           </ThemedText>

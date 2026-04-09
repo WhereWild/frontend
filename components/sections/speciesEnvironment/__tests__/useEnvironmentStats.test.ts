@@ -14,7 +14,7 @@ type Deferred<T> = {
   reject: (reason?: unknown) => void;
 };
 
-const createDeferred = <T,>(): Deferred<T> => {
+const createDeferred = <T>(): Deferred<T> => {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
@@ -74,7 +74,9 @@ describe('useEnvironmentStats', () => {
       }),
     );
 
-    await waitFor(() => expect(mockFetchSpeciesEnvironment).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironment).toHaveBeenCalledTimes(1),
+    );
 
     unmount();
 

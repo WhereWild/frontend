@@ -23,7 +23,14 @@ type SummaryItemProps = {
 };
 
 /** Displays one summary metric with optional rank/comparison metadata. */
-export function SummaryItem({ label, value, rank, comparison, isLast, stacked }: SummaryItemProps) {
+export function SummaryItem({
+  label,
+  value,
+  rank,
+  comparison,
+  isLast,
+  stacked,
+}: SummaryItemProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -38,8 +45,10 @@ export function SummaryItem({ label, value, rank, comparison, isLast, stacked }:
       ? `(${formatPercent(rank.percentile)} percentile)`
       : ' ';
   const secondaryText = comparison ?? rankText;
-  const secondaryDisplayText = secondaryText.trim().length > 0 ? secondaryText : ' ';
-  const percentileDisplayText = percentileText.trim().length > 0 && !comparison ? percentileText : ' ';
+  const secondaryDisplayText =
+    secondaryText.trim().length > 0 ? secondaryText : ' ';
+  const percentileDisplayText =
+    percentileText.trim().length > 0 && !comparison ? percentileText : ' ';
 
   return (
     <View
@@ -51,13 +60,18 @@ export function SummaryItem({ label, value, rank, comparison, isLast, stacked }:
         isLast && !stacked && styles.summaryItemLast,
       ]}
     >
-      <ThemedText variant="body">{label}: {value}</ThemedText>
+      <ThemedText variant='body'>
+        {label}: {value}
+      </ThemedText>
       <View collapsable={false} style={styles.detailSlot}>
         <ThemedText
-          variant="body"
+          variant='body'
           style={[
             styles.detailLine,
-            { color: palette.text.default.secondary, textAlign: stacked ? 'left' : 'center' },
+            {
+              color: palette.text.default.secondary,
+              textAlign: stacked ? 'left' : 'center',
+            },
           ]}
         >
           {secondaryDisplayText}
@@ -65,10 +79,13 @@ export function SummaryItem({ label, value, rank, comparison, isLast, stacked }:
       </View>
       <View collapsable={false} style={styles.detailSlot}>
         <ThemedText
-          variant="bodySmall"
+          variant='bodySmall'
           style={[
             styles.detailLine,
-            { color: palette.text.default.tertiary, textAlign: stacked ? 'left' : 'center' },
+            {
+              color: palette.text.default.tertiary,
+              textAlign: stacked ? 'left' : 'center',
+            },
           ]}
         >
           {percentileDisplayText}

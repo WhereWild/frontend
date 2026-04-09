@@ -2,11 +2,21 @@ import { SpeciesCard, ThemedText, Filters } from '@/components';
 import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { getResponsiveContentContainerStyle, getResponsiveGapStyle } from '@/constants/responsiveStyles';
+import {
+  getResponsiveContentContainerStyle,
+  getResponsiveGapStyle,
+} from '@/constants/responsiveStyles';
 import { useSearchFilters } from '@/hooks/useSearchFilters';
 import { useWebPageHeaderSearch } from '@/components/sections/webPageHeader/useWebPageHeaderSearch';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import type { SpeciesSummary } from '@/data/types';
 import { useWebPageHeaderConfig } from '@/context/WebPageHeaderContext';
@@ -24,8 +34,10 @@ export default function Search() {
   const responsive = useResponsive();
   const isSmallDisplay = responsive.breakpoint === 'phone';
   const { setConfig, resetConfig } = useWebPageHeaderConfig();
-  const { setConfig: setNativeTopAppBarConfig, resetConfig: resetNativeTopAppBarConfig } =
-    useNativeTopAppBarConfig();
+  const {
+    setConfig: setNativeTopAppBarConfig,
+    resetConfig: resetNativeTopAppBarConfig,
+  } = useNativeTopAppBarConfig();
   const [searchResults, setSearchResults] = useState<SpeciesSummary[]>([]);
   const initialQuery = useLocalSearchParams<{ query?: string }>().query;
   const [searching, setSearching] = useState(false);
@@ -42,7 +54,8 @@ export default function Search() {
   const isBaseTaxonSelected = ancestorTaxonId != null;
   const canFitColumnsSideBySide =
     layoutWidth > 0 &&
-    layoutWidth >= (FILTERS_COLUMN_MIN_WIDTH + RESULTS_COLUMN_MIN_WIDTH + responsive.gap);
+    layoutWidth >=
+      FILTERS_COLUMN_MIN_WIDTH + RESULTS_COLUMN_MIN_WIDTH + responsive.gap;
   const shouldExpandFilters = layoutWidth > 0 && !canFitColumnsSideBySide;
 
   /** Receives search rows from the shared header search controller. */
@@ -63,7 +76,8 @@ export default function Search() {
   /** Toggles filter panel visibility from the global header filter action. */
   const onFilterPress = useCallback(() => {
     setFilterVisible((visible) => {
-      filterShouldStackRef.current = shouldExpandFilters || (layoutWidth === 0 && isSmallDisplay);
+      filterShouldStackRef.current =
+        shouldExpandFilters || (layoutWidth === 0 && isSmallDisplay);
 
       return !visible;
     });
@@ -71,7 +85,8 @@ export default function Search() {
 
   const nativeSearch = useWebPageHeaderSearch({
     enabled: isNative,
-    initialQuery: isNative && typeof initialQuery === 'string' ? initialQuery : undefined,
+    initialQuery:
+      isNative && typeof initialQuery === 'string' ? initialQuery : undefined,
     filterParams: isNative ? filters.filterParams : undefined,
     onSearchResultsChanged: isNative ? onSearchResultsChanged : undefined,
     onSearchingChanged: isNative ? onSearchingChanged : undefined,
@@ -123,7 +138,9 @@ export default function Search() {
         onPress: onFilterPress,
         buttonLabel: filterVisible ? 'Hide Filter' : 'Filter',
         buttonAccessibilityLabel: filterVisible ? 'Hide Filter' : 'Filter',
-        iconAccessibilityLabel: filterVisible ? 'Hide filter panel' : 'Show filter panel',
+        iconAccessibilityLabel: filterVisible
+          ? 'Hide filter panel'
+          : 'Show filter panel',
       },
       secondaryAction: {
         isVisible: filters.hasActiveFilters,
@@ -237,7 +254,7 @@ export default function Search() {
       marginTop: responsive.gap,
       marginBottom: responsive.gap,
       paddingHorizontal: responsive.marginHorizontal,
-      maxWidth: responsive.contentWidth + (responsive.marginHorizontal * 2),
+      maxWidth: responsive.contentWidth + responsive.marginHorizontal * 2,
     },
   ];
 
@@ -265,13 +282,15 @@ export default function Search() {
     <View style={styles.main}>
       <View style={styles.resultsTextBlock}>
         <View style={styles.resultsHeader}>
-          <ThemedText variant="heading">Results</ThemedText>
+          <ThemedText variant='heading'>Results</ThemedText>
         </View>
         {searchContext ? (
-          <ThemedText variant="body">{searchContext}</ThemedText>
+          <ThemedText variant='body'>{searchContext}</ThemedText>
         ) : null}
         {searchResults.length === 0 && !searching && (
-          <ThemedText variant="body">Enter a search term to see results.</ThemedText>
+          <ThemedText variant='body'>
+            Enter a search term to see results.
+          </ThemedText>
         )}
       </View>
       <View style={styles.results}>
@@ -286,7 +305,7 @@ export default function Search() {
         >
           <View style={styles.resultsLoadingRow}>
             <ActivityIndicator color={palette.icon.brand.default} />
-            <ThemedText variant="subheading">Loading...</ThemedText>
+            <ThemedText variant='subheading'>Loading...</ThemedText>
           </View>
         </View>
         {searchResults.map((item) => (
@@ -307,14 +326,19 @@ export default function Search() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.background.default.default }]}>
+    <View
+      style={[
+        styles.screen,
+        { backgroundColor: palette.background.default.default },
+      ]}
+    >
       <ScrollView
         contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
           includeHorizontalPadding: false,
           includeTopPadding: false,
         })}
         bounces={true}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps='handled'
       >
         <View style={contentStyle}>
           <View

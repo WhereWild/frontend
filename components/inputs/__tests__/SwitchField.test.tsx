@@ -24,7 +24,10 @@ const flattenStyles = (styles: unknown): unknown[] => {
   return styles == null ? [] : [styles];
 };
 
-const getStyleProperty = (styles: unknown, propertyName: string): string | number | undefined => {
+const getStyleProperty = (
+  styles: unknown,
+  propertyName: string,
+): string | number | undefined => {
   const flattenedStyles = flattenStyles(styles);
 
   for (let index = flattenedStyles.length - 1; index >= 0; index -= 1) {
@@ -36,13 +39,19 @@ const getStyleProperty = (styles: unknown, propertyName: string): string | numbe
       }
 
       if (
-        typeof value === 'object'
-        && value !== null
-        && '__getValue' in value
-        && typeof (value as { __getValue: () => unknown }).__getValue === 'function'
+        typeof value === 'object' &&
+        value !== null &&
+        '__getValue' in value &&
+        typeof (value as { __getValue: () => unknown }).__getValue ===
+          'function'
       ) {
-        const resolvedValue = (value as { __getValue: () => unknown }).__getValue();
-        if (typeof resolvedValue === 'string' || typeof resolvedValue === 'number') {
+        const resolvedValue = (
+          value as { __getValue: () => unknown }
+        ).__getValue();
+        if (
+          typeof resolvedValue === 'string' ||
+          typeof resolvedValue === 'number'
+        ) {
           return resolvedValue;
         }
       }
@@ -51,11 +60,21 @@ const getStyleProperty = (styles: unknown, propertyName: string): string | numbe
   return undefined;
 };
 
-const expectStyleColor = (styles: unknown, propertyName: string, expectedColor: string) => {
-  expect(processColor(getStyleProperty(styles, propertyName) as string)).toBe(processColor(expectedColor));
+const expectStyleColor = (
+  styles: unknown,
+  propertyName: string,
+  expectedColor: string,
+) => {
+  expect(processColor(getStyleProperty(styles, propertyName) as string)).toBe(
+    processColor(expectedColor),
+  );
 };
 
-const expectStyleNumber = (styles: unknown, propertyName: string, expectedValue: number) => {
+const expectStyleNumber = (
+  styles: unknown,
+  propertyName: string,
+  expectedValue: number,
+) => {
   expect(getStyleProperty(styles, propertyName)).toBe(expectedValue);
 };
 
@@ -70,8 +89,8 @@ const getTimingSpyState = () => {
   };
 };
 
-const createGestureResponderEvent = (): GestureResponderEvent => ({
-} as GestureResponderEvent);
+const createGestureResponderEvent = (): GestureResponderEvent =>
+  ({}) as GestureResponderEvent;
 
 const createGestureState = (dx: number, dy = 0): PanResponderGestureState => ({
   _accountsForMovesUpTo: 0,
@@ -93,21 +112,26 @@ describe('SwitchField', () => {
     lastTimingToValue = null;
     timingSpy = null;
     (useColorScheme as jest.Mock).mockReturnValue('dark');
-    jest.spyOn(PanResponder, 'create').mockImplementation((
-      config: Parameters<typeof PanResponder.create>[0],
-    ) => ({
-      panHandlers: ((panResponderConfig = config), {}) as ReturnType<typeof PanResponder.create>['panHandlers'],
-    }) as ReturnType<typeof PanResponder.create>);
-    timingSpy = jest.spyOn(Animated, 'timing').mockImplementation((value, config) => {
-      return {
-        start: (callback?: (result: { finished: boolean }) => void) => {
-          const targetValue = config.toValue as number;
-          (value as Animated.Value).setValue(targetValue);
-          lastTimingToValue = targetValue;
-          callback?.({ finished: true });
-        },
-      } as any;
-    });
+    jest.spyOn(PanResponder, 'create').mockImplementation(
+      (config: Parameters<typeof PanResponder.create>[0]) =>
+        ({
+          panHandlers: ((panResponderConfig = config), {}) as ReturnType<
+            typeof PanResponder.create
+          >['panHandlers'],
+        }) as ReturnType<typeof PanResponder.create>,
+    );
+    timingSpy = jest
+      .spyOn(Animated, 'timing')
+      .mockImplementation((value, config) => {
+        return {
+          start: (callback?: (result: { finished: boolean }) => void) => {
+            const targetValue = config.toValue as number;
+            (value as Animated.Value).setValue(targetValue);
+            lastTimingToValue = targetValue;
+            callback?.({ finished: true });
+          },
+        } as any;
+      });
   });
 
   afterEach(() => {
@@ -116,13 +140,7 @@ describe('SwitchField', () => {
   });
 
   it('renders label and description when provided', () => {
-    render(
-      <SwitchField
-        label="Label"
-        description="Description"
-        value
-      />,
-    );
+    render(<SwitchField label='Label' description='Description' value />);
 
     expect(screen.getByText('Label')).toBeTruthy();
     expect(screen.getByText('Description')).toBeTruthy();
@@ -132,7 +150,7 @@ describe('SwitchField', () => {
     const handleValueChange = jest.fn();
     render(
       <SwitchField
-        label="Notifications"
+        label='Notifications'
         value={false}
         onValueChange={handleValueChange}
       />,
@@ -144,12 +162,7 @@ describe('SwitchField', () => {
   });
 
   it('manages value internally when uncontrolled', () => {
-    render(
-      <SwitchField
-        label="Auto Sync"
-        defaultValue={false}
-      />,
-    );
+    render(<SwitchField label='Auto Sync' defaultValue={false} />);
 
     const control = screen.getByLabelText('Auto Sync');
     expect(control.props.accessibilityState.checked).toBe(false);
@@ -161,14 +174,16 @@ describe('SwitchField', () => {
 
     fireEvent.press(toggledOnControl);
 
-    expect(screen.getByLabelText('Auto Sync').props.accessibilityState.checked).toBe(false);
+    expect(
+      screen.getByLabelText('Auto Sync').props.accessibilityState.checked,
+    ).toBe(false);
   });
 
   it('does not toggle when disabled', () => {
     const handleValueChange = jest.fn();
     render(
       <SwitchField
-        label="Disabled toggle"
+        label='Disabled toggle'
         value={false}
         disabled
         onValueChange={handleValueChange}
@@ -186,15 +201,15 @@ describe('SwitchField', () => {
     const disabledOffThumbSize = Size.space['600'] - Size.space['150'];
 
     const { getByTestId } = render(
-      <SwitchField
-        label="Disabled off size"
-        value={false}
-        disabled
-      />,
+      <SwitchField label='Disabled off size' value={false} disabled />,
     );
 
-    expect(getStyleProperty(getByTestId('switch-thumb').props.style, 'width')).toBe(disabledOffThumbSize);
-    expect(getStyleProperty(getByTestId('switch-thumb').props.style, 'height')).toBe(disabledOffThumbSize);
+    expect(
+      getStyleProperty(getByTestId('switch-thumb').props.style, 'width'),
+    ).toBe(disabledOffThumbSize);
+    expect(
+      getStyleProperty(getByTestId('switch-thumb').props.style, 'height'),
+    ).toBe(disabledOffThumbSize);
   });
 
   it('renders without label and description', () => {
@@ -210,11 +225,25 @@ describe('SwitchField', () => {
 
     (useColorScheme as jest.Mock).mockReturnValue('light');
 
-    const { getByTestId } = render(<SwitchField label="Light mode switch" value={false} />);
+    const { getByTestId } = render(
+      <SwitchField label='Light mode switch' value={false} />,
+    );
 
-    expectStyleColor(getByTestId('switch-track').props.style, 'backgroundColor', palette.background.default.secondary);
-    expectStyleColor(getByTestId('switch-border').props.style, 'borderColor', palette.border.neutral.default);
-    expectStyleColor(getByTestId('switch-thumb').props.style, 'backgroundColor', palette.icon.neutral.default);
+    expectStyleColor(
+      getByTestId('switch-track').props.style,
+      'backgroundColor',
+      palette.background.default.secondary,
+    );
+    expectStyleColor(
+      getByTestId('switch-border').props.style,
+      'borderColor',
+      palette.border.neutral.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-thumb').props.style,
+      'backgroundColor',
+      palette.icon.neutral.default,
+    );
   });
 
   it('applies default and pressed track backgrounds', () => {
@@ -222,14 +251,20 @@ describe('SwitchField', () => {
     let testRenderer: renderer.ReactTestRenderer;
 
     rendererAct(() => {
-      testRenderer = renderer.create(<SwitchField label="State styles" value={false} />);
+      testRenderer = renderer.create(
+        <SwitchField label='State styles' value={false} />,
+      );
     });
 
-    const findTrackNode = () => testRenderer!.root.findByProps({ testID: 'switch-track' });
-    const findBorderNode = () => testRenderer!.root.findByProps({ testID: 'switch-border' });
+    const findTrackNode = () =>
+      testRenderer!.root.findByProps({ testID: 'switch-track' });
+    const findBorderNode = () =>
+      testRenderer!.root.findByProps({ testID: 'switch-border' });
 
     const switchTrack = findTrackNode();
-    const switchNode = testRenderer!.root.findByProps({ accessibilityLabel: 'State styles' });
+    const switchNode = testRenderer!.root.findByProps({
+      accessibilityLabel: 'State styles',
+    });
     const defaultStyle = switchTrack.props.style as unknown[];
     const defaultBorderStyle = findBorderNode().props.style as unknown[];
 
@@ -240,10 +275,26 @@ describe('SwitchField', () => {
     const pressedStyle = findTrackNode().props.style as unknown[];
     const pressedBorderStyle = findBorderNode().props.style as unknown[];
 
-    expectStyleColor(defaultStyle, 'backgroundColor', palette.background.default.secondary);
-    expectStyleColor(pressedStyle, 'backgroundColor', palette.background.default.secondaryPressed);
-    expectStyleColor(defaultBorderStyle, 'borderColor', palette.border.neutral.default);
-    expectStyleColor(pressedBorderStyle, 'borderColor', palette.border.neutral.default);
+    expectStyleColor(
+      defaultStyle,
+      'backgroundColor',
+      palette.background.default.secondary,
+    );
+    expectStyleColor(
+      pressedStyle,
+      'backgroundColor',
+      palette.background.default.secondaryPressed,
+    );
+    expectStyleColor(
+      defaultBorderStyle,
+      'borderColor',
+      palette.border.neutral.default,
+    );
+    expectStyleColor(
+      pressedBorderStyle,
+      'borderColor',
+      palette.border.neutral.default,
+    );
   });
 
   it('animates hover color overlay in and out using short timing', () => {
@@ -252,10 +303,14 @@ describe('SwitchField', () => {
 
     let testRenderer!: renderer.ReactTestRenderer;
     act(() => {
-      testRenderer = renderer.create(<SwitchField label="Hover animation" value={false} />);
+      testRenderer = renderer.create(
+        <SwitchField label='Hover animation' value={false} />,
+      );
     });
 
-    const control = testRenderer.root.findByProps({ accessibilityLabel: 'Hover animation' });
+    const control = testRenderer.root.findByProps({
+      accessibilityLabel: 'Hover animation',
+    });
     timingSpy.mockClear();
 
     act(() => {
@@ -272,17 +327,20 @@ describe('SwitchField', () => {
     );
     expect(getLastToValue()).toBe(1);
     expectStyleColor(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'backgroundColor',
       palette.background.default.secondaryHover,
     );
     expectStyleColor(
-      testRenderer.root.findByProps({ testID: 'switch-hover-border' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-border' }).props
+        .style,
       'borderColor',
       palette.border.neutral.default,
     );
     expectStyleNumber(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'opacity',
       1,
     );
@@ -301,7 +359,8 @@ describe('SwitchField', () => {
     );
     expect(getLastToValue()).toBe(0);
     expectStyleNumber(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'opacity',
       0,
     );
@@ -313,10 +372,14 @@ describe('SwitchField', () => {
     let testRenderer!: renderer.ReactTestRenderer;
 
     act(() => {
-      testRenderer = renderer.create(<SwitchField label="Hovered on switch" value />);
+      testRenderer = renderer.create(
+        <SwitchField label='Hovered on switch' value />,
+      );
     });
 
-    const control = testRenderer.root.findByProps({ accessibilityLabel: 'Hovered on switch' });
+    const control = testRenderer.root.findByProps({
+      accessibilityLabel: 'Hovered on switch',
+    });
     timingSpy.mockClear();
 
     act(() => {
@@ -324,17 +387,20 @@ describe('SwitchField', () => {
     });
 
     expectStyleColor(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'backgroundColor',
       palette.background.brand.hover,
     );
     expectStyleColor(
-      testRenderer.root.findByProps({ testID: 'switch-hover-border' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-border' }).props
+        .style,
       'borderColor',
       palette.background.brand.hover,
     );
     expectStyleNumber(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'opacity',
       1,
     );
@@ -344,17 +410,22 @@ describe('SwitchField', () => {
     let testRenderer!: renderer.ReactTestRenderer;
 
     act(() => {
-      testRenderer = renderer.create(<SwitchField label="Pressed hover switch" value={false} />);
+      testRenderer = renderer.create(
+        <SwitchField label='Pressed hover switch' value={false} />,
+      );
     });
 
-    const control = testRenderer.root.findByProps({ accessibilityLabel: 'Pressed hover switch' });
+    const control = testRenderer.root.findByProps({
+      accessibilityLabel: 'Pressed hover switch',
+    });
 
     act(() => {
       control.props.onHoverIn?.({} as any);
     });
 
     expectStyleNumber(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'opacity',
       1,
     );
@@ -364,7 +435,8 @@ describe('SwitchField', () => {
     });
 
     expectStyleNumber(
-      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props.style,
+      testRenderer.root.findByProps({ testID: 'switch-hover-fill' }).props
+        .style,
       'opacity',
       0,
     );
@@ -373,14 +445,17 @@ describe('SwitchField', () => {
   it('animates thumb position with medium timing when value changes', () => {
     const { timingSpy, getLastToValue } = getTimingSpyState();
     const palette = Colors.dark;
-    const offThumbSize = Size.space['600'] - (2 * Size.stroke.border) - Size.space['150'];
+    const offThumbSize =
+      Size.space['600'] - 2 * Size.stroke.border - Size.space['150'];
     const onThumbSize = Size.space['600'] - Size.space['150'];
 
-    const { rerender, getByTestId } = render(<SwitchField label="Animated switch" value={false} />);
+    const { rerender, getByTestId } = render(
+      <SwitchField label='Animated switch' value={false} />,
+    );
     timingSpy.mockClear();
 
     act(() => {
-      rerender(<SwitchField label="Animated switch" value />);
+      rerender(<SwitchField label='Animated switch' value />);
     });
 
     expect(timingSpy).toHaveBeenCalledWith(
@@ -391,13 +466,27 @@ describe('SwitchField', () => {
       }),
     );
     expect(getLastToValue()).toBe(1);
-    expectStyleColor(getByTestId('switch-track').props.style, 'backgroundColor', palette.background.brand.default);
-    expectStyleColor(getByTestId('switch-border').props.style, 'borderColor', palette.background.brand.default);
-    expectStyleColor(getByTestId('switch-thumb').props.style, 'backgroundColor', palette.icon.brand.onBrand);
-    expect(getStyleProperty(getByTestId('switch-thumb').props.style, 'width')).toBe(onThumbSize);
+    expectStyleColor(
+      getByTestId('switch-track').props.style,
+      'backgroundColor',
+      palette.background.brand.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-border').props.style,
+      'borderColor',
+      palette.background.brand.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-thumb').props.style,
+      'backgroundColor',
+      palette.icon.brand.onBrand,
+    );
+    expect(
+      getStyleProperty(getByTestId('switch-thumb').props.style, 'width'),
+    ).toBe(onThumbSize);
 
     act(() => {
-      rerender(<SwitchField label="Animated switch" value={false} />);
+      rerender(<SwitchField label='Animated switch' value={false} />);
     });
 
     expect(timingSpy).toHaveBeenLastCalledWith(
@@ -409,10 +498,24 @@ describe('SwitchField', () => {
       }),
     );
     expect(getLastToValue()).toBe(0);
-    expectStyleColor(getByTestId('switch-track').props.style, 'backgroundColor', palette.background.default.secondary);
-    expectStyleColor(getByTestId('switch-border').props.style, 'borderColor', palette.border.neutral.default);
-    expectStyleColor(getByTestId('switch-thumb').props.style, 'backgroundColor', palette.icon.neutral.default);
-    expect(getStyleProperty(getByTestId('switch-thumb').props.style, 'width')).toBe(offThumbSize);
+    expectStyleColor(
+      getByTestId('switch-track').props.style,
+      'backgroundColor',
+      palette.background.default.secondary,
+    );
+    expectStyleColor(
+      getByTestId('switch-border').props.style,
+      'borderColor',
+      palette.border.neutral.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-thumb').props.style,
+      'backgroundColor',
+      palette.icon.neutral.default,
+    );
+    expect(
+      getStyleProperty(getByTestId('switch-thumb').props.style, 'width'),
+    ).toBe(offThumbSize);
   });
 
   it('allows dragging the knob to toggle on', () => {
@@ -420,7 +523,7 @@ describe('SwitchField', () => {
 
     render(
       <SwitchField
-        label="Draggable switch"
+        label='Draggable switch'
         value={false}
         onValueChange={handleValueChange}
       />,
@@ -433,9 +536,18 @@ describe('SwitchField', () => {
           createGestureState(100),
         ),
       ).toBe(true);
-      panResponderConfig?.onPanResponderGrant?.(createGestureResponderEvent(), createGestureState(0));
-      panResponderConfig?.onPanResponderMove?.(createGestureResponderEvent(), createGestureState(100));
-      panResponderConfig?.onPanResponderRelease?.(createGestureResponderEvent(), createGestureState(100));
+      panResponderConfig?.onPanResponderGrant?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+      panResponderConfig?.onPanResponderRelease?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
     });
 
     expect(handleValueChange).toHaveBeenCalledTimes(1);
@@ -448,7 +560,7 @@ describe('SwitchField', () => {
 
     render(
       <SwitchField
-        label="Uncontrolled draggable switch"
+        label='Uncontrolled draggable switch'
         defaultValue={false}
         onValueChange={handleValueChange}
       />,
@@ -458,15 +570,27 @@ describe('SwitchField', () => {
     timingSpy.mockClear();
 
     act(() => {
-      panResponderConfig?.onPanResponderGrant?.(createGestureResponderEvent(), createGestureState(0));
-      panResponderConfig?.onPanResponderMove?.(createGestureResponderEvent(), createGestureState(100));
-      panResponderConfig?.onPanResponderRelease?.(createGestureResponderEvent(), createGestureState(100));
+      panResponderConfig?.onPanResponderGrant?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+      panResponderConfig?.onPanResponderRelease?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
     });
 
     expect(handleValueChange).toHaveBeenCalledTimes(1);
     expect(handleValueChange).toHaveBeenCalledWith(true);
     expect(getLastToValue()).toBe(1);
-    expect(screen.getByLabelText('Uncontrolled draggable switch').props.accessibilityState.checked).toBe(true);
+    expect(
+      screen.getByLabelText('Uncontrolled draggable switch').props
+        .accessibilityState.checked,
+    ).toBe(true);
 
     fireEvent.press(control);
 
@@ -482,11 +606,12 @@ describe('SwitchField', () => {
     const { timingSpy, getLastToValue } = getTimingSpyState();
     const handleValueChange = jest.fn();
     const palette = Colors.dark;
-    const offThumbSize = Size.space['600'] - (2 * Size.stroke.border) - Size.space['150'];
+    const offThumbSize =
+      Size.space['600'] - 2 * Size.stroke.border - Size.space['150'];
 
     const { getByTestId } = render(
       <SwitchField
-        label="Controlled draggable switch"
+        label='Controlled draggable switch'
         value={false}
         onValueChange={handleValueChange}
       />,
@@ -501,17 +626,40 @@ describe('SwitchField', () => {
           createGestureState(100),
         ),
       ).toBe(true);
-      panResponderConfig?.onPanResponderGrant?.(createGestureResponderEvent(), createGestureState(0));
-      panResponderConfig?.onPanResponderMove?.(createGestureResponderEvent(), createGestureState(100));
-      panResponderConfig?.onPanResponderRelease?.(createGestureResponderEvent(), createGestureState(100));
+      panResponderConfig?.onPanResponderGrant?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+      panResponderConfig?.onPanResponderRelease?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
     });
 
     expect(handleValueChange).toHaveBeenCalledWith(true);
     expect(getLastToValue()).toBe(0);
-    expectStyleColor(getByTestId('switch-track').props.style, 'backgroundColor', palette.background.default.secondary);
-    expectStyleColor(getByTestId('switch-border').props.style, 'borderColor', palette.border.neutral.default);
-    expectStyleColor(getByTestId('switch-thumb').props.style, 'backgroundColor', palette.icon.neutral.default);
-    expect(getStyleProperty(getByTestId('switch-thumb').props.style, 'width')).toBe(offThumbSize);
+    expectStyleColor(
+      getByTestId('switch-track').props.style,
+      'backgroundColor',
+      palette.background.default.secondary,
+    );
+    expectStyleColor(
+      getByTestId('switch-border').props.style,
+      'borderColor',
+      palette.border.neutral.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-thumb').props.style,
+      'backgroundColor',
+      palette.icon.neutral.default,
+    );
+    expect(
+      getStyleProperty(getByTestId('switch-thumb').props.style, 'width'),
+    ).toBe(offThumbSize);
   });
 
   it('restores the current value when a drag is terminated', () => {
@@ -519,22 +667,50 @@ describe('SwitchField', () => {
     const palette = Colors.dark;
     const onThumbSize = Size.space['600'] - Size.space['150'];
 
-    const { getByTestId } = render(<SwitchField label="Interrupted drag switch" value />);
+    const { getByTestId } = render(
+      <SwitchField label='Interrupted drag switch' value />,
+    );
     timingSpy.mockClear();
 
     act(() => {
-      panResponderConfig?.onPanResponderGrant?.(createGestureResponderEvent(), createGestureState(0));
-      panResponderConfig?.onPanResponderMove?.(createGestureResponderEvent(), createGestureState(-100));
-      panResponderConfig?.onPanResponderTerminate?.(createGestureResponderEvent(), createGestureState(0));
+      panResponderConfig?.onPanResponderGrant?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(-100),
+      );
+      panResponderConfig?.onPanResponderTerminate?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
     });
 
     expect(getLastToValue()).toBe(1);
-    expectStyleColor(getByTestId('switch-track').props.style, 'backgroundColor', palette.background.brand.default);
-    expectStyleColor(getByTestId('switch-border').props.style, 'borderColor', palette.background.brand.default);
-    expectStyleColor(getByTestId('switch-thumb').props.style, 'backgroundColor', palette.icon.brand.onBrand);
-    expect(getStyleProperty(getByTestId('switch-thumb').props.style, 'width')).toBe(onThumbSize);
+    expectStyleColor(
+      getByTestId('switch-track').props.style,
+      'backgroundColor',
+      palette.background.brand.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-border').props.style,
+      'borderColor',
+      palette.background.brand.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-thumb').props.style,
+      'backgroundColor',
+      palette.icon.brand.onBrand,
+    );
     expect(
-      panResponderConfig?.onPanResponderTerminationRequest?.(createGestureResponderEvent(), createGestureState(0)),
+      getStyleProperty(getByTestId('switch-thumb').props.style, 'width'),
+    ).toBe(onThumbSize);
+    expect(
+      panResponderConfig?.onPanResponderTerminationRequest?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      ),
     ).toBe(true);
   });
 
@@ -545,7 +721,7 @@ describe('SwitchField', () => {
 
     const { getByLabelText, getByTestId } = render(
       <SwitchField
-        label="Disabled inert switch"
+        label='Disabled inert switch'
         value={false}
         disabled
         onValueChange={handleValueChange}
@@ -572,19 +748,40 @@ describe('SwitchField', () => {
       control.props.onHoverIn?.({} as any);
       control.props.onPressIn?.({} as any);
       control.props.onPress?.({} as any);
-      panResponderConfig?.onPanResponderMove?.(createGestureResponderEvent(), createGestureState(100));
-      panResponderConfig?.onPanResponderRelease?.(createGestureResponderEvent(), createGestureState(100));
-      panResponderConfig?.onPanResponderTerminate?.(createGestureResponderEvent(), createGestureState(0));
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+      panResponderConfig?.onPanResponderRelease?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+      panResponderConfig?.onPanResponderTerminate?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
     });
 
     expect(handleValueChange).not.toHaveBeenCalled();
-    expectStyleColor(getByTestId('switch-track').props.style, 'backgroundColor', palette.background.disabled.default);
-    expectStyleColor(getByTestId('switch-thumb').props.style, 'backgroundColor', palette.icon.disabled.onDisabled);
-    expectStyleNumber(getByTestId('switch-hover-fill').props.style, 'opacity', 0);
+    expectStyleColor(
+      getByTestId('switch-track').props.style,
+      'backgroundColor',
+      palette.background.disabled.default,
+    );
+    expectStyleColor(
+      getByTestId('switch-thumb').props.style,
+      'backgroundColor',
+      palette.icon.disabled.onDisabled,
+    );
+    expectStyleNumber(
+      getByTestId('switch-hover-fill').props.style,
+      'opacity',
+      0,
+    );
   });
 
   it('does not start drag handling below the activation distance', () => {
-    render(<SwitchField label="Short drag" value={false} />);
+    render(<SwitchField label='Short drag' value={false} />);
 
     expect(
       panResponderConfig?.onMoveShouldSetPanResponderCapture?.(

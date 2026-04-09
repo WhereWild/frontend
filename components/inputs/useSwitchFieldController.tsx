@@ -16,20 +16,31 @@ export const SWITCH_FIELD_GEOMETRY = {
 } as const;
 
 const SWITCH_THUMB_SLOT_WIDTH = SWITCH_FIELD_GEOMETRY.trackHeight;
-const SWITCH_THUMB_TRAVEL_DISTANCE = SWITCH_FIELD_GEOMETRY.trackWidth - SWITCH_THUMB_SLOT_WIDTH;
-const SWITCH_OFF_THUMB_SIZE_WITH_VISIBLE_BORDER = SWITCH_FIELD_GEOMETRY.trackHeight
-  - (2 * SWITCH_FIELD_GEOMETRY.trackBorderWidth)
-  - SWITCH_FIELD_GEOMETRY.thumbDifference;
-const SWITCH_ON_THUMB_SIZE = SWITCH_FIELD_GEOMETRY.trackHeight - SWITCH_FIELD_GEOMETRY.thumbDifference;
+const SWITCH_THUMB_TRAVEL_DISTANCE =
+  SWITCH_FIELD_GEOMETRY.trackWidth - SWITCH_THUMB_SLOT_WIDTH;
+const SWITCH_OFF_THUMB_SIZE_WITH_VISIBLE_BORDER =
+  SWITCH_FIELD_GEOMETRY.trackHeight -
+  2 * SWITCH_FIELD_GEOMETRY.trackBorderWidth -
+  SWITCH_FIELD_GEOMETRY.thumbDifference;
+const SWITCH_ON_THUMB_SIZE =
+  SWITCH_FIELD_GEOMETRY.trackHeight - SWITCH_FIELD_GEOMETRY.thumbDifference;
 
-const interpolateToggleColor = (progress: Animated.Value, offColor: string, onColor: string) => {
+const interpolateToggleColor = (
+  progress: Animated.Value,
+  offColor: string,
+  onColor: string,
+) => {
   return progress.interpolate({
     inputRange: [0, 1],
     outputRange: [offColor, onColor],
   });
 };
 
-const interpolateToggleNumber = (progress: Animated.Value, offValue: number, onValue: number) => {
+const interpolateToggleNumber = (
+  progress: Animated.Value,
+  offValue: number,
+  onValue: number,
+) => {
   return progress.interpolate({
     inputRange: [0, 1],
     outputRange: [offValue, onValue],
@@ -74,8 +85,12 @@ export function useSwitchFieldController({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
-  const labelColor = disabled ? palette.text.disabled.default : palette.text.default.default;
-  const descriptionColor = disabled ? palette.text.disabled.default : palette.text.default.secondary;
+  const labelColor = disabled
+    ? palette.text.disabled.default
+    : palette.text.default.default;
+  const descriptionColor = disabled
+    ? palette.text.disabled.default
+    : palette.text.default.secondary;
 
   const trackBackgroundColorOffDefault = disabled
     ? palette.background.disabled.default
@@ -123,14 +138,17 @@ export function useSwitchFieldController({
     ? SWITCH_ON_THUMB_SIZE
     : SWITCH_OFF_THUMB_SIZE_WITH_VISIBLE_BORDER;
 
-  const animateToggleTo = React.useCallback((nextValue: boolean) => {
-    Animated.timing(toggleProgress, {
-      toValue: nextValue ? 1 : 0,
-      duration: Time.duration.medium,
-      easing: getReactNativeEasing('in-and-out'),
-      useNativeDriver: TOGGLE_ANIMATION_USE_NATIVE_DRIVER,
-    }).start();
-  }, [toggleProgress]);
+  const animateToggleTo = React.useCallback(
+    (nextValue: boolean) => {
+      Animated.timing(toggleProgress, {
+        toValue: nextValue ? 1 : 0,
+        duration: Time.duration.medium,
+        easing: getReactNativeEasing('in-and-out'),
+        useNativeDriver: TOGGLE_ANIMATION_USE_NATIVE_DRIVER,
+      }).start();
+    },
+    [toggleProgress],
+  );
 
   React.useEffect(() => {
     if (isDraggingRef.current) {
@@ -165,99 +183,126 @@ export function useSwitchFieldController({
     }).start();
   }, [disabled, hoverProgress, isHovered, isPressing]);
 
-  const commitValueChange = React.useCallback((nextValue: boolean) => {
-    if (disabled) {
-      return;
-    }
+  const commitValueChange = React.useCallback(
+    (nextValue: boolean) => {
+      if (disabled) {
+        return;
+      }
 
-    if (!isControlled) {
-      setInternalValue(nextValue);
-    }
+      if (!isControlled) {
+        setInternalValue(nextValue);
+      }
 
-    onValueChange?.(nextValue);
-  }, [disabled, isControlled, onValueChange]);
+      onValueChange?.(nextValue);
+    },
+    [disabled, isControlled, onValueChange],
+  );
 
   const handleToggle = React.useCallback(() => {
     commitValueChange(!isOn);
   }, [commitValueChange, isOn]);
 
-  const finalizeDrag = React.useCallback((dragTranslate: number) => {
-    const nextProgress = Math.min(1, Math.max(0, dragTranslate / SWITCH_THUMB_TRAVEL_DISTANCE));
-    const nextValue = nextProgress >= 0.5;
-    const committedVisualValue = isControlled ? isOn : nextValue;
-
-    isDraggingRef.current = false;
-    setIsPressing(false);
-    didDragRef.current = true;
-    animateToggleTo(committedVisualValue);
-
-    if (nextValue !== isOn) {
-      commitValueChange(nextValue);
-    }
-  }, [animateToggleTo, commitValueChange, isControlled, isOn]);
-
-  const panResponder = React.useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gestureState) => {
-      if (disabled) {
-        return false;
-      }
-
-      return Math.abs(gestureState.dx) >= SWITCH_FIELD_GEOMETRY.dragActivationDistance
-        && Math.abs(gestureState.dx) >= Math.abs(gestureState.dy);
-    },
-    onMoveShouldSetPanResponderCapture: (_event, gestureState) => {
-      if (disabled) {
-        return false;
-      }
-
-      return Math.abs(gestureState.dx) >= SWITCH_FIELD_GEOMETRY.dragActivationDistance
-        && Math.abs(gestureState.dx) >= Math.abs(gestureState.dy);
-    },
-    onPanResponderGrant: () => {
-      // Drag lives on the host view instead of the Pressable so horizontal
-      // motion can take over without fighting click and accessibility semantics.
-      isDraggingRef.current = true;
-      setIsPressing(true);
-      toggleProgress.stopAnimation((currentValue) => {
-        dragStartProgressRef.current = currentValue;
-        toggleProgress.setValue(currentValue);
-      });
-    },
-    onPanResponderMove: (_event, gestureState) => {
-      if (!isDraggingRef.current) {
-        return;
-      }
-
+  const finalizeDrag = React.useCallback(
+    (dragTranslate: number) => {
       const nextProgress = Math.min(
         1,
-        Math.max(0, dragStartProgressRef.current + (gestureState.dx / SWITCH_THUMB_TRAVEL_DISTANCE)),
+        Math.max(0, dragTranslate / SWITCH_THUMB_TRAVEL_DISTANCE),
       );
-
-      toggleProgress.setValue(nextProgress);
-    },
-    onPanResponderRelease: (_event, gestureState) => {
-      if (!isDraggingRef.current) {
-        return;
-      }
-
-      const dragTranslate = Math.min(
-        SWITCH_THUMB_TRAVEL_DISTANCE,
-        Math.max(0, (dragStartProgressRef.current * SWITCH_THUMB_TRAVEL_DISTANCE) + gestureState.dx),
-      );
-
-      finalizeDrag(dragTranslate);
-    },
-    onPanResponderTerminate: () => {
-      if (!isDraggingRef.current) {
-        return;
-      }
+      const nextValue = nextProgress >= 0.5;
+      const committedVisualValue = isControlled ? isOn : nextValue;
 
       isDraggingRef.current = false;
       setIsPressing(false);
-      animateToggleTo(isOn);
+      didDragRef.current = true;
+      animateToggleTo(committedVisualValue);
+
+      if (nextValue !== isOn) {
+        commitValueChange(nextValue);
+      }
     },
-    onPanResponderTerminationRequest: () => true,
-  }), [animateToggleTo, disabled, finalizeDrag, isOn, toggleProgress]);
+    [animateToggleTo, commitValueChange, isControlled, isOn],
+  );
+
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gestureState) => {
+          if (disabled) {
+            return false;
+          }
+
+          return (
+            Math.abs(gestureState.dx) >=
+              SWITCH_FIELD_GEOMETRY.dragActivationDistance &&
+            Math.abs(gestureState.dx) >= Math.abs(gestureState.dy)
+          );
+        },
+        onMoveShouldSetPanResponderCapture: (_event, gestureState) => {
+          if (disabled) {
+            return false;
+          }
+
+          return (
+            Math.abs(gestureState.dx) >=
+              SWITCH_FIELD_GEOMETRY.dragActivationDistance &&
+            Math.abs(gestureState.dx) >= Math.abs(gestureState.dy)
+          );
+        },
+        onPanResponderGrant: () => {
+          // Drag lives on the host view instead of the Pressable so horizontal
+          // motion can take over without fighting click and accessibility semantics.
+          isDraggingRef.current = true;
+          setIsPressing(true);
+          toggleProgress.stopAnimation((currentValue) => {
+            dragStartProgressRef.current = currentValue;
+            toggleProgress.setValue(currentValue);
+          });
+        },
+        onPanResponderMove: (_event, gestureState) => {
+          if (!isDraggingRef.current) {
+            return;
+          }
+
+          const nextProgress = Math.min(
+            1,
+            Math.max(
+              0,
+              dragStartProgressRef.current +
+                gestureState.dx / SWITCH_THUMB_TRAVEL_DISTANCE,
+            ),
+          );
+
+          toggleProgress.setValue(nextProgress);
+        },
+        onPanResponderRelease: (_event, gestureState) => {
+          if (!isDraggingRef.current) {
+            return;
+          }
+
+          const dragTranslate = Math.min(
+            SWITCH_THUMB_TRAVEL_DISTANCE,
+            Math.max(
+              0,
+              dragStartProgressRef.current * SWITCH_THUMB_TRAVEL_DISTANCE +
+                gestureState.dx,
+            ),
+          );
+
+          finalizeDrag(dragTranslate);
+        },
+        onPanResponderTerminate: () => {
+          if (!isDraggingRef.current) {
+            return;
+          }
+
+          isDraggingRef.current = false;
+          setIsPressing(false);
+          animateToggleTo(isOn);
+        },
+        onPanResponderTerminationRequest: () => true,
+      }),
+    [animateToggleTo, disabled, finalizeDrag, isOn, toggleProgress],
+  );
 
   const handlePress = React.useCallback(() => {
     if (didDragRef.current) {
@@ -270,7 +315,11 @@ export function useSwitchFieldController({
 
   // The border is a visual overlay, so the thumb should align to the full pill
   // bounds rather than compensating for the border width in layout math.
-  const thumbTranslate = interpolateToggleNumber(toggleProgress, 0, SWITCH_THUMB_TRAVEL_DISTANCE);
+  const thumbTranslate = interpolateToggleNumber(
+    toggleProgress,
+    0,
+    SWITCH_THUMB_TRAVEL_DISTANCE,
+  );
 
   return {
     isOn,
@@ -287,17 +336,49 @@ export function useSwitchFieldController({
     },
     onPressOut: () => setIsPressing(false),
     trackBackgroundColor: isPressing
-      ? interpolateToggleColor(toggleProgress, trackBackgroundColorOffPressed, trackBackgroundColorOnPressed)
-      : interpolateToggleColor(toggleProgress, trackBackgroundColorOffDefault, trackBackgroundColorOnDefault),
+      ? interpolateToggleColor(
+          toggleProgress,
+          trackBackgroundColorOffPressed,
+          trackBackgroundColorOnPressed,
+        )
+      : interpolateToggleColor(
+          toggleProgress,
+          trackBackgroundColorOffDefault,
+          trackBackgroundColorOnDefault,
+        ),
     trackBorderColor: isPressing
-      ? interpolateToggleColor(toggleProgress, trackBorderColorOffPressed, trackBorderColorOnPressed)
-      : interpolateToggleColor(toggleProgress, trackBorderColorOffDefault, trackBorderColorOnDefault),
-    hoverFillColor: interpolateToggleColor(toggleProgress, trackBackgroundColorOffHover, trackBackgroundColorOnHover),
-    hoverBorderColor: interpolateToggleColor(toggleProgress, trackBorderColorOffHover, trackBorderColorOnHover),
-    thumbAnimatedColor: interpolateToggleColor(toggleProgress, thumbColorOff, thumbColorOn),
+      ? interpolateToggleColor(
+          toggleProgress,
+          trackBorderColorOffPressed,
+          trackBorderColorOnPressed,
+        )
+      : interpolateToggleColor(
+          toggleProgress,
+          trackBorderColorOffDefault,
+          trackBorderColorOnDefault,
+        ),
+    hoverFillColor: interpolateToggleColor(
+      toggleProgress,
+      trackBackgroundColorOffHover,
+      trackBackgroundColorOnHover,
+    ),
+    hoverBorderColor: interpolateToggleColor(
+      toggleProgress,
+      trackBorderColorOffHover,
+      trackBorderColorOnHover,
+    ),
+    thumbAnimatedColor: interpolateToggleColor(
+      toggleProgress,
+      thumbColorOff,
+      thumbColorOn,
+    ),
     // Disabled-off hides the border, so the thumb should size against the full
     // fill area instead of pretending there is still an inset border to clear.
-    thumbAnimatedSize: interpolateToggleNumber(toggleProgress, offThumbSize, SWITCH_ON_THUMB_SIZE),
+    thumbAnimatedSize: interpolateToggleNumber(
+      toggleProgress,
+      offThumbSize,
+      SWITCH_ON_THUMB_SIZE,
+    ),
     thumbTranslate,
   };
 }

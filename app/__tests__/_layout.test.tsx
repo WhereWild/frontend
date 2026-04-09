@@ -13,9 +13,14 @@ const recordedStackProps: any[] = [];
 const recordedHeaderProps: any[] = [];
 const recordedTopAppBarProps: any[] = [];
 let mockHeaderConfig: any = {};
-const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  Platform,
+  'OS',
+);
 const originalPlatformOS = Platform.OS;
-const mockNavigationBar = jest.fn((_props?: unknown) => <View testID="mock-navigation-bar" />);
+const mockNavigationBar = jest.fn((_props?: unknown) => (
+  <View testID='mock-navigation-bar' />
+));
 
 const setPlatformOS = (os: string) => {
   Object.defineProperty(Platform, 'OS', {
@@ -38,7 +43,7 @@ const restorePlatformOS = () => {
 
 function mockStack(props: any) {
   recordedStackProps.push(props);
-  return <View testID="app-stack" />;
+  return <View testID='app-stack' />;
 }
 
 jest.mock('expo-router', () => ({
@@ -50,16 +55,24 @@ jest.mock('expo-router', () => ({
 jest.mock('@/components', () => ({
   WebPageHeader: (props: any) => {
     const mockReact = jest.requireActual('react') as typeof React;
-    const mockReactNative = jest.requireActual('react-native') as typeof import('react-native');
+    const mockReactNative = jest.requireActual(
+      'react-native',
+    ) as typeof import('react-native');
     recordedHeaderProps.push(props);
-    return mockReact.createElement(mockReactNative.View, { testID: 'global-header' });
+    return mockReact.createElement(mockReactNative.View, {
+      testID: 'global-header',
+    });
   },
   NavigationBar: (props: unknown) => mockNavigationBar(props),
   TopAppBar: (props: any) => {
     const mockReact = jest.requireActual('react') as typeof React;
-    const mockReactNative = jest.requireActual('react-native') as typeof import('react-native');
+    const mockReactNative = jest.requireActual(
+      'react-native',
+    ) as typeof import('react-native');
     recordedTopAppBarProps.push(props);
-    return mockReact.createElement(mockReactNative.View, { testID: 'mock-top-app-bar' });
+    return mockReact.createElement(mockReactNative.View, {
+      testID: 'mock-top-app-bar',
+    });
   },
 }));
 
@@ -67,7 +80,9 @@ jest.mock('@/context/WebPageHeaderContext', () => {
   const actual = jest.requireActual('@/context/WebPageHeaderContext');
   return {
     ...actual,
-    WebPageHeaderProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    WebPageHeaderProvider: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    ),
     useWebPageHeaderConfig: () => ({
       config: mockHeaderConfig,
       setConfig: jest.fn(),
@@ -87,9 +102,9 @@ type NavTab = {
 };
 
 const getRenderedTabs = (): NavTab[] => {
-  const lastCall = mockNavigationBar.mock.calls[mockNavigationBar.mock.calls.length - 1] as
-    | unknown[]
-    | undefined;
+  const lastCall = mockNavigationBar.mock.calls[
+    mockNavigationBar.mock.calls.length - 1
+  ] as unknown[] | undefined;
   if (!lastCall) {
     return [];
   }
@@ -259,13 +274,17 @@ describe('Root layout', () => {
 
     const { rerender } = render(<RootLayout />);
 
-    const searchTabBefore = getRenderedTabs().find((tab) => tab.key === 'search');
+    const searchTabBefore = getRenderedTabs().find(
+      (tab) => tab.key === 'search',
+    );
     expect(searchTabBefore?.state).toBe('active');
 
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    const searchTabAfter = getRenderedTabs().find((tab) => tab.key === 'search');
+    const searchTabAfter = getRenderedTabs().find(
+      (tab) => tab.key === 'search',
+    );
     const homeTabAfter = getRenderedTabs().find((tab) => tab.key === 'home');
     expect(searchTabAfter?.state).toBe('active');
     expect(homeTabAfter?.state).toBe('default');
@@ -457,5 +476,4 @@ describe('Root layout', () => {
     expect(mockReplace).toHaveBeenCalledWith('/about');
     expect(mockPush).not.toHaveBeenCalled();
   });
-
 });

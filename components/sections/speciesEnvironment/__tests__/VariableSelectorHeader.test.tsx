@@ -23,10 +23,18 @@ type SelectFieldMockProps = {
 };
 
 jest.mock('@/components/tabs/Tabs', () => ({
-  Tabs: ({ tabs, onSelectionChange, disableNativeHoverVisuals }: TabsMockProps) =>
+  Tabs: ({
+    tabs,
+    onSelectionChange,
+    disableNativeHoverVisuals,
+  }: TabsMockProps) =>
     mockReact.createElement(
       mockView,
-      { testID: disableNativeHoverVisuals ? 'tabs-native-hover-disabled' : undefined },
+      {
+        testID: disableNativeHoverVisuals
+          ? 'tabs-native-hover-disabled'
+          : undefined,
+      },
       tabs.map((tab) =>
         mockReact.createElement(
           mockPressable,
@@ -72,8 +80,20 @@ describe('VariableSelectorHeader', () => {
         selectedVariableCategory={'Climate'}
         onCategoryChange={onCategoryChange}
         filteredVariables={[
-          { id: 'bio_1', label: 'Annual Temp', units: 'C', valueType: 'continuous', category: 'Climate' },
-          { id: 'landcover', label: 'Land Cover', units: '%', valueType: 'categorical', category: 'Land cover' },
+          {
+            id: 'bio_1',
+            label: 'Annual Temp',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Climate',
+          },
+          {
+            id: 'landcover',
+            label: 'Land Cover',
+            units: '%',
+            valueType: 'categorical',
+            category: 'Land cover',
+          },
         ]}
         selectedVariable={'bio_1'}
         onVariableChange={onVariableChange}

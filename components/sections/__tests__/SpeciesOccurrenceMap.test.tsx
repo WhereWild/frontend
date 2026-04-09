@@ -1,5 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { Platform } from 'react-native';
 import { SpeciesOccurrenceMap } from '../SpeciesOccurrenceMap';
 import * as speciesOccurrenceMapHelpers from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
@@ -16,24 +21,33 @@ jest.mock('react-native-webview', () => {
   type MockWebViewProps = Record<string, unknown>;
 
   return {
-    WebView: mockReact.forwardRef((props: MockWebViewProps, ref: React.Ref<unknown>) => {
-      mockReact.useImperativeHandle(ref, () => ({
-        postMessage: mockPostMessage,
-      }));
+    WebView: mockReact.forwardRef(
+      (props: MockWebViewProps, ref: React.Ref<unknown>) => {
+        mockReact.useImperativeHandle(ref, () => ({
+          postMessage: mockPostMessage,
+        }));
 
-      return mockReact.createElement(MockView, {
-        testID: 'mock-webview',
-        ...props,
-      });
-    }),
+        return mockReact.createElement(MockView, {
+          testID: 'mock-webview',
+          ...props,
+        });
+      },
+    ),
   };
 });
 
 describe('SpeciesOccurrenceMap', () => {
-  const loadMapTemplateSpy = jest.spyOn(speciesOccurrenceMapHelpers, 'loadMapTemplate');
-  const loadFallbackMapTemplateSpy = jest.spyOn(speciesOccurrenceMapHelpers, 'loadFallbackMapTemplate');
+  const loadMapTemplateSpy = jest.spyOn(
+    speciesOccurrenceMapHelpers,
+    'loadMapTemplate',
+  );
+  const loadFallbackMapTemplateSpy = jest.spyOn(
+    speciesOccurrenceMapHelpers,
+    'loadFallbackMapTemplate',
+  );
 
-  const resolvedTemplate = '<html><body><div id="map"></div><script>leaflet</script></body></html>';
+  const resolvedTemplate =
+    '<html><body><div id="map"></div><script>leaflet</script></body></html>';
   const originalWindow = global.window;
 
   const renderMapWithOccurrences = async (
@@ -72,7 +86,11 @@ describe('SpeciesOccurrenceMap', () => {
 
   it('renders empty state when no occurrences', () => {
     render(<SpeciesOccurrenceMap occurrences={[]} />);
-    expect(screen.getByText('No precise observation coordinates available for this species.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'No precise observation coordinates available for this species.',
+      ),
+    ).toBeTruthy();
   });
 
   it('renders map container for heatmap-only mode without occurrences', async () => {
@@ -83,7 +101,9 @@ describe('SpeciesOccurrenceMap', () => {
     });
 
     expect(
-      screen.queryByText('No precise observation coordinates available for this species.'),
+      screen.queryByText(
+        'No precise observation coordinates available for this species.',
+      ),
     ).toBeNull();
     expect(screen.getByTestId('mock-webview')).toBeTruthy();
   });
@@ -159,9 +179,12 @@ describe('SpeciesOccurrenceMap', () => {
 
     await waitFor(() => {
       expect(
-        mockPostMessage.mock.calls.slice(initialCallCount).some(
-          ([payload]) => typeof payload === 'string' && payload.includes('202'),
-        ),
+        mockPostMessage.mock.calls
+          .slice(initialCallCount)
+          .some(
+            ([payload]) =>
+              typeof payload === 'string' && payload.includes('202'),
+          ),
       ).toBe(true);
     });
   });
@@ -194,14 +217,20 @@ describe('SpeciesOccurrenceMap', () => {
       expect(screen.queryByText('Loading map renderer…')).toBeNull();
     });
 
-    expect(mockPostMessage.mock.calls.length).toBeGreaterThanOrEqual(callCountAfterFirstLoad);
+    expect(mockPostMessage.mock.calls.length).toBeGreaterThanOrEqual(
+      callCountAfterFirstLoad,
+    );
 
     fireEvent(screen.getByTestId('mock-webview'), 'loadEnd');
-    expect(mockPostMessage.mock.calls.length).toBeGreaterThan(callCountAfterFirstLoad);
+    expect(mockPostMessage.mock.calls.length).toBeGreaterThan(
+      callCountAfterFirstLoad,
+    );
     expect(
-      mockPostMessage.mock.calls.slice(callCountAfterFirstLoad).some(
-        ([payload]) => typeof payload === 'string' && payload.includes('20'),
-      ),
+      mockPostMessage.mock.calls
+        .slice(callCountAfterFirstLoad)
+        .some(
+          ([payload]) => typeof payload === 'string' && payload.includes('20'),
+        ),
     ).toBe(true);
   });
 
@@ -243,7 +272,11 @@ describe('SpeciesOccurrenceMap', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Unable to load the bundled map renderer. Showing the fallback map.')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Unable to load the bundled map renderer. Showing the fallback map.',
+        ),
+      ).toBeTruthy();
     });
 
     const webView = screen.getByTestId('mock-webview');

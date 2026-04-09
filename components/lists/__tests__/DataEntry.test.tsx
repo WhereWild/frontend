@@ -12,7 +12,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 describe('DataEntry', () => {
   beforeEach(() => {
@@ -30,8 +32,8 @@ describe('DataEntry', () => {
 
     render(
       <DataEntry
-        dataName="Average elevation"
-        dataPoint="2000 m"
+        dataName='Average elevation'
+        dataPoint='2000 m'
         details={[{ label: 'Detail name', value: 'data point' }]}
         showGraph={false}
         onToggle={handleToggle}
@@ -49,8 +51,8 @@ describe('DataEntry', () => {
   it('renders a static row when not expandable', () => {
     render(
       <DataEntry
-        dataName="Average elevation"
-        dataPoint="2000 m"
+        dataName='Average elevation'
+        dataPoint='2000 m'
         details={[]}
       />,
     );
@@ -62,8 +64,8 @@ describe('DataEntry', () => {
   it('hides the expand affordance when expandable is false', () => {
     render(
       <DataEntry
-        dataName="Average precipitation"
-        dataPoint="39.4 cm"
+        dataName='Average precipitation'
+        dataPoint='39.4 cm'
         details={[{ label: 'Detail name', value: 'data point' }]}
         expandable={false}
       />,
@@ -76,8 +78,8 @@ describe('DataEntry', () => {
   it('still renders details when expandable is false', () => {
     render(
       <DataEntry
-        dataName="Average precipitation"
-        dataPoint="39.4 cm"
+        dataName='Average precipitation'
+        dataPoint='39.4 cm'
         details={[{ label: 'Detail name', value: 'data point' }]}
         expandable={false}
       />,
@@ -103,8 +105,8 @@ describe('DataEntry', () => {
 
       render(
         <DataEntry
-          dataName="Average elevation"
-          dataPoint="2000 m"
+          dataName='Average elevation'
+          dataPoint='2000 m'
           details={[]}
           onToggle={onToggle}
         />,
@@ -120,15 +122,19 @@ describe('DataEntry', () => {
 
   it('collapses again when entries become expandable later', () => {
     const { rerender } = render(
-      <DataEntry dataName="Average elevation" dataPoint="2000 m" details={[]} />,
+      <DataEntry
+        dataName='Average elevation'
+        dataPoint='2000 m'
+        details={[]}
+      />,
     );
 
     expect(screen.queryByLabelText('Average elevation expand')).toBeNull();
 
     rerender(
       <DataEntry
-        dataName="Average elevation"
-        dataPoint="2000 m"
+        dataName='Average elevation'
+        dataPoint='2000 m'
         details={[{ label: 'Detail name', value: 'data point' }]}
       />,
     );
@@ -139,7 +145,11 @@ describe('DataEntry', () => {
   it('renders a fixed-height placeholder when expanded and hides it when showGraph is false', () => {
     const details = [{ label: 'Detail name', value: 'data point' }];
     const { rerender } = render(
-      <DataEntry dataName="Average elevation" dataPoint="2000 m" details={details} />,
+      <DataEntry
+        dataName='Average elevation'
+        dataPoint='2000 m'
+        details={details}
+      />,
     );
     fireEvent.press(screen.getByLabelText('Average elevation expand'));
     const placeholder = screen.getByTestId('data-entry-graph');
@@ -150,8 +160,8 @@ describe('DataEntry', () => {
 
     rerender(
       <DataEntry
-        dataName="Average elevation"
-        dataPoint="2000 m"
+        dataName='Average elevation'
+        dataPoint='2000 m'
         showGraph={false}
         details={details}
       />,
@@ -162,10 +172,10 @@ describe('DataEntry', () => {
   it('renders custom graph content when provided', () => {
     render(
       <DataEntry
-        dataName="Average precipitation"
-        dataPoint="39.4 cm"
+        dataName='Average precipitation'
+        dataPoint='39.4 cm'
         details={[{ label: 'Detail name', value: 'data point' }]}
-        graph={<View testID="custom-graph" />}
+        graph={<View testID='custom-graph' />}
       />,
     );
 
@@ -204,8 +214,8 @@ describe('DataEntry', () => {
 
     render(
       <DataEntry
-        dataName="Average elevation"
-        dataPoint="2000 m"
+        dataName='Average elevation'
+        dataPoint='2000 m'
         details={[{ label: 'Detail name', value: 'data point' }]}
       />,
     );

@@ -9,17 +9,17 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 describe('SpeciesPageTitle', () => {
   const commonName = 'Mountain Ball Cactus';
   const scientificName = 'Pediocactus simpsonii';
 
-  beforeEach(() => { 
+  beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
   });
-
-
 
   it('renders the species name and scientific name', () => {
     render(
@@ -71,9 +71,7 @@ describe('SpeciesPageTitle', () => {
     );
 
     expect(screen.getByText(customLabel)).toBeTruthy();
-    expect(
-      screen.getByLabelText(`${customLabel} ${commonName}`),
-    ).toBeTruthy();
+    expect(screen.getByLabelText(`${customLabel} ${commonName}`)).toBeTruthy();
   });
 
   it('applies light mode background color when overridden to be light', () => {
@@ -91,7 +89,9 @@ describe('SpeciesPageTitle', () => {
     }
 
     const styles = StyleSheet.flatten(tree.props.style);
-    expect(styles.backgroundColor).toBe(Colors.light.background.default.default);
+    expect(styles.backgroundColor).toBe(
+      Colors.light.background.default.default,
+    );
 
     const divider = screen.getByTestId('species-page-title-divider');
     const dividerStyles = StyleSheet.flatten(divider.props.style);

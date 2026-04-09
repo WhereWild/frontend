@@ -1,7 +1,17 @@
-import { Time, TimeEasingCurves, getReactNativeEasing } from '@/constants/theme';
+import {
+  Time,
+  TimeEasingCurves,
+  getReactNativeEasing,
+} from '@/constants/theme';
 import type { ComponentType } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, type StyleProp, type TextProps, type TextStyle } from 'react-native';
+import {
+  Animated,
+  Platform,
+  type StyleProp,
+  type TextProps,
+  type TextStyle,
+} from 'react-native';
 import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 
 type TypographyVariants = keyof ReturnType<typeof useTypographyStyles>;
@@ -11,9 +21,10 @@ type HoverHandlers = {
   onHoverOut?: (event: unknown) => void;
 };
 
-type ThemedTextProps = TextProps & HoverHandlers & {
-  variant?: TypographyVariants;
-};
+type ThemedTextProps = TextProps &
+  HoverHandlers & {
+    variant?: TypographyVariants;
+  };
 
 type HoverInEvent = Parameters<NonNullable<HoverHandlers['onHoverIn']>>[0];
 type HoverOutEvent = Parameters<NonNullable<HoverHandlers['onHoverOut']>>[0];
@@ -43,11 +54,13 @@ export function ThemedText({
 }: ThemedTextProps) {
   const typographyStyles = useTypographyStyles();
   const resolvedVariant = typographyStyles[variant] ? variant : 'body';
-  const isLinkVariant = resolvedVariant === 'link' || resolvedVariant === 'bodySmallLink';
+  const isLinkVariant =
+    resolvedVariant === 'link' || resolvedVariant === 'bodySmallLink';
   const isWebLinkVariant = Platform.OS === 'web' && isLinkVariant;
   const [isWebHovered, setIsWebHovered] = useState(false);
   const underlineProgress = useRef(new Animated.Value(0)).current;
-  const variantColor = typographyStyles[resolvedVariant]?.color ?? typographyStyles.link.color;
+  const variantColor =
+    typographyStyles[resolvedVariant]?.color ?? typographyStyles.link.color;
 
   const animatedUnderlineStyle = useMemo(() => {
     if (!isLinkVariant || isWebLinkVariant) {
@@ -80,17 +93,22 @@ export function ThemedText({
   }, [isWebHovered, isWebLinkVariant, variantColor]);
 
   if (__DEV__ && variant !== resolvedVariant) {
-    console.warn(`ThemedText: unknown variant "${String(variant)}". Falling back to "body".`);
+    console.warn(
+      `ThemedText: unknown variant "${String(variant)}". Falling back to "body".`,
+    );
   }
 
-  const animateUnderlineTo = useCallback((toValue: number) => {
-    Animated.timing(underlineProgress, {
-      toValue,
-      duration: Time.duration.short,
-      easing: getReactNativeEasing('in-and-out'),
-      useNativeDriver: false,
-    }).start();
-  }, [underlineProgress]);
+  const animateUnderlineTo = useCallback(
+    (toValue: number) => {
+      Animated.timing(underlineProgress, {
+        toValue,
+        duration: Time.duration.short,
+        easing: getReactNativeEasing('in-and-out'),
+        useNativeDriver: false,
+      }).start();
+    },
+    [underlineProgress],
+  );
 
   const interactionHandlers = useMemo<AnimatedTextProps | undefined>(() => {
     if (!isLinkVariant) {
@@ -136,13 +154,26 @@ export function ThemedText({
         onPressOut?.(event);
       },
     };
-  }, [animateUnderlineTo, isLinkVariant, isWebLinkVariant, onHoverIn, onHoverOut, onPressIn, onPressOut]);
+  }, [
+    animateUnderlineTo,
+    isLinkVariant,
+    isWebLinkVariant,
+    onHoverIn,
+    onHoverOut,
+    onPressIn,
+    onPressOut,
+  ]);
 
   return (
     <AnimatedText
       {...otherProps}
       {...interactionHandlers}
-      style={[typographyStyles[resolvedVariant], animatedUnderlineStyle, webHoverTransitionStyle, style]}
+      style={[
+        typographyStyles[resolvedVariant],
+        animatedUnderlineStyle,
+        webHoverTransitionStyle,
+        style,
+      ]}
     />
   );
 }

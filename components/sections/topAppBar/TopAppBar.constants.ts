@@ -10,7 +10,8 @@ export const TOP_APP_BAR_LOGO_SIZE = 40;
 export const TOP_APP_BAR_SEARCH_TRANSITION_DURATION = Time.duration.medium;
 
 /** Duration used for primary action show/hide width+opacity transitions. */
-export const TOP_APP_BAR_PRIMARY_ACTION_TRANSITION_DURATION = Time.duration.medium;
+export const TOP_APP_BAR_PRIMARY_ACTION_TRANSITION_DURATION =
+  Time.duration.medium;
 
 /** Horizontal slide offset used during search variant enter/exit animations. */
 export const TOP_APP_BAR_SEARCH_SLIDE_OFFSET = Size.space['600'];

@@ -9,7 +9,9 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 const withMockDomGlobals = <T,>(
   MockHTMLElement: new () => T,
@@ -64,12 +66,7 @@ describe('SearchResults', () => {
   it('uses the light palette path when color scheme is light', () => {
     mockUseColorScheme.mockReturnValue('light');
 
-    render(
-      <SearchResults
-        results={mockSpecies}
-        isVisible={true}
-      />,
-    );
+    render(<SearchResults results={mockSpecies} isVisible={true} />);
 
     expect(screen.getByText('Species One')).toBeTruthy();
   });
@@ -79,20 +76,15 @@ describe('SearchResults', () => {
       <SearchResults
         results={mockSpecies}
         isVisible={false}
-        testID="search-results"
-      />
+        testID='search-results'
+      />,
     );
 
     expect(queryByTestId('search-results')).toBeNull();
   });
 
   it('renders results when isVisible is true', () => {
-    render(
-      <SearchResults
-        results={mockSpecies}
-        isVisible={true}
-      />
-    );
+    render(<SearchResults results={mockSpecies} isVisible={true} />);
 
     expect(screen.getByText('Species One')).toBeTruthy();
     expect(screen.getByText('Species Two')).toBeTruthy();
@@ -104,8 +96,8 @@ describe('SearchResults', () => {
         results={[]}
         isVisible={true}
         isLoading={true}
-        testID="search-results"
-      />
+        testID='search-results'
+      />,
     );
 
     expect(screen.getByText('Loading results...')).toBeTruthy();
@@ -114,11 +106,7 @@ describe('SearchResults', () => {
 
   it('omits loading testID when testID prop is not provided', () => {
     const { queryByTestId } = render(
-      <SearchResults
-        results={[]}
-        isVisible={true}
-        isLoading={true}
-      />,
+      <SearchResults results={[]} isVisible={true} isLoading={true} />,
     );
 
     expect(queryByTestId(/-loading$/)).toBeNull();
@@ -130,9 +118,9 @@ describe('SearchResults', () => {
         results={[]}
         isVisible={true}
         isLoading={false}
-        emptyMessage="No species found"
-        testID="search-results"
-      />
+        emptyMessage='No species found'
+        testID='search-results'
+      />,
     );
 
     expect(screen.getByText('No species found')).toBeTruthy();
@@ -140,11 +128,7 @@ describe('SearchResults', () => {
 
   it('omits empty testID when testID prop is not provided', () => {
     const { queryByTestId } = render(
-      <SearchResults
-        results={[]}
-        isVisible={true}
-        isLoading={false}
-      />,
+      <SearchResults results={[]} isVisible={true} isLoading={false} />,
     );
 
     expect(queryByTestId(/-empty$/)).toBeNull();
@@ -152,7 +136,11 @@ describe('SearchResults', () => {
 
   it('renders compact SpeciesCard for each result', () => {
     render(
-      <SearchResults results={mockSpecies} isVisible={true} testID="search-results" />
+      <SearchResults
+        results={mockSpecies}
+        isVisible={true}
+        testID='search-results'
+      />,
     );
 
     expect(screen.getByTestId('search-result-1')).toBeTruthy();
@@ -166,8 +154,8 @@ describe('SearchResults', () => {
         results={mockSpecies}
         isVisible={true}
         onSelectResult={handleSelect}
-        testID="search-results"
-      />
+        testID='search-results'
+      />,
     );
 
     const firstResultButton = screen.getByTestId('search-result-1');
@@ -181,8 +169,8 @@ describe('SearchResults', () => {
       <SearchResults
         results={mockSpecies}
         isVisible={true}
-        testID="custom-search-results"
-      />
+        testID='custom-search-results'
+      />,
     );
 
     expect(screen.getByTestId('custom-search-results')).toBeTruthy();
@@ -194,8 +182,8 @@ describe('SearchResults', () => {
         results={mockSpecies}
         isVisible={true}
         maxHeight={200}
-        testID="search-results"
-      />
+        testID='search-results'
+      />,
     );
 
     const container = getByTestId('search-results');
@@ -215,7 +203,7 @@ describe('SearchResults', () => {
         results={[]}
         isVisible={true}
         isLoading={true}
-        testID="search-results"
+        testID='search-results'
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
         onTouchStart={onTouchStart}
@@ -244,7 +232,7 @@ describe('SearchResults', () => {
         results={[]}
         isVisible={true}
         isLoading={true}
-        testID="search-results"
+        testID='search-results'
         onFocus={onFocus}
         onBlur={onBlur}
       />,
@@ -263,7 +251,7 @@ describe('SearchResults', () => {
       <SearchResults
         results={mockSpecies}
         isVisible={true}
-        testID="search-results"
+        testID='search-results'
         style={{ left: 12, right: 16, top: 24 }}
       />,
     );
@@ -277,38 +265,48 @@ describe('SearchResults', () => {
   });
 
   it('does not scroll when the active result is already visible', () => {
-    expect(__SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
-      { y: 120, height: 56 },
-      { height: 240, offset: 0 },
-    )).toBeNull();
+    expect(
+      __SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
+        { y: 120, height: 56 },
+        { height: 240, offset: 0 },
+      ),
+    ).toBeNull();
   });
 
   it('does not calculate a scroll offset without a measured result layout', () => {
-    expect(__SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
-      undefined,
-      { height: 240, offset: 0 },
-    )).toBeNull();
+    expect(
+      __SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(undefined, {
+        height: 240,
+        offset: 0,
+      }),
+    ).toBeNull();
   });
 
   it('does not calculate a scroll offset when the viewport height is unknown', () => {
-    expect(__SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
-      { y: 220, height: 56 },
-      { height: 0, offset: 0 },
-    )).toBeNull();
+    expect(
+      __SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
+        { y: 220, height: 56 },
+        { height: 0, offset: 0 },
+      ),
+    ).toBeNull();
   });
 
   it('scrolls down when the active result is leaving the bottom edge', () => {
-    expect(__SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
-      { y: 220, height: 56 },
-      { height: 240, offset: 0 },
-    )).toBe(52);
+    expect(
+      __SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
+        { y: 220, height: 56 },
+        { height: 240, offset: 0 },
+      ),
+    ).toBe(52);
   });
 
   it('scrolls up when the active result is above the visible area', () => {
-    expect(__SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
-      { y: 80, height: 56 },
-      { height: 240, offset: 160 },
-    )).toBe(64);
+    expect(
+      __SEARCH_RESULTS_TESTING__.getScrollOffsetForActiveResult(
+        { y: 80, height: 56 },
+        { height: 240, offset: 160 },
+      ),
+    ).toBe(64);
   });
 
   it('adds top padding when scrolling the active result back into view', () => {
@@ -370,23 +368,28 @@ describe('SearchResults', () => {
   });
 
   it('keeps the active web result visible via instance-scoped DOM ids', () => {
-    const listId = __SEARCH_RESULTS_TESTING__.getSearchResultsListElementId('instance-1');
-    const resultId = __SEARCH_RESULTS_TESTING__.getSearchResultsResultElementId('instance-1', 3);
+    const listId =
+      __SEARCH_RESULTS_TESTING__.getSearchResultsListElementId('instance-1');
+    const resultId = __SEARCH_RESULTS_TESTING__.getSearchResultsResultElementId(
+      'instance-1',
+      3,
+    );
 
     class MockHTMLElement {
       id = '';
       scrollTop = 0;
-      getBoundingClientRect = () => ({
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: 0,
-        height: 0,
-        x: 0,
-        y: 0,
-        toJSON: () => ({}),
-      } as DOMRect);
+      getBoundingClientRect = () =>
+        ({
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
     }
 
     const listElement = new MockHTMLElement();
@@ -394,28 +397,30 @@ describe('SearchResults', () => {
 
     listElement.id = listId;
     resultElement.id = resultId;
-    listElement.getBoundingClientRect = () => ({
-      top: 100,
-      bottom: 340,
-      left: 0,
-      right: 0,
-      width: 0,
-      height: 240,
-      x: 0,
-      y: 100,
-      toJSON: () => ({}),
-    } as DOMRect);
-    resultElement.getBoundingClientRect = () => ({
-      top: 320,
-      bottom: 392,
-      left: 0,
-      right: 0,
-      width: 0,
-      height: 72,
-      x: 0,
-      y: 320,
-      toJSON: () => ({}),
-    } as DOMRect);
+    listElement.getBoundingClientRect = () =>
+      ({
+        top: 100,
+        bottom: 340,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 240,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    resultElement.getBoundingClientRect = () =>
+      ({
+        top: 320,
+        bottom: 392,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 72,
+        x: 0,
+        y: 320,
+        toJSON: () => ({}),
+      }) as DOMRect;
 
     withMockDomGlobals(
       MockHTMLElement,
@@ -440,30 +445,41 @@ describe('SearchResults', () => {
 
   it('returns early when the active web result ids are missing', () => {
     expect(() => {
-      __SEARCH_RESULTS_TESTING__.keepActiveWebResultVisible(undefined, undefined);
+      __SEARCH_RESULTS_TESTING__.keepActiveWebResultVisible(
+        undefined,
+        undefined,
+      );
     }).not.toThrow();
   });
 
   it('returns early when the active web result elements cannot be resolved', () => {
     class MockHTMLElement {
-      getBoundingClientRect = () => ({
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: 0,
-        height: 0,
-        x: 0,
-        y: 0,
-        toJSON: () => ({}),
-      } as DOMRect);
+      getBoundingClientRect = () =>
+        ({
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
     }
 
-    withMockDomGlobals(MockHTMLElement, () => null, () => {
-      expect(() => {
-        __SEARCH_RESULTS_TESTING__.keepActiveWebResultVisible('missing-list', 'missing-result');
-      }).not.toThrow();
-    });
+    withMockDomGlobals(
+      MockHTMLElement,
+      () => null,
+      () => {
+        expect(() => {
+          __SEARCH_RESULTS_TESTING__.keepActiveWebResultVisible(
+            'missing-list',
+            'missing-result',
+          );
+        }).not.toThrow();
+      },
+    );
   });
 
   it('applies the active highlight in inline layout when the index matches', () => {
@@ -471,9 +487,9 @@ describe('SearchResults', () => {
       <SearchResults
         results={mockSpecies}
         isVisible={true}
-        layout="inline"
+        layout='inline'
         activeResultIndex={1}
-        testID="search-results"
+        testID='search-results'
       />,
     );
 
@@ -483,6 +499,8 @@ describe('SearchResults', () => {
     const inactiveStyle = StyleSheet.flatten(inactiveCard.props.style);
 
     expect(activeStyle?.backgroundColor).toBeTruthy();
-    expect(activeStyle?.backgroundColor).not.toBe(inactiveStyle?.backgroundColor);
+    expect(activeStyle?.backgroundColor).not.toBe(
+      inactiveStyle?.backgroundColor,
+    );
   });
 });

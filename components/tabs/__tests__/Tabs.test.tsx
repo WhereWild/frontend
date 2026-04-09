@@ -1,64 +1,81 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Platform, StyleSheet, type PressableProps, type View } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  type PressableProps,
+  type View,
+} from 'react-native';
 import { Tabs, __TABS_TESTING__ } from '../Tabs';
 
-const toStyleArray = (value: unknown) => (Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean));
+const toStyleArray = (value: unknown) =>
+  Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean);
 
 jest.mock('../Tab', () => {
   const React = jest.requireActual<typeof import('react')>('react');
-  const ReactNative = jest.requireActual<typeof import('react-native')>('react-native');
-  const PressableWithKeyDown = ReactNative.Pressable as unknown as React.ForwardRefExoticComponent<
-    PressableProps & {
-      onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
-      tabIndex?: 0 | -1;
-    } & React.RefAttributes<View>
-  >;
+  const ReactNative =
+    jest.requireActual<typeof import('react-native')>('react-native');
+  const PressableWithKeyDown =
+    ReactNative.Pressable as unknown as React.ForwardRefExoticComponent<
+      PressableProps & {
+        onKeyDown?: (event: {
+          nativeEvent?: { key?: string };
+          preventDefault?: () => void;
+        }) => void;
+        tabIndex?: 0 | -1;
+      } & React.RefAttributes<View>
+    >;
 
-  const Tab = React.forwardRef((props: any, ref: React.ForwardedRef<{ focus: () => void }>) => {
-    const {
-      id,
-      label,
-      isActive,
-      onPress,
-      onLabelLayout,
-      onKeyDown,
-      onFocus,
-      focusable,
-      tabIndex,
-      accessibilityLabel,
-      testID,
-    } = props;
+  const Tab = React.forwardRef(
+    (props: any, ref: React.ForwardedRef<{ focus: () => void }>) => {
+      const {
+        id,
+        label,
+        isActive,
+        onPress,
+        onLabelLayout,
+        onKeyDown,
+        onFocus,
+        focusable,
+        tabIndex,
+        accessibilityLabel,
+        testID,
+      } = props;
 
-    React.useImperativeHandle(ref, () => ({
-      focus: () => {
-        onFocus?.();
-      },
-    }), [onFocus]);
+      React.useImperativeHandle(
+        ref,
+        () => ({
+          focus: () => {
+            onFocus?.();
+          },
+        }),
+        [onFocus],
+      );
 
-    return (
-      <PressableWithKeyDown
-        accessibilityRole="tab"
-        accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityState={{ selected: isActive }}
-        onFocus={onFocus}
-        onKeyDown={onKeyDown}
-        focusable={focusable}
-        tabIndex={tabIndex}
-        onPress={() => {
-          if (!isActive) {
-            onPress(id);
-          }
-        }}
-        onLayout={(event) => {
-          onLabelLayout?.(event.nativeEvent.layout.width);
-        }}
-        testID={testID}
-      >
-        {label}
-      </PressableWithKeyDown>
-    );
-  });
+      return (
+        <PressableWithKeyDown
+          accessibilityRole='tab'
+          accessibilityLabel={accessibilityLabel ?? label}
+          accessibilityState={{ selected: isActive }}
+          onFocus={onFocus}
+          onKeyDown={onKeyDown}
+          focusable={focusable}
+          tabIndex={tabIndex}
+          onPress={() => {
+            if (!isActive) {
+              onPress(id);
+            }
+          }}
+          onLayout={(event) => {
+            onLabelLayout?.(event.nativeEvent.layout.width);
+          }}
+          testID={testID}
+        >
+          {label}
+        </PressableWithKeyDown>
+      );
+    },
+  );
 
   Tab.displayName = 'MockTab';
 
@@ -96,7 +113,10 @@ const TabsHarness = ({
 };
 
 describe('Tabs', () => {
-  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+    Platform,
+    'OS',
+  );
 
   const setPlatformOS = (os: 'ios' | 'web') => {
     Object.defineProperty(Platform, 'OS', {
@@ -112,7 +132,7 @@ describe('Tabs', () => {
   });
 
   it('renders with accessibility roles and labels', () => {
-    render(<TabsHarness accessibilityLabel="Species tabs" />);
+    render(<TabsHarness accessibilityLabel='Species tabs' />);
 
     const tabList = screen.getByLabelText('Species tabs');
     expect(tabList).toBeDefined();
@@ -176,7 +196,9 @@ describe('Tabs', () => {
   it('wraps focus on ArrowRight from the last tab', () => {
     setPlatformOS('web');
     const onSelectionChange = jest.fn();
-    render(<TabsHarness initialKey="four" onSelectionChange={onSelectionChange} />);
+    render(
+      <TabsHarness initialKey='four' onSelectionChange={onSelectionChange} />,
+    );
 
     const tabFour = screen.getByLabelText('Four');
     fireEvent(tabFour, 'keyDown', { nativeEvent: { key: 'ArrowRight' } });
@@ -206,7 +228,7 @@ describe('Tabs', () => {
 
   it('renders separators between non-active tabs', () => {
     setPlatformOS('web');
-    render(<TabsHarness initialKey="one" />);
+    render(<TabsHarness initialKey='one' />);
 
     expect(screen.getByTestId('tabs-separator-1')).toBeDefined();
     expect(screen.getByTestId('tabs-separator-2')).toBeDefined();
@@ -214,7 +236,7 @@ describe('Tabs', () => {
 
   it('skips separator adjacent to the active tab', () => {
     setPlatformOS('web');
-    render(<TabsHarness initialKey="two" />);
+    render(<TabsHarness initialKey='two' />);
 
     const separator = screen.getByTestId('tabs-separator-0');
     const style = StyleSheet.flatten(separator.props.style);
@@ -222,7 +244,7 @@ describe('Tabs', () => {
   });
 
   it('does not render separator hosts on native', () => {
-    render(<TabsHarness initialKey="one" />);
+    render(<TabsHarness initialKey='one' />);
 
     expect(screen.queryByTestId('tabs-separator-0')).toBeNull();
     expect(screen.queryByTestId('tabs-separator-1')).toBeNull();
@@ -232,9 +254,11 @@ describe('Tabs', () => {
   it('keeps a single scroll host mounted while layout mode changes', () => {
     setPlatformOS('web');
 
-    const rendered = render(<TabsHarness initialKey="one" />);
+    const rendered = render(<TabsHarness initialKey='one' />);
     expect(screen.getAllByTestId('tabs-scroll-host')).toHaveLength(1);
-    expect(screen.getByTestId('tabs-scroll-host').props.scrollEnabled).toBe(true);
+    expect(screen.getByTestId('tabs-scroll-host').props.scrollEnabled).toBe(
+      true,
+    );
 
     fireEvent(screen.getByLabelText('Example Tabs'), 'layout', {
       nativeEvent: { layout: { width: 1200, height: 48 } },
@@ -252,26 +276,30 @@ describe('Tabs', () => {
       nativeEvent: { layout: { width: 120, height: 24 } },
     });
 
-    expect(screen.getByTestId('tabs-scroll-host').props.scrollEnabled).toBe(false);
+    expect(screen.getByTestId('tabs-scroll-host').props.scrollEnabled).toBe(
+      false,
+    );
 
-    rendered.rerender(<TabsHarness initialKey="two" />);
+    rendered.rerender(<TabsHarness initialKey='two' />);
     expect(screen.getAllByTestId('tabs-scroll-host')).toHaveLength(1);
-    expect(screen.getByTestId('tabs-scroll-host').props.scrollEnabled).toBe(false);
+    expect(screen.getByTestId('tabs-scroll-host').props.scrollEnabled).toBe(
+      false,
+    );
   });
 
   it('only exposes overflow after measurement completes, regardless of scroll mode', () => {
     setPlatformOS('web');
 
-    render(<TabsHarness initialKey="one" />);
+    render(<TabsHarness initialKey='one' />);
 
     const initialScrollHost = screen.getByTestId('tabs-scroll-host');
     expect(initialScrollHost.props.scrollEnabled).toBe(true);
     expect(toStyleArray(initialScrollHost.props.style)).not.toContainEqual(
-      expect.objectContaining({ overflow: 'visible' })
+      expect.objectContaining({ overflow: 'visible' }),
     );
-    expect(toStyleArray(initialScrollHost.props.contentContainerStyle)).not.toContainEqual(
-      expect.objectContaining({ overflow: 'visible' })
-    );
+    expect(
+      toStyleArray(initialScrollHost.props.contentContainerStyle),
+    ).not.toContainEqual(expect.objectContaining({ overflow: 'visible' }));
 
     fireEvent(screen.getByLabelText('Example Tabs'), 'layout', {
       nativeEvent: { layout: { width: 320, height: 48 } },
@@ -292,11 +320,11 @@ describe('Tabs', () => {
     const scrollingHost = screen.getByTestId('tabs-scroll-host');
     expect(scrollingHost.props.scrollEnabled).toBe(true);
     expect(toStyleArray(scrollingHost.props.style)).toContainEqual(
-      expect.objectContaining({ overflow: 'visible' })
+      expect.objectContaining({ overflow: 'visible' }),
     );
-    expect(toStyleArray(scrollingHost.props.contentContainerStyle)).toContainEqual(
-      expect.objectContaining({ overflow: 'visible' })
-    );
+    expect(
+      toStyleArray(scrollingHost.props.contentContainerStyle),
+    ).toContainEqual(expect.objectContaining({ overflow: 'visible' }));
 
     fireEvent(screen.getByLabelText('Example Tabs'), 'layout', {
       nativeEvent: { layout: { width: 1200, height: 48 } },
@@ -305,13 +333,12 @@ describe('Tabs', () => {
     const fixedHost = screen.getByTestId('tabs-scroll-host');
     expect(fixedHost.props.scrollEnabled).toBe(false);
     expect(toStyleArray(fixedHost.props.style)).toContainEqual(
-      expect.objectContaining({ overflow: 'visible' })
+      expect.objectContaining({ overflow: 'visible' }),
     );
     expect(toStyleArray(fixedHost.props.contentContainerStyle)).toContainEqual(
-      expect.objectContaining({ overflow: 'visible' })
+      expect.objectContaining({ overflow: 'visible' }),
     );
   });
-
 });
 
 describe('computeTabLayout', () => {
@@ -328,14 +355,14 @@ describe('computeTabLayout', () => {
       computeTabLayout({
         ...baseArgs,
         containerWidth: 0,
-      })
+      }),
     ).toEqual({ tabWidths: {}, shouldScroll: false });
 
     expect(
       computeTabLayout({
         ...baseArgs,
         tabs: [],
-      })
+      }),
     ).toEqual({ tabWidths: {}, shouldScroll: false });
   });
 

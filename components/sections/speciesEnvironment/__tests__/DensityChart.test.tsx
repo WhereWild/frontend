@@ -22,7 +22,10 @@ jest.mock('react-native-svg', () => {
 
 const getNonNullRangeCalls = (mockFn: jest.Mock) =>
   mockFn.mock.calls.filter(
-    (call) => call[0] && typeof call[0].start === 'number' && typeof call[0].end === 'number',
+    (call) =>
+      call[0] &&
+      typeof call[0].start === 'number' &&
+      typeof call[0].end === 'number',
   );
 
 const getLabelContainerStyle = (label: string) => {
@@ -30,9 +33,15 @@ const getLabelContainerStyle = (label: string) => {
 
   while (current) {
     const style = current.props.style;
-    const resolvedStyle = Array.isArray(style) ? Object.assign({}, ...style) : style;
+    const resolvedStyle = Array.isArray(style)
+      ? Object.assign({}, ...style)
+      : style;
 
-    if (resolvedStyle && typeof resolvedStyle === 'object' && 'left' in resolvedStyle) {
+    if (
+      resolvedStyle &&
+      typeof resolvedStyle === 'object' &&
+      'left' in resolvedStyle
+    ) {
       return resolvedStyle as {
         left?: string;
         marginLeft?: number;
@@ -47,13 +56,21 @@ const getLabelContainerStyle = (label: string) => {
 };
 
 const getPinImageContainerStyle = () => {
-  let current = screen.getByTestId('density-chart-pin-image') as ReactTestInstance | null;
+  let current = screen.getByTestId(
+    'density-chart-pin-image',
+  ) as ReactTestInstance | null;
 
   while (current) {
     const style = current.props.style;
-    const resolvedStyle = Array.isArray(style) ? Object.assign({}, ...style) : style;
+    const resolvedStyle = Array.isArray(style)
+      ? Object.assign({}, ...style)
+      : style;
 
-    if (resolvedStyle && typeof resolvedStyle === 'object' && 'left' in resolvedStyle) {
+    if (
+      resolvedStyle &&
+      typeof resolvedStyle === 'object' &&
+      'left' in resolvedStyle
+    ) {
       return resolvedStyle as {
         left?: string;
         opacity?: number;
@@ -71,9 +88,9 @@ describe('DensityChart', () => {
     render(
       <DensityChart
         curve={null}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={null}
         selection={null}
       />,
@@ -87,9 +104,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 10, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -99,10 +116,18 @@ describe('DensityChart', () => {
     const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
-    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 180 } });
-    fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 180 } });
+    fireEvent(chartSurface, 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 20 },
+    });
+    fireEvent(responderNode, 'responderMove', {
+      nativeEvent: { locationX: 180 },
+    });
+    fireEvent(responderNode, 'responderRelease', {
+      nativeEvent: { locationX: 180 },
+    });
 
     expect(onSelectionChange).toHaveBeenCalled();
     const rangeCalls = getNonNullRangeCalls(onSelectionChange);
@@ -114,9 +139,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 10], density: [1, 0.5] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 2, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -125,7 +150,9 @@ describe('DensityChart', () => {
 
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 50 } });
+    fireEvent(responderNode, 'responderRelease', {
+      nativeEvent: { locationX: 50 },
+    });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
   });
@@ -135,9 +162,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 10], density: [0.4, 0.4] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 2, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -147,9 +174,15 @@ describe('DensityChart', () => {
     const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 80 } });
-    fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 80 } });
+    fireEvent(chartSurface, 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 80 },
+    });
+    fireEvent(responderNode, 'responderRelease', {
+      nativeEvent: { locationX: 80 },
+    });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
   });
@@ -159,9 +192,9 @@ describe('DensityChart', () => {
     const { getByTestId, queryByText } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: null, max: 10 }}
         selection={{ start: 6, end: 6 }}
         onSelectionChange={onSelectionChange}
@@ -175,9 +208,15 @@ describe('DensityChart', () => {
     const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
-    fireEvent(responderNode, 'responderTerminate', { nativeEvent: { locationX: 20 } });
+    fireEvent(chartSurface, 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 20 },
+    });
+    fireEvent(responderNode, 'responderTerminate', {
+      nativeEvent: { locationX: 20 },
+    });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
   });
@@ -187,9 +226,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -199,10 +238,18 @@ describe('DensityChart', () => {
     const chartSurface = getByTestId('density-chart-surface');
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
-    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 120 } });
-    fireEvent(responderNode, 'responderTerminate', { nativeEvent: { locationX: 130 } });
+    fireEvent(chartSurface, 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 20 },
+    });
+    fireEvent(responderNode, 'responderMove', {
+      nativeEvent: { locationX: 120 },
+    });
+    fireEvent(responderNode, 'responderTerminate', {
+      nativeEvent: { locationX: 130 },
+    });
 
     expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 1, end: 6 });
   });
@@ -212,9 +259,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 10], density: [0.4, 0.4] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 2, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -225,15 +272,25 @@ describe('DensityChart', () => {
     const responderNode = getByTestId('density-chart-responder');
 
     expect(
-      responderNode.props.onResponderTerminationRequest({ nativeEvent: { locationX: 10 } }),
+      responderNode.props.onResponderTerminationRequest({
+        nativeEvent: { locationX: 10 },
+      }),
     ).toBe(true);
 
-    fireEvent(chartSurface, 'layout', { nativeEvent: { layout: { width: 200 } } });
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
-    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 80 } });
+    fireEvent(chartSurface, 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 20 },
+    });
+    fireEvent(responderNode, 'responderMove', {
+      nativeEvent: { locationX: 80 },
+    });
 
     expect(
-      responderNode.props.onResponderTerminationRequest({ nativeEvent: { locationX: 80 } }),
+      responderNode.props.onResponderTerminationRequest({
+        nativeEvent: { locationX: 80 },
+      }),
     ).toBe(false);
   });
 
@@ -241,9 +298,9 @@ describe('DensityChart', () => {
     render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: Number.NaN, mean: 5, max: 10 }}
         selection={{ start: 1, end: 9 }}
       />,
@@ -258,9 +315,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 10], density: [0.2, 0.4] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 2, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -269,9 +326,15 @@ describe('DensityChart', () => {
 
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 10 } });
-    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 30 } });
-    fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 30 } });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 10 },
+    });
+    fireEvent(responderNode, 'responderMove', {
+      nativeEvent: { locationX: 30 },
+    });
+    fireEvent(responderNode, 'responderRelease', {
+      nativeEvent: { locationX: 30 },
+    });
 
     expect(onSelectionChange).toHaveBeenCalledWith(null);
   });
@@ -281,9 +344,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         onSelectionChange={onSelectionChange}
@@ -292,11 +355,21 @@ describe('DensityChart', () => {
 
     const responderNode = getByTestId('density-chart-responder');
 
-    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 200 } } });
-    fireEvent(responderNode, 'responderGrant', { nativeEvent: { locationX: 20 } });
-    fireEvent(responderNode, 'layout', { nativeEvent: { layout: { width: 0 } } });
-    fireEvent(responderNode, 'responderMove', { nativeEvent: { locationX: 180 } });
-    fireEvent(responderNode, 'responderRelease', { nativeEvent: { locationX: 180 } });
+    fireEvent(responderNode, 'layout', {
+      nativeEvent: { layout: { width: 200 } },
+    });
+    fireEvent(responderNode, 'responderGrant', {
+      nativeEvent: { locationX: 20 },
+    });
+    fireEvent(responderNode, 'layout', {
+      nativeEvent: { layout: { width: 0 } },
+    });
+    fireEvent(responderNode, 'responderMove', {
+      nativeEvent: { locationX: 180 },
+    });
+    fireEvent(responderNode, 'responderRelease', {
+      nativeEvent: { locationX: 180 },
+    });
 
     expect(getNonNullRangeCalls(onSelectionChange)).toHaveLength(0);
     expect(onSelectionChange).toHaveBeenCalledWith(null);
@@ -306,9 +379,9 @@ describe('DensityChart', () => {
     const { getByTestId, queryByText } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={5}
@@ -321,16 +394,19 @@ describe('DensityChart', () => {
     });
 
     expect(queryByText('Selected')).toBeNull();
-    expect(getPinImageContainerStyle()).toMatchObject({ opacity: 0, left: '0%' });
+    expect(getPinImageContainerStyle()).toMatchObject({
+      opacity: 0,
+      left: '0%',
+    });
   });
 
   it('renders a selected pin label for zero-span curves when edge labels are absent', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [1, 1], density: [0.3, 0.6] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={null}
         selection={null}
         pinValue={1}
@@ -350,9 +426,9 @@ describe('DensityChart', () => {
     const { getByTestId, queryByText } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={0.2}
@@ -371,9 +447,9 @@ describe('DensityChart', () => {
     const { getByTestId, queryByText } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={9.8}
@@ -392,9 +468,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={5.2}
@@ -421,9 +497,9 @@ describe('DensityChart', () => {
     const { getByTestId } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={4.8}
@@ -448,9 +524,9 @@ describe('DensityChart', () => {
     const { getByTestId, queryByText } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={12}
@@ -462,18 +538,25 @@ describe('DensityChart', () => {
       nativeEvent: { layout: { width: 300 } },
     });
 
-    expect(screen.getByText("Location value (12.0) is above this species' observed range")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Location value (12.0) is above this species' observed range",
+      ),
+    ).toBeTruthy();
     expect(queryByText('Selected')).toBeNull();
-    expect(getPinImageContainerStyle()).toMatchObject({ opacity: 0, left: '0%' });
+    expect(getPinImageContainerStyle()).toMatchObject({
+      opacity: 0,
+      left: '0%',
+    });
   });
 
   it('shows an out-of-range warning and hides the selected pin when the value is below the species range', () => {
     const { getByTestId, queryByText } = render(
       <DensityChart
         curve={{ points: [0, 5, 10], density: [0.1, 0.9, 0.1] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 3, min: 0, mean: 5, max: 10 }}
         selection={null}
         pinValue={-1}
@@ -485,18 +568,25 @@ describe('DensityChart', () => {
       nativeEvent: { layout: { width: 300 } },
     });
 
-    expect(screen.getByText("Location value (-1.0) is below this species' observed range")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Location value (-1.0) is below this species' observed range",
+      ),
+    ).toBeTruthy();
     expect(queryByText('Selected')).toBeNull();
-    expect(getPinImageContainerStyle()).toMatchObject({ opacity: 0, left: '0%' });
+    expect(getPinImageContainerStyle()).toMatchObject({
+      opacity: 0,
+      left: '0%',
+    });
   });
 
   it('handles zero-span and zero-density curves', () => {
     render(
       <DensityChart
         curve={{ points: [1, 1], density: [0, 0] }}
-        lineColor="#000"
-        fillColor="#000"
-        baselineColor="#000"
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
         summary={{ count: 2, min: 1, mean: 1, max: 1 }}
         selection={null}
       />,
