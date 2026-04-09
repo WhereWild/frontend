@@ -7,7 +7,9 @@ import { StyleSheet } from 'react-native';
 
 import Settings from '../settings';
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 const mockUseSettings = useSettings as jest.MockedFunction<typeof useSettings>;
 
 const mockSetRegion = jest.fn();
@@ -15,8 +17,12 @@ const mockSetUnits = jest.fn();
 const mockSetLanguage = jest.fn();
 const mockSelectField = jest.fn();
 
-function getSelectFieldChangeHandler(label: string): ((value: string) => void) | undefined {
-  const matchedCall = mockSelectField.mock.calls.find(([props]) => props?.label === label);
+function getSelectFieldChangeHandler(
+  label: string,
+): ((value: string) => void) | undefined {
+  const matchedCall = mockSelectField.mock.calls.find(
+    ([props]) => props?.label === label,
+  );
   if (!matchedCall) {
     return undefined;
   }
@@ -33,22 +39,33 @@ jest.mock('@/hooks/useResponsive', () => ({
 }));
 
 jest.mock('@/constants/responsiveStyles', () => ({
-  getResponsiveContentContainerStyle: jest.fn(() => ({ paddingHorizontal: 12 })),
+  getResponsiveContentContainerStyle: jest.fn(() => ({
+    paddingHorizontal: 12,
+  })),
 }));
 
 jest.mock('@/components', () => {
   const mockReact = jest.requireActual('react') as typeof React;
-  const mockReactNative = jest.requireActual('react-native') as typeof import('react-native');
+  const mockReactNative = jest.requireActual(
+    'react-native',
+  ) as typeof import('react-native');
 
   return {
-    WebPageHeader: () => mockReact.createElement(mockReactNative.View, { testID: 'page-header' }),
+    WebPageHeader: () =>
+      mockReact.createElement(mockReactNative.View, { testID: 'page-header' }),
     PageTitle: ({ title }: { title: string }) =>
-      mockReact.createElement(mockReactNative.Text, { testID: 'page-title' }, title),
+      mockReact.createElement(
+        mockReactNative.Text,
+        { testID: 'page-title' },
+        title,
+      ),
     ThemedText: ({ children }: { children: React.ReactNode }) =>
       mockReact.createElement(mockReactNative.Text, null, children),
     SelectField: (props: Record<string, unknown>) => {
       mockSelectField(props);
-      return mockReact.createElement(mockReactNative.View, { testID: `select-${String(props.label)}` });
+      return mockReact.createElement(mockReactNative.View, {
+        testID: `select-${String(props.label)}`,
+      });
     },
   };
 });
@@ -74,8 +91,12 @@ describe('Settings screen', () => {
 
       const screen = render(<Settings />);
       const settingsScreen = screen.getByTestId('settings-screen');
-      const settingsScreenStyle = StyleSheet.flatten(settingsScreen.props.style);
-      expect(settingsScreenStyle.backgroundColor).toBe(Colors.dark.background.default.default);
+      const settingsScreenStyle = StyleSheet.flatten(
+        settingsScreen.props.style,
+      );
+      expect(settingsScreenStyle.backgroundColor).toBe(
+        Colors.dark.background.default.default,
+      );
     });
 
     it('applies light mode background color', () => {
@@ -83,8 +104,12 @@ describe('Settings screen', () => {
 
       const screen = render(<Settings />);
       const settingsScreen = screen.getByTestId('settings-screen');
-      const settingsScreenStyle = StyleSheet.flatten(settingsScreen.props.style);
-      expect(settingsScreenStyle.backgroundColor).toBe(Colors.light.background.default.default);
+      const settingsScreenStyle = StyleSheet.flatten(
+        settingsScreen.props.style,
+      );
+      expect(settingsScreenStyle.backgroundColor).toBe(
+        Colors.light.background.default.default,
+      );
     });
   });
 

@@ -29,15 +29,17 @@ jest.mock('../SpeciesOccurrenceMap', () => {
       showMarkers?: boolean;
     }) => (
       <View>
-        <Text testID="map-heatmap-url">{heatmapTileUrl ?? 'none'}</Text>
-        <Text testID="map-height">{String(height)}</Text>
-        <Text testID="map-initial-lat">{String(initialLat)}</Text>
-        <Text testID="map-initial-lon">{String(initialLon)}</Text>
-        <Text testID="map-initial-zoom">{String(initialZoom)}</Text>
-        <Text testID="map-min-zoom">{String(minZoom)}</Text>
-        <Text testID="map-max-zoom">{String(maxZoom)}</Text>
-        <Text testID="map-show-markers">{showMarkers === false ? 'hidden' : 'shown'}</Text>
-        <Text testID="map-max-bounds">{JSON.stringify(maxBounds)}</Text>
+        <Text testID='map-heatmap-url'>{heatmapTileUrl ?? 'none'}</Text>
+        <Text testID='map-height'>{String(height)}</Text>
+        <Text testID='map-initial-lat'>{String(initialLat)}</Text>
+        <Text testID='map-initial-lon'>{String(initialLon)}</Text>
+        <Text testID='map-initial-zoom'>{String(initialZoom)}</Text>
+        <Text testID='map-min-zoom'>{String(minZoom)}</Text>
+        <Text testID='map-max-zoom'>{String(maxZoom)}</Text>
+        <Text testID='map-show-markers'>
+          {showMarkers === false ? 'hidden' : 'shown'}
+        </Text>
+        <Text testID='map-max-bounds'>{JSON.stringify(maxBounds)}</Text>
       </View>
     ),
   };
@@ -45,7 +47,9 @@ jest.mock('../SpeciesOccurrenceMap', () => {
 
 describe('LocalMapSection', () => {
   it('renders the heading and passes the expected map configuration', () => {
-    render(<LocalMapSection heatmapTileUrl="https://tiles.example.test/{z}/{x}/{y}.png" />);
+    render(
+      <LocalMapSection heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png' />,
+    );
 
     expect(screen.getByText('Local Map')).toBeTruthy();
     expect(screen.getByTestId('map-heatmap-url').props.children).toBe(
@@ -57,8 +61,12 @@ describe('LocalMapSection', () => {
     expect(screen.getByTestId('map-initial-zoom').props.children).toBe('4');
     expect(screen.getByTestId('map-min-zoom').props.children).toBe('5');
     expect(screen.getByTestId('map-max-zoom').props.children).toBe('9');
-    expect(screen.getByTestId('map-show-markers').props.children).toBe('hidden');
-    expect(screen.getByTestId('map-max-bounds').props.children).toContain('-135');
+    expect(screen.getByTestId('map-show-markers').props.children).toBe(
+      'hidden',
+    );
+    expect(screen.getByTestId('map-max-bounds').props.children).toContain(
+      '-135',
+    );
   });
 
   it('omits the heading when showHeading is false', () => {

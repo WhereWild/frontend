@@ -10,7 +10,9 @@ describe('useNavigationBarSelectionModel', () => {
       { key: 'search', onPress: onPressSearch },
     ];
 
-    const { result } = renderHook(() => useNavigationBarSelectionModel({ tabs }));
+    const { result } = renderHook(() =>
+      useNavigationBarSelectionModel({ tabs }),
+    );
 
     expect(result.current.activeIndex).toBe(0);
 
@@ -40,7 +42,9 @@ describe('useNavigationBarSelectionModel', () => {
       { key: 'search', state: 'active' as const, onPress: onPressSearch },
     ];
 
-    const { result } = renderHook(() => useNavigationBarSelectionModel({ tabs }));
+    const { result } = renderHook(() =>
+      useNavigationBarSelectionModel({ tabs }),
+    );
 
     expect(result.current.activeIndex).toBe(1);
 
@@ -67,7 +71,8 @@ describe('useNavigationBarSelectionModel', () => {
     ];
 
     const { result, rerender } = renderHook(
-      ({ tabs: hookTabs }: { tabs: ControlledTab[] }) => useNavigationBarSelectionModel({ tabs: hookTabs }),
+      ({ tabs: hookTabs }: { tabs: ControlledTab[] }) =>
+        useNavigationBarSelectionModel({ tabs: hookTabs }),
       {
         initialProps: { tabs },
       },
@@ -101,7 +106,9 @@ describe('useNavigationBarSelectionModel', () => {
       { key: 'search', state: 'default' as const, onPress: jest.fn() },
     ];
 
-    const { result } = renderHook(() => useNavigationBarSelectionModel({ tabs }));
+    const { result } = renderHook(() =>
+      useNavigationBarSelectionModel({ tabs }),
+    );
 
     act(() => {
       result.current.setPreviewIndex(0);
@@ -113,8 +120,12 @@ describe('useNavigationBarSelectionModel', () => {
   });
 
   it('safely handles committing an out-of-range index', () => {
-    const tabs = [{ key: 'home', state: 'active' as const, onPress: jest.fn() }];
-    const { result } = renderHook(() => useNavigationBarSelectionModel({ tabs }));
+    const tabs = [
+      { key: 'home', state: 'active' as const, onPress: jest.fn() },
+    ];
+    const { result } = renderHook(() =>
+      useNavigationBarSelectionModel({ tabs }),
+    );
 
     act(() => {
       result.current.setPreviewIndex(0);

@@ -24,10 +24,7 @@ describe('NavigationBar native behavior', () => {
 
   it('renders NavigationBarTab module without crashing', () => {
     const { toJSON } = render(
-      <NavigationBarTab
-        label="Search"
-        icon={IconSearch}
-      />,
+      <NavigationBarTab label='Search' icon={IconSearch} />,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -43,19 +40,19 @@ describe('NavigationBar native behavior', () => {
 
     const { rerender, unmount } = render(
       <NavigationBarTab
-        label="Search"
+        label='Search'
         icon={IconSearch}
-        state="default"
-        foregroundTone="default"
+        state='default'
+        foregroundTone='default'
       />,
     );
 
     rerender(
       <NavigationBarTab
-        label="Search"
+        label='Search'
         icon={IconSearch}
-        state="active"
-        foregroundTone="default"
+        state='active'
+        foregroundTone='default'
       />,
     );
 
@@ -67,14 +64,38 @@ describe('NavigationBar native behavior', () => {
   });
 
   it('covers visual-state helpers with exact native values', () => {
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('active', false, false)).toBe('active');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('pressed', false, false)).toBe('pressed');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', true, false)).toBe('pressed');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, true)).toBe('pressed');
-    expect(__NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, false)).toBe('default');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('active', false, false),
+    ).toBe('active');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState(
+        'pressed',
+        false,
+        false,
+      ),
+    ).toBe('pressed');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', true, false),
+    ).toBe('pressed');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState('default', false, true),
+    ).toBe('pressed');
+    expect(
+      __NAVIGATION_BAR_TAB_TESTING__.resolveVisualState(
+        'default',
+        false,
+        false,
+      ),
+    ).toBe('default');
 
-    const lightStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('light', 'default');
-    const darkStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles('dark', 'pressed');
+    const lightStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles(
+      'light',
+      'default',
+    );
+    const darkStyles = __NAVIGATION_BAR_TAB_TESTING__.getVisualStyles(
+      'dark',
+      'pressed',
+    );
 
     expect(lightStyles).toEqual({
       textColor: Colors.light.text.default.default,
@@ -88,14 +109,15 @@ describe('NavigationBar native behavior', () => {
   });
 
   it('covers NavigationBar helper exports with deterministic native thresholds', () => {
-    const requiredWidthForFourTabs = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
-      4,
-      {
-        one: 100,
-        two: 100,
-      },
-      ['one', 'two', 'three', 'four'],
-    );
+    const requiredWidthForFourTabs =
+      __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
+        4,
+        {
+          one: 100,
+          two: 100,
+        },
+        ['one', 'two', 'three', 'four'],
+      );
     const requiredWidth = __NAVIGATION_BAR_TESTING__.getRequiredHorizontalWidth(
       5,
       {
@@ -131,7 +153,9 @@ describe('NavigationBar native behavior', () => {
         ['one', 'two', 'three', 'four', 'five'],
       ),
     ).toBe(false);
-    expect(__NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['one'])).toBe(true);
+    expect(
+      __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['one']),
+    ).toBe(true);
   });
 
   it('treats tabs arrays with equivalent item identities as equal', () => {
@@ -158,7 +182,9 @@ describe('NavigationBar native behavior', () => {
       },
     ];
 
-    expect(__NAVIGATION_BAR_TESTING__.areNavigationTabsEqual(first, second)).toBe(true);
+    expect(
+      __NAVIGATION_BAR_TESTING__.areNavigationTabsEqual(first, second),
+    ).toBe(true);
   });
 
   it('treats tabs arrays with changed onPress identity as different', () => {
@@ -184,6 +210,8 @@ describe('NavigationBar native behavior', () => {
       },
     ];
 
-    expect(__NAVIGATION_BAR_TESTING__.areNavigationTabsEqual(first, second)).toBe(false);
+    expect(
+      __NAVIGATION_BAR_TESTING__.areNavigationTabsEqual(first, second),
+    ).toBe(false);
   });
 });

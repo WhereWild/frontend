@@ -43,19 +43,23 @@ type NavigationBarTabItem = {
 const areNavigationTabItemsEqual = (
   previous: NavigationBarTabItem,
   next: NavigationBarTabItem,
-) => previous.key === next.key
-&& previous.label === next.label
-&& previous.icon === next.icon
-&& previous.state === next.state
-&& previous.onPress === next.onPress
-&& previous.accessibilityLabel === next.accessibilityLabel
-  && previous.testID === next.testID;
+) =>
+  previous.key === next.key &&
+  previous.label === next.label &&
+  previous.icon === next.icon &&
+  previous.state === next.state &&
+  previous.onPress === next.onPress &&
+  previous.accessibilityLabel === next.accessibilityLabel &&
+  previous.testID === next.testID;
 
 const areNavigationTabsEqual = (
   previousTabs: NavigationBarTabItem[],
   nextTabs: NavigationBarTabItem[],
-) => previousTabs.length === nextTabs.length
-  && previousTabs.every((previousTab, index) => areNavigationTabItemsEqual(previousTab, nextTabs[index]!));
+) =>
+  previousTabs.length === nextTabs.length &&
+  previousTabs.every((previousTab, index) =>
+    areNavigationTabItemsEqual(previousTab, nextTabs[index]!),
+  );
 
 // Keeps an internal stable tabs reference when callers pass a new array instance
 // with equivalent tab items, so downstream hook dependencies don't churn needlessly.
@@ -103,7 +107,10 @@ const getRequiredHorizontalWidth = (
   measuredTabWidths: Record<string, number>,
   tabKeys: string[],
 ) => {
-  const totalTabWidth = tabKeys.reduce((sum, key) => sum + getMeasuredWidthOrFallback(measuredTabWidths, key), 0);
+  const totalTabWidth = tabKeys.reduce(
+    (sum, key) => sum + getMeasuredWidthOrFallback(measuredTabWidths, key),
+    0,
+  );
   const totalGapWidth = Math.max(0, tabCount - 1) * TAB_GAP;
   return totalTabWidth + totalGapWidth;
 };
@@ -119,7 +126,11 @@ const shouldUseHorizontalVariant = (
     return true;
   }
 
-  const requiredWidth = getRequiredHorizontalWidth(tabCount, measuredTabWidths, tabKeys);
+  const requiredWidth = getRequiredHorizontalWidth(
+    tabCount,
+    measuredTabWidths,
+    tabKeys,
+  );
   return availableWidth >= requiredWidth;
 };
 
@@ -130,7 +141,12 @@ const resolveTabVariant = (
   measuredTabWidths: Record<string, number>,
   tabKeys: string[],
 ): NavigationBarTabVariant =>
-  shouldUseHorizontalVariant(availableWidth, tabCount, measuredTabWidths, tabKeys)
+  shouldUseHorizontalVariant(
+    availableWidth,
+    tabCount,
+    measuredTabWidths,
+    tabKeys,
+  )
     ? 'horizontal'
     : 'vertical';
 
@@ -150,12 +166,18 @@ export function NavigationBar({
   const palette = Colors[mode];
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const bottomInset = safeAreaInsets?.bottom ?? 0;
-  const safeAreaBottomPadding = Math.max(bottomInset - DEFAULT_BOTTOM_PADDING, 0);
+  const safeAreaBottomPadding = Math.max(
+    bottomInset - DEFAULT_BOTTOM_PADDING,
+    0,
+  );
   const safeAreaBottomPaddingAnimatedRef = React.useRef(
     new Animated.Value(safeAreaBottomPadding),
   );
   const hasAnimatedSafeAreaPaddingRef = React.useRef(false);
-  const tabKeys = React.useMemo(() => stableTabs.map((tab) => tab.key), [stableTabs]);
+  const tabKeys = React.useMemo(
+    () => stableTabs.map((tab) => tab.key),
+    [stableTabs],
+  );
   const {
     activeIndex,
     previewIndex,
@@ -214,18 +236,24 @@ export function NavigationBar({
     commitTabSelection,
   });
 
-  const handleTabPress = React.useCallback((index: number) => {
-    if (!shouldHandleTabPress()) {
-      return;
-    }
+  const handleTabPress = React.useCallback(
+    (index: number) => {
+      if (!shouldHandleTabPress()) {
+        return;
+      }
 
-    commitTabSelection(index);
-  }, [commitTabSelection, shouldHandleTabPress]);
+      commitTabSelection(index);
+    },
+    [commitTabSelection, shouldHandleTabPress],
+  );
 
-  const handleTabPressIn = React.useCallback((index: number) => {
-    measureTabsHostInWindow();
-    setPreviewIndex(index);
-  }, [measureTabsHostInWindow, setPreviewIndex]);
+  const handleTabPressIn = React.useCallback(
+    (index: number) => {
+      measureTabsHostInWindow();
+      setPreviewIndex(index);
+    },
+    [measureTabsHostInWindow, setPreviewIndex],
+  );
 
   React.useEffect(() => {
     if (!hasAnimatedSafeAreaPaddingRef.current) {
@@ -234,12 +262,15 @@ export function NavigationBar({
       return;
     }
 
-    const animation = Animated.timing(safeAreaBottomPaddingAnimatedRef.current, {
-      toValue: safeAreaBottomPadding,
-      duration: NAV_ANIMATION_DURATION,
-      easing,
-      useNativeDriver: false,
-    });
+    const animation = Animated.timing(
+      safeAreaBottomPaddingAnimatedRef.current,
+      {
+        toValue: safeAreaBottomPadding,
+        duration: NAV_ANIMATION_DURATION,
+        easing,
+        useNativeDriver: false,
+      },
+    );
 
     animation.start();
 
@@ -248,12 +279,19 @@ export function NavigationBar({
     };
   }, [easing, safeAreaBottomPadding]);
 
-  const handleTabsHostLayout = React.useCallback((event: LayoutChangeEvent) => {
-    handleTabsLayout(event.nativeEvent.layout.width, event.nativeEvent.layout.height);
-    measureTabsHostInWindow();
-  }, [handleTabsLayout, measureTabsHostInWindow]);
+  const handleTabsHostLayout = React.useCallback(
+    (event: LayoutChangeEvent) => {
+      handleTabsLayout(
+        event.nativeEvent.layout.width,
+        event.nativeEvent.layout.height,
+      );
+      measureTabsHostInWindow();
+    },
+    [handleTabsLayout, measureTabsHostInWindow],
+  );
 
-  const indicatorRadius = resolvedVariant === 'horizontal' ? Size.radius['full'] : Size.radius['400'];
+  const indicatorRadius =
+    resolvedVariant === 'horizontal' ? Size.radius['full'] : Size.radius['400'];
 
   const renderTabs = React.useCallback(
     (variant: NavigationBarTabVariant, shouldMeasure: boolean) =>
@@ -267,8 +305,14 @@ export function NavigationBar({
             foregroundTone={resolveTabForegroundTone(index)}
             variant={variant}
             onPress={shouldMeasure ? undefined : () => handleTabPress(index)}
-            onPressIn={shouldMeasure ? undefined : () => handleTabPressIn(index)}
-            onLayout={shouldMeasure ? (width) => onTabWidthLayout(tab.key, width) : undefined}
+            onPressIn={
+              shouldMeasure ? undefined : () => handleTabPressIn(index)
+            }
+            onLayout={
+              shouldMeasure
+                ? (width) => onTabWidthLayout(tab.key, width)
+                : undefined
+            }
             onContainerLayout={
               shouldMeasure
                 ? undefined
@@ -286,7 +330,7 @@ export function NavigationBar({
       onTabWidthLayout,
       resolveDerivedState,
       resolveTabForegroundTone,
-      stableTabs
+      stableTabs,
     ],
   );
 
@@ -296,19 +340,22 @@ export function NavigationBar({
   const activeIndicatorNode = (
     <Animated.View
       collapsable={false}
-      testID="navigation-bar-active-indicator"
+      testID='navigation-bar-active-indicator'
       style={[
         styles.activeIndicator,
         { pointerEvents: 'none' },
         activeLayout
           ? {
-            transform: [{ translateX: indicatorX }, { scaleX: indicatorScaleX }],
-            width: indicatorWidth,
-            top: activeLayout.y,
-            height: activeLayout.height,
-            borderRadius: indicatorRadius,
-            backgroundColor: indicatorBackgroundColor,
-          }
+              transform: [
+                { translateX: indicatorX },
+                { scaleX: indicatorScaleX },
+              ],
+              width: indicatorWidth,
+              top: activeLayout.y,
+              height: activeLayout.height,
+              borderRadius: indicatorRadius,
+              backgroundColor: indicatorBackgroundColor,
+            }
           : styles.hiddenIndicator,
       ]}
     />
@@ -317,9 +364,9 @@ export function NavigationBar({
   const measuringLayerNode = (
     <View
       collapsable={false}
-      testID="navigation-bar-measuring-layer"
+      testID='navigation-bar-measuring-layer'
       accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      importantForAccessibility='no-hide-descendants'
       style={[
         styles.tabs,
         styles.hiddenMeasureLayer,
@@ -333,7 +380,7 @@ export function NavigationBar({
 
   return (
     <Animated.View
-      accessibilityRole="tablist"
+      accessibilityRole='tablist'
       accessibilityLabel={accessibilityLabel}
       testID={testID}
       style={[
@@ -346,7 +393,12 @@ export function NavigationBar({
         style,
       ]}
     >
-      <View style={[styles.barContainer, { marginHorizontal: responsive.marginHorizontal }]}>
+      <View
+        style={[
+          styles.barContainer,
+          { marginHorizontal: responsive.marginHorizontal },
+        ]}
+      >
         <View
           ref={tabsHostRef}
           collapsable={false}
@@ -356,7 +408,9 @@ export function NavigationBar({
           {...panHandlers}
         >
           {activeIndicatorNode}
-          <View collapsable={false} style={styles.tabs}>{renderTabs(resolvedVariant, false)}</View>
+          <View collapsable={false} style={styles.tabs}>
+            {renderTabs(resolvedVariant, false)}
+          </View>
           {measuringLayerNode}
         </View>
       </View>

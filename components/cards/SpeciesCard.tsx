@@ -47,15 +47,15 @@ const resolveSpeciesCardBackground = (
   const colors =
     variant === 'tertiary'
       ? {
-        default: palette.background.default.tertiary,
-        hover: palette.background.default.tertiaryHover,
-        pressed: palette.background.default.tertiaryPressed,
-      }
+          default: palette.background.default.tertiary,
+          hover: palette.background.default.tertiaryHover,
+          pressed: palette.background.default.tertiaryPressed,
+        }
       : {
-        default: palette.background.default.secondary,
-        hover: palette.background.default.secondaryHover,
-        pressed: palette.background.default.secondaryPressed,
-      };
+          default: palette.background.default.secondary,
+          hover: palette.background.default.secondaryHover,
+          pressed: palette.background.default.secondaryPressed,
+        };
 
   if (state.pressed) {
     return colors.pressed;
@@ -87,19 +87,24 @@ export function SpeciesCard({
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
   const trimmedScientificName = scientificName?.trim();
-  const scientificSegment = trimmedScientificName ? toKebabCase(trimmedScientificName) : '';
+  const scientificSegment = trimmedScientificName
+    ? toKebabCase(trimmedScientificName)
+    : '';
   const hasValidTaxonId = typeof taxonId === 'number';
   const hasValidScientificName = Boolean(trimmedScientificName);
   const hasValidSegment = Boolean(scientificSegment);
-  const href = (hasValidTaxonId && hasValidSegment
-    ? {
-      pathname: '/species/[...identifier]',
-      params: { identifier: [taxonId.toString(), scientificSegment] },
-    }
-    : undefined) as Href | undefined;
-  const hrefPath = hasValidTaxonId && hasValidSegment
-    ? `/species/${taxonId}/${scientificSegment}`
-    : undefined;
+  const href = (
+    hasValidTaxonId && hasValidSegment
+      ? {
+          pathname: '/species/[...identifier]',
+          params: { identifier: [taxonId.toString(), scientificSegment] },
+        }
+      : undefined
+  ) as Href | undefined;
+  const hrefPath =
+    hasValidTaxonId && hasValidSegment
+      ? `/species/${taxonId}/${scientificSegment}`
+      : undefined;
 
   const handlePress = () => {
     if (onPress) {
@@ -118,7 +123,9 @@ export function SpeciesCard({
     }
 
     if (!hasValidSegment) {
-      console.error('SpeciesCard: scientific name could not be converted to a valid URL segment');
+      console.error(
+        'SpeciesCard: scientific name could not be converted to a valid URL segment',
+      );
       return;
     }
   };
@@ -151,41 +158,50 @@ export function SpeciesCard({
       >
         {imageSource ? (
           <Image
-            testID="species-card-image"
+            testID='species-card-image'
             source={imageSource}
             style={styles.image}
-            resizeMode="cover"
+            resizeMode='cover'
             accessibilityLabel={`${commonName} habitat`}
           />
         ) : (
           <View
-            style={[styles.placeholder, { backgroundColor: placeholderBackground }]}
-            testID="species-card-placeholder"
+            style={[
+              styles.placeholder,
+              { backgroundColor: placeholderBackground },
+            ]}
+            testID='species-card-placeholder'
           >
-            <IconImage size="24" color={placeholderIcon} />
+            <IconImage size='24' color={placeholderIcon} />
           </View>
         )}
       </View>
 
-      <View style={[
-        styles.textSection,
-        size === 'compact' && styles.textSectionCompact,
-      ]}>
+      <View
+        style={[
+          styles.textSection,
+          size === 'compact' && styles.textSectionCompact,
+        ]}
+      >
         <View>
-          <ThemedText variant="subheading" numberOfLines={1} accessibilityRole="header">
+          <ThemedText
+            variant='subheading'
+            numberOfLines={1}
+            accessibilityRole='header'
+          >
             {commonName}
           </ThemedText>
-          <ThemedText variant="bodySmallEmphasis" numberOfLines={1}>
+          <ThemedText variant='bodySmallEmphasis' numberOfLines={1}>
             {scientificName}
           </ThemedText>
         </View>
 
         {size === 'default' && (
           <ThemedText
-            variant="body"
+            variant='body'
             style={styles.description}
             numberOfLines={3}
-            testID="species-card-description"
+            testID='species-card-description'
           >
             {description}
           </ThemedText>

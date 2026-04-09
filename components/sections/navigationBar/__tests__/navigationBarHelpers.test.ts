@@ -17,9 +17,15 @@ describe('navigationBarHelpers', () => {
 
   it('evaluates host layout and remeasure thresholds', () => {
     expect(hasHostLayoutChanged(null, 100, 20)).toBe(true);
-    expect(hasHostLayoutChanged({ width: 100, height: 20 }, 100, 20)).toBe(false);
-    expect(hasHostLayoutChanged({ width: 100, height: 20 }, 120, 20)).toBe(true);
-    expect(hasHostLayoutChanged({ width: 100, height: 20 }, 100, 24)).toBe(true);
+    expect(hasHostLayoutChanged({ width: 100, height: 20 }, 100, 20)).toBe(
+      false,
+    );
+    expect(hasHostLayoutChanged({ width: 100, height: 20 }, 120, 20)).toBe(
+      true,
+    );
+    expect(hasHostLayoutChanged({ width: 100, height: 20 }, 100, 24)).toBe(
+      true,
+    );
 
     expect(shouldRemeasureWidth(null, 100, 1)).toBe(true);
     expect(shouldRemeasureWidth(100, 101, 1)).toBe(false);
@@ -81,8 +87,12 @@ describe('navigationBarHelpers', () => {
 
     const timingStart = jest.fn();
     const parallelStart = jest.fn();
-    const timingSpy = jest.spyOn(Animated, 'timing').mockReturnValue({ start: timingStart } as never);
-    const parallelSpy = jest.spyOn(Animated, 'parallel').mockReturnValue({ start: parallelStart } as never);
+    const timingSpy = jest
+      .spyOn(Animated, 'timing')
+      .mockReturnValue({ start: timingStart } as never);
+    const parallelSpy = jest
+      .spyOn(Animated, 'parallel')
+      .mockReturnValue({ start: parallelStart } as never);
 
     animateIndicatorToLayout({
       indicatorX,

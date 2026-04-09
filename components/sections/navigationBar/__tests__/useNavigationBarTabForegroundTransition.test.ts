@@ -13,13 +13,15 @@ describe('useNavigationBarTabForegroundTransition', () => {
   it('returns target colors on initial render without animating', () => {
     const timingSpy = jest.spyOn(Animated, 'timing');
 
-    const { result } = renderHook(() => useNavigationBarTabForegroundTransition({
-      targetColors: {
-        textColor: '#111111',
-        iconColor: '#222222',
-      },
-      animationKey: 'light|default',
-    }));
+    const { result } = renderHook(() =>
+      useNavigationBarTabForegroundTransition({
+        targetColors: {
+          textColor: '#111111',
+          iconColor: '#222222',
+        },
+        animationKey: 'light|default',
+      }),
+    );
 
     expect(result.current).toEqual({
       textColor: '#111111',
@@ -32,7 +34,13 @@ describe('useNavigationBarTabForegroundTransition', () => {
     const timingSpy = jest.spyOn(Animated, 'timing');
 
     const { rerender } = renderHook(
-      ({ targetColors, animationKey }: { targetColors: { textColor: string; iconColor: string }; animationKey: string }) =>
+      ({
+        targetColors,
+        animationKey,
+      }: {
+        targetColors: { textColor: string; iconColor: string };
+        animationKey: string;
+      }) =>
         useNavigationBarTabForegroundTransition({ targetColors, animationKey }),
       {
         initialProps: {
@@ -59,9 +67,11 @@ describe('useNavigationBarTabForegroundTransition', () => {
   });
 
   it('animates to new target colors when they change', async () => {
-    const start = jest.fn((callback?: (result: { finished: boolean }) => void) => {
-      callback?.({ finished: true });
-    });
+    const start = jest.fn(
+      (callback?: (result: { finished: boolean }) => void) => {
+        callback?.({ finished: true });
+      },
+    );
     const stop = jest.fn();
     const timingSpy = jest.spyOn(Animated, 'timing').mockReturnValue({
       start,
@@ -69,7 +79,13 @@ describe('useNavigationBarTabForegroundTransition', () => {
     } as unknown as Animated.CompositeAnimation);
 
     const { result, rerender } = renderHook(
-      ({ targetColors, animationKey }: { targetColors: { textColor: string; iconColor: string }; animationKey: string }) =>
+      ({
+        targetColors,
+        animationKey,
+      }: {
+        targetColors: { textColor: string; iconColor: string };
+        animationKey: string;
+      }) =>
         useNavigationBarTabForegroundTransition({ targetColors, animationKey }),
       {
         initialProps: {
@@ -104,18 +120,29 @@ describe('useNavigationBarTabForegroundTransition', () => {
   });
 
   it('removes listener and keeps previous colors when animation ends unfinished', async () => {
-    const start = jest.fn((callback?: (result: { finished: boolean }) => void) => {
-      callback?.({ finished: false });
-    });
+    const start = jest.fn(
+      (callback?: (result: { finished: boolean }) => void) => {
+        callback?.({ finished: false });
+      },
+    );
     const stop = jest.fn();
     const timingSpy = jest.spyOn(Animated, 'timing').mockReturnValue({
       start,
       stop,
     } as unknown as Animated.CompositeAnimation);
-    const removeListenerSpy = jest.spyOn(Animated.Value.prototype, 'removeListener');
+    const removeListenerSpy = jest.spyOn(
+      Animated.Value.prototype,
+      'removeListener',
+    );
 
     const { result, rerender } = renderHook(
-      ({ targetColors, animationKey }: { targetColors: { textColor: string; iconColor: string }; animationKey: string }) =>
+      ({
+        targetColors,
+        animationKey,
+      }: {
+        targetColors: { textColor: string; iconColor: string };
+        animationKey: string;
+      }) =>
         useNavigationBarTabForegroundTransition({ targetColors, animationKey }),
       {
         initialProps: {
@@ -157,10 +184,19 @@ describe('useNavigationBarTabForegroundTransition', () => {
       start,
       stop,
     } as unknown as Animated.CompositeAnimation);
-    const removeListenerSpy = jest.spyOn(Animated.Value.prototype, 'removeListener');
+    const removeListenerSpy = jest.spyOn(
+      Animated.Value.prototype,
+      'removeListener',
+    );
 
     const { rerender, unmount } = renderHook(
-      ({ targetColors, animationKey }: { targetColors: { textColor: string; iconColor: string }; animationKey: string }) =>
+      ({
+        targetColors,
+        animationKey,
+      }: {
+        targetColors: { textColor: string; iconColor: string };
+        animationKey: string;
+      }) =>
         useNavigationBarTabForegroundTransition({ targetColors, animationKey }),
       {
         initialProps: {
@@ -211,10 +247,12 @@ describe('useNavigationBarTabForegroundTransition', () => {
 
   it('updates animated colors from listener interpolation values', async () => {
     const listenerCallbacks: ((event: { value: number }) => void)[] = [];
-    jest.spyOn(Animated.Value.prototype, 'addListener').mockImplementation((callback) => {
-      listenerCallbacks.push(callback);
-      return 'listener-id';
-    });
+    jest
+      .spyOn(Animated.Value.prototype, 'addListener')
+      .mockImplementation((callback) => {
+        listenerCallbacks.push(callback);
+        return 'listener-id';
+      });
 
     const start = jest.fn();
     jest.spyOn(Animated, 'timing').mockReturnValue({
@@ -223,7 +261,13 @@ describe('useNavigationBarTabForegroundTransition', () => {
     } as unknown as Animated.CompositeAnimation);
 
     const { result, rerender } = renderHook(
-      ({ targetColors, animationKey }: { targetColors: { textColor: string; iconColor: string }; animationKey: string }) =>
+      ({
+        targetColors,
+        animationKey,
+      }: {
+        targetColors: { textColor: string; iconColor: string };
+        animationKey: string;
+      }) =>
         useNavigationBarTabForegroundTransition({ targetColors, animationKey }),
       {
         initialProps: {

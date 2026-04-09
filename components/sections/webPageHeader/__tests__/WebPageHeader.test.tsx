@@ -1,5 +1,11 @@
 import React, { act } from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react-native';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
 import { Size } from '@/constants/theme';
 import { WebPageHeader } from '../WebPageHeader';
 import { IconHelpCircle } from '@/assets/icons';
@@ -28,12 +34,18 @@ const mockFetchRelativeRankings = jest.fn();
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesList: jest.fn((...args) => mockFetchSpeciesList(...args)),
-  fetchRelativeRankings: jest.fn((...args) => mockFetchRelativeRankings(...args)),
+  fetchRelativeRankings: jest.fn((...args) =>
+    mockFetchRelativeRankings(...args),
+  ),
   BACKEND_BASE: 'https://api.example.test',
 }));
 
-const mockUseResponsive = useResponsive as jest.MockedFunction<typeof useResponsive>;
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
+const mockUseResponsive = useResponsive as jest.MockedFunction<
+  typeof useResponsive
+>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 const SEARCH_WRAPPER_LAYOUT_HEIGHT = 40;
 const SEARCH_DEBOUNCE_MS = 400;
@@ -61,7 +73,9 @@ describe('WebPageHeader', () => {
     mockPush.mockClear();
     mockPathname = '/';
     mockUseColorScheme.mockReturnValue('light');
-    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' } as ReturnType<
+      typeof useResponsive
+    >);
     mockFetchSpeciesList.mockResolvedValue([]);
     mockFetchRelativeRankings.mockResolvedValue({
       ancestorTaxonId: 212,
@@ -94,13 +108,17 @@ describe('WebPageHeader', () => {
 
     render(<WebPageHeader />);
 
-    expect(screen.getByLabelText('WhereWild logo').props.source).toBe(DEFAULT_LOGO_DARK);
+    expect(screen.getByLabelText('WhereWild logo').props.source).toBe(
+      DEFAULT_LOGO_DARK,
+    );
   });
 
   it('uses the light logo asset by default in light mode', () => {
     render(<WebPageHeader />);
 
-    expect(screen.getByLabelText('WhereWild logo').props.source).toBe(DEFAULT_LOGO_LIGHT);
+    expect(screen.getByLabelText('WhereWild logo').props.source).toBe(
+      DEFAULT_LOGO_LIGHT,
+    );
   });
 
   it('navigates to about when default About action is pressed', () => {
@@ -124,7 +142,9 @@ describe('WebPageHeader', () => {
     const handlePress = jest.fn();
     render(
       <WebPageHeader
-        actions={[{ label: 'Docs', icon: <IconHelpCircle />, onPress: handlePress }]}
+        actions={[
+          { label: 'Docs', icon: <IconHelpCircle />, onPress: handlePress },
+        ]}
       />,
     );
 
@@ -180,19 +200,23 @@ describe('WebPageHeader', () => {
   });
 
   it('does not show reset filter button when filter button is hidden, even if explicitly enabled', () => {
-    render(<WebPageHeader showFilterButton={false} showResetFilterButton={true} />);
+    render(
+      <WebPageHeader showFilterButton={false} showResetFilterButton={true} />,
+    );
 
     expect(screen.queryByLabelText('Filter search results')).toBeNull();
     expect(screen.queryByLabelText('Reset filters')).toBeNull();
   });
   it('supports a custom desktop filter button label', () => {
-    render(<WebPageHeader filterLabel="Hide filter" />);
+    render(<WebPageHeader filterLabel='Hide filter' />);
 
     expect(screen.getByText('Hide filter')).toBeTruthy();
   });
 
   it('renders compact layout and exposes actions behind the menu button', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+      typeof useResponsive
+    >);
     render(<WebPageHeader />);
 
     expect(screen.queryByText('WhereWild')).toBeNull();
@@ -220,10 +244,18 @@ describe('WebPageHeader', () => {
     expect(mockPush).not.toHaveBeenCalled();
 
     fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: 'owl' } });
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/search', params: { query: 'owl' } });
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/search',
+      params: { query: 'owl' },
+    });
 
-    fireEvent(searchInput, 'submitEditing', { nativeEvent: { text: '  hawk  ' } });
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/search', params: { query: 'hawk' } });
+    fireEvent(searchInput, 'submitEditing', {
+      nativeEvent: { text: '  hawk  ' },
+    });
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/search',
+      params: { query: 'hawk' },
+    });
 
     await act(async () => {
       jest.runOnlyPendingTimers();
@@ -248,7 +280,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        initialQuery="fox"
+        initialQuery='fox'
         onSearchResultsChanged={handleResults}
         onSearchingChanged={handleSearching}
       />,
@@ -270,11 +302,11 @@ describe('WebPageHeader', () => {
   });
 
   it('updates search query when initialQuery prop changes', () => {
-    const { rerender } = render(<WebPageHeader initialQuery="fox" />);
+    const { rerender } = render(<WebPageHeader initialQuery='fox' />);
 
     expect(screen.getByLabelText('Search input').props.value).toBe('fox');
 
-    rerender(<WebPageHeader initialQuery="owl" />);
+    rerender(<WebPageHeader initialQuery='owl' />);
 
     expect(screen.getByLabelText('Search input').props.value).toBe('owl');
 
@@ -331,7 +363,11 @@ describe('WebPageHeader', () => {
   it('shows search results after querying and navigates on selection', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 12, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+      {
+        taxon_id: 12,
+        scientific_name: 'Canis lupus',
+        common_name: 'Gray Wolf',
+      },
       { taxon_id: 'invalid' },
     ] as any);
 
@@ -346,7 +382,11 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'wolf', undefined);
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        expect.any(Number),
+        'wolf',
+        undefined,
+      );
     });
 
     const result = await screen.findByTestId('search-result-12');
@@ -464,7 +504,9 @@ describe('WebPageHeader', () => {
 
     const result = await screen.findByTestId('search-result-77');
     expect(screen.getByText('Canis lupus')).toBeTruthy();
-    expect(result.props.accessibilityLabel).toContain('12.5 | Rank 1 of 1 | Percentile 100% | Samples 9');
+    expect(result.props.accessibilityLabel).toContain(
+      '12.5 | Rank 1 of 1 | Percentile 100% | Samples 9',
+    );
 
     jest.useRealTimers();
   });
@@ -516,7 +558,9 @@ describe('WebPageHeader', () => {
     });
 
     const result = await screen.findByTestId('search-result-78');
-    expect(result.props.accessibilityLabel).toContain('7 | Rank 2 of 10 | Percentile 95% | Samples 9');
+    expect(result.props.accessibilityLabel).toContain(
+      '7 | Rank 2 of 10 | Percentile 95% | Samples 9',
+    );
 
     jest.useRealTimers();
   });
@@ -569,7 +613,9 @@ describe('WebPageHeader', () => {
 
     const result = await screen.findByTestId('search-result-45');
     const image = within(result).getByTestId('species-card-image');
-    expect(image.props.source).toEqual({ uri: 'https://example.com/coyote.png' });
+    expect(image.props.source).toEqual({
+      uri: 'https://example.com/coyote.png',
+    });
 
     jest.useRealTimers();
   });
@@ -876,7 +922,9 @@ describe('WebPageHeader', () => {
       includeSpeciesLike: true,
       distribution: null,
     });
-    mockFetchSpeciesList.mockRejectedValue(new Error('Fallback search unavailable'));
+    mockFetchSpeciesList.mockRejectedValue(
+      new Error('Fallback search unavailable'),
+    );
     const handleContext = jest.fn();
 
     render(
@@ -915,7 +963,9 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(handleContext).toHaveBeenCalledWith('Search failed: Fallback search unavailable');
+      expect(handleContext).toHaveBeenCalledWith(
+        'Search failed: Fallback search unavailable',
+      );
     });
 
     expect(await screen.findByText('Fallback search unavailable')).toBeTruthy();
@@ -926,7 +976,11 @@ describe('WebPageHeader', () => {
   it('keeps results mounted long enough to navigate when click blurs input first', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 312, scientific_name: 'Puma concolor', common_name: 'Mountain Lion' },
+      {
+        taxon_id: 312,
+        scientific_name: 'Puma concolor',
+        common_name: 'Mountain Lion',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -978,7 +1032,11 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'error', undefined);
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        expect.any(Number),
+        'error',
+        undefined,
+      );
     });
 
     await waitFor(() => {
@@ -1021,7 +1079,11 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'lynx', undefined);
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        expect.any(Number),
+        'lynx',
+        undefined,
+      );
     });
 
     const resultsCallsBeforeUnmount = handleResults.mock.calls.length;
@@ -1067,7 +1129,11 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'bad', undefined);
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        expect.any(Number),
+        'bad',
+        undefined,
+      );
     });
 
     const resultsCallsBeforeUnmount = handleResults.mock.calls.length;
@@ -1212,7 +1278,11 @@ describe('WebPageHeader', () => {
 
     await act(async () => {
       resolveFallbackPromise?.([
-        { taxon_id: 99, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+        {
+          taxon_id: 99,
+          scientific_name: 'Canis lupus',
+          common_name: 'Gray Wolf',
+        },
       ]);
       await Promise.resolve();
     });
@@ -1245,7 +1315,11 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenCalledWith(expect.any(Number), 'owl', undefined);
+      expect(mockFetchSpeciesList).toHaveBeenCalledWith(
+        expect.any(Number),
+        'owl',
+        undefined,
+      );
     });
 
     expect(await screen.findByText('snowy owl')).toBeTruthy();
@@ -1271,7 +1345,9 @@ describe('WebPageHeader', () => {
 
     const result = await screen.findByTestId('search-result-7');
     fireEvent.press(result);
-    expect(mockPush).not.toHaveBeenCalledWith(expect.stringContaining('/species/7'));
+    expect(mockPush).not.toHaveBeenCalledWith(
+      expect.stringContaining('/species/7'),
+    );
 
     jest.useRealTimers();
   });
@@ -1279,7 +1355,11 @@ describe('WebPageHeader', () => {
   it('moves the preview highlight down with arrow keys and selects the active result on enter', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 11, scientific_name: 'Vulpes vulpes', common_name: 'Red Fox' },
+      {
+        taxon_id: 11,
+        scientific_name: 'Vulpes vulpes',
+        common_name: 'Red Fox',
+      },
       { taxon_id: 12, scientific_name: 'Canis latrans', common_name: 'Coyote' },
     ] as any);
 
@@ -1327,8 +1407,16 @@ describe('WebPageHeader', () => {
   it('moves the preview highlight up to the last result when nothing is active yet', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 21, scientific_name: 'Buteo jamaicensis', common_name: 'Red-tailed Hawk' },
-      { taxon_id: 22, scientific_name: 'Strix varia', common_name: 'Barred Owl' },
+      {
+        taxon_id: 21,
+        scientific_name: 'Buteo jamaicensis',
+        common_name: 'Red-tailed Hawk',
+      },
+      {
+        taxon_id: 22,
+        scientific_name: 'Strix varia',
+        common_name: 'Barred Owl',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1369,7 +1457,11 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
       { taxon_id: 31, scientific_name: 'Lynx rufus', common_name: 'Bobcat' },
-      { taxon_id: 32, scientific_name: 'Puma concolor', common_name: 'Mountain Lion' },
+      {
+        taxon_id: 32,
+        scientific_name: 'Puma concolor',
+        common_name: 'Mountain Lion',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1414,7 +1506,11 @@ describe('WebPageHeader', () => {
   it('ignores preview key presses when the event does not expose a key', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 41, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+      {
+        taxon_id: 41,
+        scientific_name: 'Canis lupus',
+        common_name: 'Gray Wolf',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1442,7 +1538,11 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
       { taxon_id: 61, scientific_name: 'Canis latrans', common_name: 'Coyote' },
-      { taxon_id: 62, scientific_name: 'Canis lupus', common_name: 'Gray Wolf' },
+      {
+        taxon_id: 62,
+        scientific_name: 'Canis lupus',
+        common_name: 'Gray Wolf',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1482,8 +1582,16 @@ describe('WebPageHeader', () => {
   it('clears the active preview selection when refreshed results shrink below the active index', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 51, scientific_name: 'Vulpes vulpes', common_name: 'Red Fox' },
-      { taxon_id: 52, scientific_name: 'Urocyon cinereoargenteus', common_name: 'Gray Fox' },
+      {
+        taxon_id: 51,
+        scientific_name: 'Vulpes vulpes',
+        common_name: 'Red Fox',
+      },
+      {
+        taxon_id: 52,
+        scientific_name: 'Urocyon cinereoargenteus',
+        common_name: 'Gray Fox',
+      },
     ] as any);
 
     const { rerender } = render(<WebPageHeader />);
@@ -1513,7 +1621,9 @@ describe('WebPageHeader', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesList).toHaveBeenLastCalledWith(undefined, 'fox', { numberOfResults: 1 });
+      expect(mockFetchSpeciesList).toHaveBeenLastCalledWith(undefined, 'fox', {
+        numberOfResults: 1,
+      });
     });
 
     mockPush.mockClear();
@@ -1533,7 +1643,11 @@ describe('WebPageHeader', () => {
   it('hides results when dropdown visibility is disabled', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 99, scientific_name: 'Vulpes vulpes', common_name: 'Red Fox' },
+      {
+        taxon_id: 99,
+        scientific_name: 'Vulpes vulpes',
+        common_name: 'Red Fox',
+      },
     ] as any);
 
     render(<WebPageHeader showSearchResultsDropdown={false} />);
@@ -1554,7 +1668,11 @@ describe('WebPageHeader', () => {
   it('hides results when focus moves from search input to filter button', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 123, scientific_name: 'Buteo jamaicensis', common_name: 'Red-tailed Hawk' },
+      {
+        taxon_id: 123,
+        scientific_name: 'Buteo jamaicensis',
+        common_name: 'Red-tailed Hawk',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1607,7 +1725,11 @@ describe('WebPageHeader', () => {
   it('hides results when search input blur grace expires', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 55, scientific_name: 'Strix aluco', common_name: 'Tawny Owl' },
+      {
+        taxon_id: 55,
+        scientific_name: 'Strix aluco',
+        common_name: 'Tawny Owl',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1672,7 +1794,11 @@ describe('WebPageHeader', () => {
   it('cleans up blur-grace timer on unmount before timeout fires', async () => {
     jest.useFakeTimers();
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 57, scientific_name: 'Athene cunicularia', common_name: 'Burrowing Owl' },
+      {
+        taxon_id: 57,
+        scientific_name: 'Athene cunicularia',
+        common_name: 'Burrowing Owl',
+      },
     ] as any);
 
     const { unmount } = render(<WebPageHeader />);
@@ -1699,7 +1825,9 @@ describe('WebPageHeader', () => {
   });
 
   it('toggles compact menu closed when open button is pressed twice', () => {
-    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<typeof useResponsive>);
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+      typeof useResponsive
+    >);
     render(<WebPageHeader />);
 
     const menuButton = screen.getByLabelText('Open menu');
@@ -1717,7 +1845,11 @@ describe('WebPageHeader', () => {
       marginHorizontal: 32,
     } as ReturnType<typeof useResponsive>);
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 77, scientific_name: 'Bubo bubo', common_name: 'Eurasian Eagle-Owl' },
+      {
+        taxon_id: 77,
+        scientific_name: 'Bubo bubo',
+        common_name: 'Eurasian Eagle-Owl',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1754,7 +1886,11 @@ describe('WebPageHeader', () => {
       marginHorizontal: 24,
     } as ReturnType<typeof useResponsive>);
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 88, scientific_name: 'Strix nebulosa', common_name: 'Great Gray Owl' },
+      {
+        taxon_id: 88,
+        scientific_name: 'Strix nebulosa',
+        common_name: 'Great Gray Owl',
+      },
     ] as any);
 
     const rendered = render(<WebPageHeader />);
@@ -1792,7 +1928,7 @@ describe('WebPageHeader', () => {
     const flattenedStyle = StyleSheet.flatten(panel.props.style);
 
     expect(typeof flattenedStyle?.top).toBe('number');
-    expect((flattenedStyle?.top as number)).toBeGreaterThan(desktopTop);
+    expect(flattenedStyle?.top as number).toBeGreaterThan(desktopTop);
 
     jest.useRealTimers();
   });
@@ -1804,7 +1940,11 @@ describe('WebPageHeader', () => {
       marginHorizontal: 32,
     } as ReturnType<typeof useResponsive>);
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 91, scientific_name: 'Asio otus', common_name: 'Long-eared Owl' },
+      {
+        taxon_id: 91,
+        scientific_name: 'Asio otus',
+        common_name: 'Long-eared Owl',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1851,7 +1991,11 @@ describe('WebPageHeader', () => {
       marginHorizontal: 32,
     } as ReturnType<typeof useResponsive>);
     mockFetchSpeciesList.mockResolvedValue([
-      { taxon_id: 301, scientific_name: 'Bubo scandiacus', common_name: 'Snowy Owl' },
+      {
+        taxon_id: 301,
+        scientific_name: 'Bubo scandiacus',
+        common_name: 'Snowy Owl',
+      },
     ] as any);
 
     render(<WebPageHeader />);

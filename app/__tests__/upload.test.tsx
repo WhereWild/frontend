@@ -1,14 +1,18 @@
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { uploadRawObservations } from '@/data/api';
-import {
-  parseUploadedParquetZipToRawBundle,
-} from '@/data/uploadZipParquetParser';
+import { parseUploadedParquetZipToRawBundle } from '@/data/uploadZipParquetParser';
 import {
   normalizeRawUploadedParquetBundle,
   buildUploadLocalSpeciesDataSource,
   type RawUploadedParquetBundle,
 } from '@/data/uploadLocalSpeciesDataSource';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import React from 'react';
 import { Platform } from 'react-native';
 import Upload from '../upload';
@@ -27,23 +31,36 @@ jest.mock('@/components', () => {
     SpeciesEnvironmentSection: ({
       pinnedObservation,
     }: {
-      pinnedObservation?: { catalogNumber: string; lat: number; lon: number } | null;
-    }) => ReactLocal.createElement(
-      ReactLocal.Fragment,
-      null,
-      ReactLocal.createElement(actual.ThemedText, { variant: 'heading' }, 'Species Environment'),
+      pinnedObservation?: {
+        catalogNumber: string;
+        lat: number;
+        lon: number;
+      } | null;
+    }) =>
       ReactLocal.createElement(
-        Text,
-        { testID: 'mock-pinned-observation' },
-        pinnedObservation?.catalogNumber ?? 'none',
+        ReactLocal.Fragment,
+        null,
+        ReactLocal.createElement(
+          actual.ThemedText,
+          { variant: 'heading' },
+          'Species Environment',
+        ),
+        ReactLocal.createElement(
+          Text,
+          { testID: 'mock-pinned-observation' },
+          pinnedObservation?.catalogNumber ?? 'none',
+        ),
       ),
-    ),
     SpeciesOccurrenceMap: ({
       linkObservations,
       onPinObservation,
     }: {
       linkObservations?: boolean;
-      onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
+      onPinObservation?: (
+        catalogNumber: string,
+        lat: number,
+        lon: number,
+      ) => void;
     }) =>
       ReactLocal.createElement(
         ReactLocal.Fragment,
@@ -95,7 +112,8 @@ jest.mock('expo-file-system', () => {
 
     constructor(...uris: (string | { uri: string })[]) {
       const first = uris[0];
-      this.uri = typeof first === 'string' ? first : first?.uri ?? 'file://unknown/';
+      this.uri =
+        typeof first === 'string' ? first : (first?.uri ?? 'file://unknown/');
     }
 
     static pickDirectoryAsync(...args: unknown[]) {
@@ -109,8 +127,13 @@ jest.mock('expo-file-system', () => {
     constructor(...uris: (string | { uri: string })[]) {
       const parent = uris[0];
       const name = String(uris[1] ?? 'file.bin');
-      const parentUri = typeof parent === 'string' ? parent : parent?.uri ?? 'file://unknown/';
-      const normalizedParentUri = parentUri.endsWith('/') ? parentUri : `${parentUri}/`;
+      const parentUri =
+        typeof parent === 'string'
+          ? parent
+          : (parent?.uri ?? 'file://unknown/');
+      const normalizedParentUri = parentUri.endsWith('/')
+        ? parentUri
+        : `${parentUri}/`;
       this.uri = `${normalizedParentUri}${name}`;
     }
 
@@ -155,11 +178,22 @@ jest.mock('@/data/uploadLocalSpeciesDataSource', () => ({
   UploadedParquetBundleValidationError: Error,
 }));
 
-const mockUseColorScheme = useColorScheme as jest.MockedFunction<typeof useColorScheme>;
-const mockUploadRawObservations = uploadRawObservations as jest.MockedFunction<typeof uploadRawObservations>;
-const mockParseZip = parseUploadedParquetZipToRawBundle as jest.MockedFunction<typeof parseUploadedParquetZipToRawBundle>;
-const mockNormalize = normalizeRawUploadedParquetBundle as jest.MockedFunction<typeof normalizeRawUploadedParquetBundle>;
-const mockBuildDataSource = buildUploadLocalSpeciesDataSource as jest.MockedFunction<typeof buildUploadLocalSpeciesDataSource>;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
+const mockUploadRawObservations = uploadRawObservations as jest.MockedFunction<
+  typeof uploadRawObservations
+>;
+const mockParseZip = parseUploadedParquetZipToRawBundle as jest.MockedFunction<
+  typeof parseUploadedParquetZipToRawBundle
+>;
+const mockNormalize = normalizeRawUploadedParquetBundle as jest.MockedFunction<
+  typeof normalizeRawUploadedParquetBundle
+>;
+const mockBuildDataSource =
+  buildUploadLocalSpeciesDataSource as jest.MockedFunction<
+    typeof buildUploadLocalSpeciesDataSource
+  >;
 
 const originalFile = (global as { File?: unknown }).File;
 const originalFetch = global.fetch;
@@ -193,7 +227,8 @@ const makeDocumentAsset = ({
   ...(file ? { file } : {}),
 });
 
-const makeFile = (content: string, name: string, type: string) => new File([content], name, { type });
+const makeFile = (content: string, name: string, type: string) =>
+  new File([content], name, { type });
 
 const mockPickerWithCsvFile = () => {
   const file = makeFile('lat,lon\n1,2', 'observations.csv', 'text/csv');
@@ -210,7 +245,11 @@ const mockPickerWithCsvFile = () => {
   return file;
 };
 
-const mockPickerWithZipFile = (overrides?: { uri?: string; name?: string; file?: File }) => {
+const mockPickerWithZipFile = (overrides?: {
+  uri?: string;
+  name?: string;
+  file?: File;
+}) => {
   const name = overrides?.name ?? 'data.zip';
   const uri = overrides?.uri ?? `file://${name}`;
   const file = overrides?.file;
@@ -277,7 +316,9 @@ describe('Upload screen', () => {
     global.fetch = originalFetch;
     global.XMLHttpRequest = originalXMLHttpRequest;
     setPlatformOS(originalPlatformOS);
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -297,7 +338,8 @@ describe('Upload screen', () => {
   it('opens the file picker from both upload buttons', async () => {
     render(<Upload />);
 
-    const [stepOneUploadButton, stepTwoUploadButton] = screen.getAllByLabelText('Upload');
+    const [stepOneUploadButton, stepTwoUploadButton] =
+      screen.getAllByLabelText('Upload');
 
     fireEvent.press(stepOneUploadButton);
     await waitFor(() =>
@@ -318,8 +360,12 @@ describe('Upload screen', () => {
 
   it('replaces step 1 upload button with loading state while upload is in progress', async () => {
     setPlatformOS('web');
-    let resolveUpload: ((value: Awaited<ReturnType<typeof uploadRawObservations>>) => void) | undefined;
-    const stalledUploadPromise = new Promise<Awaited<ReturnType<typeof uploadRawObservations>>>((resolve) => {
+    let resolveUpload:
+      | ((value: Awaited<ReturnType<typeof uploadRawObservations>>) => void)
+      | undefined;
+    const stalledUploadPromise = new Promise<
+      Awaited<ReturnType<typeof uploadRawObservations>>
+    >((resolve) => {
       resolveUpload = resolve;
     });
     mockUploadRawObservations.mockReturnValue(stalledUploadPromise);
@@ -349,7 +395,9 @@ describe('Upload screen', () => {
     await waitFor(() => {
       expect(screen.getAllByLabelText('Upload')).toHaveLength(2);
     });
-    expect(screen.getByText(/Processed ZIP .*processed_observations\.zip/)).toBeTruthy();
+    expect(
+      screen.getByText(/Processed ZIP .*processed_observations\.zip/),
+    ).toBeTruthy();
   });
 
   it('step 1: saves and shares the generated zip on native platforms', async () => {
@@ -368,7 +416,10 @@ describe('Upload screen', () => {
     pressUploadButton(0);
 
     await waitFor(() => {
-      expect(mockFileCreate).toHaveBeenCalledWith({ intermediates: true, overwrite: true });
+      expect(mockFileCreate).toHaveBeenCalledWith({
+        intermediates: true,
+        overwrite: true,
+      });
     });
     expect(mockFileWrite).toHaveBeenCalledWith(expect.any(Uint8Array));
     expect(mockShareAsync).toHaveBeenCalledWith(
@@ -379,7 +430,11 @@ describe('Upload screen', () => {
         UTI: 'public.zip-archive',
       }),
     );
-    expect(screen.getByText('Processed ZIP ready to share: processed observations.zip')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Processed ZIP ready to share: processed observations.zip',
+      ),
+    ).toBeTruthy();
   });
 
   it('step 1: reports a saved-local message when native sharing is unavailable', async () => {
@@ -403,7 +458,11 @@ describe('Upload screen', () => {
     });
     expect(mockFileWrite).toHaveBeenCalledWith(expect.any(Uint8Array));
     expect(mockShareAsync).not.toHaveBeenCalled();
-    expect(screen.getByText('Processed ZIP saved to selected folder: processed observations.zip')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Processed ZIP saved to selected folder: processed observations.zip',
+      ),
+    ).toBeTruthy();
   });
 
   it('step 2: processes zip file and displays preview on success', async () => {
@@ -421,9 +480,7 @@ describe('Upload screen', () => {
     const mockNormalizedBundle = {
       categoricalStats: [],
       densityGraph: [],
-      occurrences: [
-        { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }],
       occurrenceIndex: [],
       summaryStats: [],
       variableDefinitions: [],
@@ -470,9 +527,7 @@ describe('Upload screen', () => {
     const mockNormalizedBundle = {
       categoricalStats: [],
       densityGraph: [],
-      occurrences: [
-        { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }],
       occurrenceIndex: [],
       summaryStats: [],
       variableDefinitions: [],
@@ -493,12 +548,16 @@ describe('Upload screen', () => {
       expect(screen.getByText('Species Environment')).toBeTruthy();
     });
 
-    expect(screen.getByTestId('mock-pinned-observation').props.children).toBe('none');
+    expect(screen.getByTestId('mock-pinned-observation').props.children).toBe(
+      'none',
+    );
 
     fireEvent.press(screen.getByTestId('mock-pin-observation'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('mock-pinned-observation').props.children).toBe('obs_1');
+      expect(screen.getByTestId('mock-pinned-observation').props.children).toBe(
+        'obs_1',
+      );
     });
   });
 
@@ -517,9 +576,7 @@ describe('Upload screen', () => {
     const mockNormalizedBundle = {
       categoricalStats: [],
       densityGraph: [],
-      occurrences: [
-        { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }],
       occurrenceIndex: [],
       summaryStats: [],
       variableDefinitions: [],
@@ -544,7 +601,9 @@ describe('Upload screen', () => {
     pressUploadButton(1);
 
     await waitFor(() => {
-      expect(screen.getByText(/categorical highlighting may be unavailable/i)).toBeTruthy();
+      expect(
+        screen.getByText(/categorical highlighting may be unavailable/i),
+      ).toBeTruthy();
     });
   });
 
@@ -553,7 +612,9 @@ describe('Upload screen', () => {
     const mockRawBundle = {
       categoricalStats: [],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
+      occurrences: [
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+      ],
       occurrenceIndex: [],
       summaryStats: [],
       variableMetadata: [],
@@ -574,7 +635,10 @@ describe('Upload screen', () => {
     mockNormalize.mockReturnValue(mockNormalizedBundle);
     mockBuildDataSource.mockReturnValue(makeUploadPreviewDataSource());
 
-    mockPickerWithZipFile({ uri: 'file://native-data.zip', name: 'native-data.zip' });
+    mockPickerWithZipFile({
+      uri: 'file://native-data.zip',
+      name: 'native-data.zip',
+    });
 
     render(<Upload />);
 
@@ -593,7 +657,9 @@ describe('Upload screen', () => {
     const mockRawBundle = {
       categoricalStats: [],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
+      occurrences: [
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+      ],
       occurrenceIndex: [],
       summaryStats: [],
       variableMetadata: [],
@@ -626,13 +692,19 @@ describe('Upload screen', () => {
       send = send;
     }
 
-    global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed')) as unknown as typeof fetch;
-    global.XMLHttpRequest = MockXMLHttpRequest as unknown as typeof XMLHttpRequest;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('fetch failed')) as unknown as typeof fetch;
+    global.XMLHttpRequest =
+      MockXMLHttpRequest as unknown as typeof XMLHttpRequest;
     mockParseZip.mockResolvedValue(mockRawBundle);
     mockNormalize.mockReturnValue(mockNormalizedBundle);
     mockBuildDataSource.mockReturnValue(makeUploadPreviewDataSource());
 
-    mockPickerWithZipFile({ uri: 'file://native-fallback.zip', name: 'native-fallback.zip' });
+    mockPickerWithZipFile({
+      uri: 'file://native-fallback.zip',
+      name: 'native-fallback.zip',
+    });
 
     render(<Upload />);
 
@@ -642,7 +714,11 @@ describe('Upload screen', () => {
       expect(global.fetch).toHaveBeenCalledWith('file://native-fallback.zip');
     });
     await waitFor(() => {
-      expect(open).toHaveBeenCalledWith('GET', 'file://native-fallback.zip', true);
+      expect(open).toHaveBeenCalledWith(
+        'GET',
+        'file://native-fallback.zip',
+        true,
+      );
       expect(send).toHaveBeenCalled();
     });
     await waitFor(() => {
@@ -651,7 +727,9 @@ describe('Upload screen', () => {
   });
 
   it('step 2: shows loading state while processing zip file', async () => {
-    const stalledParsePromise: Promise<RawUploadedParquetBundle> = new Promise(() => undefined);
+    const stalledParsePromise: Promise<RawUploadedParquetBundle> = new Promise(
+      () => undefined,
+    );
     mockParseZip.mockReturnValue(stalledParsePromise);
 
     const zipFile = makeFile('PK...', 'data.zip', 'application/zip');
@@ -670,11 +748,17 @@ describe('Upload screen', () => {
 
   it('step 2: displays error message when zip parsing fails', async () => {
     mockParseZip.mockRejectedValue(
-      new Error('Failed to parse upload zip: Missing required parquet file: summary_stats.parquet'),
+      new Error(
+        'Failed to parse upload zip: Missing required parquet file: summary_stats.parquet',
+      ),
     );
 
     const zipFile = makeFile('invalid', 'bad.zip', 'application/zip');
-    mockPickerWithZipFile({ uri: 'file://bad.zip', name: 'bad.zip', file: zipFile });
+    mockPickerWithZipFile({
+      uri: 'file://bad.zip',
+      name: 'bad.zip',
+      file: zipFile,
+    });
 
     render(<Upload />);
 
@@ -699,7 +783,9 @@ describe('Upload screen', () => {
 
     mockParseZip.mockResolvedValue(mockRawBundle);
     mockNormalize.mockImplementation(() => {
-      throw new Error('Uploaded parquet bundle is invalid: occurrence did not produce any valid rows');
+      throw new Error(
+        'Uploaded parquet bundle is invalid: occurrence did not produce any valid rows',
+      );
     });
 
     const zipFile = makeFile('PK...', 'data.zip', 'application/zip');
@@ -710,7 +796,9 @@ describe('Upload screen', () => {
     pressUploadButton(1);
 
     await waitFor(() => {
-      expect(screen.getByText(/Uploaded parquet bundle is invalid/)).toBeTruthy();
+      expect(
+        screen.getByText(/Uploaded parquet bundle is invalid/),
+      ).toBeTruthy();
     });
 
     expect(mockBuildDataSource).not.toHaveBeenCalled();

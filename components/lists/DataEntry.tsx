@@ -70,18 +70,18 @@ export function DataEntry({
           style={({ hovered, pressed }) => [
             styles.labelRow,
             {
-              backgroundColor: resolveLabelRowBackground(
-                palette,
-                { hovered: hovered ?? false, pressed: pressed ?? false },
-              ),
+              backgroundColor: resolveLabelRowBackground(palette, {
+                hovered: hovered ?? false,
+                pressed: pressed ?? false,
+              }),
             },
           ]}
           onPress={handleToggle}
-          accessibilityRole="button"
+          accessibilityRole='button'
           accessibilityLabel={`${dataName} ${expanded ? 'collapse' : 'expand'}`}
           accessibilityState={{ expanded }}
         >
-          <ThemedText variant="body">
+          <ThemedText variant='body'>
             {dataName}: {dataPoint}
           </ThemedText>
           <View style={styles.iconSlot} collapsable={false}>
@@ -100,47 +100,47 @@ export function DataEntry({
           </View>
         </Pressable>
       ) : (
-        <View
-          style={styles.labelRow}
-          accessibilityRole="text"
-        >
-          <ThemedText variant="body">
+        <View style={styles.labelRow} accessibilityRole='text'>
+          <ThemedText variant='body'>
             {dataName}: {dataPoint}
           </ThemedText>
         </View>
       )}
       <View
-        style={[styles.details, !showDetails ? styles.detailsHidden : undefined]}
+        style={[
+          styles.details,
+          !showDetails ? styles.detailsHidden : undefined,
+        ]}
         collapsable={false}
         accessibilityElementsHidden={!showDetails}
         importantForAccessibility={showDetails ? 'auto' : 'no-hide-descendants'}
         pointerEvents={showDetails ? 'auto' : 'none'}
       >
-          {showGraph ? (
-            <View
-              style={[
-                styles.graphContainer,
-                !graph && styles.graphPlaceholderBounds,
-              ]}
-              testID="data-entry-graph"
-            >
-              {graph ?? (
-                <View
-                  style={[
-                    styles.graphPlaceholder,
-                    { backgroundColor: palette.background.default.tertiary },
-                    { pointerEvents: 'none' },
-                  ]}
-                  testID="data-entry-graph-placeholder"
-                />
-              )}
-            </View>
-          ) : null}
-          {details.map(({ label, value }, index) => (
-            <ThemedText key={`${label}-${value}-${index}`} variant="body">
-              {label}: {value}
-            </ThemedText>
-          ))}
+        {showGraph ? (
+          <View
+            style={[
+              styles.graphContainer,
+              !graph && styles.graphPlaceholderBounds,
+            ]}
+            testID='data-entry-graph'
+          >
+            {graph ?? (
+              <View
+                style={[
+                  styles.graphPlaceholder,
+                  { backgroundColor: palette.background.default.tertiary },
+                  { pointerEvents: 'none' },
+                ]}
+                testID='data-entry-graph-placeholder'
+              />
+            )}
+          </View>
+        ) : null}
+        {details.map(({ label, value }, index) => (
+          <ThemedText key={`${label}-${value}-${index}`} variant='body'>
+            {label}: {value}
+          </ThemedText>
+        ))}
       </View>
     </View>
   );

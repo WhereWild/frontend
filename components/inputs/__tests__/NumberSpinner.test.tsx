@@ -5,21 +5,24 @@ import { Animated, NativeModules, Platform, StyleSheet } from 'react-native';
 import { Size, Time } from '@/constants/theme';
 import { NumberSpinner } from '../NumberSpinner';
 
-const USE_NATIVE_DRIVER = Platform.OS !== 'web' && !!NativeModules.NativeAnimatedModule;
+const USE_NATIVE_DRIVER =
+  Platform.OS !== 'web' && !!NativeModules.NativeAnimatedModule;
 
 const createTimingToValueMock = () => {
   let lastToValue: number | null = null;
 
-  const timingSpy = jest.spyOn(Animated, 'timing').mockImplementation((value, config) => {
-    return {
-      start: (callback?: (result: { finished: boolean }) => void) => {
-        const targetValue = config.toValue as number;
-        (value as Animated.Value).setValue(targetValue);
-        lastToValue = targetValue;
-        callback?.({ finished: true });
-      },
-    } as any;
-  });
+  const timingSpy = jest
+    .spyOn(Animated, 'timing')
+    .mockImplementation((value, config) => {
+      return {
+        start: (callback?: (result: { finished: boolean }) => void) => {
+          const targetValue = config.toValue as number;
+          (value as Animated.Value).setValue(targetValue);
+          lastToValue = targetValue;
+          callback?.({ finished: true });
+        },
+      } as any;
+    });
 
   return {
     timingSpy,
@@ -33,13 +36,7 @@ describe('NumberSpinner', () => {
   });
 
   it('renders label and description', () => {
-    render(
-      <NumberSpinner
-        label="Label"
-        description="Description"
-        value={3}
-      />,
-    );
+    render(<NumberSpinner label='Label' description='Description' value={3} />);
 
     expect(screen.getByText('Label')).toBeTruthy();
     expect(screen.getByText('Description')).toBeTruthy();
@@ -47,26 +44,14 @@ describe('NumberSpinner', () => {
   });
 
   it('disables decrement button at minimum value', () => {
-    render(
-      <NumberSpinner
-        value={1}
-        min={1}
-        max={10}
-      />,
-    );
+    render(<NumberSpinner value={1} min={1} max={10} />);
 
     const decrementButton = screen.getByLabelText('Decrease value');
     expect(decrementButton.props.accessibilityState.disabled).toBe(true);
   });
 
   it('disables increment button at maximum value', () => {
-    render(
-      <NumberSpinner
-        value={10}
-        min={1}
-        max={10}
-      />,
-    );
+    render(<NumberSpinner value={10} min={1} max={10} />);
 
     const incrementButton = screen.getByLabelText('Increase value');
     expect(incrementButton.props.accessibilityState.disabled).toBe(true);
@@ -101,13 +86,7 @@ describe('NumberSpinner', () => {
   });
 
   it('updates internal value when uncontrolled', () => {
-    render(
-      <NumberSpinner
-        defaultValue={2}
-        min={1}
-        max={10}
-      />,
-    );
+    render(<NumberSpinner defaultValue={2} min={1} max={10} />);
 
     fireEvent.press(screen.getByLabelText('Increase value'));
 
@@ -115,13 +94,7 @@ describe('NumberSpinner', () => {
   });
 
   it('decrements internal value when uncontrolled', () => {
-    render(
-      <NumberSpinner
-        defaultValue={4}
-        min={1}
-        max={10}
-      />,
-    );
+    render(<NumberSpinner defaultValue={4} min={1} max={10} />);
 
     fireEvent.press(screen.getByLabelText('Decrease value'));
 
@@ -132,10 +105,7 @@ describe('NumberSpinner', () => {
     const handleValueChange = jest.fn();
 
     render(
-      <NumberSpinner
-        defaultValue={1}
-        onValueChange={handleValueChange}
-      />,
+      <NumberSpinner defaultValue={1} onValueChange={handleValueChange} />,
     );
 
     const input = screen.getByLabelText('Spinner value');
@@ -184,13 +154,7 @@ describe('NumberSpinner', () => {
   });
 
   it('restores the current value when input is cleared then blurred', () => {
-    render(
-      <NumberSpinner
-        defaultValue={3}
-        min={1}
-        max={10}
-      />,
-    );
+    render(<NumberSpinner defaultValue={3} min={1} max={10} />);
 
     const input = screen.getByLabelText('Spinner value');
     fireEvent.changeText(input, '');
@@ -200,14 +164,7 @@ describe('NumberSpinner', () => {
   });
 
   it('uses the step prop for increment and decrement', () => {
-    render(
-      <NumberSpinner
-        defaultValue={2}
-        min={0}
-        max={10}
-        step={2}
-      />,
-    );
+    render(<NumberSpinner defaultValue={2} min={0} max={10} step={2} />);
 
     fireEvent.press(screen.getByLabelText('Increase value'));
     expect(screen.getByDisplayValue('4')).toBeTruthy();
@@ -243,7 +200,7 @@ describe('NumberSpinner', () => {
   });
 
   it('uses medium control height for the spinner pill', () => {
-    render(<NumberSpinner value={3} label="Height Test" />);
+    render(<NumberSpinner value={3} label='Height Test' />);
 
     const spinner = screen.getByLabelText('Height Test');
     const flattenedStyle = StyleSheet.flatten(spinner.props.style);
@@ -264,10 +221,14 @@ describe('NumberSpinner', () => {
 
     let testRenderer!: renderer.ReactTestRenderer;
     act(() => {
-      testRenderer = renderer.create(<NumberSpinner label="Animated spinner" value={3} />);
+      testRenderer = renderer.create(
+        <NumberSpinner label='Animated spinner' value={3} />,
+      );
     });
 
-    const spinner = testRenderer.root.findByProps({ accessibilityLabel: 'Animated spinner' });
+    const spinner = testRenderer.root.findByProps({
+      accessibilityLabel: 'Animated spinner',
+    });
     timingSpy.mockClear();
 
     act(() => {
@@ -306,13 +267,7 @@ describe('NumberSpinner', () => {
     const postReleaseWaitMs = 300;
 
     try {
-      render(
-        <NumberSpinner
-          defaultValue={1}
-          min={1}
-          max={10}
-        />,
-      );
+      render(<NumberSpinner defaultValue={1} min={1} max={10} />);
 
       const incrementButton = screen.getByLabelText('Increase value');
 
@@ -345,13 +300,7 @@ describe('NumberSpinner', () => {
     const postReleaseWaitMs = 300;
 
     try {
-      render(
-        <NumberSpinner
-          defaultValue={4}
-          min={1}
-          max={10}
-        />,
-      );
+      render(<NumberSpinner defaultValue={4} min={1} max={10} />);
 
       const decrementButton = screen.getByLabelText('Decrease value');
 

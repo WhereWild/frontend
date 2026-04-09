@@ -24,16 +24,21 @@ export function UploadStepCard({
   onPress,
 }: UploadStepCardProps) {
   return (
-    <View style={[styles.stepCard, { backgroundColor: palette.background.default.secondary }]}>
-      <ThemedText variant="heading">{stepTitle}</ThemedText>
-      <ThemedText variant="body" style={styles.stepDescription}>
+    <View
+      style={[
+        styles.stepCard,
+        { backgroundColor: palette.background.default.secondary },
+      ]}
+    >
+      <ThemedText variant='heading'>{stepTitle}</ThemedText>
+      <ThemedText variant='body' style={styles.stepDescription}>
         {description}
       </ThemedText>
       <View style={styles.buttonRow}>
         {isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={palette.icon.brand.default} />
-            <ThemedText variant="body">Generating zip...</ThemedText>
+            <ThemedText variant='body'>Generating zip...</ThemedText>
           </View>
         ) : (
           <Button

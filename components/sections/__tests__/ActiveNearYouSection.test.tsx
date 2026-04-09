@@ -1,5 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { ActiveNearYouSection } from '../ActiveNearYouSection';
 
 jest.mock('@/hooks/useColorScheme', () => ({
@@ -11,7 +16,9 @@ jest.mock('../../cards/SpeciesCard', () => {
   const { Text } = jest.requireActual('react-native');
 
   return {
-    SpeciesCard: ({ commonName }: { commonName: string }) => <Text>{commonName}</Text>,
+    SpeciesCard: ({ commonName }: { commonName: string }) => (
+      <Text>{commonName}</Text>
+    ),
   };
 });
 
@@ -30,9 +37,13 @@ jest.mock('../../navigation/NavigationPillList', () => {
       onSelectionChange?: (key: string) => void;
     }) => (
       <View>
-        <Text testID="selected-pill">{selectedKey}</Text>
+        <Text testID='selected-pill'>{selectedKey}</Text>
         {pills.map((pill) => (
-          <Pressable key={pill.key} testID={`pill-${pill.key}`} onPress={() => onSelectionChange?.(pill.key)}>
+          <Pressable
+            key={pill.key}
+            testID={`pill-${pill.key}`}
+            onPress={() => onSelectionChange?.(pill.key)}
+          >
             <Text>{pill.label}</Text>
           </Pressable>
         ))}
@@ -94,7 +105,9 @@ describe('ActiveNearYouSection', () => {
     render(
       <ActiveNearYouSection
         recommendations={recommendations}
-        allRecommendations={recommendations.filter((item) => item.taxonGroup !== 'birds')}
+        allRecommendations={recommendations.filter(
+          (item) => item.taxonGroup !== 'birds',
+        )}
       />,
     );
 
@@ -110,8 +123,10 @@ describe('ActiveNearYouSection', () => {
     render(
       <ActiveNearYouSection
         recommendations={recommendations}
-        allRecommendations={recommendations.filter((item) => item.taxonGroup !== 'plants')}
-        activeGroup="plants"
+        allRecommendations={recommendations.filter(
+          (item) => item.taxonGroup !== 'plants',
+        )}
+        activeGroup='plants'
         onGroupChange={handleGroupChange}
       />,
     );

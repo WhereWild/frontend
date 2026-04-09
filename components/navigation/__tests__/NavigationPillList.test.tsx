@@ -1,56 +1,72 @@
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Platform, StyleSheet, type PressableProps, type View } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  type PressableProps,
+  type View,
+} from 'react-native';
 import { NavigationPillList } from '../NavigationPillList';
 
 jest.mock('../NavigationPill', () => {
   const React = jest.requireActual<typeof import('react')>('react');
-  const ReactNative = jest.requireActual<typeof import('react-native')>('react-native');
-  const PressableWithKeyDown = ReactNative.Pressable as unknown as React.ForwardRefExoticComponent<
-    PressableProps & {
-      onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
-      tabIndex?: 0 | -1;
-    } & React.RefAttributes<View>
-  >;
+  const ReactNative =
+    jest.requireActual<typeof import('react-native')>('react-native');
+  const PressableWithKeyDown =
+    ReactNative.Pressable as unknown as React.ForwardRefExoticComponent<
+      PressableProps & {
+        onKeyDown?: (event: {
+          nativeEvent?: { key?: string };
+          preventDefault?: () => void;
+        }) => void;
+        tabIndex?: 0 | -1;
+      } & React.RefAttributes<View>
+    >;
 
-  const NavigationPill = React.forwardRef((props: any, ref: React.ForwardedRef<{ focus: () => void }>) => {
-    const {
-      id,
-      label,
-      isActive,
-      isHighlighted,
-      onPress,
-      onKeyDown,
-      onFocus,
-      focusable,
-      tabIndex,
-      accessibilityLabel,
-      testID,
-    } = props;
+  const NavigationPill = React.forwardRef(
+    (props: any, ref: React.ForwardedRef<{ focus: () => void }>) => {
+      const {
+        id,
+        label,
+        isActive,
+        isHighlighted,
+        onPress,
+        onKeyDown,
+        onFocus,
+        focusable,
+        tabIndex,
+        accessibilityLabel,
+        testID,
+      } = props;
 
-    React.useImperativeHandle(ref, () => ({
-      focus: () => {
-        onFocus?.();
-      },
-    }), [onFocus]);
+      React.useImperativeHandle(
+        ref,
+        () => ({
+          focus: () => {
+            onFocus?.();
+          },
+        }),
+        [onFocus],
+      );
 
-    return (
-      <PressableWithKeyDown
-        accessibilityRole="radio"
-        accessibilityLabel={accessibilityLabel ?? label}
-        accessibilityState={{ selected: isActive }}
-        onFocus={onFocus}
-        onKeyDown={onKeyDown}
-        focusable={focusable}
-        tabIndex={tabIndex}
-        onPress={() => onPress(id)}
-        testID={testID ?? `pill-${id}`}
-        accessibilityHint={isHighlighted ? 'highlighted' : undefined}
-      >
-        {label}
-      </PressableWithKeyDown>
-    );
-  });
+      return (
+        <PressableWithKeyDown
+          accessibilityRole='radio'
+          accessibilityLabel={accessibilityLabel ?? label}
+          accessibilityState={{ selected: isActive }}
+          onFocus={onFocus}
+          onKeyDown={onKeyDown}
+          focusable={focusable}
+          tabIndex={tabIndex}
+          onPress={() => onPress(id)}
+          testID={testID ?? `pill-${id}`}
+          accessibilityHint={isHighlighted ? 'highlighted' : undefined}
+        >
+          {label}
+        </PressableWithKeyDown>
+      );
+    },
+  );
 
   NavigationPill.displayName = 'MockNavigationPill';
 
@@ -96,7 +112,10 @@ const PillListHarness = ({
 };
 
 describe('NavigationPillList', () => {
-  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(Platform, 'OS');
+  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+    Platform,
+    'OS',
+  );
 
   const setPlatformOS = (os: 'ios' | 'web') => {
     Object.defineProperty(Platform, 'OS', {
@@ -112,7 +131,7 @@ describe('NavigationPillList', () => {
   });
 
   it('renders with accessibility role and label', () => {
-    render(<PillListHarness accessibilityLabel="Pill group" />);
+    render(<PillListHarness accessibilityLabel='Pill group' />);
 
     const list = screen.getByLabelText('Pill group');
     expect(list.props.accessibilityRole).toBe('radiogroup');
@@ -142,15 +161,21 @@ describe('NavigationPillList', () => {
     render(
       <NavigationPillList
         pills={pills}
-        selectedKey="one"
-        highlightedKey="two"
+        selectedKey='one'
+        highlightedKey='two'
         onSelectionChange={jest.fn()}
       />,
     );
 
-    expect(screen.getByLabelText('One').props.accessibilityState?.selected).toBe(true);
-    expect(screen.getByLabelText('Two').props.accessibilityHint).toBe('highlighted');
-    expect(screen.getByLabelText('Three').props.accessibilityHint).toBeUndefined();
+    expect(
+      screen.getByLabelText('One').props.accessibilityState?.selected,
+    ).toBe(true);
+    expect(screen.getByLabelText('Two').props.accessibilityHint).toBe(
+      'highlighted',
+    );
+    expect(
+      screen.getByLabelText('Three').props.accessibilityHint,
+    ).toBeUndefined();
   });
 
   it('allows native horizontal pills to wrap onto additional rows', () => {
@@ -166,23 +191,28 @@ describe('NavigationPillList', () => {
   it('keeps native horizontal pill wrappers mounted when the visible pill set shrinks', () => {
     setPlatformOS('ios');
     const rendered = render(
-      <PillListHarness pillsOverride={pills.slice(0, 3)} initialKey="one" />,
+      <PillListHarness pillsOverride={pills.slice(0, 3)} initialKey='one' />,
     );
 
-    const countHiddenWrappers = () => rendered.UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && node.props?.accessibilityElementsHidden === true,
-    ).length;
+    const countHiddenWrappers = () =>
+      rendered.UNSAFE_root.findAll(
+        (node) =>
+          typeof node.type === 'string' &&
+          node.props?.accessibilityElementsHidden === true,
+      ).length;
 
     expect(countHiddenWrappers()).toBe(0);
 
     rendered.rerender(
-      <PillListHarness pillsOverride={pills.slice(0, 2)} initialKey="one" />,
+      <PillListHarness pillsOverride={pills.slice(0, 2)} initialKey='one' />,
     );
 
     expect(countHiddenWrappers()).toBeGreaterThan(0);
 
     const hiddenWrapper = rendered.UNSAFE_root.find(
-      (node) => typeof node.type === 'string' && node.props?.accessibilityElementsHidden === true,
+      (node) =>
+        typeof node.type === 'string' &&
+        node.props?.accessibilityElementsHidden === true,
     );
     const hiddenWrapperStyle = StyleSheet.flatten(hiddenWrapper.props.style);
 
@@ -194,15 +224,17 @@ describe('NavigationPillList', () => {
     setPlatformOS('ios');
     const reorderedPills = [pills[2], pills[0], pills[1]];
     const rendered = render(
-      <PillListHarness pillsOverride={pills.slice(0, 3)} initialKey="one" />,
+      <PillListHarness pillsOverride={pills.slice(0, 3)} initialKey='one' />,
     );
 
     rendered.rerender(
-      <PillListHarness pillsOverride={reorderedPills} initialKey="three" />,
+      <PillListHarness pillsOverride={reorderedPills} initialKey='three' />,
     );
 
     const pillIds = rendered.UNSAFE_root.findAll(
-      (node) => typeof node.type === 'string' && /^pill-/.test(node.props?.testID ?? ''),
+      (node) =>
+        typeof node.type === 'string' &&
+        /^pill-/.test(node.props?.testID ?? ''),
     ).map((node) => node.props.testID);
 
     expect(pillIds.slice(0, 3)).toEqual(['pill-three', 'pill-one', 'pill-two']);
@@ -216,7 +248,7 @@ describe('NavigationPillList', () => {
       <PillListHarness
         onSelectionChange={onSelectionChange}
         onFocusRequest={onFocusRequest}
-      />
+      />,
     );
 
     const pillOne = screen.getByLabelText('One');
@@ -261,7 +293,12 @@ describe('NavigationPillList', () => {
   it('moves focus vertically with arrow keys', () => {
     setPlatformOS('web');
     const onSelectionChange = jest.fn();
-    render(<PillListHarness direction="vertical" onSelectionChange={onSelectionChange} />);
+    render(
+      <PillListHarness
+        direction='vertical'
+        onSelectionChange={onSelectionChange}
+      />,
+    );
 
     const pillOne = screen.getByLabelText('One');
     fireEvent(pillOne, 'keyDown', { nativeEvent: { key: 'ArrowDown' } });

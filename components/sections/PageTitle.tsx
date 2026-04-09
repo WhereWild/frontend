@@ -17,7 +17,12 @@ export type PageTitleProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function PageTitle({ title, iconButton, button, style }: PageTitleProps) {
+export function PageTitle({
+  title,
+  iconButton,
+  button,
+  style,
+}: PageTitleProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -37,7 +42,7 @@ export function PageTitle({ title, iconButton, button, style }: PageTitleProps) 
     >
       <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
         <View style={styles.headingRow}>
-          <ThemedText variant="titlePage">{title}</ThemedText>
+          <ThemedText variant='titlePage'>{title}</ThemedText>
           {(iconButton != null || button != null) && (
             <View style={styles.buttons}>
               {iconButton != null && <IconButton {...iconButton} />}
@@ -46,8 +51,11 @@ export function PageTitle({ title, iconButton, button, style }: PageTitleProps) 
           )}
         </View>
         <View
-          style={[styles.divider, { backgroundColor: palette.border.brand.secondary }]}
-          testID="page-title-divider"
+          style={[
+            styles.divider,
+            { backgroundColor: palette.border.brand.secondary },
+          ]}
+          testID='page-title-divider'
         />
       </View>
     </View>

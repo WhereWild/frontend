@@ -1,5 +1,12 @@
 import React from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { IconButton } from '@/components/buttons/IconButton';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -81,40 +88,45 @@ export const SelectFieldView = ({
     : placeholder
       ? `${placeholder} options`
       : 'Select options';
-  const portalAccessibilityHint = 'Swipe through options and double tap to select.';
+  const portalAccessibilityHint =
+    'Swipe through options and double tap to select.';
   const showSearchPlaceholder = isOpen && allowSearch;
   const hasDropdownPosition = Boolean(dropdownPosition);
   const shouldShowPortalInput = allowSearch && hasDropdownPosition;
   const portalFieldFrame = dropdownPosition
     ? {
-      top: dropdownPosition.top,
-      left: dropdownPosition.left,
-      width: dropdownPosition.width,
-      height: dropdownPosition.height,
-    }
+        top: dropdownPosition.top,
+        left: dropdownPosition.left,
+        width: dropdownPosition.width,
+        height: dropdownPosition.height,
+      }
     : null;
   const portalOptionsFrame = dropdownPosition
     ? {
-      top: dropdownPosition.top + dropdownPosition.height + Size.space['100'],
-      left: dropdownPosition.left,
-      width: dropdownPosition.width,
-    }
+        top: dropdownPosition.top + dropdownPosition.height + Size.space['100'],
+        left: dropdownPosition.left,
+        width: dropdownPosition.width,
+      }
     : null;
 
   return (
     <>
       <View style={[styles.container, containerStyle]}>
         {label ? (
-          <ThemedText variant="body" style={{ color: labelColor }}>
+          <ThemedText variant='body' style={{ color: labelColor }}>
             {label}
           </ThemedText>
         ) : null}
         {description ? (
-          <ThemedText variant="body" style={{ color: descriptionColor }}>
+          <ThemedText variant='body' style={{ color: descriptionColor }}>
             {description}
           </ThemedText>
         ) : null}
-        <View ref={fieldWrapperRef} onLayout={onFieldWrapperLayout} style={styles.fieldWrapper}>
+        <View
+          ref={fieldWrapperRef}
+          onLayout={onFieldWrapperLayout}
+          style={styles.fieldWrapper}
+        >
           <Pressable
             ref={fieldPressableRef}
             {...fieldPressableProps}
@@ -136,51 +148,64 @@ export const SelectFieldView = ({
                 <View style={styles.fieldValueSlot} collapsable={false}>
                   <View
                     collapsable={false}
-                    style={showSearchPlaceholder ? styles.hiddenContentSlot : undefined}
+                    style={
+                      showSearchPlaceholder
+                        ? styles.hiddenContentSlot
+                        : undefined
+                    }
                   >
                     <ThemedText
-                      variant="singleLineBody"
-                      style={{ color: showPlaceholder ? placeholderColor : valueColor, flex: 1 }}
+                      variant='singleLineBody'
+                      style={{
+                        color: showPlaceholder ? placeholderColor : valueColor,
+                        flex: 1,
+                      }}
                     >
                       {valueText || placeholder}
                     </ThemedText>
                   </View>
                   <View
                     collapsable={false}
-                    style={!showSearchPlaceholder ? styles.hiddenContentSlot : undefined}
-                  >
-                    {
-                      /* 
-                       * When the dropdown is open with search enabled, we render the actual TextInput
-                       * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
-                       *
-                       * This View is a non-interactive placeholder that keeps the field row height and
-                       * layout stable while the real input lives in the portal overlay. The fixed
-                       * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
-                       * opening/closing the dropdown does not cause the field to jump or resize.
-                       *
-                       * If you change the height or layout of the portal input, update this placeholder
-                       * accordingly so that the dual-input pattern (placeholder here + real input in
-                       * the Portal) continues to behave and look consistent.
-                       */
+                    style={
+                      !showSearchPlaceholder
+                        ? styles.hiddenContentSlot
+                        : undefined
                     }
-                    <View style={[styles.input, { height: PLACEHOLDER_INPUT_HEIGHT }]} />
+                  >
+                    {/*
+                     * When the dropdown is open with search enabled, we render the actual TextInput
+                     * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
+                     *
+                     * This View is a non-interactive placeholder that keeps the field row height and
+                     * layout stable while the real input lives in the portal overlay. The fixed
+                     * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
+                     * opening/closing the dropdown does not cause the field to jump or resize.
+                     *
+                     * If you change the height or layout of the portal input, update this placeholder
+                     * accordingly so that the dual-input pattern (placeholder here + real input in
+                     * the Portal) continues to behave and look consistent.
+                     */}
+                    <View
+                      style={[
+                        styles.input,
+                        { height: PLACEHOLDER_INPUT_HEIGHT },
+                      ]}
+                    />
                   </View>
                 </View>
                 <View style={styles.fieldIconSlot} collapsable={false}>
                   {/*
-                 * The select icon visually reads as a button, but the field owns the interaction.
-                 * Rendering it as a non-interactive visual avoids nested pressables toggling the
-                 * same control while preserving whole-button hover/press affordances.
-                 */}
+                   * The select icon visually reads as a button, but the field owns the interaction.
+                   * Rendering it as a non-interactive visual avoids nested pressables toggling the
+                   * same control while preserving whole-button hover/press affordances.
+                   */}
                   <IconButton
-                    variant="subtle"
-                    size="small"
+                    variant='subtle'
+                    size='small'
                     interactive={false}
                     hovered={hovered ?? false}
                     pressed={pressed}
                     icon={iconButtonProps.icon}
-
                     disabled={iconButtonProps.disabled}
                   />
                 </View>
@@ -189,7 +214,7 @@ export const SelectFieldView = ({
           </Pressable>
         </View>
         {errorMessage ? (
-          <ThemedText variant="body" style={{ color: errorColor }}>
+          <ThemedText variant='body' style={{ color: errorColor }}>
             {errorMessage}
           </ThemedText>
         ) : null}
@@ -201,19 +226,25 @@ export const SelectFieldView = ({
           accessibilityLabel={portalAccessibilityLabel}
           accessibilityHint={portalAccessibilityHint}
         >
-          <View collapsable={false} testID="select-field-portal-backdrop-slot" style={styles.backdropSlot}>
+          <View
+            collapsable={false}
+            testID='select-field-portal-backdrop-slot'
+            style={styles.backdropSlot}
+          >
             <Pressable
               style={styles.backdrop}
               onPress={onDismiss}
-              accessibilityRole="button"
-              accessibilityLabel="Close dropdown"
+              accessibilityRole='button'
+              accessibilityLabel='Close dropdown'
             />
           </View>
           <View
             collapsable={false}
-            testID="select-field-portal-input-slot"
+            testID='select-field-portal-input-slot'
             accessibilityElementsHidden={!shouldShowPortalInput}
-            importantForAccessibility={shouldShowPortalInput ? 'auto' : 'no-hide-descendants'}
+            importantForAccessibility={
+              shouldShowPortalInput ? 'auto' : 'no-hide-descendants'
+            }
             style={[
               styles.portalInputWrapper,
               portalFieldFrame,
@@ -221,7 +252,7 @@ export const SelectFieldView = ({
             ]}
           >
             <TextInput
-              testID="select-field-portal-input"
+              testID='select-field-portal-input'
               ref={inputRef}
               {...inputProps}
               style={[
@@ -233,9 +264,11 @@ export const SelectFieldView = ({
           </View>
           <View
             collapsable={false}
-            testID="select-field-portal-icon-slot"
+            testID='select-field-portal-icon-slot'
             accessibilityElementsHidden={!hasDropdownPosition}
-            importantForAccessibility={hasDropdownPosition ? 'auto' : 'no-hide-descendants'}
+            importantForAccessibility={
+              hasDropdownPosition ? 'auto' : 'no-hide-descendants'
+            }
             style={[
               styles.portalFieldIconRow,
               portalFieldFrame,
@@ -243,8 +276,8 @@ export const SelectFieldView = ({
             ]}
           >
             <IconButton
-              variant="subtle"
-              size="small"
+              variant='subtle'
+              size='small'
               interactive={false}
               icon={iconButtonProps.icon}
               accessibilityLabel={iconButtonProps.accessibilityLabel}
@@ -253,9 +286,11 @@ export const SelectFieldView = ({
           </View>
           <View
             collapsable={false}
-            testID="select-field-portal-options-slot"
+            testID='select-field-portal-options-slot'
             accessibilityElementsHidden={!hasDropdownPosition}
-            importantForAccessibility={hasDropdownPosition ? 'auto' : 'no-hide-descendants'}
+            importantForAccessibility={
+              hasDropdownPosition ? 'auto' : 'no-hide-descendants'
+            }
             style={[
               styles.optionsContainer,
               dropShadowStyle,
@@ -268,15 +303,15 @@ export const SelectFieldView = ({
             <ScrollView
               ref={scrollViewRef}
               style={[styles.optionsScroll, scrollViewStyle]}
-              keyboardShouldPersistTaps="always"
-              keyboardDismissMode="none"
+              keyboardShouldPersistTaps='always'
+              keyboardDismissMode='none'
               {...scrollViewRest}
             >
               {options.map((option, index) => {
                 return (
                   <Pressable
                     key={option.key}
-                    accessibilityRole="button"
+                    accessibilityRole='button'
                     accessibilityLabel={option.accessibilityLabel}
                     onPress={option.onPress}
                     onPressIn={option.onPressIn}
@@ -287,7 +322,8 @@ export const SelectFieldView = ({
                     style={({ pressed, hovered }) => [
                       styles.optionRow,
                       {
-                        marginBottom: index === options.length - 1 ? 0 : Size.space['050'],
+                        marginBottom:
+                          index === options.length - 1 ? 0 : Size.space['050'],
                       },
                       {
                         backgroundColor: option.isSelected
@@ -300,17 +336,19 @@ export const SelectFieldView = ({
                                 ? optionFocusedBackgroundColor
                                 : 'transparent',
                         ...(Platform.OS === 'web'
-                          ? (
-                            {
+                          ? ({
                               // Safari does not render the auto outline for non-focusable nodes.
                               // Use a solid outline with explicit color as a fallback focus ring.
                               outlineStyle: option.isHighlighted
-                                ? (isWebKitBrowser() ? 'solid' : 'auto')
+                                ? isWebKitBrowser()
+                                  ? 'solid'
+                                  : 'auto'
                                 : 'none',
                               outlineWidth: Size.stroke.focusRing,
-                              outlineColor: isWebKitBrowser() ? optionFocusedRingColor : undefined,
-                            } as any
-                          )
+                              outlineColor: isWebKitBrowser()
+                                ? optionFocusedRingColor
+                                : undefined,
+                            } as any)
                           : null),
                       },
                     ]}
@@ -420,7 +458,9 @@ const styles = StyleSheet.create({
     height: '100%',
     padding: 0,
     textAlignVertical: 'center',
-    ...(Platform.OS === 'android' ? ({ includeFontPadding: false } as const) : {}),
+    ...(Platform.OS === 'android'
+      ? ({ includeFontPadding: false } as const)
+      : {}),
   },
   optionsContainer: {
     position: 'absolute',

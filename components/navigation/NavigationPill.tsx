@@ -1,5 +1,11 @@
 import React, { forwardRef } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -26,7 +32,10 @@ export type NavigationPillProps = {
   isActive: boolean;
   isHighlighted?: boolean;
   onPress: (id: string) => void;
-  onKeyDown?: (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => void;
+  onKeyDown?: (event: {
+    nativeEvent?: { key?: string };
+    preventDefault?: () => void;
+  }) => void;
   onFocus?: () => void;
   onContentLayout?: (width: number) => void;
   contentWidth?: number;
@@ -81,101 +90,104 @@ const getPillState = (
 
   return {
     backgroundColor: TRANSPARENT,
-    borderColor: isHighlighted ? highlightOutlineColor : palette.border.neutral.tertiary,
+    borderColor: isHighlighted
+      ? highlightOutlineColor
+      : palette.border.neutral.tertiary,
     borderStyle: isHighlighted ? 'dashed' : 'solid',
     borderWidth: isHighlighted ? 3 : Size.stroke.border,
     textColor: palette.text.neutral.tertiary,
   };
 };
 
-export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(function NavigationPill(
-  {
-    id,
-    label,
-    isActive,
-    isHighlighted = false,
-    onPress,
-    onKeyDown,
-    onFocus,
-    onContentLayout,
-    contentWidth,
-    focusable,
-    tabIndex,
-    accessibilityLabel,
-    testID,
-    icon,
-    style,
-    highlightOutlineColor = '#F59E0B',
-  },
-  ref
-) {
-  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const [isPressed, setIsPressed] = React.useState(false);
-  const [isHovered, setIsHovered] = React.useState(false);
-  const pillState = getPillState(
-    mode,
-    isActive,
-    isHighlighted,
-    isPressed,
-    isHovered,
-    highlightOutlineColor,
-  );
+export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(
+  function NavigationPill(
+    {
+      id,
+      label,
+      isActive,
+      isHighlighted = false,
+      onPress,
+      onKeyDown,
+      onFocus,
+      onContentLayout,
+      contentWidth,
+      focusable,
+      tabIndex,
+      accessibilityLabel,
+      testID,
+      icon,
+      style,
+      highlightOutlineColor = '#F59E0B',
+    },
+    ref,
+  ) {
+    const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+    const [isPressed, setIsPressed] = React.useState(false);
+    const [isHovered, setIsHovered] = React.useState(false);
+    const pillState = getPillState(
+      mode,
+      isActive,
+      isHighlighted,
+      isPressed,
+      isHovered,
+      highlightOutlineColor,
+    );
 
-  return (
-    <Pressable
-      ref={ref}
-      collapsable={false}
-      accessibilityRole="radio"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected: isActive }}
-      onFocus={onFocus}
-      focusable={focusable}
-      testID={testID}
-      onPress={() => onPress(id)}
-      onPressIn={() => setIsPressed(true)}
-      onPressOut={() => setIsPressed(false)}
-      onHoverIn={() => setIsHovered(true)}
-      onHoverOut={() => setIsHovered(false)}
-      onLayout={(event) => {
-        onContentLayout?.(event.nativeEvent.layout.width);
-      }}
-      style={[
-        getInteractiveCursorStyle(),
-        styles.pill,
-        style,
-        {
-          backgroundColor: pillState.backgroundColor,
-          borderColor: pillState.borderColor,
-          borderStyle: pillState.borderStyle,
-          borderWidth: pillState.borderWidth,
-          width: contentWidth,
-        },
-      ]}
-      // @ts-expect-error react-native-web supports onKeyDown for keyboard accessibility.
-      onKeyDown={onKeyDown}
-      tabIndex={tabIndex}
-    >
-      <View style={styles.innerContent} collapsable={false}>
-        <View
-          collapsable={false}
-          style={[styles.iconSlot, !icon && styles.hiddenIconSlot]}
-        >
-          {icon}
-        </View>
-        <View collapsable={false} style={styles.labelSlot}>
-          <ThemedText
-            variant="singleLineBody"
-            style={{ color: pillState.textColor }}
-            numberOfLines={1}
+    return (
+      <Pressable
+        ref={ref}
+        collapsable={false}
+        accessibilityRole='radio'
+        accessibilityLabel={accessibilityLabel ?? label}
+        accessibilityState={{ selected: isActive }}
+        onFocus={onFocus}
+        focusable={focusable}
+        testID={testID}
+        onPress={() => onPress(id)}
+        onPressIn={() => setIsPressed(true)}
+        onPressOut={() => setIsPressed(false)}
+        onHoverIn={() => setIsHovered(true)}
+        onHoverOut={() => setIsHovered(false)}
+        onLayout={(event) => {
+          onContentLayout?.(event.nativeEvent.layout.width);
+        }}
+        style={[
+          getInteractiveCursorStyle(),
+          styles.pill,
+          style,
+          {
+            backgroundColor: pillState.backgroundColor,
+            borderColor: pillState.borderColor,
+            borderStyle: pillState.borderStyle,
+            borderWidth: pillState.borderWidth,
+            width: contentWidth,
+          },
+        ]}
+        // @ts-expect-error react-native-web supports onKeyDown for keyboard accessibility.
+        onKeyDown={onKeyDown}
+        tabIndex={tabIndex}
+      >
+        <View style={styles.innerContent} collapsable={false}>
+          <View
+            collapsable={false}
+            style={[styles.iconSlot, !icon && styles.hiddenIconSlot]}
           >
-            {label}
-          </ThemedText>
+            {icon}
+          </View>
+          <View collapsable={false} style={styles.labelSlot}>
+            <ThemedText
+              variant='singleLineBody'
+              style={{ color: pillState.textColor }}
+              numberOfLines={1}
+            >
+              {label}
+            </ThemedText>
+          </View>
         </View>
-      </View>
-    </Pressable>
-  );
-});
-
+      </Pressable>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   pill: {

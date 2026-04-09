@@ -56,7 +56,9 @@ const styles = StyleSheet.create({
     padding: 0,
     textAlignVertical: 'center',
     // Keep placeholder-visible-first-run design without double outlines on web focus.
-    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0 } as any) : {}),
+    ...(Platform.OS === 'web'
+      ? ({ outlineStyle: 'none', outlineWidth: 0 } as any)
+      : {}),
   },
 });
 
@@ -92,8 +94,8 @@ export function SearchInputView({
       {...(Platform.OS === 'web' ? ({ tabIndex: -1 } as any) : {})}
     >
       <IconButton
-        variant="subtle"
-        size="small"
+        variant='subtle'
+        size='small'
         icon={searchButton.icon}
         accessibilityLabel={searchButton.accessibilityLabel}
         disabled={searchButton.disabled}
@@ -104,8 +106,8 @@ export function SearchInputView({
 
       {clearButton ? (
         <IconButton
-          variant="subtle"
-          size="small"
+          variant='subtle'
+          size='small'
           icon={clearButton.icon}
           accessibilityLabel={clearButton.accessibilityLabel}
           disabled={clearButton.disabled}

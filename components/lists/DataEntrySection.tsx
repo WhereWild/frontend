@@ -19,7 +19,9 @@ export function DataEntrySection({
 }: DataEntrySectionProps) {
   return (
     <View style={[styles.section, style]}>
-      <ThemedText variant="heading" style={styles.heading}>{title}</ThemedText>
+      <ThemedText variant='heading' style={styles.heading}>
+        {title}
+      </ThemedText>
       <View style={styles.entries}>
         {entries.map((entry, index) => (
           <DataEntry

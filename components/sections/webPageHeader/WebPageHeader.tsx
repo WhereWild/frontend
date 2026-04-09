@@ -96,7 +96,8 @@ export function WebPageHeader({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const resolvedLogoSource = logoSource ?? (mode === 'dark' ? DEFAULT_LOGO_DARK : DEFAULT_LOGO_LIGHT);
+  const resolvedLogoSource =
+    logoSource ?? (mode === 'dark' ? DEFAULT_LOGO_DARK : DEFAULT_LOGO_LIGHT);
   const responsive = useResponsive();
   const isCompact = responsive.breakpoint !== 'desktop';
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -107,24 +108,42 @@ export function WebPageHeader({
   const pathname = usePathname();
 
   /** Submits non-empty queries and avoids redundant navigation when already on `/search`. */
-  const submitSearchQuery = React.useCallback((query: string) => {
-    const trimmed = query.trim();
-    if (trimmed === '') {
-      return;
-    }
+  const submitSearchQuery = React.useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      if (trimmed === '') {
+        return;
+      }
 
-    if (pathname === '/search') {
-      return;
-    }
+      if (pathname === '/search') {
+        return;
+      }
 
-    router.push({ pathname: '/search', params: { query: trimmed } });
-  }, [pathname, router]);
+      router.push({ pathname: '/search', params: { query: trimmed } });
+    },
+    [pathname, router],
+  );
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
       { label: 'Help', icon: <IconHelpCircle /> },
-      { label: 'About', icon: <IconInfo />, href: '/about', hrefPath: '/about' },
-      { label: 'Upload', icon: <IconUpload />, href: '/upload', hrefPath: '/upload' },
-      { label: 'Settings', icon: <IconSettings />, href: '/settings', hrefPath: '/settings' },
+      {
+        label: 'About',
+        icon: <IconInfo />,
+        href: '/about',
+        hrefPath: '/about',
+      },
+      {
+        label: 'Upload',
+        icon: <IconUpload />,
+        href: '/upload',
+        hrefPath: '/upload',
+      },
+      {
+        label: 'Settings',
+        icon: <IconSettings />,
+        href: '/settings',
+        hrefPath: '/settings',
+      },
     ],
     [],
   );
@@ -134,14 +153,10 @@ export function WebPageHeader({
       <Image
         source={resolvedLogoSource}
         style={isCompact ? styles.logoMobile : styles.logo}
-        resizeMode="contain"
-        accessibilityLabel="WhereWild logo"
+        resizeMode='contain'
+        accessibilityLabel='WhereWild logo'
       />
-      {!isCompact ? (
-        <ThemedText variant="heading">
-          {title}
-        </ThemedText>
-      ) : null}
+      {!isCompact ? <ThemedText variant='heading'>{title}</ThemedText> : null}
     </>
   );
 
@@ -166,8 +181,10 @@ export function WebPageHeader({
   });
 
   const hasQuery = debouncedQuery.length > 0;
-  const [activeSearchResultIndex, setActiveSearchResultIndex] = React.useState(-1);
-  const [isSearchPreviewDismissed, setIsSearchPreviewDismissed] = React.useState(false);
+  const [activeSearchResultIndex, setActiveSearchResultIndex] =
+    React.useState(-1);
+  const [isSearchPreviewDismissed, setIsSearchPreviewDismissed] =
+    React.useState(false);
 
   const {
     searchResultsVisible,
@@ -183,27 +200,26 @@ export function WebPageHeader({
     isSearchPreviewDismissed,
   });
 
-  const {
-    isMenuOpen,
-    menuAnchor,
-    toggleMenu,
-    closeMenu,
-  } = useWebPageHeaderMobileMenu({
-    isCompact,
-    menuButtonRef,
-    windowWidth: window.width,
-  });
+  const { isMenuOpen, menuAnchor, toggleMenu, closeMenu } =
+    useWebPageHeaderMobileMenu({
+      isCompact,
+      menuButtonRef,
+      windowWidth: window.width,
+    });
 
-  const handleSelectSearchResult = React.useCallback((s: SpeciesSummary) => {
-    cancelSearchBlurGrace();
-    const segment = toKebabCase(s.scientificName.trim());
-    if (segment) {
-      router.push({
-        pathname: '/species/[...identifier]',
-        params: { identifier: [s.taxonId.toString(), segment] },
-      });
-    }
-  }, [cancelSearchBlurGrace, router]);
+  const handleSelectSearchResult = React.useCallback(
+    (s: SpeciesSummary) => {
+      cancelSearchBlurGrace();
+      const segment = toKebabCase(s.scientificName.trim());
+      if (segment) {
+        router.push({
+          pathname: '/species/[...identifier]',
+          params: { identifier: [s.taxonId.toString(), segment] },
+        });
+      }
+    },
+    [cancelSearchBlurGrace, router],
+  );
 
   const handleSearchFocus = React.useCallback(() => {
     cancelSearchBlurGrace();
@@ -228,50 +244,61 @@ export function WebPageHeader({
     }
 
     setActiveSearchResultIndex((currentIndex) =>
-      currentIndex >= searchResults.length ? -1 : currentIndex
+      currentIndex >= searchResults.length ? -1 : currentIndex,
     );
   }, [searchResults, searchResultsVisible]);
 
-  const handleSearchKeyDown = React.useCallback((event: SearchInputKeyDownEvent) => {
-    const key = event.key ?? event.nativeEvent?.key;
-    if (!key) {
-      return;
-    }
-
-    if (key === 'Escape' && searchResultsVisible) {
-      event.preventDefault?.();
-      setActiveSearchResultIndex(-1);
-      setIsSearchPreviewDismissed(true);
-      return;
-    }
-
-    if (!searchResultsVisible || searchResults.length === 0) {
-      return;
-    }
-
-    if (key === 'ArrowDown' || key === 'ArrowUp') {
-      event.preventDefault?.();
-      setActiveSearchResultIndex((currentIndex) => {
-        if (currentIndex < 0) {
-          return key === 'ArrowDown' ? 0 : searchResults.length - 1;
-        }
-
-        const direction = key === 'ArrowDown' ? 1 : -1;
-        return (currentIndex + direction + searchResults.length) % searchResults.length;
-      });
-      return;
-    }
-
-    if (key === 'Enter' && activeSearchResultIndex >= 0) {
-      const activeResult = searchResults[activeSearchResultIndex];
-      if (!activeResult) {
+  const handleSearchKeyDown = React.useCallback(
+    (event: SearchInputKeyDownEvent) => {
+      const key = event.key ?? event.nativeEvent?.key;
+      if (!key) {
         return;
       }
 
-      event.preventDefault?.();
-      handleSelectSearchResult(activeResult);
-    }
-  }, [activeSearchResultIndex, handleSelectSearchResult, searchResults, searchResultsVisible]);
+      if (key === 'Escape' && searchResultsVisible) {
+        event.preventDefault?.();
+        setActiveSearchResultIndex(-1);
+        setIsSearchPreviewDismissed(true);
+        return;
+      }
+
+      if (!searchResultsVisible || searchResults.length === 0) {
+        return;
+      }
+
+      if (key === 'ArrowDown' || key === 'ArrowUp') {
+        event.preventDefault?.();
+        setActiveSearchResultIndex((currentIndex) => {
+          if (currentIndex < 0) {
+            return key === 'ArrowDown' ? 0 : searchResults.length - 1;
+          }
+
+          const direction = key === 'ArrowDown' ? 1 : -1;
+          return (
+            (currentIndex + direction + searchResults.length) %
+            searchResults.length
+          );
+        });
+        return;
+      }
+
+      if (key === 'Enter' && activeSearchResultIndex >= 0) {
+        const activeResult = searchResults[activeSearchResultIndex];
+        if (!activeResult) {
+          return;
+        }
+
+        event.preventDefault?.();
+        handleSelectSearchResult(activeResult);
+      }
+    },
+    [
+      activeSearchResultIndex,
+      handleSelectSearchResult,
+      searchResults,
+      searchResultsVisible,
+    ],
+  );
 
   const desktopSearchResults = (
     <WebPageHeaderSearchResults
@@ -293,7 +320,7 @@ export function WebPageHeader({
         style,
       ]}
       onLayout={onLayout}
-      accessibilityRole="header"
+      accessibilityRole='header'
     >
       <View
         style={[
@@ -321,17 +348,17 @@ export function WebPageHeader({
               }}
             >
               <RoutePressable
-                href="/"
-                hrefPath="/"
+                href='/'
+                hrefPath='/'
                 style={styles.logoSectionMobile}
-                accessibilityRole="link"
+                accessibilityRole='link'
                 accessibilityLabel={logoAccessibilityLabel}
               >
                 {logoContent}
               </RoutePressable>
 
               <WebPageHeaderSearchRow
-                variant="mobile"
+                variant='mobile'
                 searchInputProps={searchInputProps}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
@@ -348,7 +375,9 @@ export function WebPageHeader({
                 filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
                 showResetFilterButton={showResetFilterButton}
                 onResetFilterPress={onResetFilterPress}
-                resetFilterButtonAccessibilityLabel={resetFilterButtonAccessibilityLabel}
+                resetFilterButtonAccessibilityLabel={
+                  resetFilterButtonAccessibilityLabel
+                }
               />
 
               <WebPageHeaderMobileMenu
@@ -377,17 +406,17 @@ export function WebPageHeader({
         ) : (
           <>
             <RoutePressable
-              href="/"
-              hrefPath="/"
+              href='/'
+              hrefPath='/'
               style={styles.logoSection}
-              accessibilityRole="link"
+              accessibilityRole='link'
               accessibilityLabel={logoAccessibilityLabel}
             >
               {logoContent}
             </RoutePressable>
 
             <WebPageHeaderSearchRow
-              variant="desktop"
+              variant='desktop'
               searchInputProps={searchInputProps}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -404,21 +433,32 @@ export function WebPageHeader({
               filterButtonAccessibilityLabel={filterButtonAccessibilityLabel}
               showResetFilterButton={showResetFilterButton}
               onResetFilterPress={onResetFilterPress}
-              resetFilterButtonAccessibilityLabel={resetFilterButtonAccessibilityLabel}
+              resetFilterButtonAccessibilityLabel={
+                resetFilterButtonAccessibilityLabel
+              }
             />
 
             <View style={styles.actionsWrapper}>
-              {resolvedActions.map(({ label, icon, onPress, href, hrefPath, variant = 'subtle' }) => (
-                <Button
-                  key={label}
-                  variant={variant}
-                  onPress={onPress}
-                  href={href}
-                  hrefPath={hrefPath}
-                  iconStart={icon}
-                  label={label}
-                />
-              ))}
+              {resolvedActions.map(
+                ({
+                  label,
+                  icon,
+                  onPress,
+                  href,
+                  hrefPath,
+                  variant = 'subtle',
+                }) => (
+                  <Button
+                    key={label}
+                    variant={variant}
+                    onPress={onPress}
+                    href={href}
+                    hrefPath={hrefPath}
+                    iconStart={icon}
+                    label={label}
+                  />
+                ),
+              )}
             </View>
           </>
         )}

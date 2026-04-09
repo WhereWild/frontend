@@ -38,7 +38,12 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
-  onBoundsChange?: (bounds: { minLon: number; minLat: number; maxLon: number; maxLat: number }) => void;
+  onBoundsChange?: (bounds: {
+    minLon: number;
+    minLat: number;
+    maxLon: number;
+    maxLat: number;
+  }) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -61,7 +66,8 @@ export function SpeciesOccurrenceMap({
   selectedPoint = null,
   onBoundsChange,
 }: SpeciesOccurrenceMapProps) {
-  const fallbackWarningMessage = 'Unable to load the bundled map renderer. Showing the fallback map.';
+  const fallbackWarningMessage =
+    'Unable to load the bundled map renderer. Showing the fallback map.';
   const rendererLoadErrorMessage = 'Unable to load the map renderer.';
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -70,8 +76,12 @@ export function SpeciesOccurrenceMap({
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
   const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
-  const [templateLoadWarning, setTemplateLoadWarning] = React.useState<string | null>(null);
-  const [templateLoadError, setTemplateLoadError] = React.useState<string | null>(null);
+  const [templateLoadWarning, setTemplateLoadWarning] = React.useState<
+    string | null
+  >(null);
+  const [templateLoadError, setTemplateLoadError] = React.useState<
+    string | null
+  >(null);
 
   const hasOccurrences = occurrences.length > 0;
 
@@ -137,7 +147,10 @@ export function SpeciesOccurrenceMap({
     () => highlightedCatalogs.map((id) => String(id)),
     [highlightedCatalogs],
   );
-  const tileUrlTemplate = React.useMemo(() => getMapTileUrlTemplate(mode), [mode]);
+  const tileUrlTemplate = React.useMemo(
+    () => getMapTileUrlTemplate(mode),
+    [mode],
+  );
   const html = React.useMemo(() => {
     if (!mapTemplate) {
       return null;
@@ -156,7 +169,7 @@ export function SpeciesOccurrenceMap({
       initialLon,
       initialZoom,
       maxBounds,
-      linkObservations
+      linkObservations,
     );
   }, [
     heatmapOpacity,
@@ -186,7 +199,9 @@ export function SpeciesOccurrenceMap({
   const selectedPointMessage = React.useMemo<SelectedPointMessage>(
     () =>
       toSelectedPointMessagePayload(
-        selectedPoint ? { latitude: selectedPoint.lat, longitude: selectedPoint.lon } : null,
+        selectedPoint
+          ? { latitude: selectedPoint.lat, longitude: selectedPoint.lon }
+          : null,
       ),
     [selectedPoint],
   );
@@ -214,17 +229,28 @@ export function SpeciesOccurrenceMap({
       return;
     }
     sendHighlightMessage(selectedPointMessage);
-  }, [hasOccurrences, heatmapTileUrl, mapReady, selectedPointMessage, sendHighlightMessage]);
+  }, [
+    hasOccurrences,
+    heatmapTileUrl,
+    mapReady,
+    selectedPointMessage,
+    sendHighlightMessage,
+  ]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') {
       return;
     }
-    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.addEventListener !== 'function'
+    ) {
       return;
     }
     const handler = (event: MessageEvent) => {
-      if (isPinObservationEventFromFrame(event, iframeRef.current?.contentWindow)) {
+      if (
+        isPinObservationEventFromFrame(event, iframeRef.current?.contentWindow)
+      ) {
         onPinObservation?.(
           event.data.catalogNumber,
           event.data.latitude,
@@ -247,7 +273,7 @@ export function SpeciesOccurrenceMap({
     return (
       <View style={[styles.feedback, styles.loadingFeedback]}>
         <ActivityIndicator color={palette.icon.brand.default} />
-        <ThemedText variant="bodySmall">Loading observations map…</ThemedText>
+        <ThemedText variant='bodySmall'>Loading observations map…</ThemedText>
       </View>
     );
   }
@@ -255,7 +281,7 @@ export function SpeciesOccurrenceMap({
   if (error) {
     return (
       <View style={styles.feedback}>
-        <ThemedText variant="bodySmall">{error}</ThemedText>
+        <ThemedText variant='bodySmall'>{error}</ThemedText>
       </View>
     );
   }
@@ -263,7 +289,7 @@ export function SpeciesOccurrenceMap({
   if (!hasOccurrences && showMarkers && !heatmapTileUrl) {
     return (
       <View style={styles.feedback}>
-        <ThemedText variant="bodySmall">
+        <ThemedText variant='bodySmall'>
           No precise observation coordinates available for this species.
         </ThemedText>
       </View>
@@ -273,7 +299,7 @@ export function SpeciesOccurrenceMap({
   if (templateLoadError) {
     return (
       <View style={styles.feedback}>
-        <ThemedText variant="bodySmall">{templateLoadError}</ThemedText>
+        <ThemedText variant='bodySmall'>{templateLoadError}</ThemedText>
       </View>
     );
   }
@@ -282,7 +308,7 @@ export function SpeciesOccurrenceMap({
     return (
       <View style={[styles.feedback, styles.loadingFeedback]}>
         <ActivityIndicator color={palette.icon.brand.default} />
-        <ThemedText variant="bodySmall">Loading map renderer…</ThemedText>
+        <ThemedText variant='bodySmall'>Loading map renderer…</ThemedText>
       </View>
     );
   }
@@ -296,7 +322,7 @@ export function SpeciesOccurrenceMap({
             { backgroundColor: palette.background.default.secondary },
           ]}
         >
-          <ThemedText variant="bodySmall">{templateLoadWarning}</ThemedText>
+          <ThemedText variant='bodySmall'>{templateLoadWarning}</ThemedText>
         </View>
       ) : null}
       <View
@@ -306,7 +332,11 @@ export function SpeciesOccurrenceMap({
         ]}
       >
         {Platform.OS === 'web' ? (
-          <NativeLeafletFrame ref={iframeRef} html={html} onLoad={() => setMapReady(true)} />
+          <NativeLeafletFrame
+            ref={iframeRef}
+            html={html}
+            onLoad={() => setMapReady(true)}
+          />
         ) : (
           <WebView
             ref={webViewRef}
@@ -320,7 +350,11 @@ export function SpeciesOccurrenceMap({
               try {
                 const msg = JSON.parse(event.nativeEvent.data) as any;
                 if (isPinObservationMessage(msg)) {
-                  onPinObservation?.(msg.catalogNumber, msg.latitude, msg.longitude);
+                  onPinObservation?.(
+                    msg.catalogNumber,
+                    msg.latitude,
+                    msg.longitude,
+                  );
                 }
                 if (msg?.type === 'boundsChanged') {
                   onBoundsChange?.(msg);
@@ -339,24 +373,26 @@ type NativeLeafletFrameProps = {
   onLoad?: () => void;
 };
 
-const NativeLeafletFrame = React.forwardRef<HTMLIFrameElement, NativeLeafletFrameProps>(
-  ({ html, onLoad }, ref) => {
-    return React.createElement('iframe', {
-      ref,
-      srcDoc: html,
-      style: {
-        width: '100%',
-        height: '100%',
-        border: '0',
-      },
-      title: 'Observation map',
-      loading: 'eager',
-      sandbox: 'allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox',
-      referrerPolicy: MAP_REFERRER_POLICY,
-      onLoad,
-    });
-  },
-);
+const NativeLeafletFrame = React.forwardRef<
+  HTMLIFrameElement,
+  NativeLeafletFrameProps
+>(({ html, onLoad }, ref) => {
+  return React.createElement('iframe', {
+    ref,
+    srcDoc: html,
+    style: {
+      width: '100%',
+      height: '100%',
+      border: '0',
+    },
+    title: 'Observation map',
+    loading: 'eager',
+    sandbox:
+      'allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox',
+    referrerPolicy: MAP_REFERRER_POLICY,
+    onLoad,
+  });
+});
 NativeLeafletFrame.displayName = 'NativeLeafletFrame';
 
 const styles = StyleSheet.create({

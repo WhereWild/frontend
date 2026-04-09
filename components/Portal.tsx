@@ -17,7 +17,13 @@ let nextPortalId = 0;
  * overlay semantics. Native intentionally avoids Modal and instead registers
  * into NativePortalHost to bypass the Fabric modal-host teardown crash seen on iOS.
  */
-export function Portal({ visible, onDismiss, accessibilityLabel, accessibilityHint, children }: PortalProps) {
+export function Portal({
+  visible,
+  onDismiss,
+  accessibilityLabel,
+  accessibilityHint,
+  children,
+}: PortalProps) {
   const portalHost = useNativePortalHost();
   const portalIdRef = React.useRef<string | null>(null);
 
@@ -69,16 +75,14 @@ export function Portal({ visible, onDismiss, accessibilityLabel, accessibilityHi
     <Modal
       transparent
       visible
-      animationType="none"
+      animationType='none'
       statusBarTranslucent={false}
       accessibilityViewIsModal
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       onRequestClose={onDismiss}
     >
-      <View style={styles.container}>
-        {children}
-      </View>
+      <View style={styles.container}>{children}</View>
     </Modal>
   );
 }

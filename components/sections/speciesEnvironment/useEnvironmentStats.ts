@@ -23,18 +23,24 @@ export function useEnvironmentStats({
   units,
 }: UseEnvironmentStatsParams) {
   const speciesDataSource = useSpeciesDataSource();
-  const [statsByVariable, setStatsByVariable] = React.useState<Record<string, SpeciesEnvironmentStats>>(
-    {},
+  const [statsByVariable, setStatsByVariable] = React.useState<
+    Record<string, SpeciesEnvironmentStats>
+  >({});
+  const [errorByVariable, setErrorByVariable] = React.useState<
+    Record<string, string | null>
+  >({});
+  const [loadingVariable, setLoadingVariable] = React.useState<string | null>(
+    null,
   );
-  const [errorByVariable, setErrorByVariable] = React.useState<Record<string, string | null>>({});
-  const [loadingVariable, setLoadingVariable] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setStatsByVariable({});
     setErrorByVariable({});
   }, [taxonId, locationGid, units]);
 
-  const hasStatsForSelection = Boolean(selectedVariable && statsByVariable[selectedVariable]);
+  const hasStatsForSelection = Boolean(
+    selectedVariable && statsByVariable[selectedVariable],
+  );
 
   React.useEffect(() => {
     if (!taxonId || !selectedVariable || hasStatsForSelection) {
@@ -45,36 +51,67 @@ export function useEnvironmentStats({
       setLoadingVariable(selectedVariable);
       setErrorByVariable((prev) => ({ ...prev, [selectedVariable]: null }));
       try {
-        const response = await speciesDataSource.fetchSpeciesEnvironment(taxonId, selectedVariable, {
-          location: locationGid,
-          units: units,
-        });
-        if (response.histogram && !isValidHistogramContract(response.histogram)) {
-          throw new Error('Received malformed histogram data from environment API');
+        const response = await speciesDataSource.fetchSpeciesEnvironment(
+          taxonId,
+          selectedVariable,
+          {
+            location: locationGid,
+            units: units,
+          },
+        );
+        if (
+          response.histogram &&
+          !isValidHistogramContract(response.histogram)
+        ) {
+          throw new Error(
+            'Received malformed histogram data from environment API',
+          );
         }
         if (cancelled) {
           return;
         }
-        setStatsByVariable((prev) => ({ ...prev, [selectedVariable]: response }));
+        setStatsByVariable((prev) => ({
+          ...prev,
+          [selectedVariable]: response,
+        }));
       } catch (err) {
         if (cancelled) {
           return;
         }
-        const message = err instanceof Error ? err.message : 'Failed to load environment stats';
-        setErrorByVariable((prev) => ({ ...prev, [selectedVariable]: message }));
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Failed to load environment stats';
+        setErrorByVariable((prev) => ({
+          ...prev,
+          [selectedVariable]: message,
+        }));
       } finally {
         if (!cancelled) {
-          setLoadingVariable((prev) => (prev === selectedVariable ? null : prev));
+          setLoadingVariable((prev) =>
+            prev === selectedVariable ? null : prev,
+          );
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [hasStatsForSelection, locationGid, selectedVariable, speciesDataSource, taxonId, units]);
+  }, [
+    hasStatsForSelection,
+    locationGid,
+    selectedVariable,
+    speciesDataSource,
+    taxonId,
+    units,
+  ]);
 
-  const stats = selectedVariable ? statsByVariable[selectedVariable] ?? null : null;
-  const error = selectedVariable ? errorByVariable[selectedVariable] ?? null : null;
+  const stats = selectedVariable
+    ? (statsByVariable[selectedVariable] ?? null)
+    : null;
+  const error = selectedVariable
+    ? (errorByVariable[selectedVariable] ?? null)
+    : null;
   const loading = loadingVariable === selectedVariable;
 
   return {

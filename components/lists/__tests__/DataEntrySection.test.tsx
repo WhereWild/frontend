@@ -6,10 +6,18 @@ describe('DataEntrySection', () => {
   it('renders the section title and entries', () => {
     render(
       <DataEntrySection
-        title="Environmental factors"
+        title='Environmental factors'
         entries={[
-          { dataName: 'Average elevation', dataPoint: '2000 m', expandable: false },
-          { dataName: 'Average precipitation', dataPoint: '39.4 cm', expandable: false },
+          {
+            dataName: 'Average elevation',
+            dataPoint: '2000 m',
+            expandable: false,
+          },
+          {
+            dataName: 'Average precipitation',
+            dataPoint: '39.4 cm',
+            expandable: false,
+          },
         ]}
       />,
     );

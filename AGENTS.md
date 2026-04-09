@@ -25,7 +25,6 @@ Key capabilities:
 - `npm run lint` – Expo lint rules
 - `npm run typecheck` – TypeScript type checking
 - `npm run test:coverage` – Jest with coverage report
-- `npm test -- <pattern>` – targeted Jest suites
 
 ## Design Tokens and Text
 
@@ -76,7 +75,7 @@ const palette = Colors[mode];
 
 ## Architecture and Naming
 
-- Components use PascalCase (`Button.tsx`), hooks camelCase (`useColorScheme.ts`), constants kebab-case (`theme.ts`).
+- Components use PascalCase (`Button.tsx`), hooks camelCase (`useColorScheme.ts`), constants lowercase simple filenames (`theme.ts`).
 - Barrel exports live in `components/index.tsx` for clean imports.
 - Directory highlights: `app/` (screens), `components/` (UI), `constants/` (tokens), `hooks/`, `data/`, `scripts/`.
 
@@ -146,6 +145,7 @@ These rules define how to translate Figma inputs into code for this project and 
 - Storing species data with keys other than `taxonId`.
 - Overcomplicating components with unnecessary abstractions, indirection, and guards.
 - Large components that could be split into focused sub-components or logic helpers.
+- Use of `pointerEvents="none"`. `props.pointerEvents` is deprecated. Use `style.pointerEvent`.
 - Fabric view-index crashes on iPadOS: The root issue is unstable native host-tree shape under Fabric during rapid updates, especially hover, press, portal teardown, and navigation. Avoid adding, removing, or reordering native children inside `Pressable`, `ScrollView`, and similar containers. Prefer a stable `<View collapsable={false}>` wrapper and hide content with styles instead of conditional mounting; for `Pressable` children-as-function, return one wrapper `<View>`, not a Fragment. Fabric stability rules:
     - Conditional rendering is still fine for ordinary static layout changes, especially away from active gestures, hover state, scrolling containers, and portal lifecycles.
     - Treat this as a platform rule, not just a bug workaround: web-style structural churn that is usually harmless in the DOM can cause responder, measurement, or view-index problems in React Native Fabric.

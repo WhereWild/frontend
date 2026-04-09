@@ -46,37 +46,42 @@ export function RadioGroup({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
-  const labelColor = disabled ? palette.text.disabled.default : palette.text.default.default;
+  const labelColor = disabled
+    ? palette.text.disabled.default
+    : palette.text.default.default;
   const descriptionColor = disabled
     ? palette.text.disabled.default
     : palette.text.default.secondary;
 
-  const onSelectValue = useCallback((nextValue: string) => {
-    if (disabled || nextValue === resolvedValue) {
-      return;
-    }
+  const onSelectValue = useCallback(
+    (nextValue: string) => {
+      if (disabled || nextValue === resolvedValue) {
+        return;
+      }
 
-    if (!isControlled) {
-      setInternalValue(nextValue);
-    }
+      if (!isControlled) {
+        setInternalValue(nextValue);
+      }
 
-    onValueChange?.(nextValue);
-  }, [disabled, isControlled, onValueChange, resolvedValue]);
+      onValueChange?.(nextValue);
+    },
+    [disabled, isControlled, onValueChange, resolvedValue],
+  );
 
   return (
     <View
-      accessibilityRole="radiogroup"
+      accessibilityRole='radiogroup'
       accessibilityLabel={accessibilityLabel ?? label ?? 'Radio group'}
       style={[styles.container, style]}
       testID={testID}
     >
       {label ? (
-        <ThemedText variant="body" style={{ color: labelColor }}>
+        <ThemedText variant='body' style={{ color: labelColor }}>
           {label}
         </ThemedText>
       ) : null}
       {description ? (
-        <ThemedText variant="body" style={{ color: descriptionColor }}>
+        <ThemedText variant='body' style={{ color: descriptionColor }}>
           {description}
         </ThemedText>
       ) : null}

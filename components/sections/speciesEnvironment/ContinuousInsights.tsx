@@ -21,11 +21,14 @@ type ContinuousInsightsProps = {
   /** Updates the selected rank context key. */
   onRankContextChange: (value: string) => void;
   /** Numeric summary values shown under the density chart. */
-  summary: {
-    min?: number | null;
-    mean?: number | null;
-    max?: number | null;
-  } | null | undefined;
+  summary:
+    | {
+        min?: number | null;
+        mean?: number | null;
+        max?: number | null;
+      }
+    | null
+    | undefined;
   /** Rank metadata for min/mean/max values. */
   summaryRanks: {
     min: SpeciesEnvironmentRelativeRank | null;
@@ -54,60 +57,71 @@ export function ContinuousInsights({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const hasMultipleRankContexts = showRankContext && rankContextOptions.length > 1;
-  const hasSingleRankContext = showRankContext && rankContextOptions.length === 1;
-  const showRankContextSection = hasMultipleRankContexts || hasSingleRankContext;
+  const hasMultipleRankContexts =
+    showRankContext && rankContextOptions.length > 1;
+  const hasSingleRankContext =
+    showRankContext && rankContextOptions.length === 1;
+  const showRankContextSection =
+    hasMultipleRankContexts || hasSingleRankContext;
   const rankContextMessage = hasMultipleRankContexts
     ? 'Select a taxon to see how this compares to related species.'
     : hasSingleRankContext
       ? `Rankings within ${rankContextOptions[0].label}`
       : ' ';
-  const selectedRankContextKey = rankContextOptions.length > 0
-    ? selectedRankContext ?? rankContextOptions[0].key
-    : '';
+  const selectedRankContextKey =
+    rankContextOptions.length > 0
+      ? (selectedRankContext ?? rankContextOptions[0].key)
+      : '';
 
   return (
     <View collapsable={false} style={styles.container}>
       <View
         collapsable={false}
-        testID="continuous-insights-rank-context-slot"
+        testID='continuous-insights-rank-context-slot'
         accessibilityElementsHidden={!showRankContextSection}
-        importantForAccessibility={showRankContextSection ? 'auto' : 'no-hide-descendants'}
-        style={[styles.rankContextSection, !showRankContextSection && styles.hiddenSlot]}
+        importantForAccessibility={
+          showRankContextSection ? 'auto' : 'no-hide-descendants'
+        }
+        style={[
+          styles.rankContextSection,
+          !showRankContextSection && styles.hiddenSlot,
+        ]}
       >
         <View
           collapsable={false}
-          testID="continuous-insights-rank-context-content-slot"
+          testID='continuous-insights-rank-context-content-slot'
           style={!showRankContextSection ? styles.hiddenSlot : undefined}
         >
           <View
             style={[
               styles.divider,
-              { backgroundColor: palette.border.default.default, pointerEvents: 'none' },
+              {
+                backgroundColor: palette.border.default.default,
+                pointerEvents: 'none',
+              },
             ]}
           />
           <View collapsable={false} style={styles.rankContextRow}>
             <View collapsable={false} style={styles.rankContextMessageSlot}>
-              <ThemedText
-                variant="body"
-                style={{ textAlign: 'center' }}
-              >
+              <ThemedText variant='body' style={{ textAlign: 'center' }}>
                 {rankContextMessage}
               </ThemedText>
             </View>
             <View
               collapsable={false}
-              testID="continuous-insights-rank-context-selector-slot"
+              testID='continuous-insights-rank-context-selector-slot'
               accessibilityElementsHidden={!hasMultipleRankContexts}
-              importantForAccessibility={hasMultipleRankContexts ? 'auto' : 'no-hide-descendants'}
+              importantForAccessibility={
+                hasMultipleRankContexts ? 'auto' : 'no-hide-descendants'
+              }
               style={!hasMultipleRankContexts ? styles.hiddenSlot : undefined}
             >
               <NavigationPillList
                 pills={hasMultipleRankContexts ? rankContextOptions : []}
                 selectedKey={selectedRankContextKey}
                 onSelectionChange={onRankContextChange}
-                direction="horizontal"
-                accessibilityLabel="Rank context selection"
+                direction='horizontal'
+                accessibilityLabel='Rank context selection'
               />
             </View>
           </View>
@@ -116,28 +130,38 @@ export function ContinuousInsights({
 
       <View
         collapsable={false}
-        testID="summary-row"
-        style={[styles.summaryRow, { paddingTop: Size.space['300'] }, isStacked && styles.summaryRowStacked]}
+        testID='summary-row'
+        style={[
+          styles.summaryRow,
+          { paddingTop: Size.space['300'] },
+          isStacked && styles.summaryRowStacked,
+        ]}
       >
         <SummaryItem
-          label="Min"
+          label='Min'
           value={formatValue(summary?.min, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.min}
-          comparison={locationFilterActive ? summaryComparisons.min ?? null : null}
+          comparison={
+            locationFilterActive ? (summaryComparisons.min ?? null) : null
+          }
           stacked={isStacked}
         />
         <SummaryItem
-          label="Mean"
+          label='Mean'
           value={formatValue(summary?.mean, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.mean}
-          comparison={locationFilterActive ? summaryComparisons.mean ?? null : null}
+          comparison={
+            locationFilterActive ? (summaryComparisons.mean ?? null) : null
+          }
           stacked={isStacked}
         />
         <SummaryItem
-          label="Max"
+          label='Max'
           value={formatValue(summary?.max, 1)}
           rank={locationFilterActive ? undefined : summaryRanks.max}
-          comparison={locationFilterActive ? summaryComparisons.max ?? null : null}
+          comparison={
+            locationFilterActive ? (summaryComparisons.max ?? null) : null
+          }
           isLast
           stacked={isStacked}
         />

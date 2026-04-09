@@ -67,14 +67,22 @@ describe('StackedCategoryBar', () => {
         ]}
         selectedValue={null}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
-    expect(screen.getByTestId('stacked-segment-0')).toHaveStyle({ backgroundColor: '#466237' });
-    expect(screen.getByTestId('stacked-segment-1')).toHaveStyle({ backgroundColor: '#E07A5F' });
-    expect(screen.getByTestId('stacked-segment-2')).toHaveStyle({ backgroundColor: '#3D5A80' });
-    expect(screen.getByTestId('stacked-segment-3')).toHaveStyle({ backgroundColor: '#F2CC8F' });
+    expect(screen.getByTestId('stacked-segment-0')).toHaveStyle({
+      backgroundColor: '#466237',
+    });
+    expect(screen.getByTestId('stacked-segment-1')).toHaveStyle({
+      backgroundColor: '#E07A5F',
+    });
+    expect(screen.getByTestId('stacked-segment-2')).toHaveStyle({
+      backgroundColor: '#3D5A80',
+    });
+    expect(screen.getByTestId('stacked-segment-3')).toHaveStyle({
+      backgroundColor: '#F2CC8F',
+    });
   });
 
   it('outlines the location-matched category with the highlight color', () => {
@@ -85,10 +93,10 @@ describe('StackedCategoryBar', () => {
           { value: 'grass', className: 'Grassland', count: 1, fraction: 0.5 },
         ]}
         selectedValue={null}
-        highlightedValue="grass"
+        highlightedValue='grass'
         onSelect={jest.fn()}
-        descriptionColor="#666"
-        highlightOutlineColor="#F59E0B"
+        descriptionColor='#666'
+        highlightOutlineColor='#F59E0B'
       />,
     );
 
@@ -117,10 +125,14 @@ describe('StackedCategoryBar', () => {
           { value: 'grass', className: 'Grassland', count: 1, fraction: 0.5 },
         ]}
         selectedValue={null}
-        unobservedHighlightedCategory={{ value: 'urban', label: 'Urban', description: 'Developed land' }}
+        unobservedHighlightedCategory={{
+          value: 'urban',
+          label: 'Urban',
+          description: 'Developed land',
+        }}
         onSelect={jest.fn()}
-        descriptionColor="#666"
-        highlightOutlineColor="#F59E0B"
+        descriptionColor='#666'
+        highlightOutlineColor='#F59E0B'
       />,
     );
 
@@ -129,7 +141,9 @@ describe('StackedCategoryBar', () => {
       highlightOutlineColor: '#F59E0B',
     });
     expect(screen.getByText('Other (Urban)')).toBeTruthy();
-    expect(screen.getByText('Species has never been observed in this environment')).toBeTruthy();
+    expect(
+      screen.getByText('Species has never been observed in this environment'),
+    ).toBeTruthy();
   });
 
   it('highlights the existing Other category and appends the unobserved label', () => {
@@ -144,10 +158,14 @@ describe('StackedCategoryBar', () => {
       <StackedCategoryBar
         categories={categories}
         selectedValue={null}
-        unobservedHighlightedCategory={{ value: 'urban', label: 'Urban', description: null }}
+        unobservedHighlightedCategory={{
+          value: 'urban',
+          label: 'Urban',
+          description: null,
+        }}
         onSelect={jest.fn()}
-        descriptionColor="#666"
-        highlightOutlineColor="#F59E0B"
+        descriptionColor='#666'
+        highlightOutlineColor='#F59E0B'
       />,
     );
 
@@ -176,10 +194,10 @@ describe('StackedCategoryBar', () => {
         categories={categories}
         selectedValue={null}
         pinnedValue={62}
-        pinnedClassName="Closed deciduous broadleaved forest"
+        pinnedClassName='Closed deciduous broadleaved forest'
         onSelect={jest.fn()}
-        descriptionColor="#666"
-        highlightOutlineColor="#F59E0B"
+        descriptionColor='#666'
+        highlightOutlineColor='#F59E0B'
       />,
     );
 
@@ -187,7 +205,9 @@ describe('StackedCategoryBar', () => {
       highlightedKey: '__other__',
       highlightOutlineColor: '#F59E0B',
     });
-    expect(screen.getByText('Other (Closed deciduous broadleaved forest)')).toBeTruthy();
+    expect(
+      screen.getByText('Other (Closed deciduous broadleaved forest)'),
+    ).toBeTruthy();
     expect(screen.getByTestId('stacked-segment-8')).toHaveStyle({
       borderWidth: 3,
       borderColor: '#F59E0B',
@@ -201,7 +221,7 @@ describe('StackedCategoryBar', () => {
         categories={[]}
         selectedValue={null}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -228,12 +248,14 @@ describe('StackedCategoryBar', () => {
         ]}
         selectedValue={'forest'}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
     expect(screen.getByText(/Forested areas/)).toBeTruthy();
-    expect(screen.getByText(/This accounts for 60% of all observations/)).toBeTruthy();
+    expect(
+      screen.getByText(/This accounts for 60% of all observations/),
+    ).toBeTruthy();
   });
 
   it('aggregates into Other category when over display limit and supports pill selection', () => {
@@ -250,7 +272,7 @@ describe('StackedCategoryBar', () => {
         categories={categories}
         selectedValue={null}
         onSelect={onSelect}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -274,7 +296,7 @@ describe('StackedCategoryBar', () => {
         categories={categories}
         selectedValue={'__other__'}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -286,11 +308,16 @@ describe('StackedCategoryBar', () => {
       <StackedCategoryBar
         categories={[
           { value: 'rare', className: 'Rare', count: 1, fraction: 0.009 },
-          { value: 'unknown', className: 'Unknown', count: Number.NaN, fraction: Number.NaN },
+          {
+            value: 'unknown',
+            className: 'Unknown',
+            count: Number.NaN,
+            fraction: Number.NaN,
+          },
         ]}
         selectedValue={'rare'}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -302,12 +329,17 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={[
-          { value: 'unknown', className: 'Unknown', count: Number.NaN, fraction: Number.NaN },
+          {
+            value: 'unknown',
+            className: 'Unknown',
+            count: Number.NaN,
+            fraction: Number.NaN,
+          },
           { value: 'normal', className: 'Normal', count: 2, fraction: 0.2 },
         ]}
         selectedValue={'normal'}
         onSelect={onSelect}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -323,11 +355,16 @@ describe('StackedCategoryBar', () => {
       <StackedCategoryBar
         categories={[
           { value: 'x', className: 'X', count: 1, fraction: Number.NaN },
-          { value: 'y', className: 'Y', count: 2, fraction: Number.POSITIVE_INFINITY },
+          {
+            value: 'y',
+            className: 'Y',
+            count: 2,
+            fraction: Number.POSITIVE_INFINITY,
+          },
         ]}
         selectedValue={null}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -335,7 +372,9 @@ describe('StackedCategoryBar', () => {
   });
 
   it('uses fallback aggregation when extra categories have missing counts', () => {
-    const categories: SpeciesEnvironmentCategory[] = Array.from({ length: 10 }).map((_, index) => ({
+    const categories: SpeciesEnvironmentCategory[] = Array.from({
+      length: 10,
+    }).map((_, index) => ({
       value: `cat-${index}`,
       className: `Category ${index}`,
       count: index < 8 ? 1 : Number.NaN,
@@ -347,7 +386,7 @@ describe('StackedCategoryBar', () => {
         categories={categories}
         selectedValue={'__other__'}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -366,7 +405,7 @@ describe('StackedCategoryBar', () => {
         categories={categories}
         selectedValue={'forest'}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 
@@ -378,7 +417,7 @@ describe('StackedCategoryBar', () => {
         categories={categories}
         selectedValue={'grass'}
         onSelect={jest.fn()}
-        descriptionColor="#666"
+        descriptionColor='#666'
       />,
     );
 

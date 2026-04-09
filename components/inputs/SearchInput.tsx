@@ -23,11 +23,17 @@ export type SearchInputKeyDownEvent = {
 
 export type SearchInputProps = Omit<
   TextInputProps,
-  'onChange' | 'onChangeText' | 'style' | 'value' | 'defaultValue' | 'placeholder' | 'editable'
+  | 'onChange'
+  | 'onChangeText'
+  | 'style'
+  | 'value'
+  | 'defaultValue'
+  | 'placeholder'
+  | 'editable'
 > & {
-  /** 
+  /**
    * Denotes the background color family, defaults to tertiary
-   * because SearchInput is most commonly used in contexts with secondary backgrounds 
+   * because SearchInput is most commonly used in contexts with secondary backgrounds
    * (e.g. headers, top bars)
    */
   variant?: 'secondary' | 'tertiary';
