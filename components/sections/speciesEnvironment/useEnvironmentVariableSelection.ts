@@ -1,4 +1,4 @@
-import { fetchEnvironmentVariables } from '@/data/api';
+import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import React from 'react';
 import {
   DEFAULT_VARIABLES,
@@ -6,6 +6,7 @@ import {
   isVariableCategorical as isVariableCategoricalOption,
   normalizeLabel,
 } from './model';
+import { fetchEnvironmentVariables } from '@/data/apiVariableHelpers';
 
 /** Inputs for choosing and loading environment variable options. */
 type UseEnvironmentVariableSelectionParams = {
@@ -65,6 +66,7 @@ export function useEnvironmentVariableSelection({
   excludeCategories,
   remapCategories,
 }: UseEnvironmentVariableSelectionParams) {
+  const speciesDataSource = useSpeciesDataSource();
   const [remoteVariables, setRemoteVariables] =
     React.useState<EnvironmentVariableOption[] | null>(null);
   const [selectedVariableCategory, setSelectedVariableCategoryState] = React.useState<string | null>(
@@ -151,7 +153,7 @@ export function useEnvironmentVariableSelection({
     let cancelled = false;
     (async () => {
       try {
-        const response = await fetchEnvironmentVariables({ units });
+        const response = await speciesDataSource.fetchEnvironmentVariables({ units });
         if (cancelled) {
           return;
         }
@@ -163,7 +165,7 @@ export function useEnvironmentVariableSelection({
     return () => {
       cancelled = true;
     };
-  }, [categoryRemap, excludedCategories, units, variables]);
+  }, [categoryRemap, excludedCategories, speciesDataSource, units, variables]);
 
   const selectedVariableMeta = React.useMemo(
     () =>

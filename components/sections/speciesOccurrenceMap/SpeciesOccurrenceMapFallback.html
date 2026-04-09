@@ -44,6 +44,7 @@
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
+    const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const mapBounds = L.latLngBounds(
       [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
     );
@@ -337,8 +338,13 @@
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogHref, catalogLabel, latitude, longitude) {
-        if (!catalogHref || !catalogLabel) {
+        if (!catalogHref) {
           return '';
+        }
+        var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
+        var pinBtn = '<button type="button" data-pin-observation="true" data-catalog-number="' + catalogHref + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:' + pinButtonMarginTop + ';padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+        if (!LINK_OBSERVATIONS || !catalogLabel) {
+          return pinBtn;
         }
         var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer">Observation #' + catalogLabel + '</a>';
         var pinBtn = buildPinButtonHtml(catalogHref, latitude, longitude);

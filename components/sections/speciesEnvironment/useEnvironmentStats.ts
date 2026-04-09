@@ -1,4 +1,4 @@
-import { fetchSpeciesEnvironment } from '@/data/api';
+import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import React from 'react';
 import { isValidHistogramContract } from './model';
@@ -22,6 +22,7 @@ export function useEnvironmentStats({
   locationGid,
   units,
 }: UseEnvironmentStatsParams) {
+  const speciesDataSource = useSpeciesDataSource();
   const [statsByVariable, setStatsByVariable] = React.useState<Record<string, SpeciesEnvironmentStats>>(
     {},
   );
@@ -44,7 +45,7 @@ export function useEnvironmentStats({
       setLoadingVariable(selectedVariable);
       setErrorByVariable((prev) => ({ ...prev, [selectedVariable]: null }));
       try {
-        const response = await fetchSpeciesEnvironment(taxonId, selectedVariable, {
+        const response = await speciesDataSource.fetchSpeciesEnvironment(taxonId, selectedVariable, {
           location: locationGid,
           units: units,
         });
@@ -70,7 +71,7 @@ export function useEnvironmentStats({
     return () => {
       cancelled = true;
     };
-  }, [hasStatsForSelection, selectedVariable, taxonId, locationGid, units]);
+  }, [hasStatsForSelection, locationGid, selectedVariable, speciesDataSource, taxonId, units]);
 
   const stats = selectedVariable ? statsByVariable[selectedVariable] ?? null : null;
   const error = selectedVariable ? errorByVariable[selectedVariable] ?? null : null;

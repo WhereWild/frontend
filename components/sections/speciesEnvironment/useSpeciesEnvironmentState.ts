@@ -5,6 +5,7 @@ import {
   EnvironmentVariableOption,
   formatValue,
   isVariableCategorical as isVariableCategoricalOption,
+  isVariableCircular,
   type PinnedCategoryBadge,
   RankContextOption,
 } from './model';
@@ -59,10 +60,9 @@ const resolvePresentationState = ({
     stats?.variableType?.toLowerCase?.() ?? selectedVariableMeta?.valueType?.toLowerCase?.() ?? null;
   const forcedCategorical = isVariableCategoricalOption({
     id: selectedVariable ?? '',
-    valueType: null,
+    valueType: variableType,
   });
-  const isCategorical =
-    forcedCategorical || variableType === 'categorical' || categoricalDistribution.length > 0;
+  const isCategorical = forcedCategorical || categoricalDistribution.length > 0;
 
   return {
     baselineSummary,
@@ -344,5 +344,9 @@ export function useSpeciesEnvironmentState({
     pinnedValue,
     pinnedLoading,
     pinnedNoData,
+    isCircularVariable: isVariableCircular({
+      id: selectedVariable ?? '',
+      valueType: selectedVariableMeta?.valueType ?? null,
+    }),
   };
 }
