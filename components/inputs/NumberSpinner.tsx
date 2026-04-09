@@ -190,13 +190,6 @@ export function NumberSpinner({
     setDraftValue(String(currentValue));
   }, [currentValue, isEditing]);
 
-  const decrementColor = decrementDisabled
-    ? palette.icon.disabled.onDisabled
-    : palette.icon.default.default;
-  const incrementColor = incrementDisabled
-    ? palette.icon.disabled.onDisabled
-    : palette.icon.default.default;
-
   const commitValue = (
     nextValue: number,
     context: NumberSpinnerValueChangeContext,
@@ -339,8 +332,8 @@ export function NumberSpinner({
         }}
       >
         <Animated.View
-          pointerEvents='none'
           style={[
+            styles.noPointerEvents,
             styles.hoverOverlay,
             {
               opacity: hoverOverlayOpacity,
@@ -353,7 +346,7 @@ export function NumberSpinner({
           <IconButton
             variant='subtle'
             size='small'
-            icon={<IconMinus size='16' color={decrementColor} />}
+            icon={<IconMinus size='16' />}
             accessibilityLabel={decrementAccessibilityLabel}
             disabled={decrementDisabled}
             onLongPress={() => {
@@ -409,7 +402,7 @@ export function NumberSpinner({
           <IconButton
             variant='subtle'
             size='small'
-            icon={<IconPlus size='16' color={incrementColor} />}
+            icon={<IconPlus size='16' />}
             accessibilityLabel={incrementAccessibilityLabel}
             disabled={incrementDisabled}
             onLongPress={() => {
@@ -453,6 +446,9 @@ const styles = StyleSheet.create({
   hoverOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
+  },
+  noPointerEvents: {
+    pointerEvents: 'none',
   },
   contentRow: {
     width: '100%',
