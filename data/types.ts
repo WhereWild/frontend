@@ -251,6 +251,24 @@ export type SpeciesEnvironmentStats = {
   baselineCategoricalTotals?: SpeciesEnvironmentCategoricalTotals | null;
 };
 
+export type DataSourceReference = {
+  authors: string;
+  year?: number | null;
+  title: string;
+  journal?: string | null;
+  doi?: string | null;
+  url?: string | null;
+};
+
+export type DataSource = {
+  name: string;
+  url: string;
+  license: string;
+  license_url?: string | null;
+  notes?: string | null;
+  references: DataSourceReference[];
+};
+
 export type EnvironmentVariableDefinition = {
   id: string;
   name?: string;
@@ -258,6 +276,7 @@ export type EnvironmentVariableDefinition = {
   description?: string | null;
   valueType?: string | null;
   category?: string | null;
+  sourceIds?: string[];
 };
 
 /** Query parameters for numeric environment slice requests. */

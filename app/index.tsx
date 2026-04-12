@@ -2,7 +2,9 @@ import {
   ActiveNearYouSection,
   LocalMapSection,
   PageScrollContainer,
+  ThemedText,
 } from '@/components';
+import { useDataSources } from '@/hooks/useDataSources';
 import {
   fetchSpeciesWithModels,
   fetchViewportScores,
@@ -20,9 +22,10 @@ import {
   getResponsiveContentContainerStyle,
   getResponsiveGapStyle,
 } from '@/constants/responsiveStyles';
+import { Size } from '@/constants/theme';
 import Head from 'expo-router/head';
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 const SIDEBAR_WIDTH = 400;
 const SCORE_DEBOUNCE_MS = 1200;
@@ -131,8 +134,12 @@ const rankRecommendationsForViewport = (
   };
 };
 
+const OPEN_METEO_ID = 'open_meteo';
+const NCEP_ID = 'ncep_gfs_open_meteo';
+
 export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
   const responsive = useResponsive();
+  const dataSources = useDataSources();
   const providedSeedItems = data?.recommendations?.items;
   const seedItems = providedSeedItems ?? mockHomePageData.recommendations.items;
   const [recommendations, setRecommendations] =
@@ -231,11 +238,36 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
           bounces={false}
         >
           <View style={[styles.layout, getResponsiveGapStyle(responsive)]}>
-            <LocalMapSection
-              heatmapTileUrl={heatmapTileUrl}
-              onBoundsChange={handleBoundsChange}
-              style={styles.mapSection}
-            />
+            <View style={styles.mapSection}>
+              <LocalMapSection
+                heatmapTileUrl={heatmapTileUrl}
+                onBoundsChange={handleBoundsChange}
+              />
+              {(dataSources[OPEN_METEO_ID] || dataSources[NCEP_ID]) && (
+                <View style={styles.weatherAttribution}>
+                  <ThemedText variant='bodySmall'>{'Heatmap updated using data from '}</ThemedText>
+                  {dataSources[OPEN_METEO_ID] && (<>
+                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[OPEN_METEO_ID].url)}>{'Open-Meteo'}</ThemedText>
+                    <ThemedText variant='bodySmall'>{' ('}</ThemedText>
+                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[OPEN_METEO_ID].references[0].doi!)}>{'DOI'}</ThemedText>
+                    <ThemedText variant='bodySmall'>{' · '}</ThemedText>
+                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[OPEN_METEO_ID].license_url!)}>{'License'}</ThemedText>
+                    <ThemedText variant='bodySmall'>{')'}</ThemedText>
+                  </>)}
+                  {dataSources[OPEN_METEO_ID] && dataSources[NCEP_ID] && (
+                    <ThemedText variant='bodySmall'>{' and '}</ThemedText>
+                  )}
+                  {dataSources[NCEP_ID] && (<>
+                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[NCEP_ID].url)}>{'NCEP GFS'}</ThemedText>
+                    <ThemedText variant='bodySmall'>{' ('}</ThemedText>
+                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[NCEP_ID].references[0].doi!)}>{'DOI'}</ThemedText>
+                    <ThemedText variant='bodySmall'>{' · '}</ThemedText>
+                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[NCEP_ID].license_url!)}>{'License'}</ThemedText>
+                    <ThemedText variant='bodySmall'>{')'}</ThemedText>
+                  </>)}
+                </View>
+              )}
+            </View>
 
             <ActiveNearYouSection
               recommendations={recommendations}
@@ -268,6 +300,12 @@ const styles = StyleSheet.create({
   mapSection: {
     flex: 1,
     minWidth: 320,
+    gap: Size.space['100'],
+  },
+  weatherAttribution: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
   },
   sidebar: {
     flexBasis: SIDEBAR_WIDTH,
