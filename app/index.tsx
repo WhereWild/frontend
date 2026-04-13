@@ -245,26 +245,80 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
               />
               {(dataSources[OPEN_METEO_ID] || dataSources[NCEP_ID]) && (
                 <View style={styles.weatherAttribution}>
-                  <ThemedText variant='bodySmall'>{'Heatmap updated using data from '}</ThemedText>
-                  {dataSources[OPEN_METEO_ID] && (<>
-                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[OPEN_METEO_ID].url)}>{'Open-Meteo'}</ThemedText>
-                    <ThemedText variant='bodySmall'>{' ('}</ThemedText>
-                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[OPEN_METEO_ID].references[0].doi!)}>{'DOI'}</ThemedText>
-                    <ThemedText variant='bodySmall'>{' · '}</ThemedText>
-                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[OPEN_METEO_ID].license_url!)}>{'License'}</ThemedText>
-                    <ThemedText variant='bodySmall'>{')'}</ThemedText>
-                  </>)}
+                  <ThemedText variant='bodySmall'>
+                    {'Heatmap updated using data from '}
+                  </ThemedText>
+                  {dataSources[OPEN_METEO_ID] && (
+                    <>
+                      <ThemedText
+                        variant='bodySmallLink'
+                        onPress={() =>
+                          Linking.openURL(dataSources[OPEN_METEO_ID].url)
+                        }
+                      >
+                        {'Open-Meteo'}
+                      </ThemedText>
+                      <ThemedText variant='bodySmall'>{' ('}</ThemedText>
+                      <ThemedText
+                        variant='bodySmallLink'
+                        onPress={() =>
+                          Linking.openURL(
+                            dataSources[OPEN_METEO_ID].references[0].doi!,
+                          )
+                        }
+                      >
+                        {'DOI'}
+                      </ThemedText>
+                      <ThemedText variant='bodySmall'>{' · '}</ThemedText>
+                      <ThemedText
+                        variant='bodySmallLink'
+                        onPress={() =>
+                          Linking.openURL(
+                            dataSources[OPEN_METEO_ID].license_url!,
+                          )
+                        }
+                      >
+                        {'License'}
+                      </ThemedText>
+                      <ThemedText variant='bodySmall'>{')'}</ThemedText>
+                    </>
+                  )}
                   {dataSources[OPEN_METEO_ID] && dataSources[NCEP_ID] && (
                     <ThemedText variant='bodySmall'>{' and '}</ThemedText>
                   )}
-                  {dataSources[NCEP_ID] && (<>
-                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[NCEP_ID].url)}>{'NCEP GFS'}</ThemedText>
-                    <ThemedText variant='bodySmall'>{' ('}</ThemedText>
-                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[NCEP_ID].references[0].doi!)}>{'DOI'}</ThemedText>
-                    <ThemedText variant='bodySmall'>{' · '}</ThemedText>
-                    <ThemedText variant='bodySmallLink' onPress={() => Linking.openURL(dataSources[NCEP_ID].license_url!)}>{'License'}</ThemedText>
-                    <ThemedText variant='bodySmall'>{')'}</ThemedText>
-                  </>)}
+                  {dataSources[NCEP_ID] && (
+                    <>
+                      <ThemedText
+                        variant='bodySmallLink'
+                        onPress={() =>
+                          Linking.openURL(dataSources[NCEP_ID].url)
+                        }
+                      >
+                        {'NCEP GFS'}
+                      </ThemedText>
+                      <ThemedText variant='bodySmall'>{' ('}</ThemedText>
+                      <ThemedText
+                        variant='bodySmallLink'
+                        onPress={() =>
+                          Linking.openURL(
+                            dataSources[NCEP_ID].references[0].doi!,
+                          )
+                        }
+                      >
+                        {'DOI'}
+                      </ThemedText>
+                      <ThemedText variant='bodySmall'>{' · '}</ThemedText>
+                      <ThemedText
+                        variant='bodySmallLink'
+                        onPress={() =>
+                          Linking.openURL(dataSources[NCEP_ID].license_url!)
+                        }
+                      >
+                        {'License'}
+                      </ThemedText>
+                      <ThemedText variant='bodySmall'>{')'}</ThemedText>
+                    </>
+                  )}
                 </View>
               )}
             </View>

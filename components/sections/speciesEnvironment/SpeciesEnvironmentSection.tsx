@@ -420,12 +420,13 @@ function SpeciesEnvironmentSectionComponent({
           )}
         </View>
 
-        {selectedVariableMeta?.sourceIds && selectedVariableMeta.sourceIds.length > 0 && (
-          <SourceAttribution
-            sourceIds={selectedVariableMeta.sourceIds}
-            dataSources={dataSources}
-          />
-        )}
+        {selectedVariableMeta?.sourceIds &&
+          selectedVariableMeta.sourceIds.length > 0 && (
+            <SourceAttribution
+              sourceIds={selectedVariableMeta.sourceIds}
+              dataSources={dataSources}
+            />
+          )}
       </View>
     </View>
   );

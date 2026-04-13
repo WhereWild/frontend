@@ -10,14 +10,19 @@ type SourceAttributionProps = {
   dataSources: Record<string, DataSource>;
 };
 
-export function SourceAttribution({ sourceIds, dataSources }: SourceAttributionProps) {
+export function SourceAttribution({
+  sourceIds,
+  dataSources,
+}: SourceAttributionProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
   const resolved = sourceIds
     .map((id) => ({ id, source: dataSources[id] }))
-    .filter((entry): entry is { id: string; source: DataSource } => Boolean(entry.source));
+    .filter((entry): entry is { id: string; source: DataSource } =>
+      Boolean(entry.source),
+    );
 
   if (resolved.length === 0) return null;
 

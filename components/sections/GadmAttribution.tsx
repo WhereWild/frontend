@@ -1,4 +1,4 @@
-import { Colors, Size } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useDataSources } from '@/hooks/useDataSources';
 import React from 'react';
@@ -16,7 +16,6 @@ export function GadmAttribution() {
 
   if (!source) return null;
 
-  const ref = source.references[0] ?? null;
   const dataPageUrl = source.url;
   const licenseUrl = source.license_url ?? null;
 
