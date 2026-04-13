@@ -29,6 +29,7 @@ jest.mock('@/hooks/useColorScheme', () => ({
 jest.mock('@/data/api', () => ({
   BACKEND_BASE: 'https://api.example.test',
   fetchEnvironmentVariables: jest.fn(async () => []),
+  fetchDataSources: jest.fn(() => Promise.resolve({})),
 }));
 
 jest.mock('@/components', () => {

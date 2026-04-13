@@ -31,6 +31,7 @@ jest.mock('@/data/api', () => ({
   fetchViewportScores: jest.fn(() =>
     Promise.resolve({ scores: {}, reasons: {} }),
   ),
+  fetchDataSources: jest.fn(() => Promise.resolve({})),
   BACKEND_BASE: 'https://api.test',
 }));
 
