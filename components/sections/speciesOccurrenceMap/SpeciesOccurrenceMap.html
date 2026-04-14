@@ -108,12 +108,136 @@
     };
     tileLayer.addTo(map);
 
-    if (HEATMAP_TILE_URL) {
-      L.tileLayer(HEATMAP_TILE_URL, {
+    function resolveTileUrl(template, coords) {
+      return String(template)
+        .replace('{z}', String(coords.z))
+        .replace('{x}', String(coords.x))
+        .replace('{y}', String(coords.y));
+    }
+
+    function supportsAbortableTileFetch() {
+      return (
+        typeof fetch === 'function'
+        && typeof AbortController === 'function'
+        && typeof URL !== 'undefined'
+        && typeof URL.createObjectURL === 'function'
+        && typeof URL.revokeObjectURL === 'function'
+        && typeof document.createElement === 'function'
+      );
+    }
+
+    function createAbortableHeatmapLayer(urlTemplate) {
+      const layer = L.tileLayer(urlTemplate, {
         opacity: HEATMAP_OPACITY,
         tileSize: 256,
         maxZoom: TILE_MAX_ZOOM,
-      }).addTo(map);
+      });
+      const controllers = new WeakMap();
+      const objectUrls = new WeakMap();
+
+      function releaseTile(tile) {
+        const controller = controllers.get(tile);
+        if (controller) {
+          controller.abort();
+          controllers.delete(tile);
+        }
+        const objectUrl = objectUrls.get(tile);
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrls.delete(tile);
+        }
+      }
+
+      layer.on('tileunload', function(event) {
+        if (event && event.tile) {
+          releaseTile(event.tile);
+        }
+      });
+
+      layer.createTile = function(coords, done) {
+        const tile = document.createElement('img');
+        const controller = new AbortController();
+        let finished = false;
+
+        function finish(error) {
+          if (finished) {
+            return;
+          }
+          finished = true;
+          done(error || null, tile);
+        }
+
+        function revokeObjectUrl() {
+          const objectUrl = objectUrls.get(tile);
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            objectUrls.delete(tile);
+          }
+        }
+
+        controllers.set(tile, controller);
+        tile.alt = '';
+        tile.referrerPolicy = TILE_REFERRER_POLICY;
+        tile.setAttribute('role', 'presentation');
+        tile.onload = function() {
+          revokeObjectUrl();
+          controllers.delete(tile);
+          finish(null);
+        };
+        tile.onerror = function(error) {
+          revokeObjectUrl();
+          controllers.delete(tile);
+          if (controller.signal.aborted) {
+            finish(null);
+            return;
+          }
+          finish(error || new Error('Heatmap tile image load failed'));
+        };
+
+        fetch(resolveTileUrl(urlTemplate, coords), {
+          signal: controller.signal,
+          referrerPolicy: TILE_REFERRER_POLICY,
+        })
+          .then(function(response) {
+            if (!response.ok) {
+              throw new Error('Heatmap tile request failed with status ' + response.status);
+            }
+            return response.blob();
+          })
+          .then(function(blob) {
+            if (controller.signal.aborted) {
+              finish(null);
+              return;
+            }
+            const objectUrl = URL.createObjectURL(blob);
+            objectUrls.set(tile, objectUrl);
+            tile.src = objectUrl;
+          })
+          .catch(function(error) {
+            revokeObjectUrl();
+            controllers.delete(tile);
+            if (error && error.name === 'AbortError') {
+              finish(null);
+              return;
+            }
+            finish(error);
+          });
+
+        return tile;
+      };
+
+      return layer;
+    }
+
+    if (HEATMAP_TILE_URL) {
+      const heatmapLayer = supportsAbortableTileFetch()
+        ? createAbortableHeatmapLayer(HEATMAP_TILE_URL)
+        : L.tileLayer(HEATMAP_TILE_URL, {
+            opacity: HEATMAP_OPACITY,
+            tileSize: 256,
+            maxZoom: TILE_MAX_ZOOM,
+          });
+      heatmapLayer.addTo(map);
     }
 
     const markerStyle = {
@@ -654,14 +778,24 @@
         .openOn(map);
     });
 
-    function sendBounds() {
+    function latLonToTile(lat, lon, z) {
+      var n = Math.pow(2, z);
+      var x = Math.floor((lon + 180) / 360 * n);
+      var latRad = lat * Math.PI / 180;
+      var y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+      return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
+    }
+
+    function sendTiles() {
+      var z = map.getZoom();
       var b = map.getBounds();
+      var nw = latLonToTile(b.getNorth(), b.getWest(), z);
+      var se = latLonToTile(b.getSouth(), b.getEast(), z);
       var msg = {
-        type: 'boundsChanged',
-        minLon: b.getWest(),
-        minLat: b.getSouth(),
-        maxLon: b.getEast(),
-        maxLat: b.getNorth(),
+        type: 'tilesChanged',
+        z: z,
+        x0: nw.x, y0: nw.y,
+        x1: se.x, y1: se.y,
       };
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
@@ -670,9 +804,9 @@
       }
     }
 
-    map.on('moveend', sendBounds);
-    map.on('zoomend', sendBounds);
-    sendBounds();
+    map.on('moveend', sendTiles);
+    map.on('zoomend', sendTiles);
+    sendTiles();
 
     applyHighlights([]);
     applySelectedPoint(null);

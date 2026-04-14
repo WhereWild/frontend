@@ -85,11 +85,19 @@ describe('speciesOccurrenceMapHelpers', () => {
       bindPopup: jest.Mock;
     }[] = [];
     let visibleLongitudePredicate = (_longitude: number) => false;
+    const blobUrlMap = new Map<object, string>();
+    let blobUrlCounter = 0;
 
     const makeLayer = () => ({
       addTo: jest.fn().mockReturnThis(),
       addLayer: jest.fn(),
       removeLayer: jest.fn(),
+    });
+
+    const makeTileLayer = () => ({
+      addTo: jest.fn().mockReturnThis(),
+      createTile: jest.fn(() => ({ referrerPolicy: '' })),
+      on: jest.fn(),
     });
 
     const map = {
@@ -113,6 +121,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         getEast: jest.fn(() => 180),
         getNorth: jest.fn(() => 90),
       })),
+      getZoom: jest.fn(() => 8),
       getCenter: jest.fn(() => ({ lng: 0 })),
       removeLayer: jest.fn(),
       addLayer: jest.fn(),
@@ -120,14 +129,37 @@ describe('speciesOccurrenceMapHelpers', () => {
       setView: jest.fn(),
     };
 
+    const createTileElement = () => {
+      const tile: Record<string, unknown> = {
+        referrerPolicy: '',
+        alt: '',
+        onload: null,
+        onerror: null,
+        setAttribute: jest.fn(),
+      };
+      Object.defineProperty(tile, 'src', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return tile.__src;
+        },
+        set(value) {
+          tile.__src = value;
+          Promise.resolve().then(() => {
+            if (typeof tile.onload === 'function') {
+              tile.onload();
+            }
+          });
+        },
+      });
+      return tile;
+    };
+
     const L = {
       latLngBounds: jest.fn(() => ({})),
       latLng: jest.fn((lat: number, lng: number) => ({ lat, lng })),
       map: jest.fn(() => map),
-      tileLayer: jest.fn(() => ({
-        addTo: jest.fn().mockReturnThis(),
-        createTile: jest.fn(() => ({ referrerPolicy: '' })),
-      })),
+      tileLayer: jest.fn(() => makeTileLayer()),
       circleMarker: jest.fn(
         (coords: [number, number], style: Record<string, unknown>) => {
           const marker: MockLeafletMarker = {
@@ -154,6 +186,21 @@ describe('speciesOccurrenceMapHelpers', () => {
           documentListeners.set(eventName, handler);
         },
       ),
+      createElement: jest.fn((tagName: string) => {
+        if (tagName === 'img') {
+          return createTileElement();
+        }
+        return {};
+      }),
+    };
+
+    const urlApi = {
+      createObjectURL: jest.fn((blob: object) => {
+        const next = `blob:mock-${blobUrlCounter++}`;
+        blobUrlMap.set(blob, next);
+        return next;
+      }),
+      revokeObjectURL: jest.fn(),
     };
 
     const windowObject = {
@@ -179,11 +226,20 @@ describe('speciesOccurrenceMapHelpers', () => {
         Number,
         JSON,
         isFinite,
+        URL: urlApi,
+        fetch: undefined as
+          | ((
+              input: string,
+              init?: { signal?: AbortSignal; referrerPolicy?: string },
+            ) => Promise<unknown>)
+          | undefined,
+        AbortController: undefined as typeof AbortController | undefined,
       },
       createdMarkers,
       eventHandlers,
       documentListeners,
       windowListeners,
+      urlApi,
       setVisibleLongitudePredicate(predicate: (longitude: number) => boolean) {
         visibleLongitudePredicate = predicate;
       },
@@ -590,6 +646,72 @@ describe('speciesOccurrenceMapHelpers', () => {
 
       expect(clusterGroup.addLayer).toHaveBeenCalledWith(targetClusterMarker);
     });
+  });
+
+  it('aborts heatmap tile fetches when Leaflet unloads the tile', async () => {
+    const templatePaths = [
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
+    ];
+
+    await Promise.all(
+      templatePaths.map(async (templatePath) => {
+        const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+        const html = buildLeafletHtml(
+          rawTemplate,
+          [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+          markerPalette,
+          getMapTileUrlTemplate('light'),
+          'https://example.test/tiles/{z}/{x}/{y}.png',
+        );
+        const harness = createLeafletHarness();
+        const fetchPromise = new Promise<never>(() => {});
+        const fetchMock = jest.fn(
+          (_url: string, options?: { signal?: AbortSignal }) => {
+            options?.signal?.addEventListener('abort', () => undefined);
+            return fetchPromise;
+          },
+        );
+
+        harness.context.fetch = fetchMock;
+        harness.context.AbortController = AbortController;
+
+        vm.runInNewContext(extractInlineScript(html), harness.context);
+
+        const heatmapLayer = (harness.context.L.tileLayer as jest.Mock).mock
+          .results[1]?.value;
+        expect(heatmapLayer).toBeTruthy();
+
+        const done = jest.fn();
+        const tile = heatmapLayer.createTile({ z: 3, x: 4, y: 5 }, done);
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://example.test/tiles/3/4/5.png',
+          expect.objectContaining({ referrerPolicy: MAP_REFERRER_POLICY }),
+        );
+
+        const fetchOptions = fetchMock.mock.calls[0]?.[1] as
+          | { signal?: AbortSignal }
+          | undefined;
+        expect(fetchOptions?.signal?.aborted).toBe(false);
+
+        heatmapLayer.on.mock.calls.find(
+          (call: unknown[]) => call[0] === 'tileunload',
+        )?.[1]?.({ tile });
+
+        expect(fetchOptions?.signal?.aborted).toBe(true);
+        expect(done).not.toHaveBeenCalled();
+      }),
+    );
   });
 
   it('accepts only well-formed pin observation messages', () => {

@@ -21,6 +21,10 @@ import { useEnvironmentHighlights } from './useEnvironmentHighlights';
 import { useEnvironmentStats } from './useEnvironmentStats';
 import { useEnvironmentVariableSelection } from './useEnvironmentVariableSelection';
 
+const SPECIES_CATEGORY_REMAP: Record<string, string> = {
+  'live weather': 'Recent Weather',
+};
+
 /** Inputs for orchestrating full SpeciesEnvironmentSection state. */
 type UseSpeciesEnvironmentStateParams = {
   /** Taxon ID for all environment/statistics queries. */
@@ -116,7 +120,7 @@ export function useSpeciesEnvironmentState({
     variableId,
     variables,
     units,
-    excludeCategories: ['live weather'],
+    remapCategories: SPECIES_CATEGORY_REMAP,
   });
 
   const locationFilterActive = Boolean(locationGid);

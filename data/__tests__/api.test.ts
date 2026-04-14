@@ -341,14 +341,15 @@ describe('data/api common name normalization', () => {
     });
 
     const result = await fetchViewportScores({
-      minLon: -122,
-      minLat: 36,
-      maxLon: -120,
-      maxLat: 38,
+      z: 8,
+      x0: 40,
+      y0: 90,
+      x1: 42,
+      y1: 92,
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      `${BACKEND_BASE}/api/heatmap/homepage/scores?min_lon=-122&min_lat=36&max_lon=-120&max_lat=38`,
+      `${BACKEND_BASE}/api/heatmap/homepage/scores?z=8&x0=40&y0=90&x1=42&y1=92`,
     );
     expect(result).toEqual({
       scores: { '10': 0.75 },
