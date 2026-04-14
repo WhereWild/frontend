@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import type { DataSource } from '@/data/types';
 import type {
   RawCategoricalStatsRow,
   RawCategoricalValueLookupRow,
@@ -279,6 +280,21 @@ export const parseUploadedParquetZipToRawBundle = async (
     }
   };
 
+  const readDataSourcesJson = async (): Promise<Record<string, DataSource> | undefined> => {
+    const entry = zip.file('data_sources.json');
+    if (!entry) return undefined;
+    try {
+      const text = await entry.async('string');
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, DataSource>;
+      }
+    } catch {
+      // Ignore malformed data_sources.json
+    }
+    return undefined;
+  };
+
   const [
     categoricalStatsRows,
     categoricalValueLookupRows,
@@ -287,6 +303,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     occurrenceIndexRows,
     summaryStatsRows,
     variableMetadataRows,
+    dataSources,
   ] = await Promise.all([
     readTable('categoricalStats'),
     readTable('categoricalValueLookup'),
@@ -295,6 +312,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     readTable('occurrenceIndex'),
     readTable('summaryStats'),
     readTable('variableMetadata'),
+    readDataSourcesJson(),
   ]);
 
   if (issues.length) {
@@ -311,6 +329,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     occurrenceIndex: toTypedRows<RawOccurrenceIndexRow>(occurrenceIndexRows),
     summaryStats: toTypedRows<RawSummaryStatsRow>(summaryStatsRows),
     variableMetadata: toTypedRows<RawVariableMetadataRow>(variableMetadataRows),
+    dataSources,
     meta: {
       source: 'upload-local',
       uploadedAt: new Date().toISOString(),

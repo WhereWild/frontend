@@ -1,4 +1,5 @@
 import type {
+  DataSource,
   EnvironmentVariableDefinition,
   LocationSearchResult,
 } from '@/data/types';
@@ -142,6 +143,7 @@ export type RawVariableMetadataRow = {
   units?: unknown;
   valueType?: unknown;
   value_type?: unknown;
+  source_ids?: unknown;
 };
 
 export type RawUploadedParquetBundle = {
@@ -153,6 +155,7 @@ export type RawUploadedParquetBundle = {
   summaryStats: RawSummaryStatsRow[];
   variableMetadata?: RawVariableMetadataRow[];
   variableDefinitions?: EnvironmentVariableDefinition[];
+  dataSources?: Record<string, DataSource>;
   locations?: LocationSearchResult[];
   meta?: LocalSourceMeta;
 };
@@ -165,6 +168,7 @@ export type UploadedParquetBundle = {
   occurrenceIndex: UploadedOccurrenceIndexRow[];
   summaryStats: UploadedSummaryStatsRow[];
   variableDefinitions?: EnvironmentVariableDefinition[];
+  dataSources?: Record<string, DataSource>;
   locations?: LocationSearchResult[];
   meta?: LocalSourceMeta;
 };

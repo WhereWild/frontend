@@ -62,6 +62,7 @@ const mapEnvironmentVariableOptions = (
         units: variableDefinition.units ?? null,
         valueType: variableDefinition.valueType ?? null,
         category: remappedCategory,
+        sourceIds: variableDefinition.sourceIds,
       };
     });
 };

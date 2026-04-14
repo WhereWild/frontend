@@ -5,7 +5,7 @@ import {
   fetchSpeciesList,
 } from '@/data/api';
 import type { SearchFilterParams } from '@/data/api';
-import type { RelativeRankingOption, SpeciesSummary } from '@/data/types';
+import type { EnvironmentVariableDefinition, RelativeRankingOption, SpeciesSummary } from '@/data/types';
 import type { SelectOption } from '@/components';
 import {
   fetchCountryHierarchyOptions,
@@ -66,6 +66,7 @@ export function useSearchFilters(): UseSearchFiltersResult {
   const [sortVariableValue, setSortVariableValue] = React.useState('');
   const [sortVariableOptions, setSortVariableOptions] = React.useState<SelectOption[]>([]);
   const [defaultSortVariableOptions, setDefaultSortVariableOptions] = React.useState<SelectOption[]>([]);
+  const [sortVariableDefinitions, setSortVariableDefinitions] = React.useState<EnvironmentVariableDefinition[]>([]);
   const [rankingSortOptions, setRankingSortOptions] = React.useState<RelativeRankingOption[]>([]);
   const [sortVariableLoading, setSortVariableLoading] = React.useState(false);
   const [sortMetricValue, setSortMetricValue] = React.useState('mean');
@@ -191,6 +192,7 @@ export function useSearchFilters(): UseSearchFiltersResult {
         const options = toVariableOptions(variables);
         setDefaultSortVariableOptions(options);
         setSortVariableOptions(options);
+        setSortVariableDefinitions(variables);
       })
       .catch(() => {
         if (!cancelled) {
@@ -560,6 +562,7 @@ export function useSearchFilters(): UseSearchFiltersResult {
     sortVariableValue,
     sortVariableOptions,
     sortVariableLoading,
+    sortVariableSourceIds: sortVariableDefinitions.find((v) => v.id === sortVariableValue)?.sourceIds ?? [],
     onSortVariableChange: handleSortVariableChange,
     sortMetricValue,
     sortMetricOptions,

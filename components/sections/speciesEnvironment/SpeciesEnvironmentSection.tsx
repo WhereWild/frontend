@@ -11,6 +11,8 @@ import { StackedCategoryBar } from './StackedCategoryBar';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
 import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './model';
 import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
+import { SourceAttribution } from '../SourceAttribution';
+import { useDataSources } from '@/hooks/useDataSources';
 
 /** Props for rendering the species environment analytics section. */
 export type SpeciesEnvironmentSectionProps = {
@@ -92,6 +94,8 @@ function SpeciesEnvironmentSectionComponent({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
+  const dataSources = useDataSources();
+
   const {
     categories,
     selectedVariableCategory,
@@ -104,6 +108,7 @@ function SpeciesEnvironmentSectionComponent({
     loading,
     stats,
     isVariableCategorical,
+    selectedVariableMeta,
     error,
     isCategorical,
     categoricalDistribution,
@@ -414,6 +419,14 @@ function SpeciesEnvironmentSectionComponent({
             </>
           )}
         </View>
+
+        {selectedVariableMeta?.sourceIds &&
+          selectedVariableMeta.sourceIds.length > 0 && (
+            <SourceAttribution
+              sourceIds={selectedVariableMeta.sourceIds}
+              dataSources={dataSources}
+            />
+          )}
       </View>
     </View>
   );
@@ -453,6 +466,7 @@ const styles = StyleSheet.create({
   },
   contentRegion: {
     width: '100%',
+    gap: Size.space.text.paragraph,
   },
   continuousContent: {
     gap: Size.space.text.section,

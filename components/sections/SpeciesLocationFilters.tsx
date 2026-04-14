@@ -1,5 +1,6 @@
 import { SelectField } from '@/components/inputs/SelectField';
 import { ThemedText } from '@/components/text/ThemedText';
+import { GadmAttribution } from './GadmAttribution';
 import { Size } from '@/constants/theme';
 import type { LocationOption } from '@/hooks/species/locationHelpers';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -117,6 +118,7 @@ export function SpeciesLocationFilters({
           </View>
         ))}
       </View>
+      <GadmAttribution />
     </View>
   );
 }

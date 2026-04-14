@@ -28,6 +28,7 @@ jest.mock('@/data/api', () => ({
   fetchSpeciesEnvironment: jest.fn(),
   fetchEnvironmentRangeSlice: jest.fn(),
   fetchSpeciesEnvironmentCategorySamples: jest.fn(),
+  fetchDataSources: jest.fn(() => Promise.resolve({})),
 }));
 
 const mockedApiModule = jest.requireMock('@/data/api') as {

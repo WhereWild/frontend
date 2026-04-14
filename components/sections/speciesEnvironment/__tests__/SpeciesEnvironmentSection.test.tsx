@@ -240,6 +240,7 @@ const baseState: SpeciesEnvironmentState = {
   pinnedValue: null,
   pinnedLoading: false,
   pinnedNoData: false,
+  selectedVariableMeta: null,
   isCircularVariable: false,
 };
 
