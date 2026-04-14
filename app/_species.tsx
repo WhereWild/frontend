@@ -545,6 +545,7 @@ export default function Species({
                 showMarkers={showObservations}
                 heatmapTileUrl={activeTileUrl}
                 heatmapOpacity={0.72}
+                minZoom={activeTileUrl ? 4 : 2}
                 onPinObservation={handlePinObservation}
               />
             )}

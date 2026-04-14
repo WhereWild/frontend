@@ -348,6 +348,7 @@ describe('SpeciesOccurrenceMap', () => {
     });
 
     expect(handlePinObservation).toHaveBeenCalledWith('obs-9', 13, 23);
+    expect(handlePinObservation).toHaveBeenCalledTimes(1);
   });
 
   it('forwards native bounds-changed messages from the webview', async () => {
@@ -361,21 +362,23 @@ describe('SpeciesOccurrenceMap', () => {
     fireEvent(screen.getByTestId('mock-webview'), 'message', {
       nativeEvent: {
         data: JSON.stringify({
-          type: 'boundsChanged',
-          minLon: -122,
-          minLat: 36,
-          maxLon: -120,
-          maxLat: 38,
+          type: 'tilesChanged',
+          z: 8,
+          x0: 40,
+          y0: 90,
+          x1: 42,
+          y1: 92,
         }),
       },
     });
 
     expect(handleBoundsChange).toHaveBeenCalledWith({
-      type: 'boundsChanged',
-      minLon: -122,
-      minLat: 36,
-      maxLon: -120,
-      maxLat: 38,
+      type: 'tilesChanged',
+      z: 8,
+      x0: 40,
+      y0: 90,
+      x1: 42,
+      y1: 92,
     });
   });
 

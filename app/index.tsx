@@ -39,11 +39,12 @@ const HOMEPAGE_GROUP_ORDER = [
   'plants',
 ] as const;
 
-type ViewportBounds = {
-  minLon: number;
-  minLat: number;
-  maxLon: number;
-  maxLat: number;
+type ViewportTiles = {
+  z: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
 };
 
 const formatReasonDescription = (reasons: string[] | undefined) => {
@@ -210,7 +211,7 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
     };
   }, []);
 
-  const handleBoundsChange = React.useCallback((bounds: ViewportBounds) => {
+  const handleBoundsChange = React.useCallback((bounds: ViewportTiles) => {
     if (scoreRequestRef.current) {
       clearTimeout(scoreRequestRef.current);
     }
