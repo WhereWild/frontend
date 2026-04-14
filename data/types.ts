@@ -238,6 +238,7 @@ export type SpeciesEnvironmentStats = {
   units?: string | null;
   variableType?: string | null;
   generatedAt?: string;
+  observationCount?: number;
   summary: SpeciesEnvironmentSummary;
   histogram: SpeciesEnvironmentHistogram | null;
   densityCurve?: SpeciesEnvironmentDensity | null;

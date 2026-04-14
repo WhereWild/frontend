@@ -343,6 +343,7 @@ export function useSpeciesEnvironmentState({
     isCategorical,
     selectedDensityRange,
     rangeObservationCount: rangeObservationItems.length,
+    observationCount: stats?.observationCount,
     summaryCount: summary?.count,
     categoricalTotalSamples: categoricalSummary?.totalSamples,
   });

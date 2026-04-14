@@ -153,6 +153,7 @@ type BuildMetaTextParams = {
   isCategorical: boolean;
   selectedDensityRange: { start: number; end: number } | null;
   rangeObservationCount: number;
+  observationCount: number | null | undefined;
   summaryCount: number | null | undefined;
   categoricalTotalSamples: number | null | undefined;
 };
@@ -180,6 +181,7 @@ export const buildMetaText = ({
   isCategorical,
   selectedDensityRange,
   rangeObservationCount,
+  observationCount,
   summaryCount,
   categoricalTotalSamples,
 }: BuildMetaTextParams) => {
@@ -187,15 +189,15 @@ export const buildMetaText = ({
     return null;
   }
 
+  const resolvedObservationCount = isCategorical
+    ? (categoricalTotalSamples ?? observationCount ?? summaryCount ?? 0)
+    : (observationCount ?? summaryCount ?? 0);
+
   if (!isCategorical && selectedDensityRange) {
-    return `Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)} (${rangeObservationCount} of ${formatValue(summaryCount ?? 0)} observations)`;
+    return `Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
   }
 
-  return `(Based on ${formatValue(
-    isCategorical
-      ? (categoricalTotalSamples ?? summaryCount ?? 0)
-      : (summaryCount ?? 0),
-  )} observations)`;
+  return `(Based on ${formatValue(resolvedObservationCount)} observations)`;
 };
 
 /** Resolves 1st-to-99th percentile span from summary quantiles. */
