@@ -26,6 +26,35 @@ import {
   isPinObservationMessage,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+
+type TilesChangedMessage = {
+  type: 'tilesChanged';
+  z: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+};
+
+function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
+  return (
+    !!msg &&
+    typeof msg === 'object' &&
+    'type' in msg &&
+    msg.type === 'tilesChanged' &&
+    'z' in msg &&
+    'x0' in msg &&
+    'y0' in msg &&
+    'x1' in msg &&
+    'y1' in msg &&
+    typeof msg.z === 'number' &&
+    typeof msg.x0 === 'number' &&
+    typeof msg.y0 === 'number' &&
+    typeof msg.x1 === 'number' &&
+    typeof msg.y1 === 'number'
+  );
+}
+
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
@@ -44,11 +73,12 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
-  onBoundsChange?: (bounds: {
-    minLon: number;
-    minLat: number;
-    maxLon: number;
-    maxLat: number;
+  onBoundsChange?: (tiles: {
+    z: number;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
   }) => void;
 };
 
@@ -121,21 +151,8 @@ export function SpeciesOccurrenceMap({
         return;
       }
 
-      if (
-        msg &&
-        typeof msg === 'object' &&
-        'type' in msg &&
-        msg.type === 'boundsChanged'
-      ) {
-        onBoundsChange?.(
-          msg as {
-            type: 'boundsChanged';
-            minLon: number;
-            minLat: number;
-            maxLon: number;
-            maxLat: number;
-          },
-        );
+      if (isTilesChangedMessage(msg)) {
+        onBoundsChange?.(msg);
       }
     },
     [handlePinObservation, onBoundsChange, openExternalUrl],
@@ -326,8 +343,13 @@ export function SpeciesOccurrenceMap({
         openExternalUrl(data.url);
         return;
       }
-      if (event.data?.type === 'boundsChanged') {
-        onBoundsChange?.(event.data);
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        isTilesChangedMessage(data)
+      ) {
+        onBoundsChange?.(data);
       }
     };
     window.addEventListener('message', handler);
@@ -417,9 +439,8 @@ export function SpeciesOccurrenceMap({
             onLoadEnd={() => setMapReady(true)}
             onMessage={(event) => {
               try {
-                handleNativeMapMessage(
-                  JSON.parse(event.nativeEvent.data) as unknown,
-                );
+                const msg = JSON.parse(event.nativeEvent.data) as unknown;
+                handleNativeMapMessage(msg);
               } catch {}
             }}
           />
