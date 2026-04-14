@@ -187,6 +187,7 @@ describe('stateDerivations', () => {
         isCategorical: false,
         selectedDensityRange: null,
         rangeObservationCount: 0,
+        observationCount: 0,
         summaryCount: 0,
         categoricalTotalSamples: 0,
       }),
@@ -198,6 +199,7 @@ describe('stateDerivations', () => {
         isCategorical: false,
         selectedDensityRange: { start: 1.2, end: 2.8 },
         rangeObservationCount: 3,
+        observationCount: 10,
         summaryCount: 10,
         categoricalTotalSamples: null,
       }),
@@ -209,10 +211,23 @@ describe('stateDerivations', () => {
         isCategorical: true,
         selectedDensityRange: null,
         rangeObservationCount: 0,
+        observationCount: 7,
         summaryCount: 7,
         categoricalTotalSamples: 9,
       }),
     ).toContain('(Based on 9 observations)');
+
+    expect(
+      buildMetaText({
+        hasStats: true,
+        isCategorical: false,
+        selectedDensityRange: null,
+        rangeObservationCount: 0,
+        observationCount: 12,
+        summaryCount: 0,
+        categoricalTotalSamples: null,
+      }),
+    ).toContain('(Based on 12 observations)');
   });
 
   it('builds summary comparisons and resolves q01-q99 range values', () => {
