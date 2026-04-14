@@ -354,6 +354,9 @@ export const parseSpeciesEnvironmentStats = (
   if ((summary.count === 0 || !Number.isFinite(summary.count)) && tallStats?.totals.totalSamples) {
     summary.count = tallStats.totals.totalSamples;
   }
+  const observationCount =
+    toFiniteNumber(source.observation_count ?? source.observationCount) ??
+    (tallStats?.totals.totalSamples ?? summary.count);
   const distribution = coerceCategories(source.categorical_distribution);
   const dominant = coerceCategories(source.dominant_categories);
   const baselineCategoricalDistribution = coerceCategories(
@@ -375,6 +378,7 @@ export const parseSpeciesEnvironmentStats = (
       (typeof variableMetadata?.valueType === 'string' ? variableMetadata.valueType : undefined) ??
       null,
     generatedAt: typeof source.generated_at === 'string' ? source.generated_at : undefined,
+    observationCount: observationCount ?? undefined,
     summary,
     histogram: coerceHistogram(asRecord(source.histogram)),
     densityCurve: coerceDensityCurve(source),
