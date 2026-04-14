@@ -1,4 +1,5 @@
 import type {
+  DataSource,
   EnvironmentSliceParams,
   SpeciesApiDetail,
   SpeciesApiNormalized,
@@ -240,6 +241,18 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   options?: { limit?: number; location?: string | null; units?: string | null },
 ) {
   return fetchSpeciesEnvironmentCategorySamplesHelper(taxonId, variableId, classValue, options);
+}
+
+/**
+ * Fetches structured citation metadata for all environmental data sources.
+ */
+export async function fetchDataSources(): Promise<Record<string, DataSource>> {
+  const url = `${BACKEND_BASE}/data-sources`;
+  const data = await fetchJsonOrThrow(url, 'Failed to fetch data sources');
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data as Record<string, DataSource>;
+  }
+  return {};
 }
 
 /**

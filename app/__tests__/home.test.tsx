@@ -6,6 +6,8 @@ import {
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useDataSources } from '@/hooks/useDataSources';
+import { useResponsive } from '@/hooks/useResponsive';
 import {
   act,
   fireEvent,
@@ -14,7 +16,7 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import HomeScreen from '../index';
 
 jest.mock('expo-router', () => ({
@@ -22,8 +24,26 @@ jest.mock('expo-router', () => ({
   usePathname: () => '/',
 }));
 
+jest.mock('expo-router/head', () => ({
+  __esModule: true,
+  default: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+}));
+
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
+}));
+
+jest.mock('@/hooks/useDataSources', () => ({
+  useDataSources: jest.fn(() => ({})),
+}));
+
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: jest.fn(() => ({})),
+}));
+
+jest.mock('@/constants/responsiveStyles', () => ({
+  getResponsiveContentContainerStyle: jest.fn(() => undefined),
+  getResponsiveGapStyle: jest.fn(() => undefined),
 }));
 
 jest.mock('@/data/api', () => ({
@@ -31,6 +51,7 @@ jest.mock('@/data/api', () => ({
   fetchViewportScores: jest.fn(() =>
     Promise.resolve({ scores: {}, reasons: {} }),
   ),
+  fetchDataSources: jest.fn(() => Promise.resolve({})),
   BACKEND_BASE: 'https://api.test',
 }));
 
@@ -83,6 +104,13 @@ jest.mock('@/components', () => {
     PageScrollContainer: ({ children }: { children?: React.ReactNode }) => (
       <View>{children}</View>
     ),
+    ThemedText: ({
+      children,
+      onPress,
+    }: {
+      children?: React.ReactNode;
+      onPress?: () => void;
+    }) => <Text onPress={onPress}>{children}</Text>,
     LocalMapSection: ({
       heatmapTileUrl,
       onBoundsChange,
@@ -131,6 +159,12 @@ jest.mock('@/components', () => {
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
+>;
+const mockUseDataSources = useDataSources as jest.MockedFunction<
+  typeof useDataSources
+>;
+const mockUseResponsive = useResponsive as jest.MockedFunction<
+  typeof useResponsive
 >;
 const mockFetchSpeciesWithModels =
   fetchSpeciesWithModels as jest.MockedFunction<typeof fetchSpeciesWithModels>;
@@ -197,6 +231,8 @@ describe('Home screen', () => {
     jest.useFakeTimers();
     setPlatformOS('ios');
     mockUseColorScheme.mockReturnValue('dark');
+    mockUseDataSources.mockReturnValue({});
+    mockUseResponsive.mockReturnValue({} as ReturnType<typeof useResponsive>);
     mockFetchSpeciesWithModels.mockResolvedValue([] as any);
     mockFetchViewportScores.mockResolvedValue({ scores: {}, reasons: {} });
   });
@@ -254,6 +290,36 @@ describe('Home screen', () => {
       expect(screen.getByText('Hydrated First')).toBeTruthy();
       expect(screen.getByText('Hydratus firstus')).toBeTruthy();
     });
+  });
+
+  it('maps API fallback fields when with-model rows omit optional values', async () => {
+    mockFetchSpeciesWithModels.mockResolvedValueOnce([
+      {
+        taxon_id: null,
+        scientific_name: '',
+        common_name: 'Fallback Common',
+        common_names: null,
+        image_source: 'https://images.example/fallback.jpg',
+        taxon_group: undefined,
+      },
+      {
+        taxon_id: 2,
+        scientific_name: 'Scientific Only',
+        common_name: '   ',
+        common_names: null,
+        image_source: null,
+        taxon_group: 'plants',
+      },
+    ] as any);
+
+    render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Fallback Common')).toBeTruthy();
+    });
+
+    expect(screen.getByTestId('all-count').props.children).toBe('2');
+    expect(screen.getAllByText('Scientific Only').length).toBeGreaterThan(0);
   });
 
   it('debounces viewport scoring, pins group representatives, and formats reasons', async () => {
@@ -413,6 +479,35 @@ describe('Home screen', () => {
     expect(screen.getByText('Sunny ridges')).toBeTruthy();
   });
 
+  it('replaces seeded recommendations when rerendered with different data content', () => {
+    const { rerender } = render(<HomeScreen data={createData()} />);
+
+    expect(screen.getByText('Desert Bloom')).toBeTruthy();
+
+    rerender(
+      <HomeScreen
+        data={createData({
+          recommendations: {
+            items: [
+              {
+                taxonId: 303,
+                commonName: 'Updated Bloom',
+                commonNames: ['Updated Bloom'],
+                scientificName: 'Bloomus updatedus',
+                description: 'Now with different seed data',
+                imageSource: { uri: 'updated' },
+                taxonGroup: 'plants',
+              },
+            ],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Updated Bloom')).toBeTruthy();
+    expect(screen.queryByText('Desert Bloom')).toBeNull();
+  });
+
   it('updates the heatmap tile url when the active group changes', () => {
     render(<HomeScreen data={createData()} />);
 
@@ -427,6 +522,15 @@ describe('Home screen', () => {
     expect(screen.getByTestId('heatmap-url').props.children).not.toContain(
       '&group=plants',
     );
+  });
+
+  it('renders correctly on the web platform', () => {
+    setPlatformOS('web');
+
+    render(<HomeScreen data={createData()} />);
+
+    expect(screen.getByText('Local Map')).toBeTruthy();
+    expect(screen.getByText('Active Near You')).toBeTruthy();
   });
 
   it('logs a warning and keeps fallback recommendations when model hydration fails', async () => {
@@ -463,5 +567,148 @@ describe('Home screen', () => {
       expect(screen.getByTestId('loading-state').props.children).toBe('idle');
     });
     expect(screen.getByText('Desert Bloom')).toBeTruthy();
+  });
+
+  it('renders and opens weather citation links when DOI and license URLs are available', async () => {
+    const openUrlSpy = jest
+      .spyOn(Linking, 'openURL')
+      .mockResolvedValue(true as never);
+    mockUseDataSources.mockReturnValueOnce({
+      open_meteo: {
+        name: 'Open-Meteo',
+        url: 'https://open-meteo.example/data',
+        license: 'CC BY 4.0',
+        license_url: 'https://open-meteo.example/license',
+        references: [
+          {
+            authors: 'Open-Meteo Team',
+            title: 'Open-Meteo Dataset',
+            year: 2024,
+            doi: 'https://doi.org/open-meteo',
+          },
+        ],
+      },
+      ncep_gfs_open_meteo: {
+        name: 'NCEP GFS',
+        url: 'https://ncep.example/data',
+        license: 'Public Domain',
+        license_url: 'https://ncep.example/license',
+        references: [
+          {
+            authors: 'NOAA',
+            title: 'GFS Dataset',
+            year: 2024,
+            doi: 'https://doi.org/ncep-gfs',
+          },
+        ],
+      },
+    });
+
+    render(<HomeScreen data={createData()} />);
+
+    expect(screen.getByText('Open-Meteo')).toBeTruthy();
+    expect(screen.getByText('NCEP GFS')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Open-Meteo'));
+    fireEvent.press(screen.getAllByText('DOI')[0]);
+    fireEvent.press(screen.getAllByText('License')[0]);
+    fireEvent.press(screen.getByText('NCEP GFS'));
+    fireEvent.press(screen.getAllByText('DOI')[1]);
+    fireEvent.press(screen.getAllByText('License')[1]);
+
+    expect(openUrlSpy).toHaveBeenNthCalledWith(
+      1,
+      'https://open-meteo.example/data',
+    );
+    expect(openUrlSpy).toHaveBeenNthCalledWith(2, 'https://doi.org/open-meteo');
+    expect(openUrlSpy).toHaveBeenNthCalledWith(
+      3,
+      'https://open-meteo.example/license',
+    );
+    expect(openUrlSpy).toHaveBeenNthCalledWith(4, 'https://ncep.example/data');
+    expect(openUrlSpy).toHaveBeenNthCalledWith(5, 'https://doi.org/ncep-gfs');
+    expect(openUrlSpy).toHaveBeenNthCalledWith(
+      6,
+      'https://ncep.example/license',
+    );
+  });
+
+  it('omits weather DOI and license links when optional citation fields are missing', async () => {
+    mockUseDataSources.mockReturnValueOnce({
+      open_meteo: {
+        name: 'Open-Meteo',
+        url: 'https://open-meteo.example/data',
+        license: 'CC BY 4.0',
+        references: [],
+      },
+    });
+
+    render(<HomeScreen data={createData()} />);
+
+    expect(screen.getByText('Open-Meteo')).toBeTruthy();
+
+    expect(screen.queryByText('NCEP GFS')).toBeNull();
+    expect(screen.queryByText('DOI')).toBeNull();
+    expect(screen.queryByText('License')).toBeNull();
+  });
+
+  it('renders only the available Open-Meteo license link when DOI is missing', () => {
+    mockUseDataSources.mockReturnValueOnce({
+      open_meteo: {
+        name: 'Open-Meteo',
+        url: 'https://open-meteo.example/data',
+        license: 'CC BY 4.0',
+        license_url: 'https://open-meteo.example/license',
+        references: [],
+      },
+    });
+
+    render(<HomeScreen data={createData()} />);
+
+    expect(screen.getByText('Open-Meteo')).toBeTruthy();
+    expect(screen.queryByText('DOI')).toBeNull();
+    expect(screen.getByText('License')).toBeTruthy();
+  });
+
+  it('renders only the available NCEP DOI link when license URL is missing', () => {
+    mockUseDataSources.mockReturnValueOnce({
+      ncep_gfs_open_meteo: {
+        name: 'NCEP GFS',
+        url: 'https://ncep.example/data',
+        license: 'Public Domain',
+        references: [
+          {
+            authors: 'NOAA',
+            title: 'GFS Dataset',
+            year: 2024,
+            doi: 'https://doi.org/ncep-gfs',
+          },
+        ],
+      },
+    });
+
+    render(<HomeScreen data={createData()} />);
+
+    expect(screen.queryByText('Open-Meteo')).toBeNull();
+    expect(screen.getByText('NCEP GFS')).toBeTruthy();
+    expect(screen.getByText('DOI')).toBeTruthy();
+    expect(screen.queryByText('License')).toBeNull();
+  });
+
+  it('renders NCEP without citation links when neither DOI nor license URL is available', () => {
+    mockUseDataSources.mockReturnValueOnce({
+      ncep_gfs_open_meteo: {
+        name: 'NCEP GFS',
+        url: 'https://ncep.example/data',
+        license: 'Public Domain',
+        references: [],
+      },
+    });
+
+    render(<HomeScreen data={createData()} />);
+
+    expect(screen.getByText('NCEP GFS')).toBeTruthy();
+    expect(screen.queryByText('DOI')).toBeNull();
+    expect(screen.queryByText('License')).toBeNull();
   });
 });

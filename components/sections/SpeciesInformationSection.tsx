@@ -3,6 +3,7 @@ import { parseOverviewSectionsFromDescriptionText } from '@/data/speciesOverview
 import type { SpeciesOverview, SpeciesOverviewLine } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useDataSources } from '@/hooks/useDataSources';
 import React from 'react';
 import {
   Image,
@@ -13,6 +14,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
+
+const GBIF_SOURCE_ID = 'gbif_inaturalist';
 
 export type SpeciesInformationSectionProps = {
   commonName: string;
@@ -66,6 +69,9 @@ export function SpeciesInformationSection({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+  const dataSources = useDataSources();
+  const gbifSource = dataSources[GBIF_SOURCE_ID] ?? null;
+  const gbifCitationUrl = gbifSource?.url ?? null;
 
   const hasImageAttribution = Boolean(
     overview.imageLicense ||
@@ -172,6 +178,25 @@ export function SpeciesInformationSection({
           <ThemedText variant='heading'>Common Names</ThemedText>
           <CommonNamesList names={commonNames} />
         </View>
+
+        {gbifSource && (
+          <View style={styles.gbifAttribution}>
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.text.default.secondary }}
+            >
+              {`Occurrence data: ${gbifSource.name}${gbifCitationUrl ? ' ' : ''}`}
+            </ThemedText>
+            {gbifCitationUrl && (
+              <ThemedText
+                variant='bodySmallLink'
+                onPress={() => Linking.openURL(gbifCitationUrl)}
+              >
+                {'View citation'}
+              </ThemedText>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -222,5 +247,11 @@ const styles = StyleSheet.create({
   },
   commonNameBullet: {
     minWidth: Size.space['200'],
+  },
+  gbifAttribution: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    gap: 0,
   },
 });
