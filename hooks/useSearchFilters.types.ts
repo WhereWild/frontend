@@ -37,6 +37,7 @@ export type UseSearchFiltersResult = {
   sortVariableValue: string;
   sortVariableOptions: SelectOption[];
   sortVariableLoading: boolean;
+  sortVariableSourceIds: string[];
   onSortVariableChange: (value: string) => void;
   sortMetricValue: string;
   sortMetricOptions: SelectOption[];

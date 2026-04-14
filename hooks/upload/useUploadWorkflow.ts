@@ -15,6 +15,7 @@ import {
   UploadedParquetBundleValidationError,
 } from '@/data/uploadLocalSpeciesDataSource';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
+import { seedDataSourcesCache } from '@/hooks/useDataSources';
 
 export const UPLOAD_PREVIEW_TAXON_ID = 1;
 const DEFAULT_PROCESSED_ZIP_FILENAME = 'processed_observations.zip';
@@ -208,6 +209,9 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
       const zipBlob = await resolveAssetBlob(file);
       const rawBundle = await parseUploadedParquetZipToRawBundle(zipBlob);
       const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+      if (normalizedBundle.dataSources) {
+        seedDataSourcesCache(normalizedBundle.dataSources);
+      }
       const dataSource = buildUploadLocalSpeciesDataSource({
         bundle: normalizedBundle,
         speciesId: UPLOAD_PREVIEW_TAXON_ID,

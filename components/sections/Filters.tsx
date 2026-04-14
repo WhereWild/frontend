@@ -13,6 +13,9 @@ import {
 } from '@/components/inputs/SelectField';
 import { SwitchField } from '@/components/inputs/SwitchField';
 import { ThemedText } from '@/components/text/ThemedText';
+import { GadmAttribution } from './GadmAttribution';
+import { SourceAttribution } from './SourceAttribution';
+import { useDataSources } from '@/hooks/useDataSources';
 import { Size } from '@/constants/theme';
 
 const prependAllOption = (
@@ -58,6 +61,7 @@ export type FiltersProps = {
   sortVariableValue: string;
   sortVariableOptions: SelectOption[];
   onSortVariableChange?: (value: string) => void;
+  sortVariableSourceIds?: string[];
   sortMetricValue: string;
   sortMetricOptions: SelectOption[];
   onSortMetricChange?: (value: string) => void;
@@ -106,6 +110,7 @@ export function Filters({
   sortVariableValue,
   sortVariableOptions,
   onSortVariableChange,
+  sortVariableSourceIds,
   sortMetricValue,
   sortMetricOptions,
   onSortMetricChange,
@@ -120,6 +125,8 @@ export function Filters({
   onResetFilters,
   style,
 }: FiltersProps) {
+  const dataSources = useDataSources();
+
   const baseTaxonSearchInputProps = React.useMemo(
     () => ({
       variant: 'secondary' as const,
@@ -204,6 +211,12 @@ export function Filters({
           onValueChange={onSortVariableChange}
           disabled={isControlsDisabled}
         />
+        {sortVariableSourceIds && sortVariableSourceIds.length > 0 && (
+          <SourceAttribution
+            sourceIds={sortVariableSourceIds}
+            dataSources={dataSources}
+          />
+        )}
         <SelectField
           label='Sorting metric'
           value={sortMetricValue}
@@ -264,6 +277,7 @@ export function Filters({
             style={styles.locationField}
           />
         </View>
+        <GadmAttribution />
       </View>
 
       {/* Quantity */}

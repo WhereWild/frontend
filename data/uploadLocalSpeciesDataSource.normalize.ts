@@ -356,10 +356,29 @@ export const normalizeRawUploadedParquetBundle = (
     }
   });
 
+  const sourceIdsByVariable = new Map<string, string[]>();
+
   rawBundle.variableMetadata?.forEach((row) => {
     const variableId = getVariableMetadataId(row);
     if (!variableId) {
       return;
+    }
+
+    // Parse source_ids JSON string written by the backend manifest
+    if (row.source_ids != null && !sourceIdsByVariable.has(variableId)) {
+      try {
+        const parsed = typeof row.source_ids === 'string'
+          ? JSON.parse(row.source_ids)
+          : row.source_ids;
+        if (Array.isArray(parsed)) {
+          const ids = parsed.filter((v): v is string => typeof v === 'string');
+          if (ids.length > 0) {
+            sourceIdsByVariable.set(variableId, ids);
+          }
+        }
+      } catch {
+        // Ignore malformed source_ids
+      }
     }
 
     const existing = variableDefinitionsById.get(variableId);
@@ -380,6 +399,7 @@ export const normalizeRawUploadedParquetBundle = (
       const inferredValueType = categoricalVariables.has(variable)
         ? 'categorical'
         : existing?.valueType ?? null;
+      const sourceIds = sourceIdsByVariable.get(variable) ?? existing?.sourceIds;
 
       return {
         id: variable,
@@ -388,6 +408,7 @@ export const normalizeRawUploadedParquetBundle = (
         description: existing?.description ?? null,
         valueType: inferredValueType ?? variableTypeById.get(variable) ?? null,
         category: existing?.category ?? categoryByVariable.get(variable) ?? null,
+        ...(sourceIds?.length ? { sourceIds } : {}),
       };
     });
 
@@ -399,6 +420,7 @@ export const normalizeRawUploadedParquetBundle = (
     occurrenceIndex,
     summaryStats,
     variableDefinitions: normalizedVariableDefinitions,
+    dataSources: rawBundle.dataSources,
     locations: rawBundle.locations,
     meta: {
       source: 'upload-local',

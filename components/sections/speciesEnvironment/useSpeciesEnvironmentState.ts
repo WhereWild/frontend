@@ -381,6 +381,7 @@ export function useSpeciesEnvironmentState({
     pinnedValue,
     pinnedLoading,
     pinnedNoData,
+    selectedVariableMeta,
     isCircularVariable: isVariableCircular({
       id: selectedVariable ?? '',
       valueType: selectedVariableMeta?.valueType ?? null,
