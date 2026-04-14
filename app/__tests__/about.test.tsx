@@ -1,25 +1,28 @@
-import { fetchEnvironmentVariables } from '@/data/api';
-import { Shadows, Time, Typography } from '@/constants/theme';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react-native';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import About from '../about';
+import { Linking, Platform } from 'react-native';
+import AboutScreen from '../about';
 
 const mockPush = jest.fn();
-let mockPathname: '/' | '/about' = '/';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  usePathname: () => mockPathname,
+  usePathname: () => '/about',
 }));
 
+jest.mock('expo-router/head', () => {
+  const React = jest.requireActual('react');
+  function Head({ children }: { children?: React.ReactNode }) {
+    return React.createElement(React.Fragment, null, children);
+  }
+  return Head;
+});
+
+const mockUseResponsive = jest.fn(() => ({ breakpoint: 'desktop' }));
+
 jest.mock('@/hooks/useResponsive', () => ({
-  useResponsive: () => ({ breakpoint: 'desktop' }),
+  useResponsive: () => mockUseResponsive(),
 }));
 
 jest.mock('@/hooks/useColorScheme', () => ({
@@ -27,406 +30,233 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 jest.mock('@/data/api', () => ({
-  BACKEND_BASE: 'https://api.example.test',
-  fetchEnvironmentVariables: jest.fn(async () => []),
   fetchDataSources: jest.fn(() => Promise.resolve({})),
 }));
 
 jest.mock('@/components', () => {
-  const actual = jest.requireActual('@/components');
-  const mockReact = jest.requireActual('react');
-  const {
-    Pressable: MockPressable,
-    Text: MockText,
-    View: MockView,
-  } = jest.requireActual('react-native');
+  const React = jest.requireActual('react');
+  const { Text, View } = jest.requireActual('react-native');
 
   return {
-    ...actual,
-    SelectField: ({
-      label,
-      options = [],
-      placeholder,
-      value,
-      onValueChange,
+    ContentImage: ({ label }: { label?: string }) =>
+      React.createElement(View, { accessibilityLabel: label }),
+    IconButton: ({
+      accessibilityLabel,
+      onPress,
     }: {
-      label?: string;
-      options?: { label: string; value: string }[];
-      placeholder?: string;
-      value?: string;
-      onValueChange?: (nextValue: string) => void;
-    }) => {
-      const controlLabel = label ?? placeholder ?? 'Select';
-      const nextValue = options[1]?.value ?? options[0]?.value ?? '';
-      return mockReact.createElement(
-        MockView,
-        null,
-        mockReact.createElement(MockText, null, controlLabel),
-        mockReact.createElement(
-          MockText,
-          { testID: `select-value-${controlLabel}` },
-          value ?? 'none',
-        ),
-        mockReact.createElement(
-          MockPressable,
-          {
-            accessibilityLabel: controlLabel,
-            onPress: () => onValueChange?.(nextValue),
-          },
-          mockReact.createElement(MockText, null, `Change ${controlLabel}`),
-        ),
-      );
-    },
-    SpeciesOccurrenceMap: ({
-      heatmapTileUrl,
-    }: {
-      heatmapTileUrl?: string | null;
+      accessibilityLabel?: string;
+      onPress?: () => void;
     }) =>
-      mockReact.createElement(
-        MockView,
-        { testID: 'species-occurrence-map-mock' },
-        mockReact.createElement(
-          MockText,
-          { testID: 'species-occurrence-map-url' },
-          heatmapTileUrl ?? 'none',
-        ),
+      React.createElement(
+        Text,
+        {
+          accessibilityLabel,
+          onPress,
+          testID: `icon-button-${accessibilityLabel}`,
+        },
+        accessibilityLabel,
       ),
+    PageScrollContainer: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(View, null, children),
+    PageTitle: ({ title }: { title: string }) =>
+      React.createElement(Text, null, title),
+    ThemedText: ({
+      children,
+      onPress,
+    }: {
+      children?: React.ReactNode;
+      variant?: string;
+      onPress?: () => void;
+    }) => React.createElement(Text, { onPress }, children),
   };
 });
 
-jest.mock(
-  '@/components/sections/speciesEnvironment/VariableSelectorHeader',
-  () => {
-    const React = jest.requireActual('react');
-    const { Pressable, Text, View } = jest.requireActual('react-native');
+jest.mock('@/assets/icons', () => ({
+  IconGithub: () => null,
+  IconLinkedin: () => null,
+  IconMail: () => null,
+}));
 
-    return {
-      VariableSelectorHeader: ({
-        headingText,
-        metaText,
-        onCategoryChange,
-        onVariableChange,
-        selectedVariable,
-        selectedVariableCategory,
-      }: {
-        headingText?: string;
-        metaText?: string;
-        onCategoryChange?: (value: string) => void;
-        onVariableChange?: (value: string) => void;
-        selectedVariable?: string;
-        selectedVariableCategory?: string | null;
-      }) => (
-        <View>
-          <Text>{headingText}</Text>
-          <Text>{metaText}</Text>
-          <Text testID='selected-variable'>{selectedVariable ?? 'none'}</Text>
-          <Text testID='selected-variable-category'>
-            {selectedVariableCategory ?? 'none'}
-          </Text>
-          <Pressable
-            testID='select-live-weather'
-            onPress={() => {
-              onCategoryChange?.('Live Weather');
-              onVariableChange?.('wind_speed');
-            }}
-          >
-            <Text>Select Live Weather</Text>
-          </Pressable>
-          <Pressable
-            testID='select-landcover'
-            onPress={() => {
-              onCategoryChange?.('Categorical');
-              onVariableChange?.('landcover');
-            }}
-          >
-            <Text>Select Land Cover</Text>
-          </Pressable>
-        </View>
-      ),
-    };
-  },
-);
+jest.mock('@/assets/images/about_opuntia_distribution.png', () => 1, {
+  virtual: true,
+});
+jest.mock('@/assets/images/about_landcover.png', () => 1, { virtual: true });
+jest.mock('@/assets/images/about_mojavensis_density.png', () => 1, {
+  virtual: true,
+});
+jest.mock('@/assets/images/about_lucas.png', () => 1, { virtual: true });
+jest.mock('@/assets/images/about_luke.png', () => 1, { virtual: true });
+jest.mock('@/assets/images/about_draeden.png', () => 1, { virtual: true });
+jest.mock('@/assets/images/about_kelly.png', () => 1, { virtual: true });
 
-jest.mock(
-  '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection',
-  () => {
-    const React = jest.requireActual('react');
-
-    return {
-      useEnvironmentVariableSelection: ({
-        variableId,
-        variables,
-      }: {
-        variableId: string;
-        variables: {
-          id: string;
-          label: string;
-          category?: string | null;
-          units?: string | null;
-          valueType?: string | null;
-        }[];
-      }) => {
-        const resolvedVariables = variables?.length
-          ? variables
-          : [
-              {
-                id: variableId,
-                label: variableId,
-                category: 'Categorical',
-                valueType: null,
-              },
-            ];
-        const categories = Array.from(
-          new Set(
-            resolvedVariables.map((variable) => variable.category ?? 'Other'),
-          ),
-        );
-        const initialSelectedCategory = categories.includes('Categorical')
-          ? 'Categorical'
-          : (categories[0] ?? null);
-        const [selectedVariableCategory, setSelectedVariableCategory] =
-          React.useState(initialSelectedCategory);
-        const [selectedVariable, setSelectedVariable] =
-          React.useState(variableId);
-        const filteredVariables = resolvedVariables.filter(
-          (variable) =>
-            !selectedVariableCategory ||
-            (variable.category ?? 'Other') === selectedVariableCategory,
-        );
-        const selectedVariableMeta =
-          resolvedVariables.find(
-            (variable) => variable.id === selectedVariable,
-          ) ??
-          filteredVariables[0] ??
-          null;
-
-        return {
-          categories,
-          selectedVariableCategory,
-          setSelectedVariableCategory,
-          filteredVariables,
-          selectedVariable,
-          setSelectedVariable,
-          selectedVariableMeta,
-        };
-      },
-    };
-  },
-);
-const mockFetchEnvironmentVariables =
-  fetchEnvironmentVariables as jest.MockedFunction<
-    typeof fetchEnvironmentVariables
-  >;
-const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
-const EXPECTED_TYPOGRAPHY_LABELS = [
-  'Title Hero',
-  'Title Page',
-  'Subtitle',
-  'Heading',
-  'Subheading',
-  'Body',
-  'Body Emphasis',
-  'Body Strong',
-  'Body Small',
-  'Body Small Emphasis',
-  'Body Small Strong',
-  'Body Small Link',
-  'Body Tiny',
-  'Body Tiny Strong',
-  'Link',
-  'Code',
-  'Single Line Body',
-  'Single Line Body Small',
-  'Single Line Body Small Strong',
-  'Single Line Body Tiny',
-  'Single Line Body Tiny Strong',
-] as const;
+const mockUseColorScheme = useColorScheme as jest.MockedFunction<
+  typeof useColorScheme
+>;
 
 describe('About screen', () => {
+  const originalPlatform = Platform.OS;
+  const mockOpenUrl = jest
+    .spyOn(Linking, 'openURL')
+    .mockResolvedValue(undefined);
+
   beforeEach(() => {
-    jest.useFakeTimers();
     mockPush.mockClear();
-    mockPathname = '/';
-    mockFetchEnvironmentVariables.mockReturnValue(
-      new Promise(() => undefined) as any,
-    );
+    mockOpenUrl.mockClear();
+    mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' });
+    mockUseColorScheme.mockReturnValue('dark');
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform,
+    });
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
+  afterAll(() => {
+    mockOpenUrl.mockRestore();
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform,
+    });
   });
 
-  it('renders the species component preview with sample data', () => {
-    render(<About />);
+  it('renders the page title and acknowledgements link section', () => {
+    render(<AboutScreen />);
 
-    expect(screen.queryByText('Developer Tools')).toBeNull();
+    expect(screen.getByText('About')).toBeTruthy();
+    expect(screen.getByText('Acknowledgements')).toBeTruthy();
+    expect(screen.getByText('acknowledgements page')).toBeTruthy();
+  });
 
-    expect(screen.getByText('Species Page Components')).toBeTruthy();
-    expect(screen.getByText('Variable Tile Map')).toBeTruthy();
+  it('navigates to the acknowledgements page when the link is pressed', () => {
+    render(<AboutScreen />);
+
+    fireEvent.press(screen.getByText('acknowledgements page'));
+
+    expect(mockPush).toHaveBeenCalledWith('/acknowledgements');
+  });
+
+  it('renders the welcome heading and intro text', () => {
+    render(<AboutScreen />);
+
+    expect(screen.getByText('Welcome to WhereWild!')).toBeTruthy();
+  });
+
+  it('renders the what does WhereWild do section', () => {
+    render(<AboutScreen />);
+
     expect(
-      screen.getByText(
-        'Preview of the composable building blocks used on the species detail page.',
-      ),
+      screen.getByText('What does WhereWild do and how does it work?'),
     ).toBeTruthy();
-    expect(screen.getByText('Mountain Ball Cactus')).toBeTruthy();
-    expect(screen.getByText('Pediocactus simpsonii')).toBeTruthy();
-    expect(screen.getByText('Nearby Species')).toBeTruthy();
   });
 
-  it('updates the playground search status text when typing and clearing', () => {
-    render(<About />);
+  it('renders the team members section with all four names', () => {
+    render(<AboutScreen />);
 
-    const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
-    fireEvent.changeText(speciesSearchInput, 'pinyon');
-    expect(screen.getByText('Query changed: pinyon')).toBeTruthy();
-
-    const clearSpeciesSearch = screen.getByLabelText('Clear search');
-    fireEvent.press(clearSpeciesSearch);
-    expect(screen.getByText('Search cleared')).toBeTruthy();
+    expect(screen.getByText('Team Members')).toBeTruthy();
+    expect(screen.getByText('Lucas Pearce')).toBeTruthy();
+    expect(screen.getByText('Kelly Wu')).toBeTruthy();
+    expect(screen.getByText('Luke Allen')).toBeTruthy();
+    expect(screen.getByText('Draeden Jensen')).toBeTruthy();
   });
 
-  it('records submission events for the playground search input', () => {
-    render(<About />);
+  it('renders GitHub and LinkedIn icon buttons for Lucas', () => {
+    render(<AboutScreen />);
 
-    const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
-    fireEvent.changeText(speciesSearchInput, 'sage');
-    fireEvent(speciesSearchInput, 'submitEditing', {
-      nativeEvent: { text: 'sage' },
-    });
-
-    expect(screen.getByText('Search submitted with "sage"')).toBeTruthy();
+    expect(
+      screen.getByTestId('icon-button-Lucas Pearce on GitHub'),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('icon-button-Lucas Pearce on LinkedIn'),
+    ).toBeTruthy();
   });
 
-  it('renders previews for typography, shadow, and time token examples', () => {
-    render(<About />);
+  it('opens representative inline content links when pressed', () => {
+    render(<AboutScreen />);
 
-    const typographyVariantCount = Object.keys(Typography.light).length;
-    expect(EXPECTED_TYPOGRAPHY_LABELS).toHaveLength(typographyVariantCount);
-    const typographySamples = screen.getAllByTestId('typography-sample');
-    expect(typographySamples).toHaveLength(typographyVariantCount);
-    typographySamples.forEach((sample, index) => {
-      const scoped = within(sample);
-      expect(scoped.getByText(EXPECTED_TYPOGRAPHY_LABELS[index])).toBeTruthy();
-      expect(scoped.getByText(TYPOGRAPHY_SAMPLE_TEXT)).toBeTruthy();
-    });
-    expect(screen.getAllByTestId('shadow-sample')).toHaveLength(
-      Object.keys(Shadows).length,
-    );
+    fireEvent.press(screen.getByText('a cactus'));
+    fireEvent.press(screen.getByText('Research Grade'));
+    fireEvent.press(screen.getByText('historical weather data'));
 
-    expect(screen.getByText('Time + Easing Tokens')).toBeTruthy();
-    expect(screen.getByText('Duration \\ Easing')).toBeTruthy();
-    expect(screen.getAllByTestId('time-duration-header')).toHaveLength(
-      Object.keys(Time.duration).length,
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      1,
+      'https://www.inaturalist.org/observations/345543375',
     );
-    expect(screen.getAllByTestId('time-easing-header')).toHaveLength(
-      Object.keys(Time.easing).length,
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      2,
+      'https://help.inaturalist.org/en/support/solutions/articles/151000169936-what-is-the-data-quality-assessment-and-how-do-observations-qualify-to-become-research-grade-',
     );
-    expect(screen.getAllByTestId('time-motion-preview-cell')).toHaveLength(
-      Object.keys(Time.duration).length * Object.keys(Time.easing).length,
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      3,
+      'https://open-meteo.com/en/docs/historical-weather-api',
     );
   });
 
-  it('does not trigger navigation from local About screen content', () => {
-    mockPathname = '/about';
-    render(<About />);
+  it('opens representative caption and social links when pressed', () => {
+    render(<AboutScreen />);
 
-    expect(mockPush).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByText('DOI'));
+    fireEvent.press(screen.getByText('Data page'));
+    fireEvent.press(screen.getByTestId('icon-button-Lucas Pearce on GitHub'));
+    fireEvent.press(screen.getByTestId('icon-button-Email Luke Allen'));
+    fireEvent.press(
+      screen.getByTestId('icon-button-Draeden Jensen on LinkedIn'),
+    );
+
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      1,
+      'https://doi.org/10.5281/zenodo.4280923',
+    );
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      2,
+      'https://zenodo.org/records/4280923',
+    );
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      3,
+      'https://github.com/MtGambelOak',
+    );
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      4,
+      'mailto:lukeallen159111@gmail.com',
+    );
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      5,
+      'https://www.linkedin.com/in/denmark-jensen-228b7626b',
+    );
   });
 
-  it('switches through each tab showcase and renders the matching pill section', () => {
-    render(<About />);
+  it('opens Kelly social links when pressed', () => {
+    render(<AboutScreen />);
 
-    fireEvent.press(screen.getByText('Habitat & Range'));
-    expect(screen.getByText('Vertical list')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('icon-button-Kelly Wu on GitHub'));
+    fireEvent.press(screen.getByTestId('icon-button-Kelly Wu on LinkedIn'));
 
-    fireEvent.press(screen.getByText('Tracking and Sightings'));
-    expect(screen.getByText('Mixed label lengths')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Images'));
-    expect(screen.getByText('Image categories')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Field Notes'));
-    expect(screen.getByText('Notes sections')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Overview'));
-    expect(screen.getByText('Horizontal wrap')).toBeTruthy();
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      1,
+      'https://github.com/kellynyanbinary',
+    );
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(
+      2,
+      'https://www.linkedin.com/in/kellyhanwu/',
+    );
   });
 
-  it('shows live weather controls and updates the tile url for weather windows and forecasts', async () => {
-    mockFetchEnvironmentVariables.mockResolvedValueOnce([
-      {
-        id: 'temporal-only',
-        name: 'Temporal Only',
-        category: 'Temporal',
-        valueType: 'continuous',
-      },
-      {
-        id: 'recent-weather-only',
-        name: 'Recent Weather Only',
-        category: 'Recent Weather',
-        valueType: 'continuous',
-      },
-      {
-        id: 'wind_speed',
-        name: 'Wind Speed',
-        category: 'Live Weather',
-        valueType: 'continuous',
-      },
-      {
-        id: 'landcover',
-        name: 'Land Cover',
-        category: 'Categorical',
-        valueType: 'categorical',
-      },
-    ] as any);
+  it('renders on compact breakpoints and in light mode', () => {
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' });
+    mockUseColorScheme.mockReturnValue('light');
 
-    render(<About />);
+    render(<AboutScreen />);
 
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).toContain('/api/variables/');
-    expect(screen.queryByText('Aggregation window')).toBeNull();
-    expect(screen.queryByText('Forecast offset')).toBeNull();
+    expect(screen.getByText('About')).toBeTruthy();
+    expect(screen.getByText('Kelly Wu')).toBeTruthy();
+  });
 
-    fireEvent.press(screen.getByTestId('select-live-weather'));
-
-    await waitFor(() => {
-      expect(
-        screen.getByTestId('selected-variable-category').props.children,
-      ).toBe('Live Weather');
+  it('renders the web head branch', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
     });
-    expect(screen.getByText('Aggregation window')).toBeTruthy();
-    expect(screen.getByText('Forecast offset')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText('Aggregation window'));
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).toContain('&window=1h');
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).not.toContain('&forecast=');
+    render(<AboutScreen />);
 
-    fireEvent.press(screen.getByLabelText('Forecast offset'));
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).toContain('&forecast=1h');
-
-    fireEvent.press(screen.getByTestId('select-landcover'));
-    await waitFor(() => {
-      expect(screen.getByTestId('selected-variable').props.children).toBe(
-        'landcover',
-      );
-    });
-    expect(screen.queryByText('Aggregation window')).toBeNull();
-    expect(screen.queryByText('Forecast offset')).toBeNull();
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).toContain('/api/variables/landcover/tiles/{z}/{x}/{y}.png');
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).not.toContain('&window=');
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).not.toContain('&forecast=');
+    expect(screen.getByText('About')).toBeTruthy();
   });
 });
