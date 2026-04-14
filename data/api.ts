@@ -136,18 +136,18 @@ export async function fetchSpeciesList(limit?: number, q?: string, filters?: Sea
 }
 
 /**
- * Returns per-taxon average probability scores for the given viewport bbox.
+ * Returns per-taxon average probability scores for the given tile range.
  */
 export type ViewportScoresResult = {
   scores: Record<string, number>;
   reasons: Record<string, string[]>;
 };
 
-export async function fetchViewportScores(bounds: {
-  minLon: number; minLat: number; maxLon: number; maxLat: number;
+export async function fetchViewportScores(tiles: {
+  z: number; x0: number; y0: number; x1: number; y1: number;
 }): Promise<ViewportScoresResult> {
-  const { minLon, minLat, maxLon, maxLat } = bounds;
-  const url = `${BACKEND_BASE}/api/heatmap/homepage/scores?min_lon=${minLon}&min_lat=${minLat}&max_lon=${maxLon}&max_lat=${maxLat}`;
+  const { z, x0, y0, x1, y1 } = tiles;
+  const url = `${BACKEND_BASE}/api/heatmap/homepage/scores?z=${z}&x0=${x0}&y0=${y0}&x1=${x1}&y1=${y1}`;
   const data = await fetchJsonOrThrow(url, 'Failed to fetch viewport scores');
   return {
     scores: (data as any).scores ?? {},

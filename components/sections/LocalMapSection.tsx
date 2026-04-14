@@ -20,11 +20,12 @@ const CONUS_MAX_BOUNDS: [[number, number], [number, number]] = [
 export type LocalMapSectionProps = {
   heatmapTileUrl?: string | null;
   showHeading?: boolean;
-  onBoundsChange?: (bounds: {
-    minLon: number;
-    minLat: number;
-    maxLon: number;
-    maxLat: number;
+  onBoundsChange?: (tiles: {
+    z: number;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
   }) => void;
   style?: StyleProp<ViewStyle>;
 };
