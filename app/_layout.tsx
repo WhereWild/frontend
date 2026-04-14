@@ -8,7 +8,13 @@ import {
   Domine_700Bold,
 } from '@expo-google-fonts/domine';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono';
-import { IconHome, IconInfo, IconSearch, IconSettings } from '@/assets/icons';
+import {
+  IconHome,
+  IconHelpCircle,
+  IconInfo,
+  IconSearch,
+  IconSettings,
+} from '@/assets/icons';
 import {
   NavigationBar,
   TopAppBar,
@@ -46,7 +52,13 @@ import React, {
 } from 'react';
 import { LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native';
 
-const TOP_LEVEL_PATHS = ['/', '/about', '/search', '/settings'] as const;
+const TOP_LEVEL_PATHS = [
+  '/',
+  '/about',
+  '/help',
+  '/search',
+  '/settings',
+] as const;
 const NOOP = () => {};
 const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
@@ -124,6 +136,7 @@ const toHistoryHref = (route: string): Href | null => {
 const buildInitialTabRouteHistory = (): Record<TopLevelPath, string[]> => ({
   '/': ['/'],
   '/about': ['/about'],
+  '/help': ['/help'],
   '/search': ['/search'],
   '/settings': ['/settings'],
 });
@@ -394,6 +407,18 @@ function RootLayoutNativeFrame() {
       );
     }
 
+    if (pathname === '/acknowledgements') {
+      return (
+        <TopAppBar
+          variant='page'
+          title='Acknowledgements'
+          onPressBack={handlePressBack}
+          primaryAction={{ isVisible: false }}
+          secondaryAction={{ isVisible: false }}
+        />
+      );
+    }
+
     if (isTopLevelPath(pathname)) {
       return (
         <TopAppBar
@@ -429,11 +454,19 @@ function RootLayoutNativeFrame() {
       },
       {
         key: 'about',
-        label: 'Components',
+        label: 'About',
         icon: IconInfo,
         state: activeTabPath === '/about' ? 'active' : ('default' as const),
         onPress: () => navigateIfDifferent('/about'),
-        accessibilityLabel: 'Component playground tab',
+        accessibilityLabel: 'About tab',
+      },
+      {
+        key: 'help',
+        label: 'Help',
+        icon: IconHelpCircle,
+        state: activeTabPath === '/help' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/help'),
+        accessibilityLabel: 'Help tab',
       },
       {
         key: 'settings',
