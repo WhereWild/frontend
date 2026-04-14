@@ -125,7 +125,12 @@ export function WebPageHeader({
   );
   const defaultActions = React.useMemo<WebPageHeaderAction[]>(
     () => [
-      { label: 'Help', icon: <IconHelpCircle /> },
+      {
+        label: 'Help',
+        icon: <IconHelpCircle />,
+        href: '/help',
+        hrefPath: '/help',
+      },
       {
         label: 'About',
         icon: <IconInfo />,

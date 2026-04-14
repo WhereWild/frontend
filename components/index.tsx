@@ -108,6 +108,9 @@ export type { LocalMapSectionProps } from './sections/LocalMapSection';
 export { ActiveNearYouSection } from './sections/ActiveNearYouSection';
 export type { ActiveNearYouSectionProps } from './sections/ActiveNearYouSection';
 
+export { ContentImage } from './sections/ContentImage';
+export type { ContentImageProps } from './sections/ContentImage';
+
 export { Filters } from './sections/Filters';
 export type { FiltersProps } from './sections/Filters';
 
