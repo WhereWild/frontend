@@ -20,6 +20,7 @@ export type EnvironmentVariableOption = {
   units?: string | null;
   valueType?: string | null;
   category?: string | null;
+  sourceIds?: string[];
 };
 
 /** Loading/result state for one categorical class sample request. */
