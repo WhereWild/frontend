@@ -143,8 +143,6 @@ validate:expo-export:
     - npx expo export --platform web --output-dir dist-web
   artifacts:
     paths:
-      - dist-ios
-      - dist-android
       - dist-web
     expire_in: 7 days
   only:
