@@ -37,6 +37,7 @@ const continuousStats: SpeciesEnvironmentStats = {
   variableName: 'Annual Temperature',
   units: 'C',
   variableType: 'continuous',
+  observationCount: 20,
   summary: { count: 20, min: 1, mean: 10, max: 19, stddev: 2, q01: 2, q99: 18 },
   histogram: { bins: [0, 10, 20], counts: [10, 10] },
   densityCurve: { points: [1, 10, 19], density: [0.1, 0.9, 0.1] },
@@ -64,6 +65,7 @@ const categoricalStats: SpeciesEnvironmentStats = {
   variableName: 'Land Cover',
   units: null,
   variableType: 'categorical',
+  observationCount: 5,
   summary: { count: 5, min: null, mean: null, max: null, q01: null, q99: null },
   histogram: null,
   densityCurve: null,
@@ -1033,6 +1035,47 @@ describe('useSpeciesEnvironmentState', () => {
       expect(result.current.metaText).toContain('Selected range:');
       expect(result.current.metaText).toContain('2 of 20 observations');
     });
+  });
+
+  it('uses observationCount for circular variables when summary stats are intentionally omitted', async () => {
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      speciesId: 1,
+      variable: 'aspect_deg',
+      variableName: 'Aspect',
+      units: 'degrees',
+      variableType: 'circular',
+      observationCount: 12,
+      summary: {
+        count: 0,
+        min: null,
+        mean: null,
+        max: null,
+        q01: null,
+        q99: null,
+      },
+      histogram: null,
+      densityCurve: { points: [0, 180, 360], density: [0.2, 0.8, 0.2] },
+      relativeRanks: [],
+    } satisfies SpeciesEnvironmentStats);
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'aspect_deg',
+        variables: [
+          {
+            id: 'aspect_deg',
+            label: 'Aspect (degrees)',
+            units: 'degrees',
+            valueType: 'circular',
+            category: 'Terrain',
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    expect(result.current.metaText).toContain('(Based on 12 observations)');
   });
 
   it('preserves selected category and variable when updated variable lists still contain them', async () => {
