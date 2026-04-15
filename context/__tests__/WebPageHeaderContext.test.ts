@@ -4,9 +4,6 @@ describe('resolveHeaderConfigForRoute', () => {
   it('preserves search-specific config on /search', () => {
     const onFilterPress = jest.fn();
     const onResetFilterPress = jest.fn();
-    const onSearchingChanged = jest.fn();
-    const onSearchResultsChanged = jest.fn();
-    const onSearchContextChanged = jest.fn();
 
     const resolved = resolveHeaderConfigForRoute('/search', {
       showFilterButton: true,
@@ -15,14 +12,11 @@ describe('resolveHeaderConfigForRoute', () => {
       showResetFilterButton: true,
       onResetFilterPress,
       showSearchResultsDropdown: false,
-      initialQuery: 'canis',
+      searchQuery: 'canis',
       filterParams: {
-        ancestorTaxonId: 5219142,
-        rank: 'species',
+        withinTaxonId: 5219142,
+        descendantRank: 'species',
       },
-      onSearchingChanged,
-      onSearchResultsChanged,
-      onSearchContextChanged,
     });
 
     expect(resolved.showFilterButton).toBe(true);
@@ -31,11 +25,8 @@ describe('resolveHeaderConfigForRoute', () => {
     expect(resolved.showResetFilterButton).toBe(true);
     expect(resolved.onResetFilterPress).toBe(onResetFilterPress);
     expect(resolved.showSearchResultsDropdown).toBe(false);
-    expect(resolved.initialQuery).toBe('canis');
-    expect(resolved.filterParams?.ancestorTaxonId).toBe(5219142);
-    expect(resolved.onSearchingChanged).toBe(onSearchingChanged);
-    expect(resolved.onSearchResultsChanged).toBe(onSearchResultsChanged);
-    expect(resolved.onSearchContextChanged).toBe(onSearchContextChanged);
+    expect(resolved.searchQuery).toBe('canis');
+    expect(resolved.filterParams?.withinTaxonId).toBe(5219142);
   });
 
   it('strips search-only controls on non-search routes', () => {
@@ -46,11 +37,8 @@ describe('resolveHeaderConfigForRoute', () => {
       showResetFilterButton: true,
       onResetFilterPress: jest.fn(),
       showSearchResultsDropdown: false,
-      initialQuery: 'fox',
-      filterParams: { ancestorTaxonId: 212 },
-      onSearchingChanged: jest.fn(),
-      onSearchResultsChanged: jest.fn(),
-      onSearchContextChanged: jest.fn(),
+      searchQuery: 'fox',
+      filterParams: { withinTaxonId: 212 },
     });
 
     expect(resolved.showFilterButton).toBe(false);
@@ -59,10 +47,7 @@ describe('resolveHeaderConfigForRoute', () => {
     expect(resolved.showResetFilterButton).toBe(false);
     expect(resolved.onResetFilterPress).toBeUndefined();
     expect(resolved.showSearchResultsDropdown).toBe(true);
-    expect(resolved.initialQuery).toBeUndefined();
+    expect(resolved.searchQuery).toBeUndefined();
     expect(resolved.filterParams).toBeUndefined();
-    expect(resolved.onSearchingChanged).toBeUndefined();
-    expect(resolved.onSearchResultsChanged).toBeUndefined();
-    expect(resolved.onSearchContextChanged).toBeUndefined();
   });
 });

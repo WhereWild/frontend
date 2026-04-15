@@ -3,6 +3,7 @@ import {
   fetchSpeciesWithModels,
   fetchViewportScores,
 } from '@/data/api';
+import type { ViewportTileRange } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
 import type { HomePageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -116,12 +117,7 @@ jest.mock('@/components', () => {
       onBoundsChange,
     }: {
       heatmapTileUrl?: string | null;
-      onBoundsChange?: (bounds: {
-        minLon: number;
-        minLat: number;
-        maxLon: number;
-        maxLat: number;
-      }) => void;
+      onBoundsChange?: (bounds: ViewportTileRange) => void;
     }) => (
       <View>
         <Text>Local Map</Text>
@@ -130,10 +126,11 @@ jest.mock('@/components', () => {
           testID='bounds-primary'
           onPress={() =>
             onBoundsChange?.({
-              minLon: -122,
-              minLat: 36,
-              maxLon: -120,
-              maxLat: 38,
+              z: 8,
+              x0: 40,
+              y0: 90,
+              x1: 42,
+              y1: 92,
             })
           }
         >
@@ -143,10 +140,11 @@ jest.mock('@/components', () => {
           testID='bounds-secondary'
           onPress={() =>
             onBoundsChange?.({
-              minLon: -110,
-              minLat: 32,
-              maxLon: -108,
-              maxLat: 34,
+              z: 7,
+              x0: 18,
+              y0: 42,
+              x1: 19,
+              y1: 43,
             })
           }
         >
@@ -411,10 +409,11 @@ describe('Home screen', () => {
 
     await waitFor(() => {
       expect(mockFetchViewportScores).toHaveBeenCalledWith({
-        minLon: -122,
-        minLat: 36,
-        maxLon: -120,
-        maxLat: 38,
+        z: 8,
+        x0: 40,
+        y0: 90,
+        x1: 42,
+        y1: 92,
       });
     });
 
@@ -442,10 +441,11 @@ describe('Home screen', () => {
       expect(mockFetchViewportScores).toHaveBeenCalledTimes(1);
     });
     expect(mockFetchViewportScores).toHaveBeenCalledWith({
-      minLon: -110,
-      minLat: 32,
-      maxLon: -108,
-      maxLat: 34,
+      z: 7,
+      x0: 18,
+      y0: 42,
+      x1: 19,
+      y1: 43,
     });
   });
 

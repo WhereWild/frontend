@@ -9,6 +9,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
@@ -29,12 +30,7 @@ import {
 
 type TilesChangedMessage = {
   type: 'tilesChanged';
-  z: number;
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-};
+} & ViewportTileRange;
 
 function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
   return (
@@ -73,13 +69,7 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
-  onBoundsChange?: (tiles: {
-    z: number;
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
-  }) => void;
+  onBoundsChange?: (tiles: ViewportTileRange) => void;
 };
 
 export function SpeciesOccurrenceMap({

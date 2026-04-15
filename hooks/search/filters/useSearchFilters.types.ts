@@ -1,8 +1,17 @@
-import type { SearchFilterParams } from '@/data/api';
+import type { SearchTaxaQueryFilters } from '@/data/api';
+import type { FiltersProps } from '@/components';
 import type { SpeciesSummary } from '@/data/types';
 import type { SelectOption } from '@/components';
+import type {
+  SearchFilterLocationInitialState,
+  UseSearchFiltersInitialState,
+} from './useSearchFilters.state';
+
+export type SearchFiltersPanelProps = Omit<FiltersProps, 'style'>;
 
 export type UseSearchFiltersResult = {
+  panelProps: SearchFiltersPanelProps;
+
   // Location
   countryValue: string;
   countryOptions: SelectOption[];
@@ -23,6 +32,8 @@ export type UseSearchFiltersResult = {
   onBaseTaxonSubmit: (value: string) => Promise<void>;
   onBaseTaxonFocus: () => void;
   onBaseTaxonBlur: () => void;
+  onHydrateRouteState: (state?: UseSearchFiltersInitialState) => void;
+  onHydrateRouteLocation: (state?: SearchFilterLocationInitialState) => void;
   rankValue: string;
   rankOptions: SelectOption[];
   onRankChange: (value: string) => void;
@@ -55,7 +66,7 @@ export type UseSearchFiltersResult = {
   onResetFilters: () => void;
 
   // Computed
-  filterParams: SearchFilterParams;
+  filterParams: SearchTaxaQueryFilters;
   rankingFilterHint: string | null;
   hasActiveFilters: boolean;
 };

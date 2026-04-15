@@ -159,6 +159,17 @@ export type LocationSearchResult = {
   hierarchy: string[];
 };
 
+export type LocationHierarchyEntry = {
+  gid: string;
+  name: string;
+  level: number;
+};
+
+export type LocationDetail = LocationSearchResult & {
+  parent_gid: string | null;
+  ancestors: LocationHierarchyEntry[];
+};
+
 export type SpeciesApiNormalized = {
   taxon_id: number | null;
   scientific_name: string;
@@ -295,15 +306,15 @@ export type RelativeRankingEntry = {
   taxonId: number | string;
   scientificName?: string | null;
   commonName?: string | null;
-  imageUrl?: string | null;
-  imageFile?: string | null;
-  imageSource?: string | null;
+  image_url?: string | null;
+  image_file?: string | null;
+  image_source?: string | null;
   rank?: string | null;
   value: number | null;
   position: number;
   percentile?: number | null;
   count: number;
-  sampleCount?: number | null;
+  sample_count?: number | null;
 };
 
 export type RelativeRankingOption = {
@@ -332,4 +343,47 @@ export type RelativeRankingOptionsResponse = {
   ancestorTaxonId: number;
   rank: string;
   options: RelativeRankingOption[];
+};
+
+export type TaxaQueryResult = SpeciesApiNormalized & {
+  match_score?: number | null;
+  image_url?: string | null;
+  image_file?: string | null;
+  sort_value?: number | null;
+  sort_variable?: string | null;
+  sort_metric?: string | null;
+  count?: number | null;
+  sample_count?: number | null;
+  position?: number | null;
+  percentile?: number | null;
+};
+
+export type TaxaQueryResponse = {
+  query?: string | null;
+  scope: {
+    withinTaxon?: string | null;
+    withinTaxonId?: number | null;
+    descendantRank?: string | null;
+    location?: string | null;
+    minSamples?: number | null;
+    includeSpeciesLike?: boolean | null;
+  };
+  sort: {
+    variable?: string | null;
+    metric?: string | null;
+    order?: 'asc' | 'desc' | null;
+    units?: string | null;
+  };
+  total: number;
+  matchedTotal: number;
+  eligibleTotal: number;
+  emptyReason?:
+    | 'no_query'
+    | 'no_text_matches'
+    | 'filtered_out'
+    | 'ranking_ineligible'
+    | null;
+  limit: number;
+  offset: number;
+  results: TaxaQueryResult[];
 };

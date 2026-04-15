@@ -26,20 +26,16 @@ export function WebPageHeaderSearchResults({
   onSelectResult,
   activeResultIndex,
 }: WebPageHeaderSearchResultsProps) {
-  if (!isVisible) {
-    return null;
-  }
-
   return (
     <SearchResults
       results={results}
-      isVisible={true}
+      isVisible={isVisible}
       isLoading={isLoading}
       emptyMessage={errorMessage ?? 'No species found'}
       style={style}
       onSelectResult={onSelectResult}
       activeResultIndex={activeResultIndex}
-      testID='header-search-results'
+      testID={isVisible ? 'header-search-results' : undefined}
     />
   );
 }
