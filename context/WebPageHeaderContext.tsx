@@ -1,5 +1,4 @@
-import type { SearchFilterParams } from '@/data/api';
-import type { SpeciesSummary } from '@/data/types';
+import type { SearchTaxaQueryFilters } from '@/data/api';
 import React from 'react';
 
 export type HeaderConfig = {
@@ -9,11 +8,9 @@ export type HeaderConfig = {
   showResetFilterButton?: boolean;
   onResetFilterPress?: () => void;
   showSearchResultsDropdown?: boolean;
-  initialQuery?: string;
-  filterParams?: SearchFilterParams;
-  onSearchingChanged?: (searching: boolean) => void;
-  onSearchResultsChanged?: (results: SpeciesSummary[]) => void;
-  onSearchContextChanged?: (message: string | null) => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
+  filterParams?: SearchTaxaQueryFilters;
 };
 
 type WebPageHeaderContextValue = {
@@ -34,7 +31,10 @@ const isSearchRoute = (pathname?: string) => pathname === '/search';
  * Applies route-aware constraints to shared header config so page-specific controls
  * do not bleed into unrelated routes when the single global header stays mounted.
  */
-export function resolveHeaderConfigForRoute(pathname: string | undefined, config: HeaderConfig): HeaderConfig {
+export function resolveHeaderConfigForRoute(
+  pathname: string | undefined,
+  config: HeaderConfig,
+): HeaderConfig {
   const merged = {
     ...DEFAULT_CONFIG,
     ...config,
@@ -52,18 +52,21 @@ export function resolveHeaderConfigForRoute(pathname: string | undefined, config
     showResetFilterButton: false,
     onResetFilterPress: undefined,
     showSearchResultsDropdown: true,
-    initialQuery: undefined,
+    searchQuery: undefined,
+    onSearchQueryChange: undefined,
     filterParams: undefined,
-    onSearchingChanged: undefined,
-    onSearchResultsChanged: undefined,
-    onSearchContextChanged: undefined,
   };
 }
 
-const WebPageHeaderContext = React.createContext<WebPageHeaderContextValue | null>(null);
+const WebPageHeaderContext =
+  React.createContext<WebPageHeaderContextValue | null>(null);
 
 /** Provides shared, route-aware header configuration to the app shell. */
-export function WebPageHeaderProvider({ children }: { children: React.ReactNode }) {
+export function WebPageHeaderProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [config, setConfigState] = React.useState<HeaderConfig>(DEFAULT_CONFIG);
 
   const setConfig = React.useCallback((next: HeaderConfig) => {
@@ -84,7 +87,9 @@ export function WebPageHeaderProvider({ children }: { children: React.ReactNode 
 export function useWebPageHeaderConfig() {
   const context = React.useContext(WebPageHeaderContext);
   if (!context) {
-    throw new Error('useWebPageHeaderConfig must be used within WebPageHeaderProvider');
+    throw new Error(
+      'useWebPageHeaderConfig must be used within WebPageHeaderProvider',
+    );
   }
 
   return context;

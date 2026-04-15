@@ -32,7 +32,7 @@ import { WebPageHeaderSearchResults } from './WebPageHeaderSearchResults';
 import { WebPageHeaderSearchRow } from './WebPageHeaderSearchRow';
 import { WebPageHeaderMobileMenu } from './WebPageHeaderMobileMenu';
 import type { WebPageHeaderAction, SearchInputPassthroughProps } from './types';
-import type { SearchFilterParams } from '@/data/api';
+import type { SearchTaxaQueryFilters } from '@/data/api';
 import { RoutePressable } from '@/components/navigation/RoutePressable';
 
 export type { WebPageHeaderAction } from './types';
@@ -54,12 +54,10 @@ export type WebPageHeaderProps = {
   resetFilterButtonAccessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   showSearchResultsDropdown?: boolean;
-  initialQuery?: string;
-  /** Filter parameters forwarded to the species search API. */
-  filterParams?: SearchFilterParams;
-  onSearchingChanged?: (searching: boolean) => void;
-  onSearchResultsChanged?: (results: SpeciesSummary[]) => void;
-  onSearchContextChanged?: (message: string | null) => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
+  /** Filter parameters forwarded to the unified taxa query API. */
+  filterParams?: SearchTaxaQueryFilters;
   onLayout?: (event: LayoutChangeEvent) => void;
 };
 
@@ -86,11 +84,9 @@ export function WebPageHeader({
   style,
   logoAccessibilityLabel = 'Go to home',
   showSearchResultsDropdown = true,
-  initialQuery,
+  searchQuery: controlledSearchQuery,
+  onSearchQueryChange,
   filterParams,
-  onSearchingChanged,
-  onSearchResultsChanged,
-  onSearchContextChanged,
   onLayout,
 }: WebPageHeaderProps) {
   const scheme = useColorScheme();
@@ -107,11 +103,15 @@ export function WebPageHeader({
   const router = useRouter();
   const pathname = usePathname();
 
-  /** Submits non-empty queries and avoids redundant navigation when already on `/search`. */
+  /** Navigates to the search page and includes a query param only when non-empty. */
   const submitSearchQuery = React.useCallback(
     (query: string) => {
       const trimmed = query.trim();
+
       if (trimmed === '') {
+        if (pathname !== '/search') {
+          router.push('/search');
+        }
         return;
       }
 
@@ -166,6 +166,7 @@ export function WebPageHeader({
   );
 
   const {
+    isControlled,
     searchQuery,
     setSearchQuery,
     debouncedQuery,
@@ -178,12 +179,25 @@ export function WebPageHeader({
     cancelSearchBlurGrace,
     startSearchBlurGrace,
   } = useWebPageHeaderSearch({
-    initialQuery,
+    enabled: showSearchResultsDropdown,
+    query: controlledSearchQuery,
+    onQueryChange: onSearchQueryChange,
     filterParams,
-    onSearchingChanged,
-    onSearchResultsChanged,
-    onSearchContextChanged,
   });
+  const previousPathnameRef = React.useRef(pathname);
+
+  React.useLayoutEffect(() => {
+    if (isControlled) {
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
+    if (previousPathnameRef.current !== pathname && searchQuery !== '') {
+      setSearchQuery('');
+    }
+
+    previousPathnameRef.current = pathname;
+  }, [isControlled, pathname, searchQuery, setSearchQuery]);
 
   const hasQuery = debouncedQuery.length > 0;
   const [activeSearchResultIndex, setActiveSearchResultIndex] =

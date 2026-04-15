@@ -1,16 +1,50 @@
+import type { SearchTaxaQueryFilters } from '@/data/apiTaxaQueryHelpers';
+import { fetchLocationByGid } from '@/data/apiLocationHelpers';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import React, { act } from 'react';
-import { Animated, Platform, View } from 'react-native';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import Search from '../search';
+import type { SearchRouteParams } from '@/hooks/search/searchRouteState';
+
+type MockSelectOption = {
+  label: string;
+  value: string;
+};
 
 const mockPush = jest.fn();
-const mockUseLocalSearchParams = jest.fn(() => ({ query: '' }));
+let mockPathname = '/search';
+const mockUseLocalSearchParams = jest.fn(
+  (): SearchRouteParams => ({ query: '' }),
+);
+const mockHistoryPushState = jest.fn();
+const mockHistoryReplaceState = jest.fn();
+const mockSessionStorage = (() => {
+  let store: Record<string, string> = {};
+
+  return {
+    getItem: jest.fn((key: string) => store[key] ?? null),
+    setItem: jest.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: jest.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      store = {};
+    }),
+  };
+})();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  usePathname: () => '/search',
+  usePathname: () => mockPathname,
   useLocalSearchParams: () => mockUseLocalSearchParams(),
 }));
 
@@ -27,16 +61,20 @@ jest.mock('@/hooks/useResponsive', () => ({
   })),
 }));
 
-const mockFilterParams = {
-  locationGid: null,
-  ancestorTaxonId: null,
-  rank: 'species',
-  includeSubspecies: true,
+jest.mock('@/data/apiLocationHelpers', () => ({
+  fetchLocationByGid: jest.fn(),
+}));
+
+const mockFilterParams: SearchTaxaQueryFilters = {
+  location: null,
+  withinTaxonId: null,
+  descendantRank: null,
+  includeSpeciesLike: true,
   sortVariable: null,
   sortMetric: null,
-  sortOrder: 'asc' as const,
-  minimumSamples: 10,
-  numberOfResults: 10,
+  sortOrder: null,
+  minSamples: 0,
+  limit: 10,
 };
 
 const mockSetHeaderConfig = jest.fn();
@@ -68,17 +106,33 @@ const restorePlatformOS = () => {
   });
 };
 
+const mockUseSearchFilters = jest.fn();
+const mockUseTaxaQuerySearch = jest.fn();
+const mockTaxaQuerySearchResult: {
+  debouncedQuery: string;
+  searchContext: string | null;
+  searchError: string | null;
+  searchResults: any[];
+  searching: boolean;
+} = {
+  debouncedQuery: '',
+  searchContext: null,
+  searchError: null,
+  searchResults: [] as any[],
+  searching: false,
+};
+
 const mockFiltersResult = {
   countryValue: '',
-  countryOptions: [],
+  countryOptions: [] as MockSelectOption[],
   countryLoading: false,
   onCountryChange: jest.fn(),
   stateValue: '',
-  stateOptions: [],
+  stateOptions: [] as MockSelectOption[],
   stateLoading: false,
   onStateChange: jest.fn(),
   countyValue: '',
-  countyOptions: [],
+  countyOptions: [] as MockSelectOption[],
   countyLoading: false,
   onCountyChange: jest.fn(),
   baseTaxonQuery: '',
@@ -86,8 +140,10 @@ const mockFiltersResult = {
   onBaseTaxonSubmit: jest.fn(),
   onBaseTaxonFocus: jest.fn(),
   onBaseTaxonBlur: jest.fn(),
-  rankValue: 'species',
-  rankOptions: [{ label: 'Species', value: 'species' }],
+  onHydrateRouteLocation: jest.fn(),
+  onHydrateRouteState: jest.fn(),
+  rankValue: '',
+  rankOptions: [{ label: 'All ranks', value: '' }],
   onRankChange: jest.fn(),
   includeSubspecies: true,
   onIncludeSubspeciesChange: jest.fn(),
@@ -102,15 +158,58 @@ const mockFiltersResult = {
   onSortOrderChange: jest.fn(),
   numberOfResults: 10,
   onNumberOfResultsChange: jest.fn(),
-  minimumSamples: 10,
+  minimumSamples: 0,
   onMinimumSamplesChange: jest.fn(),
   onResetFilters: jest.fn(),
   filterParams: mockFilterParams,
   hasActiveFilters: false,
+  panelProps: {
+    countryValue: '',
+    countryOptions: [] as MockSelectOption[],
+    onCountryChange: jest.fn(),
+    stateValue: '',
+    stateOptions: [] as MockSelectOption[],
+    onStateChange: jest.fn(),
+    countyValue: '',
+    countyOptions: [] as MockSelectOption[],
+    onCountyChange: jest.fn(),
+    baseTaxonQuery: '',
+    onBaseTaxonQueryChange: jest.fn(),
+    onBaseTaxonSubmit: jest.fn(),
+    onBaseTaxonFocus: jest.fn(),
+    onBaseTaxonBlur: jest.fn(),
+    baseTaxonSuggestions: [],
+    baseTaxonSuggestionsLoading: false,
+    baseTaxonSuggestionsVisible: false,
+    onBaseTaxonSelect: jest.fn(),
+    rankValue: '',
+    rankOptions: [{ label: 'All ranks', value: '' }],
+    onRankChange: jest.fn(),
+    includeSubspecies: true,
+    onIncludeSubspeciesChange: jest.fn(),
+    sortVariableValue: '',
+    sortVariableOptions: [],
+    onSortVariableChange: jest.fn(),
+    sortMetricValue: 'mean',
+    sortMetricOptions: [{ label: 'Average', value: 'mean' }],
+    onSortMetricChange: jest.fn(),
+    sortOrder: 'ascending' as const,
+    onSortOrderChange: jest.fn(),
+    rankingFilterHint: null,
+    numberOfResults: 10,
+    onNumberOfResultsChange: jest.fn(),
+    minimumSamples: 0,
+    onMinimumSamplesChange: jest.fn(),
+    onResetFilters: jest.fn(),
+  },
 };
 
-jest.mock('@/hooks/useSearchFilters', () => ({
-  useSearchFilters: jest.fn(() => mockFiltersResult),
+jest.mock('@/hooks/search/filters/useSearchFilters', () => ({
+  useSearchFilters: (...args: unknown[]) => mockUseSearchFilters(...args),
+}));
+
+jest.mock('@/hooks/search/useTaxaQuerySearch', () => ({
+  useTaxaQuerySearch: (...args: unknown[]) => mockUseTaxaQuerySearch(...args),
 }));
 
 jest.mock('@/context/WebPageHeaderContext', () => ({
@@ -174,6 +273,7 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<
 const mockUseResponsive = useResponsive as jest.MockedFunction<
   typeof useResponsive
 >;
+const mockFetchLocationByGid = jest.mocked(fetchLocationByGid);
 
 const getLatestHeaderConfig = () => {
   const latestCall =
@@ -182,6 +282,51 @@ const getLatestHeaderConfig = () => {
     throw new Error('Expected Search to configure WebPageHeader');
   }
   return latestCall[0];
+};
+
+const getLatestTaxaQuerySearchCall = () => {
+  const latestCall =
+    mockUseTaxaQuerySearch.mock.calls[
+      mockUseTaxaQuerySearch.mock.calls.length - 1
+    ];
+  if (!latestCall) {
+    throw new Error('Expected Search to run useTaxaQuerySearch');
+  }
+
+  return latestCall[0];
+};
+
+const getLatestNativeTopAppBarConfig = () => {
+  const latestCall =
+    mockSetNativeTopAppBarConfig.mock.calls[
+      mockSetNativeTopAppBarConfig.mock.calls.length - 1
+    ];
+  if (!latestCall) {
+    throw new Error('Expected Search to configure native top app bar');
+  }
+  return latestCall[0];
+};
+
+const setWindowLocation = (url: string) => {
+  const parsedUrl = new URL(url, 'http://localhost:8081');
+
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: {
+      pathname: parsedUrl.pathname,
+      search: parsedUrl.search,
+    },
+  });
+};
+
+const setWindowSearchRouteParams = (params: SearchRouteParams) => {
+  const search = new URLSearchParams(
+    Object.entries(params).flatMap(([key, value]) =>
+      typeof value === 'string' && value.length > 0 ? [[key, value]] : [],
+    ),
+  ).toString();
+
+  setWindowLocation(search.length > 0 ? `/search?${search}` : '/search');
 };
 
 const mockSpeciesResults = [
@@ -203,8 +348,49 @@ const mockSpeciesResults = [
 
 describe('Search screen', () => {
   beforeEach(() => {
+    let historyState: unknown = null;
+
+    mockHistoryPushState.mockImplementation(
+      (state: unknown, _unused, url?: string) => {
+        historyState = state;
+        if (typeof url === 'string') {
+          setWindowLocation(url);
+        }
+      },
+    );
+
+    mockHistoryReplaceState.mockImplementation(
+      (state: unknown, _unused, url?: string) => {
+        historyState = state;
+        if (typeof url === 'string') {
+          setWindowLocation(url);
+        }
+      },
+    );
+
+    setWindowLocation('/search');
+
+    Object.defineProperty(window, 'history', {
+      configurable: true,
+      value: {
+        ...window.history,
+        pushState: mockHistoryPushState,
+        replaceState: mockHistoryReplaceState,
+        get state() {
+          return historyState;
+        },
+      },
+    });
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      value: mockSessionStorage,
+    });
+    window.sessionStorage.clear();
     setPlatformOS('ios');
+    mockPathname = '/search';
     mockUseLocalSearchParams.mockReturnValue({ query: '' });
+    mockFetchLocationByGid.mockClear();
+    mockFetchLocationByGid.mockResolvedValue(null);
     mockUseColorScheme.mockReturnValue('dark');
     mockUseResponsive.mockReturnValue({
       breakpoint: 'desktop',
@@ -213,14 +399,35 @@ describe('Search screen', () => {
       marginHorizontal: 32,
     } as any);
     mockPush.mockClear();
+    mockHistoryPushState.mockClear();
+    mockHistoryReplaceState.mockClear();
+    mockSessionStorage.getItem.mockClear();
+    mockSessionStorage.setItem.mockClear();
+    mockSessionStorage.removeItem.mockClear();
+    mockSessionStorage.clear.mockClear();
     mockSetHeaderConfig.mockClear();
     mockResetHeaderConfig.mockClear();
     mockSetNativeTopAppBarConfig.mockClear();
     mockResetNativeTopAppBarConfig.mockClear();
+    mockUseSearchFilters.mockReset();
+    mockUseSearchFilters.mockReturnValue(mockFiltersResult);
+    mockUseTaxaQuerySearch.mockReset();
+    mockUseTaxaQuerySearch.mockReturnValue(mockTaxaQuerySearchResult);
     mockFiltersProps = undefined;
     mockSpeciesCardPropsHistory = [];
+    mockFiltersResult.onCountryChange.mockClear();
+    mockFiltersResult.onStateChange.mockClear();
+    mockFiltersResult.onCountyChange.mockClear();
+    mockFiltersResult.onHydrateRouteLocation.mockClear();
+    mockFiltersResult.onHydrateRouteState.mockClear();
+    mockFiltersResult.filterParams = mockFilterParams;
     mockFiltersResult.hasActiveFilters = false;
     mockFiltersResult.onResetFilters.mockClear();
+    mockTaxaQuerySearchResult.debouncedQuery = '';
+    mockTaxaQuerySearchResult.searchContext = null;
+    mockTaxaQuerySearchResult.searchError = null;
+    mockTaxaQuerySearchResult.searchResults = [];
+    mockTaxaQuerySearchResult.searching = false;
   });
 
   afterEach(() => {
@@ -252,65 +459,932 @@ describe('Search screen', () => {
     expect(mockSetNativeTopAppBarConfig).not.toHaveBeenCalled();
   });
 
-  it('shows loading state message while searching', () => {
+  it('hydrates the native top app bar search value from a deep link query', () => {
+    setPlatformOS('ios');
+    mockUseLocalSearchParams.mockReturnValue({ query: 'owl' });
+
     render(<Search />);
-    const headerConfig = getLatestHeaderConfig();
+
+    expect(getLatestNativeTopAppBarConfig().searchValue).toBe('owl');
+    expect(mockHistoryPushState).not.toHaveBeenCalled();
+    expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+  });
+
+  it('updates the native top app bar search value when the native route query changes', async () => {
+    setPlatformOS('ios');
+    mockUseLocalSearchParams.mockReturnValue({ query: 'owl' });
+
+    const rendered = render(<Search />);
+
+    expect(getLatestNativeTopAppBarConfig().searchValue).toBe('owl');
+
+    mockUseLocalSearchParams.mockReturnValue({ query: 'wolf' });
+
+    await act(async () => {
+      rendered.rerender(<Search />);
+      await Promise.resolve();
+    });
+
+    expect(getLatestNativeTopAppBarConfig().searchValue).toBe('wolf');
+    expect(mockHistoryPushState).not.toHaveBeenCalled();
+    expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+  });
+
+  it('hydrates native initial filters without an implicit rank or minimum sample threshold', () => {
+    setPlatformOS('ios');
+
+    render(<Search />);
+
+    expect(mockUseSearchFilters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ranking: expect.objectContaining({
+          rankValue: '',
+          includeSubspecies: true,
+          sortVariableValue: '',
+          sortMetricValue: '',
+          sortOrder: 'ascending',
+        }),
+        quantity: expect.objectContaining({
+          minimumSamples: undefined,
+          numberOfResults: undefined,
+        }),
+      }),
+    );
+  });
+
+  it('updates the search URL when the native search query changes', () => {
+    setPlatformOS('web');
+    render(<Search />);
 
     act(() => {
-      headerConfig.onSearchingChanged(true);
+      getLatestHeaderConfig().onSearchQueryChange('owl');
     });
+
+    expect(mockHistoryPushState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          filterVisible: false,
+        }),
+      }),
+      '',
+      '/search?query=owl',
+    );
+  });
+
+  it('replaces the current history entry when refining an existing non-empty query', () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ query: 'ow' });
+    setWindowSearchRouteParams({ query: 'ow' });
+
+    render(<Search />);
+
+    act(() => {
+      getLatestHeaderConfig().onSearchQueryChange('owl');
+    });
+
+    expect(mockHistoryPushState).not.toHaveBeenCalled();
+    expect(mockHistoryReplaceState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          filterVisible: false,
+        }),
+      }),
+      '',
+      '/search?query=owl',
+    );
+  });
+
+  it('does not rewrite browser history with stale local query during route-driven navigation', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ query: 'cactus' });
+    setWindowSearchRouteParams({ query: 'cactus' });
+
+    const rendered = render(<Search />);
+
+    act(() => {
+      getLatestHeaderConfig().onSearchQueryChange('owl');
+    });
+
+    expect(mockHistoryReplaceState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          filterVisible: false,
+        }),
+      }),
+      '',
+      '/search?query=owl',
+    );
+
+    mockHistoryReplaceState.mockClear();
+    mockUseLocalSearchParams.mockReturnValue({ query: 'cactus' });
+
+    await act(async () => {
+      rendered.rerender(<Search />);
+      await Promise.resolve();
+    });
+
+    expect(mockHistoryReplaceState).not.toHaveBeenCalledWith(
+      expect.anything(),
+      '',
+      '/search?query=owl',
+    );
+  });
+
+  it('does not pin the URL back to search when navigation leaves the search page', async () => {
+    setPlatformOS('web');
+    const rendered = render(<Search />);
+
+    act(() => {
+      getLatestHeaderConfig().onSearchQueryChange('oak');
+    });
+
+    expect(mockHistoryPushState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          filterVisible: false,
+        }),
+      }),
+      '',
+      '/search?query=oak',
+    );
+
+    mockHistoryReplaceState.mockClear();
+    mockPathname = '/about';
+    mockUseLocalSearchParams.mockReturnValue({});
+
+    await act(async () => {
+      rendered.rerender(<Search />);
+      await Promise.resolve();
+    });
+
+    expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+  });
+
+  it('updates the search URL when filter params change', () => {
+    setPlatformOS('web');
+    const rendered = render(<Search />);
+
+    mockFiltersResult.filterParams = {
+      ...mockFilterParams,
+      withinTaxonId: 77,
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: 25,
+      limit: 20,
+    };
+
+    rendered.rerender(<Search />);
+
+    expect(mockHistoryPushState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          filterVisible: false,
+        }),
+      }),
+      '',
+      '/search?withinTaxonId=77&minSamples=25&limit=20',
+    );
+  });
+
+  it('does not rewrite the URL while external route hydration still has stale filter state', async () => {
+    setPlatformOS('web');
+    const rendered = render(<Search />);
+
+    mockUseLocalSearchParams.mockReturnValue({ withinTaxonId: '77' });
+    setWindowSearchRouteParams({ withinTaxonId: '77' });
+
+    await act(async () => {
+      rendered.rerender(<Search />);
+      await Promise.resolve();
+    });
+
+    mockHistoryReplaceState.mockClear();
+    mockFiltersResult.filterParams = {
+      ...mockFilterParams,
+      withinTaxonId: 77,
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+    };
+
+    rendered.rerender(<Search />);
+
+    expect(mockHistoryPushState).not.toHaveBeenCalled();
+    expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+  });
+
+  it('suspends direct taxa-query execution during route filter hydration after external navigation', async () => {
+    setPlatformOS('web');
+    const rendered = render(<Search />);
+
+    expect(getLatestTaxaQuerySearchCall()).toEqual(
+      expect.objectContaining({ enabled: true }),
+    );
+
+    mockUseTaxaQuerySearch.mockClear();
+    mockUseLocalSearchParams.mockReturnValue({ withinTaxonId: '77' });
+    setWindowSearchRouteParams({ withinTaxonId: '77' });
+
+    await act(async () => {
+      rendered.rerender(<Search />);
+      await Promise.resolve();
+    });
+
+    expect(getLatestTaxaQuerySearchCall()).toEqual(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
+
+  it('hydrates initial filter state from route params', () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45.1_1',
+      withinTaxonId: '77',
+      descendantRank: 'genus',
+      includeSpeciesLike: 'false',
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: '25',
+      limit: '20',
+    });
+    setWindowSearchRouteParams({
+      location: 'USA.45.1_1',
+      withinTaxonId: '77',
+      descendantRank: 'genus',
+      includeSpeciesLike: 'false',
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: '25',
+      limit: '20',
+    });
+
+    render(<Search />);
+
+    expect(mockUseSearchFilters).toHaveBeenCalledWith({
+      location: {
+        countryValue: 'USA',
+        stateValue: 'USA.45_1',
+        countyValue: 'USA.45.1_1',
+      },
+      taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+      ranking: {
+        rankValue: 'genus',
+        includeSubspecies: true,
+        sortVariableValue: 'bio_1',
+        sortMetricValue: 'median',
+        sortOrder: 'descending',
+      },
+      quantity: {
+        minimumSamples: 25,
+        numberOfResults: 20,
+      },
+    });
+  });
+
+  it('hydrates mounted filter state when route params change', () => {
+    setPlatformOS('web');
+    const rendered = render(<Search />);
+
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45.1_1',
+      withinTaxonId: '77',
+      descendantRank: 'genus',
+      includeSpeciesLike: 'false',
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: '25',
+      limit: '20',
+    });
+    setWindowSearchRouteParams({
+      location: 'USA.45.1_1',
+      withinTaxonId: '77',
+      descendantRank: 'genus',
+      includeSpeciesLike: 'false',
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: '25',
+      limit: '20',
+    });
+
+    rendered.rerender(<Search />);
+
+    return waitFor(() => {
+      expect(mockFiltersResult.onHydrateRouteState).toHaveBeenCalledWith({
+        location: {
+          countryValue: 'USA',
+          stateValue: 'USA.45_1',
+          countyValue: 'USA.45.1_1',
+        },
+        taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+        ranking: {
+          rankValue: 'genus',
+          includeSubspecies: true,
+          sortVariableValue: 'bio_1',
+          sortMetricValue: 'median',
+          sortOrder: 'descending',
+        },
+        quantity: {
+          minimumSamples: 25,
+          numberOfResults: 20,
+        },
+      });
+    });
+  });
+
+  it('does not repeatedly hydrate the same external route state across rerenders', async () => {
+    setPlatformOS('web');
+    const rendered = render(<Search />);
+
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45.1_1',
+      withinTaxonId: '77',
+      descendantRank: 'genus',
+      includeSpeciesLike: 'false',
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: '25',
+      limit: '20',
+    });
+    setWindowSearchRouteParams({
+      location: 'USA.45.1_1',
+      withinTaxonId: '77',
+      descendantRank: 'genus',
+      includeSpeciesLike: 'false',
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: '25',
+      limit: '20',
+    });
+
+    rendered.rerender(<Search />);
+
+    await waitFor(() => {
+      expect(mockFiltersResult.onHydrateRouteState).toHaveBeenCalledTimes(1);
+    });
+
+    rendered.rerender(<Search />);
+    rendered.rerender(<Search />);
+
+    expect(mockFiltersResult.onHydrateRouteState).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the header search query when the routed query param is removed', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ query: 'owl' });
+    setWindowSearchRouteParams({ query: 'owl' });
+
+    const rendered = render(<Search />);
+
+    expect(getLatestHeaderConfig().searchQuery).toBe('owl');
+
+    mockUseLocalSearchParams.mockReturnValue({});
+    setWindowSearchRouteParams({});
+
+    await act(async () => {
+      rendered.rerender(<Search />);
+      await Promise.resolve();
+    });
+
+    expect(getLatestHeaderConfig().searchQuery).toBe('');
+  });
+
+  it('hydrates canonical route location hierarchy from backend metadata', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45.1_1',
+    });
+    setWindowSearchRouteParams({ location: 'USA.45.1_1' });
+    mockFetchLocationByGid.mockResolvedValue({
+      gid: 'USA.45.1_1',
+      name: 'Beaver',
+      level: 2,
+      parent_gid: 'USA.45_1',
+      hierarchy: ['United States', 'Utah'],
+      ancestors: [
+        { gid: 'USA', name: 'United States', level: 0 },
+        { gid: 'USA.45_1', name: 'Utah', level: 1 },
+      ],
+    });
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid).toHaveBeenCalledWith(
+        'USA.45.1_1',
+        expect.objectContaining({ signal: expect.any(Object) }),
+      );
+    });
+
+    expect(mockFiltersResult.onHydrateRouteLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        countryValue: 'USA',
+        stateValue: 'USA.45_1',
+        countyValue: 'USA.45.1_1',
+      }),
+    );
+  });
+
+  it('reapplies the routed county after canonical parent hydration clears dependent state', async () => {
+    setPlatformOS('web');
+    mockFiltersResult.countryValue = '';
+    mockFiltersResult.stateValue = '';
+    mockFiltersResult.countyValue = 'USA.45.1_1';
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45.1_1',
+    });
+    setWindowSearchRouteParams({ location: 'USA.45.1_1' });
+    mockFetchLocationByGid.mockResolvedValue({
+      gid: 'USA.45.1_1',
+      name: 'Beaver',
+      level: 2,
+      parent_gid: 'USA.45_1',
+      hierarchy: ['United States', 'Utah'],
+      ancestors: [
+        { gid: 'USA', name: 'United States', level: 0 },
+        { gid: 'USA.45_1', name: 'Utah', level: 1 },
+      ],
+    });
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid).toHaveBeenCalledWith(
+        'USA.45.1_1',
+        expect.objectContaining({ signal: expect.any(Object) }),
+      );
+    });
+
+    expect(mockFiltersResult.onHydrateRouteLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        countryValue: 'USA',
+        stateValue: 'USA.45_1',
+        countyValue: 'USA.45.1_1',
+      }),
+    );
+
+    mockFiltersResult.countyValue = '';
+  });
+
+  it('hydrates canonical route location hierarchy on native deep links', async () => {
+    setPlatformOS('ios');
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45.1_1',
+    });
+    mockFetchLocationByGid.mockResolvedValue({
+      gid: 'USA.45.1_1',
+      name: 'Beaver',
+      level: 2,
+      parent_gid: 'USA.45_1',
+      hierarchy: ['United States', 'Utah'],
+      ancestors: [
+        { gid: 'USA', name: 'United States', level: 0 },
+        { gid: 'USA.45_1', name: 'Utah', level: 1 },
+      ],
+    });
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid).toHaveBeenCalledWith(
+        'USA.45.1_1',
+        expect.objectContaining({ signal: expect.any(Object) }),
+      );
+    });
+
+    expect(mockFiltersResult.onHydrateRouteLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        countryValue: 'USA',
+        stateValue: 'USA.45_1',
+        countyValue: 'USA.45.1_1',
+      }),
+    );
+  });
+
+  it('clears a stale county selection when a broader state route is hydrated in the same hierarchy', async () => {
+    setPlatformOS('web');
+    mockFiltersResult.countryValue = 'USA';
+    mockFiltersResult.stateValue = 'USA.45_1';
+    mockFiltersResult.countyValue = 'USA.45.1_1';
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA.45_1',
+    });
+    setWindowSearchRouteParams({ location: 'USA.45_1' });
+    mockFetchLocationByGid.mockResolvedValue({
+      gid: 'USA.45_1',
+      name: 'Utah',
+      level: 1,
+      parent_gid: 'USA',
+      hierarchy: ['United States'],
+      ancestors: [{ gid: 'USA', name: 'United States', level: 0 }],
+    });
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid).toHaveBeenCalledWith(
+        'USA.45_1',
+        expect.objectContaining({ signal: expect.any(Object) }),
+      );
+    });
+
+    expect(mockFiltersResult.onHydrateRouteLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        countryValue: 'USA',
+        stateValue: 'USA.45_1',
+        countyValue: '',
+      }),
+    );
+
+    mockFiltersResult.countryValue = '';
+    mockFiltersResult.stateValue = '';
+    mockFiltersResult.countyValue = '';
+  });
+
+  it('clears stale state and county selections when a broader country route is hydrated in the same hierarchy', async () => {
+    setPlatformOS('web');
+    mockFiltersResult.countryValue = 'USA';
+    mockFiltersResult.stateValue = 'USA.45_1';
+    mockFiltersResult.countyValue = 'USA.45.1_1';
+    mockUseLocalSearchParams.mockReturnValue({
+      location: 'USA',
+    });
+    setWindowSearchRouteParams({ location: 'USA' });
+    mockFetchLocationByGid.mockResolvedValue({
+      gid: 'USA',
+      name: 'United States',
+      level: 0,
+      parent_gid: null,
+      hierarchy: [],
+      ancestors: [],
+    });
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid).toHaveBeenCalledWith(
+        'USA',
+        expect.objectContaining({ signal: expect.any(Object) }),
+      );
+    });
+
+    expect(mockFiltersResult.onHydrateRouteLocation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        countryValue: 'USA',
+        stateValue: '',
+        countyValue: '',
+      }),
+    );
+
+    mockFiltersResult.countryValue = '';
+    mockFiltersResult.stateValue = '';
+    mockFiltersResult.countyValue = '';
+  });
+
+  it('does not refetch canonical location metadata when rerendered with the same route location', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ location: 'USA.45.1_1' });
+    setWindowSearchRouteParams({ location: 'USA.45.1_1' });
+    mockFetchLocationByGid.mockResolvedValue({
+      gid: 'USA.45.1_1',
+      name: 'Beaver',
+      level: 2,
+      parent_gid: 'USA.45_1',
+      hierarchy: ['United States', 'Utah'],
+      ancestors: [
+        { gid: 'USA', name: 'United States', level: 0 },
+        { gid: 'USA.45_1', name: 'Utah', level: 1 },
+      ],
+    });
+
+    const rendered = render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    const callCountAfterInitialRender =
+      mockFetchLocationByGid.mock.calls.length;
+
+    rendered.rerender(<Search />);
+
+    expect(mockFetchLocationByGid).toHaveBeenCalledTimes(
+      callCountAfterInitialRender,
+    );
+  });
+
+  it('warns when canonical route location hydration still fails after retrying', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ location: 'USA.45.1_1' });
+    setWindowSearchRouteParams({ location: 'USA.45.1_1' });
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    mockFetchLocationByGid.mockRejectedValue(new Error('location failed'));
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[search] Failed to hydrate route location "USA.45.1_1" from canonical hierarchy',
+        expect.any(Error),
+      );
+    });
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('does not retry canonical route location hydration on rerender after a terminal failure', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ location: 'USA.45.1_1' });
+    setWindowSearchRouteParams({ location: 'USA.45.1_1' });
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    mockFetchLocationByGid.mockRejectedValue(new Error('location failed'));
+
+    const rendered = render(<Search />);
+
+    await waitFor(() => {
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const callCountAfterFailure = mockFetchLocationByGid.mock.calls.length;
+
+    rendered.rerender(<Search />);
+
+    expect(mockFetchLocationByGid).toHaveBeenCalledTimes(callCountAfterFailure);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('retries canonical route location hydration for the same route after a transient failure', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ location: 'USA.45.1_1' });
+    setWindowSearchRouteParams({ location: 'USA.45.1_1' });
+    mockFetchLocationByGid
+      .mockRejectedValueOnce(new Error('location failed'))
+      .mockResolvedValueOnce({
+        gid: 'USA.45.1_1',
+        name: 'Beaver',
+        level: 2,
+        parent_gid: 'USA.45_1',
+        hierarchy: ['United States', 'Utah'],
+        ancestors: [
+          { gid: 'USA', name: 'United States', level: 0 },
+          { gid: 'USA.45_1', name: 'Utah', level: 1 },
+        ],
+      });
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+
+    render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    await waitFor(() => {
+      expect(mockFiltersResult.onHydrateRouteLocation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          countryValue: 'USA',
+          stateValue: 'USA.45_1',
+          countyValue: 'USA.45.1_1',
+        }),
+      );
+    });
+
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('treats unresolved route locations as non-canonical and does not warn', async () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ location: 'county-us-ca-sf' });
+    setWindowSearchRouteParams({ location: 'county-us-ca-sf' });
+    mockFetchLocationByGid.mockReset();
+    mockFetchLocationByGid.mockResolvedValueOnce(null);
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    const initialCallCount = mockFetchLocationByGid.mock.calls.length;
+
+    const rendered = render(<Search />);
+
+    await waitFor(() => {
+      expect(mockFetchLocationByGid.mock.calls.length).toBe(
+        initialCallCount + 1,
+      );
+    });
+
+    rendered.rerender(<Search />);
+
+    expect(mockFetchLocationByGid.mock.calls.length).toBe(initialCallCount + 1);
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(mockFiltersResult.onHydrateRouteLocation).not.toHaveBeenCalled();
+    expect(mockFiltersResult.onCountryChange).not.toHaveBeenCalled();
+    expect(mockFiltersResult.onStateChange).not.toHaveBeenCalled();
+    expect(mockFiltersResult.onCountyChange).not.toHaveBeenCalledWith('');
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('skips canonical route location fetch when the routed selection already has labels', () => {
+    setPlatformOS('web');
+    mockUseLocalSearchParams.mockReturnValue({ location: 'USA.45_1' });
+    setWindowSearchRouteParams({ location: 'USA.45_1' });
+    mockFetchLocationByGid.mockClear();
+    mockFiltersResult.countryValue = 'USA';
+    mockFiltersResult.countryOptions = [
+      { label: 'United States', value: 'USA' },
+    ];
+    mockFiltersResult.stateValue = 'USA.45_1';
+    mockFiltersResult.stateOptions = [{ label: 'Utah', value: 'USA.45_1' }];
+
+    render(<Search />);
+
+    expect(mockFetchLocationByGid).not.toHaveBeenCalled();
+    expect(mockFiltersResult.onHydrateRouteLocation).not.toHaveBeenCalled();
+
+    mockFiltersResult.countryValue = '';
+    mockFiltersResult.countryOptions = [];
+    mockFiltersResult.stateValue = '';
+    mockFiltersResult.stateOptions = [];
+  });
+
+  it('restores the filter panel as open from browser history state', () => {
+    setPlatformOS('web');
+    Object.defineProperty(window, 'history', {
+      configurable: true,
+      value: {
+        ...window.history,
+        pushState: mockHistoryPushState,
+        replaceState: mockHistoryReplaceState,
+        state: { search: { filterVisible: true } },
+      },
+    });
+
+    render(<Search />);
+
+    expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+  });
+
+  it('restores the filter panel as open from session storage across routes', () => {
+    setPlatformOS('web');
+    window.sessionStorage.setItem('wherewild.search.filterVisible', 'true');
+
+    render(<Search />);
+
+    expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+  });
+
+  it('persists the filter panel state to browser history state on web', () => {
+    setPlatformOS('web');
+    render(<Search />);
+
+    act(() => {
+      getLatestHeaderConfig().onFilterPress();
+    });
+
+    expect(mockHistoryReplaceState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        search: expect.objectContaining({
+          filterVisible: true,
+        }),
+      }),
+      '',
+      '/search',
+    );
+    expect(
+      window.sessionStorage.getItem('wherewild.search.filterVisible'),
+    ).toBe('true');
+  });
+
+  it('rehydrates filter visibility from browser history during popstate navigation', () => {
+    setPlatformOS('web');
+    let popStateListener: (() => void) | undefined;
+    const addEventListener = jest.fn(
+      (event: string, listener: EventListener) => {
+        if (event === 'popstate') {
+          popStateListener = listener as unknown as () => void;
+        }
+      },
+    );
+    const removeEventListener = jest.fn();
+
+    Object.defineProperty(window, 'addEventListener', {
+      configurable: true,
+      value: addEventListener,
+    });
+    Object.defineProperty(window, 'removeEventListener', {
+      configurable: true,
+      value: removeEventListener,
+    });
+
+    render(<Search />);
+
+    expect(getLatestHeaderConfig().filterLabel).toBe('Filter');
+
+    Object.defineProperty(window, 'history', {
+      configurable: true,
+      value: {
+        ...window.history,
+        pushState: mockHistoryPushState,
+        replaceState: mockHistoryReplaceState,
+        state: { search: { filterVisible: true } },
+      },
+    });
+
+    act(() => {
+      popStateListener?.();
+    });
+
+    expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+
+    Object.defineProperty(window, 'history', {
+      configurable: true,
+      value: {
+        ...window.history,
+        pushState: mockHistoryPushState,
+        replaceState: mockHistoryReplaceState,
+        state: { search: { filterVisible: false } },
+      },
+    });
+
+    act(() => {
+      popStateListener?.();
+    });
+
+    expect(getLatestHeaderConfig().filterLabel).toBe('Filter');
+  });
+
+  it('does not rewrite the route when native search query changes', () => {
+    setPlatformOS('ios');
+    render(<Search />);
+
+    act(() => {
+      getLatestNativeTopAppBarConfig().onSearchValueChange('owl');
+    });
+
+    expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+  });
+
+  it('shows loading state message while searching', () => {
+    mockTaxaQuerySearchResult.searching = true;
+    const rendered = render(<Search />);
+    rendered.rerender(<Search />);
 
     expect(screen.getByText('Loading...')).toBeTruthy();
   });
 
   it('shows empty state message when no results', () => {
     render(<Search />);
-    const headerConfig = getLatestHeaderConfig();
-    act(() => {
-      headerConfig.onSearchResultsChanged([]);
-      headerConfig.onSearchingChanged(false);
-    });
 
     expect(
       screen.getByText('Enter a search term to see results.'),
     ).toBeTruthy();
   });
 
-  it('shows fallback explanation when ranking search falls back to text search', () => {
-    render(<Search />);
-    const headerConfig = getLatestHeaderConfig();
-
-    act(() => {
-      headerConfig.onSearchContextChanged(
-        'No ranked matches found for "spinystar". Showing text-search fallback results, which may include broader matches than the selected base taxon.',
-      );
-    });
+  it('shows ranked eligibility explanation when text matches exist but ranking returns none', () => {
+    mockTaxaQuerySearchResult.searchContext =
+      'Taxa matched "spinystar", but none were eligible for ranking with the selected filters.';
+    const rendered = render(<Search />);
+    rendered.rerender(<Search />);
 
     expect(
       screen.getByText(
-        'No ranked matches found for "spinystar". Showing text-search fallback results, which may include broader matches than the selected base taxon.',
+        'Taxa matched "spinystar", but none were eligible for ranking with the selected filters.',
       ),
     ).toBeTruthy();
+    expect(
+      screen.queryByText('Enter a search term to see results.'),
+    ).toBeNull();
   });
 
   it('shows query failure context message when search fails', () => {
-    render(<Search />);
-    const headerConfig = getLatestHeaderConfig();
-
-    act(() => {
-      headerConfig.onSearchContextChanged('Search failed. Please try again.');
-    });
+    mockTaxaQuerySearchResult.searchContext =
+      'Search failed. Please try again.';
+    const rendered = render(<Search />);
+    rendered.rerender(<Search />);
 
     expect(screen.getByText('Search failed. Please try again.')).toBeTruthy();
+    expect(
+      screen.queryByText('Enter a search term to see results.'),
+    ).toBeNull();
   });
 
   it('updates species card list when search results change', () => {
-    render(<Search />);
-    const headerConfig = getLatestHeaderConfig();
-    act(() => {
-      headerConfig.onSearchResultsChanged(mockSpeciesResults);
-      headerConfig.onSearchingChanged(false);
-    });
+    mockTaxaQuerySearchResult.searchResults = mockSpeciesResults;
+    const rendered = render(<Search />);
+    rendered.rerender(<Search />);
 
     expect(
       screen.queryByText('Enter a search term to see results.'),
@@ -330,12 +1404,9 @@ describe('Search screen', () => {
       marginHorizontal: 16,
     } as any);
 
-    render(<Search />);
-    const headerConfig = getLatestHeaderConfig();
-    act(() => {
-      headerConfig.onSearchResultsChanged(mockSpeciesResults);
-      headerConfig.onSearchingChanged(false);
-    });
+    mockTaxaQuerySearchResult.searchResults = mockSpeciesResults;
+    const rendered = render(<Search />);
+    rendered.rerender(<Search />);
 
     const renderedCardProps = mockSpeciesCardPropsHistory.filter(
       (props) => props.taxonId != null,
@@ -347,9 +1418,18 @@ describe('Search screen', () => {
   });
 
   describe('filter panel', () => {
-    it('passes filterParams from useSearchFilters to WebPageHeader', () => {
+    it('does not pass web search execution callbacks through WebPageHeader', () => {
       render(<Search />);
-      expect(getLatestHeaderConfig().filterParams).toEqual(mockFilterParams);
+      expect(getLatestHeaderConfig().filterParams).toBeUndefined();
+    });
+
+    it('passes a query change callback to WebPageHeader on web', () => {
+      setPlatformOS('web');
+      render(<Search />);
+
+      expect(typeof getLatestHeaderConfig().onSearchQueryChange).toBe(
+        'function',
+      );
     });
 
     it('shows the WebPageHeader filter button', () => {
@@ -414,12 +1494,12 @@ describe('Search screen', () => {
       expect(typeof mockFiltersProps.onResetFilters).toBe('function');
     });
 
-    it('passes undefined initial query when route query is missing', () => {
+    it('does not pass a shared web-header query on native when route query is missing', () => {
       mockUseLocalSearchParams.mockReturnValue({ query: undefined as any });
 
       render(<Search />);
 
-      expect(getLatestHeaderConfig().initialQuery).toBeUndefined();
+      expect(getLatestHeaderConfig().searchQuery).toBeUndefined();
     });
 
     it('updates layout width from layout events', () => {
@@ -438,9 +1518,10 @@ describe('Search screen', () => {
     });
 
     it('handles hide animation completion callbacks', () => {
+      let latestCallback: ((result: { finished: boolean }) => void) | undefined;
       const startMock = jest.fn(
         (callback?: (result: { finished: boolean }) => void) => {
-          callback?.({ finished: true });
+          latestCallback = callback;
         },
       );
       const stopMock = jest.fn();
@@ -448,8 +1529,13 @@ describe('Search screen', () => {
         .spyOn(Animated, 'parallel')
         .mockReturnValue({ start: startMock, stop: stopMock } as any);
 
-      render(<Search />);
+      const rendered = render(<Search />);
       const headerConfig = getLatestHeaderConfig();
+      const getFilterPanelStyle = () =>
+        StyleSheet.flatten(
+          rendered.UNSAFE_getByProps({ testID: 'search-filter-panel' }).props
+            .style,
+        );
 
       act(() => {
         headerConfig.onFilterPress();
@@ -460,7 +1546,42 @@ describe('Search screen', () => {
       });
 
       expect(startMock).toHaveBeenCalled();
+      expect(getFilterPanelStyle()?.maxHeight).toBeUndefined();
+
+      act(() => {
+        latestCallback?.({ finished: true });
+      });
+
+      expect(getFilterPanelStyle()).toEqual(
+        expect.objectContaining({
+          maxHeight: 0,
+          overflow: 'hidden',
+        }),
+      );
       parallelSpy.mockRestore();
+    });
+
+    it('does not replay the open animation when the filter starts visible', () => {
+      setPlatformOS('web');
+      Object.defineProperty(window, 'history', {
+        configurable: true,
+        value: {
+          ...window.history,
+          pushState: mockHistoryPushState,
+          replaceState: mockHistoryReplaceState,
+          state: { search: { filterVisible: true } },
+        },
+      });
+
+      const setValueSpy = jest.spyOn(Animated.Value.prototype, 'setValue');
+
+      render(<Search />);
+
+      expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+      expect(setValueSpy).not.toHaveBeenCalledWith(480);
+      expect(setValueSpy).not.toHaveBeenCalledWith(-480);
+
+      setValueSpy.mockRestore();
     });
 
     it('uses stacked filter slide offsets when layout cannot fit side-by-side columns', () => {

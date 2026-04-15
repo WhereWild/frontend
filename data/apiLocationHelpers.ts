@@ -1,5 +1,13 @@
-import type { LocationSearchResult } from './types';
+import type {
+  LocationDetail,
+  LocationHierarchyEntry,
+  LocationSearchResult,
+} from './types';
 import { BACKEND_BASE, asRecord, fetchJsonOrThrow } from './apiShared';
+
+export type FetchLocationByGidOptions = {
+  signal?: AbortSignal;
+};
 
 type LocationLevel = 'continent' | 'country' | 'state' | 'county' | number;
 
@@ -10,7 +18,9 @@ const LEVEL_NAME_TO_NUM: Record<string, number> = {
   county: 2,
 };
 
-const toLocationSearchResult = (entry: unknown): LocationSearchResult | null => {
+const toLocationSearchResult = (
+  entry: unknown,
+): LocationSearchResult | null => {
   const source = asRecord(entry);
   const gid = String(source.gid ?? '').trim();
   const name = typeof source.name === 'string' ? source.name : '';
@@ -22,10 +32,55 @@ const toLocationSearchResult = (entry: unknown): LocationSearchResult | null => 
   return {
     gid,
     name,
-    level: typeof source.level === 'number' ? source.level : Number(source.level ?? -1),
+    level:
+      typeof source.level === 'number'
+        ? source.level
+        : Number(source.level ?? -1),
     hierarchy: Array.isArray(source.hierarchy)
       ? source.hierarchy.map((item) => String(item ?? '')).filter(Boolean)
       : [],
+  };
+};
+
+const toLocationHierarchyEntry = (
+  entry: unknown,
+): LocationHierarchyEntry | null => {
+  const source = asRecord(entry);
+  const gid = String(source.gid ?? '').trim();
+  const name = typeof source.name === 'string' ? source.name : '';
+
+  if (!gid.length || !name.length) {
+    return null;
+  }
+
+  return {
+    gid,
+    name,
+    level:
+      typeof source.level === 'number'
+        ? source.level
+        : Number(source.level ?? -1),
+  };
+};
+
+const toLocationDetail = (payload: unknown): LocationDetail | null => {
+  const source = asRecord(payload);
+  const base = toLocationSearchResult(source);
+  if (!base) {
+    return null;
+  }
+
+  const parentGid = String(source.parent_gid ?? source.parentGid ?? '').trim();
+  const ancestors = Array.isArray(source.ancestors)
+    ? source.ancestors
+        .map(toLocationHierarchyEntry)
+        .filter((entry): entry is LocationHierarchyEntry => Boolean(entry))
+    : [];
+
+  return {
+    ...base,
+    parent_gid: parentGid.length > 0 ? parentGid : null,
+    ancestors,
   };
 };
 
@@ -76,7 +131,7 @@ export async function fetchLocationsByHierarchy(
   params.set('limit', String(limit));
 
   const payload = await fetchJsonOrThrow(
-    `${BACKEND_BASE}/locations/search_hierarchy?${params.toString()}`,
+    `${BACKEND_BASE}/api/locations/search_hierarchy?${params.toString()}`,
     'Failed to search locations by hierarchy',
   );
 
@@ -86,7 +141,10 @@ export async function fetchLocationsByHierarchy(
 /**
  * Searches locations by free-text query.
  */
-export async function fetchLocations(query: string, limit = 8): Promise<LocationSearchResult[]> {
+export async function fetchLocations(
+  query: string,
+  limit = 8,
+): Promise<LocationSearchResult[]> {
   const trimmed = query.trim();
   if (!trimmed.length) {
     return [];
@@ -96,11 +154,52 @@ export async function fetchLocations(query: string, limit = 8): Promise<Location
     params.set('limit', String(limit));
   }
   const payload = await fetchJsonOrThrow(
-    `${BACKEND_BASE}/locations/search?${params.toString()}`,
+    `${BACKEND_BASE}/api/locations/search?${params.toString()}`,
     'Failed to search locations',
   );
 
   return mapLocationSearchResults(payload);
+}
+
+/**
+ * Fetches canonical hierarchy metadata for a single location gid.
+ */
+export async function fetchLocationByGid(
+  gid: string,
+  options?: FetchLocationByGidOptions,
+): Promise<LocationDetail | null> {
+  const trimmedGid = gid.trim();
+  if (!trimmedGid.length) {
+    return null;
+  }
+
+  const requestOptions = options?.signal
+    ? { signal: options.signal }
+    : undefined;
+
+  const response = requestOptions
+    ? await fetch(
+        `${BACKEND_BASE}/api/locations/${encodeURIComponent(trimmedGid)}`,
+        requestOptions,
+      )
+    : await fetch(
+        `${BACKEND_BASE}/api/locations/${encodeURIComponent(trimmedGid)}`,
+      );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(
+      `Failed to fetch location detail for ${trimmedGid}: ${response.status} ${text}`,
+    );
+  }
+
+  const payload = await response.json();
+
+  return toLocationDetail(payload);
 }
 
 /**

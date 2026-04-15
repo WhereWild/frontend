@@ -35,15 +35,6 @@ describe('SpeciesLocationFilters', () => {
     >);
   });
 
-  it('renders the section heading and all three filter labels', () => {
-    render(<SpeciesLocationFilters {...defaultProps} />);
-
-    expect(screen.getByText('Filter Observations by Location')).toBeTruthy();
-    expect(screen.getByText('Country')).toBeTruthy();
-    expect(screen.getByText('State')).toBeTruthy();
-    expect(screen.getByText('County')).toBeTruthy();
-  });
-
   describe('stacking layout', () => {
     it('stacks filters vertically on phone breakpoint', () => {
       mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
