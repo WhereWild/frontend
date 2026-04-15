@@ -10,7 +10,7 @@ import {
   fetchViewportScores,
   BACKEND_BASE,
 } from '@/data/api';
-import type { ViewportScoresResult } from '@/data/api';
+import type { ViewportScoresResult, ViewportTileRange } from '@/data/api';
 import { mockHomePageData } from '@/data/homeSample';
 import type {
   HomePageData,
@@ -38,14 +38,6 @@ const HOMEPAGE_GROUP_ORDER = [
   'fungi',
   'plants',
 ] as const;
-
-type ViewportTiles = {
-  z: number;
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-};
 
 const formatReasonDescription = (reasons: string[] | undefined) => {
   if (!reasons?.length) {
@@ -211,7 +203,7 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
     };
   }, []);
 
-  const handleBoundsChange = React.useCallback((bounds: ViewportTiles) => {
+  const handleBoundsChange = React.useCallback((bounds: ViewportTileRange) => {
     if (scoreRequestRef.current) {
       clearTimeout(scoreRequestRef.current);
     }

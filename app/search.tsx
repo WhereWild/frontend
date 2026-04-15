@@ -4,16 +4,15 @@ import {
   Filters,
   PageScrollContainer,
 } from '@/components';
-import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   getResponsiveContentContainerStyle,
   getResponsiveGapStyle,
 } from '@/constants/responsiveStyles';
-import { useSearchFilters } from '@/hooks/useSearchFilters';
-import { useWebPageHeaderSearch } from '@/components/sections/webPageHeader/useWebPageHeaderSearch';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchFilters } from '@/hooks/search/filters/useSearchFilters';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -21,236 +20,196 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import type { SpeciesSummary } from '@/data/types';
-import { useWebPageHeaderConfig } from '@/context/WebPageHeaderContext';
-import { useNativeTopAppBarConfig } from '@/context/NativeTopAppBarContext';
+import {
+  useSearchRouteInitialState,
+  useSearchRouteSync,
+} from '@/hooks/search/useSearchRouteState';
+import {
+  pickSearchRouteParams,
+  toCurrentSearchRouteParams,
+  toInitialSearchFilterState,
+} from '@/hooks/search/searchRouteState';
+import { useSearchController } from '@/hooks/search/useSearchController';
+import { useSearchFilterAnimation } from '@/hooks/search/useSearchFilterAnimation';
+import { useSearchPageChrome } from '@/hooks/search/useSearchPageChrome';
+import { useSearchRouteLocationHydration } from '../hooks/search/useSearchRouteLocationHydration';
 
 const FILTERS_COLUMN_MAX_WIDTH = 480;
 const FILTERS_COLUMN_MIN_WIDTH = 240;
 const RESULTS_COLUMN_MIN_WIDTH = 300;
 const FILTER_SLIDE_OFFSET = FILTERS_COLUMN_MAX_WIDTH;
-const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 export default function Search() {
   const isWeb = Platform.OS === 'web';
   const isNative = !isWeb;
   const responsive = useResponsive();
   const isSmallDisplay = responsive.breakpoint === 'phone';
-  const { setConfig, resetConfig } = useWebPageHeaderConfig();
   const {
-    setConfig: setNativeTopAppBarConfig,
-    resetConfig: resetNativeTopAppBarConfig,
-  } = useNativeTopAppBarConfig();
-  const [searchResults, setSearchResults] = useState<SpeciesSummary[]>([]);
-  const initialQuery = useLocalSearchParams<{ query?: string }>().query;
-  const [searching, setSearching] = useState(false);
-  const [searchContext, setSearchContext] = useState<string | null>(null);
-  const [filterVisible, setFilterVisible] = useState(false);
+    routeSearchQuery,
+    initialFilterVisible,
+    initialSearchFiltersState,
+    searchRouteParams,
+  } = useSearchRouteInitialState(isWeb);
   const [layoutWidth, setLayoutWidth] = useState(0);
-  const filterTranslateX = useRef(new Animated.Value(0));
-  const filterTranslateY = useRef(new Animated.Value(0));
-  const filterOpacity = useRef(new Animated.Value(1));
-  const filterShouldStackRef = useRef(false);
-
-  const filters = useSearchFilters();
-  const { ancestorTaxonId } = filters.filterParams;
-  const isBaseTaxonSelected = ancestorTaxonId != null;
+  const filters = useSearchFilters(initialSearchFiltersState);
+  const {
+    searchQuery,
+    setSearchQuery,
+    filterVisible,
+    setFilterVisible,
+    routeChangedExternally,
+    routeStateHydrationPending,
+  } = useSearchRouteSync({
+    isWeb,
+    searchRouteParams,
+    initialFilterVisible,
+    filterParams: filters.filterParams,
+  });
+  const {
+    descendantRank,
+    includeSpeciesLike,
+    limit,
+    location,
+    minSamples,
+    query,
+    sortMetric,
+    sortOrder,
+    sortVariable,
+    withinTaxonId,
+  } = searchRouteParams;
+  const stableSearchRouteParams = useMemo(
+    () =>
+      pickSearchRouteParams({
+        query,
+        location,
+        withinTaxonId,
+        descendantRank,
+        includeSpeciesLike,
+        sortVariable,
+        sortMetric,
+        sortOrder,
+        minSamples,
+        limit,
+      }),
+    [
+      descendantRank,
+      includeSpeciesLike,
+      limit,
+      location,
+      minSamples,
+      query,
+      sortMetric,
+      sortOrder,
+      sortVariable,
+      withinTaxonId,
+    ],
+  );
+  const currentRouteParams = useMemo(
+    () => toCurrentSearchRouteParams(stableSearchRouteParams),
+    [stableSearchRouteParams],
+  );
+  const routeLocation = currentRouteParams.location;
+  const routeFiltersState = useMemo(
+    () => toInitialSearchFilterState(currentRouteParams),
+    [currentRouteParams],
+  );
+  const {
+    countryValue,
+    countryOptions,
+    stateValue,
+    stateOptions,
+    countyValue,
+    countyOptions,
+    onHydrateRouteLocation,
+    onHydrateRouteState,
+  } = filters;
   const canFitColumnsSideBySide =
     layoutWidth > 0 &&
     layoutWidth >=
       FILTERS_COLUMN_MIN_WIDTH + RESULTS_COLUMN_MIN_WIDTH + responsive.gap;
   const shouldExpandFilters = layoutWidth > 0 && !canFitColumnsSideBySide;
-
-  /** Receives search rows from the shared header search controller. */
-  const onSearchResultsChanged = useCallback((results: SpeciesSummary[]) => {
-    setSearchResults(results);
-  }, []);
-
-  /** Mirrors header search loading state for results-area feedback. */
-  const onSearchingChanged = useCallback((isSearching: boolean) => {
-    setSearching(isSearching);
-  }, []);
-
-  /** Displays contextual search messages (fallbacks/errors) in the results intro block. */
-  const onSearchContextChanged = useCallback((message: string | null) => {
-    setSearchContext(message);
-  }, []);
+  const {
+    animatedFilterStyle,
+    isFilterCollapsed,
+    prepareFilterVisibilityToggle,
+  } = useSearchFilterAnimation({
+    filterVisible,
+    slideOffset: FILTER_SLIDE_OFFSET,
+  });
 
   /** Toggles filter panel visibility from the global header filter action. */
   const onFilterPress = useCallback(() => {
     setFilterVisible((visible) => {
-      filterShouldStackRef.current =
-        shouldExpandFilters || (layoutWidth === 0 && isSmallDisplay);
+      prepareFilterVisibilityToggle(
+        shouldExpandFilters || (layoutWidth === 0 && isSmallDisplay),
+      );
 
       return !visible;
     });
-  }, [isSmallDisplay, layoutWidth, shouldExpandFilters]);
+  }, [
+    isSmallDisplay,
+    layoutWidth,
+    prepareFilterVisibilityToggle,
+    setFilterVisible,
+    shouldExpandFilters,
+  ]);
 
-  const nativeSearch = useWebPageHeaderSearch({
-    enabled: isNative,
-    initialQuery:
-      isNative && typeof initialQuery === 'string' ? initialQuery : undefined,
-    filterParams: isNative ? filters.filterParams : undefined,
-    onSearchResultsChanged: isNative ? onSearchResultsChanged : undefined,
-    onSearchingChanged: isNative ? onSearchingChanged : undefined,
-    onSearchContextChanged: isNative ? onSearchContextChanged : undefined,
+  const {
+    nativeSearchQuery,
+    setNativeSearchQuery,
+    searchContext,
+    searchResults,
+    searching,
+  } = useSearchController({
+    filterParams: filters.filterParams,
+    nativeInitialQuery: routeSearchQuery,
+    isNative,
+    isWeb,
+    searchEnabled: !routeStateHydrationPending,
+    searchQuery,
+  });
+
+  useSearchPageChrome({
+    allowWebSearchControl: !routeStateHydrationPending,
+    filterVisible,
+    hasActiveFilters: filters.hasActiveFilters,
+    isNative,
+    isWeb,
+    nativeSearchQuery,
+    onFilterPress,
+    onResetFilters: filters.onResetFilters,
+    searchQuery,
+    setNativeSearchQuery,
+    setSearchQuery,
   });
 
   useEffect(() => {
-    setConfig({
-      showSearchResultsDropdown: false,
-      showFilterButton: true,
-      onFilterPress,
-      filterLabel: filterVisible ? 'Hide Filter' : 'Filter',
-      showResetFilterButton: filters.hasActiveFilters,
-      onResetFilterPress: filters.onResetFilters,
-      initialQuery: typeof initialQuery === 'string' ? initialQuery : undefined,
-      filterParams: filters.filterParams,
-      onSearchResultsChanged,
-      onSearchingChanged,
-      onSearchContextChanged,
-    });
-
-    return () => {
-      resetConfig();
-    };
-  }, [
-    filterVisible,
-    filters.filterParams,
-    filters.hasActiveFilters,
-    filters.onResetFilters,
-    initialQuery,
-    onFilterPress,
-    onSearchResultsChanged,
-    onSearchContextChanged,
-    onSearchingChanged,
-    resetConfig,
-    setConfig,
-  ]);
-
-  useEffect(() => {
-    if (!isNative) {
+    if (!routeChangedExternally) {
       return;
     }
 
-    setNativeTopAppBarConfig({
-      searchValue: nativeSearch.searchQuery,
-      onSearchValueChange: nativeSearch.setSearchQuery,
-      onSubmitSearch: nativeSearch.setSearchQuery,
-      primaryAction: {
-        onPress: onFilterPress,
-        buttonLabel: filterVisible ? 'Hide Filter' : 'Filter',
-        buttonAccessibilityLabel: filterVisible ? 'Hide Filter' : 'Filter',
-        iconAccessibilityLabel: filterVisible
-          ? 'Hide filter panel'
-          : 'Show filter panel',
-      },
-      secondaryAction: {
-        isVisible: filters.hasActiveFilters,
-        onPress: filters.onResetFilters,
-        accessibilityLabel: 'Reset filters',
-      },
-    });
+    onHydrateRouteState(routeFiltersState);
+  }, [onHydrateRouteState, routeChangedExternally, routeFiltersState]);
 
-    return () => {
-      resetNativeTopAppBarConfig();
-    };
-  }, [
-    filterVisible,
-    filters.hasActiveFilters,
-    filters.onResetFilters,
-    isNative,
-    nativeSearch.searchQuery,
-    nativeSearch.setSearchQuery,
-    onFilterPress,
-    resetNativeTopAppBarConfig,
-    setNativeTopAppBarConfig,
-  ]);
+  useSearchRouteLocationHydration({
+    routeLocation,
+    countryValue,
+    countryOptions,
+    stateValue,
+    stateOptions,
+    countyValue,
+    countyOptions,
+    onHydrateRouteLocation,
+  });
 
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-
-  useEffect(() => {
-    const translateX = filterTranslateX.current;
-    const translateY = filterTranslateY.current;
-    const opacity = filterOpacity.current;
-    let showAnimation: Animated.CompositeAnimation | null = null;
-    let hideAnimation: Animated.CompositeAnimation | null = null;
-
-    const shouldStack = filterShouldStackRef.current;
-    const hiddenTranslateX = shouldStack ? 0 : FILTER_SLIDE_OFFSET;
-    const hiddenTranslateY = shouldStack ? -FILTER_SLIDE_OFFSET : 0;
-
-    if (filterVisible) {
-      translateX.setValue(hiddenTranslateX);
-      translateY.setValue(hiddenTranslateY);
-      opacity.setValue(0);
-
-      showAnimation = Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: Time.duration.medium,
-          easing: getReactNativeEasing('out'),
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: Time.duration.medium,
-          easing: getReactNativeEasing('out'),
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: Time.duration.medium,
-          easing: getReactNativeEasing('out'),
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-      ]);
-
-      showAnimation.start();
-
-      return () => {
-        showAnimation?.stop();
-      };
-    }
-
-    hideAnimation = Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: hiddenTranslateX,
-        duration: Time.duration.medium,
-        easing: getReactNativeEasing('in'),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(translateY, {
-        toValue: hiddenTranslateY,
-        duration: Time.duration.medium,
-        easing: getReactNativeEasing('in'),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: Time.duration.medium,
-        easing: getReactNativeEasing('in'),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]);
-
-    hideAnimation.start();
-
-    return () => {
-      hideAnimation?.stop();
-    };
-  }, [filterVisible]);
-
-  const animatedFilterStyle = {
-    opacity: filterOpacity.current,
-    transform: [
-      { translateX: filterTranslateX.current },
-      { translateY: filterTranslateY.current },
-    ],
-  };
+  const resultsMessage = searchContext
+    ? searchContext
+    : !searching && searchResults.length === 0
+      ? 'Enter a search term to see results.'
+      : '';
 
   const contentStyle = [
     styles.content,
@@ -266,19 +225,16 @@ export default function Search() {
     <Animated.View
       accessibilityElementsHidden={!filterVisible}
       importantForAccessibility={filterVisible ? 'auto' : 'no-hide-descendants'}
+      testID='search-filter-panel'
       style={[
         styles.filters,
         shouldExpandFilters && styles.filtersFullWidth,
         animatedFilterStyle,
         { pointerEvents: filterVisible ? 'auto' : 'none' },
-        !filterVisible ? styles.filtersHidden : undefined,
+        isFilterCollapsed ? styles.filtersHidden : undefined,
       ]}
     >
-      <Filters
-        {...filters}
-        style={styles.filtersContent}
-        hasBaseTaxonSelection={isBaseTaxonSelected}
-      />
+      <Filters {...filters.panelProps} style={styles.filtersContent} />
     </Animated.View>
   );
 
@@ -288,14 +244,19 @@ export default function Search() {
         <View style={styles.resultsHeader}>
           <ThemedText variant='heading'>Results</ThemedText>
         </View>
-        {searchContext ? (
-          <ThemedText variant='body'>{searchContext}</ThemedText>
-        ) : null}
-        {searchResults.length === 0 && !searching && (
-          <ThemedText variant='body'>
-            Enter a search term to see results.
-          </ThemedText>
-        )}
+        <View
+          accessibilityElementsHidden={resultsMessage.length === 0}
+          importantForAccessibility={
+            resultsMessage.length === 0 ? 'no-hide-descendants' : 'auto'
+          }
+          style={
+            resultsMessage.length === 0
+              ? styles.resultsMessageHidden
+              : undefined
+          }
+        >
+          <ThemedText variant='body'>{resultsMessage}</ThemedText>
+        </View>
       </View>
       <View style={styles.results}>
         <View
@@ -405,6 +366,11 @@ const styles = StyleSheet.create({
   resultsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  resultsMessageHidden: {
+    opacity: 0,
+    maxHeight: 0,
+    overflow: 'hidden',
   },
   resultsLoadingRow: {
     flexDirection: 'row',

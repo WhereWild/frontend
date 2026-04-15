@@ -1,10 +1,8 @@
 import React from 'react';
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type { LocationSearchResult } from '@/data/types';
-import {
-  type LocationOption,
-  mapLocationsToOptions,
-} from './locationHelpers';
+import type { SpeciesDataSource } from '@/data/speciesDataSource';
+import { type LocationOption, mapLocationsToOptions } from './locationHelpers';
 import {
   buildLocationCacheKey,
   filterCandidatesByParent,
@@ -45,6 +43,24 @@ type LocationLevelState = {
   applyOptions: (list: LocationSearchResult[]) => void;
   invalidatePendingLoads: () => void;
   reset: () => void;
+};
+
+const sharedSpeciesLocationInFlightCache = new WeakMap<
+  SpeciesDataSource,
+  Partial<Record<string, Promise<LocationSearchResult[]>>>
+>();
+
+const getSharedSpeciesLocationInFlightCache = (
+  speciesDataSource: SpeciesDataSource,
+) => {
+  let cache = sharedSpeciesLocationInFlightCache.get(speciesDataSource);
+
+  if (!cache) {
+    cache = {};
+    sharedSpeciesLocationInFlightCache.set(speciesDataSource, cache);
+  }
+
+  return cache;
 };
 
 const useLocationLevelState = (): LocationLevelState => {
@@ -134,25 +150,31 @@ export const useSpeciesLocationFilters = ({
     reset: resetCounty,
   } = county;
 
-  const speciesLocationCacheRef = React.useRef<Record<string, LocationSearchResult[]>>({});
+  const speciesLocationCacheRef = React.useRef<
+    Record<string, LocationSearchResult[]>
+  >({});
 
   const finalLocationGid = React.useMemo(() => {
     return selectedCountyGid ?? selectedStateGid ?? selectedCountryGid;
   }, [selectedCountryGid, selectedCountyGid, selectedStateGid]);
 
   const loadSpeciesLocations = React.useCallback(
-    async (level: LocationLevel, parentGidOrName: string | null): Promise<LocationSearchResult[]> => {
+    async (
+      level: LocationLevel,
+      parentGidOrName: string | null,
+    ): Promise<LocationSearchResult[]> => {
       if (taxonId == null) return [];
 
-      const { parentRequestToken, parentFilterToken, parentCacheIdentity } = resolveParentLookup({
-        level,
-        parentGidOrName,
-        countryMap: countryMapRef.current,
-        stateMap: stateMapRef.current,
-      });
+      const { parentRequestToken, parentFilterToken, parentCacheIdentity } =
+        resolveParentLookup({
+          level,
+          parentGidOrName,
+          countryMap: countryMapRef.current,
+          stateMap: stateMapRef.current,
+        });
       const parentTokenForDataSource =
         speciesDataSource.locationParentIdentityMode === 'gid'
-          ? parentFilterToken ?? parentRequestToken
+          ? (parentFilterToken ?? parentRequestToken)
           : parentRequestToken;
 
       // Cache keys use parent identity (prefer gid, fallback normalized name) and
@@ -160,26 +182,58 @@ export const useSpeciesLocationFilters = ({
       // - gid vs name inputs for the same parent share one cache entry,
       // - same-name but different-gid parents do not collide, and
       // - requests with different limits do not reuse stale cached result sizes.
-      const cacheKey = buildLocationCacheKey(taxonId, level, parentCacheIdentity, locationSearchLimit);
+      const cacheKey = buildLocationCacheKey(
+        taxonId,
+        level,
+        parentCacheIdentity,
+        locationSearchLimit,
+      );
       if (speciesLocationCacheRef.current[cacheKey]) {
         return speciesLocationCacheRef.current[cacheKey];
       }
 
-      const locations = await speciesDataSource.fetchSpeciesLocations(
-        taxonId,
-        level,
-        parentTokenForDataSource || undefined,
-        locationSearchLimit,
-      );
+      const sharedInFlightCache =
+        getSharedSpeciesLocationInFlightCache(speciesDataSource);
 
-      const filtered =
-        speciesDataSource.locationParentIdentityMode === 'gid'
-          ? locations
-          : filterCandidatesByParent(locations, parentTokenForDataSource);
-      speciesLocationCacheRef.current[cacheKey] = filtered;
-      return filtered;
+      if (sharedInFlightCache[cacheKey]) {
+        const sharedResult = await sharedInFlightCache[cacheKey];
+        speciesLocationCacheRef.current[cacheKey] = sharedResult;
+        return sharedResult;
+      }
+
+      const requestPromise = speciesDataSource
+        .fetchSpeciesLocations(
+          taxonId,
+          level,
+          parentTokenForDataSource || undefined,
+          locationSearchLimit,
+        )
+        .then((locations) =>
+          speciesDataSource.locationParentIdentityMode === 'gid'
+            ? locations
+            : filterCandidatesByParent(locations, parentTokenForDataSource),
+        )
+        .then((filtered) => {
+          speciesLocationCacheRef.current[cacheKey] = filtered;
+          return filtered;
+        })
+        .finally(() => {
+          if (sharedInFlightCache[cacheKey] === requestPromise) {
+            delete sharedInFlightCache[cacheKey];
+          }
+        });
+
+      sharedInFlightCache[cacheKey] = requestPromise;
+
+      return requestPromise;
     },
-    [countryMapRef, locationSearchLimit, speciesDataSource, stateMapRef, taxonId],
+    [
+      countryMapRef,
+      locationSearchLimit,
+      speciesDataSource,
+      stateMapRef,
+      taxonId,
+    ],
   );
 
   const runGuardedLoad = React.useCallback(
@@ -232,24 +286,41 @@ export const useSpeciesLocationFilters = ({
       invalidateStatePendingLoads();
       invalidateCountyPendingLoads();
     };
-  }, [invalidateCountryPendingLoads, invalidateCountyPendingLoads, invalidateStatePendingLoads]);
+  }, [
+    invalidateCountryPendingLoads,
+    invalidateCountyPendingLoads,
+    invalidateStatePendingLoads,
+  ]);
 
-  const inferAndSetParentsFromEntry = React.useCallback((entry: LocationSearchResult) => {
-    const inferred = inferParentSelection(entry, countryMapRef.current, stateMapRef.current);
-    if (!inferred) {
-      return;
-    }
+  const inferAndSetParentsFromEntry = React.useCallback(
+    (entry: LocationSearchResult) => {
+      const inferred = inferParentSelection(
+        entry,
+        countryMapRef.current,
+        stateMapRef.current,
+      );
+      if (!inferred) {
+        return;
+      }
 
-    if (inferred.countryGid) {
-      setSelectedCountryGid(inferred.countryGid);
-    }
-    if (inferred.stateGid) {
-      setSelectedStateGid(inferred.stateGid);
-    }
-    if (inferred.countyGid) {
-      setSelectedCountyGid(inferred.countyGid);
-    }
-  }, [countryMapRef, setSelectedCountryGid, setSelectedCountyGid, setSelectedStateGid, stateMapRef]);
+      if (inferred.countryGid) {
+        setSelectedCountryGid(inferred.countryGid);
+      }
+      if (inferred.stateGid) {
+        setSelectedStateGid(inferred.stateGid);
+      }
+      if (inferred.countyGid) {
+        setSelectedCountyGid(inferred.countyGid);
+      }
+    },
+    [
+      countryMapRef,
+      setSelectedCountryGid,
+      setSelectedCountyGid,
+      setSelectedStateGid,
+      stateMapRef,
+    ],
+  );
 
   React.useEffect(() => {
     void runGuardedLoad(
@@ -258,7 +329,14 @@ export const useSpeciesLocationFilters = ({
       () => loadSpeciesLocations('country', null),
       applyCountryOptions,
     );
-  }, [applyCountryOptions, countryRequestRef, loadSpeciesLocations, runGuardedLoad, setCountryLoading, taxonId]);
+  }, [
+    applyCountryOptions,
+    countryRequestRef,
+    loadSpeciesLocations,
+    runGuardedLoad,
+    setCountryLoading,
+    taxonId,
+  ]);
 
   React.useEffect(() => {
     resetStateAndCountySelection();

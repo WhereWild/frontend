@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TextInputProps,
+  View,
   ViewStyle,
 } from 'react-native';
 import { IconButton } from '@/components/buttons/IconButton';
@@ -60,6 +61,20 @@ const styles = StyleSheet.create({
       ? ({ outlineStyle: 'none', outlineWidth: 0 } as any)
       : {}),
   },
+  hiddenClearButtonSlot: {
+    opacity: 0,
+    width: 0,
+    height: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  clearButtonSlot: {
+    pointerEvents: 'auto',
+  },
+  clearButtonPlaceholder: {
+    width: Size.control.dimension.medium,
+    height: Size.control.dimension.medium,
+  },
 });
 
 export function SearchInputView({
@@ -81,6 +96,7 @@ export function SearchInputView({
   // consistent hover states while letting the browser draw the actual focus ring.
   return (
     <Pressable
+      collapsable={false}
       onPress={containerHandlers.onPress}
       onHoverIn={containerHandlers.onHoverIn}
       onHoverOut={containerHandlers.onHoverOut}
@@ -104,16 +120,27 @@ export function SearchInputView({
 
       <TextInput ref={inputRef} {...restInputProps} style={mergedInputStyle} />
 
-      {clearButton ? (
-        <IconButton
-          variant='subtle'
-          size='small'
-          icon={clearButton.icon}
-          accessibilityLabel={clearButton.accessibilityLabel}
-          disabled={clearButton.disabled}
-          onPress={clearButton.onPress}
-        />
-      ) : null}
+      <View
+        collapsable={false}
+        accessibilityElementsHidden={!clearButton}
+        importantForAccessibility={clearButton ? 'auto' : 'no-hide-descendants'}
+        style={
+          clearButton ? styles.clearButtonSlot : styles.hiddenClearButtonSlot
+        }
+      >
+        {clearButton ? (
+          <IconButton
+            variant='subtle'
+            size='small'
+            icon={clearButton.icon}
+            accessibilityLabel={clearButton.accessibilityLabel}
+            disabled={clearButton.disabled}
+            onPress={clearButton.onPress}
+          />
+        ) : (
+          <View collapsable={false} style={styles.clearButtonPlaceholder} />
+        )}
+      </View>
     </Pressable>
   );
 }
