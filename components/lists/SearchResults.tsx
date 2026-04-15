@@ -228,6 +228,13 @@ export function SearchResults({
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const isPanelHidden = !isVisible;
+  const showLoadingState = isLoading;
+  const showEmptyState = !isLoading && results.length === 0;
+  const showResultsState = !isLoading && results.length > 0;
+  const isInlineLayout = layout === 'inline';
+  const showInlineResults = showResultsState && isInlineLayout;
+  const showFloatingResults = showResultsState && !isInlineLayout;
   const listRef = React.useRef<SearchResultsListRef | null>(null);
   const resultLayoutsRef = React.useRef<Record<number, ResultLayout>>({});
   const scrollMetricsRef = React.useRef<ScrollMetrics>({
@@ -330,92 +337,6 @@ export function SearchResults({
     [],
   );
 
-  if (!isVisible) {
-    return null;
-  }
-
-  if (isLoading) {
-    return (
-      <View
-        style={[panelStyles]}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        testID={testID ? `${testID}-loading` : undefined}
-      >
-        <View style={[styles.centerContent, styles.loading]}>
-          <ActivityIndicator color={palette.icon.brand.default} />
-          <ThemedText variant='body'>Loading results...</ThemedText>
-        </View>
-      </View>
-    );
-  }
-
-  if (results.length === 0) {
-    return (
-      <View
-        style={[panelStyles]}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        testID={testID ? `${testID}-empty` : undefined}
-      >
-        <View style={styles.centerContent}>
-          <ThemedText variant='body'>{emptyMessage}</ThemedText>
-        </View>
-      </View>
-    );
-  }
-
-  if (layout === 'inline') {
-    return (
-      <View
-        style={[panelStyles, { maxHeight }]}
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        testID={testID}
-      >
-        <View
-          style={styles.listContent}
-          testID={testID ? `${testID}-list` : undefined}
-        >
-          {results.map((item, index) => (
-            <SpeciesCard
-              key={item.taxonId}
-              style={[
-                styles.speciesCard,
-                activeResultIndex === index
-                  ? {
-                      backgroundColor:
-                        palette.background.default.secondaryHover,
-                    }
-                  : null,
-              ]}
-              taxonId={item.taxonId}
-              commonName={item.commonName}
-              scientificName={item.scientificName}
-              description={item.description}
-              imageSource={item.imageSource}
-              size='compact'
-              onPress={() => onSelectResult?.(item)}
-              testID={`search-result-${item.taxonId}`}
-            />
-          ))}
-        </View>
-      </View>
-    );
-  }
-
   const renderResult: ListRenderItem<SpeciesSummary> = ({ item, index }) => (
     <View
       nativeID={getSearchResultsResultElementId(instanceId, index)}
@@ -442,31 +363,135 @@ export function SearchResults({
 
   return (
     <View
-      style={[panelStyles, { maxHeight }]}
-      onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      onFocus={onFocus}
-      onBlur={onBlur}
+      collapsable={false}
+      style={[
+        panelStyles,
+        { maxHeight },
+        isPanelHidden ? styles.hiddenPanel : null,
+      ]}
+      accessibilityElementsHidden={isPanelHidden}
+      importantForAccessibility={isPanelHidden ? 'no-hide-descendants' : 'auto'}
       testID={testID}
     >
-      <FlatList
-        ref={listRef}
-        nativeID={listElementId}
-        data={results}
-        renderItem={renderResult}
-        keyExtractor={(item) => item.taxonId.toString()}
-        onLayout={handleListLayout}
-        onScroll={handleListScroll}
-        scrollEventThrottle={16}
-        scrollEnabled
-        nestedScrollEnabled
-        keyboardShouldPersistTaps='always'
-        keyboardDismissMode='none'
-        contentContainerStyle={styles.listContent}
-        testID={testID ? `${testID}-list` : undefined}
-      />
+      <View
+        accessibilityElementsHidden={!showLoadingState}
+        importantForAccessibility={
+          showLoadingState ? 'auto' : 'no-hide-descendants'
+        }
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        style={!showLoadingState ? styles.hiddenContentSlot : undefined}
+        testID={showLoadingState && testID ? `${testID}-loading` : undefined}
+      >
+        <View style={[styles.centerContent, styles.loading]}>
+          <ActivityIndicator color={palette.icon.brand.default} />
+          <ThemedText variant='body'>Loading results...</ThemedText>
+        </View>
+      </View>
+
+      <View
+        accessibilityElementsHidden={!showEmptyState}
+        importantForAccessibility={
+          showEmptyState ? 'auto' : 'no-hide-descendants'
+        }
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        style={!showEmptyState ? styles.hiddenContentSlot : undefined}
+        testID={showEmptyState && testID ? `${testID}-empty` : undefined}
+      >
+        <View style={styles.centerContent}>
+          <ThemedText variant='body'>{emptyMessage}</ThemedText>
+        </View>
+      </View>
+
+      {isInlineLayout ? (
+        <View
+          accessibilityElementsHidden={!showInlineResults}
+          importantForAccessibility={
+            showInlineResults ? 'auto' : 'no-hide-descendants'
+          }
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          style={!showInlineResults ? styles.hiddenContentSlot : undefined}
+        >
+          <View
+            style={styles.listContent}
+            testID={showInlineResults && testID ? `${testID}-list` : undefined}
+          >
+            {results.map((item, index) => (
+              <SpeciesCard
+                key={item.taxonId}
+                style={[
+                  styles.speciesCard,
+                  activeResultIndex === index
+                    ? {
+                        backgroundColor:
+                          palette.background.default.secondaryHover,
+                      }
+                    : null,
+                ]}
+                taxonId={item.taxonId}
+                commonName={item.commonName}
+                scientificName={item.scientificName}
+                description={item.description}
+                imageSource={item.imageSource}
+                size='compact'
+                onPress={() => onSelectResult?.(item)}
+                testID={`search-result-${item.taxonId}`}
+              />
+            ))}
+          </View>
+        </View>
+      ) : (
+        <View
+          accessibilityElementsHidden={!showFloatingResults}
+          importantForAccessibility={
+            showFloatingResults ? 'auto' : 'no-hide-descendants'
+          }
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          style={
+            !showFloatingResults
+              ? styles.hiddenContentSlot
+              : styles.floatingListSlot
+          }
+        >
+          <FlatList
+            ref={listRef}
+            nativeID={listElementId}
+            data={results}
+            renderItem={renderResult}
+            keyExtractor={(item) => item.taxonId.toString()}
+            onLayout={handleListLayout}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
+            scrollEnabled
+            nestedScrollEnabled
+            keyboardShouldPersistTaps='always'
+            keyboardDismissMode='none'
+            contentContainerStyle={styles.listContent}
+            testID={
+              showFloatingResults && testID ? `${testID}-list` : undefined
+            }
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -501,6 +526,26 @@ const styles = StyleSheet.create({
   },
   loading: {
     gap: Size.space['200'],
+  },
+  hiddenPanel: {
+    opacity: 0,
+    height: 0,
+    maxHeight: 0,
+    borderWidth: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  hiddenContentSlot: {
+    opacity: 0,
+    height: 0,
+    maxHeight: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  floatingListSlot: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
   },
   speciesCard: {
     maxWidth: '100%',

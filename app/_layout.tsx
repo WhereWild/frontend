@@ -233,11 +233,9 @@ function RootLayoutWebFrame() {
             showResetFilterButton={resolvedConfig.showResetFilterButton}
             onResetFilterPress={resolvedConfig.onResetFilterPress}
             showSearchResultsDropdown={resolvedConfig.showSearchResultsDropdown}
-            initialQuery={resolvedConfig.initialQuery}
+            searchQuery={resolvedConfig.searchQuery}
+            onSearchQueryChange={resolvedConfig.onSearchQueryChange}
             filterParams={resolvedConfig.filterParams}
-            onSearchingChanged={resolvedConfig.onSearchingChanged}
-            onSearchResultsChanged={resolvedConfig.onSearchResultsChanged}
-            onSearchContextChanged={resolvedConfig.onSearchContextChanged}
             onLayout={handleHeaderLayout}
           />
         </View>

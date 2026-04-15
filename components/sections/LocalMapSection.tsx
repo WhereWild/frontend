@@ -1,4 +1,5 @@
 import { Size } from '@/constants/theme';
+import type { ViewportTileRange } from '@/data/api';
 import React from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { View, StyleSheet } from 'react-native';
@@ -20,13 +21,7 @@ const CONUS_MAX_BOUNDS: [[number, number], [number, number]] = [
 export type LocalMapSectionProps = {
   heatmapTileUrl?: string | null;
   showHeading?: boolean;
-  onBoundsChange?: (tiles: {
-    z: number;
-    x0: number;
-    y0: number;
-    x1: number;
-    y1: number;
-  }) => void;
+  onBoundsChange?: (tiles: ViewportTileRange) => void;
   style?: StyleProp<ViewStyle>;
 };
 

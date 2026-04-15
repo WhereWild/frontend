@@ -229,11 +229,8 @@ describe('Root layout', () => {
       showResetFilterButton: true,
       onResetFilterPress: jest.fn(),
       showSearchResultsDropdown: false,
-      initialQuery: 'fox',
-      filterParams: { ancestorTaxonId: 212 },
-      onSearchingChanged: jest.fn(),
-      onSearchResultsChanged: jest.fn(),
-      onSearchContextChanged: jest.fn(),
+      searchQuery: 'fox',
+      filterParams: { withinTaxonId: 212 },
     };
 
     render(<RootLayout />);
@@ -253,8 +250,8 @@ describe('Root layout', () => {
       filterLabel: 'Filter',
       showResetFilterButton: true,
       showSearchResultsDropdown: false,
-      initialQuery: 'fox',
-      filterParams: { ancestorTaxonId: 212 },
+      searchQuery: 'fox',
+      filterParams: { withinTaxonId: 212 },
     };
 
     render(<RootLayout />);
@@ -263,8 +260,8 @@ describe('Root layout', () => {
     const headerProps = recordedHeaderProps.at(-1);
     expect(headerProps.showFilterButton).toBe(true);
     expect(headerProps.filterLabel).toBe('Filter');
-    expect(headerProps.initialQuery).toBe('fox');
-    expect(headerProps.filterParams).toEqual({ ancestorTaxonId: 212 });
+    expect(headerProps.searchQuery).toBe('fox');
+    expect(headerProps.filterParams).toEqual({ withinTaxonId: 212 });
     expect(screen.queryByTestId('mock-navigation-bar')).toBeNull();
     expect(screen.queryByTestId('mock-top-app-bar')).toBeNull();
   });

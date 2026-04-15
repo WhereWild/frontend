@@ -8,14 +8,21 @@ import { parseSpeciesApiDetail } from './speciesDetailParser';
 import { BACKEND_BASE, fetchJsonOrThrow } from './apiShared';
 import {
   fetchRelativeRankingOptions as fetchRelativeRankingOptionsHelper,
-  fetchRelativeRankings as fetchRelativeRankingsHelper,
+  type FetchRelativeRankingOptionsOptions,
   type RelativeRankingOptionsParams,
-  type RelativeRankingParams,
 } from './apiRankingHelpers';
-import { fetchSpeciesList as fetchSpeciesListHelper, normalizeToJsonShape } from './apiSpeciesSearchHelpers';
-import type { SearchFilterParams } from './apiSpeciesSearchHelpers';
-import { fetchEnvironmentVariables as fetchEnvironmentVariablesHelper } from './apiVariableHelpers';
 import {
+  buildTaxaQuerySearchParams,
+  fetchTaxaQuery as fetchTaxaQueryHelper,
+  type FetchTaxaQueryOptions,
+  type SearchTaxaQueryFilters,
+  type TaxaQueryParams,
+} from './apiTaxaQueryHelpers';
+import { normalizeToJsonShape } from './apiSpeciesSearchHelpers';
+import { fetchEnvironmentVariables as fetchEnvironmentVariablesHelper } from './apiVariableHelpers';
+import type { FetchEnvironmentVariablesOptions } from './apiVariableHelpers';
+import {
+  fetchLocationByGid as fetchLocationByGidHelper,
   fetchLocations as fetchLocationsHelper,
   fetchLocationsByHierarchy as fetchLocationsByHierarchyHelper,
   fetchSpeciesLocations as fetchSpeciesLocationsHelper,
@@ -32,10 +39,10 @@ export type UploadFileValue =
   | File
   | Blob
   | {
-    uri: string;
-    name: string;
-    type?: string;
-  };
+      uri: string;
+      name: string;
+      type?: string;
+    };
 
 export type UploadFileParams = {
   file: UploadFileValue;
@@ -56,7 +63,9 @@ const resolveUploadEndpoint = (endpoint: string) =>
     ? endpoint
     : `${BACKEND_BASE}${endpoint}`;
 
-const parseFilenameFromContentDisposition = (contentDisposition: string | null): string | null => {
+const parseFilenameFromContentDisposition = (
+  contentDisposition: string | null,
+): string | null => {
   if (!contentDisposition) {
     return null;
   }
@@ -81,14 +90,11 @@ const appendUploadPayload = (
   filename?: string,
 ) => {
   if ('uri' in file) {
-    formData.append(
-      fieldName,
-      {
-        uri: file.uri,
-        name: filename ?? file.name,
-        type: file.type ?? 'application/octet-stream',
-      } as unknown as Blob,
-    );
+    formData.append(fieldName, {
+      uri: file.uri,
+      name: filename ?? file.name,
+      type: file.type ?? 'application/octet-stream',
+    } as unknown as Blob);
     return;
   }
 
@@ -124,29 +130,42 @@ export async function fetchLocations(query: string, limit = 8) {
   return fetchLocationsHelper(query, limit);
 }
 
-
-/** Filter parameters for species list/search requests. */
-export type { SearchFilterParams };
-
 /**
- * Fetches species rows for search and list surfaces.
+ * Fetches canonical hierarchy metadata for a single location gid.
  */
-export async function fetchSpeciesList(limit?: number, q?: string, filters?: SearchFilterParams) {
-  return fetchSpeciesListHelper(limit, q, filters);
+export async function fetchLocationByGid(
+  gid: string,
+  options?: { signal?: AbortSignal },
+) {
+  return fetchLocationByGidHelper(gid, options);
 }
 
+/** Shared filter parameters forwarded to the unified taxa query endpoint. */
+export type { SearchTaxaQueryFilters };
+export type { TaxaQueryParams };
+export type { FetchTaxaQueryOptions };
+export { buildTaxaQuerySearchParams };
+
 /**
- * Returns per-taxon average probability scores for the given tile range.
+ * Returns per-taxon average probability scores for the given viewport bbox.
  */
-export type ViewportScoresResult = {
+export interface ViewportScoresResult {
   scores: Record<string, number>;
   reasons: Record<string, string[]>;
-};
+}
 
-export async function fetchViewportScores(tiles: {
-  z: number; x0: number; y0: number; x1: number; y1: number;
-}): Promise<ViewportScoresResult> {
-  const { z, x0, y0, x1, y1 } = tiles;
+export interface ViewportTileRange {
+  z: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export async function fetchViewportScores(
+  bounds: ViewportTileRange,
+): Promise<ViewportScoresResult> {
+  const { z, x0, y0, x1, y1 } = bounds;
   const url = `${BACKEND_BASE}/api/heatmap/homepage/scores?z=${z}&x0=${x0}&y0=${y0}&x1=${x1}&y1=${y1}`;
   const data = await fetchJsonOrThrow(url, 'Failed to fetch viewport scores');
   return {
@@ -158,10 +177,25 @@ export async function fetchViewportScores(tiles: {
 /**
  * Returns basic species info for every taxon that has a trained SDM model.
  */
-export async function fetchSpeciesWithModels(): Promise<SpeciesApiNormalized[]> {
+export async function fetchSpeciesWithModels(): Promise<
+  SpeciesApiNormalized[]
+> {
   const url = `${BACKEND_BASE}/api/species/with-models`;
-  const items = await fetchJsonOrThrow(url, 'Failed to fetch species with models');
+  const items = await fetchJsonOrThrow(
+    url,
+    'Failed to fetch species with models',
+  );
   return (items as unknown[]).map((item) => normalizeToJsonShape(item));
+}
+
+/**
+ * Fetches unified taxa query results for text search and ranked search surfaces.
+ */
+export async function fetchTaxaQuery(
+  params: TaxaQueryParams,
+  options?: FetchTaxaQueryOptions,
+) {
+  return fetchTaxaQueryHelper(params, options);
 }
 
 /**
@@ -178,7 +212,10 @@ export async function fetchSpeciesByTaxonId(
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/api/species/${encoded}${query ? `?${query}` : ''}`;
-  const item = await fetchJsonOrThrow(url, `Failed to fetch species ${taxonId}`);
+  const item = await fetchJsonOrThrow(
+    url,
+    `Failed to fetch species ${taxonId}`,
+  );
   const normalized = normalizeToJsonShape(item);
   return parseSpeciesApiDetail(item, normalized);
 }
@@ -186,7 +223,9 @@ export async function fetchSpeciesByTaxonId(
 /**
  * Lists environment variables and metadata.
  */
-export async function fetchEnvironmentVariables(options?: { units?: string | null }) {
+export async function fetchEnvironmentVariables(
+  options?: FetchEnvironmentVariablesOptions,
+) {
   return fetchEnvironmentVariablesHelper(options);
 }
 
@@ -201,21 +240,21 @@ export async function fetchSpeciesEnvironment(
   return fetchSpeciesEnvironmentHelper(taxonId, variableId, options);
 }
 
-/** Public query params for ranking endpoints. */
-export type { RelativeRankingParams, RelativeRankingOptionsParams };
+/** Public query params for ranking option endpoints. */
+export type { RelativeRankingOptionsParams };
+export type {
+  FetchEnvironmentVariablesOptions,
+  FetchRelativeRankingOptionsOptions,
+};
 
 /**
  * Lists available ranking options for a taxon/rank.
  */
-export async function fetchRelativeRankingOptions(params: RelativeRankingOptionsParams) {
-  return fetchRelativeRankingOptionsHelper(params);
-}
-
-/**
- * Fetches ranked descendants for a taxon/rank/metric query.
- */
-export async function fetchRelativeRankings(params: RelativeRankingParams) {
-  return fetchRelativeRankingsHelper(params);
+export async function fetchRelativeRankingOptions(
+  params: RelativeRankingOptionsParams,
+  options?: FetchRelativeRankingOptionsOptions,
+) {
+  return fetchRelativeRankingOptionsHelper(params, options);
 }
 
 /** Public query params for numeric environment slice requests. */
@@ -230,7 +269,6 @@ export async function fetchEnvironmentRangeSlice(
   return fetchEnvironmentRangeSliceHelper(params);
 }
 
-
 /**
  * Fetches observations for a categorical class value.
  */
@@ -240,7 +278,12 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   classValue: string | number,
   options?: { limit?: number; location?: string | null; units?: string | null },
 ) {
-  return fetchSpeciesEnvironmentCategorySamplesHelper(taxonId, variableId, classValue, options);
+  return fetchSpeciesEnvironmentCategorySamplesHelper(
+    taxonId,
+    variableId,
+    classValue,
+    options,
+  );
 }
 
 /**
@@ -296,12 +339,16 @@ export async function uploadRawObservations(
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Failed to upload file: ${response.status}${errorBody ? ` ${errorBody}` : ''}`);
+    throw new Error(
+      `Failed to upload file: ${response.status}${errorBody ? ` ${errorBody}` : ''}`,
+    );
   }
 
   return {
     blob: await response.blob(),
-    filename: parseFilenameFromContentDisposition(response.headers.get('content-disposition')),
+    filename: parseFilenameFromContentDisposition(
+      response.headers.get('content-disposition'),
+    ),
     contentType: response.headers.get('content-type'),
     status: response.status,
   };

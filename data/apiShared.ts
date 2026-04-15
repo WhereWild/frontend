@@ -41,7 +41,8 @@ export const toRequiredNumber = (value: unknown, fallback: number): number => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const readErrorText = async (response: Response) => response.text().catch(() => '');
+const readErrorText = async (response: Response) =>
+  response.text().catch(() => '');
 
 /**
  * Fetches JSON or throws a labeled error with HTTP details.
@@ -49,8 +50,11 @@ const readErrorText = async (response: Response) => response.text().catch(() => 
 export const fetchJsonOrThrow = async (
   url: string,
   failureLabel: string,
+  requestInit?: RequestInit,
 ): Promise<unknown> => {
-  const response = await fetch(url);
+  const response = requestInit
+    ? await fetch(url, requestInit)
+    : await fetch(url);
   if (!response.ok) {
     const txt = await readErrorText(response);
     throw new Error(`${failureLabel}: ${response.status} ${txt}`);
@@ -58,3 +62,6 @@ export const fetchJsonOrThrow = async (
 
   return response.json();
 };
+
+export const isAbortError = (error: unknown) =>
+  error instanceof Error && error.name === 'AbortError';

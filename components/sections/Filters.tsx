@@ -50,7 +50,6 @@ export type FiltersProps = {
   baseTaxonSuggestionsLoading?: boolean;
   baseTaxonSuggestionsVisible?: boolean;
   onBaseTaxonSelect?: (species: SpeciesSummary) => void;
-  hasBaseTaxonSelection?: boolean;
   rankValue: string;
   rankOptions: SelectOption[];
   onRankChange?: (value: string) => void;
@@ -60,6 +59,7 @@ export type FiltersProps = {
   /** Sort */
   sortVariableValue: string;
   sortVariableOptions: SelectOption[];
+  sortVariableDisabled?: boolean;
   onSortVariableChange?: (value: string) => void;
   sortVariableSourceIds?: string[];
   sortMetricValue: string;
@@ -68,7 +68,6 @@ export type FiltersProps = {
   sortOrder: 'ascending' | 'descending';
   onSortOrderChange?: (value: 'ascending' | 'descending') => void;
   rankingFilterHint?: string | null;
-  hasActiveFilters?: boolean;
 
   /** Quantity */
   numberOfResults: number;
@@ -101,7 +100,6 @@ export function Filters({
   baseTaxonSuggestionsLoading = false,
   baseTaxonSuggestionsVisible = false,
   onBaseTaxonSelect,
-  hasBaseTaxonSelection = false,
   rankValue,
   rankOptions,
   onRankChange,
@@ -109,6 +107,7 @@ export function Filters({
   onIncludeSubspeciesChange,
   sortVariableValue,
   sortVariableOptions,
+  sortVariableDisabled = false,
   onSortVariableChange,
   sortVariableSourceIds,
   sortMetricValue,
@@ -117,7 +116,6 @@ export function Filters({
   sortOrder,
   onSortOrderChange,
   rankingFilterHint,
-  hasActiveFilters = false,
   numberOfResults,
   onNumberOfResultsChange,
   minimumSamples,
@@ -126,27 +124,7 @@ export function Filters({
   style,
 }: FiltersProps) {
   const dataSources = useDataSources();
-
-  const baseTaxonSearchInputProps = React.useMemo(
-    () => ({
-      variant: 'secondary' as const,
-      value: baseTaxonQuery,
-      placeholder: 'Search',
-      onQueryChange: onBaseTaxonQueryChange,
-      onSubmitSearch: onBaseTaxonSubmit,
-      onFocus: onBaseTaxonFocus,
-      onBlur: onBaseTaxonBlur,
-    }),
-    [
-      baseTaxonQuery,
-      onBaseTaxonBlur,
-      onBaseTaxonFocus,
-      onBaseTaxonQueryChange,
-      onBaseTaxonSubmit,
-    ],
-  );
-
-  const isControlsDisabled = !hasBaseTaxonSelection;
+  const includeSubspeciesEnabled = rankValue === 'species';
   const countrySelectOptions = React.useMemo(
     () => prependAllOption(countryOptions, 'All countries'),
     [countryOptions],
@@ -167,8 +145,16 @@ export function Filters({
       {/* Taxon */}
       <View style={styles.subSection}>
         <ThemedText variant='subheading'>Taxon</ThemedText>
-        <ThemedText variant='body'>Base taxon</ThemedText>
-        <SearchInput {...baseTaxonSearchInputProps} />
+        <ThemedText variant='body'>Scope taxon</ThemedText>
+        <SearchInput
+          variant='secondary'
+          value={baseTaxonQuery}
+          placeholder='Search'
+          onQueryChange={onBaseTaxonQueryChange}
+          onSubmitSearch={onBaseTaxonSubmit}
+          onFocus={onBaseTaxonFocus}
+          onBlur={onBaseTaxonBlur}
+        />
         <SearchResults
           results={baseTaxonSuggestions}
           isVisible={
@@ -180,6 +166,15 @@ export function Filters({
           style={styles.suggestionResultsInline}
           layout='inline'
         />
+      </View>
+
+      {/* Ranking */}
+      <View style={styles.subSection}>
+        <ThemedText variant='subheading'>Ranking</ThemedText>
+        <ThemedText variant='body'>
+          {rankingFilterHint ??
+            'Add a Scope taxon to limit search results to descendant taxa. Then choose Rank, Variable, and Metric to rank within that scope.'}
+        </ThemedText>
         <SelectField
           label='Rank'
           description='Only include taxa at this rank'
@@ -189,27 +184,23 @@ export function Filters({
         />
         <SwitchField
           label='Include subspecies'
-          description='Whether or not to include subspecies in the results when filtering to the species level'
+          description={
+            includeSubspeciesEnabled
+              ? 'Include or exclude subspecies when Rank is set to Species'
+              : 'Available only when Rank is set to Species'
+          }
           value={includeSubspecies}
+          disabled={!includeSubspeciesEnabled}
           onValueChange={onIncludeSubspeciesChange}
           style={styles.switchFieldFull}
         />
-      </View>
-
-      {/* Sort */}
-      <View style={styles.subSection}>
-        <ThemedText variant='subheading'>Sort</ThemedText>
-        <ThemedText variant='body'>
-          {rankingFilterHint ??
-            'Ranking-based filters apply after setting Base taxon and Sort variable.'}
-        </ThemedText>
         <SelectField
           label='Variable'
           placeholder='Select variable'
+          disabled={sortVariableDisabled}
           value={sortVariableValue}
           options={sortVariableOptions}
           onValueChange={onSortVariableChange}
-          disabled={isControlsDisabled}
         />
         {sortVariableSourceIds && sortVariableSourceIds.length > 0 && (
           <SourceAttribution
@@ -222,7 +213,6 @@ export function Filters({
           value={sortMetricValue}
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
-          disabled={isControlsDisabled}
         />
         <ThemedText variant='body'>Sort order</ThemedText>
         <View style={styles.sortOrderRow}>
@@ -231,33 +221,32 @@ export function Filters({
             label='Ascending'
             checked={sortOrder === 'ascending'}
             onValueChange={() => onSortOrderChange?.('ascending')}
-            disabled={isControlsDisabled}
           />
           <RadioField
             style={styles.sortOrderOption}
             label='Descending'
             checked={sortOrder === 'descending'}
             onValueChange={() => onSortOrderChange?.('descending')}
-            disabled={isControlsDisabled}
           />
         </View>
+        <NumberSpinner
+          label='Minimum samples'
+          description='Show only ranked results with at least this number of samples. Set to 0 for no minimum.'
+          value={minimumSamples}
+          min={0}
+          onValueChange={onMinimumSamplesChange}
+        />
       </View>
 
       {/* Location */}
       <View style={styles.subSection}>
         <ThemedText variant='subheading'>Location</ThemedText>
-        {isControlsDisabled ? (
-          <ThemedText variant='body'>
-            Location filters apply after choosing a Base taxon.
-          </ThemedText>
-        ) : null}
         <View style={styles.locationGrid}>
           <SelectField
             label='Country'
             value={countryValue}
             options={countrySelectOptions}
             onValueChange={onCountryChange}
-            disabled={isControlsDisabled}
             style={styles.locationField}
           />
           <SelectField
@@ -265,7 +254,6 @@ export function Filters({
             value={stateValue}
             options={stateSelectOptions}
             onValueChange={onStateChange}
-            disabled={isControlsDisabled}
             style={styles.locationField}
           />
           <SelectField
@@ -273,7 +261,6 @@ export function Filters({
             value={countyValue}
             options={countySelectOptions}
             onValueChange={onCountyChange}
-            disabled={isControlsDisabled}
             style={styles.locationField}
           />
         </View>
@@ -289,14 +276,6 @@ export function Filters({
           value={numberOfResults}
           min={1}
           onValueChange={onNumberOfResultsChange}
-        />
-        <NumberSpinner
-          label='Minimum samples'
-          description='Show only results with at least this number of samples'
-          value={minimumSamples}
-          min={1}
-          disabled={!hasActiveFilters}
-          onValueChange={onMinimumSamplesChange}
         />
       </View>
 

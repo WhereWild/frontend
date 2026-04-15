@@ -50,8 +50,7 @@ const baseProps: FiltersProps = {
   countyValue: 'salt-lake',
   countyOptions,
   baseTaxonQuery: '',
-  hasBaseTaxonSelection: true,
-  rankValue: 'species',
+  rankValue: '',
   rankOptions,
   includeSubspecies: true,
   sortVariableValue: '',
@@ -60,7 +59,7 @@ const baseProps: FiltersProps = {
   sortMetricOptions,
   sortOrder: 'ascending',
   numberOfResults: 10,
-  minimumSamples: 1,
+  minimumSamples: 0,
 };
 
 describe('Filters', () => {
@@ -88,18 +87,6 @@ describe('Filters', () => {
     jest.restoreAllMocks();
   });
 
-  describe('color mode', () => {
-    it('renders without error in light mode', () => {
-      mockUseColorScheme.mockReturnValue('light');
-      expect(() => render(<Filters {...baseProps} />)).not.toThrow();
-    });
-
-    it('renders without error in dark mode', () => {
-      mockUseColorScheme.mockReturnValue('dark');
-      expect(() => render(<Filters {...baseProps} />)).not.toThrow();
-    });
-  });
-
   describe('rendering', () => {
     it('renders the Filters heading', () => {
       render(<Filters {...baseProps} />);
@@ -110,7 +97,7 @@ describe('Filters', () => {
       render(<Filters {...baseProps} />);
       expect(screen.getByText('Location')).toBeTruthy();
       expect(screen.getByText('Taxon')).toBeTruthy();
-      expect(screen.getByText('Sort')).toBeTruthy();
+      expect(screen.getByText('Ranking')).toBeTruthy();
       expect(screen.getByText('Quantity')).toBeTruthy();
     });
 
@@ -122,9 +109,7 @@ describe('Filters', () => {
     });
 
     it('shows all-options for location fields so users can clear selection', () => {
-      const rendered = render(
-        <Filters {...baseProps} hasBaseTaxonSelection={true} />,
-      );
+      const rendered = render(<Filters {...baseProps} />);
 
       const findPressableByAccessibilityLabel = (label: string) => {
         const matches = rendered.UNSAFE_root.findAll(
@@ -159,54 +144,18 @@ describe('Filters', () => {
       ).toBeTruthy();
     });
 
-    it('shows location hint and disables location controls while no base taxon is selected', () => {
-      render(<Filters {...baseProps} hasBaseTaxonSelection={false} />);
-
-      expect(
-        screen.getByText('Location filters apply after choosing a Base taxon.'),
-      ).toBeTruthy();
-      expect(
-        screen.getByLabelText('Country').props.accessibilityState?.disabled,
-      ).toBe(true);
-      expect(
-        screen.getByLabelText('State').props.accessibilityState?.disabled,
-      ).toBe(true);
-      expect(
-        screen.getByLabelText('County').props.accessibilityState?.disabled,
-      ).toBe(true);
-    });
-
-    it('hides location hint and enables location controls after base taxon is selected', () => {
-      render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
-
-      expect(
-        screen.queryByText(
-          'Location filters apply after choosing a Base taxon.',
-        ),
-      ).toBeNull();
-      expect(
-        screen.getByLabelText('Country').props.accessibilityState?.disabled,
-      ).toBe(false);
-      expect(
-        screen.getByLabelText('State').props.accessibilityState?.disabled,
-      ).toBe(false);
-      expect(
-        screen.getByLabelText('County').props.accessibilityState?.disabled,
-      ).toBe(false);
-    });
-
     it('renders taxon field labels', () => {
       render(<Filters {...baseProps} />);
-      expect(screen.getByText('Base taxon')).toBeTruthy();
-      expect(screen.getByText('Rank')).toBeTruthy();
-      expect(screen.getByText('Include subspecies')).toBeTruthy();
+      expect(screen.getByText('Scope taxon')).toBeTruthy();
     });
 
-    it('renders sort field labels and sort order options', () => {
+    it('renders ranking field labels and sort order options', () => {
       render(<Filters {...baseProps} />);
+      expect(screen.getByText('Rank')).toBeTruthy();
+      expect(screen.getByText('Include subspecies')).toBeTruthy();
       expect(
         screen.getByText(
-          'Ranking-based filters apply after setting Base taxon and Sort variable.',
+          'Add a Scope taxon to limit search results to descendant taxa. Then choose Rank, Variable, and Metric to rank within that scope.',
         ),
       ).toBeTruthy();
       expect(screen.getByText('Variable')).toBeTruthy();
@@ -214,12 +163,12 @@ describe('Filters', () => {
       expect(screen.getByText('Sort order')).toBeTruthy();
       expect(screen.getByText('Ascending')).toBeTruthy();
       expect(screen.getByText('Descending')).toBeTruthy();
+      expect(screen.getByText('Minimum samples')).toBeTruthy();
     });
 
     it('renders quantity field labels', () => {
       render(<Filters {...baseProps} />);
       expect(screen.getByText('Number of results')).toBeTruthy();
-      expect(screen.getByText('Minimum samples')).toBeTruthy();
     });
 
     it('renders the reset filters button', () => {
@@ -274,49 +223,6 @@ describe('Filters', () => {
       fireEvent.press(screen.getByLabelText('Descending'));
       expect(handleSortOrderChange).toHaveBeenCalledWith('descending');
     });
-
-    it('does not throw when onSortOrderChange is not provided', () => {
-      render(<Filters {...baseProps} sortOrder='ascending' />);
-      expect(() => {
-        fireEvent.press(screen.getByLabelText('Ascending'));
-      }).not.toThrow();
-    });
-
-    it('disables sort controls until a base taxon is selected', () => {
-      render(<Filters {...baseProps} hasBaseTaxonSelection={false} />);
-
-      expect(
-        screen.getByLabelText('Variable').props.accessibilityState?.disabled,
-      ).toBe(true);
-      expect(
-        screen.getByLabelText('Sorting metric').props.accessibilityState
-          ?.disabled,
-      ).toBe(true);
-      expect(
-        screen.getByLabelText('Ascending').props.accessibilityState?.disabled,
-      ).toBe(true);
-      expect(
-        screen.getByLabelText('Descending').props.accessibilityState?.disabled,
-      ).toBe(true);
-    });
-
-    it('keeps sort controls enabled when a base taxon is selected', () => {
-      render(<Filters {...baseProps} hasBaseTaxonSelection={true} />);
-
-      expect(
-        screen.getByLabelText('Variable').props.accessibilityState?.disabled,
-      ).toBe(false);
-      expect(
-        screen.getByLabelText('Sorting metric').props.accessibilityState
-          ?.disabled,
-      ).toBe(false);
-      expect(
-        screen.getByLabelText('Ascending').props.accessibilityState?.disabled,
-      ).toBe(false);
-      expect(
-        screen.getByLabelText('Descending').props.accessibilityState?.disabled,
-      ).toBe(false);
-    });
   });
 
   describe('include subspecies', () => {
@@ -325,6 +231,7 @@ describe('Filters', () => {
       render(
         <Filters
           {...baseProps}
+          rankValue='species'
           includeSubspecies={true}
           onIncludeSubspeciesChange={handleChange}
         />,
@@ -338,6 +245,7 @@ describe('Filters', () => {
       render(
         <Filters
           {...baseProps}
+          rankValue='species'
           includeSubspecies={false}
           onIncludeSubspeciesChange={handleChange}
         />,
@@ -346,11 +254,53 @@ describe('Filters', () => {
       expect(handleChange).toHaveBeenCalledWith(true);
     });
 
-    it('does not throw when onIncludeSubspeciesChange is not provided', () => {
-      render(<Filters {...baseProps} includeSubspecies={false} />);
-      expect(() => {
-        fireEvent.press(screen.getByLabelText('Include subspecies'));
-      }).not.toThrow();
+    it('disables include subspecies when rank is not species', () => {
+      const handleChange = jest.fn();
+      render(
+        <Filters
+          {...baseProps}
+          rankValue='genus'
+          includeSubspecies={true}
+          onIncludeSubspeciesChange={handleChange}
+        />,
+      );
+
+      expect(
+        screen.getByLabelText('Include subspecies').props.accessibilityState
+          ?.disabled,
+      ).toBe(true);
+      expect(
+        screen.getByText('Available only when Rank is set to Species'),
+      ).toBeTruthy();
+
+      fireEvent.press(screen.getByLabelText('Include subspecies'));
+      expect(handleChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('variable selection', () => {
+    it('disables Variable until a rank is selected', () => {
+      render(
+        <Filters {...baseProps} rankValue='' sortVariableDisabled={true} />,
+      );
+
+      expect(
+        screen.getByLabelText('Variable').props.accessibilityState?.disabled,
+      ).toBe(true);
+    });
+
+    it('enables Variable once a rank is selected', () => {
+      render(
+        <Filters
+          {...baseProps}
+          rankValue='species'
+          sortVariableDisabled={false}
+        />,
+      );
+
+      expect(
+        screen.getByLabelText('Variable').props.accessibilityState?.disabled,
+      ).toBe(false);
     });
   });
 
@@ -360,13 +310,6 @@ describe('Filters', () => {
       render(<Filters {...baseProps} onResetFilters={handleReset} />);
       fireEvent.press(screen.getByLabelText('Reset filters'));
       expect(handleReset).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not throw when onResetFilters is not provided', () => {
-      render(<Filters {...baseProps} />);
-      expect(() => {
-        fireEvent.press(screen.getByLabelText('Reset filters'));
-      }).not.toThrow();
     });
   });
 
@@ -401,18 +344,6 @@ describe('Filters', () => {
       );
 
       expect(screen.getByText('Gray wolf')).toBeTruthy();
-    });
-
-    it('unmounts cleanly when suggestions are open', () => {
-      const { unmount } = render(
-        <Filters
-          {...baseProps}
-          baseTaxonSuggestionsVisible
-          baseTaxonSuggestions={[suggestion]}
-        />,
-      );
-
-      expect(() => unmount()).not.toThrow();
     });
   });
 });

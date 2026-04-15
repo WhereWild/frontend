@@ -1,6 +1,10 @@
 import { fetchSpeciesLocations } from '@/data/api';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
-import { createSpeciesDataSource, type SpeciesDataSource } from '@/data/speciesDataSource';
+import {
+  createSpeciesDataSource,
+  type SpeciesDataSource,
+} from '@/data/speciesDataSource';
+import type { LocationSearchResult } from '@/data/types';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { act, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
@@ -33,7 +37,11 @@ function HookHarnessInner({
 
 const HookHarness = React.forwardRef<
   ReturnType<typeof useSpeciesLocationFilters>,
-  { taxonId?: number; locationSearchLimit?: number; dataSource?: SpeciesDataSource }
+  {
+    taxonId?: number;
+    locationSearchLimit?: number;
+    dataSource?: SpeciesDataSource;
+  }
 >(({ taxonId, locationSearchLimit = 500, dataSource }, ref) => {
   if (!dataSource) {
     return (
@@ -78,10 +86,17 @@ describe('useSpeciesLocationFilters', () => {
     render(<HookHarness ref={ref} taxonId={13579} />);
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'country-us', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'country-us', value: 'country-us' },
+      ]);
     });
 
-    expect(mockFetchSpeciesLocations).toHaveBeenCalledWith(13579, 'country', undefined, 500);
+    expect(mockFetchSpeciesLocations).toHaveBeenCalledWith(
+      13579,
+      'country',
+      undefined,
+      500,
+    );
   });
 
   it('does not load hierarchy when taxonId is missing', async () => {
@@ -97,31 +112,49 @@ describe('useSpeciesLocationFilters', () => {
   });
 
   it('loads state and county options from selected parents', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: ['Region'] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
-      }
-      if (level === 'county' && parent === 'Utah') {
-        return [
-          {
-            gid: 'county-slc',
-            name: 'Salt Lake County',
-            level: 2,
-            hierarchy: ['Region', 'United States', 'Utah'],
-          },
-        ];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: ['Region'],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-ut',
+              name: 'Utah',
+              level: 1,
+              hierarchy: ['Region', 'United States'],
+            },
+          ];
+        }
+        if (level === 'county' && parent === 'Utah') {
+          return [
+            {
+              gid: 'county-slc',
+              name: 'Salt Lake County',
+              level: 2,
+              hierarchy: ['Region', 'United States', 'Utah'],
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -129,7 +162,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
     await act(async () => {
@@ -137,30 +172,48 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.countyOptions).toEqual([{ label: 'Salt Lake County', value: 'county-slc' }]);
+      expect(ref.current?.countyOptions).toEqual([
+        { label: 'Salt Lake County', value: 'county-slc' },
+      ]);
     });
   });
 
   it('infers parent selections from county hierarchy', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: ['Region'] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
-      }
-      if (level === 'county' && parent === 'Utah') {
-        return [
-          {
-            gid: 'county-slc',
-            name: 'Salt Lake County',
-            level: 2,
-            hierarchy: ['Region', 'United States', 'Utah'],
-          },
-        ];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: ['Region'],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-ut',
+              name: 'Utah',
+              level: 1,
+              hierarchy: ['Region', 'United States'],
+            },
+          ];
+        }
+        if (level === 'county' && parent === 'Utah') {
+          return [
+            {
+              gid: 'county-slc',
+              name: 'Salt Lake County',
+              level: 2,
+              hierarchy: ['Region', 'United States', 'Utah'],
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
@@ -220,43 +273,112 @@ describe('useSpeciesLocationFilters', () => {
     rendered.rerender(<HookHarness ref={ref} taxonId={2} />);
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'New', value: 'country-new' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'New', value: 'country-new' },
+      ]);
     });
 
     await act(async () => {
-      resolveOldCountry([{ gid: 'country-old', name: 'Old', level: 0, hierarchy: [] }]);
+      resolveOldCountry([
+        { gid: 'country-old', name: 'Old', level: 0, hierarchy: [] },
+      ]);
     });
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'New', value: 'country-new' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'New', value: 'country-new' },
+      ]);
     });
   });
 
-  it('retries level fetch after transient failure instead of caching empty', async () => {
-    let stateCallCount = 0;
+  it('deduplicates in-flight country loads across remounts for the same species', async () => {
+    let resolveCountry: ((value: any) => void) | null = null;
+    const countryPromise = new Promise<LocationSearchResult[]>((resolve) => {
+      resolveCountry = resolve;
+    });
 
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
+    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level) => {
       if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
-
-      if (level === 'state' && parent === 'United States') {
-        stateCallCount += 1;
-        if (stateCallCount === 1) {
-          throw new Error('transient');
-        }
-
-        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: [] }];
+        return countryPromise;
       }
 
       return [];
     });
 
+    const firstRef =
+      React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
+    const firstRender = render(<HookHarness ref={firstRef} taxonId={13579} />);
+
+    await waitFor(() => {
+      expect(mockFetchSpeciesLocations).toHaveBeenCalledTimes(1);
+      expect(firstRef.current?.countryLoading).toBe(true);
+    });
+
+    firstRender.unmount();
+
+    const secondRef =
+      React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
+    render(<HookHarness ref={secondRef} taxonId={13579} />);
+
+    await waitFor(() => {
+      expect(secondRef.current?.countryLoading).toBe(true);
+    });
+
+    expect(mockFetchSpeciesLocations).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveCountry?.([
+        { gid: 'country-us', name: 'United States', level: 0, hierarchy: [] },
+      ]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(secondRef.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
+      expect(secondRef.current?.countryLoading).toBe(false);
+    });
+
+    expect(mockFetchSpeciesLocations).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries level fetch after transient failure instead of caching empty', async () => {
+    let stateCallCount = 0;
+
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
+
+        if (level === 'state' && parent === 'United States') {
+          stateCallCount += 1;
+          if (stateCallCount === 1) {
+            throw new Error('transient');
+          }
+
+          return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: [] }];
+        }
+
+        return [];
+      },
+    );
+
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -280,7 +402,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
     const stateCalls = mockFetchSpeciesLocations.mock.calls.filter(
@@ -290,23 +414,43 @@ describe('useSpeciesLocationFilters', () => {
   });
 
   it('does not reuse cached level results when locationSearchLimit changes', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, _parent, limit) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, _parent, limit) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
 
-      if (level === 'state') {
-        return [{ gid: `state-${String(limit)}`, name: `State ${String(limit)}`, level: 1, hierarchy: [] }];
-      }
+        if (level === 'state') {
+          return [
+            {
+              gid: `state-${String(limit)}`,
+              name: `State ${String(limit)}`,
+              level: 1,
+              hierarchy: [],
+            },
+          ];
+        }
 
-      return [];
-    });
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    const rendered = render(<HookHarness ref={ref} taxonId={13579} locationSearchLimit={1} />);
+    const rendered = render(
+      <HookHarness ref={ref} taxonId={13579} locationSearchLimit={1} />,
+    );
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -314,13 +458,19 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'State 1', value: 'state-1' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'State 1', value: 'state-1' },
+      ]);
     });
 
-    rendered.rerender(<HookHarness ref={ref} taxonId={13579} locationSearchLimit={2} />);
+    rendered.rerender(
+      <HookHarness ref={ref} taxonId={13579} locationSearchLimit={2} />,
+    );
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -328,30 +478,45 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'State 2', value: 'state-2' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'State 2', value: 'state-2' },
+      ]);
     });
 
-    const stateCalls = mockFetchSpeciesLocations.mock.calls.filter((args) => args[1] === 'state');
+    const stateCalls = mockFetchSpeciesLocations.mock.calls.filter(
+      (args) => args[1] === 'state',
+    );
     expect(stateCalls.some((args) => args[3] === 1)).toBe(true);
     expect(stateCalls.some((args) => args[3] === 2)).toBe(true);
   });
 
   it('reuses cached state results for the same parent selection', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: [] }];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: [] }];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -359,12 +524,15 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
-    const stateCallsBeforeReselect = mockFetchSpeciesLocations.mock.calls.filter(
-      (args) => args[1] === 'state' && args[2] === 'United States',
-    ).length;
+    const stateCallsBeforeReselect =
+      mockFetchSpeciesLocations.mock.calls.filter(
+        (args) => args[1] === 'state' && args[2] === 'United States',
+      ).length;
 
     await act(async () => {
       ref.current?.onCountryChange(null);
@@ -377,7 +545,9 @@ describe('useSpeciesLocationFilters', () => {
       ref.current?.onCountryChange('country-us');
     });
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
     const stateCallsAfterReselect = mockFetchSpeciesLocations.mock.calls.filter(
@@ -387,15 +557,31 @@ describe('useSpeciesLocationFilters', () => {
   });
 
   it('supports level-0 state entries by promoting the selected country', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-as-country', name: 'Country-Level', level: 0 as any, hierarchy: [] }];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-as-country',
+              name: 'Country-Level',
+              level: 0 as any,
+              hierarchy: [],
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
@@ -421,15 +607,31 @@ describe('useSpeciesLocationFilters', () => {
   });
 
   it('ignores unsupported state levels during parent inference', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-unknown', name: 'Unknown', level: null as any, hierarchy: [] }];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-unknown',
+              name: 'Unknown',
+              level: null as any,
+              hierarchy: [],
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
@@ -442,7 +644,9 @@ describe('useSpeciesLocationFilters', () => {
       ref.current?.onCountryChange('country-us');
     });
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Unknown', value: 'state-unknown' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Unknown', value: 'state-unknown' },
+      ]);
     });
 
     await act(async () => {
@@ -456,7 +660,9 @@ describe('useSpeciesLocationFilters', () => {
   it('handles state load errors from invalid parent token coercion', async () => {
     mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level) => {
       if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
+        return [
+          { gid: 'country-us', name: 'United States', level: 0, hierarchy: [] },
+        ];
       }
       return [];
     });
@@ -483,18 +689,37 @@ describe('useSpeciesLocationFilters', () => {
   });
 
   it('handles empty hierarchy names and invalid numeric levels during inference', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [
-          { gid: 'state-no-country', name: 'No Country', level: 1, hierarchy: [] },
-          { gid: 'state-invalid-level', name: 'Invalid Level', level: 1.5 as any, hierarchy: [] },
-        ];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-no-country',
+              name: 'No Country',
+              level: 1,
+              hierarchy: [],
+            },
+            {
+              gid: 'state-invalid-level',
+              name: 'Invalid Level',
+              level: 1.5 as any,
+              hierarchy: [],
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
@@ -526,34 +751,64 @@ describe('useSpeciesLocationFilters', () => {
   });
 
   it('covers state/county inference paths for found, missing, and non-array hierarchy entries', async () => {
-    mockFetchSpeciesLocations.mockImplementation(async (_taxonId, level, parent) => {
-      if (level === 'country') {
-        return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
-      }
-      if (level === 'state' && parent === 'United States') {
-        return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
-      }
-      if (level === 'county' && parent === 'Utah') {
-        return [
-          { gid: 'county-slc', name: 'Salt Lake County', level: 2, hierarchy: ['Region', 'United States', 'Utah'] },
-          { gid: 'county-no-hierarchy', name: 'No Hierarchy', level: 2, hierarchy: undefined as any },
-        ];
-      }
-      return [];
-    });
+    mockFetchSpeciesLocations.mockImplementation(
+      async (_taxonId, level, parent) => {
+        if (level === 'country') {
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
+        }
+        if (level === 'state' && parent === 'United States') {
+          return [
+            {
+              gid: 'state-ut',
+              name: 'Utah',
+              level: 1,
+              hierarchy: ['Region', 'United States'],
+            },
+          ];
+        }
+        if (level === 'county' && parent === 'Utah') {
+          return [
+            {
+              gid: 'county-slc',
+              name: 'Salt Lake County',
+              level: 2,
+              hierarchy: ['Region', 'United States', 'Utah'],
+            },
+            {
+              gid: 'county-no-hierarchy',
+              name: 'No Hierarchy',
+              level: 2,
+              hierarchy: undefined as any,
+            },
+          ];
+        }
+        return [];
+      },
+    );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(<HookHarness ref={ref} taxonId={13579} />);
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
       ref.current?.onCountryChange('country-us');
     });
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
     await act(async () => {
@@ -594,10 +849,24 @@ describe('useSpeciesLocationFilters', () => {
       locationParentIdentityMode: 'gid',
       fetchSpeciesLocations: async (_taxonId, level, parent) => {
         if (level === 'country') {
-          return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
         }
         if (level === 'state' && parent === 'country-us') {
-          return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['region-1', 'country-us'] }];
+          return [
+            {
+              gid: 'state-ut',
+              name: 'Utah',
+              level: 1,
+              hierarchy: ['region-1', 'country-us'],
+            },
+          ];
         }
         if (level === 'county' && parent === 'state-ut') {
           return [
@@ -614,10 +883,14 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />);
+    render(
+      <HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />,
+    );
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -625,7 +898,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
     await act(async () => {
@@ -633,7 +908,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.countyOptions).toEqual([{ label: 'Salt Lake County', value: 'county-slc' }]);
+      expect(ref.current?.countyOptions).toEqual([
+        { label: 'Salt Lake County', value: 'county-slc' },
+      ]);
     });
 
     await act(async () => {
@@ -650,10 +927,24 @@ describe('useSpeciesLocationFilters', () => {
       locationParentIdentityMode: 'gid',
       fetchSpeciesLocations: async (_taxonId, level, parent) => {
         if (level === 'country') {
-          return [{ gid: 'country-us', name: 'United States', level: 0, hierarchy: [] }];
+          return [
+            {
+              gid: 'country-us',
+              name: 'United States',
+              level: 0,
+              hierarchy: [],
+            },
+          ];
         }
         if (level === 'state' && parent === 'country-us') {
-          return [{ gid: 'state-ut', name: 'Utah', level: 1, hierarchy: ['Region', 'United States'] }];
+          return [
+            {
+              gid: 'state-ut',
+              name: 'Utah',
+              level: 1,
+              hierarchy: ['Region', 'United States'],
+            },
+          ];
         }
         if (level === 'county' && parent === 'state-ut') {
           return [
@@ -670,10 +961,14 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />);
+    render(
+      <HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />,
+    );
 
     await waitFor(() => {
-      expect(ref.current?.countryOptions).toEqual([{ label: 'United States', value: 'country-us' }]);
+      expect(ref.current?.countryOptions).toEqual([
+        { label: 'United States', value: 'country-us' },
+      ]);
     });
 
     await act(async () => {
@@ -681,7 +976,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.stateOptions).toEqual([{ label: 'Utah', value: 'state-ut' }]);
+      expect(ref.current?.stateOptions).toEqual([
+        { label: 'Utah', value: 'state-ut' },
+      ]);
     });
 
     await act(async () => {
@@ -689,7 +986,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     await waitFor(() => {
-      expect(ref.current?.countyOptions).toEqual([{ label: 'Salt Lake County', value: 'county-slc' }]);
+      expect(ref.current?.countyOptions).toEqual([
+        { label: 'Salt Lake County', value: 'county-slc' },
+      ]);
     });
   });
 });
