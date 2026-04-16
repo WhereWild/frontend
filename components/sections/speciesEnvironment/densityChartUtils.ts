@@ -68,6 +68,9 @@ export const getDensityDomain = (
   };
 };
 
+/** Minimum pixel height above baseline for any non-zero density value. */
+const MIN_NONZERO_RENDER_HEIGHT = 4;
+
 /** Maps domain samples into normalized chart coordinates. */
 export const normalizeDensitySamples = (
   samples: DensitySamplePoint[],
@@ -75,11 +78,15 @@ export const normalizeDensitySamples = (
   chartHeight: number,
   chartPadding: number,
 ) =>
-  samples.map((sample) => ({
-    x: ((sample.x - domain.minX) / domain.spanX) * 100,
-    y:
-      chartHeight - (sample.y / domain.safeMaxY) * (chartHeight - chartPadding),
-  }));
+  samples.map((sample) => {
+    const rawY =
+      chartHeight - (sample.y / domain.safeMaxY) * (chartHeight - chartPadding);
+    const y =
+      sample.y > 0
+        ? Math.min(rawY, chartHeight - MIN_NONZERO_RENDER_HEIGHT)
+        : rawY;
+    return { x: ((sample.x - domain.minX) / domain.spanX) * 100, y };
+  });
 
 /** Resolves SVG selection rectangle bounds for the active selection range. */
 export const getSelectionBounds = (
