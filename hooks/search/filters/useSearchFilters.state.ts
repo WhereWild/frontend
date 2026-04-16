@@ -61,6 +61,7 @@ export type SearchFiltersState = {
   rankingSortOptions: {
     variable: string;
     metric: string;
+    label: string;
     column: string;
     count: number;
   }[];
@@ -113,6 +114,7 @@ export type SearchFiltersAction =
       options: {
         variable: string;
         metric: string;
+        label: string;
         column: string;
         count: number;
       }[];

@@ -643,6 +643,7 @@ describe('data/api common name normalization', () => {
         {
           variable: 'bio_1',
           metric: 'median',
+          label: 'median',
           column: 'bio_1__median',
           count: 14,
         },
@@ -684,6 +685,7 @@ describe('data/api common name normalization', () => {
         {
           variable: 'bio_12',
           metric: 'max',
+          label: 'max',
           column: 'bio_12__max',
           count: 9,
         },
