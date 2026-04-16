@@ -78,6 +78,35 @@ describe('useDataSources', () => {
     });
   });
 
+  it('preserves the existing state reference when the fetch resolves to no sources', async () => {
+    seedDataSourcesCache({
+      seeded: {
+        name: 'Seeded Source',
+        url: 'https://seeded.example/data',
+        license: 'CC BY 4.0',
+        references: [],
+      },
+    });
+    mockFetchDataSources.mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useDataSources());
+    const initialSources = result.current;
+
+    await waitFor(() => {
+      expect(mockFetchDataSources).toHaveBeenCalledTimes(1);
+    });
+
+    expect(result.current).toBe(initialSources);
+    expect(result.current).toEqual({
+      seeded: {
+        name: 'Seeded Source',
+        url: 'https://seeded.example/data',
+        license: 'CC BY 4.0',
+        references: [],
+      },
+    });
+  });
+
   it('preserves seeded sources when the fetch fails', async () => {
     seedDataSourcesCache({
       seeded: {

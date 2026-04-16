@@ -154,6 +154,29 @@ export function useEnvironmentHighlights({
   >(null);
   const [pinnedLoading, setPinnedLoading] = React.useState(false);
   const pinnedRequestRef = React.useRef(0);
+  const pinnedStateRef = React.useRef({
+    value: null as number | string | null,
+    label: null as string | null,
+    description: null as string | null,
+    observed: null as boolean | null,
+    loading: false,
+  });
+
+  React.useEffect(() => {
+    pinnedStateRef.current = {
+      value: pinnedValue,
+      label: pinnedValueLabel,
+      description: pinnedValueDescription,
+      observed: pinnedCategoryObserved,
+      loading: pinnedLoading,
+    };
+  }, [
+    pinnedCategoryObserved,
+    pinnedLoading,
+    pinnedValue,
+    pinnedValueDescription,
+    pinnedValueLabel,
+  ]);
 
   const emitHighlightChange = React.useCallback(
     (ids: (number | string)[]) => {
@@ -176,27 +199,47 @@ export function useEnvironmentHighlights({
     emitHighlightChange([]);
   }, [emitHighlightChange]);
 
+  const resetPinnedState = React.useCallback(() => {
+    const pinnedState = pinnedStateRef.current;
+
+    if (pinnedState.value !== null) {
+      setPinnedValue(null);
+    }
+    if (pinnedState.label !== null) {
+      setPinnedValueLabel(null);
+    }
+    if (pinnedState.description !== null) {
+      setPinnedValueDescription(null);
+    }
+    if (pinnedState.observed !== null) {
+      setPinnedCategoryObserved(null);
+    }
+    if (pinnedState.loading) {
+      setPinnedLoading(false);
+    }
+
+    pinnedStateRef.current = {
+      value: null,
+      label: null,
+      description: null,
+      observed: null,
+      loading: false,
+    };
+  }, []);
+
   React.useEffect(() => {
     resetHighlightState();
   }, [locationGid, resetHighlightState, selectedVariable, taxonId, units]);
 
   React.useEffect(() => {
-    setPinnedValue(null);
-    setPinnedValueLabel(null);
-    setPinnedValueDescription(null);
-    setPinnedCategoryObserved(null);
-    setPinnedLoading(false);
     pinnedRequestRef.current += 1;
-  }, [selectedVariable, locationGid, taxonId, units]);
+    resetPinnedState();
+  }, [locationGid, resetPinnedState, selectedVariable, taxonId, units]);
 
   React.useEffect(() => {
     if (!pinnedObservation || !selectedVariable) {
       pinnedRequestRef.current += 1;
-      setPinnedValue(null);
-      setPinnedValueLabel(null);
-      setPinnedValueDescription(null);
-      setPinnedCategoryObserved(null);
-      setPinnedLoading(false);
+      resetPinnedState();
       return;
     }
     const requestId = ++pinnedRequestRef.current;
@@ -277,6 +320,7 @@ export function useEnvironmentHighlights({
     locationGid,
     isCategorical,
     pinnedObservation,
+    resetPinnedState,
     selectedVariable,
     speciesDataSource,
     taxonId,
