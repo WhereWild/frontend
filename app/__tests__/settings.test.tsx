@@ -10,9 +10,7 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<
 >;
 const mockUseSettings = useSettings as jest.MockedFunction<typeof useSettings>;
 
-const mockSetRegion = jest.fn();
 const mockSetUnits = jest.fn();
-const mockSetLanguage = jest.fn();
 const mockSelectField = jest.fn();
 
 function getSelectFieldChangeHandler(
@@ -90,11 +88,11 @@ describe('Settings screen', () => {
 
     mockUseSettings.mockReturnValue({
       region: 'utah',
-      setRegion: mockSetRegion,
+      setRegion: jest.fn(),
       units: 'metric',
       setUnits: mockSetUnits,
       language: 'en',
-      setLanguage: mockSetLanguage,
+      setLanguage: jest.fn(),
     });
   });
 
@@ -105,26 +103,33 @@ describe('Settings screen', () => {
       render(<Settings />);
 
       expect(screen.getByText('Localization')).toBeTruthy();
-      expect(screen.getByTestId('select-Region')).toBeTruthy();
+      expect(screen.getByTestId('select-Location')).toBeTruthy();
       expect(screen.getByTestId('select-Language')).toBeTruthy();
       expect(screen.getByTestId('select-Units')).toBeTruthy();
     });
 
-    it('wires region and language updates', () => {
+    it('renders disabled location and language fields with fixed values', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
       render(<Settings />);
 
-      const onRegionChange = getSelectFieldChangeHandler('Region');
-      const onLanguageChange = getSelectFieldChangeHandler('Language');
+      const locationCall = mockSelectField.mock.calls.find(
+        ([props]) => props?.label === 'Location',
+      );
+      const languageCall = mockSelectField.mock.calls.find(
+        ([props]) => props?.label === 'Language',
+      );
 
-      act(() => {
-        onRegionChange?.('california');
-        onLanguageChange?.('fr');
+      expect(locationCall?.[0]).toMatchObject({
+        disabled: true,
+        value: 'utah',
+        options: [{ label: 'Utah', value: 'utah' }],
       });
-
-      expect(mockSetRegion).toHaveBeenCalledWith('california');
-      expect(mockSetLanguage).toHaveBeenCalledWith('fr');
+      expect(languageCall?.[0]).toMatchObject({
+        disabled: true,
+        value: 'en',
+        options: [{ label: 'English', value: 'en' }],
+      });
     });
 
     it('only accepts valid units values', () => {
