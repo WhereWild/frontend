@@ -20,6 +20,8 @@ type SelectFieldMockProps = {
   options: MockOption[];
   onValueChange?: (value: string) => void;
   value: string;
+  placeholder?: string;
+  disabled?: boolean;
 };
 
 jest.mock('@/components/tabs/Tabs', () => ({
@@ -50,11 +52,26 @@ jest.mock('@/components/tabs/Tabs', () => ({
 }));
 
 jest.mock('@/components/inputs/SelectField', () => ({
-  SelectField: ({ options, onValueChange, value }: SelectFieldMockProps) =>
+  SelectField: ({
+    options,
+    onValueChange,
+    value,
+    placeholder,
+    disabled,
+  }: SelectFieldMockProps) =>
     mockReact.createElement(
       mockView,
       null,
-      mockReact.createElement(mockText, { testID: 'selected-variable' }, value),
+      mockReact.createElement(
+        mockText,
+        { testID: `selected-variable-${placeholder ?? 'default'}` },
+        value,
+      ),
+      mockReact.createElement(
+        mockText,
+        { testID: `select-disabled-${placeholder ?? 'default'}` },
+        disabled ? 'true' : 'false',
+      ),
       options.map((option) =>
         mockReact.createElement(
           mockPressable,
@@ -146,7 +163,144 @@ describe('VariableSelectorHeader', () => {
     );
 
     expect(screen.getByTestId('category-Climate')).toBeTruthy();
-    expect(screen.queryByTestId('selected-variable')).toBeNull();
+    expect(
+      screen.queryByTestId('selected-variable-Select environment variable'),
+    ).toBeNull();
     expect(screen.queryByText('Environment')).toBeNull();
+  });
+
+  it('renders split selectors for temporal variables and deduplicates base options', () => {
+    render(
+      <VariableSelectorHeader
+        categories={['Recent Weather']}
+        selectedVariableCategory={'Recent Weather'}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[
+          {
+            id: 'temperature_2m_avg_24h',
+            label: 'Air Temperature (2m) (Avg, 24h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'temperature_2m_avg_168h',
+            label: 'Air Temperature (2m) (Avg, 168h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'precipitation_sum_24h',
+            label: 'Precipitation (Sum, 24h)',
+            units: 'mm',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+        ]}
+        selectedVariable={'temperature_2m_avg_24h'}
+        onVariableChange={jest.fn()}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    expect(screen.getByText('Air Temperature (2m)')).toBeTruthy();
+    expect(screen.getByText('Precipitation')).toBeTruthy();
+    expect(screen.getByText('1 day')).toBeTruthy();
+    expect(screen.getByText('1 week')).toBeTruthy();
+    expect(
+      screen.getByTestId('selected-variable-Select variable'),
+    ).toHaveTextContent('temperature_2m');
+    expect(screen.getByTestId('selected-variable-No window')).toHaveTextContent(
+      'temperature_2m_avg_24h',
+    );
+    expect(screen.getByTestId('select-disabled-No window')).toHaveTextContent(
+      'false',
+    );
+  });
+
+  it('switches bases by selecting the first available temporal window', () => {
+    const onVariableChange = jest.fn();
+
+    render(
+      <VariableSelectorHeader
+        categories={['Recent Weather']}
+        selectedVariableCategory={'Recent Weather'}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[
+          {
+            id: 'temperature_2m_avg_24h',
+            label: 'Air Temperature (2m) (Avg, 24h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'temperature_2m_avg_168h',
+            label: 'Air Temperature (2m) (Avg, 168h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'precipitation_sum_24h',
+            label: 'Precipitation (Sum, 24h)',
+            units: 'mm',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'precipitation_sum_168h',
+            label: 'Precipitation (Sum, 168h)',
+            units: 'mm',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+        ]}
+        selectedVariable={'temperature_2m_avg_168h'}
+        onVariableChange={onVariableChange}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('option-precipitation'));
+    expect(onVariableChange).toHaveBeenCalledWith('precipitation_sum_24h');
+  });
+
+  it('switches temporal windows directly from the window selector', () => {
+    const onVariableChange = jest.fn();
+
+    render(
+      <VariableSelectorHeader
+        categories={['Recent Weather']}
+        selectedVariableCategory={'Recent Weather'}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[
+          {
+            id: 'temperature_2m_avg_24h',
+            label: 'Air Temperature (2m) (Avg, 24h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'temperature_2m_avg_168h',
+            label: 'Air Temperature (2m) (Avg, 168h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+        ]}
+        selectedVariable={'temperature_2m_avg_24h'}
+        onVariableChange={onVariableChange}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('option-temperature_2m_avg_168h'));
+    expect(onVariableChange).toHaveBeenCalledWith('temperature_2m_avg_168h');
   });
 });

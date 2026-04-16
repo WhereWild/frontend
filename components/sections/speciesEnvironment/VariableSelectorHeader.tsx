@@ -6,6 +6,12 @@ import { SelectField } from '@/components/inputs/SelectField';
 import { Tabs } from '@/components/tabs/Tabs';
 import type { EnvironmentVariableOption } from './model';
 import { isVariableCategorical } from './model';
+import {
+  formatWindowHours,
+  isTemporalId,
+  parseTemporalId,
+  stripTemporalSuffix,
+} from './temporalHelpers';
 
 /** Props for the variable/category selector header above environment charts. */
 type VariableSelectorHeaderProps = {
@@ -38,6 +44,77 @@ export function VariableSelectorHeader({
   headingText,
   metaText,
 }: VariableSelectorHeaderProps) {
+  // Use split UI when at least one variable in the category has a time window.
+  // This assumes a category will not mix live/current variables with temporal
+  // aggregates that share the same base id.
+  const isTemporalCategory = React.useMemo(
+    () => filteredVariables.some((v) => isTemporalId(v.id)),
+    [filteredVariables],
+  );
+
+  const parsedSelected = React.useMemo(
+    () => (isTemporalCategory ? parseTemporalId(selectedVariable) : null),
+    [isTemporalCategory, selectedVariable],
+  );
+
+  // Base options: temporal ones are deduplicated by baseId; non-temporal shown as-is.
+  const temporalBaseOptions = React.useMemo(() => {
+    if (!isTemporalCategory) return [];
+    const seen = new Map<string, string>(); // key -> label
+    for (const v of filteredVariables) {
+      const parsed = parseTemporalId(v.id);
+      if (parsed) {
+        if (!seen.has(parsed.baseId)) {
+          seen.set(parsed.baseId, stripTemporalSuffix(v.label));
+        }
+      } else {
+        // Non-temporal variable: use the full id as key so it appears as its own entry.
+        if (!seen.has(v.id)) {
+          seen.set(v.id, v.label);
+        }
+      }
+    }
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [isTemporalCategory, filteredVariables]);
+
+  // The selected base key: baseId for temporal, full id for non-temporal.
+  const selectedBaseKey =
+    parsedSelected?.baseId ?? (isTemporalCategory ? selectedVariable : null);
+
+  // Window options for the currently selected base, sorted ascending by hours.
+  // Empty when the selected variable is non-temporal.
+  const windowOptions = React.useMemo(() => {
+    if (!isTemporalCategory || !selectedBaseKey) return [];
+    return filteredVariables
+      .flatMap((v) => {
+        const p = parseTemporalId(v.id);
+        return p && p.baseId === selectedBaseKey ? [{ p, id: v.id }] : [];
+      })
+      .sort((a, b) => a.p.windowHours - b.p.windowHours)
+      .map(({ p, id }) => ({
+        value: id,
+        label: formatWindowHours(p.windowHours),
+      }));
+  }, [isTemporalCategory, selectedBaseKey, filteredVariables]);
+
+  // When the base changes, switch to the first window for temporal bases,
+  // or directly select the variable for non-temporal ones.
+  const handleBaseChange = React.useCallback(
+    (newBase: string) => {
+      const firstWindow = filteredVariables
+        .flatMap((v) => {
+          const p = parseTemporalId(v.id);
+          return p && p.baseId === newBase ? [{ p, id: v.id }] : [];
+        })
+        .sort((a, b) => a.p.windowHours - b.p.windowHours)[0];
+      onVariableChange(firstWindow ? firstWindow.id : newBase);
+    },
+    [filteredVariables, onVariableChange],
+  );
+
   return (
     <>
       {categories.length > 0 ? (
@@ -52,25 +129,49 @@ export function VariableSelectorHeader({
 
       <View style={styles.variableHeadingRow}>
         {filteredVariables.length ? (
-          <View style={styles.selectFieldContainer}>
-            <SelectField
-              variant='secondary'
-              options={filteredVariables.map((option) => {
-                const isCategoricalVar = isVariableCategorical(option);
-                const units = option.units;
-                return {
-                  value: option.id,
-                  label:
-                    !isCategoricalVar && units
-                      ? `${option.label} (${units})`
-                      : option.label,
-                };
-              })}
-              value={selectedVariable}
-              onValueChange={onVariableChange}
-              placeholder='Select environment variable'
-            />
-          </View>
+          isTemporalCategory ? (
+            <View style={styles.temporalSelectRow}>
+              <View style={styles.temporalSelectItem}>
+                <SelectField
+                  variant='secondary'
+                  options={temporalBaseOptions}
+                  value={selectedBaseKey ?? temporalBaseOptions[0]?.value ?? ''}
+                  onValueChange={handleBaseChange}
+                  placeholder='Select variable'
+                />
+              </View>
+              <View style={styles.temporalSelectItem}>
+                <SelectField
+                  variant='secondary'
+                  options={windowOptions}
+                  value={windowOptions.length > 0 ? selectedVariable : ''}
+                  onValueChange={onVariableChange}
+                  placeholder='No window'
+                  disabled={windowOptions.length === 0}
+                />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.selectFieldContainer}>
+              <SelectField
+                variant='secondary'
+                options={filteredVariables.map((option) => {
+                  const isCategoricalVar = isVariableCategorical(option);
+                  const units = option.units;
+                  return {
+                    value: option.id,
+                    label:
+                      !isCategoricalVar && units
+                        ? `${option.label} (${units})`
+                        : option.label,
+                  };
+                })}
+                value={selectedVariable}
+                onValueChange={onVariableChange}
+                placeholder='Select environment variable'
+              />
+            </View>
+          )
         ) : headingText ? (
           <ThemedText variant='heading'>{headingText}</ThemedText>
         ) : null}
@@ -94,6 +195,14 @@ const styles = StyleSheet.create({
     gap: Size.space.text.line,
   },
   selectFieldContainer: {
+    flexShrink: 0,
+  },
+  temporalSelectRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['200'],
+  },
+  temporalSelectItem: {
     flexShrink: 0,
   },
   metaText: {
