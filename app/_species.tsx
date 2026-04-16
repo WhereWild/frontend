@@ -65,6 +65,7 @@ export type SpeciesScreenData = Pick<
   | 'overview'
   | 'nearbySpecies'
   | 'heatmap'
+  | 'allObscured'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -264,6 +265,7 @@ export default function Species({
     scientificName,
     overview,
     heatmap,
+    allObscured,
   } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -458,6 +460,7 @@ export default function Species({
                 commonName={commonName}
                 commonNames={displayCommonNames}
                 overview={overview}
+                allObscured={allObscured}
               />
             </SectionShell>
 

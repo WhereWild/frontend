@@ -118,4 +118,39 @@ describe('SpeciesInformationSection', () => {
     expect(screen.queryByText('View on iNaturalist')).toBeNull();
     expect(screen.queryByText(/Photo by/)).toBeNull();
   });
+
+  it('shows the obscured warning and filters not-notable sections when all observations are obscured', () => {
+    render(
+      <SpeciesInformationSection
+        commonName='Test Cactus'
+        commonNames={['Test Cactus']}
+        allObscured
+        overview={{
+          description: 'Fallback overview description.',
+          imageSource: { uri: 'https://images.example/cactus.jpg' },
+          sections: [
+            {
+              id: 'notable',
+              title: 'Habitat',
+              lines: [{ body: 'Rocky slopes and washes.' }],
+            },
+            {
+              id: 'not-notable',
+              title: 'Seasonality',
+              lines: [{ body: 'Not notable.' }],
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        'All recorded observations for this species have obscured locations and are excluded from environmental analysis.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('Habitat')).toBeTruthy();
+    expect(screen.queryByText('Seasonality')).toBeNull();
+    expect(screen.queryByText('Not notable.')).toBeNull();
+  });
 });
