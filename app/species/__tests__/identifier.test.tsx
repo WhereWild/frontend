@@ -5,7 +5,7 @@ import SpeciesBasicsPage, {
 } from '../[...identifier]';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
-import { fetchSpeciesByTaxonId } from '@/data/api';
+import { fetchSpeciesByTaxonId, fetchSpeciesObscured } from '@/data/api';
 
 jest.mock('expo-router', () => {
   const actual = jest.requireActual('expo-router');
@@ -19,6 +19,9 @@ jest.mock('expo-router', () => {
 
 jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
+  fetchSpeciesObscured: jest
+    .fn()
+    .mockResolvedValue({ taxon_id: 0, all_obscured: false }),
 }));
 
 jest.mock('@/context/SettingsContext', () => ({
@@ -36,6 +39,7 @@ jest.mock('../../_species', () => {
         <Text>{data.commonName}</Text>
         <Text>{data.scientificName}</Text>
         <Text>{data.overview.description}</Text>
+        <Text>{data.allObscured ? 'all-obscured' : 'not-obscured'}</Text>
       </View>
     ),
   };
@@ -48,6 +52,9 @@ const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
 const mockFetchSpeciesByTaxonId = fetchSpeciesByTaxonId as jest.MockedFunction<
   typeof fetchSpeciesByTaxonId
+>;
+const mockFetchSpeciesObscured = fetchSpeciesObscured as jest.MockedFunction<
+  typeof fetchSpeciesObscured
 >;
 
 const flushMicrotasksQueue = () =>
@@ -74,6 +81,10 @@ describe('SpeciesBasicsPage', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
+    mockFetchSpeciesObscured.mockResolvedValue({
+      taxon_id: 0,
+      all_obscured: false,
+    });
   });
 
   it('renders fallback data when no identifier parameter is supplied', async () => {
@@ -113,11 +124,74 @@ describe('SpeciesBasicsPage', () => {
     expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(SAMPLE_TAXON_ID, {
       units: 'metric',
     });
+    expect(mockFetchSpeciesObscured).toHaveBeenCalledWith(SAMPLE_TAXON_ID);
     await waitFor(() => {
       expect(screen.getAllByText('Snowy Owl').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('Bubo scandiacus')).toBeTruthy();
     await screen.findByText('Large white owl adapted to Arctic climates.');
+    expect(screen.getByText('not-obscured')).toBeTruthy();
+  });
+
+  it('renders obscured status from the obscured lookup', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Snowy Owl',
+      scientific_name: 'Bubo scandiacus',
+      description: 'Large white owl adapted to Arctic climates.',
+    } as any);
+    mockFetchSpeciesObscured.mockResolvedValue({
+      taxon_id: Number(SAMPLE_TAXON_ID),
+      all_obscured: true,
+    });
+
+    render(<SpeciesBasicsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('all-obscured')).toBeTruthy();
+    });
+  });
+
+  it('clears a prior obscured state when the identifier changes and the next obscured lookup fails', async () => {
+    const firstIdentifier = '111';
+    const secondIdentifier = '222';
+    mockUseLocalSearchParams.mockReturnValue({ identifier: firstIdentifier });
+    mockFetchSpeciesByTaxonId.mockImplementation(
+      async (taxonId) =>
+        ({
+          common_name: `Species ${taxonId}`,
+          scientific_name: `Species scientific ${taxonId}`,
+          description: `Description ${taxonId}`,
+        }) as any,
+    );
+    mockFetchSpeciesObscured
+      .mockResolvedValueOnce({
+        taxon_id: Number(firstIdentifier),
+        all_obscured: true,
+      })
+      .mockRejectedValueOnce(new Error('Obscured lookup failed'));
+
+    const { rerender } = render(<SpeciesBasicsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('all-obscured')).toBeTruthy();
+    });
+
+    mockUseLocalSearchParams.mockReturnValue({ identifier: secondIdentifier });
+    rerender(<SpeciesBasicsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(`Species ${secondIdentifier}`)).toBeTruthy();
+    });
+    expect(screen.getByText('not-obscured')).toBeTruthy();
+    expect(mockFetchSpeciesObscured).toHaveBeenNthCalledWith(
+      1,
+      firstIdentifier,
+    );
+    expect(mockFetchSpeciesObscured).toHaveBeenNthCalledWith(
+      2,
+      secondIdentifier,
+    );
   });
 
   it('falls back to sample data when the fetch request fails', async () => {
@@ -342,6 +416,28 @@ describe('SpeciesBasicsPage', () => {
     expect(consoleSpy).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+  });
+
+  it('ignores late obscured lookup failures after unmounting', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Snowy Owl',
+      scientific_name: 'Bubo scandiacus',
+      description: 'Large white owl adapted to Arctic climates.',
+    } as any);
+    let rejectObscured: (reason?: unknown) => void = () => {};
+    const pendingObscured = new Promise((_, reject) => {
+      rejectObscured = reject;
+    });
+    mockFetchSpeciesObscured.mockReturnValue(pendingObscured as any);
+
+    const { unmount } = render(<SpeciesBasicsPage />);
+    unmount();
+
+    await act(async () => {
+      rejectObscured(new Error('Delayed obscured failure'));
+      await flushMicrotasksQueue();
+    });
   });
 
   it('prioritizes taxon id identifiers when provided via path segments', async () => {
