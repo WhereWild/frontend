@@ -273,6 +273,19 @@ export function DensityChart({
       }
     }
 
+    // Clamp mean label away from min/max edge labels.
+    if (meanCenter != null) {
+      const minSafeLeft =
+        summary?.min != null ? MIN_LABEL_WIDTH + gap + meanHalf : meanHalf;
+      const maxSafeRight =
+        summary?.max != null
+          ? chartWidth - MAX_LABEL_WIDTH - gap - meanHalf
+          : chartWidth - meanHalf;
+      if (minSafeLeft < maxSafeRight) {
+        meanCenter = Math.min(Math.max(meanCenter, minSafeLeft), maxSafeRight);
+      }
+    }
+
     return {
       meanLeft:
         meanCenter != null ? (meanCenter / chartWidth) * 100 : meanPosition,
