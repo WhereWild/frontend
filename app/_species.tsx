@@ -462,8 +462,6 @@ export default function Species({
               />
             </SectionShell>
 
-            <NearbySpeciesCarousel species={nearbySpecies} />
-
             {shouldRenderOccurrenceMap && (
               <SectionShell responsive={responsive}>
                 <ThemedText variant='heading'>Observation Map</ThemedText>
