@@ -14,24 +14,15 @@ import { useSettings } from '@/context/SettingsContext';
 
 export default function Settings() {
   const responsive = useResponsive();
-  const { region, setRegion, units, setUnits, language, setLanguage } =
-    useSettings();
-  const regionOptions = [
-    { label: 'Utah', value: 'utah' },
-    { label: 'California', value: 'california' },
-    { label: 'New York', value: 'new-york' },
-  ];
+  const { units, setUnits } = useSettings();
+  const locationOptions = [{ label: 'Utah', value: 'utah' }];
 
   const unitsOptions = [
     { label: 'Metric (°C, km)', value: 'metric' },
     { label: 'Imperial (°F, mi)', value: 'imperial' },
   ];
 
-  const languageOptions = [
-    { label: 'English', value: 'en' },
-    { label: 'Español', value: 'es' },
-    { label: 'Français', value: 'fr' },
-  ];
+  const languageOptions = [{ label: 'English', value: 'en' }];
 
   const handleUnitsChange = (value: string) => {
     if (value === 'metric' || value === 'imperial') {
@@ -83,20 +74,20 @@ export default function Settings() {
 
                 <View style={styles.fieldStack}>
                   <SelectField
-                    label='Region'
-                    placeholder='Select a region'
-                    options={regionOptions}
-                    value={region}
-                    onValueChange={setRegion}
-                    description='Set your default observation region'
+                    label='Location'
+                    placeholder='Select a location'
+                    options={locationOptions}
+                    value='utah'
+                    disabled
+                    description='Default observation location'
                   />
 
                   <SelectField
                     label='Language'
                     placeholder='Select language'
                     options={languageOptions}
-                    value={language}
-                    onValueChange={setLanguage}
+                    value='en'
+                    disabled
                     description='Preferred UI language'
                   />
 
