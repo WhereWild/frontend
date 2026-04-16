@@ -4,6 +4,7 @@ import {
   Filters,
   PageScrollContainer,
 } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -291,7 +292,7 @@ export default function Search() {
   );
 
   return (
-    <View style={isWeb ? styles.screenWeb : styles.screen}>
+    <PageSurface>
       <PageScrollContainer
         contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
           includeHorizontalPadding: false,
@@ -312,17 +313,11 @@ export default function Search() {
           </View>
         </View>
       </PageScrollContainer>
-    </View>
+    </PageSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   content: {
     width: '100%',
     alignSelf: 'center',

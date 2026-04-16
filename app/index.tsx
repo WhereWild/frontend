@@ -4,6 +4,7 @@ import {
   PageScrollContainer,
   ThemedText,
 } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { useDataSources } from '@/hooks/useDataSources';
 import {
   fetchSpeciesWithModels,
@@ -231,7 +232,7 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
           <title>WhereWild | Home</title>
         </Head>
       ) : null}
-      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+      <PageSurface>
         <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}
@@ -336,18 +337,12 @@ export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
             />
           </View>
         </PageScrollContainer>
-      </View>
+      </PageSurface>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   layout: {
     flexDirection: 'row',
     alignItems: 'flex-start',
