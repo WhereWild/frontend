@@ -50,7 +50,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { LayoutChangeEvent, Platform, StyleSheet, View } from 'react-native';
+import {
+  LayoutChangeEvent,
+  Platform,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 const TOP_LEVEL_PATHS = [
   '/',
@@ -157,6 +163,7 @@ function RootLayoutWebFrame() {
   const pathname = usePathname();
   const colorScheme = useColorScheme();
   const responsive = useResponsive();
+  const { height: viewportHeight } = useWindowDimensions();
   const { config } = useWebPageHeaderConfig();
   const { webHeaderHeight, setWebHeaderHeight } = useLayoutChrome();
   const resolvedConfig = resolveHeaderConfigForRoute(pathname, config);
@@ -172,6 +179,11 @@ function RootLayoutWebFrame() {
   // page content under the fixed header on web.
   const resolvedWebHeaderHeight =
     webHeaderHeight > 0 ? webHeaderHeight : fallbackWebHeaderHeight;
+  const resolvedWebShellMinHeight = Math.max(viewportHeight, 0);
+  const resolvedWebContentMinHeight = Math.max(
+    0,
+    viewportHeight - resolvedWebHeaderHeight,
+  );
   const webScrollRootCss = useMemo(
     () => buildWebScrollRootCss(rootBackgroundColor),
     [rootBackgroundColor],
@@ -222,7 +234,9 @@ function RootLayoutWebFrame() {
         />
         <style>{webScrollRootCss}</style>
       </Head>
-      <View style={styles.webAppShell}>
+      <View
+        style={[styles.webAppShell, { minHeight: resolvedWebShellMinHeight }]}
+      >
         {/* Sticky was unreliable in this RN Web layout tree; a fixed wrapper plus measured
             content offset keeps the header pinned consistently across Safari/WebKit. */}
         <View style={styles.webHeaderSlot}>
@@ -240,7 +254,13 @@ function RootLayoutWebFrame() {
           />
         </View>
         <View
-          style={[styles.webContent, { paddingTop: resolvedWebHeaderHeight }]}
+          style={[
+            styles.webContent,
+            {
+              paddingTop: resolvedWebHeaderHeight,
+              minHeight: resolvedWebContentMinHeight,
+            },
+          ]}
         >
           <Stack
             screenOptions={{
@@ -548,7 +568,6 @@ const styles = StyleSheet.create({
   },
   webAppShell: {
     width: '100%',
-    minHeight: '100%',
   },
   webHeaderSlot: {
     position: 'fixed',
@@ -559,6 +578,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   webContent: {
+    flex: 1,
     width: '100%',
   },
 });

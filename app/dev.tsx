@@ -26,6 +26,7 @@ import {
   ThemedText,
 } from '@/components';
 import type { ButtonProps, SelectOption } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
@@ -525,7 +526,7 @@ export default function About() {
           <title>WhereWild | Dev</title>
         </Head>
       ) : null}
-      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+      <PageSurface>
         <View
           style={Platform.OS === 'web' ? styles.contentWeb : styles.content}
         >
@@ -1124,18 +1125,12 @@ export default function About() {
             </View>
           </PageScrollContainer>
         </View>
-      </View>
+      </PageSurface>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   content: {
     flex: 1,
   },

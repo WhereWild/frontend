@@ -8,6 +8,7 @@ import {
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
 } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
@@ -424,7 +425,7 @@ export default function Species({
           <title>{`WhereWild | ${commonName}`}</title>
         </Head>
       ) : null}
-      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+      <PageSurface>
         <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
@@ -549,18 +550,12 @@ export default function Species({
             )}
           </View>
         </PageScrollContainer>
-      </View>
+      </PageSurface>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   overlayContent: {
     width: '100%',
     gap: Size.space['400'],
