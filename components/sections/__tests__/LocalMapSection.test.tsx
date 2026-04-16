@@ -17,6 +17,7 @@ jest.mock('../SpeciesOccurrenceMap', () => {
       maxZoom,
       minZoom,
       showMarkers,
+      allowPinObservations,
     }: {
       heatmapTileUrl?: string | null;
       height?: number;
@@ -27,6 +28,7 @@ jest.mock('../SpeciesOccurrenceMap', () => {
       maxZoom?: number | null;
       minZoom?: number;
       showMarkers?: boolean;
+      allowPinObservations?: boolean;
     }) => (
       <View>
         <Text testID='map-heatmap-url'>{heatmapTileUrl ?? 'none'}</Text>
@@ -38,6 +40,9 @@ jest.mock('../SpeciesOccurrenceMap', () => {
         <Text testID='map-max-zoom'>{String(maxZoom)}</Text>
         <Text testID='map-show-markers'>
           {showMarkers === false ? 'hidden' : 'shown'}
+        </Text>
+        <Text testID='map-allow-pin-observations'>
+          {allowPinObservations === false ? 'disabled' : 'enabled'}
         </Text>
         <Text testID='map-max-bounds'>{JSON.stringify(maxBounds)}</Text>
       </View>
@@ -64,6 +69,9 @@ describe('LocalMapSection', () => {
     expect(screen.getByTestId('map-show-markers').props.children).toBe(
       'hidden',
     );
+    expect(
+      screen.getByTestId('map-allow-pin-observations').props.children,
+    ).toBe('disabled');
     expect(screen.getByTestId('map-max-bounds').props.children).toContain(
       '-135',
     );

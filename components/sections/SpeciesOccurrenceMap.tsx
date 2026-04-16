@@ -67,6 +67,7 @@ type SpeciesOccurrenceMapProps = {
   maxBounds?: [[number, number], [number, number]] | null;
   showMarkers?: boolean;
   linkObservations?: boolean;
+  allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
@@ -88,6 +89,7 @@ export function SpeciesOccurrenceMap({
   maxBounds = null,
   showMarkers = true,
   linkObservations = true,
+  allowPinObservations = true,
   onPinObservation,
   selectedPoint = null,
   onBoundsChange,
@@ -235,8 +237,10 @@ export function SpeciesOccurrenceMap({
       initialZoom,
       maxBounds,
       linkObservations,
+      allowPinObservations,
     );
   }, [
+    allowPinObservations,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,
