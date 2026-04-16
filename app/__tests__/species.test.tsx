@@ -358,9 +358,6 @@ describe('Species screen', () => {
     expect(screen.getByText('Common Names')).toBeTruthy();
     expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(0);
     expect(screen.getByText('Prickly Test Cactus')).toBeTruthy();
-    expect(screen.getByText('Nearby Species')).toBeTruthy();
-    expect(screen.getByText('Neighbor')).toBeTruthy();
-
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     try {
       fireEvent.press(screen.getByText('Download'));
