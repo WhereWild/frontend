@@ -1,15 +1,14 @@
 import React from 'react';
 import {
-  FlatList,
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
+  ScrollView,
   StyleSheet,
   View,
   ViewStyle,
   StyleProp,
-  ListRenderItem,
   ActivityIndicator,
 } from 'react-native';
 import { Colors, Shadows, Size } from '@/constants/theme';
@@ -18,7 +17,7 @@ import { ThemedText } from '../text/ThemedText';
 import type { SpeciesSummary } from '@/data/types';
 import { SpeciesCard } from '../cards/SpeciesCard';
 
-type SearchResultsListRef = FlatList<SpeciesSummary>;
+type SearchResultsScrollRef = ScrollView;
 
 type ResultLayout = {
   y: number;
@@ -68,7 +67,7 @@ const getScrollOffsetForActiveResult = (
 };
 
 const keepActiveResultVisible = (
-  listRef: React.RefObject<SearchResultsListRef | null>,
+  listRef: React.RefObject<SearchResultsScrollRef | null>,
   resultLayout: ResultLayout | undefined,
   scrollMetrics: ScrollMetrics,
 ) => {
@@ -80,9 +79,9 @@ const keepActiveResultVisible = (
     return;
   }
 
-  listRef.current?.scrollToOffset({
+  listRef.current?.scrollTo({
     animated: true,
-    offset: nextOffset,
+    y: nextOffset,
   });
 };
 
@@ -235,7 +234,7 @@ export function SearchResults({
   const isInlineLayout = layout === 'inline';
   const showInlineResults = showResultsState && isInlineLayout;
   const showFloatingResults = showResultsState && !isInlineLayout;
-  const listRef = React.useRef<SearchResultsListRef | null>(null);
+  const listRef = React.useRef<SearchResultsScrollRef | null>(null);
   const resultLayoutsRef = React.useRef<Record<number, ResultLayout>>({});
   const scrollMetricsRef = React.useRef<ScrollMetrics>({
     height: 0,
@@ -337,8 +336,9 @@ export function SearchResults({
     [],
   );
 
-  const renderResult: ListRenderItem<SpeciesSummary> = ({ item, index }) => (
+  const renderResult = (item: SpeciesSummary, index: number) => (
     <View
+      key={item.taxonId}
       nativeID={getSearchResultsResultElementId(instanceId, index)}
       onLayout={(event) => updateResultLayout(index, event)}
     >
@@ -472,12 +472,9 @@ export function SearchResults({
               : styles.floatingListSlot
           }
         >
-          <FlatList
+          <ScrollView
             ref={listRef}
             nativeID={listElementId}
-            data={results}
-            renderItem={renderResult}
-            keyExtractor={(item) => item.taxonId.toString()}
             onLayout={handleListLayout}
             onScroll={handleListScroll}
             scrollEventThrottle={16}
@@ -486,10 +483,14 @@ export function SearchResults({
             keyboardShouldPersistTaps='always'
             keyboardDismissMode='none'
             contentContainerStyle={styles.listContent}
+            // Floating search results are intentionally small, so a plain ScrollView
+            // avoids VirtualizedList's deferred cell updates while keeping behavior simple.
             testID={
               showFloatingResults && testID ? `${testID}-list` : undefined
             }
-          />
+          >
+            {results.map(renderResult)}
+          </ScrollView>
         </View>
       )}
     </View>

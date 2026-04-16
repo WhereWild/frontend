@@ -360,11 +360,11 @@ describe('SearchResults', () => {
   });
 
   it('adds top padding when scrolling the active result back into view', () => {
-    const scrollToOffset = jest.fn();
+    const scrollTo = jest.fn();
 
     const listRef = {
       current: {
-        scrollToOffset,
+        scrollTo,
       },
     } as unknown as React.RefObject<any>;
 
@@ -374,16 +374,16 @@ describe('SearchResults', () => {
       { height: 240, offset: 160 },
     );
 
-    expect(scrollToOffset).toHaveBeenCalledWith({
+    expect(scrollTo).toHaveBeenCalledWith({
       animated: true,
-      offset: 64,
+      y: 64,
     });
   });
 
   it('keeps the active result visible through the list ref when needed', () => {
     const listRef = {
       current: {
-        scrollToOffset: jest.fn(),
+        scrollTo: jest.fn(),
       },
     } as unknown as React.RefObject<any>;
 
@@ -393,18 +393,18 @@ describe('SearchResults', () => {
       { height: 240, offset: 0 },
     );
 
-    expect(listRef.current.scrollToOffset).toHaveBeenCalledWith({
+    expect(listRef.current.scrollTo).toHaveBeenCalledWith({
       animated: true,
-      offset: 52,
+      y: 52,
     });
   });
 
   it('does not scroll when the active result remains inside the visible window', () => {
-    const scrollToOffset = jest.fn();
+    const scrollTo = jest.fn();
 
     const listRef = {
       current: {
-        scrollToOffset,
+        scrollTo,
       },
     } as unknown as React.RefObject<any>;
 
@@ -414,7 +414,7 @@ describe('SearchResults', () => {
       { height: 240, offset: 0 },
     );
 
-    expect(scrollToOffset).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it('keeps the active web result visible via instance-scoped DOM ids', () => {
