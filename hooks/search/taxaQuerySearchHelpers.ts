@@ -205,16 +205,20 @@ const appendSampleCountToDescription = (
 export const buildEmptyStateContext = (
   payload: TaxaQueryResponse,
   query: string,
+  hasMinSamples = false,
 ) => {
+  const minSamplesHint = hasMinSamples
+    ? ' Some species may be hidden by the minimum sample count.'
+    : '';
   switch (payload.emptyReason) {
     case 'ranking_ineligible':
       return query
-        ? `Taxa matched "${query}", but none were eligible for ranking with the selected filters.`
-        : 'No ranked taxa matched the selected filters.';
+        ? `Taxa matched "${query}", but none were eligible for ranking with the selected filters.${minSamplesHint}`
+        : `No ranked taxa matched the selected filters.${minSamplesHint}`;
     case 'filtered_out':
       return query
-        ? `No taxa matched "${query}" after applying the selected filters.`
-        : 'No taxa matched the selected filters.';
+        ? `No taxa matched "${query}" after applying the selected filters.${minSamplesHint}`
+        : `No taxa matched the selected filters.${minSamplesHint}`;
     case 'no_text_matches':
       return query ? `No taxa matched "${query}".` : null;
     case 'no_query':
