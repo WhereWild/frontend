@@ -409,8 +409,8 @@ describe('useSearchFilters (location and sort)', () => {
       ancestorTaxonId: 77,
       rank: 'SPECIES',
       options: [
-        { variable: 'bio_12', metric: 'max', column: 'max', count: 1 },
-        { variable: 'bio_12', metric: 'min', column: 'min', count: 1 },
+        { variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 },
+        { variable: 'bio_12', metric: 'min', label: 'min', column: 'min', count: 1 },
       ],
     });
 
@@ -444,9 +444,9 @@ describe('useSearchFilters (location and sort)', () => {
       ancestorTaxonId: 77,
       rank: 'SPECIES',
       options: [
-        { variable: 'bio_12', metric: 'max', column: 'max', count: 1 },
-        { variable: 'bio_1', metric: 'median', column: 'median', count: 1 },
-        { variable: 'bio_1', metric: 'max', column: 'max', count: 1 },
+        { variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 },
+        { variable: 'bio_1', metric: 'median', label: 'median', column: 'median', count: 1 },
+        { variable: 'bio_1', metric: 'max', label: 'max', column: 'max', count: 1 },
       ],
     });
 
@@ -727,7 +727,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 77,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', column: 'max', count: 1 }],
+      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
     });
 
     const { result } = await renderSearchFilters();
@@ -789,7 +789,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 120,
       rank: 'SPECIES',
-      options: [{ variable: '', metric: 'mean', column: 'mean', count: 1 }],
+      options: [{ variable: '', metric: 'mean', label: 'mean', column: 'mean', count: 1 }],
     });
 
     const { result } = await renderSearchFilters();
@@ -821,7 +821,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 90,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', column: 'max', count: 1 }],
+      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
     });
 
     const { result } = await renderSearchFilters();
@@ -856,7 +856,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 90,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', column: 'max', count: 1 }],
+      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
     });
 
     const { result } = await renderSearchFilters();
@@ -895,7 +895,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 77,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', column: 'max', count: 1 }],
+      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
     });
 
     const { result } = await renderSearchFilters();
@@ -957,7 +957,7 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 1,
         rank: 'SPECIES',
         options: [
-          { variable: 'ignored_var', metric: 'mean', column: 'mean', count: 1 },
+          { variable: 'ignored_var', metric: 'mean', label: 'mean', column: 'mean', count: 1 },
         ],
       });
     });
@@ -973,7 +973,7 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 2,
         rank: 'SPECIES',
         options: [
-          { variable: 'final_var', metric: 'max', column: 'max', count: 1 },
+          { variable: 'final_var', metric: 'max', label: 'max', column: 'max', count: 1 },
         ],
       });
     });
@@ -1178,7 +1178,7 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 700,
         rank: 'SPECIES',
         options: [
-          { variable: 'ignored_var', metric: 'mean', column: 'mean', count: 1 },
+          { variable: 'ignored_var', metric: 'mean', label: 'mean', column: 'mean', count: 1 },
         ],
       });
       await Promise.resolve();
@@ -1193,7 +1193,7 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 701,
         rank: 'SPECIES',
         options: [
-          { variable: 'final_var', metric: 'max', column: 'max', count: 1 },
+          { variable: 'final_var', metric: 'max', label: 'max', column: 'max', count: 1 },
         ],
       });
       await Promise.resolve();
@@ -1522,7 +1522,7 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 444,
         rank: 'SPECIES',
         options: [
-          { variable: 'late_var', metric: 'mean', column: 'mean', count: 1 },
+          { variable: 'late_var', metric: 'mean', label: 'mean', column: 'mean', count: 1 },
         ],
       });
       await Promise.resolve();
