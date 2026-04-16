@@ -110,6 +110,7 @@ export type SpeciesPageData = SpeciesSummary & {
   nearbySpecies: SpeciesSummary[];
   heatmap: HeatmapSnapshot;
   taxonomyPath?: string | null;
+  allObscured?: boolean;
 };
 
 export type SpeciesEnvironmentSummary = {
@@ -250,6 +251,7 @@ export type SpeciesEnvironmentStats = {
   variableType?: string | null;
   generatedAt?: string;
   observationCount?: number;
+  allObscured?: boolean;
   summary: SpeciesEnvironmentSummary;
   histogram: SpeciesEnvironmentHistogram | null;
   densityCurve?: SpeciesEnvironmentDensity | null;

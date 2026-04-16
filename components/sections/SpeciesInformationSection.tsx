@@ -22,6 +22,7 @@ export type SpeciesInformationSectionProps = {
   commonNames: string[];
   overview: SpeciesOverview;
   style?: StyleProp<ViewStyle>;
+  allObscured?: boolean;
 };
 
 function CommonNamesList({ names }: { names: string[] }) {
@@ -64,6 +65,7 @@ export function SpeciesInformationSection({
   commonNames,
   overview,
   style,
+  allObscured,
 }: SpeciesInformationSectionProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -92,11 +94,18 @@ export function SpeciesInformationSection({
   }, [overview.imageReferences]);
 
   const overviewSections = React.useMemo(() => {
-    if (overview.sections && overview.sections.length > 0) {
-      return overview.sections;
+    const raw =
+      overview.sections && overview.sections.length > 0
+        ? overview.sections
+        : parseOverviewSectionsFromDescriptionText(overview.description);
+    if (!allObscured) {
+      return raw;
     }
-    return parseOverviewSectionsFromDescriptionText(overview.description);
-  }, [overview.description, overview.sections]);
+    return raw.filter(
+      (section) =>
+        !section.lines.every((line) => line.body.trim() === 'Not notable.'),
+    );
+  }, [allObscured, overview.description, overview.sections]);
 
   return (
     <View style={[styles.container, style]}>
@@ -147,6 +156,25 @@ export function SpeciesInformationSection({
       >
         <View style={styles.textSection}>
           <ThemedText variant='heading'>Overview</ThemedText>
+          {allObscured && (
+            <View
+              style={[
+                styles.obscuredWarning,
+                {
+                  backgroundColor: palette.background.warning.secondary,
+                  borderColor: palette.border.warning.default,
+                },
+              ]}
+            >
+              <ThemedText
+                variant='bodySmall'
+                style={{ color: palette.text.warning.default }}
+              >
+                All recorded observations for this species have obscured
+                locations and are excluded from environmental analysis.
+              </ThemedText>
+            </View>
+          )}
           {overviewSections.length > 0 ? (
             <View style={styles.textSubsectionContainer}>
               {overviewSections.map((section) => (
@@ -253,5 +281,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'baseline',
     gap: 0,
+  },
+  obscuredWarning: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
   },
 });
