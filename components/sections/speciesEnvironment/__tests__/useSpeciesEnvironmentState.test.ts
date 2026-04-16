@@ -117,6 +117,18 @@ const categoricalVariableOptions: EnvironmentVariableOption[] = [
   variableOptions[1],
 ];
 
+const renderSpeciesEnvironmentStateHook = async (
+  props: Parameters<typeof useSpeciesEnvironmentState>[0],
+) => {
+  const rendered = renderHook(() => useSpeciesEnvironmentState(props));
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  return rendered;
+};
+
 describe('useSpeciesEnvironmentState', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -292,16 +304,15 @@ describe('useSpeciesEnvironmentState', () => {
       count: 1,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
     await waitFor(() => expect(result.current.pinnedValue).toBe(41));
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
 
     expect(result.current.pinnedCategoryValue).toBe(41);
     expect(result.current.pinnedUnobservedCategory).toBeNull();
@@ -333,20 +344,19 @@ describe('useSpeciesEnvironmentState', () => {
       count: 0,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: {
-          catalogNumber: 'PIN-POINT',
-          lat: 40.2,
-          lon: -105.1,
-        },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: {
+        catalogNumber: 'PIN-POINT',
+        lat: 40.2,
+        lon: -105.1,
+      },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
     await waitFor(() => expect(result.current.pinnedValue).toBe(90));
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
 
     expect(result.current.pinnedCategoryValue).toBeNull();
     expect(result.current.pinnedUnobservedCategory).toEqual({
@@ -383,20 +393,19 @@ describe('useSpeciesEnvironmentState', () => {
       count: 0,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: {
-          catalogNumber: 'PIN-POINT',
-          lat: 40.2,
-          lon: -105.1,
-        },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: {
+        catalogNumber: 'PIN-POINT',
+        lat: 40.2,
+        lon: -105.1,
+      },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
     await waitFor(() => expect(result.current.pinnedValue).toBe(90));
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
 
     expect(result.current.pinnedCategoryValue).toBeNull();
     expect(result.current.pinnedUnobservedCategory).toEqual({
@@ -439,20 +448,19 @@ describe('useSpeciesEnvironmentState', () => {
       count: 1,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: {
-          catalogNumber: 'PIN-LABEL',
-          lat: 40.2,
-          lon: -105.1,
-        },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: {
+        catalogNumber: 'PIN-LABEL',
+        lat: 40.2,
+        lon: -105.1,
+      },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
     await waitFor(() => expect(result.current.pinnedValue).toBe('Forest'));
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
 
     expect(result.current.pinnedCategoryValue).toBe('forest');
     expect(result.current.pinnedUnobservedCategory).toBeNull();
@@ -484,20 +492,19 @@ describe('useSpeciesEnvironmentState', () => {
       count: 0,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: {
-          catalogNumber: 'PIN-LABEL-OOD',
-          lat: 40.2,
-          lon: -105.1,
-        },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: {
+        catalogNumber: 'PIN-LABEL-OOD',
+        lat: 40.2,
+        lon: -105.1,
+      },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
     await waitFor(() => expect(result.current.pinnedValue).toBe('Urban'));
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
 
     expect(result.current.pinnedCategoryValue).toBeNull();
     expect(result.current.pinnedUnobservedCategory).toEqual({
@@ -533,20 +540,19 @@ describe('useSpeciesEnvironmentState', () => {
       count: 0,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: {
-          catalogNumber: 'PIN-PRECEDENCE',
-          lat: 40.2,
-          lon: -105.1,
-        },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: {
+        catalogNumber: 'PIN-PRECEDENCE',
+        lat: 40.2,
+        lon: -105.1,
+      },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
     await waitFor(() => expect(result.current.pinnedValue).toBe(90));
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
     await waitFor(() =>
       expect(result.current.pinnedUnobservedCategory).toEqual({
         value: 90,
@@ -586,19 +592,18 @@ describe('useSpeciesEnvironmentState', () => {
       count: 0,
     });
 
-    const { result } = renderHook(() =>
-      useSpeciesEnvironmentState({
-        taxonId: 1,
-        variableId: 'landcover',
-        pinnedObservation: {
-          catalogNumber: 'PIN-REAL-PAYLOAD',
-          lat: 44.134913443750726,
-          lon: -84.79248046875001,
-        },
-      }),
-    );
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: 1,
+      variableId: 'landcover',
+      pinnedObservation: {
+        catalogNumber: 'PIN-REAL-PAYLOAD',
+        lat: 44.134913443750726,
+        lon: -84.79248046875001,
+      },
+    });
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
+    await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
     await waitFor(() =>
       expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
         1,
