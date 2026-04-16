@@ -140,6 +140,10 @@ export function useEnvironmentHighlights({
   >([]);
   const categoryRequestRef = React.useRef(0);
   const lastEmittedSignatureRef = React.useRef<string | null>(null);
+  const rangeObservationsRef = React.useRef(rangeObservations);
+  React.useEffect(() => {
+    rangeObservationsRef.current = rangeObservations;
+  }, [rangeObservations]);
   const [pinnedValue, setPinnedValue] = React.useState<number | string | null>(
     null,
   );
@@ -200,6 +204,24 @@ export function useEnvironmentHighlights({
       return;
     }
     const requestId = ++pinnedRequestRef.current;
+    // For non-categorical variables, prefer the stored index value when the observation
+    // is already in rangeObservations. The raster value at lat/lon can differ slightly
+    // from the stored occurrence index value, making the pin appear outside the selection arc.
+    if (!isCategorical) {
+      const stored = rangeObservationsRef.current.find(
+        (obs) =>
+          obs.catalogNumber === pinnedObservation.catalogNumber &&
+          obs.value != null,
+      );
+      if (stored) {
+        setPinnedValue(stored.value ?? null);
+        setPinnedValueLabel(null);
+        setPinnedValueDescription(null);
+        setPinnedCategoryObserved(null);
+        setPinnedLoading(false);
+        return;
+      }
+    }
     setPinnedLoading(true);
     void (async () => {
       try {
