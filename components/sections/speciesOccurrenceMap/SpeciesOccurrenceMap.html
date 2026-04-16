@@ -49,6 +49,7 @@
     const INITIAL_LON = __INITIAL_LON__;
     const INITIAL_ZOOM = __INITIAL_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
+    const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
     const mapBounds = CUSTOM_MAX_BOUNDS
@@ -321,6 +322,9 @@
     }
 
     function buildPinButtonHtml(catalogNumber, latitude, longitude, marginTop) {
+      if (!ALLOW_PIN_OBSERVATIONS) {
+        return '';
+      }
       const resolvedMarginTop = typeof marginTop === 'string' ? marginTop : '6px';
       return '<button type="button" data-pin-observation="true" data-catalog-number="' + encodeURIComponent(catalogNumber) + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:' + resolvedMarginTop + ';padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
     }
@@ -767,6 +771,10 @@
     }
 
     map.on('click', function(event) {
+      if (!ALLOW_PIN_OBSERVATIONS) {
+        map.closePopup();
+        return;
+      }
       const latitude = Number(event.latlng?.lat);
       const longitude = Number(event.latlng?.lng);
       if (!isFinite(latitude) || !isFinite(longitude)) {

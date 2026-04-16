@@ -48,6 +48,7 @@ export function LocalMapSection({
         initialLon={CONUS_INITIAL_LON}
         initialZoom={CONUS_INITIAL_ZOOM}
         maxBounds={CONUS_MAX_BOUNDS}
+        allowPinObservations={false}
         onBoundsChange={onBoundsChange}
       />
     </View>

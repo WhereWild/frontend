@@ -69,7 +69,7 @@ describe('speciesOccurrenceMapHelpers', () => {
   };
 
   const createLeafletHarness = () => {
-    const eventHandlers = new Map<string, () => void>();
+    const eventHandlers = new Map<string, (event?: unknown) => void>();
     const documentListeners = new Map<
       string,
       (event: { data: unknown }) => void
@@ -87,6 +87,11 @@ describe('speciesOccurrenceMapHelpers', () => {
     let visibleLongitudePredicate = (_longitude: number) => false;
     const blobUrlMap = new Map<object, string>();
     let blobUrlCounter = 0;
+    const popup = {
+      setLatLng: jest.fn().mockReturnThis(),
+      setContent: jest.fn().mockReturnThis(),
+      openOn: jest.fn().mockReturnThis(),
+    };
 
     const makeLayer = () => ({
       addTo: jest.fn().mockReturnThis(),
@@ -127,6 +132,7 @@ describe('speciesOccurrenceMapHelpers', () => {
       addLayer: jest.fn(),
       fitBounds: jest.fn(),
       setView: jest.fn(),
+      closePopup: jest.fn(),
     };
 
     const createTileElement = () => {
@@ -176,6 +182,7 @@ describe('speciesOccurrenceMapHelpers', () => {
           return marker;
         },
       ),
+      popup: jest.fn(() => popup),
       markerClusterGroup: jest.fn(() => makeLayer()),
       layerGroup: jest.fn(() => makeLayer()),
     };
@@ -238,6 +245,7 @@ describe('speciesOccurrenceMapHelpers', () => {
       createdMarkers,
       eventHandlers,
       documentListeners,
+      popup,
       windowListeners,
       urlApi,
       setVisibleLongitudePredicate(predicate: (longitude: number) => boolean) {
@@ -399,6 +407,119 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(unlinkedPopup).not.toContain(
         'https://www.inaturalist.org/observations/obs-123',
       );
+    });
+  });
+
+  it('omits pin buttons when pinning observations is disabled', () => {
+    const templatePaths = [
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+
+      const enabledHtml = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+      );
+      const enabledHarness = createLeafletHarness();
+      vm.runInNewContext(
+        extractInlineScript(enabledHtml),
+        enabledHarness.context,
+      );
+      const enabledPopup =
+        enabledHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+
+      const disabledHtml = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 1, longitude: 2 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+      const disabledHarness = createLeafletHarness();
+      vm.runInNewContext(
+        extractInlineScript(disabledHtml),
+        disabledHarness.context,
+      );
+      const disabledPopup =
+        disabledHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+
+      expect(enabledPopup).toContain('Highlight in Environmental Features');
+      expect(disabledPopup).not.toContain(
+        'Highlight in Environmental Features',
+      );
+      expect(disabledPopup).not.toContain('data-pin-observation="true"');
+    });
+  });
+
+  it('does not open a map-click popup when pinning observations is disabled', () => {
+    const templatePaths = [
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
+    ];
+
+    templatePaths.forEach((templatePath) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const html = buildLeafletHtml(
+        rawTemplate,
+        [{ catalogNumber: 'obs-123', latitude: 40, longitude: -111 }],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+        null,
+        undefined,
+        undefined,
+        true,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      );
+      const harness = createLeafletHarness();
+
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      harness.eventHandlers.get('click')?.({
+        latlng: { lat: 40, lng: -111 },
+      } as unknown as { latlng: { lat: number; lng: number } });
+
+      expect(harness.popup.openOn).not.toHaveBeenCalled();
     });
   });
 
