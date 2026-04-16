@@ -1,4 +1,4 @@
-import { fetchLocationsByHierarchy } from '@/data/api';
+import { fetchLocationsByHierarchy, fetchSpeciesLocations } from '@/data/api';
 import type { SelectOption } from '@/components';
 import { mapLocationsToOptions } from '../../species/locationHelpers';
 
@@ -123,4 +123,17 @@ export const fetchCountryHierarchyOptions = async (): Promise<
   SelectOption[]
 > => {
   return fetchHierarchyOptions('country');
+};
+
+/**
+ * Fetches location options for a given level filtered to only locations where
+ * the given taxon has observations, ordered by observation count descending.
+ */
+export const fetchTaxonHierarchyOptions = async (
+  taxonId: number,
+  level: 'country' | 'state' | 'county',
+  parentGid?: string,
+): Promise<SelectOption[]> => {
+  const results = await fetchSpeciesLocations(taxonId, level, parentGid);
+  return mapLocationsToOptions(results).options;
 };
