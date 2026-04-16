@@ -320,6 +320,7 @@ export type RelativeRankingEntry = {
 export type RelativeRankingOption = {
   variable: string;
   metric: string;
+  label: string;
   column: string;
   count: number;
 };
