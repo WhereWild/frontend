@@ -42,9 +42,12 @@ export async function fetchRelativeRankingOptions(
     ? payload.options.map((entry) => {
         const source = asRecord(entry);
 
+        const metric = toRequiredString(source.metric, '');
+        const rawLabel = typeof source.label === 'string' ? source.label.trim() : '';
         return {
           variable: toRequiredString(source.variable, ''),
-          metric: toRequiredString(source.metric, ''),
+          metric,
+          label: rawLabel.length > 0 ? rawLabel : metric,
           column: toRequiredString(source.column, ''),
           count: toRequiredNumber(source.count, 0),
         };

@@ -615,7 +615,7 @@ describe('useSearchFilters (base taxon)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValueOnce({
       ancestorTaxonId: 333,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', column: 'max', count: 1 }],
+      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
     });
 
     const { result } = renderHook(() => useSearchFilters());

@@ -3,7 +3,6 @@ import type { SelectOption } from '@/components';
 import {
   DEFAULT_QUANTITY,
   deriveLocationGid,
-  toMetricLabel,
   toRankingFilterHint,
 } from './useSearchFilters.helpers';
 import type { SearchFiltersState } from './useSearchFilters.state';
@@ -17,23 +16,21 @@ export const toSortMetricOptions = (
     return defaultOptions;
   }
 
-  const metrics = Array.from(
-    new Set(
-      rankingSortOptions
-        .filter((entry) => entry.variable === sortVariableValue)
-        .map((entry) => entry.metric)
-        .filter((value) => value.length > 0),
-    ),
-  );
+  const seen = new Set<string>();
+  const metricOptions = rankingSortOptions
+    .filter((entry) => entry.variable === sortVariableValue && entry.metric.length > 0)
+    .filter((entry) => {
+      if (seen.has(entry.metric)) return false;
+      seen.add(entry.metric);
+      return true;
+    })
+    .map((entry) => ({ label: entry.label, value: entry.metric }));
 
-  if (!metrics.length) {
+  if (!metricOptions.length) {
     return defaultOptions;
   }
 
-  return metrics.map((value) => ({
-    label: toMetricLabel(value),
-    value,
-  }));
+  return metricOptions;
 };
 
 export const toSearchFilterParams = (
