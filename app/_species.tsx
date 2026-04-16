@@ -1,6 +1,5 @@
 import {
   NavigationPillList,
-  NearbySpeciesCarousel,
   PageScrollContainer,
   SpeciesPageTitle,
   SwitchField,
@@ -264,7 +263,6 @@ export default function Species({
     commonNames,
     scientificName,
     overview,
-    nearbySpecies,
     heatmap,
   } = data;
   const colorScheme = useColorScheme();
