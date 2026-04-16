@@ -4,6 +4,7 @@ import {
   fetchTaxaQuery,
   fetchPointEnvironmentValue,
   fetchSpeciesByTaxonId,
+  fetchSpeciesObscured,
   fetchSpeciesLocations,
   fetchSpeciesWithModels,
   fetchViewportScores,
@@ -151,6 +152,34 @@ describe('data/api common name normalization', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       `${BACKEND_BASE}/api/species/2?unit_system=imperial`,
     );
+  });
+
+  it('fetches species obscured status and preserves explicit true responses', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        taxon_id: 2,
+        all_obscured: true,
+      }),
+    });
+
+    const response = await fetchSpeciesObscured(2);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${BACKEND_BASE}/api/species/2/obscured`,
+    );
+    expect(response).toEqual({ taxon_id: 2, all_obscured: true });
+  });
+
+  it('falls back to the requested taxon id and false obscured status when payload fields are missing', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    const response = await fetchSpeciesObscured('27');
+
+    expect(response).toEqual({ taxon_id: 27, all_obscured: false });
   });
 
   it('parses categorical point lookup responses from class_value fields', async () => {

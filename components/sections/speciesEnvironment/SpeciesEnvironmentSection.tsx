@@ -146,7 +146,8 @@ function SpeciesEnvironmentSectionComponent({
   }
 
   const shouldPreservePreviousUi = loading && !stats;
-  const shouldClearPreservedUi = !loading && !stats;
+  const shouldClearPreservedUi =
+    !loading && (!stats || Boolean(stats?.allObscured));
 
   if (shouldClearPreservedUi) {
     stableDisplayRef.current = null;
@@ -155,6 +156,7 @@ function SpeciesEnvironmentSectionComponent({
   const showLoading = loading && !stats && !stableDisplayRef.current;
   const showUpdating = loading && !stats && Boolean(stableDisplayRef.current);
   const showError = !loading && Boolean(error);
+  const showAllObscured = !loading && Boolean(stats?.allObscured);
 
   const handleCategorySelect = (value: string | number) => {
     React.startTransition(() => {
@@ -297,6 +299,37 @@ function SpeciesEnvironmentSectionComponent({
         >
           <View style={styles.errorRow}>
             <ThemedText variant='bodySmall'>{error}</ThemedText>
+          </View>
+        </View>
+        <View
+          collapsable={false}
+          testID='species-environment-obscured-slot'
+          accessibilityElementsHidden={!showAllObscured}
+          importantForAccessibility={
+            showAllObscured ? 'auto' : 'no-hide-descendants'
+          }
+          style={[
+            styles.statusContentSlot,
+            !showAllObscured && styles.hiddenContentSlot,
+          ]}
+        >
+          <View
+            style={[
+              styles.obscuredWarning,
+              {
+                backgroundColor: palette.background.warning.secondary,
+                borderColor: palette.border.warning.default,
+              },
+            ]}
+          >
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.text.warning.default }}
+            >
+              All observations for this species
+              {locationFilterActive ? ' in the selected location' : ''} have
+              obscured locations and cannot be used for environmental analysis.
+            </ThemedText>
           </View>
         </View>
       </View>
@@ -452,6 +485,13 @@ const styles = StyleSheet.create({
   },
   errorRow: {
     paddingVertical: Size.space['200'],
+  },
+  obscuredWarning: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
   },
   updatingIndicatorRow: {
     flexDirection: 'row',

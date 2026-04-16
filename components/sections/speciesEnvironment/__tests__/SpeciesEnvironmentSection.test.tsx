@@ -339,6 +339,53 @@ describe('SpeciesEnvironmentSection', () => {
     expect(screen.getByText('Something failed')).toBeTruthy();
   });
 
+  it('renders the obscured warning when all observations are obscured', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      loading: false,
+      stats: {
+        ...baseContinuousStats,
+        allObscured: true,
+      },
+      isCategorical: false,
+      densityCurve: baseContinuousStats.densityCurve ?? null,
+      summary: baseContinuousStats.summary,
+      headingText: 'Annual Temperature (C)',
+      metaText: '(Based on 10 observations)',
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} />);
+
+    expect(
+      screen.getByText(
+        'All observations for this species have obscured locations and cannot be used for environmental analysis.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('renders the location-specific obscured warning copy when a location filter is active', () => {
+    mockUseSpeciesEnvironmentState.mockReturnValue({
+      ...baseState,
+      loading: false,
+      stats: {
+        ...baseContinuousStats,
+        allObscured: true,
+      },
+      locationFilterActive: true,
+      isCategorical: false,
+      densityCurve: baseContinuousStats.densityCurve ?? null,
+      summary: baseContinuousStats.summary,
+    });
+
+    render(<SpeciesEnvironmentSection taxonId={1} locationGid='USA.5_1' />);
+
+    expect(
+      screen.getByText(
+        'All observations for this species in the selected location have obscured locations and cannot be used for environmental analysis.',
+      ),
+    ).toBeTruthy();
+  });
+
   it('renders categorical branch and forwards category selection intent', () => {
     const setSelectedCategoryValue = jest.fn();
     mockUseSpeciesEnvironmentState.mockImplementation(() => ({

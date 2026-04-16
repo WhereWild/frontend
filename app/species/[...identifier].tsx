@@ -1,4 +1,8 @@
-import { BACKEND_BASE, fetchSpeciesByTaxonId } from '@/data/api';
+import {
+  BACKEND_BASE,
+  fetchSpeciesByTaxonId,
+  fetchSpeciesObscured,
+} from '@/data/api';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesOverviewSection, SpeciesPageData } from '@/data/types';
@@ -195,19 +199,47 @@ const useSpeciesBasicsData = (
   };
 };
 
+const useSpeciesObscuredData = (fetchIdentifier?: string) => {
+  const [allObscured, setAllObscured] = React.useState(false);
+
+  React.useEffect(() => {
+    setAllObscured(false);
+    if (!fetchIdentifier) {
+      return;
+    }
+
+    let mounted = true;
+    fetchSpeciesObscured(fetchIdentifier)
+      .then((result) => {
+        if (mounted) setAllObscured(result.all_obscured);
+      })
+      .catch(() => {
+        if (mounted) {
+          setAllObscured(false);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [fetchIdentifier]);
+
+  return allObscured;
+};
+
 export default function SpeciesBasicsPage() {
   const params = useLocalSearchParams<SpeciesRouteParams>();
   const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
   const { units } = useSettings();
 
   const { data, loading } = useSpeciesBasicsData(fetchIdentifier, units);
+  const allObscured = useSpeciesObscuredData(fetchIdentifier);
 
   if (loading && !data) {
     return null;
   }
 
   const resolvedPageData = data
-    ? buildSpeciesPageData(data, requestedTaxonId)
+    ? { ...buildSpeciesPageData(data, requestedTaxonId), allObscured }
     : mountainBallCactusData;
 
   return <Species data={resolvedPageData} />;

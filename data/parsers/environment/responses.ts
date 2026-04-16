@@ -369,6 +369,7 @@ export const parseSpeciesEnvironmentStats = (
   return {
     speciesId: toFiniteNumber(source.species_id) ?? Number(taxonId),
     variable: typeof source.variable === 'string' ? source.variable : variableId,
+    allObscured: source.all_obscured === true || source.allObscured === true,
     variableName:
       (typeof variableMetadata?.name === 'string' ? variableMetadata.name : undefined) ??
       (typeof source.variable === 'string' ? source.variable : variableId),
