@@ -4,6 +4,7 @@ import {
   PageTitle,
   ThemedText,
 } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -69,7 +70,7 @@ export default function HelpScreen() {
           <title>WhereWild | Help</title>
         </Head>
       ) : null}
-      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+      <PageSurface>
         <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
@@ -631,18 +632,12 @@ export default function HelpScreen() {
             </View>
           </View>
         </PageScrollContainer>
-      </View>
+      </PageSurface>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   contentShell: {
     width: '100%',
     alignItems: 'center',

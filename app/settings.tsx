@@ -7,6 +7,7 @@ import {
   SelectField,
   PageScrollContainer,
 } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -47,10 +48,7 @@ export default function Settings() {
         </Head>
       ) : null}
 
-      <View
-        testID='settings-screen'
-        style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}
-      >
+      <PageSurface testID='settings-screen'>
         <PageScrollContainer
           contentContainerStyle={[
             getResponsiveContentContainerStyle(responsive, {
@@ -115,18 +113,12 @@ export default function Settings() {
 
           {/* Notifications and Danger Zone intentionally omitted per design instructions */}
         </PageScrollContainer>
-      </View>
+      </PageSurface>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   scrollContent: {
     alignItems: 'center',
   },

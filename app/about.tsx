@@ -5,6 +5,7 @@ import {
   PageScrollContainer,
   ThemedText,
 } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { IconGithub, IconLinkedin, IconMail } from '@/assets/icons';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
@@ -137,7 +138,7 @@ export default function AboutScreen() {
           <title>WhereWild | About</title>
         </Head>
       ) : null}
-      <View style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}>
+      <PageSurface>
         <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
@@ -589,18 +590,12 @@ export default function AboutScreen() {
             </View>
           </View>
         </PageScrollContainer>
-      </View>
+      </PageSurface>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   contentShell: {
     width: '100%',
     alignItems: 'center',

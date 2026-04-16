@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
+import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
 import { useLayoutChrome } from '@/context/LayoutChromeContext';
@@ -72,10 +73,7 @@ export function UploadScreen() {
   ]);
 
   return (
-    <View
-      testID='upload-screen'
-      style={Platform.OS === 'web' ? styles.screenWeb : styles.screen}
-    >
+    <PageSurface testID='upload-screen'>
       <PageScrollContainer
         contentContainerStyle={[
           getResponsiveContentContainerStyle(responsive, {
@@ -148,17 +146,11 @@ export function UploadScreen() {
           ) : null}
         </View>
       </PageScrollContainer>
-    </View>
+    </PageSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenWeb: {
-    width: '100%',
-  },
   scrollContent: {
     alignItems: 'center',
   },
