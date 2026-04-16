@@ -17,6 +17,7 @@ import {
 import {
   fetchCountryHierarchyOptions,
   fetchHierarchyOptionsWithParentFallback,
+  fetchTaxonHierarchyOptions,
   getOptionLabelForValue,
 } from './searchFilterLocationHelpers';
 import { toSortMetricOptions } from './useSearchFilters.derived';
@@ -42,6 +43,9 @@ export function useSearchFiltersEffects({
 }: UseSearchFiltersEffectsParams) {
   const latestAncestorTaxonIdRef = React.useRef(state.ancestorTaxonId);
   latestAncestorTaxonIdRef.current = state.ancestorTaxonId;
+  const prevAncestorTaxonIdRef = React.useRef<number | null | undefined>(
+    undefined,
+  );
   const latestRankingSortOptionsRef = React.useRef(state.rankingSortOptions);
   latestRankingSortOptionsRef.current = state.rankingSortOptions;
 
@@ -64,10 +68,28 @@ export function useSearchFiltersEffects({
   }, [baseTaxonDismissTimeoutRef]);
 
   React.useEffect(() => {
+    const prevId = prevAncestorTaxonIdRef.current;
+    prevAncestorTaxonIdRef.current = state.ancestorTaxonId;
+
     let cancelled = false;
     dispatch({ type: 'set-country-loading', value: true });
 
-    fetchCountryHierarchyOptions()
+    const hasTaxonId =
+      state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId);
+    const prevWasValid = prevId != null && Number.isFinite(prevId);
+    const taxonIdChanged = prevWasValid && prevId !== state.ancestorTaxonId;
+
+    if (hasTaxonId && taxonIdChanged) {
+      dispatch({ type: 'change-country', value: '' });
+      dispatch({ type: 'change-state', value: '' });
+      dispatch({ type: 'change-county', value: '' });
+    }
+
+    const loadFn = hasTaxonId
+      ? fetchTaxonHierarchyOptions(state.ancestorTaxonId!, 'country')
+      : fetchCountryHierarchyOptions();
+
+    loadFn
       .then((options) => {
         if (!cancelled) {
           dispatch({ type: 'set-country-options', options });
@@ -87,7 +109,7 @@ export function useSearchFiltersEffects({
     return () => {
       cancelled = true;
     };
-  }, [dispatch]);
+  }, [dispatch, state.ancestorTaxonId]);
 
   const selectedCountryLabel = React.useMemo(
     () => getOptionLabelForValue(state.countryOptions, state.countryValue),
@@ -102,10 +124,19 @@ export function useSearchFiltersEffects({
     let cancelled = false;
     dispatch({ type: 'set-state-loading', value: true });
 
-    fetchHierarchyOptionsWithParentFallback('state', [
-      state.countryValue,
-      selectedCountryLabel,
-    ])
+    const stateLoadFn =
+      state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId)
+        ? fetchTaxonHierarchyOptions(
+            state.ancestorTaxonId,
+            'state',
+            state.countryValue,
+          )
+        : fetchHierarchyOptionsWithParentFallback('state', [
+            state.countryValue,
+            selectedCountryLabel,
+          ]);
+
+    stateLoadFn
       .then((options) => {
         if (!cancelled) {
           dispatch({ type: 'set-state-options', options });
@@ -125,7 +156,12 @@ export function useSearchFiltersEffects({
     return () => {
       cancelled = true;
     };
-  }, [dispatch, selectedCountryLabel, state.countryValue]);
+  }, [
+    dispatch,
+    selectedCountryLabel,
+    state.countryValue,
+    state.ancestorTaxonId,
+  ]);
 
   const selectedStateLabel = React.useMemo(
     () => getOptionLabelForValue(state.stateOptions, state.stateValue),
@@ -140,13 +176,22 @@ export function useSearchFiltersEffects({
     let cancelled = false;
     dispatch({ type: 'set-county-loading', value: true });
 
-    fetchHierarchyOptionsWithParentFallback('county', [
-      state.stateValue,
-      selectedStateLabel,
-      selectedCountryLabel && selectedStateLabel
-        ? `${selectedCountryLabel}|${selectedStateLabel}`
-        : undefined,
-    ])
+    const countyLoadFn =
+      state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId)
+        ? fetchTaxonHierarchyOptions(
+            state.ancestorTaxonId,
+            'county',
+            state.stateValue,
+          )
+        : fetchHierarchyOptionsWithParentFallback('county', [
+            state.stateValue,
+            selectedStateLabel,
+            selectedCountryLabel && selectedStateLabel
+              ? `${selectedCountryLabel}|${selectedStateLabel}`
+              : undefined,
+          ]);
+
+    countyLoadFn
       .then((options) => {
         if (!cancelled) {
           dispatch({ type: 'set-county-options', options });
@@ -172,6 +217,7 @@ export function useSearchFiltersEffects({
     state.stateValue,
     selectedCountryLabel,
     selectedStateLabel,
+    state.ancestorTaxonId,
   ]);
 
   React.useEffect(() => {
@@ -237,7 +283,10 @@ export function useSearchFiltersEffects({
 
         const options = toVariableOptions(variables);
         dispatch({ type: 'set-default-sort-variable-options', options });
-        dispatch({ type: 'set-sort-variable-definitions', definitions: variables });
+        dispatch({
+          type: 'set-sort-variable-definitions',
+          definitions: variables,
+        });
 
         const hasValidAncestorTaxonId =
           latestAncestorTaxonIdRef.current != null &&

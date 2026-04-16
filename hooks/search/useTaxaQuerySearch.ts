@@ -164,7 +164,7 @@ export function useTaxaQuerySearch({
       setSearchResults(mapped);
       setSearchContext(
         mapped.length === 0
-          ? buildEmptyStateContext(cachedPayload, debouncedQuery)
+          ? buildEmptyStateContext(cachedPayload, debouncedQuery, hasMinimumSamplesFilter)
           : null,
       );
       setSearching(false);
@@ -207,7 +207,7 @@ export function useTaxaQuerySearch({
 
         setSearchContext(
           mapped.length === 0
-            ? buildEmptyStateContext(payload, debouncedQuery)
+            ? buildEmptyStateContext(payload, debouncedQuery, hasMinimumSamplesFilter)
             : null,
         );
         setSearchResults(mapped);
