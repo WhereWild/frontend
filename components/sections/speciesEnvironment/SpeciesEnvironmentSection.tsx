@@ -14,10 +14,21 @@ import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
 
+const SPECIES_RANKS = new Set([
+  'SPECIES',
+  'SUBSPECIES',
+  'VARIETY',
+  'FORM',
+  'SUBVARIETY',
+  'SUBFORM',
+]);
+
 /** Props for rendering the species environment analytics section. */
 export type SpeciesEnvironmentSectionProps = {
   /** Taxon ID used to fetch environment statistics. */
   taxonId?: number;
+  /** Taxon rank string as returned by the backend (e.g. 'SPECIES', 'GENUS'). */
+  taxonRank?: string | null;
   /** Initial environment variable ID to load. */
   variableId?: string;
   /** Optional environment variable catalog override. */
@@ -37,6 +48,7 @@ export type SpeciesEnvironmentSectionProps = {
 /** Displays environment distribution insights for a species and selected variable. */
 function SpeciesEnvironmentSectionComponent({
   taxonId,
+  taxonRank,
   variableId = DEFAULT_VARIABLE,
   variables,
   onHighlightChange,
@@ -44,6 +56,14 @@ function SpeciesEnvironmentSectionComponent({
   units,
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
+  const slicingEnabled =
+    taxonRank == null || SPECIES_RANKS.has(taxonRank.toUpperCase());
+  const rankLabel =
+    taxonRank == null
+      ? 'Species'
+      : `${taxonRank.charAt(0).toUpperCase()}${taxonRank.slice(1).toLowerCase()}`;
+  const sectionTitle = `${rankLabel} Environment`;
+
   const stableDisplayRef = React.useRef<{
     headingText: string | null;
     metaText: string | null;
@@ -225,7 +245,7 @@ function SpeciesEnvironmentSectionComponent({
 
   return (
     <View collapsable={false} style={styles.container}>
-      <ThemedText variant='subheading'>Species Environment</ThemedText>
+      <ThemedText variant='subheading'>{sectionTitle}</ThemedText>
 
       <VariableSelectorHeader
         categories={categories}
@@ -407,7 +427,9 @@ function SpeciesEnvironmentSectionComponent({
               lineColor={palette.background.brand.default}
               guideColor={palette.text.default.secondary}
               selection={displayState?.selectedDensityRange ?? null}
-              onSelectionChange={handleDensitySelectionChange}
+              onSelectionChange={
+                slicingEnabled ? handleDensitySelectionChange : undefined
+              }
               pinValue={numericPinnedValue}
               pinLoading={pinnedLoading}
             />
@@ -420,7 +442,9 @@ function SpeciesEnvironmentSectionComponent({
                 baselineColor={palette.border.neutral.default}
                 summary={displayState?.summary}
                 selection={displayState?.selectedDensityRange ?? null}
-                onSelectionChange={handleDensitySelectionChange}
+                onSelectionChange={
+                  slicingEnabled ? handleDensitySelectionChange : undefined
+                }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
               />
