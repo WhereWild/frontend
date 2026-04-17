@@ -34,6 +34,8 @@ type SpeciesBasics = {
     phenology_available?: boolean;
     full_available?: boolean;
   } | null;
+  rank?: string | null;
+  taxon_rank?: string | null;
 };
 
 type SpeciesRouteParams = {
@@ -112,6 +114,10 @@ const buildSpeciesPageData = (
       phenologyAvailable: payload.heatmap?.phenology_available === true,
       fullAvailable: payload.heatmap?.full_available === true,
     },
+    taxonRank:
+      typeof payload.taxon_rank === 'string'
+        ? payload.taxon_rank.toUpperCase()
+        : null,
   };
 };
 
