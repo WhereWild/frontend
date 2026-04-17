@@ -66,6 +66,7 @@ export type SpeciesScreenData = Pick<
   | 'nearbySpecies'
   | 'heatmap'
   | 'allObscured'
+  | 'taxonRank'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -266,6 +267,7 @@ export default function Species({
     overview,
     heatmap,
     allObscured,
+    taxonRank,
   } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -484,6 +486,7 @@ export default function Species({
 
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
+                  taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
                   units={units}
