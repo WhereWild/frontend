@@ -111,6 +111,7 @@ export type SpeciesPageData = SpeciesSummary & {
   heatmap: HeatmapSnapshot;
   taxonomyPath?: string | null;
   allObscured?: boolean;
+  taxonRank?: string | null;
 };
 
 export type SpeciesEnvironmentSummary = {
@@ -178,6 +179,7 @@ export type SpeciesApiNormalized = {
   common_names: string[];
   image_source: string | null;
   taxon_group?: string | null;
+  taxon_rank?: string | null;
   _raw: unknown;
 };
 
