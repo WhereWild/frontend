@@ -5,6 +5,7 @@ export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
+export const SET_HEATMAP_OVERLAY_MESSAGE_TYPE = 'set_heatmap_overlay';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -41,6 +42,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   palette: '__PALETTE_JSON__',
   highlightType: '__HIGHLIGHT_MESSAGE_TYPE_JSON__',
   openExternalUrlType: '__OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__',
+  setHeatmapOverlayType: '__SET_HEATMAP_OVERLAY_MESSAGE_TYPE_JSON__',
   heatmapTileUrl: '__HEATMAP_TILE_URL_JSON__',
   heatmapOpacity: '__HEATMAP_OPACITY__',
   minZoom: '__MIN_ZOOM__',
@@ -78,11 +80,22 @@ export type OpenExternalUrlMessage = {
   url: string;
 };
 
+export type SetHeatmapOverlayMessage = {
+  type: typeof SET_HEATMAP_OVERLAY_MESSAGE_TYPE;
+  enabled: boolean;
+  tileUrl?: string | null;
+};
+
 export type MapInboundMessage =
   | HighlightMessage
   | PinObservationMessage
   | SelectedPointMessage
   | OpenExternalUrlMessage;
+
+export type MapRuntimeMessage =
+  | HighlightMessage
+  | SelectedPointMessage
+  | SetHeatmapOverlayMessage;
 
 export const isPinObservationMessage = (
   msg: unknown,
@@ -242,6 +255,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.openExternalUrlType)
     .join(JSON.stringify(OPEN_EXTERNAL_URL_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.setHeatmapOverlayType)
+    .join(JSON.stringify(SET_HEATMAP_OVERLAY_MESSAGE_TYPE));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapTileUrl)
     .join(heatmapTileUrl ? JSON.stringify(heatmapTileUrl) : 'null');

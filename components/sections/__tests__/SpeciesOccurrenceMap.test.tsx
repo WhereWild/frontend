@@ -152,9 +152,75 @@ describe('SpeciesOccurrenceMap', () => {
     fireEvent(webView, 'loadEnd');
 
     expect(mockPostMessage).toHaveBeenCalled();
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('selected_point');
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('40');
-    expect(mockPostMessage.mock.calls.at(-1)?.[0]).toContain('-111');
+    expect(
+      mockPostMessage.mock.calls.some(
+        ([payload]) =>
+          typeof payload === 'string' &&
+          payload.includes('selected_point') &&
+          payload.includes('40') &&
+          payload.includes('-111'),
+      ),
+    ).toBe(true);
+  });
+
+  it('posts set_heatmap_overlay after native map load completes', async () => {
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+      heatmapTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+
+    expect(
+      mockPostMessage.mock.calls.some(
+        ([payload]) =>
+          typeof payload === 'string' &&
+          payload.includes('set_heatmap_overlay') &&
+          payload.includes(
+            'https://tiles.example.test/species/{z}/{x}/{y}.png',
+          ),
+      ),
+    ).toBe(true);
+  });
+
+  it('updates the heatmap overlay without waiting for another map load', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios' });
+    const { rerender } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 101, latitude: 10, longitude: 20 }]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading map renderer…')).toBeNull();
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+    const callCountAfterLoad = mockPostMessage.mock.calls.length;
+
+    rerender(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 101, latitude: 10, longitude: 20 }]}
+        heatmapTileUrl='https://tiles.example.test/species/{z}/{x}/{y}.png'
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        mockPostMessage.mock.calls
+          .slice(callCountAfterLoad)
+          .some(
+            ([payload]) =>
+              typeof payload === 'string' &&
+              payload.includes('set_heatmap_overlay') &&
+              payload.includes(
+                'https://tiles.example.test/species/{z}/{x}/{y}.png',
+              ),
+          ),
+      ).toBe(true);
+    });
   });
 
   it('posts updated highlight messages after the native map is already ready', async () => {
@@ -262,6 +328,47 @@ describe('SpeciesOccurrenceMap', () => {
     expect(iframe.props.src).toBeUndefined();
     expect(iframe.props.sandbox).toContain('allow-same-origin');
     expect(iframe.props.referrerPolicy).toBe('strict-origin-when-cross-origin');
+  });
+
+  it('posts set_heatmap_overlay through the web iframe runtime path', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'web' });
+    const webPostMessage = jest.fn();
+    global.window = {
+      ...originalWindow,
+      innerWidth: 1440,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    } as unknown as Window & typeof globalThis;
+
+    const { UNSAFE_getByProps } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 2, latitude: 11, longitude: 21 }]}
+        heatmapTileUrl='https://tiles.example.test/species/{z}/{x}/{y}.png'
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading map renderer…')).toBeNull();
+    });
+
+    const iframe = UNSAFE_getByProps({ title: 'Observation map' });
+    iframe.props.ref.current = {
+      contentWindow: { postMessage: webPostMessage },
+    };
+
+    fireEvent(iframe, 'load');
+
+    await waitFor(() => {
+      expect(
+        webPostMessage.mock.calls.some(
+          ([payload, targetOrigin]) =>
+            targetOrigin === '*' &&
+            payload?.type === 'set_heatmap_overlay' &&
+            payload?.tileUrl ===
+              'https://tiles.example.test/species/{z}/{x}/{y}.png',
+        ),
+      ).toBe(true);
+    });
   });
 
   it('opens external observation URLs from native webview messages', async () => {

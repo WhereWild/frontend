@@ -105,7 +105,7 @@ jest.mock('@/components/inputs/SelectField', () => {
 
 jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
   const ReactNative = jest.requireActual('react-native');
-  const { View, Text } = ReactNative;
+  const { Pressable, View, Text } = ReactNative;
   return {
     SpeciesOccurrenceMap: ({
       occurrences,
@@ -114,6 +114,8 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       height,
       heatmapTileUrl,
       showMarkers,
+      selectedPoint,
+      onPinObservation,
     }: {
       occurrences: unknown[];
       loading?: boolean;
@@ -121,6 +123,12 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       height?: number;
       heatmapTileUrl?: string | null;
       showMarkers?: boolean;
+      selectedPoint?: { lat: number; lon: number } | null;
+      onPinObservation?: (
+        catalogNumber: string,
+        lat: number,
+        lon: number,
+      ) => void;
     }) => (
       <View>
         <Text>{`Map loading: ${loading ? 'yes' : 'no'}`}</Text>
@@ -128,7 +136,14 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
         <Text>{`Map error: ${error ?? 'none'}`}</Text>
         <Text>{`Map height: ${typeof height === 'number' ? height : 'none'}`}</Text>
         <Text>{`Map markers: ${showMarkers === false ? 'hidden' : 'shown'}`}</Text>
-        <Text>{`Map heatmap: ${heatmapTileUrl ?? 'none'}`}</Text>
+        <Text>{`Map tile heatmap: ${heatmapTileUrl ?? 'none'}`}</Text>
+        <Text>{`Map selected point: ${selectedPoint ? `${selectedPoint.lat},${selectedPoint.lon}` : 'none'}`}</Text>
+        <Pressable
+          testID='mock-map-pin-observation'
+          onPress={() => onPinObservation?.('obs-1', 10, 20)}
+        >
+          <Text>Pin observation</Text>
+        </Pressable>
       </View>
     ),
   };
@@ -287,7 +302,16 @@ const createData = (
       description: 'Nearby species description.',
     },
   ],
-  heatmap: { imageSource: null as any },
+  heatmap: {
+    imageSource: null as any,
+    inferenceAvailable: true,
+    inferenceTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+    legacyAvailable: true,
+    legacyTileUrl: 'https://tiles.example.test/species/legacy/{z}/{x}/{y}.png',
+    legacyModelId: 'taxon_13579_gbt_20260313T000000Z',
+    phenologyAvailable: true,
+    fullAvailable: true,
+  },
   ...overrides,
 });
 
@@ -376,9 +400,15 @@ describe('Species screen', () => {
         data={createData({
           heatmap: {
             imageSource: { uri: 'heatmap' },
-            liveAvailable: true,
-            liveTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
-            liveModelId: 'taxon_13579_gbt_20260313T000000Z',
+            inferenceAvailable: true,
+            inferenceTileUrl:
+              'https://tiles.example.test/species/{z}/{x}/{y}.png',
+            legacyAvailable: true,
+            legacyTileUrl:
+              'https://tiles.example.test/species/legacy/{z}/{x}/{y}.png',
+            legacyModelId: 'taxon_13579_gbt_20260313T000000Z',
+            fullAvailable: true,
+            phenologyAvailable: true,
           },
         })}
       />,
@@ -389,7 +419,7 @@ describe('Species screen', () => {
     expect(screen.getByText('Show observations')).toBeTruthy();
     expect(screen.getByText('Show predictive heatmap')).toBeTruthy();
     expect(screen.getByText('Map markers: shown')).toBeTruthy();
-    expect(screen.getByText('Map heatmap: none')).toBeTruthy();
+    expect(screen.getByText('Map tile heatmap: none')).toBeTruthy();
 
     fireEvent.press(screen.getByRole('switch', { name: 'Show observations' }));
 
@@ -404,35 +434,35 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=0&apply_phenology=true&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png',
         ),
       ).toBeTruthy();
     });
+
+    expect(screen.getByText('Heatmap source')).toBeTruthy();
+    fireEvent.press(screen.getByText('Forecast-aware'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=0&apply_phenology=true&phenology_only=false',
+        ),
+      ).toBeTruthy();
+    });
+
+    expect(screen.getByText('Weather window')).toBeTruthy();
+    expect(screen.getByText('Model')).toBeTruthy();
   });
 
-  it('updates forecast and model controls when live heatmap conditions are available', async () => {
-    render(
-      <SpeciesScreen
-        data={createData({
-          heatmap: {
-            imageSource: { uri: 'heatmap' },
-            liveAvailable: true,
-            liveTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
-            phenologyAvailable: true,
-            fullAvailable: true,
-          },
-        })}
-      />,
-    );
+  it('updates legacy predictive heatmap query options across weather and model selections', async () => {
+    render(<SpeciesScreen data={createData()} />);
 
     await waitForSpeciesEffectsToSettle();
-
-    expect(screen.queryByText('Weather window')).toBeNull();
-    expect(screen.queryByText('Model')).toBeNull();
 
     fireEvent.press(
       screen.getByRole('switch', { name: 'Show predictive heatmap' }),
     );
+    fireEvent.press(screen.getByText('Forecast-aware'));
 
     await waitFor(() => {
       expect(screen.getByText('Weather window')).toBeTruthy();
@@ -446,7 +476,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=8&apply_phenology=true&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -455,7 +485,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=false&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=8&apply_phenology=false&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -464,10 +494,144 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png&forecast_hours=8&apply_phenology=true&phenology_only=true',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=8&apply_phenology=true&phenology_only=true',
         ),
       ).toBeTruthy();
     });
+  });
+
+  it('falls back from legacy to inference when legacy tiles disappear after selection', async () => {
+    const { rerender } = render(<SpeciesScreen data={createData()} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+    fireEvent.press(screen.getByText('Forecast-aware'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=0&apply_phenology=true&phenology_only=false',
+        ),
+      ).toBeTruthy();
+    });
+
+    rerender(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            inferenceAvailable: true,
+            inferenceTileUrl:
+              'https://tiles.example.test/species/{z}/{x}/{y}.png',
+            legacyAvailable: false,
+            legacyTileUrl: null,
+            legacyModelId: null,
+            fullAvailable: true,
+            phenologyAvailable: true,
+          },
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+      ).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png',
+        ),
+      ).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Heatmap source')).toBeNull();
+    expect(screen.queryByText('Weather window')).toBeNull();
+  });
+
+  it('falls back from inference to legacy when inference tiles disappear after selection', async () => {
+    const { rerender } = render(<SpeciesScreen data={createData()} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png',
+        ),
+      ).toBeTruthy();
+    });
+
+    rerender(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            inferenceAvailable: false,
+            inferenceTileUrl: null,
+            legacyAvailable: true,
+            legacyTileUrl:
+              'https://tiles.example.test/species/legacy/{z}/{x}/{y}.png',
+            legacyModelId: 'taxon_13579_gbt_20260313T000000Z',
+            fullAvailable: true,
+            phenologyAvailable: true,
+          },
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=0&apply_phenology=true&phenology_only=false',
+        ),
+      ).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Heatmap source')).toBeNull();
+    expect(screen.getByText('Weather window')).toBeTruthy();
+    expect(screen.getByText('Model')).toBeTruthy();
+  });
+
+  it('builds a legacy tile URL without model_id when none is available', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: { uri: 'heatmap' },
+            inferenceAvailable: false,
+            inferenceTileUrl: null,
+            legacyAvailable: true,
+            legacyTileUrl:
+              'https://tiles.example.test/species/legacy/{z}/{x}/{y}.png',
+            legacyModelId: null,
+            fullAvailable: true,
+            phenologyAvailable: true,
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=0&apply_phenology=true&phenology_only=false',
+      ),
+    ).toBeTruthy();
   });
 
   it('shows the unavailable-live-overlay message when only a static heatmap exists', async () => {
@@ -476,8 +640,10 @@ describe('Species screen', () => {
         data={createData({
           heatmap: {
             imageSource: { uri: 'heatmap' },
-            liveAvailable: false,
-            liveTileUrl: null,
+            inferenceAvailable: false,
+            inferenceTileUrl: null,
+            legacyAvailable: false,
+            legacyTileUrl: null,
           },
         })}
       />,
@@ -487,7 +653,7 @@ describe('Species screen', () => {
 
     expect(
       screen.getByText(
-        'Live heatmap overlay is unavailable for this model right now.',
+        'Predictive heatmap tiles are unavailable for this species right now.',
       ),
     ).toBeTruthy();
   });
@@ -498,8 +664,10 @@ describe('Species screen', () => {
         data={createData({
           heatmap: {
             imageSource: null as any,
-            liveAvailable: false,
-            liveTileUrl: null,
+            inferenceAvailable: false,
+            inferenceTileUrl: null,
+            legacyAvailable: false,
+            legacyTileUrl: null,
           },
         })}
       />,

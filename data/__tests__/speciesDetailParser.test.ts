@@ -124,4 +124,63 @@ describe('speciesDetailParser', () => {
       full_available: true,
     });
   });
+
+  it('maps nested legacy and inference heatmap metadata when present', () => {
+    const parsed = parseSpeciesApiDetail(
+      {
+        heatmap: {
+          available: true,
+          resolved_model_id: 'top_level_model',
+          phenology_available: true,
+          full_available: true,
+          legacy: {
+            available: true,
+            requested_model_id: 'auto_gbt_sdm',
+            resolved_model_id: 'legacy_model_123',
+            model_dir: '/tmp/model-dir',
+            taxon_id: '99',
+            feature_columns: ['bio_1', 'bio_12'],
+            summary: { auc: 0.95 },
+            metrics: { threshold: 0.42 },
+            phenology_available: true,
+            full_available: false,
+            tile_url: '/api/species/99/heatmap/legacy/tiles/{z}/{x}/{y}.png',
+          },
+          inference: {
+            available: true,
+            species_key: 99,
+            native_resolution: 0.25,
+            tile_url: '/api/species/99/heatmap/tiles/{z}/{x}/{y}.png',
+          },
+        },
+      },
+      baseNormalized,
+    );
+
+    expect(parsed.heatmap).toEqual({
+      available: true,
+      resolved_model_id: 'top_level_model',
+      phenology_available: true,
+      full_available: true,
+      legacy: {
+        available: true,
+        requested_model_id: 'auto_gbt_sdm',
+        resolved_model_id: 'legacy_model_123',
+        model_dir: '/tmp/model-dir',
+        taxon_id: '99',
+        feature_columns: ['bio_1', 'bio_12'],
+        summary: { auc: 0.95 },
+        metrics: { threshold: 0.42 },
+        phenology_available: true,
+        full_available: false,
+        tile_url: '/api/species/99/heatmap/legacy/tiles/{z}/{x}/{y}.png',
+      },
+      inference: {
+        available: true,
+        species_key: 99,
+        native_resolution: 0.25,
+        tile_url: '/api/species/99/heatmap/tiles/{z}/{x}/{y}.png',
+      },
+    });
+  });
 });

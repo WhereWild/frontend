@@ -95,11 +95,43 @@ export type SpeciesOverviewSection = {
 
 export type HeatmapSnapshot = {
   imageSource: ImageSourcePropType;
-  liveAvailable?: boolean;
-  liveTileUrl?: string | null;
-  liveModelId?: string | null;
+  inferenceAvailable?: boolean;
+  inferenceTileUrl?: string | null;
+  legacyAvailable?: boolean;
+  legacyTileUrl?: string | null;
+  legacyModelId?: string | null;
   phenologyAvailable?: boolean;
   fullAvailable?: boolean;
+};
+
+export type SpeciesLegacyHeatmapMetadata = {
+  available?: boolean;
+  requested_model_id?: string | null;
+  resolved_model_id?: string | null;
+  model_dir?: string | null;
+  taxon_id?: string | null;
+  feature_columns?: string[];
+  summary?: Record<string, unknown> | null;
+  metrics?: Record<string, unknown> | null;
+  phenology_available?: boolean;
+  full_available?: boolean;
+  tile_url?: string | null;
+};
+
+export type SpeciesInferenceHeatmapMetadata = {
+  available?: boolean;
+  species_key?: number | null;
+  native_resolution?: number | null;
+  tile_url?: string | null;
+};
+
+export type SpeciesHeatmapSummary = {
+  available?: boolean;
+  resolved_model_id?: string | null;
+  phenology_available?: boolean;
+  full_available?: boolean;
+  legacy?: SpeciesLegacyHeatmapMetadata | null;
+  inference?: SpeciesInferenceHeatmapMetadata | null;
 };
 
 /**
@@ -186,17 +218,13 @@ export type SpeciesApiNormalized = {
 export type SpeciesApiDetail = SpeciesApiNormalized & {
   description: string;
   description_sections?: SpeciesOverviewSection[];
+  image_url?: string | null;
   image_license?: string | null;
   image_creator?: string | null;
   image_rights_holder?: string | null;
   image_references?: string | null;
   taxonomyPath?: string | null;
-  heatmap?: {
-    available?: boolean;
-    resolved_model_id?: string | null;
-    phenology_available?: boolean;
-    full_available?: boolean;
-  } | null;
+  heatmap?: SpeciesHeatmapSummary | null;
 };
 
 export type SpeciesEnvironmentSliceResponse = {

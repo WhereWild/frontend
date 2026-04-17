@@ -21,6 +21,7 @@ import {
   PIN_OBSERVATION_MESSAGE_TYPE,
   OPEN_EXTERNAL_URL_MESSAGE_TYPE,
   MAP_REFERRER_POLICY,
+  SET_HEATMAP_OVERLAY_MESSAGE_TYPE,
   SELECTED_POINT_MESSAGE_TYPE,
   toHighlightMessagePayload,
   toSelectedPointMessagePayload,
@@ -261,7 +262,7 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   it('buildLeafletHtml replaces the runtime placeholders', () => {
     const html = buildLeafletHtml(
-      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__|__OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__|__SELECTED_POINT_MESSAGE_TYPE_JSON__',
+      '__DOCUMENT_BASE_URL__|__REFERRER_POLICY__|__REFERRER_POLICY_JSON__|__TILE_URL_JSON__|__TILE_ATTRIBUTION_JSON__|__TILE_MAX_ZOOM__|__MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__|__POINTS_JSON__|__PALETTE_JSON__|__HIGHLIGHT_MESSAGE_TYPE_JSON__|__OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__|__SET_HEATMAP_OVERLAY_MESSAGE_TYPE_JSON__|__SELECTED_POINT_MESSAGE_TYPE_JSON__',
       [{ latitude: 1, longitude: 2 }],
       markerPalette,
       getMapTileUrlTemplate('light'),
@@ -278,6 +279,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
     expect(html).toContain(JSON.stringify(HIGHLIGHT_MESSAGE_TYPE));
     expect(html).toContain(JSON.stringify(OPEN_EXTERNAL_URL_MESSAGE_TYPE));
+    expect(html).toContain(JSON.stringify(SET_HEATMAP_OVERLAY_MESSAGE_TYPE));
     expect(html).toContain(JSON.stringify(SELECTED_POINT_MESSAGE_TYPE));
     expect(html).not.toContain('__POINTS_JSON__');
   });

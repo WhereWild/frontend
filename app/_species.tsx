@@ -44,6 +44,7 @@ const FORECAST_OPTIONS: { label: string; hours: number }[] = [
   { label: '+7d', hours: 168 },
 ];
 type HeatmapMode = 'habitat' | 'combined' | 'phenology_only';
+type HeatmapSource = 'inference' | 'legacy';
 type SelectionChipOption<T extends string | number> = {
   accessibilityLabel: string;
   label: string;
@@ -118,36 +119,95 @@ export const shouldRenderObservationMapFrame = ({
 }) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
 const getPredictiveHeatmapDescription = (
-  hasLiveHeatmap: boolean,
+  selectedSource: HeatmapSource,
+  hasInferenceHeatmap: boolean,
+  hasLegacyHeatmap: boolean,
   hasAnyHeatmap: boolean,
 ) => {
-  if (hasLiveHeatmap) {
+  const selectedSourceAvailable =
+    selectedSource === 'inference' ? hasInferenceHeatmap : hasLegacyHeatmap;
+
+  if (selectedSourceAvailable) {
     return undefined;
   }
 
+  if (selectedSource === 'inference' && hasLegacyHeatmap) {
+    return 'Inference heatmap is unavailable right now. Select Forecast-aware to use the legacy model-backed tiles.';
+  }
+
+  if (selectedSource === 'legacy' && hasInferenceHeatmap) {
+    return 'Forecast-aware heatmap is unavailable right now. Switch to Inference to use the new tile renderer.';
+  }
+
   return hasAnyHeatmap
-    ? 'Live heatmap overlay is unavailable for this model right now.'
+    ? 'Predictive heatmap tiles are unavailable for this species right now.'
     : 'No heatmap is available for this species right now.';
 };
 
-const buildLiveHeatmapTileUrl = ({
+const buildPredictiveHeatmapTileUrl = ({
   forecastHours,
-  liveTileUrl,
+  heatmapSource,
+  inferenceTileUrl,
+  legacyModelId,
+  legacyTileUrl,
   phenologyMode,
-  showLiveHeatmap,
+  showPredictiveHeatmap,
 }: {
   forecastHours: number;
-  liveTileUrl?: string | null;
+  heatmapSource: HeatmapSource;
+  inferenceTileUrl?: string | null;
+  legacyModelId?: string | null;
+  legacyTileUrl?: string | null;
   phenologyMode: HeatmapMode;
-  showLiveHeatmap: boolean;
+  showPredictiveHeatmap: boolean;
 }) => {
-  if (!showLiveHeatmap || !liveTileUrl) {
+  if (!showPredictiveHeatmap) {
+    return null;
+  }
+
+  if (heatmapSource === 'inference') {
+    return inferenceTileUrl ?? null;
+  }
+
+  if (!legacyTileUrl) {
     return null;
   }
 
   const applyPhenology = phenologyMode !== 'habitat';
   const phenologyOnly = phenologyMode === 'phenology_only';
-  return `${liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}&phenology_only=${phenologyOnly ? 'true' : 'false'}`;
+  const params = new URLSearchParams();
+  if (legacyModelId) {
+    params.set('model_id', legacyModelId);
+  }
+  params.set('forecast_hours', String(forecastHours));
+  params.set('apply_phenology', applyPhenology ? 'true' : 'false');
+  params.set('phenology_only', phenologyOnly ? 'true' : 'false');
+  return `${legacyTileUrl}?${params.toString()}`;
+};
+
+const buildHeatmapSourceOptions = ({
+  hasInferenceHeatmap,
+  hasLegacyHeatmap,
+}: {
+  hasInferenceHeatmap: boolean;
+  hasLegacyHeatmap: boolean;
+}): SelectionChipOption<HeatmapSource>[] => {
+  const options: SelectionChipOption<HeatmapSource>[] = [];
+  if (hasInferenceHeatmap) {
+    options.push({
+      accessibilityLabel: 'Inference heatmap',
+      label: 'Inference',
+      value: 'inference',
+    });
+  }
+  if (hasLegacyHeatmap) {
+    options.push({
+      accessibilityLabel: 'Forecast-aware legacy heatmap',
+      label: 'Forecast-aware',
+      value: 'legacy',
+    });
+  }
+  return options;
 };
 
 const buildHeatmapModelOptions = (
@@ -304,16 +364,25 @@ export default function Species({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
   });
-  const hasLiveHeatmap =
-    heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
-  const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
+  const hasInferenceHeatmap =
+    heatmap.inferenceAvailable === true &&
+    typeof heatmap.inferenceTileUrl === 'string';
+  const hasLegacyHeatmap =
+    heatmap.legacyAvailable === true &&
+    typeof heatmap.legacyTileUrl === 'string';
+  const hasAnyHeatmap =
+    hasInferenceHeatmap || hasLegacyHeatmap || Boolean(heatmap.imageSource);
   const hasPhenology = heatmap.phenologyAvailable === true;
   const hasConditions = hasPhenology || heatmap.fullAvailable === true;
   const conditionsLabel = hasPhenology
     ? 'Habitat + flowering'
     : 'Habitat + conditions';
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
-  const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(false);
+  const [showPredictiveHeatmap, setShowPredictiveHeatmap] =
+    React.useState<boolean>(false);
+  const [heatmapSource, setHeatmapSource] = React.useState<HeatmapSource>(
+    hasInferenceHeatmap ? 'inference' : 'legacy',
+  );
   const [phenologyMode, setPhenologyMode] =
     React.useState<HeatmapMode>('combined');
   const [forecastHours, setForecastHours] = React.useState<number>(0);
@@ -327,8 +396,22 @@ export default function Species({
   } | null>(null);
 
   const predictiveHeatmapDescription = React.useMemo(
-    () => getPredictiveHeatmapDescription(hasLiveHeatmap, hasAnyHeatmap),
-    [hasAnyHeatmap, hasLiveHeatmap],
+    () =>
+      getPredictiveHeatmapDescription(
+        heatmapSource,
+        hasInferenceHeatmap,
+        hasLegacyHeatmap,
+        hasAnyHeatmap,
+      ),
+    [hasAnyHeatmap, hasInferenceHeatmap, hasLegacyHeatmap, heatmapSource],
+  );
+  const heatmapSourceOptions = React.useMemo(
+    () =>
+      buildHeatmapSourceOptions({
+        hasInferenceHeatmap,
+        hasLegacyHeatmap,
+      }),
+    [hasInferenceHeatmap, hasLegacyHeatmap],
   );
   const modelOptions = React.useMemo(
     () => buildHeatmapModelOptions(hasPhenology, conditionsLabel),
@@ -345,13 +428,24 @@ export default function Species({
   );
   const activeTileUrl = React.useMemo(
     () =>
-      buildLiveHeatmapTileUrl({
+      buildPredictiveHeatmapTileUrl({
         forecastHours,
-        liveTileUrl: heatmap.liveTileUrl,
+        heatmapSource,
+        inferenceTileUrl: heatmap.inferenceTileUrl,
+        legacyModelId: heatmap.legacyModelId,
+        legacyTileUrl: heatmap.legacyTileUrl,
         phenologyMode,
-        showLiveHeatmap,
+        showPredictiveHeatmap,
       }),
-    [forecastHours, heatmap.liveTileUrl, phenologyMode, showLiveHeatmap],
+    [
+      forecastHours,
+      heatmap.inferenceTileUrl,
+      heatmap.legacyModelId,
+      heatmap.legacyTileUrl,
+      heatmapSource,
+      phenologyMode,
+      showPredictiveHeatmap,
+    ],
   );
 
   const {
@@ -391,8 +485,21 @@ export default function Species({
   }, [finalLocationGid, taxonId]);
 
   React.useEffect(() => {
-    setShowLiveHeatmap(false);
-  }, [hasLiveHeatmap, heatmap.liveTileUrl]);
+    if (hasInferenceHeatmap || hasLegacyHeatmap) {
+      return;
+    }
+    setShowPredictiveHeatmap(false);
+  }, [hasInferenceHeatmap, hasLegacyHeatmap]);
+
+  React.useEffect(() => {
+    if (heatmapSource === 'inference' && hasInferenceHeatmap) {
+      return;
+    }
+    if (heatmapSource === 'legacy' && hasLegacyHeatmap) {
+      return;
+    }
+    setHeatmapSource(hasInferenceHeatmap ? 'inference' : 'legacy');
+  }, [hasInferenceHeatmap, hasLegacyHeatmap, heatmapSource]);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -528,27 +635,40 @@ export default function Species({
                   />
                   <SwitchField
                     label='Show predictive heatmap'
-                    value={showLiveHeatmap}
-                    disabled={!hasLiveHeatmap}
+                    value={showPredictiveHeatmap}
+                    disabled={!hasInferenceHeatmap && !hasLegacyHeatmap}
                     description={predictiveHeatmapDescription}
-                    onValueChange={setShowLiveHeatmap}
+                    onValueChange={setShowPredictiveHeatmap}
                   />
-                  {hasLiveHeatmap && showLiveHeatmap && (
+                  {showPredictiveHeatmap && heatmapSourceOptions.length > 1 && (
                     <SelectionChipGroup
-                      options={forecastOptions}
-                      selectedValue={forecastHours}
-                      title='Weather window'
-                      onSelect={setForecastHours}
+                      options={heatmapSourceOptions}
+                      selectedValue={heatmapSource}
+                      title='Heatmap source'
+                      onSelect={setHeatmapSource}
                     />
                   )}
-                  {hasLiveHeatmap && showLiveHeatmap && hasConditions && (
-                    <SelectionChipGroup
-                      options={modelOptions}
-                      selectedValue={phenologyMode}
-                      title='Model'
-                      onSelect={setPhenologyMode}
-                    />
-                  )}
+                  {showPredictiveHeatmap &&
+                    heatmapSource === 'legacy' &&
+                    hasLegacyHeatmap && (
+                      <SelectionChipGroup
+                        options={forecastOptions}
+                        selectedValue={forecastHours}
+                        title='Weather window'
+                        onSelect={setForecastHours}
+                      />
+                    )}
+                  {showPredictiveHeatmap &&
+                    heatmapSource === 'legacy' &&
+                    hasLegacyHeatmap &&
+                    hasConditions && (
+                      <SelectionChipGroup
+                        options={modelOptions}
+                        selectedValue={phenologyMode}
+                        title='Model'
+                        onSelect={setPhenologyMode}
+                      />
+                    )}
                 </View>
               </SectionShell>
             )}
@@ -576,7 +696,6 @@ export default function Species({
                 showMarkers={showObservations}
                 heatmapTileUrl={activeTileUrl}
                 heatmapOpacity={0.72}
-                minZoom={activeTileUrl ? 4 : 2}
                 onPinObservation={handlePinObservation}
               />
             )}

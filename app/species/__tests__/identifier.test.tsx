@@ -5,7 +5,11 @@ import SpeciesBasicsPage, {
 } from '../[...identifier]';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
-import { fetchSpeciesByTaxonId, fetchSpeciesObscured } from '@/data/api';
+import {
+  BACKEND_BASE,
+  fetchSpeciesByTaxonId,
+  fetchSpeciesObscured,
+} from '@/data/api';
 
 jest.mock('expo-router', () => {
   const actual = jest.requireActual('expo-router');
@@ -298,12 +302,31 @@ describe('SpeciesBasicsPage', () => {
     expect(result.overview.imageSource).toBe(providedSource);
   });
 
-  it('builds a live heatmap tile url when backend heatmap metadata is present', async () => {
+  it('maps image_url into a React Native image source when image_source is absent', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Forest Fern',
+      scientific_name: 'Dryopteris expansa',
+      description: 'Shade-tolerant fern with lush fronds.',
+      image_url: 'https://example.com/fern.png',
+    } as any);
+
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
+
+    expect(result.overview.imageSource).toEqual({
+      uri: 'https://example.com/fern.png',
+    });
+  });
+
+  it('does not synthesize predictive source URLs from top-level summary fields alone', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockResolvedValue({
       common_name: 'Heatmap Test',
       scientific_name: 'Heatmap testus',
-      description: 'Species with a live model artifact.',
+      description: 'Species with top-level heatmap summary only.',
       heatmap: {
         available: true,
         resolved_model_id: 'taxon_123456_gbt_20260313T065439Z',
@@ -315,13 +338,16 @@ describe('SpeciesBasicsPage', () => {
       Number(SAMPLE_TAXON_ID),
     );
 
-    expect(result.heatmap.liveAvailable).toBe(true);
-    expect(result.heatmap.liveTileUrl).toContain(
-      '/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png?model_id=taxon_123456_gbt_20260313T065439Z',
+    expect(result.heatmap.inferenceAvailable).toBe(false);
+    expect(result.heatmap.inferenceTileUrl).toBeNull();
+    expect(result.heatmap.legacyAvailable).toBe(false);
+    expect(result.heatmap.legacyTileUrl).toBeNull();
+    expect(result.heatmap.legacyModelId).toBe(
+      'taxon_123456_gbt_20260313T065439Z',
     );
   });
 
-  it('defaults heatmap model id and forwards phenology/full availability flags', async () => {
+  it('forwards top-level phenology and full availability flags', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockResolvedValue({
       common_name: 'Heatmap Defaults',
@@ -340,10 +366,48 @@ describe('SpeciesBasicsPage', () => {
       Number(SAMPLE_TAXON_ID),
     );
 
-    expect(result.heatmap.liveModelId).toBe('auto_gbt');
-    expect(result.heatmap.liveTileUrl).toContain('model_id=auto_gbt');
+    expect(result.heatmap.legacyModelId).toBeNull();
     expect(result.heatmap.phenologyAvailable).toBe(true);
     expect(result.heatmap.fullAvailable).toBe(true);
+  });
+
+  it('maps nested inference and legacy heatmap URLs when the backend provides them', async () => {
+    mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Heatmap Sources',
+      scientific_name: 'Heatmap sourceus',
+      description: 'Species with split heatmap sources.',
+      heatmap: {
+        available: true,
+        resolved_model_id: 'legacy_top_level',
+        phenology_available: true,
+        full_available: true,
+        legacy: {
+          available: true,
+          resolved_model_id: 'legacy_nested_model',
+          tile_url: '/api/species/123456/heatmap/legacy/tiles/{z}/{x}/{y}.png',
+        },
+        inference: {
+          available: true,
+          tile_url: '/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png',
+        },
+      },
+    } as any);
+
+    const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
+      (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
+      Number(SAMPLE_TAXON_ID),
+    );
+
+    expect(result.heatmap.inferenceAvailable).toBe(true);
+    expect(result.heatmap.inferenceTileUrl).toBe(
+      `${BACKEND_BASE}/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png`,
+    );
+    expect(result.heatmap.legacyAvailable).toBe(true);
+    expect(result.heatmap.legacyTileUrl).toBe(
+      `${BACKEND_BASE}/api/species/123456/heatmap/legacy/tiles/{z}/{x}/{y}.png`,
+    );
+    expect(result.heatmap.legacyModelId).toBe('legacy_nested_model');
   });
 
   it('renders the loading shell while the identifier data is still loading', () => {
@@ -569,7 +633,15 @@ describe('SpeciesBasicsPage', () => {
     it('uses the requested taxon id when payload lacks taxon data', () => {
       const fallbackTaxonId = 97531;
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
-        {},
+        {
+          taxon_id: null,
+          scientific_name: '',
+          common_name: '',
+          common_names: [],
+          image_source: null,
+          description: 'description pending',
+          _raw: null,
+        },
         fallbackTaxonId as any,
       );
       expect(result.taxonId).toBe(fallbackTaxonId);
@@ -578,7 +650,15 @@ describe('SpeciesBasicsPage', () => {
     });
 
     it('uses sample fallback taxon id when neither payload nor request includes one', () => {
-      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData({});
+      const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData({
+        taxon_id: null,
+        scientific_name: '',
+        common_name: '',
+        common_names: [],
+        image_source: null,
+        description: 'description pending',
+        _raw: null,
+      });
       expect(result.taxonId).toBe(mountainBallCactusData.taxonId);
     });
 

@@ -20,8 +20,9 @@ import {
   loadMapTemplate,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
-  type HighlightMessage,
   type MapMarkerPalette,
+  type MapRuntimeMessage,
+  SET_HEATMAP_OVERLAY_MESSAGE_TYPE,
   toHighlightMessagePayload,
   toSelectedPointMessagePayload,
   isOpenExternalUrlMessage,
@@ -111,6 +112,9 @@ export function SpeciesOccurrenceMap({
   const [templateLoadError, setTemplateLoadError] = React.useState<
     string | null
   >(null);
+  const hasOccurrences = occurrences.length > 0;
+  const hasHeatmapLayer = Boolean(heatmapTileUrl);
+  const hasMapContent = hasOccurrences || hasHeatmapLayer;
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, latitude: number, longitude: number) => {
@@ -150,11 +154,8 @@ export function SpeciesOccurrenceMap({
     },
     [handlePinObservation, onBoundsChange, openExternalUrl],
   );
-
-  const hasOccurrences = occurrences.length > 0;
-
   React.useEffect(() => {
-    if (loading || error || (!hasOccurrences && !heatmapTileUrl)) {
+    if (loading || error || !hasMapContent) {
       return;
     }
 
@@ -193,7 +194,7 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasOccurrences, heatmapTileUrl, loading]);
+  }, [error, hasMapContent, loading]);
 
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
@@ -228,7 +229,7 @@ export function SpeciesOccurrenceMap({
       occurrences,
       markerPalette,
       tileUrlTemplate,
-      heatmapTileUrl,
+      null,
       heatmapOpacity,
       minZoom,
       showMarkers,
@@ -243,7 +244,6 @@ export function SpeciesOccurrenceMap({
   }, [
     allowPinObservations,
     heatmapOpacity,
-    heatmapTileUrl,
     initialLat,
     initialLon,
     initialZoom,
@@ -284,36 +284,38 @@ export function SpeciesOccurrenceMap({
     ? 'Loading observations map…'
     : 'Loading map renderer…';
 
-  const sendHighlightMessage = React.useCallback(
-    (message: HighlightMessage | SelectedPointMessage) => {
-      if (Platform.OS === 'web') {
-        iframeRef.current?.contentWindow?.postMessage(message, '*');
-      } else {
-        webViewRef.current?.postMessage(JSON.stringify(message));
-      }
-    },
-    [],
-  );
+  const sendRuntimeMessage = React.useCallback((message: MapRuntimeMessage) => {
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(message, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(message));
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!mapReady || !hasOccurrences) {
       return;
     }
-    sendHighlightMessage(highlightMessage);
-  }, [hasOccurrences, highlightMessage, mapReady, sendHighlightMessage]);
+    sendRuntimeMessage(highlightMessage);
+  }, [hasOccurrences, highlightMessage, mapReady, sendRuntimeMessage]);
 
   React.useEffect(() => {
-    if (!mapReady || (!hasOccurrences && !heatmapTileUrl)) {
+    if (!mapReady || !hasMapContent) {
       return;
     }
-    sendHighlightMessage(selectedPointMessage);
-  }, [
-    hasOccurrences,
-    heatmapTileUrl,
-    mapReady,
-    selectedPointMessage,
-    sendHighlightMessage,
-  ]);
+    sendRuntimeMessage(selectedPointMessage);
+  }, [hasMapContent, mapReady, selectedPointMessage, sendRuntimeMessage]);
+
+  React.useEffect(() => {
+    if (!mapReady) {
+      return;
+    }
+    sendRuntimeMessage({
+      type: SET_HEATMAP_OVERLAY_MESSAGE_TYPE,
+      enabled: hasHeatmapLayer,
+      tileUrl: heatmapTileUrl,
+    });
+  }, [hasHeatmapLayer, heatmapTileUrl, mapReady, sendRuntimeMessage]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') {

@@ -28,6 +28,33 @@ const toOptionalBoolean = (value: unknown): boolean | undefined => {
   return undefined;
 };
 
+const toOptionalNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  return undefined;
+};
+
+const toOptionalStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized = value
+    .map((entry) => toOptionalString(entry))
+    .filter((entry): entry is string => entry !== null);
+  return normalized;
+};
+
+const toOptionalRecord = (
+  value: unknown,
+): Record<string, unknown> | undefined => {
+  const record = asRecord(value);
+  return Object.keys(record).length > 0 ? record : undefined;
+};
+
+const hasRecordEntries = (value: Record<string, unknown>) =>
+  Object.keys(value).length > 0;
+
 /**
  * Parses and normalizes a species detail payload for UI consumption.
  */
@@ -38,6 +65,12 @@ export const parseSpeciesApiDetail = (
   const source = asRecord(payload);
   const description = toFirstString(source.description) ?? DESCRIPTION_PENDING;
   const heatmapSource = asRecord(source.heatmap);
+  const legacyHeatmapSource = asRecord(
+    heatmapSource?.legacy ?? heatmapSource?.legacyHeatmap,
+  );
+  const inferenceHeatmapSource = asRecord(
+    heatmapSource?.inference ?? heatmapSource?.inferenceHeatmap,
+  );
 
   return {
     ...normalized,
@@ -55,12 +88,69 @@ export const parseSpeciesApiDetail = (
             heatmapSource.resolved_model_id,
             heatmapSource.resolvedModelId,
           ),
-            phenology_available: toOptionalBoolean(
-              heatmapSource.phenology_available ?? heatmapSource.phenologyAvailable,
-            ),
-            full_available: toOptionalBoolean(
-              heatmapSource.full_available ?? heatmapSource.fullAvailable,
-            ),
+          phenology_available: toOptionalBoolean(
+            heatmapSource.phenology_available ?? heatmapSource.phenologyAvailable,
+          ),
+          full_available: toOptionalBoolean(
+            heatmapSource.full_available ?? heatmapSource.fullAvailable,
+          ),
+          ...(hasRecordEntries(legacyHeatmapSource)
+            ? {
+                legacy: {
+                  available: toOptionalBoolean(legacyHeatmapSource.available),
+                  requested_model_id: toFirstString(
+                    legacyHeatmapSource.requested_model_id,
+                    legacyHeatmapSource.requestedModelId,
+                  ),
+                  resolved_model_id: toFirstString(
+                    legacyHeatmapSource.resolved_model_id,
+                    legacyHeatmapSource.resolvedModelId,
+                  ),
+                  model_dir: toFirstString(
+                    legacyHeatmapSource.model_dir,
+                    legacyHeatmapSource.modelDir,
+                  ),
+                  taxon_id: toFirstString(legacyHeatmapSource.taxon_id),
+                  feature_columns: toOptionalStringArray(
+                    legacyHeatmapSource.feature_columns ??
+                      legacyHeatmapSource.featureColumns,
+                  ),
+                  summary: toOptionalRecord(legacyHeatmapSource.summary),
+                  metrics: toOptionalRecord(legacyHeatmapSource.metrics),
+                  phenology_available: toOptionalBoolean(
+                    legacyHeatmapSource.phenology_available ??
+                      legacyHeatmapSource.phenologyAvailable,
+                  ),
+                  full_available: toOptionalBoolean(
+                    legacyHeatmapSource.full_available ??
+                      legacyHeatmapSource.fullAvailable,
+                  ),
+                  tile_url: toFirstString(
+                    legacyHeatmapSource.tile_url,
+                    legacyHeatmapSource.tileUrl,
+                  ),
+                },
+              }
+            : {}),
+          ...(hasRecordEntries(inferenceHeatmapSource)
+            ? {
+                inference: {
+                  available: toOptionalBoolean(inferenceHeatmapSource.available),
+                  species_key: toOptionalNumber(
+                    inferenceHeatmapSource.species_key ??
+                      inferenceHeatmapSource.speciesKey,
+                  ),
+                  native_resolution: toOptionalNumber(
+                    inferenceHeatmapSource.native_resolution ??
+                      inferenceHeatmapSource.nativeResolution,
+                  ),
+                  tile_url: toFirstString(
+                    inferenceHeatmapSource.tile_url,
+                    inferenceHeatmapSource.tileUrl,
+                  ),
+                },
+              }
+            : {}),
         }
       : null,
   };

@@ -7,7 +7,7 @@ import { PageSurface, ThemedText } from '@/components';
 import { Colors } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesOverviewSection, SpeciesPageData } from '@/data/types';
+import type { SpeciesApiDetail, SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
@@ -23,28 +23,28 @@ import { useSettings } from '@/context/SettingsContext';
 const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
-type SpeciesBasics = {
-  taxon_id?: number | null;
-  common_name?: string;
-  common_names?: (string | null)[];
-  scientific_name?: string;
-  image_source?: ImageSourcePropType | string | null;
-  image_url?: string;
-  description?: string;
-  image_license?: string | null;
-  image_creator?: string | null;
-  image_rights_holder?: string | null;
-  image_references?: string | null;
-  description_sections?: SpeciesOverviewSection[];
-  heatmap?: {
-    available?: boolean;
-    resolved_model_id?: string | null;
-    phenology_available?: boolean;
-    full_available?: boolean;
-  } | null;
-  rank?: string | null;
-  taxon_rank?: string | null;
+const toNonEmptyStringOrNull = (value: unknown): string | null =>
+  isPresent(value) ? value.trim() : null;
+
+const buildHeatmapTileUrl = ({
+  available,
+  resolvedTaxonId,
+  tileUrl,
+  fallbackPath,
+}: {
+  available: boolean;
+  resolvedTaxonId: number;
+  tileUrl?: string | null;
+  fallbackPath: string;
+}) => {
+  if (!available) {
+    return null;
+  }
+
+  return `${BACKEND_BASE}${tileUrl ?? fallbackPath}`;
 };
+
+type SpeciesBasics = SpeciesApiDetail;
 
 type SpeciesRouteParams = {
   identifier?: string | string[];
@@ -85,22 +85,32 @@ const buildSpeciesPageData = (
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId =
     payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
-  const liveHeatmapAvailable =
-    payload.heatmap?.available === true && resolvedTaxonId > 0;
-  const resolvedModelId =
-    typeof payload.heatmap?.resolved_model_id === 'string' &&
-    payload.heatmap.resolved_model_id.trim().length > 0
-      ? payload.heatmap.resolved_model_id.trim()
-      : 'auto_gbt';
-  const liveTileUrl = liveHeatmapAvailable
-    ? `${BACKEND_BASE}/api/species/${resolvedTaxonId}/heatmap/tiles/{z}/{x}/{y}.png?model_id=${encodeURIComponent(resolvedModelId)}`
-    : null;
+  const legacyHeatmap = payload.heatmap?.legacy;
+  const inferenceHeatmap = payload.heatmap?.inference;
+  const inferenceAvailable =
+    inferenceHeatmap?.available === true && resolvedTaxonId > 0;
+  const inferenceTileUrl = buildHeatmapTileUrl({
+    available: inferenceAvailable,
+    resolvedTaxonId,
+    tileUrl: inferenceHeatmap?.tile_url,
+    fallbackPath: `/api/species/${resolvedTaxonId}/heatmap/tiles/{z}/{x}/{y}.png`,
+  });
+  const legacyAvailable =
+    legacyHeatmap?.available === true && resolvedTaxonId > 0;
+  const legacyTileUrl = buildHeatmapTileUrl({
+    available: legacyAvailable,
+    resolvedTaxonId,
+    tileUrl: legacyHeatmap?.tile_url,
+    fallbackPath: `/api/species/${resolvedTaxonId}/heatmap/legacy/tiles/{z}/{x}/{y}.png`,
+  });
   return {
     ...fallback,
     taxonId: resolvedTaxonId,
     commonName: resolvedCommonName,
     commonNames,
-    scientificName: payload.scientific_name ?? fallback.scientificName,
+    scientificName:
+      toNonEmptyStringOrNull(payload.scientific_name) ??
+      fallback.scientificName,
     overview: {
       ...fallback.overview,
       description: payload.description ?? fallback.overview.description,
@@ -116,9 +126,13 @@ const buildSpeciesPageData = (
     },
     heatmap: {
       ...fallback.heatmap,
-      liveAvailable: liveHeatmapAvailable,
-      liveTileUrl,
-      liveModelId: resolvedModelId,
+      inferenceAvailable,
+      inferenceTileUrl,
+      legacyAvailable,
+      legacyTileUrl,
+      legacyModelId:
+        toNonEmptyStringOrNull(legacyHeatmap?.resolved_model_id) ??
+        toNonEmptyStringOrNull(payload.heatmap?.resolved_model_id),
       phenologyAvailable: payload.heatmap?.phenology_available === true,
       fullAvailable: payload.heatmap?.full_available === true,
     },
