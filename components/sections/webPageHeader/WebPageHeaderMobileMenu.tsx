@@ -1,5 +1,6 @@
 import { IconMenu } from '@/assets/icons';
 import { Shadows, Size } from '@/constants/theme';
+import { triggerButtonHaptic } from '@/utils/haptics';
 import React, { RefObject } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { IconButton } from '../../buttons/IconButton';
@@ -35,12 +36,18 @@ export function WebPageHeaderMobileMenu({
   backgroundColor,
   borderColor,
 }: WebPageHeaderMobileMenuProps) {
+  const handleBackdropPress = React.useCallback(() => {
+    triggerButtonHaptic();
+    onCloseMenu();
+  }, [onCloseMenu]);
+
   return (
     <>
       <View ref={menuButtonRef} collapsable={false}>
         <IconButton
           variant='primary'
           icon={<IconMenu />}
+          enableHaptics={true}
           onPress={onToggleMenu}
           accessibilityLabel='Open menu'
         />
@@ -51,7 +58,7 @@ export function WebPageHeaderMobileMenu({
           <Pressable
             testID='page-header-menu-backdrop'
             style={styles.menuBackdrop}
-            onPress={onCloseMenu}
+            onPress={handleBackdropPress}
           />
           <View
             style={[

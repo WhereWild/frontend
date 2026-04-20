@@ -1,14 +1,16 @@
 import React from 'react';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Size } from '@/constants/theme';
+import { Platform, StyleSheet, type ViewStyle } from 'react-native';
+import { useResponsive } from '@/hooks/useResponsive';
 import { ActiveNearYouSection } from '../ActiveNearYouSection';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
+}));
+
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: jest.fn(() => ({ breakpoint: 'desktop', gap: 16 })),
 }));
 
 jest.mock('../../cards/SpeciesCard', () => {
@@ -16,38 +18,16 @@ jest.mock('../../cards/SpeciesCard', () => {
   const { Text } = jest.requireActual('react-native');
 
   return {
-    SpeciesCard: ({ commonName }: { commonName: string }) => (
-      <Text>{commonName}</Text>
-    ),
-  };
-});
-
-jest.mock('../../navigation/NavigationPillList', () => {
-  const React = jest.requireActual('react');
-  const { Pressable, Text, View } = jest.requireActual('react-native');
-
-  return {
-    NavigationPillList: ({
-      pills,
-      selectedKey,
-      onSelectionChange,
+    SpeciesCard: ({
+      commonName,
+      size,
     }: {
-      pills: { key: string; label: string }[];
-      selectedKey: string;
-      onSelectionChange?: (key: string) => void;
+      commonName: string;
+      size?: 'default' | 'compact';
     }) => (
-      <View>
-        <Text testID='selected-pill'>{selectedKey}</Text>
-        {pills.map((pill) => (
-          <Pressable
-            key={pill.key}
-            testID={`pill-${pill.key}`}
-            onPress={() => onSelectionChange?.(pill.key)}
-          >
-            <Text>{pill.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <Text
+        testID={`species-card-${commonName}`}
+      >{`${commonName}:${size ?? 'default'}`}</Text>
     ),
   };
 });
@@ -79,8 +59,34 @@ const recommendations = [
   },
 ];
 
+const mockUseResponsive = useResponsive as jest.MockedFunction<
+  typeof useResponsive
+>;
+const flattenStyle = (style: unknown): ViewStyle =>
+  StyleSheet.flatten(style) as ViewStyle;
+
 describe('ActiveNearYouSection', () => {
-  it('filters the displayed species by the selected group', () => {
+  const originalPlatform = Platform.OS;
+
+  beforeEach(() => {
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'desktop',
+      gap: 16,
+    } as ReturnType<typeof useResponsive>);
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'ios',
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform,
+    });
+  });
+
+  it('renders all provided species by default', () => {
     render(
       <ActiveNearYouSection
         recommendations={recommendations}
@@ -88,56 +94,82 @@ describe('ActiveNearYouSection', () => {
       />,
     );
 
-    expect(screen.getByText('Active Near You')).toBeTruthy();
-    expect(screen.getByText('Plant One')).toBeTruthy();
-    expect(screen.getByText('Bird Two')).toBeTruthy();
-    expect(screen.getByText('Fungus Three')).toBeTruthy();
-
-    fireEvent.press(screen.getByTestId('pill-plants'));
-
-    expect(screen.getByTestId('selected-pill').props.children).toBe('plants');
-    expect(screen.getByText('Plant One')).toBeTruthy();
-    expect(screen.queryByText('Bird Two')).toBeNull();
-    expect(screen.queryByText('Fungus Three')).toBeNull();
+    expect(screen.getByText('Plant One:default')).toBeTruthy();
+    expect(screen.getByText('Bird Two:default')).toBeTruthy();
+    expect(screen.getByText('Fungus Three:default')).toBeTruthy();
   });
 
-  it('only renders groups that are present in all recommendations', () => {
+  it('filters the displayed species using the activeGroup prop', () => {
     render(
       <ActiveNearYouSection
         recommendations={recommendations}
-        allRecommendations={recommendations.filter(
-          (item) => item.taxonGroup !== 'birds',
-        )}
-      />,
-    );
-
-    expect(screen.getByTestId('pill-all')).toBeTruthy();
-    expect(screen.getByTestId('pill-plants')).toBeTruthy();
-    expect(screen.getByTestId('pill-fungi')).toBeTruthy();
-    expect(screen.queryByTestId('pill-birds')).toBeNull();
-  });
-
-  it('resets an invalid externally controlled group back to all', async () => {
-    const handleGroupChange = jest.fn();
-
-    render(
-      <ActiveNearYouSection
-        recommendations={recommendations}
-        allRecommendations={recommendations.filter(
-          (item) => item.taxonGroup !== 'plants',
-        )}
+        allRecommendations={recommendations}
         activeGroup='plants'
-        onGroupChange={handleGroupChange}
       />,
     );
 
-    await waitFor(() => {
-      expect(handleGroupChange).toHaveBeenCalledWith('all');
+    expect(screen.getByText('Plant One:default')).toBeTruthy();
+    expect(screen.queryByText('Bird Two:default')).toBeNull();
+    expect(screen.queryByText('Fungus Three:default')).toBeNull();
+  });
+
+  it('uses 400 gap with default cards on web', () => {
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'desktop',
+      gap: 16,
+    } as ReturnType<typeof useResponsive>);
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
     });
+
+    render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+      />,
+    );
+
+    expect(
+      flattenStyle(screen.getByTestId('active-near-you-list').props.style).gap,
+    ).toBe(Size.space['400']);
+    expect(
+      flattenStyle(screen.getByTestId('active-near-you-section').props.style)
+        .gap,
+    ).toBe(Size.space['400']);
+  });
+
+  it('renders compact species cards with 200 gap on phone breakpoint', () => {
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'phone',
+      gap: 16,
+    } as ReturnType<typeof useResponsive>);
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+      />,
+    );
+
+    expect(screen.getByText('Plant One:compact')).toBeTruthy();
+    expect(screen.getByText('Bird Two:compact')).toBeTruthy();
+    expect(
+      flattenStyle(screen.getByTestId('active-near-you-list').props.style).gap,
+    ).toBe(Size.space['200']);
   });
 
   it('hides the heading when showHeading is false', () => {
-    render(
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    const { UNSAFE_getByProps } = render(
       <ActiveNearYouSection
         recommendations={recommendations}
         allRecommendations={recommendations}
@@ -145,6 +177,131 @@ describe('ActiveNearYouSection', () => {
       />,
     );
 
-    expect(screen.queryByText('Active Near You')).toBeNull();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-heading-slot' }).props
+        .accessibilityElementsHidden,
+    ).toBe(true);
+    expect(
+      flattenStyle(screen.getByTestId('active-near-you-section').props.style)
+        .gap,
+    ).toBeUndefined();
+  });
+
+  it('hides the heading on native', () => {
+    const { UNSAFE_getByProps } = render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-heading-slot' }).props
+        .accessibilityElementsHidden,
+    ).toBe(true);
+    expect(
+      flattenStyle(
+        screen.getByTestId('active-near-you-native-list').props
+          .contentContainerStyle,
+      ).paddingTop,
+    ).toBe(0);
+  });
+
+  it('applies native top margin to the first item wrapper', () => {
+    render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        showHeading={false}
+        nativeFirstItemTopMargin={24}
+      />,
+    );
+
+    expect(
+      flattenStyle(
+        screen.getByTestId('active-near-you-first-item-wrapper').props.style,
+      ).marginTop,
+    ).toBe(24);
+  });
+
+  it('reports native scroll state changes', () => {
+    const handleNativeScrolledChange = jest.fn();
+
+    render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        showHeading={false}
+        onNativeScrolledChange={handleNativeScrolledChange}
+      />,
+    );
+
+    const nativeList = screen.getByTestId('active-near-you-native-list');
+
+    expect(handleNativeScrolledChange).toHaveBeenCalledWith(false);
+
+    fireEvent.scroll(nativeList, {
+      nativeEvent: {
+        contentOffset: { y: 12, x: 0 },
+        contentSize: { height: 400, width: 200 },
+        layoutMeasurement: { height: 200, width: 200 },
+      },
+    });
+    fireEvent.scroll(nativeList, {
+      nativeEvent: {
+        contentOffset: { y: 24, x: 0 },
+        contentSize: { height: 400, width: 200 },
+        layoutMeasurement: { height: 200, width: 200 },
+      },
+    });
+    fireEvent.scroll(nativeList, {
+      nativeEvent: {
+        contentOffset: { y: 0, x: 0 },
+        contentSize: { height: 400, width: 200 },
+        layoutMeasurement: { height: 200, width: 200 },
+      },
+    });
+
+    expect(handleNativeScrolledChange.mock.calls).toEqual([
+      [false],
+      [true],
+      [false],
+    ]);
+  });
+
+  it('does not reset native scroll state when the active group changes', () => {
+    const handleNativeScrolledChange = jest.fn();
+
+    const { rerender } = render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        showHeading={false}
+        activeGroup='all'
+        onNativeScrolledChange={handleNativeScrolledChange}
+      />,
+    );
+
+    const nativeList = screen.getByTestId('active-near-you-native-list');
+
+    fireEvent.scroll(nativeList, {
+      nativeEvent: {
+        contentOffset: { y: 12, x: 0 },
+        contentSize: { height: 400, width: 200 },
+        layoutMeasurement: { height: 200, width: 200 },
+      },
+    });
+
+    rerender(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        showHeading={false}
+        activeGroup='plants'
+        onNativeScrolledChange={handleNativeScrolledChange}
+      />,
+    );
+
+    expect(handleNativeScrolledChange.mock.calls).toEqual([[false], [true]]);
   });
 });

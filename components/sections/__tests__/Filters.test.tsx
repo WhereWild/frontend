@@ -2,14 +2,22 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Filters, type FiltersProps } from '../Filters';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useDataSources } from '@/hooks/useDataSources';
 import type { SpeciesSummary } from '@/data/types';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
 }));
 
+jest.mock('@/hooks/useDataSources', () => ({
+  useDataSources: jest.fn(),
+}));
+
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
+>;
+const mockUseDataSources = useDataSources as jest.MockedFunction<
+  typeof useDataSources
 >;
 
 const countryOptions = [
@@ -69,6 +77,7 @@ describe('Filters', () => {
 
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('light');
+    mockUseDataSources.mockReturnValue({});
     scheduledFrameCallbacks = [];
     requestAnimationFrameSpy = jest
       .spyOn(global, 'requestAnimationFrame')

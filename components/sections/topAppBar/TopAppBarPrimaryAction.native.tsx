@@ -56,6 +56,7 @@ function PrimaryActionVisibleContent({
         <IconButton
           variant='primary'
           icon={primaryButtonIcon}
+          enableHaptics={showIconVariant}
           onPress={showIconVariant ? onPressPrimaryButton : undefined}
           disabled={!isPrimaryActionEnabled || !hasPrimaryButton}
           accessibilityLabel={primaryIconButtonAccessibilityLabel}
@@ -77,6 +78,7 @@ function PrimaryActionVisibleContent({
             variant='primary'
             iconStart={primaryButtonIcon}
             label={primaryButtonLabel}
+            enableHaptics={showButtonVariant}
             onPress={showButtonVariant ? onPressPrimaryButton : undefined}
             disabled={!isPrimaryActionEnabled || !hasPrimaryButton}
             accessibilityLabel={primaryButtonAccessibilityLabel}

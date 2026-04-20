@@ -40,7 +40,7 @@ export function useSearchPageChrome({
       showSearchResultsDropdown: false,
       showFilterButton: true,
       onFilterPress,
-      filterLabel: filterVisible ? 'Hide Filter' : 'Filter',
+      filterLabel: filterVisible ? 'Hide filter' : 'Filter',
       showResetFilterButton: hasActiveFilters,
       onResetFilterPress: onResetFilters,
       searchQuery: isWeb && allowWebSearchControl ? searchQuery : undefined,
@@ -75,8 +75,8 @@ export function useSearchPageChrome({
       onSubmitSearch: setNativeSearchQuery,
       primaryAction: {
         onPress: onFilterPress,
-        buttonLabel: filterVisible ? 'Hide Filter' : 'Filter',
-        buttonAccessibilityLabel: filterVisible ? 'Hide Filter' : 'Filter',
+        buttonLabel: filterVisible ? 'Hide filter' : 'Filter',
+        buttonAccessibilityLabel: filterVisible ? 'Hide filter' : 'Filter',
         iconAccessibilityLabel: filterVisible
           ? 'Hide filter panel'
           : 'Show filter panel',

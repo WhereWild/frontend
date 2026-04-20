@@ -336,6 +336,7 @@ export function useSearchFilters(
       minimumSamples,
       onMinimumSamplesChange,
       onResetFilters,
+      hasActiveFilters,
     }),
     [
       baseTaxonQuery,
@@ -365,6 +366,7 @@ export function useSearchFilters(
       onSortOrderChange,
       onSortVariableChange,
       onStateChange,
+      hasActiveFilters,
       hasScopedRankingContext,
       rankValue,
       rankingFilterHint,

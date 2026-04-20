@@ -354,6 +354,7 @@ export function SearchResults({
         scientificName={item.scientificName}
         description={item.description}
         imageSource={item.imageSource}
+        interactionMode='press-only'
         size='compact'
         onPress={() => onSelectResult?.(item)}
         testID={`search-result-${item.taxonId}`}
@@ -447,6 +448,7 @@ export function SearchResults({
                 scientificName={item.scientificName}
                 description={item.description}
                 imageSource={item.imageSource}
+                interactionMode='press-only'
                 size='compact'
                 onPress={() => onSelectResult?.(item)}
                 testID={`search-result-${item.taxonId}`}

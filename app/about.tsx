@@ -150,7 +150,7 @@ export default function AboutScreen() {
           )}
           bounces={false}
         >
-          <PageTitle title='About' />
+          {Platform.OS === 'web' ? <PageTitle title='About' /> : null}
 
           <View
             style={[
@@ -445,6 +445,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconGithub />}
                       accessibilityLabel='Lucas Pearce on GitHub'
+                      href='https://github.com/MtGambelOak'
                       onPress={() =>
                         Linking.openURL('https://github.com/MtGambelOak')
                       }
@@ -453,6 +454,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconLinkedin />}
                       accessibilityLabel='Lucas Pearce on LinkedIn'
+                      href='https://www.linkedin.com/in/lucaspearce/'
                       onPress={() =>
                         Linking.openURL(
                           'https://www.linkedin.com/in/lucaspearce/',
@@ -463,6 +465,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconMail />}
                       accessibilityLabel='Email Lucas Pearce'
+                      href='mailto:lucaspearce28@gmail.com'
                       onPress={() =>
                         Linking.openURL('mailto:lucaspearce28@gmail.com')
                       }
@@ -493,6 +496,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconGithub />}
                       accessibilityLabel='Kelly Wu on GitHub'
+                      href='https://github.com/kellynyanbinary'
                       onPress={() =>
                         Linking.openURL('https://github.com/kellynyanbinary')
                       }
@@ -501,6 +505,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconLinkedin />}
                       accessibilityLabel='Kelly Wu on LinkedIn'
+                      href='https://www.linkedin.com/in/kellyhanwu/'
                       onPress={() =>
                         Linking.openURL(
                           'https://www.linkedin.com/in/kellyhanwu/',
@@ -532,6 +537,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconGithub />}
                       accessibilityLabel='Luke Allen on GitHub'
+                      href='https://github.com/lukeallen7467'
                       onPress={() =>
                         Linking.openURL('https://github.com/lukeallen7467')
                       }
@@ -540,6 +546,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconMail />}
                       accessibilityLabel='Email Luke Allen'
+                      href='mailto:lukeallen159111@gmail.com'
                       onPress={() =>
                         Linking.openURL('mailto:lukeallen159111@gmail.com')
                       }
@@ -570,6 +577,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconGithub />}
                       accessibilityLabel='Draeden Jensen on GitHub'
+                      href='https://github.com/DraedenJensen'
                       onPress={() =>
                         Linking.openURL('https://github.com/DraedenJensen')
                       }
@@ -578,6 +586,7 @@ export default function AboutScreen() {
                       variant='subtle'
                       icon={<IconLinkedin />}
                       accessibilityLabel='Draeden Jensen on LinkedIn'
+                      href='https://www.linkedin.com/in/denmark-jensen-228b7626b'
                       onPress={() =>
                         Linking.openURL(
                           'https://www.linkedin.com/in/denmark-jensen-228b7626b',

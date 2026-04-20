@@ -7,6 +7,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
+import { triggerButtonHaptic } from '@/utils/haptics';
 import { Colors, Size } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { IconSize } from '../../primitives/Icon';
@@ -30,6 +31,7 @@ export interface ButtonDangerProps {
   variant?: ButtonDangerVariant;
   size?: ButtonDangerSize;
   disabled?: boolean;
+  enableHaptics?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
   delayLongPress?: number;
@@ -99,6 +101,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
   variant = 'primary',
   size = 'medium',
   disabled = false,
+  enableHaptics = false,
   onPress,
   onLongPress,
   delayLongPress,
@@ -115,6 +118,13 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
   const iconDimension = Number(iconSize);
   const { hoverOnlyTransitionHandlers, shouldAnimateTransitions } =
     useHoverOnlyButtonTransitions();
+  const handlePress = React.useCallback(() => {
+    if (enableHaptics && !disabled) {
+      triggerButtonHaptic();
+    }
+
+    onPress?.();
+  }, [disabled, enableHaptics, onPress]);
 
   return (
     <Pressable
@@ -125,7 +135,7 @@ export const ButtonDanger: React.FC<ButtonDangerProps> = ({
         children,
       )}
       disabled={disabled}
-      onPress={onPress}
+      onPress={handlePress}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
       {...hoverOnlyTransitionHandlers}

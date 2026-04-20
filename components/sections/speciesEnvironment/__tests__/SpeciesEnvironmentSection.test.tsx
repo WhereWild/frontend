@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { SpeciesEnvironmentStats } from '@/data/types';
+import { useDataSources } from '@/hooks/useDataSources';
 import { SpeciesEnvironmentSection } from '../SpeciesEnvironmentSection';
 import { useSpeciesEnvironmentState } from '../useSpeciesEnvironmentState';
 
@@ -10,6 +11,10 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 jest.mock('../useSpeciesEnvironmentState', () => ({
   useSpeciesEnvironmentState: jest.fn(),
+}));
+
+jest.mock('@/hooks/useDataSources', () => ({
+  useDataSources: jest.fn(),
 }));
 
 jest.mock('../VariableSelectorHeader', () => ({
@@ -164,6 +169,7 @@ jest.mock('../PolarDensityChart', () => ({
 }));
 
 const mockUseSpeciesEnvironmentState = jest.mocked(useSpeciesEnvironmentState);
+const mockUseDataSources = jest.mocked(useDataSources);
 type SpeciesEnvironmentState = ReturnType<typeof useSpeciesEnvironmentState>;
 
 const baseContinuousStats: SpeciesEnvironmentStats = {
@@ -286,6 +292,7 @@ describe('SpeciesEnvironmentSection', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseDataSources.mockReturnValue({});
     mockPolarDensityChart.mockReturnValue(<></>);
     mockUseSpeciesEnvironmentState.mockReturnValue(baseState);
   });

@@ -171,6 +171,7 @@ function TopAppBarActionsRow({
           <IconButton
             variant='neutral'
             icon={resolvedSecondaryAction.icon}
+            enableHaptics={isSecondaryActionEnabled}
             onPress={resolvedSecondaryAction.onPress}
             disabled={!isSecondaryActionEnabled}
             accessibilityLabel={resolvedSecondaryAction.accessibilityLabel}

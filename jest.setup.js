@@ -25,6 +25,19 @@ jest.mock('expo-font', () => ({
   isLoading: jest.fn(() => false),
 }));
 
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(() => Promise.resolve()),
+  ImpactFeedbackStyle: {
+    Light: 'light',
+  },
+  selectionAsync: jest.fn(() => Promise.resolve()),
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  NotificationFeedbackType: {
+    Success: 'success',
+    Error: 'error',
+  },
+}));
+
 jest.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: jest.fn(() => Promise.resolve()),
   hideAsync: jest.fn(() => Promise.resolve()),
