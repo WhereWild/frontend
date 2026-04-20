@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  type DimensionValue,
   Linking,
   Platform,
   StyleSheet,
@@ -55,7 +56,7 @@ type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
   error?: string | null;
-  height?: number;
+  height?: DimensionValue;
   highlightedCatalogs?: (number | string)[];
   heatmapTileUrl?: string | null;
   heatmapOpacity?: number;
@@ -77,7 +78,7 @@ export function SpeciesOccurrenceMap({
   occurrences,
   loading = false,
   error = null,
-  height = 360,
+  height,
   highlightedCatalogs = [],
   heatmapTileUrl = null,
   heatmapOpacity = 0.6,
@@ -274,6 +275,14 @@ export function SpeciesOccurrenceMap({
       ),
     [selectedPoint],
   );
+  const shouldFillAvailableHeight = height == null;
+  const feedbackContainerStyle = [
+    styles.feedback,
+    shouldFillAvailableHeight && styles.feedbackFill,
+  ];
+  const loadingMessage = loading
+    ? 'Loading observations map…'
+    : 'Loading map renderer…';
 
   const sendHighlightMessage = React.useCallback(
     (message: HighlightMessage | SelectedPointMessage) => {
@@ -354,26 +363,17 @@ export function SpeciesOccurrenceMap({
     };
   }, [handlePinObservation, onBoundsChange, openExternalUrl]);
 
-  if (loading) {
-    return (
-      <View style={[styles.feedback, styles.loadingFeedback]}>
-        <ActivityIndicator color={palette.icon.brand.default} />
-        <ThemedText variant='bodySmall'>Loading observations map…</ThemedText>
-      </View>
-    );
-  }
-
   if (error) {
     return (
-      <View style={styles.feedback}>
+      <View style={feedbackContainerStyle}>
         <ThemedText variant='bodySmall'>{error}</ThemedText>
       </View>
     );
   }
 
-  if (!hasOccurrences && showMarkers && !heatmapTileUrl) {
+  if (!loading && !hasOccurrences && showMarkers && !heatmapTileUrl) {
     return (
-      <View style={styles.feedback}>
+      <View style={feedbackContainerStyle}>
         <ThemedText variant='bodySmall'>
           No precise observation coordinates available for this species.
         </ThemedText>
@@ -383,23 +383,19 @@ export function SpeciesOccurrenceMap({
 
   if (templateLoadError) {
     return (
-      <View style={styles.feedback}>
+      <View style={feedbackContainerStyle}>
         <ThemedText variant='bodySmall'>{templateLoadError}</ThemedText>
       </View>
     );
   }
 
-  if (!html) {
-    return (
-      <View style={[styles.feedback, styles.loadingFeedback]}>
-        <ActivityIndicator color={palette.icon.brand.default} />
-        <ThemedText variant='bodySmall'>Loading map renderer…</ThemedText>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        shouldFillAvailableHeight && styles.containerFill,
+      ]}
+    >
       {templateLoadWarning ? (
         <View
           style={[
@@ -413,16 +409,22 @@ export function SpeciesOccurrenceMap({
       <View
         style={[
           styles.mapWrapper,
-          { height, backgroundColor: palette.background.default.tertiary },
+          height == null
+            ? [
+                styles.mapWrapperFill,
+                { backgroundColor: palette.background.default.tertiary },
+              ]
+            : { height, backgroundColor: palette.background.default.tertiary },
         ]}
       >
-        {Platform.OS === 'web' ? (
+        {html && Platform.OS === 'web' ? (
           <NativeLeafletFrame
             ref={iframeRef}
             html={html}
             onLoad={() => setMapReady(true)}
           />
-        ) : (
+        ) : null}
+        {html && Platform.OS !== 'web' ? (
           <WebView
             ref={webViewRef}
             style={styles.webview}
@@ -438,7 +440,20 @@ export function SpeciesOccurrenceMap({
               } catch {}
             }}
           />
-        )}
+        ) : null}
+        {loading || !html ? (
+          <View
+            style={[
+              styles.loadingOverlay,
+              { backgroundColor: palette.background.default.tertiary },
+            ]}
+          >
+            <View style={styles.loadingFeedback}>
+              <ActivityIndicator color={palette.icon.brand.default} />
+              <ThemedText variant='bodySmall'>{loadingMessage}</ThemedText>
+            </View>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -476,9 +491,22 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: Size.space['200'],
   },
+  containerFill: {
+    flex: 1,
+    minHeight: 0,
+  },
   mapWrapper: {
     width: '100%',
     overflow: 'hidden',
+  },
+  mapWrapperFill: {
+    flex: 1,
+    minHeight: 0,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   webview: {
     flex: 1,
@@ -492,6 +520,10 @@ const styles = StyleSheet.create({
     padding: Size.space['300'],
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  feedbackFill: {
+    flex: 1,
+    minHeight: 0,
   },
   loadingFeedback: {
     gap: Size.space['200'],

@@ -105,6 +105,11 @@ export type { SpeciesInformationSectionProps } from './sections/SpeciesInformati
 export { LocalMapSection } from './sections/LocalMapSection';
 export type { LocalMapSectionProps } from './sections/LocalMapSection';
 
+export { HomeRecommendationFilter } from './sections/HomeRecommendationFilter';
+export type { HomeRecommendationFilterProps } from './sections/HomeRecommendationFilter';
+
+export { WeatherAttribution } from './sections/WeatherAttribution';
+
 export { ActiveNearYouSection } from './sections/ActiveNearYouSection';
 export type { ActiveNearYouSectionProps } from './sections/ActiveNearYouSection';
 

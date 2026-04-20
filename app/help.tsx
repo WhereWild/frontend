@@ -82,7 +82,7 @@ export default function HelpScreen() {
           )}
           bounces={false}
         >
-          <PageTitle title='Help' />
+          {Platform.OS === 'web' ? <PageTitle title='Help' /> : null}
 
           <View
             style={[

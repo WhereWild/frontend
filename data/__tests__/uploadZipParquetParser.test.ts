@@ -1,5 +1,8 @@
-import type JSZip from 'jszip';
-import { resolveParquetEntryPaths } from '@/data/uploadZipParquetParser';
+import JSZip from 'jszip';
+import {
+  parseUploadedParquetZipToRawBundle,
+  resolveParquetEntryPaths,
+} from '@/data/uploadZipParquetParser';
 
 describe('resolveParquetEntryPaths', () => {
   it('accepts zip bundles that omit variable_metadata.parquet', () => {
@@ -44,6 +47,72 @@ describe('resolveParquetEntryPaths', () => {
     expect(resolveParquetEntryPaths(zip)).toEqual(
       expect.objectContaining({
         categoricalValueLookup: 'categorical_value_lookup.csv',
+      }),
+    );
+  });
+});
+
+describe('parseUploadedParquetZipToRawBundle', () => {
+  const originalFileReader = global.FileReader;
+
+  afterEach(() => {
+    global.FileReader = originalFileReader;
+    jest.restoreAllMocks();
+  });
+
+  it('falls back to FileReader when the zip blob lacks arrayBuffer', async () => {
+    const zipBuffer = new Uint8Array([80, 75, 3, 4]).buffer;
+    class MockFileReader {
+      result: ArrayBuffer | null = null;
+      onerror: null | (() => void) = null;
+      onload: null | (() => void) = null;
+
+      readAsArrayBuffer(_blob: Blob) {
+        this.result = zipBuffer.slice(0);
+        this.onload?.();
+      }
+    }
+    global.FileReader = MockFileReader as unknown as typeof FileReader;
+
+    const zipMock = {
+      files: {
+        'categorical_stats.csv': { dir: false },
+        'density_graph.csv': { dir: false },
+        'occurrence.csv': { dir: false },
+        'occurrence_index.csv': { dir: false },
+        'summary_stats.csv': { dir: false },
+      },
+      file: jest.fn((path: string) => ({
+        async: jest.fn(async (type: string) => {
+          if (type === 'arraybuffer') {
+            return new TextEncoder().encode('column\n').buffer;
+          }
+          if (type === 'string') {
+            return '{}';
+          }
+          throw new Error(`Unsupported async type: ${type}`);
+        }),
+        name: path,
+      })),
+    } as unknown as JSZip;
+
+    const loadAsyncSpy = jest
+      .spyOn(JSZip, 'loadAsync')
+      .mockResolvedValue(zipMock);
+
+    const result = await parseUploadedParquetZipToRawBundle({
+      size: 4,
+      type: 'application/zip',
+    } as Blob);
+
+    expect(loadAsyncSpy).toHaveBeenCalledWith(expect.any(ArrayBuffer));
+    expect(result).toEqual(
+      expect.objectContaining({
+        categoricalStats: [],
+        densityGraph: [],
+        occurrences: [],
+        occurrenceIndex: [],
+        summaryStats: [],
       }),
     );
   });

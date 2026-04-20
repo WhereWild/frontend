@@ -1,32 +1,21 @@
-import { Colors, Size } from '@/constants/theme';
+import { Size } from '@/constants/theme';
 import type { HomePageData } from '@/data/types';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  FlatList,
+  NativeSyntheticEvent,
+  Platform,
+  NativeScrollEvent,
+  type StyleProp,
+  StyleSheet,
+  type ViewStyle,
+  View,
+} from 'react-native';
 import { SpeciesCard } from '../cards/SpeciesCard';
 import { ThemedText } from '../text/ThemedText';
-import { NavigationPillList } from '../navigation/NavigationPillList';
 
 type SpeciesSummary = HomePageData['recommendations']['items'][number];
-
-const GROUP_LABELS: Record<string, string> = {
-  all: 'All',
-  plants: 'Plants',
-  animals: 'Animals',
-  birds: 'Birds',
-  fungi: 'Fungi',
-  arthropods: 'Arthropods',
-};
-
-const GROUP_ORDER = [
-  'all',
-  'plants',
-  'animals',
-  'birds',
-  'fungi',
-  'arthropods',
-];
 
 export type ActiveNearYouSectionProps = {
   recommendations: SpeciesSummary[];
@@ -34,90 +23,164 @@ export type ActiveNearYouSectionProps = {
   loading?: boolean;
   showHeading?: boolean;
   activeGroup?: string;
-  onGroupChange?: (group: string) => void;
   style?: StyleProp<ViewStyle>;
+  nativeFirstItemTopMargin?: number;
+  onNativeScrolledChange?: (isScrolled: boolean) => void;
 };
 
 export function ActiveNearYouSection({
   recommendations,
   allRecommendations,
-  loading = false,
   showHeading = true,
   activeGroup: activeGroupProp,
-  onGroupChange,
   style,
+  nativeFirstItemTopMargin = 0,
+  onNativeScrolledChange,
 }: ActiveNearYouSectionProps) {
-  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
-  const [activeGroupInternal, setActiveGroupInternal] = React.useState('all');
-  const activeGroup = activeGroupProp ?? activeGroupInternal;
-  const setActiveGroup = onGroupChange ?? setActiveGroupInternal;
-
-  const availableGroups = React.useMemo(() => {
-    const present = new Set(
-      allRecommendations.map((s) => s.taxonGroup).filter(Boolean),
-    );
-    return GROUP_ORDER.filter((g) => g === 'all' || present.has(g));
-  }, [allRecommendations]);
-
-  const pills = React.useMemo(
-    () => availableGroups.map((g) => ({ key: g, label: GROUP_LABELS[g] ?? g })),
-    [availableGroups],
-  );
-
-  // Reset to 'all' if the active group disappears from the available list
-  React.useEffect(() => {
-    if (!availableGroups.includes(activeGroup)) {
-      setActiveGroup('all');
-    }
-  }, [availableGroups, activeGroup, setActiveGroup]);
+  const responsive = useResponsive();
+  const cardSize = responsive.breakpoint === 'phone' ? 'compact' : 'default';
+  const cardGap =
+    cardSize === 'compact' ? Size.space['200'] : Size.space['400'];
+  const activeGroup = activeGroupProp ?? 'all';
+  const isNative = Platform.OS !== 'web';
+  const isHeadingVisible = showHeading && !isNative;
+  const isScrolledRef = React.useRef(false);
 
   const displayed = React.useMemo(() => {
     if (activeGroup === 'all') return recommendations;
     return allRecommendations.filter((s) => s.taxonGroup === activeGroup);
   }, [activeGroup, recommendations, allRecommendations]);
 
-  return (
-    <View style={[styles.section, style]}>
-      <View style={styles.headingRow}>
-        {showHeading ? (
+  const header = React.useMemo(
+    () => (
+      <View style={styles.header}>
+        <View
+          collapsable={false}
+          testID='active-near-you-heading-slot'
+          accessibilityElementsHidden={!isHeadingVisible}
+          importantForAccessibility={
+            isHeadingVisible ? 'auto' : 'no-hide-descendants'
+          }
+          style={[styles.headingRow, !isHeadingVisible && styles.hiddenSlot]}
+        >
           <ThemedText variant='heading'>Active Near You</ThemedText>
-        ) : null}
-        {loading ? (
-          <ActivityIndicator
-            size='small'
-            color={palette.icon.brand.default}
-            style={styles.spinner}
-          />
-        ) : null}
+        </View>
       </View>
+    ),
+    [isHeadingVisible],
+  );
 
-      <NavigationPillList
-        pills={pills}
-        selectedKey={activeGroup}
-        onSelectionChange={setActiveGroup}
-      />
+  const handleNativeScroll = React.useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextIsScrolled = event.nativeEvent.contentOffset.y > 0;
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        style={styles.scroll}
+      if (isScrolledRef.current === nextIsScrolled) {
+        return;
+      }
+
+      isScrolledRef.current = nextIsScrolled;
+      onNativeScrolledChange?.(nextIsScrolled);
+    },
+    [onNativeScrolledChange],
+  );
+
+  React.useEffect(() => {
+    isScrolledRef.current = false;
+    onNativeScrolledChange?.(false);
+  }, [onNativeScrolledChange]);
+
+  if (isNative) {
+    return (
+      <View style={[styles.section, styles.sectionNative, style]}>
+        <FlatList
+          testID='active-near-you-native-list'
+          data={displayed}
+          keyExtractor={(item) => String(item.taxonId)}
+          renderItem={({ item, index }) => (
+            <View
+              collapsable={false}
+              testID={
+                index === 0 ? 'active-near-you-first-item-wrapper' : undefined
+              }
+              style={[
+                styles.nativeItemWrapper,
+                index === 0 && nativeFirstItemTopMargin > 0
+                  ? { marginTop: nativeFirstItemTopMargin }
+                  : undefined,
+              ]}
+            >
+              <SpeciesCard
+                {...item}
+                size={cardSize}
+                style={styles.speciesCard}
+              />
+            </View>
+          )}
+          ListHeaderComponent={header}
+          ListHeaderComponentStyle={
+            isHeadingVisible ? { paddingBottom: Size.space['400'] } : undefined
+          }
+          ItemSeparatorComponent={() => (
+            <View style={[styles.itemSeparator, { height: cardGap }]} />
+          )}
+          contentContainerStyle={[
+            styles.nativeListContent,
+            {
+              paddingTop: isHeadingVisible ? Size.space['400'] : 0,
+              paddingBottom: responsive.gap,
+            },
+          ]}
+          style={styles.nativeList}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          onScroll={handleNativeScroll}
+          scrollEventThrottle={16}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      testID='active-near-you-section'
+      style={[
+        styles.section,
+        isHeadingVisible && styles.sectionWithHeading,
+        style,
+      ]}
+    >
+      {header}
+
+      <View
+        testID='active-near-you-list'
+        style={[styles.list, { gap: cardGap }]}
       >
         {displayed.map((species) => (
           <SpeciesCard
             key={species.taxonId}
             {...species}
+            size={cardSize}
             style={styles.speciesCard}
           />
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
-    gap: Size.space['300'],
+    width: '100%',
+  },
+  sectionWithHeading: {
+    gap: Size.space['400'],
+  },
+  sectionNative: {
+    flex: 1,
+    minHeight: 0,
+    gap: 0,
+  },
+  header: {
     width: '100%',
   },
   headingRow: {
@@ -125,15 +188,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Size.space['200'],
   },
-  spinner: {
-    marginLeft: Size.space['100'],
+  hiddenSlot: {
+    height: 0,
+    opacity: 0,
+    overflow: 'hidden',
   },
-  scroll: {
-    maxHeight: 600,
-  },
-  scrollContent: {
-    gap: Size.space['400'],
+  list: {
     paddingBottom: Size.space['200'],
+  },
+  nativeList: {
+    flex: 1,
+    minHeight: 0,
+  },
+  nativeListContent: {
+    width: '100%',
+    paddingBottom: Size.space['200'],
+  },
+  nativeItemWrapper: {
+    width: '100%',
+  },
+  itemSeparator: {
+    width: '100%',
   },
   speciesCard: {
     maxWidth: '100%',

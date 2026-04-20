@@ -2,92 +2,176 @@ import * as ExpoRouter from 'expo-router';
 import React from 'react';
 import {
   GestureResponderEvent,
+  Platform,
   Pressable,
   type PressableProps,
 } from 'react-native';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
+import { triggerButtonHaptic } from '@/utils/haptics';
 
 type RoutePressableProps = Omit<PressableProps, 'onPress'> & {
   href?: ExpoRouter.Href;
   hrefPath?: string;
+  hrefAttrs?: {
+    download?: boolean;
+    rel?: string;
+    target?: string;
+  };
   onPress?: (event: GestureResponderEvent) => void;
   navigateAfterPress?: boolean;
   showPointerCursor?: boolean;
+  enablePressHaptics?: boolean;
 };
 
 type RoutePressNativeEvent = {
+  altKey?: boolean;
   ctrlKey?: boolean;
   metaKey?: boolean;
   shiftKey?: boolean;
   button?: number;
 } & object;
 
-type OpenTarget = 'new_window' | 'new_tab' | 'same_tab';
+type RoutePressEvent = GestureResponderEvent & {
+  altKey?: boolean;
+  button?: number;
+  ctrlKey?: boolean;
+  defaultPrevented?: boolean;
+  isDefaultPrevented?: () => boolean;
+  metaKey?: boolean;
+  nativeEvent?: RoutePressNativeEvent;
+  preventDefault?: () => void;
+  shiftKey?: boolean;
+};
 
-const resolveOpenTarget = (event?: GestureResponderEvent): OpenTarget => {
-  const nativeEvent = event?.nativeEvent as RoutePressNativeEvent | undefined;
+type WebPressableLinkProps = {
+  href?: string;
+  hrefAttrs?: {
+    download?: boolean;
+    rel?: string;
+    target?: string;
+  };
+};
 
-  if (nativeEvent?.shiftKey) {
-    return 'new_window';
-  }
+const getModifierFlag = (
+  event: RoutePressEvent | undefined,
+  key: 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey',
+) => event?.[key] ?? event?.nativeEvent?.[key] ?? false;
+
+const getEventButton = (event?: RoutePressEvent) =>
+  event?.button ?? event?.nativeEvent?.button;
+
+const isDefaultPrevented = (event?: RoutePressEvent) =>
+  event?.isDefaultPrevented?.() ?? event?.defaultPrevented ?? false;
+
+const shouldLetBrowserHandleEvent = (
+  event?: RoutePressEvent,
+  options?: {
+    download?: boolean;
+    linkTarget?: string;
+  },
+) => {
+  const button = getEventButton(event);
 
   if (
-    nativeEvent?.ctrlKey ||
-    nativeEvent?.metaKey ||
-    nativeEvent?.button === 1
+    getModifierFlag(event, 'altKey') ||
+    getModifierFlag(event, 'ctrlKey') ||
+    getModifierFlag(event, 'metaKey') ||
+    getModifierFlag(event, 'shiftKey')
   ) {
-    return 'new_tab';
+    return true;
   }
 
-  return 'same_tab';
+  if (button != null && button !== 0) {
+    return true;
+  }
+
+  if (options?.download) {
+    return true;
+  }
+
+  return ![undefined, null, '', 'self', '_self'].includes(options?.linkTarget);
+};
+
+const resolveRouteHref = (
+  href: ExpoRouter.Href | undefined,
+  hrefPath?: string,
+) => {
+  if (!href) {
+    return undefined;
+  }
+
+  // Expo Router does not currently expose a typed href resolver here, but the
+  // Link component carries one in practice. Use it when available so web can
+  // render a real anchor for object hrefs, and fall back to hrefPath otherwise.
+  const resolveHref = (
+    ExpoRouter.Link as { resolveHref?: (value: ExpoRouter.Href) => string }
+  )?.resolveHref;
+
+  if (resolveHref) {
+    return resolveHref(href);
+  }
+
+  return typeof href === 'string' ? href : hrefPath;
 };
 
 /**
- * Pressable wrapper that adds browser-like new-tab behavior for app routes.
- * Use `hrefPath` for web tab opening and `href` for in-app router navigation.
+ * Navigation primitive that renders a real anchor on web and a pressable on native.
+ * Use `href` for router navigation and `hrefPath` when the current path needs to be compared explicitly.
  */
 export function RoutePressable({
   href,
   hrefPath,
+  hrefAttrs,
   onPress,
   navigateAfterPress,
   showPointerCursor = true,
+  enablePressHaptics = false,
   ...pressableProps
 }: RoutePressableProps) {
   const { disabled, style, ...restPressableProps } = pressableProps;
   const router = ExpoRouter.useRouter();
   const pathname = ExpoRouter.usePathname();
+  const isWeb = Platform.OS === 'web';
   const isStringHref = typeof href === 'string';
+  const resolvedHref = React.useMemo(
+    () => resolveRouteHref(href, hrefPath),
+    [href, hrefPath],
+  );
+  const anchorHref = hrefPath ?? resolvedHref;
   const comparablePath = isStringHref ? href : hrefPath;
   const supportsCurrentRouteCheck = typeof comparablePath === 'string';
 
   const handlePress = React.useCallback(
     (event: GestureResponderEvent) => {
-      if (
-        href &&
-        hrefPath &&
-        typeof window !== 'undefined' &&
-        typeof window.open === 'function'
-      ) {
-        const openTarget = resolveOpenTarget(event);
-        if (openTarget === 'new_window') {
-          // Avoid popup-style window features so browsers keep normal chrome/bookmarks UI.
-          const openedWindow = window.open(hrefPath, '_blank');
-          if (openedWindow) {
-            openedWindow.opener = null;
-          }
-          return;
-        }
+      const routeEvent = event as RoutePressEvent;
 
-        if (openTarget === 'new_tab') {
-          window.open(hrefPath, '_blank', 'noopener,noreferrer');
-          return;
-        }
+      if (
+        isWeb &&
+        anchorHref &&
+        shouldLetBrowserHandleEvent(routeEvent, {
+          download: hrefAttrs?.download,
+          linkTarget: hrefAttrs?.target,
+        })
+      ) {
+        return;
+      }
+
+      if (enablePressHaptics && !(disabled ?? false)) {
+        triggerButtonHaptic();
       }
 
       onPress?.(event);
+      const userPreventedDefault = isDefaultPrevented(routeEvent);
 
       if (!href) {
+        return;
+      }
+
+      if (isWeb && anchorHref) {
+        routeEvent.preventDefault?.();
+      }
+
+      if (userPreventedDefault) {
         return;
       }
 
@@ -100,8 +184,13 @@ export function RoutePressable({
     },
     [
       comparablePath,
+      anchorHref,
+      disabled,
+      enablePressHaptics,
       href,
-      hrefPath,
+      hrefAttrs?.download,
+      hrefAttrs?.target,
+      isWeb,
       navigateAfterPress,
       onPress,
       pathname,
@@ -110,9 +199,18 @@ export function RoutePressable({
     ],
   );
 
+  const webLinkProps: WebPressableLinkProps | undefined =
+    isWeb && anchorHref
+      ? {
+          href: anchorHref,
+          hrefAttrs,
+        }
+      : undefined;
+
   return (
     <Pressable
       {...restPressableProps}
+      {...(webLinkProps as WebPressableLinkProps)}
       disabled={disabled}
       onPress={handlePress}
       style={(state) => {

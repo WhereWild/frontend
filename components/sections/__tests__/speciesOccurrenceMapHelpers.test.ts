@@ -298,6 +298,8 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     expect(html).toContain('popupCatalogHref');
     expect(html).toContain('abc%22%20onclick%3D%22alert(1)%3Ctag%3E');
+    expect(html).toContain('popupCatalogValue');
+    expect(html).toContain('abc\\" onclick=\\"alert(1)<tag>');
     expect(html).toContain('popupCatalogLabel');
     expect(html).toContain('abc&quot; onclick=&quot;alert(1)&lt;tag&gt;');
   });
@@ -335,6 +337,7 @@ describe('speciesOccurrenceMapHelpers', () => {
 
       expect(html).toContain('data-open-external-url="true"');
       expect(html).toContain('data-pin-observation="true"');
+      expect(html).toContain('popupCatalogValue":"abc\\" onclick=\\"alert(1)"');
       expect(html).toContain(
         'popupCatalogHref":"abc%22%20onclick%3D%22alert(1)"',
       );
@@ -402,7 +405,9 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(linkedPopup).toContain(
         'https://www.inaturalist.org/observations/obs-123',
       );
+      expect(linkedPopup).toContain('data-catalog-number="obs-123"');
       expect(linkedPopup).toContain('Highlight in Environmental Features');
+      expect(unlinkedPopup).toContain('data-catalog-number="obs-123"');
       expect(unlinkedPopup).toContain('Highlight in Environmental Features');
       expect(unlinkedPopup).not.toContain(
         'https://www.inaturalist.org/observations/obs-123',

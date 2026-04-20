@@ -180,6 +180,11 @@ const preparePointsForMapHtml = (points: Record<string, unknown>[]) => {
 
     return {
       ...point,
+      // Keep the catalog number in three forms for popup rendering:
+      // - popupCatalogValue: raw string value for non-rendering/internal use
+      // - popupCatalogHref: URL-encoded value for link destinations
+      // - popupCatalogLabel: HTML-escaped value for visible popup text
+      popupCatalogValue: catalog,
       popupCatalogHref: encodeURIComponent(catalog),
       popupCatalogLabel: escapeHtml(catalog),
     };

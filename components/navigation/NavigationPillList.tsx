@@ -264,14 +264,20 @@ export function NavigationPillList({
 const styles = StyleSheet.create({
   list: {},
   listHorizontal: {
+    // Wrapper margins simulate horizontal/vertical gap; cancel the trailing edge so
+    // the filter does not grow an extra outer bottom/right margin on the last row.
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
+    marginRight: -Size.space['200'],
+    marginBottom: -Size.space['200'],
   },
   listHorizontalNative: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
+    marginRight: -Size.space['200'],
+    marginBottom: -Size.space['200'],
   },
   listVertical: {
     flexDirection: 'column',

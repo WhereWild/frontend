@@ -27,6 +27,7 @@ export interface ButtonProps {
   size?: ButtonSize;
   disabled?: boolean;
   showPointerCursor?: boolean;
+  enableHaptics?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
   delayLongPress?: number;
@@ -130,6 +131,7 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'medium',
   disabled = false,
   showPointerCursor = true,
+  enableHaptics = false,
   onPress,
   onLongPress,
   delayLongPress,
@@ -160,6 +162,7 @@ export const Button: React.FC<ButtonProps> = ({
       )}
       disabled={disabled}
       showPointerCursor={showPointerCursor}
+      enablePressHaptics={enableHaptics}
       onPress={onPress}
       href={href}
       hrefPath={hrefPath}

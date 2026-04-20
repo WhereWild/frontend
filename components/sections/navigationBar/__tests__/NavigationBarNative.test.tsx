@@ -156,6 +156,8 @@ describe('NavigationBar native behavior', () => {
     expect(
       __NAVIGATION_BAR_TESTING__.shouldUseHorizontalVariant(0, 1, {}, ['one']),
     ).toBe(true);
+    expect(__NAVIGATION_BAR_TESTING__.getRenderedTabGap('horizontal')).toBe(8);
+    expect(__NAVIGATION_BAR_TESTING__.getRenderedTabGap('vertical')).toBe(0);
   });
 
   it('treats tabs arrays with equivalent item identities as equal', () => {

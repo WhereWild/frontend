@@ -49,6 +49,14 @@ export function UploadPreview({
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
 
+  const selectedMapPoint = React.useMemo(
+    () =>
+      pinnedObservation
+        ? { lat: pinnedObservation.lat, lon: pinnedObservation.lon }
+        : null,
+    [pinnedObservation],
+  );
+
   React.useEffect(() => {
     setPinnedObservation(null);
   }, [uploadedBundle, uploadedDataSource]);
@@ -90,6 +98,7 @@ export function UploadPreview({
           height={height}
           linkObservations={false}
           onPinObservation={handlePinObservation}
+          selectedPoint={selectedMapPoint}
         />
       ) : null}
     </SpeciesDataSourceProvider>
