@@ -1,9 +1,11 @@
 import { IconImage } from '@/assets/icons';
 import { Colors, Size, type ColorPalette } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 import React from 'react';
 import {
   Image,
+  type DimensionValue,
   ImageSourcePropType,
   GestureResponderEvent,
   Pressable,
@@ -22,12 +24,21 @@ export type SpeciesCardVariant = 'secondary' | 'tertiary';
 export type SpeciesCardSize = 'default' | 'compact';
 export type SpeciesCardInteractionMode = 'route' | 'press-only';
 
+type LoadingWidthPattern = {
+  title: DimensionValue;
+  subtitle: DimensionValue;
+  description: DimensionValue;
+  descriptionShort: DimensionValue;
+};
+
 export type SpeciesCardProps = {
   taxonId: number;
   commonName: string;
   scientificName: string;
   description?: string;
   imageSource?: ImageSourcePropType;
+  loading?: boolean;
+  loadingPatternSeed?: number;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   /**
@@ -50,6 +61,32 @@ export type SpeciesCardProps = {
 const DEFAULT_IMAGE_SIZE = 128;
 const COMPACT_IMAGE_SIZE = 56;
 const MAX_WIDTH = 465;
+const DEFAULT_LOADING_WIDTH_PATTERNS: readonly LoadingWidthPattern[] = [
+  {
+    title: '72%',
+    subtitle: '52%',
+    description: '100%',
+    descriptionShort: '78%',
+  },
+  {
+    title: '64%',
+    subtitle: '46%',
+    description: '92%',
+    descriptionShort: '71%',
+  },
+  {
+    title: '79%',
+    subtitle: '58%',
+    description: '96%',
+    descriptionShort: '83%',
+  },
+  {
+    title: '68%',
+    subtitle: '49%',
+    description: '88%',
+    descriptionShort: '74%',
+  },
+] as const;
 
 /**
  * Keeps 'secondary' as the default to preserve the palette used before variants existed.
@@ -81,12 +118,22 @@ const resolveSpeciesCardBackground = (
   return colors.default;
 };
 
+const resolveLoadingWidthPattern = (seed: number): LoadingWidthPattern => {
+  const normalizedSeed = Number.isFinite(seed) ? Math.abs(Math.trunc(seed)) : 0;
+
+  return DEFAULT_LOADING_WIDTH_PATTERNS[
+    normalizedSeed % DEFAULT_LOADING_WIDTH_PATTERNS.length
+  ];
+};
+
 export function SpeciesCard({
   taxonId,
   commonName,
   scientificName,
   description,
   imageSource,
+  loading = false,
+  loadingPatternSeed = 0,
   style,
   testID,
   onPress,
@@ -103,8 +150,9 @@ export function SpeciesCard({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const typographyStyles = useTypographyStyles();
 
-  const placeholderBackground = palette.background.neutral.default;
+  const placeholderBackground = palette.background.disabled.default;
   const placeholderIcon = palette.icon.neutral.tertiary;
   const backgroundForState = (state: PressableStateCallbackType) =>
     resolveSpeciesCardBackground(palette, state, variant);
@@ -164,6 +212,99 @@ export function SpeciesCard({
     },
     style,
   ];
+  const staticContainerStyle = [
+    styles.container,
+    size === 'compact' && styles.containerCompact,
+    {
+      backgroundColor: resolveSpeciesCardBackground(
+        palette,
+        { pressed: false, hovered: false },
+        variant,
+      ),
+      borderRadius: Size.radius['200'],
+    },
+    style,
+  ];
+  const skeletonBarColor = palette.text.disabled.default;
+  const skeletonHeights = {
+    title: typographyStyles.subheading.fontSize,
+    subtitle: typographyStyles.bodySmallEmphasis.fontSize,
+    description: typographyStyles.body.fontSize,
+  };
+  const skeletonWidths = resolveLoadingWidthPattern(loadingPatternSeed);
+
+  if (loading) {
+    return (
+      <View
+        accessibilityLabel='Species card loading'
+        accessibilityRole='progressbar'
+        style={staticContainerStyle}
+        testID={testID}
+      >
+        <View collapsable={false} style={styles.contentWrapper}>
+          <View
+            style={[
+              styles.imageWrapper,
+              size === 'compact' && styles.imageWrapperCompact,
+              { backgroundColor: placeholderBackground },
+            ]}
+            testID='species-card-loading'
+          />
+
+          <View
+            style={[
+              styles.textSection,
+              size === 'compact' && styles.textSectionCompact,
+            ]}
+          >
+            <View style={styles.skeletonGroup}>
+              <View
+                style={[
+                  styles.skeletonBar,
+                  { width: skeletonWidths.title },
+                  { height: skeletonHeights.title },
+                  { backgroundColor: skeletonBarColor },
+                ]}
+                testID='species-card-loading-title'
+              />
+              <View
+                style={[
+                  styles.skeletonBar,
+                  { width: skeletonWidths.subtitle },
+                  { height: skeletonHeights.subtitle },
+                  { backgroundColor: skeletonBarColor },
+                ]}
+                testID='species-card-loading-subtitle'
+              />
+            </View>
+
+            {size === 'default' ? (
+              <View style={styles.skeletonGroup}>
+                <View
+                  style={[
+                    styles.skeletonBar,
+                    { width: skeletonWidths.description },
+                    { height: skeletonHeights.description },
+                    { backgroundColor: skeletonBarColor },
+                  ]}
+                  testID='species-card-loading-description-1'
+                />
+                <View
+                  style={[
+                    styles.skeletonBar,
+                    { width: skeletonWidths.descriptionShort },
+                    { height: skeletonHeights.description },
+                    { backgroundColor: skeletonBarColor },
+                  ]}
+                  testID='species-card-loading-description-2'
+                />
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   const content = (
     <View collapsable={false} style={styles.contentWrapper}>
@@ -326,8 +467,16 @@ const styles = StyleSheet.create({
   description: {
     marginTop: Size.space['200'],
   },
+  skeletonGroup: {
+    gap: Size.space['150'],
+  },
+  skeletonBar: {
+    height: Size.space['200'],
+    borderRadius: Size.radius.full,
+  },
 });
 
 export const __SPECIES_CARD_TESTING__ = {
   resolveSpeciesCardBackground,
+  resolveLoadingWidthPattern,
 };

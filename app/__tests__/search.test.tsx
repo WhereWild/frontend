@@ -1337,12 +1337,12 @@ describe('Search screen', () => {
     expect(mockHistoryReplaceState).not.toHaveBeenCalled();
   });
 
-  it('shows loading state message while searching', () => {
+  it('shows loading species card placeholders while searching', () => {
     mockTaxaQuerySearchResult.searching = true;
     const rendered = render(<Search />);
     rendered.rerender(<Search />);
 
-    expect(screen.getByText('Loading...')).toBeTruthy();
+    expect(screen.getAllByLabelText('Species card loading')).toHaveLength(10);
   });
 
   it('shows empty state message when no results', () => {

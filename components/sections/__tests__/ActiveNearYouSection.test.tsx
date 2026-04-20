@@ -21,13 +21,19 @@ jest.mock('../../cards/SpeciesCard', () => {
     SpeciesCard: ({
       commonName,
       size,
+      loading,
     }: {
       commonName: string;
       size?: 'default' | 'compact';
+      loading?: boolean;
     }) => (
       <Text
-        testID={`species-card-${commonName}`}
-      >{`${commonName}:${size ?? 'default'}`}</Text>
+        testID={loading ? 'species-card-loading' : `species-card-${commonName}`}
+      >
+        {loading
+          ? `loading:${size ?? 'default'}`
+          : `${commonName}:${size ?? 'default'}`}
+      </Text>
     ),
   };
 });
@@ -161,6 +167,24 @@ describe('ActiveNearYouSection', () => {
     expect(
       flattenStyle(screen.getByTestId('active-near-you-list').props.style).gap,
     ).toBe(Size.space['200']);
+  });
+
+  it('renders loading placeholder cards while loading', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        loading
+      />,
+    );
+
+    expect(screen.getAllByTestId('species-card-loading')).toHaveLength(5);
+    expect(screen.queryByText('Plant One:default')).toBeNull();
   });
 
   it('hides the heading when showHeading is false', () => {
