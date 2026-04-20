@@ -11,6 +11,11 @@ import {
 import { SwitchField } from '../SwitchField';
 import { Colors, Size, Time } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { triggerSwitchHaptic } from '@/utils/haptics';
+
+jest.mock('@/utils/haptics', () => ({
+  triggerSwitchHaptic: jest.fn(),
+}));
 
 let panResponderConfig: Parameters<typeof PanResponder.create>[0] | null = null;
 let lastTimingToValue: number | null = null;
@@ -112,6 +117,7 @@ describe('SwitchField', () => {
     lastTimingToValue = null;
     timingSpy = null;
     (useColorScheme as jest.Mock).mockReturnValue('dark');
+    (triggerSwitchHaptic as jest.Mock).mockClear();
     jest.spyOn(PanResponder, 'create').mockImplementation(
       (config: Parameters<typeof PanResponder.create>[0]) =>
         ({
@@ -159,6 +165,68 @@ describe('SwitchField', () => {
     fireEvent.press(screen.getByLabelText('Notifications'));
 
     expect(handleValueChange).toHaveBeenCalledWith(true);
+    expect(triggerSwitchHaptic).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers haptics when a drag crosses the settle threshold and not again on release', () => {
+    const handleValueChange = jest.fn();
+
+    render(
+      <SwitchField
+        label='Drag haptics switch'
+        value={false}
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    act(() => {
+      panResponderConfig?.onPanResponderGrant?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+    });
+
+    expect(handleValueChange).not.toHaveBeenCalled();
+    expect(triggerSwitchHaptic).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      panResponderConfig?.onPanResponderRelease?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+    });
+
+    expect(handleValueChange).toHaveBeenCalledWith(true);
+    expect(triggerSwitchHaptic).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers drag haptics each time the pending settled state changes', () => {
+    render(<SwitchField label='Threshold haptics switch' value={false} />);
+
+    act(() => {
+      panResponderConfig?.onPanResponderGrant?.(
+        createGestureResponderEvent(),
+        createGestureState(0),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(-100),
+      );
+      panResponderConfig?.onPanResponderMove?.(
+        createGestureResponderEvent(),
+        createGestureState(100),
+      );
+    });
+
+    expect(triggerSwitchHaptic).toHaveBeenCalledTimes(3);
   });
 
   it('manages value internally when uncontrolled', () => {
