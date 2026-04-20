@@ -8,6 +8,7 @@ import {
   toRequiredString,
 } from './apiShared';
 
+
 /** Query params for ranking options requests. */
 export type RelativeRankingOptionsParams = {
   taxonId: number | string;
@@ -41,13 +42,15 @@ export async function fetchRelativeRankingOptions(
   const options = Array.isArray(payload.options)
     ? payload.options.map((entry) => {
         const source = asRecord(entry);
-
         const metric = toRequiredString(source.metric, '');
-        const rawLabel = typeof source.label === 'string' ? source.label.trim() : '';
+        const label =
+          typeof source.label === 'string' && source.label.trim().length > 0
+            ? source.label.trim()
+            : metric;
         return {
           variable: toRequiredString(source.variable, ''),
           metric,
-          label: rawLabel.length > 0 ? rawLabel : metric,
+          label,
           column: toRequiredString(source.column, ''),
           count: toRequiredNumber(source.count, 0),
         };
