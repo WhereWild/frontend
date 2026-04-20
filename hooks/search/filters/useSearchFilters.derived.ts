@@ -18,7 +18,10 @@ export const toSortMetricOptions = (
 
   const seen = new Set<string>();
   const metricOptions = rankingSortOptions
-    .filter((entry) => entry.variable === sortVariableValue && entry.metric.length > 0)
+    .filter(
+      (entry) =>
+        entry.variable === sortVariableValue && entry.metric.length > 0,
+    )
     .filter((entry) => {
       if (seen.has(entry.metric)) return false;
       seen.add(entry.metric);
