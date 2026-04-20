@@ -3,8 +3,8 @@ import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import Head from 'expo-router/head';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { WebMetadata } from '@/utils/webMetadata';
 
 export type Reference = {
   authors: string;
@@ -325,9 +325,11 @@ export default function AcknowledgementsScreen() {
   return (
     <>
       {Platform.OS === 'web' ? (
-        <Head>
-          <title>WhereWild | Acknowledgements</title>
-        </Head>
+        <WebMetadata
+          title='WhereWild | Acknowledgements'
+          description='See the open datasets, tools, and contributors that power WhereWild.'
+          path='/acknowledgements'
+        />
       ) : null}
       <PageSurface>
         <PageScrollContainer

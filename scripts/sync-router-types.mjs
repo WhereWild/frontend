@@ -27,7 +27,9 @@ const ROUTE_CONTEXT_IGNORE =
 
 try {
   const ctx = requireContext(appRoot, true, ROUTE_CONTEXT_IGNORE);
-  const content = getTypedRoutesDeclarationFile(ctx, {});
+  const content = getTypedRoutesDeclarationFile(ctx, {
+    unstable_useServerMiddleware: true,
+  });
 
   if (!content) {
     console.error('[sync-router-types] Failed to generate router.d.ts');

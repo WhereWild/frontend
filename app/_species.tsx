@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import {
   NavigationPillList,
   PageScrollContainer,
@@ -16,7 +17,6 @@ import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
-import Head from 'expo-router/head';
 import React from 'react';
 import {
   Alert,
@@ -31,6 +31,8 @@ import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
+import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
+import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 
@@ -272,6 +274,7 @@ export default function Species({
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const pathname = usePathname();
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -409,6 +412,27 @@ export default function Species({
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
   }, [commonName, commonNames]);
+  const speciesPath = React.useMemo(() => {
+    if (Platform.OS === 'web' && pathname.startsWith('/species/')) {
+      return pathname;
+    }
+
+    return buildSpeciesPath({
+      commonName,
+      scientificName,
+      taxonId,
+    });
+  }, [commonName, pathname, scientificName, taxonId]);
+  const speciesDescription = React.useMemo(() => {
+    const trimmed = overview.description.trim();
+    return trimmed.length > 0
+      ? trimmed
+      : `Explore habitat context, observations, and predictive maps for ${commonName}.`;
+  }, [commonName, overview.description]);
+  const speciesImageUrl = React.useMemo(
+    () => resolveOpenGraphImageUrl(overview.imageSource),
+    [overview.imageSource],
+  );
 
   // Show the yellow selected-point dot for ANY pinned item — both real
   // observations and map-click "point:" entries — using the stored lat/lon.
@@ -423,9 +447,13 @@ export default function Species({
   return (
     <>
       {Platform.OS === 'web' ? (
-        <Head>
-          <title>{`WhereWild | ${commonName}`}</title>
-        </Head>
+        <WebMetadata
+          title={`WhereWild | ${commonName}`}
+          description={speciesDescription}
+          path={speciesPath}
+          imageUrl={speciesImageUrl}
+          type='article'
+        />
       ) : null}
       <PageSurface>
         <PageScrollContainer
