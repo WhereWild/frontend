@@ -91,11 +91,13 @@ jest.mock('@/context/SettingsContext', () => {
   return {
     useSettings: jest.fn(() => ({
       units: 'metric',
+      colorModeOverride: 'system',
     })),
     // Mirrors runtime fallback behavior for suites rendering components outside
     // SettingsProvider (for example isolated/unit-level tests).
     useOptionalSettings: jest.fn(() => ({
       units: 'metric',
+      colorModeOverride: 'system',
     })),
     /**
      * @param {{ children: React.ReactNode }} props

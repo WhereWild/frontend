@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useColorScheme as useRNColorScheme } from 'react-native';
+import { useOptionalSettings } from '@/context/SettingsContext';
 
 const DEFAULT_COLOR_SCHEME: 'light' | 'dark' = 'dark';
 
@@ -8,12 +9,21 @@ const DEFAULT_COLOR_SCHEME: 'light' | 'dark' = 'dark';
  */
 export function useColorScheme() {
   const [hasHydrated, setHasHydrated] = useState(false);
+  const settings = useOptionalSettings();
 
   useEffect(() => {
     setHasHydrated(true);
   }, []);
 
   const colorScheme = useRNColorScheme();
+
+  if (settings?.colorModeOverride === 'light') {
+    return 'light';
+  }
+
+  if (settings?.colorModeOverride === 'dark') {
+    return 'dark';
+  }
 
   if (hasHydrated) {
     return colorScheme ?? DEFAULT_COLOR_SCHEME;
