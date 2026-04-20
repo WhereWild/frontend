@@ -140,10 +140,10 @@ validate:expo-export:
     - npm ci --include=dev --cache .npm --prefer-offline
     - npx expo export --platform ios --output-dir dist-ios
     - npx expo export --platform android --output-dir dist-android
-    - npx expo export --platform web --output-dir dist-web
+    - npm run export:web
   artifacts:
     paths:
-      - dist-web
+      - dist
     expire_in: 7 days
   only:
     - main
@@ -159,7 +159,8 @@ package:web-image:
       artifacts: true
   script:
     - echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
-    - docker build -f Dockerfile -t "$DOCKER_IMAGE:latest" -t "$DOCKER_IMAGE:$CI_COMMIT_SHA" .
+    - '[ -d dist ] || (echo "Error: dist directory not found. validate:expo-export artifact was not downloaded." && exit 1)'
+    - docker build --build-arg NODE_VERSION="$NODE_VERSION" -f Dockerfile -t "$DOCKER_IMAGE:latest" -t "$DOCKER_IMAGE:$CI_COMMIT_SHA" .
     - docker push "$DOCKER_IMAGE:latest"
     - docker push "$DOCKER_IMAGE:$CI_COMMIT_SHA"
   only:

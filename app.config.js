@@ -2,6 +2,7 @@ const appVariant = process.env.APP_VARIANT ?? 'production';
 const isDevelopment = appVariant === 'development';
 const isPreview = appVariant === 'preview';
 const fallbackBackendUrl = 'http://localhost:8000';
+const siteUrl = process.env.APP_SITE_URL?.trim() || null;
 const stadiaMapsApiKey = process.env.APP_STADIA_MAPS_API_KEY?.trim() || null;
 
 const appName = isDevelopment
@@ -52,11 +53,19 @@ module.exports = () => ({
       predictiveBackGestureEnabled: true,
     },
     web: {
-      output: 'static',
+      // Server output is required for Expo Router server middleware and dynamic
+      // metadata generation; this must be deployed to a Node.js runtime rather
+      // than static file hosting.
+      output: 'server',
       favicon: './assets/images/wherewild-favicon.png',
     },
     plugins: [
-      'expo-router',
+      [
+        'expo-router',
+        {
+          unstable_useServerMiddleware: true,
+        },
+      ],
       [
         'expo-splash-screen',
         {
@@ -88,6 +97,7 @@ module.exports = () => ({
       },
       appVariant,
       backendUrl: process.env.APP_BACKEND_URL || fallbackBackendUrl,
+      siteUrl,
       stadiaMapsApiKey,
     },
   },

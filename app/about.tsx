@@ -11,11 +11,11 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
 import type { ImageSourcePropType } from 'react-native';
 import { Image, Linking, Platform, StyleSheet, View } from 'react-native';
+import { WebMetadata } from '@/utils/webMetadata';
 
 const OPUNTIA_IMAGE =
   require('@/assets/images/about_opuntia_distribution.png') as ImageSourcePropType;
@@ -134,9 +134,11 @@ export default function AboutScreen() {
   return (
     <>
       {Platform.OS === 'web' ? (
-        <Head>
-          <title>WhereWild | About</title>
-        </Head>
+        <WebMetadata
+          title='WhereWild | About'
+          description='Read the project background behind WhereWild and meet the team that built it.'
+          path='/about'
+        />
       ) : null}
       <PageSurface>
         <PageScrollContainer

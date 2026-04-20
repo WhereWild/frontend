@@ -1,4 +1,3 @@
-import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -19,6 +18,7 @@ import {
   isUnitSystem,
   useSettings,
 } from '@/context/SettingsContext';
+import { WebMetadata } from '@/utils/webMetadata';
 
 const LOCATION_OPTIONS = [{ label: 'Utah', value: 'utah' }];
 
@@ -56,9 +56,11 @@ export default function Settings() {
   return (
     <>
       {Platform.OS === 'web' ? (
-        <Head>
-          <title>WhereWild | Settings</title>
-        </Head>
+        <WebMetadata
+          title='WhereWild | Settings'
+          description='Adjust your WhereWild preferences, including units and color theme.'
+          path='/settings'
+        />
       ) : null}
 
       <PageSurface testID='settings-screen'>
