@@ -2,6 +2,7 @@ import React from 'react';
 import { Animated, PanResponder } from 'react-native';
 import { Colors, Size, Time, getReactNativeEasing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { triggerSwitchHaptic } from '@/utils/haptics';
 
 const TRANSPARENT = 'transparent';
 const TOGGLE_ANIMATION_USE_NATIVE_DRIVER = false;
@@ -68,6 +69,7 @@ export function useSwitchFieldController({
   const toggleProgressRef = React.useRef<Animated.Value | null>(null);
   const hoverProgressRef = React.useRef<Animated.Value | null>(null);
   const dragStartProgressRef = React.useRef(isOn ? 1 : 0);
+  const dragTargetValueRef = React.useRef(isOn);
   const isDraggingRef = React.useRef(false);
   const didDragRef = React.useRef(false);
 
@@ -184,9 +186,13 @@ export function useSwitchFieldController({
   }, [disabled, hoverProgress, isHovered, isPressing]);
 
   const commitValueChange = React.useCallback(
-    (nextValue: boolean) => {
+    (nextValue: boolean, options?: { triggerHaptic?: boolean }) => {
       if (disabled) {
         return;
+      }
+
+      if (options?.triggerHaptic !== false) {
+        triggerSwitchHaptic();
       }
 
       if (!isControlled) {
@@ -217,7 +223,7 @@ export function useSwitchFieldController({
       animateToggleTo(committedVisualValue);
 
       if (nextValue !== isOn) {
-        commitValueChange(nextValue);
+        commitValueChange(nextValue, { triggerHaptic: false });
       }
     },
     [animateToggleTo, commitValueChange, isControlled, isOn],
@@ -252,6 +258,7 @@ export function useSwitchFieldController({
           // Drag lives on the host view instead of the Pressable so horizontal
           // motion can take over without fighting click and accessibility semantics.
           isDraggingRef.current = true;
+          dragTargetValueRef.current = isOn;
           setIsPressing(true);
           toggleProgress.stopAnimation((currentValue) => {
             dragStartProgressRef.current = currentValue;
@@ -271,6 +278,12 @@ export function useSwitchFieldController({
                 gestureState.dx / SWITCH_THUMB_TRAVEL_DISTANCE,
             ),
           );
+          const nextDragTargetValue = nextProgress >= 0.5;
+
+          if (nextDragTargetValue !== dragTargetValueRef.current) {
+            dragTargetValueRef.current = nextDragTargetValue;
+            triggerSwitchHaptic();
+          }
 
           toggleProgress.setValue(nextProgress);
         },
