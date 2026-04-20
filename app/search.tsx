@@ -27,6 +27,7 @@ import { useSearchController } from '@/hooks/search/useSearchController';
 import { useSearchFilterAnimation } from '@/hooks/search/useSearchFilterAnimation';
 import { useSearchPageChrome } from '@/hooks/search/useSearchPageChrome';
 import { useSearchRouteLocationHydration } from '../hooks/search/useSearchRouteLocationHydration';
+import { WebMetadata } from '@/utils/webMetadata';
 
 const FILTERS_COLUMN_MAX_WIDTH = 480;
 const FILTERS_COLUMN_MIN_WIDTH = 240;
@@ -206,6 +207,13 @@ export default function Search() {
 
   return (
     <PageSurface>
+      {isWeb ? (
+        <WebMetadata
+          title='WhereWild | Search'
+          description='Search species by common or scientific name and refine results with filters.'
+          path='/search'
+        />
+      ) : null}
       <PageScrollContainer
         contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
           includeHorizontalPadding: false,

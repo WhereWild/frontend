@@ -1,6 +1,20 @@
-FROM nginx:alpine
+ARG NODE_VERSION=24.13.0
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY dist-web/ /usr/share/nginx/html/
+FROM node:${NODE_VERSION}-alpine AS runtime
 
-EXPOSE 80
+WORKDIR /app
+
+ENV NODE_ENV=production \
+  EXPO_NO_DOTENV=1 \
+  PORT=8080
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# The production bundle in `dist` must be built before running `docker build`
+# so it exists in the build context for the COPY instruction below.
+COPY dist ./dist
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "npx expo serve dist --port ${PORT}"]
