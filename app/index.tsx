@@ -47,7 +47,6 @@ function ExploreScreenContent({
             }
             style={[
               styles.filterSlot,
-              isFilterVisible && styles.filterSlotVisible,
               isFilterVisible && { paddingTop: responsive.gap },
               !isFilterVisible && styles.hiddenSlot,
             ]}
@@ -85,6 +84,7 @@ function ExploreScreenContent({
             recommendations={recommendations}
             allRecommendations={allScored}
             activeGroup={activeGroup}
+            loading={scoresLoading}
             showHeading={false}
             style={[styles.nativeContent, horizontalInsetStyle]}
             nativeFirstItemTopMargin={isFilterVisible ? 0 : responsive.gap}
@@ -123,9 +123,6 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   filterSlot: {
-    width: '100%',
-  },
-  filterSlotVisible: {
     width: '100%',
   },
   filterSurface: {

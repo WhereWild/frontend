@@ -4,7 +4,6 @@ import {
   fetchViewportScores,
 } from '@/data/api';
 import type { ViewportTileRange } from '@/data/api';
-import { mockHomePageData } from '@/data/homeSample';
 import type {
   HomePageData,
   SpeciesApiNormalized,
@@ -24,6 +23,23 @@ const HOMEPAGE_GROUP_ORDER = [
 ] as const;
 
 export type ViewportBounds = ViewportTileRange;
+
+const areViewportBoundsEqual = (
+  left: ViewportTileRange | null,
+  right: ViewportTileRange,
+) => {
+  if (!left) {
+    return false;
+  }
+
+  return (
+    left.z === right.z &&
+    left.x0 === right.x0 &&
+    left.y0 === right.y0 &&
+    left.x1 === right.x1 &&
+    left.y1 === right.y1
+  );
+};
 
 const formatReasonDescription = (reasons: string[] | undefined) => {
   if (!reasons?.length) {
@@ -156,17 +172,23 @@ export function useHomeDashboardState(
   const hydrateRemoteOnMount = options?.hydrateRemoteOnMount ?? true;
   const remoteHydrationDelayMs = options?.remoteHydrationDelayMs ?? 0;
   const initialActiveGroup = options?.initialActiveGroup ?? 'all';
+  const shouldHydrateFromRemote = data == null && hydrateRemoteOnMount;
   const providedSeedItems = data?.recommendations?.items;
-  const seedItems = providedSeedItems ?? mockHomePageData.recommendations.items;
+  const seedItems = React.useMemo(
+    () => providedSeedItems ?? [],
+    [providedSeedItems],
+  );
   const [recommendations, setRecommendations] =
     React.useState<SpeciesSummary[]>(seedItems);
   const [allScored, setAllScored] = React.useState<SpeciesSummary[]>(seedItems);
-  const [scoresLoading, setScoresLoading] = React.useState(false);
+  const [scoresLoading, setScoresLoading] = React.useState(
+    () => shouldHydrateFromRemote,
+  );
   const [preserveActiveGroupWhileEmpty, setPreserveActiveGroupWhileEmpty] =
-    React.useState(() => data == null && hydrateRemoteOnMount);
+    React.useState(() => shouldHydrateFromRemote);
   const [activeGroup, setActiveGroupState] = React.useState(() =>
     normalizeActiveGroup(seedItems, initialActiveGroup, {
-      preserveWhenEmpty: data == null && hydrateRemoteOnMount,
+      preserveWhenEmpty: shouldHydrateFromRemote,
     }),
   );
   const allSpeciesRef = React.useRef<SpeciesSummary[]>(seedItems);
@@ -283,6 +305,10 @@ export function useHomeDashboardState(
         }
       } catch (error) {
         console.warn('[useHomeDashboardState] failed to fetch species', error);
+        if (mounted) {
+          setPreserveActiveGroupWhileEmpty(false);
+          setScoresLoading(false);
+        }
       }
     };
 
@@ -336,6 +362,10 @@ export function useHomeDashboardState(
 
   const handleBoundsChange = React.useCallback(
     (bounds: ViewportTileRange) => {
+      if (areViewportBoundsEqual(latestBoundsRef.current, bounds)) {
+        return;
+      }
+
       latestBoundsRef.current = bounds;
       const requestId = beginRankingRequest();
 

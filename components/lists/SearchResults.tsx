@@ -9,7 +9,6 @@ import {
   View,
   ViewStyle,
   StyleProp,
-  ActivityIndicator,
 } from 'react-native';
 import { Colors, Shadows, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -31,6 +30,7 @@ type ScrollMetrics = {
 
 const VISIBILITY_BOTTOM_BUFFER = Size.space['600'];
 const VISIBILITY_PADDING = Size.space['400'];
+const LOADING_CARD_COUNT = 5;
 
 const getSearchResultsListElementId = (instanceId: string) =>
   `${instanceId}-list`;
@@ -259,6 +259,14 @@ export function SearchResults({
     Shadows.dropShadow400.style,
     style,
   ];
+  const contentInteractionProps = {
+    onPointerEnter,
+    onPointerLeave,
+    onTouchStart,
+    onTouchEnd,
+    onFocus,
+    onBlur,
+  };
 
   React.useEffect(() => {
     if (!isVisible || isLoading || layout !== 'floating') {
@@ -336,13 +344,10 @@ export function SearchResults({
     [],
   );
 
-  const renderResult = (item: SpeciesSummary, index: number) => (
-    <View
-      key={item.taxonId}
-      nativeID={getSearchResultsResultElementId(instanceId, index)}
-      onLayout={(event) => updateResultLayout(index, event)}
-    >
+  const renderResultCard = React.useCallback(
+    (item: SpeciesSummary, index: number) => (
       <SpeciesCard
+        key={item.taxonId}
         style={[
           styles.speciesCard,
           activeResultIndex === index
@@ -359,7 +364,43 @@ export function SearchResults({
         onPress={() => onSelectResult?.(item)}
         testID={`search-result-${item.taxonId}`}
       />
-    </View>
+    ),
+    [
+      activeResultIndex,
+      onSelectResult,
+      palette.background.default.secondaryHover,
+    ],
+  );
+
+  const renderTrackedResult = React.useCallback(
+    (item: SpeciesSummary, index: number) => (
+      <View
+        key={item.taxonId}
+        nativeID={getSearchResultsResultElementId(instanceId, index)}
+        onLayout={(event) => updateResultLayout(index, event)}
+      >
+        {renderResultCard(item, index)}
+      </View>
+    ),
+    [instanceId, renderResultCard, updateResultLayout],
+  );
+
+  const loadingCards = React.useMemo(
+    () =>
+      Array.from({ length: LOADING_CARD_COUNT }, (_, index) => (
+        <SpeciesCard
+          key={`loading-${index}`}
+          loading
+          loadingPatternSeed={index}
+          taxonId={0}
+          commonName=''
+          scientificName=''
+          interactionMode='press-only'
+          size='compact'
+          style={styles.speciesCard}
+        />
+      )),
+    [],
   );
 
   return (
@@ -379,19 +420,11 @@ export function SearchResults({
         importantForAccessibility={
           showLoadingState ? 'auto' : 'no-hide-descendants'
         }
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onFocus={onFocus}
-        onBlur={onBlur}
+        {...contentInteractionProps}
         style={!showLoadingState ? styles.hiddenContentSlot : undefined}
         testID={showLoadingState && testID ? `${testID}-loading` : undefined}
       >
-        <View style={[styles.centerContent, styles.loading]}>
-          <ActivityIndicator color={palette.icon.brand.default} />
-          <ThemedText variant='body'>Loading results...</ThemedText>
-        </View>
+        <View style={styles.listContent}>{loadingCards}</View>
       </View>
 
       <View
@@ -399,12 +432,7 @@ export function SearchResults({
         importantForAccessibility={
           showEmptyState ? 'auto' : 'no-hide-descendants'
         }
-        onPointerEnter={onPointerEnter}
-        onPointerLeave={onPointerLeave}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onFocus={onFocus}
-        onBlur={onBlur}
+        {...contentInteractionProps}
         style={!showEmptyState ? styles.hiddenContentSlot : undefined}
         testID={showEmptyState && testID ? `${testID}-empty` : undefined}
       >
@@ -419,41 +447,14 @@ export function SearchResults({
           importantForAccessibility={
             showInlineResults ? 'auto' : 'no-hide-descendants'
           }
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          onFocus={onFocus}
-          onBlur={onBlur}
+          {...contentInteractionProps}
           style={!showInlineResults ? styles.hiddenContentSlot : undefined}
         >
           <View
             style={styles.listContent}
             testID={showInlineResults && testID ? `${testID}-list` : undefined}
           >
-            {results.map((item, index) => (
-              <SpeciesCard
-                key={item.taxonId}
-                style={[
-                  styles.speciesCard,
-                  activeResultIndex === index
-                    ? {
-                        backgroundColor:
-                          palette.background.default.secondaryHover,
-                      }
-                    : null,
-                ]}
-                taxonId={item.taxonId}
-                commonName={item.commonName}
-                scientificName={item.scientificName}
-                description={item.description}
-                imageSource={item.imageSource}
-                interactionMode='press-only'
-                size='compact'
-                onPress={() => onSelectResult?.(item)}
-                testID={`search-result-${item.taxonId}`}
-              />
-            ))}
+            {results.map(renderResultCard)}
           </View>
         </View>
       ) : (
@@ -462,12 +463,7 @@ export function SearchResults({
           importantForAccessibility={
             showFloatingResults ? 'auto' : 'no-hide-descendants'
           }
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          onFocus={onFocus}
-          onBlur={onBlur}
+          {...contentInteractionProps}
           style={
             !showFloatingResults
               ? styles.hiddenContentSlot
@@ -491,7 +487,7 @@ export function SearchResults({
               showFloatingResults && testID ? `${testID}-list` : undefined
             }
           >
-            {results.map(renderResult)}
+            {results.map(renderTrackedResult)}
           </ScrollView>
         </View>
       )}
@@ -526,9 +522,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Size.space['400'],
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loading: {
-    gap: Size.space['200'],
   },
   hiddenPanel: {
     opacity: 0,
