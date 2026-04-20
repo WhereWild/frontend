@@ -6,6 +6,12 @@ export const triggerButtonHaptic = () => {
   });
 };
 
+export const triggerSwitchHaptic = () => {
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch((error) => {
+    console.warn('Haptics.impactAsync failed in triggerSwitchHaptic', error);
+  });
+};
+
 const triggerNotificationHaptic = (
   type: Haptics.NotificationFeedbackType,
   errorLabel: string,
