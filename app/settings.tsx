@@ -14,24 +14,42 @@ import { IconChevronRight, IconInfo, IconUpload } from '@/assets/icons';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
-import { useSettings } from '@/context/SettingsContext';
+import {
+  isColorModeOverride,
+  isUnitSystem,
+  useSettings,
+} from '@/context/SettingsContext';
+
+const LOCATION_OPTIONS = [{ label: 'Utah', value: 'utah' }];
+
+const UNITS_OPTIONS = [
+  { label: 'Metric (°C, km)', value: 'metric' },
+  { label: 'Imperial (°F, mi)', value: 'imperial' },
+];
+
+const LANGUAGE_OPTIONS = [{ label: 'English', value: 'en' }];
+
+const COLOR_MODE_OPTIONS = [
+  { label: 'Device default', value: 'system' },
+  { label: 'Light', value: 'light' },
+  { label: 'Dark', value: 'dark' },
+];
 
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits } = useSettings();
-  const locationOptions = [{ label: 'Utah', value: 'utah' }];
-
-  const unitsOptions = [
-    { label: 'Metric (°C, km)', value: 'metric' },
-    { label: 'Imperial (°F, mi)', value: 'imperial' },
-  ];
-
-  const languageOptions = [{ label: 'English', value: 'en' }];
+  const { units, setUnits, colorModeOverride, setColorModeOverride } =
+    useSettings();
 
   const handleUnitsChange = (value: string) => {
-    if (value === 'metric' || value === 'imperial') {
+    if (isUnitSystem(value)) {
       setUnits(value);
+    }
+  };
+
+  const handleColorModeChange = (value: string) => {
+    if (isColorModeOverride(value)) {
+      setColorModeOverride(value);
     }
   };
 
@@ -84,9 +102,19 @@ export default function Settings() {
 
                 <View style={[styles.subsection, styles.fieldStack]}>
                   <SelectField
+                    label='Color mode'
+                    placeholder='Select color mode'
+                    allowSearch={false}
+                    options={COLOR_MODE_OPTIONS}
+                    value={colorModeOverride}
+                    onValueChange={handleColorModeChange}
+                    description='Choose light, dark, or follow your device setting'
+                  />
+
+                  <SelectField
                     label='Location'
                     placeholder='Select a location'
-                    options={locationOptions}
+                    options={LOCATION_OPTIONS}
                     value='utah'
                     disabled
                     description='Default observation location'
@@ -95,7 +123,7 @@ export default function Settings() {
                   <SelectField
                     label='Language'
                     placeholder='Select language'
-                    options={languageOptions}
+                    options={LANGUAGE_OPTIONS}
                     value='en'
                     disabled
                     description='Preferred UI language'
@@ -104,7 +132,7 @@ export default function Settings() {
                   <SelectField
                     label='Units'
                     placeholder='Select units'
-                    options={unitsOptions}
+                    options={UNITS_OPTIONS}
                     value={units}
                     onValueChange={handleUnitsChange}
                     description='Display temperatures and distances'
