@@ -1234,7 +1234,7 @@ describe('Search screen', () => {
 
     render(<Search />);
 
-    expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+    expect(getLatestHeaderConfig().filterLabel).toBe('Hide filter');
   });
 
   it('restores the filter panel as open from session storage across routes', () => {
@@ -1243,7 +1243,7 @@ describe('Search screen', () => {
 
     render(<Search />);
 
-    expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+    expect(getLatestHeaderConfig().filterLabel).toBe('Hide filter');
   });
 
   it('persists the filter panel state to browser history state on web', () => {
@@ -1307,7 +1307,7 @@ describe('Search screen', () => {
       popStateListener?.();
     });
 
-    expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+    expect(getLatestHeaderConfig().filterLabel).toBe('Hide filter');
 
     Object.defineProperty(window, 'history', {
       configurable: true,
@@ -1460,7 +1460,7 @@ describe('Search screen', () => {
         headerConfig.onFilterPress();
       });
       expect(mockFiltersProps).toBeDefined();
-      expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+      expect(getLatestHeaderConfig().filterLabel).toBe('Hide filter');
 
       act(() => {
         headerConfig.onFilterPress();
@@ -1577,7 +1577,7 @@ describe('Search screen', () => {
 
       render(<Search />);
 
-      expect(getLatestHeaderConfig().filterLabel).toBe('Hide Filter');
+      expect(getLatestHeaderConfig().filterLabel).toBe('Hide filter');
       expect(setValueSpy).not.toHaveBeenCalledWith(480);
       expect(setValueSpy).not.toHaveBeenCalledWith(-480);
 

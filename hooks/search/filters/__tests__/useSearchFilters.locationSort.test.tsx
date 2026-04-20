@@ -3,6 +3,7 @@ import {
   fetchEnvironmentVariables,
   fetchLocationsByHierarchy,
   fetchRelativeRankingOptions,
+  fetchSpeciesLocations,
   fetchSpeciesByTaxonId,
   fetchTaxaQuery,
 } from '@/data/api';
@@ -21,6 +22,7 @@ jest.mock('@/data/api', () => ({
   fetchLocationsByHierarchy: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
   fetchRelativeRankingOptions: jest.fn(),
+  fetchSpeciesLocations: jest.fn(),
   fetchSpeciesByTaxonId: jest.fn(),
   fetchTaxaQuery: jest.fn(),
 }));
@@ -30,6 +32,7 @@ const mockFetchEnvironmentVariables = jest.mocked(fetchEnvironmentVariables);
 const mockFetchRelativeRankingOptions = jest.mocked(
   fetchRelativeRankingOptions,
 );
+const mockFetchSpeciesLocations = jest.mocked(fetchSpeciesLocations);
 const mockFetchSpeciesByTaxonId = jest.mocked(fetchSpeciesByTaxonId);
 const mockFetchTaxaQuery = jest.mocked(fetchTaxaQuery);
 
@@ -49,15 +52,37 @@ const selectBaseTaxon = async (
   result: {
     current: Pick<
       ReturnType<typeof useSearchFilters>,
-      'onBaseTaxonSelect' | 'onRankChange'
+      'onBaseTaxonSelect' | 'onRankChange' | 'countryLoading'
     >;
   },
   species: ReturnType<typeof createSelectedSpecies>,
 ) => {
+  let resolveCountryLocations: ((value: any[]) => void) | null = null;
+
+  mockFetchSpeciesLocations.mockImplementationOnce(
+    () =>
+      new Promise<any[]>((resolve) => {
+        resolveCountryLocations = resolve;
+      }),
+  );
+
   await act(async () => {
     result.current.onRankChange('species');
     result.current.onBaseTaxonSelect(species);
     await Promise.resolve();
+  });
+
+  await waitFor(() => {
+    expect(result.current.countryLoading).toBe(true);
+  });
+
+  await act(async () => {
+    resolveCountryLocations?.([]);
+    await Promise.resolve();
+  });
+
+  await waitFor(() => {
+    expect(result.current.countryLoading).toBe(false);
   });
 };
 
@@ -68,11 +93,18 @@ const flushPendingHookEffects = async () => {
   });
 };
 
+const mountedHooks: Array<{ unmount: () => void }> = [];
+
 const renderSearchFilters = async (
   initialState?: Parameters<typeof useSearchFilters>[0],
 ) => {
   const rendered = renderHook(() => useSearchFilters(initialState));
+  mountedHooks.push(rendered);
+
   await flushPendingHookEffects();
+  await waitFor(() => {
+    expect(rendered.result.current.countryLoading).toBe(false);
+  });
   return rendered;
 };
 
@@ -92,6 +124,7 @@ describe('useSearchFilters (location and sort)', () => {
       rank: 'SPECIES',
       options: [],
     });
+    mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesByTaxonId.mockResolvedValue({
       taxon_id: 77,
       scientific_name: 'Canis lupus',
@@ -127,6 +160,12 @@ describe('useSearchFilters (location and sort)', () => {
   });
 
   afterEach(async () => {
+    await act(async () => {
+      while (mountedHooks.length > 0) {
+        mountedHooks.pop()?.unmount();
+      }
+      await Promise.resolve();
+    });
     await flushPendingHookEffects();
     consoleWarnSpy.mockRestore();
   });
@@ -350,13 +389,17 @@ describe('useSearchFilters (location and sort)', () => {
   });
 
   it('resets all filters back to defaults', async () => {
-    jest.useFakeTimers();
-
     const { result } = await renderSearchFilters();
 
     await waitFor(() => {
       expect(mockFetchEnvironmentVariables).toHaveBeenCalled();
     });
+
+    await waitFor(() => {
+      expect(result.current.countryLoading).toBe(false);
+    });
+
+    jest.useFakeTimers();
 
     await act(async () => {
       result.current.onCountryChange('USA');
@@ -397,6 +440,10 @@ describe('useSearchFilters (location and sort)', () => {
     expect(result.current.filterParams.location).toBeNull();
     expect(result.current.hasActiveFilters).toBe(false);
 
+    await waitFor(() => {
+      expect(result.current.countryLoading).toBe(false);
+    });
+
     jest.useRealTimers();
   });
 
@@ -409,8 +456,20 @@ describe('useSearchFilters (location and sort)', () => {
       ancestorTaxonId: 77,
       rank: 'SPECIES',
       options: [
-        { variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 },
-        { variable: 'bio_12', metric: 'min', label: 'min', column: 'min', count: 1 },
+        {
+          variable: 'bio_12',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
+        {
+          variable: 'bio_12',
+          metric: 'min',
+          label: 'min',
+          column: 'min',
+          count: 1,
+        },
       ],
     });
 
@@ -444,9 +503,27 @@ describe('useSearchFilters (location and sort)', () => {
       ancestorTaxonId: 77,
       rank: 'SPECIES',
       options: [
-        { variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 },
-        { variable: 'bio_1', metric: 'median', label: 'median', column: 'median', count: 1 },
-        { variable: 'bio_1', metric: 'max', label: 'max', column: 'max', count: 1 },
+        {
+          variable: 'bio_12',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
+        {
+          variable: 'bio_1',
+          metric: 'median',
+          label: 'median',
+          column: 'median',
+          count: 1,
+        },
+        {
+          variable: 'bio_1',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
       ],
     });
 
@@ -727,7 +804,15 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 77,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
+      options: [
+        {
+          variable: 'bio_12',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
+      ],
     });
 
     const { result } = await renderSearchFilters();
@@ -789,7 +874,15 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 120,
       rank: 'SPECIES',
-      options: [{ variable: '', metric: 'mean', label: 'mean', column: 'mean', count: 1 }],
+      options: [
+        {
+          variable: '',
+          metric: 'mean',
+          label: 'mean',
+          column: 'mean',
+          count: 1,
+        },
+      ],
     });
 
     const { result } = await renderSearchFilters();
@@ -821,7 +914,15 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 90,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
+      options: [
+        {
+          variable: 'bio_12',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
+      ],
     });
 
     const { result } = await renderSearchFilters();
@@ -856,7 +957,15 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 90,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
+      options: [
+        {
+          variable: 'bio_12',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
+      ],
     });
 
     const { result } = await renderSearchFilters();
@@ -895,7 +1004,15 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
       ancestorTaxonId: 77,
       rank: 'SPECIES',
-      options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
+      options: [
+        {
+          variable: 'bio_12',
+          metric: 'max',
+          label: 'max',
+          column: 'max',
+          count: 1,
+        },
+      ],
     });
 
     const { result } = await renderSearchFilters();
@@ -957,7 +1074,13 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 1,
         rank: 'SPECIES',
         options: [
-          { variable: 'ignored_var', metric: 'mean', label: 'mean', column: 'mean', count: 1 },
+          {
+            variable: 'ignored_var',
+            metric: 'mean',
+            label: 'mean',
+            column: 'mean',
+            count: 1,
+          },
         ],
       });
     });
@@ -973,7 +1096,13 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 2,
         rank: 'SPECIES',
         options: [
-          { variable: 'final_var', metric: 'max', label: 'max', column: 'max', count: 1 },
+          {
+            variable: 'final_var',
+            metric: 'max',
+            label: 'max',
+            column: 'max',
+            count: 1,
+          },
         ],
       });
     });
@@ -1178,7 +1307,13 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 700,
         rank: 'SPECIES',
         options: [
-          { variable: 'ignored_var', metric: 'mean', label: 'mean', column: 'mean', count: 1 },
+          {
+            variable: 'ignored_var',
+            metric: 'mean',
+            label: 'mean',
+            column: 'mean',
+            count: 1,
+          },
         ],
       });
       await Promise.resolve();
@@ -1193,7 +1328,13 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 701,
         rank: 'SPECIES',
         options: [
-          { variable: 'final_var', metric: 'max', label: 'max', column: 'max', count: 1 },
+          {
+            variable: 'final_var',
+            metric: 'max',
+            label: 'max',
+            column: 'max',
+            count: 1,
+          },
         ],
       });
       await Promise.resolve();
@@ -1231,10 +1372,21 @@ describe('useSearchFilters (location and sort)', () => {
   });
 
   it('keeps default variable labels available while scoped ranking options reload', async () => {
+    let resolveCountryLocations: ((value: any[]) => void) | null = null;
+
     mockFetchEnvironmentVariables.mockResolvedValue([
       { id: 'bio_1', name: 'Annual Mean Temperature' },
       { id: 'bio_12', name: 'Annual Precipitation' },
     ]);
+    mockFetchSpeciesLocations.mockImplementationOnce((taxonId, level) => {
+      if (taxonId === 3996518 && level === 'country') {
+        return new Promise<any[]>((resolve) => {
+          resolveCountryLocations = resolve;
+        });
+      }
+
+      return Promise.resolve([]);
+    });
     mockFetchSpeciesByTaxonId.mockImplementation(
       () => new Promise(() => {}) as any,
     );
@@ -1251,7 +1403,7 @@ describe('useSearchFilters (location and sort)', () => {
       ]);
     });
 
-    act(() => {
+    await act(async () => {
       result.current.onHydrateRouteState({
         taxon: {
           ancestorTaxonId: 3996518,
@@ -1263,6 +1415,11 @@ describe('useSearchFilters (location and sort)', () => {
           sortMetricValue: 'median',
         },
       });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.countryLoading).toBe(true);
     });
 
     expect(result.current.sortVariableValue).toBe('bio_1');
@@ -1270,6 +1427,15 @@ describe('useSearchFilters (location and sort)', () => {
       { label: 'Annual Mean Temperature', value: 'bio_1' },
       { label: 'Annual Precipitation', value: 'bio_12' },
     ]);
+
+    await act(async () => {
+      resolveCountryLocations?.([]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.countryLoading).toBe(false);
+    });
   });
 
   it('clears a selected sort variable when ranked context is removed', async () => {
@@ -1522,7 +1688,13 @@ describe('useSearchFilters (location and sort)', () => {
         ancestorTaxonId: 444,
         rank: 'SPECIES',
         options: [
-          { variable: 'late_var', metric: 'mean', label: 'mean', column: 'mean', count: 1 },
+          {
+            variable: 'late_var',
+            metric: 'mean',
+            label: 'mean',
+            column: 'mean',
+            count: 1,
+          },
         ],
       });
       await Promise.resolve();

@@ -77,6 +77,7 @@ export type FiltersProps = {
 
   /** Reset */
   onResetFilters?: () => void;
+  hasActiveFilters?: boolean;
 
   style?: StyleProp<ViewStyle>;
 };
@@ -121,6 +122,7 @@ export function Filters({
   minimumSamples,
   onMinimumSamplesChange,
   onResetFilters,
+  hasActiveFilters = false,
   style,
 }: FiltersProps) {
   const dataSources = useDataSources();
@@ -284,6 +286,7 @@ export function Filters({
         variant='primary'
         size='medium'
         iconStart={<IconRotateCcw />}
+        enableHaptics={hasActiveFilters}
         onPress={onResetFilters}
         style={styles.resetButton}
       >

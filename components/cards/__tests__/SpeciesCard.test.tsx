@@ -1,7 +1,17 @@
 import { Colors } from '@/constants/theme';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { PressableStateCallbackType, StyleSheet } from 'react-native';
+import {
+  create,
+  type ReactTestRendererJSON,
+  type ReactTestRendererNode,
+} from 'react-test-renderer';
+import {
+  Platform,
+  PressableStateCallbackType,
+  StyleSheet,
+  type ViewStyle,
+} from 'react-native';
 import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../SpeciesCard';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouter } from 'expo-router';
@@ -10,6 +20,17 @@ import type { Router } from 'expo-router';
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
+
+jest.mock('@/components/text/ThemedText', () => {
+  const ReactActual = jest.requireActual<typeof import('react')>('react');
+  const { Text } =
+    jest.requireActual<typeof import('react-native')>('react-native');
+
+  return {
+    ThemedText: ({ children, ...props }: { children?: React.ReactNode }) =>
+      ReactActual.createElement(Text, props, children),
+  };
+});
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
@@ -20,10 +41,93 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
 >;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
-const originalWindowOpen = window.open;
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  Platform,
+  'OS',
+);
+const originalPlatformOS = Platform.OS;
+const globalScope = global as typeof globalThis & {
+  addEventListener?: (type: string, listener: EventListener) => void;
+  removeEventListener?: (type: string, listener: EventListener) => void;
+  window?: {
+    addEventListener?: (type: string, listener: EventListener) => void;
+    removeEventListener?: (type: string, listener: EventListener) => void;
+  };
+};
+const originalWindow = globalScope.window;
+const originalGlobalAddEventListener = globalScope.addEventListener;
+const originalGlobalRemoveEventListener = globalScope.removeEventListener;
+const originalWindowAddEventListener = globalScope.window?.addEventListener;
+const originalWindowRemoveEventListener =
+  globalScope.window?.removeEventListener;
 
 let pushMock: jest.Mock;
 let routerStub: Router;
+
+const setPlatformOS = (os: string) => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+};
+
+const restorePlatformOS = () => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    return;
+  }
+
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatformOS,
+  });
+};
+
+const installWindowEventListenerMocks = () => {
+  const nextWindow = globalScope.window ?? {};
+
+  globalScope.addEventListener = jest.fn();
+  globalScope.removeEventListener = jest.fn();
+  nextWindow.addEventListener = jest.fn();
+  nextWindow.removeEventListener = jest.fn();
+  globalScope.window = nextWindow;
+};
+
+const restoreWindowEventListenerMocks = () => {
+  if (!globalScope.window) {
+    return;
+  }
+
+  if (originalGlobalAddEventListener) {
+    globalScope.addEventListener = originalGlobalAddEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope, 'addEventListener');
+  }
+
+  if (originalGlobalRemoveEventListener) {
+    globalScope.removeEventListener = originalGlobalRemoveEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope, 'removeEventListener');
+  }
+
+  if (originalWindowAddEventListener) {
+    globalScope.window.addEventListener = originalWindowAddEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope.window, 'addEventListener');
+  }
+
+  if (originalWindowRemoveEventListener) {
+    globalScope.window.removeEventListener = originalWindowRemoveEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope.window, 'removeEventListener');
+  }
+
+  if (originalWindow === undefined) {
+    Reflect.deleteProperty(globalScope, 'window');
+  } else {
+    globalScope.window = originalWindow;
+  }
+};
 
 const createRouterStub = (overrides: Partial<Router> = {}): Router => ({
   back: jest.fn() as Router['back'],
@@ -57,10 +161,13 @@ describe('SpeciesCard', () => {
     pushMock = jest.fn();
     routerStub = createRouterStub({ push: pushMock as Router['push'] });
     mockUseRouter.mockReturnValue(routerStub);
+    restorePlatformOS();
+    installWindowEventListenerMocks();
   });
 
   afterEach(() => {
-    window.open = originalWindowOpen;
+    restorePlatformOS();
+    restoreWindowEventListenerMocks();
   });
 
   const baseProps = {
@@ -126,6 +233,41 @@ describe('SpeciesCard', () => {
     expect(pushMock).not.toHaveBeenCalled();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
+  });
+
+  it('preserves route href props on web when a custom onPress is provided in route mode', () => {
+    setPlatformOS('web');
+    const handlePress = jest.fn();
+
+    render(
+      <SpeciesCard
+        {...baseProps}
+        onPress={handlePress}
+        testID='species-card'
+      />,
+    );
+
+    const card = screen.getByTestId('species-card');
+
+    expect(card.props.href).toBe('/species/555/binomial-nomenclature');
+  });
+
+  it('does not expose route href props in press-only mode', () => {
+    setPlatformOS('web');
+    const handlePress = jest.fn();
+
+    render(
+      <SpeciesCard
+        {...baseProps}
+        onPress={handlePress}
+        interactionMode='press-only'
+        testID='species-card'
+      />,
+    );
+
+    const card = screen.getByTestId('species-card');
+
+    expect(card.props.href).toBeUndefined();
   });
 
   it('maps hover and pressed states to the secondary palette by default', () => {
@@ -219,27 +361,96 @@ describe('SpeciesCard', () => {
     });
   });
 
-  it('opens species details in a new tab on ctrl/cmd click', () => {
-    const openMock = jest.fn(() => null);
-    window.open = openMock;
+  it('renders a real href for species details on web', () => {
+    setPlatformOS('web');
+
+    render(<SpeciesCard {...baseProps} testID='species-card' />);
+
+    expect(screen.getByTestId('species-card').props.href).toBe(
+      '/species/555/binomial-nomenclature',
+    );
+  });
+
+  it('keeps a single stable content wrapper inside the pressable for Fabric stability', () => {
+    let renderer: ReturnType<typeof create> | undefined;
+
+    act(() => {
+      renderer = create(<SpeciesCard {...baseProps} testID='species-card' />);
+    });
+
+    if (!renderer) {
+      throw new Error('Renderer was not created.');
+    }
+
+    const stableRenderer = renderer;
+    const renderedTree = stableRenderer.toJSON();
+
+    type RenderedNode = ReactTestRendererJSON & {
+      props: ReactTestRendererJSON['props'] & {
+        collapsable?: boolean;
+        style?: unknown;
+      };
+    };
+
+    const collectNodes = (
+      node: ReactTestRendererJSON | ReactTestRendererJSON[] | null,
+    ): RenderedNode[] => {
+      if (!node) {
+        return [];
+      }
+
+      if (Array.isArray(node)) {
+        return node.flatMap((child) => collectNodes(child));
+      }
+
+      return [
+        node as RenderedNode,
+        ...(node.children ?? []).flatMap((child: ReactTestRendererNode) =>
+          typeof child === 'string' ? [] : collectNodes(child),
+        ),
+      ];
+    };
+
+    const stableWrapperNodes = collectNodes(renderedTree).filter((node) => {
+      const flattenedStyle = StyleSheet.flatten(node.props?.style) as
+        | ViewStyle
+        | undefined;
+      const objectChildren = (node.children ?? []).filter(
+        (child): child is ReactTestRendererJSON => typeof child !== 'string',
+      );
+
+      return (
+        node.props?.collapsable === false &&
+        flattenedStyle?.flexDirection === 'row' &&
+        flattenedStyle?.width === '100%' &&
+        flattenedStyle?.padding === undefined &&
+        flattenedStyle?.paddingHorizontal === undefined &&
+        objectChildren.length === 2
+      );
+    });
+
+    expect(stableWrapperNodes).toHaveLength(1);
+    expect(stableWrapperNodes[0]?.props?.collapsable).toBe(false);
+
+    act(() => {
+      stableRenderer.unmount();
+    });
+  });
+
+  it('lets ctrl/cmd click fall back to the browser on web', () => {
+    setPlatformOS('web');
     render(<SpeciesCard {...baseProps} testID='species-card' />);
 
     fireEvent(screen.getByTestId('species-card'), 'press', {
       nativeEvent: { ctrlKey: true },
     });
 
-    expect(openMock).toHaveBeenCalledWith(
-      '/species/555/binomial-nomenclature',
-      '_blank',
-      'noopener,noreferrer',
-    );
     expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it('opens species details in a new tab before custom onPress on modifier click', () => {
+  it('does not call custom onPress before browser-handled modifier clicks on web in route mode', () => {
+    setPlatformOS('web');
     const handlePress = jest.fn();
-    const openMock = jest.fn(() => null);
-    window.open = openMock;
     render(
       <SpeciesCard
         {...baseProps}
@@ -252,27 +463,38 @@ describe('SpeciesCard', () => {
       nativeEvent: { metaKey: true },
     });
 
-    expect(openMock).toHaveBeenCalledWith(
-      '/species/555/binomial-nomenclature',
-      '_blank',
-      'noopener,noreferrer',
-    );
     expect(handlePress).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it('opens species details in a new window on shift click', () => {
-    const openMock = jest.fn(() => null);
-    window.open = openMock;
+  it('still calls custom onPress on web modifier clicks in press-only mode', () => {
+    setPlatformOS('web');
+    const handlePress = jest.fn();
+    render(
+      <SpeciesCard
+        {...baseProps}
+        onPress={handlePress}
+        interactionMode='press-only'
+        testID='species-card'
+      />,
+    );
+
+    fireEvent(screen.getByTestId('species-card'), 'press', {
+      nativeEvent: { metaKey: true },
+    });
+
+    expect(handlePress).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('does not intercept shift click on web', () => {
+    setPlatformOS('web');
     render(<SpeciesCard {...baseProps} testID='species-card' />);
 
     fireEvent(screen.getByTestId('species-card'), 'press', {
       nativeEvent: { shiftKey: true },
     });
 
-    expect(openMock).toHaveBeenCalledWith(
-      '/species/555/binomial-nomenclature',
-      '_blank',
-    );
     expect(pushMock).not.toHaveBeenCalled();
   });
 

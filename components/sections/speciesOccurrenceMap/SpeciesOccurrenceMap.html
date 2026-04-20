@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
   <meta name="referrer" content="__REFERRER_POLICY__" />
   <base href="__DOCUMENT_BASE_URL__" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -271,6 +271,13 @@
 
     let selectedCatalogKey = null;
     let selectedCatalogDirectMarker = null;
+    let refreshVisibleMarkerPresentationImpl = null;
+
+    function refreshVisibleMarkerPresentation() {
+      if (refreshVisibleMarkerPresentationImpl) {
+        refreshVisibleMarkerPresentationImpl();
+      }
+    }
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
       const msg = {
@@ -512,12 +519,12 @@
       visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
-      function buildObservationPopup(catalogHref, catalogLabel, latitude, longitude) {
+      function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
         if (!catalogHref) {
           return '';
         }
         var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
-        var pinBtn = buildPinButtonHtml(catalogHref, latitude, longitude, pinButtonMarginTop);
+        var pinBtn = buildPinButtonHtml(catalogNumber, latitude, longitude, pinButtonMarginTop);
         if (!LINK_OBSERVATIONS || !catalogLabel) {
           return pinBtn;
         }
@@ -625,7 +632,7 @@
         clusterGroup.addTo(map);
       }
 
-      function refreshVisibleMarkerPresentation() {
+      refreshVisibleMarkerPresentationImpl = function() {
         if (!useVisibilityManagedClustering || !clusterGroup || !visibleMarkerLayer) {
           syncDirectMarkersToCurrentWorld();
           return;
@@ -682,7 +689,7 @@
             selectedCatalogDirectMarker.setLatLng([selEntry.latitude, alignedLon]);
           }
         }
-      }
+      };
 
       points.forEach((pt, idx) => {
         if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') {
@@ -699,6 +706,7 @@
         const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
         const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
         const popupHtml = buildObservationPopup(
+          pt.popupCatalogValue,
           pt.popupCatalogHref,
           pt.popupCatalogLabel,
           latitude,

@@ -1,366 +1,148 @@
-import {
-  ActiveNearYouSection,
-  LocalMapSection,
-  PageScrollContainer,
-  ThemedText,
-} from '@/components';
+import { Colors, Shadows } from '@/constants/theme';
+import { ActiveNearYouSection, HomeRecommendationFilter } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { useDataSources } from '@/hooks/useDataSources';
-import {
-  fetchSpeciesWithModels,
-  fetchViewportScores,
-  BACKEND_BASE,
-} from '@/data/api';
-import type { ViewportScoresResult, ViewportTileRange } from '@/data/api';
-import { mockHomePageData } from '@/data/homeSample';
-import type {
-  HomePageData,
-  SpeciesApiNormalized,
-  SpeciesSummary,
-} from '@/data/types';
+import { useNativeHomeTabs } from '@/context/NativeHomeTabsContext';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import {
-  getResponsiveContentContainerStyle,
-  getResponsiveGapStyle,
-} from '@/constants/responsiveStyles';
-import { Size } from '@/constants/theme';
-import Head from 'expo-router/head';
 import React from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { WebHomeDashboard } from '../components/sections/WebHomeDashboard';
 
-const SIDEBAR_WIDTH = 400;
-const SCORE_DEBOUNCE_MS = 1200;
-const RECOMMENDATION_SCORE_THRESHOLD = 0.25;
-const MAX_RECOMMENDATIONS = 10;
-const HOMEPAGE_GROUP_ORDER = [
-  'arthropods',
-  'birds',
-  'animals',
-  'fungi',
-  'plants',
-] as const;
-
-const formatReasonDescription = (reasons: string[] | undefined) => {
-  if (!reasons?.length) {
-    return '';
-  }
-
-  return reasons
-    .map((reason) => reason.charAt(0).toUpperCase() + reason.slice(1))
-    .join(' · ');
-};
-
-const withScoreReason = (
-  item: SpeciesSummary,
-  reasons: ViewportScoresResult['reasons'],
-): SpeciesSummary => {
-  const description = formatReasonDescription(reasons[String(item.taxonId)]);
-  return description ? { ...item, description } : item;
-};
-
-const buildHomepageHeatmapTileUrl = (
-  sessionStamp: number,
-  group: string | null,
-) => {
-  const groupParam = group && group !== 'all' ? `&group=${group}` : '';
-  return `${BACKEND_BASE}/api/heatmap/homepage/tiles/{z}/{x}/{y}.png?v=${sessionStamp}${groupParam}`;
-};
-
-const buildRecommendationSeedKey = (items: SpeciesSummary[]) =>
-  items
-    .map((item) =>
-      [
-        item.taxonId,
-        item.commonName,
-        item.scientificName,
-        item.description,
-        item.taxonGroup ?? '',
-      ].join(':'),
-    )
-    .join('|');
-
-const mapSpeciesWithModelToSummary = (
-  item: SpeciesApiNormalized,
-): SpeciesSummary => ({
-  taxonId: item.taxon_id ?? 0,
-  commonName: item.common_name?.trim() || item.scientific_name,
-  commonNames: item.common_names ?? [],
-  scientificName: item.scientific_name?.trim() || '',
-  description: '',
-  imageSource: item.image_source ? { uri: item.image_source } : undefined,
-  taxonGroup: item.taxon_group ?? null,
-});
-
-const rankRecommendationsForViewport = (
-  species: SpeciesSummary[],
-  { scores, reasons }: ViewportScoresResult,
-) => {
-  const sorted = [...species].sort((left, right) => {
-    const leftScore = scores[String(left.taxonId)] ?? -1;
-    const rightScore = scores[String(right.taxonId)] ?? -1;
-    return rightScore - leftScore;
-  });
-  const scored = sorted.map((item) => withScoreReason(item, reasons));
-
-  const pinnedIds = new Set<number>();
-  const pinned = HOMEPAGE_GROUP_ORDER.flatMap((group) => {
-    const representative = scored.find((item) => item.taxonGroup === group);
-    if (!representative) {
-      return [];
-    }
-
-    pinnedIds.add(representative.taxonId);
-    return [representative];
-  });
-
-  const additional = scored.filter(
-    (item) =>
-      !pinnedIds.has(item.taxonId) &&
-      (scores[String(item.taxonId)] ?? 0) >= RECOMMENDATION_SCORE_THRESHOLD,
-  );
-
-  return {
-    allScored: scored,
-    recommendations: [
-      ...pinned,
-      ...additional.slice(0, MAX_RECOMMENDATIONS - pinned.length),
-    ],
-  };
-};
-
-const OPEN_METEO_ID = 'open_meteo';
-const NCEP_ID = 'ncep_gfs_open_meteo';
-
-export default function HomeScreen({ data }: { data?: HomePageData } = {}) {
+function ExploreScreenContent({
+  activeGroup,
+  allScored,
+  isFilterVisible,
+  recommendations,
+  scoresLoading,
+  setActiveGroup,
+}: {
+  activeGroup: string;
+  allScored: ReturnType<typeof useNativeHomeTabs>['allScored'];
+  isFilterVisible: boolean;
+  recommendations: ReturnType<typeof useNativeHomeTabs>['recommendations'];
+  scoresLoading: boolean;
+  setActiveGroup: ReturnType<typeof useNativeHomeTabs>['setActiveGroup'];
+}) {
   const responsive = useResponsive();
-  const dataSources = useDataSources();
-  const openMeteoSource = dataSources[OPEN_METEO_ID] ?? null;
-  const openMeteoDoiUrl = openMeteoSource?.references[0]?.doi ?? null;
-  const openMeteoLicenseUrl = openMeteoSource?.license_url ?? null;
-  const ncepSource = dataSources[NCEP_ID] ?? null;
-  const ncepDoiUrl = ncepSource?.references[0]?.doi ?? null;
-  const ncepLicenseUrl = ncepSource?.license_url ?? null;
-  const providedSeedItems = data?.recommendations?.items;
-  const seedItems = providedSeedItems ?? mockHomePageData.recommendations.items;
-  const [recommendations, setRecommendations] =
-    React.useState<SpeciesSummary[]>(seedItems);
-  const [allScored, setAllScored] = React.useState<SpeciesSummary[]>(seedItems);
-  const [scoresLoading, setScoresLoading] = React.useState(false);
-  const [heatmapGroup, setHeatmapGroup] = React.useState<string | null>(null);
-  const allSpeciesRef = React.useRef<SpeciesSummary[]>(seedItems);
-  const lastAppliedSeedKeyRef = React.useRef(
-    buildRecommendationSeedKey(seedItems),
-  );
-  const sessionStamp = React.useRef(Date.now());
-  const heatmapTileUrl = React.useMemo(
-    () => buildHomepageHeatmapTileUrl(sessionStamp.current, heatmapGroup),
-    [heatmapGroup],
-  );
-  const scoreRequestRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
-  const applyRecommendationState = React.useCallback(
-    (items: SpeciesSummary[]) => {
-      allSpeciesRef.current = items;
-      setRecommendations(items);
-      setAllScored(items);
-    },
-    [],
-  );
-
-  React.useEffect(() => {
-    const nextSeedKey = buildRecommendationSeedKey(seedItems);
-    if (lastAppliedSeedKeyRef.current === nextSeedKey) {
-      return;
-    }
-
-    lastAppliedSeedKeyRef.current = nextSeedKey;
-    applyRecommendationState(seedItems);
-  }, [applyRecommendationState, seedItems]);
-
-  React.useEffect(() => {
-    if (data != null) return; // seeded via data prop, skip fetch
-    let mounted = true;
-    (async () => {
-      try {
-        const items = await fetchSpeciesWithModels();
-        if (!mounted) return;
-        applyRecommendationState(items.map(mapSpeciesWithModelToSummary));
-      } catch (e) {
-        console.warn('[HomeScreen] failed to fetch species with models', e);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [applyRecommendationState, data]);
-
-  React.useEffect(() => {
-    return () => {
-      if (scoreRequestRef.current) {
-        clearTimeout(scoreRequestRef.current);
-      }
-    };
-  }, []);
-
-  const handleBoundsChange = React.useCallback((bounds: ViewportTileRange) => {
-    if (scoreRequestRef.current) {
-      clearTimeout(scoreRequestRef.current);
-    }
-    setScoresLoading(true);
-    scoreRequestRef.current = setTimeout(async () => {
-      try {
-        const ranked = rankRecommendationsForViewport(
-          allSpeciesRef.current,
-          await fetchViewportScores(bounds),
-        );
-        setRecommendations(ranked.recommendations);
-        setAllScored(ranked.allScored);
-      } catch {
-        // Keep the current ordering when viewport scoring is unavailable.
-      } finally {
-        setScoresLoading(false);
-      }
-    }, SCORE_DEBOUNCE_MS);
-  }, []);
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+  const [isListScrolled, setIsListScrolled] = React.useState(false);
+  const horizontalInsetStyle = {
+    paddingHorizontal: responsive.marginHorizontal,
+  };
 
   return (
-    <>
-      {Platform.OS === 'web' ? (
-        <Head>
-          <title>WhereWild | Home</title>
-        </Head>
-      ) : null}
-      <PageSurface>
-        <PageScrollContainer
-          contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
-          bounces={false}
+    <PageSurface>
+      <View style={styles.screen}>
+        <View
+          testID='native-explore-content'
+          style={styles.nativeExploreContent}
         >
-          <View style={[styles.layout, getResponsiveGapStyle(responsive)]}>
-            <View style={styles.mapSection}>
-              <LocalMapSection
-                heatmapTileUrl={heatmapTileUrl}
-                onBoundsChange={handleBoundsChange}
+          <View
+            collapsable={false}
+            testID='explore-filter-slot'
+            accessibilityElementsHidden={!isFilterVisible}
+            importantForAccessibility={
+              isFilterVisible ? 'auto' : 'no-hide-descendants'
+            }
+            style={[
+              styles.filterSlot,
+              isFilterVisible && styles.filterSlotVisible,
+              isFilterVisible && { paddingTop: responsive.gap },
+              !isFilterVisible && styles.hiddenSlot,
+            ]}
+          >
+            <View
+              testID='explore-filter-surface'
+              style={[
+                styles.filterSurface,
+                { backgroundColor: palette.background.default.default },
+                isFilterVisible && { paddingBottom: responsive.gap },
+              ]}
+            >
+              <View
+                testID='explore-filter-shadow-seam'
+                pointerEvents='none'
+                style={[
+                  styles.filterShadowSeam,
+                  { backgroundColor: palette.background.default.default },
+                  isFilterVisible &&
+                    isListScrolled &&
+                    Shadows.dropShadow200.style,
+                ]}
               />
-              {(openMeteoSource || ncepSource) && (
-                <View style={styles.weatherAttribution}>
-                  <ThemedText variant='bodySmall'>
-                    {'Heatmap updated using data from '}
-                  </ThemedText>
-                  {openMeteoSource && (
-                    <>
-                      <ThemedText
-                        variant='bodySmallLink'
-                        onPress={() => Linking.openURL(openMeteoSource.url)}
-                      >
-                        {'Open-Meteo'}
-                      </ThemedText>
-                      {(openMeteoDoiUrl || openMeteoLicenseUrl) && (
-                        <>
-                          <ThemedText variant='bodySmall'>{' ('}</ThemedText>
-                          {openMeteoDoiUrl && (
-                            <ThemedText
-                              variant='bodySmallLink'
-                              onPress={() => Linking.openURL(openMeteoDoiUrl)}
-                            >
-                              {'DOI'}
-                            </ThemedText>
-                          )}
-                          {openMeteoDoiUrl && openMeteoLicenseUrl && (
-                            <ThemedText variant='bodySmall'>{' · '}</ThemedText>
-                          )}
-                          {openMeteoLicenseUrl && (
-                            <ThemedText
-                              variant='bodySmallLink'
-                              onPress={() =>
-                                Linking.openURL(openMeteoLicenseUrl)
-                              }
-                            >
-                              {'License'}
-                            </ThemedText>
-                          )}
-                          <ThemedText variant='bodySmall'>{')'}</ThemedText>
-                        </>
-                      )}
-                    </>
-                  )}
-                  {openMeteoSource && ncepSource && (
-                    <ThemedText variant='bodySmall'>{' and '}</ThemedText>
-                  )}
-                  {ncepSource && (
-                    <>
-                      <ThemedText
-                        variant='bodySmallLink'
-                        onPress={() => Linking.openURL(ncepSource.url)}
-                      >
-                        {'NCEP GFS'}
-                      </ThemedText>
-                      {(ncepDoiUrl || ncepLicenseUrl) && (
-                        <>
-                          <ThemedText variant='bodySmall'>{' ('}</ThemedText>
-                          {ncepDoiUrl && (
-                            <ThemedText
-                              variant='bodySmallLink'
-                              onPress={() => Linking.openURL(ncepDoiUrl)}
-                            >
-                              {'DOI'}
-                            </ThemedText>
-                          )}
-                          {ncepDoiUrl && ncepLicenseUrl && (
-                            <ThemedText variant='bodySmall'>{' · '}</ThemedText>
-                          )}
-                          {ncepLicenseUrl && (
-                            <ThemedText
-                              variant='bodySmallLink'
-                              onPress={() => Linking.openURL(ncepLicenseUrl)}
-                            >
-                              {'License'}
-                            </ThemedText>
-                          )}
-                          <ThemedText variant='bodySmall'>{')'}</ThemedText>
-                        </>
-                      )}
-                    </>
-                  )}
-                </View>
-              )}
+              <View style={horizontalInsetStyle}>
+                <HomeRecommendationFilter
+                  allRecommendations={allScored}
+                  activeGroup={activeGroup}
+                  onGroupChange={setActiveGroup}
+                  loading={scoresLoading}
+                />
+              </View>
             </View>
-
-            <ActiveNearYouSection
-              recommendations={recommendations}
-              allRecommendations={allScored}
-              loading={scoresLoading}
-              activeGroup={heatmapGroup ?? 'all'}
-              onGroupChange={setHeatmapGroup}
-              style={styles.sidebar}
-            />
           </View>
-        </PageScrollContainer>
-      </PageSurface>
-    </>
+          <ActiveNearYouSection
+            recommendations={recommendations}
+            allRecommendations={allScored}
+            activeGroup={activeGroup}
+            showHeading={false}
+            style={[styles.nativeContent, horizontalInsetStyle]}
+            nativeFirstItemTopMargin={isFilterVisible ? 0 : responsive.gap}
+            onNativeScrolledChange={setIsListScrolled}
+          />
+        </View>
+      </View>
+    </PageSurface>
   );
 }
 
+function NativeExploreScreen() {
+  const state = useNativeHomeTabs();
+  return <ExploreScreenContent {...state} />;
+}
+
+export default function HomeScreen() {
+  if (Platform.OS === 'web') {
+    return <WebHomeDashboard />;
+  }
+
+  return <NativeExploreScreen />;
+}
+
 const styles = StyleSheet.create({
-  layout: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
+  screen: {
+    flex: 1,
+  },
+  nativeExploreContent: {
+    flex: 1,
+    minHeight: 0,
     width: '100%',
   },
-  mapSection: {
+  nativeContent: {
     flex: 1,
-    minWidth: 320,
-    gap: Size.space['100'],
+    minHeight: 0,
   },
-  weatherAttribution: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
+  filterSlot: {
+    width: '100%',
   },
-  sidebar: {
-    flexBasis: SIDEBAR_WIDTH,
-    maxWidth: SIDEBAR_WIDTH,
+  filterSlotVisible: {
+    width: '100%',
+  },
+  filterSurface: {
+    position: 'relative',
+    width: '100%',
+    zIndex: 1,
+  },
+  filterShadowSeam: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+  },
+  hiddenSlot: {
+    height: 0,
+    opacity: 0,
+    overflow: 'hidden',
   },
 });

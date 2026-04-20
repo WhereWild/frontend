@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import type { DataSource } from '@/data/types';
+import { readBlobAsArrayBuffer } from '../utils/blob';
 import type {
   RawCategoricalStatsRow,
   RawCategoricalValueLookupRow,
@@ -254,7 +255,13 @@ export const resolveParquetEntryPaths = (zip: JSZip) => {
 export const parseUploadedParquetZipToRawBundle = async (
   zipFile: Blob,
 ): Promise<RawUploadedParquetBundle> => {
-  const zip = await JSZip.loadAsync(await zipFile.arrayBuffer());
+  const zip = await JSZip.loadAsync(
+    await readBlobAsArrayBuffer(zipFile, {
+      unavailableMessage: 'Uploaded ZIP could not be read on this device.',
+      readErrorMessage: 'Failed to read uploaded ZIP blob.',
+      invalidResultMessage: 'Uploaded ZIP blob did not resolve to binary data.',
+    }),
+  );
   const entryPaths = resolveParquetEntryPaths(zip);
 
   const issues: string[] = [];
@@ -280,7 +287,9 @@ export const parseUploadedParquetZipToRawBundle = async (
     }
   };
 
-  const readDataSourcesJson = async (): Promise<Record<string, DataSource> | undefined> => {
+  const readDataSourcesJson = async (): Promise<
+    Record<string, DataSource> | undefined
+  > => {
     const entry = zip.file('data_sources.json');
     if (!entry) return undefined;
     try {

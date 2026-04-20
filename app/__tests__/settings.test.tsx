@@ -2,8 +2,11 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSettings } from '@/context/SettingsContext';
 import { act, render, screen } from '@testing-library/react-native';
 import React from 'react';
+import { Platform } from 'react-native';
 
 import Settings from '../settings';
+
+const mockPush = jest.fn();
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
@@ -28,6 +31,10 @@ function getSelectFieldChangeHandler(
 jest.mock('expo-router/head', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock('@/hooks/useResponsive', () => ({
@@ -78,13 +85,28 @@ jest.mock('@/components', () => {
         testID: `select-${String(props.label)}`,
       });
     },
+    Button: ({ label, onPress }: { label: string; onPress?: () => void }) =>
+      mockReact.createElement(
+        mockReactNative.Text,
+        {
+          onPress,
+          testID: `button-${label}`,
+        },
+        label,
+      ),
   };
 });
 
 describe('Settings screen', () => {
+  const originalPlatform = Platform.OS;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSelectField.mockReset();
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform,
+    });
 
     mockUseSettings.mockReturnValue({
       region: 'utah',
@@ -96,12 +118,20 @@ describe('Settings screen', () => {
     });
   });
 
+  afterAll(() => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform,
+    });
+  });
+
   describe('settings logic', () => {
     it('renders localization controls', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
       render(<Settings />);
 
+      expect(screen.queryByTestId('page-title')).toBeNull();
       expect(screen.getByText('Localization')).toBeTruthy();
       expect(screen.getByTestId('select-Location')).toBeTruthy();
       expect(screen.getByTestId('select-Language')).toBeTruthy();
@@ -149,6 +179,43 @@ describe('Settings screen', () => {
       expect(mockSetUnits).toHaveBeenNthCalledWith(1, 'metric');
       expect(mockSetUnits).toHaveBeenNthCalledWith(2, 'imperial');
       expect(mockSetUnits).not.toHaveBeenCalledWith('kelvin');
+    });
+
+    it('shows a native-only about button that opens the about page', () => {
+      mockUseColorScheme.mockReturnValue('dark');
+
+      render(<Settings />);
+
+      act(() => {
+        screen.getByTestId('button-About WhereWild').props.onPress();
+      });
+
+      expect(mockPush).toHaveBeenCalledWith('/about');
+    });
+
+    it('shows a native-only upload button that opens the upload page', () => {
+      mockUseColorScheme.mockReturnValue('dark');
+
+      render(<Settings />);
+
+      act(() => {
+        screen.getByTestId('button-Upload Custom Data').props.onPress();
+      });
+
+      expect(mockPush).toHaveBeenCalledWith('/upload');
+    });
+
+    it('omits the about button on web', () => {
+      mockUseColorScheme.mockReturnValue('dark');
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: 'web',
+      });
+
+      render(<Settings />);
+
+      expect(screen.queryByTestId('button-About WhereWild')).toBeNull();
+      expect(screen.queryByTestId('button-Upload Custom Data')).toBeNull();
     });
   });
 });

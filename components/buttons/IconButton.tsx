@@ -2,11 +2,12 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { IconSize } from '@/primitives';
 import { getInteractiveCursorStyle } from '@/components/interactiveCursorStyle';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import React from 'react';
+import type { Href } from 'expo-router';
 import {
   AccessibilityProps,
   GestureResponderEvent,
-  Pressable,
   StyleSheet,
   View,
   ViewStyle,
@@ -25,6 +26,7 @@ type IconButtonBaseProps = {
   size?: IconButtonSize;
   disabled?: boolean;
   showPointerCursor?: boolean;
+  enableHaptics?: boolean;
   hovered?: boolean;
   pressed?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
@@ -32,6 +34,9 @@ type IconButtonBaseProps = {
   onPressOut?: (event: GestureResponderEvent) => void;
   onLongPress?: (event: GestureResponderEvent) => void;
   delayLongPress?: number;
+  href?: Href;
+  hrefPath?: string;
+  navigateAfterPress?: boolean;
   icon: React.ReactNode;
   style?: ViewStyle;
 } & AccessibilityProps;
@@ -152,6 +157,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   size = 'medium',
   disabled = false,
   showPointerCursor = true,
+  enableHaptics = false,
   interactive = true,
   hovered = false,
   pressed = false,
@@ -160,6 +166,9 @@ export const IconButton: React.FC<IconButtonProps> = ({
   onPressOut,
   onLongPress,
   delayLongPress,
+  href,
+  hrefPath,
+  navigateAfterPress,
   icon,
   accessibilityLabel,
   style,
@@ -174,6 +183,12 @@ export const IconButton: React.FC<IconButtonProps> = ({
     });
 
   const sizeStyles = React.useMemo(() => computeSizeStyles(size), [size]);
+  const handlePress = React.useCallback(
+    (event: GestureResponderEvent) => {
+      onPress?.(event);
+    },
+    [onPress],
+  );
 
   if (!interactive) {
     const variantStyles = computeVariantStyles(
@@ -206,11 +221,16 @@ export const IconButton: React.FC<IconButtonProps> = ({
   }
 
   return (
-    <Pressable
-      accessibilityRole='button'
+    <RoutePressable
+      accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
-      onPress={onPress}
+      href={href}
+      hrefPath={hrefPath}
+      navigateAfterPress={navigateAfterPress}
+      showPointerCursor={showPointerCursor}
+      enablePressHaptics={enableHaptics}
+      onPress={handlePress}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
       {...hoverOnlyTransitionHandlers}
@@ -251,7 +271,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
           shouldAnimateTransitions,
         );
       }}
-    </Pressable>
+    </RoutePressable>
   );
 };
 

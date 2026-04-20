@@ -14,6 +14,8 @@ export type PageTitleProps = {
   iconButton?: IconButtonProps;
   /** When provided, renders a Button to the right of the title. */
   button?: ButtonProps;
+  constrainContentWidth?: boolean;
+  contentMaxWidth?: number | null;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -21,12 +23,20 @@ export function PageTitle({
   title,
   iconButton,
   button,
+  constrainContentWidth = true,
+  contentMaxWidth,
   style,
 }: PageTitleProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+  const resolvedMaxWidth =
+    contentMaxWidth === undefined
+      ? constrainContentWidth
+        ? responsive.textWidth
+        : null
+      : contentMaxWidth;
 
   return (
     <View
@@ -40,7 +50,12 @@ export function PageTitle({
         style,
       ]}
     >
-      <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
+      <View
+        style={[
+          styles.content,
+          resolvedMaxWidth != null && { maxWidth: resolvedMaxWidth },
+        ]}
+      >
         <View style={styles.headingRow}>
           <ThemedText variant='titlePage'>{title}</ThemedText>
           {(iconButton != null || button != null) && (

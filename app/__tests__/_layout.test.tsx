@@ -3,7 +3,7 @@ import { Colors } from '@/constants/theme';
 import { Platform, View } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import RootLayout from '../_layout';
+import RootLayout, { unstable_settings } from '../_layout';
 import { useFonts } from 'expo-font';
 import { usePathname, useRouter } from 'expo-router';
 
@@ -27,6 +27,7 @@ jest.mock('@/hooks/useColorScheme', () => ({
 const recordedStackProps: any[] = [];
 const recordedHeaderProps: any[] = [];
 const recordedTopAppBarProps: any[] = [];
+const mockUseNativeHomeTabs = jest.fn();
 let mockHeaderConfig: any = {};
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
   Platform,
@@ -106,6 +107,13 @@ jest.mock('@/context/WebPageHeaderContext', () => {
   };
 });
 
+jest.mock('@/context/NativeHomeTabsContext', () => ({
+  NativeHomeTabsProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  useNativeHomeTabs: () => mockUseNativeHomeTabs(),
+}));
+
 const mockUseFonts = useFonts as jest.MockedFunction<typeof useFonts>;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
@@ -139,12 +147,14 @@ const getTabByKey = (key: string): NavTab | undefined =>
   getRenderedTabs().find((tab) => tab.key === key);
 
 describe('Root layout', () => {
+  const mockBack = jest.fn();
   const mockReplace = jest.fn();
   const mockPush = jest.fn();
   const mockDismissAll = jest.fn();
   const mockCanGoBack = jest.fn(() => false);
 
   const createRouterMock = () => ({
+    back: mockBack,
     replace: mockReplace,
     push: mockPush,
     dismissAll: mockDismissAll,
@@ -159,6 +169,7 @@ describe('Root layout', () => {
     mockUseColorScheme.mockReset();
     mockUseColorScheme.mockReturnValue('dark');
     mockNavigationBar.mockReset();
+    mockBack.mockReset();
     mockReplace.mockReset();
     mockPush.mockReset();
     mockDismissAll.mockReset();
@@ -167,7 +178,17 @@ describe('Root layout', () => {
     recordedStackProps.length = 0;
     recordedHeaderProps.length = 0;
     recordedTopAppBarProps.length = 0;
+    mockUseNativeHomeTabs.mockReset();
     mockHeaderConfig = {};
+  });
+
+  beforeEach(() => {
+    mockUseNativeHomeTabs.mockReturnValue({
+      hasActiveFilter: false,
+      isFilterVisible: false,
+      setActiveGroup: jest.fn(),
+      toggleFilterVisibility: jest.fn(),
+    });
   });
 
   it('renders nothing until fonts are loaded', () => {
@@ -194,6 +215,7 @@ describe('Root layout', () => {
       animation: 'none',
       contentStyle: { backgroundColor: Colors.dark.background.default.default },
     });
+    expect(unstable_settings.initialRouteName).toBe('index');
   });
 
   it('applies the default background color at the native root', () => {
@@ -266,7 +288,7 @@ describe('Root layout', () => {
     expect(screen.queryByTestId('mock-top-app-bar')).toBeNull();
   });
 
-  it('uses home variant for non-search top-level routes and page variant for species routes', () => {
+  it('uses route-specific top app bar titles for native top-level and stacked pages', () => {
     const pathnameState = {
       value: '/',
     } as { value: string };
@@ -278,7 +300,14 @@ describe('Root layout', () => {
     const { rerender } = render(<RootLayout />);
 
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
-    expect(recordedTopAppBarProps.at(-1)?.title).toBe('WhereWild');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Active Near You');
+    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.isVisible).toBe(true);
+    expect(recordedTopAppBarProps.at(-1)?.secondaryAction?.isVisible).toBe(
+      false,
+    );
+    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.buttonLabel).toBe(
+      'Filter',
+    );
 
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
@@ -289,8 +318,66 @@ describe('Root layout', () => {
     pathnameState.value = '/about';
     rerender(<RootLayout />);
 
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('page');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('About');
+
+    pathnameState.value = '/upload';
+    rerender(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('page');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Upload Custom Data');
+
+    pathnameState.value = '/map';
+    rerender(<RootLayout />);
+
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
-    expect(recordedTopAppBarProps.at(-1)?.title).toBe('WhereWild');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Local Map');
+    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.isVisible).toBe(true);
+    expect(recordedTopAppBarProps.at(-1)?.secondaryAction?.isVisible).toBe(
+      false,
+    );
+    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.buttonLabel).toBe(
+      'Filter',
+    );
+
+    pathnameState.value = '/help';
+    rerender(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Help');
+    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.isVisible).toBe(false);
+
+    pathnameState.value = '/settings';
+    rerender(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Settings');
+  });
+
+  it('shows the native reset filter button when the homepage filter is non-default', () => {
+    const resetGroup = jest.fn();
+
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockReturnValue('/');
+    mockUseNativeHomeTabs.mockReturnValue({
+      hasActiveFilter: true,
+      isFilterVisible: true,
+      setActiveGroup: resetGroup,
+      toggleFilterVisibility: jest.fn(),
+    });
+
+    render(<RootLayout />);
+
+    expect(recordedTopAppBarProps.at(-1)?.secondaryAction?.isVisible).toBe(
+      true,
+    );
+    expect(
+      recordedTopAppBarProps.at(-1)?.secondaryAction?.accessibilityLabel,
+    ).toBe('Reset filters');
+
+    recordedTopAppBarProps.at(-1)?.secondaryAction?.onPress?.();
+    expect(resetGroup).toHaveBeenCalledWith('all');
   });
 
   it('renders shared search top app bar on search route', () => {
@@ -326,35 +413,79 @@ describe('Root layout', () => {
     const searchTabAfter = getRenderedTabs().find(
       (tab) => tab.key === 'search',
     );
-    const homeTabAfter = getRenderedTabs().find((tab) => tab.key === 'home');
+    const mapTabAfter = getRenderedTabs().find(
+      (tab) => tab.key === 'local-map',
+    );
     expect(searchTabAfter?.state).toBe('active');
-    expect(homeTabAfter?.state).toBe('default');
+    expect(mapTabAfter?.state).toBe('default');
   });
 
-  it('defaults to Home active when first route is not top-level', () => {
+  it('defaults to Explore active when first route is a species detail path', () => {
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
     mockUsePathname.mockReturnValue('/species/123');
 
     render(<RootLayout />);
 
-    expect(getTabByKey('home')?.state).toBe('active');
+    expect(getTabByKey('explore')?.state).toBe('active');
+    expect(getTabByKey('local-map')?.state).toBe('default');
     expect(getTabByKey('search')?.state).toBe('default');
-    expect(getTabByKey('about')?.state).toBe('default');
     expect(getTabByKey('settings')?.state).toBe('default');
   });
 
-  it('activates About tab on about route', () => {
+  it.each(['/about', '/acknowledgements', '/upload'])(
+    'keeps Settings active on first render when cold-started at %s',
+    (ownedRoute) => {
+      mockUseFonts.mockReturnValue([true, null]);
+      mockUseRouter.mockReturnValue(createRouterMock() as never);
+      mockUsePathname.mockReturnValue(ownedRoute);
+
+      render(<RootLayout />);
+
+      expect(getTabByKey('settings')?.state).toBe('active');
+      expect(getTabByKey('explore')?.state).toBe('default');
+    },
+  );
+
+  it('keeps Settings active when the native About page is pushed from settings', () => {
+    const pathnameState = {
+      value: '/settings',
+    } as { value: string };
+
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
-    mockUsePathname.mockReturnValue('/about');
+    mockUsePathname.mockImplementation(() => pathnameState.value);
 
-    render(<RootLayout />);
+    const { rerender } = render(<RootLayout />);
 
-    expect(getTabByKey('about')?.state).toBe('active');
-    expect(getTabByKey('home')?.state).toBe('default');
+    pathnameState.value = '/about';
+    rerender(<RootLayout />);
+
+    expect(getTabByKey('settings')?.state).toBe('active');
+    expect(getTabByKey('local-map')?.state).toBe('default');
     expect(getTabByKey('search')?.state).toBe('default');
-    expect(getTabByKey('settings')?.state).toBe('default');
+    expect(getTabByKey('explore')?.state).toBe('default');
+  });
+
+  it('keeps Settings active when native About-owned pages are cold-started directly', () => {
+    const pathnameState = {
+      value: '/about',
+    } as { value: string };
+
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockImplementation(() => pathnameState.value);
+
+    const { rerender } = render(<RootLayout />);
+
+    expect(getTabByKey('settings')?.state).toBe('active');
+    expect(getTabByKey('explore')?.state).toBe('default');
+
+    pathnameState.value = '/acknowledgements';
+    rerender(<RootLayout />);
+
+    expect(getTabByKey('settings')?.state).toBe('active');
+    expect(getTabByKey('explore')?.state).toBe('default');
   });
 
   it('tab presses replace only when target path differs', () => {
@@ -369,12 +500,12 @@ describe('Root layout', () => {
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockDismissAll).not.toHaveBeenCalled();
 
-    getTabByKey('home')?.onPress?.();
-    expect(mockReplace).toHaveBeenCalledWith('/');
+    getTabByKey('local-map')?.onPress?.();
+    expect(mockReplace).toHaveBeenCalledWith('/map');
     expect(mockPush).not.toHaveBeenCalled();
 
-    getTabByKey('about')?.onPress?.();
-    expect(mockReplace).toHaveBeenCalledWith('/about');
+    getTabByKey('explore')?.onPress?.();
+    expect(mockReplace).toHaveBeenCalledWith('/');
 
     getTabByKey('settings')?.onPress?.();
     expect(mockReplace).toHaveBeenCalledWith('/settings');
@@ -400,6 +531,82 @@ describe('Root layout', () => {
     expect(mockDismissAll).not.toHaveBeenCalled();
   });
 
+  it('returns Settings-owned subpages to /settings when pressing the active Settings tab', () => {
+    const pathnameState = {
+      value: '/settings',
+    } as { value: string };
+
+    mockUseFonts.mockReturnValue([true, null]);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockImplementation(() => pathnameState.value);
+
+    const { rerender } = render(<RootLayout />);
+
+    pathnameState.value = '/about';
+    rerender(<RootLayout />);
+
+    getTabByKey('settings')?.onPress?.();
+
+    expect(mockReplace).toHaveBeenCalledWith('/settings');
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockDismissAll).not.toHaveBeenCalled();
+  });
+
+  it.each(['/acknowledgements', '/upload'])(
+    'returns %s to /settings when pressing the active Settings tab',
+    (ownedRoute) => {
+      const pathnameState = {
+        value: '/settings',
+      } as { value: string };
+
+      mockUseFonts.mockReturnValue([true, null]);
+      mockUseRouter.mockReturnValue(createRouterMock() as never);
+      mockUsePathname.mockImplementation(() => pathnameState.value);
+
+      const { rerender } = render(<RootLayout />);
+
+      pathnameState.value = ownedRoute;
+      rerender(<RootLayout />);
+
+      getTabByKey('settings')?.onPress?.();
+
+      expect(mockReplace).toHaveBeenCalledWith('/settings');
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(mockDismissAll).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['/about', '/acknowledgements', '/upload'])(
+    'falls back to /settings when pressing back from a cold-started %s page',
+    (ownedRoute) => {
+      mockUseFonts.mockReturnValue([true, null]);
+      mockCanGoBack.mockReturnValue(false);
+      mockUseRouter.mockReturnValue(createRouterMock() as never);
+      mockUsePathname.mockReturnValue(ownedRoute);
+
+      render(<RootLayout />);
+
+      recordedTopAppBarProps.at(-1)?.onPressBack?.();
+
+      expect(mockReplace).toHaveBeenCalledWith('/settings');
+      expect(mockBack).not.toHaveBeenCalled();
+    },
+  );
+
+  it('uses router.back on owned pages when native history exists', () => {
+    mockUseFonts.mockReturnValue([true, null]);
+    mockCanGoBack.mockReturnValue(true);
+    mockUseRouter.mockReturnValue(createRouterMock() as never);
+    mockUsePathname.mockReturnValue('/about');
+
+    render(<RootLayout />);
+
+    recordedTopAppBarProps.at(-1)?.onPressBack?.();
+
+    expect(mockBack).toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it('restores each tab to its own latest route history', async () => {
     const pathnameState = {
       value: '/search',
@@ -414,23 +621,20 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/map';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
 
     expect(mockReplace).toHaveBeenCalledWith('/search');
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/species/[...identifier]',
-      params: { identifier: ['123'] },
-    });
+    expect(mockPush).toHaveBeenCalledWith('/species/123');
 
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
     await waitFor(() => {
       expect(getTabByKey('search')?.state).toBe('active');
-      expect(getTabByKey('about')?.state).toBe('default');
+      expect(getTabByKey('explore')?.state).toBe('default');
     });
   });
 
@@ -451,20 +655,14 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123/photos';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/map';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
 
     expect(mockReplace).toHaveBeenCalledWith('/search');
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/species/[...identifier]',
-      params: { identifier: ['123'] },
-    });
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/species/[...identifier]',
-      params: { identifier: ['123', 'photos'] },
-    });
+    expect(mockPush).toHaveBeenCalledWith('/species/123');
+    expect(mockPush).toHaveBeenCalledWith('/species/123/photos');
   });
 
   it('truncates restored tab history when user navigates back within that tab', () => {
@@ -487,20 +685,14 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/about';
+    pathnameState.value = '/map';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
 
     expect(mockReplace).toHaveBeenCalledWith('/search');
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/species/[...identifier]',
-      params: { identifier: ['123'] },
-    });
-    expect(mockPush).not.toHaveBeenCalledWith({
-      pathname: '/species/[...identifier]',
-      params: { identifier: ['123', 'photos'] },
-    });
+    expect(mockPush).toHaveBeenCalledWith('/species/123');
+    expect(mockPush).not.toHaveBeenCalledWith('/species/123/photos');
   });
 
   it('clears stack on tab switch when back stack exists', () => {
@@ -511,10 +703,10 @@ describe('Root layout', () => {
 
     render(<RootLayout />);
 
-    getTabByKey('about')?.onPress?.();
+    getTabByKey('local-map')?.onPress?.();
 
     expect(mockDismissAll).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('/about');
+    expect(mockReplace).toHaveBeenCalledWith('/map');
     expect(mockPush).not.toHaveBeenCalled();
   });
 });

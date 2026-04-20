@@ -36,9 +36,12 @@ export function UploadScreen() {
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  const isMobile = responsive.breakpoint === 'phone';
+  const isStacked = responsive.breakpoint !== 'desktop';
   const {
+    canDownloadProcessedZip,
+    downloadProcessedZip,
     highlightedCatalogs,
+    isDeliveringProcessedZip,
     isProcessingRaw,
     isProcessingZipped,
     rawUploadStatusMessage,
@@ -78,72 +81,116 @@ export function UploadScreen() {
         contentContainerStyle={[
           getResponsiveContentContainerStyle(responsive, {
             includeHorizontalPadding: false,
-            includeBottomPadding: false,
+            includeBottomPadding: true,
             includeGap: true,
           }),
           styles.scrollContent,
         ]}
       >
-        <PageTitle title='Upload Custom Data' />
+        {Platform.OS === 'web' ? (
+          <PageTitle
+            title='Upload Custom Data'
+            contentMaxWidth={responsive.contentWidth}
+          />
+        ) : null}
 
-        <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
-          <ThemedText variant='body' style={styles.description}>
-            Do you have your own set of observational data you would like to
-            analyze? Upload a list of coordinates here, and WhereWild will
-            populate the observations with environmental data.
-          </ThemedText>
+        <View
+          testID='upload-content-shell'
+          style={[
+            styles.contentShell,
+            getResponsiveContentContainerStyle(responsive, {
+              includeWidth: false,
+              includeTopPadding: false,
+            }),
+          ]}
+        >
+          <View
+            testID='upload-content'
+            style={[
+              styles.content,
+              { maxWidth: responsive.contentWidth, gap: responsive.gap },
+            ]}
+          >
+            <ThemedText variant='body' style={styles.description}>
+              Do you have your own set of observational data you would like to
+              analyze? Upload a list of coordinates here, and WhereWild will
+              populate the observations with environmental data.
+            </ThemedText>
 
-          <View style={[styles.stepsRow, isMobile && styles.stepsColumn]}>
-            <UploadStepCard
-              description='Upload raw observational data including separate fields for latitude and longitude. It will be processed and zipped. Supported file types: CSV, TSV, parquet.'
-              disabled={isProcessingZipped}
-              isLoading={isProcessingRaw}
-              label='Upload'
-              palette={palette}
-              stepTitle='Step 1'
-              onPress={processRawObservations}
-            />
-            <UploadStepCard
-              description='Upload processed data as a zipped file to view the enhanced data set including environmental insights.'
-              disabled={isProcessingRaw}
-              isLoading={isProcessingZipped}
-              label='Upload'
-              palette={palette}
-              stepTitle='Step 2'
-              onPress={processZippedObservations}
-            />
+            <View
+              style={[
+                styles.stepsRow,
+                { gap: responsive.gap },
+                isStacked && styles.stepsColumn,
+              ]}
+            >
+              <UploadStepCard
+                description='Upload raw observational data including separate fields for latitude and longitude. It will be processed and zipped. Supported file types: CSV, TSV, parquet.'
+                disabled={isProcessingZipped || isDeliveringProcessedZip}
+                isLoading={isProcessingRaw}
+                label='Upload'
+                loadingLabel='Processing upload...'
+                matchSiblingHeight={!isStacked}
+                palette={palette}
+                secondaryAction={
+                  canDownloadProcessedZip
+                    ? {
+                        isLoading: isDeliveringProcessedZip,
+                        label: 'Download ZIP',
+                        loadingLabel: 'Preparing ZIP...',
+                        onPress: downloadProcessedZip,
+                      }
+                    : undefined
+                }
+                stepTitle='Step 1'
+                testID='upload-step-card-1'
+                onPress={processRawObservations}
+              />
+              <UploadStepCard
+                description='Upload processed data as a zipped file to view the enhanced data set including environmental insights.'
+                disabled={isProcessingRaw}
+                isLoading={isProcessingZipped}
+                label='Upload'
+                loadingLabel='Importing ZIP...'
+                matchSiblingHeight={!isStacked}
+                palette={palette}
+                stepTitle='Step 2'
+                testID='upload-step-card-2'
+                onPress={processZippedObservations}
+              />
+            </View>
+
+            {rawUploadStatusMessage ? (
+              <UploadStatusMessage
+                backgroundColor={palette.background.default.secondary}
+                message={rawUploadStatusMessage}
+              />
+            ) : null}
+
+            {zipUploadError ? (
+              <UploadStatusMessage
+                backgroundColor={palette.background.default.secondary}
+                message={zipUploadError}
+              />
+            ) : null}
+
+            {zipUploadWarning ? (
+              <UploadStatusMessage
+                backgroundColor={palette.background.default.secondary}
+                message={zipUploadWarning}
+              />
+            ) : null}
+
+            {uploadedBundle && uploadedDataSource ? (
+              <UploadPreview
+                highlightedCatalogs={highlightedCatalogs}
+                height={observationMapHeight}
+                uploadedBundle={uploadedBundle}
+                uploadedDataSource={uploadedDataSource}
+                onHighlightChange={setHighlightedCatalogs}
+              />
+            ) : null}
           </View>
-
-          {rawUploadStatusMessage ? (
-            <UploadStatusMessage
-              backgroundColor={palette.background.default.secondary}
-              message={rawUploadStatusMessage}
-            />
-          ) : null}
-
-          {zipUploadError ? (
-            <UploadStatusMessage
-              backgroundColor={palette.background.default.secondary}
-              message={zipUploadError}
-            />
-          ) : null}
-
-          {zipUploadWarning ? (
-            <UploadStatusMessage
-              backgroundColor={palette.background.default.secondary}
-              message={zipUploadWarning}
-            />
-          ) : null}
-
-          {uploadedBundle && uploadedDataSource ? (
-            <UploadPreview
-              highlightedCatalogs={highlightedCatalogs}
-              height={observationMapHeight}
-              uploadedBundle={uploadedBundle}
-              uploadedDataSource={uploadedDataSource}
-              onHighlightChange={setHighlightedCatalogs}
-            />
-          ) : null}
         </View>
       </PageScrollContainer>
     </PageSurface>
@@ -152,6 +199,10 @@ export function UploadScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
+    alignItems: 'center',
+  },
+  contentShell: {
+    width: '100%',
     alignItems: 'center',
   },
   content: {
@@ -165,7 +216,6 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: Size.space['300'],
   },
   stepsColumn: {
     flexDirection: 'column',

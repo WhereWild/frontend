@@ -1,13 +1,134 @@
 import { Colors, Size } from '@/constants/theme';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import * as Haptics from 'expo-haptics';
 import React from 'react';
-import { Image, StyleSheet } from 'react-native';
+import type { ReactTestRendererJSON } from 'react-test-renderer';
+import { Image, Platform, StyleSheet } from 'react-native';
 import type { IconButtonSize, IconButtonVariant } from '../IconButton';
 import { IconButton, __ICON_BUTTON_TESTING__ } from '../IconButton';
 import { ThemedText } from '../../text/ThemedText';
 
+const mockPush = jest.fn();
+const defaultResolveHref = (href: string | { pathname?: string }) =>
+  typeof href === 'string' ? href : (href.pathname ?? '/');
+const mockResolveHref = jest.fn(defaultResolveHref);
+const mockLink: {
+  resolveHref?: (href: string | { pathname?: string }) => string;
+} = {
+  resolveHref: (href) => mockResolveHref(href),
+};
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  Platform,
+  'OS',
+);
+const originalPlatformOS = Platform.OS;
+const globalScope = global as typeof globalThis & {
+  addEventListener?: (type: string, listener: EventListener) => void;
+  removeEventListener?: (type: string, listener: EventListener) => void;
+  window?: {
+    addEventListener?: (type: string, listener: EventListener) => void;
+    removeEventListener?: (type: string, listener: EventListener) => void;
+  };
+};
+const originalWindow = globalScope.window;
+const originalGlobalAddEventListener = globalScope.addEventListener;
+const originalGlobalRemoveEventListener = globalScope.removeEventListener;
+const originalWindowAddEventListener = globalScope.window?.addEventListener;
+const originalWindowRemoveEventListener =
+  globalScope.window?.removeEventListener;
+
+const setPlatformOS = (os: string) => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: os,
+  });
+};
+
+const restorePlatformOS = () => {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(Platform, 'OS', originalPlatformDescriptor);
+    return;
+  }
+
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalPlatformOS,
+  });
+};
+
+const installWindowEventListenerMocks = () => {
+  const nextWindow = globalScope.window ?? {};
+
+  globalScope.addEventListener = jest.fn();
+  globalScope.removeEventListener = jest.fn();
+  nextWindow.addEventListener = jest.fn();
+  nextWindow.removeEventListener = jest.fn();
+  globalScope.window = nextWindow;
+};
+
+const restoreWindowEventListenerMocks = () => {
+  if (!globalScope.window) {
+    return;
+  }
+
+  if (originalGlobalAddEventListener) {
+    globalScope.addEventListener = originalGlobalAddEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope, 'addEventListener');
+  }
+
+  if (originalGlobalRemoveEventListener) {
+    globalScope.removeEventListener = originalGlobalRemoveEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope, 'removeEventListener');
+  }
+
+  if (originalWindowAddEventListener) {
+    globalScope.window.addEventListener = originalWindowAddEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope.window, 'addEventListener');
+  }
+
+  if (originalWindowRemoveEventListener) {
+    globalScope.window.removeEventListener = originalWindowRemoveEventListener;
+  } else {
+    Reflect.deleteProperty(globalScope.window, 'removeEventListener');
+  }
+
+  if (originalWindow === undefined) {
+    Reflect.deleteProperty(globalScope, 'window');
+  } else {
+    globalScope.window = originalWindow;
+  }
+};
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
+  usePathname: () => '/',
+  Link: mockLink,
+}));
+
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({
+    breakpoint: 'desktop',
+    contentWidth: 720,
+    textWidth: 720,
+    gap: 16,
+    marginHorizontal: 24,
+    rootFontSize: 16,
+    scale: 1,
+  }),
+}));
+
 // Mock icon component for testing
 const MockIcon = () => <ThemedText>Icon</ThemedText>;
+const mockImpactAsync = Haptics.impactAsync as jest.MockedFunction<
+  typeof Haptics.impactAsync
+>;
 
 const createIconProbe = () => {
   const calls: { color?: string; size?: string }[] = [];
@@ -19,6 +140,21 @@ const createIconProbe = () => {
 };
 
 describe('IconButton Component', () => {
+  beforeEach(() => {
+    mockPush.mockClear();
+    mockResolveHref.mockReset();
+    mockResolveHref.mockImplementation(defaultResolveHref);
+    mockLink.resolveHref = (href) => mockResolveHref(href);
+    mockImpactAsync.mockClear();
+    restorePlatformOS();
+    installWindowEventListenerMocks();
+  });
+
+  afterEach(() => {
+    restorePlatformOS();
+    restoreWindowEventListenerMocks();
+  });
+
   describe('Rendering', () => {
     it('renders with icon prop', () => {
       render(<IconButton icon={<MockIcon />} accessibilityLabel='Close' />);
@@ -163,6 +299,33 @@ describe('IconButton Component', () => {
       expect(onPress).toHaveBeenCalledTimes(1);
     });
 
+    it('triggers a light impact haptic once when enableHaptics is true', () => {
+      render(
+        <IconButton
+          icon={<MockIcon />}
+          enableHaptics
+          accessibilityLabel='Haptic Button'
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText('Haptic Button'));
+
+      expect(mockImpactAsync).toHaveBeenCalledTimes(1);
+      expect(mockImpactAsync).toHaveBeenCalledWith(
+        Haptics.ImpactFeedbackStyle.Light,
+      );
+    });
+
+    it('does not trigger impact haptics when enableHaptics is false', () => {
+      render(
+        <IconButton icon={<MockIcon />} accessibilityLabel='Silent Button' />,
+      );
+
+      fireEvent.press(screen.getByLabelText('Silent Button'));
+
+      expect(mockImpactAsync).not.toHaveBeenCalled();
+    });
+
     it('does not call onPress when disabled', () => {
       const onPress = jest.fn();
       render(
@@ -176,6 +339,7 @@ describe('IconButton Component', () => {
 
       fireEvent.press(screen.getByLabelText('Disabled'));
       expect(onPress).not.toHaveBeenCalled();
+      expect(mockImpactAsync).not.toHaveBeenCalled();
     });
 
     it('does not call onLongPress when disabled', () => {
@@ -278,6 +442,69 @@ describe('IconButton Component', () => {
       );
       const button = getByRole('button');
       expect(button.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it('renders a real href on web when href is provided', () => {
+      setPlatformOS('web');
+
+      render(
+        <IconButton
+          icon={<MockIcon />}
+          href='https://example.com/profile'
+          accessibilityLabel='Profile'
+        />,
+      );
+
+      expect(screen.getByLabelText('Profile').props.href).toBe(
+        'https://example.com/profile',
+      );
+      expect(screen.getByLabelText('Profile').props.accessibilityRole).toBe(
+        'link',
+      );
+    });
+
+    it('falls back to hrefPath on web when router href resolution is unavailable', () => {
+      setPlatformOS('web');
+      mockLink.resolveHref = undefined;
+
+      render(
+        <IconButton
+          icon={<MockIcon />}
+          href={{ pathname: '/about' }}
+          hrefPath='/profile'
+          accessibilityLabel='Profile Fallback'
+        />,
+      );
+
+      expect(screen.getByLabelText('Profile Fallback').props.href).toBe(
+        '/profile',
+      );
+    });
+  });
+
+  describe('Non-interactive', () => {
+    it('renders a non-interactive visual-only container', () => {
+      const { toJSON } = render(
+        <IconButton
+          interactive={false}
+          variant='subtle'
+          hovered
+          icon={<MockIcon />}
+        />,
+      );
+
+      const tree = toJSON() as ReactTestRendererJSON | null;
+
+      expect(tree).toBeTruthy();
+      if (!tree) {
+        throw new Error('Expected rendered tree to be non-null');
+      }
+      expect(tree.props.accessibilityElementsHidden).toBe(true);
+      expect(tree.props.importantForAccessibility).toBe('no-hide-descendants');
+      expect(StyleSheet.flatten(tree.props.style).pointerEvents).toBe('none');
+      expect(tree.props.accessibilityElementsHidden).toBe(true);
+      expect(tree.props.importantForAccessibility).toBe('no-hide-descendants');
+      expect(StyleSheet.flatten(tree.props.style).pointerEvents).toBe('none');
     });
   });
 
