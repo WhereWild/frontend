@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
+import type { HeatmapStatusMessage } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
@@ -386,6 +387,8 @@ export default function Species({
   const [phenologyMode, setPhenologyMode] =
     React.useState<HeatmapMode>('combined');
   const [forecastHours, setForecastHours] = React.useState<number>(0);
+  const [heatmapStatus, setHeatmapStatus] =
+    React.useState<HeatmapStatusMessage | null>(null);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<
     (number | string)[]
   >([]);
@@ -447,6 +450,15 @@ export default function Species({
       showPredictiveHeatmap,
     ],
   );
+  const predictiveHeatmapWarning = React.useMemo(() => {
+    if (!showPredictiveHeatmap || !activeTileUrl) {
+      return null;
+    }
+    if (heatmapStatus?.status !== 'unavailable') {
+      return null;
+    }
+    return 'Predictive heatmap tiles are timing out or failing to load right now. You can keep browsing observations while the overlay recovers.';
+  }, [activeTileUrl, heatmapStatus?.status, showPredictiveHeatmap]);
 
   const {
     countryOptions,
@@ -490,6 +502,10 @@ export default function Species({
     }
     setShowPredictiveHeatmap(false);
   }, [hasInferenceHeatmap, hasLegacyHeatmap]);
+
+  React.useEffect(() => {
+    setHeatmapStatus(null);
+  }, [activeTileUrl, showPredictiveHeatmap]);
 
   React.useEffect(() => {
     if (heatmapSource === 'inference' && hasInferenceHeatmap) {
@@ -640,6 +656,11 @@ export default function Species({
                     description={predictiveHeatmapDescription}
                     onValueChange={setShowPredictiveHeatmap}
                   />
+                  {predictiveHeatmapWarning ? (
+                    <ThemedText variant='bodySmall'>
+                      {predictiveHeatmapWarning}
+                    </ThemedText>
+                  ) : null}
                   {showPredictiveHeatmap && heatmapSourceOptions.length > 1 && (
                     <SelectionChipGroup
                       options={heatmapSourceOptions}
@@ -696,6 +717,7 @@ export default function Species({
                 showMarkers={showObservations}
                 heatmapTileUrl={activeTileUrl}
                 heatmapOpacity={0.72}
+                onHeatmapStatusChange={setHeatmapStatus}
                 onPinObservation={handlePinObservation}
               />
             )}

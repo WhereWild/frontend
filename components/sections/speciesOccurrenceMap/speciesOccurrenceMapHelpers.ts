@@ -6,6 +6,7 @@ export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
 export const SET_HEATMAP_OVERLAY_MESSAGE_TYPE = 'set_heatmap_overlay';
+export const HEATMAP_STATUS_MESSAGE_TYPE = 'heatmap_status';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -43,6 +44,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   highlightType: '__HIGHLIGHT_MESSAGE_TYPE_JSON__',
   openExternalUrlType: '__OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__',
   setHeatmapOverlayType: '__SET_HEATMAP_OVERLAY_MESSAGE_TYPE_JSON__',
+  heatmapStatusType: '__HEATMAP_STATUS_MESSAGE_TYPE_JSON__',
   heatmapTileUrl: '__HEATMAP_TILE_URL_JSON__',
   heatmapOpacity: '__HEATMAP_OPACITY__',
   minZoom: '__MIN_ZOOM__',
@@ -86,16 +88,50 @@ export type SetHeatmapOverlayMessage = {
   tileUrl?: string | null;
 };
 
+export type HeatmapStatusMessage = {
+  type: typeof HEATMAP_STATUS_MESSAGE_TYPE;
+  status: 'ok' | 'unavailable';
+  tileUrl?: string | null;
+  reason?: 'http' | 'load' | 'network' | 'timeout' | 'unknown';
+  failureCount?: number;
+};
+
 export type MapInboundMessage =
   | HighlightMessage
   | PinObservationMessage
   | SelectedPointMessage
-  | OpenExternalUrlMessage;
+  | OpenExternalUrlMessage
+  | HeatmapStatusMessage;
 
 export type MapRuntimeMessage =
   | HighlightMessage
   | SelectedPointMessage
   | SetHeatmapOverlayMessage;
+
+export const isHeatmapStatusMessage = (
+  msg: unknown,
+): msg is HeatmapStatusMessage => {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  const status = m.status;
+  const reason = m.reason;
+  const failureCount = m.failureCount;
+  return (
+    m.type === HEATMAP_STATUS_MESSAGE_TYPE &&
+    (status === 'ok' || status === 'unavailable') &&
+    (m.tileUrl === undefined ||
+      m.tileUrl === null ||
+      typeof m.tileUrl === 'string') &&
+    (reason === undefined ||
+      reason === 'http' ||
+      reason === 'load' ||
+      reason === 'network' ||
+      reason === 'timeout' ||
+      reason === 'unknown') &&
+    (failureCount === undefined ||
+      (typeof failureCount === 'number' && Number.isFinite(failureCount)))
+  );
+};
 
 export const isPinObservationMessage = (
   msg: unknown,
@@ -258,6 +294,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.setHeatmapOverlayType)
     .join(JSON.stringify(SET_HEATMAP_OVERLAY_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapStatusType)
+    .join(JSON.stringify(HEATMAP_STATUS_MESSAGE_TYPE));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapTileUrl)
     .join(heatmapTileUrl ? JSON.stringify(heatmapTileUrl) : 'null');

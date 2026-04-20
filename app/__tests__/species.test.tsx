@@ -113,6 +113,7 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       error,
       height,
       heatmapTileUrl,
+      onHeatmapStatusChange,
       showMarkers,
       selectedPoint,
       onPinObservation,
@@ -122,6 +123,11 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
       error?: string | null;
       height?: number;
       heatmapTileUrl?: string | null;
+      onHeatmapStatusChange?: (message: {
+        type: string;
+        status: 'ok' | 'unavailable';
+        tileUrl?: string | null;
+      }) => void;
       showMarkers?: boolean;
       selectedPoint?: { lat: number; lon: number } | null;
       onPinObservation?: (
@@ -138,6 +144,18 @@ jest.mock('@/components/sections/SpeciesOccurrenceMap', () => {
         <Text>{`Map markers: ${showMarkers === false ? 'hidden' : 'shown'}`}</Text>
         <Text>{`Map tile heatmap: ${heatmapTileUrl ?? 'none'}`}</Text>
         <Text>{`Map selected point: ${selectedPoint ? `${selectedPoint.lat},${selectedPoint.lon}` : 'none'}`}</Text>
+        <Pressable
+          testID='mock-map-heatmap-unavailable'
+          onPress={() =>
+            onHeatmapStatusChange?.({
+              type: 'heatmap_status',
+              status: 'unavailable',
+              tileUrl: heatmapTileUrl,
+            })
+          }
+        >
+          <Text>Heatmap unavailable</Text>
+        </Pressable>
         <Pressable
           testID='mock-map-pin-observation'
           onPress={() => onPinObservation?.('obs-1', 10, 20)}
@@ -656,6 +674,25 @@ describe('Species screen', () => {
         'Predictive heatmap tiles are unavailable for this species right now.',
       ),
     ).toBeTruthy();
+  });
+
+  it('shows a predictive heatmap warning when the active overlay repeatedly fails', async () => {
+    render(<SpeciesScreen data={createData()} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+    fireEvent.press(screen.getByTestId('mock-map-heatmap-unavailable'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Predictive heatmap tiles are timing out or failing to load right now. You can keep browsing observations while the overlay recovers.',
+        ),
+      ).toBeTruthy();
+    });
   });
 
   it('shows the no-heatmap message when neither live nor static heatmap data exists', async () => {

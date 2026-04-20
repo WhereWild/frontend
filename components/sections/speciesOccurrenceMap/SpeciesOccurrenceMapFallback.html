@@ -32,6 +32,7 @@
     const SELECTED_POINT_MESSAGE_TYPE = __SELECTED_POINT_MESSAGE_TYPE_JSON__;
     const OPEN_EXTERNAL_URL_MESSAGE_TYPE = __OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__;
     const SET_HEATMAP_OVERLAY_MESSAGE_TYPE = __SET_HEATMAP_OVERLAY_MESSAGE_TYPE_JSON__;
+    const HEATMAP_STATUS_MESSAGE_TYPE = __HEATMAP_STATUS_MESSAGE_TYPE_JSON__;
 
     const MERCATOR_MAX_LAT = 85.05112878;
     const TILE_SIZE = 256;
@@ -44,6 +45,8 @@
     const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
+    const HEATMAP_FAILURE_THRESHOLD = 3;
+    const HEATMAP_TILE_TIMEOUT_MS = 45000;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
@@ -120,6 +123,14 @@
       );
     }
 
+    function postMapMessage(msg) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        window.parent.postMessage(msg, '*');
+      }
+    }
+
     function createAbortableHeatmapLayer(urlTemplate) {
       const layer = L.tileLayer(urlTemplate, {
         opacity: HEATMAP_OPACITY,
@@ -152,12 +163,24 @@
         const tile = document.createElement('img');
         const controller = new AbortController();
         let finished = false;
+        let timedOut = false;
+        const timeoutHandle = setTimeout(function() {
+          timedOut = true;
+          controller.abort();
+        }, HEATMAP_TILE_TIMEOUT_MS);
+        const clearTileTimeout = function() {
+          clearTimeout(timeoutHandle);
+        };
+        controller.signal.addEventListener('abort', clearTileTimeout, {
+          once: true,
+        });
 
         function finish(error) {
           if (finished) {
             return;
           }
           finished = true;
+          clearTileTimeout();
           done(error || null, tile);
         }
 
@@ -176,15 +199,20 @@
         tile.onload = function() {
           revokeObjectUrl();
           controllers.delete(tile);
+          notifyHeatmapHealthy();
           finish(null);
         };
         tile.onerror = function(error) {
           revokeObjectUrl();
           controllers.delete(tile);
           if (controller.signal.aborted) {
+            if (timedOut) {
+              notifyHeatmapFailure('timeout');
+            }
             finish(null);
             return;
           }
+          notifyHeatmapFailure('load');
           finish(error || new Error('Heatmap tile image load failed'));
         };
 
@@ -211,8 +239,16 @@
             revokeObjectUrl();
             controllers.delete(tile);
             if (error && error.name === 'AbortError') {
+              if (timedOut) {
+                notifyHeatmapFailure('timeout');
+              }
               finish(null);
               return;
+            }
+            if (error && /status/.test(String(error.message || ''))) {
+              notifyHeatmapFailure('http');
+            } else {
+              notifyHeatmapFailure('network');
             }
             finish(error);
           });
@@ -225,15 +261,69 @@
 
     let heatmapTileLayer = null;
     let heatmapTileUrl = typeof HEATMAP_TILE_URL === 'string' ? HEATMAP_TILE_URL : '';
+    let heatmapFailureCount = 0;
+    let heatmapStatus = 'ok';
+
+    function resetHeatmapHealth() {
+      heatmapFailureCount = 0;
+      heatmapStatus = 'ok';
+    }
+
+    function notifyHeatmapHealthy() {
+      if (!heatmapTileUrl) {
+        resetHeatmapHealth();
+        return;
+      }
+      heatmapFailureCount = 0;
+      if (heatmapStatus === 'ok') {
+        return;
+      }
+      heatmapStatus = 'ok';
+      postMapMessage({
+        type: HEATMAP_STATUS_MESSAGE_TYPE,
+        status: 'ok',
+        tileUrl: heatmapTileUrl,
+      });
+    }
+
+    function notifyHeatmapFailure(reason) {
+      if (!heatmapTileUrl) {
+        return;
+      }
+      heatmapFailureCount += 1;
+      if (heatmapFailureCount < HEATMAP_FAILURE_THRESHOLD) {
+        return;
+      }
+      if (heatmapStatus === 'unavailable') {
+        return;
+      }
+      heatmapStatus = 'unavailable';
+      postMapMessage({
+        type: HEATMAP_STATUS_MESSAGE_TYPE,
+        status: 'unavailable',
+        tileUrl: heatmapTileUrl,
+        reason: reason || 'unknown',
+        failureCount: heatmapFailureCount,
+      });
+    }
 
     function createHeatmapTileLayer(url) {
-      return supportsAbortableTileFetch()
-        ? createAbortableHeatmapLayer(url)
-        : L.tileLayer(url, {
+      if (supportsAbortableTileFetch()) {
+        return createAbortableHeatmapLayer(url);
+      }
+
+      const layer = L.tileLayer(url, {
             opacity: HEATMAP_OPACITY,
             tileSize: 256,
             maxZoom: TILE_MAX_ZOOM,
           });
+      layer.on('tileload', function() {
+        notifyHeatmapHealthy();
+      });
+      layer.on('tileerror', function() {
+        notifyHeatmapFailure('load');
+      });
+      return layer;
     }
 
     function clearHeatmapTileLayer() {
@@ -251,6 +341,7 @@
 
       if (!data.enabled || !data.tileUrl) {
         heatmapTileUrl = '';
+        resetHeatmapHealth();
         clearHeatmapTileLayer();
         return;
       }
@@ -264,6 +355,7 @@
 
       clearHeatmapTileLayer();
       heatmapTileUrl = data.tileUrl;
+      resetHeatmapHealth();
       heatmapTileLayer = createHeatmapTileLayer(data.tileUrl).addTo(map);
     }
 
@@ -319,11 +411,7 @@
         latitude: latitude,
         longitude: longitude,
       };
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else {
-        window.parent.postMessage(msg, '*');
-      }
+      postMapMessage(msg);
       map.closePopup();
     }
 
@@ -332,11 +420,7 @@
         type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
         url: url,
       };
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else {
-        window.parent.postMessage(msg, '*');
-      }
+      postMapMessage(msg);
     }
 
     function handlePinButtonClick(event) {

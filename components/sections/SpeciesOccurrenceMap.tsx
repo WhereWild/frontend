@@ -16,10 +16,12 @@ import { ThemedText } from '../text/ThemedText';
 import {
   buildLeafletHtml,
   getMapTileUrlTemplate,
+  isHeatmapStatusMessage,
   loadFallbackMapTemplate,
   loadMapTemplate,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
+  type HeatmapStatusMessage,
   type MapMarkerPalette,
   type MapRuntimeMessage,
   SET_HEATMAP_OVERLAY_MESSAGE_TYPE,
@@ -71,6 +73,7 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
+  onHeatmapStatusChange?: (message: HeatmapStatusMessage) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
 };
@@ -93,6 +96,7 @@ export function SpeciesOccurrenceMap({
   linkObservations = true,
   allowPinObservations = true,
   onPinObservation,
+  onHeatmapStatusChange,
   selectedPoint = null,
   onBoundsChange,
 }: SpeciesOccurrenceMapProps) {
@@ -136,7 +140,7 @@ export function SpeciesOccurrenceMap({
     void Linking.openURL(url);
   }, []);
 
-  const handleNativeMapMessage = React.useCallback(
+  const handleMapMessage = React.useCallback(
     (msg: unknown) => {
       if (isPinObservationMessage(msg)) {
         handlePinObservation(msg.catalogNumber, msg.latitude, msg.longitude);
@@ -150,9 +154,25 @@ export function SpeciesOccurrenceMap({
 
       if (isTilesChangedMessage(msg)) {
         onBoundsChange?.(msg);
+        return;
       }
+
+      if (!isHeatmapStatusMessage(msg)) {
+        return;
+      }
+
+      if (heatmapTileUrl && msg.tileUrl && msg.tileUrl !== heatmapTileUrl) {
+        return;
+      }
+      onHeatmapStatusChange?.(msg);
     },
-    [handlePinObservation, onBoundsChange, openExternalUrl],
+    [
+      handlePinObservation,
+      heatmapTileUrl,
+      onBoundsChange,
+      onHeatmapStatusChange,
+      openExternalUrl,
+    ],
   );
   React.useEffect(() => {
     if (loading || error || !hasMapContent) {
@@ -331,30 +351,8 @@ export function SpeciesOccurrenceMap({
       const frameWindow = iframeRef.current?.contentWindow;
       const { data, source } = event;
 
-      if (
-        frameWindow &&
-        source === frameWindow &&
-        isPinObservationMessage(data)
-      ) {
-        handlePinObservation(data.catalogNumber, data.latitude, data.longitude);
-        return;
-      }
-
-      if (
-        frameWindow &&
-        source === frameWindow &&
-        isOpenExternalUrlMessage(data)
-      ) {
-        openExternalUrl(data.url);
-        return;
-      }
-
-      if (
-        frameWindow &&
-        source === frameWindow &&
-        isTilesChangedMessage(data)
-      ) {
-        onBoundsChange?.(data);
+      if (frameWindow && source === frameWindow) {
+        handleMapMessage(data);
       }
     };
     window.addEventListener('message', handler);
@@ -363,7 +361,7 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [handlePinObservation, onBoundsChange, openExternalUrl]);
+  }, [handleMapMessage]);
 
   if (error) {
     return (
@@ -438,7 +436,7 @@ export function SpeciesOccurrenceMap({
             onMessage={(event) => {
               try {
                 const msg = JSON.parse(event.nativeEvent.data) as unknown;
-                handleNativeMapMessage(msg);
+                handleMapMessage(msg);
               } catch {}
             }}
           />

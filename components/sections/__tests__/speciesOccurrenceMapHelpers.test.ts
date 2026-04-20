@@ -5,7 +5,9 @@ import { Asset } from 'expo-asset';
 import {
   buildLeafletHtml,
   getMapTileUrlTemplate,
+  HEATMAP_STATUS_MESSAGE_TYPE,
   HIGHLIGHT_MESSAGE_TYPE,
+  isHeatmapStatusMessage,
   isOpenExternalUrlEventFromFrame,
   isOpenExternalUrlMessage,
   isPinObservationEventFromFrame,
@@ -235,6 +237,8 @@ describe('speciesOccurrenceMapHelpers', () => {
         JSON,
         isFinite,
         URL: urlApi,
+        setTimeout,
+        clearTimeout,
         fetch: undefined as
           | ((
               input: string,
@@ -842,6 +846,135 @@ describe('speciesOccurrenceMapHelpers', () => {
     );
   });
 
+  it('reports the heatmap as unavailable after repeated tile errors', async () => {
+    const templatePaths = [
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
+    ];
+
+    await Promise.all(
+      templatePaths.map(async (templatePath) => {
+        const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+        const html = buildLeafletHtml(
+          rawTemplate,
+          [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+          markerPalette,
+          getMapTileUrlTemplate('light'),
+          'https://example.test/tiles/{z}/{x}/{y}.png',
+        );
+        const harness = createLeafletHarness();
+        vm.runInNewContext(extractInlineScript(html), harness.context);
+
+        const heatmapLayer = (harness.context.L.tileLayer as jest.Mock).mock
+          .results[1]?.value;
+        expect(heatmapLayer).toBeTruthy();
+
+        const tileErrorHandler = heatmapLayer.on.mock.calls.find(
+          (call: unknown[]) => call[0] === 'tileerror',
+        )?.[1] as (() => void) | undefined;
+        expect(tileErrorHandler).toBeTruthy();
+
+        for (let index = 0; index < 3; index += 1) {
+          tileErrorHandler?.();
+        }
+
+        const heatmapStatusCalls = (
+          harness.context.window.parent.postMessage as jest.Mock
+        ).mock.calls.filter(
+          (call: unknown[]) =>
+            (call[0] as { type?: unknown } | undefined)?.type ===
+            HEATMAP_STATUS_MESSAGE_TYPE,
+        );
+
+        expect(heatmapStatusCalls).toContainEqual([
+          expect.objectContaining({
+            type: HEATMAP_STATUS_MESSAGE_TYPE,
+            status: 'unavailable',
+            reason: 'load',
+            failureCount: 3,
+          }),
+          '*',
+        ]);
+      }),
+    );
+  });
+
+  it('aborts heatmap tile fetches after the timeout window elapses', async () => {
+    jest.useFakeTimers();
+
+    const templatePaths = [
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapFallback.html',
+      ),
+    ];
+
+    try {
+      await Promise.all(
+        templatePaths.map(async (templatePath) => {
+          const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+          const html = buildLeafletHtml(
+            rawTemplate,
+            [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+            markerPalette,
+            getMapTileUrlTemplate('light'),
+            'https://example.test/tiles/{z}/{x}/{y}.png',
+          );
+          const harness = createLeafletHarness();
+          harness.context.fetch = jest.fn(
+            (_url: string, options?: { signal?: AbortSignal }) =>
+              new Promise((_resolve, reject) => {
+                options?.signal?.addEventListener('abort', () => {
+                  const abortError = new Error('aborted');
+                  abortError.name = 'AbortError';
+                  reject(abortError);
+                });
+              }),
+          );
+          harness.context.AbortController = AbortController;
+
+          vm.runInNewContext(extractInlineScript(html), harness.context);
+
+          const heatmapLayer = (harness.context.L.tileLayer as jest.Mock).mock
+            .results[1]?.value;
+          expect(heatmapLayer).toBeTruthy();
+
+          const done = jest.fn();
+          heatmapLayer.createTile({ z: 3, x: 4, y: 5 }, done);
+
+          const fetchOptions = (harness.context.fetch as jest.Mock).mock
+            .calls[0]?.[1] as { signal?: AbortSignal } | undefined;
+          expect(fetchOptions?.signal?.aborted).toBe(false);
+
+          jest.advanceTimersByTime(45000);
+          await Promise.resolve();
+
+          expect(fetchOptions?.signal?.aborted).toBe(true);
+        }),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('accepts only well-formed pin observation messages', () => {
     expect(
       isPinObservationMessage({
@@ -888,6 +1021,33 @@ describe('speciesOccurrenceMapHelpers', () => {
       isOpenExternalUrlMessage({
         type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
         url: 123,
+      }),
+    ).toBe(false);
+  });
+
+  it('accepts only well-formed heatmap status messages', () => {
+    expect(
+      isHeatmapStatusMessage({
+        type: HEATMAP_STATUS_MESSAGE_TYPE,
+        status: 'unavailable',
+        tileUrl: 'https://example.test/tiles/{z}/{x}/{y}.png',
+        reason: 'timeout',
+        failureCount: 3,
+      }),
+    ).toBe(true);
+
+    expect(
+      isHeatmapStatusMessage({
+        type: HEATMAP_STATUS_MESSAGE_TYPE,
+        status: 'broken',
+      }),
+    ).toBe(false);
+
+    expect(
+      isHeatmapStatusMessage({
+        type: HEATMAP_STATUS_MESSAGE_TYPE,
+        status: 'ok',
+        failureCount: '3',
       }),
     ).toBe(false);
   });
