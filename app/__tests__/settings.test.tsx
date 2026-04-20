@@ -14,6 +14,7 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<
 const mockUseSettings = useSettings as jest.MockedFunction<typeof useSettings>;
 
 const mockSetUnits = jest.fn();
+const mockSetColorModeOverride = jest.fn();
 const mockSelectField = jest.fn();
 
 function getSelectFieldChangeHandler(
@@ -45,6 +46,13 @@ jest.mock('@/constants/responsiveStyles', () => ({
   getResponsiveContentContainerStyle: jest.fn(() => ({
     paddingHorizontal: 12,
   })),
+}));
+
+jest.mock('@/context/SettingsContext', () => ({
+  useSettings: jest.fn(),
+  isUnitSystem: (value: string) => value === 'metric' || value === 'imperial',
+  isColorModeOverride: (value: string) =>
+    value === 'system' || value === 'light' || value === 'dark',
 }));
 
 jest.mock('@/components', () => {
@@ -115,6 +123,8 @@ describe('Settings screen', () => {
       setUnits: mockSetUnits,
       language: 'en',
       setLanguage: jest.fn(),
+      colorModeOverride: 'system',
+      setColorModeOverride: mockSetColorModeOverride,
     });
   });
 
@@ -133,9 +143,30 @@ describe('Settings screen', () => {
 
       expect(screen.queryByTestId('page-title')).toBeNull();
       expect(screen.getByText('Localization')).toBeTruthy();
+      expect(screen.getByTestId('select-Color mode')).toBeTruthy();
       expect(screen.getByTestId('select-Location')).toBeTruthy();
       expect(screen.getByTestId('select-Language')).toBeTruthy();
       expect(screen.getByTestId('select-Units')).toBeTruthy();
+    });
+
+    it('renders color mode override with device default selected', () => {
+      mockUseColorScheme.mockReturnValue('dark');
+
+      render(<Settings />);
+
+      const colorModeCall = mockSelectField.mock.calls.find(
+        ([props]) => props?.label === 'Color mode',
+      );
+
+      expect(colorModeCall?.[0]).toMatchObject({
+        allowSearch: false,
+        value: 'system',
+        options: [
+          { label: 'Device default', value: 'system' },
+          { label: 'Light', value: 'light' },
+          { label: 'Dark', value: 'dark' },
+        ],
+      });
     });
 
     it('renders disabled location and language fields with fixed values', () => {
@@ -179,6 +210,27 @@ describe('Settings screen', () => {
       expect(mockSetUnits).toHaveBeenNthCalledWith(1, 'metric');
       expect(mockSetUnits).toHaveBeenNthCalledWith(2, 'imperial');
       expect(mockSetUnits).not.toHaveBeenCalledWith('kelvin');
+    });
+
+    it('only accepts valid color mode override values', () => {
+      mockUseColorScheme.mockReturnValue('dark');
+
+      render(<Settings />);
+
+      const onColorModeChange = getSelectFieldChangeHandler('Color mode');
+
+      act(() => {
+        onColorModeChange?.('system');
+        onColorModeChange?.('light');
+        onColorModeChange?.('dark');
+        onColorModeChange?.('sepia');
+      });
+
+      expect(mockSetColorModeOverride).toHaveBeenCalledTimes(3);
+      expect(mockSetColorModeOverride).toHaveBeenNthCalledWith(1, 'system');
+      expect(mockSetColorModeOverride).toHaveBeenNthCalledWith(2, 'light');
+      expect(mockSetColorModeOverride).toHaveBeenNthCalledWith(3, 'dark');
+      expect(mockSetColorModeOverride).not.toHaveBeenCalledWith('sepia');
     });
 
     it('shows a native-only about button that opens the about page', () => {
