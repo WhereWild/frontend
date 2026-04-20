@@ -175,6 +175,7 @@ export const useSearchInputController = ({
     onPress: () => submitSearch(currentValue),
     accessibilityLabel: 'Start search',
     disabled,
+    enableHaptics: true,
     icon: <IconSearch />,
   };
 
@@ -183,6 +184,7 @@ export const useSearchInputController = ({
         onPress: clearValue,
         accessibilityLabel: 'Clear search',
         disabled: false,
+        enableHaptics: false,
         icon: <IconX />,
       }
     : undefined;

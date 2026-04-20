@@ -21,6 +21,7 @@ const CONUS_MAX_BOUNDS: [[number, number], [number, number]] = [
 export type LocalMapSectionProps = {
   heatmapTileUrl?: string | null;
   showHeading?: boolean;
+  fillAvailableHeight?: boolean;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -28,11 +29,20 @@ export type LocalMapSectionProps = {
 export function LocalMapSection({
   heatmapTileUrl = null,
   showHeading = true,
+  fillAvailableHeight = false,
   onBoundsChange,
   style,
 }: LocalMapSectionProps) {
   return (
-    <View style={[styles.section, style]}>
+    <View
+      testID='local-map-section-root'
+      style={[
+        styles.section,
+        showHeading && styles.sectionWithHeading,
+        fillAvailableHeight && styles.sectionFill,
+        style,
+      ]}
+    >
       {showHeading ? (
         <ThemedText variant='heading'>Local Map</ThemedText>
       ) : null}
@@ -41,7 +51,7 @@ export function LocalMapSection({
         heatmapTileUrl={heatmapTileUrl}
         heatmapOpacity={0.7}
         showMarkers={false}
-        height={MAP_HEIGHT}
+        height={fillAvailableHeight ? undefined : MAP_HEIGHT}
         minZoom={CONUS_MIN_ZOOM}
         maxZoom={CONUS_MAX_ZOOM}
         initialLat={CONUS_INITIAL_LAT}
@@ -57,7 +67,13 @@ export function LocalMapSection({
 
 const styles = StyleSheet.create({
   section: {
-    gap: Size.space['400'],
     width: '100%',
+  },
+  sectionWithHeading: {
+    gap: Size.space['400'],
+  },
+  sectionFill: {
+    flex: 1,
+    minHeight: 0,
   },
 });

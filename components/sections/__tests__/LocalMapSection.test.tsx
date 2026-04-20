@@ -1,5 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
+import { Size } from '@/constants/theme';
+import { StyleSheet, type ViewStyle } from 'react-native';
 import { LocalMapSection } from '../LocalMapSection';
 
 jest.mock('../SpeciesOccurrenceMap', () => {
@@ -51,6 +53,9 @@ jest.mock('../SpeciesOccurrenceMap', () => {
 });
 
 describe('LocalMapSection', () => {
+  const flattenStyle = (style: unknown): ViewStyle =>
+    StyleSheet.flatten(style) as ViewStyle;
+
   it('renders the heading and passes the expected map configuration', () => {
     render(
       <LocalMapSection heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png' />,
@@ -75,11 +80,19 @@ describe('LocalMapSection', () => {
     expect(screen.getByTestId('map-max-bounds').props.children).toContain(
       '-135',
     );
+    expect(
+      flattenStyle(screen.getByTestId('local-map-section-root').props.style)
+        .gap,
+    ).toBe(Size.space['400']);
   });
 
   it('omits the heading when showHeading is false', () => {
     render(<LocalMapSection showHeading={false} />);
 
     expect(screen.queryByText('Local Map')).toBeNull();
+    expect(
+      flattenStyle(screen.getByTestId('local-map-section-root').props.style)
+        .gap,
+    ).toBeUndefined();
   });
 });

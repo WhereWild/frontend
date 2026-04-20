@@ -129,6 +129,7 @@ describe('Help screen', () => {
   it('renders the help page title and key sections', () => {
     render(<HelpScreen />);
 
+    expect(screen.queryByText('Help')).toBeNull();
     expect(screen.getByText('How do I use WhereWild?')).toBeTruthy();
     expect(screen.getByText('Homepage')).toBeTruthy();
     expect(screen.getByText('Species page')).toBeTruthy();

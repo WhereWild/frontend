@@ -19,6 +19,7 @@ export type SearchInputIconButtonProps = {
   onPress?: () => void;
   accessibilityLabel: string;
   disabled: boolean;
+  enableHaptics?: boolean;
   icon: React.ReactNode;
 };
 
@@ -115,6 +116,7 @@ export function SearchInputView({
         icon={searchButton.icon}
         accessibilityLabel={searchButton.accessibilityLabel}
         disabled={searchButton.disabled}
+        enableHaptics={searchButton.enableHaptics}
         onPress={searchButton.onPress}
       />
 
@@ -135,6 +137,7 @@ export function SearchInputView({
             icon={clearButton.icon}
             accessibilityLabel={clearButton.accessibilityLabel}
             disabled={clearButton.disabled}
+            enableHaptics={clearButton.enableHaptics}
             onPress={clearButton.onPress}
           />
         ) : (

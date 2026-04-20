@@ -9,9 +9,10 @@ import {
 } from '@expo-google-fonts/domine';
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono';
 import {
-  IconHome,
+  IconFilter,
+  IconCompass,
   IconHelpCircle,
-  IconInfo,
+  IconMap,
   IconSearch,
   IconSettings,
 } from '@/assets/icons';
@@ -20,6 +21,7 @@ import {
   TopAppBar,
   WebPageHeader,
   type NavigationBarProps,
+  type TopAppBarProps,
 } from '@/components';
 import {
   NativePortalHost,
@@ -41,6 +43,10 @@ import {
   resolveNativeTopAppBarConfigForRoute,
   useNativeTopAppBarConfig,
 } from '@/context/NativeTopAppBarContext';
+import {
+  NativeHomeTabsProvider,
+  useNativeHomeTabs,
+} from '@/context/NativeHomeTabsContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import React, {
@@ -58,13 +64,11 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-const TOP_LEVEL_PATHS = [
-  '/',
-  '/about',
-  '/help',
-  '/search',
-  '/settings',
-] as const;
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
+const TOP_LEVEL_PATHS = ['/', '/map', '/help', '/search', '/settings'] as const;
 const NOOP = () => {};
 const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
@@ -115,33 +119,147 @@ const isTopLevelPath = (value: string): value is TopLevelPath =>
 const isSpeciesPath = (value: string): value is `/species/${string}` =>
   value.startsWith('/species/');
 
-const toHistoryHref = (route: string): Href | null => {
+const resolveTabRootRouteForOwnedSubpage = (
+  route: string,
+): TopLevelPath | null => {
+  if (
+    route === '/about' ||
+    route === '/acknowledgements' ||
+    route === '/upload'
+  ) {
+    return '/settings';
+  }
+
+  return null;
+};
+
+const resolveOwningTabForRoute = (
+  route: string,
+  fallbackTab: TopLevelPath,
+): TopLevelPath => {
+  const ownedRoute = resolveTabRootRouteForOwnedSubpage(route);
+  if (ownedRoute) {
+    return ownedRoute;
+  }
+
+  return fallbackTab;
+};
+
+const resolveInitialActiveTabForRoute = (route: string): TopLevelPath => {
   if (isTopLevelPath(route)) {
     return route;
   }
 
-  if (!isSpeciesPath(route)) {
-    return null;
+  return resolveTabRootRouteForOwnedSubpage(route) ?? '/';
+};
+
+const toHistoryHref = (route: string): Href | null => {
+  return route.startsWith('/') ? (route as Href) : null;
+};
+
+type NativeStaticTopAppBarConfig = {
+  variant: Exclude<TopAppBarProps['variant'], 'search'>;
+  title: string;
+  onPressBack?: () => void;
+  onPressLogo?: () => void;
+  primaryAction?: TopAppBarProps['primaryAction'];
+  secondaryAction?: TopAppBarProps['secondaryAction'];
+};
+
+const HIDDEN_TOP_APP_BAR_ACTION = { isVisible: false } as const;
+
+const NATIVE_STATIC_TOP_APP_BAR_CONFIG_BY_PATH: Partial<
+  Record<
+    string,
+    Omit<NativeStaticTopAppBarConfig, 'primaryAction' | 'secondaryAction'>
+  >
+> = {
+  '/': {
+    variant: 'home',
+    title: 'Active Near You',
+    onPressLogo: NOOP,
+  },
+  '/map': {
+    variant: 'home',
+    title: 'Local Map',
+    onPressLogo: NOOP,
+  },
+  '/help': {
+    variant: 'home',
+    title: 'Help',
+    onPressLogo: NOOP,
+  },
+  '/settings': {
+    variant: 'home',
+    title: 'Settings',
+    onPressLogo: NOOP,
+  },
+  '/about': {
+    variant: 'page',
+    title: 'About',
+  },
+  '/acknowledgements': {
+    variant: 'page',
+    title: 'Acknowledgements',
+  },
+  '/upload': {
+    variant: 'page',
+    title: 'Upload Custom Data',
+  },
+};
+
+const resolveNativeStaticTopAppBarConfig = (
+  pathname: string,
+  options: {
+    onPressBack: () => void;
+    filterAction: TopAppBarProps['primaryAction'];
+    resetFilterAction: TopAppBarProps['secondaryAction'];
+  },
+): NativeStaticTopAppBarConfig | null => {
+  if (isSpeciesPath(pathname)) {
+    return {
+      variant: 'page',
+      title: 'Species',
+      onPressBack: options.onPressBack,
+      primaryAction: HIDDEN_TOP_APP_BAR_ACTION,
+      secondaryAction: HIDDEN_TOP_APP_BAR_ACTION,
+    };
   }
 
-  const identifier = route
-    .replace('/species/', '')
-    .split('/')
-    .filter((segment) => segment.length > 0);
+  const staticConfig = NATIVE_STATIC_TOP_APP_BAR_CONFIG_BY_PATH[pathname];
 
-  if (identifier.length === 0) {
-    return null;
+  if (staticConfig) {
+    const usesFilterActions = pathname === '/' || pathname === '/map';
+
+    return {
+      ...staticConfig,
+      onPressBack:
+        staticConfig.variant === 'page' ? options.onPressBack : undefined,
+      primaryAction: usesFilterActions
+        ? options.filterAction
+        : HIDDEN_TOP_APP_BAR_ACTION,
+      secondaryAction: usesFilterActions
+        ? options.resetFilterAction
+        : HIDDEN_TOP_APP_BAR_ACTION,
+    };
   }
 
-  return {
-    pathname: '/species/[...identifier]',
-    params: { identifier },
-  };
+  if (isTopLevelPath(pathname)) {
+    return {
+      variant: 'home',
+      title: 'WhereWild',
+      onPressLogo: NOOP,
+      primaryAction: HIDDEN_TOP_APP_BAR_ACTION,
+      secondaryAction: HIDDEN_TOP_APP_BAR_ACTION,
+    };
+  }
+
+  return null;
 };
 
 const buildInitialTabRouteHistory = (): Record<TopLevelPath, string[]> => ({
   '/': ['/'],
-  '/about': ['/about'],
+  '/map': ['/map'],
   '/help': ['/help'],
   '/search': ['/search'],
   '/settings': ['/settings'],
@@ -281,21 +399,39 @@ function RootLayoutNativeFrame() {
   const pathname = usePathname();
   const colorScheme = useColorScheme();
   const { config: nativeTopAppBarConfig } = useNativeTopAppBarConfig();
+  const {
+    hasActiveFilter,
+    isFilterVisible,
+    setActiveGroup,
+    toggleFilterVisibility,
+  } = useNativeHomeTabs();
   const resolvedNativeTopAppBarConfig = resolveNativeTopAppBarConfigForRoute(
     pathname,
     nativeTopAppBarConfig,
   );
+  const initialActiveTabPath = React.useMemo(
+    () => resolveInitialActiveTabForRoute(pathname),
+    [pathname],
+  );
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const rootBackgroundColor = Colors[mode].background.default.default;
   const handlePressBack = useCallback(() => {
+    const ownedSubpageRoot = resolveTabRootRouteForOwnedSubpage(pathname);
+
+    if (ownedSubpageRoot && hasCanGoBack(router) && !router.canGoBack()) {
+      router.replace(ownedSubpageRoot as Href);
+      return;
+    }
+
     router.back();
-  }, [router]);
+  }, [pathname, router]);
   // UI highlight state must be explicit so route restores across tabs immediately
   // reflect the intended active tab, even before deeper screens finish rendering.
-  const [activeTabPath, setActiveTabPath] = useState<TopLevelPath>('/');
+  const [activeTabPath, setActiveTabPath] =
+    useState<TopLevelPath>(initialActiveTabPath);
   // Keeps the latest top-level tab context so nested routes (e.g. species pages)
   // can still be attributed to the tab that owns them.
-  const lastTopLevelPathRef = useRef<TopLevelPath>('/');
+  const lastTopLevelPathRef = useRef<TopLevelPath>(initialActiveTabPath);
   // During cross-tab restores we temporarily pin the destination tab so the next
   // route update is recorded under the correct tab instead of the previous one.
   const pendingTargetTabRef = useRef<TopLevelPath | null>(null);
@@ -345,7 +481,8 @@ function RootLayoutNativeFrame() {
     // Non-top-level routes are associated with whichever tab initiated them.
     // This preserves tab ownership for deep-linked screens while navigating.
     const associatedTab =
-      pendingTargetTabRef.current ?? lastTopLevelPathRef.current;
+      pendingTargetTabRef.current ??
+      resolveOwningTabForRoute(pathname, lastTopLevelPathRef.current);
     lastTopLevelPathRef.current = associatedTab;
     rememberRouteForTab(associatedTab, pathname);
     pendingTargetTabRef.current = null;
@@ -355,6 +492,12 @@ function RootLayoutNativeFrame() {
   const navigateIfDifferent = useCallback(
     (targetPath: TopLevelPath) => {
       if (activeTabPath === targetPath) {
+        const ownedSubpageRoot = resolveTabRootRouteForOwnedSubpage(pathname);
+
+        if (ownedSubpageRoot === targetPath && pathname !== targetPath) {
+          router.replace(targetPath as Href);
+        }
+
         return;
       }
 
@@ -376,13 +519,13 @@ function RootLayoutNativeFrame() {
       }
 
       if (targetRoute === targetPath) {
-        router.replace(targetPath);
+        router.replace(targetPath as Href);
         return;
       }
 
       // Rebuild the destination tab stack from root so back gestures work
       // within that tab after restore (root -> nested -> nested...).
-      router.replace(targetPath);
+      router.replace(targetPath as Href);
       targetHistory.slice(1).forEach((route) => {
         const href = toHistoryHref(route);
         if (href) {
@@ -391,6 +534,37 @@ function RootLayoutNativeFrame() {
       });
     },
     [activeTabPath, pathname, router],
+  );
+
+  const nativeFilterAction = useMemo(
+    () => ({
+      isVisible: true,
+      icon: <IconFilter />,
+      buttonLabel: isFilterVisible ? 'Hide filter' : 'Filter',
+      buttonAccessibilityLabel: isFilterVisible ? 'Hide filter' : 'Filter',
+      iconAccessibilityLabel: isFilterVisible
+        ? 'Hide filter action'
+        : 'Filter action',
+      onPress: toggleFilterVisibility,
+    }),
+    [isFilterVisible, toggleFilterVisibility],
+  );
+  const nativeResetFilterAction = useMemo(
+    () => ({
+      isVisible: hasActiveFilter,
+      accessibilityLabel: 'Reset filters',
+      onPress: hasActiveFilter ? () => setActiveGroup('all') : undefined,
+    }),
+    [hasActiveFilter, setActiveGroup],
+  );
+  const resolvedNativeStaticTopAppBarConfig = useMemo(
+    () =>
+      resolveNativeStaticTopAppBarConfig(pathname, {
+        onPressBack: handlePressBack,
+        filterAction: nativeFilterAction,
+        resetFilterAction: nativeResetFilterAction,
+      }),
+    [handlePressBack, nativeFilterAction, nativeResetFilterAction, pathname],
   );
 
   const nativeTopAppBar = React.useMemo(() => {
@@ -413,54 +587,57 @@ function RootLayoutNativeFrame() {
       );
     }
 
-    if (isSpeciesPath(pathname)) {
+    if (!resolvedNativeStaticTopAppBarConfig) {
+      return null;
+    }
+
+    if (resolvedNativeStaticTopAppBarConfig.variant === 'page') {
       return (
         <TopAppBar
           variant='page'
-          title='Species'
-          onPressBack={handlePressBack}
-          primaryAction={{ isVisible: false }}
-          secondaryAction={{ isVisible: false }}
+          title={resolvedNativeStaticTopAppBarConfig.title}
+          onPressBack={
+            resolvedNativeStaticTopAppBarConfig.onPressBack ?? handlePressBack
+          }
+          primaryAction={resolvedNativeStaticTopAppBarConfig.primaryAction}
+          secondaryAction={resolvedNativeStaticTopAppBarConfig.secondaryAction}
         />
       );
     }
 
-    if (pathname === '/acknowledgements') {
-      return (
-        <TopAppBar
-          variant='page'
-          title='Acknowledgements'
-          onPressBack={handlePressBack}
-          primaryAction={{ isVisible: false }}
-          secondaryAction={{ isVisible: false }}
-        />
-      );
-    }
-
-    if (isTopLevelPath(pathname)) {
-      return (
-        <TopAppBar
-          variant='home'
-          title='WhereWild'
-          onPressLogo={NOOP}
-          primaryAction={{ isVisible: false }}
-          secondaryAction={{ isVisible: false }}
-        />
-      );
-    }
-
-    return null;
-  }, [handlePressBack, pathname, resolvedNativeTopAppBarConfig]);
+    return (
+      <TopAppBar
+        variant='home'
+        title={resolvedNativeStaticTopAppBarConfig.title}
+        onPressLogo={resolvedNativeStaticTopAppBarConfig.onPressLogo}
+        primaryAction={resolvedNativeStaticTopAppBarConfig.primaryAction}
+        secondaryAction={resolvedNativeStaticTopAppBarConfig.secondaryAction}
+      />
+    );
+  }, [
+    handlePressBack,
+    pathname,
+    resolvedNativeStaticTopAppBarConfig,
+    resolvedNativeTopAppBarConfig,
+  ]);
 
   const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(
     () => [
       {
-        key: 'home',
-        label: 'Home',
-        icon: IconHome,
+        key: 'explore',
+        label: 'Explore',
+        icon: IconCompass,
         state: activeTabPath === '/' ? 'active' : ('default' as const),
         onPress: () => navigateIfDifferent('/'),
-        accessibilityLabel: 'Home tab',
+        accessibilityLabel: 'Explore tab',
+      },
+      {
+        key: 'local-map',
+        label: 'Map',
+        icon: IconMap,
+        state: activeTabPath === '/map' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/map'),
+        accessibilityLabel: 'Local Map tab',
       },
       {
         key: 'search',
@@ -469,14 +646,6 @@ function RootLayoutNativeFrame() {
         state: activeTabPath === '/search' ? 'active' : ('default' as const),
         onPress: () => navigateIfDifferent('/search'),
         accessibilityLabel: 'Search tab',
-      },
-      {
-        key: 'about',
-        label: 'About',
-        icon: IconInfo,
-        state: activeTabPath === '/about' ? 'active' : ('default' as const),
-        onPress: () => navigateIfDifferent('/about'),
-        accessibilityLabel: 'About tab',
       },
       {
         key: 'help',
@@ -549,7 +718,9 @@ export default function RootLayout() {
               {Platform.OS === 'web' ? (
                 <RootLayoutWebFrame />
               ) : (
-                <RootLayoutNativeFrame />
+                <NativeHomeTabsProvider>
+                  <RootLayoutNativeFrame />
+                </NativeHomeTabsProvider>
               )}
             </NativeTopAppBarProvider>
           </WebPageHeaderProvider>

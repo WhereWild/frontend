@@ -5,6 +5,8 @@ import React from 'react';
 import {
   Image,
   ImageSourcePropType,
+  GestureResponderEvent,
+  Pressable,
   PressableStateCallbackType,
   StyleProp,
   StyleSheet,
@@ -15,8 +17,10 @@ import { ThemedText } from '../text/ThemedText';
 import type { Href } from 'expo-router';
 import { toKebabCase } from '@/utils/string';
 import { RoutePressable } from '../navigation/RoutePressable';
+import { getInteractiveCursorStyle } from '../interactiveCursorStyle';
 export type SpeciesCardVariant = 'secondary' | 'tertiary';
 export type SpeciesCardSize = 'default' | 'compact';
+export type SpeciesCardInteractionMode = 'route' | 'press-only';
 
 export type SpeciesCardProps = {
   taxonId: number;
@@ -26,8 +30,19 @@ export type SpeciesCardProps = {
   imageSource?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
   testID?: string;
-  /** Overrides default same-tab route navigation on press; web modifier-click can still open the species route in a new tab/window when route data is valid. */
+  /**
+   * Optional press callback. In the default `route` mode, same-tab navigation is suppressed when provided,
+   * while web modifier-click can still use the species route when route data is valid. Use `press-only`
+   * when the card should behave purely like a selectable result without exposing route href semantics.
+   */
   onPress?: () => void;
+  onPressIn?: (event: GestureResponderEvent) => void;
+  onPressOut?: (event: GestureResponderEvent) => void;
+  onPointerDown?: () => void;
+  onPointerUp?: () => void;
+  onTouchStart?: () => void;
+  onTouchEnd?: () => void;
+  interactionMode?: SpeciesCardInteractionMode;
   variant?: SpeciesCardVariant;
   size?: SpeciesCardSize;
 };
@@ -75,6 +90,13 @@ export function SpeciesCard({
   style,
   testID,
   onPress,
+  onPressIn,
+  onPressOut,
+  onPointerDown,
+  onPointerUp,
+  onTouchStart,
+  onTouchEnd,
+  interactionMode = 'route',
   variant = 'secondary',
   size = 'default',
 }: SpeciesCardProps) {
@@ -93,8 +115,10 @@ export function SpeciesCard({
   const hasValidTaxonId = typeof taxonId === 'number';
   const hasValidScientificName = Boolean(trimmedScientificName);
   const hasValidSegment = Boolean(scientificSegment);
+  const isPressOnly = interactionMode === 'press-only';
+  const shouldProvideRouteHref = !isPressOnly;
   const href = (
-    hasValidTaxonId && hasValidSegment
+    shouldProvideRouteHref && hasValidTaxonId && hasValidSegment
       ? {
           pathname: '/species/[...identifier]',
           params: { identifier: [taxonId.toString(), scientificSegment] },
@@ -102,7 +126,7 @@ export function SpeciesCard({
       : undefined
   ) as Href | undefined;
   const hrefPath =
-    hasValidTaxonId && hasValidSegment
+    shouldProvideRouteHref && hasValidTaxonId && hasValidSegment
       ? `/species/${taxonId}/${scientificSegment}`
       : undefined;
 
@@ -130,25 +154,19 @@ export function SpeciesCard({
     }
   };
 
-  return (
-    <RoutePressable
-      onPress={handlePress}
-      href={href}
-      hrefPath={hrefPath}
-      navigateAfterPress={!onPress}
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
-      testID={testID}
-      style={(state) => [
-        styles.container,
-        size === 'compact' && styles.containerCompact,
-        {
-          backgroundColor: backgroundForState(state),
-          borderRadius: Size.radius['200'],
-        },
-        style,
-      ]}
-    >
+  const pressableStyle = (state: PressableStateCallbackType) => [
+    getInteractiveCursorStyle(),
+    styles.container,
+    size === 'compact' && styles.containerCompact,
+    {
+      backgroundColor: backgroundForState(state),
+      borderRadius: Size.radius['200'],
+    },
+    style,
+  ];
+
+  const content = (
+    <View collapsable={false} style={styles.contentWrapper}>
       <View
         style={[
           styles.imageWrapper,
@@ -207,14 +225,59 @@ export function SpeciesCard({
           </ThemedText>
         )}
       </View>
+    </View>
+  );
+
+  if (isPressOnly) {
+    return (
+      <Pressable
+        onPress={handlePress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        accessibilityRole='button'
+        accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+        testID={testID}
+        style={pressableStyle}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <RoutePressable
+      onPress={handlePress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      href={href}
+      hrefPath={hrefPath}
+      navigateAfterPress={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+      testID={testID}
+      style={pressableStyle}
+    >
+      {content}
     </RoutePressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  contentWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: Size.space['400'],
+    width: '100%',
+  },
+  container: {
     padding: Size.space['400'],
     gap: Size.space['400'],
     maxWidth: MAX_WIDTH,

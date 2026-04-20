@@ -1,19 +1,23 @@
 import Head from 'expo-router/head';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import {
+  Button,
   PageTitle,
   ThemedText,
   SelectField,
   PageScrollContainer,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { IconChevronRight, IconInfo, IconUpload } from '@/assets/icons';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { useSettings } from '@/context/SettingsContext';
 
 export default function Settings() {
+  const router = useRouter();
   const responsive = useResponsive();
   const { units, setUnits } = useSettings();
   const locationOptions = [{ label: 'Utah', value: 'utah' }];
@@ -50,11 +54,17 @@ export default function Settings() {
             styles.scrollContent,
           ]}
         >
-          <PageTitle title='Settings' />
+          {Platform.OS === 'web' ? (
+            <PageTitle
+              title='Settings'
+              contentMaxWidth={responsive.contentWidth}
+            />
+          ) : null}
 
           <View
             style={[
-              styles.sectionShell,
+              styles.contentShell,
+              Platform.OS !== 'web' && styles.contentShellNative,
               getResponsiveContentContainerStyle(responsive, {
                 includeWidth: false,
                 includeTopPadding: false,
@@ -63,14 +73,16 @@ export default function Settings() {
           >
             <View
               style={[
-                styles.sectionContent,
+                styles.content,
+                Platform.OS !== 'web' && styles.contentNative,
+                Platform.OS === 'web' && styles.contentWeb,
                 { maxWidth: responsive.contentWidth },
               ]}
             >
-              <View style={styles.settingsColumn}>
+              <View style={styles.section}>
                 <ThemedText variant='heading'>Localization</ThemedText>
 
-                <View style={styles.fieldStack}>
+                <View style={[styles.subsection, styles.fieldStack]}>
                   <SelectField
                     label='Location'
                     placeholder='Select a location'
@@ -99,6 +111,37 @@ export default function Settings() {
                   />
                 </View>
               </View>
+
+              {Platform.OS !== 'web' ? (
+                <View style={styles.section}>
+                  <ThemedText variant='heading'>About</ThemedText>
+
+                  <View style={styles.subsection}>
+                    <ThemedText variant='body'>
+                      {'Find project background and team information in About.'}
+                    </ThemedText>
+
+                    <View style={styles.actionStack}>
+                      <Button
+                        variant='neutral'
+                        label='Upload Custom Data'
+                        onPress={() => router.push('/upload')}
+                        iconStart={<IconUpload />}
+                        iconEnd={<IconChevronRight />}
+                        style={styles.actionButton}
+                      />
+                      <Button
+                        variant='neutral'
+                        label='About WhereWild'
+                        onPress={() => router.push('/about')}
+                        iconStart={<IconInfo />}
+                        iconEnd={<IconChevronRight />}
+                        style={styles.actionButton}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -113,24 +156,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     alignItems: 'center',
   },
-  sectionShell: {
+  contentShell: {
     width: '100%',
     alignItems: 'center',
   },
-  sectionContent: {
-    width: '100%',
+  contentShellNative: {
     alignItems: 'flex-start',
   },
-  settingsColumn: {
-    width: 240,
-    maxWidth: 800,
-    alignItems: 'flex-start',
-    gap: Size.space['400'],
+  content: {
+    alignSelf: 'center',
+    gap: Size.space.text.section,
+  },
+  contentNative: {
+    alignSelf: 'flex-start',
+  },
+  contentWeb: {
+    width: '100%',
+  },
+  section: {
+    gap: Size.space.text.subsection,
+  },
+  subsection: {
+    gap: Size.space.text.paragraph,
   },
   fieldStack: {
+    width: 240,
+    maxWidth: '100%',
+    alignItems: 'stretch',
+  },
+  actionStack: {
     width: '100%',
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: Size.space['200'],
+  },
+  actionButton: {
+    alignSelf: 'stretch',
   },
 });

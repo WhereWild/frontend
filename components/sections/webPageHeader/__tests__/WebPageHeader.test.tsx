@@ -1,4 +1,5 @@
 import React, { act } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   render,
   screen,
@@ -140,6 +141,9 @@ const mockUseResponsive = useResponsive as jest.MockedFunction<
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
 >;
+const mockImpactAsync = Haptics.impactAsync as jest.MockedFunction<
+  typeof Haptics.impactAsync
+>;
 
 const SEARCH_WRAPPER_LAYOUT_HEIGHT = 40;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -176,6 +180,7 @@ describe('WebPageHeader', () => {
 
   beforeEach(() => {
     resetTaxaQuerySessionCache();
+    mockImpactAsync.mockClear();
     mockPush.mockClear();
     mockPathname = '/';
     mockFetchTextResults.mockReset();
@@ -373,6 +378,26 @@ describe('WebPageHeader', () => {
     // Close the menu before unmounting to avoid Portal cleanup timeout
     const backdrop = screen.getByTestId('page-header-menu-backdrop');
     fireEvent.press(backdrop);
+  });
+
+  it('plays a light impact haptic when dismissing the compact menu from the backdrop', () => {
+    mockUseResponsive.mockReturnValue({ breakpoint: 'phone' } as ReturnType<
+      typeof useResponsive
+    >);
+    render(<WebPageHeader />);
+
+    fireEvent.press(screen.getByLabelText('Open menu'));
+    fireEvent.press(screen.getByTestId('page-header-menu-backdrop'));
+
+    expect(mockImpactAsync).toHaveBeenCalledTimes(2);
+    expect(mockImpactAsync).toHaveBeenNthCalledWith(
+      1,
+      Haptics.ImpactFeedbackStyle.Light,
+    );
+    expect(mockImpactAsync).toHaveBeenNthCalledWith(
+      2,
+      Haptics.ImpactFeedbackStyle.Light,
+    );
   });
 
   it('submits search queries and routes empty submissions to the search page', async () => {

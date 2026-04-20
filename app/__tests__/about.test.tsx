@@ -121,7 +121,6 @@ describe('About screen', () => {
   it('renders the page title and acknowledgements link section', () => {
     render(<AboutScreen />);
 
-    expect(screen.getByText('About')).toBeTruthy();
     expect(screen.getByText('Acknowledgements')).toBeTruthy();
     expect(screen.getByText('acknowledgements page')).toBeTruthy();
   });
@@ -245,7 +244,7 @@ describe('About screen', () => {
 
     render(<AboutScreen />);
 
-    expect(screen.getByText('About')).toBeTruthy();
+    expect(screen.getByText('Welcome to WhereWild!')).toBeTruthy();
     expect(screen.getByText('Kelly Wu')).toBeTruthy();
   });
 

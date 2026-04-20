@@ -95,7 +95,9 @@ const DEFAULT_TABS: NavigationBarTabItem[] = [
   { key: 'settings', label: 'Settings', icon: IconSettings, state: 'default' },
 ];
 
-const TAB_GAP = Size.space['200'];
+const HORIZONTAL_BREAKPOINT_TAB_GAP = Size.space['200'];
+const HORIZONTAL_RENDERED_TAB_GAP = HORIZONTAL_BREAKPOINT_TAB_GAP;
+const VERTICAL_RENDERED_TAB_GAP = Size.space['0'];
 const DEFAULT_BOTTOM_PADDING = Size.space['200'];
 const NAV_ANIMATION_DURATION = Time.duration.short;
 const RESIZE_SETTLE_DELAY_MS = Time.duration.short;
@@ -111,9 +113,15 @@ const getRequiredHorizontalWidth = (
     (sum, key) => sum + getMeasuredWidthOrFallback(measuredTabWidths, key),
     0,
   );
-  const totalGapWidth = Math.max(0, tabCount - 1) * TAB_GAP;
+  const totalGapWidth =
+    Math.max(0, tabCount - 1) * HORIZONTAL_BREAKPOINT_TAB_GAP;
   return totalTabWidth + totalGapWidth;
 };
+
+const getRenderedTabGap = (variant: NavigationBarTabVariant) =>
+  variant === 'horizontal'
+    ? HORIZONTAL_RENDERED_TAB_GAP
+    : VERTICAL_RENDERED_TAB_GAP;
 
 /** Returns true when the available width can fit all tabs in horizontal mode. */
 const shouldUseHorizontalVariant = (
@@ -292,6 +300,7 @@ export function NavigationBar({
 
   const indicatorRadius =
     resolvedVariant === 'horizontal' ? Size.radius['full'] : Size.radius['400'];
+  const visibleTabGap = getRenderedTabGap(resolvedVariant);
 
   const renderTabs = React.useCallback(
     (variant: NavigationBarTabVariant, shouldMeasure: boolean) =>
@@ -369,6 +378,7 @@ export function NavigationBar({
       importantForAccessibility='no-hide-descendants'
       style={[
         styles.tabs,
+        { columnGap: HORIZONTAL_RENDERED_TAB_GAP },
         styles.hiddenMeasureLayer,
         { pointerEvents: 'none' },
         !isMeasuring && styles.hiddenIndicator,
@@ -408,7 +418,10 @@ export function NavigationBar({
           {...panHandlers}
         >
           {activeIndicatorNode}
-          <View collapsable={false} style={styles.tabs}>
+          <View
+            collapsable={false}
+            style={[styles.tabs, { columnGap: visibleTabGap }]}
+          >
             {renderTabs(resolvedVariant, false)}
           </View>
           {measuringLayerNode}
@@ -433,7 +446,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    columnGap: TAB_GAP,
   },
   tabsHost: {
     width: '100%',
@@ -462,6 +474,7 @@ const styles = StyleSheet.create({
 
 export const __NAVIGATION_BAR_TESTING__ = {
   getRequiredHorizontalWidth,
+  getRenderedTabGap,
   shouldUseHorizontalVariant,
   areNavigationTabsEqual,
 };
