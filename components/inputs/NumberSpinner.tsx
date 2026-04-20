@@ -21,6 +21,7 @@ import {
 } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemedText } from '@/components/text/ThemedText';
+import { triggerBoundHaptic, triggerSelectionHaptic } from '@/utils/haptics';
 
 type NumberSpinnerValueChangeContext = 'increment' | 'decrement' | 'input';
 
@@ -196,6 +197,11 @@ export function NumberSpinner({
   ) => {
     const clamped = clampValue(nextValue, min, max);
     const current = currentValueRef.current;
+    const isStepChange = context === 'increment' || context === 'decrement';
+    const hitBoundary =
+      isStepChange &&
+      ((typeof min === 'number' && clamped === min) ||
+        (typeof max === 'number' && clamped === max));
 
     if (!isControlled) {
       setInternalValue(clamped);
@@ -203,6 +209,12 @@ export function NumberSpinner({
     }
 
     if (clamped !== current) {
+      if (hitBoundary) {
+        triggerBoundHaptic();
+      } else if (isStepChange) {
+        triggerSelectionHaptic();
+      }
+
       onValueChange?.(clamped, context);
     }
   };

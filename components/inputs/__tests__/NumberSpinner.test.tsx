@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Haptics from 'expo-haptics';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import renderer from 'react-test-renderer';
 import { Animated, NativeModules, Platform, StyleSheet } from 'react-native';
@@ -8,6 +9,12 @@ import { NumberSpinner } from '../NumberSpinner';
 
 const USE_NATIVE_DRIVER =
   Platform.OS !== 'web' && !!NativeModules.NativeAnimatedModule;
+const mockImpactAsync = Haptics.impactAsync as jest.MockedFunction<
+  typeof Haptics.impactAsync
+>;
+const mockSelectionAsync = Haptics.selectionAsync as jest.MockedFunction<
+  typeof Haptics.selectionAsync
+>;
 
 const createTimingToValueMock = () => {
   let lastToValue: number | null = null;
@@ -33,6 +40,8 @@ const createTimingToValueMock = () => {
 
 describe('NumberSpinner', () => {
   afterEach(() => {
+    mockImpactAsync.mockClear();
+    mockSelectionAsync.mockClear();
     jest.restoreAllMocks();
   });
 
@@ -72,6 +81,8 @@ describe('NumberSpinner', () => {
 
     fireEvent.press(screen.getByLabelText('Increase value'));
     expect(handleValueChange).toHaveBeenCalledWith(6, 'increment');
+    expect(mockSelectionAsync).toHaveBeenCalledTimes(1);
+    expect(mockImpactAsync).not.toHaveBeenCalled();
 
     rerender(
       <NumberSpinner
@@ -84,6 +95,8 @@ describe('NumberSpinner', () => {
 
     fireEvent.press(screen.getByLabelText('Decrease value'));
     expect(handleValueChange).toHaveBeenCalledWith(5, 'decrement');
+    expect(mockSelectionAsync).toHaveBeenCalledTimes(2);
+    expect(mockImpactAsync).not.toHaveBeenCalled();
   });
 
   it('updates internal value when uncontrolled', () => {
@@ -114,6 +127,8 @@ describe('NumberSpinner', () => {
 
     expect(screen.getByDisplayValue('123')).toBeTruthy();
     expect(handleValueChange).toHaveBeenCalledWith(123, 'input');
+    expect(mockImpactAsync).not.toHaveBeenCalled();
+    expect(mockSelectionAsync).not.toHaveBeenCalled();
   });
 
   it('clamps out-of-bound typed values', () => {
@@ -198,6 +213,71 @@ describe('NumberSpinner', () => {
     fireEvent.press(decrementButton);
 
     expect(handleValueChange).not.toHaveBeenCalled();
+    expect(mockImpactAsync).not.toHaveBeenCalled();
+    expect(mockSelectionAsync).not.toHaveBeenCalled();
+  });
+
+  it('does not trigger haptics when a step press is clamped to the current value', () => {
+    const handleValueChange = jest.fn();
+
+    render(
+      <NumberSpinner
+        value={10}
+        min={1}
+        max={10}
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Increase value'));
+
+    expect(handleValueChange).not.toHaveBeenCalled();
+    expect(mockImpactAsync).not.toHaveBeenCalled();
+    expect(mockSelectionAsync).not.toHaveBeenCalled();
+  });
+
+  it('triggers a medium impact when increment lands on the maximum value', () => {
+    const handleValueChange = jest.fn();
+
+    render(
+      <NumberSpinner
+        value={9}
+        min={1}
+        max={10}
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Increase value'));
+
+    expect(handleValueChange).toHaveBeenCalledWith(10, 'increment');
+    expect(mockImpactAsync).toHaveBeenCalledTimes(1);
+    expect(mockImpactAsync).toHaveBeenCalledWith(
+      Haptics.ImpactFeedbackStyle.Medium,
+    );
+    expect(mockSelectionAsync).not.toHaveBeenCalled();
+  });
+
+  it('triggers a medium impact when decrement lands on the minimum value', () => {
+    const handleValueChange = jest.fn();
+
+    render(
+      <NumberSpinner
+        value={2}
+        min={1}
+        max={10}
+        onValueChange={handleValueChange}
+      />,
+    );
+
+    fireEvent.press(screen.getByLabelText('Decrease value'));
+
+    expect(handleValueChange).toHaveBeenCalledWith(1, 'decrement');
+    expect(mockImpactAsync).toHaveBeenCalledTimes(1);
+    expect(mockImpactAsync).toHaveBeenCalledWith(
+      Haptics.ImpactFeedbackStyle.Medium,
+    );
+    expect(mockSelectionAsync).not.toHaveBeenCalled();
   });
 
   it('uses medium control height for the spinner pill', () => {
@@ -290,6 +370,7 @@ describe('NumberSpinner', () => {
 
       fireEvent(incrementButton, 'onLongPress');
       expect(screen.getByDisplayValue('2')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(1);
 
       act(() => {
         // onLongPress has already fired; advancing 300ms triggers 3 repeat ticks.
@@ -297,6 +378,8 @@ describe('NumberSpinner', () => {
       });
 
       expect(screen.getByDisplayValue('5')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(4);
+      expect(mockImpactAsync).not.toHaveBeenCalled();
 
       fireEvent(incrementButton, 'onPressOut');
 
@@ -305,6 +388,36 @@ describe('NumberSpinner', () => {
       });
 
       expect(screen.getByDisplayValue('5')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(4);
+      expect(mockImpactAsync).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('triggers a medium impact when increment hold lands on the maximum value', () => {
+    jest.useFakeTimers();
+
+    try {
+      render(<NumberSpinner defaultValue={7} min={1} max={10} />);
+
+      const incrementButton = screen.getByLabelText('Increase value');
+
+      fireEvent(incrementButton, 'onLongPress');
+      expect(screen.getByDisplayValue('8')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(1);
+      expect(mockImpactAsync).not.toHaveBeenCalled();
+
+      act(() => {
+        jest.advanceTimersByTime(200);
+      });
+
+      expect(screen.getByDisplayValue('10')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(2);
+      expect(mockImpactAsync).toHaveBeenCalledTimes(1);
+      expect(mockImpactAsync).toHaveBeenCalledWith(
+        Haptics.ImpactFeedbackStyle.Medium,
+      );
     } finally {
       jest.useRealTimers();
     }
@@ -323,6 +436,8 @@ describe('NumberSpinner', () => {
 
       fireEvent(decrementButton, 'onLongPress');
       expect(screen.getByDisplayValue('3')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(1);
+      expect(mockImpactAsync).not.toHaveBeenCalled();
 
       act(() => {
         // onLongPress has already fired; advancing 300ms triggers 3 repeat ticks.
@@ -330,6 +445,11 @@ describe('NumberSpinner', () => {
       });
 
       expect(screen.getByDisplayValue('1')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(2);
+      expect(mockImpactAsync).toHaveBeenCalledTimes(1);
+      expect(mockImpactAsync).toHaveBeenCalledWith(
+        Haptics.ImpactFeedbackStyle.Medium,
+      );
 
       fireEvent(decrementButton, 'onPressOut');
 
@@ -338,6 +458,8 @@ describe('NumberSpinner', () => {
       });
 
       expect(screen.getByDisplayValue('1')).toBeTruthy();
+      expect(mockSelectionAsync).toHaveBeenCalledTimes(2);
+      expect(mockImpactAsync).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }
