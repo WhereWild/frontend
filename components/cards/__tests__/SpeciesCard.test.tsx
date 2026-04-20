@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import {
@@ -14,11 +14,16 @@ import {
 } from 'react-native';
 import { SpeciesCard, __SPECIES_CARD_TESTING__ } from '../SpeciesCard';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 import { useRouter } from 'expo-router';
 import type { Router } from 'expo-router';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
+}));
+
+jest.mock('@/hooks/useTypographyStyles', () => ({
+  useTypographyStyles: jest.fn(),
 }));
 
 jest.mock('@/components/text/ThemedText', () => {
@@ -39,6 +44,9 @@ jest.mock('expo-router', () => ({
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
+>;
+const mockUseTypographyStyles = useTypographyStyles as jest.MockedFunction<
+  typeof useTypographyStyles
 >;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
@@ -154,10 +162,13 @@ const createPressableState = (
   pressed: state.pressed ?? false,
   hovered: state.hovered ?? false,
 });
+const getFlattenedStyleByTestId = (testId: string) =>
+  StyleSheet.flatten(screen.getByTestId(testId).props.style);
 
 describe('SpeciesCard', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
+    mockUseTypographyStyles.mockReturnValue(Typography.dark);
     pushMock = jest.fn();
     routerStub = createRouterStub({ push: pushMock as Router['push'] });
     mockUseRouter.mockReturnValue(routerStub);
@@ -194,6 +205,70 @@ describe('SpeciesCard', () => {
 
     expect(screen.getByTestId('species-card-image')).toBeTruthy();
     expect(screen.queryByTestId('species-card-placeholder')).toBeNull();
+  });
+
+  it('renders loading skeleton bars instead of placeholder text', () => {
+    render(<SpeciesCard {...baseProps} loading testID='species-card-root' />);
+
+    expect(screen.getByTestId('species-card-root')).toBeTruthy();
+    expect(screen.getByTestId('species-card-loading')).toBeTruthy();
+    expect(screen.getByTestId('species-card-loading-title')).toBeTruthy();
+    expect(screen.getByTestId('species-card-loading-subtitle')).toBeTruthy();
+    expect(
+      screen.getByTestId('species-card-loading-description-1'),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('species-card-loading-description-2'),
+    ).toBeTruthy();
+    expect(screen.queryByText(baseProps.commonName)).toBeNull();
+    expect(screen.queryByText(baseProps.scientificName)).toBeNull();
+    expect(screen.queryByText(baseProps.description)).toBeNull();
+  });
+
+  it('matches loading bar heights to the card typography font sizes', () => {
+    render(<SpeciesCard {...baseProps} loading />);
+
+    expect(getFlattenedStyleByTestId('species-card-loading-title').height).toBe(
+      Typography.dark.subheading.fontSize,
+    );
+    expect(
+      getFlattenedStyleByTestId('species-card-loading-subtitle').height,
+    ).toBe(Typography.dark.bodySmallEmphasis.fontSize);
+    expect(
+      getFlattenedStyleByTestId('species-card-loading-description-1').height,
+    ).toBe(Typography.dark.body.fontSize);
+    expect(
+      getFlattenedStyleByTestId('species-card-loading-description-2').height,
+    ).toBe(Typography.dark.body.fontSize);
+  });
+
+  it('uses stable varied loading bar widths based on the provided seed', () => {
+    const seeded = render(
+      <SpeciesCard {...baseProps} loading loadingPatternSeed={1} />,
+    );
+    const seededTitleWidth = getFlattenedStyleByTestId(
+      'species-card-loading-title',
+    ).width;
+    const seededSubtitleWidth = getFlattenedStyleByTestId(
+      'species-card-loading-subtitle',
+    ).width;
+
+    seeded.unmount();
+
+    render(<SpeciesCard {...baseProps} loading loadingPatternSeed={2} />);
+
+    expect(seededTitleWidth).toBe(
+      __SPECIES_CARD_TESTING__.resolveLoadingWidthPattern(1).title,
+    );
+    expect(seededSubtitleWidth).toBe(
+      __SPECIES_CARD_TESTING__.resolveLoadingWidthPattern(1).subtitle,
+    );
+    expect(getFlattenedStyleByTestId('species-card-loading-title').width).toBe(
+      __SPECIES_CARD_TESTING__.resolveLoadingWidthPattern(2).title,
+    );
+    expect(seededTitleWidth).not.toBe(
+      __SPECIES_CARD_TESTING__.resolveLoadingWidthPattern(2).title,
+    );
   });
 
   it('fires the onPress callback when tapped', () => {
@@ -321,7 +396,7 @@ describe('SpeciesCard', () => {
     ).toBe(palette.background.default.tertiary);
   });
 
-  it('applies light mode neutral placeholder background when scheme is light', () => {
+  it('applies light mode placeholder background when scheme is light', () => {
     mockUseColorScheme.mockReturnValue('light');
 
     render(<SpeciesCard {...baseProps} />);
@@ -329,7 +404,7 @@ describe('SpeciesCard', () => {
     const placeholder = screen.getByTestId('species-card-placeholder');
     const placeholderStyles = StyleSheet.flatten(placeholder.props.style);
     expect(placeholderStyles.backgroundColor).toBe(
-      Colors.light.background.neutral.default,
+      Colors.light.background.disabled.default,
     );
   });
 

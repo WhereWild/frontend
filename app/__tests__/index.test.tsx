@@ -59,14 +59,19 @@ jest.mock('@/components', () => {
   return {
     ActiveNearYouSection: ({
       style,
+      loading,
       nativeFirstItemTopMargin,
       onNativeScrolledChange,
     }: {
       style?: unknown;
+      loading?: boolean;
       nativeFirstItemTopMargin?: number;
       onNativeScrolledChange?: (isScrolled: boolean) => void;
     }) => (
       <View testID='active-near-you-section' style={style}>
+        <Text testID='active-near-you-loading-state'>
+          {loading ? 'loading' : 'loaded'}
+        </Text>
         <View
           testID='active-near-you-first-item-wrapper'
           style={
@@ -123,6 +128,9 @@ describe('Home screen', () => {
     expect(screen.getByTestId('shared-filter-group').props.children).toBe(
       'plants',
     );
+    expect(
+      screen.getByTestId('active-near-you-loading-state').props.children,
+    ).toBe('loaded');
     expect(
       UNSAFE_getByProps({ testID: 'explore-filter-slot' }).props
         .accessibilityElementsHidden,
@@ -244,5 +252,23 @@ describe('Home screen', () => {
 
     expect(getByTestId('web-home-dashboard')).toBeTruthy();
     expect(queryByTestId('native-explore-content')).toBeNull();
+  });
+
+  it('passes scores loading through to Active Near You', () => {
+    mockUseNativeHomeTabs.mockReturnValue({
+      activeGroup: 'plants',
+      allScored: [],
+      isFilterVisible: true,
+      recommendations: [],
+      scoresLoading: true,
+      setActiveGroup: jest.fn(),
+      toggleFilterVisibility: jest.fn(),
+    });
+
+    render(<HomeScreen />);
+
+    expect(
+      screen.getByTestId('active-near-you-loading-state').props.children,
+    ).toBe('loading');
   });
 });

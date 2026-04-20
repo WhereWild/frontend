@@ -230,6 +230,7 @@ export function WebHomeDashboard({ data }: { data?: HomePageData }) {
                     recommendations={recommendations}
                     allRecommendations={allScored}
                     activeGroup={activeGroup}
+                    loading={scoresLoading}
                     style={[
                       styles.sidebar,
                       isPhoneBreakpoint && styles.sidebarStacked,

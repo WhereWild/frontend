@@ -23,8 +23,28 @@ describe('useHomeDashboardState', () => {
   });
 
   it('reports whether the homepage group filter is at its default value', () => {
+    const data = {
+      map: {
+        heatmapImage: { uri: 'heatmap' },
+        controlsImage: { uri: 'controls' },
+      },
+      recommendations: {
+        items: [
+          {
+            taxonId: 101,
+            commonName: 'Plant One',
+            commonNames: ['Plant One'],
+            scientificName: 'Plantus one',
+            description: '',
+            imageSource: undefined,
+            taxonGroup: 'plants',
+          },
+        ],
+      },
+    };
+
     const { result } = renderHook(() =>
-      useHomeDashboardState(undefined, { hydrateRemoteOnMount: false }),
+      useHomeDashboardState(data, { hydrateRemoteOnMount: false }),
     );
     const selectableGroup =
       result.current.allScored.find((item) => item.taxonGroup != null)
@@ -269,6 +289,8 @@ describe('useHomeDashboardState', () => {
     );
 
     expect(mockFetchSpeciesWithModels).not.toHaveBeenCalled();
+    expect(result.current.recommendations).toEqual([]);
+    expect(result.current.scoresLoading).toBe(true);
 
     act(() => {
       jest.advanceTimersByTime(1499);
@@ -287,6 +309,18 @@ describe('useHomeDashboardState', () => {
         'Hydrated First',
       );
     });
+  });
+
+  it('starts empty while remote hydration is pending', () => {
+    jest.useFakeTimers();
+
+    const { result } = renderHook(() =>
+      useHomeDashboardState(undefined, { remoteHydrationDelayMs: 1500 }),
+    );
+
+    expect(result.current.recommendations).toEqual([]);
+    expect(result.current.allScored).toEqual([]);
+    expect(result.current.scoresLoading).toBe(true);
   });
 
   it('keeps recommendations aligned to the latest bounds when delayed hydration resolves', async () => {
@@ -581,5 +615,76 @@ describe('useHomeDashboardState', () => {
         result.current.recommendations.map((item) => item.commonName),
       ).toEqual(['Plant One', 'Bird Two']);
     });
+  });
+
+  it('ignores repeated identical bounds updates', async () => {
+    jest.useFakeTimers();
+
+    const data = {
+      map: {
+        heatmapImage: { uri: 'heatmap' },
+        controlsImage: { uri: 'controls' },
+      },
+      recommendations: {
+        items: [
+          {
+            taxonId: 101,
+            commonName: 'Plant One',
+            commonNames: ['Plant One'],
+            scientificName: 'Plantus one',
+            description: '',
+            imageSource: undefined,
+            taxonGroup: 'plants',
+          },
+        ],
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useHomeDashboardState(data, { hydrateRemoteOnMount: false }),
+    );
+
+    act(() => {
+      result.current.handleBoundsChange({
+        z: 7,
+        x0: 10,
+        y0: 20,
+        x1: 11,
+        y1: 21,
+      });
+      result.current.handleBoundsChange({
+        z: 7,
+        x0: 10,
+        y0: 20,
+        x1: 11,
+        y1: 21,
+      });
+      jest.advanceTimersByTime(1200);
+    });
+
+    await waitFor(() => {
+      expect(mockFetchViewportScores).toHaveBeenCalledTimes(1);
+      expect(result.current.scoresLoading).toBe(false);
+    });
+  });
+
+  it('clears loading when remote hydration fails', async () => {
+    const consoleWarnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    mockFetchSpeciesWithModels.mockRejectedValueOnce(new Error('fetch failed'));
+
+    const { result } = renderHook(() => useHomeDashboardState(undefined));
+
+    expect(result.current.scoresLoading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.scoresLoading).toBe(false);
+      expect(result.current.recommendations).toEqual([]);
+      expect(result.current.allScored).toEqual([]);
+      expect(result.current.activeGroup).toBe('all');
+    });
+
+    consoleWarnSpy.mockRestore();
   });
 });
