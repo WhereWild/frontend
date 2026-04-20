@@ -1,5 +1,8 @@
 import type { SelectOption } from '@/components';
-import type { EnvironmentVariableDefinition, SpeciesSummary } from '@/data/types';
+import type {
+  EnvironmentVariableDefinition,
+  SpeciesSummary,
+} from '@/data/types';
 import { DEFAULT_QUANTITY } from './useSearchFilters.helpers';
 
 export type SearchFilterLocationInitialState = {
