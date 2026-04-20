@@ -1,8 +1,34 @@
 import * as Haptics from 'expo-haptics';
 
+const triggerImpactHaptic = (
+  style: Haptics.ImpactFeedbackStyle,
+  errorLabel: string,
+) => {
+  void Haptics.impactAsync(style).catch((error) => {
+    console.warn(errorLabel, error);
+  });
+};
+
 export const triggerButtonHaptic = () => {
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch((error) => {
-    console.warn('Haptics.impactAsync failed in triggerButtonHaptic', error);
+  triggerImpactHaptic(
+    Haptics.ImpactFeedbackStyle.Light,
+    'Haptics.impactAsync failed in triggerButtonHaptic',
+  );
+};
+
+export const triggerBoundHaptic = () => {
+  triggerImpactHaptic(
+    Haptics.ImpactFeedbackStyle.Medium,
+    'Haptics.impactAsync failed in triggerBoundHaptic',
+  );
+};
+
+export const triggerSelectionHaptic = () => {
+  void Haptics.selectionAsync().catch((error) => {
+    console.warn(
+      'Haptics.selectionAsync failed in triggerSelectionHaptic',
+      error,
+    );
   });
 };
 
