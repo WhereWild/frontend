@@ -5,8 +5,7 @@ import {
   PageScrollContainer,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { Colors, Size } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   getResponsiveContentContainerStyle,
@@ -14,13 +13,7 @@ import {
 } from '@/constants/responsiveStyles';
 import { useSearchFilters } from '@/hooks/search/filters/useSearchFilters';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Platform,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import {
   useSearchRouteInitialState,
   useSearchRouteSync,
@@ -66,54 +59,16 @@ export default function Search() {
     initialFilterVisible,
     filterParams: filters.filterParams,
   });
-  const {
-    descendantRank,
-    includeSpeciesLike,
-    limit,
-    location,
-    minSamples,
-    query,
-    sortMetric,
-    sortOrder,
-    sortVariable,
-    withinTaxonId,
-  } = searchRouteParams;
-  const stableSearchRouteParams = useMemo(
-    () =>
-      pickSearchRouteParams({
-        query,
-        location,
-        withinTaxonId,
-        descendantRank,
-        includeSpeciesLike,
-        sortVariable,
-        sortMetric,
-        sortOrder,
-        minSamples,
-        limit,
-      }),
-    [
-      descendantRank,
-      includeSpeciesLike,
-      limit,
-      location,
-      minSamples,
-      query,
-      sortMetric,
-      sortOrder,
-      sortVariable,
-      withinTaxonId,
-    ],
-  );
-  const currentRouteParams = useMemo(
-    () => toCurrentSearchRouteParams(stableSearchRouteParams),
-    [stableSearchRouteParams],
-  );
-  const routeLocation = currentRouteParams.location;
-  const routeFiltersState = useMemo(
-    () => toInitialSearchFilterState(currentRouteParams),
-    [currentRouteParams],
-  );
+  const { routeFiltersState, routeLocation } = useMemo(() => {
+    const currentRouteParams = toCurrentSearchRouteParams(
+      pickSearchRouteParams(searchRouteParams),
+    );
+
+    return {
+      routeFiltersState: toInitialSearchFilterState(currentRouteParams),
+      routeLocation: currentRouteParams.location,
+    };
+  }, [searchRouteParams]);
   const {
     countryValue,
     countryOptions,
@@ -138,7 +93,6 @@ export default function Search() {
     slideOffset: FILTER_SLIDE_OFFSET,
   });
 
-  /** Toggles filter panel visibility from the global header filter action. */
   const onFilterPress = useCallback(() => {
     setFilterVisible((visible) => {
       prepareFilterVisibilityToggle(
@@ -203,14 +157,42 @@ export default function Search() {
     onHydrateRouteLocation,
   });
 
-  const colorScheme = useColorScheme();
-  const mode = colorScheme === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
   const resultsMessage = searchContext
     ? searchContext
     : !searching && searchResults.length === 0
       ? 'Enter a search term to see results.'
       : '';
+  const loadingResults = useMemo(
+    () => Array.from({ length: filters.numberOfResults }, (_, index) => index),
+    [filters.numberOfResults],
+  );
+  const renderedResults = searching
+    ? loadingResults.map((index) => (
+        <SpeciesCard
+          key={`loading-${index}`}
+          loading
+          loadingPatternSeed={index}
+          taxonId={0}
+          commonName=''
+          scientificName=''
+          interactionMode='press-only'
+          size={isSmallDisplay ? 'compact' : 'default'}
+          style={styles.resultCard}
+        />
+      ))
+    : searchResults.map((item) => (
+        <SpeciesCard
+          key={item.taxonId}
+          taxonId={item.taxonId}
+          commonName={item.commonName}
+          scientificName={item.scientificName}
+          description={item.description}
+          imageSource={item.imageSource}
+          size={isSmallDisplay ? 'compact' : 'default'}
+          style={styles.resultCard}
+          testID={`search-result-${item.taxonId}`}
+        />
+      ));
 
   const contentStyle = [
     styles.content,
@@ -221,75 +203,6 @@ export default function Search() {
       maxWidth: responsive.contentWidth + responsive.marginHorizontal * 2,
     },
   ];
-
-  const filterPanel = (
-    <Animated.View
-      accessibilityElementsHidden={!filterVisible}
-      importantForAccessibility={filterVisible ? 'auto' : 'no-hide-descendants'}
-      testID='search-filter-panel'
-      style={[
-        styles.filters,
-        shouldExpandFilters && styles.filtersFullWidth,
-        animatedFilterStyle,
-        { pointerEvents: filterVisible ? 'auto' : 'none' },
-        isFilterCollapsed ? styles.filtersHidden : undefined,
-      ]}
-    >
-      <Filters {...filters.panelProps} style={styles.filtersContent} />
-    </Animated.View>
-  );
-
-  const resultsColumn = (
-    <View style={styles.main}>
-      <View style={styles.resultsTextBlock}>
-        <View style={styles.resultsHeader}>
-          <ThemedText variant='heading'>Results</ThemedText>
-        </View>
-        <View
-          accessibilityElementsHidden={resultsMessage.length === 0}
-          importantForAccessibility={
-            resultsMessage.length === 0 ? 'no-hide-descendants' : 'auto'
-          }
-          style={
-            resultsMessage.length === 0
-              ? styles.resultsMessageHidden
-              : undefined
-          }
-        >
-          <ThemedText variant='body'>{resultsMessage}</ThemedText>
-        </View>
-      </View>
-      <View style={styles.results}>
-        <View
-          collapsable={false}
-          accessibilityElementsHidden={!searching}
-          importantForAccessibility={searching ? 'auto' : 'no-hide-descendants'}
-          style={[
-            { pointerEvents: 'none' },
-            !searching ? styles.resultsLoadingRowHidden : undefined,
-          ]}
-        >
-          <View style={styles.resultsLoadingRow}>
-            <ActivityIndicator color={palette.icon.brand.default} />
-            <ThemedText variant='subheading'>Loading...</ThemedText>
-          </View>
-        </View>
-        {searchResults.map((item) => (
-          <SpeciesCard
-            key={item.taxonId}
-            taxonId={item.taxonId}
-            commonName={item.commonName}
-            scientificName={item.scientificName}
-            description={item.description}
-            imageSource={item.imageSource}
-            size={isSmallDisplay ? 'compact' : 'default'}
-            style={styles.resultCard}
-            testID={`search-result-${item.taxonId}`}
-          />
-        ))}
-      </View>
-    </View>
-  );
 
   return (
     <PageSurface>
@@ -308,8 +221,44 @@ export default function Search() {
               setLayoutWidth(event.nativeEvent.layout.width);
             }}
           >
-            {filterPanel}
-            {resultsColumn}
+            <Animated.View
+              accessibilityElementsHidden={!filterVisible}
+              importantForAccessibility={
+                filterVisible ? 'auto' : 'no-hide-descendants'
+              }
+              testID='search-filter-panel'
+              style={[
+                styles.filters,
+                shouldExpandFilters && styles.filtersFullWidth,
+                animatedFilterStyle,
+                { pointerEvents: filterVisible ? 'auto' : 'none' },
+                isFilterCollapsed ? styles.filtersHidden : undefined,
+              ]}
+            >
+              <Filters {...filters.panelProps} style={styles.filtersContent} />
+            </Animated.View>
+
+            <View style={styles.main}>
+              <View style={styles.resultsTextBlock}>
+                <View style={styles.resultsHeader}>
+                  <ThemedText variant='heading'>Results</ThemedText>
+                </View>
+                <View
+                  accessibilityElementsHidden={resultsMessage.length === 0}
+                  importantForAccessibility={
+                    resultsMessage.length === 0 ? 'no-hide-descendants' : 'auto'
+                  }
+                  style={
+                    resultsMessage.length === 0
+                      ? styles.resultsMessageHidden
+                      : undefined
+                  }
+                >
+                  <ThemedText variant='body'>{resultsMessage}</ThemedText>
+                </View>
+              </View>
+              <View style={styles.results}>{renderedResults}</View>
+            </View>
           </View>
         </View>
       </PageScrollContainer>
@@ -365,16 +314,6 @@ const styles = StyleSheet.create({
   resultsMessageHidden: {
     opacity: 0,
     maxHeight: 0,
-    overflow: 'hidden',
-  },
-  resultsLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['400'],
-  },
-  resultsLoadingRowHidden: {
-    opacity: 0,
-    height: 0,
     overflow: 'hidden',
   },
   results: {

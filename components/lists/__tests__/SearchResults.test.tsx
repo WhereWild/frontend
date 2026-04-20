@@ -136,7 +136,7 @@ describe('SearchResults', () => {
     expect(screen.getByText('Species Two')).toBeTruthy();
   });
 
-  it('displays loading message when isLoading is true', () => {
+  it('renders loading SpeciesCard skeletons when isLoading is true', () => {
     render(
       <SearchResults
         results={[]}
@@ -146,7 +146,8 @@ describe('SearchResults', () => {
       />,
     );
 
-    expect(screen.getByText('Loading results...')).toBeTruthy();
+    expect(screen.queryByText('Loading results...')).toBeNull();
+    expect(screen.getAllByLabelText('Species card loading')).toHaveLength(5);
     expect(screen.queryByTestId('search-results-list')).toBeNull();
     expect(screen.getByTestId('search-results-loading')).toBeTruthy();
     expect(screen.queryByTestId('search-results-empty')).toBeNull();
@@ -157,7 +158,7 @@ describe('SearchResults', () => {
       <SearchResults results={[]} isVisible={true} isLoading={true} />,
     );
 
-    expect(queryByTestId(/-loading$/)).toBeNull();
+    expect(queryByTestId('search-results-loading')).toBeNull();
   });
 
   it('displays empty message when no results and not loading', () => {

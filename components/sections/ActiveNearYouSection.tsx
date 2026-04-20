@@ -16,6 +16,14 @@ import { SpeciesCard } from '../cards/SpeciesCard';
 import { ThemedText } from '../text/ThemedText';
 
 type SpeciesSummary = HomePageData['recommendations']['items'][number];
+type ActiveNearYouLoadingItem = {
+  key: string;
+  index: number;
+};
+
+type ActiveNearYouListItem = SpeciesSummary | ActiveNearYouLoadingItem;
+
+const LOADING_CARD_COUNT = 5;
 
 export type ActiveNearYouSectionProps = {
   recommendations: SpeciesSummary[];
@@ -31,6 +39,7 @@ export type ActiveNearYouSectionProps = {
 export function ActiveNearYouSection({
   recommendations,
   allRecommendations,
+  loading = false,
   showHeading = true,
   activeGroup: activeGroupProp,
   style,
@@ -50,6 +59,43 @@ export function ActiveNearYouSection({
     if (activeGroup === 'all') return recommendations;
     return allRecommendations.filter((s) => s.taxonGroup === activeGroup);
   }, [activeGroup, recommendations, allRecommendations]);
+  const loadingItems = React.useMemo(
+    () =>
+      Array.from({ length: LOADING_CARD_COUNT }, (_, index) => ({
+        key: `loading-${index}`,
+        index,
+      })),
+    [],
+  );
+  const displayItems = loading ? loadingItems : displayed;
+
+  const getItemKey = React.useCallback((item: ActiveNearYouListItem) => {
+    return 'taxonId' in item ? String(item.taxonId) : item.key;
+  }, []);
+
+  const renderSpeciesCard = React.useCallback(
+    (item: ActiveNearYouListItem) => {
+      if (!('taxonId' in item)) {
+        return (
+          <SpeciesCard
+            loading
+            loadingPatternSeed={item.index}
+            taxonId={0}
+            commonName=''
+            scientificName=''
+            interactionMode='press-only'
+            size={cardSize}
+            style={styles.speciesCard}
+          />
+        );
+      }
+
+      return (
+        <SpeciesCard {...item} size={cardSize} style={styles.speciesCard} />
+      );
+    },
+    [cardSize],
+  );
 
   const header = React.useMemo(
     () => (
@@ -92,10 +138,10 @@ export function ActiveNearYouSection({
   if (isNative) {
     return (
       <View style={[styles.section, styles.sectionNative, style]}>
-        <FlatList
+        <FlatList<ActiveNearYouListItem>
           testID='active-near-you-native-list'
-          data={displayed}
-          keyExtractor={(item) => String(item.taxonId)}
+          data={displayItems}
+          keyExtractor={getItemKey}
           renderItem={({ item, index }) => (
             <View
               collapsable={false}
@@ -109,11 +155,7 @@ export function ActiveNearYouSection({
                   : undefined,
               ]}
             >
-              <SpeciesCard
-                {...item}
-                size={cardSize}
-                style={styles.speciesCard}
-              />
+              {renderSpeciesCard(item)}
             </View>
           )}
           ListHeaderComponent={header}
@@ -155,13 +197,10 @@ export function ActiveNearYouSection({
         testID='active-near-you-list'
         style={[styles.list, { gap: cardGap }]}
       >
-        {displayed.map((species) => (
-          <SpeciesCard
-            key={species.taxonId}
-            {...species}
-            size={cardSize}
-            style={styles.speciesCard}
-          />
+        {displayItems.map((item) => (
+          <React.Fragment key={getItemKey(item)}>
+            {renderSpeciesCard(item)}
+          </React.Fragment>
         ))}
       </View>
     </View>
