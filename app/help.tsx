@@ -8,9 +8,9 @@ import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import Head from 'expo-router/head';
 import type { ImageSourcePropType } from 'react-native';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { WebMetadata } from '@/utils/webMetadata';
 
 const IMG_HOMEPAGE =
   require('@/assets/images/help_homepage.png') as ImageSourcePropType;
@@ -66,9 +66,11 @@ export default function HelpScreen() {
   return (
     <>
       {Platform.OS === 'web' ? (
-        <Head>
-          <title>WhereWild | Help</title>
-        </Head>
+        <WebMetadata
+          title='WhereWild | Help'
+          description='Learn how to search species, interpret maps, and use WhereWild effectively.'
+          path='/help'
+        />
       ) : null}
       <PageSurface>
         <PageScrollContainer
@@ -540,7 +542,7 @@ export default function HelpScreen() {
                 <ThemedText variant='heading'>{'Settings page'}</ThemedText>
                 <ThemedText variant='body'>
                   {
-                    "We can't forget the settings page. The only thing that does anything right now is the settings toggle to change what units the values display in, between imperial and metric units. There might also be an option to set a home location to have it be highlighted in environmental features sections by default, (coming soon!)."
+                    "We can't forget the settings page. WhereWild supports changing the units used throughout the app and the color theme. There might also be an option to set a home location to have it be highlighted in environmental features sections by default, (coming soon!)."
                   }
                 </ThemedText>
               </View>
