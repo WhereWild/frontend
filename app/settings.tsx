@@ -134,6 +134,7 @@ export default function Settings() {
                   <SelectField
                     label='Units'
                     placeholder='Select units'
+                    allowSearch={false}
                     options={UNITS_OPTIONS}
                     value={units}
                     onValueChange={handleUnitsChange}
