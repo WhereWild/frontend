@@ -186,6 +186,42 @@ export type SpeciesOccurrence = {
   longitude: number;
 };
 
+export type ReinforcementFeedbackEntry = {
+  lat: number;
+  lon: number;
+  present: boolean;
+};
+
+export const DEFAULT_REINFORCEMENT_ACTIVATION_THRESHOLD = 5;
+
+export type ReinforceFeedbackRequest = {
+  clientKey: string;
+  speciesKey: number;
+  lat: number;
+  lon: number;
+  present: boolean;
+  lr?: number;
+  steps?: number;
+  activationThreshold?: number;
+};
+
+export type ReinforceFeedbackResponse = {
+  speciesKey: number;
+  feedbackCount: number;
+  point: ReinforcementFeedbackEntry;
+  originalScore: number;
+  reinforcedScore: number;
+  active: boolean;
+  activationThreshold: number;
+};
+
+export type ReinforcedSpeciesInfo = {
+  speciesKey: number;
+  feedbackCount: number;
+  active: boolean;
+  activationThreshold: number;
+};
+
 export type LocationSearchResult = {
   gid: string;
   name: string;

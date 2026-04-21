@@ -50,6 +50,7 @@
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
+    const PIN_OBSERVATION_LABEL = __PIN_OBSERVATION_LABEL_JSON__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const mapBounds = L.latLngBounds(
       [[-MERCATOR_MAX_LAT, -MAX_LONGITUDE_BOUND], [MERCATOR_MAX_LAT, MAX_LONGITUDE_BOUND]],
@@ -398,6 +399,7 @@
     };
     const activeHighlightCatalogs = new Set();
     const markers = new Map();
+    const markerBaseStyles = new Map();
     let selectedPointMarker = null;
     let selectedCatalogDirectMarker = null;
     let selectedCatalogKey = null;
@@ -455,7 +457,7 @@
         return '';
       }
       const resolvedMarginTop = typeof marginTop === 'string' ? marginTop : '6px';
-      return '<button type="button" data-pin-observation="true" data-catalog-number="' + encodeURIComponent(catalogNumber) + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:' + resolvedMarginTop + ';padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">Highlight in Environmental Features</button>';
+      return '<button type="button" data-pin-observation="true" data-catalog-number="' + encodeURIComponent(catalogNumber) + '" data-latitude="' + latitude + '" data-longitude="' + longitude + '" style="display:block;margin-top:' + resolvedMarginTop + ';padding:4px 8px;font-size:12px;cursor:pointer;background:none;border:1px solid currentColor;border-radius:4px;width:100%;text-align:left;">' + PIN_OBSERVATION_LABEL + '</button>';
     }
 
     function buildMapClickPopup(latitude, longitude) {
@@ -483,7 +485,10 @@
     }
 
     function styleForCatalog(catalog) {
-      return activeHighlightCatalogs.has(catalog) ? highlightStyle : markerStyle;
+      if (activeHighlightCatalogs.has(catalog)) {
+        return highlightStyle;
+      }
+      return markerBaseStyles.get(catalog) || markerStyle;
     }
 
     function applyHighlights(list) {
@@ -630,11 +635,17 @@
       }
     }
 
-    if (SHOW_MARKERS && Array.isArray(points) && points.length) {
+    const visiblePoints = Array.isArray(points)
+      ? points.filter(function(pt) {
+          return SHOW_MARKERS || pt.alwaysShow === true;
+        })
+      : [];
+
+    if (visiblePoints.length) {
       const observedBounds = [];
       const directMarkerAnchors = [];
       const useVisibilityManagedClustering =
-        points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+        visiblePoints.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
       clusterGroup = useVisibilityManagedClustering
         ? L.markerClusterGroup({
           spiderfyOnMaxZoom: false,
@@ -657,6 +668,26 @@
         }
         var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
         return inatLink + pinBtn;
+      }
+
+      function buildEntryBaseStyle(point) {
+        return {
+          radius:
+            typeof point.markerRadius === 'number' && isFinite(point.markerRadius)
+              ? point.markerRadius
+              : markerStyle.radius,
+          fillColor:
+            typeof point.markerFill === 'string' && point.markerFill.length
+              ? point.markerFill
+              : markerStyle.fillColor,
+          color:
+            typeof point.markerStroke === 'string' && point.markerStroke.length
+              ? point.markerStroke
+              : markerStyle.color,
+          weight: markerStyle.weight,
+          opacity: markerStyle.opacity,
+          fillOpacity: markerStyle.fillOpacity,
+        };
       }
 
       function applyEntryStyle(entry, style) {
@@ -818,7 +849,7 @@
         }
       };
 
-      points.forEach((pt, idx) => {
+      visiblePoints.forEach((pt, idx) => {
         if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') {
           return;
         }
@@ -832,6 +863,8 @@
         const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
         const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
         const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
+        const entryBaseStyle = buildEntryBaseStyle(pt);
+        markerBaseStyles.set(markerKey, entryBaseStyle);
         const popupHtml = buildObservationPopup(
           pt.popupCatalogValue,
           pt.popupCatalogHref,

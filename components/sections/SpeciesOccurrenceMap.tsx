@@ -11,7 +11,10 @@ import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { ViewportTileRange } from '@/data/api';
-import type { SpeciesOccurrence } from '@/data/types';
+import type {
+  ReinforcementFeedbackEntry,
+  SpeciesOccurrence,
+} from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
   buildLeafletHtml,
@@ -57,6 +60,7 @@ function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
 
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
+  feedbackPoints?: ReinforcementFeedbackEntry[];
   loading?: boolean;
   error?: string | null;
   height?: DimensionValue;
@@ -72,6 +76,7 @@ type SpeciesOccurrenceMapProps = {
   showMarkers?: boolean;
   linkObservations?: boolean;
   allowPinObservations?: boolean;
+  pinObservationLabel?: string;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   onHeatmapStatusChange?: (message: HeatmapStatusMessage) => void;
   selectedPoint?: { lat: number; lon: number } | null;
@@ -80,6 +85,7 @@ type SpeciesOccurrenceMapProps = {
 
 export function SpeciesOccurrenceMap({
   occurrences,
+  feedbackPoints = [],
   loading = false,
   error = null,
   height,
@@ -95,6 +101,7 @@ export function SpeciesOccurrenceMap({
   showMarkers = true,
   linkObservations = true,
   allowPinObservations = true,
+  pinObservationLabel = 'Highlight in Environmental Features',
   onPinObservation,
   onHeatmapStatusChange,
   selectedPoint = null,
@@ -117,8 +124,9 @@ export function SpeciesOccurrenceMap({
     string | null
   >(null);
   const hasOccurrences = occurrences.length > 0;
+  const hasFeedbackPoints = feedbackPoints.length > 0;
   const hasHeatmapLayer = Boolean(heatmapTileUrl);
-  const hasMapContent = hasOccurrences || hasHeatmapLayer;
+  const hasMapContent = hasOccurrences || hasFeedbackPoints || hasHeatmapLayer;
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, latitude: number, longitude: number) => {
@@ -240,13 +248,42 @@ export function SpeciesOccurrenceMap({
     () => getMapTileUrlTemplate(mode),
     [mode],
   );
+  const mapPoints = React.useMemo(() => {
+    const occurrencePoints = occurrences.map((occurrence) => ({
+      catalogNumber: occurrence.catalogNumber,
+      latitude: occurrence.latitude,
+      longitude: occurrence.longitude,
+    }));
+    const reinforcementMapPoints = feedbackPoints.map((point, index) => ({
+      catalogNumber: `point:feedback:${point.present ? 'present' : 'absent'}:${index}`,
+      latitude: point.lat,
+      longitude: point.lon,
+      alwaysShow: true,
+      disableObservationLink: true,
+      markerFill: point.present
+        ? palette.background.brand.default
+        : palette.background.danger.default,
+      markerStroke: point.present
+        ? palette.border.brand.default
+        : palette.border.danger.default,
+      markerRadius: 5,
+    }));
+    return [...occurrencePoints, ...reinforcementMapPoints];
+  }, [
+    feedbackPoints,
+    occurrences,
+    palette.background.brand.default,
+    palette.background.danger.default,
+    palette.border.brand.default,
+    palette.border.danger.default,
+  ]);
   const html = React.useMemo(() => {
     if (!mapTemplate) {
       return null;
     }
     return buildLeafletHtml(
       mapTemplate,
-      occurrences,
+      mapPoints,
       markerPalette,
       tileUrlTemplate,
       null,
@@ -260,6 +297,7 @@ export function SpeciesOccurrenceMap({
       maxBounds,
       linkObservations,
       allowPinObservations,
+      pinObservationLabel,
     );
   }, [
     allowPinObservations,
@@ -272,7 +310,8 @@ export function SpeciesOccurrenceMap({
     maxBounds,
     maxZoom,
     minZoom,
-    occurrences,
+    mapPoints,
+    pinObservationLabel,
     showMarkers,
     linkObservations,
     tileUrlTemplate,
@@ -313,11 +352,17 @@ export function SpeciesOccurrenceMap({
   }, []);
 
   React.useEffect(() => {
-    if (!mapReady || !hasOccurrences) {
+    if (!mapReady || (!hasOccurrences && !hasFeedbackPoints)) {
       return;
     }
     sendRuntimeMessage(highlightMessage);
-  }, [hasOccurrences, highlightMessage, mapReady, sendRuntimeMessage]);
+  }, [
+    hasFeedbackPoints,
+    hasOccurrences,
+    highlightMessage,
+    mapReady,
+    sendRuntimeMessage,
+  ]);
 
   React.useEffect(() => {
     if (!mapReady || !hasMapContent) {
@@ -371,7 +416,13 @@ export function SpeciesOccurrenceMap({
     );
   }
 
-  if (!loading && !hasOccurrences && showMarkers && !heatmapTileUrl) {
+  if (
+    !loading &&
+    !hasOccurrences &&
+    !hasFeedbackPoints &&
+    showMarkers &&
+    !heatmapTileUrl
+  ) {
     return (
       <View style={feedbackContainerStyle}>
         <ThemedText variant='bodySmall'>

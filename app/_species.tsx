@@ -10,11 +10,13 @@ import {
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
+import { ReinforcementDemoSection } from '@/components/sections/ReinforcementDemoSection';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useReinforcementDemo } from '@/hooks/species/useReinforcementDemo';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import React from 'react';
@@ -234,10 +236,14 @@ const normalizeWeatherOptionForSource = (
     : weatherOption;
 
 const buildInferencePredictiveHeatmapTileUrl = ({
+  inferenceClientKey,
+  inferenceHeadVariant,
   inferenceTileUrl,
   temporalMode,
   forecastHours,
 }: {
+  inferenceClientKey: string;
+  inferenceHeadVariant: 'original' | 'reinforced';
   inferenceTileUrl?: string | null;
   temporalMode: HeatmapTemporalMode;
   forecastHours?: number;
@@ -247,6 +253,8 @@ const buildInferencePredictiveHeatmapTileUrl = ({
   }
 
   const params = new URLSearchParams();
+  params.set('client_key', inferenceClientKey);
+  params.set('head_variant', inferenceHeadVariant);
   if (temporalMode === 'missing') {
     params.set('temporal_mode', 'missing');
     return appendPredictiveHeatmapParams(inferenceTileUrl, params, [
@@ -296,6 +304,8 @@ const buildClassicPredictiveHeatmapTileUrl = ({
 
 const buildPredictiveHeatmapTileUrl = ({
   heatmapSource,
+  inferenceClientKey,
+  inferenceHeadVariant,
   inferenceTileUrl,
   classicModelId,
   classicTileUrl,
@@ -304,6 +314,8 @@ const buildPredictiveHeatmapTileUrl = ({
   weatherOption,
 }: {
   heatmapSource: HeatmapSource;
+  inferenceClientKey: string;
+  inferenceHeadVariant: 'original' | 'reinforced';
   inferenceTileUrl?: string | null;
   classicModelId?: string | null;
   classicTileUrl?: string | null;
@@ -325,6 +337,8 @@ const buildPredictiveHeatmapTileUrl = ({
 
   if (heatmapSource === 'inference') {
     return buildInferencePredictiveHeatmapTileUrl({
+      inferenceClientKey,
+      inferenceHeadVariant,
       inferenceTileUrl,
       temporalMode,
       forecastHours,
@@ -552,6 +566,9 @@ export default function Species({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
   });
+  const reinforcement = useReinforcementDemo(
+    typeof taxonId === 'number' ? taxonId : undefined,
+  );
   const hasInferenceHeatmap =
     typeof heatmap.inferenceTileUrl === 'string' &&
     heatmap.inferenceTileUrl.length > 0;
@@ -625,6 +642,8 @@ export default function Species({
     () =>
       buildPredictiveHeatmapTileUrl({
         heatmapSource,
+        inferenceClientKey: reinforcement.clientKey,
+        inferenceHeadVariant: reinforcement.headVariant,
         inferenceTileUrl: heatmap.inferenceTileUrl,
         classicModelId: heatmap.classicModelId,
         classicTileUrl: heatmap.classicTileUrl,
@@ -637,6 +656,8 @@ export default function Species({
       heatmap.classicModelId,
       heatmap.classicTileUrl,
       heatmapSource,
+      reinforcement.clientKey,
+      reinforcement.headVariant,
       phenologyMode,
       showPredictiveHeatmap,
       effectiveWeatherOption,
@@ -700,6 +721,14 @@ export default function Species({
   }, [activeTileUrl, showPredictiveHeatmap]);
 
   React.useEffect(() => {
+    if (!reinforcement.enabled || !hasInferenceHeatmap) {
+      return;
+    }
+    setHeatmapSource('inference');
+    setShowPredictiveHeatmap(true);
+  }, [hasInferenceHeatmap, reinforcement.enabled]);
+
+  React.useEffect(() => {
     if (heatmapSource === 'inference' && hasInferenceHeatmap) {
       return;
     }
@@ -725,13 +754,25 @@ export default function Species({
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
-      setPinnedObservation((prev) =>
-        prev?.catalogNumber === catalogNumber
+      const nextPinnedObservation =
+        pinnedObservation?.catalogNumber === catalogNumber
           ? null
-          : { catalogNumber, lat, lon },
-      );
+          : { catalogNumber, lat, lon };
+
+      setPinnedObservation(nextPinnedObservation);
+
+      if (
+        nextPinnedObservation != null &&
+        reinforcement.enabled &&
+        hasInferenceHeatmap &&
+        typeof taxonId === 'number'
+      ) {
+        setHeatmapSource('inference');
+        setShowPredictiveHeatmap(true);
+        void reinforcement.submitFeedback(lat, lon);
+      }
     },
-    [],
+    [hasInferenceHeatmap, pinnedObservation, reinforcement, taxonId],
   );
 
   const displayCommonNames = React.useMemo(() => {
@@ -903,6 +944,10 @@ export default function Species({
                         </ThemedText>
                       </>
                     )}
+                  <ReinforcementDemoSection
+                    reinforcement={reinforcement}
+                    disabled={!hasInferenceHeatmap}
+                  />
                 </View>
               </SectionShell>
             )}
@@ -922,12 +967,18 @@ export default function Species({
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
               <SpeciesOccurrenceMap
                 occurrences={occurrences}
+                feedbackPoints={reinforcement.feedbackPoints}
                 loading={occurrenceLoading}
                 error={occurrenceError}
                 highlightedCatalogs={highlightedCatalogs}
                 selectedPoint={selectedMapPoint}
                 height={observationMapHeight}
                 showMarkers={showObservations}
+                pinObservationLabel={
+                  reinforcement.enabled
+                    ? 'Submit Feedback Point'
+                    : 'Highlight in Environmental Features'
+                }
                 heatmapTileUrl={activeTileUrl}
                 heatmapOpacity={0.72}
                 onHeatmapStatusChange={setHeatmapStatus}

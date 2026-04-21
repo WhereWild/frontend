@@ -1,11 +1,21 @@
-import type {
-  DataSource,
-  EnvironmentSliceParams,
-  SpeciesApiDetail,
-  SpeciesApiNormalized,
+import {
+  DEFAULT_REINFORCEMENT_ACTIVATION_THRESHOLD,
+  type DataSource,
+  type EnvironmentSliceParams,
+  type ReinforcementFeedbackEntry,
+  type ReinforceFeedbackRequest,
+  type ReinforceFeedbackResponse,
+  type ReinforcedSpeciesInfo,
+  type SpeciesApiDetail,
+  type SpeciesApiNormalized,
 } from './types';
 import { parseSpeciesApiDetail } from './speciesDetailParser';
-import { BACKEND_BASE, fetchJsonOrThrow } from './apiShared';
+import {
+  BACKEND_BASE,
+  asRecord,
+  fetchJsonOrThrow,
+  toRequiredNumber,
+} from './apiShared';
 import {
   fetchRelativeRankingOptions as fetchRelativeRankingOptionsHelper,
   type FetchRelativeRankingOptionsOptions,
@@ -232,7 +242,8 @@ export async function fetchSpeciesObscured(
     `Failed to fetch obscured status for species ${taxonId}`,
   )) as Record<string, unknown>;
   return {
-    taxon_id: typeof item.taxon_id === 'number' ? item.taxon_id : Number(taxonId),
+    taxon_id:
+      typeof item.taxon_id === 'number' ? item.taxon_id : Number(taxonId),
     all_obscured: item.all_obscured === true,
   };
 }
@@ -369,4 +380,131 @@ export async function uploadRawObservations(
     contentType: response.headers.get('content-type'),
     status: response.status,
   };
+}
+
+const toOptionalBoolean = (value: unknown): boolean | null => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return null;
+};
+
+export async function submitReinforcementFeedback(
+  params: ReinforceFeedbackRequest,
+): Promise<ReinforceFeedbackResponse> {
+  const payload = asRecord(
+    await fetchJsonOrThrow(
+      `${BACKEND_BASE}/api/predict/reinforce`,
+      'Failed to submit reinforcement feedback',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_key: params.clientKey,
+          species_key: params.speciesKey,
+          lat: params.lat,
+          lon: params.lon,
+          present: params.present,
+          ...(typeof params.lr === 'number' ? { lr: params.lr } : {}),
+          ...(typeof params.steps === 'number' ? { steps: params.steps } : {}),
+          ...(typeof params.activationThreshold === 'number'
+            ? { activation_threshold: params.activationThreshold }
+            : {}),
+        }),
+      },
+    ),
+  );
+  const point = asRecord(payload.point);
+  return {
+    speciesKey: toRequiredNumber(
+      payload.species_key ?? payload.speciesKey,
+      params.speciesKey,
+    ),
+    feedbackCount: toRequiredNumber(
+      payload.feedback_count ?? payload.feedbackCount,
+      0,
+    ),
+    point: {
+      lat: toRequiredNumber(point.lat, params.lat),
+      lon: toRequiredNumber(point.lon, params.lon),
+      present: toOptionalBoolean(point.present) ?? params.present,
+    },
+    originalScore: toRequiredNumber(
+      payload.original_score ?? payload.originalScore,
+      0,
+    ),
+    reinforcedScore: toRequiredNumber(
+      payload.reinforced_score ?? payload.reinforcedScore,
+      0,
+    ),
+    active: toOptionalBoolean(payload.active) ?? false,
+    activationThreshold: toRequiredNumber(
+      payload.activation_threshold ?? payload.activationThreshold,
+      DEFAULT_REINFORCEMENT_ACTIVATION_THRESHOLD,
+    ),
+  };
+}
+
+export async function fetchReinforcedHeads(
+  clientKey: string,
+): Promise<ReinforcedSpeciesInfo[]> {
+  const payload = await fetchJsonOrThrow(
+    `${BACKEND_BASE}/api/predict/reinforced?client_key=${encodeURIComponent(clientKey)}`,
+    'Failed to fetch reinforced heads',
+  );
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload.map((entry): ReinforcedSpeciesInfo => {
+    const source = asRecord(entry);
+    return {
+      speciesKey: toRequiredNumber(source.species_key ?? source.speciesKey, 0),
+      feedbackCount: toRequiredNumber(
+        source.feedback_count ?? source.feedbackCount,
+        0,
+      ),
+      active: toOptionalBoolean(source.active) ?? false,
+      activationThreshold: toRequiredNumber(
+        source.activation_threshold ?? source.activationThreshold,
+        DEFAULT_REINFORCEMENT_ACTIVATION_THRESHOLD,
+      ),
+    };
+  });
+}
+
+export async function fetchReinforcementFeedback(
+  speciesKey: number,
+  clientKey: string,
+): Promise<ReinforcementFeedbackEntry[]> {
+  const payload = asRecord(
+    await fetchJsonOrThrow(
+      `${BACKEND_BASE}/api/predict/reinforced/${encodeURIComponent(String(speciesKey))}/feedback?client_key=${encodeURIComponent(clientKey)}`,
+      'Failed to fetch reinforcement feedback',
+    ),
+  );
+  const feedback = payload.feedback;
+  if (!Array.isArray(feedback)) {
+    return [];
+  }
+
+  return feedback.map((entry): ReinforcementFeedbackEntry => {
+    const source = asRecord(entry);
+    return {
+      lat: toRequiredNumber(source.lat, 0),
+      lon: toRequiredNumber(source.lon, 0),
+      present: toOptionalBoolean(source.present) ?? true,
+    };
+  });
+}
+
+export async function deleteReinforcedHead(
+  speciesKey: number,
+  clientKey: string,
+): Promise<void> {
+  await fetchJsonOrThrow(
+    `${BACKEND_BASE}/api/predict/reinforced/${encodeURIComponent(String(speciesKey))}?client_key=${encodeURIComponent(clientKey)}`,
+    'Failed to reset reinforced head',
+    { method: 'DELETE' },
+  );
 }

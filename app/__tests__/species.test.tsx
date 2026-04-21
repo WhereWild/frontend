@@ -28,6 +28,10 @@ jest.mock('@/data/api', () => ({
   fetchSpeciesEnvironment: jest.fn(),
   fetchEnvironmentRangeSlice: jest.fn(),
   fetchSpeciesEnvironmentCategorySamples: jest.fn(),
+  fetchReinforcedHeads: jest.fn(() => Promise.resolve([])),
+  fetchReinforcementFeedback: jest.fn(() => Promise.resolve([])),
+  submitReinforcementFeedback: jest.fn(),
+  deleteReinforcedHead: jest.fn(() => Promise.resolve()),
   fetchDataSources: jest.fn(() => Promise.resolve({})),
 }));
 
@@ -36,11 +40,36 @@ const mockedApiModule = jest.requireMock('@/data/api') as {
   fetchSpeciesEnvironment: jest.Mock;
   fetchEnvironmentRangeSlice: jest.Mock;
   fetchSpeciesEnvironmentCategorySamples: jest.Mock;
+  fetchReinforcedHeads: jest.Mock;
+  fetchReinforcementFeedback: jest.Mock;
+  submitReinforcementFeedback: jest.Mock;
+  deleteReinforcedHead: jest.Mock;
 };
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/',
+}));
+
+jest.mock('@/hooks/species/useReinforcementDemo', () => ({
+  useReinforcementDemo: () => ({
+    clientKey: 'frontend-demo',
+    enabled: false,
+    setEnabled: jest.fn(),
+    markPresent: true,
+    setMarkPresent: jest.fn(),
+    busy: false,
+    error: null,
+    feedbackCount: 0,
+    feedbackPoints: [],
+    hasReinforcedHead: false,
+    isActive: false,
+    activationThreshold: 3,
+    headVariant: 'original',
+    lastResult: null,
+    submitFeedback: jest.fn(() => Promise.resolve(null)),
+    resetHead: jest.fn(() => Promise.resolve()),
+  }),
 }));
 
 jest.mock('@/components/inputs/SelectField', () => {
@@ -453,7 +482,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&forecast_hours=0',
         ),
       ).toBeTruthy();
     });
@@ -545,7 +574,7 @@ describe('Species screen', () => {
       ).toBeTruthy();
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&forecast_hours=0',
         ),
       ).toBeTruthy();
     });
@@ -558,7 +587,7 @@ describe('Species screen', () => {
       ).toBeTruthy();
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?temporal_mode=missing',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&temporal_mode=missing',
         ),
       ).toBeTruthy();
     });
@@ -568,7 +597,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&forecast_hours=0',
         ),
       ).toBeTruthy();
     });
@@ -578,7 +607,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=8',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&forecast_hours=8',
         ),
       ).toBeTruthy();
     });
@@ -598,7 +627,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?temporal_mode=missing',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&temporal_mode=missing',
         ),
       ).toBeTruthy();
     });
@@ -648,7 +677,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=0&client_key=frontend-demo&head_variant=original',
         ),
       ).toBeTruthy();
     });
@@ -658,7 +687,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&temporal_mode=missing',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&client_key=frontend-demo&head_variant=original&temporal_mode=missing',
         ),
       ).toBeTruthy();
     });
@@ -668,7 +697,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=0&client_key=frontend-demo&head_variant=original',
         ),
       ).toBeTruthy();
     });
@@ -678,7 +707,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=8',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=8&client_key=frontend-demo&head_variant=original',
         ),
       ).toBeTruthy();
     });
@@ -729,7 +758,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&forecast_hours=0',
         ),
       ).toBeTruthy();
     });
@@ -750,7 +779,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?client_key=frontend-demo&head_variant=original&forecast_hours=0',
         ),
       ).toBeTruthy();
     });

@@ -394,6 +394,156 @@ describe('SpeciesOccurrenceMap', () => {
     );
   });
 
+  it('opens external observation URLs through window.open on web iframe messages and removes listeners on unmount', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'web' });
+    const addEventListener = jest.fn();
+    const removeEventListener = jest.fn();
+    const open = jest.fn();
+    let messageHandler:
+      | ((event: { data: unknown; source: unknown }) => void)
+      | undefined;
+
+    addEventListener.mockImplementation((type, handler) => {
+      if (type === 'message') {
+        messageHandler = handler as (event: {
+          data: unknown;
+          source: unknown;
+        }) => void;
+      }
+    });
+
+    global.window = {
+      ...originalWindow,
+      innerWidth: 1440,
+      addEventListener,
+      removeEventListener,
+      open,
+    } as unknown as Window & typeof globalThis;
+
+    const { UNSAFE_getByProps, unmount } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[{ catalogNumber: 2, latitude: 11, longitude: 21 }]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading map renderer…')).toBeNull();
+    });
+
+    const iframe = UNSAFE_getByProps({ title: 'Observation map' });
+    const frameWindow = {};
+    iframe.props.ref.current = {
+      contentWindow: frameWindow,
+    };
+
+    expect(messageHandler).toBeDefined();
+
+    messageHandler?.({
+      source: frameWindow,
+      data: {
+        type: 'open_external_url',
+        url: 'https://www.inaturalist.org/observations/456',
+      },
+    });
+
+    expect(open).toHaveBeenCalledWith(
+      'https://www.inaturalist.org/observations/456',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    expect(openURLSpy).not.toHaveBeenCalled();
+
+    unmount();
+
+    expect(removeEventListener).toHaveBeenCalledWith(
+      'message',
+      expect.any(Function),
+    );
+  });
+
+  it('forwards matching heatmap status messages and ignores mismatched overlay URLs', async () => {
+    const handleHeatmapStatusChange = jest.fn();
+
+    await renderMapWithOccurrences('ios', {
+      occurrences: [{ catalogNumber: 9, latitude: 13, longitude: 23 }],
+      heatmapTileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+      onHeatmapStatusChange: handleHeatmapStatusChange,
+    });
+
+    fireEvent(screen.getByTestId('mock-webview'), 'message', {
+      nativeEvent: {
+        data: JSON.stringify({
+          type: 'heatmap_status',
+          status: 'unavailable',
+          tileUrl: 'https://tiles.example.test/other/{z}/{x}/{y}.png',
+        }),
+      },
+    });
+
+    expect(handleHeatmapStatusChange).not.toHaveBeenCalled();
+
+    fireEvent(screen.getByTestId('mock-webview'), 'message', {
+      nativeEvent: {
+        data: JSON.stringify({
+          type: 'heatmap_status',
+          status: 'unavailable',
+          tileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+        }),
+      },
+    });
+
+    expect(handleHeatmapStatusChange).toHaveBeenCalledWith({
+      type: 'heatmap_status',
+      status: 'unavailable',
+      tileUrl: 'https://tiles.example.test/species/{z}/{x}/{y}.png',
+    });
+  });
+
+  it('renders reinforcement feedback points even when there are no occurrences', async () => {
+    const buildLeafletHtmlSpy = jest.spyOn(
+      speciesOccurrenceMapHelpers,
+      'buildLeafletHtml',
+    );
+
+    await renderMapWithOccurrences('ios', {
+      occurrences: [],
+      feedbackPoints: [
+        { lat: 41, lon: -112, present: true },
+        { lat: 42, lon: -113, present: false },
+      ],
+    });
+
+    expect(buildLeafletHtmlSpy).toHaveBeenCalled();
+    const mapPoints = buildLeafletHtmlSpy.mock.calls.at(-1)?.[1];
+    expect(mapPoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          catalogNumber: 'point:feedback:present:0',
+          latitude: 41,
+          longitude: -112,
+          alwaysShow: true,
+          disableObservationLink: true,
+          markerRadius: 5,
+        }),
+        expect.objectContaining({
+          catalogNumber: 'point:feedback:absent:1',
+          latitude: 42,
+          longitude: -113,
+          alwaysShow: true,
+          disableObservationLink: true,
+          markerRadius: 5,
+        }),
+      ]),
+    );
+    expect(
+      screen.queryByText(
+        'No precise observation coordinates available for this species.',
+      ),
+    ).toBeNull();
+
+    buildLeafletHtmlSpy.mockRestore();
+  });
+
   it('shows an explicit fallback warning when the external template load fails', async () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
     loadMapTemplateSpy.mockResolvedValue(null);

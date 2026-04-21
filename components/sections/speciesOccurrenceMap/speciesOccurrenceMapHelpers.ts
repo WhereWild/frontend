@@ -55,6 +55,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   initialZoom: '__INITIAL_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
   pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
+  pinObservationLabel: '__PIN_OBSERVATION_LABEL_JSON__',
   allowPinObservations: '__ALLOW_PIN_OBSERVATIONS__',
   linkObservations: '__LINK_OBSERVATIONS__',
   selectedPointType: '__SELECTED_POINT_MESSAGE_TYPE_JSON__',
@@ -234,8 +235,12 @@ const preparePointsForMapHtml = (points: Record<string, unknown>[]) => {
       // - popupCatalogHref: URL-encoded value for link destinations
       // - popupCatalogLabel: HTML-escaped value for visible popup text
       popupCatalogValue: catalog,
-      popupCatalogHref: encodeURIComponent(catalog),
-      popupCatalogLabel: escapeHtml(catalog),
+      popupCatalogHref:
+        point.disableObservationLink === true
+          ? ''
+          : encodeURIComponent(catalog),
+      popupCatalogLabel:
+        point.disableObservationLink === true ? '' : escapeHtml(catalog),
     };
   });
 };
@@ -256,6 +261,7 @@ export const buildLeafletHtml = (
   maxBounds?: [[number, number], [number, number]] | null,
   linkObservations?: boolean,
   allowPinObservations?: boolean,
+  pinObservationLabel?: string,
 ) => {
   let html = mapTemplate;
   html = html
@@ -327,6 +333,13 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationType)
     .join(JSON.stringify(PIN_OBSERVATION_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationLabel)
+    .join(
+      JSON.stringify(
+        pinObservationLabel ?? 'Highlight in Environmental Features',
+      ),
+    );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.allowPinObservations)
     .join(allowPinObservations !== false ? 'true' : 'false');
