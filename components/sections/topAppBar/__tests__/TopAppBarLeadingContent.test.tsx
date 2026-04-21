@@ -120,6 +120,45 @@ describe('TopAppBarLeadingContent', () => {
     expect(screen.getByText('Species Details')).toBeTruthy();
   });
 
+  it('keeps search and non-search leading slots mounted while toggling visibility', () => {
+    const { UNSAFE_getByProps, rerender } = render(
+      <LeadingContent variant='page' title='Species' onPressBack={jest.fn()} />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'top-app-bar-leading-search-slot' }).props
+        .accessibilityElementsHidden,
+    ).toBe(true);
+    expect(
+      screen.getByTestId('top-app-bar-leading-non-search-slot').props
+        .accessibilityElementsHidden,
+    ).toBe(false);
+
+    rerender(
+      <LeadingContent
+        variant='search'
+        searchValue='fox'
+        onSearchValueChange={jest.fn()}
+        onSubmitSearch={jest.fn()}
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'top-app-bar-leading-search-slot' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'top-app-bar-leading-non-search-slot' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('top-app-bar-leading-search-slot').props
+        .accessibilityElementsHidden,
+    ).toBe(false);
+    expect(
+      UNSAFE_getByProps({ testID: 'top-app-bar-leading-non-search-slot' }).props
+        .accessibilityElementsHidden,
+    ).toBe(true);
+  });
+
   it('animates home to page transition right-to-left', () => {
     const timingMock = Animated.timing as unknown as jest.Mock;
 

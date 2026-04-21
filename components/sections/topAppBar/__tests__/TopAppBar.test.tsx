@@ -211,7 +211,7 @@ describe('TopAppBar', () => {
   });
 
   it('hides secondary button when secondaryAction.isVisible is false', () => {
-    render(
+    const { UNSAFE_getByProps } = render(
       <TopAppBar
         {...HOME_PROPS}
         secondaryAction={{
@@ -225,6 +225,11 @@ describe('TopAppBar', () => {
       screen.getByTestId('top-app-bar-secondary-action-slot').props.style,
     );
     expect(resolveAnimatedNumeric(secondarySlotStyle.width)).toBe(0);
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-secondary-action-content-slot',
+      }).props.accessibilityElementsHidden,
+    ).toBe(true);
   });
 
   it('collapses actions-row gap when secondary action is hidden and primary is visible in search', () => {

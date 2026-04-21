@@ -3,10 +3,10 @@ import type { HomePageData } from '@/data/types';
 import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
 import {
-  FlatList,
   NativeSyntheticEvent,
   Platform,
   NativeScrollEvent,
+  ScrollView,
   type StyleProp,
   StyleSheet,
   type ViewStyle,
@@ -22,6 +22,7 @@ type ActiveNearYouLoadingItem = {
 };
 
 type ActiveNearYouListItem = SpeciesSummary | ActiveNearYouLoadingItem;
+type ActiveNearYouNativeSlotItem = ActiveNearYouListItem | null;
 
 const LOADING_CARD_COUNT = 5;
 
@@ -68,6 +69,25 @@ export function ActiveNearYouSection({
     [],
   );
   const displayItems = loading ? loadingItems : displayed;
+  const [nativeSlotCount, setNativeSlotCount] = React.useState(() =>
+    Math.max(
+      LOADING_CARD_COUNT,
+      recommendations.length,
+      allRecommendations.length,
+    ),
+  );
+
+  React.useEffect(() => {
+    const nextSlotCount = Math.max(
+      LOADING_CARD_COUNT,
+      recommendations.length,
+      allRecommendations.length,
+    );
+
+    if (nextSlotCount > nativeSlotCount) {
+      setNativeSlotCount(nextSlotCount);
+    }
+  }, [allRecommendations.length, nativeSlotCount, recommendations.length]);
 
   const getItemKey = React.useCallback((item: ActiveNearYouListItem) => {
     return 'taxonId' in item ? String(item.taxonId) : item.key;
@@ -135,36 +155,17 @@ export function ActiveNearYouSection({
     onNativeScrolledChange?.(false);
   }, [onNativeScrolledChange]);
 
+  const nativeSlotItems = React.useMemo<ActiveNearYouNativeSlotItem[]>(() => {
+    return Array.from({ length: nativeSlotCount }, (_, index) => {
+      return index < displayItems.length ? displayItems[index] : null;
+    });
+  }, [displayItems, nativeSlotCount]);
+
   if (isNative) {
     return (
       <View style={[styles.section, styles.sectionNative, style]}>
-        <FlatList<ActiveNearYouListItem>
+        <ScrollView
           testID='active-near-you-native-list'
-          data={displayItems}
-          keyExtractor={getItemKey}
-          renderItem={({ item, index }) => (
-            <View
-              collapsable={false}
-              testID={
-                index === 0 ? 'active-near-you-first-item-wrapper' : undefined
-              }
-              style={[
-                styles.nativeItemWrapper,
-                index === 0 && nativeFirstItemTopMargin > 0
-                  ? { marginTop: nativeFirstItemTopMargin }
-                  : undefined,
-              ]}
-            >
-              {renderSpeciesCard(item)}
-            </View>
-          )}
-          ListHeaderComponent={header}
-          ListHeaderComponentStyle={
-            isHeadingVisible ? { paddingBottom: Size.space['400'] } : undefined
-          }
-          ItemSeparatorComponent={() => (
-            <View style={[styles.itemSeparator, { height: cardGap }]} />
-          )}
           contentContainerStyle={[
             styles.nativeListContent,
             {
@@ -177,7 +178,40 @@ export function ActiveNearYouSection({
           bounces={false}
           onScroll={handleNativeScroll}
           scrollEventThrottle={16}
-        />
+        >
+          {header}
+          {nativeSlotItems.map((item, index) => {
+            const isVisible = item != null;
+            const isFirstVisibleSlot = index === 0;
+            const hasVisibleItemsBelow = index < displayItems.length - 1;
+
+            return (
+              <View
+                key={`native-slot-${index}`}
+                collapsable={false}
+                testID={`active-near-you-native-item-wrapper-${index}`}
+                accessibilityElementsHidden={!isVisible}
+                importantForAccessibility={
+                  isVisible ? 'auto' : 'no-hide-descendants'
+                }
+                style={[
+                  styles.nativeItemWrapper,
+                  isFirstVisibleSlot && nativeFirstItemTopMargin > 0
+                    ? { marginTop: nativeFirstItemTopMargin }
+                    : undefined,
+                  hasVisibleItemsBelow && { marginBottom: cardGap },
+                  !isVisible && styles.nativeHiddenItemWrapper,
+                ]}
+              >
+                {item == null ? (
+                  <View style={styles.nativeItemPlaceholder} />
+                ) : (
+                  renderSpeciesCard(item)
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
       </View>
     );
   }
@@ -246,8 +280,15 @@ const styles = StyleSheet.create({
   nativeItemWrapper: {
     width: '100%',
   },
-  itemSeparator: {
-    width: '100%',
+  nativeHiddenItemWrapper: {
+    height: 0,
+    marginBottom: 0,
+    opacity: 0,
+    overflow: 'hidden',
+  },
+  nativeItemPlaceholder: {
+    height: 0,
+    opacity: 0,
   },
   speciesCard: {
     maxWidth: '100%',
