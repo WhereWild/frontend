@@ -271,11 +271,13 @@ const hasCanGoBack = (value: unknown): value is { canGoBack: () => boolean } =>
   'canGoBack' in value &&
   typeof (value as { canGoBack?: unknown }).canGoBack === 'function';
 
-const hasDismissAll = (value: unknown): value is { dismissAll: () => void } =>
+const supportsDismissTo = (
+  value: unknown,
+): value is { dismissTo: (href: Href) => void } =>
   typeof value === 'object' &&
   value !== null &&
-  'dismissAll' in value &&
-  typeof (value as { dismissAll?: unknown }).dismissAll === 'function';
+  'dismissTo' in value &&
+  typeof (value as { dismissTo?: unknown }).dismissTo === 'function';
 
 function RootLayoutWebFrame() {
   const pathname = usePathname();
@@ -429,6 +431,7 @@ function RootLayoutNativeFrame() {
   // reflect the intended active tab, even before deeper screens finish rendering.
   const [activeTabPath, setActiveTabPath] =
     useState<TopLevelPath>(initialActiveTabPath);
+
   // Keeps the latest top-level tab context so nested routes (e.g. species pages)
   // can still be attributed to the tab that owns them.
   const lastTopLevelPathRef = useRef<TopLevelPath>(initialActiveTabPath);
@@ -511,21 +514,25 @@ function RootLayoutNativeFrame() {
       }
 
       pendingTargetTabRef.current = targetPath;
+      const dismissToRouter = supportsDismissTo(router) ? router : null;
 
-      // Clearing stack on real tab switches prevents back gestures from jumping
-      // across tabs into previously viewed tab stacks.
-      if (hasCanGoBack(router) && router.canGoBack() && hasDismissAll(router)) {
-        router.dismissAll();
-      }
+      const navigateToTabRoot = () => {
+        if (dismissToRouter) {
+          dismissToRouter.dismissTo(targetPath as Href);
+          return;
+        }
+
+        router.replace(targetPath as Href);
+      };
 
       if (targetRoute === targetPath) {
-        router.replace(targetPath as Href);
+        navigateToTabRoot();
         return;
       }
 
       // Rebuild the destination tab stack from root so back gestures work
       // within that tab after restore (root -> nested -> nested...).
-      router.replace(targetPath as Href);
+      navigateToTabRoot();
       targetHistory.slice(1).forEach((route) => {
         const href = toHistoryHref(route);
         if (href) {
@@ -677,14 +684,34 @@ function RootLayoutNativeFrame() {
           screenOptions={{
             headerShown: false,
             animation: NATIVE_STACK_DEFAULT_ANIMATION,
+            gestureEnabled: false,
             contentStyle: { backgroundColor: rootBackgroundColor },
           }}
         >
+          <Stack.Screen
+            name='about'
+            options={{
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
+            name='acknowledgements'
+            options={{
+              gestureEnabled: true,
+            }}
+          />
           <Stack.Screen
             name='species/[...identifier]'
             options={{
               animation: SPECIES_STACK_ANIMATION,
               animationDuration: Time.duration.short,
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
+            name='upload'
+            options={{
+              gestureEnabled: true,
             }}
           />
         </Stack>

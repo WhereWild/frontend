@@ -129,4 +129,62 @@ describe('TopAppBarPrimaryAction', () => {
     );
     expect(resolveAnimatedNumeric(slotStyle.width)).toBe(120);
   });
+
+  it('keeps icon and button variant slots mounted while toggling visibility', () => {
+    const { UNSAFE_getByProps, rerender } = render(
+      <PrimaryAction
+        hasPrimaryButton={true}
+        shouldRenderPrimaryAsIcon={true}
+        primaryButtonIcon={<IconFilter />}
+        onPressPrimaryButton={jest.fn()}
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-icon-variant-slot',
+      }).props.accessibilityElementsHidden,
+    ).toBe(false);
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-button-variant-slot',
+      }).props.accessibilityElementsHidden,
+    ).toBe(true);
+
+    rerender(
+      <PrimaryAction
+        hasPrimaryButton={true}
+        shouldRenderPrimaryAsIcon={false}
+        primaryButtonIcon={<IconFilter />}
+        onPressPrimaryButton={jest.fn()}
+        primaryIconButtonAccessibilityLabel='Filter action'
+        primaryButtonAccessibilityLabel='Filter'
+        primaryButtonLabel='Filter'
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-icon-variant-slot',
+      }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-button-variant-slot',
+      }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-icon-variant-slot',
+      }).props.accessibilityElementsHidden,
+    ).toBe(true);
+    expect(
+      UNSAFE_getByProps({
+        testID: 'top-app-bar-primary-action-button-variant-slot',
+      }).props.accessibilityElementsHidden,
+    ).toBe(false);
+  });
 });

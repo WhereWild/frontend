@@ -25,6 +25,7 @@ jest.mock('@/hooks/useColorScheme', () => ({
 }));
 
 const recordedStackProps: any[] = [];
+const recordedStackScreenProps: any[] = [];
 const recordedHeaderProps: any[] = [];
 const recordedTopAppBarProps: any[] = [];
 const mockUseNativeHomeTabs = jest.fn();
@@ -59,8 +60,13 @@ const restorePlatformOS = () => {
 
 function mockStack(props: any) {
   recordedStackProps.push(props);
-  return <View testID='app-stack' />;
+  return <View testID='app-stack'>{props.children}</View>;
 }
+
+mockStack.Screen = function mockStackScreen(props: any) {
+  recordedStackScreenProps.push(props);
+  return null;
+};
 
 jest.mock('expo-router', () => ({
   Stack: mockStack,
@@ -148,6 +154,7 @@ const getTabByKey = (key: string): NavTab | undefined =>
 
 describe('Root layout', () => {
   const mockBack = jest.fn();
+  const mockDismissTo = jest.fn();
   const mockReplace = jest.fn();
   const mockPush = jest.fn();
   const mockDismissAll = jest.fn();
@@ -155,6 +162,7 @@ describe('Root layout', () => {
 
   const createRouterMock = () => ({
     back: mockBack,
+    dismissTo: mockDismissTo,
     replace: mockReplace,
     push: mockPush,
     dismissAll: mockDismissAll,
@@ -170,12 +178,14 @@ describe('Root layout', () => {
     mockUseColorScheme.mockReturnValue('dark');
     mockNavigationBar.mockReset();
     mockBack.mockReset();
+    mockDismissTo.mockReset();
     mockReplace.mockReset();
     mockPush.mockReset();
     mockDismissAll.mockReset();
     mockCanGoBack.mockReset();
     mockCanGoBack.mockReturnValue(false);
     recordedStackProps.length = 0;
+    recordedStackScreenProps.length = 0;
     recordedHeaderProps.length = 0;
     recordedTopAppBarProps.length = 0;
     mockUseNativeHomeTabs.mockReset();
@@ -213,9 +223,34 @@ describe('Root layout', () => {
     expect(recordedStackProps.at(-1)?.screenOptions).toEqual({
       headerShown: false,
       animation: 'none',
+      gestureEnabled: false,
       contentStyle: { backgroundColor: Colors.dark.background.default.default },
     });
     expect(unstable_settings.initialRouteName).toBe('index');
+    expect(recordedStackScreenProps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'about',
+          options: expect.objectContaining({ gestureEnabled: true }),
+        }),
+        expect.objectContaining({
+          name: 'acknowledgements',
+          options: expect.objectContaining({ gestureEnabled: true }),
+        }),
+        expect.objectContaining({
+          name: 'upload',
+          options: expect.objectContaining({ gestureEnabled: true }),
+        }),
+        expect.objectContaining({
+          name: 'species/[...identifier]',
+          options: expect.objectContaining({
+            animation: 'fade',
+            animationDuration: expect.any(Number),
+            gestureEnabled: true,
+          }),
+        }),
+      ]),
+    );
   });
 
   it('applies the default background color at the native root', () => {
@@ -488,7 +523,7 @@ describe('Root layout', () => {
     expect(getTabByKey('explore')?.state).toBe('default');
   });
 
-  it('tab presses replace only when target path differs', () => {
+  it('tab presses dismissTo only when target path differs', () => {
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
     mockUsePathname.mockReturnValue('/search');
@@ -501,14 +536,14 @@ describe('Root layout', () => {
     expect(mockDismissAll).not.toHaveBeenCalled();
 
     getTabByKey('local-map')?.onPress?.();
-    expect(mockReplace).toHaveBeenCalledWith('/map');
+    expect(mockDismissTo).toHaveBeenCalledWith('/map');
     expect(mockPush).not.toHaveBeenCalled();
 
     getTabByKey('explore')?.onPress?.();
-    expect(mockReplace).toHaveBeenCalledWith('/');
+    expect(mockDismissTo).toHaveBeenCalledWith('/');
 
     getTabByKey('settings')?.onPress?.();
-    expect(mockReplace).toHaveBeenCalledWith('/settings');
+    expect(mockDismissTo).toHaveBeenCalledWith('/settings');
   });
 
   it('does not re-navigate when pressing inherited active tab on species route', () => {
@@ -626,7 +661,7 @@ describe('Root layout', () => {
 
     getTabByKey('search')?.onPress?.();
 
-    expect(mockReplace).toHaveBeenCalledWith('/search');
+    expect(mockDismissTo).toHaveBeenCalledWith('/search');
     expect(mockPush).toHaveBeenCalledWith('/species/123');
 
     pathnameState.value = '/species/123';
@@ -660,7 +695,7 @@ describe('Root layout', () => {
 
     getTabByKey('search')?.onPress?.();
 
-    expect(mockReplace).toHaveBeenCalledWith('/search');
+    expect(mockDismissTo).toHaveBeenCalledWith('/search');
     expect(mockPush).toHaveBeenCalledWith('/species/123');
     expect(mockPush).toHaveBeenCalledWith('/species/123/photos');
   });
@@ -690,12 +725,12 @@ describe('Root layout', () => {
 
     getTabByKey('search')?.onPress?.();
 
-    expect(mockReplace).toHaveBeenCalledWith('/search');
+    expect(mockDismissTo).toHaveBeenCalledWith('/search');
     expect(mockPush).toHaveBeenCalledWith('/species/123');
     expect(mockPush).not.toHaveBeenCalledWith('/species/123/photos');
   });
 
-  it('clears stack on tab switch when back stack exists', () => {
+  it('switches tabs with dismissTo when back stack exists', () => {
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
     mockUsePathname.mockReturnValue('/species/123');
@@ -705,8 +740,8 @@ describe('Root layout', () => {
 
     getTabByKey('local-map')?.onPress?.();
 
-    expect(mockDismissAll).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith('/map');
+    expect(mockDismissAll).not.toHaveBeenCalled();
+    expect(mockDismissTo).toHaveBeenCalledWith('/map');
     expect(mockPush).not.toHaveBeenCalled();
   });
 });
