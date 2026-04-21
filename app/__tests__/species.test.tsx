@@ -452,18 +452,19 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
         ),
       ).toBeTruthy();
     });
 
+    expect(screen.getByText('Weather window')).toBeTruthy();
     expect(screen.getByText('Heatmap source')).toBeTruthy();
     fireEvent.press(screen.getByText('Forecast-aware'));
 
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=0&apply_phenology=true&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=0&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=true&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -494,7 +495,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=8&apply_phenology=true&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=8&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=true&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -503,7 +504,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=8&apply_phenology=false&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=8&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=false&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -512,7 +513,81 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=8&apply_phenology=true&phenology_only=true',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=8&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=true&phenology_only=true',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  it('updates inference predictive heatmap query options across weather selections', async () => {
+    render(<SpeciesScreen data={createData()} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Weather window')).toBeTruthy();
+      expect(screen.getByLabelText('Forecast +8h')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+        ),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Forecast +8h'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=8',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  it('merges weather-window params into existing inference tile queries without duplicating forecast_hours', async () => {
+    render(
+      <SpeciesScreen
+        data={createData({
+          heatmap: {
+            imageSource: null as any,
+            inferenceAvailable: true,
+            inferenceTileUrl:
+              'https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=999',
+            legacyAvailable: false,
+            legacyTileUrl: null,
+            legacyModelId: null,
+            phenologyAvailable: false,
+            fullAvailable: false,
+          },
+        })}
+      />,
+    );
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=0',
+        ),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Forecast +8h'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=8',
         ),
       ).toBeTruthy();
     });
@@ -531,7 +606,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=0&apply_phenology=true&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=0&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=true&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -563,13 +638,13 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
         ),
       ).toBeTruthy();
     });
 
     expect(screen.queryByText('Heatmap source')).toBeNull();
-    expect(screen.queryByText('Weather window')).toBeNull();
+    expect(screen.getByText('Weather window')).toBeTruthy();
   });
 
   it('falls back from inference to legacy when inference tiles disappear after selection', async () => {
@@ -584,7 +659,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png',
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
         ),
       ).toBeTruthy();
     });
@@ -610,7 +685,7 @@ describe('Species screen', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?model_id=taxon_13579_gbt_20260313T000000Z&forecast_hours=0&apply_phenology=true&phenology_only=false',
+          'Map tile heatmap: https://tiles.example.test/species/legacy/{z}/{x}/{y}.png?forecast_hours=0&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=true&phenology_only=false',
         ),
       ).toBeTruthy();
     });

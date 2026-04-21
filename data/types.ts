@@ -104,7 +104,7 @@ export type HeatmapSnapshot = {
   fullAvailable?: boolean;
 };
 
-export type SpeciesLegacyHeatmapMetadata = {
+export type SpeciesClassicHeatmapMetadata = {
   available?: boolean;
   requested_model_id?: string | null;
   resolved_model_id?: string | null;
@@ -130,7 +130,7 @@ export type SpeciesHeatmapSummary = {
   resolved_model_id?: string | null;
   phenology_available?: boolean;
   full_available?: boolean;
-  legacy?: SpeciesLegacyHeatmapMetadata | null;
+  legacy?: SpeciesClassicHeatmapMetadata | null;
   inference?: SpeciesInferenceHeatmapMetadata | null;
 };
 

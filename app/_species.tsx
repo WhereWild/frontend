@@ -145,6 +145,71 @@ const getPredictiveHeatmapDescription = (
     : 'No heatmap is available for this species right now.';
 };
 
+const appendPredictiveHeatmapParams = (
+  tileUrl: string,
+  params: URLSearchParams,
+) => {
+  const additions = Array.from(params.entries());
+  if (additions.length === 0) {
+    return tileUrl;
+  }
+
+  const [pathAndQuery, hash = ''] = tileUrl.split('#', 2);
+  const [path, existingQuery = ''] = pathAndQuery.split('?', 2);
+  const mergedParams = new URLSearchParams(existingQuery);
+  additions.forEach(([key, value]) => {
+    mergedParams.set(key, value);
+  });
+
+  const query = mergedParams.toString();
+  const suffix = hash.length > 0 ? `#${hash}` : '';
+  return query.length > 0 ? `${path}?${query}${suffix}` : `${path}${suffix}`;
+};
+
+const buildInferencePredictiveHeatmapTileUrl = ({
+  forecastHours,
+  inferenceTileUrl,
+}: {
+  forecastHours: number;
+  inferenceTileUrl?: string | null;
+}) => {
+  if (!inferenceTileUrl) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set('forecast_hours', String(forecastHours));
+  return appendPredictiveHeatmapParams(inferenceTileUrl, params);
+};
+
+const buildLegacyPredictiveHeatmapTileUrl = ({
+  forecastHours,
+  legacyModelId,
+  legacyTileUrl,
+  phenologyMode,
+}: {
+  forecastHours: number;
+  legacyModelId?: string | null;
+  legacyTileUrl?: string | null;
+  phenologyMode: HeatmapMode;
+}) => {
+  if (!legacyTileUrl) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set('forecast_hours', String(forecastHours));
+
+  const applyPhenology = phenologyMode !== 'habitat';
+  const phenologyOnly = phenologyMode === 'phenology_only';
+  if (legacyModelId) {
+    params.set('model_id', legacyModelId);
+  }
+  params.set('apply_phenology', applyPhenology ? 'true' : 'false');
+  params.set('phenology_only', phenologyOnly ? 'true' : 'false');
+  return appendPredictiveHeatmapParams(legacyTileUrl, params);
+};
+
 const buildPredictiveHeatmapTileUrl = ({
   forecastHours,
   heatmapSource,
@@ -167,23 +232,18 @@ const buildPredictiveHeatmapTileUrl = ({
   }
 
   if (heatmapSource === 'inference') {
-    return inferenceTileUrl ?? null;
+    return buildInferencePredictiveHeatmapTileUrl({
+      forecastHours,
+      inferenceTileUrl,
+    });
   }
 
-  if (!legacyTileUrl) {
-    return null;
-  }
-
-  const applyPhenology = phenologyMode !== 'habitat';
-  const phenologyOnly = phenologyMode === 'phenology_only';
-  const params = new URLSearchParams();
-  if (legacyModelId) {
-    params.set('model_id', legacyModelId);
-  }
-  params.set('forecast_hours', String(forecastHours));
-  params.set('apply_phenology', applyPhenology ? 'true' : 'false');
-  params.set('phenology_only', phenologyOnly ? 'true' : 'false');
-  return `${legacyTileUrl}?${params.toString()}`;
+  return buildLegacyPredictiveHeatmapTileUrl({
+    forecastHours,
+    legacyModelId,
+    legacyTileUrl,
+    phenologyMode,
+  });
 };
 
 const buildHeatmapSourceOptions = ({
@@ -670,8 +730,8 @@ export default function Species({
                     />
                   )}
                   {showPredictiveHeatmap &&
-                    heatmapSource === 'legacy' &&
-                    hasLegacyHeatmap && (
+                    ((heatmapSource === 'legacy' && hasLegacyHeatmap) ||
+                      (heatmapSource === 'inference' && hasInferenceHeatmap)) && (
                       <SelectionChipGroup
                         options={forecastOptions}
                         selectedValue={forecastHours}
