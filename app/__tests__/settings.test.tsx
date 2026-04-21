@@ -198,6 +198,19 @@ describe('Settings screen', () => {
 
       render(<Settings />);
 
+      const unitsCall = mockSelectField.mock.calls.find(
+        ([props]) => props?.label === 'Units',
+      );
+
+      expect(unitsCall?.[0]).toMatchObject({
+        allowSearch: false,
+        value: 'metric',
+        options: [
+          { label: 'Metric (°C, km)', value: 'metric' },
+          { label: 'Imperial (°F, mi)', value: 'imperial' },
+        ],
+      });
+
       const onUnitsChange = getSelectFieldChangeHandler('Units');
 
       act(() => {
