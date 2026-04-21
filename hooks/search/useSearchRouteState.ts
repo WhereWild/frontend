@@ -77,6 +77,7 @@ type UseSearchRouteSyncParams = {
   isWeb: boolean;
   searchRouteParams: SearchRouteParams;
   initialFilterVisible: boolean;
+  initialSearchQuery?: string;
   filterParams: SearchTaxaQueryFilters;
 };
 
@@ -84,6 +85,7 @@ export function useSearchRouteSync({
   isWeb,
   searchRouteParams,
   initialFilterVisible,
+  initialSearchQuery,
   filterParams,
 }: UseSearchRouteSyncParams) {
   const pathname = usePathname();
@@ -147,7 +149,7 @@ export function useSearchRouteSync({
     [isWeb, stableSearchRouteParams],
   );
   const [searchQuery, setSearchQuery] = useState(
-    currentRouteParams.query ?? '',
+    initialSearchQuery ?? currentRouteParams.query ?? '',
   );
   const currentRouteUrl = useMemo(
     () => toSearchUrl(currentRouteParams),
