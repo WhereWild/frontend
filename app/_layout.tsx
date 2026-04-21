@@ -43,6 +43,7 @@ import {
   resolveNativeTopAppBarConfigForRoute,
   useNativeTopAppBarConfig,
 } from '@/context/NativeTopAppBarContext';
+import { NativeSearchSessionProvider } from '@/context/NativeSearchSessionContext';
 import {
   NativeHomeTabsProvider,
   useNativeHomeTabs,
@@ -715,13 +716,15 @@ export default function RootLayout() {
         <LayoutChromeProvider>
           <WebPageHeaderProvider>
             <NativeTopAppBarProvider>
-              {Platform.OS === 'web' ? (
-                <RootLayoutWebFrame />
-              ) : (
-                <NativeHomeTabsProvider>
-                  <RootLayoutNativeFrame />
-                </NativeHomeTabsProvider>
-              )}
+              <NativeSearchSessionProvider>
+                {Platform.OS === 'web' ? (
+                  <RootLayoutWebFrame />
+                ) : (
+                  <NativeHomeTabsProvider>
+                    <RootLayoutNativeFrame />
+                  </NativeHomeTabsProvider>
+                )}
+              </NativeSearchSessionProvider>
             </NativeTopAppBarProvider>
           </WebPageHeaderProvider>
         </LayoutChromeProvider>

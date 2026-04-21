@@ -39,6 +39,14 @@ export type SearchInputViewProps = {
   inputRef: React.RefObject<TextInput | null>;
 };
 
+const FALLBACK_CLEAR_BUTTON: SearchInputIconButtonProps = {
+  accessibilityLabel: 'Clear search',
+  disabled: true,
+  enableHaptics: false,
+  icon: null,
+  onPress: undefined,
+};
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -62,19 +70,14 @@ const styles = StyleSheet.create({
       ? ({ outlineStyle: 'none', outlineWidth: 0 } as any)
       : {}),
   },
-  hiddenClearButtonSlot: {
-    opacity: 0,
-    width: 0,
-    height: 0,
-    overflow: 'hidden',
-    pointerEvents: 'none',
-  },
   clearButtonSlot: {
-    pointerEvents: 'auto',
-  },
-  clearButtonPlaceholder: {
     width: Size.control.dimension.medium,
     height: Size.control.dimension.medium,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearButtonSlotHidden: {
+    opacity: 0,
   },
 });
 
@@ -88,6 +91,7 @@ export function SearchInputView({
   inputRef,
 }: SearchInputViewProps) {
   const { style: providedInputStyle, ...restInputProps } = inputProps;
+  const resolvedClearButton = clearButton ?? FALLBACK_CLEAR_BUTTON;
   // Always seed the TextInput with our baseline constraints so consumer overrides only layer on top.
   const mergedInputStyle = Array.isArray(providedInputStyle)
     ? [styles.input, ...providedInputStyle]
@@ -126,23 +130,21 @@ export function SearchInputView({
         collapsable={false}
         accessibilityElementsHidden={!clearButton}
         importantForAccessibility={clearButton ? 'auto' : 'no-hide-descendants'}
-        style={
-          clearButton ? styles.clearButtonSlot : styles.hiddenClearButtonSlot
-        }
+        pointerEvents={clearButton ? 'auto' : 'none'}
+        style={[
+          styles.clearButtonSlot,
+          !clearButton ? styles.clearButtonSlotHidden : undefined,
+        ]}
       >
-        {clearButton ? (
-          <IconButton
-            variant='subtle'
-            size='small'
-            icon={clearButton.icon}
-            accessibilityLabel={clearButton.accessibilityLabel}
-            disabled={clearButton.disabled}
-            enableHaptics={clearButton.enableHaptics}
-            onPress={clearButton.onPress}
-          />
-        ) : (
-          <View collapsable={false} style={styles.clearButtonPlaceholder} />
-        )}
+        <IconButton
+          variant='subtle'
+          size='small'
+          icon={resolvedClearButton.icon}
+          accessibilityLabel={resolvedClearButton.accessibilityLabel}
+          disabled={resolvedClearButton.disabled}
+          enableHaptics={resolvedClearButton.enableHaptics}
+          onPress={resolvedClearButton.onPress}
+        />
       </View>
     </Pressable>
   );

@@ -1,11 +1,13 @@
 import {
   SpeciesCard,
+  type SelectOption,
   ThemedText,
   Filters,
   PageScrollContainer,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { Size } from '@/constants/theme';
+import { useNativeSearchSession } from '@/context/NativeSearchSessionContext';
 import { useResponsive } from '@/hooks/useResponsive';
 import {
   getResponsiveContentContainerStyle,
@@ -20,6 +22,7 @@ import {
 } from '@/hooks/search/useSearchRouteState';
 import {
   pickSearchRouteParams,
+  type SearchRouteParams,
   toCurrentSearchRouteParams,
   toInitialSearchFilterState,
 } from '@/hooks/search/searchRouteState';
@@ -28,15 +31,145 @@ import { useSearchFilterAnimation } from '@/hooks/search/useSearchFilterAnimatio
 import { useSearchPageChrome } from '@/hooks/search/useSearchPageChrome';
 import { useSearchRouteLocationHydration } from '../hooks/search/useSearchRouteLocationHydration';
 import { WebMetadata } from '@/utils/webMetadata';
+import type { UseSearchFiltersInitialState } from '@/hooks/search/filters/useSearchFilters';
 
 const FILTERS_COLUMN_MAX_WIDTH = 480;
 const FILTERS_COLUMN_MIN_WIDTH = 240;
 const RESULTS_COLUMN_MIN_WIDTH = 300;
 const FILTER_SLIDE_OFFSET = FILTERS_COLUMN_MAX_WIDTH;
 
+type PersistedSearchFiltersStateInput = {
+  ancestorTaxonId: number | null;
+  baseTaxonQuery: string;
+  countryOptions: SelectOption[];
+  countryValue: string;
+  countyOptions: SelectOption[];
+  countyValue: string;
+  includeSubspecies: boolean;
+  minimumSamples: number;
+  numberOfResults: number;
+  rankValue: string;
+  sortMetricValue: string;
+  sortOrder: 'ascending' | 'descending';
+  sortVariableValue: string;
+  stateOptions: SelectOption[];
+  stateValue: string;
+};
+
+const hasExplicitSearchRouteState = (params: SearchRouteParams) =>
+  Object.keys(toCurrentSearchRouteParams(params)).length > 0;
+
+const toPersistedSearchFiltersState = ({
+  ancestorTaxonId,
+  baseTaxonQuery,
+  countryOptions,
+  countryValue,
+  countyOptions,
+  countyValue,
+  includeSubspecies,
+  minimumSamples,
+  numberOfResults,
+  rankValue,
+  sortMetricValue,
+  sortOrder,
+  sortVariableValue,
+  stateOptions,
+  stateValue,
+}: PersistedSearchFiltersStateInput): UseSearchFiltersInitialState => ({
+  location: {
+    countryValue,
+    stateValue,
+    countyValue,
+    countryOptions,
+    stateOptions,
+    countyOptions,
+  },
+  taxon: {
+    ancestorTaxonId,
+    baseTaxonQuery,
+  },
+  ranking: {
+    rankValue,
+    includeSubspecies,
+    sortVariableValue,
+    sortMetricValue,
+    sortOrder,
+  },
+  quantity: {
+    numberOfResults,
+    minimumSamples,
+  },
+});
+
+const usePersistedSearchFiltersState = (
+  filters: ReturnType<typeof useSearchFilters>,
+) => {
+  const ancestorTaxonId = filters.filterParams.withinTaxonId ?? null;
+  const baseTaxonQuery = filters.baseTaxonQuery;
+  const countryOptions = filters.countryOptions;
+  const countryValue = filters.countryValue;
+  const countyOptions = filters.countyOptions;
+  const countyValue = filters.countyValue;
+  const includeSubspecies = filters.includeSubspecies;
+  const minimumSamples = filters.minimumSamples;
+  const numberOfResults = filters.numberOfResults;
+  const rankValue = filters.rankValue;
+  const sortMetricValue = filters.sortMetricValue;
+  const sortOrder = filters.sortOrder;
+  const sortVariableValue = filters.sortVariableValue;
+  const stateOptions = filters.stateOptions;
+  const stateValue = filters.stateValue;
+
+  return useMemo(
+    () =>
+      toPersistedSearchFiltersState({
+        ancestorTaxonId,
+        baseTaxonQuery,
+        countryOptions,
+        countryValue,
+        countyOptions,
+        countyValue,
+        includeSubspecies,
+        minimumSamples,
+        numberOfResults,
+        rankValue,
+        sortMetricValue,
+        sortOrder,
+        sortVariableValue,
+        stateOptions,
+        stateValue,
+      }),
+    [
+      ancestorTaxonId,
+      baseTaxonQuery,
+      countryOptions,
+      countryValue,
+      countyOptions,
+      countyValue,
+      includeSubspecies,
+      minimumSamples,
+      numberOfResults,
+      rankValue,
+      sortMetricValue,
+      sortOrder,
+      sortVariableValue,
+      stateOptions,
+      stateValue,
+    ],
+  );
+};
+
 export default function Search() {
   const isWeb = Platform.OS === 'web';
   const isNative = !isWeb;
+  const {
+    filterVisible: persistedFilterVisible,
+    filtersState: persistedFiltersState,
+    searchQuery: persistedSearchQuery,
+    setFilterVisible: setPersistedFilterVisible,
+    setFiltersState: setPersistedFiltersState,
+    setSearchQuery: setPersistedSearchQuery,
+  } = useNativeSearchSession();
   const responsive = useResponsive();
   const isSmallDisplay = responsive.breakpoint === 'phone';
   const {
@@ -45,8 +178,22 @@ export default function Search() {
     initialSearchFiltersState,
     searchRouteParams,
   } = useSearchRouteInitialState(isWeb);
+  const nativeRouteHasExplicitState =
+    hasExplicitSearchRouteState(searchRouteParams);
+  const shouldRestoreNativeSearchSession =
+    isNative && !nativeRouteHasExplicitState;
+  const resolvedInitialFilterVisible = shouldRestoreNativeSearchSession
+    ? persistedFilterVisible
+    : initialFilterVisible;
+  const resolvedInitialSearchFiltersState =
+    shouldRestoreNativeSearchSession && persistedFiltersState != null
+      ? persistedFiltersState
+      : initialSearchFiltersState;
+  const resolvedInitialSearchQuery = shouldRestoreNativeSearchSession
+    ? persistedSearchQuery
+    : routeSearchQuery;
   const [layoutWidth, setLayoutWidth] = useState(0);
-  const filters = useSearchFilters(initialSearchFiltersState);
+  const filters = useSearchFilters(resolvedInitialSearchFiltersState);
   const {
     searchQuery,
     setSearchQuery,
@@ -57,7 +204,8 @@ export default function Search() {
   } = useSearchRouteSync({
     isWeb,
     searchRouteParams,
-    initialFilterVisible,
+    initialFilterVisible: resolvedInitialFilterVisible,
+    initialSearchQuery: resolvedInitialSearchQuery,
     filterParams: filters.filterParams,
   });
   const { routeFiltersState, routeLocation } = useMemo(() => {
@@ -118,12 +266,31 @@ export default function Search() {
     searching,
   } = useSearchController({
     filterParams: filters.filterParams,
-    nativeInitialQuery: routeSearchQuery,
+    nativeInitialQuery: resolvedInitialSearchQuery,
     isNative,
     isWeb,
     searchEnabled: !routeStateHydrationPending,
     searchQuery,
   });
+  const persistedSearchFiltersState = usePersistedSearchFiltersState(filters);
+
+  useEffect(() => {
+    if (!isNative) {
+      return;
+    }
+
+    setPersistedSearchQuery(nativeSearchQuery);
+    setPersistedFilterVisible(filterVisible);
+    setPersistedFiltersState(persistedSearchFiltersState);
+  }, [
+    filterVisible,
+    isNative,
+    nativeSearchQuery,
+    persistedSearchFiltersState,
+    setPersistedFilterVisible,
+    setPersistedFiltersState,
+    setPersistedSearchQuery,
+  ]);
 
   useSearchPageChrome({
     allowWebSearchControl: !routeStateHydrationPending,
@@ -163,37 +330,56 @@ export default function Search() {
     : !searching && searchResults.length === 0
       ? 'Enter a search term to see results.'
       : '';
+  const resultSlotCount = filters.numberOfResults;
   const loadingResults = useMemo(
-    () => Array.from({ length: filters.numberOfResults }, (_, index) => index),
-    [filters.numberOfResults],
+    () => Array.from({ length: resultSlotCount }, (_, index) => index),
+    [resultSlotCount],
   );
-  const renderedResults = searching
-    ? loadingResults.map((index) => (
-        <SpeciesCard
-          key={`loading-${index}`}
-          loading
-          loadingPatternSeed={index}
-          taxonId={0}
-          commonName=''
-          scientificName=''
-          interactionMode='press-only'
-          size={isSmallDisplay ? 'compact' : 'default'}
-          style={styles.resultCard}
-        />
-      ))
-    : searchResults.map((item) => (
-        <SpeciesCard
-          key={item.taxonId}
-          taxonId={item.taxonId}
-          commonName={item.commonName}
-          scientificName={item.scientificName}
-          description={item.description}
-          imageSource={item.imageSource}
-          size={isSmallDisplay ? 'compact' : 'default'}
-          style={styles.resultCard}
-          testID={`search-result-${item.taxonId}`}
-        />
-      ));
+  const renderedResults = loadingResults.map((index) => {
+    const item = searchResults[index];
+    const isVisible = searching || Boolean(item);
+
+    return (
+      <View
+        key={`result-slot-${index}`}
+        collapsable={false}
+        accessibilityElementsHidden={!isVisible}
+        importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        style={[
+          styles.resultSlot,
+          isVisible && index > 0 ? styles.resultSlotSpaced : undefined,
+          !isVisible ? styles.resultSlotHidden : undefined,
+        ]}
+      >
+        {searching ? (
+          <SpeciesCard
+            loading
+            loadingPatternSeed={index}
+            taxonId={0}
+            commonName=''
+            scientificName=''
+            interactionMode='press-only'
+            size={isSmallDisplay ? 'compact' : 'default'}
+            style={styles.resultCard}
+          />
+        ) : item ? (
+          <SpeciesCard
+            taxonId={item.taxonId}
+            commonName={item.commonName}
+            scientificName={item.scientificName}
+            description={item.description}
+            imageSource={item.imageSource}
+            size={isSmallDisplay ? 'compact' : 'default'}
+            style={styles.resultCard}
+            testID={`search-result-${item.taxonId}`}
+          />
+        ) : (
+          <View collapsable={false} style={styles.resultSlotPlaceholder} />
+        )}
+      </View>
+    );
+  });
 
   const contentStyle = [
     styles.content,
@@ -326,9 +512,25 @@ const styles = StyleSheet.create({
   },
   results: {
     flexDirection: 'column',
-    gap: Size.space['400'],
     minWidth: RESULTS_COLUMN_MIN_WIDTH,
     width: '100%',
+  },
+  resultSlot: {
+    width: '100%',
+  },
+  resultSlotSpaced: {
+    marginTop: Size.space['400'],
+  },
+  resultSlotHidden: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    opacity: 0,
+    height: 0,
+    overflow: 'hidden',
+  },
+  resultSlotPlaceholder: {
+    height: 0,
   },
   resultCard: {
     width: '100%',

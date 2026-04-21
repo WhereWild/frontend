@@ -2,6 +2,8 @@ import type { SearchTaxaQueryFilters } from '@/data/apiTaxaQueryHelpers';
 import { fetchLocationByGid } from '@/data/apiLocationHelpers';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import type { UseSearchFiltersInitialState } from '@/hooks/search/filters/useSearchFilters';
+import type { UseSearchFiltersResult } from '@/hooks/search/filters/useSearchFilters.types';
 import {
   fireEvent,
   render,
@@ -81,6 +83,11 @@ const mockSetHeaderConfig = jest.fn();
 const mockResetHeaderConfig = jest.fn();
 const mockSetNativeTopAppBarConfig = jest.fn();
 const mockResetNativeTopAppBarConfig = jest.fn();
+let mockNativeSearchSessionState: {
+  filterVisible: boolean;
+  filtersState?: UseSearchFiltersInitialState;
+  searchQuery: string;
+};
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
   Platform,
   'OS',
@@ -142,19 +149,24 @@ const mockFiltersResult = {
   onBaseTaxonBlur: jest.fn(),
   onHydrateRouteLocation: jest.fn(),
   onHydrateRouteState: jest.fn(),
+  baseTaxonSuggestions: [],
+  baseTaxonSuggestionsLoading: false,
+  baseTaxonSuggestionsVisible: false,
+  onBaseTaxonSelect: jest.fn(),
   rankValue: '',
   rankOptions: [{ label: 'All ranks', value: '' }],
   onRankChange: jest.fn(),
-  includeSubspecies: true,
+  includeSubspecies: true as boolean,
   onIncludeSubspeciesChange: jest.fn(),
   sortVariableValue: '',
   sortVariableOptions: [],
   sortVariableLoading: false,
+  sortVariableSourceIds: [],
   onSortVariableChange: jest.fn(),
   sortMetricValue: 'mean',
   sortMetricOptions: [{ label: 'Average', value: 'mean' }],
   onSortMetricChange: jest.fn(),
-  sortOrder: 'ascending' as const,
+  sortOrder: 'ascending' as 'ascending' | 'descending',
   onSortOrderChange: jest.fn(),
   numberOfResults: 10,
   onNumberOfResultsChange: jest.fn(),
@@ -162,7 +174,8 @@ const mockFiltersResult = {
   onMinimumSamplesChange: jest.fn(),
   onResetFilters: jest.fn(),
   filterParams: mockFilterParams,
-  hasActiveFilters: false,
+  rankingFilterHint: null,
+  hasActiveFilters: false as boolean,
   panelProps: {
     countryValue: '',
     countryOptions: [] as MockSelectOption[],
@@ -185,7 +198,7 @@ const mockFiltersResult = {
     rankValue: '',
     rankOptions: [{ label: 'All ranks', value: '' }],
     onRankChange: jest.fn(),
-    includeSubspecies: true,
+    includeSubspecies: true as boolean,
     onIncludeSubspeciesChange: jest.fn(),
     sortVariableValue: '',
     sortVariableOptions: [],
@@ -193,7 +206,7 @@ const mockFiltersResult = {
     sortMetricValue: 'mean',
     sortMetricOptions: [{ label: 'Average', value: 'mean' }],
     onSortMetricChange: jest.fn(),
-    sortOrder: 'ascending' as const,
+    sortOrder: 'ascending' as 'ascending' | 'descending',
     onSortOrderChange: jest.fn(),
     rankingFilterHint: null,
     numberOfResults: 10,
@@ -202,7 +215,7 @@ const mockFiltersResult = {
     onMinimumSamplesChange: jest.fn(),
     onResetFilters: jest.fn(),
   },
-};
+} satisfies UseSearchFiltersResult;
 
 jest.mock('@/hooks/search/filters/useSearchFilters', () => ({
   useSearchFilters: (...args: unknown[]) => mockUseSearchFilters(...args),
@@ -223,6 +236,23 @@ jest.mock('@/context/NativeTopAppBarContext', () => ({
   useNativeTopAppBarConfig: () => ({
     setConfig: mockSetNativeTopAppBarConfig,
     resetConfig: mockResetNativeTopAppBarConfig,
+  }),
+}));
+
+jest.mock('@/context/NativeSearchSessionContext', () => ({
+  useNativeSearchSession: () => ({
+    filterVisible: mockNativeSearchSessionState.filterVisible,
+    filtersState: mockNativeSearchSessionState.filtersState,
+    searchQuery: mockNativeSearchSessionState.searchQuery,
+    setFilterVisible: (value: boolean) => {
+      mockNativeSearchSessionState.filterVisible = value;
+    },
+    setFiltersState: (value?: UseSearchFiltersInitialState) => {
+      mockNativeSearchSessionState.filtersState = value;
+    },
+    setSearchQuery: (value: string) => {
+      mockNativeSearchSessionState.searchQuery = value;
+    },
   }),
 }));
 
@@ -350,6 +380,12 @@ describe('Search screen', () => {
   beforeEach(() => {
     let historyState: unknown = null;
 
+    mockNativeSearchSessionState = {
+      filterVisible: false,
+      filtersState: undefined,
+      searchQuery: '',
+    };
+
     mockHistoryPushState.mockImplementation(
       (state: unknown, _unused, url?: string) => {
         historyState = state;
@@ -420,6 +456,20 @@ describe('Search screen', () => {
     mockFiltersResult.onCountyChange.mockClear();
     mockFiltersResult.onHydrateRouteLocation.mockClear();
     mockFiltersResult.onHydrateRouteState.mockClear();
+    mockFiltersResult.countryValue = '';
+    mockFiltersResult.countryOptions = [];
+    mockFiltersResult.stateValue = '';
+    mockFiltersResult.stateOptions = [];
+    mockFiltersResult.countyValue = '';
+    mockFiltersResult.countyOptions = [];
+    mockFiltersResult.baseTaxonQuery = '';
+    mockFiltersResult.rankValue = '';
+    mockFiltersResult.includeSubspecies = true;
+    mockFiltersResult.sortVariableValue = '';
+    mockFiltersResult.sortMetricValue = 'mean';
+    mockFiltersResult.sortOrder = 'ascending';
+    mockFiltersResult.numberOfResults = 10;
+    mockFiltersResult.minimumSamples = 0;
     mockFiltersResult.filterParams = mockFilterParams;
     mockFiltersResult.hasActiveFilters = false;
     mockFiltersResult.onResetFilters.mockClear();
@@ -488,6 +538,113 @@ describe('Search screen', () => {
     expect(getLatestNativeTopAppBarConfig().searchValue).toBe('wolf');
     expect(mockHistoryPushState).not.toHaveBeenCalled();
     expect(mockHistoryReplaceState).not.toHaveBeenCalled();
+  });
+
+  it('preserves native query and filters across remounts', async () => {
+    setPlatformOS('ios');
+    mockFiltersResult.countryValue = 'USA';
+    mockFiltersResult.countryOptions = [
+      { label: 'United States', value: 'USA' },
+    ];
+    mockFiltersResult.stateValue = 'USA.45_1';
+    mockFiltersResult.stateOptions = [{ label: 'Oregon', value: 'USA.45_1' }];
+    mockFiltersResult.countyValue = 'USA.45.1_1';
+    mockFiltersResult.countyOptions = [
+      { label: 'Baker County', value: 'USA.45.1_1' },
+    ];
+    mockFiltersResult.baseTaxonQuery = 'Blue oak';
+    mockFiltersResult.rankValue = 'species';
+    mockFiltersResult.includeSubspecies = false;
+    mockFiltersResult.sortVariableValue = 'bio_1';
+    mockFiltersResult.sortMetricValue = 'median';
+    mockFiltersResult.sortOrder = 'descending';
+    mockFiltersResult.numberOfResults = 20;
+    mockFiltersResult.minimumSamples = 5;
+    mockFiltersResult.filterParams = {
+      ...mockFilterParams,
+      location: 'USA.45.1_1',
+      withinTaxonId: 77,
+      descendantRank: 'species',
+      includeSpeciesLike: false,
+      sortVariable: 'bio_1',
+      sortMetric: 'median',
+      sortOrder: 'desc',
+      minSamples: 5,
+      limit: 20,
+    };
+
+    const rendered = render(<Search />);
+
+    act(() => {
+      getLatestNativeTopAppBarConfig().onSearchValueChange('owl');
+    });
+
+    await act(async () => {
+      getLatestNativeTopAppBarConfig().primaryAction?.onPress?.();
+      await Promise.resolve();
+    });
+
+    expect(mockNativeSearchSessionState.searchQuery).toBe('owl');
+    expect(mockNativeSearchSessionState.filterVisible).toBe(true);
+    expect(mockNativeSearchSessionState.filtersState).toEqual({
+      location: {
+        countryValue: 'USA',
+        stateValue: 'USA.45_1',
+        countyValue: 'USA.45.1_1',
+        countryOptions: [{ label: 'United States', value: 'USA' }],
+        stateOptions: [{ label: 'Oregon', value: 'USA.45_1' }],
+        countyOptions: [{ label: 'Baker County', value: 'USA.45.1_1' }],
+      },
+      taxon: {
+        ancestorTaxonId: 77,
+        baseTaxonQuery: 'Blue oak',
+      },
+      ranking: {
+        rankValue: 'species',
+        includeSubspecies: false,
+        sortVariableValue: 'bio_1',
+        sortMetricValue: 'median',
+        sortOrder: 'descending',
+      },
+      quantity: {
+        numberOfResults: 20,
+        minimumSamples: 5,
+      },
+    });
+
+    rendered.unmount();
+    mockUseSearchFilters.mockClear();
+
+    render(<Search />);
+
+    expect(getLatestNativeTopAppBarConfig().searchValue).toBe('owl');
+    expect(getLatestNativeTopAppBarConfig().primaryAction?.buttonLabel).toBe(
+      'Hide filter',
+    );
+    expect(mockUseSearchFilters).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        location: expect.objectContaining({
+          countryValue: 'USA',
+          stateValue: 'USA.45_1',
+          countyValue: 'USA.45.1_1',
+        }),
+        taxon: expect.objectContaining({
+          ancestorTaxonId: 77,
+          baseTaxonQuery: 'Blue oak',
+        }),
+        ranking: expect.objectContaining({
+          rankValue: 'species',
+          includeSubspecies: false,
+          sortVariableValue: 'bio_1',
+          sortMetricValue: 'median',
+          sortOrder: 'descending',
+        }),
+        quantity: expect.objectContaining({
+          numberOfResults: 20,
+          minimumSamples: 5,
+        }),
+      }),
+    );
   });
 
   it('hydrates native initial filters without an implicit rank or minimum sample threshold', () => {
