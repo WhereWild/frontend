@@ -340,9 +340,9 @@ describe('SpeciesBasicsPage', () => {
 
     expect(result.heatmap.inferenceAvailable).toBe(false);
     expect(result.heatmap.inferenceTileUrl).toBeNull();
-    expect(result.heatmap.legacyAvailable).toBe(false);
-    expect(result.heatmap.legacyTileUrl).toBeNull();
-    expect(result.heatmap.legacyModelId).toBe(
+    expect(result.heatmap.classicAvailable).toBe(false);
+    expect(result.heatmap.classicTileUrl).toBeNull();
+    expect(result.heatmap.classicModelId).toBe(
       'taxon_123456_gbt_20260313T065439Z',
     );
   });
@@ -366,12 +366,12 @@ describe('SpeciesBasicsPage', () => {
       Number(SAMPLE_TAXON_ID),
     );
 
-    expect(result.heatmap.legacyModelId).toBeNull();
+    expect(result.heatmap.classicModelId).toBeNull();
     expect(result.heatmap.phenologyAvailable).toBe(true);
     expect(result.heatmap.fullAvailable).toBe(true);
   });
 
-  it('maps nested inference and legacy heatmap URLs when the backend provides them', async () => {
+  it('maps nested inference and classic heatmap URLs when the backend provides them', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockResolvedValue({
       common_name: 'Heatmap Sources',
@@ -379,13 +379,13 @@ describe('SpeciesBasicsPage', () => {
       description: 'Species with split heatmap sources.',
       heatmap: {
         available: true,
-        resolved_model_id: 'legacy_top_level',
+        resolved_model_id: 'classic_top_level',
         phenology_available: true,
         full_available: true,
-        legacy: {
+        classic: {
           available: true,
-          resolved_model_id: 'legacy_nested_model',
-          tile_url: '/api/species/123456/heatmap/legacy/tiles/{z}/{x}/{y}.png',
+          resolved_model_id: 'classic_nested_model',
+          tile_url: '/api/species/123456/heatmap/classic/tiles/{z}/{x}/{y}.png',
         },
         inference: {
           available: true,
@@ -403,11 +403,11 @@ describe('SpeciesBasicsPage', () => {
     expect(result.heatmap.inferenceTileUrl).toBe(
       `${BACKEND_BASE}/api/species/123456/heatmap/tiles/{z}/{x}/{y}.png`,
     );
-    expect(result.heatmap.legacyAvailable).toBe(true);
-    expect(result.heatmap.legacyTileUrl).toBe(
-      `${BACKEND_BASE}/api/species/123456/heatmap/legacy/tiles/{z}/{x}/{y}.png`,
+    expect(result.heatmap.classicAvailable).toBe(true);
+    expect(result.heatmap.classicTileUrl).toBe(
+      `${BACKEND_BASE}/api/species/123456/heatmap/classic/tiles/{z}/{x}/{y}.png`,
     );
-    expect(result.heatmap.legacyModelId).toBe('legacy_nested_model');
+    expect(result.heatmap.classicModelId).toBe('classic_nested_model');
   });
 
   it('renders the loading shell while the identifier data is still loading', () => {

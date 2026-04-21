@@ -45,7 +45,7 @@ const FORECAST_OPTIONS: { label: string; hours: number }[] = [
   { label: '+7d', hours: 168 },
 ];
 type HeatmapMode = 'habitat' | 'combined' | 'phenology_only';
-type HeatmapSource = 'inference' | 'legacy';
+type HeatmapSource = 'inference' | 'classic';
 type SelectionChipOption<T extends string | number> = {
   accessibilityLabel: string;
   label: string;
@@ -122,21 +122,21 @@ export const shouldRenderObservationMapFrame = ({
 const getPredictiveHeatmapDescription = (
   selectedSource: HeatmapSource,
   hasInferenceHeatmap: boolean,
-  hasLegacyHeatmap: boolean,
+  hasClassicHeatmap: boolean,
   hasAnyHeatmap: boolean,
 ) => {
   const selectedSourceAvailable =
-    selectedSource === 'inference' ? hasInferenceHeatmap : hasLegacyHeatmap;
+    selectedSource === 'inference' ? hasInferenceHeatmap : hasClassicHeatmap;
 
   if (selectedSourceAvailable) {
     return undefined;
   }
 
-  if (selectedSource === 'inference' && hasLegacyHeatmap) {
-    return 'Inference heatmap is unavailable right now. Select Forecast-aware to use the legacy model-backed tiles.';
+  if (selectedSource === 'inference' && hasClassicHeatmap) {
+    return 'Inference heatmap is unavailable right now. Select Forecast-aware to use the classic model-backed tiles.';
   }
 
-  if (selectedSource === 'legacy' && hasInferenceHeatmap) {
+  if (selectedSource === 'classic' && hasInferenceHeatmap) {
     return 'Forecast-aware heatmap is unavailable right now. Switch to Inference to use the new tile renderer.';
   }
 
@@ -182,18 +182,18 @@ const buildInferencePredictiveHeatmapTileUrl = ({
   return appendPredictiveHeatmapParams(inferenceTileUrl, params);
 };
 
-const buildLegacyPredictiveHeatmapTileUrl = ({
+const buildClassicPredictiveHeatmapTileUrl = ({
   forecastHours,
-  legacyModelId,
-  legacyTileUrl,
+  classicModelId,
+  classicTileUrl,
   phenologyMode,
 }: {
   forecastHours: number;
-  legacyModelId?: string | null;
-  legacyTileUrl?: string | null;
+  classicModelId?: string | null;
+  classicTileUrl?: string | null;
   phenologyMode: HeatmapMode;
 }) => {
-  if (!legacyTileUrl) {
+  if (!classicTileUrl) {
     return null;
   }
 
@@ -202,28 +202,28 @@ const buildLegacyPredictiveHeatmapTileUrl = ({
 
   const applyPhenology = phenologyMode !== 'habitat';
   const phenologyOnly = phenologyMode === 'phenology_only';
-  if (legacyModelId) {
-    params.set('model_id', legacyModelId);
+  if (classicModelId) {
+    params.set('model_id', classicModelId);
   }
   params.set('apply_phenology', applyPhenology ? 'true' : 'false');
   params.set('phenology_only', phenologyOnly ? 'true' : 'false');
-  return appendPredictiveHeatmapParams(legacyTileUrl, params);
+  return appendPredictiveHeatmapParams(classicTileUrl, params);
 };
 
 const buildPredictiveHeatmapTileUrl = ({
   forecastHours,
   heatmapSource,
   inferenceTileUrl,
-  legacyModelId,
-  legacyTileUrl,
+  classicModelId,
+  classicTileUrl,
   phenologyMode,
   showPredictiveHeatmap,
 }: {
   forecastHours: number;
   heatmapSource: HeatmapSource;
   inferenceTileUrl?: string | null;
-  legacyModelId?: string | null;
-  legacyTileUrl?: string | null;
+  classicModelId?: string | null;
+  classicTileUrl?: string | null;
   phenologyMode: HeatmapMode;
   showPredictiveHeatmap: boolean;
 }) => {
@@ -238,20 +238,20 @@ const buildPredictiveHeatmapTileUrl = ({
     });
   }
 
-  return buildLegacyPredictiveHeatmapTileUrl({
+  return buildClassicPredictiveHeatmapTileUrl({
     forecastHours,
-    legacyModelId,
-    legacyTileUrl,
+    classicModelId,
+    classicTileUrl,
     phenologyMode,
   });
 };
 
 const buildHeatmapSourceOptions = ({
   hasInferenceHeatmap,
-  hasLegacyHeatmap,
+  hasClassicHeatmap,
 }: {
   hasInferenceHeatmap: boolean;
-  hasLegacyHeatmap: boolean;
+  hasClassicHeatmap: boolean;
 }): SelectionChipOption<HeatmapSource>[] => {
   const options: SelectionChipOption<HeatmapSource>[] = [];
   if (hasInferenceHeatmap) {
@@ -261,11 +261,11 @@ const buildHeatmapSourceOptions = ({
       value: 'inference',
     });
   }
-  if (hasLegacyHeatmap) {
+  if (hasClassicHeatmap) {
     options.push({
-      accessibilityLabel: 'Forecast-aware legacy heatmap',
+      accessibilityLabel: 'Forecast-aware classic heatmap',
       label: 'Forecast-aware',
-      value: 'legacy',
+      value: 'classic',
     });
   }
   return options;
@@ -428,11 +428,11 @@ export default function Species({
   const hasInferenceHeatmap =
     typeof heatmap.inferenceTileUrl === 'string' &&
     heatmap.inferenceTileUrl.length > 0;
-  const hasLegacyHeatmap =
-    typeof heatmap.legacyTileUrl === 'string' &&
-    heatmap.legacyTileUrl.length > 0;
+  const hasClassicHeatmap =
+    typeof heatmap.classicTileUrl === 'string' &&
+    heatmap.classicTileUrl.length > 0;
   const hasAnyHeatmap =
-    hasInferenceHeatmap || hasLegacyHeatmap || Boolean(heatmap.imageSource);
+    hasInferenceHeatmap || hasClassicHeatmap || Boolean(heatmap.imageSource);
   const hasPhenology = heatmap.phenologyAvailable === true;
   const hasConditions = hasPhenology || heatmap.fullAvailable === true;
   const conditionsLabel = hasPhenology
@@ -442,7 +442,7 @@ export default function Species({
   const [showPredictiveHeatmap, setShowPredictiveHeatmap] =
     React.useState<boolean>(false);
   const [heatmapSource, setHeatmapSource] = React.useState<HeatmapSource>(
-    hasInferenceHeatmap ? 'inference' : 'legacy',
+    hasInferenceHeatmap ? 'inference' : 'classic',
   );
   const [phenologyMode, setPhenologyMode] =
     React.useState<HeatmapMode>('combined');
@@ -463,18 +463,18 @@ export default function Species({
       getPredictiveHeatmapDescription(
         heatmapSource,
         hasInferenceHeatmap,
-        hasLegacyHeatmap,
+        hasClassicHeatmap,
         hasAnyHeatmap,
       ),
-    [hasAnyHeatmap, hasInferenceHeatmap, hasLegacyHeatmap, heatmapSource],
+    [hasAnyHeatmap, hasClassicHeatmap, hasInferenceHeatmap, heatmapSource],
   );
   const heatmapSourceOptions = React.useMemo(
     () =>
       buildHeatmapSourceOptions({
         hasInferenceHeatmap,
-        hasLegacyHeatmap,
+        hasClassicHeatmap,
       }),
-    [hasInferenceHeatmap, hasLegacyHeatmap],
+    [hasClassicHeatmap, hasInferenceHeatmap],
   );
   const modelOptions = React.useMemo(
     () => buildHeatmapModelOptions(hasPhenology, conditionsLabel),
@@ -495,16 +495,16 @@ export default function Species({
         forecastHours,
         heatmapSource,
         inferenceTileUrl: heatmap.inferenceTileUrl,
-        legacyModelId: heatmap.legacyModelId,
-        legacyTileUrl: heatmap.legacyTileUrl,
+        classicModelId: heatmap.classicModelId,
+        classicTileUrl: heatmap.classicTileUrl,
         phenologyMode,
         showPredictiveHeatmap,
       }),
     [
       forecastHours,
       heatmap.inferenceTileUrl,
-      heatmap.legacyModelId,
-      heatmap.legacyTileUrl,
+      heatmap.classicModelId,
+      heatmap.classicTileUrl,
       heatmapSource,
       phenologyMode,
       showPredictiveHeatmap,
@@ -557,11 +557,11 @@ export default function Species({
   }, [finalLocationGid, taxonId]);
 
   React.useEffect(() => {
-    if (hasInferenceHeatmap || hasLegacyHeatmap) {
+    if (hasInferenceHeatmap || hasClassicHeatmap) {
       return;
     }
     setShowPredictiveHeatmap(false);
-  }, [hasInferenceHeatmap, hasLegacyHeatmap]);
+  }, [hasClassicHeatmap, hasInferenceHeatmap]);
 
   React.useEffect(() => {
     setHeatmapStatus(null);
@@ -571,11 +571,11 @@ export default function Species({
     if (heatmapSource === 'inference' && hasInferenceHeatmap) {
       return;
     }
-    if (heatmapSource === 'legacy' && hasLegacyHeatmap) {
+    if (heatmapSource === 'classic' && hasClassicHeatmap) {
       return;
     }
-    setHeatmapSource(hasInferenceHeatmap ? 'inference' : 'legacy');
-  }, [hasInferenceHeatmap, hasLegacyHeatmap, heatmapSource]);
+    setHeatmapSource(hasInferenceHeatmap ? 'inference' : 'classic');
+  }, [hasClassicHeatmap, hasInferenceHeatmap, heatmapSource]);
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -712,7 +712,7 @@ export default function Species({
                   <SwitchField
                     label='Show predictive heatmap'
                     value={showPredictiveHeatmap}
-                    disabled={!hasInferenceHeatmap && !hasLegacyHeatmap}
+                    disabled={!hasInferenceHeatmap && !hasClassicHeatmap}
                     description={predictiveHeatmapDescription}
                     onValueChange={setShowPredictiveHeatmap}
                   />
@@ -730,8 +730,9 @@ export default function Species({
                     />
                   )}
                   {showPredictiveHeatmap &&
-                    ((heatmapSource === 'legacy' && hasLegacyHeatmap) ||
-                      (heatmapSource === 'inference' && hasInferenceHeatmap)) && (
+                    ((heatmapSource === 'classic' && hasClassicHeatmap) ||
+                      (heatmapSource === 'inference' &&
+                        hasInferenceHeatmap)) && (
                       <SelectionChipGroup
                         options={forecastOptions}
                         selectedValue={forecastHours}
@@ -740,8 +741,8 @@ export default function Species({
                       />
                     )}
                   {showPredictiveHeatmap &&
-                    heatmapSource === 'legacy' &&
-                    hasLegacyHeatmap &&
+                    heatmapSource === 'classic' &&
+                    hasClassicHeatmap &&
                     hasConditions && (
                       <SelectionChipGroup
                         options={modelOptions}

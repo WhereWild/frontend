@@ -85,7 +85,7 @@ const buildSpeciesPageData = (
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId =
     payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
-  const legacyHeatmap = payload.heatmap?.legacy;
+  const classicHeatmap = payload.heatmap?.classic;
   const inferenceHeatmap = payload.heatmap?.inference;
   const inferenceAvailable =
     inferenceHeatmap?.available === true && resolvedTaxonId > 0;
@@ -95,13 +95,13 @@ const buildSpeciesPageData = (
     tileUrl: inferenceHeatmap?.tile_url,
     fallbackPath: `/api/species/${resolvedTaxonId}/heatmap/tiles/{z}/{x}/{y}.png`,
   });
-  const legacyAvailable =
-    legacyHeatmap?.available === true && resolvedTaxonId > 0;
-  const legacyTileUrl = buildHeatmapTileUrl({
-    available: legacyAvailable,
+  const classicAvailable =
+    classicHeatmap?.available === true && resolvedTaxonId > 0;
+  const classicTileUrl = buildHeatmapTileUrl({
+    available: classicAvailable,
     resolvedTaxonId,
-    tileUrl: legacyHeatmap?.tile_url,
-    fallbackPath: `/api/species/${resolvedTaxonId}/heatmap/legacy/tiles/{z}/{x}/{y}.png`,
+    tileUrl: classicHeatmap?.tile_url,
+    fallbackPath: `/api/species/${resolvedTaxonId}/heatmap/classic/tiles/{z}/{x}/{y}.png`,
   });
   return {
     ...fallback,
@@ -128,10 +128,10 @@ const buildSpeciesPageData = (
       ...fallback.heatmap,
       inferenceAvailable,
       inferenceTileUrl,
-      legacyAvailable,
-      legacyTileUrl,
-      legacyModelId:
-        toNonEmptyStringOrNull(legacyHeatmap?.resolved_model_id) ??
+      classicAvailable,
+      classicTileUrl,
+      classicModelId:
+        toNonEmptyStringOrNull(classicHeatmap?.resolved_model_id) ??
         toNonEmptyStringOrNull(payload.heatmap?.resolved_model_id),
       phenologyAvailable: payload.heatmap?.phenology_available === true,
       fullAvailable: payload.heatmap?.full_available === true,

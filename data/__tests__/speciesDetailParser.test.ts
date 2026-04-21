@@ -125,7 +125,7 @@ describe('speciesDetailParser', () => {
     });
   });
 
-  it('maps nested legacy and inference heatmap metadata when present', () => {
+  it('maps nested classic and inference heatmap metadata when present', () => {
     const parsed = parseSpeciesApiDetail(
       {
         heatmap: {
@@ -133,10 +133,10 @@ describe('speciesDetailParser', () => {
           resolved_model_id: 'top_level_model',
           phenology_available: true,
           full_available: true,
-          legacy: {
+          classic: {
             available: true,
             requested_model_id: 'auto_gbt_sdm',
-            resolved_model_id: 'legacy_model_123',
+            resolved_model_id: 'classic_model_123',
             model_dir: '/tmp/model-dir',
             taxon_id: '99',
             feature_columns: ['bio_1', 'bio_12'],
@@ -144,7 +144,7 @@ describe('speciesDetailParser', () => {
             metrics: { threshold: 0.42 },
             phenology_available: true,
             full_available: false,
-            tile_url: '/api/species/99/heatmap/legacy/tiles/{z}/{x}/{y}.png',
+            tile_url: '/api/species/99/heatmap/classic/tiles/{z}/{x}/{y}.png',
           },
           inference: {
             available: true,
@@ -162,10 +162,10 @@ describe('speciesDetailParser', () => {
       resolved_model_id: 'top_level_model',
       phenology_available: true,
       full_available: true,
-      legacy: {
+      classic: {
         available: true,
         requested_model_id: 'auto_gbt_sdm',
-        resolved_model_id: 'legacy_model_123',
+        resolved_model_id: 'classic_model_123',
         model_dir: '/tmp/model-dir',
         taxon_id: '99',
         feature_columns: ['bio_1', 'bio_12'],
@@ -173,7 +173,7 @@ describe('speciesDetailParser', () => {
         metrics: { threshold: 0.42 },
         phenology_available: true,
         full_available: false,
-        tile_url: '/api/species/99/heatmap/legacy/tiles/{z}/{x}/{y}.png',
+        tile_url: '/api/species/99/heatmap/classic/tiles/{z}/{x}/{y}.png',
       },
       inference: {
         available: true,

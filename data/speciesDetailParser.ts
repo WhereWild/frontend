@@ -65,9 +65,7 @@ export const parseSpeciesApiDetail = (
   const source = asRecord(payload);
   const description = toFirstString(source.description) ?? DESCRIPTION_PENDING;
   const heatmapSource = asRecord(source.heatmap);
-  const legacyHeatmapSource = asRecord(
-    heatmapSource?.legacy ?? heatmapSource?.legacyHeatmap,
-  );
+  const classicHeatmapSource = asRecord(heatmapSource?.classic);
   const inferenceHeatmapSource = asRecord(
     heatmapSource?.inference ?? heatmapSource?.inferenceHeatmap,
   );
@@ -94,40 +92,40 @@ export const parseSpeciesApiDetail = (
           full_available: toOptionalBoolean(
             heatmapSource.full_available ?? heatmapSource.fullAvailable,
           ),
-          ...(hasRecordEntries(legacyHeatmapSource)
+          ...(hasRecordEntries(classicHeatmapSource)
             ? {
-                legacy: {
-                  available: toOptionalBoolean(legacyHeatmapSource.available),
+                classic: {
+                  available: toOptionalBoolean(classicHeatmapSource.available),
                   requested_model_id: toFirstString(
-                    legacyHeatmapSource.requested_model_id,
-                    legacyHeatmapSource.requestedModelId,
+                    classicHeatmapSource.requested_model_id,
+                    classicHeatmapSource.requestedModelId,
                   ),
                   resolved_model_id: toFirstString(
-                    legacyHeatmapSource.resolved_model_id,
-                    legacyHeatmapSource.resolvedModelId,
+                    classicHeatmapSource.resolved_model_id,
+                    classicHeatmapSource.resolvedModelId,
                   ),
                   model_dir: toFirstString(
-                    legacyHeatmapSource.model_dir,
-                    legacyHeatmapSource.modelDir,
+                    classicHeatmapSource.model_dir,
+                    classicHeatmapSource.modelDir,
                   ),
-                  taxon_id: toFirstString(legacyHeatmapSource.taxon_id),
+                  taxon_id: toFirstString(classicHeatmapSource.taxon_id),
                   feature_columns: toOptionalStringArray(
-                    legacyHeatmapSource.feature_columns ??
-                      legacyHeatmapSource.featureColumns,
+                    classicHeatmapSource.feature_columns ??
+                      classicHeatmapSource.featureColumns,
                   ),
-                  summary: toOptionalRecord(legacyHeatmapSource.summary),
-                  metrics: toOptionalRecord(legacyHeatmapSource.metrics),
+                  summary: toOptionalRecord(classicHeatmapSource.summary),
+                  metrics: toOptionalRecord(classicHeatmapSource.metrics),
                   phenology_available: toOptionalBoolean(
-                    legacyHeatmapSource.phenology_available ??
-                      legacyHeatmapSource.phenologyAvailable,
+                    classicHeatmapSource.phenology_available ??
+                      classicHeatmapSource.phenologyAvailable,
                   ),
                   full_available: toOptionalBoolean(
-                    legacyHeatmapSource.full_available ??
-                      legacyHeatmapSource.fullAvailable,
+                    classicHeatmapSource.full_available ??
+                      classicHeatmapSource.fullAvailable,
                   ),
                   tile_url: toFirstString(
-                    legacyHeatmapSource.tile_url,
-                    legacyHeatmapSource.tileUrl,
+                    classicHeatmapSource.tile_url,
+                    classicHeatmapSource.tileUrl,
                   ),
                 },
               }
