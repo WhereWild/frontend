@@ -366,11 +366,11 @@ export default function Species({
     platform: Platform.OS,
   });
   const hasInferenceHeatmap =
-    heatmap.inferenceAvailable === true &&
-    typeof heatmap.inferenceTileUrl === 'string';
+    typeof heatmap.inferenceTileUrl === 'string' &&
+    heatmap.inferenceTileUrl.length > 0;
   const hasLegacyHeatmap =
-    heatmap.legacyAvailable === true &&
-    typeof heatmap.legacyTileUrl === 'string';
+    typeof heatmap.legacyTileUrl === 'string' &&
+    heatmap.legacyTileUrl.length > 0;
   const hasAnyHeatmap =
     hasInferenceHeatmap || hasLegacyHeatmap || Boolean(heatmap.imageSource);
   const hasPhenology = heatmap.phenologyAvailable === true;

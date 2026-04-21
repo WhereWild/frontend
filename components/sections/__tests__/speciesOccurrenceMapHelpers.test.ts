@@ -909,7 +909,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     );
   });
 
-  it('aborts heatmap tile fetches after the timeout window elapses', async () => {
+  it('does not abort heatmap tile fetches when the timeout is disabled', async () => {
     jest.useFakeTimers();
 
     const templatePaths = [
@@ -967,7 +967,7 @@ describe('speciesOccurrenceMapHelpers', () => {
           jest.advanceTimersByTime(45000);
           await Promise.resolve();
 
-          expect(fetchOptions?.signal?.aborted).toBe(true);
+          expect(fetchOptions?.signal?.aborted).toBe(false);
         }),
       );
     } finally {

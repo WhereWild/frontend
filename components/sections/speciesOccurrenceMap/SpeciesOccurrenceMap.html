@@ -46,7 +46,7 @@
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
     const HEATMAP_FAILURE_THRESHOLD = 3;
-    const HEATMAP_TILE_TIMEOUT_MS = 45000;
+    const HEATMAP_TILE_TIMEOUT_MS = null;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
     const INITIAL_LAT = __INITIAL_LAT__;
@@ -172,12 +172,17 @@
         const controller = new AbortController();
         let finished = false;
         let timedOut = false;
-        const timeoutHandle = setTimeout(function() {
-          timedOut = true;
-          controller.abort();
-        }, HEATMAP_TILE_TIMEOUT_MS);
+        const timeoutHandle =
+          typeof HEATMAP_TILE_TIMEOUT_MS === 'number' && HEATMAP_TILE_TIMEOUT_MS > 0
+            ? setTimeout(function() {
+                timedOut = true;
+                controller.abort();
+              }, HEATMAP_TILE_TIMEOUT_MS)
+            : null;
         const clearTileTimeout = function() {
-          clearTimeout(timeoutHandle);
+          if (timeoutHandle !== null) {
+            clearTimeout(timeoutHandle);
+          }
         };
         controller.signal.addEventListener('abort', clearTileTimeout, {
           once: true,
