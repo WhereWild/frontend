@@ -33,16 +33,33 @@ type NonSearchLeadingContentProps = {
   logoSlotOpacity: Animated.Value;
 };
 
+const NOOP = () => {};
+const NOOP_SEARCH_HANDLER = (_value: string) => {};
+const FALLBACK_SEARCH_PROPS: Extract<
+  LeadingContentProps,
+  { variant: 'search' }
+> = {
+  variant: 'search',
+  searchValue: '',
+  onSearchValueChange: NOOP_SEARCH_HANDLER,
+  onSubmitSearch: NOOP_SEARCH_HANDLER,
+};
+const FALLBACK_NON_SEARCH_PROPS: Exclude<
+  LeadingContentProps,
+  { variant: 'search' }
+> = {
+  variant: 'page',
+  title: '',
+  onPressBack: NOOP,
+};
+
 /** Renders search-mode leading content with the search input. */
 function SearchLeadingContent({
   leadingSearchProps,
   contentTransitionStyle,
 }: SearchLeadingContentProps) {
   return (
-    <Animated.View
-      style={[styles.searchWrapper, contentTransitionStyle]}
-      testID='top-app-bar-leading'
-    >
+    <Animated.View style={[styles.searchWrapper, contentTransitionStyle]}>
       <SearchInput
         value={leadingSearchProps.searchValue}
         onQueryChange={leadingSearchProps.onSearchValueChange}
@@ -88,7 +105,6 @@ function NonSearchLeadingContent({
     <Animated.View
       collapsable={false}
       style={[styles.leadingRow, contentTransitionStyle]}
-      testID='top-app-bar-leading'
     >
       <Animated.View
         collapsable={false}
@@ -108,6 +124,7 @@ function NonSearchLeadingContent({
             shouldShowBackButton ? 'auto' : 'no-hide-descendants'
           }
           pointerEvents={shouldShowBackButton ? 'auto' : 'none'}
+          style={styles.leadingSlotContent}
         >
           <IconButton
             variant='subtle'
@@ -138,6 +155,7 @@ function NonSearchLeadingContent({
             shouldShowLogo ? 'auto' : 'no-hide-descendants'
           }
           pointerEvents={shouldShowLogo ? 'auto' : 'none'}
+          style={styles.leadingSlotContent}
         >
           <Pressable
             onPress={shouldShowLogo ? onPressLogo : undefined}
@@ -176,8 +194,14 @@ export function LeadingContent(props: LeadingContentProps) {
   );
   const [displayedProps, setDisplayedProps] =
     React.useState<LeadingContentProps>(props);
-  const [isTransitioning, setIsTransitioning] = React.useState(false);
+  const [, setIsTransitioning] = React.useState(false);
   const latestPropsRef = React.useRef<LeadingContentProps>(props);
+  const lastSearchPropsRef = React.useRef<
+    Extract<LeadingContentProps, { variant: 'search' }>
+  >(props.variant === 'search' ? props : FALLBACK_SEARCH_PROPS);
+  const lastNonSearchPropsRef = React.useRef<
+    Exclude<LeadingContentProps, { variant: 'search' }>
+  >(props.variant !== 'search' ? props : FALLBACK_NON_SEARCH_PROPS);
   const previousVariantRef = React.useRef<LeadingContentProps['variant']>(
     props.variant,
   );
@@ -191,6 +215,12 @@ export function LeadingContent(props: LeadingContentProps) {
   const contentOpacity = useAnimatedValueRef(1);
 
   latestPropsRef.current = props;
+
+  if (props.variant === 'search') {
+    lastSearchPropsRef.current = props;
+  } else {
+    lastNonSearchPropsRef.current = props;
+  }
 
   React.useEffect(() => {
     const latestProps = latestPropsRef.current;
@@ -356,41 +386,79 @@ export function LeadingContent(props: LeadingContentProps) {
     opacity: contentOpacity.current,
     transform: [{ translateX: contentTranslateX.current }],
   };
-
-  if (displayedProps.variant === 'search') {
-    // Prefer live search props while actively in search so input value/handlers
-    // stay current, but fall back to displayed props during exit transitions.
-    const leadingSearchProps =
-      !isTransitioning && props.variant === 'search' ? props : displayedProps;
-
-    return (
-      <SearchLeadingContent
-        leadingSearchProps={leadingSearchProps}
-        contentTransitionStyle={transitionStyle}
-      />
-    );
-  }
-
-  // Prefer live non-search props while actively in home/page, but fall back to
-  // displayed props during search-exit transitions until swap is complete.
+  const isSearchVisible = displayedProps.variant === 'search';
+  const leadingSearchProps =
+    props.variant === 'search' ? props : lastSearchPropsRef.current;
   const leadingNonSearchProps =
-    !isTransitioning && props.variant !== 'search' ? props : displayedProps;
+    props.variant !== 'search' ? props : lastNonSearchPropsRef.current;
 
   return (
-    <NonSearchLeadingContent
-      leadingNonSearchProps={leadingNonSearchProps}
-      contentTransitionStyle={transitionStyle}
-      backSlotWidth={backSlotWidth.current}
-      backSlotOpacity={backSlotOpacity.current}
-      logoSlotWidth={logoSlotWidth.current}
-      logoSlotOpacity={logoSlotOpacity.current}
-    />
+    <View style={styles.leadingContainer}>
+      <View
+        collapsable={false}
+        testID='top-app-bar-leading-search-slot'
+        accessibilityElementsHidden={!isSearchVisible}
+        importantForAccessibility={
+          isSearchVisible ? 'auto' : 'no-hide-descendants'
+        }
+        pointerEvents={isSearchVisible ? 'auto' : 'none'}
+        style={[
+          styles.leadingContentSlot,
+          !isSearchVisible && styles.leadingContentSlotHidden,
+        ]}
+      >
+        <SearchLeadingContent
+          leadingSearchProps={leadingSearchProps}
+          contentTransitionStyle={transitionStyle}
+        />
+      </View>
+      <View
+        collapsable={false}
+        testID='top-app-bar-leading-non-search-slot'
+        accessibilityElementsHidden={isSearchVisible}
+        importantForAccessibility={
+          isSearchVisible ? 'no-hide-descendants' : 'auto'
+        }
+        pointerEvents={isSearchVisible ? 'none' : 'auto'}
+        style={[
+          styles.leadingContentSlot,
+          isSearchVisible && styles.leadingContentSlotHidden,
+        ]}
+      >
+        <NonSearchLeadingContent
+          leadingNonSearchProps={leadingNonSearchProps}
+          contentTransitionStyle={transitionStyle}
+          backSlotWidth={backSlotWidth.current}
+          backSlotOpacity={backSlotOpacity.current}
+          logoSlotWidth={logoSlotWidth.current}
+          logoSlotOpacity={logoSlotOpacity.current}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  leadingContainer: {
+    flex: 1,
+    minWidth: 0,
+    height: '100%',
+    position: 'relative',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+  },
+  leadingContentSlot: {
+    ...StyleSheet.absoluteFillObject,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  leadingContentSlotHidden: {
+    opacity: 0,
+  },
   leadingRow: {
     flex: 1,
+    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Size.space['200'],
@@ -408,11 +476,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  leadingSlotContent: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logoPressable: {
     borderRadius: Size.radius['full'],
   },
   searchWrapper: {
     flex: 1,
+    height: '100%',
+    justifyContent: 'center',
     minWidth: 0,
   },
 });

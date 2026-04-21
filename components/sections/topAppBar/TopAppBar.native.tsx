@@ -153,6 +153,7 @@ function TopAppBarActionsRow({
         collapsable={false}
         testID='top-app-bar-secondary-action-slot'
         style={[
+          styles.secondaryActionSlot,
           {
             width: secondaryActionWidth,
             opacity: secondaryActionOpacity,
@@ -162,11 +163,16 @@ function TopAppBarActionsRow({
       >
         <View
           collapsable={false}
+          testID='top-app-bar-secondary-action-content-slot'
           accessibilityElementsHidden={!isSecondaryButtonVisible}
           importantForAccessibility={
             isSecondaryButtonVisible ? 'auto' : 'no-hide-descendants'
           }
           pointerEvents={isSecondaryButtonVisible ? 'auto' : 'none'}
+          style={[
+            styles.secondaryActionContent,
+            !isSecondaryButtonVisible && styles.secondaryActionContentHidden,
+          ]}
         >
           <IconButton
             variant='neutral'
@@ -344,11 +350,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 0,
+    height: '100%',
   },
   actionsRowWithGap: {
     gap: Size.space['200'],
   },
   actionsRowWithoutGap: {
     gap: 0,
+  },
+  secondaryActionSlot: {
+    height: '100%',
+    justifyContent: 'center',
+  },
+  secondaryActionContent: {
+    width: TOP_APP_BAR_ACTION_ICON_SLOT_WIDTH,
+    height: '100%',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryActionContentHidden: {
+    opacity: 0,
   },
 });

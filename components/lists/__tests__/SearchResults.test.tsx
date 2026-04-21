@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { SearchResults, __SEARCH_RESULTS_TESTING__ } from '../SearchResults';
@@ -114,8 +114,8 @@ describe('SearchResults', () => {
     expect(hiddenList).toBeTruthy();
   });
 
-  it('keeps inline results mounted while hidden', () => {
-    const { UNSAFE_getByProps } = render(
+  it('keeps inline native panel mounted while hidden', () => {
+    const { queryByTestId, UNSAFE_getByProps } = render(
       <SearchResults
         results={mockSpecies}
         isVisible={false}
@@ -124,9 +124,71 @@ describe('SearchResults', () => {
       />,
     );
 
-    const hiddenList = UNSAFE_getByProps({ testID: 'search-results-list' });
+    expect(UNSAFE_getByProps({ testID: 'search-results' })).toBeTruthy();
+    expect(queryByTestId('search-results-list')).toBeNull();
+  });
 
-    expect(hiddenList).toBeTruthy();
+  it('keeps inline native panel mounted after rerendering from visible to hidden', () => {
+    const { UNSAFE_getByProps, queryByTestId, rerender } = render(
+      <SearchResults
+        results={mockSpecies}
+        isVisible={true}
+        layout='inline'
+        testID='search-results'
+      />,
+    );
+
+    expect(queryByTestId('search-results-list')).toBeTruthy();
+
+    rerender(
+      <SearchResults
+        results={mockSpecies}
+        isVisible={false}
+        layout='inline'
+        testID='search-results'
+      />,
+    );
+
+    expect(UNSAFE_getByProps({ testID: 'search-results' })).toBeTruthy();
+    expect(queryByTestId('search-results-list')).toBeNull();
+  });
+
+  it('keeps inline result slots mounted when the visible result count shrinks', () => {
+    const { rerender, UNSAFE_getByProps } = render(
+      <SearchResults
+        results={mockSpecies}
+        isVisible={true}
+        layout='inline'
+        testID='search-results'
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'search-results-inline-result-slot-0' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'search-results-inline-result-slot-1' }),
+    ).toBeTruthy();
+
+    rerender(
+      <SearchResults
+        results={[mockSpecies[0]]}
+        isVisible={true}
+        layout='inline'
+        testID='search-results'
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'search-results-inline-result-slot-0' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'search-results-inline-result-slot-1' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'search-results-inline-result-slot-1' }).props
+        .accessibilityElementsHidden,
+    ).toBe(true);
   });
 
   it('renders results when isVisible is true', () => {
@@ -199,7 +261,13 @@ describe('SearchResults', () => {
   });
 
   it('calls onSelectResult when a result is tapped', () => {
+    const originalRequestAnimationFrame = global.requestAnimationFrame;
     const handleSelect = jest.fn();
+    global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    }) as typeof requestAnimationFrame;
+
     render(
       <SearchResults
         results={mockSpecies}
@@ -210,9 +278,13 @@ describe('SearchResults', () => {
     );
 
     const firstResultButton = screen.getByTestId('search-result-1');
-    fireEvent.press(firstResultButton);
+    act(() => {
+      fireEvent.press(firstResultButton);
+    });
 
     expect(handleSelect).toHaveBeenCalledWith(mockSpecies[0]);
+
+    global.requestAnimationFrame = originalRequestAnimationFrame;
   });
 
   it('renders with custom testID', () => {

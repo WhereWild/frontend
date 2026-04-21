@@ -243,9 +243,69 @@ describe('ActiveNearYouSection', () => {
 
     expect(
       flattenStyle(
-        screen.getByTestId('active-near-you-first-item-wrapper').props.style,
+        screen.getByTestId('active-near-you-native-item-wrapper-0').props.style,
       ).marginTop,
     ).toBe(24);
+  });
+
+  it('keeps native row slots mounted when the visible item count shrinks', () => {
+    const { UNSAFE_getByProps, rerender } = render(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        showHeading={false}
+        activeGroup='all'
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-0' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-1' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-2' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-3' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-4' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-2' })
+        .props.accessibilityElementsHidden,
+    ).toBe(false);
+
+    rerender(
+      <ActiveNearYouSection
+        recommendations={recommendations}
+        allRecommendations={recommendations}
+        showHeading={false}
+        activeGroup='plants'
+      />,
+    );
+
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-0' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-1' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-2' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-3' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-4' }),
+    ).toBeTruthy();
+    expect(
+      UNSAFE_getByProps({ testID: 'active-near-you-native-item-wrapper-1' })
+        .props.accessibilityElementsHidden,
+    ).toBe(true);
   });
 
   it('reports native scroll state changes', () => {

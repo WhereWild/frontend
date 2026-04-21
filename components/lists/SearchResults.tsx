@@ -28,6 +28,8 @@ type ScrollMetrics = {
   offset: number;
 };
 
+type StableResultSlot = SpeciesSummary | null;
+
 const VISIBILITY_BOTTOM_BUFFER = Size.space['600'];
 const VISIBILITY_PADDING = Size.space['400'];
 const LOADING_CARD_COUNT = 5;
@@ -234,6 +236,7 @@ export function SearchResults({
   const isInlineLayout = layout === 'inline';
   const showInlineResults = showResultsState && isInlineLayout;
   const showFloatingResults = showResultsState && !isInlineLayout;
+  const isNativeInlineLayout = isInlineLayout && Platform.OS !== 'web';
   const listRef = React.useRef<SearchResultsScrollRef | null>(null);
   const resultLayoutsRef = React.useRef<Record<number, ResultLayout>>({});
   const scrollMetricsRef = React.useRef<ScrollMetrics>({
@@ -241,6 +244,9 @@ export function SearchResults({
     offset: 0,
   });
   const [layoutVersion, setLayoutVersion] = React.useState(0);
+  const [stableResultSlotCount, setStableResultSlotCount] = React.useState(
+    results.length,
+  );
   const reactId = React.useId();
   // React.useId() may include characters such as ':' that are awkward for DOM lookups,
   // so normalize the suffix before using it in nativeID-backed web element ids.
@@ -267,6 +273,12 @@ export function SearchResults({
     onFocus,
     onBlur,
   };
+
+  React.useEffect(() => {
+    if (results.length > stableResultSlotCount) {
+      setStableResultSlotCount(results.length);
+    }
+  }, [results.length, stableResultSlotCount]);
 
   React.useEffect(() => {
     if (!isVisible || isLoading || layout !== 'floating') {
@@ -347,7 +359,6 @@ export function SearchResults({
   const renderResultCard = React.useCallback(
     (item: SpeciesSummary, index: number) => (
       <SpeciesCard
-        key={item.taxonId}
         style={[
           styles.speciesCard,
           activeResultIndex === index
@@ -361,28 +372,42 @@ export function SearchResults({
         imageSource={item.imageSource}
         interactionMode='press-only'
         size='compact'
-        onPress={() => onSelectResult?.(item)}
+        onPress={() => {
+          if (!onSelectResult) {
+            return;
+          }
+
+          if (Platform.OS === 'web' || !isInlineLayout) {
+            onSelectResult(item);
+            return;
+          }
+
+          // Native inline selection can synchronously collapse the panel while the
+          // press interaction is still settling. Waiting two frames avoids tearing
+          // down the row subtree during the same native press/update cycle.
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              onSelectResult(item);
+            });
+          });
+        }}
         testID={`search-result-${item.taxonId}`}
       />
     ),
     [
       activeResultIndex,
+      isInlineLayout,
       onSelectResult,
       palette.background.default.secondaryHover,
     ],
   );
 
-  const renderTrackedResult = React.useCallback(
-    (item: SpeciesSummary, index: number) => (
-      <View
-        key={item.taxonId}
-        nativeID={getSearchResultsResultElementId(instanceId, index)}
-        onLayout={(event) => updateResultLayout(index, event)}
-      >
-        {renderResultCard(item, index)}
-      </View>
-    ),
-    [instanceId, renderResultCard, updateResultLayout],
+  const stableResultSlots = React.useMemo<StableResultSlot[]>(
+    () =>
+      Array.from({ length: stableResultSlotCount }, (_, index) =>
+        index < results.length ? results[index] : null,
+      ),
+    [results, stableResultSlotCount],
   );
 
   const loadingCards = React.useMemo(
@@ -402,6 +427,10 @@ export function SearchResults({
       )),
     [],
   );
+
+  if (isInlineLayout && !isNativeInlineLayout && isPanelHidden) {
+    return null;
+  }
 
   return (
     <View
@@ -442,21 +471,45 @@ export function SearchResults({
       </View>
 
       {isInlineLayout ? (
-        <View
-          accessibilityElementsHidden={!showInlineResults}
-          importantForAccessibility={
-            showInlineResults ? 'auto' : 'no-hide-descendants'
-          }
-          {...contentInteractionProps}
-          style={!showInlineResults ? styles.hiddenContentSlot : undefined}
-        >
+        showInlineResults ? (
           <View
-            style={styles.listContent}
-            testID={showInlineResults && testID ? `${testID}-list` : undefined}
+            accessibilityElementsHidden={false}
+            importantForAccessibility='auto'
+            {...contentInteractionProps}
           >
-            {results.map(renderResultCard)}
+            <View
+              style={styles.listContent}
+              testID={testID ? `${testID}-list` : undefined}
+            >
+              {stableResultSlots.map((item, index) => {
+                const isVisible = item != null;
+
+                return (
+                  <View
+                    key={`inline-slot-${index}`}
+                    collapsable={false}
+                    testID={
+                      testID
+                        ? `${testID}-inline-result-slot-${index}`
+                        : undefined
+                    }
+                    accessibilityElementsHidden={!isVisible}
+                    importantForAccessibility={
+                      isVisible ? 'auto' : 'no-hide-descendants'
+                    }
+                    style={!isVisible ? styles.hiddenResultSlot : undefined}
+                  >
+                    {item == null ? (
+                      <View style={styles.resultPlaceholder} />
+                    ) : (
+                      renderResultCard(item, index)
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           </View>
-        </View>
+        ) : null
       ) : (
         <View
           accessibilityElementsHidden={!showFloatingResults}
@@ -487,7 +540,42 @@ export function SearchResults({
               showFloatingResults && testID ? `${testID}-list` : undefined
             }
           >
-            {results.map(renderTrackedResult)}
+            {stableResultSlots.map((item, index) => {
+              const isVisible = item != null;
+
+              return (
+                <View
+                  key={`floating-slot-${index}`}
+                  collapsable={false}
+                  testID={
+                    testID
+                      ? `${testID}-floating-result-slot-${index}`
+                      : undefined
+                  }
+                  nativeID={
+                    isVisible
+                      ? getSearchResultsResultElementId(instanceId, index)
+                      : undefined
+                  }
+                  accessibilityElementsHidden={!isVisible}
+                  importantForAccessibility={
+                    isVisible ? 'auto' : 'no-hide-descendants'
+                  }
+                  onLayout={
+                    isVisible
+                      ? (event) => updateResultLayout(index, event)
+                      : undefined
+                  }
+                  style={!isVisible ? styles.hiddenResultSlot : undefined}
+                >
+                  {item == null ? (
+                    <View style={styles.resultPlaceholder} />
+                  ) : (
+                    renderResultCard(item, index)
+                  )}
+                </View>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -537,6 +625,16 @@ const styles = StyleSheet.create({
     maxHeight: 0,
     overflow: 'hidden',
     pointerEvents: 'none',
+  },
+  hiddenResultSlot: {
+    height: 0,
+    opacity: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  },
+  resultPlaceholder: {
+    height: 0,
+    opacity: 0,
   },
   floatingListSlot: {
     flexGrow: 1,
