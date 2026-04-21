@@ -41,14 +41,20 @@ function PrimaryActionVisibleContent({
   const showButtonVariant = hasPrimaryButton && !isIconButton;
 
   return (
-    <View collapsable={false}>
+    <View
+      collapsable={false}
+      style={[styles.primaryActionContent, { width: contentWidth }]}
+    >
       <View
         collapsable={false}
+        testID='top-app-bar-primary-action-icon-variant-slot'
         accessibilityElementsHidden={!showIconVariant}
         importantForAccessibility={
           showIconVariant ? 'auto' : 'no-hide-descendants'
         }
         style={[
+          styles.primaryActionVariantSlot,
+          styles.primaryActionIconVariantSlot,
           { pointerEvents: showIconVariant ? 'auto' : 'none' },
           !showIconVariant ? styles.hiddenVariantSlot : undefined,
         ]}
@@ -64,26 +70,27 @@ function PrimaryActionVisibleContent({
       </View>
       <View
         collapsable={false}
+        testID='top-app-bar-primary-action-button-variant-slot'
         accessibilityElementsHidden={!showButtonVariant}
         importantForAccessibility={
           showButtonVariant ? 'auto' : 'no-hide-descendants'
         }
         style={[
+          styles.primaryActionVariantSlot,
+          styles.primaryActionButtonVariantSlot,
           { pointerEvents: showButtonVariant ? 'auto' : 'none' },
           !showButtonVariant ? styles.hiddenVariantSlot : undefined,
         ]}
       >
-        <View style={{ width: contentWidth }}>
-          <Button
-            variant='primary'
-            iconStart={primaryButtonIcon}
-            label={primaryButtonLabel}
-            enableHaptics={showButtonVariant}
-            onPress={showButtonVariant ? onPressPrimaryButton : undefined}
-            disabled={!isPrimaryActionEnabled || !hasPrimaryButton}
-            accessibilityLabel={primaryButtonAccessibilityLabel}
-          />
-        </View>
+        <Button
+          variant='primary'
+          iconStart={primaryButtonIcon}
+          label={primaryButtonLabel}
+          enableHaptics={showButtonVariant}
+          onPress={showButtonVariant ? onPressPrimaryButton : undefined}
+          disabled={!isPrimaryActionEnabled || !hasPrimaryButton}
+          accessibilityLabel={primaryButtonAccessibilityLabel}
+        />
       </View>
     </View>
   );
@@ -203,6 +210,7 @@ export function PrimaryAction({
         collapsable={false}
         testID='top-app-bar-primary-action-slot'
         style={[
+          styles.primaryActionSlot,
           {
             pointerEvents: hasPrimaryButton ? 'auto' : 'none',
             width: primaryActionWidth.current,
@@ -233,6 +241,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
+    height: '100%',
+  },
+  primaryActionSlot: {
+    height: '100%',
+    justifyContent: 'center',
+  },
+  primaryActionContent: {
+    position: 'relative',
+    height: '100%',
+    alignSelf: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionVariantSlot: {
+    minWidth: 0,
+  },
+  primaryActionIconVariantSlot: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionButtonVariantSlot: {
+    width: '100%',
   },
   primaryActionMeasureLayer: {
     position: 'absolute',
@@ -242,8 +271,10 @@ const styles = StyleSheet.create({
   },
   hiddenVariantSlot: {
     opacity: 0,
-    width: 0,
-    height: 0,
-    overflow: 'hidden',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
 });
