@@ -346,13 +346,15 @@ describe('SpeciesBasicsPage', () => {
     expect(result.heatmap.fullAvailable).toBe(true);
   });
 
-  it('renders nothing while the identifier data is still loading', () => {
+  it('renders the loading shell while the identifier data is still loading', () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockReturnValue(new Promise(() => {}));
 
-    const { toJSON } = render(<SpeciesBasicsPage />);
+    render(<SpeciesBasicsPage />);
 
-    expect(toJSON()).toBeNull();
+    expect(screen.getByTestId('species-page-loading')).toBeTruthy();
+    expect(screen.getByLabelText('Loading species data')).toBeTruthy();
+    expect(screen.getByText('Loading species...')).toBeTruthy();
   });
 
   it('falls back to the sample overview image when no image fields are provided', async () => {

@@ -74,6 +74,8 @@ export type { SpeciesCardProps } from './cards/SpeciesCard';
 
 export { ThemedText } from './text/ThemedText';
 
+export { PageSurface } from './PageSurface';
+
 export { PageScrollContainer } from './PageScrollContainer';
 
 export { Tab } from './tabs/Tab';
