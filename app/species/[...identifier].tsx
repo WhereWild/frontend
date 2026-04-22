@@ -3,12 +3,20 @@ import {
   fetchSpeciesByTaxonId,
   fetchSpeciesObscured,
 } from '@/data/api';
+import { PageSurface, ThemedText } from '@/components';
+import { Colors } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesOverviewSection, SpeciesPageData } from '@/data/types';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import type { ImageSourcePropType } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  View,
+  type ImageSourcePropType,
+} from 'react-native';
 import Species from '../_species';
 import { useSettings } from '@/context/SettingsContext';
 
@@ -236,12 +244,26 @@ export default function SpeciesBasicsPage() {
   const params = useLocalSearchParams<SpeciesRouteParams>();
   const { fetchIdentifier, requestedTaxonId } = getIdentifierFromParams(params);
   const { units } = useSettings();
+  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
 
   const { data, loading } = useSpeciesBasicsData(fetchIdentifier, units);
   const allObscured = useSpeciesObscuredData(fetchIdentifier);
 
   if (loading && !data) {
-    return null;
+    return (
+      <PageSurface testID='species-page-loading' style={styles.loadingScreen}>
+        <View
+          style={styles.loadingContent}
+          accessibilityLiveRegion='polite'
+          accessible
+          accessibilityLabel='Loading species data'
+        >
+          <ActivityIndicator size='large' color={palette.icon.brand.default} />
+          <ThemedText variant='body'>Loading species...</ThemedText>
+        </View>
+      </PageSurface>
+    );
   }
 
   const resolvedPageData = data
@@ -257,3 +279,16 @@ export const __SPECIES_BASICS_TESTING__ = {
   getIdentifierFromParams,
   useSpeciesBasicsData,
 };
+
+const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+});
