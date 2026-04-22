@@ -37,12 +37,63 @@ import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 
-const FORECAST_OPTIONS: { label: string; hours: number }[] = [
-  { label: 'Now', hours: 0 },
-  { label: '+8h', hours: 8 },
-  { label: '+24h', hours: 24 },
-  { label: '+3d', hours: 72 },
-  { label: '+7d', hours: 168 },
+type HeatmapTemporalMode = 'current' | 'missing';
+type HeatmapWeatherOption =
+  | 'no_weather'
+  | 'no_forecast'
+  | 'forecast_8h'
+  | 'forecast_24h'
+  | 'forecast_3d'
+  | 'forecast_7d';
+
+const FORECAST_OPTIONS: {
+  accessibilityLabel: string;
+  label: string;
+  value: HeatmapWeatherOption;
+  temporalMode: HeatmapTemporalMode;
+  forecastHours?: number;
+}[] = [
+  {
+    accessibilityLabel: 'Off',
+    label: 'Off',
+    value: 'no_weather',
+    temporalMode: 'missing',
+  },
+  {
+    accessibilityLabel: 'Current',
+    label: 'Current',
+    value: 'no_forecast',
+    temporalMode: 'current',
+    forecastHours: 0,
+  },
+  {
+    accessibilityLabel: 'Forecast +8h',
+    label: '+8h',
+    value: 'forecast_8h',
+    temporalMode: 'current',
+    forecastHours: 8,
+  },
+  {
+    accessibilityLabel: 'Forecast +24h',
+    label: '+24h',
+    value: 'forecast_24h',
+    temporalMode: 'current',
+    forecastHours: 24,
+  },
+  {
+    accessibilityLabel: 'Forecast +3d',
+    label: '+3d',
+    value: 'forecast_3d',
+    temporalMode: 'current',
+    forecastHours: 72,
+  },
+  {
+    accessibilityLabel: 'Forecast +7d',
+    label: '+7d',
+    value: 'forecast_7d',
+    temporalMode: 'current',
+    forecastHours: 168,
+  },
 ];
 type HeatmapMode = 'habitat' | 'combined' | 'phenology_only';
 type HeatmapSource = 'inference' | 'classic';
@@ -133,11 +184,11 @@ const getPredictiveHeatmapDescription = (
   }
 
   if (selectedSource === 'inference' && hasClassicHeatmap) {
-    return 'Inference heatmap is unavailable right now. Select Forecast-aware to use the classic model-backed tiles.';
+    return 'Experimental heatmap is unavailable right now. Select Classic to use the older model-backed tiles.';
   }
 
   if (selectedSource === 'classic' && hasInferenceHeatmap) {
-    return 'Forecast-aware heatmap is unavailable right now. Switch to Inference to use the new tile renderer.';
+    return 'Classic heatmap is unavailable right now. Switch to Experimental to use the newer tile renderer.';
   }
 
   return hasAnyHeatmap
@@ -148,15 +199,19 @@ const getPredictiveHeatmapDescription = (
 const appendPredictiveHeatmapParams = (
   tileUrl: string,
   params: URLSearchParams,
+  keysToRemove: string[] = [],
 ) => {
   const additions = Array.from(params.entries());
-  if (additions.length === 0) {
+  if (additions.length === 0 && keysToRemove.length === 0) {
     return tileUrl;
   }
 
   const [pathAndQuery, hash = ''] = tileUrl.split('#', 2);
   const [path, existingQuery = ''] = pathAndQuery.split('?', 2);
   const mergedParams = new URLSearchParams(existingQuery);
+  keysToRemove.forEach((key) => {
+    mergedParams.delete(key);
+  });
   additions.forEach(([key, value]) => {
     mergedParams.set(key, value);
   });
@@ -166,20 +221,43 @@ const appendPredictiveHeatmapParams = (
   return query.length > 0 ? `${path}?${query}${suffix}` : `${path}${suffix}`;
 };
 
+const resolveHeatmapWeatherOption = (value: HeatmapWeatherOption) =>
+  FORECAST_OPTIONS.find((option) => option.value === value) ??
+  FORECAST_OPTIONS[1];
+
+const normalizeWeatherOptionForSource = (
+  heatmapSource: HeatmapSource,
+  weatherOption: HeatmapWeatherOption,
+): HeatmapWeatherOption =>
+  heatmapSource === 'classic' && weatherOption === 'no_weather'
+    ? 'no_forecast'
+    : weatherOption;
+
 const buildInferencePredictiveHeatmapTileUrl = ({
-  forecastHours,
   inferenceTileUrl,
+  temporalMode,
+  forecastHours,
 }: {
-  forecastHours: number;
   inferenceTileUrl?: string | null;
+  temporalMode: HeatmapTemporalMode;
+  forecastHours?: number;
 }) => {
   if (!inferenceTileUrl) {
     return null;
   }
 
   const params = new URLSearchParams();
-  params.set('forecast_hours', String(forecastHours));
-  return appendPredictiveHeatmapParams(inferenceTileUrl, params);
+  if (temporalMode === 'missing') {
+    params.set('temporal_mode', 'missing');
+    return appendPredictiveHeatmapParams(inferenceTileUrl, params, [
+      'forecast_hours',
+    ]);
+  } else {
+    params.set('forecast_hours', String(forecastHours ?? 0));
+    return appendPredictiveHeatmapParams(inferenceTileUrl, params, [
+      'temporal_mode',
+    ]);
+  }
 };
 
 const buildClassicPredictiveHeatmapTileUrl = ({
@@ -187,54 +265,69 @@ const buildClassicPredictiveHeatmapTileUrl = ({
   classicModelId,
   classicTileUrl,
   phenologyMode,
+  temporalMode,
 }: {
-  forecastHours: number;
+  forecastHours?: number;
   classicModelId?: string | null;
   classicTileUrl?: string | null;
   phenologyMode: HeatmapMode;
+  temporalMode: HeatmapTemporalMode;
 }) => {
   if (!classicTileUrl) {
     return null;
   }
 
   const params = new URLSearchParams();
-  params.set('forecast_hours', String(forecastHours));
+  params.set('forecast_hours', String(forecastHours ?? 0));
 
-  const applyPhenology = phenologyMode !== 'habitat';
-  const phenologyOnly = phenologyMode === 'phenology_only';
+  const effectivePhenologyMode =
+    temporalMode === 'missing' ? 'habitat' : phenologyMode;
+  const applyPhenology = effectivePhenologyMode !== 'habitat';
+  const phenologyOnly = effectivePhenologyMode === 'phenology_only';
   if (classicModelId) {
     params.set('model_id', classicModelId);
   }
   params.set('apply_phenology', applyPhenology ? 'true' : 'false');
   params.set('phenology_only', phenologyOnly ? 'true' : 'false');
-  return appendPredictiveHeatmapParams(classicTileUrl, params);
+  return appendPredictiveHeatmapParams(classicTileUrl, params, [
+    'temporal_mode',
+  ]);
 };
 
 const buildPredictiveHeatmapTileUrl = ({
-  forecastHours,
   heatmapSource,
   inferenceTileUrl,
   classicModelId,
   classicTileUrl,
   phenologyMode,
   showPredictiveHeatmap,
+  weatherOption,
 }: {
-  forecastHours: number;
   heatmapSource: HeatmapSource;
   inferenceTileUrl?: string | null;
   classicModelId?: string | null;
   classicTileUrl?: string | null;
   phenologyMode: HeatmapMode;
   showPredictiveHeatmap: boolean;
+  weatherOption: HeatmapWeatherOption;
 }) => {
   if (!showPredictiveHeatmap) {
     return null;
   }
 
+  const normalizedWeatherOption = normalizeWeatherOptionForSource(
+    heatmapSource,
+    weatherOption,
+  );
+  const { forecastHours, temporalMode } = resolveHeatmapWeatherOption(
+    normalizedWeatherOption,
+  );
+
   if (heatmapSource === 'inference') {
     return buildInferencePredictiveHeatmapTileUrl({
-      forecastHours,
       inferenceTileUrl,
+      temporalMode,
+      forecastHours,
     });
   }
 
@@ -243,6 +336,7 @@ const buildPredictiveHeatmapTileUrl = ({
     classicModelId,
     classicTileUrl,
     phenologyMode,
+    temporalMode,
   });
 };
 
@@ -256,15 +350,15 @@ const buildHeatmapSourceOptions = ({
   const options: SelectionChipOption<HeatmapSource>[] = [];
   if (hasInferenceHeatmap) {
     options.push({
-      accessibilityLabel: 'Inference heatmap',
-      label: 'Inference',
+      accessibilityLabel: 'Experimental heatmap',
+      label: 'Experimental',
       value: 'inference',
     });
   }
   if (hasClassicHeatmap) {
     options.push({
-      accessibilityLabel: 'Forecast-aware classic heatmap',
-      label: 'Forecast-aware',
+      accessibilityLabel: 'Classic heatmap',
+      label: 'Classic',
       value: 'classic',
     });
   }
@@ -294,12 +388,45 @@ const buildHeatmapModelOptions = (
       value: 'combined',
     },
     {
-      accessibilityLabel: 'Conditions only',
-      label: 'Conditions only',
+      accessibilityLabel: 'Season only',
+      label: 'Season only',
       value: 'phenology_only',
     },
   ];
 };
+
+const buildWeatherOptions = (
+  heatmapSource: HeatmapSource,
+): SelectionChipOption<HeatmapWeatherOption>[] =>
+  FORECAST_OPTIONS.filter(
+    (option) => heatmapSource === 'inference' || option.value !== 'no_weather',
+  ).map((option) => ({
+    accessibilityLabel: option.accessibilityLabel,
+    label: option.label,
+    value: option.value,
+  }));
+
+const getWeatherInputsDescription = (
+  heatmapSource: HeatmapSource,
+  weatherOption: HeatmapWeatherOption,
+) => {
+  if (heatmapSource === 'inference') {
+    if (weatherOption === 'no_weather') {
+      return 'Off removes weather inputs entirely.';
+    }
+    if (weatherOption === 'no_forecast') {
+      return 'Current uses live weather inputs.';
+    }
+    return 'Forecast offsets use predicted weather inputs.';
+  }
+
+  return 'Current and forecast use weather-aware layers in the classic model.';
+};
+
+const getClassicOverlayDescription = (hasPhenology: boolean) =>
+  hasPhenology
+    ? 'Habitat shows base suitability. Habitat + season adds seasonal fit. Season only shows the seasonal layer.'
+    : 'Habitat shows base suitability. Habitat + season adds seasonal fit.';
 
 function SelectionChipGroup<T extends string | number>({
   options,
@@ -435,9 +562,7 @@ export default function Species({
     hasInferenceHeatmap || hasClassicHeatmap || Boolean(heatmap.imageSource);
   const hasPhenology = heatmap.phenologyAvailable === true;
   const hasConditions = hasPhenology || heatmap.fullAvailable === true;
-  const conditionsLabel = hasPhenology
-    ? 'Habitat + flowering'
-    : 'Habitat + conditions';
+  const conditionsLabel = 'Habitat + season';
   const [showObservations, setShowObservations] = React.useState<boolean>(true);
   const [showPredictiveHeatmap, setShowPredictiveHeatmap] =
     React.useState<boolean>(false);
@@ -446,7 +571,8 @@ export default function Species({
   );
   const [phenologyMode, setPhenologyMode] =
     React.useState<HeatmapMode>('combined');
-  const [forecastHours, setForecastHours] = React.useState<number>(0);
+  const [weatherOption, setWeatherOption] =
+    React.useState<HeatmapWeatherOption>('no_forecast');
   const [heatmapStatus, setHeatmapStatus] =
     React.useState<HeatmapStatusMessage | null>(null);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<
@@ -480,34 +606,40 @@ export default function Species({
     () => buildHeatmapModelOptions(hasPhenology, conditionsLabel),
     [conditionsLabel, hasPhenology],
   );
-  const forecastOptions = React.useMemo<SelectionChipOption<number>[]>(
-    () =>
-      FORECAST_OPTIONS.map((option) => ({
-        accessibilityLabel: `Forecast ${option.label}`,
-        label: option.label,
-        value: option.hours,
-      })),
-    [],
+  const effectiveWeatherOption = React.useMemo(
+    () => normalizeWeatherOptionForSource(heatmapSource, weatherOption),
+    [heatmapSource, weatherOption],
+  );
+  const forecastOptions = React.useMemo<
+    SelectionChipOption<HeatmapWeatherOption>[]
+  >(() => buildWeatherOptions(heatmapSource), [heatmapSource]);
+  const weatherInputsDescription = React.useMemo(
+    () => getWeatherInputsDescription(heatmapSource, effectiveWeatherOption),
+    [effectiveWeatherOption, heatmapSource],
+  );
+  const classicOverlayDescription = React.useMemo(
+    () => getClassicOverlayDescription(hasPhenology),
+    [hasPhenology],
   );
   const activeTileUrl = React.useMemo(
     () =>
       buildPredictiveHeatmapTileUrl({
-        forecastHours,
         heatmapSource,
         inferenceTileUrl: heatmap.inferenceTileUrl,
         classicModelId: heatmap.classicModelId,
         classicTileUrl: heatmap.classicTileUrl,
         phenologyMode,
         showPredictiveHeatmap,
+        weatherOption: effectiveWeatherOption,
       }),
     [
-      forecastHours,
       heatmap.inferenceTileUrl,
       heatmap.classicModelId,
       heatmap.classicTileUrl,
       heatmapSource,
       phenologyMode,
       showPredictiveHeatmap,
+      effectiveWeatherOption,
     ],
   );
   const predictiveHeatmapWarning = React.useMemo(() => {
@@ -576,6 +708,16 @@ export default function Species({
     }
     setHeatmapSource(hasInferenceHeatmap ? 'inference' : 'classic');
   }, [hasClassicHeatmap, hasInferenceHeatmap, heatmapSource]);
+
+  const handleHeatmapSourceChange = React.useCallback(
+    (nextSource: HeatmapSource) => {
+      setHeatmapSource(nextSource);
+      setWeatherOption((current) =>
+        normalizeWeatherOptionForSource(nextSource, current),
+      );
+    },
+    [],
+  );
 
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
@@ -726,30 +868,40 @@ export default function Species({
                       options={heatmapSourceOptions}
                       selectedValue={heatmapSource}
                       title='Heatmap source'
-                      onSelect={setHeatmapSource}
+                      onSelect={handleHeatmapSourceChange}
                     />
                   )}
                   {showPredictiveHeatmap &&
                     ((heatmapSource === 'classic' && hasClassicHeatmap) ||
                       (heatmapSource === 'inference' &&
                         hasInferenceHeatmap)) && (
-                      <SelectionChipGroup
-                        options={forecastOptions}
-                        selectedValue={forecastHours}
-                        title='Weather window'
-                        onSelect={setForecastHours}
-                      />
+                      <>
+                        <SelectionChipGroup
+                          options={forecastOptions}
+                          selectedValue={effectiveWeatherOption}
+                          title='Weather inputs'
+                          onSelect={setWeatherOption}
+                        />
+                        <ThemedText variant='bodySmall'>
+                          {weatherInputsDescription}
+                        </ThemedText>
+                      </>
                     )}
                   {showPredictiveHeatmap &&
                     heatmapSource === 'classic' &&
                     hasClassicHeatmap &&
                     hasConditions && (
-                      <SelectionChipGroup
-                        options={modelOptions}
-                        selectedValue={phenologyMode}
-                        title='Model'
-                        onSelect={setPhenologyMode}
-                      />
+                      <>
+                        <SelectionChipGroup
+                          options={modelOptions}
+                          selectedValue={phenologyMode}
+                          title='Classic overlay'
+                          onSelect={setPhenologyMode}
+                        />
+                        <ThemedText variant='bodySmall'>
+                          {classicOverlayDescription}
+                        </ThemedText>
+                      </>
                     )}
                 </View>
               </SectionShell>

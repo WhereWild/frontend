@@ -458,9 +458,9 @@ describe('Species screen', () => {
       ).toBeTruthy();
     });
 
-    expect(screen.getByText('Weather window')).toBeTruthy();
+    expect(screen.getByText('Weather inputs')).toBeTruthy();
     expect(screen.getByText('Heatmap source')).toBeTruthy();
-    fireEvent.press(screen.getByText('Forecast-aware'));
+    fireEvent.press(screen.getByText('Classic'));
 
     await waitFor(() => {
       expect(
@@ -470,8 +470,8 @@ describe('Species screen', () => {
       ).toBeTruthy();
     });
 
-    expect(screen.getByText('Weather window')).toBeTruthy();
-    expect(screen.getByText('Model')).toBeTruthy();
+    expect(screen.getByText('Weather inputs')).toBeTruthy();
+    expect(screen.getByText('Classic overlay')).toBeTruthy();
   });
 
   it('updates classic predictive heatmap query options across weather and model selections', async () => {
@@ -482,14 +482,20 @@ describe('Species screen', () => {
     fireEvent.press(
       screen.getByRole('switch', { name: 'Show predictive heatmap' }),
     );
-    fireEvent.press(screen.getByText('Forecast-aware'));
+    fireEvent.press(screen.getByText('Classic'));
 
     await waitFor(() => {
-      expect(screen.getByText('Weather window')).toBeTruthy();
-      expect(screen.getByText('Model')).toBeTruthy();
+      expect(screen.getByText('Weather inputs')).toBeTruthy();
+      expect(screen.getByText('Classic overlay')).toBeTruthy();
+      expect(screen.getByLabelText('Current')).toBeTruthy();
       expect(screen.getByLabelText('Forecast +8h')).toBeTruthy();
-      expect(screen.getByLabelText('Habitat + flowering')).toBeTruthy();
-      expect(screen.getByLabelText('Conditions only')).toBeTruthy();
+      expect(screen.getByLabelText('Habitat + season')).toBeTruthy();
+      expect(screen.getByLabelText('Season only')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Current and forecast use weather-aware layers in the classic model.',
+        ),
+      ).toBeTruthy();
     });
 
     fireEvent.press(screen.getByLabelText('Forecast +8h'));
@@ -510,7 +516,7 @@ describe('Species screen', () => {
       ).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByLabelText('Conditions only'));
+    fireEvent.press(screen.getByLabelText('Season only'));
     await waitFor(() => {
       expect(
         screen.getByText(
@@ -530,8 +536,36 @@ describe('Species screen', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Weather window')).toBeTruthy();
+      expect(screen.getByText('Weather inputs')).toBeTruthy();
+      expect(screen.getByLabelText('Off')).toBeTruthy();
+      expect(screen.getByLabelText('Current')).toBeTruthy();
       expect(screen.getByLabelText('Forecast +8h')).toBeTruthy();
+      expect(
+        screen.getByText('Current uses live weather inputs.'),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
+        ),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Off'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Off removes weather inputs entirely.'),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?temporal_mode=missing',
+        ),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Current'));
+
+    await waitFor(() => {
       expect(
         screen.getByText(
           'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=0',
@@ -545,6 +579,42 @@ describe('Species screen', () => {
       expect(
         screen.getByText(
           'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?forecast_hours=8',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
+  it('normalizes experimental off to current when switching to classic', async () => {
+    render(<SpeciesScreen data={createData()} />);
+
+    await waitForSpeciesEffectsToSettle();
+
+    fireEvent.press(
+      screen.getByRole('switch', { name: 'Show predictive heatmap' }),
+    );
+
+    fireEvent.press(screen.getByLabelText('Off'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?temporal_mode=missing',
+        ),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('Classic'));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Off')).toBeNull();
+      expect(
+        screen.getByText(
+          'Current and forecast use weather-aware layers in the classic model.',
+        ),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/classic/{z}/{x}/{y}.png?forecast_hours=0&model_id=taxon_13579_gbt_20260313T000000Z&apply_phenology=true&phenology_only=false',
         ),
       ).toBeTruthy();
     });
@@ -583,6 +653,26 @@ describe('Species screen', () => {
       ).toBeTruthy();
     });
 
+    fireEvent.press(screen.getByLabelText('Off'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&temporal_mode=missing',
+        ),
+      ).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Current'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Map tile heatmap: https://tiles.example.test/species/{z}/{x}/{y}.png?foo=bar&forecast_hours=0',
+        ),
+      ).toBeTruthy();
+    });
+
     fireEvent.press(screen.getByLabelText('Forecast +8h'));
 
     await waitFor(() => {
@@ -602,7 +692,7 @@ describe('Species screen', () => {
     fireEvent.press(
       screen.getByRole('switch', { name: 'Show predictive heatmap' }),
     );
-    fireEvent.press(screen.getByText('Forecast-aware'));
+    fireEvent.press(screen.getByText('Classic'));
 
     await waitFor(() => {
       expect(
@@ -645,7 +735,7 @@ describe('Species screen', () => {
     });
 
     expect(screen.queryByText('Heatmap source')).toBeNull();
-    expect(screen.getByText('Weather window')).toBeTruthy();
+    expect(screen.getByText('Weather inputs')).toBeTruthy();
   });
 
   it('falls back from inference to classic when inference tiles disappear after selection', async () => {
@@ -692,8 +782,8 @@ describe('Species screen', () => {
     });
 
     expect(screen.queryByText('Heatmap source')).toBeNull();
-    expect(screen.getByText('Weather window')).toBeTruthy();
-    expect(screen.getByText('Model')).toBeTruthy();
+    expect(screen.getByText('Weather inputs')).toBeTruthy();
+    expect(screen.getByText('Classic overlay')).toBeTruthy();
   });
 
   it('builds a classic tile URL without model_id when none is available', async () => {
