@@ -19,6 +19,7 @@ export type EnvironmentVariableOption = {
   label: string;
   units?: string | null;
   valueType?: string | null;
+  domain?: string | null;
   category?: string | null;
   sourceIds?: string[];
 };
@@ -71,6 +72,11 @@ export const isVariableCircular = (
   const lower = variable.id.toLowerCase();
   return lower === 'aspect_deg' || lower === 'aspect';
 };
+
+/** Returns true when variable should render as a discrete histogram. */
+export const isVariableDiscrete = (
+  variable: Pick<EnvironmentVariableOption, 'domain'> | null | undefined,
+): boolean => variable?.domain === 'discrete';
 
 /** Returns true when variable should render with categorical UI. */
 export const isVariableCategorical = (
