@@ -18,6 +18,7 @@ const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => 
         : typeof source?.valueType === 'string'
           ? source.valueType
           : null,
+    domain: typeof source?.domain === 'string' ? source.domain : null,
     category: typeof source?.category === 'string' ? source.category : null,
     sourceIds: sourceIds && sourceIds.length > 0 ? sourceIds : undefined,
   };
