@@ -61,6 +61,7 @@ const mapEnvironmentVariableOptions = (
         label: variableDefinition.name ?? normalizeLabel(variableDefinition.id),
         units: variableDefinition.units ?? null,
         valueType: variableDefinition.valueType ?? null,
+        domain: variableDefinition.domain ?? null,
         category: remappedCategory,
         sourceIds: variableDefinition.sourceIds,
       };

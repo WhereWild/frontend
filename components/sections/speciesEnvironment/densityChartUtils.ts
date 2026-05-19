@@ -145,3 +145,24 @@ export const toSortedSelectionRange = (left: number, right: number) => ({
   start: Math.min(left, right),
   end: Math.max(left, right),
 });
+
+/**
+ * Merges histogram samples into at most maxBars bins by grouping consecutive
+ * entries and summing their densities. Use when stored resolution exceeds
+ * available display pixels.
+ */
+export const resampleHistogram = (
+  samples: DensitySamplePoint[],
+  maxBars: number,
+): DensitySamplePoint[] => {
+  if (samples.length === 0 || samples.length <= maxBars) return samples;
+  const k = Math.ceil(samples.length / maxBars);
+  const result: DensitySamplePoint[] = [];
+  for (let i = 0; i < samples.length; i += k) {
+    const chunk = samples.slice(i, i + k);
+    const centerX = (chunk[0].x + chunk[chunk.length - 1].x) / 2;
+    const totalY = chunk.reduce((sum, s) => sum + s.y, 0);
+    result.push({ x: centerX, y: totalY });
+  }
+  return result;
+};
