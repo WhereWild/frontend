@@ -89,7 +89,6 @@ export function DensityChart({
   const dragOrigin = React.useRef<number | null>(null);
   const dragValue = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
-  const [activeBarIndex, setActiveBarIndex] = React.useState<number | null>(null);
   const rawSamples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const samples = React.useMemo(() => {
     if (!isDiscrete) return rawSamples;
@@ -174,9 +173,7 @@ export function DensityChart({
     (event: GestureResponderEvent) => {
       hasDragged.current = false;
       if (isDiscrete) {
-        const idx = getBarIndexForLocation(event.nativeEvent.locationX);
-        dragOrigin.current = idx;
-        setActiveBarIndex(idx);
+        dragOrigin.current = getBarIndexForLocation(event.nativeEvent.locationX);
         return;
       }
       const value = getValueForLocation(event.nativeEvent.locationX);
@@ -192,8 +189,6 @@ export function DensityChart({
       if (dragOrigin.current === null) return;
       hasDragged.current = true;
       if (isDiscrete) {
-        const idx = getBarIndexForLocation(event.nativeEvent.locationX);
-        setActiveBarIndex(idx);
         return;
       }
       const value = getValueForLocation(event.nativeEvent.locationX);
@@ -210,7 +205,6 @@ export function DensityChart({
         const idx = event
           ? getBarIndexForLocation(event.nativeEvent.locationX)
           : (dragOrigin.current as number | null);
-        setActiveBarIndex(null);
         dragOrigin.current = null;
         hasDragged.current = false;
         if (idx !== null && discreteBars?.[idx]) {
@@ -242,7 +236,6 @@ export function DensityChart({
 
   const handleSelectionTerminate = React.useCallback(() => {
     if (isDiscrete) {
-      setActiveBarIndex(null);
       dragOrigin.current = null;
       hasDragged.current = false;
       return;
@@ -261,18 +254,6 @@ export function DensityChart({
     dragValue.current = null;
     hasDragged.current = false;
   }, [isDiscrete, onSelectionChange]);
-
-  const handleMouseMove = React.useCallback(
-    (event: { nativeEvent: { locationX: number } }) => {
-      if (!isDiscrete) return;
-      setActiveBarIndex(getBarIndexForLocation(event.nativeEvent.locationX));
-    },
-    [isDiscrete, getBarIndexForLocation],
-  );
-
-  const handleMouseLeave = React.useCallback(() => {
-    if (isDiscrete) setActiveBarIndex(null);
-  }, [isDiscrete]);
 
   const shouldSetSelectionResponder = () => {
     return true;
@@ -429,21 +410,13 @@ export function DensityChart({
           </Defs>
           {isDiscrete && discreteBars ? (
             discreteBars.map(({ path }, i) => {
-              const isActive = i === activeBarIndex;
               const isSelected =
                 selection != null &&
                 samples[i] != null &&
                 samples[i].x >= selection.start &&
                 samples[i].x <= selection.end;
-              const hasHighlight = activeBarIndex !== null || selection != null;
-              const fill = isActive || isSelected ? lineColor : fillColor;
-              const opacity = isActive
-                ? 1.0
-                : isSelected
-                  ? 0.7
-                  : hasHighlight
-                    ? 0.2
-                    : 0.5;
+              const fill = isSelected ? lineColor : fillColor;
+              const opacity = isSelected ? 0.8 : selection != null ? 0.2 : 0.5;
               return <Path key={i} d={path} fill={fill} opacity={opacity} />;
             })
           ) : (
@@ -526,12 +499,6 @@ export function DensityChart({
           onResponderRelease={handleSelectionEnd}
           onResponderTerminationRequest={shouldAllowSelectionTermination}
           onResponderTerminate={handleSelectionTerminate}
-          {...(isDiscrete
-            ? ({
-                onMouseMove: handleMouseMove,
-                onMouseLeave: handleMouseLeave,
-              } as object)
-            : {})}
         />
       </View>
       <View style={styles.chartLabels}>
