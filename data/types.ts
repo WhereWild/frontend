@@ -291,6 +291,7 @@ export type EnvironmentVariableDefinition = {
   units?: string | null;
   description?: string | null;
   valueType?: string | null;
+  domain?: string | null;
   category?: string | null;
   sourceIds?: string[];
 };
