@@ -19,13 +19,15 @@ import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
 
-const SPECIES_RANKS = new Set([
+const SLICEABLE_RANKS = new Set([
   'SPECIES',
   'SUBSPECIES',
   'VARIETY',
   'FORM',
   'SUBVARIETY',
   'SUBFORM',
+  'GENUS',
+  'FAMILY',
 ]);
 
 /** Props for rendering the species environment analytics section. */
@@ -70,7 +72,7 @@ function SpeciesEnvironmentSectionComponent({
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
   const slicingEnabled =
-    taxonRank == null || SPECIES_RANKS.has(taxonRank.toUpperCase());
+    taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase());
   const rankLabel =
     taxonRank == null
       ? 'Species'
