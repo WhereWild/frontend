@@ -1,5 +1,5 @@
-/** Matches temporal variable IDs like `cloud_cover_avg_168h`. */
-const TEMPORAL_PATTERN = /^(.+)_(avg|sum|snapshot)_(\d+)h$/i;
+/** Matches temporal variable IDs like `cloud_cover_avg_168h` or `weather_code_simple_mode_168h`. */
+const TEMPORAL_PATTERN = /^(.+)_(avg|sum|mode|snapshot)_(\d+)h$/i;
 
 export type ParsedTemporalId = {
   baseId: string;
@@ -24,7 +24,7 @@ export function isTemporalId(id: string): boolean {
 /** Strips the trailing aggregate+window suffix from a temporal variable label.
  *  e.g. "Dew Point (2m) (Avg, 168h)" → "Dew Point (2m)" */
 export function stripTemporalSuffix(label: string): string {
-  return label.replace(/\s*\((avg|sum|snapshot),\s*\d+h\)\s*$/i, '').trim();
+  return label.replace(/\s*\((avg|sum|mode|snapshot),\s*\d+h\)\s*$/i, '').trim();
 }
 
 const WINDOW_LABELS: Record<number, string> = {
