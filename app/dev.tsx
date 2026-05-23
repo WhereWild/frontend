@@ -66,7 +66,7 @@ const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
     category: 'Bioclim',
   },
 ];
-const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal', 'recent weather']);
+const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal']);
 // Variables in the temporal catalog that are also live-weather display variables.
 const ABOUT_MAP_LIVE_WEATHER_IDS = new Set(['weather_code_simple']);
 const ABOUT_WINDOW_OPTIONS: SelectOption[] = [
