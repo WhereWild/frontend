@@ -53,7 +53,7 @@ const buildTableAliases = (...aliases: string[]) => {
 const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   {
     key: 'categoricalStats',
-    aliases: buildTableAliases('categorical_stats'),
+    aliases: buildTableAliases('nominal_stats', 'categorical_stats'),
     required: true,
   },
   {
@@ -62,7 +62,7 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   },
   {
     key: 'densityGraph',
-    aliases: buildTableAliases('density_graph', 'desntiy_graph'),
+    aliases: buildTableAliases('numerical_density', 'density_graph', 'desntiy_graph'),
     required: true,
   },
   {
@@ -77,7 +77,7 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   },
   {
     key: 'summaryStats',
-    aliases: buildTableAliases('summary_stats'),
+    aliases: buildTableAliases('numerical_stats', 'summary_stats'),
     required: true,
   },
   {

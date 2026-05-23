@@ -5,7 +5,6 @@ import {
   getVariableMetadataValueType,
   isCategoricalAggregateMetric,
   parseNumericArrayFromUnknown,
-  parseOccurrenceIndexCell,
   resolveCategoryMetricValue,
   toFiniteNumber,
   toStringValue,
@@ -225,19 +224,38 @@ export const normalizeRawUploadedParquetBundle = (
   const categoricalVariables = new Set(Object.keys(categoryMetricsByVariable));
   const categoricalValueWarnings = new Set<string>();
 
+  const OCCURRENCE_INDEX_METADATA_COLUMNS = new Set([
+    'catalogNumber',
+    'decimalLatitude',
+    'decimalLongitude',
+    'observationName',
+  ]);
+
   const occurrenceIndex: UploadedOccurrenceIndexRow[] = [];
   rawBundle.occurrenceIndex.forEach((row) => {
-    Object.entries(row).forEach(([variable, rawCell]) => {
+    const catalogNumber = toStringValue(row.catalogNumber);
+    if (!catalogNumber) {
+      return;
+    }
+
+    Object.entries(row).forEach(([variable, rawValue]) => {
+      if (OCCURRENCE_INDEX_METADATA_COLUMNS.has(variable)) {
+        return;
+      }
       const canonicalVariable = toStringValue(variable);
-      const parsedCell = parseOccurrenceIndexCell(rawCell);
-      if (!canonicalVariable || !parsedCell) {
+      if (!canonicalVariable) {
         return;
       }
 
       if (categoricalVariables.has(canonicalVariable)) {
+        const rawValueStr =
+          rawValue === null || rawValue === undefined ? '' : String(rawValue);
+        if (!rawValueStr || rawValueStr === 'nan' || rawValueStr === 'None') {
+          return;
+        }
         const classValue = resolveCategoryMetricValue(
           canonicalVariable,
-          parsedCell.value,
+          rawValueStr,
           categoryValueLookupByVariable,
         );
         const normalizedClassValue = classValue.trim().toLowerCase();
@@ -256,13 +274,12 @@ export const normalizeRawUploadedParquetBundle = (
           variable: canonicalVariable,
           mode: 'category',
           classValue,
-          observationIds: [parsedCell.catalogNumber],
+          observationIds: [catalogNumber],
         });
         return;
       }
 
-      const numericValue =
-        typeof parsedCell.value === 'number' ? parsedCell.value : toFiniteNumber(parsedCell.value);
+      const numericValue = toFiniteNumber(rawValue);
       if (numericValue === null) {
         return;
       }
@@ -272,7 +289,7 @@ export const normalizeRawUploadedParquetBundle = (
         mode: 'range',
         min: numericValue,
         max: numericValue,
-        observationIds: [parsedCell.catalogNumber],
+        observationIds: [catalogNumber],
       });
     });
   });
@@ -288,6 +305,7 @@ export const normalizeRawUploadedParquetBundle = (
         ?? toStringValue(row.variable_type)
         ?? toStringValue(row.valueType)
         ?? toStringValue(row.value_type);
+      const domain = toStringValue(row.domain);
       const count = toFiniteNumber(row.count);
       if (!variable || count === null) {
         return null;
@@ -303,6 +321,7 @@ export const normalizeRawUploadedParquetBundle = (
         variableName: variableName ?? undefined,
         units,
         variableType,
+        domain,
         count,
         min: toFiniteNumber(row.min),
         mean: toFiniteNumber(row.mean),
@@ -322,6 +341,14 @@ export const normalizeRawUploadedParquetBundle = (
     }
     categoryByVariable.set(variable, normalizedCategory);
   };
+
+  const domainByVariable = new Map<string, string>();
+  summaryStats.forEach((row) => {
+    const domain = toStringValue(row.domain);
+    if (domain && !domainByVariable.has(row.variable)) {
+      domainByVariable.set(row.variable, domain);
+    }
+  });
 
   categoricalStats.forEach((row) => assignCategory(row.variable, row.variableCategory));
   categoricalValueLookup.forEach((row) => assignCategory(row.variable, row.variableCategory));
@@ -407,6 +434,7 @@ export const normalizeRawUploadedParquetBundle = (
         units: existing?.units ?? variableUnitsById.get(variable) ?? null,
         description: existing?.description ?? null,
         valueType: inferredValueType ?? variableTypeById.get(variable) ?? null,
+        domain: existing?.domain ?? domainByVariable.get(variable) ?? null,
         category: existing?.category ?? categoryByVariable.get(variable) ?? null,
         ...(sourceIds?.length ? { sourceIds } : {}),
       };
