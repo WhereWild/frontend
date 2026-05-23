@@ -62,6 +62,7 @@ export type UploadedSummaryStatsRow = {
   variableName?: string;
   units?: string | null;
   variableType?: string | null;
+  domain?: string | null;
   count: number;
   min: number | null;
   mean: number | null;
@@ -124,6 +125,7 @@ export type RawSummaryStatsRow = {
   variable_type?: unknown;
   valueType?: unknown;
   value_type?: unknown;
+  domain?: unknown;
   count?: unknown;
   min?: unknown;
   mean?: unknown;
