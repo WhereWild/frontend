@@ -67,6 +67,10 @@ export type FiltersProps = {
   onSortMetricChange?: (value: string) => void;
   sortOrder: 'ascending' | 'descending';
   onSortOrderChange?: (value: 'ascending' | 'descending') => void;
+  sortReference: number;
+  onSortReferenceChange?: (value: number) => void;
+  minRbar: number;
+  onMinRbarChange?: (value: number) => void;
   rankingFilterHint?: string | null;
 
   /** Quantity */
@@ -116,6 +120,10 @@ export function Filters({
   onSortMetricChange,
   sortOrder,
   onSortOrderChange,
+  sortReference,
+  onSortReferenceChange,
+  minRbar,
+  onMinRbarChange,
   rankingFilterHint,
   numberOfResults,
   onNumberOfResultsChange,
@@ -127,6 +135,8 @@ export function Filters({
 }: FiltersProps) {
   const dataSources = useDataSources();
   const includeSubspeciesEnabled = rankValue === 'species';
+  const isCircularBearing =
+    sortMetricValue === 'circular_mean' || sortMetricValue === 'mode';
   const countrySelectOptions = React.useMemo(
     () => prependAllOption(countryOptions, 'All countries'),
     [countryOptions],
@@ -216,21 +226,43 @@ export function Filters({
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
         />
-        <ThemedText variant='body'>Sort order</ThemedText>
+        <ThemedText variant='body'>Sort direction</ThemedText>
         <View style={styles.sortOrderRow}>
           <RadioField
             style={styles.sortOrderOption}
-            label='Ascending'
+            label={isCircularBearing ? 'Clockwise' : 'Ascending'}
             checked={sortOrder === 'ascending'}
             onValueChange={() => onSortOrderChange?.('ascending')}
           />
           <RadioField
             style={styles.sortOrderOption}
-            label='Descending'
+            label={isCircularBearing ? 'Counter-clockwise' : 'Descending'}
             checked={sortOrder === 'descending'}
             onValueChange={() => onSortOrderChange?.('descending')}
           />
         </View>
+        {isCircularBearing && (
+          <>
+            <NumberSpinner
+              label='Offset (°)'
+              description='Starting bearing for the sort walk (0–359°).'
+              value={sortReference}
+              min={0}
+              max={359}
+              onValueChange={onSortReferenceChange}
+            />
+            <NumberSpinner
+              label='Min. concentration (R̄)'
+              description='Exclude taxa whose circular mean has low concentration. Each step = 0.05; set to 0 to disable.'
+              value={minRbar}
+              min={0}
+              max={1}
+              step={0.05}
+              precision={2}
+              onValueChange={onMinRbarChange}
+            />
+          </>
+        )}
         <NumberSpinner
           label='Minimum samples'
           description='Show only ranked results with at least this number of samples. Set to 0 for no minimum.'

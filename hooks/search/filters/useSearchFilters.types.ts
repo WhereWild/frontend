@@ -55,6 +55,10 @@ export type UseSearchFiltersResult = {
   onSortMetricChange: (value: string) => void;
   sortOrder: 'ascending' | 'descending';
   onSortOrderChange: (value: 'ascending' | 'descending') => void;
+  sortReference: number;
+  onSortReferenceChange: (value: number) => void;
+  minRbar: number;
+  onMinRbarChange: (value: number) => void;
 
   // Quantity
   numberOfResults: number;

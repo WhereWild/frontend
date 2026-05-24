@@ -25,6 +25,9 @@ export type SearchFilterRankingInitialState = {
   sortVariableValue?: string;
   sortMetricValue?: string;
   sortOrder?: 'ascending' | 'descending';
+  sortReference?: number;
+  /** R̄ threshold (0.00–1.00). */
+  minRbar?: number;
 };
 
 export type SearchFilterQuantityInitialState = {
@@ -71,6 +74,8 @@ export type SearchFiltersState = {
   sortVariableLoading: boolean;
   sortMetricValue: string;
   sortOrder: 'ascending' | 'descending';
+  sortReference: number;
+  minRbar: number;
   numberOfResults: number;
   minimumSamples: number;
   debouncedQuantity: typeof DEFAULT_QUANTITY;
@@ -125,6 +130,8 @@ export type SearchFiltersAction =
   | { type: 'set-sort-variable-loading'; value: boolean }
   | { type: 'set-sort-metric'; value: string }
   | { type: 'set-sort-order'; value: 'ascending' | 'descending' }
+  | { type: 'set-sort-reference'; value: number }
+  | { type: 'set-min-rbar'; value: number }
   | { type: 'reset-ranking' }
   | { type: 'set-number-of-results'; value: number }
   | { type: 'set-minimum-samples'; value: number }
@@ -173,6 +180,8 @@ export const createInitialSearchFiltersState = (
     sortVariableLoading: false,
     sortMetricValue: initialState?.ranking?.sortMetricValue ?? '',
     sortOrder: initialState?.ranking?.sortOrder ?? 'ascending',
+    sortReference: initialState?.ranking?.sortReference ?? 0,
+    minRbar: initialState?.ranking?.minRbar ?? 0.15,
     numberOfResults: initialQuantity.numberOfResults,
     minimumSamples: initialQuantity.minimumSamples,
     debouncedQuantity: initialQuantity,
@@ -361,6 +370,8 @@ export const searchFiltersReducer = (
         state.sortVariableValue === normalizedState.sortVariableValue &&
         state.sortMetricValue === normalizedState.sortMetricValue &&
         state.sortOrder === normalizedState.sortOrder &&
+        state.sortReference === normalizedState.sortReference &&
+        state.minRbar === normalizedState.minRbar &&
         state.numberOfResults === normalizedState.numberOfResults &&
         state.minimumSamples === normalizedState.minimumSamples &&
         state.debouncedQuantity.numberOfResults ===
@@ -410,6 +421,8 @@ export const searchFiltersReducer = (
         sortVariableLoading: false,
         sortMetricValue: normalizedState.sortMetricValue,
         sortOrder: normalizedState.sortOrder,
+        sortReference: normalizedState.sortReference,
+        minRbar: normalizedState.minRbar,
         numberOfResults: normalizedState.numberOfResults,
         minimumSamples: normalizedState.minimumSamples,
         debouncedQuantity: normalizedState.debouncedQuantity,
@@ -483,6 +496,10 @@ export const searchFiltersReducer = (
       return { ...state, sortMetricValue: action.value };
     case 'set-sort-order':
       return { ...state, sortOrder: action.value };
+    case 'set-sort-reference':
+      return { ...state, sortReference: action.value };
+    case 'set-min-rbar':
+      return { ...state, minRbar: action.value };
     case 'reset-ranking':
       return {
         ...state,
@@ -491,6 +508,8 @@ export const searchFiltersReducer = (
         sortVariableValue: '',
         sortMetricValue: '',
         sortOrder: 'ascending',
+        sortReference: 0,
+        minRbar: 0.15,
         sortVariableLoading: false,
       };
     case 'set-number-of-results':
@@ -527,6 +546,8 @@ export const searchFiltersReducer = (
         sortVariableValue: '',
         sortMetricValue: '',
         sortOrder: 'ascending',
+        sortReference: 0,
+        minRbar: 0.15,
         sortVariableLoading: false,
         numberOfResults: DEFAULT_QUANTITY.numberOfResults,
         minimumSamples: DEFAULT_QUANTITY.minimumSamples,
