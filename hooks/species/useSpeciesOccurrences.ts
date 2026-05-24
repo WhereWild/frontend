@@ -6,23 +6,31 @@ type UseSpeciesOccurrencesParams = {
   taxonId?: number;
   locationGid?: string | null;
   phenology?: string | null;
+  startTimestamp?: number | null;
+  endTimestamp?: number | null;
 };
 
 type UseSpeciesOccurrencesResult = {
   occurrences: SpeciesOccurrence[];
   loading: boolean;
   error: string | null;
+  minTimestamp: number | null;
+  maxTimestamp: number | null;
 };
 
 export const useSpeciesOccurrences = ({
   taxonId,
   locationGid,
   phenology,
+  startTimestamp,
+  endTimestamp,
 }: UseSpeciesOccurrencesParams): UseSpeciesOccurrencesResult => {
   const speciesDataSource = useSpeciesDataSource();
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [minTimestamp, setMinTimestamp] = React.useState<number | null>(null);
+  const [maxTimestamp, setMaxTimestamp] = React.useState<number | null>(null);
   const requestRef = React.useRef(0);
 
   React.useEffect(() => {
@@ -46,13 +54,17 @@ export const useSpeciesOccurrences = ({
 
     (async () => {
       try {
-        const rows = await speciesDataSource.fetchSpeciesOccurrences(taxonId, {
+        const result = await speciesDataSource.fetchSpeciesOccurrences(taxonId, {
           location: locationGid ?? undefined,
           phenology: phenology ?? undefined,
+          startTs: startTimestamp ?? undefined,
+          endTs: endTimestamp ?? undefined,
         });
 
         if (requestRef.current === requestId) {
-          setOccurrences(rows);
+          setOccurrences(result.occurrences);
+          setMinTimestamp(result.minTimestamp);
+          setMaxTimestamp(result.maxTimestamp);
         }
       } catch (requestError) {
         if (requestRef.current === requestId) {
@@ -67,11 +79,13 @@ export const useSpeciesOccurrences = ({
         }
       }
     })();
-  }, [locationGid, phenology, speciesDataSource, taxonId]);
+  }, [endTimestamp, locationGid, phenology, speciesDataSource, startTimestamp, taxonId]);
 
   return {
     occurrences,
     loading,
     error,
+    minTimestamp,
+    maxTimestamp,
   };
 };
