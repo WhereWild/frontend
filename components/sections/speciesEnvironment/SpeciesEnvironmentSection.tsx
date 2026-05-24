@@ -41,6 +41,9 @@ export type SpeciesEnvironmentSectionProps = {
   locationGid?: string | null;
   /** Optional phenology filter value applied to environment requests. */
   phenology?: string | null;
+  /** Optional timestamp range filter (Unix seconds). */
+  startTimestamp?: number | null;
+  endTimestamp?: number | null;
   units?: 'metric' | 'imperial' | undefined;
   pinnedObservation?: {
     catalogNumber: string;
@@ -58,6 +61,8 @@ function SpeciesEnvironmentSectionComponent({
   onHighlightChange,
   locationGid,
   phenology,
+  startTimestamp,
+  endTimestamp,
   units,
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
@@ -108,7 +113,7 @@ function SpeciesEnvironmentSectionComponent({
     pinnedValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedValue'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
-  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${units ?? ''}`;
+  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${startTimestamp ?? ''}|${endTimestamp ?? ''}|${units ?? ''}`;
 
   if (stableContentScopeRef.current !== stableContentScope) {
     stableContentScopeRef.current = stableContentScope;
@@ -163,6 +168,8 @@ function SpeciesEnvironmentSectionComponent({
     onHighlightChange,
     locationGid,
     phenology,
+    startTimestamp,
+    endTimestamp,
     units,
     pinnedObservation,
   });

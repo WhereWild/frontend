@@ -39,6 +39,9 @@ type UseSpeciesEnvironmentStateParams = {
   locationGid?: string | null;
   /** Optional phenology filter value. */
   phenology?: string | null;
+  /** Optional timestamp range filter (Unix seconds). */
+  startTimestamp?: number | null;
+  endTimestamp?: number | null;
   units?: 'metric' | 'imperial' | undefined;
   pinnedObservation?: {
     catalogNumber: string;
@@ -107,6 +110,8 @@ export function useSpeciesEnvironmentState({
   onHighlightChange,
   locationGid,
   phenology,
+  startTimestamp,
+  endTimestamp,
   units,
   pinnedObservation,
 }: UseSpeciesEnvironmentStateParams) {
@@ -132,6 +137,8 @@ export function useSpeciesEnvironmentState({
     selectedVariable,
     locationGid,
     phenology,
+    startTimestamp,
+    endTimestamp,
     units,
   });
 
@@ -172,6 +179,8 @@ export function useSpeciesEnvironmentState({
     isCategorical,
     locationGid,
     phenology,
+    startTimestamp,
+    endTimestamp,
     onHighlightChange,
     units,
     pinnedObservation,
