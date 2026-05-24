@@ -103,6 +103,8 @@ type UseEnvironmentHighlightsParams = {
   isCategorical: boolean;
   /** Optional location filter gid for scoped highlights. */
   locationGid?: string | null;
+  /** Optional phenology filter value. */
+  phenology?: string | null;
   /** Unit system forwarded to backend highlight endpoints. */
   units?: 'metric' | 'imperial' | undefined;
   /** Callback receiving highlighted catalog numbers. */
@@ -122,6 +124,7 @@ export function useEnvironmentHighlights({
   stats,
   isCategorical,
   locationGid,
+  phenology,
   units,
   onHighlightChange,
   pinnedObservation,
@@ -233,12 +236,12 @@ export function useEnvironmentHighlights({
 
   React.useEffect(() => {
     resetHighlightState();
-  }, [locationGid, resetHighlightState, selectedVariable, taxonId, units]);
+  }, [locationGid, phenology, resetHighlightState, selectedVariable, taxonId, units]);
 
   React.useEffect(() => {
     pinnedRequestRef.current += 1;
     resetPinnedState();
-  }, [locationGid, resetPinnedState, selectedVariable, taxonId, units]);
+  }, [locationGid, phenology, resetPinnedState, selectedVariable, taxonId, units]);
 
   React.useEffect(() => {
     if (!pinnedObservation || !selectedVariable) {
@@ -275,7 +278,7 @@ export function useEnvironmentHighlights({
                 taxonId ?? '',
                 pinnedObservation.catalogNumber,
                 selectedVariable,
-                { location: locationGid ?? undefined, units },
+                { location: locationGid ?? undefined, units, phenology: phenology ?? undefined },
               )
             : await fetchPointEnvironmentValue(
                 pinnedObservation.lat,
@@ -307,7 +310,7 @@ export function useEnvironmentHighlights({
                 taxonId,
                 selectedVariable,
                 categoryQueryValue,
-                { location: locationGid ?? undefined, units },
+                { location: locationGid ?? undefined, units, phenology: phenology ?? undefined },
               );
             if (pinnedRequestRef.current !== requestId) {
               return;
@@ -604,6 +607,7 @@ export function useEnvironmentHighlights({
                 max: range.max,
                 location: locationGid ?? undefined,
                 units,
+                phenology: phenology ?? undefined,
               }),
             ),
           );

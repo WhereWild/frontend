@@ -5,6 +5,7 @@ import React from 'react';
 type UseSpeciesOccurrencesParams = {
   taxonId?: number;
   locationGid?: string | null;
+  phenology?: string | null;
 };
 
 type UseSpeciesOccurrencesResult = {
@@ -16,6 +17,7 @@ type UseSpeciesOccurrencesResult = {
 export const useSpeciesOccurrences = ({
   taxonId,
   locationGid,
+  phenology,
 }: UseSpeciesOccurrencesParams): UseSpeciesOccurrencesResult => {
   const speciesDataSource = useSpeciesDataSource();
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
@@ -46,6 +48,7 @@ export const useSpeciesOccurrences = ({
       try {
         const rows = await speciesDataSource.fetchSpeciesOccurrences(taxonId, {
           location: locationGid ?? undefined,
+          phenology: phenology ?? undefined,
         });
 
         if (requestRef.current === requestId) {
@@ -64,7 +67,7 @@ export const useSpeciesOccurrences = ({
         }
       }
     })();
-  }, [locationGid, speciesDataSource, taxonId]);
+  }, [locationGid, phenology, speciesDataSource, taxonId]);
 
   return {
     occurrences,
