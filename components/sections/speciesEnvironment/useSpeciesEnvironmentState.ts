@@ -37,6 +37,8 @@ type UseSpeciesEnvironmentStateParams = {
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
   /** Optional location filter gid for scoped environment views. */
   locationGid?: string | null;
+  /** Optional phenology filter value. */
+  phenology?: string | null;
   units?: 'metric' | 'imperial' | undefined;
   pinnedObservation?: {
     catalogNumber: string;
@@ -104,6 +106,7 @@ export function useSpeciesEnvironmentState({
   variables,
   onHighlightChange,
   locationGid,
+  phenology,
   units,
   pinnedObservation,
 }: UseSpeciesEnvironmentStateParams) {
@@ -128,6 +131,7 @@ export function useSpeciesEnvironmentState({
     taxonId,
     selectedVariable,
     locationGid,
+    phenology,
     units,
   });
 
@@ -167,6 +171,7 @@ export function useSpeciesEnvironmentState({
     stats,
     isCategorical,
     locationGid,
+    phenology,
     onHighlightChange,
     units,
     pinnedObservation,

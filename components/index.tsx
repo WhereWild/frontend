@@ -94,6 +94,7 @@ export { NavigationBar } from './sections/navigationBar/NavigationBar';
 export type { NavigationBarProps } from './sections/navigationBar/NavigationBar';
 
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
+export { SpeciesObservationFilters } from './sections/SpeciesObservationFilters';
 
 export { PageTitle } from './sections/PageTitle';
 export type { PageTitleProps } from './sections/PageTitle';

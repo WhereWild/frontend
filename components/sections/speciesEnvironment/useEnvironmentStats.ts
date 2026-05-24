@@ -11,6 +11,8 @@ type UseEnvironmentStatsParams = {
   selectedVariable: string;
   /** Optional location filter gid. */
   locationGid?: string | null;
+  /** Optional phenology filter value. */
+  phenology?: string | null;
 
   units?: 'metric' | 'imperial' | undefined;
 };
@@ -20,6 +22,7 @@ export function useEnvironmentStats({
   taxonId,
   selectedVariable,
   locationGid,
+  phenology,
   units,
 }: UseEnvironmentStatsParams) {
   const speciesDataSource = useSpeciesDataSource();
@@ -36,7 +39,7 @@ export function useEnvironmentStats({
   React.useEffect(() => {
     setStatsByVariable({});
     setErrorByVariable({});
-  }, [taxonId, locationGid, units]);
+  }, [taxonId, locationGid, phenology, units]);
 
   const hasStatsForSelection = Boolean(
     selectedVariable && statsByVariable[selectedVariable],
@@ -57,6 +60,7 @@ export function useEnvironmentStats({
           {
             location: locationGid,
             units: units,
+            phenology: phenology,
           },
         );
         if (
@@ -100,6 +104,7 @@ export function useEnvironmentStats({
   }, [
     hasStatsForSelection,
     locationGid,
+    phenology,
     selectedVariable,
     speciesDataSource,
     taxonId,

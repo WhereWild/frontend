@@ -16,12 +16,14 @@ import { BACKEND_BASE, asRecord, fetchJsonOrThrow } from './apiShared';
 type LocationOptions = {
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
 };
 
 type CategorySampleOptions = {
   limit?: number;
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
 };
 
 /**
@@ -41,6 +43,9 @@ export async function fetchSpeciesEnvironment(
   if (options?.units) {
     params.set('unit_system', options.units);
   }
+  if (options?.phenology) {
+    params.set('phenology', options.phenology);
+  }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
   const payload = await fetchJsonOrThrow(
@@ -56,7 +61,7 @@ export async function fetchSpeciesEnvironment(
 export async function fetchEnvironmentRangeSlice(
   params: EnvironmentSliceParams,
 ): Promise<SpeciesEnvironmentSliceResponse> {
-  const { taxonId, variableId, min, max, limit, location, units } = params;
+  const { taxonId, variableId, min, max, limit, location, units, phenology } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const query = new URLSearchParams({
@@ -71,6 +76,9 @@ export async function fetchEnvironmentRangeSlice(
   }
   if (units) {
     query.set('unit_system', units);
+  }
+  if (phenology) {
+    query.set('phenology', phenology);
   }
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
   const payload = await fetchJsonOrThrow(
@@ -102,6 +110,9 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   if (options?.units) {
     query.set('unit_system', options.units);
   }
+  if (options?.phenology) {
+    query.set('phenology', options.phenology);
+  }
   const queryString = query.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;
   const payload = await fetchJsonOrThrow(
@@ -122,6 +133,9 @@ export async function fetchSpeciesOccurrences(
   const params = new URLSearchParams();
   if (options?.location) {
     params.set('location', options.location);
+  }
+  if (options?.phenology) {
+    params.set('phenology', options.phenology);
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
