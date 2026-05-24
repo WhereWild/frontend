@@ -16,6 +16,7 @@ type UseSpeciesOccurrencesResult = {
   error: string | null;
   minTimestamp: number | null;
   maxTimestamp: number | null;
+  phenologyCounts: Record<string, number> | null;
 };
 
 export const useSpeciesOccurrences = ({
@@ -31,6 +32,7 @@ export const useSpeciesOccurrences = ({
   const [error, setError] = React.useState<string | null>(null);
   const [minTimestamp, setMinTimestamp] = React.useState<number | null>(null);
   const [maxTimestamp, setMaxTimestamp] = React.useState<number | null>(null);
+  const [phenologyCounts, setPhenologyCounts] = React.useState<Record<string, number> | null>(null);
   const requestRef = React.useRef(0);
 
   React.useEffect(() => {
@@ -65,6 +67,7 @@ export const useSpeciesOccurrences = ({
           setOccurrences(result.occurrences);
           setMinTimestamp(result.minTimestamp);
           setMaxTimestamp(result.maxTimestamp);
+          setPhenologyCounts(result.phenologyCounts);
         }
       } catch (requestError) {
         if (requestRef.current === requestId) {
@@ -87,5 +90,6 @@ export const useSpeciesOccurrences = ({
     error,
     minTimestamp,
     maxTimestamp,
+    phenologyCounts,
   };
 };
