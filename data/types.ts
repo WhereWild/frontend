@@ -305,6 +305,7 @@ export type EnvironmentSliceParams = {
   limit?: number;
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
 };
 
 export type RelativeRankingEntry = {
