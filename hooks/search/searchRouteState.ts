@@ -11,6 +11,8 @@ export type SearchRouteParams = {
   sortVariable?: string | string[];
   sortMetric?: string | string[];
   sortOrder?: string | string[];
+  sortReference?: string | string[];
+  minRbar?: string | string[];
   minSamples?: string | string[];
   limit?: string | string[];
 };
@@ -30,6 +32,8 @@ const SEARCH_ROUTE_PARAM_KEYS = [
   'sortVariable',
   'sortMetric',
   'sortOrder',
+  'sortReference',
+  'minRbar',
   'minSamples',
   'limit',
 ] as const;
@@ -67,6 +71,8 @@ export const pickSearchRouteParams = (
   sortVariable: params.sortVariable,
   sortMetric: params.sortMetric,
   sortOrder: params.sortOrder,
+  sortReference: params.sortReference,
+  minRbar: params.minRbar,
   minSamples: params.minSamples,
   limit: params.limit,
 });
@@ -137,6 +143,24 @@ export const toSearchRouteParams = (
 
   if (hasScopedRankingContext && filterParams.sortOrder === 'desc') {
     routeParams.sortOrder = 'desc';
+  }
+
+  if (
+    hasScopedRankingContext &&
+    filterParams.sortMetric &&
+    typeof filterParams.sortReference === 'number' &&
+    filterParams.sortReference !== 0
+  ) {
+    routeParams.sortReference = String(filterParams.sortReference);
+  }
+
+  if (
+    hasScopedRankingContext &&
+    filterParams.sortMetric &&
+    typeof filterParams.minRbar === 'number' &&
+    filterParams.minRbar > 0
+  ) {
+    routeParams.minRbar = filterParams.minRbar.toFixed(2);
   }
 
   if (
@@ -331,6 +355,8 @@ export const toInitialSearchFilterState = (
   const sortVariable = toSingleRouteParamValue(params.sortVariable);
   const sortMetric = toSingleRouteParamValue(params.sortMetric);
   const sortOrder = toSingleRouteParamValue(params.sortOrder);
+  const sortReferenceRaw = toNumberParam(toSingleRouteParamValue(params.sortReference));
+  const minRbarRaw = toNumberParam(toSingleRouteParamValue(params.minRbar));
   const minSamples = toNumberParam(toSingleRouteParamValue(params.minSamples));
   const limit = toNumberParam(toSingleRouteParamValue(params.limit));
 
@@ -347,6 +373,8 @@ export const toInitialSearchFilterState = (
       sortVariableValue: sortVariable ?? '',
       sortMetricValue: sortMetric ?? '',
       sortOrder: sortOrder === 'desc' ? 'descending' : 'ascending',
+      sortReference: sortReferenceRaw,
+      minRbar: minRbarRaw,
     },
     quantity: {
       minimumSamples: minSamples,

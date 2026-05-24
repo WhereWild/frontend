@@ -191,6 +191,20 @@ export function useSearchFiltersActions({
     [dispatch],
   );
 
+  const onSortReferenceChange = React.useCallback(
+    (value: number) => {
+      dispatch({ type: 'set-sort-reference', value });
+    },
+    [dispatch],
+  );
+
+  const onMinRbarChange = React.useCallback(
+    (value: number) => {
+      dispatch({ type: 'set-min-rbar', value });
+    },
+    [dispatch],
+  );
+
   const onResetFilters = React.useCallback(() => {
     invalidateBaseTaxonSubmit();
     clearBaseTaxonDismissTimeout();
@@ -215,6 +229,8 @@ export function useSearchFiltersActions({
     onSortOrderChange,
     onNumberOfResultsChange,
     onMinimumSamplesChange,
+    onSortReferenceChange,
+    onMinRbarChange,
     onResetFilters,
   };
 }

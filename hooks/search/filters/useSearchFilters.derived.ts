@@ -36,6 +36,8 @@ export const toSortMetricOptions = (
   return metricOptions;
 };
 
+const ANGULAR_METRICS = new Set(['circular_mean', 'mode']);
+
 export const toSearchFilterParams = (
   state: SearchFiltersState,
 ): SearchTaxaQueryFilters => {
@@ -52,6 +54,10 @@ export const toSearchFilterParams = (
     hasScopedRankingContext && state.rankValue === 'species'
       ? state.includeSubspecies
       : null;
+  const isAngularMetric =
+    hasScopedRankingContext &&
+    hasCompleteSortSelection &&
+    ANGULAR_METRICS.has(state.sortMetricValue);
 
   return {
     location,
@@ -72,6 +78,8 @@ export const toSearchFilterParams = (
           ? 'asc'
           : 'desc'
         : null,
+    sortReference: isAngularMetric ? state.sortReference : null,
+    minRbar: isAngularMetric && state.minRbar > 0 ? state.minRbar : null,
     minSamples:
       state.debouncedQuantity.minimumSamples > 0
         ? state.debouncedQuantity.minimumSamples
