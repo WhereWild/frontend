@@ -454,14 +454,20 @@ function SpeciesEnvironmentSectionComponent({
                 }
               />
               <ContinuousInsights
-                showRankContext={false}
-                rankContextOptions={[]}
-                selectedRankContext={null}
+                showRankContext={displayState?.showRankContext ?? false}
+                rankContextOptions={displayState?.rankContextOptions ?? []}
+                selectedRankContext={displayState?.selectedRankContext ?? null}
                 onRankContextChange={handleRankContextChange}
                 summary={displayState?.summary}
-                summaryRanks={{ min: null, mean: null, max: null }}
-                summaryComparisons={{}}
-                locationFilterActive={false}
+                summaryRanks={
+                  displayState?.summaryRanks ?? {
+                    min: null,
+                    mean: null,
+                    max: null,
+                  }
+                }
+                summaryComparisons={displayState?.summaryComparisons ?? {}}
+                locationFilterActive={locationFilterActive}
                 valueType='circular'
               />
             </>

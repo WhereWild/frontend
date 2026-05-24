@@ -70,6 +70,8 @@ export type TaxaQueryParams = {
   sortVariable?: string | null;
   sortMetric?: string | null;
   sortOrder?: 'asc' | 'desc' | null;
+  sortReference?: number | null;
+  minRbar?: number | null;
   limit?: number | null;
   offset?: number | null;
   minSamples?: number | null;
@@ -86,6 +88,8 @@ export type SearchTaxaQueryFilters = Pick<
   | 'sortVariable'
   | 'sortMetric'
   | 'sortOrder'
+  | 'sortReference'
+  | 'minRbar'
   | 'limit'
   | 'minSamples'
   | 'includeSpeciesLike'
@@ -131,6 +135,12 @@ export const buildTaxaQuerySearchParams = (params: TaxaQueryParams) => {
     query.set('sort_metric', params.sortMetric);
     if (params.sortOrder) {
       query.set('sort_order', params.sortOrder);
+    }
+    if (params.sortReference != null) {
+      query.set('sort_reference', String(params.sortReference));
+    }
+    if (params.minRbar != null && params.minRbar > 0) {
+      query.set('min_rbar', String(params.minRbar));
     }
   }
   if (params.minSamples != null && params.minSamples >= 0) {
