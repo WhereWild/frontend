@@ -6,6 +6,7 @@ import type {
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
+  SpeciesOccurrencesResult,
 } from '@/data/types';
 import { isCategoricalAggregateMetric } from '@/data/uploadLocalSpeciesDataSource.shared';
 import { validateUploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource.normalize';
@@ -778,23 +779,20 @@ export const buildUploadLocalSpeciesDataSource = ({
 
     fetchSpeciesOccurrences: async (_taxonId, options) => {
       const selectedLocation = options?.location;
-      if (!selectedLocation) {
-        return occurrences;
-      }
-
-      return occurrences.filter((occurrence) => {
-        const row = observationsByCatalog[String(occurrence.catalogNumber)];
-        if (!row?.locationGid) {
-          return false;
-        }
-
-        const rowLocation = resolveLocationEntry(row.locationGid, locationLookup);
-        if (!rowLocation) {
-          return normalizeLocationToken(row.locationGid) === normalizeLocationToken(selectedLocation);
-        }
-
-        return matchesParentLocation(rowLocation, selectedLocation, locationLookup);
-      });
+      const filtered = !selectedLocation
+        ? occurrences
+        : occurrences.filter((occurrence) => {
+            const row = observationsByCatalog[String(occurrence.catalogNumber)];
+            if (!row?.locationGid) {
+              return false;
+            }
+            const rowLocation = resolveLocationEntry(row.locationGid, locationLookup);
+            if (!rowLocation) {
+              return normalizeLocationToken(row.locationGid) === normalizeLocationToken(selectedLocation);
+            }
+            return matchesParentLocation(rowLocation, selectedLocation, locationLookup);
+          });
+      return { occurrences: filtered, minTimestamp: null, maxTimestamp: null };
     },
 
     fetchSpeciesLocations: async (_taxonId, level, parent, limit = 500) => {

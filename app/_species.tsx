@@ -28,6 +28,7 @@ import {
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservationFilters';
+import { SpeciesTimestampFilters } from '@/components/sections/SpeciesTimestampFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
@@ -327,6 +328,8 @@ export default function Species({
     lon: number;
   } | null>(null);
   const [selectedPhenology, setSelectedPhenology] = React.useState<string | null>(null);
+  const [startTimestamp, setStartTimestamp] = React.useState<number | null>(null);
+  const [endTimestamp, setEndTimestamp] = React.useState<number | null>(null);
 
   const predictiveHeatmapDescription = React.useMemo(
     () => getPredictiveHeatmapDescription(hasLiveHeatmap, hasAnyHeatmap),
@@ -379,10 +382,14 @@ export default function Species({
     occurrences,
     loading: occurrenceLoading,
     error: occurrenceError,
+    minTimestamp,
+    maxTimestamp,
   } = useSpeciesOccurrences({
     taxonId,
     locationGid: finalLocationGid,
     phenology: selectedPhenology,
+    startTimestamp,
+    endTimestamp,
   });
 
   React.useEffect(() => {
@@ -520,12 +527,23 @@ export default function Species({
                   onPhenologyChange={setSelectedPhenology}
                 />
 
+                <SpeciesTimestampFilters
+                  startTimestamp={startTimestamp}
+                  endTimestamp={endTimestamp}
+                  minTimestamp={minTimestamp}
+                  maxTimestamp={maxTimestamp}
+                  onStartChange={setStartTimestamp}
+                  onEndChange={setEndTimestamp}
+                />
+
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
                   phenology={selectedPhenology}
+                  startTimestamp={startTimestamp}
+                  endTimestamp={endTimestamp}
                   units={units}
                   pinnedObservation={pinnedObservation}
                 />
