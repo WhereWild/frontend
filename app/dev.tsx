@@ -34,6 +34,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixSection';
+import { DateRangeSlider } from '@/components/inputs/DateRangeSlider';
+import type { MonthYear } from '@/components/inputs/DateRangeSlider';
 import Head from 'expo-router/head';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -212,6 +214,8 @@ export default function About() {
   const [spinnerAtMaxValue] = useState(10);
   const [spinnerNegativeValue, setSpinnerNegativeValue] = useState(0);
   const [spinnerDisabledValue] = useState(3);
+  const [dateRangeStart, setDateRangeStart] = useState<MonthYear>({ year: 2010, month: 1 });
+  const [dateRangeEnd, setDateRangeEnd] = useState<MonthYear>({ year: 2024, month: 6 });
   const [radioGroupValue, setRadioGroupValue] = useState('checked');
   const [selectedTab, setSelectedTab] = useState('overview');
   const [overviewPill, setOverviewPill] = useState('all');
@@ -690,6 +694,21 @@ export default function About() {
                   disabled
                 />
               </View>
+            </View>
+
+            <View>
+              <ThemedText variant='heading'>Date Range Slider</ThemedText>
+              <ThemedText variant='bodySmall'>
+                {`${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dateRangeStart.month - 1]} ${dateRangeStart.year} → ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dateRangeEnd.month - 1]} ${dateRangeEnd.year}`}
+              </ThemedText>
+              <DateRangeSlider
+                startDate={dateRangeStart}
+                endDate={dateRangeEnd}
+                minDate={{ year: 1990, month: 1 }}
+                maxDate={{ year: 2025, month: 12 }}
+                onStartChange={setDateRangeStart}
+                onEndChange={setDateRangeEnd}
+              />
             </View>
 
             <View>
