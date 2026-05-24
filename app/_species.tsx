@@ -384,6 +384,7 @@ export default function Species({
     error: occurrenceError,
     minTimestamp,
     maxTimestamp,
+    phenologyCounts,
   } = useSpeciesOccurrences({
     taxonId,
     locationGid: finalLocationGid,
@@ -525,6 +526,7 @@ export default function Species({
                 <SpeciesObservationFilters
                   selectedPhenology={selectedPhenology}
                   onPhenologyChange={setSelectedPhenology}
+                  phenologyCounts={phenologyCounts}
                 />
 
                 <SpeciesTimestampFilters

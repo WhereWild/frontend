@@ -193,9 +193,14 @@ export async function fetchSpeciesOccurrences(
       latitude: entry.latitude,
       longitude: entry.longitude,
     }));
+  const phenologyCounts =
+    payload.phenology_counts && typeof payload.phenology_counts === 'object'
+      ? (payload.phenology_counts as Record<string, number>)
+      : null;
   return {
     occurrences,
     minTimestamp: typeof payload.min_timestamp === 'number' ? payload.min_timestamp : null,
     maxTimestamp: typeof payload.max_timestamp === 'number' ? payload.max_timestamp : null,
+    phenologyCounts,
   };
 }

@@ -158,6 +158,7 @@ export type SpeciesOccurrencesResult = {
   occurrences: SpeciesOccurrence[];
   minTimestamp: number | null;
   maxTimestamp: number | null;
+  phenologyCounts: Record<string, number> | null;
 };
 
 export type LocationSearchResult = {
