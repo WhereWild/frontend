@@ -78,6 +78,8 @@ type PolarDensityChartProps = {
   pinValue?: number | null;
   /** Whether the pin value is still loading. */
   pinLoading?: boolean;
+  /** Circular mean bearing (0–360°) to render as a reference line. */
+  circularMean?: number | null;
 };
 
 /** Renders a circular KDE for a 0–360° directional variable with arc selection. */
@@ -90,6 +92,7 @@ export function PolarDensityChart({
   onSelectionChange,
   pinValue,
   pinLoading,
+  circularMean,
 }: PolarDensityChartProps) {
   const samples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const dragOrigin = React.useRef<number | null>(null);
@@ -165,6 +168,15 @@ export function PolarDensityChart({
         }
       : null;
 
+  const meanPoint =
+    circularMean != null
+      ? {
+          inner: toSvgPoint(circularMean, INNER_RADIUS),
+          outer: toSvgPoint(circularMean, MAX_RADIUS),
+          label: toSvgPoint(circularMean, LABEL_RADIUS),
+        }
+      : null;
+
   return (
     <View
       style={styles.wrapper}
@@ -228,6 +240,34 @@ export function PolarDensityChart({
           strokeWidth={1.5}
         />
 
+        {/* Circular mean radial line */}
+        {meanPoint ? (
+          <>
+            <Line
+              x1={meanPoint.inner.x}
+              y1={meanPoint.inner.y}
+              x2={meanPoint.outer.x}
+              y2={meanPoint.outer.y}
+              stroke={guideColor}
+              strokeWidth={1.5}
+              strokeDasharray='4 3'
+              pointerEvents='none'
+            />
+            <SvgText
+              x={meanPoint.label.x}
+              y={meanPoint.label.y}
+              textAnchor='middle'
+              alignmentBaseline='middle'
+              fontSize={10}
+              fill={guideColor}
+              opacity={0.85}
+              pointerEvents='none'
+            >
+              {`${Math.round(circularMean!)}°`}
+            </SvgText>
+          </>
+        ) : null}
+
         {/* Inner baseline ring */}
         <Circle
           cx={CX}
@@ -267,10 +307,14 @@ export function PolarDensityChart({
           </>
         ) : null}
 
-        {/* Cardinal labels — hidden when pin is within 5° to avoid overlap */}
+        {/* Cardinal labels — hidden when pin or mean is within 5° to avoid overlap */}
         {CARDINALS.map(({ label, deg }) => {
           if (pinPoint != null) {
             const diff = Math.abs(((pinValue! - deg + 540) % 360) - 180);
+            if (diff <= 5) return null;
+          }
+          if (meanPoint != null) {
+            const diff = Math.abs(((circularMean! - deg + 540) % 360) - 180);
             if (diff <= 5) return null;
           }
           const { x, y } = toSvgPoint(deg, LABEL_RADIUS);
