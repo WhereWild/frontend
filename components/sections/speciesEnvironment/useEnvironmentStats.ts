@@ -13,6 +13,9 @@ type UseEnvironmentStatsParams = {
   locationGid?: string | null;
   /** Optional phenology filter value. */
   phenology?: string | null;
+  /** Optional timestamp range filter (Unix seconds). */
+  startTimestamp?: number | null;
+  endTimestamp?: number | null;
 
   units?: 'metric' | 'imperial' | undefined;
 };
@@ -23,6 +26,8 @@ export function useEnvironmentStats({
   selectedVariable,
   locationGid,
   phenology,
+  startTimestamp,
+  endTimestamp,
   units,
 }: UseEnvironmentStatsParams) {
   const speciesDataSource = useSpeciesDataSource();
@@ -39,7 +44,7 @@ export function useEnvironmentStats({
   React.useEffect(() => {
     setStatsByVariable({});
     setErrorByVariable({});
-  }, [taxonId, locationGid, phenology, units]);
+  }, [taxonId, locationGid, phenology, startTimestamp, endTimestamp, units]);
 
   const hasStatsForSelection = Boolean(
     selectedVariable && statsByVariable[selectedVariable],
@@ -61,6 +66,8 @@ export function useEnvironmentStats({
             location: locationGid,
             units: units,
             phenology: phenology,
+            startTs: startTimestamp,
+            endTs: endTimestamp,
           },
         );
         if (
@@ -102,11 +109,13 @@ export function useEnvironmentStats({
       cancelled = true;
     };
   }, [
+    endTimestamp,
     hasStatsForSelection,
     locationGid,
     phenology,
     selectedVariable,
     speciesDataSource,
+    startTimestamp,
     taxonId,
     units,
   ]);

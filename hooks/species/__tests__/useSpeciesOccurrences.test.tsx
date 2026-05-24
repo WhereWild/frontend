@@ -11,13 +11,15 @@ const mockFetchSpeciesOccurrences = jest.mocked(fetchSpeciesOccurrences);
 describe('useSpeciesOccurrences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetchSpeciesOccurrences.mockResolvedValue([]);
+    mockFetchSpeciesOccurrences.mockResolvedValue({ occurrences: [], minTimestamp: null, maxTimestamp: null });
   });
 
   it('loads occurrences for a valid taxon and location', async () => {
-    mockFetchSpeciesOccurrences.mockResolvedValueOnce([
-      { catalogNumber: 1, latitude: 10, longitude: 20 },
-    ]);
+    mockFetchSpeciesOccurrences.mockResolvedValueOnce({
+      occurrences: [{ catalogNumber: 1, latitude: 10, longitude: 20 }],
+      minTimestamp: null,
+      maxTimestamp: null,
+    });
 
     const { result } = renderHook(() =>
       useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut' }),
