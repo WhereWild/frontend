@@ -1,41 +1,49 @@
 import { SelectField } from '@/components/inputs/SelectField';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Size } from '@/constants/theme';
-import { usePhenologyOptions } from '@/hooks/species/usePhenologyOptions';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 type SpeciesObservationFiltersProps = {
   selectedPhenology: string | null;
   onPhenologyChange: (value: string | null) => void;
+  phenologyCounts: Record<string, number> | null;
 };
 
 export function SpeciesObservationFilters({
   selectedPhenology,
   onPhenologyChange,
+  phenologyCounts,
 }: SpeciesObservationFiltersProps) {
-  const phenologyOptions = usePhenologyOptions();
-
   const toNullable = React.useCallback(
     (value: string) => (value ? value : null),
     [],
   );
 
-  const options = React.useMemo(
-    () => [{ label: 'All', value: '' }, ...phenologyOptions],
-    [phenologyOptions],
-  );
+  const options = React.useMemo(() => {
+    if (!phenologyCounts) return [{ label: 'All', value: '' }];
+    const sorted = Object.entries(phenologyCounts).sort((a, b) => b[1] - a[1]);
+    return [
+      { label: 'All', value: '' },
+      ...sorted.map(([key]) => ({
+        label: `${key.charAt(0).toUpperCase()}${key.slice(1)}`,
+        value: key,
+      })),
+    ];
+  }, [phenologyCounts]);
+
+  const isLoading = phenologyCounts === null;
 
   return (
     <View style={styles.container}>
       <ThemedText variant='subheading'>Extra Filters</ThemedText>
       <SelectField
         label='Phenology'
-        placeholder={phenologyOptions.length === 0 ? 'Loading…' : 'Select'}
+        placeholder={isLoading ? 'Loading…' : 'Select'}
         options={options}
         value={selectedPhenology ?? ''}
         onValueChange={(value) => onPhenologyChange(toNullable(value))}
-        disabled={phenologyOptions.length === 0}
+        disabled={isLoading}
       />
     </View>
   );

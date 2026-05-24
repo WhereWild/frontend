@@ -792,7 +792,7 @@ export const buildUploadLocalSpeciesDataSource = ({
             }
             return matchesParentLocation(rowLocation, selectedLocation, locationLookup);
           });
-      return { occurrences: filtered, minTimestamp: null, maxTimestamp: null };
+      return { occurrences: filtered, minTimestamp: null, maxTimestamp: null, phenologyCounts: null };
     },
 
     fetchSpeciesLocations: async (_taxonId, level, parent, limit = 500) => {
