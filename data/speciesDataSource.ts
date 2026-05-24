@@ -19,6 +19,7 @@ import type {
 type EnvironmentRequestOptions = {
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
 };
 
 type CategorySampleOptions = EnvironmentRequestOptions & {
