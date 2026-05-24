@@ -435,18 +435,36 @@ function SpeciesEnvironmentSectionComponent({
           ]}
         >
           {isCircularVariable ? (
-            <PolarDensityChart
-              curve={displayState?.densityCurve}
-              fillColor={palette.background.brand.default}
-              lineColor={palette.background.brand.default}
-              guideColor={palette.text.default.secondary}
-              selection={displayState?.selectedDensityRange ?? null}
-              onSelectionChange={
-                slicingEnabled ? handleDensitySelectionChange : undefined
-              }
-              pinValue={numericPinnedValue}
-              pinLoading={pinnedLoading}
-            />
+            <>
+              <PolarDensityChart
+                curve={displayState?.densityCurve}
+                fillColor={palette.background.brand.default}
+                lineColor={palette.background.brand.default}
+                guideColor={palette.text.default.secondary}
+                selection={displayState?.selectedDensityRange ?? null}
+                onSelectionChange={
+                  slicingEnabled ? handleDensitySelectionChange : undefined
+                }
+                pinValue={numericPinnedValue}
+                pinLoading={pinnedLoading}
+                circularMean={
+                  typeof displayState?.summary?.circular_mean === 'number'
+                    ? displayState.summary.circular_mean
+                    : null
+                }
+              />
+              <ContinuousInsights
+                showRankContext={false}
+                rankContextOptions={[]}
+                selectedRankContext={null}
+                onRankContextChange={handleRankContextChange}
+                summary={displayState?.summary}
+                summaryRanks={{ min: null, mean: null, max: null }}
+                summaryComparisons={{}}
+                locationFilterActive={false}
+                valueType='circular'
+              />
+            </>
           ) : (
             <>
               <DensityChart

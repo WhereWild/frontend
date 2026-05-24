@@ -60,6 +60,9 @@ const coerceEnvironmentSummary = (
   q10: toFiniteNumber(value?.q10),
   q90: toFiniteNumber(value?.q90),
   q99: toFiniteNumber(value?.q99),
+  circular_mean: toFiniteNumber(value?.circular_mean),
+  rbar: toFiniteNumber(value?.rbar),
+  circular_std: toFiniteNumber(value?.circular_std),
 });
 
 const coerceHistogram = (

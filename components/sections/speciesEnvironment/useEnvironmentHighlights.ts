@@ -591,50 +591,28 @@ export function useEnvironmentHighlights({
       return;
     }
     const { start, end } = selectedDensityRange;
-    // Circular variables (e.g. aspect_deg 0–360°) can produce a wrap-around arc
-    // where start > end (e.g. 315° → 45°). Split into two linear slices and merge.
-    const isWrapped = start > end;
+    // For circular variables a wrap-around arc (start > end, e.g. 315° → 45°)
+    // is sent as min=start, max=end; the backend triggers circular_wrap when max < min.
     let cancelled = false;
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const sliceParams = isWrapped
-            ? [
-                { min: start, max: 360 },
-                { min: 0, max: end },
-              ]
-            : [{ min: start, max: end }];
-
-          const responses = await Promise.all(
-            sliceParams.map((range) =>
-              speciesDataSource.fetchEnvironmentRangeSlice({
-                taxonId,
-                variableId: selectedVariable,
-                min: range.min,
-                max: range.max,
-                location: locationGid ?? undefined,
-                units,
-                phenology: phenology ?? undefined,
-                startTs: startTimestamp ?? undefined,
-                endTs: endTimestamp ?? undefined,
-              }),
-            ),
-          );
+          const response = await speciesDataSource.fetchEnvironmentRangeSlice({
+            taxonId,
+            variableId: selectedVariable,
+            min: start,
+            max: end,
+            location: locationGid ?? undefined,
+            units,
+            phenology: phenology ?? undefined,
+            startTs: startTimestamp ?? undefined,
+            endTs: endTimestamp ?? undefined,
+          });
 
           if (cancelled) {
             return;
           }
-          const seen = new Set<number | string>();
-          const observations: SpeciesEnvironmentObservation[] = [];
-          for (const response of responses) {
-            for (const obs of response.observations ?? []) {
-              const id = obs.catalogNumber;
-              if (id !== null && id !== undefined && !seen.has(id)) {
-                seen.add(id);
-                observations.push(obs);
-              }
-            }
-          }
+          const observations: SpeciesEnvironmentObservation[] = response.observations ?? [];
           setRangeObservations(observations);
           emitHighlightChange(toCatalogIdsFromObservations(observations));
         } catch {
