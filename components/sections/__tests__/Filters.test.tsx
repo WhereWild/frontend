@@ -66,6 +66,8 @@ const baseProps: FiltersProps = {
   sortMetricValue: 'average',
   sortMetricOptions,
   sortOrder: 'ascending',
+  sortReference: 0,
+  minRbar: 0.15,
   numberOfResults: 10,
   minimumSamples: 0,
 };

@@ -37,11 +37,13 @@ type ContinuousInsightsProps = {
       }
     | null
     | undefined;
-  /** Rank metadata for min/mean/max values. */
+  /** Rank metadata for min/mean/max (continuous) and rbar/circular_std (circular) values. */
   summaryRanks: {
     min: SpeciesEnvironmentRelativeRank | null;
     mean: SpeciesEnvironmentRelativeRank | null;
     max: SpeciesEnvironmentRelativeRank | null;
+    rbar?: SpeciesEnvironmentRelativeRank | null;
+    circular_std?: SpeciesEnvironmentRelativeRank | null;
   };
   /** Comparison labels against baseline/location-filter context. */
   summaryComparisons: Record<string, string | null>;
@@ -159,11 +161,13 @@ export function ContinuousInsights({
             <SummaryItem
               label='R̄'
               value={formatValue(summary?.rbar, 3)}
+              rank={locationFilterActive ? undefined : (summaryRanks.rbar ?? null)}
               stacked={isStacked}
             />
             <SummaryItem
               label='Standard Deviation'
               value={formatDeg(summary?.circular_std)}
+              rank={locationFilterActive ? undefined : (summaryRanks.circular_std ?? null)}
               isLast
               stacked={isStacked}
             />
