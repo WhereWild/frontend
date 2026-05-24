@@ -10,6 +10,11 @@ import { SummaryItem } from './SummaryItem';
 import type { RankContextOption } from './model';
 import { formatValue } from './model';
 
+const formatDeg = (value: number | null | undefined): string => {
+  const formatted = formatValue(value, 1);
+  return formatted === '—' ? '—' : `${formatted}°`;
+};
+
 /** Props for the continuous-variable summary and ranking panel. */
 type ContinuousInsightsProps = {
   /** Whether rank context controls should be shown. */
@@ -26,6 +31,9 @@ type ContinuousInsightsProps = {
         min?: number | null;
         mean?: number | null;
         max?: number | null;
+        circular_mean?: number | null;
+        rbar?: number | null;
+        circular_std?: number | null;
       }
     | null
     | undefined;
@@ -39,9 +47,11 @@ type ContinuousInsightsProps = {
   summaryComparisons: Record<string, string | null>;
   /** Indicates whether comparisons should be shown instead of rank labels. */
   locationFilterActive: boolean;
+  /** When 'circular', renders circular mean / R̄ / std dev instead of min/mean/max. */
+  valueType?: string | null;
 };
 
-/** Renders rank-context controls and min/mean/max summary cards for continuous variables. */
+/** Renders rank-context controls and min/mean/max (or circular) summary cards. */
 export function ContinuousInsights({
   showRankContext,
   rankContextOptions,
@@ -51,7 +61,9 @@ export function ContinuousInsights({
   summaryRanks,
   summaryComparisons,
   locationFilterActive,
+  valueType,
 }: ContinuousInsightsProps) {
+  const isCircular = valueType?.toLowerCase() === 'circular';
   const { breakpoint } = useResponsive();
   const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
   const scheme = useColorScheme();
@@ -137,34 +149,57 @@ export function ContinuousInsights({
           isStacked && styles.summaryRowStacked,
         ]}
       >
-        <SummaryItem
-          label='Min'
-          value={formatValue(summary?.min, 1)}
-          rank={locationFilterActive ? undefined : summaryRanks.min}
-          comparison={
-            locationFilterActive ? (summaryComparisons.min ?? null) : null
-          }
-          stacked={isStacked}
-        />
-        <SummaryItem
-          label='Mean'
-          value={formatValue(summary?.mean, 1)}
-          rank={locationFilterActive ? undefined : summaryRanks.mean}
-          comparison={
-            locationFilterActive ? (summaryComparisons.mean ?? null) : null
-          }
-          stacked={isStacked}
-        />
-        <SummaryItem
-          label='Max'
-          value={formatValue(summary?.max, 1)}
-          rank={locationFilterActive ? undefined : summaryRanks.max}
-          comparison={
-            locationFilterActive ? (summaryComparisons.max ?? null) : null
-          }
-          isLast
-          stacked={isStacked}
-        />
+        {isCircular ? (
+          <>
+            <SummaryItem
+              label='Mean'
+              value={formatDeg(summary?.circular_mean)}
+              stacked={isStacked}
+            />
+            <SummaryItem
+              label='R̄'
+              value={formatValue(summary?.rbar, 3)}
+              stacked={isStacked}
+            />
+            <SummaryItem
+              label='Standard Deviation'
+              value={formatDeg(summary?.circular_std)}
+              isLast
+              stacked={isStacked}
+            />
+          </>
+        ) : (
+          <>
+            <SummaryItem
+              label='Min'
+              value={formatValue(summary?.min, 1)}
+              rank={locationFilterActive ? undefined : summaryRanks.min}
+              comparison={
+                locationFilterActive ? (summaryComparisons.min ?? null) : null
+              }
+              stacked={isStacked}
+            />
+            <SummaryItem
+              label='Mean'
+              value={formatValue(summary?.mean, 1)}
+              rank={locationFilterActive ? undefined : summaryRanks.mean}
+              comparison={
+                locationFilterActive ? (summaryComparisons.mean ?? null) : null
+              }
+              stacked={isStacked}
+            />
+            <SummaryItem
+              label='Max'
+              value={formatValue(summary?.max, 1)}
+              rank={locationFilterActive ? undefined : summaryRanks.max}
+              comparison={
+                locationFilterActive ? (summaryComparisons.max ?? null) : null
+              }
+              isLast
+              stacked={isStacked}
+            />
+          </>
+        )}
       </View>
     </View>
   );
