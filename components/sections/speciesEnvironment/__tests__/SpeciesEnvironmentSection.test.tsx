@@ -239,6 +239,8 @@ const baseState: SpeciesEnvironmentState = {
     range99: null,
     rbar: null,
     circular_std: null,
+    unique_classes: null,
+    entropy: null,
   },
   summaryComparisons: {
     min: null,
