@@ -8,7 +8,7 @@ import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { SummaryItem } from './SummaryItem';
 import type { RankContextOption } from './model';
-import { formatValue } from './model';
+import { formatCategoryPercent, formatValue } from './model';
 
 type NominalInsightsProps = {
   showRankContext: boolean;
@@ -26,21 +26,14 @@ type NominalInsightsProps = {
   summaryRanks: {
     unique_classes: SpeciesEnvironmentRelativeRank | null;
     entropy: SpeciesEnvironmentRelativeRank | null;
+    mode_class: SpeciesEnvironmentRelativeRank | null;
+    selected_class: SpeciesEnvironmentRelativeRank | null;
   };
   categoricalDistribution: SpeciesEnvironmentCategory[];
+  selectedCategoryValue: number | string | null;
   locationFilterActive: boolean;
 };
 
-const resolveModeName = (
-  mode: number | string | null | undefined,
-  distribution: SpeciesEnvironmentCategory[],
-): string => {
-  if (mode == null) {
-    return '—';
-  }
-  const match = distribution.find((entry) => entry.value === mode);
-  return match?.className ?? String(mode);
-};
 
 export function NominalInsights({
   showRankContext,
@@ -50,6 +43,7 @@ export function NominalInsights({
   summary,
   summaryRanks,
   categoricalDistribution,
+  selectedCategoryValue,
   locationFilterActive,
 }: NominalInsightsProps) {
   const { breakpoint } = useResponsive();
@@ -73,7 +67,25 @@ export function NominalInsights({
       ? (selectedRankContext ?? rankContextOptions[0].key)
       : '';
 
-  const modeName = resolveModeName(summary?.mode, categoricalDistribution);
+  const selectedCategory = selectedCategoryValue != null
+    ? categoricalDistribution.find((c) => c.value === selectedCategoryValue) ?? null
+    : null;
+
+  const modeCategory = categoricalDistribution.find(
+    (c) => c.value === summary?.mode,
+  ) ?? null;
+
+  const thirdSlot = selectedCategory != null
+    ? {
+        label: selectedCategory.className,
+        value: formatCategoryPercent(selectedCategory.fraction),
+        rank: summaryRanks.selected_class,
+      }
+    : {
+        label: modeCategory?.className ?? 'Mode',
+        value: modeCategory != null ? formatCategoryPercent(modeCategory.fraction) : '—',
+        rank: summaryRanks.mode_class,
+      };
 
   return (
     <View collapsable={false} style={styles.container}>
@@ -160,8 +172,9 @@ export function NominalInsights({
           stacked={isStacked}
         />
         <SummaryItem
-          label='Mode'
-          value={modeName}
+          label={thirdSlot.label}
+          value={thirdSlot.value}
+          rank={locationFilterActive ? undefined : (thirdSlot.rank ?? null)}
           stacked={isStacked}
           isLast
         />
