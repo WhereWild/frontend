@@ -259,6 +259,12 @@ export function useSpeciesEnvironmentState({
       circular_std: resolveRankForMetric('circular_std', summary?.circular_std, {
         allowHistogramFallback: false,
       }),
+      unique_classes: resolveRankForMetric('unique_classes', summary?.unique_classes, {
+        allowHistogramFallback: false,
+      }),
+      entropy: resolveRankForMetric('entropy', summary?.entropy, {
+        allowHistogramFallback: false,
+      }),
     }),
     [
       resolveRankForMetric,
@@ -268,6 +274,8 @@ export function useSpeciesEnvironmentState({
       summary?.stddev,
       summary?.rbar,
       summary?.circular_std,
+      summary?.unique_classes,
+      summary?.entropy,
       summaryRangeValue,
     ],
   );
