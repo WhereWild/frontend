@@ -231,7 +231,7 @@ const baseState: SpeciesEnvironmentState = {
   rankContextOptions: [],
   selectedRankContext: null,
   setSelectedRankContext: jest.fn(),
-  summaryRanks: { min: null, mean: null, max: null, std: null, range99: null, rbar: null, circular_std: null, unique_classes: null, entropy: null },
+  summaryRanks: { min: null, mean: null, max: null, std: null, range99: null, rbar: null, circular_std: null, unique_classes: null, entropy: null, mode_class: null, selected_class: null },
   summaryComparisons: {
     min: null,
     mean: null,

@@ -435,9 +435,15 @@ function SpeciesEnvironmentSectionComponent({
                 unique_classes:
                   displayState?.summaryRanks?.unique_classes ?? null,
                 entropy: displayState?.summaryRanks?.entropy ?? null,
+                mode_class: displayState?.summaryRanks?.mode_class ?? null,
+                selected_class:
+                  displayState?.summaryRanks?.selected_class ?? null,
               }}
               categoricalDistribution={
                 displayState?.categoricalDistribution ?? []
+              }
+              selectedCategoryValue={
+                displayState?.selectedCategoryValue ?? null
               }
               locationFilterActive={locationFilterActive}
             />
