@@ -63,6 +63,14 @@ const coerceEnvironmentSummary = (
   circular_mean: toFiniteNumber(value?.circular_mean),
   rbar: toFiniteNumber(value?.rbar),
   circular_std: toFiniteNumber(value?.circular_std),
+  unique_classes: toFiniteNumber(value?.unique_classes),
+  entropy: toFiniteNumber(value?.entropy),
+  mode:
+    typeof value?.mode === 'number'
+      ? value.mode
+      : typeof value?.mode === 'string'
+        ? value.mode
+        : null,
 });
 
 const coerceHistogram = (
