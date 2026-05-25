@@ -242,8 +242,14 @@ export function useSpeciesEnvironmentState({
     [stats, selectedRankContext],
   );
 
-  const summaryRanks = React.useMemo(
-    () => ({
+  const summaryRanks = React.useMemo(() => {
+    const modeFraction = summary?.mode != null
+      ? (categoricalDistribution.find((c) => c.value === summary.mode)?.fraction ?? null)
+      : null;
+    const selectedFraction = selectedCategoryValue != null
+      ? (categoricalDistribution.find((c) => c.value === selectedCategoryValue)?.fraction ?? null)
+      : null;
+    return {
       min: resolveRankForMetric('min', summary?.min),
       mean: resolveRankForMetric('mean', summary?.mean),
       max: resolveRankForMetric('max', summary?.max),
@@ -265,20 +271,32 @@ export function useSpeciesEnvironmentState({
       entropy: resolveRankForMetric('entropy', summary?.entropy, {
         allowHistogramFallback: false,
       }),
-    }),
-    [
-      resolveRankForMetric,
-      summary?.max,
-      summary?.mean,
-      summary?.min,
-      summary?.stddev,
-      summary?.rbar,
-      summary?.circular_std,
-      summary?.unique_classes,
-      summary?.entropy,
-      summaryRangeValue,
-    ],
-  );
+      mode_class: summary?.mode != null && modeFraction != null
+        ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {
+            allowHistogramFallback: false,
+          })
+        : null,
+      selected_class: selectedCategoryValue != null && selectedFraction != null
+        ? resolveRankForMetric(`class_${selectedCategoryValue}`, selectedFraction, {
+            allowHistogramFallback: false,
+          })
+        : null,
+    };
+  }, [
+    resolveRankForMetric,
+    summary?.max,
+    summary?.mean,
+    summary?.min,
+    summary?.stddev,
+    summary?.rbar,
+    summary?.circular_std,
+    summary?.unique_classes,
+    summary?.entropy,
+    summary?.mode,
+    summaryRangeValue,
+    categoricalDistribution,
+    selectedCategoryValue,
+  ]);
 
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
     () =>
