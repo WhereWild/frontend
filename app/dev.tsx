@@ -1138,6 +1138,34 @@ export default function About() {
                     </View>
                   );
                 })}
+                {(() => {
+                  const RING = 68;
+                  const HOLE = 38;
+                  const bgColor = palette.background.default.secondary;
+                  const conicCss = 'conic-gradient(from 0deg, rgb(59,58,234) 0deg, rgb(58,190,234) 45deg, rgb(58,234,146) 90deg, rgb(102,234,58) 135deg, rgb(234,234,58) 180deg, rgb(234,102,58) 225deg, rgb(234,58,146) 270deg, rgb(190,58,234) 315deg, rgb(59,58,234) 360deg)';
+                  return (
+                    <View style={styles.legendExampleItem}>
+                      <ThemedText variant='bodySmall'>Aspect</ThemedText>
+                      <View style={[styles.legendOverlayBox, { backgroundColor: bgColor }]}>
+                        <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>N</ThemedText>
+                        <View style={styles.legendCircleRow}>
+                          <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>W</ThemedText>
+                          {Platform.OS === 'web' ? (
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundImage: conicCss } as object]}>
+                              <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
+                            </View>
+                          ) : (
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundColor: 'rgb(234,234,58)' }]}>
+                              <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
+                            </View>
+                          )}
+                          <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>E</ThemedText>
+                        </View>
+                        <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>S</ThemedText>
+                      </View>
+                    </View>
+                  );
+                })()}
               </View>
             </View>
 
@@ -1196,7 +1224,36 @@ export default function About() {
                 {(() => {
                   const vtype = (mapSelectedVariableMeta?.valueType ?? '').toLowerCase();
                   const id = mapSelectedVariableMeta?.id ?? '';
-                  const isNumeric = vtype === 'continuous' && id !== 'aspect' && id !== 'aspect_deg';
+                  const isCircular = id === 'aspect' || id === 'aspect_deg';
+                  const isNumeric = vtype === 'continuous' && !isCircular;
+                  const bgColor = palette.background.default.secondary;
+
+                  if (isCircular) {
+                    // hue = (0.667 - deg/360) % 1, s=0.75, v=0.92 — matches _colorize_aspect
+                    const conicCss = 'conic-gradient(from 0deg, rgb(220,50,50) 0deg, rgb(230,122,32) 45deg, rgb(240,195,15) 90deg, rgb(142,185,40) 135deg, rgb(45,175,65) 180deg, rgb(42,135,142) 225deg, rgb(40,95,220) 270deg, rgb(130,72,135) 315deg, rgb(220,50,50) 360deg)';
+                    const RING = 68;
+                    const HOLE = 38;
+                    return (
+                      <View style={[styles.legendCircleOverlay, { backgroundColor: bgColor }]}>
+                        <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>N</ThemedText>
+                        <View style={styles.legendCircleRow}>
+                          <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>W</ThemedText>
+                          {Platform.OS === 'web' ? (
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundImage: conicCss } as object]}>
+                              <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
+                            </View>
+                          ) : (
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundColor: 'rgb(234,234,58)' }]}>
+                              <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
+                            </View>
+                          )}
+                          <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>E</ThemedText>
+                        </View>
+                        <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>S</ThemedText>
+                      </View>
+                    );
+                  }
+
                   const rmin = mapSelectedVariableMeta?.renderMin;
                   const rmax = mapSelectedVariableMeta?.renderMax;
                   const units = mapSelectedVariableMeta?.units ?? '';
@@ -1209,7 +1266,7 @@ export default function About() {
                     'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
                   const nativeColors = ['rgb(230,57,70)', 'rgb(246,190,0)', 'rgb(59,170,165)', 'rgb(34,94,168)', 'rgb(28,38,102)'];
                   return (
-                    <View style={[styles.legendOverlay, { backgroundColor: palette.background.default.secondary }]}>
+                    <View style={[styles.legendOverlay, { backgroundColor: bgColor }]}>
                       <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmax)}</ThemedText>
                       {Platform.OS === 'web' ? (
                         <View style={[styles.legendOverlayBar, { flex: 1, backgroundImage: gradientCss } as object]} />
@@ -1347,5 +1404,32 @@ const styles = StyleSheet.create({
   legendOverlayUnits: {
     textAlign: 'center',
     opacity: 0.7,
+  },
+  legendCircleOverlay: {
+    position: 'absolute',
+    left: 8,
+    top: 82,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: 2,
+  },
+  legendCircleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendCircleOuter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legendCircleHole: {
+    // size and backgroundColor set inline
+  },
+  legendCircleCardinal: {
+    textAlign: 'center',
+    opacity: 0.8,
   },
 });
