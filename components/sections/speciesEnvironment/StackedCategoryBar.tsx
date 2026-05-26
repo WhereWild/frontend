@@ -50,11 +50,7 @@ type StackedCategoryBarProps = {
 const getSelectedCategoryDescription = (
   category: SpeciesEnvironmentCategory,
 ) => {
-  const accountPhrase =
-    String(category.value) === '__other__'
-      ? 'Together these account'
-      : 'This accounts';
-  const summarySentence = `${accountPhrase} for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
+  const summarySentence = `This accounts for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
   if (!category.description) {
     return summarySentence;
   }
@@ -76,6 +72,8 @@ export function StackedCategoryBar({
 }: StackedCategoryBarProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const [expanded, setExpanded] = React.useState(false);
+
   const validCategories = React.useMemo(
     () =>
       categories.filter(
@@ -84,122 +82,69 @@ export function StackedCategoryBar({
       ),
     [categories],
   );
-  const displayCategories = React.useMemo(() => {
-    const topCategories = validCategories.slice(0, CATEGORY_DISPLAY_LIMIT);
-    const otherCategories = validCategories.slice(CATEGORY_DISPLAY_LIMIT);
 
-    const otherCategory: SpeciesEnvironmentCategory | null =
-      otherCategories.length > 0
-        ? {
-            value: '__other__',
-            className: 'Other',
-            fraction: otherCategories.reduce(
-              (sum, cat) => sum + cat.fraction,
-              0,
-            ),
-            count: otherCategories.reduce(
-              (sum, cat) =>
-                sum +
-                (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
-              0,
-            ),
-            description: otherCategories
-              .map((cat, index) => {
-                if (index === 0) return cat.className;
-                return (
-                  cat.className.charAt(0).toLowerCase() + cat.className.slice(1)
-                );
-              })
-              .join(', '),
-          }
-        : null;
+  const hiddenCount = Math.max(0, validCategories.length - CATEGORY_DISPLAY_LIMIT);
+  const hasMore = hiddenCount > 0;
 
-    return otherCategory ? [...topCategories, otherCategory] : topCategories;
-  }, [validCategories]);
+  const displayCategories = React.useMemo(
+    () => expanded || !hasMore
+      ? validCategories
+      : validCategories.slice(0, CATEGORY_DISPLAY_LIMIT),
+    [validCategories, expanded, hasMore],
+  );
+
   const selectedCategory = React.useMemo(
     () =>
       selectedValue !== null
-        ? (displayCategories.find(
+        ? (validCategories.find(
             (cat) => String(cat.value) === String(selectedValue),
           ) ?? null)
         : null,
-    [displayCategories, selectedValue],
+    [validCategories, selectedValue],
   );
-  const hasOtherCategory = React.useMemo(
-    () =>
-      displayCategories.some(
-        (category) => String(category.value) === '__other__',
-      ),
-    [displayCategories],
-  );
-  const topCategories = React.useMemo(
-    () => validCategories.slice(0, CATEGORY_DISPLAY_LIMIT),
-    [validCategories],
-  );
-  const otherCategories = React.useMemo(
-    () => validCategories.slice(CATEGORY_DISPLAY_LIMIT),
-    [validCategories],
-  );
+
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
     if (pinnedValue !== null && pinnedValue !== undefined) {
       const pinnedKey = String(pinnedValue);
-      if (
-        topCategories.some((category) => String(category.value) === pinnedKey)
-      ) {
+      if (validCategories.some((category) => String(category.value) === pinnedKey)) {
         return { resolvedPinnedKey: pinnedKey, pinnedOtherLabel: null };
       }
-      const otherMatch = otherCategories.find(
-        (category) => String(category.value) === pinnedKey,
-      );
-      if (hasOtherCategory && otherMatch) {
-        return {
-          resolvedPinnedKey: '__other__',
-          pinnedOtherLabel: otherMatch.className,
-        };
-      }
       if (pinnedClassName?.trim()) {
-        return {
-          resolvedPinnedKey: '__other__',
-          pinnedOtherLabel: pinnedClassName.trim(),
-        };
+        return { resolvedPinnedKey: null, pinnedOtherLabel: pinnedClassName.trim() };
       }
     }
 
     if (highlightedValue !== null) {
-      return {
-        resolvedPinnedKey: String(highlightedValue),
-        pinnedOtherLabel: null,
-      };
+      return { resolvedPinnedKey: String(highlightedValue), pinnedOtherLabel: null };
     }
 
     if (unobservedHighlightedCategory) {
-      return {
-        resolvedPinnedKey: '__other__',
-        pinnedOtherLabel: unobservedHighlightedCategory.label,
-      };
+      return { resolvedPinnedKey: null, pinnedOtherLabel: unobservedHighlightedCategory.label };
     }
 
     return { resolvedPinnedKey: null, pinnedOtherLabel: null };
   }, [
-    hasOtherCategory,
     highlightedValue,
-    otherCategories,
     pinnedClassName,
     pinnedValue,
-    topCategories,
     unobservedHighlightedCategory,
+    validCategories,
   ]);
+
+  React.useEffect(() => {
+    if (!resolvedPinnedKey || expanded) return;
+    const visibleKeys = new Set(
+      validCategories.slice(0, CATEGORY_DISPLAY_LIMIT).map((c) => String(c.value)),
+    );
+    if (!visibleKeys.has(resolvedPinnedKey)) setExpanded(true);
+  }, [resolvedPinnedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pills = React.useMemo(() => {
-    const basePills = displayCategories.map((category, index) => {
-      const baseColor =
-        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-      const isOtherCategory = String(category.value) === '__other__';
+    const base = displayCategories.map((category, index) => {
+      const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
       return {
         key: String(category.value),
-        label:
-          isOtherCategory && pinnedOtherLabel
-            ? `Other (${pinnedOtherLabel})`
-            : category.className,
+        label: category.className,
         icon: (
           <View
             style={{
@@ -212,41 +157,31 @@ export function StackedCategoryBar({
         ),
       };
     });
-
-    if (!pinnedOtherLabel || !resolvedPinnedKey) {
-      return basePills;
+    if (pinnedOtherLabel) {
+      const pinnedOtherColor = unobservedHighlightedCategory?.color ?? '#9CA3AF';
+      base.push({
+        key: '__pinned_other__',
+        label: pinnedOtherLabel,
+        icon: (
+          <View
+            style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: pinnedOtherColor }}
+          />
+        ),
+      });
     }
+    return base;
+  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory]);
 
-    if (hasOtherCategory) {
-      return basePills;
-    }
-
-    return [
-      ...basePills,
-      {
-        key: '__other__',
-        label: `Other (${pinnedOtherLabel})`,
-      },
-    ];
-  }, [
-    displayCategories,
-    hasOtherCategory,
-    pinnedOtherLabel,
-    resolvedPinnedKey,
-  ]);
   const handlePillSelectionChange = React.useCallback(
     (key: string) => {
-      if (key === '__other__' && !hasOtherCategory) {
-        return;
-      }
-      const value = displayCategories.find(
+      const value = validCategories.find(
         (cat) => String(cat.value) === key,
       )?.value;
       if (value !== undefined) {
         onSelect?.(value);
       }
     },
-    [displayCategories, hasOtherCategory, onSelect],
+    [validCategories, onSelect],
   );
 
   if (!validCategories.length) {
@@ -260,7 +195,7 @@ export function StackedCategoryBar({
   const selectedCategoryDescription = selectedCategory
     ? getSelectedCategoryDescription(selectedCategory)
     : null;
-  const effectiveHighlightedValue = resolvedPinnedKey;
+  const effectiveHighlightedValue = resolvedPinnedKey ?? (pinnedOtherLabel ? '__pinned_other__' : null);
   const descriptionDisplayText = selectedCategoryDescription?.trim().length
     ? selectedCategoryDescription
     : pinnedOtherLabel
@@ -270,7 +205,7 @@ export function StackedCategoryBar({
   return (
     <View collapsable={false} style={styles.stackedCategoryContainer}>
       <View collapsable={false} style={styles.stackedBarTrack}>
-        {displayCategories.map((category, index) => {
+        {validCategories.map((category, index) => {
           const fraction = category.fraction;
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
@@ -316,13 +251,21 @@ export function StackedCategoryBar({
         highlightOutlineColor={highlightOutlineColor}
       />
 
+      {hasMore && (
+        <Pressable onPress={() => setExpanded((e) => !e)} style={styles.showMoreButton}>
+          <ThemedText variant='bodySmall' style={{ color: palette.text.default.secondary }}>
+            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+          </ThemedText>
+        </Pressable>
+      )}
+
       <View collapsable={false} style={styles.categoryDescriptionSlot}>
         {pinnedOtherLabel && !selectedCategoryDescription ? (
           <View
             style={[
               styles.warningPill,
               {
-                backgroundColor: palette.background.warning.secondary,
+                backgroundColor: palette.background.warning.default,
                 borderColor: palette.border.warning.default,
               },
             ]}
@@ -378,5 +321,8 @@ const styles = StyleSheet.create({
   stackedBarSegment: {
     height: '100%',
     minWidth: 4,
+  },
+  showMoreButton: {
+    alignSelf: 'flex-start',
   },
 });
