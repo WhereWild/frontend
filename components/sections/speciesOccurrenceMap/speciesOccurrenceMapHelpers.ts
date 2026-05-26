@@ -55,6 +55,9 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   linkObservations: '__LINK_OBSERVATIONS__',
   selectedPointType: '__SELECTED_POINT_MESSAGE_TYPE_JSON__',
   pointQueryUrl: '__POINT_QUERY_URL_JSON__',
+  renderMin: '__RENDER_MIN_JSON__',
+  renderMax: '__RENDER_MAX_JSON__',
+  isCircular: '__IS_CIRCULAR__',
 } as const;
 
 export type HighlightMessage = {
@@ -209,6 +212,9 @@ export const buildLeafletHtml = (
   linkObservations?: boolean,
   allowPinObservations?: boolean,
   pointQueryUrl?: string | null,
+  renderMin?: number | null,
+  renderMax?: number | null,
+  isCircular?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -286,6 +292,15 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.pointQueryUrl)
     .join(pointQueryUrl ? JSON.stringify(pointQueryUrl) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.renderMin)
+    .join(typeof renderMin === 'number' ? String(renderMin) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.renderMax)
+    .join(typeof renderMax === 'number' ? String(renderMax) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.isCircular)
+    .join(isCircular ? 'true' : 'false');
   return html;
 };
 

@@ -305,6 +305,8 @@ export default function About() {
   const [aboutMapVariables, setAboutMapVariables] = useState<
     EnvironmentVariableOption[]
   >(ABOUT_MAP_FALLBACK_VARIABLES);
+  const [visibleNominalCounts, setVisibleNominalCounts] = useState<Map<number, number>>(new Map());
+  const [pinnedValue, setPinnedValue] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -364,6 +366,32 @@ export default function About() {
     selectedForecast,
     selectedWindow,
   ]);
+  useEffect(() => {
+    setVisibleNominalCounts(new Map());
+    setPinnedValue(null);
+  }, [mapSelectedVariable]);
+
+  const handleMapPointValue = useCallback((value: number) => {
+    setPinnedValue(value);
+  }, []);
+
+  const handleMapTileClasses = useCallback((classes: Array<{ id: number; count: number }>, removed: boolean) => {
+    setVisibleNominalCounts((prev) => {
+      const next = new Map(prev);
+      for (const { id, count } of classes) {
+        if (removed) {
+          const remaining = (next.get(id) ?? 0) - count;
+          if (remaining <= 0) next.delete(id);
+          else next.set(id, remaining);
+        } else {
+          next.set(id, (next.get(id) ?? 0) + count);
+        }
+      }
+      return next;
+    });
+  }, []);
+
+
   const speciesSample = mountainBallCactusData;
   const radioOptions = [
     { label: 'Label', description: 'Description', value: 'checked' },
@@ -1207,10 +1235,18 @@ export default function About() {
                   showMarkers={false}
                   allowPinObservations={false}
                   onTileClasses={handleMapTileClasses}
+                  onPointValue={handleMapPointValue}
                   pointQueryUrl={
-                    isVariableCategorical(mapSelectedVariableMeta)
+                    mapSelectedVariableMeta?.valueType != null
                       ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
                       : null
+                  }
+                  isCircular={mapSelectedVariableMeta?.id === 'aspect' || mapSelectedVariableMeta?.id === 'aspect_deg'}
+                  renderMin={
+                    isVariableCategorical(mapSelectedVariableMeta) || mapSelectedVariableMeta?.id === 'aspect' || mapSelectedVariableMeta?.id === 'aspect_deg' ? null : (mapSelectedVariableMeta?.renderMin ?? null)
+                  }
+                  renderMax={
+                    isVariableCategorical(mapSelectedVariableMeta) || mapSelectedVariableMeta?.id === 'aspect' || mapSelectedVariableMeta?.id === 'aspect_deg' ? null : (mapSelectedVariableMeta?.renderMax ?? null)
                   }
                 />
                 {(() => {
@@ -1221,20 +1257,128 @@ export default function About() {
                   const isCategorical = isVariableCategorical(mapSelectedVariableMeta);
                   const bgColor = palette.background.default.secondary;
 
-            <View style={styles.statusSection}>
-              <ThemedText variant='heading'>System Status</ThemedText>
-              <ThemedText variant='bodySmall'>Loading state</ThemedText>
-              <SystemStatusView isLoading status={null} />
-              <ThemedText variant='bodySmall'>
-                Running (pipeline in progress, temporal running, upload active)
-              </ThemedText>
-              <SystemStatusView status={STATUS_MOCK_RUNNING} />
-              <ThemedText variant='bodySmall'>
-                Idle (all jobs complete, queue empty)
-              </ThemedText>
-              <SystemStatusView status={STATUS_MOCK_IDLE} />
-              <ThemedText variant='bodySmall'>Error state</ThemedText>
-              <SystemStatusView status={null} error='Failed to reach server' />
+                  if (isCircular) {
+                    // hue = (0.667 - deg/360) % 1, s=0.75, v=0.92 — matches _colorize_aspect
+                    const conicCss = 'conic-gradient(from 0deg, rgb(220,50,50) 0deg, rgb(230,122,32) 45deg, rgb(240,195,15) 90deg, rgb(142,185,40) 135deg, rgb(45,175,65) 180deg, rgb(42,135,142) 225deg, rgb(40,95,220) 270deg, rgb(130,72,135) 315deg, rgb(220,50,50) 360deg)';
+                    const RING = 68;
+                    const HOLE = 38;
+                    return (
+                      <View style={[styles.legendCircleOverlay, { backgroundColor: bgColor }]}>
+                        <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>N</ThemedText>
+                        <View style={styles.legendCircleRow}>
+                          <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>W</ThemedText>
+                          {Platform.OS === 'web' ? (
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundImage: conicCss, position: 'relative' } as object]}>
+                              {pinnedValue != null && (
+                                <View
+                                  pointerEvents='none'
+                                  style={[{ position: 'absolute', width: 2, height: RING / 2, left: RING / 2 - 1, top: 0, backgroundColor: '#fffffff2', opacity: 0.9 }, { transformOrigin: 'center bottom', transform: `rotate(${pinnedValue}deg)` } as object]}
+                                />
+                              )}
+                              <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
+                            </View>
+                          ) : (
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundColor: 'rgb(234,234,58)' }]}>
+                              {pinnedValue != null && (
+                                <View
+                                  pointerEvents='none'
+                                  style={{ position: 'absolute', width: 2, height: RING / 2, left: RING / 2 - 1, top: 0, backgroundColor: '#fffffff2', opacity: 0.9, transform: [{ translateY: RING / 4 }, { rotate: `${pinnedValue}deg` }, { translateY: -(RING / 4) }] }}
+                                />
+                              )}
+                              <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
+                            </View>
+                          )}
+                          <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>E</ThemedText>
+                        </View>
+                        <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>S</ThemedText>
+                      </View>
+                    );
+                  }
+
+                  if (isCategorical) {
+                    const allClasses = mapSelectedVariableMeta?.legendClasses ?? [];
+                    // Filter to visible classes, sorted by pixel count descending
+                    const visibleClasses = (() => {
+                      if (allClasses.length === 0) return [];
+                      if (visibleNominalCounts.size === 0) return allClasses;
+                      return allClasses
+                        .filter((cls) => visibleNominalCounts.has(cls.id as number))
+                        .sort((a, b) => (visibleNominalCounts.get(b.id as number) ?? 0) - (visibleNominalCounts.get(a.id as number) ?? 0));
+                    })();
+                    if (visibleClasses.length === 0) return null;
+                    const displayClasses = visibleClasses;
+                    return (
+                      <View style={[styles.legendNominalOverlay, { backgroundColor: bgColor }]}>
+                        {displayClasses.map((cls) => (
+                          <View key={cls.id} style={styles.legendNominalRow}>
+                            <View style={[styles.legendNominalDot, { backgroundColor: cls.color ?? '#888' }]} />
+                            <ThemedText variant='bodyTiny' style={styles.legendNominalLabel} numberOfLines={1}>{cls.name}</ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  }
+
+                  const rmin = mapSelectedVariableMeta?.renderMin;
+                  const rmax = mapSelectedVariableMeta?.renderMax;
+                  const units = mapSelectedVariableMeta?.units ?? '';
+                  if (!isNumeric || rmin == null || rmax == null) return null;
+                  const fmt = (v: number) =>
+                    Math.abs(v) >= 1000
+                      ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                      : v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+                  const gradientCss =
+                    'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
+                  const nativeColors = ['rgb(230,57,70)', 'rgb(246,190,0)', 'rgb(59,170,165)', 'rgb(34,94,168)', 'rgb(28,38,102)'];
+                  const pinFraction = pinnedValue != null && rmax > rmin
+                    ? Math.max(0, Math.min(1, (rmax - pinnedValue) / (rmax - rmin)))
+                    : null;
+                  return (
+                    <View style={[styles.legendOverlay, { backgroundColor: bgColor }]}>
+                      <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmax)}</ThemedText>
+                      <View style={styles.legendOverlayBarRow}>
+                        <View style={styles.legendOverlayBarContainer}>
+                          {Platform.OS === 'web' ? (
+                            <View style={[StyleSheet.absoluteFillObject, { borderRadius: 4, backgroundImage: gradientCss } as object]} />
+                          ) : (
+                            <View style={[StyleSheet.absoluteFillObject, { borderRadius: 4, overflow: 'hidden' }]}>
+                              {nativeColors.map((color, i) => (
+                                <View key={i} style={[styles.legendOverlaySegment, { flex: 1, backgroundColor: color }]} />
+                              ))}
+                            </View>
+                          )}
+                          {pinFraction != null && (
+                            <View
+                              pointerEvents='none'
+                              style={[
+                                styles.legendPinLine,
+                                { top: `${Math.round(pinFraction * 100)}%` as unknown as number },
+                                Platform.OS === 'web' ? ({ borderTopStyle: 'dashed' } as object) : {},
+                              ]}
+                            />
+                          )}
+                        </View>
+                        {pinFraction != null && (
+                          <View style={styles.legendPinLabelContainer}>
+                            <ThemedText
+                              variant='bodyTiny'
+                              numberOfLines={1}
+                              style={[
+                                styles.legendPinLabel,
+                                { top: `${Math.round(pinFraction * 100)}%` as unknown as number },
+                              ]}
+                            >
+                              {fmt(pinnedValue!)}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmin)}</ThemedText>
+                      {units ? <ThemedText variant='bodyTiny' style={styles.legendOverlayUnits}>{units}</ThemedText> : null}
+                    </View>
+                  );
+                })()}
+              </View>
             </View>
           </PageScrollContainer>
         </View>
@@ -1306,8 +1450,143 @@ const styles = StyleSheet.create({
   aboutMapSection: {
     gap: Size.space['250'],
   },
-  statusSection: {
-    gap: Size.space['300'],
-    maxWidth: 480,
+  legendExampleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['400'],
+    alignItems: 'flex-start',
+  },
+  legendExampleItem: {
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  legendOverlay: {
+    position: 'absolute',
+    left: 8,
+    // Leaflet zoom: 10px margin + 26px (+) + 1px separator + 26px (-) = 63px; add 9px gap = 72 → round to 82
+    top: 82,
+    bottom: 10,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  legendOverlayBarRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  legendOverlayBarContainer: {
+    width: 12,
+    position: 'relative',
+  },
+  legendPinLine: {
+    position: 'absolute',
+    left: -2,
+    right: -2,
+    height: 0,
+    borderTopWidth: 1.5,
+    borderTopColor: '#fffffff2',
+  },
+  legendPinLabelContainer: {
+    flex: 1,
+    position: 'relative',
+    marginLeft: 4,
+  },
+  legendPinLabel: {
+    position: 'absolute',
+    color: '#fffffff2',
+    transform: [{ translateY: -6 }],
+  },
+  legendOverlayBox: {
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  legendOverlayBar: {
+    width: 12,
+    borderRadius: 4,
+  },
+  legendOverlayBarFallback: {
+    width: 12,
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  legendOverlaySegment: {
+    flex: 1,
+    width: 12,
+  },
+  legendOverlayLabel: {
+    textAlign: 'center',
+  },
+  legendOverlayUnits: {
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  legendCircleOverlay: {
+    position: 'absolute',
+    left: 8,
+    top: 82,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: 2,
+  },
+  legendCircleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendCircleOuter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legendCircleHole: {
+    // size and backgroundColor set inline
+  },
+  legendCircleCardinal: {
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  legendNominalOverlay: {
+    position: 'absolute',
+    left: 8,
+    top: 82,
+    bottom: 10,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    gap: Size.space['100'],
+    maxWidth: 200,
+    overflow: 'hidden',
+  },
+  legendNominalBox: {
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    gap: Size.space['100'],
+    minWidth: 160,
+  },
+  legendNominalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  legendNominalDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
+  },
+  legendNominalLabel: {
+    flex: 1,
   },
 });

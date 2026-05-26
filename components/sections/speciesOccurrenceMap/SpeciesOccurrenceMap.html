@@ -52,6 +52,26 @@
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
+    const RENDER_MIN = __RENDER_MIN_JSON__;
+    const RENDER_MAX = __RENDER_MAX_JSON__;
+    const IS_CIRCULAR = __IS_CIRCULAR__;
+
+    var ASPECT_STOPS = [[220,50,50],[240,195,15],[45,175,65],[40,95,220]];
+    function aspectColor(deg) {
+      var t = (deg % 360) / 90;
+      var seg = Math.floor(t) % 4;
+      var f = t - Math.floor(t);
+      var c0 = ASPECT_STOPS[seg], c1 = ASPECT_STOPS[(seg+1)%4];
+      return 'rgb('+Math.round(c0[0]+f*(c1[0]-c0[0]))+','+Math.round(c0[1]+f*(c1[1]-c0[1]))+','+Math.round(c0[2]+f*(c1[2]-c0[2]))+')';
+    }
+    var GRADIENT_STOPS = [[28,38,102],[34,94,168],[59,170,165],[246,190,0],[230,57,70]];
+    function gradientColor(t) {
+      var n = GRADIENT_STOPS.length - 1;
+      var i = Math.min(Math.floor(t * n), n - 1);
+      var f = t * n - i;
+      var c0 = GRADIENT_STOPS[i], c1 = GRADIENT_STOPS[i + 1];
+      return 'rgb(' + Math.round(c0[0]+f*(c1[0]-c0[0])) + ',' + Math.round(c0[1]+f*(c1[1]-c0[1])) + ',' + Math.round(c0[2]+f*(c1[2]-c0[2])) + ')';
+    }
     const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
     const mapBounds = CUSTOM_MAX_BOUNDS
       ? L.latLngBounds(CUSTOM_MAX_BOUNDS[0], CUSTOM_MAX_BOUNDS[1])
@@ -796,11 +816,39 @@
               popup.setContent('<span style="opacity:0.6;font-size:11px">No data</span>');
               return;
             }
-            var dot = data.class_color
-              ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>'
-              : '';
-            var label = data.class_name || String(data.value);
-            popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            var numVal = Number(data.value);
+            if (isFinite(numVal)) {
+              var pvMsg = { type: 'pointValue', value: numVal };
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
+              } else {
+                window.parent.postMessage(pvMsg, '*');
+              }
+            }
+            var isNumeric = RENDER_MIN != null && RENDER_MAX != null && RENDER_MAX > RENDER_MIN;
+            if (isNumeric) {
+              var t = Math.max(0, Math.min(1, (numVal - RENDER_MIN) / (RENDER_MAX - RENDER_MIN)));
+              var color = gradientColor(t);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var units = data.units ? ' ' + data.units : '';
+              var fmt = Math.abs(numVal) >= 1000
+                ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0})
+                : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
+            } else if (IS_CIRCULAR) {
+              var color = aspectColor(numVal);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var units = data.units ? ' ' + data.units : '';
+              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
+            } else {
+              var dot = data.class_color
+                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>'
+                : '';
+              var units = data.units ? ' ' + data.units : '';
+              var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            }
           })
           .catch(function() {
             if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Error</span>');
