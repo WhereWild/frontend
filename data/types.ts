@@ -314,6 +314,8 @@ export type EnvironmentVariableDefinition = {
   category?: string | null;
   sourceIds?: string[];
   legendClasses?: LegendClass[] | null;
+  renderMin?: number | null;
+  renderMax?: number | null;
 };
 
 /** Query parameters for numeric environment slice requests. */

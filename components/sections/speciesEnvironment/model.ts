@@ -24,6 +24,8 @@ export type EnvironmentVariableOption = {
   category?: string | null;
   sourceIds?: string[];
   legendClasses?: LegendClass[] | null;
+  renderMin?: number | null;
+  renderMax?: number | null;
 };
 
 /** Loading/result state for one categorical class sample request. */
