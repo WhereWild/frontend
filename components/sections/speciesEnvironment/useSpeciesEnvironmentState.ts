@@ -366,12 +366,17 @@ export function useSpeciesEnvironmentState({
         return null;
       }
 
+      const legendColor = selectedVariableMeta?.legendClasses?.find(
+        (cls) => String(cls.id) === String(pinnedValue),
+      )?.color ?? null;
+
       return {
         value: pinnedValue,
         label: pinnedValueLabel?.trim().length
           ? pinnedValueLabel
           : String(pinnedValue),
         description: pinnedValueDescription,
+        color: legendColor,
       };
     }, [
       isCategorical,
@@ -380,6 +385,7 @@ export function useSpeciesEnvironmentState({
       pinnedValue,
       pinnedValueDescription,
       pinnedValueLabel,
+      selectedVariableMeta,
     ]);
 
   const headingText = buildHeadingText(

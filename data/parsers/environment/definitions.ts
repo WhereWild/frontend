@@ -1,4 +1,4 @@
-import type { EnvironmentVariableDefinition } from '../../types';
+import type { EnvironmentVariableDefinition, LegendClass } from '../../types';
 import { asRecord } from '../core';
 
 const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => {
@@ -7,6 +7,22 @@ const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => 
   const sourceIds = Array.isArray(rawSourceIds)
     ? rawSourceIds.filter((v): v is string => typeof v === 'string')
     : undefined;
+  const rawLegend = source?.legend_classes ?? source?.legendClasses;
+  let legendClasses: LegendClass[] | null = null;
+  if (Array.isArray(rawLegend) && rawLegend.length > 0) {
+    const parsed: LegendClass[] = [];
+    for (const item of rawLegend) {
+      const e = asRecord(item);
+      if (!e || (typeof e.id !== 'number' && typeof e.id !== 'string')) continue;
+      parsed.push({
+        id: e.id as number | string,
+        name: typeof e.name === 'string' ? e.name : String(e.id),
+        color: typeof e.color === 'string' ? e.color : undefined,
+      });
+    }
+    if (parsed.length > 0) legendClasses = parsed;
+  }
+
   return {
     id: String(source?.id ?? ''),
     name: typeof source?.name === 'string' ? source.name : undefined,
@@ -21,6 +37,7 @@ const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => 
     domain: typeof source?.domain === 'string' ? source.domain : null,
     category: typeof source?.category === 'string' ? source.category : null,
     sourceIds: sourceIds && sourceIds.length > 0 ? sourceIds : undefined,
+    legendClasses: legendClasses && legendClasses.length > 0 ? legendClasses : null,
   };
 };
 
