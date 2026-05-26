@@ -38,6 +38,8 @@ const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => 
     category: typeof source?.category === 'string' ? source.category : null,
     sourceIds: sourceIds && sourceIds.length > 0 ? sourceIds : undefined,
     legendClasses: legendClasses && legendClasses.length > 0 ? legendClasses : null,
+    renderMin: typeof source?.render_min === 'number' ? source.render_min : null,
+    renderMax: typeof source?.render_max === 'number' ? source.render_max : null,
   };
 };
 

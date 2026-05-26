@@ -163,6 +163,8 @@ const mapAboutVariableOptions = (
       category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)
         ? 'Live Weather'
         : (entry.category ?? 'Other'),
+      renderMin: entry.renderMin ?? null,
+      renderMax: entry.renderMax ?? null,
     }))
     .sort((left, right) => {
       const categoryComparison = (left.category ?? '').localeCompare(
@@ -1099,6 +1101,47 @@ export default function About() {
             </View>
 
             <View style={styles.aboutMapSection}>
+              <ThemedText variant='heading'>Map Legend Bar</ThemedText>
+              <ThemedText variant='body'>
+                Vertical gradient legend overlaid on the map (heatmap color ramp).
+              </ThemedText>
+              <View style={styles.legendExampleRow}>
+                {[
+                  { label: 'Annual Mean Temp', min: -53.5, max: 34.75, units: '°C' },
+                  { label: 'Elevation', min: -430, max: 8850, units: 'm' },
+                  { label: 'Annual Precipitation', min: 0, max: 11401, units: 'mm' },
+                ].map(({ label, min, max, units }) => {
+                  const fmt = (v: number) =>
+                    Math.abs(v) >= 1000
+                      ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                      : v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+                  const gradientCss =
+                    'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
+                  const nativeColors = ['rgb(230,57,70)', 'rgb(246,190,0)', 'rgb(59,170,165)', 'rgb(34,94,168)', 'rgb(28,38,102)'];
+                  return (
+                    <View key={label} style={styles.legendExampleItem}>
+                      <ThemedText variant='bodySmall'>{label}</ThemedText>
+                      <View style={[styles.legendOverlayBox, { backgroundColor: palette.background.default.secondary }]}>
+                        <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(max)}</ThemedText>
+                        {Platform.OS === 'web' ? (
+                          <View style={[styles.legendOverlayBar, { height: 100, backgroundImage: gradientCss } as object]} />
+                        ) : (
+                          <View style={[styles.legendOverlayBarFallback, { height: 100 }]}>
+                            {nativeColors.map((color, i) => (
+                              <View key={i} style={[styles.legendOverlaySegment, { backgroundColor: color }]} />
+                            ))}
+                          </View>
+                        )}
+                        <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(min)}</ThemedText>
+                        {units ? <ThemedText variant='bodyTiny' style={styles.legendOverlayUnits}>{units}</ThemedText> : null}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.aboutMapSection}>
               <ThemedText variant='heading'>Variable Tile Map</ThemedText>
               <ThemedText variant='body'>
                 Backend-served variable tiles using the same overview and tile
@@ -1139,16 +1182,50 @@ export default function About() {
                 Pick a variable to test tile rendering. Only backend map-enabled
                 variables will display.
               </ThemedText>
-              <SpeciesOccurrenceMap
-                occurrences={[]}
-                loading={false}
-                error={null}
-                height={ABOUT_LANDCOVER_MAP_HEIGHT}
-                heatmapTileUrl={aboutVariableTileUrl}
-                heatmapOpacity={0.85}
-                minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
-                showMarkers={false}
-              />
+              <View style={{ position: 'relative' }}>
+                <SpeciesOccurrenceMap
+                  occurrences={[]}
+                  loading={false}
+                  error={null}
+                  height={ABOUT_LANDCOVER_MAP_HEIGHT}
+                  heatmapTileUrl={aboutVariableTileUrl}
+                  heatmapOpacity={0.85}
+                  minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
+                  showMarkers={false}
+                />
+                {(() => {
+                  const vtype = (mapSelectedVariableMeta?.valueType ?? '').toLowerCase();
+                  const id = mapSelectedVariableMeta?.id ?? '';
+                  const isNumeric = vtype === 'continuous' && id !== 'aspect' && id !== 'aspect_deg';
+                  const rmin = mapSelectedVariableMeta?.renderMin;
+                  const rmax = mapSelectedVariableMeta?.renderMax;
+                  const units = mapSelectedVariableMeta?.units ?? '';
+                  if (!isNumeric || rmin == null || rmax == null) return null;
+                  const fmt = (v: number) =>
+                    Math.abs(v) >= 1000
+                      ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                      : v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+                  const gradientCss =
+                    'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
+                  const nativeColors = ['rgb(230,57,70)', 'rgb(246,190,0)', 'rgb(59,170,165)', 'rgb(34,94,168)', 'rgb(28,38,102)'];
+                  return (
+                    <View style={[styles.legendOverlay, { backgroundColor: palette.background.default.secondary }]}>
+                      <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmax)}</ThemedText>
+                      {Platform.OS === 'web' ? (
+                        <View style={[styles.legendOverlayBar, { flex: 1, backgroundImage: gradientCss } as object]} />
+                      ) : (
+                        <View style={[styles.legendOverlayBarFallback, { flex: 1 }]}>
+                          {nativeColors.map((color, i) => (
+                            <View key={i} style={[styles.legendOverlaySegment, { backgroundColor: color }]} />
+                          ))}
+                        </View>
+                      )}
+                      <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmin)}</ThemedText>
+                      {units ? <ThemedText variant='bodyTiny' style={styles.legendOverlayUnits}>{units}</ThemedText> : null}
+                    </View>
+                  );
+                })()}
+              </View>
             </View>
           </PageScrollContainer>
         </View>
@@ -1219,5 +1296,56 @@ const styles = StyleSheet.create({
   },
   aboutMapSection: {
     gap: Size.space['250'],
+  },
+  legendExampleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['400'],
+    alignItems: 'flex-start',
+  },
+  legendExampleItem: {
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  legendOverlay: {
+    position: 'absolute',
+    left: 8,
+    // Leaflet zoom: 10px margin + 26px (+) + 1px separator + 26px (-) = 63px; add 9px gap = 72 → round to 82
+    top: 82,
+    bottom: 10,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  legendOverlayBox: {
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  legendOverlayBar: {
+    width: 12,
+    borderRadius: 4,
+  },
+  legendOverlayBarFallback: {
+    width: 12,
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  legendOverlaySegment: {
+    flex: 1,
+    width: 12,
+  },
+  legendOverlayLabel: {
+    textAlign: 'center',
+  },
+  legendOverlayUnits: {
+    textAlign: 'center',
+    opacity: 0.7,
   },
 });
