@@ -52,6 +52,20 @@ function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
   );
 }
 
+type TileClassEntry = { id: number; count: number };
+type TileClassesMessage = { type: 'tileClasses' | 'tileClassesRemoved'; classes: TileClassEntry[] };
+
+function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
+  return (
+    !!msg &&
+    typeof msg === 'object' &&
+    'type' in msg &&
+    (msg.type === 'tileClasses' || msg.type === 'tileClassesRemoved') &&
+    'classes' in msg &&
+    Array.isArray((msg as TileClassesMessage).classes)
+  );
+}
+
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
@@ -72,6 +86,7 @@ type SpeciesOccurrenceMapProps = {
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
+  onTileClasses?: (classes: Array<{ id: number; count: number }>, removed: boolean) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -94,6 +109,7 @@ export function SpeciesOccurrenceMap({
   onPinObservation,
   selectedPoint = null,
   onBoundsChange,
+  onTileClasses,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -146,9 +162,14 @@ export function SpeciesOccurrenceMap({
 
       if (isTilesChangedMessage(msg)) {
         onBoundsChange?.(msg);
+        return;
+      }
+
+      if (isTileClassesMessage(msg)) {
+        onTileClasses?.(msg.classes, msg.type === 'tileClassesRemoved');
       }
     },
-    [handlePinObservation, onBoundsChange, openExternalUrl],
+    [handlePinObservation, onBoundsChange, onTileClasses, openExternalUrl],
   );
 
   const hasOccurrences = occurrences.length > 0;
@@ -353,6 +374,15 @@ export function SpeciesOccurrenceMap({
         isTilesChangedMessage(data)
       ) {
         onBoundsChange?.(data);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        isTileClassesMessage(data)
+      ) {
+        onTileClasses?.(data.classes, data.type === 'tileClassesRemoved');
       }
     };
     window.addEventListener('message', handler);
@@ -361,7 +391,7 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [handlePinObservation, onBoundsChange, openExternalUrl]);
+  }, [handlePinObservation, onBoundsChange, onTileClasses, openExternalUrl]);
 
   if (error) {
     return (

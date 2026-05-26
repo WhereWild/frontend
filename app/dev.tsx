@@ -37,10 +37,10 @@ import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixS
 import { DateRangeSlider } from '@/components/inputs/DateRangeSlider';
 import type { MonthYear } from '@/components/inputs/DateRangeSlider';
 import Head from 'expo-router/head';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
-import { normalizeLabel } from '@/components/sections/speciesEnvironment/model';
+import { isVariableCategorical, normalizeLabel } from '@/components/sections/speciesEnvironment/model';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
@@ -163,6 +163,7 @@ const mapAboutVariableOptions = (
       category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)
         ? 'Live Weather'
         : (entry.category ?? 'Other'),
+      legendClasses: entry.legendClasses ?? null,
       renderMin: entry.renderMin ?? null,
       renderMax: entry.renderMax ?? null,
     }))
@@ -245,6 +246,7 @@ export default function About() {
   const [aboutMapVariables, setAboutMapVariables] = useState<
     EnvironmentVariableOption[]
   >(ABOUT_MAP_FALLBACK_VARIABLES);
+  const [visibleNominalCounts, setVisibleNominalCounts] = useState<Map<number, number>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -304,6 +306,26 @@ export default function About() {
     selectedForecast,
     selectedWindow,
   ]);
+  useEffect(() => {
+    setVisibleNominalCounts(new Map());
+  }, [mapSelectedVariable]);
+
+  const handleMapTileClasses = useCallback((classes: Array<{ id: number; count: number }>, removed: boolean) => {
+    setVisibleNominalCounts((prev) => {
+      const next = new Map(prev);
+      for (const { id, count } of classes) {
+        if (removed) {
+          const remaining = (next.get(id) ?? 0) - count;
+          if (remaining <= 0) next.delete(id);
+          else next.set(id, remaining);
+        } else {
+          next.set(id, (next.get(id) ?? 0) + count);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const speciesSample = mountainBallCactusData;
   const radioOptions = [
     { label: 'Label', description: 'Description', value: 'checked' },
@@ -1133,10 +1155,35 @@ export default function About() {
                   );
                 })}
                 {(() => {
+                  const bgColor = palette.background.default.secondary;
+                  const nominalClasses = [
+                    { color: '#006400', name: 'Closed evergreen broadleaved forest' },
+                    { color: '#00A000', name: 'Closed deciduous broadleaved forest' },
+                    { color: '#AAC800', name: 'Open deciduous broadleaved forest' },
+                    { color: '#FFFF64', name: 'Rainfed cropland' },
+                    { color: '#AAF0F0', name: 'Irrigated cropland' },
+                    { color: '#B4B4B4', name: 'Urban / built-up' },
+                    { color: '#F0F0F0', name: 'Permanent snow and ice' },
+                  ];
+                  return (
+                    <View style={styles.legendExampleItem}>
+                      <ThemedText variant='bodySmall'>Land Cover</ThemedText>
+                      <View style={[styles.legendNominalBox, { backgroundColor: bgColor }]}>
+                        {nominalClasses.map(({ color, name }) => (
+                          <View key={name} style={styles.legendNominalRow}>
+                            <View style={[styles.legendNominalDot, { backgroundColor: color }]} />
+                            <ThemedText variant='bodyTiny' style={styles.legendNominalLabel} numberOfLines={1}>{name}</ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })()}
+                {(() => {
                   const RING = 68;
                   const HOLE = 38;
                   const bgColor = palette.background.default.secondary;
-                  const conicCss = 'conic-gradient(from 0deg, rgb(59,58,234) 0deg, rgb(58,190,234) 45deg, rgb(58,234,146) 90deg, rgb(102,234,58) 135deg, rgb(234,234,58) 180deg, rgb(234,102,58) 225deg, rgb(234,58,146) 270deg, rgb(190,58,234) 315deg, rgb(59,58,234) 360deg)';
+                  const conicCss = 'conic-gradient(from 0deg, rgb(220,50,50) 0deg, rgb(230,122,32) 45deg, rgb(240,195,15) 90deg, rgb(142,185,40) 135deg, rgb(45,175,65) 180deg, rgb(42,135,142) 225deg, rgb(40,95,220) 270deg, rgb(130,72,135) 315deg, rgb(220,50,50) 360deg)';
                   return (
                     <View style={styles.legendExampleItem}>
                       <ThemedText variant='bodySmall'>Aspect</ThemedText>
@@ -1214,12 +1261,14 @@ export default function About() {
                   heatmapOpacity={0.85}
                   minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
                   showMarkers={false}
+                  onTileClasses={handleMapTileClasses}
                 />
                 {(() => {
                   const vtype = (mapSelectedVariableMeta?.valueType ?? '').toLowerCase();
                   const id = mapSelectedVariableMeta?.id ?? '';
                   const isCircular = id === 'aspect' || id === 'aspect_deg';
                   const isNumeric = vtype === 'continuous' && !isCircular;
+                  const isCategorical = isVariableCategorical(mapSelectedVariableMeta);
                   const bgColor = palette.background.default.secondary;
 
                   if (isCircular) {
@@ -1244,6 +1293,30 @@ export default function About() {
                           <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>E</ThemedText>
                         </View>
                         <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>S</ThemedText>
+                      </View>
+                    );
+                  }
+
+                  if (isCategorical) {
+                    const allClasses = mapSelectedVariableMeta?.legendClasses ?? [];
+                    // Filter to visible classes, sorted by pixel count descending
+                    const visibleClasses = (() => {
+                      if (allClasses.length === 0) return [];
+                      if (visibleNominalCounts.size === 0) return allClasses;
+                      return allClasses
+                        .filter((cls) => visibleNominalCounts.has(cls.id as number))
+                        .sort((a, b) => (visibleNominalCounts.get(b.id as number) ?? 0) - (visibleNominalCounts.get(a.id as number) ?? 0));
+                    })();
+                    if (visibleClasses.length === 0) return null;
+                    const displayClasses = visibleClasses;
+                    return (
+                      <View style={[styles.legendNominalOverlay, { backgroundColor: bgColor }]}>
+                        {displayClasses.map((cls) => (
+                          <View key={cls.id} style={styles.legendNominalRow}>
+                            <View style={[styles.legendNominalDot, { backgroundColor: cls.color ?? '#888' }]} />
+                            <ThemedText variant='bodyTiny' style={styles.legendNominalLabel} numberOfLines={1}>{cls.name}</ThemedText>
+                          </View>
+                        ))}
                       </View>
                     );
                   }
@@ -1425,5 +1498,39 @@ const styles = StyleSheet.create({
   legendCircleCardinal: {
     textAlign: 'center',
     opacity: 0.8,
+  },
+  legendNominalOverlay: {
+    position: 'absolute',
+    left: 8,
+    top: 82,
+    bottom: 10,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    gap: Size.space['100'],
+    maxWidth: 200,
+    overflow: 'hidden',
+  },
+  legendNominalBox: {
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    gap: Size.space['100'],
+    minWidth: 160,
+  },
+  legendNominalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  legendNominalDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
+  },
+  legendNominalLabel: {
+    flex: 1,
   },
 });
