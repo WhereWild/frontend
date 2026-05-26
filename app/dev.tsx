@@ -1195,17 +1195,31 @@ export default function About() {
                 Pick a variable to test tile rendering. Only backend map-enabled
                 variables will display.
               </ThemedText>
-              <SpeciesOccurrenceMap
-                occurrences={[]}
-                loading={false}
-                error={null}
-                height={ABOUT_LANDCOVER_MAP_HEIGHT}
-                heatmapTileUrl={aboutVariableTileUrl}
-                heatmapOpacity={0.85}
-                minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
-                showMarkers={false}
-              />
-            </View>
+              <View style={{ position: 'relative' }}>
+                <SpeciesOccurrenceMap
+                  occurrences={[]}
+                  loading={false}
+                  error={null}
+                  height={ABOUT_LANDCOVER_MAP_HEIGHT}
+                  heatmapTileUrl={aboutVariableTileUrl}
+                  heatmapOpacity={0.85}
+                  minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
+                  showMarkers={false}
+                  allowPinObservations={false}
+                  onTileClasses={handleMapTileClasses}
+                  pointQueryUrl={
+                    isVariableCategorical(mapSelectedVariableMeta)
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
+                      : null
+                  }
+                />
+                {(() => {
+                  const vtype = (mapSelectedVariableMeta?.valueType ?? '').toLowerCase();
+                  const id = mapSelectedVariableMeta?.id ?? '';
+                  const isCircular = id === 'aspect' || id === 'aspect_deg';
+                  const isNumeric = vtype === 'continuous' && !isCircular;
+                  const isCategorical = isVariableCategorical(mapSelectedVariableMeta);
+                  const bgColor = palette.background.default.secondary;
 
             <View style={styles.statusSection}>
               <ThemedText variant='heading'>System Status</ThemedText>
