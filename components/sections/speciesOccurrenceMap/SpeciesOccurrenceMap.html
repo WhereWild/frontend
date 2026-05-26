@@ -51,6 +51,7 @@
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
+    const POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
     const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
     const mapBounds = CUSTOM_MAX_BOUNDS
       ? L.latLngBounds(CUSTOM_MAX_BOUNDS[0], CUSTOM_MAX_BOUNDS[1])
@@ -789,13 +790,36 @@
     }
 
     map.on('click', function(event) {
-      if (!ALLOW_PIN_OBSERVATIONS) {
-        map.closePopup();
-        return;
-      }
       const latitude = Number(event.latlng?.lat);
       const longitude = Number(event.latlng?.lng);
       if (!isFinite(latitude) || !isFinite(longitude)) {
+        return;
+      }
+
+      if (POINT_QUERY_URL) {
+        var popup = L.popup().setLatLng(event.latlng).setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>').openOn(map);
+        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            if (!popup.isOpen()) return;
+            if (data.value == null) {
+              popup.setContent('<span style="opacity:0.6;font-size:11px">No data</span>');
+              return;
+            }
+            var dot = data.class_color
+              ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>'
+              : '';
+            var label = data.class_name || String(data.value);
+            popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+          })
+          .catch(function() {
+            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Error</span>');
+          });
+        return;
+      }
+
+      if (!ALLOW_PIN_OBSERVATIONS) {
+        map.closePopup();
         return;
       }
       L.popup()
