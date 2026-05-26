@@ -66,6 +66,19 @@ function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
   );
 }
 
+type PointValueMessage = { type: 'pointValue'; value: number };
+
+function isPointValueMessage(msg: unknown): msg is PointValueMessage {
+  return (
+    !!msg &&
+    typeof msg === 'object' &&
+    'type' in msg &&
+    msg.type === 'pointValue' &&
+    'value' in msg &&
+    typeof (msg as PointValueMessage).value === 'number'
+  );
+}
+
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
@@ -87,7 +100,11 @@ type SpeciesOccurrenceMapProps = {
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   onTileClasses?: (classes: Array<{ id: number; count: number }>, removed: boolean) => void;
+  onPointValue?: (value: number) => void;
   pointQueryUrl?: string | null;
+  renderMin?: number | null;
+  renderMax?: number | null;
+  isCircular?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -111,7 +128,11 @@ export function SpeciesOccurrenceMap({
   selectedPoint = null,
   onBoundsChange,
   onTileClasses,
+  onPointValue,
   pointQueryUrl = null,
+  renderMin = null,
+  renderMax = null,
+  isCircular = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -169,9 +190,14 @@ export function SpeciesOccurrenceMap({
 
       if (isTileClassesMessage(msg)) {
         onTileClasses?.(msg.classes, msg.type === 'tileClassesRemoved');
+        return;
+      }
+
+      if (isPointValueMessage(msg)) {
+        onPointValue?.(msg.value);
       }
     },
-    [handlePinObservation, onBoundsChange, onTileClasses, openExternalUrl],
+    [handlePinObservation, onBoundsChange, onTileClasses, onPointValue, openExternalUrl],
   );
 
   const hasOccurrences = occurrences.length > 0;
@@ -263,10 +289,16 @@ export function SpeciesOccurrenceMap({
       linkObservations,
       allowPinObservations,
       pointQueryUrl,
+      renderMin,
+      renderMax,
+      isCircular,
     );
   }, [
     allowPinObservations,
     pointQueryUrl,
+    renderMin,
+    renderMax,
+    isCircular,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,
@@ -387,6 +419,11 @@ export function SpeciesOccurrenceMap({
         isTileClassesMessage(data)
       ) {
         onTileClasses?.(data.classes, data.type === 'tileClassesRemoved');
+        return;
+      }
+
+      if (frameWindow && source === frameWindow && isPointValueMessage(data)) {
+        onPointValue?.(data.value);
       }
     };
     window.addEventListener('message', handler);
@@ -395,7 +432,7 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [handlePinObservation, onBoundsChange, onTileClasses, openExternalUrl]);
+  }, [handlePinObservation, onBoundsChange, onTileClasses, onPointValue, openExternalUrl]);
 
   if (error) {
     return (

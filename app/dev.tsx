@@ -247,6 +247,7 @@ export default function About() {
     EnvironmentVariableOption[]
   >(ABOUT_MAP_FALLBACK_VARIABLES);
   const [visibleNominalCounts, setVisibleNominalCounts] = useState<Map<number, number>>(new Map());
+  const [pinnedValue, setPinnedValue] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -308,7 +309,12 @@ export default function About() {
   ]);
   useEffect(() => {
     setVisibleNominalCounts(new Map());
+    setPinnedValue(null);
   }, [mapSelectedVariable]);
+
+  const handleMapPointValue = useCallback((value: number) => {
+    setPinnedValue(value);
+  }, []);
 
   const handleMapTileClasses = useCallback((classes: Array<{ id: number; count: number }>, removed: boolean) => {
     setVisibleNominalCounts((prev) => {
@@ -1263,10 +1269,18 @@ export default function About() {
                   showMarkers={false}
                   allowPinObservations={false}
                   onTileClasses={handleMapTileClasses}
+                  onPointValue={handleMapPointValue}
                   pointQueryUrl={
-                    isVariableCategorical(mapSelectedVariableMeta)
+                    mapSelectedVariableMeta?.valueType != null
                       ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
                       : null
+                  }
+                  isCircular={mapSelectedVariableMeta?.id === 'aspect' || mapSelectedVariableMeta?.id === 'aspect_deg'}
+                  renderMin={
+                    isVariableCategorical(mapSelectedVariableMeta) || mapSelectedVariableMeta?.id === 'aspect' || mapSelectedVariableMeta?.id === 'aspect_deg' ? null : (mapSelectedVariableMeta?.renderMin ?? null)
+                  }
+                  renderMax={
+                    isVariableCategorical(mapSelectedVariableMeta) || mapSelectedVariableMeta?.id === 'aspect' || mapSelectedVariableMeta?.id === 'aspect_deg' ? null : (mapSelectedVariableMeta?.renderMax ?? null)
                   }
                 />
                 {(() => {
@@ -1288,11 +1302,23 @@ export default function About() {
                         <View style={styles.legendCircleRow}>
                           <ThemedText variant='bodyTiny' style={styles.legendCircleCardinal}>W</ThemedText>
                           {Platform.OS === 'web' ? (
-                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundImage: conicCss } as object]}>
+                            <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundImage: conicCss, position: 'relative' } as object]}>
+                              {pinnedValue != null && (
+                                <View
+                                  pointerEvents='none'
+                                  style={[{ position: 'absolute', width: 2, height: RING / 2, left: RING / 2 - 1, top: 0, backgroundColor: '#fffffff2', opacity: 0.9 }, { transformOrigin: 'center bottom', transform: `rotate(${pinnedValue}deg)` } as object]}
+                                />
+                              )}
                               <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
                             </View>
                           ) : (
                             <View style={[styles.legendCircleOuter, { width: RING, height: RING, borderRadius: RING / 2, backgroundColor: 'rgb(234,234,58)' }]}>
+                              {pinnedValue != null && (
+                                <View
+                                  pointerEvents='none'
+                                  style={{ position: 'absolute', width: 2, height: RING / 2, left: RING / 2 - 1, top: 0, backgroundColor: '#fffffff2', opacity: 0.9, transform: [{ translateY: RING / 4 }, { rotate: `${pinnedValue}deg` }, { translateY: -(RING / 4) }] }}
+                                />
+                              )}
                               <View style={[styles.legendCircleHole, { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bgColor }]} />
                             </View>
                           )}
@@ -1338,18 +1364,49 @@ export default function About() {
                   const gradientCss =
                     'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
                   const nativeColors = ['rgb(230,57,70)', 'rgb(246,190,0)', 'rgb(59,170,165)', 'rgb(34,94,168)', 'rgb(28,38,102)'];
+                  const pinFraction = pinnedValue != null && rmax > rmin
+                    ? Math.max(0, Math.min(1, (rmax - pinnedValue) / (rmax - rmin)))
+                    : null;
                   return (
                     <View style={[styles.legendOverlay, { backgroundColor: bgColor }]}>
                       <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmax)}</ThemedText>
-                      {Platform.OS === 'web' ? (
-                        <View style={[styles.legendOverlayBar, { flex: 1, backgroundImage: gradientCss } as object]} />
-                      ) : (
-                        <View style={[styles.legendOverlayBarFallback, { flex: 1 }]}>
-                          {nativeColors.map((color, i) => (
-                            <View key={i} style={[styles.legendOverlaySegment, { backgroundColor: color }]} />
-                          ))}
+                      <View style={styles.legendOverlayBarRow}>
+                        <View style={styles.legendOverlayBarContainer}>
+                          {Platform.OS === 'web' ? (
+                            <View style={[StyleSheet.absoluteFillObject, { borderRadius: 4, backgroundImage: gradientCss } as object]} />
+                          ) : (
+                            <View style={[StyleSheet.absoluteFillObject, { borderRadius: 4, overflow: 'hidden' }]}>
+                              {nativeColors.map((color, i) => (
+                                <View key={i} style={[styles.legendOverlaySegment, { flex: 1, backgroundColor: color }]} />
+                              ))}
+                            </View>
+                          )}
+                          {pinFraction != null && (
+                            <View
+                              pointerEvents='none'
+                              style={[
+                                styles.legendPinLine,
+                                { top: `${Math.round(pinFraction * 100)}%` as unknown as number },
+                                Platform.OS === 'web' ? ({ borderTopStyle: 'dashed' } as object) : {},
+                              ]}
+                            />
+                          )}
                         </View>
-                      )}
+                        {pinFraction != null && (
+                          <View style={styles.legendPinLabelContainer}>
+                            <ThemedText
+                              variant='bodyTiny'
+                              numberOfLines={1}
+                              style={[
+                                styles.legendPinLabel,
+                                { top: `${Math.round(pinFraction * 100)}%` as unknown as number },
+                              ]}
+                            >
+                              {fmt(pinnedValue!)}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
                       <ThemedText variant='bodyTiny' style={styles.legendOverlayLabel}>{fmt(rmin)}</ThemedText>
                       {units ? <ThemedText variant='bodyTiny' style={styles.legendOverlayUnits}>{units}</ThemedText> : null}
                     </View>
@@ -1449,6 +1506,33 @@ const styles = StyleSheet.create({
     paddingVertical: Size.space['200'],
     alignItems: 'center',
     gap: Size.space['100'],
+  },
+  legendOverlayBarRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  legendOverlayBarContainer: {
+    width: 12,
+    position: 'relative',
+  },
+  legendPinLine: {
+    position: 'absolute',
+    left: -2,
+    right: -2,
+    height: 0,
+    borderTopWidth: 1.5,
+    borderTopColor: '#fffffff2',
+  },
+  legendPinLabelContainer: {
+    flex: 1,
+    position: 'relative',
+    marginLeft: 4,
+  },
+  legendPinLabel: {
+    position: 'absolute',
+    color: '#fffffff2',
+    transform: [{ translateY: -6 }],
   },
   legendOverlayBox: {
     borderRadius: Size.radius['400'],
