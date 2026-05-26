@@ -64,6 +64,7 @@ const mapEnvironmentVariableOptions = (
         domain: variableDefinition.domain ?? null,
         category: remappedCategory,
         sourceIds: variableDefinition.sourceIds,
+        legendClasses: variableDefinition.legendClasses ?? null,
       };
     });
 };
