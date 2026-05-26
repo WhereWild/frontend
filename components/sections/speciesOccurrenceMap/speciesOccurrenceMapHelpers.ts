@@ -54,6 +54,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   allowPinObservations: '__ALLOW_PIN_OBSERVATIONS__',
   linkObservations: '__LINK_OBSERVATIONS__',
   selectedPointType: '__SELECTED_POINT_MESSAGE_TYPE_JSON__',
+  pointQueryUrl: '__POINT_QUERY_URL_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -207,6 +208,7 @@ export const buildLeafletHtml = (
   maxBounds?: [[number, number], [number, number]] | null,
   linkObservations?: boolean,
   allowPinObservations?: boolean,
+  pointQueryUrl?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -281,6 +283,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.selectedPointType)
     .join(JSON.stringify(SELECTED_POINT_MESSAGE_TYPE));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.pointQueryUrl)
+    .join(pointQueryUrl ? JSON.stringify(pointQueryUrl) : 'null');
   return html;
 };
 

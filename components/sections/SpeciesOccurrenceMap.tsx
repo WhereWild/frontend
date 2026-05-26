@@ -87,6 +87,7 @@ type SpeciesOccurrenceMapProps = {
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   onTileClasses?: (classes: Array<{ id: number; count: number }>, removed: boolean) => void;
+  pointQueryUrl?: string | null;
 };
 
 export function SpeciesOccurrenceMap({
@@ -110,6 +111,7 @@ export function SpeciesOccurrenceMap({
   selectedPoint = null,
   onBoundsChange,
   onTileClasses,
+  pointQueryUrl = null,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -260,9 +262,11 @@ export function SpeciesOccurrenceMap({
       maxBounds,
       linkObservations,
       allowPinObservations,
+      pointQueryUrl,
     );
   }, [
     allowPinObservations,
+    pointQueryUrl,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,

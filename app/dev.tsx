@@ -1261,7 +1261,13 @@ export default function About() {
                   heatmapOpacity={0.85}
                   minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
                   showMarkers={false}
+                  allowPinObservations={false}
                   onTileClasses={handleMapTileClasses}
+                  pointQueryUrl={
+                    isVariableCategorical(mapSelectedVariableMeta)
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
+                      : null
+                  }
                 />
                 {(() => {
                   const vtype = (mapSelectedVariableMeta?.valueType ?? '').toLowerCase();
