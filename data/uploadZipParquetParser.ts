@@ -62,7 +62,7 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   },
   {
     key: 'densityGraph',
-    aliases: buildTableAliases('numerical_density', 'density_graph', 'desntiy_graph'),
+    aliases: buildTableAliases('numerical_density', 'density_graph', 'density', 'desntiy_graph'),
     required: true,
   },
   {
