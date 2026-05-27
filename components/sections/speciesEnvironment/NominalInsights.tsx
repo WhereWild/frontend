@@ -1,7 +1,10 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import type { SpeciesEnvironmentCategory, SpeciesEnvironmentRelativeRank } from '@/data/types';
+import type {
+  SpeciesEnvironmentCategory,
+  SpeciesEnvironmentRelativeRank,
+} from '@/data/types';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -33,7 +36,6 @@ type NominalInsightsProps = {
   selectedCategoryValue: number | string | null;
   locationFilterActive: boolean;
 };
-
 
 export function NominalInsights({
   showRankContext,
@@ -67,25 +69,31 @@ export function NominalInsights({
       ? (selectedRankContext ?? rankContextOptions[0].key)
       : '';
 
-  const selectedCategory = selectedCategoryValue != null
-    ? categoricalDistribution.find((c) => c.value === selectedCategoryValue) ?? null
-    : null;
+  const selectedCategory =
+    selectedCategoryValue != null
+      ? (categoricalDistribution.find(
+          (c) => c.value === selectedCategoryValue,
+        ) ?? null)
+      : null;
 
-  const modeCategory = categoricalDistribution.find(
-    (c) => c.value === summary?.mode,
-  ) ?? null;
+  const modeCategory =
+    categoricalDistribution.find((c) => c.value === summary?.mode) ?? null;
 
-  const thirdSlot = selectedCategory != null
-    ? {
-        label: selectedCategory.className,
-        value: formatCategoryPercent(selectedCategory.fraction),
-        rank: summaryRanks.selected_class,
-      }
-    : {
-        label: modeCategory?.className ?? 'Mode',
-        value: modeCategory != null ? formatCategoryPercent(modeCategory.fraction) : '—',
-        rank: summaryRanks.mode_class,
-      };
+  const thirdSlot =
+    selectedCategory != null
+      ? {
+          label: selectedCategory.className,
+          value: formatCategoryPercent(selectedCategory.fraction),
+          rank: summaryRanks.selected_class,
+        }
+      : {
+          label: modeCategory?.className ?? 'Mode',
+          value:
+            modeCategory != null
+              ? formatCategoryPercent(modeCategory.fraction)
+              : '—',
+          rank: summaryRanks.mode_class,
+        };
 
   return (
     <View collapsable={false} style={styles.container}>
