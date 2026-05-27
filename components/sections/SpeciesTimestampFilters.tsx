@@ -16,7 +16,11 @@ export type SpeciesTimestampFiltersProps = {
 
 function tsToMonthYear(ts: number): MonthYear {
   const d = new Date(ts * 1000);
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+  };
 }
 
 function monthYearToTs(my: MonthYear): number {
@@ -25,7 +29,10 @@ function monthYearToTs(my: MonthYear): number {
 
 const NOW = new Date();
 const FALLBACK_MIN: MonthYear = { year: 1980, month: 1 };
-const FALLBACK_MAX: MonthYear = { year: NOW.getUTCFullYear(), month: NOW.getUTCMonth() + 1 };
+const FALLBACK_MAX: MonthYear = {
+  year: NOW.getUTCFullYear(),
+  month: NOW.getUTCMonth() + 1,
+};
 
 export function SpeciesTimestampFilters({
   startTimestamp,
@@ -35,10 +42,13 @@ export function SpeciesTimestampFilters({
   onStartChange,
   onEndChange,
 }: SpeciesTimestampFiltersProps) {
-  const minDate = minTimestamp != null ? tsToMonthYear(minTimestamp) : FALLBACK_MIN;
-  const maxDate = maxTimestamp != null ? tsToMonthYear(maxTimestamp) : FALLBACK_MAX;
+  const minDate =
+    minTimestamp != null ? tsToMonthYear(minTimestamp) : FALLBACK_MIN;
+  const maxDate =
+    maxTimestamp != null ? tsToMonthYear(maxTimestamp) : FALLBACK_MAX;
 
-  const startDate = startTimestamp != null ? tsToMonthYear(startTimestamp) : minDate;
+  const startDate =
+    startTimestamp != null ? tsToMonthYear(startTimestamp) : minDate;
   const endDate = endTimestamp != null ? tsToMonthYear(endTimestamp) : maxDate;
 
   return (

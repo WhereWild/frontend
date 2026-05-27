@@ -327,8 +327,12 @@ export default function Species({
     lat: number;
     lon: number;
   } | null>(null);
-  const [selectedPhenology, setSelectedPhenology] = React.useState<string | null>(null);
-  const [startTimestamp, setStartTimestamp] = React.useState<number | null>(null);
+  const [selectedPhenology, setSelectedPhenology] = React.useState<
+    string | null
+  >(null);
+  const [startTimestamp, setStartTimestamp] = React.useState<number | null>(
+    null,
+  );
   const [endTimestamp, setEndTimestamp] = React.useState<number | null>(null);
 
   const predictiveHeatmapDescription = React.useMemo(
