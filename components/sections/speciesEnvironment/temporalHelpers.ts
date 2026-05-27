@@ -24,7 +24,9 @@ export function isTemporalId(id: string): boolean {
 /** Strips the trailing aggregate+window suffix from a temporal variable label.
  *  e.g. "Dew Point (2m) (Avg, 168h)" → "Dew Point (2m)" */
 export function stripTemporalSuffix(label: string): string {
-  return label.replace(/\s*\((avg|sum|mode|snapshot),\s*\d+h\)\s*$/i, '').trim();
+  return label
+    .replace(/\s*\((avg|sum|mode|snapshot),\s*\d+h\)\s*$/i, '')
+    .trim();
 }
 
 const WINDOW_LABELS: Record<number, string> = {

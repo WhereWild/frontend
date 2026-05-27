@@ -33,8 +33,18 @@ export type DateRangeSliderProps = {
 const THUMB_SIZE = 22;
 const TRACK_HEIGHT = 4;
 const MONTH_SHORT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 function toMonths(d: MonthYear): number {
@@ -236,7 +246,9 @@ export function DateRangeSlider({
       {/* Date labels */}
       <View style={styles.labelsRow}>
         <Pressable
-          onPress={() => setEditingSide((s) => (s === 'start' ? null : 'start'))}
+          onPress={() =>
+            setEditingSide((s) => (s === 'start' ? null : 'start'))
+          }
           hitSlop={8}
         >
           <ThemedText variant='bodySmallStrong' style={{ color: textColor }}>
@@ -264,7 +276,10 @@ export function DateRangeSlider({
               onValueChange={(v) => {
                 const month = Number(v);
                 const maxDay = daysInMonth(editedDate.year, month);
-                const day = editedDate.day != null ? Math.min(editedDate.day, maxDay) : undefined;
+                const day =
+                  editedDate.day != null
+                    ? Math.min(editedDate.day, maxDay)
+                    : undefined;
                 onEditChange({ ...editedDate, month, day });
               }}
               allowSearch={false}
@@ -331,10 +346,7 @@ export function DateRangeSlider({
       {/* Year tick marks */}
       <View style={styles.ticksContainer}>
         {yearTicks.map(({ year, pct }) => (
-          <View
-            key={year}
-            style={[styles.tickWrapper, { left: `${pct}%` }]}
-          >
+          <View key={year} style={[styles.tickWrapper, { left: `${pct}%` }]}>
             <View style={[styles.tickMark, { backgroundColor: dimColor }]} />
             <ThemedText variant='bodyTiny' style={{ color: dimColor }}>
               {year}
