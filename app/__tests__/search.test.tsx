@@ -613,6 +613,8 @@ describe('Search screen', () => {
         sortVariableValue: 'bio_1',
         sortMetricValue: 'median',
         sortOrder: 'descending',
+        sortReference: 0,
+        minRbar: 0.15,
       },
       quantity: {
         numberOfResults: 20,

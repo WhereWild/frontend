@@ -256,9 +256,13 @@ export function useSpeciesEnvironmentState({
       rbar: resolveRankForMetric('rbar', summary?.rbar, {
         allowHistogramFallback: false,
       }),
-      circular_std: resolveRankForMetric('circular_std', summary?.circular_std, {
-        allowHistogramFallback: false,
-      }),
+      circular_std: resolveRankForMetric(
+        'circular_std',
+        summary?.circular_std,
+        {
+          allowHistogramFallback: false,
+        },
+      ),
     }),
     [
       resolveRankForMetric,

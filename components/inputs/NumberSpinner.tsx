@@ -291,7 +291,11 @@ export function NumberSpinner({
   };
 
   const normalizeAndCommitInput = (rawInput: string) => {
-    const normalized = normalizeNumericInput(rawInput, allowNegativeInput, isDecimal);
+    const normalized = normalizeNumericInput(
+      rawInput,
+      allowNegativeInput,
+      isDecimal,
+    );
 
     if (normalized.length === 0 || normalized === '-' || normalized === '.') {
       setDraftValue(normalized);

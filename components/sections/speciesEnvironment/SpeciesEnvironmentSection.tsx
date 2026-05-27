@@ -437,42 +437,23 @@ function SpeciesEnvironmentSectionComponent({
           ]}
         >
           {isCircularVariable ? (
-            <>
-              <PolarDensityChart
-                curve={displayState?.densityCurve}
-                fillColor={palette.background.brand.default}
-                lineColor={palette.background.brand.default}
-                guideColor={palette.text.default.secondary}
-                selection={displayState?.selectedDensityRange ?? null}
-                onSelectionChange={
-                  slicingEnabled ? handleDensitySelectionChange : undefined
-                }
-                pinValue={numericPinnedValue}
-                pinLoading={pinnedLoading}
-                circularMean={
-                  typeof displayState?.summary?.circular_mean === 'number'
-                    ? displayState.summary.circular_mean
-                    : null
-                }
-              />
-              <ContinuousInsights
-                showRankContext={displayState?.showRankContext ?? false}
-                rankContextOptions={displayState?.rankContextOptions ?? []}
-                selectedRankContext={displayState?.selectedRankContext ?? null}
-                onRankContextChange={handleRankContextChange}
-                summary={displayState?.summary}
-                summaryRanks={
-                  displayState?.summaryRanks ?? {
-                    min: null,
-                    mean: null,
-                    max: null,
-                  }
-                }
-                summaryComparisons={displayState?.summaryComparisons ?? {}}
-                locationFilterActive={locationFilterActive}
-                valueType='circular'
-              />
-            </>
+            <PolarDensityChart
+              curve={displayState?.densityCurve}
+              fillColor={palette.background.brand.default}
+              lineColor={palette.background.brand.default}
+              guideColor={palette.text.default.secondary}
+              selection={displayState?.selectedDensityRange ?? null}
+              onSelectionChange={
+                slicingEnabled ? handleDensitySelectionChange : undefined
+              }
+              pinValue={numericPinnedValue}
+              pinLoading={pinnedLoading}
+              circularMean={
+                typeof displayState?.summary?.circular_mean === 'number'
+                  ? displayState.summary.circular_mean
+                  : null
+              }
+            />
           ) : (
             <>
               <DensityChart

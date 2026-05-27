@@ -226,7 +226,7 @@ export function Filters({
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
         />
-        <ThemedText variant='body'>Sort direction</ThemedText>
+        <ThemedText variant='body'>Sort order</ThemedText>
         <View style={styles.sortOrderRow}>
           <RadioField
             style={styles.sortOrderOption}
