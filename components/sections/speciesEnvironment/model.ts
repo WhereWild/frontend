@@ -26,6 +26,8 @@ export type EnvironmentVariableOption = {
   legendClasses?: LegendClass[] | null;
   renderMin?: number | null;
   renderMax?: number | null;
+  group?: string | null;
+  groupLabel?: string | null;
 };
 
 /** Loading/result state for one categorical class sample request. */

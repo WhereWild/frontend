@@ -67,6 +67,8 @@ const mapEnvironmentVariableOptions = (
         legendClasses: variableDefinition.legendClasses ?? null,
         renderMin: variableDefinition.renderMin ?? null,
         renderMax: variableDefinition.renderMax ?? null,
+        group: variableDefinition.group ?? null,
+        groupLabel: variableDefinition.groupLabel ?? null,
       };
     });
 };
