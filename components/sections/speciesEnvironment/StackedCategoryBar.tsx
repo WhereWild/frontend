@@ -50,7 +50,11 @@ type StackedCategoryBarProps = {
 const getSelectedCategoryDescription = (
   category: SpeciesEnvironmentCategory,
 ) => {
-  const summarySentence = `This accounts for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
+  const accountPhrase =
+    String(category.value) === '__other__'
+      ? 'Together these account'
+      : 'This accounts';
+  const summarySentence = `${accountPhrase} for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
   if (!category.description) {
     return summarySentence;
   }
@@ -72,7 +76,6 @@ export function StackedCategoryBar({
 }: StackedCategoryBarProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const [expanded, setExpanded] = React.useState(false);
 
   const validCategories = React.useMemo(
     () =>
@@ -83,43 +86,81 @@ export function StackedCategoryBar({
     [categories],
   );
 
-  const hiddenCount = Math.max(0, validCategories.length - CATEGORY_DISPLAY_LIMIT);
-  const hasMore = hiddenCount > 0;
+  const displayCategories = React.useMemo(() => {
+    const topCategories = validCategories.slice(0, CATEGORY_DISPLAY_LIMIT);
+    const otherCategories = validCategories.slice(CATEGORY_DISPLAY_LIMIT);
 
-  const displayCategories = React.useMemo(
-    () => expanded || !hasMore
-      ? validCategories
-      : validCategories.slice(0, CATEGORY_DISPLAY_LIMIT),
-    [validCategories, expanded, hasMore],
+    const otherCategory: SpeciesEnvironmentCategory | null =
+      otherCategories.length > 0
+        ? {
+            value: '__other__',
+            className: 'Other',
+            fraction: otherCategories.reduce(
+              (sum, cat) => sum + cat.fraction,
+              0,
+            ),
+            count: otherCategories.reduce(
+              (sum, cat) =>
+                sum +
+                (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
+              0,
+            ),
+            description: otherCategories
+              .map((cat, index) => {
+                if (index === 0) return cat.className;
+                return (
+                  cat.className.charAt(0).toLowerCase() + cat.className.slice(1)
+                );
+              })
+              .join(', '),
+          }
+        : null;
+
+    return otherCategory ? [...topCategories, otherCategory] : topCategories;
+  }, [validCategories]);
+
+  const hasOtherCategory = displayCategories.some(
+    (cat) => String(cat.value) === '__other__',
   );
 
   const selectedCategory = React.useMemo(
     () =>
       selectedValue !== null
-        ? (validCategories.find(
+        ? (displayCategories.find(
             (cat) => String(cat.value) === String(selectedValue),
           ) ?? null)
         : null,
-    [validCategories, selectedValue],
+    [displayCategories, selectedValue],
   );
 
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
     if (pinnedValue !== null && pinnedValue !== undefined) {
       const pinnedKey = String(pinnedValue);
-      if (validCategories.some((category) => String(category.value) === pinnedKey)) {
+      if (
+        validCategories.some((category) => String(category.value) === pinnedKey)
+      ) {
         return { resolvedPinnedKey: pinnedKey, pinnedOtherLabel: null };
       }
       if (pinnedClassName?.trim()) {
-        return { resolvedPinnedKey: null, pinnedOtherLabel: pinnedClassName.trim() };
+        return {
+          resolvedPinnedKey: null,
+          pinnedOtherLabel: pinnedClassName.trim(),
+        };
       }
     }
 
     if (highlightedValue !== null) {
-      return { resolvedPinnedKey: String(highlightedValue), pinnedOtherLabel: null };
+      return {
+        resolvedPinnedKey: String(highlightedValue),
+        pinnedOtherLabel: null,
+      };
     }
 
     if (unobservedHighlightedCategory) {
-      return { resolvedPinnedKey: null, pinnedOtherLabel: unobservedHighlightedCategory.label };
+      return {
+        resolvedPinnedKey: null,
+        pinnedOtherLabel: unobservedHighlightedCategory.label,
+      };
     }
 
     return { resolvedPinnedKey: null, pinnedOtherLabel: null };
@@ -131,20 +172,18 @@ export function StackedCategoryBar({
     validCategories,
   ]);
 
-  React.useEffect(() => {
-    if (!resolvedPinnedKey || expanded) return;
-    const visibleKeys = new Set(
-      validCategories.slice(0, CATEGORY_DISPLAY_LIMIT).map((c) => String(c.value)),
-    );
-    if (!visibleKeys.has(resolvedPinnedKey)) setExpanded(true);
-  }, [resolvedPinnedKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const pills = React.useMemo(() => {
     const base = displayCategories.map((category, index) => {
-      const baseColor = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const baseColor =
+        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const isOtherBucket = String(category.value) === '__other__';
+      const label =
+        isOtherBucket && pinnedOtherLabel
+          ? `Other (${pinnedOtherLabel})`
+          : category.className;
       return {
         key: String(category.value),
-        label: category.className,
+        label,
         icon: (
           <View
             style={{
@@ -157,20 +196,31 @@ export function StackedCategoryBar({
         ),
       };
     });
-    if (pinnedOtherLabel) {
-      const pinnedOtherColor = unobservedHighlightedCategory?.color ?? '#9CA3AF';
+    if (pinnedOtherLabel && !hasOtherCategory) {
+      const pinnedOtherColor =
+        unobservedHighlightedCategory?.color ?? '#9CA3AF';
       base.push({
-        key: '__pinned_other__',
-        label: pinnedOtherLabel,
+        key: '__other__',
+        label: `Other (${pinnedOtherLabel})`,
         icon: (
           <View
-            style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: pinnedOtherColor }}
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: 6,
+              backgroundColor: pinnedOtherColor,
+            }}
           />
         ),
       });
     }
     return base;
-  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory]);
+  }, [
+    displayCategories,
+    hasOtherCategory,
+    pinnedOtherLabel,
+    unobservedHighlightedCategory,
+  ]);
 
   const handlePillSelectionChange = React.useCallback(
     (key: string) => {
@@ -195,7 +245,8 @@ export function StackedCategoryBar({
   const selectedCategoryDescription = selectedCategory
     ? getSelectedCategoryDescription(selectedCategory)
     : null;
-  const effectiveHighlightedValue = resolvedPinnedKey ?? (pinnedOtherLabel ? '__pinned_other__' : null);
+  const effectiveHighlightedValue =
+    resolvedPinnedKey ?? (pinnedOtherLabel ? '__other__' : null);
   const descriptionDisplayText = selectedCategoryDescription?.trim().length
     ? selectedCategoryDescription
     : pinnedOtherLabel
@@ -205,7 +256,7 @@ export function StackedCategoryBar({
   return (
     <View collapsable={false} style={styles.stackedCategoryContainer}>
       <View collapsable={false} style={styles.stackedBarTrack}>
-        {validCategories.map((category, index) => {
+        {displayCategories.map((category, index) => {
           const fraction = category.fraction;
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
@@ -250,14 +301,6 @@ export function StackedCategoryBar({
         accessibilityLabel='Category selection'
         highlightOutlineColor={highlightOutlineColor}
       />
-
-      {hasMore && (
-        <Pressable onPress={() => setExpanded((e) => !e)} style={styles.showMoreButton}>
-          <ThemedText variant='bodySmall' style={{ color: palette.text.default.secondary }}>
-            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
-          </ThemedText>
-        </Pressable>
-      )}
 
       <View collapsable={false} style={styles.categoryDescriptionSlot}>
         {pinnedOtherLabel && !selectedCategoryDescription ? (
