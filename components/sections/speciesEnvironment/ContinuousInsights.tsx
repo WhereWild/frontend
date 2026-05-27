@@ -161,13 +161,19 @@ export function ContinuousInsights({
             <SummaryItem
               label='R̄'
               value={formatValue(summary?.rbar, 3)}
-              rank={locationFilterActive ? undefined : (summaryRanks.rbar ?? null)}
+              rank={
+                locationFilterActive ? undefined : (summaryRanks.rbar ?? null)
+              }
               stacked={isStacked}
             />
             <SummaryItem
               label='Standard Deviation'
               value={formatDeg(summary?.circular_std)}
-              rank={locationFilterActive ? undefined : (summaryRanks.circular_std ?? null)}
+              rank={
+                locationFilterActive
+                  ? undefined
+                  : (summaryRanks.circular_std ?? null)
+              }
               isLast
               stacked={isStacked}
             />
