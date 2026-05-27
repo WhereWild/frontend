@@ -157,10 +157,7 @@ export function DensityChart({
       const xPct =
         (Math.min(Math.max(locationX, 0), chartWidth) / chartWidth) * 100;
       const barWidth = 100 / normalized.length;
-      return Math.min(
-        Math.floor(xPct / barWidth),
-        normalized.length - 1,
-      );
+      return Math.min(Math.floor(xPct / barWidth), normalized.length - 1);
     },
     [isDiscrete, chartWidth, normalized],
   );
@@ -173,7 +170,9 @@ export function DensityChart({
     (event: GestureResponderEvent) => {
       hasDragged.current = false;
       if (isDiscrete) {
-        dragOrigin.current = getBarIndexForLocation(event.nativeEvent.locationX);
+        dragOrigin.current = getBarIndexForLocation(
+          event.nativeEvent.locationX,
+        );
         return;
       }
       const value = getValueForLocation(event.nativeEvent.locationX);
@@ -196,7 +195,7 @@ export function DensityChart({
       dragValue.current = value;
       onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
     },
-    [isDiscrete, getBarIndexForLocation, getValueForLocation, onSelectionChange],
+    [isDiscrete, getValueForLocation, onSelectionChange],
   );
 
   const handleSelectionEnd = React.useCallback(
@@ -231,7 +230,13 @@ export function DensityChart({
       dragValue.current = null;
       hasDragged.current = false;
     },
-    [isDiscrete, getBarIndexForLocation, discreteBars, getValueForLocation, onSelectionChange],
+    [
+      isDiscrete,
+      getBarIndexForLocation,
+      discreteBars,
+      getValueForLocation,
+      onSelectionChange,
+    ],
   );
 
   const handleSelectionTerminate = React.useCallback(() => {
@@ -356,19 +361,11 @@ export function DensityChart({
     };
   }, [meanPosition, pinPosition, chartWidth, summary?.min, summary?.max]);
 
-  if (!hasCurveData || !normalized.length) {
-    return (
-      <View style={styles.emptyChart}>
-        <ThemedText variant='bodySmall'>Density curve unavailable.</ThemedText>
-      </View>
-    );
-  }
-
-  const start = normalized[0];
-  const end = normalized[normalized.length - 1];
+  const start = normalized.length > 0 ? normalized[0] : null;
+  const end = normalized.length > 0 ? normalized[normalized.length - 1] : null;
 
   const { linePath, areaPath } = React.useMemo(() => {
-    if (isDiscrete) return { linePath: '', areaPath: '' };
+    if (isDiscrete || !start || !end) return { linePath: '', areaPath: '' };
     const line = normalized
       .map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x},${y}`)
       .join(' ');
@@ -382,6 +379,14 @@ export function DensityChart({
     ].join(' ');
     return { linePath: line, areaPath: area };
   }, [isDiscrete, normalized, start, end]);
+
+  if (!hasCurveData || !normalized.length) {
+    return (
+      <View style={styles.emptyChart}>
+        <ThemedText variant='bodySmall'>Density curve unavailable.</ThemedText>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.chartWrapper}>
