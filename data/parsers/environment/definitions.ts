@@ -40,6 +40,8 @@ const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => 
     legendClasses: legendClasses && legendClasses.length > 0 ? legendClasses : null,
     renderMin: typeof source?.render_min === 'number' ? source.render_min : typeof source?.renderMin === 'number' ? source.renderMin : null,
     renderMax: typeof source?.render_max === 'number' ? source.render_max : typeof source?.renderMax === 'number' ? source.renderMax : null,
+    group: typeof source?.group === 'string' ? source.group : null,
+    groupLabel: typeof source?.group_label === 'string' ? source.group_label : null,
   };
 };
 
