@@ -270,8 +270,14 @@ export default function About() {
   const [spinnerAtMaxValue] = useState(10);
   const [spinnerNegativeValue, setSpinnerNegativeValue] = useState(0);
   const [spinnerDisabledValue] = useState(3);
-  const [dateRangeStart, setDateRangeStart] = useState<MonthYear>({ year: 2010, month: 1 });
-  const [dateRangeEnd, setDateRangeEnd] = useState<MonthYear>({ year: 2024, month: 6 });
+  const [dateRangeStart, setDateRangeStart] = useState<MonthYear>({
+    year: 2010,
+    month: 1,
+  });
+  const [dateRangeEnd, setDateRangeEnd] = useState<MonthYear>({
+    year: 2024,
+    month: 6,
+  });
   const [radioGroupValue, setRadioGroupValue] = useState('checked');
   const [selectedTab, setSelectedTab] = useState('overview');
   const [overviewPill, setOverviewPill] = useState('all');
@@ -755,7 +761,7 @@ export default function About() {
             <View>
               <ThemedText variant='heading'>Date Range Slider</ThemedText>
               <ThemedText variant='bodySmall'>
-                {`${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dateRangeStart.month - 1]} ${dateRangeStart.year} → ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dateRangeEnd.month - 1]} ${dateRangeEnd.year}`}
+                {`${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dateRangeStart.month - 1]} ${dateRangeStart.year} → ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dateRangeEnd.month - 1]} ${dateRangeEnd.year}`}
               </ThemedText>
               <DateRangeSlider
                 startDate={dateRangeStart}

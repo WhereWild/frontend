@@ -237,7 +237,12 @@ afterEach(() => {
   mockPush.mockClear();
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
-  mockFetchSpeciesOccurrences.mockResolvedValue({ occurrences: [], minTimestamp: null, maxTimestamp: null, phenologyCounts: null });
+  mockFetchSpeciesOccurrences.mockResolvedValue({
+    occurrences: [],
+    minTimestamp: null,
+    maxTimestamp: null,
+    phenologyCounts: null,
+  });
   mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
   mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
   mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
@@ -326,7 +331,12 @@ describe('Species screen', () => {
     });
     mockUseColorScheme.mockReturnValue('dark');
     mockFetchSpeciesLocations.mockResolvedValue([]);
-    mockFetchSpeciesOccurrences.mockResolvedValue({ occurrences: [], minTimestamp: null, maxTimestamp: null, phenologyCounts: null });
+    mockFetchSpeciesOccurrences.mockResolvedValue({
+      occurrences: [],
+      minTimestamp: null,
+      maxTimestamp: null,
+      phenologyCounts: null,
+    });
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
     mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
     mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
@@ -719,7 +729,12 @@ describe('Species screen', () => {
           options.location === 'state-ut'
             ? [{ catalogNumber: 'ok', latitude: 1, longitude: 2 }]
             : [];
-        return { occurrences: rows, minTimestamp: null, maxTimestamp: null, phenologyCounts: null };
+        return {
+          occurrences: rows,
+          minTimestamp: null,
+          maxTimestamp: null,
+          phenologyCounts: null,
+        };
       },
     );
 
