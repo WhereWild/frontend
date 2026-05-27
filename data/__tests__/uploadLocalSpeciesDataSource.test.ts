@@ -44,11 +44,12 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 2.1 },
-          elevation: { catalogNumber: 'obs_1', originId: 0, value: 100 },
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 52 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 2.1,
+  elevation: 100,
+  landcover: 52,
+},
       ],
       summaryStats: [
         {
@@ -135,9 +136,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 52 },
-        },
+{
+  catalogNumber: 'obs_1',
+  landcover: 52,
+},
       ],
       summaryStats: [
         {
@@ -196,9 +198,10 @@ describe('upload local species data source variable categories', () => {
       densityGraph: [],
       occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
       occurrenceIndex: [
-        {
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 52 },
-        },
+{
+  catalogNumber: 'obs_1',
+  landcover: 52,
+},
       ],
       summaryStats: [
         {
@@ -260,9 +263,10 @@ describe('upload local species data source variable categories', () => {
       densityGraph: [],
       occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
       occurrenceIndex: [
-        {
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 52 },
-        },
+{
+  catalogNumber: 'obs_1',
+  landcover: 52,
+},
       ],
       summaryStats: [
         {
@@ -349,9 +353,10 @@ describe('upload local species data source variable categories', () => {
       densityGraph: [],
       occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
       occurrenceIndex: [
-        {
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 'class_52' },
-        },
+{
+  catalogNumber: 'obs_1',
+  landcover: 'class_52',
+},
       ],
       summaryStats: [
         {
@@ -432,14 +437,16 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 2.1 },
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 52 },
-        },
-        {
-          bio_1: { catalogNumber: 'obs_2', originId: 0, value: 3.1 },
-          landcover: { catalogNumber: 'obs_2', originId: 0, value: 130 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 2.1,
+  landcover: 52,
+},
+{
+  catalogNumber: 'obs_2',
+  bio_1: 3.1,
+  landcover: 130,
+},
       ],
       summaryStats: [
         {
@@ -492,9 +499,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 2.1 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 2.1,
+},
       ],
       summaryStats: [
         {
@@ -556,9 +564,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 12.5 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 12.5,
+},
       ],
       summaryStats: [
         {
@@ -635,9 +644,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          'Annual Mean Temperature': { catalogNumber: 'obs_1', originId: 0, value: 12.5 },
-        },
+{
+  catalogNumber: 'obs_1',
+  'Annual Mean Temperature': 12.5,
+},
       ],
       summaryStats: [
         {
@@ -688,9 +698,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 12.5 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 12.5,
+},
       ],
       summaryStats: [
         {
@@ -732,9 +743,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 12.5 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 12.5,
+},
       ],
       summaryStats: [
         {
@@ -788,9 +800,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 12.5 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 12.5,
+},
       ],
       summaryStats: [
         {
@@ -864,10 +877,11 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 2.1 },
-          elevation: { catalogNumber: 'obs_1', originId: 0, value: 100 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 2.1,
+  elevation: 100,
+},
       ],
       summaryStats: [
         {
@@ -945,9 +959,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 123, decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 123, originId: 0, value: 2.1 },
-        },
+{
+  catalogNumber: 123,
+  bio_1: 2.1,
+},
       ],
       summaryStats: [
         {
@@ -1006,10 +1021,11 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-        {
-          landcover: { catalogNumber: 'obs_1', originId: 0, value: 'forest' },
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 2.1 },
-        },
+{
+  catalogNumber: 'obs_1',
+  landcover: 'forest',
+  bio_1: 2.1,
+},
       ],
       summaryStats: [
         {
@@ -1069,9 +1085,10 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_1', originId: 0, value: 2.1 },
-        },
+{
+  catalogNumber: 'obs_1',
+  bio_1: 2.1,
+},
       ],
       summaryStats: [
         {
@@ -1200,14 +1217,16 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_ca', originId: 0, value: 2.1 },
-          landcover: { catalogNumber: 'obs_ca', originId: 0, value: 52 },
-        },
-        {
-          bio_1: { catalogNumber: 'obs_nv', originId: 0, value: 3.1 },
-          landcover: { catalogNumber: 'obs_nv', originId: 0, value: 130 },
-        },
+{
+  catalogNumber: 'obs_ca',
+  bio_1: 2.1,
+  landcover: 52,
+},
+{
+  catalogNumber: 'obs_nv',
+  bio_1: 3.1,
+  landcover: 130,
+},
       ],
       summaryStats: [
         {
@@ -1295,12 +1314,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_nj', originId: 0, value: 2.1 },
-        },
-        {
-          bio_1: { catalogNumber: 'obs_co', originId: 0, value: 3.1 },
-        },
+{
+  catalogNumber: 'obs_nj',
+  bio_1: 2.1,
+},
+{
+  catalogNumber: 'obs_co',
+  bio_1: 3.1,
+},
       ],
       summaryStats: [
         {
@@ -1365,12 +1386,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrenceIndex: [
-        {
-          bio_1: { catalogNumber: 'obs_selected', originId: 0, value: 2.1 },
-        },
-        {
-          bio_1: { catalogNumber: 'obs_other', originId: 0, value: 3.1 },
-        },
+{
+  catalogNumber: 'obs_selected',
+  bio_1: 2.1,
+},
+{
+  catalogNumber: 'obs_other',
+  bio_1: 3.1,
+},
       ],
       summaryStats: [
         {
