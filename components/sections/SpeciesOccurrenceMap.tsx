@@ -53,7 +53,10 @@ function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
 }
 
 type TileClassEntry = { id: number; count: number };
-type TileClassesMessage = { type: 'tileClasses' | 'tileClassesRemoved'; classes: TileClassEntry[] };
+type TileClassesMessage = {
+  type: 'tileClasses' | 'tileClassesRemoved';
+  classes: TileClassEntry[];
+};
 
 function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
   return (
@@ -100,7 +103,10 @@ type SpeciesOccurrenceMapProps = {
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
-  onTileClasses?: (classes: Array<{ id: number; count: number }>, removed: boolean) => void;
+  onTileClasses?: (
+    classes: { id: number; count: number }[],
+    removed: boolean,
+  ) => void;
   onPointValue?: (value: number) => void;
   pointQueryUrl?: string | null;
   renderMin?: number | null;
@@ -198,7 +204,13 @@ export function SpeciesOccurrenceMap({
         onPointValue?.(msg.value);
       }
     },
-    [handlePinObservation, onBoundsChange, onTileClasses, onPointValue, openExternalUrl],
+    [
+      handlePinObservation,
+      onBoundsChange,
+      onTileClasses,
+      onPointValue,
+      openExternalUrl,
+    ],
   );
 
   const hasOccurrences = occurrences.length > 0;
@@ -414,11 +426,7 @@ export function SpeciesOccurrenceMap({
         return;
       }
 
-      if (
-        frameWindow &&
-        source === frameWindow &&
-        isTileClassesMessage(data)
-      ) {
+      if (frameWindow && source === frameWindow && isTileClassesMessage(data)) {
         onTileClasses?.(data.classes, data.type === 'tileClassesRemoved');
         return;
       }
@@ -433,7 +441,13 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [handlePinObservation, onBoundsChange, onTileClasses, onPointValue, openExternalUrl]);
+  }, [
+    handlePinObservation,
+    onBoundsChange,
+    onTileClasses,
+    onPointValue,
+    openExternalUrl,
+  ]);
 
   if (error) {
     return (
