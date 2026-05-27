@@ -243,12 +243,17 @@ export function useSpeciesEnvironmentState({
   );
 
   const summaryRanks = React.useMemo(() => {
-    const modeFraction = summary?.mode != null
-      ? (categoricalDistribution.find((c) => c.value === summary.mode)?.fraction ?? null)
-      : null;
-    const selectedFraction = selectedCategoryValue != null
-      ? (categoricalDistribution.find((c) => c.value === selectedCategoryValue)?.fraction ?? null)
-      : null;
+    const modeFraction =
+      summary?.mode != null
+        ? (categoricalDistribution.find((c) => c.value === summary.mode)
+            ?.fraction ?? null)
+        : null;
+    const selectedFraction =
+      selectedCategoryValue != null
+        ? (categoricalDistribution.find(
+            (c) => c.value === selectedCategoryValue,
+          )?.fraction ?? null)
+        : null;
     return {
       min: resolveRankForMetric('min', summary?.min),
       mean: resolveRankForMetric('mean', summary?.mean),
@@ -262,25 +267,39 @@ export function useSpeciesEnvironmentState({
       rbar: resolveRankForMetric('rbar', summary?.rbar, {
         allowHistogramFallback: false,
       }),
-      circular_std: resolveRankForMetric('circular_std', summary?.circular_std, {
-        allowHistogramFallback: false,
-      }),
-      unique_classes: resolveRankForMetric('unique_classes', summary?.unique_classes, {
-        allowHistogramFallback: false,
-      }),
+      circular_std: resolveRankForMetric(
+        'circular_std',
+        summary?.circular_std,
+        {
+          allowHistogramFallback: false,
+        },
+      ),
+      unique_classes: resolveRankForMetric(
+        'unique_classes',
+        summary?.unique_classes,
+        {
+          allowHistogramFallback: false,
+        },
+      ),
       entropy: resolveRankForMetric('entropy', summary?.entropy, {
         allowHistogramFallback: false,
       }),
-      mode_class: summary?.mode != null && modeFraction != null
-        ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {
-            allowHistogramFallback: false,
-          })
-        : null,
-      selected_class: selectedCategoryValue != null && selectedFraction != null
-        ? resolveRankForMetric(`class_${selectedCategoryValue}`, selectedFraction, {
-            allowHistogramFallback: false,
-          })
-        : null,
+      mode_class:
+        summary?.mode != null && modeFraction != null
+          ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {
+              allowHistogramFallback: false,
+            })
+          : null,
+      selected_class:
+        selectedCategoryValue != null && selectedFraction != null
+          ? resolveRankForMetric(
+              `class_${selectedCategoryValue}`,
+              selectedFraction,
+              {
+                allowHistogramFallback: false,
+              },
+            )
+          : null,
     };
   }, [
     resolveRankForMetric,
@@ -366,9 +385,10 @@ export function useSpeciesEnvironmentState({
         return null;
       }
 
-      const legendColor = selectedVariableMeta?.legendClasses?.find(
-        (cls) => String(cls.id) === String(pinnedValue),
-      )?.color ?? null;
+      const legendColor =
+        selectedVariableMeta?.legendClasses?.find(
+          (cls) => String(cls.id) === String(pinnedValue),
+        )?.color ?? null;
 
       return {
         value: pinnedValue,
@@ -376,7 +396,7 @@ export function useSpeciesEnvironmentState({
           ? pinnedValueLabel
           : String(pinnedValue),
         description: pinnedValueDescription,
-        color: legendColor,
+        ...(legendColor !== null ? { color: legendColor } : {}),
       };
     }, [
       isCategorical,
