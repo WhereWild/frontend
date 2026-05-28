@@ -504,14 +504,12 @@ function SpeciesEnvironmentSectionComponent({
                     min: null,
                     mean: null,
                     max: null,
+                    rbar: null,
+                    circular_std: null,
                   }
                 }
                 summaryComparisons={
-                  displayState?.summaryComparisons ?? {
-                    min: null,
-                    mean: null,
-                    max: null,
-                  }
+                  displayState?.summaryComparisons ?? {}
                 }
                 locationFilterActive={
                   displayState?.locationFilterActive ?? false
