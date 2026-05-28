@@ -467,23 +467,48 @@ function SpeciesEnvironmentSectionComponent({
           ]}
         >
           {isCircularVariable ? (
-            <PolarDensityChart
-              curve={displayState?.densityCurve}
-              fillColor={palette.background.brand.default}
-              lineColor={palette.background.brand.default}
-              guideColor={palette.text.default.secondary}
-              selection={displayState?.selectedDensityRange ?? null}
-              onSelectionChange={
-                slicingEnabled ? handleDensitySelectionChange : undefined
-              }
-              pinValue={numericPinnedValue}
-              pinLoading={pinnedLoading}
-              circularMean={
-                typeof displayState?.summary?.circular_mean === 'number'
-                  ? displayState.summary.circular_mean
-                  : null
-              }
-            />
+            <>
+              <PolarDensityChart
+                curve={displayState?.densityCurve}
+                fillColor={palette.background.brand.default}
+                lineColor={palette.background.brand.default}
+                guideColor={palette.text.default.secondary}
+                selection={displayState?.selectedDensityRange ?? null}
+                onSelectionChange={
+                  slicingEnabled ? handleDensitySelectionChange : undefined
+                }
+                pinValue={numericPinnedValue}
+                pinLoading={pinnedLoading}
+                circularMean={
+                  typeof displayState?.summary?.circular_mean === 'number'
+                    ? displayState.summary.circular_mean
+                    : null
+                }
+              />
+              <ContinuousInsights
+                showRankContext={displayState?.showRankContext ?? false}
+                rankContextOptions={displayState?.rankContextOptions ?? []}
+                selectedRankContext={displayState?.selectedRankContext ?? null}
+                onRankContextChange={handleRankContextChange}
+                summary={displayState?.summary}
+                valueType="circular"
+                summaryRanks={
+                  displayState?.summaryRanks ?? {
+                    min: null,
+                    mean: null,
+                    max: null,
+                    rbar: null,
+                    circular_std: null,
+                  }
+                }
+                summaryComparisons={
+                  displayState?.summaryComparisons ?? {}
+                }
+                locationFilterActive={
+                  displayState?.locationFilterActive ?? false
+                }
+              />
+            </>
           ) : (
             <>
               <DensityChart

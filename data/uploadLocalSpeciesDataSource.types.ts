@@ -74,6 +74,9 @@ export type UploadedSummaryStatsRow = {
   q99?: number | null;
   bins?: number[];
   counts?: number[];
+  circular_mean?: number | null;
+  rbar?: number | null;
+  circular_std?: number | null;
 };
 
 export type RawCategoricalStatsRow = {
@@ -122,6 +125,9 @@ export type RawSummaryStatsRow = {
   variableCategory?: unknown;
   units?: unknown;
   variableType?: unknown;
+  circular_mean?: unknown;
+  rbar?: unknown;
+  circular_std?: unknown;
   variable_type?: unknown;
   valueType?: unknown;
   value_type?: unknown;

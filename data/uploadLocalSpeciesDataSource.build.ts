@@ -257,6 +257,9 @@ const buildStatsByVariable = (
         q10: summaryRow?.q10 ?? null,
         q90: summaryRow?.q90 ?? null,
         q99: summaryRow?.q99 ?? null,
+        circular_mean: summaryRow?.circular_mean ?? null,
+        rbar: summaryRow?.rbar ?? null,
+        circular_std: summaryRow?.circular_std ?? null,
       },
       histogram:
         Array.isArray(summaryRow?.bins) && Array.isArray(summaryRow?.counts)
