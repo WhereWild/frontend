@@ -146,6 +146,9 @@ export type RawVariableMetadataRow = {
   valueType?: unknown;
   value_type?: unknown;
   source_ids?: unknown;
+  group?: unknown;
+  group_label?: unknown;
+  sort_order?: unknown;
 };
 
 export type RawUploadedParquetBundle = {

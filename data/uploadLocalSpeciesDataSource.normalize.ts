@@ -350,6 +350,10 @@ export const normalizeRawUploadedParquetBundle = (
     }
   });
 
+  const groupByVariable = new Map<string, string>();
+  const groupLabelByVariable = new Map<string, string>();
+  const sortOrderByVariable = new Map<string, number>();
+
   categoricalStats.forEach((row) => assignCategory(row.variable, row.variableCategory));
   categoricalValueLookup.forEach((row) => assignCategory(row.variable, row.variableCategory));
   densityGraph.forEach((row) => assignCategory(row.variable, row.variableCategory));
@@ -361,6 +365,18 @@ export const normalizeRawUploadedParquetBundle = (
       return;
     }
     assignCategory(variableId, row.category);
+    const group = toStringValue(row.group);
+    if (group && !groupByVariable.has(variableId)) {
+      groupByVariable.set(variableId, group);
+    }
+    const groupLabel = toStringValue(row.group_label);
+    if (groupLabel && !groupLabelByVariable.has(variableId)) {
+      groupLabelByVariable.set(variableId, groupLabel);
+    }
+    const sortOrder = typeof row.sort_order === 'number' ? row.sort_order : null;
+    if (sortOrder !== null && !sortOrderByVariable.has(variableId)) {
+      sortOrderByVariable.set(variableId, sortOrder);
+    }
   });
 
   const variableIds = new Set<string>([
@@ -420,7 +436,12 @@ export const normalizeRawUploadedParquetBundle = (
   });
 
   const normalizedVariableDefinitions = Array.from(variableIds)
-    .sort()
+    .sort((a, b) => {
+      const orderA = sortOrderByVariable.get(a) ?? Infinity;
+      const orderB = sortOrderByVariable.get(b) ?? Infinity;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b);
+    })
     .map((variable): EnvironmentVariableDefinition => {
       const existing = variableDefinitionsById.get(variable);
       const inferredValueType = categoricalVariables.has(variable)
@@ -436,6 +457,8 @@ export const normalizeRawUploadedParquetBundle = (
         valueType: inferredValueType ?? variableTypeById.get(variable) ?? null,
         domain: existing?.domain ?? domainByVariable.get(variable) ?? null,
         category: existing?.category ?? categoryByVariable.get(variable) ?? null,
+        group: existing?.group ?? groupByVariable.get(variable) ?? null,
+        groupLabel: existing?.groupLabel ?? groupLabelByVariable.get(variable) ?? null,
         ...(sourceIds?.length ? { sourceIds } : {}),
       };
     });
