@@ -294,7 +294,7 @@ export const normalizeRawUploadedParquetBundle = (
     });
   });
 
-  const summaryStats = rawBundle.summaryStats
+  const summaryStats = [...rawBundle.summaryStats, ...(rawBundle.circularStats ?? [])]
     .map((row): UploadedSummaryStatsRow | null => {
       const variable = toStringValue(row.variable);
       const variableCategory = toStringValue(row.variableCategory);
