@@ -57,6 +57,10 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
     required: true,
   },
   {
+    key: 'circularStats',
+    aliases: buildTableAliases('circular_stats'),
+  },
+  {
     key: 'categoricalValueLookup',
     aliases: buildTableAliases('categorical_value_lookup'),
   },
@@ -306,6 +310,7 @@ export const parseUploadedParquetZipToRawBundle = async (
 
   const [
     categoricalStatsRows,
+    circularStatsRows,
     categoricalValueLookupRows,
     densityGraphRows,
     occurrenceRows,
@@ -315,6 +320,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     dataSources,
   ] = await Promise.all([
     readTable('categoricalStats'),
+    readTable('circularStats'),
     readTable('categoricalValueLookup'),
     readTable('densityGraph'),
     readTable('occurrences'),
@@ -330,6 +336,7 @@ export const parseUploadedParquetZipToRawBundle = async (
 
   return {
     categoricalStats: toTypedRows<RawCategoricalStatsRow>(categoricalStatsRows),
+    circularStats: toTypedRows<RawSummaryStatsRow>(circularStatsRows),
     categoricalValueLookup: toTypedRows<RawCategoricalValueLookupRow>(
       categoricalValueLookupRows,
     ),

@@ -153,6 +153,7 @@ export type RawVariableMetadataRow = {
 
 export type RawUploadedParquetBundle = {
   categoricalStats: RawCategoricalStatsRow[];
+  circularStats?: RawSummaryStatsRow[];
   categoricalValueLookup?: RawCategoricalValueLookupRow[];
   densityGraph: RawDensityGraphRow[];
   occurrences: RawOccurrenceRow[];
