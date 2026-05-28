@@ -19,6 +19,7 @@ type AsyncBufferLike = {
 
 type UploadParquetTableKey =
   | 'categoricalStats'
+  | 'circularStats'
   | 'categoricalValueLookup'
   | 'densityGraph'
   | 'occurrences'

@@ -491,13 +491,15 @@ export function DensityChart({
               ) : null}
             </>
           )}
-          <Path
-            d={`M${start!.x},0 L${end!.x},0 L${end!.x},${CHART_HEIGHT} L${start!.x},${CHART_HEIGHT} Z`}
-            fill='none'
-            stroke={baselineColor}
-            strokeWidth={2}
-            vectorEffect='non-scaling-stroke'
-          />
+          {start && end ? (
+            <Path
+              d={`M${start.x},0 L${end.x},0 L${end.x},${CHART_HEIGHT} L${start.x},${CHART_HEIGHT} Z`}
+              fill='none'
+              stroke={baselineColor}
+              strokeWidth={2}
+              vectorEffect='non-scaling-stroke'
+            />
+          ) : null}
           {meanPosition != null && Number.isFinite(meanPosition) ? (
             <Path
               d={`M${meanPosition},0 L${meanPosition},${CHART_HEIGHT}`}

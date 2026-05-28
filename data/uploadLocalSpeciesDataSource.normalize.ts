@@ -329,6 +329,9 @@ export const normalizeRawUploadedParquetBundle = (
         stddev: toFiniteNumber(row.std),
         q10: toFiniteNumber(row['10th percentile']),
         q90: toFiniteNumber(row['90th percentile']),
+        circular_mean: toFiniteNumber(row.circular_mean),
+        rbar: toFiniteNumber(row.rbar),
+        circular_std: toFiniteNumber(row.circular_std),
       };
     })
     .filter((row): row is UploadedSummaryStatsRow => row !== null);
