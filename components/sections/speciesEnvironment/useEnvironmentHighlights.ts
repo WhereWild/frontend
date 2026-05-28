@@ -313,7 +313,12 @@ export function useEnvironmentHighlights({
                 pinnedObservation.lat,
                 pinnedObservation.lon,
                 selectedVariable,
-                { units },
+                {
+                  units,
+                  ...(!isSyntheticPinnedPoint(pinnedObservation.catalogNumber) && taxonId
+                    ? { taxonId, catalogNumber: pinnedObservation.catalogNumber }
+                    : {}),
+                },
               );
         if (pinnedRequestRef.current !== requestId) {
           return;
