@@ -373,7 +373,7 @@ export const normalizeRawUploadedParquetBundle = (
     if (groupLabel && !groupLabelByVariable.has(variableId)) {
       groupLabelByVariable.set(variableId, groupLabel);
     }
-    const sortOrder = typeof row.sort_order === 'number' ? row.sort_order : null;
+    const sortOrder = toFiniteNumber(row.sort_order);
     if (sortOrder !== null && !sortOrderByVariable.has(variableId)) {
       sortOrderByVariable.set(variableId, sortOrder);
     }
