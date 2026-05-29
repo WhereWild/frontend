@@ -1,5 +1,3 @@
-const strictCoverage = process.env.STRICT_COVERAGE === 'true';
-
 module.exports = {
   preset: 'jest-expo',
   transformIgnorePatterns: [
@@ -31,18 +29,14 @@ module.exports = {
     '!**/coverage/**',
     '!app-example/**'
   ],
-  ...(strictCoverage
-    ? {
-        coverageThreshold: {
-          global: {
-            branches: 90,
-            functions: 90,
-            lines: 90,
-            statements: 90,
-          },
-        },
-      }
-    : {}),
+  coverageThreshold: {
+    global: {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
   coverageReporters: ['json', 'json-summary', 'lcov', 'text', 'cobertura'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
