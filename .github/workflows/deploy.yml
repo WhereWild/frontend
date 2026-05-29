@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web export
+        env:
+          APP_BACKEND_URL: https://api.wherewild.net
+          APP_STADIA_MAPS_API_KEY: ${{ secrets.STADIA_MAPS_API_KEY }}
+        run: npm run export:web -- --backendUrl=https://api.wherewild.net
+
+      - name: Push dist to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: dist/
+          target: /opt/wherewild/front-end/dist
+          strip_components: 1
+
+      - name: Rebuild and restart frontend container
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/wherewild/wherewild-v2
+            docker compose -f docker-compose.prod.yml build frontend
+            docker compose -f docker-compose.prod.yml up -d frontend
