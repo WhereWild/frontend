@@ -45,7 +45,7 @@ export function normalizeToJsonShape(item: unknown): SpeciesApiNormalized {
       : '';
 
   const commonNames = normalizeCommonNames(
-    source.common_names ?? source.commonNames,
+    source.common_names ?? source.commonNames ?? source.vernacular_names,
   );
 
   const rawCommon =
