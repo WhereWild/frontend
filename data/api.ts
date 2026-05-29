@@ -5,7 +5,7 @@ import type {
   SpeciesApiNormalized,
 } from './types';
 import { parseSpeciesApiDetail } from './speciesDetailParser';
-import { BACKEND_BASE, fetchJsonOrThrow } from './apiShared';
+import { BACKEND_BASE, fetchJsonOrThrow, withVersion } from './apiShared';
 import {
   fetchRelativeRankingOptions as fetchRelativeRankingOptionsHelper,
   type FetchRelativeRankingOptionsOptions,
@@ -211,7 +211,7 @@ export async function fetchSpeciesByTaxonId(
     params.set('unit_system', options.units);
   }
   const query = params.toString();
-  const url = `${BACKEND_BASE}/api/species/${encoded}${query ? `?${query}` : ''}`;
+  const url = withVersion(`${BACKEND_BASE}/api/species/${encoded}${query ? `?${query}` : ''}`);
   const item = await fetchJsonOrThrow(
     url,
     `Failed to fetch species ${taxonId}`,
@@ -228,7 +228,7 @@ export async function fetchSpeciesObscured(
 ): Promise<{ taxon_id: number; all_obscured: boolean }> {
   const encoded = encodeURIComponent(String(taxonId));
   const item = (await fetchJsonOrThrow(
-    `${BACKEND_BASE}/api/species/${encoded}/obscured`,
+    withVersion(`${BACKEND_BASE}/api/species/${encoded}/obscured`),
     `Failed to fetch obscured status for species ${taxonId}`,
   )) as Record<string, unknown>;
   return {
@@ -307,7 +307,7 @@ export async function fetchSpeciesEnvironmentCategorySamples(
  * Fetches structured citation metadata for all environmental data sources.
  */
 export async function fetchDataSources(): Promise<Record<string, DataSource>> {
-  const url = `${BACKEND_BASE}/data-sources`;
+  const url = withVersion(`${BACKEND_BASE}/data-sources`);
   const data = await fetchJsonOrThrow(url, 'Failed to fetch data sources');
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     return data as Record<string, DataSource>;

@@ -3,7 +3,7 @@ import type {
   LocationHierarchyEntry,
   LocationSearchResult,
 } from './types';
-import { BACKEND_BASE, asRecord, fetchJsonOrThrow } from './apiShared';
+import { BACKEND_BASE, asRecord, fetchJsonOrThrow, withVersion } from './apiShared';
 
 export type FetchLocationByGidOptions = {
   signal?: AbortSignal;
@@ -222,7 +222,7 @@ export async function fetchSpeciesLocations(
   }
 
   const query = params.toString();
-  const url = `${BACKEND_BASE}/species/${encodedId}/locations${query ? `?${query}` : ''}`;
+  const url = withVersion(`${BACKEND_BASE}/species/${encodedId}/locations${query ? `?${query}` : ''}`);
   const payload = await fetchJsonOrThrow(
     url,
     `Failed to fetch species locations for ${taxonId}`,

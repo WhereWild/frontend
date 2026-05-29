@@ -4,6 +4,7 @@ import {
   asRecord,
   BACKEND_BASE,
   fetchJsonOrThrow,
+  withVersion,
   parseNumericTaxonId,
   toOptionalString,
   toRequiredNumber,
@@ -171,7 +172,7 @@ export async function fetchTaxaQuery(
 ): Promise<TaxaQueryResponse> {
   const query = buildTaxaQuerySearchParams(params);
 
-  const url = `${BACKEND_BASE}/api/taxa/query${query.toString() ? `?${query.toString()}` : ''}`;
+  const url = withVersion(`${BACKEND_BASE}/api/taxa/query${query.toString() ? `?${query.toString()}` : ''}`);
   const requestOptions = options?.signal
     ? { signal: options.signal }
     : undefined;

@@ -6,6 +6,27 @@ const runtimeBackendBase = Constants.expoConfig?.extra?.backendUrl;
 /** Base URL for backend API requests. */
 export const BACKEND_BASE = runtimeBackendBase || 'http://localhost:8000';
 
+let _cachedVersion: string | null = null;
+
+// Fetch version eagerly at module load so it's ready by the time species pages load.
+fetch(`${BACKEND_BASE}/version`)
+  .then((r) => r.json())
+  .then((data: unknown) => {
+    const v = (data as Record<string, unknown>)?.version;
+    if (typeof v === 'string' && v) _cachedVersion = v;
+  })
+  .catch(() => {});
+
+/**
+ * Appends ?v={crawl_version} to a URL for Cloudflare cache-busting.
+ * No-ops if the version hasn't been fetched yet or is unavailable.
+ */
+export const withVersion = (url: string): string => {
+  if (!_cachedVersion) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}v=${encodeURIComponent(_cachedVersion)}`;
+};
+
 /** Shared JSON object shape used by parser helpers. */
 export type { JsonRecord };
 /** Shared parser helpers re-exported for API helper modules. */

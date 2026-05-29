@@ -12,7 +12,7 @@ import {
   parseSpeciesEnvironmentStats,
   toFiniteNumber,
 } from './environmentParsers';
-import { BACKEND_BASE, asRecord, fetchJsonOrThrow } from './apiShared';
+import { BACKEND_BASE, asRecord, fetchJsonOrThrow, withVersion } from './apiShared';
 
 type LocationOptions = {
   location?: string | null;
@@ -58,7 +58,7 @@ export async function fetchSpeciesEnvironment(
     params.set('end_ts', String(options.endTs));
   }
   const query = params.toString();
-  const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
+  const url = withVersion(`${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`);
   const payload = await fetchJsonOrThrow(
     url,
     `Failed to fetch environment stats (${variableId}) for ${taxonId}`,
@@ -97,7 +97,7 @@ export async function fetchEnvironmentRangeSlice(
   if (endTs != null) {
     query.set('end_ts', String(endTs));
   }
-  const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
+  const url = withVersion(`${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`);
   const payload = await fetchJsonOrThrow(
     url,
     `Failed to fetch environment slice (${variableId}) for ${taxonId}`,
@@ -137,7 +137,7 @@ export async function fetchSpeciesEnvironmentCategorySamples(
     query.set('end_ts', String(options.endTs));
   }
   const queryString = query.toString();
-  const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;
+  const url = withVersion(`${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`);
   const payload = await fetchJsonOrThrow(
     url,
     `Failed to fetch samples for ${variableId}=${classValue}`,
@@ -167,7 +167,7 @@ export async function fetchSpeciesOccurrences(
     params.set('end_ts', String(options.endTs));
   }
   const query = params.toString();
-  const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
+  const url = withVersion(`${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`);
   const payload = asRecord(await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`));
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
   const occurrences: SpeciesOccurrence[] = rows

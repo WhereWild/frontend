@@ -6,6 +6,7 @@ import {
   parseNumericTaxonId,
   toRequiredNumber,
   toRequiredString,
+  withVersion,
 } from './apiShared';
 
 
@@ -33,7 +34,7 @@ export async function fetchRelativeRankingOptions(
   });
   const payload = asRecord(
     await fetchJsonOrThrow(
-      `${BACKEND_BASE}/api/taxa/ranking-options?${query.toString()}`,
+      withVersion(`${BACKEND_BASE}/api/taxa/ranking-options?${query.toString()}`),
       'Failed to fetch ranking options',
       requestOptions?.signal ? { signal: requestOptions.signal } : undefined,
     ),
