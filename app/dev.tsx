@@ -38,6 +38,7 @@ import { DateRangeSlider } from '@/components/inputs/DateRangeSlider';
 import type { MonthYear } from '@/components/inputs/DateRangeSlider';
 import Head from 'expo-router/head';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useOptionalSettings } from '@/context/SettingsContext';
 import { Platform, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
@@ -71,9 +72,7 @@ const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
     category: 'Bioclim',
   },
 ];
-const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal', 'recent weather']);
-// Variables in the temporal catalog that are also live-weather display variables.
-const ABOUT_MAP_LIVE_WEATHER_IDS = new Set(['weather_code_simple']);
+const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal']);
 const ABOUT_WINDOW_OPTIONS: SelectOption[] = [
   { value: 'live', label: 'Live (current)' },
   { value: '1h', label: 'Last 1 hour' },
@@ -155,7 +154,6 @@ const mapAboutVariableOptions = (
   return variables
     .filter((entry) => {
       const category = (entry.category ?? '').toLowerCase();
-      if (ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)) return true;
       return !ABOUT_MAP_EXCLUDED_CATEGORIES.has(category);
     })
     .map((entry) => ({
@@ -163,22 +161,11 @@ const mapAboutVariableOptions = (
       label: entry.name ?? normalizeLabel(entry.id),
       units: entry.units ?? null,
       valueType: entry.valueType ?? null,
-      category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)
-        ? 'Live Weather'
-        : (entry.category ?? 'Other'),
+      category: entry.category ?? 'Other',
       legendClasses: entry.legendClasses ?? null,
       renderMin: entry.renderMin ?? null,
       renderMax: entry.renderMax ?? null,
-    }))
-    .sort((left, right) => {
-      const categoryComparison = (left.category ?? '').localeCompare(
-        right.category ?? '',
-      );
-      if (categoryComparison !== 0) {
-        return categoryComparison;
-      }
-      return left.label.localeCompare(right.label);
-    });
+    }));
 };
 
 const buildAboutVariableTileUrl = ({
@@ -208,6 +195,8 @@ const buildAboutVariableTileUrl = ({
 };
 
 export default function About() {
+  const settings = useOptionalSettings();
+  const unitSystem = settings?.units ?? 'metric';
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -265,7 +254,7 @@ export default function About() {
 
     (async () => {
       try {
-        const variables = await fetchEnvironmentVariables();
+        const variables = await fetchEnvironmentVariables({ units: unitSystem });
         if (cancelled || !variables.length) {
           return;
         }
@@ -282,7 +271,7 @@ export default function About() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [unitSystem]);
 
   const {
     categories: mapVariableCategories,
@@ -1442,7 +1431,7 @@ export default function About() {
                   onPointValue={handleMapPointValue}
                   pointQueryUrl={
                     mapSelectedVariableMeta?.valueType != null
-                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}&unit_system=${unitSystem}`
                       : null
                   }
                   isCircular={
