@@ -1,145 +1,60 @@
-import { Colors, Shadows } from '@/constants/theme';
-import { ActiveNearYouSection, HomeRecommendationFilter } from '@/components';
+import {
+  PageScrollContainer,
+  PageTitle,
+  ThemedText,
+} from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { useNativeHomeTabs } from '@/context/NativeHomeTabsContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
+import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { WebHomeDashboard } from '../components/sections/WebHomeDashboard';
 
-function ExploreScreenContent({
-  activeGroup,
-  allScored,
-  isFilterVisible,
-  recommendations,
-  scoresLoading,
-  setActiveGroup,
-}: {
-  activeGroup: string;
-  allScored: ReturnType<typeof useNativeHomeTabs>['allScored'];
-  isFilterVisible: boolean;
-  recommendations: ReturnType<typeof useNativeHomeTabs>['recommendations'];
-  scoresLoading: boolean;
-  setActiveGroup: ReturnType<typeof useNativeHomeTabs>['setActiveGroup'];
-}) {
+export default function HomeScreen() {
   const responsive = useResponsive();
-  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
-  const [isListScrolled, setIsListScrolled] = React.useState(false);
-  const horizontalInsetStyle = {
-    paddingHorizontal: responsive.marginHorizontal,
-  };
 
   return (
     <PageSurface>
-      <View style={styles.screen}>
+      <PageScrollContainer
+        contentContainerStyle={getResponsiveContentContainerStyle(responsive, {
+          includeHorizontalPadding: false,
+          includeBottomPadding: true,
+          includeGap: true,
+        })}
+        bounces={false}
+      >
+        {Platform.OS === 'web' ? <PageTitle title='Home' /> : null}
         <View
-          testID='native-explore-content'
-          style={styles.nativeExploreContent}
+          style={[
+            styles.contentShell,
+            getResponsiveContentContainerStyle(responsive, {
+              includeWidth: false,
+              includeTopPadding: false,
+            }),
+          ]}
         >
-          <View
-            collapsable={false}
-            testID='explore-filter-slot'
-            accessibilityElementsHidden={!isFilterVisible}
-            importantForAccessibility={
-              isFilterVisible ? 'auto' : 'no-hide-descendants'
-            }
-            style={[
-              styles.filterSlot,
-              isFilterVisible && { paddingTop: responsive.gap },
-              !isFilterVisible && styles.hiddenSlot,
-            ]}
-          >
-            <View
-              testID='explore-filter-surface'
-              style={[
-                styles.filterSurface,
-                { backgroundColor: palette.background.default.default },
-                isFilterVisible && { paddingBottom: responsive.gap },
-              ]}
-            >
-              <View
-                testID='explore-filter-shadow-seam'
-                pointerEvents='none'
-                style={[
-                  styles.filterShadowSeam,
-                  { backgroundColor: palette.background.default.default },
-                  isFilterVisible &&
-                    isListScrolled &&
-                    Shadows.dropShadow200.style,
-                ]}
-              />
-              <View style={horizontalInsetStyle}>
-                <HomeRecommendationFilter
-                  allRecommendations={allScored}
-                  activeGroup={activeGroup}
-                  onGroupChange={setActiveGroup}
-                  loading={scoresLoading}
-                />
-              </View>
-            </View>
+          <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
+            <ThemedText variant='body'>
+              {'Use '}
+              <ThemedText variant='bodyEmphasis'>{'Search '}</ThemedText>
+              {'in the navigation bar to find and explore species. Visit the '}
+              <ThemedText variant='bodyEmphasis'>{'About '}</ThemedText>
+              {'page to learn more about WhereWild.'}
+            </ThemedText>
           </View>
-          <ActiveNearYouSection
-            recommendations={recommendations}
-            allRecommendations={allScored}
-            activeGroup={activeGroup}
-            loading={scoresLoading}
-            showHeading={false}
-            style={[styles.nativeContent, horizontalInsetStyle]}
-            nativeFirstItemTopMargin={isFilterVisible ? 0 : responsive.gap}
-            onNativeScrolledChange={setIsListScrolled}
-          />
         </View>
-      </View>
+      </PageScrollContainer>
     </PageSurface>
   );
 }
 
-function NativeExploreScreen() {
-  const state = useNativeHomeTabs();
-  return <ExploreScreenContent {...state} />;
-}
-
-export default function HomeScreen() {
-  if (Platform.OS === 'web') {
-    return <WebHomeDashboard />;
-  }
-
-  return <NativeExploreScreen />;
-}
-
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  nativeExploreContent: {
-    flex: 1,
-    minHeight: 0,
+  contentShell: {
     width: '100%',
+    alignItems: 'center',
   },
-  nativeContent: {
-    flex: 1,
-    minHeight: 0,
-  },
-  filterSlot: {
+  content: {
     width: '100%',
-  },
-  filterSurface: {
-    position: 'relative',
-    width: '100%',
-    zIndex: 1,
-  },
-  filterShadowSeam: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 1,
-  },
-  hiddenSlot: {
-    height: 0,
-    opacity: 0,
-    overflow: 'hidden',
+    alignSelf: 'center',
+    gap: Size.space.text.section,
   },
 });
