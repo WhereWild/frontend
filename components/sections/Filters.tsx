@@ -17,6 +17,12 @@ import { GadmAttribution } from './GadmAttribution';
 import { SourceAttribution } from './SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
 import { Size } from '@/constants/theme';
+import {
+  formatWindowHours,
+  isTemporalId,
+  parseTemporalId,
+  stripTemporalSuffix,
+} from './speciesEnvironment/temporalHelpers';
 
 const prependAllOption = (
   options: SelectOption[],
@@ -150,6 +156,59 @@ export function Filters({
     [countyOptions],
   );
 
+  const isTemporalSortCategory = React.useMemo(
+    () => sortVariableOptions.some((v) => isTemporalId(v.value)),
+    [sortVariableOptions],
+  );
+
+  const parsedSelectedSort = React.useMemo(
+    () => (isTemporalSortCategory ? parseTemporalId(sortVariableValue) : null),
+    [isTemporalSortCategory, sortVariableValue],
+  );
+
+  const temporalSortBaseOptions = React.useMemo(() => {
+    if (!isTemporalSortCategory) return [];
+    const seen = new Map<string, string>();
+    for (const v of sortVariableOptions) {
+      const parsed = parseTemporalId(v.value);
+      if (parsed) {
+        if (!seen.has(parsed.baseId)) {
+          seen.set(parsed.baseId, stripTemporalSuffix(v.label));
+        }
+      } else if (!seen.has(v.value)) {
+        seen.set(v.value, v.label);
+      }
+    }
+    return Array.from(seen.entries()).map(([value, label]) => ({ value, label }));
+  }, [isTemporalSortCategory, sortVariableOptions]);
+
+  const selectedSortBaseKey =
+    parsedSelectedSort?.baseId ?? (isTemporalSortCategory ? sortVariableValue : null);
+
+  const sortWindowOptions = React.useMemo(() => {
+    if (!isTemporalSortCategory || !selectedSortBaseKey) return [];
+    return sortVariableOptions
+      .flatMap((v) => {
+        const p = parseTemporalId(v.value);
+        return p && p.baseId === selectedSortBaseKey ? [{ p, id: v.value }] : [];
+      })
+      .sort((a, b) => a.p.windowHours - b.p.windowHours)
+      .map(({ p, id }) => ({ value: id, label: formatWindowHours(p.windowHours) }));
+  }, [isTemporalSortCategory, selectedSortBaseKey, sortVariableOptions]);
+
+  const handleSortBaseChange = React.useCallback(
+    (newBase: string) => {
+      const firstWindow = sortVariableOptions
+        .flatMap((v) => {
+          const p = parseTemporalId(v.value);
+          return p && p.baseId === newBase ? [{ p, id: v.value }] : [];
+        })
+        .sort((a, b) => a.p.windowHours - b.p.windowHours)[0];
+      onSortVariableChange?.(firstWindow ? firstWindow.id : newBase);
+    },
+    [sortVariableOptions, onSortVariableChange],
+  );
+
   return (
     <View style={[styles.container, style]}>
       <ThemedText variant='heading'>Filters</ThemedText>
@@ -206,14 +265,35 @@ export function Filters({
           onValueChange={onIncludeSubspeciesChange}
           style={styles.switchFieldFull}
         />
-        <SelectField
-          label='Variable'
-          placeholder='Select variable'
-          disabled={sortVariableDisabled}
-          value={sortVariableValue}
-          options={sortVariableOptions}
-          onValueChange={onSortVariableChange}
-        />
+        {isTemporalSortCategory ? (
+          <>
+            <SelectField
+              label='Variable'
+              placeholder='Select variable'
+              disabled={sortVariableDisabled}
+              value={selectedSortBaseKey ?? temporalSortBaseOptions[0]?.value ?? ''}
+              options={temporalSortBaseOptions}
+              onValueChange={handleSortBaseChange}
+            />
+            <SelectField
+              label='Window'
+              placeholder='Select window'
+              disabled={sortVariableDisabled || sortWindowOptions.length === 0}
+              value={sortWindowOptions.length > 0 ? sortVariableValue : ''}
+              options={sortWindowOptions}
+              onValueChange={onSortVariableChange}
+            />
+          </>
+        ) : (
+          <SelectField
+            label='Variable'
+            placeholder='Select variable'
+            disabled={sortVariableDisabled}
+            value={sortVariableValue}
+            options={sortVariableOptions}
+            onValueChange={onSortVariableChange}
+          />
+        )}
         {sortVariableSourceIds && sortVariableSourceIds.length > 0 && (
           <SourceAttribution
             sourceIds={sortVariableSourceIds}

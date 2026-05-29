@@ -306,7 +306,10 @@ export function useSearchFiltersEffects({
         );
 
         if (scopedVariables.length === 0) {
-          dispatch({ type: 'set-sort-variable-options', options });
+          // Ranking options haven't loaded yet. Don't overwrite sortVariableOptions with the
+          // full env-var list — temporal variable IDs (e.g. temperature_2m_avg_1h) won't be
+          // present there, which would cause the validation effect to reset a URL-provided
+          // temporal sortVariable before the scoped options arrive.
           return;
         }
 
