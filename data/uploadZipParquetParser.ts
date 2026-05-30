@@ -78,7 +78,6 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   {
     key: 'occurrenceIndex',
     aliases: buildTableAliases('occurrence_index'),
-    required: true,
   },
   {
     key: 'summaryStats',

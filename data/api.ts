@@ -337,36 +337,83 @@ export async function fetchSpeciesLocations(
   return fetchSpeciesLocationsHelper(taxonId, level, parent, limit);
 }
 
+type UploadJobStatus = {
+  job_id: string;
+  status: 'queued' | 'processing' | 'done' | 'error';
+  position: number;
+  error?: string | null;
+};
+
+export type UploadProgressUpdate = {
+  status: 'queued' | 'processing';
+  position: number;
+};
+
 /**
- * Uploads a file to the backend upload endpoint and returns the binary file response.
+ * Uploads a file, waits in the server-side queue, and returns the processed ZIP.
+ * Calls onProgress with queue position updates while waiting.
  */
 export async function uploadRawObservations(
   params: UploadFileParams,
+  onProgress?: (update: UploadProgressUpdate) => void,
 ): Promise<UploadFileResponse> {
   const fieldName = params.fieldName ?? 'file';
-  const endpoint = resolveUploadEndpoint('/upload/raw-observations');
   const formData = new FormData();
-
   appendUploadPayload(formData, fieldName, params.file, params.filename);
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    body: formData,
-  });
+  const submitResponse = await fetch(
+    resolveUploadEndpoint('/upload/raw-observations'),
+    { method: 'POST', body: formData },
+  );
 
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '');
+  if (!submitResponse.ok) {
+    const errorBody = await submitResponse.text().catch(() => '');
     throw new Error(
-      `Failed to upload file: ${response.status}${errorBody ? ` ${errorBody}` : ''}`,
+      `Failed to upload file: ${submitResponse.status}${errorBody ? ` ${errorBody}` : ''}`,
+    );
+  }
+
+  let job: UploadJobStatus = await submitResponse.json();
+
+  const reportProgress = () => {
+    if (job.status === 'queued' || job.status === 'processing') {
+      onProgress?.({ status: job.status, position: job.position });
+    }
+  };
+
+  reportProgress();
+
+  const statusEndpoint = resolveUploadEndpoint(`/upload/status/${job.job_id}`);
+  while (job.status === 'queued' || job.status === 'processing') {
+    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+    const statusResponse = await fetch(statusEndpoint);
+    if (!statusResponse.ok) {
+      throw new Error(`Failed to check upload status: ${statusResponse.status}`);
+    }
+    job = await statusResponse.json();
+    reportProgress();
+  }
+
+  if (job.status === 'error') {
+    throw new Error(job.error ?? 'Processing failed on the server.');
+  }
+
+  const downloadResponse = await fetch(
+    resolveUploadEndpoint(`/upload/download/${job.job_id}`),
+  );
+  if (!downloadResponse.ok) {
+    const errorBody = await downloadResponse.text().catch(() => '');
+    throw new Error(
+      `Failed to download result: ${downloadResponse.status}${errorBody ? ` ${errorBody}` : ''}`,
     );
   }
 
   return {
-    blob: await response.blob(),
+    blob: await downloadResponse.blob(),
     filename: parseFilenameFromContentDisposition(
-      response.headers.get('content-disposition'),
+      downloadResponse.headers.get('content-disposition'),
     ),
-    contentType: response.headers.get('content-type'),
-    status: response.status,
+    contentType: downloadResponse.headers.get('content-type'),
+    status: downloadResponse.status,
   };
 }

@@ -193,10 +193,20 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     setZipUploadError(null);
     setZipUploadWarning(null);
     try {
-      const response = await uploadRawObservations({
-        file: createFilePayload(file),
-        filename: file.name,
-      });
+      const response = await uploadRawObservations(
+        { file: createFilePayload(file), filename: file.name },
+        ({ status, position }) => {
+          if (status === 'queued') {
+            setRawUploadStatusMessage(
+              position > 1
+                ? `Position ${position} in queue…`
+                : 'Queued for processing…',
+            );
+          } else {
+            setRawUploadStatusMessage('Processing…');
+          }
+        },
+      );
 
       const filename = response.filename ?? DEFAULT_PROCESSED_ZIP_FILENAME;
       setDownloadableProcessedZip({
