@@ -2,7 +2,10 @@ name: Deploy
 
 on:
   push:
-    branches: [main, feature/deploy-new]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
