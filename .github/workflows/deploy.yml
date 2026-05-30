@@ -29,7 +29,9 @@ jobs:
         run: npm run export:web -- --backendUrl=https://api.wherewild.net
 
       - name: Copy dist to server
-        run: rsync -av dist/ ~/wherewild/frontend/dist/
+        run: |
+          cd ~/wherewild/frontend && git pull origin main
+          rsync -av $GITHUB_WORKSPACE/dist/ ~/wherewild/frontend/dist/
 
       - name: Rebuild and restart frontend container
         run: |
