@@ -85,7 +85,7 @@ jobs:
 
   export:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main", "refs/heads/feature/publish-container"]'), github.ref)
     needs: [lint, typecheck, test, validate-tokens]
     steps:
       - uses: actions/checkout@v5
