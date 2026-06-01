@@ -657,6 +657,8 @@ export default function About() {
                 onSortMetricChange={setFilterSortMetric}
                 sortOrder={filterSortOrder}
                 onSortOrderChange={setFilterSortOrder}
+                sortReference={0}
+                minRbar={0.15}
                 numberOfResults={filterNumResults}
                 onNumberOfResultsChange={setFilterNumResults}
                 minimumSamples={filterMinSamples}

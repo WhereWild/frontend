@@ -83,6 +83,8 @@ export function useTaxaQuerySearch({
   const sortVariable = filterParams?.sortVariable ?? null;
   const sortMetric = filterParams?.sortMetric ?? null;
   const sortOrder = filterParams?.sortOrder ?? null;
+  const sortReference = filterParams?.sortReference ?? null;
+  const minRbar = filterParams?.minRbar ?? null;
   const limit = filterParams?.limit ?? SEARCH_RESULT_LIMIT;
   const minSamples = filterParams?.minSamples ?? 0;
   const includeSpeciesLike = filterParams?.includeSpeciesLike ?? null;
@@ -135,6 +137,8 @@ export function useTaxaQuerySearch({
       sortVariable,
       sortMetric,
       sortOrder,
+      sortReference,
+      minRbar,
       limit,
       offset: 0,
       minSamples,
@@ -251,9 +255,11 @@ export function useTaxaQuerySearch({
     includeSpeciesLike,
     limit,
     location,
+    minRbar,
     minSamples,
     sortMetric,
     sortOrder,
+    sortReference,
     sortVariable,
     units,
     withinTaxonId,

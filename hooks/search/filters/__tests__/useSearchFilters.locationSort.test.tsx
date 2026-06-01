@@ -584,6 +584,8 @@ describe('useSearchFilters (location and sort)', () => {
       sortVariable: null,
       sortMetric: null,
       sortOrder: null,
+      sortReference: null,
+      minRbar: null,
       minSamples: 25,
       limit: 20,
     });

@@ -124,6 +124,9 @@ export type SpeciesEnvironmentSummary = {
   q10?: number | null;
   q90?: number | null;
   q99?: number | null;
+  circular_mean?: number | null;
+  rbar?: number | null;
+  circular_std?: number | null;
 };
 
 export type SpeciesEnvironmentHistogram = {

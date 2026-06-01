@@ -51,6 +51,8 @@ type PersistedSearchFiltersStateInput = {
   rankValue: string;
   sortMetricValue: string;
   sortOrder: 'ascending' | 'descending';
+  sortReference: number;
+  minRbar: number;
   sortVariableValue: string;
   stateOptions: SelectOption[];
   stateValue: string;
@@ -72,6 +74,8 @@ const toPersistedSearchFiltersState = ({
   rankValue,
   sortMetricValue,
   sortOrder,
+  sortReference,
+  minRbar,
   sortVariableValue,
   stateOptions,
   stateValue,
@@ -94,6 +98,8 @@ const toPersistedSearchFiltersState = ({
     sortVariableValue,
     sortMetricValue,
     sortOrder,
+    sortReference,
+    minRbar,
   },
   quantity: {
     numberOfResults,
@@ -116,6 +122,8 @@ const usePersistedSearchFiltersState = (
   const rankValue = filters.rankValue;
   const sortMetricValue = filters.sortMetricValue;
   const sortOrder = filters.sortOrder;
+  const sortReference = filters.sortReference;
+  const minRbar = filters.minRbar;
   const sortVariableValue = filters.sortVariableValue;
   const stateOptions = filters.stateOptions;
   const stateValue = filters.stateValue;
@@ -135,6 +143,8 @@ const usePersistedSearchFiltersState = (
         rankValue,
         sortMetricValue,
         sortOrder,
+        sortReference,
+        minRbar,
         sortVariableValue,
         stateOptions,
         stateValue,
@@ -148,10 +158,12 @@ const usePersistedSearchFiltersState = (
       countyValue,
       includeSubspecies,
       minimumSamples,
+      minRbar,
       numberOfResults,
       rankValue,
       sortMetricValue,
       sortOrder,
+      sortReference,
       sortVariableValue,
       stateOptions,
       stateValue,
