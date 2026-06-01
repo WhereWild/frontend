@@ -28,7 +28,6 @@ import {
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservationFilters';
-import { SpeciesTimestampFilters } from '@/components/sections/SpeciesTimestampFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
@@ -386,9 +385,8 @@ export default function Species({
     occurrences,
     loading: occurrenceLoading,
     error: occurrenceError,
-    minTimestamp,
-    maxTimestamp,
     phenologyCounts,
+    phenologyNoData,
   } = useSpeciesOccurrences({
     taxonId,
     locationGid: finalLocationGid,
@@ -396,6 +394,12 @@ export default function Species({
     startTimestamp,
     endTimestamp,
   });
+
+  React.useEffect(() => {
+    if (phenologyNoData && selectedPhenology) {
+      setSelectedPhenology(null);
+    }
+  }, [phenologyNoData, selectedPhenology]);
 
   React.useEffect(() => {
     setHighlightedCatalogs([]);
@@ -533,16 +537,7 @@ export default function Species({
                   phenologyCounts={phenologyCounts}
                 />
 
-                <SpeciesTimestampFilters
-                  startTimestamp={startTimestamp}
-                  endTimestamp={endTimestamp}
-                  minTimestamp={minTimestamp}
-                  maxTimestamp={maxTimestamp}
-                  onStartChange={setStartTimestamp}
-                  onEndChange={setEndTimestamp}
-                />
-
-                <SpeciesEnvironmentSection
+<SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
