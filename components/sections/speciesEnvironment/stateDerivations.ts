@@ -7,6 +7,7 @@ import {
   estimatePercentileFromHistogram,
   formatComparisonLabel,
   formatValue,
+  type DensitySelectionRange,
   type RankContextOption,
 } from './model';
 
@@ -151,7 +152,7 @@ export const buildSummaryComparisons = (
 type BuildMetaTextParams = {
   hasStats: boolean;
   isCategorical: boolean;
-  selectedDensityRange: { start: number; end: number } | null;
+  selectedDensityRange: DensitySelectionRange | null;
   rangeObservationCount: number;
   observationCount: number | null | undefined;
   summaryCount: number | null | undefined;
@@ -194,7 +195,10 @@ export const buildMetaText = ({
     : (observationCount ?? summaryCount ?? 0);
 
   if (!isCategorical && selectedDensityRange) {
-    return `Selected range: ${formatValue(selectedDensityRange.start, 1)} to ${formatValue(selectedDensityRange.end, 1)} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
+    const dispStart =
+      selectedDensityRange.displayStart ?? selectedDensityRange.start;
+    const dispEnd = selectedDensityRange.displayEnd ?? selectedDensityRange.end;
+    return `Selected range: ${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
   }
 
   return `(Based on ${formatValue(resolvedObservationCount)} observations)`;

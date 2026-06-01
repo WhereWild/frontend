@@ -9,7 +9,11 @@ import { DensityChart } from './DensityChart';
 import { PolarDensityChart } from './PolarDensityChart';
 import { StackedCategoryBar } from './StackedCategoryBar';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
-import { DEFAULT_VARIABLE, type EnvironmentVariableOption } from './model';
+import {
+  DEFAULT_VARIABLE,
+  isVariableDiscrete,
+  type EnvironmentVariableOption,
+} from './model';
 import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
@@ -242,6 +246,7 @@ function SpeciesEnvironmentSectionComponent({
   );
   const numericPinnedValue =
     typeof pinnedValue === 'number' ? pinnedValue : null;
+  const isDiscrete = isVariableDiscrete(selectedVariableMeta);
 
   return (
     <View collapsable={false} style={styles.container}>
@@ -447,6 +452,7 @@ function SpeciesEnvironmentSectionComponent({
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
+                isDiscrete={isDiscrete}
               />
 
               <ContinuousInsights

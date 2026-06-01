@@ -10,6 +10,10 @@ type DensitySelectionRange = {
 export type DensitySamplePoint = {
   x: number;
   y: number;
+  /** Actual first x value of the resampled chunk this point represents. */
+  rangeStart?: number;
+  /** Actual last x value of the resampled chunk this point represents. */
+  rangeEnd?: number;
 };
 
 /** Derived x/y domain metadata used for chart normalization. */
@@ -145,3 +149,26 @@ export const toSortedSelectionRange = (left: number, right: number) => ({
   start: Math.min(left, right),
   end: Math.max(left, right),
 });
+
+/**
+ * Merges histogram samples into at most maxBars bins by grouping consecutive
+ * entries and summing their densities. Use when stored resolution exceeds
+ * available display pixels.
+ */
+export const resampleHistogram = (
+  samples: DensitySamplePoint[],
+  maxBars: number,
+): DensitySamplePoint[] => {
+  if (samples.length === 0 || samples.length <= maxBars) return samples;
+  const k = Math.ceil(samples.length / maxBars);
+  const result: DensitySamplePoint[] = [];
+  for (let i = 0; i < samples.length; i += k) {
+    const chunk = samples.slice(i, i + k);
+    const rangeStart = chunk[0].x;
+    const rangeEnd = chunk[chunk.length - 1].x;
+    const centerX = (rangeStart + rangeEnd) / 2;
+    const totalY = chunk.reduce((sum, s) => sum + s.y, 0);
+    result.push({ x: centerX, y: totalY, rangeStart, rangeEnd });
+  }
+  return result;
+};
