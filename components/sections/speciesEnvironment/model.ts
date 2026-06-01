@@ -1,4 +1,5 @@
 import type {
+  LegendClass,
   SpeciesEnvironmentCategory,
   SpeciesEnvironmentCategoricalTotals,
   SpeciesEnvironmentHistogram,
@@ -22,6 +23,7 @@ export type EnvironmentVariableOption = {
   domain?: string | null;
   category?: string | null;
   sourceIds?: string[];
+  legendClasses?: LegendClass[] | null;
 };
 
 /** Loading/result state for one categorical class sample request. */
@@ -36,6 +38,7 @@ export type PinnedCategoryBadge = {
   value: number | string;
   label: string;
   description?: string | null;
+  color?: string | null;
 };
 
 /** Rank context option for switching ancestor-group comparisons. */

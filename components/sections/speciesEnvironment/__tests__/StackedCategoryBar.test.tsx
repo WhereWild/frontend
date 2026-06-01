@@ -140,13 +140,13 @@ describe('StackedCategoryBar', () => {
       highlightedKey: '__other__',
       highlightOutlineColor: '#F59E0B',
     });
-    expect(screen.getByText('Other (Urban)')).toBeTruthy();
+    expect(screen.getByText('Urban')).toBeTruthy();
     expect(
       screen.getByText('Species has never been observed in this environment'),
     ).toBeTruthy();
   });
 
-  it('highlights the existing Other category and appends the unobserved label', () => {
+  it('appends unobserved pill and shows show-more button when over display limit with unobserved label', () => {
     const categories = Array.from({ length: 9 }).map((_, index) => ({
       value: `cat-${index}`,
       className: `Category ${index}`,
@@ -173,15 +173,11 @@ describe('StackedCategoryBar', () => {
       highlightedKey: '__other__',
       highlightOutlineColor: '#F59E0B',
     });
-    expect(screen.getByText('Other (Urban)')).toBeTruthy();
-    expect(screen.getByTestId('stacked-segment-8')).toHaveStyle({
-      borderWidth: 3,
-      borderColor: '#F59E0B',
-      borderStyle: 'dashed',
-    });
+    expect(screen.getByText('Urban')).toBeTruthy();
+    expect(screen.getByText('Show 1 more')).toBeTruthy();
   });
 
-  it('matches the POC behavior by highlighting Other from the raw pinned value and class name', () => {
+  it('matches the POC behavior by highlighting pinned value not in distribution via pinnedClassName pill', () => {
     const categories = Array.from({ length: 9 }).map((_, index) => ({
       value: index === 8 ? 70 : index + 1,
       className: index === 8 ? 'Observed Other Class' : `Category ${index}`,
@@ -206,13 +202,8 @@ describe('StackedCategoryBar', () => {
       highlightOutlineColor: '#F59E0B',
     });
     expect(
-      screen.getByText('Other (Closed deciduous broadleaved forest)'),
+      screen.getByText('Closed deciduous broadleaved forest'),
     ).toBeTruthy();
-    expect(screen.getByTestId('stacked-segment-8')).toHaveStyle({
-      borderWidth: 3,
-      borderColor: '#F59E0B',
-      borderStyle: 'dashed',
-    });
   });
 
   it('renders empty-state branch', () => {
@@ -258,7 +249,7 @@ describe('StackedCategoryBar', () => {
     ).toBeTruthy();
   });
 
-  it('aggregates into Other category when over display limit and supports pill selection', () => {
+  it('shows show-more button when over display limit and supports pill selection', () => {
     const onSelect = jest.fn();
     const categories = Array.from({ length: 10 }).map((_, index) => ({
       value: `cat-${index}`,
@@ -276,31 +267,34 @@ describe('StackedCategoryBar', () => {
       />,
     );
 
-    expect(screen.getByText('Other')).toBeTruthy();
+    expect(screen.getByText('Show 2 more')).toBeTruthy();
+    expect(screen.queryByText('Other')).toBeNull();
 
     fireEvent.press(screen.getByTestId('pill-cat-0'));
     expect(onSelect).toHaveBeenCalledWith('cat-0');
   });
 
-  it('renders Other selection copy when selected value is __other__', () => {
+  it('shows show-more button for 9 categories and expands on press', () => {
     const categories = Array.from({ length: 9 }).map((_, index) => ({
       value: `cat-${index}`,
       className: `Category ${index}`,
       count: 2,
       fraction: 0.1,
-      description: `Description ${index}`,
     }));
 
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={'__other__'}
+        selectedValue={null}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
     );
 
-    expect(screen.getByText(/Together these account/)).toBeTruthy();
+    expect(screen.getByText('Show 1 more')).toBeTruthy();
+    fireEvent.press(screen.getByText('Show 1 more'));
+    expect(screen.getByText('Show less')).toBeTruthy();
+    expect(screen.queryByText('Show 1 more')).toBeNull();
   });
 
   it('formats tiny percentages and supports no-description branch', () => {
@@ -371,7 +365,7 @@ describe('StackedCategoryBar', () => {
     expect(screen.getByText('Categories unavailable.')).toBeTruthy();
   });
 
-  it('uses fallback aggregation when extra categories have missing counts', () => {
+  it('shows show-more button for 10 categories including ones with missing counts', () => {
     const categories: SpeciesEnvironmentCategory[] = Array.from({
       length: 10,
     }).map((_, index) => ({
@@ -384,14 +378,14 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={'__other__'}
+        selectedValue={null}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
     );
 
-    expect(screen.getByText('Other')).toBeTruthy();
-    expect(screen.getByText(/Together these account/)).toBeTruthy();
+    expect(screen.getByText('Show 2 more')).toBeTruthy();
+    expect(screen.queryByText('Other')).toBeNull();
   });
 
   it('keeps the pill model stable when only selectedValue changes', () => {
