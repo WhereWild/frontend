@@ -10,6 +10,13 @@ import {
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
+import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
+import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+import {
+  isVariableCategorical,
+  isVariableCircular,
+} from '@/components/sections/speciesEnvironment/model';
+import { BACKEND_BASE } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
@@ -326,6 +333,11 @@ export default function Species({
     lat: number;
     lon: number;
   } | null>(null);
+  const [selectedVariableMeta, setSelectedVariableMeta] =
+    React.useState<EnvironmentVariableOption | null>(null);
+  const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
+    null,
+  );
   const [selectedPhenology, setSelectedPhenology] = React.useState<
     string | null
   >(null);
@@ -422,6 +434,18 @@ export default function Species({
           ? null
           : { catalogNumber, lat, lon },
       );
+    },
+    [],
+  );
+
+  const handleMapPointValue = React.useCallback((value: number) => {
+    setPinnedPointValue(value);
+  }, []);
+
+  const handleVariableMetaChange = React.useCallback(
+    (meta: EnvironmentVariableOption | null) => {
+      setSelectedVariableMeta(meta);
+      setPinnedPointValue(null);
     },
     [],
   );
@@ -539,6 +563,7 @@ export default function Species({
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
+                  onVariableMetaChange={handleVariableMetaChange}
                   locationGid={finalLocationGid}
                   phenology={selectedPhenology}
                   startTimestamp={startTimestamp}
@@ -592,19 +617,58 @@ export default function Species({
             }
           >
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
-              <SpeciesOccurrenceMap
-                occurrences={occurrences}
-                loading={occurrenceLoading}
-                error={occurrenceError}
-                highlightedCatalogs={highlightedCatalogs}
-                selectedPoint={selectedMapPoint}
-                height={observationMapHeight}
-                showMarkers={showObservations}
-                heatmapTileUrl={activeTileUrl}
-                heatmapOpacity={0.72}
-                minZoom={activeTileUrl ? 4 : 2}
-                onPinObservation={handlePinObservation}
-              />
+              <View style={{ position: 'relative' }}>
+                <SpeciesOccurrenceMap
+                  occurrences={occurrences}
+                  loading={occurrenceLoading}
+                  error={occurrenceError}
+                  highlightedCatalogs={highlightedCatalogs}
+                  selectedPoint={selectedMapPoint}
+                  height={observationMapHeight}
+                  showMarkers={showObservations}
+                  heatmapTileUrl={activeTileUrl}
+                  heatmapOpacity={0.72}
+                  minZoom={activeTileUrl ? 4 : 2}
+                  onPinObservation={handlePinObservation}
+                  onPointValue={handleMapPointValue}
+                  pointQueryUrl={
+                    activeTileUrl &&
+                    selectedVariableMeta?.id &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}`
+                      : null
+                  }
+                  renderMin={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? (selectedVariableMeta.renderMin ?? null)
+                      : null
+                  }
+                  renderMax={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? (selectedVariableMeta.renderMax ?? null)
+                      : null
+                  }
+                  isCircular={false}
+                />
+                {activeTileUrl &&
+                  selectedVariableMeta &&
+                  !isVariableCategorical(selectedVariableMeta) &&
+                  !isVariableCircular(selectedVariableMeta) &&
+                  selectedVariableMeta.renderMin != null &&
+                  selectedVariableMeta.renderMax != null && (
+                    <MapVariableLegend
+                      min={selectedVariableMeta.renderMin}
+                      max={selectedVariableMeta.renderMax}
+                      units={selectedVariableMeta.units}
+                      pinnedValue={pinnedPointValue}
+                    />
+                  )}
+              </View>
             )}
           </View>
         </PageScrollContainer>
