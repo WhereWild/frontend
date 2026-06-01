@@ -7,6 +7,7 @@ import {
   estimatePercentileFromHistogram,
   formatComparisonLabel,
   formatValue,
+  type DensitySelectionRange,
   type RankContextOption,
 } from './model';
 
@@ -151,7 +152,7 @@ export const buildSummaryComparisons = (
 type BuildMetaTextParams = {
   hasStats: boolean;
   isCategorical: boolean;
-  selectedDensityRange: { start: number; end: number } | null;
+  selectedDensityRange: DensitySelectionRange | null;
   rangeObservationCount: number;
   observationCount: number | null | undefined;
   summaryCount: number | null | undefined;
