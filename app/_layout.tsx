@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack, usePathname, useRouter, type Href } from 'expo-router';
 import Head from 'expo-router/head';
 import { useFonts } from 'expo-font';
@@ -738,6 +739,7 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SettingsProvider>
       <NativePortalProvider>
         <LayoutChromeProvider>
@@ -757,6 +759,7 @@ export default function RootLayout() {
         </LayoutChromeProvider>
       </NativePortalProvider>
     </SettingsProvider>
+    </GestureHandlerRootView>
   );
 }
 
