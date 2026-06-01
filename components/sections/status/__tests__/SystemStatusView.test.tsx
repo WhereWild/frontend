@@ -1,9 +1,6 @@
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
-import {
-  SystemStatusView,
-  type SystemStatusData,
-} from '../SystemStatusView';
+import { SystemStatusView, type SystemStatusData } from '../SystemStatusView';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
@@ -61,9 +58,7 @@ const MOCK_STATUS_IDLE: SystemStatusData = {
 describe('SystemStatusView', () => {
   describe('loading state', () => {
     it('renders an activity indicator when isLoading and no status', () => {
-      const { toJSON } = render(
-        <SystemStatusView isLoading status={null} />,
-      );
+      const { toJSON } = render(<SystemStatusView isLoading status={null} />);
       expect(toJSON()).not.toBeNull();
       // ActivityIndicator renders, no card titles present
       expect(screen.queryByText('Pipeline')).toBeNull();
@@ -72,9 +67,7 @@ describe('SystemStatusView', () => {
 
   describe('error state', () => {
     it('shows the error message when no status is available', () => {
-      render(
-        <SystemStatusView status={null} error='Failed to reach server' />,
-      );
+      render(<SystemStatusView status={null} error='Failed to reach server' />);
       expect(screen.getByText(/Failed to reach server/)).toBeTruthy();
       expect(screen.queryByText('Pipeline')).toBeNull();
     });
@@ -161,9 +154,7 @@ describe('SystemStatusView', () => {
   describe('null pipeline/temporal', () => {
     it('shows no data indicator when pipeline is null', () => {
       render(
-        <SystemStatusView
-          status={{ ...MOCK_STATUS_IDLE, pipeline: null }}
-        />,
+        <SystemStatusView status={{ ...MOCK_STATUS_IDLE, pipeline: null }} />,
       );
       expect(screen.getByText(/No data/)).toBeTruthy();
     });
