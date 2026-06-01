@@ -1112,9 +1112,9 @@ describe('upload local species data source variable categories', () => {
       expect.objectContaining({ gid: 'county-us-ca-sf', level: 2 }),
     ]);
 
-    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-ca' })).resolves.toEqual([
-      expect.objectContaining({ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }),
-    ]);
+    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-ca' })).resolves.toMatchObject({
+      occurrences: [expect.objectContaining({ catalogNumber: 'obs_1', latitude: 10, longitude: 20 })],
+    });
     await expect(
       dataSource.fetchEnvironmentRangeSlice({
         taxonId: 1,
@@ -1341,9 +1341,9 @@ describe('upload local species data source variable categories', () => {
     await expect(dataSource.fetchSpeciesLocations(1, 'county', 'state-us-nj')).resolves.toEqual([
       expect.objectContaining({ gid: 'county-us-nj-washington' }),
     ]);
-    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toEqual([
-      expect.objectContaining({ catalogNumber: 'obs_nj' }),
-    ]);
+    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toMatchObject({
+      occurrences: [expect.objectContaining({ catalogNumber: 'obs_nj' })],
+    });
   });
 
   it('does not match unrelated duplicate-name branches by a location\'s own name', async () => {
@@ -1396,8 +1396,8 @@ describe('upload local species data source variable categories', () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
 
-    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toEqual([
-      expect.objectContaining({ catalogNumber: 'obs_selected' }),
-    ]);
+    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toMatchObject({
+      occurrences: [expect.objectContaining({ catalogNumber: 'obs_selected' })],
+    });
   });
 });
