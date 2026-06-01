@@ -65,6 +65,8 @@ const mapEnvironmentVariableOptions = (
         category: remappedCategory,
         sourceIds: variableDefinition.sourceIds,
         legendClasses: variableDefinition.legendClasses ?? null,
+        renderMin: variableDefinition.renderMin ?? null,
+        renderMax: variableDefinition.renderMax ?? null,
       };
     });
 };
