@@ -10,6 +10,10 @@ type DensitySelectionRange = {
 export type DensitySamplePoint = {
   x: number;
   y: number;
+  /** Actual first x value of the resampled chunk this point represents. */
+  rangeStart?: number;
+  /** Actual last x value of the resampled chunk this point represents. */
+  rangeEnd?: number;
 };
 
 /** Derived x/y domain metadata used for chart normalization. */
@@ -160,9 +164,11 @@ export const resampleHistogram = (
   const result: DensitySamplePoint[] = [];
   for (let i = 0; i < samples.length; i += k) {
     const chunk = samples.slice(i, i + k);
-    const centerX = (chunk[0].x + chunk[chunk.length - 1].x) / 2;
+    const rangeStart = chunk[0].x;
+    const rangeEnd = chunk[chunk.length - 1].x;
+    const centerX = (rangeStart + rangeEnd) / 2;
     const totalY = chunk.reduce((sum, s) => sum + s.y, 0);
-    result.push({ x: centerX, y: totalY });
+    result.push({ x: centerX, y: totalY, rangeStart, rangeEnd });
   }
   return result;
 };
