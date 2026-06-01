@@ -208,6 +208,23 @@ describe('stateDerivations', () => {
     expect(
       buildMetaText({
         hasStats: true,
+        isCategorical: false,
+        selectedDensityRange: {
+          start: -0.5,
+          end: 9.5,
+          displayStart: 0,
+          displayEnd: 9,
+        },
+        rangeObservationCount: 50,
+        observationCount: 100,
+        summaryCount: 100,
+        categoricalTotalSamples: null,
+      }),
+    ).toContain('Selected range: 0.0 to 9.0 (50 of 100 observations)');
+
+    expect(
+      buildMetaText({
+        hasStats: true,
         isCategorical: true,
         selectedDensityRange: null,
         rangeObservationCount: 0,

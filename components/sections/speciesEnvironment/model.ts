@@ -19,6 +19,7 @@ export type EnvironmentVariableOption = {
   label: string;
   units?: string | null;
   valueType?: string | null;
+  domain?: string | null;
   category?: string | null;
   sourceIds?: string[];
 };
@@ -47,6 +48,9 @@ export type RankContextOption = {
 export type DensitySelectionRange = {
   start: number;
   end: number;
+  /** Human-readable bounds for display (e.g. actual chunk edges for discrete bars). */
+  displayStart?: number;
+  displayEnd?: number;
 };
 
 /** Fallback variable list used when remote catalog is unavailable. */
@@ -71,6 +75,11 @@ export const isVariableCircular = (
   const lower = variable.id.toLowerCase();
   return lower === 'aspect_deg' || lower === 'aspect';
 };
+
+/** Returns true when variable should render as a discrete histogram. */
+export const isVariableDiscrete = (
+  variable: Pick<EnvironmentVariableOption, 'domain'> | null | undefined,
+): boolean => variable?.domain === 'discrete';
 
 /** Returns true when variable should render with categorical UI. */
 export const isVariableCategorical = (

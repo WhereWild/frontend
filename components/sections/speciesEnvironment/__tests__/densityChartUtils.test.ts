@@ -4,6 +4,7 @@ import {
   getSelectionBounds,
   getValueForLocation,
   normalizeDensitySamples,
+  resampleHistogram,
   toSortedSelectionRange,
 } from '../densityChartUtils';
 
@@ -51,11 +52,75 @@ describe('densityChartUtils', () => {
     expect(getSelectionBounds({ start: 5, end: 5 }, domain)).toBeNull();
   });
 
+  it('returns null from getSelectionBounds when domain span is zero', () => {
+    const domain = { minX: 5, maxX: 5, spanX: 0, safeMaxY: 1 };
+    expect(getSelectionBounds({ start: 4, end: 6 }, domain)).toBeNull();
+  });
+
   it('maps location x to domain value and sorts ranges', () => {
     const domain = { minX: 0, maxX: 10, spanX: 10, safeMaxY: 1 };
 
     expect(getValueForLocation(25, 100, domain)).toBe(2.5);
     expect(getValueForLocation(10, 0, domain)).toBeNull();
     expect(toSortedSelectionRange(9, 2)).toEqual({ start: 2, end: 9 });
+  });
+
+  describe('resampleHistogram', () => {
+    it('returns original samples when count is within maxBars', () => {
+      const samples = [
+        { x: 0, y: 0.2 },
+        { x: 5, y: 0.8 },
+        { x: 10, y: 0.3 },
+      ];
+      expect(resampleHistogram(samples, 5)).toBe(samples);
+    });
+
+    it('returns empty array for empty input', () => {
+      expect(resampleHistogram([], 10)).toEqual([]);
+    });
+
+    it('resamples into fewer bins with rangeStart and rangeEnd', () => {
+      const samples = Array.from({ length: 10 }, (_, i) => ({
+        x: i,
+        y: 0.1 * (i + 1),
+      }));
+      const result = resampleHistogram(samples, 3);
+
+      expect(result.length).toBeLessThanOrEqual(3);
+      expect(result[0].rangeStart).toBe(0);
+      expect(result[0].rangeEnd).toBeGreaterThan(0);
+      expect(result[result.length - 1].rangeEnd).toBe(9);
+    });
+
+    it('centers each bin between its first and last sample', () => {
+      const samples = [
+        { x: 0, y: 1 },
+        { x: 2, y: 1 },
+        { x: 4, y: 1 },
+        { x: 6, y: 1 },
+      ];
+      const result = resampleHistogram(samples, 2);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].x).toBe(1);
+      expect(result[0].rangeStart).toBe(0);
+      expect(result[0].rangeEnd).toBe(2);
+      expect(result[1].x).toBe(5);
+      expect(result[1].rangeStart).toBe(4);
+      expect(result[1].rangeEnd).toBe(6);
+    });
+
+    it('sums density within each bin', () => {
+      const samples = [
+        { x: 0, y: 0.2 },
+        { x: 1, y: 0.3 },
+        { x: 2, y: 0.4 },
+        { x: 3, y: 0.1 },
+      ];
+      const result = resampleHistogram(samples, 2);
+
+      expect(result[0].y).toBeCloseTo(0.5);
+      expect(result[1].y).toBeCloseTo(0.5);
+    });
   });
 });
