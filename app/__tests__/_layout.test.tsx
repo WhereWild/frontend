@@ -68,6 +68,10 @@ mockStack.Screen = function mockStackScreen(props: any) {
   return null;
 };
 
+jest.mock('react-native-gesture-handler', () => ({
+  GestureHandlerRootView: ({ children }: any) => children,
+}));
+
 jest.mock('expo-router', () => ({
   Stack: mockStack,
   useRouter: jest.fn(),

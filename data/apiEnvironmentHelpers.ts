@@ -3,6 +3,7 @@ import type {
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
+  SpeciesOccurrencesResult,
   SpeciesEnvironmentSliceResponse,
 } from './types';
 import {
@@ -16,12 +17,18 @@ import { BACKEND_BASE, asRecord, fetchJsonOrThrow } from './apiShared';
 type LocationOptions = {
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
+  startTs?: number | null;
+  endTs?: number | null;
 };
 
 type CategorySampleOptions = {
   limit?: number;
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
+  startTs?: number | null;
+  endTs?: number | null;
 };
 
 /**
@@ -41,6 +48,15 @@ export async function fetchSpeciesEnvironment(
   if (options?.units) {
     params.set('unit_system', options.units);
   }
+  if (options?.phenology) {
+    params.set('phenology', options.phenology);
+  }
+  if (options?.startTs != null) {
+    params.set('start_ts', String(options.startTs));
+  }
+  if (options?.endTs != null) {
+    params.set('end_ts', String(options.endTs));
+  }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
   const payload = await fetchJsonOrThrow(
@@ -56,7 +72,7 @@ export async function fetchSpeciesEnvironment(
 export async function fetchEnvironmentRangeSlice(
   params: EnvironmentSliceParams,
 ): Promise<SpeciesEnvironmentSliceResponse> {
-  const { taxonId, variableId, min, max, limit, location, units } = params;
+  const { taxonId, variableId, min, max, limit, location, units, phenology, startTs, endTs } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const query = new URLSearchParams({
@@ -71,6 +87,15 @@ export async function fetchEnvironmentRangeSlice(
   }
   if (units) {
     query.set('unit_system', units);
+  }
+  if (phenology) {
+    query.set('phenology', phenology);
+  }
+  if (startTs != null) {
+    query.set('start_ts', String(startTs));
+  }
+  if (endTs != null) {
+    query.set('end_ts', String(endTs));
   }
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
   const payload = await fetchJsonOrThrow(
@@ -102,6 +127,15 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   if (options?.units) {
     query.set('unit_system', options.units);
   }
+  if (options?.phenology) {
+    query.set('phenology', options.phenology);
+  }
+  if (options?.startTs != null) {
+    query.set('start_ts', String(options.startTs));
+  }
+  if (options?.endTs != null) {
+    query.set('end_ts', String(options.endTs));
+  }
   const queryString = query.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;
   const payload = await fetchJsonOrThrow(
@@ -112,25 +146,33 @@ export async function fetchSpeciesEnvironmentCategorySamples(
 }
 
 /**
- * Fetches occurrence points for a species.
+ * Fetches occurrence points for a species, plus the full timestamp range of the matching observations.
  */
 export async function fetchSpeciesOccurrences(
   taxonId: string | number,
   options?: LocationOptions,
-): Promise<SpeciesOccurrence[]> {
+): Promise<SpeciesOccurrencesResult> {
   const encodedId = encodeURIComponent(String(taxonId));
   const params = new URLSearchParams();
   if (options?.location) {
     params.set('location', options.location);
   }
+  if (options?.phenology) {
+    params.set('phenology', options.phenology);
+  }
+  if (options?.startTs != null) {
+    params.set('start_ts', String(options.startTs));
+  }
+  if (options?.endTs != null) {
+    params.set('end_ts', String(options.endTs));
+  }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
   const payload = asRecord(await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`));
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
-  return rows
+  const occurrences: SpeciesOccurrence[] = rows
     .map((entry) => {
       const source = asRecord(entry);
-
       return {
         catalogNumber:
           source.catalogNumber ??
@@ -151,4 +193,14 @@ export async function fetchSpeciesOccurrences(
       latitude: entry.latitude,
       longitude: entry.longitude,
     }));
+  const phenologyCounts =
+    payload.phenology_counts && typeof payload.phenology_counts === 'object'
+      ? (payload.phenology_counts as Record<string, number>)
+      : null;
+  return {
+    occurrences,
+    minTimestamp: typeof payload.min_timestamp === 'number' ? payload.min_timestamp : null,
+    maxTimestamp: typeof payload.max_timestamp === 'number' ? payload.max_timestamp : null,
+    phenologyCounts,
+  };
 }

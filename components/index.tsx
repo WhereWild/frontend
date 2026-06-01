@@ -54,6 +54,9 @@ export type { SearchInputProps } from './inputs/SearchInput';
 export { SearchResults } from './lists/SearchResults';
 export type { SearchResultsProps } from './lists/SearchResults';
 
+export { DateRangeSlider } from './inputs/DateRangeSlider';
+export type { DateRangeSliderProps, MonthYear } from './inputs/DateRangeSlider';
+
 export { SelectField } from './inputs/SelectField';
 export type { SelectFieldProps, SelectOption } from './inputs/SelectField';
 
@@ -94,6 +97,10 @@ export { NavigationBar } from './sections/navigationBar/NavigationBar';
 export type { NavigationBarProps } from './sections/navigationBar/NavigationBar';
 
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
+export { SpeciesObservationFilters } from './sections/SpeciesObservationFilters';
+
+export { SpeciesTimestampFilters } from './sections/SpeciesTimestampFilters';
+export type { SpeciesTimestampFiltersProps } from './sections/SpeciesTimestampFilters';
 
 export { PageTitle } from './sections/PageTitle';
 export type { PageTitleProps } from './sections/PageTitle';

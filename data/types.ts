@@ -154,6 +154,13 @@ export type SpeciesOccurrence = {
   longitude: number;
 };
 
+export type SpeciesOccurrencesResult = {
+  occurrences: SpeciesOccurrence[];
+  minTimestamp: number | null;
+  maxTimestamp: number | null;
+  phenologyCounts: Record<string, number> | null;
+};
+
 export type LocationSearchResult = {
   gid: string;
   name: string;
@@ -305,6 +312,9 @@ export type EnvironmentSliceParams = {
   limit?: number;
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
+  startTs?: number | null;
+  endTs?: number | null;
 };
 
 export type RelativeRankingEntry = {

@@ -11,13 +11,16 @@ const mockFetchSpeciesOccurrences = jest.mocked(fetchSpeciesOccurrences);
 describe('useSpeciesOccurrences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetchSpeciesOccurrences.mockResolvedValue([]);
+    mockFetchSpeciesOccurrences.mockResolvedValue({ occurrences: [], minTimestamp: null, maxTimestamp: null, phenologyCounts: null });
   });
 
   it('loads occurrences for a valid taxon and location', async () => {
-    mockFetchSpeciesOccurrences.mockResolvedValueOnce([
-      { catalogNumber: 1, latitude: 10, longitude: 20 },
-    ]);
+    mockFetchSpeciesOccurrences.mockResolvedValueOnce({
+      occurrences: [{ catalogNumber: 1, latitude: 10, longitude: 20 }],
+      minTimestamp: null,
+      maxTimestamp: null,
+      phenologyCounts: null,
+    });
 
     const { result } = renderHook(() =>
       useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut' }),
@@ -54,5 +57,60 @@ describe('useSpeciesOccurrences', () => {
     });
 
     expect(mockFetchSpeciesOccurrences).not.toHaveBeenCalled();
+  });
+
+  it('sets phenologyNoData true when phenology is active and counts are empty', async () => {
+    mockFetchSpeciesOccurrences.mockResolvedValueOnce({
+      occurrences: [],
+      minTimestamp: null,
+      maxTimestamp: null,
+      phenologyCounts: {},
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut', phenology: 'flowers' }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.phenologyNoData).toBe(true);
+    });
+  });
+
+  it('sets phenologyNoData false and updates phenologyCounts when no phenology filter', async () => {
+    mockFetchSpeciesOccurrences.mockResolvedValueOnce({
+      occurrences: [],
+      minTimestamp: null,
+      maxTimestamp: null,
+      phenologyCounts: { flowers: 10, 'fruits or seeds': 5 },
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut' }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.phenologyNoData).toBe(false);
+      expect(result.current.phenologyCounts).toEqual({ flowers: 10, 'fruits or seeds': 5 });
+    });
+  });
+
+  it('sets phenologyNoData false when phenology is active and counts are non-empty', async () => {
+    mockFetchSpeciesOccurrences.mockResolvedValueOnce({
+      occurrences: [{ catalogNumber: 1, latitude: 10, longitude: 20 }],
+      minTimestamp: null,
+      maxTimestamp: null,
+      phenologyCounts: { flowers: 3 },
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut', phenology: 'flowers' }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.phenologyNoData).toBe(false);
+    });
   });
 });

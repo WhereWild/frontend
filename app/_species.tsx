@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
+import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
@@ -325,6 +326,11 @@ export default function Species({
     lat: number;
     lon: number;
   } | null>(null);
+  const [selectedPhenology, setSelectedPhenology] = React.useState<
+    string | null
+  >(null);
+  const startTimestamp: number | null = null;
+  const endTimestamp: number | null = null;
 
   const predictiveHeatmapDescription = React.useMemo(
     () => getPredictiveHeatmapDescription(hasLiveHeatmap, hasAnyHeatmap),
@@ -377,10 +383,21 @@ export default function Species({
     occurrences,
     loading: occurrenceLoading,
     error: occurrenceError,
+    phenologyCounts,
+    phenologyNoData,
   } = useSpeciesOccurrences({
     taxonId,
     locationGid: finalLocationGid,
+    phenology: selectedPhenology,
+    startTimestamp,
+    endTimestamp,
   });
+
+  React.useEffect(() => {
+    if (phenologyNoData && selectedPhenology) {
+      setSelectedPhenology(null);
+    }
+  }, [phenologyNoData, selectedPhenology]);
 
   React.useEffect(() => {
     setHighlightedCatalogs([]);
@@ -512,11 +529,20 @@ export default function Species({
                   onCountyChange={onCountyChange}
                 />
 
+                <SpeciesObservationFilters
+                  selectedPhenology={selectedPhenology}
+                  onPhenologyChange={setSelectedPhenology}
+                  phenologyCounts={phenologyCounts}
+                />
+
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
                   locationGid={finalLocationGid}
+                  phenology={selectedPhenology}
+                  startTimestamp={startTimestamp}
+                  endTimestamp={endTimestamp}
                   units={units}
                   pinnedObservation={pinnedObservation}
                 />
