@@ -49,15 +49,21 @@ describe('temporalHelpers', () => {
 
   describe('stripTemporalSuffix', () => {
     it('strips avg suffix', () => {
-      expect(stripTemporalSuffix('Dew Point (2m) (Avg, 168h)')).toBe('Dew Point (2m)');
+      expect(stripTemporalSuffix('Dew Point (2m) (Avg, 168h)')).toBe(
+        'Dew Point (2m)',
+      );
     });
 
     it('strips mode suffix', () => {
-      expect(stripTemporalSuffix('Weather Code (Mode, 24h)')).toBe('Weather Code');
+      expect(stripTemporalSuffix('Weather Code (Mode, 24h)')).toBe(
+        'Weather Code',
+      );
     });
 
     it('leaves non-temporal labels unchanged', () => {
-      expect(stripTemporalSuffix('Annual Mean Temperature')).toBe('Annual Mean Temperature');
+      expect(stripTemporalSuffix('Annual Mean Temperature')).toBe(
+        'Annual Mean Temperature',
+      );
     });
   });
 
