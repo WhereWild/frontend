@@ -253,6 +253,16 @@ export function useSpeciesEnvironmentState({
       range99: resolveRankForMetric('1-99 range', summaryRangeValue, {
         allowHistogramFallback: false,
       }),
+      rbar: resolveRankForMetric('rbar', summary?.rbar, {
+        allowHistogramFallback: false,
+      }),
+      circular_std: resolveRankForMetric(
+        'circular_std',
+        summary?.circular_std,
+        {
+          allowHistogramFallback: false,
+        },
+      ),
     }),
     [
       resolveRankForMetric,
@@ -260,6 +270,8 @@ export function useSpeciesEnvironmentState({
       summary?.mean,
       summary?.min,
       summary?.stddev,
+      summary?.rbar,
+      summary?.circular_std,
       summaryRangeValue,
     ],
   );

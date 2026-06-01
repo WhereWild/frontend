@@ -36,6 +36,8 @@ export type NumberSpinnerProps = {
   min?: number;
   max?: number;
   step?: number;
+  /** Decimal places to display and accept. When set, enables float input/output. */
+  precision?: number;
   disabled?: boolean;
   label?: string;
   description?: string;
@@ -63,25 +65,45 @@ const clampValue = (value: number, min?: number, max?: number) => {
   return nextValue;
 };
 
-const normalizeNumericInput = (rawInput: string, allowNegative: boolean) => {
+const normalizeNumericInput = (
+  rawInput: string,
+  allowNegative: boolean,
+  allowDecimal: boolean,
+) => {
   const trimmed = rawInput.trim();
 
-  if (!allowNegative) {
+  if (!allowNegative && !allowDecimal) {
     return trimmed.replace(/\D+/g, '');
   }
 
-  const isNegative = trimmed.startsWith('-');
-  const digits = trimmed.replace(/\D+/g, '');
+  const isNegative = allowNegative && trimmed.startsWith('-');
+  const unsigned = trimmed.replace(/^-/, '');
 
+  if (allowDecimal) {
+    // Keep digits and at most one decimal point
+    const dotIndex = unsigned.indexOf('.');
+    let normalized: string;
+    if (dotIndex === -1) {
+      normalized = unsigned.replace(/\D+/g, '');
+    } else {
+      const intPart = unsigned.slice(0, dotIndex).replace(/\D+/g, '');
+      const fracPart = unsigned.slice(dotIndex + 1).replace(/\D+/g, '');
+      normalized = `${intPart}.${fracPart}`;
+    }
+    return isNegative ? `-${normalized}` : normalized;
+  }
+
+  const digits = unsigned.replace(/\D+/g, '');
   if (digits.length === 0) {
     return isNegative ? '-' : '';
   }
-
   return isNegative ? `-${digits}` : digits;
 };
 
-const parseNormalizedValue = (valueText: string) => {
-  const parsed = Number.parseInt(valueText, 10);
+const parseNormalizedValue = (valueText: string, decimal: boolean) => {
+  const parsed = decimal
+    ? Number.parseFloat(valueText)
+    : Number.parseInt(valueText, 10);
   return Number.isNaN(parsed) ? null : parsed;
 };
 
@@ -91,6 +113,7 @@ export function NumberSpinner({
   min,
   max,
   step = 1,
+  precision,
   disabled = false,
   label,
   description,
@@ -100,12 +123,15 @@ export function NumberSpinner({
   incrementAccessibilityLabel = 'Increase value',
   onValueChange,
 }: NumberSpinnerProps) {
+  const isDecimal = typeof precision === 'number' && precision > 0;
   const inputRef = useRef<TextInput>(null);
   const [internalValue, setInternalValue] = useState(
     clampValue(defaultValue, min, max),
   );
+  const formatValue = (v: number) =>
+    isDecimal ? v.toFixed(precision) : String(v);
   const [draftValue, setDraftValue] = useState(
-    String(clampValue(defaultValue, min, max)),
+    formatValue(clampValue(defaultValue, min, max)),
   );
   const [isFocused, setIsFocused] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -188,14 +214,19 @@ export function NumberSpinner({
       return;
     }
 
-    setDraftValue(String(currentValue));
-  }, [currentValue, isEditing]);
+    setDraftValue(formatValue(currentValue));
+  }, [currentValue, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const roundToPrecision = (v: number) =>
+    isDecimal
+      ? Math.round(v * Math.pow(10, precision!)) / Math.pow(10, precision!)
+      : v;
 
   const commitValue = (
     nextValue: number,
     context: NumberSpinnerValueChangeContext,
   ) => {
-    const clamped = clampValue(nextValue, min, max);
+    const clamped = roundToPrecision(clampValue(nextValue, min, max));
     const current = currentValueRef.current;
     const isStepChange = context === 'increment' || context === 'decrement';
     const hitBoundary =
@@ -260,32 +291,36 @@ export function NumberSpinner({
   };
 
   const normalizeAndCommitInput = (rawInput: string) => {
-    const normalized = normalizeNumericInput(rawInput, allowNegativeInput);
+    const normalized = normalizeNumericInput(
+      rawInput,
+      allowNegativeInput,
+      isDecimal,
+    );
 
-    if (normalized.length === 0 || normalized === '-') {
+    if (normalized.length === 0 || normalized === '-' || normalized === '.') {
       setDraftValue(normalized);
       return;
     }
 
-    const parsed = parseNormalizedValue(normalized);
+    const parsed = parseNormalizedValue(normalized, isDecimal);
     if (parsed == null) {
       return;
     }
 
-    const clamped = clampValue(parsed, min, max);
-    setDraftValue(String(clamped));
+    const clamped = roundToPrecision(clampValue(parsed, min, max));
+    setDraftValue(isDecimal ? normalized : String(clamped));
     commitValue(clamped, 'input');
   };
 
   const finalizeInputValue = () => {
-    const parsed = parseNormalizedValue(draftValue);
+    const parsed = parseNormalizedValue(draftValue, isDecimal);
     if (parsed == null) {
-      setDraftValue(String(currentValue));
+      setDraftValue(formatValue(currentValue));
       return;
     }
 
-    const clamped = clampValue(parsed, min, max);
-    setDraftValue(String(clamped));
+    const clamped = roundToPrecision(clampValue(parsed, min, max));
+    setDraftValue(formatValue(clamped));
     commitValue(clamped, 'input');
   };
 
