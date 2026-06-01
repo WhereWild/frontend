@@ -80,6 +80,79 @@ describe('SystemStatusView', () => {
     });
   });
 
+  describe('error status indicator', () => {
+    it('shows error indicator for pipeline with error status', () => {
+      render(
+        <SystemStatusView
+          status={{
+            ...MOCK_STATUS_IDLE,
+            pipeline: { ...MOCK_STATUS_IDLE.pipeline!, status: 'error' },
+          }}
+        />,
+      );
+      expect(screen.getByText(/✗ Error/)).toBeTruthy();
+    });
+
+    it('shows error indicator for failed status', () => {
+      render(
+        <SystemStatusView
+          status={{
+            ...MOCK_STATUS_IDLE,
+            pipeline: { ...MOCK_STATUS_IDLE.pipeline!, status: 'failed' },
+          }}
+        />,
+      );
+      expect(screen.getByText(/✗/)).toBeTruthy();
+    });
+  });
+
+  describe('null temporal', () => {
+    it('shows no data indicator when temporal is null', () => {
+      render(
+        <SystemStatusView status={{ ...MOCK_STATUS_IDLE, temporal: null }} />,
+      );
+      expect(screen.getByText(/No data/)).toBeTruthy();
+    });
+  });
+
+  describe('elapsed time formatting', () => {
+    it('formats hours correctly', () => {
+      render(
+        <SystemStatusView
+          status={{
+            ...MOCK_STATUS_RUNNING,
+            temporal: { ...MOCK_STATUS_RUNNING.temporal!, elapsed_s: 7320 },
+          }}
+        />,
+      );
+      expect(screen.getByText(/Running for 2h 2m/)).toBeTruthy();
+    });
+
+    it('formats exact hours with no minutes', () => {
+      render(
+        <SystemStatusView
+          status={{
+            ...MOCK_STATUS_RUNNING,
+            temporal: { ...MOCK_STATUS_RUNNING.temporal!, elapsed_s: 7200 },
+          }}
+        />,
+      );
+      expect(screen.getByText(/Running for 2h$/)).toBeTruthy();
+    });
+
+    it('formats exact minutes with no seconds', () => {
+      render(
+        <SystemStatusView
+          status={{
+            ...MOCK_STATUS_RUNNING,
+            temporal: { ...MOCK_STATUS_RUNNING.temporal!, elapsed_s: 120 },
+          }}
+        />,
+      );
+      expect(screen.getByText(/Running for 2m$/)).toBeTruthy();
+    });
+  });
+
   describe('running state', () => {
     it('renders all four section cards', () => {
       render(<SystemStatusView status={MOCK_STATUS_RUNNING} />);

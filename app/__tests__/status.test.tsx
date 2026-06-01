@@ -177,6 +177,16 @@ describe('SystemStatusPage', () => {
     });
   });
 
+  it('shows fallback error message when non-Error is thrown', async () => {
+    (global.fetch as jest.Mock).mockRejectedValue('string error');
+
+    render(<SystemStatusPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('error:Failed to reach server')).toBeTruthy();
+    });
+  });
+
   it('shows error when server returns non-ok response', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
