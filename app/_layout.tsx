@@ -740,25 +740,25 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <SettingsProvider>
-      <NativePortalProvider>
-        <LayoutChromeProvider>
-          <WebPageHeaderProvider>
-            <NativeTopAppBarProvider>
-              <NativeSearchSessionProvider>
-                {Platform.OS === 'web' ? (
-                  <RootLayoutWebFrame />
-                ) : (
-                  <NativeHomeTabsProvider>
-                    <RootLayoutNativeFrame />
-                  </NativeHomeTabsProvider>
-                )}
-              </NativeSearchSessionProvider>
-            </NativeTopAppBarProvider>
-          </WebPageHeaderProvider>
-        </LayoutChromeProvider>
-      </NativePortalProvider>
-    </SettingsProvider>
+      <SettingsProvider>
+        <NativePortalProvider>
+          <LayoutChromeProvider>
+            <WebPageHeaderProvider>
+              <NativeTopAppBarProvider>
+                <NativeSearchSessionProvider>
+                  {Platform.OS === 'web' ? (
+                    <RootLayoutWebFrame />
+                  ) : (
+                    <NativeHomeTabsProvider>
+                      <RootLayoutNativeFrame />
+                    </NativeHomeTabsProvider>
+                  )}
+                </NativeSearchSessionProvider>
+              </NativeTopAppBarProvider>
+            </WebPageHeaderProvider>
+          </LayoutChromeProvider>
+        </NativePortalProvider>
+      </SettingsProvider>
     </GestureHandlerRootView>
   );
 }

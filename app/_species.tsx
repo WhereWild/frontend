@@ -329,10 +329,8 @@ export default function Species({
   const [selectedPhenology, setSelectedPhenology] = React.useState<
     string | null
   >(null);
-  const [startTimestamp, setStartTimestamp] = React.useState<number | null>(
-    null,
-  );
-  const [endTimestamp, setEndTimestamp] = React.useState<number | null>(null);
+  const startTimestamp: number | null = null;
+  const endTimestamp: number | null = null;
 
   const predictiveHeatmapDescription = React.useMemo(
     () => getPredictiveHeatmapDescription(hasLiveHeatmap, hasAnyHeatmap),
@@ -537,7 +535,7 @@ export default function Species({
                   phenologyCounts={phenologyCounts}
                 />
 
-<SpeciesEnvironmentSection
+                <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
