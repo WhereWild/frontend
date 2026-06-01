@@ -541,16 +541,70 @@
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
-        if (!catalogHref) {
+        if (!LINK_OBSERVATIONS || !catalogHref || !catalogLabel) {
           return '';
         }
-        var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
-        var pinBtn = buildPinButtonHtml(catalogNumber, latitude, longitude, pinButtonMarginTop);
-        if (!LINK_OBSERVATIONS || !catalogLabel) {
-          return pinBtn;
+        return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
+      }
+
+      function fetchAndShowPointValue(marker, inatHtml, latitude, longitude) {
+        var loadingHtml = (inatHtml ? inatHtml + '<br>' : '') + '<span style="opacity:0.6;font-size:11px">Loading…</span>';
+        var popup = marker.getPopup();
+        if (!popup) {
+          marker.bindPopup(loadingHtml);
+          popup = marker.getPopup();
+        } else {
+          popup.setContent(loadingHtml);
         }
-        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
-        return inatLink + pinBtn;
+        if (!marker.isPopupOpen()) {
+          marker.openPopup();
+        }
+        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            if (!marker.isPopupOpen()) return;
+            var valueHtml = '';
+            if (data.value != null) {
+              var numVal = Number(data.value);
+              if (isFinite(numVal)) {
+                var pvMsg = { type: 'pointValue', value: numVal };
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
+                } else {
+                  window.parent.postMessage(pvMsg, '*');
+                }
+                var isNumericVar = RENDER_MIN != null && RENDER_MAX != null && RENDER_MAX > RENDER_MIN;
+                if (isNumericVar) {
+                  var t = Math.max(0, Math.min(1, (numVal - RENDER_MIN) / (RENDER_MAX - RENDER_MIN)));
+                  var color = gradientColor(t);
+                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+                  var units = data.units ? ' ' + data.units : '';
+                  var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0}) : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
+                  valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
+                }
+              }
+            } else {
+              valueHtml = '<span style="opacity:0.6;font-size:11px">No data</span>';
+            }
+            marker.getPopup().setContent((inatHtml || '') + valueHtml);
+          })
+          .catch(function() {
+            if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Error</span>');
+          });
+      }
+
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude) {
+        var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
+          ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+          : '';
+        marker.on('click', function() {
+          if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
+            sendPinMessage(catalogValue, latitude, longitude);
+          }
+          if (POINT_QUERY_URL) {
+            fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
+          }
+        });
       }
 
       function applyEntryStyle(entry, style) {
@@ -742,6 +796,7 @@
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
 
           const markerEntry = {
             key: markerKey,
@@ -769,6 +824,7 @@
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -807,6 +863,9 @@
       }
 
       if (POINT_QUERY_URL) {
+        if (ALLOW_PIN_OBSERVATIONS) {
+          sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+        }
         var popup = L.popup().setLatLng(event.latlng).setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>').openOn(map);
         fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
           .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
@@ -860,10 +919,8 @@
         map.closePopup();
         return;
       }
-      L.popup()
-        .setLatLng(event.latlng)
-        .setContent(buildMapClickPopup(latitude, longitude))
-        .openOn(map);
+      sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+      map.closePopup();
     });
 
     function latLonToTile(lat, lon, z) {

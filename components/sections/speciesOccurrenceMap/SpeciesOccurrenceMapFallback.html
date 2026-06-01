@@ -511,16 +511,21 @@
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
-        if (!catalogHref) {
+        if (!LINK_OBSERVATIONS || !catalogHref || !catalogLabel) {
           return '';
         }
-        var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
-        var pinBtn = buildPinButtonHtml(catalogNumber, latitude, longitude, pinButtonMarginTop);
-        if (!LINK_OBSERVATIONS || !catalogLabel) {
-          return pinBtn;
-        }
-        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
-        return inatLink + pinBtn;
+        return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
+      }
+
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude) {
+        var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
+          ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+          : '';
+        marker.on('click', function() {
+          if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
+            sendPinMessage(catalogValue, latitude, longitude);
+          }
+        });
       }
 
       function applyEntryStyle(entry, style) {
@@ -712,6 +717,7 @@
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
 
           const markerEntry = {
             key: markerKey,
@@ -739,6 +745,7 @@
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -779,10 +786,8 @@
       if (!isFinite(latitude) || !isFinite(longitude)) {
         return;
       }
-      L.popup()
-        .setLatLng(event.latlng)
-        .setContent(buildMapClickPopup(latitude, longitude))
-        .openOn(map);
+      sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+      map.closePopup();
     });
 
     applyHighlights([]);
