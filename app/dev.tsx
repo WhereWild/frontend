@@ -34,6 +34,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixSection';
+import { SystemStatusView } from '@/components/sections/status/SystemStatusView';
+import type { SystemStatusData } from '@/components/sections/status/SystemStatusView';
 import Head from 'expo-router/head';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -87,6 +89,60 @@ const ABOUT_FORECAST_OPTIONS: SelectOption[] = [
   { value: '3d', label: '+3 days' },
   { value: '7d', label: '+7 days' },
 ];
+
+const STATUS_MOCK_RUNNING: SystemStatusData = {
+  pipeline: {
+    status: 'in_progress',
+    stage: 'enrich_tree',
+    stage_elapsed_s: 77,
+    last_finished_at: null,
+    last_duration_s: null,
+    received_at: new Date(Date.now() - 80_000).toISOString(),
+  },
+  temporal: {
+    status: 'running',
+    elapsed_s: 638,
+    last_finished_at: null,
+    last_duration_s: null,
+    received_at: new Date(Date.now() - 640_000).toISOString(),
+  },
+  upload_queue: { depth: 2, active: true },
+  server: {
+    cpu_percent: 72,
+    cpu_temp_c: 61,
+    ram_used_mb: 6200,
+    ram_total_mb: 7817,
+    disk_used_gb: 707,
+    disk_total_gb: 936,
+  },
+};
+
+const STATUS_MOCK_IDLE: SystemStatusData = {
+  pipeline: {
+    status: 'idle',
+    stage: null,
+    stage_elapsed_s: null,
+    last_finished_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
+    last_duration_s: 2743,
+    received_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
+  },
+  temporal: {
+    status: 'idle',
+    elapsed_s: null,
+    last_finished_at: new Date(Date.now() - 86400_000).toISOString(),
+    last_duration_s: 420,
+    received_at: new Date(Date.now() - 86400_000).toISOString(),
+  },
+  upload_queue: { depth: 0, active: false },
+  server: {
+    cpu_percent: 0,
+    cpu_temp_c: 33,
+    ram_used_mb: 940,
+    ram_total_mb: 7817,
+    disk_used_gb: 707,
+    disk_total_gb: 936,
+  },
+};
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -1123,6 +1179,22 @@ export default function About() {
                 showMarkers={false}
               />
             </View>
+
+            <View style={styles.statusSection}>
+              <ThemedText variant='heading'>System Status</ThemedText>
+              <ThemedText variant='bodySmall'>Loading state</ThemedText>
+              <SystemStatusView isLoading status={null} />
+              <ThemedText variant='bodySmall'>
+                Running (pipeline in progress, temporal running, upload active)
+              </ThemedText>
+              <SystemStatusView status={STATUS_MOCK_RUNNING} />
+              <ThemedText variant='bodySmall'>
+                Idle (all jobs complete, queue empty)
+              </ThemedText>
+              <SystemStatusView status={STATUS_MOCK_IDLE} />
+              <ThemedText variant='bodySmall'>Error state</ThemedText>
+              <SystemStatusView status={null} error='Failed to reach server' />
+            </View>
           </PageScrollContainer>
         </View>
       </PageSurface>
@@ -1192,5 +1264,9 @@ const styles = StyleSheet.create({
   },
   aboutMapSection: {
     gap: Size.space['250'],
+  },
+  statusSection: {
+    gap: Size.space['300'],
+    maxWidth: 480,
   },
 });
