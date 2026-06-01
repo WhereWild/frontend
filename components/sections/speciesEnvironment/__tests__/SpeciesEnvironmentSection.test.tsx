@@ -821,7 +821,7 @@ describe('SpeciesEnvironmentSection', () => {
 
     expect(screen.getByText('polar-density-view')).toBeTruthy();
     expect(screen.queryByText('density-view')).toBeNull();
-    expect(screen.queryByText('continuous-view')).toBeNull();
+    expect(screen.getByText('continuous-view')).toBeTruthy();
   });
 
   it('still renders DensityChart + ContinuousInsights for non-aspect_deg continuous variables', () => {
