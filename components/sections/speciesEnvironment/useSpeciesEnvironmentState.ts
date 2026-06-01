@@ -242,8 +242,19 @@ export function useSpeciesEnvironmentState({
     [stats, selectedRankContext],
   );
 
-  const summaryRanks = React.useMemo(
-    () => ({
+  const summaryRanks = React.useMemo(() => {
+    const modeFraction =
+      summary?.mode != null
+        ? (categoricalDistribution.find((c) => c.value === summary.mode)
+            ?.fraction ?? null)
+        : null;
+    const selectedFraction =
+      selectedCategoryValue != null
+        ? (categoricalDistribution.find(
+            (c) => c.value === selectedCategoryValue,
+          )?.fraction ?? null)
+        : null;
+    return {
       min: resolveRankForMetric('min', summary?.min),
       mean: resolveRankForMetric('mean', summary?.mean),
       max: resolveRankForMetric('max', summary?.max),
@@ -263,18 +274,48 @@ export function useSpeciesEnvironmentState({
           allowHistogramFallback: false,
         },
       ),
-    }),
-    [
-      resolveRankForMetric,
-      summary?.max,
-      summary?.mean,
-      summary?.min,
-      summary?.stddev,
-      summary?.rbar,
-      summary?.circular_std,
-      summaryRangeValue,
-    ],
-  );
+      unique_classes: resolveRankForMetric(
+        'unique_classes',
+        summary?.unique_classes,
+        {
+          allowHistogramFallback: false,
+        },
+      ),
+      entropy: resolveRankForMetric('entropy', summary?.entropy, {
+        allowHistogramFallback: false,
+      }),
+      mode_class:
+        summary?.mode != null && modeFraction != null
+          ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {
+              allowHistogramFallback: false,
+            })
+          : null,
+      selected_class:
+        selectedCategoryValue != null && selectedFraction != null
+          ? resolveRankForMetric(
+              `class_${selectedCategoryValue}`,
+              selectedFraction,
+              {
+                allowHistogramFallback: false,
+              },
+            )
+          : null,
+    };
+  }, [
+    resolveRankForMetric,
+    summary?.max,
+    summary?.mean,
+    summary?.min,
+    summary?.stddev,
+    summary?.rbar,
+    summary?.circular_std,
+    summary?.unique_classes,
+    summary?.entropy,
+    summary?.mode,
+    summaryRangeValue,
+    categoricalDistribution,
+    selectedCategoryValue,
+  ]);
 
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
     () =>
@@ -344,12 +385,18 @@ export function useSpeciesEnvironmentState({
         return null;
       }
 
+      const legendColor =
+        selectedVariableMeta?.legendClasses?.find(
+          (cls) => String(cls.id) === String(pinnedValue),
+        )?.color ?? null;
+
       return {
         value: pinnedValue,
         label: pinnedValueLabel?.trim().length
           ? pinnedValueLabel
           : String(pinnedValue),
         description: pinnedValueDescription,
+        ...(legendColor !== null ? { color: legendColor } : {}),
       };
     }, [
       isCategorical,
@@ -358,6 +405,7 @@ export function useSpeciesEnvironmentState({
       pinnedValue,
       pinnedValueDescription,
       pinnedValueLabel,
+      selectedVariableMeta,
     ]);
 
   const headingText = buildHeadingText(

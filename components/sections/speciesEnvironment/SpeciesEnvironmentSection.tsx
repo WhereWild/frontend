@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/text/ThemedText';
 import { AspectCompassChart } from './AspectCompassChart';
 import { ContinuousInsights } from './ContinuousInsights';
 import { DensityChart } from './DensityChart';
+import { NominalInsights } from './NominalInsights';
 import { PolarDensityChart } from './PolarDensityChart';
 import { StackedCategoryBar } from './StackedCategoryBar';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
@@ -18,13 +19,15 @@ import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
 
-const SPECIES_RANKS = new Set([
+const SLICEABLE_RANKS = new Set([
   'SPECIES',
   'SUBSPECIES',
   'VARIETY',
   'FORM',
   'SUBVARIETY',
   'SUBFORM',
+  'GENUS',
+  'FAMILY',
 ]);
 
 /** Props for rendering the species environment analytics section. */
@@ -69,7 +72,7 @@ function SpeciesEnvironmentSectionComponent({
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
   const slicingEnabled =
-    taxonRank == null || SPECIES_RANKS.has(taxonRank.toUpperCase());
+    taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase());
   const rankLabel =
     taxonRank == null
       ? 'Species'
@@ -390,7 +393,10 @@ function SpeciesEnvironmentSectionComponent({
           importantForAccessibility={
             showCategoricalContent ? 'auto' : 'no-hide-descendants'
           }
-          style={!showCategoricalContent ? styles.hiddenContentSlot : undefined}
+          style={[
+            !showCategoricalContent ? styles.hiddenContentSlot : undefined,
+            styles.categoricalContent,
+          ]}
         >
           {selectedVariable === 'aspect' ||
           selectedVariable === 'Aspect (binned)' ? (
@@ -420,6 +426,30 @@ function SpeciesEnvironmentSectionComponent({
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               highlightOutlineColor='#F59E0B'
+            />
+          )}
+          {typeof displayState?.summary?.unique_classes === 'number' && (
+            <NominalInsights
+              showRankContext={displayState?.showRankContext ?? false}
+              rankContextOptions={displayState?.rankContextOptions ?? []}
+              selectedRankContext={displayState?.selectedRankContext ?? null}
+              onRankContextChange={handleRankContextChange}
+              summary={displayState?.summary}
+              summaryRanks={{
+                unique_classes:
+                  displayState?.summaryRanks?.unique_classes ?? null,
+                entropy: displayState?.summaryRanks?.entropy ?? null,
+                mode_class: displayState?.summaryRanks?.mode_class ?? null,
+                selected_class:
+                  displayState?.summaryRanks?.selected_class ?? null,
+              }}
+              categoricalDistribution={
+                displayState?.categoricalDistribution ?? []
+              }
+              selectedCategoryValue={
+                displayState?.selectedCategoryValue ?? null
+              }
+              locationFilterActive={locationFilterActive}
             />
           )}
         </View>
@@ -581,6 +611,9 @@ const styles = StyleSheet.create({
   contentRegion: {
     width: '100%',
     gap: Size.space.text.paragraph,
+  },
+  categoricalContent: {
+    gap: Size.space.text.section,
   },
   continuousContent: {
     gap: Size.space.text.section,

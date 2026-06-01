@@ -127,6 +127,9 @@ export type SpeciesEnvironmentSummary = {
   circular_mean?: number | null;
   rbar?: number | null;
   circular_std?: number | null;
+  unique_classes?: number | null;
+  entropy?: number | null;
+  mode?: number | string | null;
 };
 
 export type SpeciesEnvironmentHistogram = {
@@ -295,6 +298,12 @@ export type DataSource = {
   references: DataSourceReference[];
 };
 
+export type LegendClass = {
+  id: number | string;
+  name: string;
+  color?: string | null;
+};
+
 export type EnvironmentVariableDefinition = {
   id: string;
   name?: string;
@@ -304,6 +313,7 @@ export type EnvironmentVariableDefinition = {
   domain?: string | null;
   category?: string | null;
   sourceIds?: string[];
+  legendClasses?: LegendClass[] | null;
 };
 
 /** Query parameters for numeric environment slice requests. */
