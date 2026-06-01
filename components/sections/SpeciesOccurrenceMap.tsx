@@ -82,7 +82,6 @@ function isPointValueMessage(msg: unknown): msg is PointValueMessage {
   );
 }
 
-
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
