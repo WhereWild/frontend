@@ -50,11 +50,7 @@ type StackedCategoryBarProps = {
 const getSelectedCategoryDescription = (
   category: SpeciesEnvironmentCategory,
 ) => {
-  const accountPhrase =
-    String(category.value) === '__other__'
-      ? 'Together these account'
-      : 'This accounts';
-  const summarySentence = `${accountPhrase} for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
+  const summarySentence = `This accounts for ${formatCategoryPercent(category.fraction)} of all observations (${formatValue(category.count)} samples).`;
   if (!category.description) {
     return summarySentence;
   }
@@ -77,6 +73,8 @@ export function StackedCategoryBar({
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
+  const [expanded, setExpanded] = React.useState(false);
+
   const validCategories = React.useMemo(
     () =>
       categories.filter(
@@ -86,41 +84,18 @@ export function StackedCategoryBar({
     [categories],
   );
 
-  const displayCategories = React.useMemo(() => {
-    const topCategories = validCategories.slice(0, CATEGORY_DISPLAY_LIMIT);
-    const otherCategories = validCategories.slice(CATEGORY_DISPLAY_LIMIT);
+  const hiddenCount = Math.max(
+    0,
+    validCategories.length - CATEGORY_DISPLAY_LIMIT,
+  );
+  const hasMore = hiddenCount > 0;
 
-    const otherCategory: SpeciesEnvironmentCategory | null =
-      otherCategories.length > 0
-        ? {
-            value: '__other__',
-            className: 'Other',
-            fraction: otherCategories.reduce(
-              (sum, cat) => sum + cat.fraction,
-              0,
-            ),
-            count: otherCategories.reduce(
-              (sum, cat) =>
-                sum +
-                (Number.isFinite(cat.count) && cat.count >= 0 ? cat.count : 0),
-              0,
-            ),
-            description: otherCategories
-              .map((cat, index) => {
-                if (index === 0) return cat.className;
-                return (
-                  cat.className.charAt(0).toLowerCase() + cat.className.slice(1)
-                );
-              })
-              .join(', '),
-          }
-        : null;
-
-    return otherCategory ? [...topCategories, otherCategory] : topCategories;
-  }, [validCategories]);
-
-  const hasOtherCategory = displayCategories.some(
-    (cat) => String(cat.value) === '__other__',
+  const displayCategories = React.useMemo(
+    () =>
+      expanded || !hasMore
+        ? validCategories
+        : validCategories.slice(0, CATEGORY_DISPLAY_LIMIT),
+    [validCategories, expanded, hasMore],
   );
 
   const selectedCategory = React.useMemo(
@@ -172,55 +147,51 @@ export function StackedCategoryBar({
     validCategories,
   ]);
 
+  React.useEffect(() => {
+    if (!resolvedPinnedKey || expanded) return;
+    const visibleKeys = new Set(
+      validCategories
+        .slice(0, CATEGORY_DISPLAY_LIMIT)
+        .map((c) => String(c.value)),
+    );
+    if (!visibleKeys.has(resolvedPinnedKey)) setExpanded(true);
+  }, [resolvedPinnedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pills = React.useMemo(() => {
-    const base = displayCategories.map((category, index) => {
-      const baseColor =
-        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-      const isOtherBucket = String(category.value) === '__other__';
-      const label =
-        isOtherBucket && pinnedOtherLabel
-          ? `Other (${pinnedOtherLabel})`
-          : category.className;
-      return {
-        key: String(category.value),
-        label,
-        icon: (
-          <View
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: baseColor,
-            }}
-          />
-        ),
-      };
-    });
-    if (pinnedOtherLabel && !hasOtherCategory) {
-      const pinnedOtherColor =
-        unobservedHighlightedCategory?.color ?? '#9CA3AF';
+    const base = displayCategories.map((category, index) => ({
+      key: String(category.value),
+      label: category.className,
+      icon: (
+        <View
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor:
+              category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+          }}
+        />
+      ),
+    }));
+    if (pinnedOtherLabel) {
       base.push({
         key: '__other__',
-        label: `Other (${pinnedOtherLabel})`,
+        label: pinnedOtherLabel,
         icon: (
           <View
             style={{
               width: 12,
               height: 12,
               borderRadius: 6,
-              backgroundColor: pinnedOtherColor,
+              backgroundColor:
+                unobservedHighlightedCategory?.color ?? '#9CA3AF',
             }}
           />
         ),
       });
     }
     return base;
-  }, [
-    displayCategories,
-    hasOtherCategory,
-    pinnedOtherLabel,
-    unobservedHighlightedCategory,
-  ]);
+  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory]);
 
   const handlePillSelectionChange = React.useCallback(
     (key: string) => {
@@ -301,6 +272,20 @@ export function StackedCategoryBar({
         accessibilityLabel='Category selection'
         highlightOutlineColor={highlightOutlineColor}
       />
+
+      {hasMore && (
+        <Pressable
+          onPress={() => setExpanded((e) => !e)}
+          style={styles.showMoreButton}
+        >
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.default.secondary }}
+          >
+            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+          </ThemedText>
+        </Pressable>
+      )}
 
       <View collapsable={false} style={styles.categoryDescriptionSlot}>
         {pinnedOtherLabel && !selectedCategoryDescription ? (
