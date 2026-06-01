@@ -69,11 +69,7 @@ mockStack.Screen = function mockStackScreen(props: any) {
 };
 
 jest.mock('react-native-gesture-handler', () => ({
-  GestureHandlerRootView: ({ children, style }: any) => {
-    const { View } = require('react-native');
-    const { createElement } = require('react');
-    return createElement(View, { style }, children);
-  },
+  GestureHandlerRootView: ({ children }: any) => children,
 }));
 
 jest.mock('expo-router', () => ({
@@ -273,9 +269,7 @@ describe('Root layout', () => {
       throw new Error('Expected RootLayout to render a single root view');
     }
 
-    // GestureHandlerRootView is the outermost element; backgroundColor lives on its child
-    const child = Array.isArray(tree.children) ? tree.children[0] : null;
-    const styles = (child as any)?.props?.style ?? tree.props.style;
+    const styles = tree.props.style;
     expect(styles).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

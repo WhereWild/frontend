@@ -1,100 +1,92 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import { SpeciesObservationFilters } from '../SpeciesObservationFilters';
 
+let lastSelectProps: any = null;
 jest.mock('@/components/inputs/SelectField', () => ({
-  SelectField: ({ label, placeholder, options, value, onValueChange, disabled }: any) => {
-    const { View, Text, Pressable } = require('react-native');
-    return (
-      <View>
-        <Text>{label}</Text>
-        <Text testID='placeholder'>{placeholder}</Text>
-        <Text testID='value'>{value}</Text>
-        <Text testID='disabled'>{String(disabled)}</Text>
-        {options.map((opt: any) => (
-          <Pressable key={opt.value} testID={`option-${opt.value}`} onPress={() => onValueChange(opt.value)}>
-            <Text>{opt.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    );
+  SelectField: (props: any) => {
+    lastSelectProps = props;
+    return null;
   },
 }));
 
 describe('SpeciesObservationFilters', () => {
-  it('shows loading state when phenologyCounts is null', () => {
-    const { getByTestId } = render(
-      <SpeciesObservationFilters
-        selectedPhenology={null}
-        onPhenologyChange={jest.fn()}
-        phenologyCounts={null}
-      />,
-    );
-    expect(getByTestId('placeholder').props.children).toBe('Loading…');
-    expect(getByTestId('disabled').props.children).toBe('true');
+  beforeEach(() => {
+    lastSelectProps = null;
   });
 
-  it('shows all option only when phenologyCounts is null', () => {
-    const { getByTestId, queryByTestId } = render(
+  it('shows loading state when phenologyCounts is null', () => {
+    render(
       <SpeciesObservationFilters
         selectedPhenology={null}
         onPhenologyChange={jest.fn()}
         phenologyCounts={null}
       />,
     );
-    expect(getByTestId('option-')).toBeTruthy();
-    expect(queryByTestId('option-flowers')).toBeNull();
+    expect(lastSelectProps.placeholder).toBe('Loading…');
+    expect(lastSelectProps.disabled).toBe(true);
+  });
+
+  it('shows only All option when phenologyCounts is null', () => {
+    render(
+      <SpeciesObservationFilters
+        selectedPhenology={null}
+        onPhenologyChange={jest.fn()}
+        phenologyCounts={null}
+      />,
+    );
+    expect(lastSelectProps.options).toEqual([{ label: 'All', value: '' }]);
   });
 
   it('builds sorted options from phenologyCounts', () => {
-    const { getByTestId } = render(
+    render(
       <SpeciesObservationFilters
         selectedPhenology={null}
         onPhenologyChange={jest.fn()}
         phenologyCounts={{ flowers: 100, 'fruits or seeds': 50 }}
       />,
     );
-    expect(getByTestId('option-')).toBeTruthy();
-    expect(getByTestId('option-flowers')).toBeTruthy();
-    expect(getByTestId('option-fruits or seeds')).toBeTruthy();
-    expect(getByTestId('disabled').props.children).toBe('false');
-    expect(getByTestId('placeholder').props.children).toBe('Select');
+    expect(lastSelectProps.disabled).toBe(false);
+    expect(lastSelectProps.placeholder).toBe('Select');
+    expect(lastSelectProps.options[0]).toEqual({ label: 'All', value: '' });
+    expect(lastSelectProps.options[1].value).toBe('flowers');
+    expect(lastSelectProps.options[2].value).toBe('fruits or seeds');
   });
 
   it('calls onPhenologyChange with null when empty string selected', () => {
     const onChange = jest.fn();
-    const { getByTestId } = render(
+    render(
       <SpeciesObservationFilters
         selectedPhenology='flowers'
         onPhenologyChange={onChange}
         phenologyCounts={{ flowers: 100 }}
       />,
     );
-    fireEvent.press(getByTestId('option-'));
+    lastSelectProps.onValueChange('');
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
   it('calls onPhenologyChange with value when option selected', () => {
     const onChange = jest.fn();
-    const { getByTestId } = render(
+    render(
       <SpeciesObservationFilters
         selectedPhenology={null}
         onPhenologyChange={onChange}
         phenologyCounts={{ flowers: 100 }}
       />,
     );
-    fireEvent.press(getByTestId('option-flowers'));
+    lastSelectProps.onValueChange('flowers');
     expect(onChange).toHaveBeenCalledWith('flowers');
   });
 
   it('reflects selectedPhenology as current value', () => {
-    const { getByTestId } = render(
+    render(
       <SpeciesObservationFilters
         selectedPhenology='flowers'
         onPhenologyChange={jest.fn()}
         phenologyCounts={{ flowers: 100 }}
       />,
     );
-    expect(getByTestId('value').props.children).toBe('flowers');
+    expect(lastSelectProps.value).toBe('flowers');
   });
 });
