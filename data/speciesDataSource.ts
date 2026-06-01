@@ -12,13 +12,16 @@ import type {
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
-  SpeciesOccurrence,
+  SpeciesOccurrencesResult,
   LocationSearchResult,
 } from './types';
 
 type EnvironmentRequestOptions = {
   location?: string | null;
   units?: string | null;
+  phenology?: string | null;
+  startTs?: number | null;
+  endTs?: number | null;
 };
 
 type CategorySampleOptions = EnvironmentRequestOptions & {
@@ -60,7 +63,7 @@ export type SpeciesDataSource = {
   fetchSpeciesOccurrences: (
     taxonId: string | number,
     options?: EnvironmentRequestOptions,
-  ) => Promise<SpeciesOccurrence[]>;
+  ) => Promise<SpeciesOccurrencesResult>;
   fetchSpeciesLocations: (
     taxonId: string | number,
     level?: FetchSpeciesLocationsLevel,

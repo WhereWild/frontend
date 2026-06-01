@@ -103,6 +103,11 @@ type UseEnvironmentHighlightsParams = {
   isCategorical: boolean;
   /** Optional location filter gid for scoped highlights. */
   locationGid?: string | null;
+  /** Optional phenology filter value. */
+  phenology?: string | null;
+  /** Optional timestamp range filter (Unix seconds). */
+  startTimestamp?: number | null;
+  endTimestamp?: number | null;
   /** Unit system forwarded to backend highlight endpoints. */
   units?: 'metric' | 'imperial' | undefined;
   /** Callback receiving highlighted catalog numbers. */
@@ -122,6 +127,9 @@ export function useEnvironmentHighlights({
   stats,
   isCategorical,
   locationGid,
+  phenology,
+  startTimestamp,
+  endTimestamp,
   units,
   onHighlightChange,
   pinnedObservation,
@@ -233,12 +241,30 @@ export function useEnvironmentHighlights({
 
   React.useEffect(() => {
     resetHighlightState();
-  }, [locationGid, resetHighlightState, selectedVariable, taxonId, units]);
+  }, [
+    endTimestamp,
+    locationGid,
+    phenology,
+    resetHighlightState,
+    selectedVariable,
+    startTimestamp,
+    taxonId,
+    units,
+  ]);
 
   React.useEffect(() => {
     pinnedRequestRef.current += 1;
     resetPinnedState();
-  }, [locationGid, resetPinnedState, selectedVariable, taxonId, units]);
+  }, [
+    endTimestamp,
+    locationGid,
+    phenology,
+    resetPinnedState,
+    selectedVariable,
+    startTimestamp,
+    taxonId,
+    units,
+  ]);
 
   React.useEffect(() => {
     if (!pinnedObservation || !selectedVariable) {
@@ -275,7 +301,13 @@ export function useEnvironmentHighlights({
                 taxonId ?? '',
                 pinnedObservation.catalogNumber,
                 selectedVariable,
-                { location: locationGid ?? undefined, units },
+                {
+                  location: locationGid ?? undefined,
+                  units,
+                  phenology: phenology ?? undefined,
+                  startTs: startTimestamp ?? undefined,
+                  endTs: endTimestamp ?? undefined,
+                },
               )
             : await fetchPointEnvironmentValue(
                 pinnedObservation.lat,
@@ -307,7 +339,13 @@ export function useEnvironmentHighlights({
                 taxonId,
                 selectedVariable,
                 categoryQueryValue,
-                { location: locationGid ?? undefined, units },
+                {
+                  location: locationGid ?? undefined,
+                  units,
+                  phenology: phenology ?? undefined,
+                  startTs: startTimestamp ?? undefined,
+                  endTs: endTimestamp ?? undefined,
+                },
               );
             if (pinnedRequestRef.current !== requestId) {
               return;
@@ -339,12 +377,15 @@ export function useEnvironmentHighlights({
       }
     })();
   }, [
+    endTimestamp,
     locationGid,
     isCategorical,
+    phenology,
     pinnedObservation,
     resetPinnedState,
     selectedVariable,
     speciesDataSource,
+    startTimestamp,
     taxonId,
     stats,
     units,
@@ -604,6 +645,9 @@ export function useEnvironmentHighlights({
                 max: range.max,
                 location: locationGid ?? undefined,
                 units,
+                phenology: phenology ?? undefined,
+                startTs: startTimestamp ?? undefined,
+                endTs: endTimestamp ?? undefined,
               }),
             ),
           );
@@ -639,11 +683,14 @@ export function useEnvironmentHighlights({
     };
   }, [
     emitHighlightChange,
+    endTimestamp,
     isCategorical,
     locationGid,
+    phenology,
     selectedDensityRange,
     selectedVariable,
     speciesDataSource,
+    startTimestamp,
     taxonId,
     units,
   ]);
