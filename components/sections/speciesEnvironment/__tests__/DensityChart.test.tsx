@@ -728,9 +728,7 @@ describe('DensityChart', () => {
           pinLoading={false}
         />,
       );
-      expect(
-        screen.getByText(/has no observed occurrences/),
-      ).toBeTruthy();
+      expect(screen.getByText(/has no observed occurrences/)).toBeTruthy();
     });
 
     it('does not render pin image in discrete mode', () => {
