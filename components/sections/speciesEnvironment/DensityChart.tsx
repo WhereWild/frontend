@@ -27,7 +27,7 @@ import {
 
 const CHART_PADDING = Size.space['200'];
 const CHART_HEIGHT = 240;
-const MIN_BAR_PX = 14;
+const MIN_BAR_PX = 28;
 const MAX_HISTOGRAM_BARS = 40;
 const MEAN_LABEL_HALF_WIDTH = 24;
 const PIN_LABEL_HALF_WIDTH = 36;
@@ -46,6 +46,8 @@ const ClipPathWithUnits =
 type DensitySelectionRange = {
   start: number;
   end: number;
+  displayStart?: number;
+  displayEnd?: number;
 };
 
 /** Props for rendering interactive density distribution chart. */
@@ -125,7 +127,7 @@ export function DensityChart({
     const last = normalized.length - 1;
     return normalized.map(({ y }, i) => {
       const left = i * barWidth;
-      const right = i === last ? 100 : (i + 1) * barWidth + 0.1;
+      const right = i === last ? 100 : (i + 1) * barWidth;
       return {
         path: `M${left},${CHART_HEIGHT} L${left},${y} L${right},${y} L${right},${CHART_HEIGHT} Z`,
         domainStart: samples[i].x - domainHw,
@@ -208,7 +210,14 @@ export function DensityChart({
         hasDragged.current = false;
         if (idx !== null && discreteBars?.[idx]) {
           const bar = discreteBars[idx];
-          onSelectionChange?.({ start: bar.domainStart, end: bar.domainEnd });
+          const sample = samples[idx];
+          onSelectionChange?.({
+            start: bar.domainStart,
+            end: bar.domainEnd,
+            ...(sample.rangeStart != null && sample.rangeEnd != null
+              ? { displayStart: sample.rangeStart, displayEnd: sample.rangeEnd }
+              : {}),
+          });
         }
         return;
       }
@@ -234,6 +243,7 @@ export function DensityChart({
       isDiscrete,
       getBarIndexForLocation,
       discreteBars,
+      samples,
       getValueForLocation,
       onSelectionChange,
     ],
@@ -281,11 +291,38 @@ export function DensityChart({
       ? ((pinValue - densityDomain.minX) / densityDomain.spanX) * 100
       : null;
   const pinIsOutsideRange =
-    pinRawPosition != null &&
-    Number.isFinite(pinRawPosition) &&
-    (pinRawPosition < 0 || pinRawPosition > 100);
+    pinValue != null &&
+    !pinLoading &&
+    (summary?.min != null || summary?.max != null
+      ? (summary.min != null && pinValue < summary.min) ||
+        (summary.max != null && pinValue > summary.max)
+      : pinRawPosition != null &&
+        Number.isFinite(pinRawPosition) &&
+        (pinRawPosition < 0 || pinRawPosition > 100));
   const pinIsBelowRange =
-    pinIsOutsideRange && pinRawPosition != null && pinRawPosition < 0;
+    pinIsOutsideRange &&
+    (summary?.min != null
+      ? pinValue! < summary.min
+      : (pinRawPosition ?? 0) < 0);
+  const pinBarIndex = React.useMemo(() => {
+    if (
+      !isDiscrete ||
+      !discreteBars ||
+      pinValue == null ||
+      pinLoading ||
+      pinIsOutsideRange
+    )
+      return -1;
+    return discreteBars.findIndex(
+      (bar) => pinValue >= bar.domainStart && pinValue <= bar.domainEnd,
+    );
+  }, [isDiscrete, discreteBars, pinValue, pinLoading, pinIsOutsideRange]);
+  const pinInUnobservedBin =
+    isDiscrete &&
+    pinBarIndex === -1 &&
+    pinValue != null &&
+    !pinLoading &&
+    !pinIsOutsideRange;
   const pinPosition = pinIsOutsideRange ? null : pinRawPosition;
   const pinMarkerVisible = pinPosition != null && Number.isFinite(pinPosition);
 
@@ -414,16 +451,33 @@ export function DensityChart({
             ) : null}
           </Defs>
           {isDiscrete && discreteBars ? (
-            discreteBars.map(({ path }, i) => {
-              const isSelected =
-                selection != null &&
-                samples[i] != null &&
-                samples[i].x >= selection.start &&
-                samples[i].x <= selection.end;
-              const fill = isSelected ? lineColor : fillColor;
-              const opacity = isSelected ? 0.8 : selection != null ? 0.2 : 0.5;
-              return <Path key={i} d={path} fill={fill} opacity={opacity} />;
-            })
+            <>
+              {discreteBars.map(({ path }, i) => {
+                const isSelected =
+                  selection != null &&
+                  samples[i] != null &&
+                  samples[i].x >= selection.start &&
+                  samples[i].x <= selection.end;
+                const fill = isSelected ? lineColor : fillColor;
+                const opacity = isSelected
+                  ? 0.8
+                  : selection != null
+                    ? 0.2
+                    : 0.5;
+                return <Path key={i} d={path} fill={fill} opacity={opacity} />;
+              })}
+              {pinBarIndex !== -1 ? (
+                <Path
+                  key='pin-outline'
+                  d={discreteBars[pinBarIndex].path}
+                  fill='none'
+                  stroke={palette.background.warning.default}
+                  strokeWidth={2}
+                  strokeDasharray='4 3'
+                  vectorEffect='non-scaling-stroke'
+                />
+              ) : null}
+            </>
           ) : (
             <>
               <Path d={areaPath} fill={fillColor} opacity={0.3} />
@@ -438,7 +492,7 @@ export function DensityChart({
             </>
           )}
           <Path
-            d={`M${start.x},0 L${end.x},0 L${end.x},${CHART_HEIGHT} L${start.x},${CHART_HEIGHT} Z`}
+            d={`M${start!.x},0 L${end!.x},0 L${end!.x},${CHART_HEIGHT} L${start!.x},${CHART_HEIGHT} Z`}
             fill='none'
             stroke={baselineColor}
             strokeWidth={2}
@@ -454,7 +508,9 @@ export function DensityChart({
               vectorEffect='non-scaling-stroke'
             />
           ) : null}
-          {pinPosition != null && Number.isFinite(pinPosition) ? (
+          {!isDiscrete &&
+          pinPosition != null &&
+          Number.isFinite(pinPosition) ? (
             <Path
               d={`M${pinPosition},0 L${pinPosition},${CHART_HEIGHT}`}
               fill='none'
@@ -474,23 +530,25 @@ export function DensityChart({
             />
           )}
         </Svg>
-        <View
-          pointerEvents='none'
-          style={[
-            styles.pinImageContainer,
-            {
-              opacity: pinMarkerVisible ? 1 : 0,
-              left: pinMarkerVisible ? `${pinPosition}%` : '0%',
-            },
-          ]}
-        >
-          <Image
-            source={PIN_IMAGE}
-            resizeMode='contain'
-            testID='density-chart-pin-image'
-            style={styles.pinImage}
-          />
-        </View>
+        {!isDiscrete ? (
+          <View
+            pointerEvents='none'
+            style={[
+              styles.pinImageContainer,
+              {
+                opacity: pinMarkerVisible ? 1 : 0,
+                left: pinMarkerVisible ? `${pinPosition}%` : '0%',
+              },
+            ]}
+          >
+            <Image
+              source={PIN_IMAGE}
+              resizeMode='contain'
+              testID='density-chart-pin-image'
+              style={styles.pinImage}
+            />
+          </View>
+        ) : null}
         <View
           collapsable={false}
           testID='density-chart-responder'
@@ -568,6 +626,24 @@ export function DensityChart({
             style={{ color: palette.text.warning.default }}
           >
             {`Location value (${formatValue(pinValue, 1)}) is ${pinIsBelowRange ? 'below' : 'above'} this species' observed range`}
+          </ThemedText>
+        </View>
+      ) : null}
+      {pinInUnobservedBin && pinValue != null ? (
+        <View
+          style={[
+            styles.outOfRangeWarning,
+            {
+              backgroundColor: palette.background.warning.secondary,
+              borderColor: palette.border.warning.default,
+            },
+          ]}
+        >
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.warning.default }}
+          >
+            {`Location value (${formatValue(pinValue, 1)}) has no observed occurrences in this range`}
           </ThemedText>
         </View>
       ) : null}

@@ -157,6 +157,24 @@ describe('DensityChart', () => {
     expect(onSelectionChange).toHaveBeenCalledWith(null);
   });
 
+  it('clears selection on terminate when no drag is in progress', () => {
+    const onSelectionChange = jest.fn();
+    const { getByTestId } = render(
+      <DensityChart
+        curve={{ points: [0, 10], density: [0.4, 0.4] }}
+        lineColor='#000'
+        fillColor='#000'
+        baselineColor='#000'
+        summary={{ count: 2, min: 0, mean: 5, max: 10 }}
+        selection={null}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+
+    fireEvent(getByTestId('density-chart-responder'), 'responderTerminate');
+    expect(onSelectionChange).toHaveBeenCalledWith(null);
+  });
+
   it('clears selection when drag starts but does not move', () => {
     const onSelectionChange = jest.fn();
     const { getByTestId } = render(
@@ -595,5 +613,140 @@ describe('DensityChart', () => {
     expect(screen.getByText('min')).toBeTruthy();
     expect(screen.getByText('mean')).toBeTruthy();
     expect(screen.getByText('max')).toBeTruthy();
+  });
+
+  describe('discrete histogram mode', () => {
+    const discreteCurve = {
+      points: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      density: [0.1, 0.2, 0.4, 0.8, 1.0, 0.8, 0.4, 0.2, 0.1, 0.05],
+    };
+
+    it('renders without crashing in discrete mode', () => {
+      render(
+        <DensityChart
+          curve={discreteCurve}
+          lineColor='#00ff00'
+          fillColor='#00ff00'
+          baselineColor='#000'
+          isDiscrete
+        />,
+      );
+      expect(screen.getByTestId('density-chart-surface')).toBeTruthy();
+    });
+
+    it('emits bar domain bounds with displayStart/displayEnd on click', () => {
+      const onSelectionChange = jest.fn();
+      const { getByTestId } = render(
+        <DensityChart
+          curve={discreteCurve}
+          lineColor='#00ff00'
+          fillColor='#00ff00'
+          baselineColor='#000'
+          isDiscrete
+          onSelectionChange={onSelectionChange}
+        />,
+      );
+
+      const chartSurface = getByTestId('density-chart-surface');
+      const responderNode = getByTestId('density-chart-responder');
+
+      fireEvent(chartSurface, 'layout', {
+        nativeEvent: { layout: { width: 300 } },
+      });
+      fireEvent(responderNode, 'responderGrant', {
+        nativeEvent: { locationX: 150 },
+      });
+      fireEvent(responderNode, 'responderRelease', {
+        nativeEvent: { locationX: 150 },
+      });
+
+      expect(onSelectionChange).toHaveBeenCalled();
+      const call = onSelectionChange.mock.calls[0][0];
+      expect(call).not.toBeNull();
+      expect(typeof call.start).toBe('number');
+      expect(typeof call.end).toBe('number');
+    });
+
+    it('clears selection on terminate without drag in discrete mode', () => {
+      const onSelectionChange = jest.fn();
+      const { getByTestId } = render(
+        <DensityChart
+          curve={discreteCurve}
+          lineColor='#00ff00'
+          fillColor='#00ff00'
+          baselineColor='#000'
+          isDiscrete
+          onSelectionChange={onSelectionChange}
+        />,
+      );
+
+      const responderNode = getByTestId('density-chart-responder');
+      fireEvent(responderNode, 'responderTerminate');
+
+      expect(onSelectionChange).not.toHaveBeenCalled();
+    });
+
+    it('does not emit on responderMove in discrete mode', () => {
+      const onSelectionChange = jest.fn();
+      const { getByTestId } = render(
+        <DensityChart
+          curve={discreteCurve}
+          lineColor='#00ff00'
+          fillColor='#00ff00'
+          baselineColor='#000'
+          isDiscrete
+          onSelectionChange={onSelectionChange}
+        />,
+      );
+
+      const chartSurface = getByTestId('density-chart-surface');
+      const responderNode = getByTestId('density-chart-responder');
+
+      fireEvent(chartSurface, 'layout', {
+        nativeEvent: { layout: { width: 300 } },
+      });
+      fireEvent(responderNode, 'responderGrant', {
+        nativeEvent: { locationX: 50 },
+      });
+      fireEvent(responderNode, 'responderMove', {
+        nativeEvent: { locationX: 200 },
+      });
+
+      expect(onSelectionChange).not.toHaveBeenCalled();
+    });
+
+    it('shows pin-in-unobserved-bin warning when pinValue has no matching bar', () => {
+      render(
+        <DensityChart
+          curve={{ points: [5, 6, 7], density: [0.5, 1.0, 0.5] }}
+          lineColor='#00ff00'
+          fillColor='#00ff00'
+          baselineColor='#000'
+          isDiscrete
+          summary={{ count: 10, min: 0, mean: 5, max: 10 }}
+          pinValue={0.1}
+          pinLoading={false}
+        />,
+      );
+      expect(
+        screen.getByText(/has no observed occurrences/),
+      ).toBeTruthy();
+    });
+
+    it('does not render pin image in discrete mode', () => {
+      render(
+        <DensityChart
+          curve={discreteCurve}
+          lineColor='#00ff00'
+          fillColor='#00ff00'
+          baselineColor='#000'
+          isDiscrete
+          summary={{ count: 10, min: 0, mean: 5, max: 9 }}
+          pinValue={5}
+          pinLoading={false}
+        />,
+      );
+      expect(screen.queryByTestId('density-chart-pin-image')).toBeNull();
+    });
   });
 });

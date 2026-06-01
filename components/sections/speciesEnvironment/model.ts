@@ -48,6 +48,9 @@ export type RankContextOption = {
 export type DensitySelectionRange = {
   start: number;
   end: number;
+  /** Human-readable bounds for display (e.g. actual chunk edges for discrete bars). */
+  displayStart?: number;
+  displayEnd?: number;
 };
 
 /** Fallback variable list used when remote catalog is unavailable. */
