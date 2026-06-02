@@ -77,10 +77,12 @@ export function StackedCategoryBar({
 
   const validCategories = React.useMemo(
     () =>
-      categories.filter(
-        (category) =>
-          Number.isFinite(category.fraction) && category.fraction >= 0,
-      ),
+      categories
+        .filter(
+          (category) =>
+            Number.isFinite(category.fraction) && category.fraction > 0,
+        )
+        .sort((a, b) => b.count - a.count),
     [categories],
   );
 

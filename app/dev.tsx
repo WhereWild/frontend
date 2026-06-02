@@ -264,7 +264,9 @@ export default function About() {
 
     (async () => {
       try {
-        const variables = await fetchEnvironmentVariables({ units: unitSystem });
+        const variables = await fetchEnvironmentVariables({
+          units: unitSystem,
+        });
         if (cancelled || !variables.length) {
           return;
         }
@@ -1476,19 +1478,16 @@ export default function About() {
                       mapSelectedVariableMeta?.legendClasses ?? []
                     ).filter((cls) => !(isLandcover && cls.id === 0));
                     if (allClasses.length === 0) return null;
-                    const visibleClasses =
-                      visibleNominalCounts.size === 0
-                        ? allClasses
-                        : allClasses
-                            .filter((cls) =>
-                              visibleNominalCounts.has(cls.id as number),
-                            )
-                            .sort(
-                              (a, b) =>
-                                (visibleNominalCounts.get(b.id as number) ??
-                                  0) -
-                                (visibleNominalCounts.get(a.id as number) ?? 0),
-                            );
+                    if (visibleNominalCounts.size === 0) return null;
+                    const visibleClasses = allClasses
+                      .filter((cls) =>
+                        visibleNominalCounts.has(cls.id as number),
+                      )
+                      .sort(
+                        (a, b) =>
+                          (visibleNominalCounts.get(b.id as number) ?? 0) -
+                          (visibleNominalCounts.get(a.id as number) ?? 0),
+                      );
                     if (visibleClasses.length === 0) return null;
                     return <MapCategoricalLegend classes={visibleClasses} />;
                   }

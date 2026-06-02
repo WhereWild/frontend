@@ -315,8 +315,13 @@ export function useEnvironmentHighlights({
                 selectedVariable,
                 {
                   units,
-                  ...(!isSyntheticPinnedPoint(pinnedObservation.catalogNumber) && taxonId
-                    ? { taxonId, catalogNumber: pinnedObservation.catalogNumber }
+                  ...(!isSyntheticPinnedPoint(
+                    pinnedObservation.catalogNumber,
+                  ) && taxonId
+                    ? {
+                        taxonId,
+                        catalogNumber: pinnedObservation.catalogNumber,
+                      }
                     : {}),
                 },
               );
