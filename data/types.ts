@@ -316,6 +316,8 @@ export type EnvironmentVariableDefinition = {
   legendClasses?: LegendClass[] | null;
   renderMin?: number | null;
   renderMax?: number | null;
+  group?: string | null;
+  groupLabel?: string | null;
 };
 
 /** Query parameters for numeric environment slice requests. */
