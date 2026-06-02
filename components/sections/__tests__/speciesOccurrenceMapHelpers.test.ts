@@ -219,6 +219,7 @@ describe('speciesOccurrenceMapHelpers', () => {
           windowListeners.set(eventName, handler);
         },
       ),
+      location: { origin: 'http://localhost' },
       parent: {
         postMessage: jest.fn(),
       },
