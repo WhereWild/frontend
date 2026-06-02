@@ -20,6 +20,8 @@ type SummaryItemProps = {
   isLast?: boolean;
   /** Indicates stacked single-column layout on phone widths. */
   stacked?: boolean;
+  /** When true, omits rank/percentile rows and uses a larger value text size. */
+  prominent?: boolean;
 };
 
 /** Displays one summary metric with optional rank/comparison metadata. */
@@ -30,6 +32,7 @@ export function SummaryItem({
   comparison,
   isLast,
   stacked,
+  prominent = false,
 }: SummaryItemProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -60,37 +63,44 @@ export function SummaryItem({
         isLast && !stacked && styles.summaryItemLast,
       ]}
     >
-      <ThemedText variant='body'>
+      <ThemedText
+        variant='body'
+        style={prominent ? styles.prominentValue : undefined}
+      >
         {label}: {value}
       </ThemedText>
-      <View collapsable={false} style={styles.detailSlot}>
-        <ThemedText
-          variant='body'
-          style={[
-            styles.detailLine,
-            {
-              color: palette.text.default.secondary,
-              textAlign: stacked ? 'left' : 'center',
-            },
-          ]}
-        >
-          {secondaryDisplayText}
-        </ThemedText>
-      </View>
-      <View collapsable={false} style={styles.detailSlot}>
-        <ThemedText
-          variant='bodySmall'
-          style={[
-            styles.detailLine,
-            {
-              color: palette.text.default.tertiary,
-              textAlign: stacked ? 'left' : 'center',
-            },
-          ]}
-        >
-          {percentileDisplayText}
-        </ThemedText>
-      </View>
+      {(!prominent || secondaryDisplayText.trim().length > 0) && (
+        <View collapsable={false} style={styles.detailSlot}>
+          <ThemedText
+            variant='body'
+            style={[
+              styles.detailLine,
+              {
+                color: palette.text.default.secondary,
+                textAlign: stacked ? 'left' : 'center',
+              },
+            ]}
+          >
+            {secondaryDisplayText}
+          </ThemedText>
+        </View>
+      )}
+      {(!prominent || percentileDisplayText.trim().length > 0) && (
+        <View collapsable={false} style={styles.detailSlot}>
+          <ThemedText
+            variant='bodySmall'
+            style={[
+              styles.detailLine,
+              {
+                color: palette.text.default.tertiary,
+                textAlign: stacked ? 'left' : 'center',
+              },
+            ]}
+          >
+            {percentileDisplayText}
+          </ThemedText>
+        </View>
+      )}
     </View>
   );
 }
@@ -122,5 +132,8 @@ const styles = StyleSheet.create({
   detailSlot: {
     minHeight: 20,
     width: '100%',
+  },
+  prominentValue: {
+    fontSize: 18,
   },
 });

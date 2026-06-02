@@ -58,6 +58,7 @@
     const RENDER_MIN = __RENDER_MIN_JSON__;
     const RENDER_MAX = __RENDER_MAX_JSON__;
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
+    const VAR_UNITS = __VAR_UNITS_JSON__;
 
     var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
     function aspectColor(deg) {
@@ -324,6 +325,38 @@
       }
     }
 
+    function buildObservationValueHtml(varValue, varColor, varLabel) {
+      if (varValue == null) return '';
+      var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+      if (varColor) {
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + varColor + ';margin-right:5px;flex-shrink:0"></span>';
+        var labelText = varLabel || '';
+        return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
+      }
+      if (IS_CIRCULAR) {
+        var color = aspectColor(varValue);
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+        var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
+        return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
+      }
+      if (isNumericVar) {
+        var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+        var color = gradientColor(t);
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+        var units = VAR_UNITS ? ' ' + VAR_UNITS : '';
+        var fmt = Math.abs(varValue) >= 1000 ? varValue.toLocaleString(undefined, {maximumFractionDigits: 0}) : varValue.toLocaleString(undefined, {maximumFractionDigits: 2});
+        return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
+      }
+      return '';
+    }
+
+    function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel) {
+      var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
+        ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+        : '';
+      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel);
+    }
+
     function sendPinMessage(catalogNumber, latitude, longitude) {
       const msg = {
         type: PIN_OBSERVATION_MESSAGE_TYPE,
@@ -524,10 +557,26 @@
           [latitude, alignedLongitude],
           pinnedObsStyle,
         );
-        if (matchingEntry.popupHtml) {
-          selectedCatalogDirectMarker.bindPopup(matchingEntry.popupHtml);
-        }
+        var selectedPopupContent = buildObservationPopupContent(
+          matchingEntry.catalogHref, matchingEntry.catalogLabel,
+          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel
+        );
+        selectedCatalogDirectMarker.bindPopup(selectedPopupContent || matchingEntry.popupHtml || '');
+        bindObservationMarkerEvents(
+          selectedCatalogDirectMarker,
+          matchingEntry.catalogValue, matchingEntry.catalogHref, matchingEntry.catalogLabel,
+          latitude, matchingEntry.longitude,
+          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel
+        );
         map.addLayer(selectedCatalogDirectMarker);
+        if (selectedPopupContent) {
+          selectedCatalogDirectMarker.openPopup();
+        } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
+          var selInatHtml = (LINK_OBSERVATIONS && matchingEntry.catalogLabel && matchingEntry.catalogHref)
+            ? '<a href="https://www.inaturalist.org/observations/' + matchingEntry.catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + matchingEntry.catalogLabel + '</a>'
+            : '';
+          fetchAndShowPointValue(selectedCatalogDirectMarker, selInatHtml, latitude, matchingEntry.longitude);
+        }
         refreshVisibleMarkerPresentation();
         return;
       }
@@ -633,11 +682,16 @@
           window.parent.postMessage(pvMsg, '*');
                 }
                 var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
-                if (isNumericVar) {
+                var units = data.units ? ' ' + data.units : (VAR_UNITS ? ' ' + VAR_UNITS : '');
+                if (IS_CIRCULAR) {
+                  var color = aspectColor(numVal);
+                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+                  var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+                  valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
+                } else if (isNumericVar) {
                   var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
                   var color = gradientColor(t);
                   var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-                  var units = data.units ? ' ' + data.units : '';
                   var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0}) : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
                   valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
                 }
@@ -669,30 +723,13 @@
               // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(pvMsg, '*');
             }
-            var valueHtml = '';
-            var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
-            if (varColor) {
-              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + varColor + ';margin-right:5px;flex-shrink:0"></span>';
-              var labelText = varLabel || '';
-              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
-            } else if (isNumericVar) {
-              var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
-              var color = gradientColor(t);
-              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-              var fmt = Math.abs(varValue) >= 1000 ? varValue.toLocaleString(undefined, {maximumFractionDigits: 0}) : varValue.toLocaleString(undefined, {maximumFractionDigits: 2});
-              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '</span></div>';
-            } else if (IS_CIRCULAR) {
-              var color = aspectColor(varValue);
-              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-              var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
-              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
-            }
+            var content = buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel);
             var popup = marker.getPopup();
             if (!popup) {
-              marker.bindPopup((inatHtml || '') + valueHtml);
+              marker.bindPopup(content);
               popup = marker.getPopup();
             } else {
-              popup.setContent((inatHtml || '') + valueHtml);
+              popup.setContent(content);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
           } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
@@ -733,6 +770,12 @@
           if (entry.popupHtml) {
             entry.directMarker.bindPopup(entry.popupHtml);
           }
+          bindObservationMarkerEvents(
+            entry.directMarker,
+            entry.catalogValue, entry.catalogHref, entry.catalogLabel,
+            entry.latitude, entry.longitude,
+            entry.varValue, entry.varColor, entry.varLabel
+          );
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
           entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
@@ -901,6 +944,12 @@
             clusterMarker,
             clusterMarkerHidden: false,
             directMarker: null,
+            catalogValue: pt.popupCatalogValue ?? '',
+            catalogHref: pt.popupCatalogHref ?? '',
+            catalogLabel: pt.popupCatalogLabel ?? '',
+            varValue: pt.varValue ?? null,
+            varColor: pt.varColor ?? null,
+            varLabel: pt.varLabel ?? null,
           };
 
           clusterGroup.addLayer(clusterMarker);
@@ -1001,26 +1050,25 @@
               var dot = data.class_color ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>' : '';
               var label = data.class_name || String(numVal);
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            } else if (IS_CIRCULAR) {
+              var color = aspectColor(numVal);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0</span></div>');
             } else if (isNumeric) {
               var t = Math.max(0, Math.min(1, (numVal - colorMin) / (colorMax - colorMin)));
               var color = gradientColor(t);
               var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-              var units = data.units ? ' ' + data.units : '';
+              var units = data.units ? ' ' + data.units : '';
               var fmt = Math.abs(numVal) >= 1000
                 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0})
                 : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
-              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
-            } else if (IS_CIRCULAR) {
-              var color = aspectColor(numVal);
-              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-              var units = data.units ? ' ' + data.units : '';
-              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
             } else {
               var dot = data.class_color
                 ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>'
                 : '';
-              var units = data.units ? ' ' + data.units : '';
+              var units = data.units ? ' ' + data.units : '';
               var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
             }

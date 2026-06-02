@@ -66,6 +66,9 @@ describe('speciesOccurrenceMapHelpers', () => {
     setStyle: jest.Mock<void, [Record<string, unknown>]>;
     setLatLng: jest.Mock;
     bindPopup: jest.Mock;
+    openPopup: jest.Mock;
+    isPopupOpen: jest.Mock;
+    getPopup: jest.Mock;
     on: jest.Mock;
   };
 
@@ -179,6 +182,9 @@ describe('speciesOccurrenceMapHelpers', () => {
             }),
             setLatLng: jest.fn(),
             bindPopup: jest.fn(),
+            openPopup: jest.fn(),
+            isPopupOpen: jest.fn(() => false),
+            getPopup: jest.fn(() => ({ setContent: jest.fn() })),
             on: jest.fn(),
           };
           createdMarkers.push(marker);

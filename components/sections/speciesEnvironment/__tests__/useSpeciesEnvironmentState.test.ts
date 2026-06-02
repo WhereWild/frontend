@@ -562,7 +562,7 @@ describe('useSpeciesEnvironmentState', () => {
     );
   });
 
-  it('uses the categorical class label for observation checks when point lookup returns a raster class id', async () => {
+  it('uses the numeric class id for observation checks when point lookup returns a raster class id with a label', async () => {
     mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue({
       ...categoricalStats,
@@ -608,8 +608,8 @@ describe('useSpeciesEnvironmentState', () => {
       expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
         1,
         'landcover',
-        'Closed deciduous broadleaved forest',
-        { location: undefined, units: undefined },
+        62,
+        expect.objectContaining({ location: undefined, units: undefined }),
       ),
     );
     await waitFor(() =>

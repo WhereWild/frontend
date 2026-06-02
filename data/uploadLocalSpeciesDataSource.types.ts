@@ -77,6 +77,9 @@ export type UploadedSummaryStatsRow = {
   circular_mean?: number | null;
   rbar?: number | null;
   circular_std?: number | null;
+  unique_classes?: number | null;
+  entropy?: number | null;
+  mode?: string | number | null;
 };
 
 export type RawCategoricalStatsRow = {
