@@ -233,7 +233,9 @@ const buildStatsByVariable = (
       totalSamplesRow && Number.isFinite(totalSamplesRow.value)
         ? totalSamplesRow.value
         : null;
-    const uniqueClassesRow = categoryRows.find((entry) => entry.metric === 'unique_classes');
+    const uniqueClassesRow = categoryRows.find(
+      (entry) => entry.metric === 'unique_classes',
+    );
     const entropyRow = categoryRows.find((entry) => entry.metric === 'entropy');
     const modeRow = categoryRows.find((entry) => entry.metric === 'mode');
     const classRows = categoryRows.filter(
@@ -326,7 +328,9 @@ const buildStatsByVariable = (
             : null),
         entropy:
           summaryRow?.entropy ??
-          (entropyRow && Number.isFinite(entropyRow.value) ? entropyRow.value : null),
+          (entropyRow && Number.isFinite(entropyRow.value)
+            ? entropyRow.value
+            : null),
         mode: (() => {
           if (summaryRow?.mode != null) return summaryRow.mode;
           if (modeRow == null) return null;

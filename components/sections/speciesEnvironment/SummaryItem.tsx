@@ -63,7 +63,10 @@ export function SummaryItem({
         isLast && !stacked && styles.summaryItemLast,
       ]}
     >
-      <ThemedText variant='body' style={prominent ? styles.prominentValue : undefined}>
+      <ThemedText
+        variant='body'
+        style={prominent ? styles.prominentValue : undefined}
+      >
         {label}: {value}
       </ThemedText>
       {(!prominent || secondaryDisplayText.trim().length > 0) && (
