@@ -52,7 +52,7 @@ describe('speciesOccurrenceMapHelpers', () => {
   };
 
   const extractInlineScript = (html: string) => {
-    const match = html.match(/<script>([\s\S]*)<\/script>/);
+    const match = html.match(/<script>([\s\S]*?)<\/script>/i);
     if (!match?.[1]) {
       throw new Error('Expected inline map script in template');
     }
@@ -219,6 +219,7 @@ describe('speciesOccurrenceMapHelpers', () => {
           windowListeners.set(eventName, handler);
         },
       ),
+      location: { origin: 'http://localhost' },
       parent: {
         postMessage: jest.fn(),
       },
