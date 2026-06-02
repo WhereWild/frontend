@@ -18,7 +18,6 @@ export function MapCategoricalLegend({ classes }: MapCategoricalLegendProps) {
 
   return (
     <View
-      pointerEvents='none'
       style={[
         styles.overlay,
         { backgroundColor: palette.background.default.secondary },
@@ -32,10 +31,7 @@ export function MapCategoricalLegend({ classes }: MapCategoricalLegendProps) {
         {classes.map((cls) => (
           <View key={cls.id} style={styles.row}>
             <View
-              style={[
-                styles.dot,
-                { backgroundColor: cls.color ?? '#888888' },
-              ]}
+              style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }]}
             />
             <ThemedText
               variant='bodyTiny'
@@ -62,6 +58,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Size.space['200'],
     paddingVertical: Size.space['200'],
     maxWidth: 140,
+    pointerEvents: 'none',
   },
   scroll: {
     flex: 1,
