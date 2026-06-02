@@ -353,6 +353,9 @@ export function useSpeciesEnvironmentState({
 
     const normalizedPinnedValue = normalizeCategoryIdentity(pinnedValue);
     const normalizedPinnedLabel = normalizeCategoryIdentity(pinnedValueLabel);
+    const classFormatPinned = normalizedPinnedValue.startsWith('class_')
+      ? normalizedPinnedValue
+      : `class_${normalizedPinnedValue}`;
 
     return (
       categoricalDistribution.find(
@@ -360,6 +363,7 @@ export function useSpeciesEnvironmentState({
           categoryHasObservedSamples(category) &&
           (normalizeCategoryIdentity(category.value) ===
             normalizedPinnedValue ||
+            normalizeCategoryIdentity(category.value) === classFormatPinned ||
             normalizeCategoryIdentity(category.className) ===
               normalizedPinnedValue ||
             (normalizedPinnedLabel.length > 0 &&
@@ -377,11 +381,9 @@ export function useSpeciesEnvironmentState({
         return null;
       }
 
-      if (pinnedCategoryObserved === true) {
-        return null;
-      }
-
-      if (pinnedCategoryObserved === null && pinnedCategoryValue !== null) {
+      // Only show the badge when we've explicitly confirmed 0 observations for
+      // this category. null means still loading or indeterminate — don't flash.
+      if (pinnedCategoryObserved !== false) {
         return null;
       }
 
@@ -409,7 +411,6 @@ export function useSpeciesEnvironmentState({
       categoricalDistribution,
       isCategorical,
       pinnedCategoryObserved,
-      pinnedCategoryValue,
       pinnedValue,
       pinnedValueDescription,
       pinnedValueLabel,
