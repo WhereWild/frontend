@@ -66,6 +66,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     setStyle: jest.Mock<void, [Record<string, unknown>]>;
     setLatLng: jest.Mock;
     bindPopup: jest.Mock;
+    on: jest.Mock;
   };
 
   const createLeafletHarness = () => {
@@ -83,6 +84,7 @@ describe('speciesOccurrenceMapHelpers', () => {
       setStyle: jest.Mock;
       setLatLng: jest.Mock;
       bindPopup: jest.Mock;
+      on: jest.Mock;
     }[] = [];
     let visibleLongitudePredicate = (_longitude: number) => false;
     const blobUrlMap = new Map<object, string>();
@@ -177,6 +179,7 @@ describe('speciesOccurrenceMapHelpers', () => {
             }),
             setLatLng: jest.fn(),
             bindPopup: jest.fn(),
+            on: jest.fn(),
           };
           createdMarkers.push(marker);
           return marker;
@@ -405,13 +408,8 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(linkedPopup).toContain(
         'https://www.inaturalist.org/observations/obs-123',
       );
-      expect(linkedPopup).toContain('data-catalog-number="obs-123"');
-      expect(linkedPopup).toContain('Highlight in Environmental Features');
-      expect(unlinkedPopup).toContain('data-catalog-number="obs-123"');
-      expect(unlinkedPopup).toContain('Highlight in Environmental Features');
-      expect(unlinkedPopup).not.toContain(
-        'https://www.inaturalist.org/observations/obs-123',
-      );
+      expect(linkedPopup).not.toContain('Highlight in Environmental Features');
+      expect(unlinkedPopup).toBeUndefined();
     });
   });
 
@@ -473,7 +471,14 @@ describe('speciesOccurrenceMapHelpers', () => {
       const disabledPopup =
         disabledHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
 
-      expect(enabledPopup).toContain('Highlight in Environmental Features');
+      // Pin is now auto-fired via click handler — no button in popup
+      expect(enabledPopup).not.toContain('Highlight in Environmental Features');
+      expect(enabledPopup).not.toContain('data-pin-observation="true"');
+      // Marker has a click handler registered for auto-pin
+      expect(enabledHarness.createdMarkers[0]?.on).toHaveBeenCalledWith(
+        'click',
+        expect.any(Function),
+      );
       expect(disabledPopup).not.toContain(
         'Highlight in Environmental Features',
       );
@@ -588,11 +593,9 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(linkedPopup).toContain(
         'https://www.inaturalist.org/observations/obs-123',
       );
-      expect(linkedPopup).toContain('Highlight in Environmental Features');
-      expect(unlinkedPopup).toContain('Highlight in Environmental Features');
-      expect(unlinkedPopup).not.toContain(
-        'https://www.inaturalist.org/observations/obs-123',
-      );
+      expect(linkedPopup).not.toContain('Highlight in Environmental Features');
+      // No link_observations → no iNat link → no popup bound
+      expect(unlinkedPopup).toBeUndefined();
     });
   });
 
@@ -639,9 +642,9 @@ describe('speciesOccurrenceMapHelpers', () => {
 
       expect(harness.createdMarkers).toHaveLength(3);
       expect(harness.createdMarkers[2]?.style).toMatchObject({
-        fillColor: markerPalette.highlightFill,
-        color: markerPalette.highlightStroke,
-        radius: 5,
+        fillColor: '#ffffff',
+        color: 'rgba(0,0,0,0.65)',
+        radius: 4,
       });
     });
   });
@@ -702,9 +705,9 @@ describe('speciesOccurrenceMapHelpers', () => {
 
       expect(harness.createdMarkers).toHaveLength(2);
       expect(harness.createdMarkers[1]?.style).toMatchObject({
-        fillColor: markerPalette.selectedPointFill,
+        fillColor: 'transparent',
         color: markerPalette.selectedPointStroke,
-        radius: 6,
+        radius: 4,
       });
 
       harness.windowListeners.get('message')?.({

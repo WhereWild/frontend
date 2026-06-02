@@ -52,6 +52,56 @@ function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
   );
 }
 
+type TileClassEntry = { id: number; count: number };
+type TileClassesMessage = {
+  type: 'tileClasses' | 'tileClassesRemoved';
+  classes: TileClassEntry[];
+};
+
+function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
+  return (
+    !!msg &&
+    typeof msg === 'object' &&
+    'type' in msg &&
+    (msg.type === 'tileClasses' || msg.type === 'tileClassesRemoved') &&
+    'classes' in msg &&
+    Array.isArray((msg as TileClassesMessage).classes)
+  );
+}
+
+type PointValueMessage = { type: 'pointValue'; value: number };
+
+export type MapBounds = {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+};
+type MapBoundsMessage = { type: 'mapBounds' } & MapBounds;
+
+function isMapBoundsMessage(msg: unknown): msg is MapBoundsMessage {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    m.type === 'mapBounds' &&
+    typeof m.north === 'number' &&
+    typeof m.south === 'number' &&
+    typeof m.east === 'number' &&
+    typeof m.west === 'number'
+  );
+}
+
+function isPointValueMessage(msg: unknown): msg is PointValueMessage {
+  return (
+    !!msg &&
+    typeof msg === 'object' &&
+    'type' in msg &&
+    msg.type === 'pointValue' &&
+    'value' in msg &&
+    typeof (msg as PointValueMessage).value === 'number'
+  );
+}
+
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
   loading?: boolean;
@@ -72,6 +122,21 @@ type SpeciesOccurrenceMapProps = {
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
+  onTileClasses?: (
+    classes: { id: number; count: number }[],
+    removed: boolean,
+  ) => void;
+  onPointValue?: (value: number) => void;
+  pointQueryUrl?: string | null;
+  renderMin?: number | null;
+  renderMax?: number | null;
+  isCircular?: boolean;
+  observationValues?: Map<string, number> | null;
+  classColors?: Map<string, string> | null;
+  classLabels?: Map<string, string> | null;
+  dotMin?: number | null;
+  dotMax?: number | null;
+  onMapBounds?: (bounds: MapBounds) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -94,6 +159,18 @@ export function SpeciesOccurrenceMap({
   onPinObservation,
   selectedPoint = null,
   onBoundsChange,
+  onTileClasses,
+  onPointValue,
+  pointQueryUrl = null,
+  renderMin = null,
+  renderMax = null,
+  isCircular = false,
+  observationValues = null,
+  classColors = null,
+  classLabels = null,
+  dotMin = null,
+  dotMax = null,
+  onMapBounds,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -146,9 +223,36 @@ export function SpeciesOccurrenceMap({
 
       if (isTilesChangedMessage(msg)) {
         onBoundsChange?.(msg);
+        return;
+      }
+
+      if (isTileClassesMessage(msg)) {
+        onTileClasses?.(msg.classes, msg.type === 'tileClassesRemoved');
+        return;
+      }
+
+      if (isPointValueMessage(msg)) {
+        onPointValue?.(msg.value);
+        return;
+      }
+
+      if (isMapBoundsMessage(msg)) {
+        onMapBounds?.({
+          north: msg.north,
+          south: msg.south,
+          east: msg.east,
+          west: msg.west,
+        });
       }
     },
-    [handlePinObservation, onBoundsChange, openExternalUrl],
+    [
+      handlePinObservation,
+      onBoundsChange,
+      onTileClasses,
+      onPointValue,
+      onMapBounds,
+      openExternalUrl,
+    ],
   );
 
   const hasOccurrences = occurrences.length > 0;
@@ -239,9 +343,27 @@ export function SpeciesOccurrenceMap({
       maxBounds,
       linkObservations,
       allowPinObservations,
+      pointQueryUrl,
+      renderMin,
+      renderMax,
+      isCircular,
+      observationValues,
+      classColors,
+      classLabels,
+      dotMin,
+      dotMax,
     );
   }, [
     allowPinObservations,
+    pointQueryUrl,
+    renderMin,
+    renderMax,
+    isCircular,
+    observationValues,
+    classColors,
+    classLabels,
+    dotMin,
+    dotMax,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,
@@ -353,6 +475,26 @@ export function SpeciesOccurrenceMap({
         isTilesChangedMessage(data)
       ) {
         onBoundsChange?.(data);
+        return;
+      }
+
+      if (frameWindow && source === frameWindow && isTileClassesMessage(data)) {
+        onTileClasses?.(data.classes, data.type === 'tileClassesRemoved');
+        return;
+      }
+
+      if (frameWindow && source === frameWindow && isPointValueMessage(data)) {
+        onPointValue?.(data.value);
+        return;
+      }
+
+      if (frameWindow && source === frameWindow && isMapBoundsMessage(data)) {
+        onMapBounds?.({
+          north: data.north,
+          south: data.south,
+          east: data.east,
+          west: data.west,
+        });
       }
     };
     window.addEventListener('message', handler);
@@ -361,7 +503,14 @@ export function SpeciesOccurrenceMap({
         window.removeEventListener('message', handler);
       }
     };
-  }, [handlePinObservation, onBoundsChange, openExternalUrl]);
+  }, [
+    handlePinObservation,
+    onBoundsChange,
+    onMapBounds,
+    onTileClasses,
+    onPointValue,
+    openExternalUrl,
+  ]);
 
   if (error) {
     return (

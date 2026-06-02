@@ -34,15 +34,26 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixSection';
-import { SystemStatusView } from '@/components/sections/status/SystemStatusView';
-import type { SystemStatusData } from '@/components/sections/status/SystemStatusView';
 import { DateRangeSlider } from '@/components/inputs/DateRangeSlider';
 import type { MonthYear } from '@/components/inputs/DateRangeSlider';
 import Head from 'expo-router/head';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
-import { normalizeLabel } from '@/components/sections/speciesEnvironment/model';
+import {
+  isVariableCategorical,
+  isVariableCircular,
+  normalizeLabel,
+} from '@/components/sections/speciesEnvironment/model';
+import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
+import {
+  ASPECT_CONIC_CSS,
+  ASPECT_NATIVE_COLOR,
+  VIRIDIS_COLORS,
+  VIRIDIS_CSS,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
@@ -91,60 +102,6 @@ const ABOUT_FORECAST_OPTIONS: SelectOption[] = [
   { value: '3d', label: '+3 days' },
   { value: '7d', label: '+7 days' },
 ];
-
-const STATUS_MOCK_RUNNING: SystemStatusData = {
-  pipeline: {
-    status: 'in_progress',
-    stage: 'enrich_tree',
-    stage_elapsed_s: 77,
-    last_finished_at: null,
-    last_duration_s: null,
-    received_at: new Date(Date.now() - 80_000).toISOString(),
-  },
-  temporal: {
-    status: 'running',
-    elapsed_s: 638,
-    last_finished_at: null,
-    last_duration_s: null,
-    received_at: new Date(Date.now() - 640_000).toISOString(),
-  },
-  upload_queue: { depth: 2, active: true },
-  server: {
-    cpu_percent: 72,
-    cpu_temp_c: 61,
-    ram_used_mb: 6200,
-    ram_total_mb: 7817,
-    disk_used_gb: 707,
-    disk_total_gb: 936,
-  },
-};
-
-const STATUS_MOCK_IDLE: SystemStatusData = {
-  pipeline: {
-    status: 'idle',
-    stage: null,
-    stage_elapsed_s: null,
-    last_finished_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
-    last_duration_s: 2743,
-    received_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
-  },
-  temporal: {
-    status: 'idle',
-    elapsed_s: null,
-    last_finished_at: new Date(Date.now() - 86400_000).toISOString(),
-    last_duration_s: 420,
-    received_at: new Date(Date.now() - 86400_000).toISOString(),
-  },
-  upload_queue: { depth: 0, active: false },
-  server: {
-    cpu_percent: 0,
-    cpu_temp_c: 33,
-    ram_used_mb: 940,
-    ram_total_mb: 7817,
-    disk_used_gb: 707,
-    disk_total_gb: 936,
-  },
-};
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -219,6 +176,9 @@ const mapAboutVariableOptions = (
       category: ABOUT_MAP_LIVE_WEATHER_IDS.has(entry.id)
         ? 'Live Weather'
         : (entry.category ?? 'Other'),
+      legendClasses: entry.legendClasses ?? null,
+      renderMin: entry.renderMin ?? null,
+      renderMax: entry.renderMax ?? null,
     }))
     .sort((left, right) => {
       const categoryComparison = (left.category ?? '').localeCompare(
@@ -305,6 +265,10 @@ export default function About() {
   const [aboutMapVariables, setAboutMapVariables] = useState<
     EnvironmentVariableOption[]
   >(ABOUT_MAP_FALLBACK_VARIABLES);
+  const [visibleNominalCounts, setVisibleNominalCounts] = useState<
+    Map<number, number>
+  >(new Map());
+  const [pinnedValue, setPinnedValue] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -364,6 +328,34 @@ export default function About() {
     selectedForecast,
     selectedWindow,
   ]);
+  useEffect(() => {
+    setVisibleNominalCounts(new Map());
+    setPinnedValue(null);
+  }, [mapSelectedVariable]);
+
+  const handleMapPointValue = useCallback((value: number) => {
+    setPinnedValue(value);
+  }, []);
+
+  const handleMapTileClasses = useCallback(
+    (classes: { id: number; count: number }[], removed: boolean) => {
+      setVisibleNominalCounts((prev) => {
+        const next = new Map(prev);
+        for (const { id, count } of classes) {
+          if (removed) {
+            const remaining = (next.get(id) ?? 0) - count;
+            if (remaining <= 0) next.delete(id);
+            else next.set(id, remaining);
+          } else {
+            next.set(id, (next.get(id) ?? 0) + count);
+          }
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   const speciesSample = mountainBallCactusData;
   const radioOptions = [
     { label: 'Label', description: 'Description', value: 'checked' },
@@ -1155,6 +1147,248 @@ export default function About() {
             </View>
 
             <View style={styles.aboutMapSection}>
+              <ThemedText variant='heading'>Map Legend Bar</ThemedText>
+              <ThemedText variant='body'>
+                Vertical gradient legend overlaid on the map (heatmap color
+                ramp).
+              </ThemedText>
+              <View style={styles.legendExampleRow}>
+                {[
+                  {
+                    label: 'Annual Mean Temp',
+                    min: -53.5,
+                    max: 34.75,
+                    units: '°C',
+                  },
+                  { label: 'Elevation', min: -430, max: 8850, units: 'm' },
+                  {
+                    label: 'Annual Precipitation',
+                    min: 0,
+                    max: 11401,
+                    units: 'mm',
+                  },
+                ].map(({ label, min, max, units }) => {
+                  const fmt = (v: number) =>
+                    Math.abs(v) >= 1000
+                      ? v.toLocaleString(undefined, {
+                          maximumFractionDigits: 0,
+                        })
+                      : v.toLocaleString(undefined, {
+                          maximumFractionDigits: 1,
+                        });
+                  const gradientCss = VIRIDIS_CSS;
+                  const nativeColors = VIRIDIS_COLORS;
+                  return (
+                    <View key={label} style={styles.legendExampleItem}>
+                      <ThemedText variant='bodySmall'>{label}</ThemedText>
+                      <View
+                        style={[
+                          styles.legendOverlayBox,
+                          {
+                            backgroundColor:
+                              palette.background.default.secondary,
+                          },
+                        ]}
+                      >
+                        <ThemedText
+                          variant='bodyTiny'
+                          style={styles.legendOverlayLabel}
+                        >
+                          {fmt(max)}
+                        </ThemedText>
+                        {Platform.OS === 'web' ? (
+                          <View
+                            style={[
+                              styles.legendOverlayBar,
+                              {
+                                height: 100,
+                                backgroundImage: gradientCss,
+                              } as object,
+                            ]}
+                          />
+                        ) : (
+                          <View
+                            style={[
+                              styles.legendOverlayBarFallback,
+                              { height: 100 },
+                            ]}
+                          >
+                            {nativeColors.map((color, i) => (
+                              <View
+                                key={i}
+                                style={[
+                                  styles.legendOverlaySegment,
+                                  { backgroundColor: color },
+                                ]}
+                              />
+                            ))}
+                          </View>
+                        )}
+                        <ThemedText
+                          variant='bodyTiny'
+                          style={styles.legendOverlayLabel}
+                        >
+                          {fmt(min)}
+                        </ThemedText>
+                        {units ? (
+                          <ThemedText
+                            variant='bodyTiny'
+                            style={styles.legendOverlayUnits}
+                          >
+                            {units}
+                          </ThemedText>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+                {(() => {
+                  const bgColor = palette.background.default.secondary;
+                  const nominalClasses = [
+                    {
+                      color: '#006400',
+                      name: 'Closed evergreen broadleaved forest',
+                    },
+                    {
+                      color: '#00A000',
+                      name: 'Closed deciduous broadleaved forest',
+                    },
+                    {
+                      color: '#AAC800',
+                      name: 'Open deciduous broadleaved forest',
+                    },
+                    { color: '#FFFF64', name: 'Rainfed cropland' },
+                    { color: '#AAF0F0', name: 'Irrigated cropland' },
+                    { color: '#B4B4B4', name: 'Urban / built-up' },
+                    { color: '#F0F0F0', name: 'Permanent snow and ice' },
+                  ];
+                  return (
+                    <View style={styles.legendExampleItem}>
+                      <ThemedText variant='bodySmall'>Land Cover</ThemedText>
+                      <View
+                        style={[
+                          styles.legendNominalBox,
+                          { backgroundColor: bgColor },
+                        ]}
+                      >
+                        {nominalClasses.map(({ color, name }) => (
+                          <View key={name} style={styles.legendNominalRow}>
+                            <View
+                              style={[
+                                styles.legendNominalDot,
+                                { backgroundColor: color },
+                              ]}
+                            />
+                            <ThemedText
+                              variant='bodyTiny'
+                              style={styles.legendNominalLabel}
+                              numberOfLines={1}
+                            >
+                              {name}
+                            </ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })()}
+                {(() => {
+                  const RING = 68;
+                  const HOLE = 38;
+                  const bgColor = palette.background.default.secondary;
+                  const conicCss = ASPECT_CONIC_CSS;
+                  return (
+                    <View style={styles.legendExampleItem}>
+                      <ThemedText variant='bodySmall'>Aspect</ThemedText>
+                      <View
+                        style={[
+                          styles.legendOverlayBox,
+                          { backgroundColor: bgColor },
+                        ]}
+                      >
+                        <ThemedText
+                          variant='bodyTiny'
+                          style={styles.legendCircleCardinal}
+                        >
+                          N
+                        </ThemedText>
+                        <View style={styles.legendCircleRow}>
+                          <ThemedText
+                            variant='bodyTiny'
+                            style={styles.legendCircleCardinal}
+                          >
+                            W
+                          </ThemedText>
+                          {Platform.OS === 'web' ? (
+                            <View
+                              style={[
+                                styles.legendCircleOuter,
+                                {
+                                  width: RING,
+                                  height: RING,
+                                  borderRadius: RING / 2,
+                                  backgroundImage: conicCss,
+                                } as object,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.legendCircleHole,
+                                  {
+                                    width: HOLE,
+                                    height: HOLE,
+                                    borderRadius: HOLE / 2,
+                                    backgroundColor: bgColor,
+                                  },
+                                ]}
+                              />
+                            </View>
+                          ) : (
+                            <View
+                              style={[
+                                styles.legendCircleOuter,
+                                {
+                                  width: RING,
+                                  height: RING,
+                                  borderRadius: RING / 2,
+                                  backgroundColor: ASPECT_NATIVE_COLOR,
+                                },
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.legendCircleHole,
+                                  {
+                                    width: HOLE,
+                                    height: HOLE,
+                                    borderRadius: HOLE / 2,
+                                    backgroundColor: bgColor,
+                                  },
+                                ]}
+                              />
+                            </View>
+                          )}
+                          <ThemedText
+                            variant='bodyTiny'
+                            style={styles.legendCircleCardinal}
+                          >
+                            E
+                          </ThemedText>
+                        </View>
+                        <ThemedText
+                          variant='bodyTiny'
+                          style={styles.legendCircleCardinal}
+                        >
+                          S
+                        </ThemedText>
+                      </View>
+                    </View>
+                  );
+                })()}
+              </View>
+            </View>
+
+            <View style={styles.aboutMapSection}>
               <ThemedText variant='heading'>Variable Tile Map</ThemedText>
               <ThemedText variant='body'>
                 Backend-served variable tiles using the same overview and tile
@@ -1195,32 +1429,92 @@ export default function About() {
                 Pick a variable to test tile rendering. Only backend map-enabled
                 variables will display.
               </ThemedText>
-              <SpeciesOccurrenceMap
-                occurrences={[]}
-                loading={false}
-                error={null}
-                height={ABOUT_LANDCOVER_MAP_HEIGHT}
-                heatmapTileUrl={aboutVariableTileUrl}
-                heatmapOpacity={0.85}
-                minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
-                showMarkers={false}
-              />
-            </View>
+              <View style={{ position: 'relative' }}>
+                <SpeciesOccurrenceMap
+                  occurrences={[]}
+                  loading={false}
+                  error={null}
+                  height={ABOUT_LANDCOVER_MAP_HEIGHT}
+                  heatmapTileUrl={aboutVariableTileUrl}
+                  heatmapOpacity={0.85}
+                  minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
+                  showMarkers={false}
+                  onTileClasses={handleMapTileClasses}
+                  onPointValue={handleMapPointValue}
+                  pointQueryUrl={
+                    mapSelectedVariable
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
+                      : null
+                  }
+                  isCircular={
+                    mapSelectedVariableMeta?.id === 'aspect' ||
+                    mapSelectedVariableMeta?.id === 'aspect_deg'
+                  }
+                  renderMin={
+                    isVariableCategorical(mapSelectedVariableMeta) ||
+                    mapSelectedVariableMeta?.id === 'aspect' ||
+                    mapSelectedVariableMeta?.id === 'aspect_deg'
+                      ? null
+                      : (mapSelectedVariableMeta?.renderMin ?? null)
+                  }
+                  renderMax={
+                    isVariableCategorical(mapSelectedVariableMeta) ||
+                    mapSelectedVariableMeta?.id === 'aspect' ||
+                    mapSelectedVariableMeta?.id === 'aspect_deg'
+                      ? null
+                      : (mapSelectedVariableMeta?.renderMax ?? null)
+                  }
+                />
+                {(() => {
+                  const isCircular = isVariableCircular(
+                    mapSelectedVariableMeta,
+                  );
+                  const isCategorical = isVariableCategorical(
+                    mapSelectedVariableMeta,
+                  );
+                  const isNumeric =
+                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() ===
+                      'continuous' && !isCircular;
 
-            <View style={styles.statusSection}>
-              <ThemedText variant='heading'>System Status</ThemedText>
-              <ThemedText variant='bodySmall'>Loading state</ThemedText>
-              <SystemStatusView isLoading status={null} />
-              <ThemedText variant='bodySmall'>
-                Running (pipeline in progress, temporal running, upload active)
-              </ThemedText>
-              <SystemStatusView status={STATUS_MOCK_RUNNING} />
-              <ThemedText variant='bodySmall'>
-                Idle (all jobs complete, queue empty)
-              </ThemedText>
-              <SystemStatusView status={STATUS_MOCK_IDLE} />
-              <ThemedText variant='bodySmall'>Error state</ThemedText>
-              <SystemStatusView status={null} error='Failed to reach server' />
+                  if (isCircular) {
+                    return <MapCircularLegend pinnedValue={pinnedValue} />;
+                  }
+
+                  if (isCategorical) {
+                    const allClasses = (
+                      mapSelectedVariableMeta?.legendClasses ?? []
+                    ).filter((cls) => cls.id !== 0);
+                    if (allClasses.length === 0) return null;
+                    const visibleClasses =
+                      visibleNominalCounts.size === 0
+                        ? allClasses
+                        : allClasses
+                            .filter((cls) =>
+                              visibleNominalCounts.has(cls.id as number),
+                            )
+                            .sort(
+                              (a, b) =>
+                                (visibleNominalCounts.get(b.id as number) ??
+                                  0) -
+                                (visibleNominalCounts.get(a.id as number) ?? 0),
+                            );
+                    if (visibleClasses.length === 0) return null;
+                    return <MapCategoricalLegend classes={visibleClasses} />;
+                  }
+
+                  const rmin = mapSelectedVariableMeta?.renderMin;
+                  const rmax = mapSelectedVariableMeta?.renderMax;
+                  if (!isNumeric || rmin == null || rmax == null) return null;
+                  return (
+                    <MapVariableLegend
+                      min={rmin}
+                      max={rmax}
+                      units={mapSelectedVariableMeta?.units}
+                      pinnedValue={pinnedValue}
+                    />
+                  );
+                })()}
+              </View>
             </View>
           </PageScrollContainer>
         </View>
@@ -1292,8 +1586,143 @@ const styles = StyleSheet.create({
   aboutMapSection: {
     gap: Size.space['250'],
   },
-  statusSection: {
-    gap: Size.space['300'],
-    maxWidth: 480,
+  legendExampleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space['400'],
+    alignItems: 'flex-start',
+  },
+  legendExampleItem: {
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  legendOverlay: {
+    position: 'absolute',
+    left: 8,
+    // Leaflet zoom: 10px margin + 26px (+) + 1px separator + 26px (-) = 63px; add 9px gap = 72 → round to 82
+    top: 82,
+    bottom: 10,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  legendOverlayBarRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  legendOverlayBarContainer: {
+    width: 12,
+    position: 'relative',
+  },
+  legendPinLine: {
+    position: 'absolute',
+    left: -2,
+    right: -2,
+    height: 0,
+    borderTopWidth: 1.5,
+    borderTopColor: '#fffffff2',
+  },
+  legendPinLabelContainer: {
+    flex: 1,
+    position: 'relative',
+    marginLeft: 4,
+  },
+  legendPinLabel: {
+    position: 'absolute',
+    color: '#fffffff2',
+    transform: [{ translateY: -6 }],
+  },
+  legendOverlayBox: {
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  legendOverlayBar: {
+    width: 12,
+    borderRadius: 4,
+  },
+  legendOverlayBarFallback: {
+    width: 12,
+    borderRadius: 4,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  legendOverlaySegment: {
+    flex: 1,
+    width: 12,
+  },
+  legendOverlayLabel: {
+    textAlign: 'center',
+  },
+  legendOverlayUnits: {
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  legendCircleOverlay: {
+    position: 'absolute',
+    left: 8,
+    top: 82,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    alignItems: 'center',
+    gap: 2,
+  },
+  legendCircleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendCircleOuter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legendCircleHole: {
+    // size and backgroundColor set inline
+  },
+  legendCircleCardinal: {
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  legendNominalOverlay: {
+    position: 'absolute',
+    left: 8,
+    top: 82,
+    bottom: 10,
+    zIndex: 1000,
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    gap: Size.space['100'],
+    maxWidth: 200,
+    overflow: 'hidden',
+  },
+  legendNominalBox: {
+    borderRadius: Size.radius['400'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['200'],
+    gap: Size.space['100'],
+    minWidth: 160,
+  },
+  legendNominalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
+  legendNominalDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
+  },
+  legendNominalLabel: {
+    flex: 1,
   },
 });

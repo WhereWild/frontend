@@ -1,15 +1,23 @@
 import { usePathname } from 'expo-router';
 import {
-  NavigationPillList,
   PageScrollContainer,
   SpeciesPageTitle,
-  SwitchField,
   ThemedText,
   SpeciesEnvironmentSection,
   SpeciesInformationSection,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
+import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
+import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
+import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+import {
+  isVariableCategorical,
+  isVariableCircular,
+} from '@/components/sections/speciesEnvironment/model';
+import { BACKEND_BASE } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
@@ -36,20 +44,6 @@ import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
-
-const FORECAST_OPTIONS: { label: string; hours: number }[] = [
-  { label: 'Now', hours: 0 },
-  { label: '+8h', hours: 8 },
-  { label: '+24h', hours: 24 },
-  { label: '+3d', hours: 72 },
-  { label: '+7d', hours: 168 },
-];
-type HeatmapMode = 'habitat' | 'combined' | 'phenology_only';
-type SelectionChipOption<T extends string | number> = {
-  accessibilityLabel: string;
-  label: string;
-  value: T;
-};
 
 const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
 const WEB_HEADER_HEIGHT_COMPACT =
@@ -118,121 +112,6 @@ export const shouldRenderObservationMapFrame = ({
   platform: string;
 }) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
-const getPredictiveHeatmapDescription = (
-  hasLiveHeatmap: boolean,
-  hasAnyHeatmap: boolean,
-) => {
-  if (hasLiveHeatmap) {
-    return undefined;
-  }
-
-  return hasAnyHeatmap
-    ? 'Live heatmap overlay is unavailable for this model right now.'
-    : 'No heatmap is available for this species right now.';
-};
-
-const buildLiveHeatmapTileUrl = ({
-  forecastHours,
-  liveTileUrl,
-  phenologyMode,
-  showLiveHeatmap,
-}: {
-  forecastHours: number;
-  liveTileUrl?: string | null;
-  phenologyMode: HeatmapMode;
-  showLiveHeatmap: boolean;
-}) => {
-  if (!showLiveHeatmap || !liveTileUrl) {
-    return null;
-  }
-
-  const applyPhenology = phenologyMode !== 'habitat';
-  const phenologyOnly = phenologyMode === 'phenology_only';
-  return `${liveTileUrl}&forecast_hours=${forecastHours}&apply_phenology=${applyPhenology ? 'true' : 'false'}&phenology_only=${phenologyOnly ? 'true' : 'false'}`;
-};
-
-const buildHeatmapModelOptions = (
-  hasPhenology: boolean,
-  conditionsLabel: string,
-): SelectionChipOption<HeatmapMode>[] => {
-  if (!hasPhenology) {
-    return [
-      { accessibilityLabel: 'Habitat', label: 'Habitat', value: 'habitat' },
-      {
-        accessibilityLabel: conditionsLabel,
-        label: conditionsLabel,
-        value: 'combined',
-      },
-    ];
-  }
-
-  return [
-    { accessibilityLabel: 'Habitat', label: 'Habitat', value: 'habitat' },
-    {
-      accessibilityLabel: conditionsLabel,
-      label: conditionsLabel,
-      value: 'combined',
-    },
-    {
-      accessibilityLabel: 'Conditions only',
-      label: 'Conditions only',
-      value: 'phenology_only',
-    },
-  ];
-};
-
-function SelectionChipGroup<T extends string | number>({
-  options,
-  selectedValue,
-  title,
-  onSelect,
-}: {
-  options: SelectionChipOption<T>[];
-  selectedValue: T;
-  title: string;
-  onSelect: (value: T) => void;
-}) {
-  const pills = React.useMemo(
-    () =>
-      options.map((option) => ({
-        key: String(option.value),
-        label: option.label,
-        accessibilityLabel: option.accessibilityLabel,
-      })),
-    [options],
-  );
-
-  const optionByKey = React.useMemo(
-    () =>
-      new Map(
-        options.map((option) => [String(option.value), option.value] as const),
-      ),
-    [options],
-  );
-
-  const handleSelectionChange = React.useCallback(
-    (key: string) => {
-      const nextValue = optionByKey.get(key);
-      if (nextValue !== undefined) {
-        onSelect(nextValue);
-      }
-    },
-    [onSelect, optionByKey],
-  );
-
-  return (
-    <View style={styles.forecastPicker}>
-      <ThemedText variant='bodySmall'>{title}</ThemedText>
-      <NavigationPillList
-        pills={pills}
-        selectedKey={String(selectedValue)}
-        onSelectionChange={handleSelectionChange}
-        accessibilityLabel={title}
-      />
-    </View>
-  );
-}
-
 function SectionShell({
   responsive,
   children,
@@ -268,7 +147,6 @@ export default function Species({
     commonNames,
     scientificName,
     overview,
-    heatmap,
     allObscured,
     taxonRank,
   } = data;
@@ -305,19 +183,6 @@ export default function Species({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
   });
-  const hasLiveHeatmap =
-    heatmap.liveAvailable === true && typeof heatmap.liveTileUrl === 'string';
-  const hasAnyHeatmap = hasLiveHeatmap || Boolean(heatmap.imageSource);
-  const hasPhenology = heatmap.phenologyAvailable === true;
-  const hasConditions = hasPhenology || heatmap.fullAvailable === true;
-  const conditionsLabel = hasPhenology
-    ? 'Habitat + flowering'
-    : 'Habitat + conditions';
-  const [showObservations, setShowObservations] = React.useState<boolean>(true);
-  const [showLiveHeatmap, setShowLiveHeatmap] = React.useState<boolean>(false);
-  const [phenologyMode, setPhenologyMode] =
-    React.useState<HeatmapMode>('combined');
-  const [forecastHours, setForecastHours] = React.useState<number>(0);
   const [highlightedCatalogs, setHighlightedCatalogs] = React.useState<
     (number | string)[]
   >([]);
@@ -326,39 +191,23 @@ export default function Species({
     lat: number;
     lon: number;
   } | null>(null);
+  const [selectedVariableMeta, setSelectedVariableMeta] =
+    React.useState<EnvironmentVariableOption | null>(null);
+  const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
+    null,
+  );
+  const [mapBounds, setMapBounds] = React.useState<MapBounds | null>(null);
+  const [observationValues, setObservationValues] = React.useState<Map<
+    string,
+    number
+  > | null>(null);
+  const [obsDotMin, setObsDotMin] = React.useState<number | null>(null);
+  const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
   const [selectedPhenology, setSelectedPhenology] = React.useState<
     string | null
   >(null);
   const startTimestamp: number | null = null;
   const endTimestamp: number | null = null;
-
-  const predictiveHeatmapDescription = React.useMemo(
-    () => getPredictiveHeatmapDescription(hasLiveHeatmap, hasAnyHeatmap),
-    [hasAnyHeatmap, hasLiveHeatmap],
-  );
-  const modelOptions = React.useMemo(
-    () => buildHeatmapModelOptions(hasPhenology, conditionsLabel),
-    [conditionsLabel, hasPhenology],
-  );
-  const forecastOptions = React.useMemo<SelectionChipOption<number>[]>(
-    () =>
-      FORECAST_OPTIONS.map((option) => ({
-        accessibilityLabel: `Forecast ${option.label}`,
-        label: option.label,
-        value: option.hours,
-      })),
-    [],
-  );
-  const activeTileUrl = React.useMemo(
-    () =>
-      buildLiveHeatmapTileUrl({
-        forecastHours,
-        liveTileUrl: heatmap.liveTileUrl,
-        phenologyMode,
-        showLiveHeatmap,
-      }),
-    [forecastHours, heatmap.liveTileUrl, phenologyMode, showLiveHeatmap],
-  );
 
   const {
     countryOptions,
@@ -407,10 +256,6 @@ export default function Species({
     setPinnedObservation(null);
   }, [finalLocationGid, taxonId]);
 
-  React.useEffect(() => {
-    setShowLiveHeatmap(false);
-  }, [hasLiveHeatmap, heatmap.liveTileUrl]);
-
   const handleDownload = React.useCallback(() => {
     Alert.alert('Download started', `Preparing ${commonName} data…`);
   }, [commonName]);
@@ -425,6 +270,110 @@ export default function Species({
     },
     [],
   );
+
+  const handleMapPointValue = React.useCallback((value: number) => {
+    setPinnedPointValue(value);
+  }, []);
+
+  const handleMapBounds = React.useCallback((bounds: MapBounds) => {
+    setMapBounds(bounds);
+  }, []);
+
+  const handleVariableMetaChange = React.useCallback(
+    (meta: EnvironmentVariableOption | null) => {
+      setSelectedVariableMeta(meta);
+      setPinnedPointValue(null);
+      setObservationValues(null);
+      setObsDotMin(null);
+      setObsDotMax(null);
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (!taxonId || !selectedVariableMeta?.id) {
+      setObservationValues(null);
+      return;
+    }
+    const variableId = selectedVariableMeta.id;
+    let cancelled = false;
+    const url =
+      `${BACKEND_BASE}/species/${encodeURIComponent(String(taxonId))}` +
+      `/environment/${encodeURIComponent(variableId)}/observation-values` +
+      (units ? `?unit_system=${encodeURIComponent(units)}` : '');
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then(
+        (data: {
+          observations?: { catalogNumber: string | number; value: number }[];
+          min?: number | null;
+          max?: number | null;
+        }) => {
+          if (cancelled) return;
+          const map = new Map<string, number>();
+          for (const obs of data.observations ?? []) {
+            if (obs.catalogNumber != null && typeof obs.value === 'number') {
+              map.set(String(obs.catalogNumber), obs.value);
+            }
+          }
+          setObservationValues(map);
+          setObsDotMin(typeof data.min === 'number' ? data.min : null);
+          setObsDotMax(typeof data.max === 'number' ? data.max : null);
+        },
+      )
+      .catch(() => {
+        if (!cancelled) setObservationValues(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxonId, selectedVariableMeta, units]);
+
+  const classColors = React.useMemo(() => {
+    if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta?.legendClasses ?? []) {
+      if (cls.id !== 0 && cls.color) map.set(String(cls.id), cls.color);
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta]);
+
+  const classLabels = React.useMemo(() => {
+    if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta?.legendClasses ?? []) {
+      if (cls.id !== 0) map.set(String(cls.id), cls.name);
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta]);
+
+  const visibleCategoricalClasses = React.useMemo(() => {
+    if (!isVariableCategorical(selectedVariableMeta) || !observationValues)
+      return null;
+    const counts = new Map<string, number>();
+    for (const occ of occurrences) {
+      if (
+        mapBounds &&
+        (occ.latitude < mapBounds.south ||
+          occ.latitude > mapBounds.north ||
+          occ.longitude < mapBounds.west ||
+          occ.longitude > mapBounds.east)
+      ) {
+        continue;
+      }
+      const val = observationValues.get(String(occ.catalogNumber));
+      if (val == null) continue;
+      const key = String(Math.round(val));
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const classes = (selectedVariableMeta?.legendClasses ?? [])
+      .filter((cls) => cls.id !== 0 && counts.has(String(cls.id)))
+      .sort(
+        (a, b) =>
+          (counts.get(String(b.id)) ?? 0) - (counts.get(String(a.id)) ?? 0),
+      );
+    return classes.length > 0 ? classes : null;
+  }, [selectedVariableMeta, observationValues, occurrences, mapBounds]);
 
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
@@ -539,6 +488,7 @@ export default function Species({
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   onHighlightChange={setHighlightedCatalogs}
+                  onVariableMetaChange={handleVariableMetaChange}
                   locationGid={finalLocationGid}
                   phenology={selectedPhenology}
                   startTimestamp={startTimestamp}
@@ -546,36 +496,6 @@ export default function Species({
                   units={units}
                   pinnedObservation={pinnedObservation}
                 />
-                <View style={styles.mapControls}>
-                  <SwitchField
-                    label='Show observations'
-                    value={showObservations}
-                    onValueChange={setShowObservations}
-                  />
-                  <SwitchField
-                    label='Show predictive heatmap'
-                    value={showLiveHeatmap}
-                    disabled={!hasLiveHeatmap}
-                    description={predictiveHeatmapDescription}
-                    onValueChange={setShowLiveHeatmap}
-                  />
-                  {hasLiveHeatmap && showLiveHeatmap && (
-                    <SelectionChipGroup
-                      options={forecastOptions}
-                      selectedValue={forecastHours}
-                      title='Weather window'
-                      onSelect={setForecastHours}
-                    />
-                  )}
-                  {hasLiveHeatmap && showLiveHeatmap && hasConditions && (
-                    <SelectionChipGroup
-                      options={modelOptions}
-                      selectedValue={phenologyMode}
-                      title='Model'
-                      onSelect={setPhenologyMode}
-                    />
-                  )}
-                </View>
               </SectionShell>
             )}
           </View>
@@ -592,19 +512,68 @@ export default function Species({
             }
           >
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
-              <SpeciesOccurrenceMap
-                occurrences={occurrences}
-                loading={occurrenceLoading}
-                error={occurrenceError}
-                highlightedCatalogs={highlightedCatalogs}
-                selectedPoint={selectedMapPoint}
-                height={observationMapHeight}
-                showMarkers={showObservations}
-                heatmapTileUrl={activeTileUrl}
-                heatmapOpacity={0.72}
-                minZoom={activeTileUrl ? 4 : 2}
-                onPinObservation={handlePinObservation}
-              />
+              <View style={{ position: 'relative' }}>
+                <SpeciesOccurrenceMap
+                  occurrences={
+                    selectedVariableMeta && observationValues == null
+                      ? []
+                      : occurrences
+                  }
+                  loading={occurrenceLoading}
+                  error={occurrenceError}
+                  highlightedCatalogs={highlightedCatalogs}
+                  selectedPoint={selectedMapPoint}
+                  height={observationMapHeight}
+                  minZoom={2}
+                  onPinObservation={handlePinObservation}
+                  onPointValue={handleMapPointValue}
+                  onMapBounds={handleMapBounds}
+                  pointQueryUrl={
+                    selectedVariableMeta?.id
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}&unit_system=${encodeURIComponent(units ?? '')}`
+                      : null
+                  }
+                  renderMin={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? (selectedVariableMeta.renderMin ?? null)
+                      : null
+                  }
+                  renderMax={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? (selectedVariableMeta.renderMax ?? null)
+                      : null
+                  }
+                  isCircular={isVariableCircular(selectedVariableMeta)}
+                  observationValues={observationValues}
+                  classColors={classColors}
+                  classLabels={classLabels}
+                  dotMin={obsDotMin}
+                  dotMax={obsDotMax}
+                />
+                {selectedVariableMeta &&
+                  !isVariableCategorical(selectedVariableMeta) &&
+                  !isVariableCircular(selectedVariableMeta) &&
+                  obsDotMin != null &&
+                  obsDotMax != null && (
+                    <MapVariableLegend
+                      min={obsDotMin}
+                      max={obsDotMax}
+                      units={selectedVariableMeta.units}
+                      pinnedValue={pinnedPointValue}
+                    />
+                  )}
+                {selectedVariableMeta &&
+                  isVariableCircular(selectedVariableMeta) && (
+                    <MapCircularLegend pinnedValue={pinnedPointValue} />
+                  )}
+                {visibleCategoricalClasses && (
+                  <MapCategoricalLegend classes={visibleCategoricalClasses} />
+                )}
+              </View>
             )}
           </View>
         </PageScrollContainer>
@@ -631,12 +600,5 @@ const styles = StyleSheet.create({
   sectionContent: {
     width: '100%',
     gap: Size.space['400'],
-  },
-  mapControls: {
-    width: '100%',
-    gap: Size.space['200'],
-  },
-  forecastPicker: {
-    gap: Size.space['100'],
   },
 });

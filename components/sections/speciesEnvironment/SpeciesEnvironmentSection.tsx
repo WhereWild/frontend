@@ -42,6 +42,8 @@ export type SpeciesEnvironmentSectionProps = {
   variables?: EnvironmentVariableOption[];
   /** Receives catalog numbers highlighted by chart/category selection. */
   onHighlightChange?: (catalogNumbers: (number | string)[]) => void;
+  /** Called whenever the selected environment variable metadata changes. */
+  onVariableMetaChange?: (meta: EnvironmentVariableOption | null) => void;
   /** Optional geographic filter gid applied to environment requests. */
   locationGid?: string | null;
   /** Optional phenology filter value applied to environment requests. */
@@ -64,6 +66,7 @@ function SpeciesEnvironmentSectionComponent({
   variableId = DEFAULT_VARIABLE,
   variables,
   onHighlightChange,
+  onVariableMetaChange,
   locationGid,
   phenology,
   startTimestamp,
@@ -178,6 +181,10 @@ function SpeciesEnvironmentSectionComponent({
     units,
     pinnedObservation,
   });
+
+  React.useEffect(() => {
+    onVariableMetaChange?.(selectedVariableMeta ?? null);
+  }, [selectedVariableMeta, onVariableMetaChange]);
 
   if (!taxonId) {
     return null;
