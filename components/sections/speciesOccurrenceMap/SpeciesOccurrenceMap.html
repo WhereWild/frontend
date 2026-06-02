@@ -166,7 +166,8 @@
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(msg));
         } else {
-          window.parent.postMessage(msg, window.location.origin);
+          // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          window.parent.postMessage(msg, '*');
         }
       }
 
@@ -333,7 +334,8 @@
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
-        window.parent.postMessage(msg, window.location.origin);
+        // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        window.parent.postMessage(msg, '*');
       }
       map.closePopup();
     }
@@ -346,7 +348,8 @@
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
-        window.parent.postMessage(msg, window.location.origin);
+        // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        window.parent.postMessage(msg, '*');
       }
     }
 
@@ -626,7 +629,8 @@
                 if (window.ReactNativeWebView) {
                   window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
                 } else {
-                  window.parent.postMessage(pvMsg, window.location.origin);
+                  // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          window.parent.postMessage(pvMsg, '*');
                 }
                 var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
                 if (isNumericVar) {
@@ -662,7 +666,8 @@
             if (window.ReactNativeWebView) {
               window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
             } else {
-              window.parent.postMessage(pvMsg, window.location.origin);
+              // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          window.parent.postMessage(pvMsg, '*');
             }
             var valueHtml = '';
             var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
@@ -947,7 +952,8 @@
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(msg));
         } else {
-          window.parent.postMessage(msg, window.location.origin);
+          // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          window.parent.postMessage(msg, '*');
         }
       }
       map.on('moveend', postMapBounds);
@@ -984,7 +990,8 @@
               if (window.ReactNativeWebView) {
                 window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
               } else {
-                window.parent.postMessage(pvMsg, window.location.origin);
+                // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          window.parent.postMessage(pvMsg, '*');
               }
             }
             var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
@@ -1054,7 +1061,8 @@
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
-        window.parent.postMessage(msg, window.location.origin);
+        // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        window.parent.postMessage(msg, '*');
       }
     }
 
