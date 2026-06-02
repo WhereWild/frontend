@@ -12,6 +12,7 @@ import { StackedCategoryBar } from './StackedCategoryBar';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
 import {
   DEFAULT_VARIABLE,
+  isValidHistogramContract,
   isVariableDiscrete,
   type EnvironmentVariableOption,
 } from './model';
@@ -186,6 +187,18 @@ function SpeciesEnvironmentSectionComponent({
     onVariableMetaChange?.(selectedVariableMeta ?? null);
   }, [selectedVariableMeta, onVariableMetaChange]);
 
+  const isDiscrete = isVariableDiscrete(selectedVariableMeta);
+
+  const effectiveDensityCurve = React.useMemo(() => {
+    if (isDiscrete && isValidHistogramContract(stats?.histogram)) {
+      return {
+        points: stats!.histogram!.bins,
+        density: stats!.histogram!.counts,
+      };
+    }
+    return densityCurve ?? null;
+  }, [isDiscrete, stats, densityCurve]);
+
   if (!taxonId) {
     return null;
   }
@@ -267,7 +280,6 @@ function SpeciesEnvironmentSectionComponent({
   );
   const numericPinnedValue =
     typeof pinnedValue === 'number' ? pinnedValue : null;
-  const isDiscrete = isVariableDiscrete(selectedVariableMeta);
 
   return (
     <View collapsable={false} style={styles.container}>
@@ -508,9 +520,7 @@ function SpeciesEnvironmentSectionComponent({
                     circular_std: null,
                   }
                 }
-                summaryComparisons={
-                  displayState?.summaryComparisons ?? {}
-                }
+                summaryComparisons={displayState?.summaryComparisons ?? {}}
                 locationFilterActive={
                   displayState?.locationFilterActive ?? false
                 }
@@ -520,7 +530,7 @@ function SpeciesEnvironmentSectionComponent({
           ) : (
             <>
               <DensityChart
-                curve={displayState?.densityCurve}
+                curve={effectiveDensityCurve}
                 lineColor={palette.background.brand.default}
                 fillColor={palette.background.brand.default}
                 baselineColor={palette.border.neutral.default}

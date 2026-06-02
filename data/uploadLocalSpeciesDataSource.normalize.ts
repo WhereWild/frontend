@@ -433,6 +433,7 @@ export const normalizeRawUploadedParquetBundle = (
       name: getVariableMetadataDisplayName(row) ?? existing?.name ?? variableDisplayNameById.get(variableId) ?? variableId,
       units: toStringValue(row.units) ?? existing?.units ?? variableUnitsById.get(variableId) ?? null,
       valueType: getVariableMetadataValueType(row) ?? existing?.valueType ?? variableTypeById.get(variableId) ?? null,
+      domain: toStringValue(row.domain) ?? existing?.domain ?? null,
       description: existing?.description ?? null,
       category: toStringValue(row.category) ?? existing?.category ?? categoryByVariable.get(variableId) ?? null,
     });
