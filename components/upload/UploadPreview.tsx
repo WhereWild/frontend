@@ -278,6 +278,7 @@ export function UploadPreview({
             onMapBounds={setMapBounds}
             onPointValue={setPinnedPointValue}
             pointQueryUrl={pointQueryUrl}
+            disableObservationQuery={true}
             observationValues={observationValues}
             classColors={classColors}
             classLabels={classLabels}

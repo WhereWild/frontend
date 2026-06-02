@@ -57,6 +57,7 @@
     const DOT_MAX = __DOT_MAX_JSON__;
     const RENDER_MIN = __RENDER_MIN_JSON__;
     const RENDER_MAX = __RENDER_MAX_JSON__;
+    const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
 
     var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
     function aspectColor(deg) {
@@ -651,7 +652,8 @@
         var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '';
-        marker.on('click', function() {
+        marker.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
           if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
             sendPinMessage(catalogValue, latitude, longitude);
           }
@@ -688,7 +690,7 @@
               popup.setContent((inatHtml || '') + valueHtml);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
-          } else if (POINT_QUERY_URL) {
+          } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
             fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
           }
         });

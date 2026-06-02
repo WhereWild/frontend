@@ -60,6 +60,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   isCircular: '__IS_CIRCULAR__',
   dotMin: '__DOT_MIN_JSON__',
   dotMax: '__DOT_MAX_JSON__',
+  disableObservationQuery: '__DISABLE_OBSERVATION_QUERY__',
 } as const;
 
 export type HighlightMessage = {
@@ -235,6 +236,7 @@ export const buildLeafletHtml = (
   classLabels?: Map<string, string> | null,
   dotMin?: number | null,
   dotMax?: number | null,
+  disableObservationQuery?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -336,6 +338,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.dotMax)
     .join(typeof dotMax === 'number' ? String(dotMax) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.disableObservationQuery)
+    .join(disableObservationQuery ? 'true' : 'false');
   return html;
 };
 
