@@ -644,7 +644,7 @@
             marker.getPopup().setContent((inatHtml || '') + valueHtml);
           })
           .catch(function() {
-            if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Error</span>');
+            if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Offline</span>');
           });
       }
 
@@ -1019,7 +1019,7 @@
             }
           })
           .catch(function() {
-            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Error</span>');
+            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Offline</span>');
           });
         return;
       }
