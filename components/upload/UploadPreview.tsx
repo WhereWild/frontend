@@ -127,7 +127,8 @@ export function UploadPreview({
       if (row.variable !== variableId) continue;
       if (row.mode === 'category' && row.classValue != null) {
         const metric = String(row.classValue);
-        const code = metricToCode?.get(metric) ?? metric;
+        const rawCode = metricToCode?.get(metric) ?? metric;
+        const code = rawCode.startsWith('class_') ? rawCode.slice(6) : rawCode;
         const v = Number(code);
         if (Number.isFinite(v)) {
           for (const id of row.observationIds) {
@@ -248,10 +249,9 @@ export function UploadPreview({
     ? isVariableCircular(selectedVariableMeta)
     : false;
 
-  const pointQueryUrl =
-    selectedVariableMeta && !isCategorical
-      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}`
-      : null;
+  const pointQueryUrl = selectedVariableMeta
+    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}`
+    : null;
 
   return (
     <SpeciesDataSourceProvider value={uploadedDataSource}>
