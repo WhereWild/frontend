@@ -66,6 +66,9 @@ describe('speciesOccurrenceMapHelpers', () => {
     setStyle: jest.Mock<void, [Record<string, unknown>]>;
     setLatLng: jest.Mock;
     bindPopup: jest.Mock;
+    openPopup: jest.Mock;
+    isPopupOpen: jest.Mock;
+    getPopup: jest.Mock;
     on: jest.Mock;
   };
 

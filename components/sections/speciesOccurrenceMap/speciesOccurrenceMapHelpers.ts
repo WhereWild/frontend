@@ -345,7 +345,11 @@ export const buildLeafletHtml = (
     .join(disableObservationQuery ? 'true' : 'false');
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.varUnits)
-    .join(typeof varUnits === 'string' && varUnits.length > 0 ? JSON.stringify(varUnits) : 'null');
+    .join(
+      typeof varUnits === 'string' && varUnits.length > 0
+        ? JSON.stringify(varUnits)
+        : 'null',
+    );
   return html;
 };
 
