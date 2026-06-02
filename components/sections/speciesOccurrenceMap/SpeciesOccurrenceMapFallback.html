@@ -515,7 +515,8 @@
         var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '';
-        marker.on('click', function() {
+        marker.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
           if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
             sendPinMessage(catalogValue, latitude, longitude);
           }
