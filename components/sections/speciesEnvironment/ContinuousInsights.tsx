@@ -157,6 +157,7 @@ export function ContinuousInsights({
               label='Mean'
               value={formatDeg(summary?.circular_mean)}
               stacked={isStacked}
+              prominent={!showRankContext}
             />
             <SummaryItem
               label='R̄'
@@ -165,6 +166,7 @@ export function ContinuousInsights({
                 locationFilterActive ? undefined : (summaryRanks.rbar ?? null)
               }
               stacked={isStacked}
+              prominent={!showRankContext}
             />
             <SummaryItem
               label='Standard Deviation'
@@ -176,6 +178,7 @@ export function ContinuousInsights({
               }
               isLast
               stacked={isStacked}
+              prominent={!showRankContext}
             />
           </>
         ) : (
@@ -188,6 +191,7 @@ export function ContinuousInsights({
                 locationFilterActive ? (summaryComparisons.min ?? null) : null
               }
               stacked={isStacked}
+              prominent={!showRankContext}
             />
             <SummaryItem
               label='Mean'
@@ -197,6 +201,7 @@ export function ContinuousInsights({
                 locationFilterActive ? (summaryComparisons.mean ?? null) : null
               }
               stacked={isStacked}
+              prominent={!showRankContext}
             />
             <SummaryItem
               label='Max'
@@ -207,6 +212,7 @@ export function ContinuousInsights({
               }
               isLast
               stacked={isStacked}
+              prominent={!showRankContext}
             />
           </>
         )}

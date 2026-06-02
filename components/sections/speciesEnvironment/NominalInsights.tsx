@@ -170,6 +170,7 @@ export function NominalInsights({
               : (summaryRanks.unique_classes ?? null)
           }
           stacked={isStacked}
+          prominent={!showRankContext}
         />
         <SummaryItem
           label='Entropy'
@@ -178,12 +179,14 @@ export function NominalInsights({
             locationFilterActive ? undefined : (summaryRanks.entropy ?? null)
           }
           stacked={isStacked}
+          prominent={!showRankContext}
         />
         <SummaryItem
           label={thirdSlot.label}
           value={thirdSlot.value}
           rank={locationFilterActive ? undefined : (thirdSlot.rank ?? null)}
           stacked={isStacked}
+          prominent={!showRankContext}
           isLast
         />
       </View>

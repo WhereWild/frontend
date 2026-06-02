@@ -138,6 +138,7 @@ type SpeciesOccurrenceMapProps = {
   dotMax?: number | null;
   onMapBounds?: (bounds: MapBounds) => void;
   disableObservationQuery?: boolean;
+  varUnits?: string | null;
 };
 
 export function SpeciesOccurrenceMap({
@@ -173,6 +174,7 @@ export function SpeciesOccurrenceMap({
   dotMax = null,
   onMapBounds,
   disableObservationQuery = false,
+  varUnits = null,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -355,6 +357,7 @@ export function SpeciesOccurrenceMap({
       dotMin,
       dotMax,
       disableObservationQuery,
+      varUnits,
     );
   }, [
     allowPinObservations,
@@ -368,6 +371,7 @@ export function SpeciesOccurrenceMap({
     dotMin,
     dotMax,
     disableObservationQuery,
+    varUnits,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,

@@ -279,6 +279,11 @@ export function UploadPreview({
             onPointValue={setPinnedPointValue}
             pointQueryUrl={pointQueryUrl}
             disableObservationQuery={true}
+            varUnits={
+              !isCategorical && !isCircular
+                ? (selectedVariableMeta?.units ?? null)
+                : null
+            }
             observationValues={observationValues}
             classColors={classColors}
             classLabels={classLabels}
