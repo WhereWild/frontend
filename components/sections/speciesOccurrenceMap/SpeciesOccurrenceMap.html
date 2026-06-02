@@ -166,7 +166,7 @@
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(msg));
         } else {
-          // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(msg, '*');
         }
       }
@@ -334,7 +334,7 @@
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
-        // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
         window.parent.postMessage(msg, '*');
       }
       map.closePopup();
@@ -348,7 +348,7 @@
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
-        // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
         window.parent.postMessage(msg, '*');
       }
     }
@@ -629,7 +629,7 @@
                 if (window.ReactNativeWebView) {
                   window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
                 } else {
-                  // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+                  // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(pvMsg, '*');
                 }
                 var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
@@ -666,7 +666,7 @@
             if (window.ReactNativeWebView) {
               window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
             } else {
-              // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+              // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(pvMsg, '*');
             }
             var valueHtml = '';
@@ -952,7 +952,7 @@
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(msg));
         } else {
-          // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+          // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(msg, '*');
         }
       }
@@ -990,7 +990,7 @@
               if (window.ReactNativeWebView) {
                 window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
               } else {
-                // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+                // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(pvMsg, '*');
               }
             }
@@ -1061,7 +1061,7 @@
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(JSON.stringify(msg));
       } else {
-        // lgtm[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
         window.parent.postMessage(msg, '*');
       }
     }
