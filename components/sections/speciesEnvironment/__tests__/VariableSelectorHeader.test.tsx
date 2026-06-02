@@ -357,7 +357,9 @@ describe('VariableSelectorHeader', () => {
       />,
     );
 
-    expect(screen.getByTestId('selected-variable-Select variable')).toHaveTextContent('bio_1');
+    expect(
+      screen.getByTestId('selected-variable-Select variable'),
+    ).toHaveTextContent('bio_1');
     expect(screen.getByTestId('option-bio_1')).toBeTruthy();
     expect(screen.getByTestId('option-bio_12')).toBeTruthy();
     expect(screen.getByTestId('option-bio_1_mean')).toBeTruthy();
