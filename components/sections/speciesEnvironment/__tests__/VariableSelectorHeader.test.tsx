@@ -303,4 +303,154 @@ describe('VariableSelectorHeader', () => {
     fireEvent.press(screen.getByTestId('option-temperature_2m_avg_168h'));
     expect(onVariableChange).toHaveBeenCalledWith('temperature_2m_avg_168h');
   });
+
+  it('renders split group/variant selectors for grouped variables', () => {
+    const onVariableChange = jest.fn();
+
+    render(
+      <VariableSelectorHeader
+        categories={['Climate']}
+        selectedVariableCategory={'Climate'}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[
+          {
+            id: 'bio_1_mean',
+            label: 'Annual Mean Temperature Mean',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_1',
+            groupLabel: 'Annual Mean Temperature',
+          },
+          {
+            id: 'bio_1_min',
+            label: 'Annual Mean Temperature Min',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_1',
+            groupLabel: 'Annual Mean Temperature',
+          },
+          {
+            id: 'bio_1_max',
+            label: 'Annual Mean Temperature Max',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_1',
+            groupLabel: 'Annual Mean Temperature',
+          },
+          {
+            id: 'bio_12',
+            label: 'Annual Precipitation',
+            units: 'mm',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_12',
+            groupLabel: 'Annual Precipitation',
+          },
+        ]}
+        selectedVariable={'bio_1_mean'}
+        onVariableChange={onVariableChange}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    expect(screen.getByTestId('selected-variable-Select variable')).toHaveTextContent('bio_1');
+    expect(screen.getByTestId('option-bio_1')).toBeTruthy();
+    expect(screen.getByTestId('option-bio_12')).toBeTruthy();
+    expect(screen.getByTestId('option-bio_1_mean')).toBeTruthy();
+    expect(screen.getByTestId('option-bio_1_min')).toBeTruthy();
+    expect(screen.getByTestId('option-bio_1_max')).toBeTruthy();
+  });
+
+  it('switches to the mean variant when the group base changes', () => {
+    const onVariableChange = jest.fn();
+
+    render(
+      <VariableSelectorHeader
+        categories={['Climate']}
+        selectedVariableCategory={'Climate'}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[
+          {
+            id: 'bio_1_mean',
+            label: 'Annual Mean Temperature Mean',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_1',
+            groupLabel: 'Annual Mean Temperature',
+          },
+          {
+            id: 'bio_1_min',
+            label: 'Annual Mean Temperature Min',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_1',
+            groupLabel: 'Annual Mean Temperature',
+          },
+          {
+            id: 'bio_12_mean',
+            label: 'Annual Precipitation Mean',
+            units: 'mm',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_12',
+            groupLabel: 'Annual Precipitation',
+          },
+          {
+            id: 'bio_12_min',
+            label: 'Annual Precipitation Min',
+            units: 'mm',
+            valueType: 'continuous',
+            category: 'Climate',
+            group: 'bio_12',
+            groupLabel: 'Annual Precipitation',
+          },
+        ]}
+        selectedVariable={'bio_1_mean'}
+        onVariableChange={onVariableChange}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('option-bio_12'));
+    expect(onVariableChange).toHaveBeenCalledWith('bio_12_mean');
+  });
+
+  it('renders non-temporal variables in a temporal category as ungrouped base options', () => {
+    render(
+      <VariableSelectorHeader
+        categories={['Recent Weather']}
+        selectedVariableCategory={'Recent Weather'}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[
+          {
+            id: 'temperature_2m_avg_24h',
+            label: 'Air Temperature (2m) (Avg, 24h)',
+            units: 'C',
+            valueType: 'continuous',
+            category: 'Recent Weather',
+          },
+          {
+            id: 'weather_code_simple',
+            label: 'Weather Code',
+            valueType: 'categorical',
+            category: 'Recent Weather',
+          },
+        ]}
+        selectedVariable={'temperature_2m_avg_24h'}
+        onVariableChange={jest.fn()}
+        headingText={null}
+        metaText={null}
+      />,
+    );
+
+    expect(screen.getByTestId('option-temperature_2m')).toBeTruthy();
+    expect(screen.getByTestId('option-weather_code_simple')).toBeTruthy();
+  });
 });
