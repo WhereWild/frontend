@@ -113,10 +113,17 @@ export function StackedCategoryBar({
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
     if (pinnedValue !== null && pinnedValue !== undefined) {
       const pinnedKey = String(pinnedValue);
-      if (
-        validCategories.some((category) => String(category.value) === pinnedKey)
-      ) {
-        return { resolvedPinnedKey: pinnedKey, pinnedOtherLabel: null };
+      const classKey = pinnedKey.startsWith('class_')
+        ? pinnedKey
+        : `class_${pinnedKey}`;
+      const matchedCategory =
+        validCategories.find((c) => String(c.value) === pinnedKey) ??
+        validCategories.find((c) => String(c.value) === classKey);
+      if (matchedCategory) {
+        return {
+          resolvedPinnedKey: String(matchedCategory.value),
+          pinnedOtherLabel: null,
+        };
       }
       if (pinnedClassName?.trim()) {
         return {
