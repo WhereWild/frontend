@@ -242,18 +242,10 @@
       fillOpacity: 0.9,
     };
     const highlightStyle = {
-      radius: 5,
-      fillColor: palette.highlightFill,
-      color: palette.highlightStroke,
-      weight: 1,
-      opacity: 0.95,
-      fillOpacity: 0.95,
-    };
-    const selectedPointStyle = {
-      radius: 6,
-      fillColor: palette.selectedPointFill,
-      color: palette.selectedPointStroke,
-      weight: 1,
+      radius: markerStyle.radius,
+      fillColor: '#ffffff',
+      color: 'rgba(0,0,0,0.65)',
+      weight: 2,
       opacity: 1,
       fillOpacity: 1,
     };
@@ -435,7 +427,8 @@
 
         selectedCatalogDirectMarker = L.circleMarker(
           [latitude, alignedLongitude],
-          selectedPointStyle,
+          { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
+            color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' },
         );
         if (matchingEntry.popupHtml) {
           selectedCatalogDirectMarker.bindPopup(matchingEntry.popupHtml);
@@ -447,7 +440,8 @@
 
       selectedPointMarker = L.circleMarker(
         [latitude, alignedLongitude],
-        selectedPointStyle,
+        { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
+          color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' },
       ).addTo(map);
 
       refreshVisibleMarkerPresentation();
@@ -511,16 +505,21 @@
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
-        if (!catalogHref) {
+        if (!LINK_OBSERVATIONS || !catalogHref || !catalogLabel) {
           return '';
         }
-        var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
-        var pinBtn = buildPinButtonHtml(catalogNumber, latitude, longitude, pinButtonMarginTop);
-        if (!LINK_OBSERVATIONS || !catalogLabel) {
-          return pinBtn;
-        }
-        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
-        return inatLink + pinBtn;
+        return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
+      }
+
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude) {
+        var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
+          ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+          : '';
+        marker.on('click', function() {
+          if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
+            sendPinMessage(catalogValue, latitude, longitude);
+          }
+        });
       }
 
       function applyEntryStyle(entry, style) {
@@ -712,6 +711,7 @@
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
 
           const markerEntry = {
             key: markerKey,
@@ -739,6 +739,7 @@
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -779,10 +780,8 @@
       if (!isFinite(latitude) || !isFinite(longitude)) {
         return;
       }
-      L.popup()
-        .setLatLng(event.latlng)
-        .setContent(buildMapClickPopup(latitude, longitude))
-        .openOn(map);
+      sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+      map.closePopup();
     });
 
     applyHighlights([]);

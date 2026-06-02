@@ -51,6 +51,29 @@
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
+    const POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
+    const IS_CIRCULAR = __IS_CIRCULAR__;
+    const DOT_MIN = __DOT_MIN_JSON__;
+    const DOT_MAX = __DOT_MAX_JSON__;
+    const RENDER_MIN = __RENDER_MIN_JSON__;
+    const RENDER_MAX = __RENDER_MAX_JSON__;
+
+    var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
+    function aspectColor(deg) {
+      var t = (deg % 360) / 90;
+      var seg = Math.floor(t) % 4;
+      var f = t - Math.floor(t);
+      var c0 = ASPECT_STOPS[seg], c1 = ASPECT_STOPS[(seg+1)%4];
+      return 'rgb('+Math.round(c0[0]+f*(c1[0]-c0[0]))+','+Math.round(c0[1]+f*(c1[1]-c0[1]))+','+Math.round(c0[2]+f*(c1[2]-c0[2]))+')';
+    }
+    var GRADIENT_STOPS = [[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
+    function gradientColor(t) {
+      var n = GRADIENT_STOPS.length - 1;
+      var i = Math.min(Math.floor(t * n), n - 1);
+      var f = t * n - i;
+      var c0 = GRADIENT_STOPS[i], c1 = GRADIENT_STOPS[i + 1];
+      return 'rgb(' + Math.round(c0[0]+f*(c1[0]-c0[0])) + ',' + Math.round(c0[1]+f*(c1[1]-c0[1])) + ',' + Math.round(c0[2]+f*(c1[2]-c0[2])) + ')';
+    }
     const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
     const mapBounds = CUSTOM_MAX_BOUNDS
       ? L.latLngBounds(CUSTOM_MAX_BOUNDS[0], CUSTOM_MAX_BOUNDS[1])
@@ -135,6 +158,16 @@
       });
       const controllers = new WeakMap();
       const objectUrls = new WeakMap();
+      const tileClassData = new WeakMap();
+
+      function postClassMessage(type, classes) {
+        var msg = { type: type, classes: classes };
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        } else {
+          window.parent.postMessage(msg, '*');
+        }
+      }
 
       function releaseTile(tile) {
         const controller = controllers.get(tile);
@@ -146,6 +179,11 @@
         if (objectUrl) {
           URL.revokeObjectURL(objectUrl);
           objectUrls.delete(tile);
+        }
+        const classes = tileClassData.get(tile);
+        if (classes && classes.length > 0) {
+          postClassMessage('tileClassesRemoved', classes);
+          tileClassData.delete(tile);
         }
       }
 
@@ -203,6 +241,19 @@
             if (!response.ok) {
               throw new Error('Heatmap tile request failed with status ' + response.status);
             }
+            var classesHeader = response.headers.get('X-Nominal-Classes');
+            if (classesHeader) {
+              var classes = classesHeader.split(',').reduce(function(acc, part) {
+                var sep = part.indexOf(':');
+                if (sep === -1) return acc;
+                var id = Number(part.slice(0, sep));
+                var count = Number(part.slice(sep + 1));
+                if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
+                return acc;
+              }, []);
+              tileClassData.set(tile, classes);
+              postClassMessage('tileClasses', classes);
+            }
             return response.blob();
           })
           .then(function(blob) {
@@ -250,18 +301,10 @@
       fillOpacity: 0.9,
     };
     const highlightStyle = {
-      radius: 5,
-      fillColor: palette.highlightFill,
-      color: palette.highlightStroke,
-      weight: 1,
-      opacity: 0.95,
-      fillOpacity: 0.95,
-    };
-    const selectedPointStyle = {
-      radius: 6,
-      fillColor: palette.selectedPointFill,
-      color: palette.selectedPointStroke,
-      weight: 1,
+      radius: markerStyle.radius,
+      fillColor: '#ffffff',
+      color: 'rgba(0,0,0,0.65)',
+      weight: 2,
       opacity: 1,
       fillOpacity: 1,
     };
@@ -360,8 +403,32 @@
       return true;
     }
 
+    var markerBaseColors = new Map();
+
     function styleForCatalog(catalog) {
-      return activeHighlightCatalogs.has(catalog) ? highlightStyle : markerStyle;
+      if (activeHighlightCatalogs.has(catalog)) return highlightStyle;
+      var baseColor = markerBaseColors.get(catalog);
+      return baseColor ? Object.assign({}, markerStyle, { fillColor: baseColor, color: baseColor }) : markerStyle;
+    }
+
+    function baseStyleForPoint(pt, catalog) {
+      if (activeHighlightCatalogs.has(catalog)) return highlightStyle;
+      if (pt.varColor) {
+        markerBaseColors.set(catalog, pt.varColor);
+        return Object.assign({}, markerStyle, { fillColor: pt.varColor, color: pt.varColor });
+      }
+      if (IS_CIRCULAR && pt.varValue != null) {
+        var color = aspectColor(pt.varValue);
+        markerBaseColors.set(catalog, color);
+        return Object.assign({}, markerStyle, { fillColor: color, color: color });
+      }
+      if (DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN && pt.varValue != null) {
+        var t = Math.max(0, Math.min(1, (pt.varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+        var color = gradientColor(t);
+        markerBaseColors.set(catalog, color);
+        return Object.assign({}, markerStyle, { fillColor: color, color: color });
+      }
+      return markerStyle;
     }
 
     function applyHighlights(list) {
@@ -442,9 +509,16 @@
 
         hideClusterMarker(matchingEntry);
 
+        var baseColor = markerBaseColors.get(matchingEntry.key);
+        var pinnedObsStyle = Object.assign(
+          {},
+          baseColor ? { fillColor: baseColor, color: baseColor } : { fillColor: markerStyle.fillColor, color: markerStyle.color },
+          { radius: markerStyle.radius, fillOpacity: markerStyle.fillOpacity, opacity: 1,
+            weight: 2, color: palette.selectedPointStroke, dashArray: '2 2' }
+        );
         selectedCatalogDirectMarker = L.circleMarker(
           [latitude, alignedLongitude],
-          selectedPointStyle,
+          pinnedObsStyle,
         );
         if (matchingEntry.popupHtml) {
           selectedCatalogDirectMarker.bindPopup(matchingEntry.popupHtml);
@@ -456,7 +530,8 @@
 
       selectedPointMarker = L.circleMarker(
         [latitude, alignedLongitude],
-        selectedPointStyle,
+        { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
+          color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' }
       ).addTo(map);
 
       refreshVisibleMarkerPresentation();
@@ -520,16 +595,103 @@
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
-        if (!catalogHref) {
+        if (!LINK_OBSERVATIONS || !catalogHref || !catalogLabel) {
           return '';
         }
-        var pinButtonMarginTop = LINK_OBSERVATIONS && catalogLabel ? '6px' : '0';
-        var pinBtn = buildPinButtonHtml(catalogNumber, latitude, longitude, pinButtonMarginTop);
-        if (!LINK_OBSERVATIONS || !catalogLabel) {
-          return pinBtn;
+        return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
+      }
+
+      function fetchAndShowPointValue(marker, inatHtml, latitude, longitude) {
+        var loadingHtml = (inatHtml ? inatHtml + '<br>' : '') + '<span style="opacity:0.6;font-size:11px">Loading…</span>';
+        var popup = marker.getPopup();
+        if (!popup) {
+          marker.bindPopup(loadingHtml);
+          popup = marker.getPopup();
+        } else {
+          popup.setContent(loadingHtml);
         }
-        var inatLink = '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
-        return inatLink + pinBtn;
+        if (!marker.isPopupOpen()) {
+          marker.openPopup();
+        }
+        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            if (!marker.isPopupOpen()) return;
+            var valueHtml = '';
+            if (data.value != null) {
+              var numVal = Number(data.value);
+              if (isFinite(numVal)) {
+                var pvMsg = { type: 'pointValue', value: numVal };
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
+                } else {
+                  window.parent.postMessage(pvMsg, '*');
+                }
+                var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+                if (isNumericVar) {
+                  var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+                  var color = gradientColor(t);
+                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+                  var units = data.units ? ' ' + data.units : '';
+                  var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0}) : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
+                  valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
+                }
+              }
+            } else {
+              valueHtml = '<span style="opacity:0.6;font-size:11px">No data</span>';
+            }
+            marker.getPopup().setContent((inatHtml || '') + valueHtml);
+          })
+          .catch(function() {
+            if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Error</span>');
+          });
+      }
+
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude, varValue, varColor, varLabel) {
+        var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
+          ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+          : '';
+        marker.on('click', function() {
+          if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
+            sendPinMessage(catalogValue, latitude, longitude);
+          }
+          if (varValue != null) {
+            var pvMsg = { type: 'pointValue', value: varValue };
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
+            } else {
+              window.parent.postMessage(pvMsg, '*');
+            }
+            var valueHtml = '';
+            var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+            if (varColor) {
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + varColor + ';margin-right:5px;flex-shrink:0"></span>';
+              var labelText = varLabel || '';
+              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
+            } else if (isNumericVar) {
+              var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+              var color = gradientColor(t);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var fmt = Math.abs(varValue) >= 1000 ? varValue.toLocaleString(undefined, {maximumFractionDigits: 0}) : varValue.toLocaleString(undefined, {maximumFractionDigits: 2});
+              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '</span></div>';
+            } else if (IS_CIRCULAR) {
+              var color = aspectColor(varValue);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
+              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
+            }
+            var popup = marker.getPopup();
+            if (!popup) {
+              marker.bindPopup((inatHtml || '') + valueHtml);
+              popup = marker.getPopup();
+            } else {
+              popup.setContent((inatHtml || '') + valueHtml);
+            }
+            if (!marker.isPopupOpen()) marker.openPopup();
+          } else if (POINT_QUERY_URL) {
+            fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
+          }
+        });
       }
 
       function applyEntryStyle(entry, style) {
@@ -716,11 +878,12 @@
         if (useVisibilityManagedClustering && clusterGroup) {
           const clusterMarker = L.circleMarker(
             [latitude, initialLongitude],
-            styleForCatalog(markerKey),
+            baseStyleForPoint(pt, markerKey),
           );
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null);
 
           const markerEntry = {
             key: markerKey,
@@ -743,11 +906,12 @@
         } else {
           const marker = L.circleMarker(
             [latitude, initialLongitude],
-            styleForCatalog(markerKey),
+            baseStyleForPoint(pt, markerKey),
           );
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -774,24 +938,92 @@
       map.on('moveend', refreshVisibleMarkerPresentation);
       map.on('zoomend', refreshVisibleMarkerPresentation);
       refreshVisibleMarkerPresentation();
+
+      function postMapBounds() {
+        var b = map.getBounds();
+        var msg = { type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        } else {
+          window.parent.postMessage(msg, '*');
+        }
+      }
+      map.on('moveend', postMapBounds);
+      map.on('zoomend', postMapBounds);
+      postMapBounds();
     } else {
       map.setView([INITIAL_LAT, INITIAL_LON], INITIAL_ZOOM);
+      postMapBounds();
     }
 
     map.on('click', function(event) {
-      if (!ALLOW_PIN_OBSERVATIONS) {
-        map.closePopup();
-        return;
-      }
       const latitude = Number(event.latlng?.lat);
       const longitude = Number(event.latlng?.lng);
       if (!isFinite(latitude) || !isFinite(longitude)) {
         return;
       }
-      L.popup()
-        .setLatLng(event.latlng)
-        .setContent(buildMapClickPopup(latitude, longitude))
-        .openOn(map);
+
+      if (POINT_QUERY_URL) {
+        if (ALLOW_PIN_OBSERVATIONS) {
+          sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+        }
+        var popup = L.popup().setLatLng(event.latlng).setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>').openOn(map);
+        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            if (!popup.isOpen()) return;
+            if (data.value == null) {
+              popup.setContent('<span style="opacity:0.6;font-size:11px">No data</span>');
+              return;
+            }
+            var numVal = Number(data.value);
+            if (isFinite(numVal)) {
+              var pvMsg = { type: 'pointValue', value: numVal };
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
+              } else {
+                window.parent.postMessage(pvMsg, '*');
+              }
+            }
+            var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
+            var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
+            var isNumeric = colorMin != null && colorMax != null && colorMax > colorMin;
+            if (isNumeric) {
+              var t = Math.max(0, Math.min(1, (numVal - colorMin) / (colorMax - colorMin)));
+              var color = gradientColor(t);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var units = data.units ? ' ' + data.units : '';
+              var fmt = Math.abs(numVal) >= 1000
+                ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0})
+                : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
+            } else if (IS_CIRCULAR) {
+              var color = aspectColor(numVal);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var units = data.units ? ' ' + data.units : '';
+              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
+            } else {
+              var dot = data.class_color
+                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>'
+                : '';
+              var units = data.units ? ' ' + data.units : '';
+              var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            }
+          })
+          .catch(function() {
+            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Error</span>');
+          });
+        return;
+      }
+
+      if (!ALLOW_PIN_OBSERVATIONS) {
+        map.closePopup();
+        return;
+      }
+      sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+      map.closePopup();
     });
 
     function latLonToTile(lat, lon, z) {
