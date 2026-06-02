@@ -560,6 +560,13 @@ export default function Species({
                   classLabels={classLabels}
                   dotMin={obsDotMin}
                   dotMax={obsDotMax}
+                  varUnits={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? (selectedVariableMeta.units ?? null)
+                      : null
+                  }
                 />
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&

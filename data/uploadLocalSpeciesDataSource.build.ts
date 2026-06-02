@@ -233,6 +233,9 @@ const buildStatsByVariable = (
       totalSamplesRow && Number.isFinite(totalSamplesRow.value)
         ? totalSamplesRow.value
         : null;
+    const uniqueClassesRow = categoryRows.find((entry) => entry.metric === 'unique_classes');
+    const entropyRow = categoryRows.find((entry) => entry.metric === 'entropy');
+    const modeRow = categoryRows.find((entry) => entry.metric === 'mode');
     const classRows = categoryRows.filter(
       (entry) => !isCategoricalAggregateMetric(entry.metric),
     );
@@ -244,6 +247,15 @@ const buildStatsByVariable = (
         .filter((row) => row.variable === variable)
         .map((row) => [row.metric, row.code]),
     );
+    // Reverse map: code → metric name, for resolving aggregate values like mode.
+    const codeToMetric = new Map<string, string>();
+    for (const [metric, code] of Object.entries(metricToCode)) {
+      codeToMetric.set(String(code).trim(), metric);
+      const num = Number(code);
+      if (Number.isFinite(num)) {
+        codeToMetric.set(String(Math.trunc(num)), metric);
+      }
+    }
 
     const categoricalDistribution = classRows
       .filter((entry) => Number.isFinite(entry.value))
@@ -307,6 +319,21 @@ const buildStatsByVariable = (
         circular_mean: summaryRow?.circular_mean ?? null,
         rbar: summaryRow?.rbar ?? null,
         circular_std: summaryRow?.circular_std ?? null,
+        unique_classes:
+          summaryRow?.unique_classes ??
+          (uniqueClassesRow && Number.isFinite(uniqueClassesRow.value)
+            ? uniqueClassesRow.value
+            : null),
+        entropy:
+          summaryRow?.entropy ??
+          (entropyRow && Number.isFinite(entropyRow.value) ? entropyRow.value : null),
+        mode: (() => {
+          if (summaryRow?.mode != null) return summaryRow.mode;
+          if (modeRow == null) return null;
+          const raw = String(modeRow.value).trim();
+          const trunc = String(Math.trunc(modeRow.value));
+          return codeToMetric.get(raw) ?? codeToMetric.get(trunc) ?? raw;
+        })(),
       },
       histogram:
         Array.isArray(summaryRow?.bins) && Array.isArray(summaryRow?.counts)
