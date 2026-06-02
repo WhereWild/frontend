@@ -20,7 +20,7 @@ export async function fetchPointEnvironmentValue(
   lat: number,
   lon: number,
   variableId: string,
-  options?: { units?: string | null },
+  options?: { units?: string | null; taxonId?: string | number | null; catalogNumber?: string | number | null },
 ): Promise<PointEnvironmentResult> {
   const params = new URLSearchParams({
     lat: String(lat),
@@ -29,6 +29,12 @@ export async function fetchPointEnvironmentValue(
   });
   if (options?.units) {
     params.set('unit_system', options.units);
+  }
+  if (options?.taxonId != null) {
+    params.set('taxon_id', String(options.taxonId));
+  }
+  if (options?.catalogNumber != null) {
+    params.set('catalog_number', String(options.catalogNumber));
   }
   const payload = await fetchJsonOrThrow(
     `${BACKEND_BASE}/gis/point?${params.toString()}`,

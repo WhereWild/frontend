@@ -57,6 +57,7 @@
     const DOT_MAX = __DOT_MAX_JSON__;
     const RENDER_MIN = __RENDER_MIN_JSON__;
     const RENDER_MAX = __RENDER_MAX_JSON__;
+    const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
 
     var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
     function aspectColor(deg) {
@@ -643,7 +644,7 @@
             marker.getPopup().setContent((inatHtml || '') + valueHtml);
           })
           .catch(function() {
-            if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Error</span>');
+            if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Offline</span>');
           });
       }
 
@@ -651,7 +652,8 @@
         var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '';
-        marker.on('click', function() {
+        marker.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
           if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
             sendPinMessage(catalogValue, latitude, longitude);
           }
@@ -688,7 +690,7 @@
               popup.setContent((inatHtml || '') + valueHtml);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
-          } else if (POINT_QUERY_URL) {
+          } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
             fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
           }
         });
@@ -988,7 +990,11 @@
             var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
             var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
             var isNumeric = colorMin != null && colorMax != null && colorMax > colorMin;
-            if (isNumeric) {
+            if (data.class_name || data.class_color) {
+              var dot = data.class_color ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>' : '';
+              var label = data.class_name || String(numVal);
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            } else if (isNumeric) {
               var t = Math.max(0, Math.min(1, (numVal - colorMin) / (colorMax - colorMin)));
               var color = gradientColor(t);
               var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
@@ -1013,7 +1019,7 @@
             }
           })
           .catch(function() {
-            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Error</span>');
+            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Offline</span>');
           });
         return;
       }

@@ -77,10 +77,12 @@ export function StackedCategoryBar({
 
   const validCategories = React.useMemo(
     () =>
-      categories.filter(
-        (category) =>
-          Number.isFinite(category.fraction) && category.fraction >= 0,
-      ),
+      categories
+        .filter(
+          (category) =>
+            Number.isFinite(category.fraction) && category.fraction > 0,
+        )
+        .sort((a, b) => b.count - a.count),
     [categories],
   );
 
@@ -111,10 +113,17 @@ export function StackedCategoryBar({
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
     if (pinnedValue !== null && pinnedValue !== undefined) {
       const pinnedKey = String(pinnedValue);
-      if (
-        validCategories.some((category) => String(category.value) === pinnedKey)
-      ) {
-        return { resolvedPinnedKey: pinnedKey, pinnedOtherLabel: null };
+      const classKey = pinnedKey.startsWith('class_')
+        ? pinnedKey
+        : `class_${pinnedKey}`;
+      const matchedCategory =
+        validCategories.find((c) => String(c.value) === pinnedKey) ??
+        validCategories.find((c) => String(c.value) === classKey);
+      if (matchedCategory) {
+        return {
+          resolvedPinnedKey: String(matchedCategory.value),
+          pinnedOtherLabel: null,
+        };
       }
       if (pinnedClassName?.trim()) {
         return {
@@ -227,7 +236,7 @@ export function StackedCategoryBar({
   return (
     <View collapsable={false} style={styles.stackedCategoryContainer}>
       <View collapsable={false} style={styles.stackedBarTrack}>
-        {displayCategories.map((category, index) => {
+        {validCategories.map((category, index) => {
           const fraction = category.fraction;
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];

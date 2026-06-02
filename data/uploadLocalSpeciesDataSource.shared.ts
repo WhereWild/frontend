@@ -5,8 +5,11 @@ import type {
 
 const CATEGORICAL_AGGREGATE_METRICS = new Set([
   'total_samples',
+  'unique_samples',
   'unique_classes',
   'significant_unique_classes',
+  'entropy',
+  'mode',
 ]);
 
 export const toFiniteNumber = (value: unknown): number | null => {

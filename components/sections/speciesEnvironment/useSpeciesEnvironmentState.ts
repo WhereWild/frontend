@@ -353,6 +353,9 @@ export function useSpeciesEnvironmentState({
 
     const normalizedPinnedValue = normalizeCategoryIdentity(pinnedValue);
     const normalizedPinnedLabel = normalizeCategoryIdentity(pinnedValueLabel);
+    const classFormatPinned = normalizedPinnedValue.startsWith('class_')
+      ? normalizedPinnedValue
+      : `class_${normalizedPinnedValue}`;
 
     return (
       categoricalDistribution.find(
@@ -360,6 +363,7 @@ export function useSpeciesEnvironmentState({
           categoryHasObservedSamples(category) &&
           (normalizeCategoryIdentity(category.value) ===
             normalizedPinnedValue ||
+            normalizeCategoryIdentity(category.value) === classFormatPinned ||
             normalizeCategoryIdentity(category.className) ===
               normalizedPinnedValue ||
             (normalizedPinnedLabel.length > 0 &&
@@ -377,18 +381,23 @@ export function useSpeciesEnvironmentState({
         return null;
       }
 
-      if (pinnedCategoryObserved === true) {
+      // Only show the badge when we've explicitly confirmed 0 observations for
+      // this category. null means still loading or indeterminate — don't flash.
+      if (pinnedCategoryObserved !== false) {
         return null;
       }
 
-      if (pinnedCategoryObserved === null && pinnedCategoryValue !== null) {
-        return null;
-      }
-
+      const normalizedPinned = normalizeCategoryIdentity(pinnedValue);
+      const distributionColor =
+        categoricalDistribution.find(
+          (cat) => normalizeCategoryIdentity(cat.value) === normalizedPinned,
+        )?.color ?? null;
       const legendColor =
+        distributionColor ??
         selectedVariableMeta?.legendClasses?.find(
           (cls) => String(cls.id) === String(pinnedValue),
-        )?.color ?? null;
+        )?.color ??
+        null;
 
       return {
         value: pinnedValue,
@@ -399,9 +408,9 @@ export function useSpeciesEnvironmentState({
         ...(legendColor !== null ? { color: legendColor } : {}),
       };
     }, [
+      categoricalDistribution,
       isCategorical,
       pinnedCategoryObserved,
-      pinnedCategoryValue,
       pinnedValue,
       pinnedValueDescription,
       pinnedValueLabel,

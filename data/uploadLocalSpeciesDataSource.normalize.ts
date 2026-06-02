@@ -1,11 +1,10 @@
-import type { EnvironmentVariableDefinition } from '@/data/types';
+import type { EnvironmentVariableDefinition, LegendClass } from '@/data/types';
 import {
   getVariableMetadataDisplayName,
   getVariableMetadataId,
   getVariableMetadataValueType,
   isCategoricalAggregateMetric,
   parseNumericArrayFromUnknown,
-  parseOccurrenceIndexCell,
   resolveCategoryMetricValue,
   toFiniteNumber,
   toStringValue,
@@ -22,7 +21,9 @@ import {
   UploadedParquetBundleValidationError,
 } from '@/data/uploadLocalSpeciesDataSource.types';
 
-export const validateUploadedParquetBundle = (bundle: UploadedParquetBundle): void => {
+export const validateUploadedParquetBundle = (
+  bundle: UploadedParquetBundle,
+): void => {
   const issues: string[] = [];
 
   if (!bundle.summaryStats.length) {
@@ -37,8 +38,12 @@ export const validateUploadedParquetBundle = (bundle: UploadedParquetBundle): vo
     issues.push('occurrence_index did not produce any valid rows');
   }
 
-  const summaryVariables = new Set(bundle.summaryStats.map((row) => row.variable));
-  const indexVariables = new Set(bundle.occurrenceIndex.map((row) => row.variable));
+  const summaryVariables = new Set(
+    bundle.summaryStats.map((row) => row.variable),
+  );
+  const indexVariables = new Set(
+    bundle.occurrenceIndex.map((row) => row.variable),
+  );
   const missingIndexVariables = Array.from(summaryVariables).filter(
     (variable) => !indexVariables.has(variable),
   );
@@ -48,7 +53,9 @@ export const validateUploadedParquetBundle = (bundle: UploadedParquetBundle): vo
     );
   }
 
-  const occurrenceCatalogs = new Set(bundle.occurrences.map((row) => String(row.catalogNumber)));
+  const occurrenceCatalogs = new Set(
+    bundle.occurrences.map((row) => String(row.catalogNumber)),
+  );
   const missingCatalogIds = bundle.occurrenceIndex
     .flatMap((row) => row.observationIds)
     .map((id) => String(id))
@@ -56,7 +63,9 @@ export const validateUploadedParquetBundle = (bundle: UploadedParquetBundle): vo
 
   if (missingCatalogIds.length) {
     const sample = Array.from(new Set(missingCatalogIds)).slice(0, 10);
-    issues.push(`occurrence_index references catalogNumber values not found in occurrence: ${sample.join(', ')}`);
+    issues.push(
+      `occurrence_index references catalogNumber values not found in occurrence: ${sample.join(', ')}`,
+    );
   }
 
   if (issues.length) {
@@ -155,31 +164,33 @@ export const normalizeRawUploadedParquetBundle = (
     })
     .filter((row): row is UploadedCategoricalValueLookupRow => row !== null);
 
-  const densityGraph = rawBundle.densityGraph.flatMap((row): UploadedDensityGraphPoint[] => {
-    const variable = toStringValue(row.variable);
-    const variableCategory = toStringValue(row.variableCategory);
-    if (!variable) {
-      return [];
-    }
+  const densityGraph = rawBundle.densityGraph.flatMap(
+    (row): UploadedDensityGraphPoint[] => {
+      const variable = toStringValue(row.variable);
+      const variableCategory = toStringValue(row.variableCategory);
+      if (!variable) {
+        return [];
+      }
 
-    assignDisplayName(variable, row.variableName);
+      assignDisplayName(variable, row.variableName);
 
-    const points = parseNumericArrayFromUnknown(row.points);
-    const densities = parseNumericArrayFromUnknown(row.density);
-    const pairCount = Math.min(points.length, densities.length);
-    const output: UploadedDensityGraphPoint[] = [];
+      const points = parseNumericArrayFromUnknown(row.points);
+      const densities = parseNumericArrayFromUnknown(row.density);
+      const pairCount = Math.min(points.length, densities.length);
+      const output: UploadedDensityGraphPoint[] = [];
 
-    for (let index = 0; index < pairCount; index += 1) {
-      output.push({
-        variable,
-        variableCategory,
-        value: points[index],
-        density: densities[index],
-      });
-    }
+      for (let index = 0; index < pairCount; index += 1) {
+        output.push({
+          variable,
+          variableCategory,
+          value: points[index],
+          density: densities[index],
+        });
+      }
 
-    return output;
-  });
+      return output;
+    },
+  );
 
   const occurrences = rawBundle.occurrences
     .map((row): UploadedOccurrenceRow | null => {
@@ -201,7 +212,9 @@ export const normalizeRawUploadedParquetBundle = (
     })
     .filter((row): row is UploadedOccurrenceRow => row !== null);
 
-  const categoryMetricsByVariable = categoricalStats.reduce<Record<string, string[]>>((acc, row) => {
+  const categoryMetricsByVariable = categoricalStats.reduce<
+    Record<string, string[]>
+  >((acc, row) => {
     if (isCategoricalAggregateMetric(row.metric)) {
       return acc;
     }
@@ -225,28 +238,50 @@ export const normalizeRawUploadedParquetBundle = (
   const categoricalVariables = new Set(Object.keys(categoryMetricsByVariable));
   const categoricalValueWarnings = new Set<string>();
 
+  const OCCURRENCE_INDEX_METADATA_COLUMNS = new Set([
+    'catalogNumber',
+    'decimalLatitude',
+    'decimalLongitude',
+    'observationName',
+  ]);
+
   const occurrenceIndex: UploadedOccurrenceIndexRow[] = [];
   rawBundle.occurrenceIndex.forEach((row) => {
-    Object.entries(row).forEach(([variable, rawCell]) => {
+    const catalogNumber = toStringValue(row.catalogNumber);
+    if (!catalogNumber) {
+      return;
+    }
+
+    Object.entries(row).forEach(([variable, rawValue]) => {
+      if (OCCURRENCE_INDEX_METADATA_COLUMNS.has(variable)) {
+        return;
+      }
       const canonicalVariable = toStringValue(variable);
-      const parsedCell = parseOccurrenceIndexCell(rawCell);
-      if (!canonicalVariable || !parsedCell) {
+      if (!canonicalVariable) {
         return;
       }
 
       if (categoricalVariables.has(canonicalVariable)) {
+        const rawValueStr =
+          rawValue === null || rawValue === undefined ? '' : String(rawValue);
+        if (!rawValueStr || rawValueStr === 'nan' || rawValueStr === 'None') {
+          return;
+        }
         const classValue = resolveCategoryMetricValue(
           canonicalVariable,
-          parsedCell.value,
+          rawValueStr,
           categoryValueLookupByVariable,
         );
         const normalizedClassValue = classValue.trim().toLowerCase();
-        const matchedMetric = categoryMetricsByVariable[canonicalVariable]?.some(
+        const matchedMetric = categoryMetricsByVariable[
+          canonicalVariable
+        ]?.some(
           (metric) => metric.trim().toLowerCase() === normalizedClassValue,
         );
 
         if (!matchedMetric) {
-          const variableLabel = variableDisplayNameById.get(canonicalVariable) ?? canonicalVariable;
+          const variableLabel =
+            variableDisplayNameById.get(canonicalVariable) ?? canonicalVariable;
           categoricalValueWarnings.add(
             `Uploaded categorical variable "${variableLabel}" has occurrence_index codes that do not resolve through categorical_value_lookup, so categorical highlighting may be unavailable.`,
           );
@@ -256,13 +291,12 @@ export const normalizeRawUploadedParquetBundle = (
           variable: canonicalVariable,
           mode: 'category',
           classValue,
-          observationIds: [parsedCell.catalogNumber],
+          observationIds: [catalogNumber],
         });
         return;
       }
 
-      const numericValue =
-        typeof parsedCell.value === 'number' ? parsedCell.value : toFiniteNumber(parsedCell.value);
+      const numericValue = toFiniteNumber(rawValue);
       if (numericValue === null) {
         return;
       }
@@ -272,22 +306,27 @@ export const normalizeRawUploadedParquetBundle = (
         mode: 'range',
         min: numericValue,
         max: numericValue,
-        observationIds: [parsedCell.catalogNumber],
+        observationIds: [catalogNumber],
       });
     });
   });
 
-  const summaryStats = rawBundle.summaryStats
+  const summaryStats = [
+    ...rawBundle.summaryStats,
+    ...(rawBundle.circularStats ?? []),
+  ]
     .map((row): UploadedSummaryStatsRow | null => {
       const variable = toStringValue(row.variable);
       const variableCategory = toStringValue(row.variableCategory);
-      const variableName = toStringValue(row.variableName) ?? toStringValue(row.variable_name);
+      const variableName =
+        toStringValue(row.variableName) ?? toStringValue(row.variable_name);
       const units = toStringValue(row.units);
       const variableType =
-        toStringValue(row.variableType)
-        ?? toStringValue(row.variable_type)
-        ?? toStringValue(row.valueType)
-        ?? toStringValue(row.value_type);
+        toStringValue(row.variableType) ??
+        toStringValue(row.variable_type) ??
+        toStringValue(row.valueType) ??
+        toStringValue(row.value_type);
+      const domain = toStringValue(row.domain);
       const count = toFiniteNumber(row.count);
       if (!variable || count === null) {
         return null;
@@ -303,6 +342,7 @@ export const normalizeRawUploadedParquetBundle = (
         variableName: variableName ?? undefined,
         units,
         variableType,
+        domain,
         count,
         min: toFiniteNumber(row.min),
         mean: toFiniteNumber(row.mean),
@@ -310,6 +350,9 @@ export const normalizeRawUploadedParquetBundle = (
         stddev: toFiniteNumber(row.std),
         q10: toFiniteNumber(row['10th percentile']),
         q90: toFiniteNumber(row['90th percentile']),
+        circular_mean: toFiniteNumber(row.circular_mean),
+        rbar: toFiniteNumber(row.rbar),
+        circular_std: toFiniteNumber(row.circular_std),
       };
     })
     .filter((row): row is UploadedSummaryStatsRow => row !== null);
@@ -323,10 +366,30 @@ export const normalizeRawUploadedParquetBundle = (
     categoryByVariable.set(variable, normalizedCategory);
   };
 
-  categoricalStats.forEach((row) => assignCategory(row.variable, row.variableCategory));
-  categoricalValueLookup.forEach((row) => assignCategory(row.variable, row.variableCategory));
-  densityGraph.forEach((row) => assignCategory(row.variable, row.variableCategory));
-  summaryStats.forEach((row) => assignCategory(row.variable, row.variableCategory));
+  const domainByVariable = new Map<string, string>();
+  summaryStats.forEach((row) => {
+    const domain = toStringValue(row.domain);
+    if (domain && !domainByVariable.has(row.variable)) {
+      domainByVariable.set(row.variable, domain);
+    }
+  });
+
+  const groupByVariable = new Map<string, string>();
+  const groupLabelByVariable = new Map<string, string>();
+  const sortOrderByVariable = new Map<string, number>();
+
+  categoricalStats.forEach((row) =>
+    assignCategory(row.variable, row.variableCategory),
+  );
+  categoricalValueLookup.forEach((row) =>
+    assignCategory(row.variable, row.variableCategory),
+  );
+  densityGraph.forEach((row) =>
+    assignCategory(row.variable, row.variableCategory),
+  );
+  summaryStats.forEach((row) =>
+    assignCategory(row.variable, row.variableCategory),
+  );
 
   rawBundle.variableMetadata?.forEach((row) => {
     const variableId = getVariableMetadataId(row);
@@ -334,6 +397,18 @@ export const normalizeRawUploadedParquetBundle = (
       return;
     }
     assignCategory(variableId, row.category);
+    const group = toStringValue(row.group);
+    if (group && !groupByVariable.has(variableId)) {
+      groupByVariable.set(variableId, group);
+    }
+    const groupLabel = toStringValue(row.group_label);
+    if (groupLabel && !groupLabelByVariable.has(variableId)) {
+      groupLabelByVariable.set(variableId, groupLabel);
+    }
+    const sortOrder = toFiniteNumber(row.sort_order);
+    if (sortOrder !== null && !sortOrderByVariable.has(variableId)) {
+      sortOrderByVariable.set(variableId, sortOrder);
+    }
   });
 
   const variableIds = new Set<string>([
@@ -348,7 +423,10 @@ export const normalizeRawUploadedParquetBundle = (
     ...(rawBundle.variableDefinitions ?? []).map((definition) => definition.id),
   ]);
 
-  const variableDefinitionsById = new Map<string, EnvironmentVariableDefinition>();
+  const variableDefinitionsById = new Map<
+    string,
+    EnvironmentVariableDefinition
+  >();
 
   rawBundle.variableDefinitions?.forEach((definition) => {
     if (definition?.id) {
@@ -367,9 +445,10 @@ export const normalizeRawUploadedParquetBundle = (
     // Parse source_ids JSON string written by the backend manifest
     if (row.source_ids != null && !sourceIdsByVariable.has(variableId)) {
       try {
-        const parsed = typeof row.source_ids === 'string'
-          ? JSON.parse(row.source_ids)
-          : row.source_ids;
+        const parsed =
+          typeof row.source_ids === 'string'
+            ? JSON.parse(row.source_ids)
+            : row.source_ids;
         if (Array.isArray(parsed)) {
           const ids = parsed.filter((v): v is string => typeof v === 'string');
           if (ids.length > 0) {
@@ -382,32 +461,104 @@ export const normalizeRawUploadedParquetBundle = (
     }
 
     const existing = variableDefinitionsById.get(variableId);
+
+    let legendClasses: LegendClass[] | null = existing?.legendClasses ?? null;
+    if (row.legend_classes != null && legendClasses == null) {
+      try {
+        const parsed =
+          typeof row.legend_classes === 'string'
+            ? JSON.parse(row.legend_classes)
+            : row.legend_classes;
+        if (Array.isArray(parsed)) {
+          const items = parsed
+            .filter(
+              (c): c is Record<string, unknown> =>
+                c != null && typeof c === 'object',
+            )
+            .map((c) => ({
+              id: (typeof c.id === 'number' || typeof c.id === 'string'
+                ? c.id
+                : String(c.id)) as number | string,
+              name: typeof c.name === 'string' ? c.name : String(c.id),
+              color: typeof c.color === 'string' ? c.color : undefined,
+            }));
+          if (items.length > 0) legendClasses = items;
+        }
+      } catch {
+        // malformed legend_classes — ignore
+      }
+    }
+
+    const renderMin =
+      (typeof row.render_min === 'number' ? row.render_min : null) ??
+      existing?.renderMin ??
+      null;
+    const renderMax =
+      (typeof row.render_max === 'number' ? row.render_max : null) ??
+      existing?.renderMax ??
+      null;
+
     variableDefinitionsById.set(variableId, {
       id: variableId,
-      name: getVariableMetadataDisplayName(row) ?? existing?.name ?? variableDisplayNameById.get(variableId) ?? variableId,
-      units: toStringValue(row.units) ?? existing?.units ?? variableUnitsById.get(variableId) ?? null,
-      valueType: getVariableMetadataValueType(row) ?? existing?.valueType ?? variableTypeById.get(variableId) ?? null,
+      name:
+        getVariableMetadataDisplayName(row) ??
+        existing?.name ??
+        variableDisplayNameById.get(variableId) ??
+        variableId,
+      units:
+        toStringValue(row.units) ??
+        existing?.units ??
+        variableUnitsById.get(variableId) ??
+        null,
+      valueType:
+        getVariableMetadataValueType(row) ??
+        existing?.valueType ??
+        variableTypeById.get(variableId) ??
+        null,
+      domain: toStringValue(row.domain) ?? existing?.domain ?? null,
       description: existing?.description ?? null,
-      category: toStringValue(row.category) ?? existing?.category ?? categoryByVariable.get(variableId) ?? null,
+      category:
+        toStringValue(row.category) ??
+        existing?.category ??
+        categoryByVariable.get(variableId) ??
+        null,
+      renderMin,
+      renderMax,
+      legendClasses,
     });
   });
 
   const normalizedVariableDefinitions = Array.from(variableIds)
-    .sort()
+    .sort((a, b) => {
+      const orderA = sortOrderByVariable.get(a) ?? Infinity;
+      const orderB = sortOrderByVariable.get(b) ?? Infinity;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b);
+    })
     .map((variable): EnvironmentVariableDefinition => {
       const existing = variableDefinitionsById.get(variable);
       const inferredValueType = categoricalVariables.has(variable)
         ? 'categorical'
-        : existing?.valueType ?? null;
-      const sourceIds = sourceIdsByVariable.get(variable) ?? existing?.sourceIds;
+        : (existing?.valueType ?? null);
+      const sourceIds =
+        sourceIdsByVariable.get(variable) ?? existing?.sourceIds;
 
       return {
         id: variable,
-        name: existing?.name ?? variableDisplayNameById.get(variable) ?? variable,
+        name:
+          existing?.name ?? variableDisplayNameById.get(variable) ?? variable,
         units: existing?.units ?? variableUnitsById.get(variable) ?? null,
         description: existing?.description ?? null,
         valueType: inferredValueType ?? variableTypeById.get(variable) ?? null,
-        category: existing?.category ?? categoryByVariable.get(variable) ?? null,
+        domain: existing?.domain ?? domainByVariable.get(variable) ?? null,
+        category:
+          existing?.category ?? categoryByVariable.get(variable) ?? null,
+        group: existing?.group ?? groupByVariable.get(variable) ?? null,
+        groupLabel:
+          existing?.groupLabel ?? groupLabelByVariable.get(variable) ?? null,
+        renderMin: existing?.renderMin ?? null,
+        renderMax: existing?.renderMax ?? null,
+        legendClasses: existing?.legendClasses ?? null,
         ...(sourceIds?.length ? { sourceIds } : {}),
       };
     });
