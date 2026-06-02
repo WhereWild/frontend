@@ -331,18 +331,22 @@ export default function Species({
 
   const classColors = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const isLandcover = selectedVariableMeta?.id === 'landcover';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta?.legendClasses ?? []) {
-      if (cls.id !== 0 && cls.color) map.set(String(cls.id), cls.color);
+      if (isLandcover && cls.id === 0) continue;
+      if (cls.color) map.set(String(cls.id), cls.color);
     }
     return map.size > 0 ? map : null;
   }, [selectedVariableMeta]);
 
   const classLabels = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const isLandcover = selectedVariableMeta?.id === 'landcover';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta?.legendClasses ?? []) {
-      if (cls.id !== 0) map.set(String(cls.id), cls.name);
+      if (isLandcover && cls.id === 0) continue;
+      map.set(String(cls.id), cls.name);
     }
     return map.size > 0 ? map : null;
   }, [selectedVariableMeta]);
@@ -350,6 +354,7 @@ export default function Species({
   const visibleCategoricalClasses = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta) || !observationValues)
       return null;
+    const isLandcover = selectedVariableMeta?.id === 'landcover';
     const counts = new Map<string, number>();
     for (const occ of occurrences) {
       if (
@@ -367,7 +372,9 @@ export default function Species({
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
     const classes = (selectedVariableMeta?.legendClasses ?? [])
-      .filter((cls) => cls.id !== 0 && counts.has(String(cls.id)))
+      .filter(
+        (cls) => !(isLandcover && cls.id === 0) && counts.has(String(cls.id)),
+      )
       .sort(
         (a, b) =>
           (counts.get(String(b.id)) ?? 0) - (counts.get(String(a.id)) ?? 0),

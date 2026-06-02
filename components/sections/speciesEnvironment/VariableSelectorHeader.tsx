@@ -52,6 +52,12 @@ export function VariableSelectorHeader({
     [filteredVariables],
   );
 
+  // Use split UI when at least one variable in the category has a group key.
+  const isGroupedCategory = React.useMemo(
+    () => !isTemporalCategory && filteredVariables.some((v) => v.group),
+    [isTemporalCategory, filteredVariables],
+  );
+
   const parsedSelected = React.useMemo(
     () => (isTemporalCategory ? parseTemporalId(selectedVariable) : null),
     [isTemporalCategory, selectedVariable],
@@ -115,6 +121,94 @@ export function VariableSelectorHeader({
     [filteredVariables, onVariableChange],
   );
 
+  // Grouped base options: one entry per group (or per ungrouped variable).
+  const groupedBaseOptions = React.useMemo(() => {
+    if (!isGroupedCategory) return [];
+    const seen = new Map<string, string>(); // group key -> display label
+    for (const v of filteredVariables) {
+      const key = v.group ?? v.id;
+      if (!seen.has(key)) {
+        seen.set(key, v.groupLabel ?? v.label);
+      }
+    }
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [isGroupedCategory, filteredVariables]);
+
+  // The selected group key: group of the selected variable, or the variable's own id.
+  const selectedGroupKey = React.useMemo(() => {
+    if (!isGroupedCategory) return null;
+    const selected = filteredVariables.find((v) => v.id === selectedVariable);
+    return (
+      selected?.group ?? selected?.id ?? groupedBaseOptions[0]?.value ?? null
+    );
+  }, [
+    isGroupedCategory,
+    filteredVariables,
+    selectedVariable,
+    groupedBaseOptions,
+  ]);
+
+  const STAT_ORDER: Record<string, number> = React.useMemo(
+    () => ({ mean: 0, min: 1, max: 2, range: 3 }),
+    [],
+  );
+
+  const sortVariantsByStatOrder = React.useCallback(
+    <T extends { label: string }>(items: T[]): T[] =>
+      [...items].sort((a, b) => {
+        const aKey = a.label.toLowerCase();
+        const bKey = b.label.toLowerCase();
+        const aOrder = Object.keys(STAT_ORDER).find((k) => aKey.includes(k));
+        const bOrder = Object.keys(STAT_ORDER).find((k) => bKey.includes(k));
+        return (
+          (aOrder !== undefined ? STAT_ORDER[aOrder] : 99) -
+          (bOrder !== undefined ? STAT_ORDER[bOrder] : 99)
+        );
+      }),
+    [STAT_ORDER],
+  );
+
+  // Variant options for the selected group, with short labels and sorted mean→min→max→range.
+  const groupVariantOptions = React.useMemo(() => {
+    if (!isGroupedCategory || !selectedGroupKey) return [];
+    const variants = filteredVariables
+      .filter((v) => (v.group ?? v.id) === selectedGroupKey)
+      .map((v) => {
+        const groupLabel = v.groupLabel ?? '';
+        const shortLabel = groupLabel
+          ? v.label.replace(groupLabel, '').trim() || v.label
+          : v.label;
+        return { value: v.id, label: shortLabel };
+      });
+    return sortVariantsByStatOrder(variants);
+  }, [
+    isGroupedCategory,
+    selectedGroupKey,
+    filteredVariables,
+    sortVariantsByStatOrder,
+  ]);
+
+  // When the group base changes, default to the mean (lowest stat order) variant.
+  const handleGroupBaseChange = React.useCallback(
+    (newGroupKey: string) => {
+      const variants = filteredVariables
+        .filter((v) => (v.group ?? v.id) === newGroupKey)
+        .map((v) => {
+          const groupLabel = v.groupLabel ?? '';
+          const shortLabel = groupLabel
+            ? v.label.replace(groupLabel, '').trim() || v.label
+            : v.label;
+          return { id: v.id, label: shortLabel };
+        });
+      const sorted = sortVariantsByStatOrder(variants);
+      if (sorted.length > 0) onVariableChange(sorted[0].id);
+    },
+    [filteredVariables, sortVariantsByStatOrder, onVariableChange],
+  );
+
   return (
     <>
       {categories.length > 0 ? (
@@ -148,6 +242,28 @@ export function VariableSelectorHeader({
                   onValueChange={onVariableChange}
                   placeholder='No window'
                   disabled={windowOptions.length === 0}
+                />
+              </View>
+            </View>
+          ) : isGroupedCategory ? (
+            <View style={styles.temporalSelectRow}>
+              <View style={styles.temporalSelectItem}>
+                <SelectField
+                  variant='secondary'
+                  options={groupedBaseOptions}
+                  value={selectedGroupKey ?? groupedBaseOptions[0]?.value ?? ''}
+                  onValueChange={handleGroupBaseChange}
+                  placeholder='Select variable'
+                />
+              </View>
+              <View style={styles.temporalSelectItem}>
+                <SelectField
+                  variant='secondary'
+                  options={groupVariantOptions}
+                  value={groupVariantOptions.length > 1 ? selectedVariable : ''}
+                  onValueChange={onVariableChange}
+                  placeholder='—'
+                  disabled={groupVariantOptions.length <= 1}
                 />
               </View>
             </View>
