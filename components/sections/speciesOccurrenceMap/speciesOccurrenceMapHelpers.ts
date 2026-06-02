@@ -58,6 +58,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   renderMin: '__RENDER_MIN_JSON__',
   renderMax: '__RENDER_MAX_JSON__',
   isCircular: '__IS_CIRCULAR__',
+  dotMin: '__DOT_MIN_JSON__',
+  dotMax: '__DOT_MAX_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -174,23 +176,34 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const preparePointsForMapHtml = (points: Record<string, unknown>[]) => {
+const preparePointsForMapHtml = (
+  points: Record<string, unknown>[],
+  observationValues?: Map<string, number> | null,
+  classColors?: Map<string, string> | null,
+  classLabels?: Map<string, string> | null,
+) => {
   return (points ?? []).map((point) => {
     const catalogNumber = point.catalogNumber;
     const catalog =
       typeof catalogNumber === 'number' || typeof catalogNumber === 'string'
         ? String(catalogNumber)
         : '';
+    const varValue =
+      catalog && observationValues
+        ? (observationValues.get(catalog) ?? null)
+        : null;
+    const classKey = varValue != null ? String(Math.round(varValue)) : null;
+    const varColor = classKey && classColors ? (classColors.get(classKey) ?? null) : null;
+    const varLabel = classKey && classLabels ? (classLabels.get(classKey) ?? null) : null;
 
     return {
       ...point,
-      // Keep the catalog number in three forms for popup rendering:
-      // - popupCatalogValue: raw string value for non-rendering/internal use
-      // - popupCatalogHref: URL-encoded value for link destinations
-      // - popupCatalogLabel: HTML-escaped value for visible popup text
       popupCatalogValue: catalog,
       popupCatalogHref: encodeURIComponent(catalog),
       popupCatalogLabel: escapeHtml(catalog),
+      varValue,
+      varColor,
+      varLabel,
     };
   });
 };
@@ -215,6 +228,11 @@ export const buildLeafletHtml = (
   renderMin?: number | null,
   renderMax?: number | null,
   isCircular?: boolean,
+  observationValues?: Map<string, number> | null,
+  classColors?: Map<string, string> | null,
+  classLabels?: Map<string, string> | null,
+  dotMin?: number | null,
+  dotMax?: number | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -240,7 +258,7 @@ export const buildLeafletHtml = (
     .join(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.points)
-    .join(JSON.stringify(preparePointsForMapHtml(points)));
+    .join(JSON.stringify(preparePointsForMapHtml(points, observationValues, classColors, classLabels)));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.palette)
     .join(JSON.stringify(markerPalette));
@@ -301,6 +319,12 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.isCircular)
     .join(isCircular ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.dotMin)
+    .join(typeof dotMin === 'number' ? String(dotMin) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.dotMax)
+    .join(typeof dotMax === 'number' ? String(dotMax) : 'null');
   return html;
 };
 

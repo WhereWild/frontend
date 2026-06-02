@@ -71,6 +71,19 @@ function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
 
 type PointValueMessage = { type: 'pointValue'; value: number };
 
+export type MapBounds = { north: number; south: number; east: number; west: number };
+type MapBoundsMessage = { type: 'mapBounds' } & MapBounds;
+
+function isMapBoundsMessage(msg: unknown): msg is MapBoundsMessage {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    m.type === 'mapBounds' &&
+    typeof m.north === 'number' && typeof m.south === 'number' &&
+    typeof m.east === 'number' && typeof m.west === 'number'
+  );
+}
+
 function isPointValueMessage(msg: unknown): msg is PointValueMessage {
   return (
     !!msg &&
@@ -111,6 +124,12 @@ type SpeciesOccurrenceMapProps = {
   renderMin?: number | null;
   renderMax?: number | null;
   isCircular?: boolean;
+  observationValues?: Map<string, number> | null;
+  classColors?: Map<string, string> | null;
+  classLabels?: Map<string, string> | null;
+  dotMin?: number | null;
+  dotMax?: number | null;
+  onMapBounds?: (bounds: MapBounds) => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -139,6 +158,12 @@ export function SpeciesOccurrenceMap({
   renderMin = null,
   renderMax = null,
   isCircular = false,
+  observationValues = null,
+  classColors = null,
+  classLabels = null,
+  dotMin = null,
+  dotMax = null,
+  onMapBounds,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -201,6 +226,11 @@ export function SpeciesOccurrenceMap({
 
       if (isPointValueMessage(msg)) {
         onPointValue?.(msg.value);
+        return;
+      }
+
+      if (isMapBoundsMessage(msg)) {
+        onMapBounds?.({ north: msg.north, south: msg.south, east: msg.east, west: msg.west });
       }
     },
     [
@@ -208,6 +238,7 @@ export function SpeciesOccurrenceMap({
       onBoundsChange,
       onTileClasses,
       onPointValue,
+      onMapBounds,
       openExternalUrl,
     ],
   );
@@ -304,6 +335,11 @@ export function SpeciesOccurrenceMap({
       renderMin,
       renderMax,
       isCircular,
+      observationValues,
+      classColors,
+      classLabels,
+      dotMin,
+      dotMax,
     );
   }, [
     allowPinObservations,
@@ -311,6 +347,11 @@ export function SpeciesOccurrenceMap({
     renderMin,
     renderMax,
     isCircular,
+    observationValues,
+    classColors,
+    classLabels,
+    dotMin,
+    dotMax,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,
@@ -432,6 +473,11 @@ export function SpeciesOccurrenceMap({
 
       if (frameWindow && source === frameWindow && isPointValueMessage(data)) {
         onPointValue?.(data.value);
+        return;
+      }
+
+      if (frameWindow && source === frameWindow && isMapBoundsMessage(data)) {
+        onMapBounds?.({ north: data.north, south: data.south, east: data.east, west: data.west });
       }
     };
     window.addEventListener('message', handler);

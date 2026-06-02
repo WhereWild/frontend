@@ -1167,13 +1167,13 @@ export default function About() {
                           maximumFractionDigits: 1,
                         });
                   const gradientCss =
-                    'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
+                    'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
                   const nativeColors = [
-                    'rgb(230,57,70)',
-                    'rgb(246,190,0)',
-                    'rgb(59,170,165)',
-                    'rgb(34,94,168)',
-                    'rgb(28,38,102)',
+                    'rgb(253,231,37)',
+                    'rgb(94,201,98)',
+                    'rgb(33,145,140)',
+                    'rgb(59,82,139)',
+                    'rgb(68,1,84)',
                   ];
                   return (
                     <View key={label} style={styles.legendExampleItem}>
@@ -1294,7 +1294,7 @@ export default function About() {
                   const HOLE = 38;
                   const bgColor = palette.background.default.secondary;
                   const conicCss =
-                    'conic-gradient(from 0deg, rgb(220,50,50) 0deg, rgb(230,122,32) 45deg, rgb(240,195,15) 90deg, rgb(142,185,40) 135deg, rgb(45,175,65) 180deg, rgb(42,135,142) 225deg, rgb(40,95,220) 270deg, rgb(130,72,135) 315deg, rgb(220,50,50) 360deg)';
+                    'conic-gradient(from 0deg, rgb(40,95,220) 0deg, rgb(42,135,142) 45deg, rgb(45,175,65) 90deg, rgb(142,185,40) 135deg, rgb(240,195,15) 180deg, rgb(230,122,32) 225deg, rgb(220,50,50) 270deg, rgb(130,72,135) 315deg, rgb(40,95,220) 360deg)';
                   return (
                     <View style={styles.legendExampleItem}>
                       <ThemedText variant='bodySmall'>Aspect</ThemedText>
@@ -1479,7 +1479,7 @@ export default function About() {
                   if (isCircular) {
                     // hue = (0.667 - deg/360) % 1, s=0.75, v=0.92 — matches _colorize_aspect
                     const conicCss =
-                      'conic-gradient(from 0deg, rgb(220,50,50) 0deg, rgb(230,122,32) 45deg, rgb(240,195,15) 90deg, rgb(142,185,40) 135deg, rgb(45,175,65) 180deg, rgb(42,135,142) 225deg, rgb(40,95,220) 270deg, rgb(130,72,135) 315deg, rgb(220,50,50) 360deg)';
+                      'conic-gradient(from 0deg, rgb(40,95,220) 0deg, rgb(42,135,142) 45deg, rgb(45,175,65) 90deg, rgb(142,185,40) 135deg, rgb(240,195,15) 180deg, rgb(230,122,32) 225deg, rgb(220,50,50) 270deg, rgb(130,72,135) 315deg, rgb(40,95,220) 360deg)';
                     const RING = 68;
                     const HOLE = 38;
                     return (
@@ -1669,13 +1669,13 @@ export default function About() {
                           maximumFractionDigits: 1,
                         });
                   const gradientCss =
-                    'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
+                    'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
                   const nativeColors = [
-                    'rgb(230,57,70)',
-                    'rgb(246,190,0)',
-                    'rgb(59,170,165)',
-                    'rgb(34,94,168)',
-                    'rgb(28,38,102)',
+                    'rgb(253,231,37)',
+                    'rgb(94,201,98)',
+                    'rgb(33,145,140)',
+                    'rgb(59,82,139)',
+                    'rgb(68,1,84)',
                   ];
                   const pinFraction =
                     pinnedValue != null && rmax > rmin
