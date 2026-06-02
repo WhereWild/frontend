@@ -83,6 +83,11 @@
   "overrides": {
     "@xmldom/xmldom": "^0.8.13",
     "fast-uri": "^3.1.2",
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "glob": {
+      "minimatch": {
+        "brace-expansion": "^5.0.6"
+      }
+    }
   }
 }
