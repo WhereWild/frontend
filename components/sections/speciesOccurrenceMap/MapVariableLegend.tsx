@@ -3,16 +3,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
-
-const GRADIENT_CSS =
-  'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
-const GRADIENT_COLORS = [
-  'rgb(253,231,37)',
-  'rgb(94,201,98)',
-  'rgb(33,145,140)',
-  'rgb(59,82,139)',
-  'rgb(68,1,84)',
-];
+import { VIRIDIS_CSS, VIRIDIS_COLORS } from './variableColors';
 
 type MapVariableLegendProps = {
   min: number;
@@ -44,7 +35,6 @@ export function MapVariableLegend({
 
   return (
     <View
-      pointerEvents='none'
       style={[
         styles.overlay,
         { backgroundColor: palette.background.default.secondary },
@@ -59,7 +49,7 @@ export function MapVariableLegend({
             <View
               style={[
                 StyleSheet.absoluteFillObject,
-                { borderRadius: 4, backgroundImage: GRADIENT_CSS } as object,
+                { borderRadius: 4, backgroundImage: VIRIDIS_CSS } as object,
               ]}
             />
           ) : (
@@ -69,7 +59,7 @@ export function MapVariableLegend({
                 { borderRadius: 4, overflow: 'hidden' },
               ]}
             >
-              {GRADIENT_COLORS.map((color, i) => (
+              {VIRIDIS_COLORS.map((color, i) => (
                 <View
                   key={i}
                   style={[styles.segment, { backgroundColor: color }]}
@@ -79,7 +69,6 @@ export function MapVariableLegend({
           )}
           {pinFraction != null && (
             <View
-              pointerEvents='none'
               style={[
                 styles.pinLine,
                 {
@@ -133,6 +122,7 @@ const styles = StyleSheet.create({
     paddingVertical: Size.space['200'],
     alignItems: 'center',
     gap: Size.space['100'],
+    pointerEvents: 'none',
   },
   barRow: {
     flex: 1,

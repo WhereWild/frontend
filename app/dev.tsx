@@ -42,8 +42,18 @@ import { Platform, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
+  isVariableCircular,
   normalizeLabel,
 } from '@/components/sections/speciesEnvironment/model';
+import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
+import {
+  ASPECT_CONIC_CSS,
+  ASPECT_NATIVE_COLOR,
+  VIRIDIS_COLORS,
+  VIRIDIS_CSS,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
@@ -1166,15 +1176,8 @@ export default function About() {
                       : v.toLocaleString(undefined, {
                           maximumFractionDigits: 1,
                         });
-                  const gradientCss =
-                    'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
-                  const nativeColors = [
-                    'rgb(253,231,37)',
-                    'rgb(94,201,98)',
-                    'rgb(33,145,140)',
-                    'rgb(59,82,139)',
-                    'rgb(68,1,84)',
-                  ];
+                  const gradientCss = VIRIDIS_CSS;
+                  const nativeColors = VIRIDIS_COLORS;
                   return (
                     <View key={label} style={styles.legendExampleItem}>
                       <ThemedText variant='bodySmall'>{label}</ThemedText>
@@ -1293,8 +1296,7 @@ export default function About() {
                   const RING = 68;
                   const HOLE = 38;
                   const bgColor = palette.background.default.secondary;
-                  const conicCss =
-                    'conic-gradient(from 0deg, rgb(40,95,220) 0deg, rgb(42,135,142) 45deg, rgb(45,175,65) 90deg, rgb(142,185,40) 135deg, rgb(240,195,15) 180deg, rgb(230,122,32) 225deg, rgb(220,50,50) 270deg, rgb(130,72,135) 315deg, rgb(40,95,220) 360deg)';
+                  const conicCss = ASPECT_CONIC_CSS;
                   return (
                     <View style={styles.legendExampleItem}>
                       <ThemedText variant='bodySmall'>Aspect</ThemedText>
@@ -1349,7 +1351,7 @@ export default function About() {
                                   width: RING,
                                   height: RING,
                                   borderRadius: RING / 2,
-                                  backgroundColor: 'rgb(234,234,58)',
+                                  backgroundColor: ASPECT_NATIVE_COLOR,
                                 },
                               ]}
                             >
@@ -1437,11 +1439,10 @@ export default function About() {
                   heatmapOpacity={0.85}
                   minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
                   showMarkers={false}
-                  allowPinObservations={false}
                   onTileClasses={handleMapTileClasses}
                   onPointValue={handleMapPointValue}
                   pointQueryUrl={
-                    mapSelectedVariableMeta?.valueType != null
+                    mapSelectedVariable
                       ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}`
                       : null
                   }
@@ -1465,315 +1466,52 @@ export default function About() {
                   }
                 />
                 {(() => {
-                  const vtype = (
-                    mapSelectedVariableMeta?.valueType ?? ''
-                  ).toLowerCase();
-                  const id = mapSelectedVariableMeta?.id ?? '';
-                  const isCircular = id === 'aspect' || id === 'aspect_deg';
-                  const isNumeric = vtype === 'continuous' && !isCircular;
+                  const isCircular = isVariableCircular(
+                    mapSelectedVariableMeta,
+                  );
                   const isCategorical = isVariableCategorical(
                     mapSelectedVariableMeta,
                   );
-                  const bgColor = palette.background.default.secondary;
+                  const isNumeric =
+                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() ===
+                      'continuous' && !isCircular;
 
                   if (isCircular) {
-                    // hue = (0.667 - deg/360) % 1, s=0.75, v=0.92 — matches _colorize_aspect
-                    const conicCss =
-                      'conic-gradient(from 0deg, rgb(40,95,220) 0deg, rgb(42,135,142) 45deg, rgb(45,175,65) 90deg, rgb(142,185,40) 135deg, rgb(240,195,15) 180deg, rgb(230,122,32) 225deg, rgb(220,50,50) 270deg, rgb(130,72,135) 315deg, rgb(40,95,220) 360deg)';
-                    const RING = 68;
-                    const HOLE = 38;
-                    return (
-                      <View
-                        style={[
-                          styles.legendCircleOverlay,
-                          { backgroundColor: bgColor },
-                        ]}
-                      >
-                        <ThemedText
-                          variant='bodyTiny'
-                          style={styles.legendCircleCardinal}
-                        >
-                          N
-                        </ThemedText>
-                        <View style={styles.legendCircleRow}>
-                          <ThemedText
-                            variant='bodyTiny'
-                            style={styles.legendCircleCardinal}
-                          >
-                            W
-                          </ThemedText>
-                          {Platform.OS === 'web' ? (
-                            <View
-                              style={[
-                                styles.legendCircleOuter,
-                                {
-                                  width: RING,
-                                  height: RING,
-                                  borderRadius: RING / 2,
-                                  backgroundImage: conicCss,
-                                  position: 'relative',
-                                } as object,
-                              ]}
-                            >
-                              {pinnedValue != null && (
-                                <View
-                                  pointerEvents='none'
-                                  style={[
-                                    {
-                                      position: 'absolute',
-                                      width: 2,
-                                      height: RING / 2,
-                                      left: RING / 2 - 1,
-                                      top: 0,
-                                      backgroundColor: '#fffffff2',
-                                      opacity: 0.9,
-                                    },
-                                    {
-                                      transformOrigin: 'center bottom',
-                                      transform: `rotate(${pinnedValue}deg)`,
-                                    } as object,
-                                  ]}
-                                />
-                              )}
-                              <View
-                                style={[
-                                  styles.legendCircleHole,
-                                  {
-                                    width: HOLE,
-                                    height: HOLE,
-                                    borderRadius: HOLE / 2,
-                                    backgroundColor: bgColor,
-                                  },
-                                ]}
-                              />
-                            </View>
-                          ) : (
-                            <View
-                              style={[
-                                styles.legendCircleOuter,
-                                {
-                                  width: RING,
-                                  height: RING,
-                                  borderRadius: RING / 2,
-                                  backgroundColor: 'rgb(234,234,58)',
-                                },
-                              ]}
-                            >
-                              {pinnedValue != null && (
-                                <View
-                                  pointerEvents='none'
-                                  style={{
-                                    position: 'absolute',
-                                    width: 2,
-                                    height: RING / 2,
-                                    left: RING / 2 - 1,
-                                    top: 0,
-                                    backgroundColor: '#fffffff2',
-                                    opacity: 0.9,
-                                    transform: [
-                                      { translateY: RING / 4 },
-                                      { rotate: `${pinnedValue}deg` },
-                                      { translateY: -(RING / 4) },
-                                    ],
-                                  }}
-                                />
-                              )}
-                              <View
-                                style={[
-                                  styles.legendCircleHole,
-                                  {
-                                    width: HOLE,
-                                    height: HOLE,
-                                    borderRadius: HOLE / 2,
-                                    backgroundColor: bgColor,
-                                  },
-                                ]}
-                              />
-                            </View>
-                          )}
-                          <ThemedText
-                            variant='bodyTiny'
-                            style={styles.legendCircleCardinal}
-                          >
-                            E
-                          </ThemedText>
-                        </View>
-                        <ThemedText
-                          variant='bodyTiny'
-                          style={styles.legendCircleCardinal}
-                        >
-                          S
-                        </ThemedText>
-                      </View>
-                    );
+                    return <MapCircularLegend pinnedValue={pinnedValue} />;
                   }
 
                   if (isCategorical) {
                     const allClasses = (
                       mapSelectedVariableMeta?.legendClasses ?? []
                     ).filter((cls) => cls.id !== 0);
-                    // Filter to visible classes, sorted by pixel count descending
-                    const visibleClasses = (() => {
-                      if (allClasses.length === 0) return [];
-                      if (visibleNominalCounts.size === 0) return allClasses;
-                      return allClasses
-                        .filter((cls) =>
-                          visibleNominalCounts.has(cls.id as number),
-                        )
-                        .sort(
-                          (a, b) =>
-                            (visibleNominalCounts.get(b.id as number) ?? 0) -
-                            (visibleNominalCounts.get(a.id as number) ?? 0),
-                        );
-                    })();
+                    if (allClasses.length === 0) return null;
+                    const visibleClasses =
+                      visibleNominalCounts.size === 0
+                        ? allClasses
+                        : allClasses
+                            .filter((cls) =>
+                              visibleNominalCounts.has(cls.id as number),
+                            )
+                            .sort(
+                              (a, b) =>
+                                (visibleNominalCounts.get(b.id as number) ??
+                                  0) -
+                                (visibleNominalCounts.get(a.id as number) ?? 0),
+                            );
                     if (visibleClasses.length === 0) return null;
-                    const displayClasses = visibleClasses;
-                    return (
-                      <View
-                        style={[
-                          styles.legendNominalOverlay,
-                          { backgroundColor: bgColor },
-                        ]}
-                      >
-                        {displayClasses.map((cls) => (
-                          <View key={cls.id} style={styles.legendNominalRow}>
-                            <View
-                              style={[
-                                styles.legendNominalDot,
-                                { backgroundColor: cls.color ?? '#888' },
-                              ]}
-                            />
-                            <ThemedText
-                              variant='bodyTiny'
-                              style={styles.legendNominalLabel}
-                              numberOfLines={1}
-                            >
-                              {cls.name}
-                            </ThemedText>
-                          </View>
-                        ))}
-                      </View>
-                    );
+                    return <MapCategoricalLegend classes={visibleClasses} />;
                   }
 
                   const rmin = mapSelectedVariableMeta?.renderMin;
                   const rmax = mapSelectedVariableMeta?.renderMax;
-                  const units = mapSelectedVariableMeta?.units ?? '';
                   if (!isNumeric || rmin == null || rmax == null) return null;
-                  const fmt = (v: number) =>
-                    Math.abs(v) >= 1000
-                      ? v.toLocaleString(undefined, {
-                          maximumFractionDigits: 0,
-                        })
-                      : v.toLocaleString(undefined, {
-                          maximumFractionDigits: 1,
-                        });
-                  const gradientCss =
-                    'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
-                  const nativeColors = [
-                    'rgb(253,231,37)',
-                    'rgb(94,201,98)',
-                    'rgb(33,145,140)',
-                    'rgb(59,82,139)',
-                    'rgb(68,1,84)',
-                  ];
-                  const pinFraction =
-                    pinnedValue != null && rmax > rmin
-                      ? Math.max(
-                          0,
-                          Math.min(1, (rmax - pinnedValue) / (rmax - rmin)),
-                        )
-                      : null;
                   return (
-                    <View
-                      style={[
-                        styles.legendOverlay,
-                        { backgroundColor: bgColor },
-                      ]}
-                    >
-                      <ThemedText
-                        variant='bodyTiny'
-                        style={styles.legendOverlayLabel}
-                      >
-                        {fmt(rmax)}
-                      </ThemedText>
-                      <View style={styles.legendOverlayBarRow}>
-                        <View style={styles.legendOverlayBarContainer}>
-                          {Platform.OS === 'web' ? (
-                            <View
-                              style={[
-                                StyleSheet.absoluteFillObject,
-                                {
-                                  borderRadius: 4,
-                                  backgroundImage: gradientCss,
-                                } as object,
-                              ]}
-                            />
-                          ) : (
-                            <View
-                              style={[
-                                StyleSheet.absoluteFillObject,
-                                { borderRadius: 4, overflow: 'hidden' },
-                              ]}
-                            >
-                              {nativeColors.map((color, i) => (
-                                <View
-                                  key={i}
-                                  style={[
-                                    styles.legendOverlaySegment,
-                                    { flex: 1, backgroundColor: color },
-                                  ]}
-                                />
-                              ))}
-                            </View>
-                          )}
-                          {pinFraction != null && (
-                            <View
-                              pointerEvents='none'
-                              style={[
-                                styles.legendPinLine,
-                                {
-                                  top: `${Math.round(pinFraction * 100)}%` as unknown as number,
-                                },
-                                Platform.OS === 'web'
-                                  ? ({ borderTopStyle: 'dashed' } as object)
-                                  : {},
-                              ]}
-                            />
-                          )}
-                        </View>
-                        {pinFraction != null && (
-                          <View style={styles.legendPinLabelContainer}>
-                            <ThemedText
-                              variant='bodyTiny'
-                              numberOfLines={1}
-                              style={[
-                                styles.legendPinLabel,
-                                {
-                                  top: `${Math.round(pinFraction * 100)}%` as unknown as number,
-                                },
-                              ]}
-                            >
-                              {fmt(pinnedValue!)}
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
-                      <ThemedText
-                        variant='bodyTiny'
-                        style={styles.legendOverlayLabel}
-                      >
-                        {fmt(rmin)}
-                      </ThemedText>
-                      {units ? (
-                        <ThemedText
-                          variant='bodyTiny'
-                          style={styles.legendOverlayUnits}
-                        >
-                          {units}
-                        </ThemedText>
-                      ) : null}
-                    </View>
+                    <MapVariableLegend
+                      min={rmin}
+                      max={rmax}
+                      units={mapSelectedVariableMeta?.units}
+                      pinnedValue={pinnedValue}
+                    />
                   );
                 })()}
               </View>

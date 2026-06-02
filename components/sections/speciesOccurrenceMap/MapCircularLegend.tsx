@@ -3,12 +3,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
+import { ASPECT_CONIC_CSS, ASPECT_NATIVE_COLOR } from './variableColors';
 
 const RING = 56;
 const HOLE = 32;
-
-const CONIC_CSS =
-  'conic-gradient(from 0deg, rgb(40,95,220), rgb(45,175,65), rgb(240,195,15), rgb(220,50,50), rgb(40,95,220))';
 
 type MapCircularLegendProps = {
   pinnedValue?: number | null;
@@ -21,32 +19,38 @@ export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
   const bg = palette.background.default.secondary;
 
   return (
-    <View
-      pointerEvents='none'
-      style={[styles.overlay, { backgroundColor: bg }]}
-    >
-      <ThemedText variant='bodyTiny' style={styles.cardinal}>N</ThemedText>
+    <View style={[styles.overlay, { backgroundColor: bg }]}>
+      <ThemedText variant='bodyTiny' style={styles.cardinal}>
+        N
+      </ThemedText>
       <View style={styles.row}>
-        <ThemedText variant='bodyTiny' style={styles.cardinal}>W</ThemedText>
+        <ThemedText variant='bodyTiny' style={styles.cardinal}>
+          W
+        </ThemedText>
         <View style={{ position: 'relative', width: RING, height: RING }}>
           {Platform.OS === 'web' ? (
             <View
               style={[
                 StyleSheet.absoluteFillObject,
-                { borderRadius: RING / 2, backgroundImage: CONIC_CSS } as object,
+                {
+                  borderRadius: RING / 2,
+                  backgroundImage: ASPECT_CONIC_CSS,
+                } as object,
               ]}
             />
           ) : (
             <View
               style={[
                 StyleSheet.absoluteFillObject,
-                { borderRadius: RING / 2, backgroundColor: 'rgb(240,195,15)' },
+                {
+                  borderRadius: RING / 2,
+                  backgroundColor: ASPECT_NATIVE_COLOR,
+                },
               ]}
             />
           )}
           {pinnedValue != null && Platform.OS === 'web' && (
             <View
-              pointerEvents='none'
               style={[
                 styles.needle,
                 { transform: `rotate(${pinnedValue}deg)` } as object,
@@ -55,7 +59,6 @@ export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
           )}
           {pinnedValue != null && Platform.OS !== 'web' && (
             <View
-              pointerEvents='none'
               style={[
                 styles.needle,
                 {
@@ -71,13 +74,22 @@ export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
           <View
             style={[
               styles.hole,
-              { width: HOLE, height: HOLE, borderRadius: HOLE / 2, backgroundColor: bg },
+              {
+                width: HOLE,
+                height: HOLE,
+                borderRadius: HOLE / 2,
+                backgroundColor: bg,
+              },
             ]}
           />
         </View>
-        <ThemedText variant='bodyTiny' style={styles.cardinal}>E</ThemedText>
+        <ThemedText variant='bodyTiny' style={styles.cardinal}>
+          E
+        </ThemedText>
       </View>
-      <ThemedText variant='bodyTiny' style={styles.cardinal}>S</ThemedText>
+      <ThemedText variant='bodyTiny' style={styles.cardinal}>
+        S
+      </ThemedText>
     </View>
   );
 }
@@ -92,6 +104,7 @@ const styles = StyleSheet.create({
     padding: Size.space['200'],
     alignItems: 'center',
     gap: 2,
+    pointerEvents: 'none',
   },
   row: {
     flexDirection: 'row',

@@ -55,6 +55,8 @@
     const IS_CIRCULAR = __IS_CIRCULAR__;
     const DOT_MIN = __DOT_MIN_JSON__;
     const DOT_MAX = __DOT_MAX_JSON__;
+    const RENDER_MIN = __RENDER_MIN_JSON__;
+    const RENDER_MAX = __RENDER_MAX_JSON__;
 
     var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
     function aspectColor(deg) {
@@ -983,9 +985,11 @@
                 window.parent.postMessage(pvMsg, '*');
               }
             }
-            var isNumeric = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+            var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
+            var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
+            var isNumeric = colorMin != null && colorMax != null && colorMax > colorMin;
             if (isNumeric) {
-              var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+              var t = Math.max(0, Math.min(1, (numVal - colorMin) / (colorMax - colorMin)));
               var color = gradientColor(t);
               var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
               var units = data.units ? ' ' + data.units : '';
