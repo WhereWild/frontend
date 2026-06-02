@@ -344,11 +344,21 @@ export function useEnvironmentHighlights({
               setPinnedCategoryObserved(null);
               return;
             }
+            // If the distribution keyed entries by label rather than a code
+            // (e.g. the API stores 'Closed evergreen...' as category.value),
+            // categoryQueryValue will equal valueLabel. Use result.value (the
+            // numeric code) for the API call instead, since that's what the
+            // /class/:classValue endpoint expects.
+            const effectiveCategoryQueryValue =
+              result.valueLabel != null &&
+              String(categoryQueryValue) === String(result.valueLabel)
+                ? result.value
+                : categoryQueryValue;
             const categoryResponse =
               await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
                 taxonId,
                 selectedVariable,
-                categoryQueryValue,
+                effectiveCategoryQueryValue ?? categoryQueryValue,
                 {
                   location: locationGid ?? undefined,
                   units,
