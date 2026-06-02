@@ -71,7 +71,12 @@ function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
 
 type PointValueMessage = { type: 'pointValue'; value: number };
 
-export type MapBounds = { north: number; south: number; east: number; west: number };
+export type MapBounds = {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+};
 type MapBoundsMessage = { type: 'mapBounds' } & MapBounds;
 
 function isMapBoundsMessage(msg: unknown): msg is MapBoundsMessage {
@@ -79,8 +84,10 @@ function isMapBoundsMessage(msg: unknown): msg is MapBoundsMessage {
   const m = msg as Record<string, unknown>;
   return (
     m.type === 'mapBounds' &&
-    typeof m.north === 'number' && typeof m.south === 'number' &&
-    typeof m.east === 'number' && typeof m.west === 'number'
+    typeof m.north === 'number' &&
+    typeof m.south === 'number' &&
+    typeof m.east === 'number' &&
+    typeof m.west === 'number'
   );
 }
 
@@ -230,7 +237,12 @@ export function SpeciesOccurrenceMap({
       }
 
       if (isMapBoundsMessage(msg)) {
-        onMapBounds?.({ north: msg.north, south: msg.south, east: msg.east, west: msg.west });
+        onMapBounds?.({
+          north: msg.north,
+          south: msg.south,
+          east: msg.east,
+          west: msg.west,
+        });
       }
     },
     [
@@ -477,7 +489,12 @@ export function SpeciesOccurrenceMap({
       }
 
       if (frameWindow && source === frameWindow && isMapBoundsMessage(data)) {
-        onMapBounds?.({ north: data.north, south: data.south, east: data.east, west: data.west });
+        onMapBounds?.({
+          north: data.north,
+          south: data.south,
+          east: data.east,
+          west: data.west,
+        });
       }
     };
     window.addEventListener('message', handler);
@@ -489,6 +506,7 @@ export function SpeciesOccurrenceMap({
   }, [
     handlePinObservation,
     onBoundsChange,
+    onMapBounds,
     onTileClasses,
     onPointValue,
     openExternalUrl,

@@ -193,8 +193,10 @@ const preparePointsForMapHtml = (
         ? (observationValues.get(catalog) ?? null)
         : null;
     const classKey = varValue != null ? String(Math.round(varValue)) : null;
-    const varColor = classKey && classColors ? (classColors.get(classKey) ?? null) : null;
-    const varLabel = classKey && classLabels ? (classLabels.get(classKey) ?? null) : null;
+    const varColor =
+      classKey && classColors ? (classColors.get(classKey) ?? null) : null;
+    const varLabel =
+      classKey && classLabels ? (classLabels.get(classKey) ?? null) : null;
 
     return {
       ...point,
@@ -258,7 +260,16 @@ export const buildLeafletHtml = (
     .join(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.points)
-    .join(JSON.stringify(preparePointsForMapHtml(points, observationValues, classColors, classLabels)));
+    .join(
+      JSON.stringify(
+        preparePointsForMapHtml(
+          points,
+          observationValues,
+          classColors,
+          classLabels,
+        ),
+      ),
+    );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.palette)
     .join(JSON.stringify(markerPalette));

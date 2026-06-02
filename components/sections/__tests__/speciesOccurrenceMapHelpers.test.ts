@@ -642,9 +642,9 @@ describe('speciesOccurrenceMapHelpers', () => {
 
       expect(harness.createdMarkers).toHaveLength(3);
       expect(harness.createdMarkers[2]?.style).toMatchObject({
-        fillColor: markerPalette.highlightFill,
-        color: markerPalette.highlightStroke,
-        radius: 5,
+        fillColor: '#ffffff',
+        color: 'rgba(0,0,0,0.65)',
+        radius: 4,
       });
     });
   });
@@ -705,9 +705,9 @@ describe('speciesOccurrenceMapHelpers', () => {
 
       expect(harness.createdMarkers).toHaveLength(2);
       expect(harness.createdMarkers[1]?.style).toMatchObject({
-        fillColor: markerPalette.selectedPointFill,
+        fillColor: 'transparent',
         color: markerPalette.selectedPointStroke,
-        radius: 6,
+        radius: 4,
       });
 
       harness.windowListeners.get('message')?.({

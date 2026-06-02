@@ -147,7 +147,6 @@ export default function Species({
     commonNames,
     scientificName,
     overview,
-    heatmap,
     allObscured,
     taxonRank,
   } = data;
@@ -304,18 +303,24 @@ export default function Species({
       (units ? `?unit_system=${encodeURIComponent(units)}` : '');
     fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((data: { observations?: { catalogNumber: string | number; value: number }[]; min?: number | null; max?: number | null }) => {
-        if (cancelled) return;
-        const map = new Map<string, number>();
-        for (const obs of data.observations ?? []) {
-          if (obs.catalogNumber != null && typeof obs.value === 'number') {
-            map.set(String(obs.catalogNumber), obs.value);
+      .then(
+        (data: {
+          observations?: { catalogNumber: string | number; value: number }[];
+          min?: number | null;
+          max?: number | null;
+        }) => {
+          if (cancelled) return;
+          const map = new Map<string, number>();
+          for (const obs of data.observations ?? []) {
+            if (obs.catalogNumber != null && typeof obs.value === 'number') {
+              map.set(String(obs.catalogNumber), obs.value);
+            }
           }
-        }
-        setObservationValues(map);
-        setObsDotMin(typeof data.min === 'number' ? data.min : null);
-        setObsDotMax(typeof data.max === 'number' ? data.max : null);
-      })
+          setObservationValues(map);
+          setObsDotMin(typeof data.min === 'number' ? data.min : null);
+          setObsDotMax(typeof data.max === 'number' ? data.max : null);
+        },
+      )
       .catch(() => {
         if (!cancelled) setObservationValues(null);
       });
@@ -343,7 +348,8 @@ export default function Species({
   }, [selectedVariableMeta]);
 
   const visibleCategoricalClasses = React.useMemo(() => {
-    if (!isVariableCategorical(selectedVariableMeta) || !observationValues) return null;
+    if (!isVariableCategorical(selectedVariableMeta) || !observationValues)
+      return null;
     const counts = new Map<string, number>();
     for (const occ of occurrences) {
       if (
@@ -363,7 +369,8 @@ export default function Species({
     const classes = (selectedVariableMeta?.legendClasses ?? [])
       .filter((cls) => cls.id !== 0 && counts.has(String(cls.id)))
       .sort(
-        (a, b) => (counts.get(String(b.id)) ?? 0) - (counts.get(String(a.id)) ?? 0),
+        (a, b) =>
+          (counts.get(String(b.id)) ?? 0) - (counts.get(String(a.id)) ?? 0),
       );
     return classes.length > 0 ? classes : null;
   }, [selectedVariableMeta, observationValues, occurrences, mapBounds]);
