@@ -5,13 +5,13 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 
 const GRADIENT_CSS =
-  'linear-gradient(to bottom, rgb(230,57,70), rgb(246,190,0), rgb(59,170,165), rgb(34,94,168), rgb(28,38,102))';
+  'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
 const GRADIENT_COLORS = [
-  'rgb(230,57,70)',
-  'rgb(246,190,0)',
-  'rgb(59,170,165)',
-  'rgb(34,94,168)',
-  'rgb(28,38,102)',
+  'rgb(253,231,37)',
+  'rgb(94,201,98)',
+  'rgb(33,145,140)',
+  'rgb(59,82,139)',
+  'rgb(68,1,84)',
 ];
 
 type MapVariableLegendProps = {

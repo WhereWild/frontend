@@ -52,11 +52,11 @@
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
-    const RENDER_MIN = __RENDER_MIN_JSON__;
-    const RENDER_MAX = __RENDER_MAX_JSON__;
     const IS_CIRCULAR = __IS_CIRCULAR__;
+    const DOT_MIN = __DOT_MIN_JSON__;
+    const DOT_MAX = __DOT_MAX_JSON__;
 
-    var ASPECT_STOPS = [[220,50,50],[240,195,15],[45,175,65],[40,95,220]];
+    var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
     function aspectColor(deg) {
       var t = (deg % 360) / 90;
       var seg = Math.floor(t) % 4;
@@ -64,7 +64,7 @@
       var c0 = ASPECT_STOPS[seg], c1 = ASPECT_STOPS[(seg+1)%4];
       return 'rgb('+Math.round(c0[0]+f*(c1[0]-c0[0]))+','+Math.round(c0[1]+f*(c1[1]-c0[1]))+','+Math.round(c0[2]+f*(c1[2]-c0[2]))+')';
     }
-    var GRADIENT_STOPS = [[28,38,102],[34,94,168],[59,170,165],[246,190,0],[230,57,70]];
+    var GRADIENT_STOPS = [[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
     function gradientColor(t) {
       var n = GRADIENT_STOPS.length - 1;
       var i = Math.min(Math.floor(t * n), n - 1);
@@ -299,18 +299,10 @@
       fillOpacity: 0.9,
     };
     const highlightStyle = {
-      radius: 5,
-      fillColor: palette.highlightFill,
-      color: palette.highlightStroke,
-      weight: 1,
-      opacity: 0.95,
-      fillOpacity: 0.95,
-    };
-    const selectedPointStyle = {
-      radius: 6,
-      fillColor: palette.selectedPointFill,
-      color: palette.selectedPointStroke,
-      weight: 1,
+      radius: markerStyle.radius,
+      fillColor: '#ffffff',
+      color: 'rgba(0,0,0,0.65)',
+      weight: 2,
       opacity: 1,
       fillOpacity: 1,
     };
@@ -409,8 +401,32 @@
       return true;
     }
 
+    var markerBaseColors = new Map();
+
     function styleForCatalog(catalog) {
-      return activeHighlightCatalogs.has(catalog) ? highlightStyle : markerStyle;
+      if (activeHighlightCatalogs.has(catalog)) return highlightStyle;
+      var baseColor = markerBaseColors.get(catalog);
+      return baseColor ? Object.assign({}, markerStyle, { fillColor: baseColor, color: baseColor }) : markerStyle;
+    }
+
+    function baseStyleForPoint(pt, catalog) {
+      if (activeHighlightCatalogs.has(catalog)) return highlightStyle;
+      if (pt.varColor) {
+        markerBaseColors.set(catalog, pt.varColor);
+        return Object.assign({}, markerStyle, { fillColor: pt.varColor, color: pt.varColor });
+      }
+      if (IS_CIRCULAR && pt.varValue != null) {
+        var color = aspectColor(pt.varValue);
+        markerBaseColors.set(catalog, color);
+        return Object.assign({}, markerStyle, { fillColor: color, color: color });
+      }
+      if (DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN && pt.varValue != null) {
+        var t = Math.max(0, Math.min(1, (pt.varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+        var color = gradientColor(t);
+        markerBaseColors.set(catalog, color);
+        return Object.assign({}, markerStyle, { fillColor: color, color: color });
+      }
+      return markerStyle;
     }
 
     function applyHighlights(list) {
@@ -491,9 +507,16 @@
 
         hideClusterMarker(matchingEntry);
 
+        var baseColor = markerBaseColors.get(matchingEntry.key);
+        var pinnedObsStyle = Object.assign(
+          {},
+          baseColor ? { fillColor: baseColor, color: baseColor } : { fillColor: markerStyle.fillColor, color: markerStyle.color },
+          { radius: markerStyle.radius, fillOpacity: markerStyle.fillOpacity, opacity: 1,
+            weight: 2, color: palette.selectedPointStroke, dashArray: '2 2' }
+        );
         selectedCatalogDirectMarker = L.circleMarker(
           [latitude, alignedLongitude],
-          selectedPointStyle,
+          pinnedObsStyle,
         );
         if (matchingEntry.popupHtml) {
           selectedCatalogDirectMarker.bindPopup(matchingEntry.popupHtml);
@@ -505,7 +528,8 @@
 
       selectedPointMarker = L.circleMarker(
         [latitude, alignedLongitude],
-        selectedPointStyle,
+        { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
+          color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' }
       ).addTo(map);
 
       refreshVisibleMarkerPresentation();
@@ -601,9 +625,9 @@
                 } else {
                   window.parent.postMessage(pvMsg, '*');
                 }
-                var isNumericVar = RENDER_MIN != null && RENDER_MAX != null && RENDER_MAX > RENDER_MIN;
+                var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
                 if (isNumericVar) {
-                  var t = Math.max(0, Math.min(1, (numVal - RENDER_MIN) / (RENDER_MAX - RENDER_MIN)));
+                  var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
                   var color = gradientColor(t);
                   var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
                   var units = data.units ? ' ' + data.units : '';
@@ -621,7 +645,7 @@
           });
       }
 
-      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude) {
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude, varValue, varColor, varLabel) {
         var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '';
@@ -629,7 +653,40 @@
           if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
             sendPinMessage(catalogValue, latitude, longitude);
           }
-          if (POINT_QUERY_URL) {
+          if (varValue != null) {
+            var pvMsg = { type: 'pointValue', value: varValue };
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
+            } else {
+              window.parent.postMessage(pvMsg, '*');
+            }
+            var valueHtml = '';
+            var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+            if (varColor) {
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + varColor + ';margin-right:5px;flex-shrink:0"></span>';
+              var labelText = varLabel || '';
+              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
+            } else if (isNumericVar) {
+              var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+              var color = gradientColor(t);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var fmt = Math.abs(varValue) >= 1000 ? varValue.toLocaleString(undefined, {maximumFractionDigits: 0}) : varValue.toLocaleString(undefined, {maximumFractionDigits: 2});
+              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '</span></div>';
+            } else if (IS_CIRCULAR) {
+              var color = aspectColor(varValue);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
+              valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
+            }
+            var popup = marker.getPopup();
+            if (!popup) {
+              marker.bindPopup((inatHtml || '') + valueHtml);
+              popup = marker.getPopup();
+            } else {
+              popup.setContent((inatHtml || '') + valueHtml);
+            }
+            if (!marker.isPopupOpen()) marker.openPopup();
+          } else if (POINT_QUERY_URL) {
             fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
           }
         });
@@ -819,12 +876,12 @@
         if (useVisibilityManagedClustering && clusterGroup) {
           const clusterMarker = L.circleMarker(
             [latitude, initialLongitude],
-            styleForCatalog(markerKey),
+            baseStyleForPoint(pt, markerKey),
           );
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
-          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null);
 
           const markerEntry = {
             key: markerKey,
@@ -847,12 +904,12 @@
         } else {
           const marker = L.circleMarker(
             [latitude, initialLongitude],
-            styleForCatalog(markerKey),
+            baseStyleForPoint(pt, markerKey),
           );
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
-          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude);
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -879,8 +936,22 @@
       map.on('moveend', refreshVisibleMarkerPresentation);
       map.on('zoomend', refreshVisibleMarkerPresentation);
       refreshVisibleMarkerPresentation();
+
+      function postMapBounds() {
+        var b = map.getBounds();
+        var msg = { type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        } else {
+          window.parent.postMessage(msg, '*');
+        }
+      }
+      map.on('moveend', postMapBounds);
+      map.on('zoomend', postMapBounds);
+      postMapBounds();
     } else {
       map.setView([INITIAL_LAT, INITIAL_LON], INITIAL_ZOOM);
+      postMapBounds();
     }
 
     map.on('click', function(event) {
@@ -912,9 +983,9 @@
                 window.parent.postMessage(pvMsg, '*');
               }
             }
-            var isNumeric = RENDER_MIN != null && RENDER_MAX != null && RENDER_MAX > RENDER_MIN;
+            var isNumeric = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
             if (isNumeric) {
-              var t = Math.max(0, Math.min(1, (numVal - RENDER_MIN) / (RENDER_MAX - RENDER_MIN)));
+              var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
               var color = gradientColor(t);
               var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
               var units = data.units ? ' ' + data.units : '';

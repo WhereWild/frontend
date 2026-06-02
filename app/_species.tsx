@@ -9,6 +9,9 @@ import {
 import { PageSurface } from '@/components/PageSurface';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
+import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
+import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
@@ -194,6 +197,13 @@ export default function Species({
   const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
     null,
   );
+  const [mapBounds, setMapBounds] = React.useState<MapBounds | null>(null);
+  const [observationValues, setObservationValues] = React.useState<Map<
+    string,
+    number
+  > | null>(null);
+  const [obsDotMin, setObsDotMin] = React.useState<number | null>(null);
+  const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
   const [selectedPhenology, setSelectedPhenology] = React.useState<
     string | null
   >(null);
@@ -266,13 +276,97 @@ export default function Species({
     setPinnedPointValue(value);
   }, []);
 
+  const handleMapBounds = React.useCallback((bounds: MapBounds) => {
+    setMapBounds(bounds);
+  }, []);
+
   const handleVariableMetaChange = React.useCallback(
     (meta: EnvironmentVariableOption | null) => {
       setSelectedVariableMeta(meta);
       setPinnedPointValue(null);
+      setObservationValues(null);
+      setObsDotMin(null);
+      setObsDotMax(null);
     },
     [],
   );
+
+  React.useEffect(() => {
+    if (!taxonId || !selectedVariableMeta?.id) {
+      setObservationValues(null);
+      return;
+    }
+    const variableId = selectedVariableMeta.id;
+    let cancelled = false;
+    const url =
+      `${BACKEND_BASE}/species/${encodeURIComponent(String(taxonId))}` +
+      `/environment/${encodeURIComponent(variableId)}/observation-values` +
+      (units ? `?unit_system=${encodeURIComponent(units)}` : '');
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data: { observations?: { catalogNumber: string | number; value: number }[]; min?: number | null; max?: number | null }) => {
+        if (cancelled) return;
+        const map = new Map<string, number>();
+        for (const obs of data.observations ?? []) {
+          if (obs.catalogNumber != null && typeof obs.value === 'number') {
+            map.set(String(obs.catalogNumber), obs.value);
+          }
+        }
+        setObservationValues(map);
+        setObsDotMin(typeof data.min === 'number' ? data.min : null);
+        setObsDotMax(typeof data.max === 'number' ? data.max : null);
+      })
+      .catch(() => {
+        if (!cancelled) setObservationValues(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxonId, selectedVariableMeta, units]);
+
+  const classColors = React.useMemo(() => {
+    if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta?.legendClasses ?? []) {
+      if (cls.id !== 0 && cls.color) map.set(String(cls.id), cls.color);
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta]);
+
+  const classLabels = React.useMemo(() => {
+    if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta?.legendClasses ?? []) {
+      if (cls.id !== 0) map.set(String(cls.id), cls.name);
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta]);
+
+  const visibleCategoricalClasses = React.useMemo(() => {
+    if (!isVariableCategorical(selectedVariableMeta) || !observationValues) return null;
+    const counts = new Map<string, number>();
+    for (const occ of occurrences) {
+      if (
+        mapBounds &&
+        (occ.latitude < mapBounds.south ||
+          occ.latitude > mapBounds.north ||
+          occ.longitude < mapBounds.west ||
+          occ.longitude > mapBounds.east)
+      ) {
+        continue;
+      }
+      const val = observationValues.get(String(occ.catalogNumber));
+      if (val == null) continue;
+      const key = String(Math.round(val));
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const classes = (selectedVariableMeta?.legendClasses ?? [])
+      .filter((cls) => cls.id !== 0 && counts.has(String(cls.id)))
+      .sort(
+        (a, b) => (counts.get(String(b.id)) ?? 0) - (counts.get(String(a.id)) ?? 0),
+      );
+    return classes.length > 0 ? classes : null;
+  }, [selectedVariableMeta, observationValues, occurrences, mapBounds]);
 
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
@@ -413,7 +507,11 @@ export default function Species({
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
               <View style={{ position: 'relative' }}>
                 <SpeciesOccurrenceMap
-                  occurrences={occurrences}
+                  occurrences={
+                    selectedVariableMeta && observationValues == null
+                      ? []
+                      : occurrences
+                  }
                   loading={occurrenceLoading}
                   error={occurrenceError}
                   highlightedCatalogs={highlightedCatalogs}
@@ -422,10 +520,9 @@ export default function Species({
                   minZoom={2}
                   onPinObservation={handlePinObservation}
                   onPointValue={handleMapPointValue}
+                  onMapBounds={handleMapBounds}
                   pointQueryUrl={
-                    selectedVariableMeta?.id &&
-                    !isVariableCategorical(selectedVariableMeta) &&
-                    !isVariableCircular(selectedVariableMeta)
+                    selectedVariableMeta?.id
                       ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}&unit_system=${encodeURIComponent(units ?? '')}`
                       : null
                   }
@@ -443,20 +540,32 @@ export default function Species({
                       ? (selectedVariableMeta.renderMax ?? null)
                       : null
                   }
-                  isCircular={false}
+                  isCircular={isVariableCircular(selectedVariableMeta)}
+                  observationValues={observationValues}
+                  classColors={classColors}
+                  classLabels={classLabels}
+                  dotMin={obsDotMin}
+                  dotMax={obsDotMax}
                 />
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&
                   !isVariableCircular(selectedVariableMeta) &&
-                  selectedVariableMeta.renderMin != null &&
-                  selectedVariableMeta.renderMax != null && (
+                  obsDotMin != null &&
+                  obsDotMax != null && (
                     <MapVariableLegend
-                      min={selectedVariableMeta.renderMin}
-                      max={selectedVariableMeta.renderMax}
+                      min={obsDotMin}
+                      max={obsDotMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
                     />
                   )}
+                {selectedVariableMeta &&
+                  isVariableCircular(selectedVariableMeta) && (
+                    <MapCircularLegend pinnedValue={pinnedPointValue} />
+                  )}
+                {visibleCategoricalClasses && (
+                  <MapCategoricalLegend classes={visibleCategoricalClasses} />
+                )}
               </View>
             )}
           </View>
