@@ -82,6 +82,7 @@
   "private": true,
   "overrides": {
     "@xmldom/xmldom": "^0.8.13",
-    "fast-uri": "^3.1.2"
+    "fast-uri": "^3.1.2",
+    "postcss": "^8.5.10"
   }
 }
