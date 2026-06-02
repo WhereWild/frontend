@@ -61,6 +61,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   dotMin: '__DOT_MIN_JSON__',
   dotMax: '__DOT_MAX_JSON__',
   disableObservationQuery: '__DISABLE_OBSERVATION_QUERY__',
+  varUnits: '__VAR_UNITS_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -237,6 +238,7 @@ export const buildLeafletHtml = (
   dotMin?: number | null,
   dotMax?: number | null,
   disableObservationQuery?: boolean,
+  varUnits?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -341,6 +343,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.disableObservationQuery)
     .join(disableObservationQuery ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.varUnits)
+    .join(typeof varUnits === 'string' && varUnits.length > 0 ? JSON.stringify(varUnits) : 'null');
   return html;
 };
 

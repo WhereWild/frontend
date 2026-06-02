@@ -179,6 +179,9 @@ describe('speciesOccurrenceMapHelpers', () => {
             }),
             setLatLng: jest.fn(),
             bindPopup: jest.fn(),
+            openPopup: jest.fn(),
+            isPopupOpen: jest.fn(() => false),
+            getPopup: jest.fn(() => ({ setContent: jest.fn() })),
             on: jest.fn(),
           };
           createdMarkers.push(marker);
