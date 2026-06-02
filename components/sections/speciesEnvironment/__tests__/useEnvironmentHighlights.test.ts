@@ -817,7 +817,7 @@ describe('useEnvironmentHighlights', () => {
         40.2,
         -105.1,
         'bio_1',
-        { units: undefined },
+        { units: undefined, taxonId: 1, catalogNumber: 'PIN-1' },
       );
 
       await waitFor(() => {

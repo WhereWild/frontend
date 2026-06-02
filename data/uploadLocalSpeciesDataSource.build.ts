@@ -1,4 +1,7 @@
-import { createSpeciesDataSource, type SpeciesDataSource } from '@/data/speciesDataSource';
+import {
+  createSpeciesDataSource,
+  type SpeciesDataSource,
+} from '@/data/speciesDataSource';
 import type {
   LocationSearchResult,
   SpeciesEnvironmentCategorySampleResponse,
@@ -6,7 +9,6 @@ import type {
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
-  SpeciesOccurrencesResult,
 } from '@/data/types';
 import { isCategoricalAggregateMetric } from '@/data/uploadLocalSpeciesDataSource.shared';
 import { validateUploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource.normalize';
@@ -90,7 +92,11 @@ const resolveLocationEntry = (
     return null;
   }
 
-  return locationLookup.byGid.get(normalizedToken) ?? locationLookup.byName.get(normalizedToken) ?? null;
+  return (
+    locationLookup.byGid.get(normalizedToken) ??
+    locationLookup.byName.get(normalizedToken) ??
+    null
+  );
 };
 
 const buildScopeTokens = (
@@ -108,7 +114,9 @@ const buildScopeTokens = (
       ? [normalizeLocationToken(resolvedByGid.gid)].filter(Boolean)
       : [
           normalizedToken,
-          ...matchingEntriesByName.map((location) => normalizeLocationToken(location.gid)),
+          ...matchingEntriesByName.map((location) =>
+            normalizeLocationToken(location.gid),
+          ),
         ].filter(Boolean),
   );
 };
@@ -133,9 +141,13 @@ const matchesParentLocation = (
   });
 };
 
-const toSpeciesOccurrences = (rows: UploadedOccurrenceRow[]): SpeciesOccurrence[] => {
+const toSpeciesOccurrences = (
+  rows: UploadedOccurrenceRow[],
+): SpeciesOccurrence[] => {
   return rows
-    .filter((row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude))
+    .filter(
+      (row) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude),
+    )
     .map((row) => ({
       catalogNumber: row.catalogNumber,
       latitude: row.latitude,
@@ -147,38 +159,40 @@ const buildStatsByVariable = (
   bundle: UploadedParquetBundle,
   speciesId: number,
 ): Record<string, SpeciesEnvironmentStats> => {
-  const summaryByVariable = bundle.summaryStats.reduce<Record<string, UploadedSummaryStatsRow>>(
-    (acc, row) => {
-      acc[row.variable] = row;
-      return acc;
-    },
-    {},
-  );
+  const summaryByVariable = bundle.summaryStats.reduce<
+    Record<string, UploadedSummaryStatsRow>
+  >((acc, row) => {
+    acc[row.variable] = row;
+    return acc;
+  }, {});
 
-  const densityByVariable = bundle.densityGraph.reduce<Record<string, UploadedDensityGraphPoint[]>>(
-    (acc, row) => {
-      if (!acc[row.variable]) {
-        acc[row.variable] = [];
-      }
-      acc[row.variable].push(row);
-      return acc;
-    },
-    {},
-  );
+  const densityByVariable = bundle.densityGraph.reduce<
+    Record<string, UploadedDensityGraphPoint[]>
+  >((acc, row) => {
+    if (!acc[row.variable]) {
+      acc[row.variable] = [];
+    }
+    acc[row.variable].push(row);
+    return acc;
+  }, {});
 
-  const categoricalByVariable = bundle.categoricalStats.reduce<Record<string, UploadedCategoricalStatsRow[]>>(
-    (acc, row) => {
-      if (!acc[row.variable]) {
-        acc[row.variable] = [];
-      }
-      acc[row.variable].push(row);
-      return acc;
-    },
-    {},
-  );
+  const categoricalByVariable = bundle.categoricalStats.reduce<
+    Record<string, UploadedCategoricalStatsRow[]>
+  >((acc, row) => {
+    if (!acc[row.variable]) {
+      acc[row.variable] = [];
+    }
+    acc[row.variable].push(row);
+    return acc;
+  }, {});
 
-  const categoricalLookupByVariableAndMetric = (bundle.categoricalValueLookup ?? []).reduce<
-    Record<string, Record<string, { label?: string | null; description?: string | null }>>
+  const categoricalLookupByVariableAndMetric = (
+    bundle.categoricalValueLookup ?? []
+  ).reduce<
+    Record<
+      string,
+      Record<string, { label?: string | null; description?: string | null }>
+    >
   >((acc, row) => {
     if (!acc[row.variable]) {
       acc[row.variable] = {};
@@ -191,7 +205,10 @@ const buildStatsByVariable = (
   }, {});
 
   const variableDefinitionsById = new Map(
-    (bundle.variableDefinitions ?? []).map((definition) => [definition.id, definition]),
+    (bundle.variableDefinitions ?? []).map((definition) => [
+      definition.id,
+      definition,
+    ]),
   );
 
   const variableIds = new Set<string>([
@@ -200,17 +217,33 @@ const buildStatsByVariable = (
     ...Object.keys(categoricalByVariable),
   ]);
 
-  return Array.from(variableIds).reduce<Record<string, SpeciesEnvironmentStats>>((acc, variable) => {
+  return Array.from(variableIds).reduce<
+    Record<string, SpeciesEnvironmentStats>
+  >((acc, variable) => {
     const summaryRow = summaryByVariable[variable];
     const variableDefinition = variableDefinitionsById.get(variable);
     const densityRows = densityByVariable[variable] ?? [];
     const categoryRows = categoricalByVariable[variable] ?? [];
-    const categoryLookupByMetric = categoricalLookupByVariableAndMetric[variable] ?? {};
-    const totalSamplesRow = categoryRows.find((entry) => entry.metric === 'total_samples');
+    const categoryLookupByMetric =
+      categoricalLookupByVariableAndMetric[variable] ?? {};
+    const totalSamplesRow = categoryRows.find(
+      (entry) => entry.metric === 'total_samples',
+    );
     const totalSamples =
-      totalSamplesRow && Number.isFinite(totalSamplesRow.value) ? totalSamplesRow.value : null;
-    const classRows = categoryRows.filter((entry) => !isCategoricalAggregateMetric(entry.metric));
+      totalSamplesRow && Number.isFinite(totalSamplesRow.value)
+        ? totalSamplesRow.value
+        : null;
+    const classRows = categoryRows.filter(
+      (entry) => !isCategoricalAggregateMetric(entry.metric),
+    );
     const isCategoricalVariable = classRows.length > 0;
+
+    // Build metric→code map so we can look up legend class colors by numeric id.
+    const metricToCode = Object.fromEntries(
+      (bundle.categoricalValueLookup ?? [])
+        .filter((row) => row.variable === variable)
+        .map((row) => [row.metric, row.code]),
+    );
 
     const categoricalDistribution = classRows
       .filter((entry) => Number.isFinite(entry.value))
@@ -221,10 +254,22 @@ const buildStatsByVariable = (
             ? Math.round(totalSamples * fraction)
             : 0;
 
+        const code = metricToCode[entry.metric];
+        const legendClass = code
+          ? variableDefinition?.legendClasses?.find(
+              (cls) => String(cls.id) === code,
+            )
+          : null;
+
         return {
           value: entry.metric,
-          className: entry.metricLabel ?? categoryLookupByMetric[entry.metric]?.label ?? entry.metric,
-          description: categoryLookupByMetric[entry.metric]?.description ?? null,
+          className:
+            entry.metricLabel ??
+            categoryLookupByMetric[entry.metric]?.label ??
+            entry.metric,
+          description:
+            categoryLookupByMetric[entry.metric]?.description ?? null,
+          color: legendClass?.color ?? null,
           count,
           fraction,
         };
@@ -234,19 +279,21 @@ const buildStatsByVariable = (
       typeof totalSamples === 'number' && Number.isFinite(totalSamples)
         ? Math.max(0, Math.round(totalSamples))
         : categoricalDistribution.reduce(
-            (sum, entry) => sum + (Number.isFinite(entry.count) ? entry.count : 0),
+            (sum, entry) =>
+              sum + (Number.isFinite(entry.count) ? entry.count : 0),
             0,
           );
 
     acc[variable] = {
       speciesId,
       variable,
-      variableName: summaryRow?.variableName ?? variableDefinition?.name ?? variable,
+      variableName:
+        summaryRow?.variableName ?? variableDefinition?.name ?? variable,
       units: summaryRow?.units ?? variableDefinition?.units ?? null,
       variableType:
-        summaryRow?.variableType
-        ?? variableDefinition?.valueType
-        ?? (isCategoricalVariable ? 'categorical' : null),
+        summaryRow?.variableType ??
+        variableDefinition?.valueType ??
+        (isCategoricalVariable ? 'categorical' : null),
       summary: {
         count: summaryRow?.count ?? inferredCount,
         min: summaryRow?.min ?? null,
@@ -257,6 +304,9 @@ const buildStatsByVariable = (
         q10: summaryRow?.q10 ?? null,
         q90: summaryRow?.q90 ?? null,
         q99: summaryRow?.q99 ?? null,
+        circular_mean: summaryRow?.circular_mean ?? null,
+        rbar: summaryRow?.rbar ?? null,
+        circular_std: summaryRow?.circular_std ?? null,
       },
       histogram:
         Array.isArray(summaryRow?.bins) && Array.isArray(summaryRow?.counts)
@@ -335,7 +385,9 @@ const findCategoricalDistributionEntry = (
 
   const normalizedValue = String(value);
   return (
-    stats.categoricalDistribution.find((entry) => String(entry.value) === normalizedValue) ?? null
+    stats.categoricalDistribution.find(
+      (entry) => String(entry.value) === normalizedValue,
+    ) ?? null
   );
 };
 
@@ -347,13 +399,16 @@ const toObservationsByCatalog = (rows: UploadedOccurrenceRow[]) => {
 };
 
 const groupIndexRowsByVariable = (rows: UploadedOccurrenceIndexRow[]) => {
-  return rows.reduce<Record<string, UploadedOccurrenceIndexRow[]>>((acc, row) => {
-    if (!acc[row.variable]) {
-      acc[row.variable] = [];
-    }
-    acc[row.variable].push(row);
-    return acc;
-  }, {});
+  return rows.reduce<Record<string, UploadedOccurrenceIndexRow[]>>(
+    (acc, row) => {
+      if (!acc[row.variable]) {
+        acc[row.variable] = [];
+      }
+      acc[row.variable].push(row);
+      return acc;
+    },
+    {},
+  );
 };
 
 const matchesObservationLocation = (
@@ -371,14 +426,17 @@ const matchesObservationLocation = (
 
   const rowLocation = resolveLocationEntry(rowLocationGid, locationLookup);
   if (!rowLocation) {
-    return normalizeLocationToken(rowLocationGid) === normalizeLocationToken(locationGid);
+    return (
+      normalizeLocationToken(rowLocationGid) ===
+      normalizeLocationToken(locationGid)
+    );
   }
 
   return matchesParentLocation(rowLocation, locationGid, locationLookup);
 };
 
 const filterCatalogIdsByLocation = (
-  catalogIds: Array<number | string>,
+  catalogIds: (number | string)[],
   observationsByCatalog: Record<string, UploadedOccurrenceRow>,
   locationLookup: ReturnType<typeof buildLocationLookupMaps>,
   locationGid?: string | null,
@@ -389,11 +447,16 @@ const filterCatalogIdsByLocation = (
 
   return catalogIds.filter((id) => {
     const rowLocationGid = observationsByCatalog[String(id)]?.locationGid;
-    return matchesObservationLocation(rowLocationGid, locationLookup, locationGid);
+    return matchesObservationLocation(
+      rowLocationGid,
+      locationLookup,
+      locationGid,
+    );
   });
 };
 
-const toSortedNumericValues = (values: number[]) => values.slice().sort((left, right) => left - right);
+const toSortedNumericValues = (values: number[]) =>
+  values.slice().sort((left, right) => left - right);
 
 const quantileFromSortedValues = (values: number[], quantile: number) => {
   if (!values.length) {
@@ -413,7 +476,10 @@ const quantileFromSortedValues = (values: number[], quantile: number) => {
   return values[lowerIndex] * (1 - weight) + values[upperIndex] * weight;
 };
 
-const buildHistogramFromValues = (values: number[], desiredBucketCount?: number) => {
+const buildHistogramFromValues = (
+  values: number[],
+  desiredBucketCount?: number,
+) => {
   if (!values.length) {
     return null;
   }
@@ -431,11 +497,15 @@ const buildHistogramFromValues = (values: number[], desiredBucketCount?: number)
 
   const bucketCount = Math.max(
     1,
-    desiredBucketCount ?? Math.min(12, Math.ceil(Math.sqrt(sortedValues.length))),
+    desiredBucketCount ??
+      Math.min(12, Math.ceil(Math.sqrt(sortedValues.length))),
   );
   const span = max - min;
   const step = span / bucketCount;
-  const bins = Array.from({ length: bucketCount + 1 }, (_, index) => min + step * index);
+  const bins = Array.from(
+    { length: bucketCount + 1 },
+    (_, index) => min + step * index,
+  );
   const counts = Array.from({ length: bucketCount }, () => 0);
 
   sortedValues.forEach((value) => {
@@ -457,7 +527,9 @@ const buildDensityCurveFromHistogram = (
 
   return {
     points: histogram.counts.map(
-      (_, index) => histogram.bins[index] + (histogram.bins[index + 1] - histogram.bins[index]) / 2,
+      (_, index) =>
+        histogram.bins[index] +
+        (histogram.bins[index + 1] - histogram.bins[index]) / 2,
     ),
     density: histogram.counts.map((count) => count / totalCount),
   };
@@ -493,14 +565,19 @@ const buildScopedCategoricalStats = ({
       }
 
       const classKey = String(row.classValue ?? '');
-      countsByClass.set(classKey, (countsByClass.get(classKey) ?? 0) + scopedObservationIds.length);
+      countsByClass.set(
+        classKey,
+        (countsByClass.get(classKey) ?? 0) + scopedObservationIds.length,
+      );
       totalCount += scopedObservationIds.length;
     });
 
   const baselineDistribution = stats.categoricalDistribution ?? [];
   const categoricalDistribution = Array.from(countsByClass.entries())
     .map(([classValue, count]) => {
-      const baseline = baselineDistribution.find((entry) => String(entry.value) === classValue);
+      const baseline = baselineDistribution.find(
+        (entry) => String(entry.value) === classValue,
+      );
       return {
         value: baseline?.value ?? classValue,
         className: baseline?.className ?? classValue,
@@ -568,12 +645,18 @@ const buildScopedNumericStats = ({
   const count = sortedValues.length;
   const min = count ? sortedValues[0] : null;
   const max = count ? sortedValues[count - 1] : null;
-  const mean = count ? sortedValues.reduce((sum, value) => sum + value, 0) / count : null;
+  const mean = count
+    ? sortedValues.reduce((sum, value) => sum + value, 0) / count
+    : null;
   const variance =
     count > 0 && mean !== null
-      ? sortedValues.reduce((sum, value) => sum + (value - mean) ** 2, 0) / count
+      ? sortedValues.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+        count
       : null;
-  const histogram = buildHistogramFromValues(sortedValues, stats.histogram?.counts.length);
+  const histogram = buildHistogramFromValues(
+    sortedValues,
+    stats.histogram?.counts.length,
+  );
 
   return {
     ...stats,
@@ -612,7 +695,8 @@ const buildScopedStats = ({
   }
 
   const isCategorical =
-    stats.variableType?.toLowerCase() === 'categorical' || (stats.categoricalDistribution?.length ?? 0) > 0;
+    stats.variableType?.toLowerCase() === 'categorical' ||
+    (stats.categoricalDistribution?.length ?? 0) > 0;
 
   if (isCategorical) {
     return buildScopedCategoricalStats({
@@ -634,7 +718,7 @@ const buildScopedStats = ({
 };
 
 const pickOccurrenceObservations = (
-  catalogIds: Array<number | string>,
+  catalogIds: (number | string)[],
   observationsByCatalog: Record<string, UploadedOccurrenceRow>,
 ): SpeciesEnvironmentObservation[] => {
   return catalogIds
@@ -666,7 +750,9 @@ export const buildUploadLocalSpeciesDataSource = ({
     locationParentIdentityMode: 'gid',
     fetchEnvironmentVariables: async () => {
       if (bundle.variableDefinitions && bundle.variableDefinitions.length > 0) {
-        return bundle.variableDefinitions.filter((definition) => supportedVariableIds.has(definition.id));
+        return bundle.variableDefinitions.filter((definition) =>
+          supportedVariableIds.has(definition.id),
+        );
       }
 
       return Array.from(supportedVariableIds).map((variable) => {
@@ -684,7 +770,9 @@ export const buildUploadLocalSpeciesDataSource = ({
     fetchSpeciesEnvironment: async (_taxonId, variableId, options) => {
       const stats = statsByVariable[variableId];
       if (!stats) {
-        throw new Error(`Local upload does not include stats for variable: ${variableId}`);
+        throw new Error(
+          `Local upload does not include stats for variable: ${variableId}`,
+        );
       }
 
       return buildScopedStats({
@@ -704,7 +792,10 @@ export const buildUploadLocalSpeciesDataSource = ({
         locationLookup,
         params.location,
       );
-      const observations = pickOccurrenceObservations(catalogs, observationsByCatalog);
+      const observations = pickOccurrenceObservations(
+        catalogs,
+        observationsByCatalog,
+      );
 
       const response: SpeciesEnvironmentSliceResponse = {
         speciesId,
@@ -721,7 +812,12 @@ export const buildUploadLocalSpeciesDataSource = ({
       return response;
     },
 
-    fetchSpeciesEnvironmentCategorySamples: async (_taxonId, variableId, classValue, options) => {
+    fetchSpeciesEnvironmentCategorySamples: async (
+      _taxonId,
+      variableId,
+      classValue,
+      options,
+    ) => {
       const indexRows = indexRowsByVariable[variableId] ?? [];
       const catalogs = filterCatalogIdsByLocation(
         collectCatalogsForCategory(indexRows, classValue),
@@ -729,7 +825,10 @@ export const buildUploadLocalSpeciesDataSource = ({
         locationLookup,
         options?.location,
       );
-      const observations = pickOccurrenceObservations(catalogs, observationsByCatalog);
+      const observations = pickOccurrenceObservations(
+        catalogs,
+        observationsByCatalog,
+      );
 
       const response: SpeciesEnvironmentCategorySampleResponse = {
         speciesId,
@@ -742,7 +841,12 @@ export const buildUploadLocalSpeciesDataSource = ({
       return response;
     },
 
-    fetchObservationEnvironmentValue: async (_taxonId, catalogNumber, variableId, options) => {
+    fetchObservationEnvironmentValue: async (
+      _taxonId,
+      catalogNumber,
+      variableId,
+      options,
+    ) => {
       const stats = statsByVariable[variableId];
       const row = observationsByCatalog[String(catalogNumber)];
       if (!row) {
@@ -755,7 +859,13 @@ export const buildUploadLocalSpeciesDataSource = ({
         };
       }
 
-      if (!matchesObservationLocation(row.locationGid, locationLookup, options?.location)) {
+      if (
+        !matchesObservationLocation(
+          row.locationGid,
+          locationLookup,
+          options?.location,
+        )
+      ) {
         return {
           variable: variableId,
           value: null,
@@ -765,7 +875,10 @@ export const buildUploadLocalSpeciesDataSource = ({
         };
       }
 
-      const value = findObservationEnvironmentValue(indexRowsByVariable[variableId] ?? [], catalogNumber);
+      const value = findObservationEnvironmentValue(
+        indexRowsByVariable[variableId] ?? [],
+        catalogNumber,
+      );
       const categoryEntry = findCategoricalDistributionEntry(stats, value);
 
       return {
@@ -786,19 +899,37 @@ export const buildUploadLocalSpeciesDataSource = ({
             if (!row?.locationGid) {
               return false;
             }
-            const rowLocation = resolveLocationEntry(row.locationGid, locationLookup);
+            const rowLocation = resolveLocationEntry(
+              row.locationGid,
+              locationLookup,
+            );
             if (!rowLocation) {
-              return normalizeLocationToken(row.locationGid) === normalizeLocationToken(selectedLocation);
+              return (
+                normalizeLocationToken(row.locationGid) ===
+                normalizeLocationToken(selectedLocation)
+              );
             }
-            return matchesParentLocation(rowLocation, selectedLocation, locationLookup);
+            return matchesParentLocation(
+              rowLocation,
+              selectedLocation,
+              locationLookup,
+            );
           });
-      return { occurrences: filtered, minTimestamp: null, maxTimestamp: null, phenologyCounts: null };
+      return {
+        occurrences: filtered,
+        minTimestamp: null,
+        maxTimestamp: null,
+        phenologyCounts: null,
+      };
     },
 
     fetchSpeciesLocations: async (_taxonId, level, parent, limit = 500) => {
       const normalizedLevel = normalizeLocationLevel(level);
       const filtered = locations.filter((location) => {
-        if (typeof normalizedLevel === 'number' && location.level !== normalizedLevel) {
+        if (
+          typeof normalizedLevel === 'number' &&
+          location.level !== normalizedLevel
+        ) {
           return false;
         }
 

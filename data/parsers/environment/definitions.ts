@@ -3,7 +3,7 @@ import { asRecord } from '../core';
 
 const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => {
   const source = asRecord(entry);
-  const rawSourceIds = source?.source_ids ?? source?.sourceIds;
+const rawSourceIds = source?.source_ids ?? source?.sourceIds;
   const sourceIds = Array.isArray(rawSourceIds)
     ? rawSourceIds.filter((v): v is string => typeof v === 'string')
     : undefined;

@@ -53,7 +53,7 @@ export type UploadedOccurrenceIndexRow = {
   min?: number;
   max?: number;
   classValue?: number | string;
-  observationIds: Array<number | string>;
+  observationIds: (number | string)[];
 };
 
 export type UploadedSummaryStatsRow = {
@@ -62,6 +62,7 @@ export type UploadedSummaryStatsRow = {
   variableName?: string;
   units?: string | null;
   variableType?: string | null;
+  domain?: string | null;
   count: number;
   min: number | null;
   mean: number | null;
@@ -73,6 +74,9 @@ export type UploadedSummaryStatsRow = {
   q99?: number | null;
   bins?: number[];
   counts?: number[];
+  circular_mean?: number | null;
+  rbar?: number | null;
+  circular_std?: number | null;
 };
 
 export type RawCategoricalStatsRow = {
@@ -121,9 +125,13 @@ export type RawSummaryStatsRow = {
   variableCategory?: unknown;
   units?: unknown;
   variableType?: unknown;
+  circular_mean?: unknown;
+  rbar?: unknown;
+  circular_std?: unknown;
   variable_type?: unknown;
   valueType?: unknown;
   value_type?: unknown;
+  domain?: unknown;
   count?: unknown;
   min?: unknown;
   mean?: unknown;
@@ -144,10 +152,18 @@ export type RawVariableMetadataRow = {
   valueType?: unknown;
   value_type?: unknown;
   source_ids?: unknown;
+  domain?: unknown;
+  group?: unknown;
+  group_label?: unknown;
+  sort_order?: unknown;
+  render_min?: unknown;
+  render_max?: unknown;
+  legend_classes?: unknown;
 };
 
 export type RawUploadedParquetBundle = {
   categoricalStats: RawCategoricalStatsRow[];
+  circularStats?: RawSummaryStatsRow[];
   categoricalValueLookup?: RawCategoricalValueLookupRow[];
   densityGraph: RawDensityGraphRow[];
   occurrences: RawOccurrenceRow[];
