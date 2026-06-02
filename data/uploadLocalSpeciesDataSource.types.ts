@@ -53,7 +53,7 @@ export type UploadedOccurrenceIndexRow = {
   min?: number;
   max?: number;
   classValue?: number | string;
-  observationIds: Array<number | string>;
+  observationIds: (number | string)[];
 };
 
 export type UploadedSummaryStatsRow = {
@@ -156,6 +156,9 @@ export type RawVariableMetadataRow = {
   group?: unknown;
   group_label?: unknown;
   sort_order?: unknown;
+  render_min?: unknown;
+  render_max?: unknown;
+  legend_classes?: unknown;
 };
 
 export type RawUploadedParquetBundle = {

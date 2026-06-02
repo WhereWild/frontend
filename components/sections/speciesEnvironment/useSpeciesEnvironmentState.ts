@@ -385,10 +385,17 @@ export function useSpeciesEnvironmentState({
         return null;
       }
 
+      const normalizedPinned = normalizeCategoryIdentity(pinnedValue);
+      const distributionColor =
+        categoricalDistribution.find(
+          (cat) => normalizeCategoryIdentity(cat.value) === normalizedPinned,
+        )?.color ?? null;
       const legendColor =
+        distributionColor ??
         selectedVariableMeta?.legendClasses?.find(
           (cls) => String(cls.id) === String(pinnedValue),
-        )?.color ?? null;
+        )?.color ??
+        null;
 
       return {
         value: pinnedValue,
@@ -399,6 +406,7 @@ export function useSpeciesEnvironmentState({
         ...(legendColor !== null ? { color: legendColor } : {}),
       };
     }, [
+      categoricalDistribution,
       isCategorical,
       pinnedCategoryObserved,
       pinnedCategoryValue,

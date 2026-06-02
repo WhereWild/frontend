@@ -229,7 +229,7 @@ export function StackedCategoryBar({
   return (
     <View collapsable={false} style={styles.stackedCategoryContainer}>
       <View collapsable={false} style={styles.stackedBarTrack}>
-        {displayCategories.map((category, index) => {
+        {validCategories.map((category, index) => {
           const fraction = category.fraction;
           const percent = Math.min(100, Math.max(0, fraction * 100));
           const categoryColor = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
