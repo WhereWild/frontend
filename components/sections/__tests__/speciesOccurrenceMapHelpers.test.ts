@@ -52,7 +52,7 @@ describe('speciesOccurrenceMapHelpers', () => {
   };
 
   const extractInlineScript = (html: string) => {
-    const match = html.match(/<script>([\s\S]*)<\/script>/);
+    const match = html.match(/<script>([\s\S]*?)<\/script>/);
     if (!match?.[1]) {
       throw new Error('Expected inline map script in template');
     }
