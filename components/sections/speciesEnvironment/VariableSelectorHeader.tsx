@@ -131,15 +131,25 @@ export function VariableSelectorHeader({
         seen.set(key, v.groupLabel ?? v.label);
       }
     }
-    return Array.from(seen.entries()).map(([value, label]) => ({ value, label }));
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
   }, [isGroupedCategory, filteredVariables]);
 
   // The selected group key: group of the selected variable, or the variable's own id.
   const selectedGroupKey = React.useMemo(() => {
     if (!isGroupedCategory) return null;
     const selected = filteredVariables.find((v) => v.id === selectedVariable);
-    return selected?.group ?? selected?.id ?? groupedBaseOptions[0]?.value ?? null;
-  }, [isGroupedCategory, filteredVariables, selectedVariable, groupedBaseOptions]);
+    return (
+      selected?.group ?? selected?.id ?? groupedBaseOptions[0]?.value ?? null
+    );
+  }, [
+    isGroupedCategory,
+    filteredVariables,
+    selectedVariable,
+    groupedBaseOptions,
+  ]);
 
   const STAT_ORDER: Record<string, number> = React.useMemo(
     () => ({ mean: 0, min: 1, max: 2, range: 3 }),
@@ -153,8 +163,10 @@ export function VariableSelectorHeader({
         const bKey = b.label.toLowerCase();
         const aOrder = Object.keys(STAT_ORDER).find((k) => aKey.includes(k));
         const bOrder = Object.keys(STAT_ORDER).find((k) => bKey.includes(k));
-        return (aOrder !== undefined ? STAT_ORDER[aOrder] : 99) -
-               (bOrder !== undefined ? STAT_ORDER[bOrder] : 99);
+        return (
+          (aOrder !== undefined ? STAT_ORDER[aOrder] : 99) -
+          (bOrder !== undefined ? STAT_ORDER[bOrder] : 99)
+        );
       }),
     [STAT_ORDER],
   );
@@ -172,7 +184,12 @@ export function VariableSelectorHeader({
         return { value: v.id, label: shortLabel };
       });
     return sortVariantsByStatOrder(variants);
-  }, [isGroupedCategory, selectedGroupKey, filteredVariables, sortVariantsByStatOrder]);
+  }, [
+    isGroupedCategory,
+    selectedGroupKey,
+    filteredVariables,
+    sortVariantsByStatOrder,
+  ]);
 
   // When the group base changes, default to the mean (lowest stat order) variant.
   const handleGroupBaseChange = React.useCallback(

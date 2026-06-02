@@ -1481,9 +1481,11 @@ export default function About() {
                   }
 
                   if (isCategorical) {
+                    const isLandcover =
+                      mapSelectedVariableMeta?.id === 'landcover';
                     const allClasses = (
                       mapSelectedVariableMeta?.legendClasses ?? []
-                    ).filter((cls) => cls.id !== 0);
+                    ).filter((cls) => !(isLandcover && cls.id === 0));
                     if (allClasses.length === 0) return null;
                     const visibleClasses =
                       visibleNominalCounts.size === 0
