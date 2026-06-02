@@ -66,7 +66,6 @@ try {
   const effectiveArgs = shouldClearCache ? [...passThroughArgs, '--clear'] : passThroughArgs;
 
   console.log('[start.mjs] EXPO_DOTENV:', requestedDotenvPath ?? '(unset)');
-  console.log('[start.mjs] APP_VARIANT:', env.APP_VARIANT ?? '(unset)');
   if (shouldClearCache) {
     console.log(
       `[start.mjs] Switching env mode from ${previousEnvMode} to ${activeEnvMode}; starting Expo with --clear`
