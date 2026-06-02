@@ -5,9 +5,60 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Rect, Line } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
-import { VIRIDIS_CSS, VIRIDIS_COLORS } from './variableColors';
+import { VIRIDIS_STOPS } from './variableColors';
+
+const BAR_WIDTH = 12;
+
+type ViridisBarProps = {
+  width?: number;
+  height: number;
+  /** 0 = top of bar, 1 = bottom — position for the dashed pin line. */
+  pinFraction?: number | null;
+};
+
+/** Viridis gradient bar rendered via SVG — smooth on all platforms. */
+export function ViridisBar({
+  width = BAR_WIDTH,
+  height,
+  pinFraction,
+}: ViridisBarProps) {
+  const pinY = pinFraction != null ? Math.round(pinFraction * height) : null;
+  return (
+    <Svg width={width} height={height}>
+      <Defs>
+        <LinearGradient id='grad' x1='0' y1='0' x2='0' y2='1'>
+          {VIRIDIS_STOPS.map(({ offset, color }) => (
+            <Stop key={offset} offset={offset} stopColor={color} />
+          ))}
+        </LinearGradient>
+      </Defs>
+      <Rect
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        fill='url(#grad)'
+        rx={4}
+        ry={4}
+      />
+      {pinY != null && (
+        <Line
+          x1={0}
+          y1={pinY}
+          x2={width}
+          y2={pinY}
+          stroke='#fffffff2'
+          strokeWidth={1.5}
+          strokeDasharray='4,3'
+          strokeDashoffset={3}
+        />
+      )}
+    </Svg>
+  );
+}
 
 type MapVariableLegendProps = {
   min: number;
@@ -31,6 +82,7 @@ export function MapVariableLegend({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const [barHeight, setBarHeight] = React.useState(80);
 
   const pinFraction =
     pinnedValue != null && max > min
@@ -48,42 +100,17 @@ export function MapVariableLegend({
         {fmt(max)}
       </ThemedText>
       <View style={styles.barRow}>
-        <View style={styles.barContainer}>
-          {Platform.OS === 'web' ? (
-            <View
-              style={[
-                StyleSheet.absoluteFillObject,
-                { borderRadius: 4, backgroundImage: VIRIDIS_CSS } as object,
-              ]}
-            />
-          ) : (
-            <View
-              style={[
-                StyleSheet.absoluteFillObject,
-                { borderRadius: 4, overflow: 'hidden' },
-              ]}
-            >
-              {VIRIDIS_COLORS.map((color, i) => (
-                <View
-                  key={i}
-                  style={[styles.segment, { backgroundColor: color }]}
-                />
-              ))}
-            </View>
-          )}
-          {pinFraction != null && (
-            <View
-              style={[
-                styles.pinLine,
-                {
-                  top: `${Math.round(pinFraction * 100)}%` as unknown as number,
-                },
-                Platform.OS === 'web'
-                  ? ({ borderTopStyle: 'dashed' } as object)
-                  : {},
-              ]}
-            />
-          )}
+        <View
+          style={styles.barContainer}
+          onLayout={(e) =>
+            setBarHeight(Math.max(1, e.nativeEvent.layout.height))
+          }
+        >
+          <ViridisBar
+            width={BAR_WIDTH}
+            height={barHeight}
+            pinFraction={pinFraction}
+          />
         </View>
         {pinFraction != null && (
           <View style={styles.pinLabelContainer}>
@@ -92,9 +119,7 @@ export function MapVariableLegend({
               numberOfLines={1}
               style={[
                 styles.pinLabel,
-                {
-                  top: `${Math.round(pinFraction * 100)}%` as unknown as number,
-                },
+                { top: Math.round(pinFraction * barHeight) - 6 },
               ]}
             >
               {fmt(pinnedValue!)}
@@ -134,20 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   barContainer: {
-    width: 12,
-    position: 'relative',
-  },
-  segment: {
-    flex: 1,
-    width: 12,
-  },
-  pinLine: {
-    position: 'absolute',
-    left: -2,
-    right: -2,
-    height: 0,
-    borderTopWidth: 1.5,
-    borderTopColor: '#fffffff2',
+    width: BAR_WIDTH,
   },
   pinLabelContainer: {
     flex: 1,
@@ -157,7 +169,6 @@ const styles = StyleSheet.create({
   pinLabel: {
     position: 'absolute',
     color: '#fffffff2',
-    transform: [{ translateY: -6 }],
   },
   label: {
     textAlign: 'center',

@@ -51,14 +51,14 @@ import {
   normalizeLabel,
 } from '@/components/sections/speciesEnvironment/model';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
-import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
-import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import {
-  ASPECT_CONIC_CSS,
-  ASPECT_NATIVE_COLOR,
-  VIRIDIS_COLORS,
-  VIRIDIS_CSS,
-} from '@/components/sections/speciesOccurrenceMap/variableColors';
+  AspectRingSvg,
+  MapCircularLegend,
+} from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import {
+  MapVariableLegend,
+  ViridisBar,
+} from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
@@ -1162,7 +1162,7 @@ export default function About() {
                     max: 11401,
                     units: 'mm',
                   },
-                ].map(({ label, min, max, units }) => {
+                ].map(({ label, min, max, units }, idx) => {
                   const fmt = (v: number) =>
                     Math.abs(v) >= 1000
                       ? v.toLocaleString(undefined, {
@@ -1171,8 +1171,10 @@ export default function About() {
                       : v.toLocaleString(undefined, {
                           maximumFractionDigits: 1,
                         });
-                  const gradientCss = VIRIDIS_CSS;
-                  const nativeColors = VIRIDIS_COLORS;
+                  // First item shows a pinned value mid-range to exercise the dash line.
+                  const pinnedFraction = idx === 0 ? 0.45 : null;
+                  const pinnedVal =
+                    idx === 0 ? min + (max - min) * (1 - 0.45) : null;
                   return (
                     <View key={label} style={styles.legendExampleItem}>
                       <ThemedText variant='bodySmall'>{label}</ThemedText>
@@ -1191,34 +1193,11 @@ export default function About() {
                         >
                           {fmt(max)}
                         </ThemedText>
-                        {Platform.OS === 'web' ? (
-                          <View
-                            style={[
-                              styles.legendOverlayBar,
-                              {
-                                height: 100,
-                                backgroundImage: gradientCss,
-                              } as object,
-                            ]}
-                          />
-                        ) : (
-                          <View
-                            style={[
-                              styles.legendOverlayBarFallback,
-                              { height: 100 },
-                            ]}
-                          >
-                            {nativeColors.map((color, i) => (
-                              <View
-                                key={i}
-                                style={[
-                                  styles.legendOverlaySegment,
-                                  { backgroundColor: color },
-                                ]}
-                              />
-                            ))}
-                          </View>
-                        )}
+                        <ViridisBar
+                          width={12}
+                          height={100}
+                          pinFraction={pinnedFraction}
+                        />
                         <ThemedText
                           variant='bodyTiny'
                           style={styles.legendOverlayLabel}
@@ -1231,6 +1210,14 @@ export default function About() {
                             style={styles.legendOverlayUnits}
                           >
                             {units}
+                          </ThemedText>
+                        ) : null}
+                        {pinnedVal != null ? (
+                          <ThemedText
+                            variant='bodyTiny'
+                            style={styles.legendOverlayUnits}
+                          >
+                            pin: {fmt(pinnedVal)}
                           </ThemedText>
                         ) : null}
                       </View>
@@ -1291,7 +1278,6 @@ export default function About() {
                   const RING = 68;
                   const HOLE = 38;
                   const bgColor = palette.background.default.secondary;
-                  const conicCss = ASPECT_CONIC_CSS;
                   return (
                     <View style={styles.legendExampleItem}>
                       <ThemedText variant='bodySmall'>Aspect</ThemedText>
@@ -1314,55 +1300,12 @@ export default function About() {
                           >
                             W
                           </ThemedText>
-                          {Platform.OS === 'web' ? (
-                            <View
-                              style={[
-                                styles.legendCircleOuter,
-                                {
-                                  width: RING,
-                                  height: RING,
-                                  borderRadius: RING / 2,
-                                  backgroundImage: conicCss,
-                                } as object,
-                              ]}
-                            >
-                              <View
-                                style={[
-                                  styles.legendCircleHole,
-                                  {
-                                    width: HOLE,
-                                    height: HOLE,
-                                    borderRadius: HOLE / 2,
-                                    backgroundColor: bgColor,
-                                  },
-                                ]}
-                              />
-                            </View>
-                          ) : (
-                            <View
-                              style={[
-                                styles.legendCircleOuter,
-                                {
-                                  width: RING,
-                                  height: RING,
-                                  borderRadius: RING / 2,
-                                  backgroundColor: ASPECT_NATIVE_COLOR,
-                                },
-                              ]}
-                            >
-                              <View
-                                style={[
-                                  styles.legendCircleHole,
-                                  {
-                                    width: HOLE,
-                                    height: HOLE,
-                                    borderRadius: HOLE / 2,
-                                    backgroundColor: bgColor,
-                                  },
-                                ]}
-                              />
-                            </View>
-                          )}
+                          <AspectRingSvg
+                            size={RING}
+                            holeSize={HOLE}
+                            holeFill={bgColor}
+                            pinnedValue={135}
+                          />
                           <ThemedText
                             variant='bodyTiny'
                             style={styles.legendCircleCardinal}

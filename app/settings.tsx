@@ -180,6 +180,17 @@ export default function Settings() {
             </View>
           </View>
 
+          {__DEV__ ? (
+            <View style={styles.devSection}>
+              <Button
+                variant='neutral'
+                label='Component Dev Page'
+                onPress={() => router.push('/dev')}
+                iconEnd={<IconChevronRight />}
+                style={styles.actionButton}
+              />
+            </View>
+          ) : null}
           {/* Notifications and Danger Zone intentionally omitted per design instructions */}
         </PageScrollContainer>
       </PageSurface>
@@ -227,5 +238,9 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignSelf: 'stretch',
+  },
+  devSection: {
+    width: '100%',
+    paddingTop: Size.space['400'],
   },
 });
