@@ -1609,8 +1609,9 @@ export default function About() {
                   }
 
                   if (isCategorical) {
-                    const allClasses =
-                      mapSelectedVariableMeta?.legendClasses ?? [];
+                    const allClasses = (
+                      mapSelectedVariableMeta?.legendClasses ?? []
+                    ).filter((cls) => cls.id !== 0);
                     // Filter to visible classes, sorted by pixel count descending
                     const visibleClasses = (() => {
                       if (allClasses.length === 0) return [];

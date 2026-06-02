@@ -156,6 +156,16 @@
       });
       const controllers = new WeakMap();
       const objectUrls = new WeakMap();
+      const tileClassData = new WeakMap();
+
+      function postClassMessage(type, classes) {
+        var msg = { type: type, classes: classes };
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+        } else {
+          window.parent.postMessage(msg, '*');
+        }
+      }
 
       function releaseTile(tile) {
         const controller = controllers.get(tile);
@@ -167,6 +177,11 @@
         if (objectUrl) {
           URL.revokeObjectURL(objectUrl);
           objectUrls.delete(tile);
+        }
+        const classes = tileClassData.get(tile);
+        if (classes && classes.length > 0) {
+          postClassMessage('tileClassesRemoved', classes);
+          tileClassData.delete(tile);
         }
       }
 
@@ -223,6 +238,19 @@
           .then(function(response) {
             if (!response.ok) {
               throw new Error('Heatmap tile request failed with status ' + response.status);
+            }
+            var classesHeader = response.headers.get('X-Nominal-Classes');
+            if (classesHeader) {
+              var classes = classesHeader.split(',').reduce(function(acc, part) {
+                var sep = part.indexOf(':');
+                if (sep === -1) return acc;
+                var id = Number(part.slice(0, sep));
+                var count = Number(part.slice(sep + 1));
+                if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
+                return acc;
+              }, []);
+              tileClassData.set(tile, classes);
+              postClassMessage('tileClasses', classes);
             }
             return response.blob();
           })
