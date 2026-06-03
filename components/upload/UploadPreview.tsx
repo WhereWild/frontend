@@ -20,6 +20,8 @@ import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/Ma
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
+import { useOptionalSettings } from '@/context/SettingsContext';
+import { applyConv, getMetricToImperial } from '@/data/unitConversions';
 
 type UploadPreviewProps = {
   highlightedCatalogs: (number | string)[];
@@ -44,6 +46,8 @@ function UploadSpeciesPreviewSection({
   pinnedObservation: PinnedObservation | null;
   onVariableMetaChange: (meta: EnvironmentVariableOption | null) => void;
 }) {
+  const settings = useOptionalSettings();
+  const units = settings?.units;
   return (
     <View style={styles.previewSection}>
       <SpeciesEnvironmentSection
@@ -51,6 +55,7 @@ function UploadSpeciesPreviewSection({
         onHighlightChange={onHighlightChange}
         pinnedObservation={pinnedObservation}
         onVariableMetaChange={onVariableMetaChange}
+        units={units}
       />
     </View>
   );
@@ -63,6 +68,8 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
+  const units = useOptionalSettings()?.units;
+
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
   const [selectedVariableMeta, setSelectedVariableMeta] =
@@ -126,6 +133,14 @@ export function UploadPreview({
     if (!selectedVariableMeta) return null;
     const variableId = selectedVariableMeta.id;
     const metricToCode = metricToCodeByVariable.get(variableId);
+
+    // Look up the raw metric unit from the bundle (unchanged by display conversion).
+    const rawUnit =
+      uploadedBundle.variableDefinitions?.find((d) => d.id === variableId)?.units ??
+      uploadedBundle.summaryStats.find((s) => s.variable === variableId)?.units ??
+      null;
+    const conversion = units === 'imperial' ? getMetricToImperial(rawUnit) : null;
+
     const result = new Map<string, number>();
     for (const row of uploadedBundle.occurrenceIndex) {
       if (row.variable !== variableId) continue;
@@ -141,16 +156,18 @@ export function UploadPreview({
         }
       } else if (row.mode === 'range' && row.min != null && row.max != null) {
         const midpoint = (row.min + row.max) / 2;
+        const v = conversion ? (applyConv(midpoint, conversion) ?? midpoint) : midpoint;
         for (const id of row.observationIds) {
-          result.set(String(id), midpoint);
+          result.set(String(id), v);
         }
       }
     }
     return result.size > 0 ? result : null;
   }, [
     selectedVariableMeta,
-    uploadedBundle.occurrenceIndex,
+    uploadedBundle,
     metricToCodeByVariable,
+    units,
   ]);
 
   const classColors = React.useMemo((): Map<string, string> | null => {
@@ -254,7 +271,7 @@ export function UploadPreview({
     : false;
 
   const pointQueryUrl = selectedVariableMeta
-    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}`
+    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}`
     : null;
 
   return (
