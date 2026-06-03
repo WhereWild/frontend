@@ -136,10 +136,13 @@ export function UploadPreview({
 
     // Look up the raw metric unit from the bundle (unchanged by display conversion).
     const rawUnit =
-      uploadedBundle.variableDefinitions?.find((d) => d.id === variableId)?.units ??
-      uploadedBundle.summaryStats.find((s) => s.variable === variableId)?.units ??
+      uploadedBundle.variableDefinitions?.find((d) => d.id === variableId)
+        ?.units ??
+      uploadedBundle.summaryStats.find((s) => s.variable === variableId)
+        ?.units ??
       null;
-    const conversion = units === 'imperial' ? getMetricToImperial(rawUnit) : null;
+    const conversion =
+      units === 'imperial' ? getMetricToImperial(rawUnit) : null;
 
     const result = new Map<string, number>();
     for (const row of uploadedBundle.occurrenceIndex) {
@@ -156,19 +159,16 @@ export function UploadPreview({
         }
       } else if (row.mode === 'range' && row.min != null && row.max != null) {
         const midpoint = (row.min + row.max) / 2;
-        const v = conversion ? (applyConv(midpoint, conversion) ?? midpoint) : midpoint;
+        const v = conversion
+          ? (applyConv(midpoint, conversion) ?? midpoint)
+          : midpoint;
         for (const id of row.observationIds) {
           result.set(String(id), v);
         }
       }
     }
     return result.size > 0 ? result : null;
-  }, [
-    selectedVariableMeta,
-    uploadedBundle,
-    metricToCodeByVariable,
-    units,
-  ]);
+  }, [selectedVariableMeta, uploadedBundle, metricToCodeByVariable, units]);
 
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
