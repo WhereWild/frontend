@@ -205,9 +205,7 @@ export const buildMetaText = ({
       selectedDensityRange.displayStart ?? selectedDensityRange.start;
     const dispEnd = selectedDensityRange.displayEnd ?? selectedDensityRange.end;
 
-    const isFullCircle =
-      isCircular &&
-      (dispEnd - dispStart + 360) % 360 >= 359;
+    const isFullCircle = isCircular && (dispEnd - dispStart + 360) % 360 >= 359;
 
     const rangeLabel = isFullCircle
       ? 'Full circle'

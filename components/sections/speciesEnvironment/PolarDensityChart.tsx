@@ -149,7 +149,10 @@ export function PolarDensityChart({
 
       // Accumulate span, capped at a full circle in either direction.
       // 359.9° keeps start !== end (avoids degenerate arc) while the 0.18px gap is invisible.
-      const newSpan = Math.max(-359.9, Math.min(359.9, cumulativeSpan.current + delta));
+      const newSpan = Math.max(
+        -359.9,
+        Math.min(359.9, cumulativeSpan.current + delta),
+      );
       cumulativeSpan.current = newSpan;
 
       const absSpan = Math.abs(newSpan);
@@ -212,9 +215,7 @@ export function PolarDensityChart({
   const densityPath = pathCommands.join(' ');
 
   const selectionSpan =
-    selection != null
-      ? (selection.end - selection.start + 360) % 360
-      : 0;
+    selection != null ? (selection.end - selection.start + 360) % 360 : 0;
   // At near-360° the degenerate arc path shifts off-center on some renderers.
   // Render as a full donut ring using two Circle elements instead.
   const isFullCircleSelection = selection != null && selectionSpan >= 358;

@@ -162,7 +162,9 @@ export const SelectFieldView = ({
                       <ThemedText
                         variant='singleLineBody'
                         style={{
-                          color: showPlaceholder ? placeholderColor : valueColor,
+                          color: showPlaceholder
+                            ? placeholderColor
+                            : valueColor,
                           flex: 1,
                         }}
                       >
