@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 export const VIRIDIS_CSS =
   'linear-gradient(to bottom, rgb(253,231,37), rgb(94,201,98), rgb(33,145,140), rgb(59,82,139), rgb(68,1,84))';
 

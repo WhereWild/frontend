@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 name: code-review
 description: Review code or a diff for correctness, style, and project conventions. Use when asked to review, audit, or check a PR or function.
 ---

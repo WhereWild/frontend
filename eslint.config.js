@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 650 Industries, Inc. (Expo)
+//
+// SPDX-License-Identifier: MIT
+
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');

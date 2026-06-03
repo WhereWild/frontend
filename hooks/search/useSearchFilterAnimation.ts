@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { Time, getReactNativeEasing } from '@/constants/theme';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform } from 'react-native';

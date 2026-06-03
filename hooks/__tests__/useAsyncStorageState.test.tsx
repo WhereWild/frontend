@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, render, waitFor } from '@testing-library/react-native';
 import React from 'react';

@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2024 Figma
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: MIT
+
 /* global figma */
 
 function RGBAToHexA(rgba, forceRemoveAlpha = false) {
