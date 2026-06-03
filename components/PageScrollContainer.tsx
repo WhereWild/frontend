@@ -13,12 +13,15 @@ type PageScrollContainerProps = Pick<
   | 'keyboardShouldPersistTaps'
   | 'style'
   | 'testID'
->;
+> & {
+  scrollRef?: React.RefObject<ScrollView | null>;
+};
 
 export function PageScrollContainer({
   children,
   contentContainerStyle,
   style,
+  scrollRef,
   ...scrollViewProps
 }: PageScrollContainerProps) {
   if (Platform.OS === 'web') {
@@ -31,6 +34,7 @@ export function PageScrollContainer({
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={style}
       contentContainerStyle={contentContainerStyle}
       {...scrollViewProps}

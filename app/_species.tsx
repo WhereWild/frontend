@@ -33,6 +33,7 @@ import React from 'react';
 import {
   Alert,
   Platform,
+  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -182,6 +183,7 @@ export default function Species({
     webHeaderHeight,
   ]);
 
+  const scrollRef = React.useRef<ScrollView>(null);
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
     measuredWebHeaderHeight: webHeaderHeight,
@@ -434,6 +436,7 @@ export default function Species({
       ) : null}
       <PageSurface>
         <PageScrollContainer
+          scrollRef={scrollRef}
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
             {
@@ -520,6 +523,24 @@ export default function Species({
               shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender
                 ? undefined
                 : styles.hiddenMapSlot
+            }
+            onTouchStart={
+              Platform.OS !== 'web'
+                ? () =>
+                    scrollRef.current?.setNativeProps({ scrollEnabled: false })
+                : undefined
+            }
+            onTouchEnd={
+              Platform.OS !== 'web'
+                ? () =>
+                    scrollRef.current?.setNativeProps({ scrollEnabled: true })
+                : undefined
+            }
+            onTouchCancel={
+              Platform.OS !== 'web'
+                ? () =>
+                    scrollRef.current?.setNativeProps({ scrollEnabled: true })
+                : undefined
             }
           >
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (

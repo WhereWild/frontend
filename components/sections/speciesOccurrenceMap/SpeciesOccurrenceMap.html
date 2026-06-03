@@ -16,12 +16,21 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <style>
     html,
-    body,
+    body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
     #map {
       height: 100%;
       width: 100%;
       margin: 0;
       padding: 0;
+      touch-action: none;
+      overflow: hidden;
     }
   </style>
 </head>
