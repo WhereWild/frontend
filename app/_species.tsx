@@ -33,7 +33,6 @@ import React from 'react';
 import {
   Alert,
   Platform,
-  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -44,6 +43,7 @@ import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservat
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
+import { useScrollLock } from '@/context/ScrollLockContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
 import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
@@ -143,6 +143,28 @@ function SectionShell({
   );
 }
 
+// Rendered inside PageScrollContainer so useScrollLock sees the provider.
+function MapScrollLockWrapper({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: object;
+}) {
+  const { lockScroll, unlockScroll } = useScrollLock();
+  return (
+    <View
+      collapsable={false}
+      style={style}
+      onTouchStart={Platform.OS !== 'web' ? lockScroll : undefined}
+      onTouchEnd={Platform.OS !== 'web' ? unlockScroll : undefined}
+      onTouchCancel={Platform.OS !== 'web' ? unlockScroll : undefined}
+    >
+      {children}
+    </View>
+  );
+}
+
 export default function Species({
   data = mountainBallCactusData,
 }: SpeciesScreenProps) {
@@ -183,7 +205,6 @@ export default function Species({
     webHeaderHeight,
   ]);
 
-  const scrollRef = React.useRef<ScrollView>(null);
   const shouldRenderOccurrenceMap = Boolean(taxonId);
   const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
     measuredWebHeaderHeight: webHeaderHeight,
@@ -436,7 +457,6 @@ export default function Species({
       ) : null}
       <PageSurface>
         <PageScrollContainer
-          scrollRef={scrollRef}
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
             {
@@ -517,30 +537,11 @@ export default function Species({
           {/* Always mount the map container to keep ScrollView child indices
               stable — toggling between a component and null shifts Fabric indices
               and causes unmount crashes on iPadOS with mouse/Pencil input. */}
-          <View
-            collapsable={false}
+          <MapScrollLockWrapper
             style={
               shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender
                 ? undefined
                 : styles.hiddenMapSlot
-            }
-            onTouchStart={
-              Platform.OS !== 'web'
-                ? () =>
-                    scrollRef.current?.setNativeProps({ scrollEnabled: false })
-                : undefined
-            }
-            onTouchEnd={
-              Platform.OS !== 'web'
-                ? () =>
-                    scrollRef.current?.setNativeProps({ scrollEnabled: true })
-                : undefined
-            }
-            onTouchCancel={
-              Platform.OS !== 'web'
-                ? () =>
-                    scrollRef.current?.setNativeProps({ scrollEnabled: true })
-                : undefined
             }
           >
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
@@ -614,7 +615,7 @@ export default function Species({
                 )}
               </View>
             )}
-          </View>
+          </MapScrollLockWrapper>
         </PageScrollContainer>
       </PageSurface>
     </>

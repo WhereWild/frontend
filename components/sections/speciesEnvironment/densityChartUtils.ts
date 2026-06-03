@@ -133,6 +133,47 @@ export const getSelectionBounds = (
   };
 };
 
+/**
+ * Builds an SVG area path clipped to [selLeft, selRight] in viewBox x-units (0–100).
+ * Avoids SVG clipPath which is unreliable on Android in react-native-svg.
+ * Interpolates y at the selection boundaries so the shape follows the curve precisely.
+ */
+export function buildSelectionAreaPath(
+  normalized: { x: number; y: number }[],
+  selLeft: number,
+  selRight: number,
+  chartHeight: number,
+): string {
+  if (normalized.length === 0 || selLeft >= selRight) return '';
+
+  const interpY = (targetX: number): number => {
+    for (let i = 0; i < normalized.length - 1; i++) {
+      const a = normalized[i];
+      const b = normalized[i + 1];
+      if (targetX >= a.x && targetX <= b.x) {
+        const t = (targetX - a.x) / (b.x - a.x);
+        return a.y + t * (b.y - a.y);
+      }
+    }
+    return targetX <= normalized[0].x
+      ? normalized[0].y
+      : normalized[normalized.length - 1].y;
+  };
+
+  const yLeft = interpY(selLeft);
+  const yRight = interpY(selRight);
+  const inner = normalized.filter((p) => p.x > selLeft && p.x < selRight);
+
+  return [
+    `M${selLeft},${chartHeight}`,
+    `L${selLeft},${yLeft}`,
+    ...inner.map((p) => `L${p.x},${p.y}`),
+    `L${selRight},${yRight}`,
+    `L${selRight},${chartHeight}`,
+    'Z',
+  ].join(' ');
+}
+
 /** Converts gesture x-location to variable-domain value. */
 export const getValueForLocation = (
   locationX: number,

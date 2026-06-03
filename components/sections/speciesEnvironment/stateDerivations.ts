@@ -156,6 +156,7 @@ export const buildSummaryComparisons = (
 type BuildMetaTextParams = {
   hasStats: boolean;
   isCategorical: boolean;
+  isCircular: boolean;
   selectedDensityRange: DensitySelectionRange | null;
   rangeObservationCount: number;
   observationCount: number | null | undefined;
@@ -184,6 +185,7 @@ export const buildHeadingText = (
 export const buildMetaText = ({
   hasStats,
   isCategorical,
+  isCircular,
   selectedDensityRange,
   rangeObservationCount,
   observationCount,
@@ -202,7 +204,16 @@ export const buildMetaText = ({
     const dispStart =
       selectedDensityRange.displayStart ?? selectedDensityRange.start;
     const dispEnd = selectedDensityRange.displayEnd ?? selectedDensityRange.end;
-    return `Selected range: ${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
+
+    const isFullCircle =
+      isCircular &&
+      (dispEnd - dispStart + 360) % 360 >= 359;
+
+    const rangeLabel = isFullCircle
+      ? 'Full circle'
+      : `${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)}`;
+
+    return `Selected range: ${rangeLabel} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
   }
 
   return `(Based on ${formatValue(resolvedObservationCount)} observations)`;

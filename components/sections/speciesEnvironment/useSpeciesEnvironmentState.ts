@@ -432,6 +432,10 @@ export function useSpeciesEnvironmentState({
   const metaText = buildMetaText({
     hasStats: Boolean(stats),
     isCategorical,
+    isCircular: isVariableCircular({
+      id: selectedVariable ?? '',
+      valueType: selectedVariableMeta?.valueType ?? null,
+    }),
     selectedDensityRange,
     rangeObservationCount: rangeObservationItems.length,
     observationCount: stats?.observationCount,

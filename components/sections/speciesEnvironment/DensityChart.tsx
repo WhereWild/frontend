@@ -14,13 +14,15 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import Svg, { Path, Defs, ClipPath, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { Colors, Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useScrollLock } from '@/context/ScrollLockContext';
 import { formatValue } from './model';
 import {
   buildDensitySamples,
+  buildSelectionAreaPath,
   getDensityDomain,
   getSelectionBounds,
   getValueForLocation as mapLocationXToValue,
@@ -38,13 +40,6 @@ const PIN_LABEL_HALF_WIDTH = 36;
 const PIN_IMAGE_WIDTH = 22;
 const PIN_IMAGE_HEIGHT = 29;
 const PIN_IMAGE = require('@/assets/images/wherewild.png');
-
-type ClipPathWithUnitsProps = React.ComponentProps<typeof ClipPath> & {
-  clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
-};
-
-const ClipPathWithUnits =
-  ClipPath as React.ComponentType<ClipPathWithUnitsProps>;
 
 /** Selected value range on the density curve. */
 type DensitySelectionRange = {
@@ -91,6 +86,7 @@ export function DensityChart({
 }: DensityChartProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const { lockScroll, unlockScroll } = useScrollLock();
   const [chartWidth, setChartWidth] = React.useState(0);
   const dragOrigin = React.useRef<number | null>(null);
   const dragValue = React.useRef<number | null>(null);
@@ -140,15 +136,19 @@ export function DensityChart({
     });
   }, [isDiscrete, normalized, samples, densityDomain.spanX]);
 
-  const rawId = React.useId();
-  const clipId = React.useMemo(
-    () => `densitySelection-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
-    [rawId],
-  );
-
   const selectionBounds = React.useMemo(() => {
     return getSelectionBounds(selection, densityDomain);
   }, [selection, densityDomain]);
+
+  const selectionAreaPath = React.useMemo(() => {
+    if (!selectionBounds || isDiscrete) return '';
+    return buildSelectionAreaPath(
+      normalized,
+      selectionBounds.left,
+      selectionBounds.left + selectionBounds.width,
+      CHART_HEIGHT,
+    );
+  }, [selectionBounds, isDiscrete, normalized]);
 
   const getValueForLocation = React.useCallback(
     (x: number) => {
@@ -174,6 +174,7 @@ export function DensityChart({
 
   const handleSelectionStart = React.useCallback(
     (event: GestureResponderEvent) => {
+      lockScroll();
       hasDragged.current = false;
       if (isDiscrete) {
         dragOrigin.current = getBarIndexForLocation(
@@ -186,7 +187,7 @@ export function DensityChart({
       dragOrigin.current = value;
       dragValue.current = value;
     },
-    [isDiscrete, getBarIndexForLocation, getValueForLocation],
+    [isDiscrete, getBarIndexForLocation, getValueForLocation, lockScroll],
   );
 
   const handleSelectionMove = React.useCallback(
@@ -206,6 +207,7 @@ export function DensityChart({
 
   const handleSelectionEnd = React.useCallback(
     (event?: GestureResponderEvent) => {
+      unlockScroll();
       if (isDiscrete) {
         const idx = event
           ? getBarIndexForLocation(event.nativeEvent.locationX)
@@ -250,10 +252,12 @@ export function DensityChart({
       samples,
       getValueForLocation,
       onSelectionChange,
+      unlockScroll,
     ],
   );
 
   const handleSelectionTerminate = React.useCallback(() => {
+    unlockScroll();
     if (isDiscrete) {
       dragOrigin.current = null;
       hasDragged.current = false;
@@ -272,7 +276,7 @@ export function DensityChart({
     dragOrigin.current = null;
     dragValue.current = null;
     hasDragged.current = false;
-  }, [isDiscrete, onSelectionChange]);
+  }, [isDiscrete, onSelectionChange, unlockScroll]);
 
   const shouldSetSelectionResponder = () => {
     return true;
@@ -442,18 +446,6 @@ export function DensityChart({
           viewBox={`0 0 100 ${CHART_HEIGHT}`}
           preserveAspectRatio='none'
         >
-          <Defs>
-            {selectionBounds ? (
-              <ClipPathWithUnits id={clipId} clipPathUnits='userSpaceOnUse'>
-                <Rect
-                  x={selectionBounds.left}
-                  y={0}
-                  width={selectionBounds.width}
-                  height={CHART_HEIGHT}
-                />
-              </ClipPathWithUnits>
-            ) : null}
-          </Defs>
           {isDiscrete && discreteBars ? (
             <>
               {discreteBars.map(({ path }, i) => {
@@ -485,13 +477,8 @@ export function DensityChart({
           ) : (
             <>
               <Path d={areaPath} fill={fillColor} opacity={0.3} />
-              {selectionBounds ? (
-                <Path
-                  d={areaPath}
-                  fill={fillColor}
-                  opacity={0.6}
-                  clipPath={`url(#${clipId})`}
-                />
+              {selectionAreaPath ? (
+                <Path d={selectionAreaPath} fill={fillColor} opacity={0.6} />
               ) : null}
             </>
           )}
