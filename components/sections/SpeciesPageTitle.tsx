@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { IconDownload } from '@/assets/icons';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';

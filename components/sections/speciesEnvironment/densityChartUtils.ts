@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { SpeciesEnvironmentDensity } from '@/data/types';
 
 /** Selected numeric range represented on the density chart. */

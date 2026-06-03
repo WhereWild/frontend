@@ -1,0 +1,59 @@
+version = 1
+
+[[annotations]]
+path = [
+  "assets/images/help**",
+  "assets/images/about**",
+]
+SPDX-FileCopyrightText = "2025-2026 The WhereWild Contributors (see CONTRIBUTORS)"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = [
+  "assets/images/about_draeden.png",
+  "assets/images/about_kelly.png",
+  "assets/images/about_lucas.png",
+  "assets/images/about_luke.png",
+  "assets/images/wherewild**",
+  "assets/images/wherewild.icon/**"
+]
+SPDX-FileCopyrightText = "2025-2026 The WhereWild Contributors (see CONTRIBUTORS)"
+SPDX-License-Identifier = "LicenseRef-AllRightsReserved"
+
+[[annotations]]
+path = [
+  "constants/wds-theme.css",
+  "constants/wdsTokens.ts",
+  "scripts/tokens/*json"
+]
+SPDX-FileCopyrightText = [
+  "2024 Figma", 
+  "2025-2026 The WhereWild Contributors (see CONTRIBUTORS)"
+]
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = "scripts/tokens/figma-plugin-*-json/manifest.json"
+SPDX-FileCopyrightText = [
+  "2024 Figma", 
+  "2025-2026 The WhereWild Contributors (see CONTRIBUTORS)"
+]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "assets/icons/Icon*.tsx"
+SPDX-FileCopyrightText = "2024 Figma"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = [
+  "eas.json",
+  "front-end.code-workspace",
+  "nginx.conf",
+  "package.json",
+  "package-lock.json",
+  ".prettierrc",
+  "tsconfig.json"
+]
+SPDX-FileCopyrightText = "2025-2026 The WhereWild Contributors (see CONTRIBUTORS)"
+SPDX-License-Identifier = "CC0-1.0"

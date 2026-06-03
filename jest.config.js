@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2025 650 Industries, Inc. (Expo)
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: MIT
+
 module.exports = {
   preset: 'jest-expo',
   transformIgnorePatterns: [

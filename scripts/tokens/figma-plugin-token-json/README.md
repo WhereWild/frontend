@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Figma
+
+SPDX-License-Identifier: MIT
+-->
+
 # figma-token-json
 
 A JSON representation for Figma Variables following the [W3C Tokens spec](https://github.com/design-tokens/community-group)

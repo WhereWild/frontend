@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useUploadWorkflow } from '@/hooks/upload/useUploadWorkflow';
 import { uploadRawObservations } from '@/data/api';

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # Data Interfaces
 
 The UI screens consume strongly typed data objects so they can be wired to any API source (mock data, REST/GraphQL, etc.). The canonical typings live in [`data/types.ts`](./types.ts).

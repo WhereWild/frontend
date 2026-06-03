@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Figma
+//
+// SPDX-License-Identifier: MIT
+
 // run with node --env-file=.env app.mjs
 const TOKEN = process.env.FIGMA_ACCESS_TOKEN;
 const URL_BASE = "https://api.figma.com/v1/files";

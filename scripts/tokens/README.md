@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2024 Figma
+SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+
+SPDX-License-Identifier: MIT
+-->
+
 # WhereWild Theme Sync Assets
 
 This directory contains the Figma export plugins, token/style snapshot files,
