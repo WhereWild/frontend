@@ -63,6 +63,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Keyboard,
   LayoutChangeEvent,
   Platform,
   StyleSheet,
@@ -477,6 +478,10 @@ function RootLayoutNativeFrame() {
     },
     [],
   );
+
+  useEffect(() => {
+    Keyboard.dismiss();
+  }, [pathname]);
 
   useEffect(() => {
     if (isTopLevelPath(pathname)) {

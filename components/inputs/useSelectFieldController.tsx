@@ -140,6 +140,8 @@ export const useSelectFieldController = ({
     null,
   );
   const isOptionPressingRef = React.useRef(false);
+  // When true, the dropdown was opened by tapping the icon — skip auto-focus so the keyboard stays hidden.
+  const openedViaIconRef = React.useRef(false);
   // Defer blur work so option presses can complete on web before closing.
   const blurTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -518,6 +520,23 @@ export const useSelectFieldController = ({
     return () => cancelAnimationFrame(frame);
   }, [isOpen, measureDropdownAnchor]);
 
+  // On native with search enabled, manually focus the input after open — but only when
+  // the user tapped the text area, not the icon. autoFocus is disabled on native for
+  // searchable selects so we can suppress it here when opened via icon.
+  React.useEffect(() => {
+    if (!isOpen || !allowSearch || Platform.OS === 'web') {
+      return;
+    }
+    if (openedViaIconRef.current) {
+      openedViaIconRef.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, allowSearch]);
+
   React.useEffect(() => {
     if (highlightedIndex === null) {
       return;
@@ -680,7 +699,7 @@ export const useSelectFieldController = ({
             : isError
               ? palette.text.danger.onDangerSecondary
               : palette.text.disabled.default,
-          autoFocus: true,
+          autoFocus: Platform.OS === 'web',
           editable: !isDisabled,
           autoCorrect: false,
           autoCapitalize: 'none',
@@ -735,6 +754,9 @@ export const useSelectFieldController = ({
       icon: iconNode,
       onPress: (event?: GestureResponderEvent) => {
         event?.stopPropagation?.();
+        if (!isOpen) {
+          openedViaIconRef.current = true;
+        }
         (isOpen ? closeSelect : toggleSelect)();
       },
       extraProps: webIconButtonProps,
