@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # Motion tokens (Time + Easing)
 
 Use motion tokens from `constants/theme.ts` to keep timing behavior consistent across screens.

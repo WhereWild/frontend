@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 /** Matches temporal variable IDs like `cloud_cover_avg_168h` or `weather_code_simple_mode_168h`. */
 const TEMPORAL_PATTERN = /^(.+)_(avg|sum|mode|snapshot)_(\d+)h$/i;
 

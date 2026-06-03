@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 name: use-usages
 description: Find all references to a symbol using the usages tool instead of grep
 ---

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { SearchTaxaQueryFilters } from '@/data/api';
 import type { FiltersProps } from '@/components';
 import type { SpeciesSummary } from '@/data/types';

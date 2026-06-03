@@ -1,4 +1,8 @@
 ---
+# SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 name: write-merge-request
 description: Create a complete GitLab merge request title and description using the repository templates in `.gitlab`. Use this skill when requested.
 ---

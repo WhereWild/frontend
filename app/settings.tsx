@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import React from 'react';

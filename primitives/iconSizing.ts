@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { IconSize } from '@/primitives';
 
 const allowedIconSizes: IconSize[] = ['14', '16', '20', '24', '32', '40', '48'];

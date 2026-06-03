@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { SpeciesApiNormalized, SpeciesSummary } from './types';
 
 /** Safely narrows unknown values to object records for optional raw-field access. */

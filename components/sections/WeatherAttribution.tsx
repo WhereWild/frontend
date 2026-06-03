@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import { useDataSources } from '@/hooks/useDataSources';
 import React from 'react';
 import { Linking, StyleSheet, View } from 'react-native';

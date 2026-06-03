@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 const appVariant = process.env.APP_VARIANT ?? 'production';
 const isDevelopment = appVariant === 'development';
 const isPreview = appVariant === 'preview';

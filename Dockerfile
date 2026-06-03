@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 ARG NODE_VERSION=24.13.0
 
 FROM node:${NODE_VERSION}-alpine AS runtime

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 import type { SearchTaxaQueryFilters } from '@/data/api';
 import type { UseSearchFiltersInitialState } from '@/hooks/search/filters/useSearchFilters';
 import { DEFAULT_QUANTITY } from '@/hooks/search/filters/useSearchFilters.helpers';

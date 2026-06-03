@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Compile-time contract checks for TopAppBar variant props.
 // This file is validated by `tsc --noEmit` and is not executed at runtime.
 // The @ts-expect-error cases ensure invalid variant/prop combinations remain disallowed.
