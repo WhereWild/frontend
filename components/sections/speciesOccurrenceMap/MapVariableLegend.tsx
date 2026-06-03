@@ -82,7 +82,7 @@ export function MapVariableLegend({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const [barHeight, setBarHeight] = React.useState(80);
+  const [barHeight, setBarHeight] = React.useState(0);
 
   const pinFraction =
     pinnedValue != null && max > min
@@ -108,24 +108,10 @@ export function MapVariableLegend({
         >
           <ViridisBar
             width={BAR_WIDTH}
-            height={barHeight}
-            pinFraction={pinFraction}
+            height={Math.max(1, barHeight)}
+            pinFraction={barHeight > 0 ? pinFraction : null}
           />
         </View>
-        {pinFraction != null && (
-          <View style={styles.pinLabelContainer}>
-            <ThemedText
-              variant='bodyTiny'
-              numberOfLines={1}
-              style={[
-                styles.pinLabel,
-                { top: Math.round(pinFraction * barHeight) - 6 },
-              ]}
-            >
-              {fmt(pinnedValue!)}
-            </ThemedText>
-          </View>
-        )}
       </View>
       <ThemedText variant='bodyTiny' style={styles.label}>
         {fmt(min)}
@@ -160,15 +146,6 @@ const styles = StyleSheet.create({
   },
   barContainer: {
     width: BAR_WIDTH,
-  },
-  pinLabelContainer: {
-    flex: 1,
-    position: 'relative',
-    marginLeft: 4,
-  },
-  pinLabel: {
-    position: 'absolute',
-    color: '#fffffff2',
   },
   label: {
     textAlign: 'center',

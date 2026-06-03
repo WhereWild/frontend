@@ -8,6 +8,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
+import { useResponsive } from '@/hooks/useResponsive';
 import { ASPECT_RING_SEGMENT_COLORS, donutArcPath } from './variableColors';
 
 const SEG_DEG = 5;
@@ -83,9 +84,10 @@ export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const bg = palette.background.default.secondary;
-
-  const RING = 56;
-  const HOLE = 32;
+  const { breakpoint } = useResponsive();
+  const scale = breakpoint === 'phone' ? 0.7 : 1;
+  const RING = Math.round(56 * scale);
+  const HOLE = Math.round(32 * scale);
 
   return (
     <View style={[styles.overlay, { backgroundColor: bg }]}>
