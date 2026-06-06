@@ -1380,4 +1380,52 @@ describe('upload local species data source variable categories', () => {
       occurrences: [expect.objectContaining({ catalogNumber: 'obs_selected' })],
     });
   });
+
+  it('converts variable units and stats to imperial when requested', async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [],
+      densityGraph: [],
+      occurrences: [
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 20 },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          count: 1,
+          min: 20,
+          mean: 20,
+          max: 20,
+          std: 1,
+          '10th percentile': 20,
+          '90th percentile': 20,
+        },
+      ],
+      variableMetadata: [
+        { id: 'bio_1', name: 'Annual Mean Temperature', units: '°C' },
+      ],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const defs = await dataSource.fetchEnvironmentVariables({ units: 'imperial' });
+    expect(defs[0]?.units).toBe('°F');
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { units: 'imperial' });
+    expect(stats.units).toBe('°F');
+    expect(stats.summary.mean).toBeCloseTo(68, 1);
+
+    const metricStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+    expect(metricStats.units).toBe('°C');
+
+    const sliceImperial = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 68,
+      max: 68,
+      units: 'imperial',
+    });
+    expect(sliceImperial.observations).toHaveLength(1);
+  });
 });
