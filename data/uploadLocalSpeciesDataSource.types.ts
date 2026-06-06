@@ -116,6 +116,7 @@ export type RawCategoricalValueLookupRow = {
 };
 
 export type RawOccurrenceRow = {
+  [key: string]: unknown;
   catalogNumber?: unknown;
   decimalLatitude?: unknown;
   decimalLongitude?: unknown;

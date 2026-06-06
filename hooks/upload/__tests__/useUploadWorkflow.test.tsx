@@ -213,4 +213,88 @@ describe('useUploadWorkflow', () => {
     expect(mockParseUploadedParquetZipToRawBundle).not.toHaveBeenCalled();
     expect(mockTriggerErrorHaptic).toHaveBeenCalled();
   });
+
+  it('does nothing when downloadProcessedZip is called with no zip available', async () => {
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.downloadProcessedZip();
+    });
+
+    expect(mockDeliverProcessedZip).not.toHaveBeenCalled();
+  });
+
+  it('seeds the data sources cache when the bundle includes dataSources', async () => {
+    const { seedDataSourcesCache } = jest.requireMock('@/hooks/useDataSources');
+    const dataSources = { source1: {} };
+    mockNormalizeRawUploadedParquetBundle.mockReturnValueOnce({
+      categoricalStats: [],
+      densityGraph: [],
+      meta: {},
+      occurrenceIndex: [],
+      occurrences: [],
+      summaryStats: [],
+      variableDefinitions: [],
+      dataSources,
+    } as never);
+
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: { name: 'data.zip', uri: 'file://data.zip', mimeType: 'application/zip' } as never,
+    });
+    mockParseUploadedParquetZipToRawBundle.mockResolvedValueOnce({} as never);
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processZippedObservations();
+    });
+
+    expect(seedDataSourcesCache).toHaveBeenCalledWith(dataSources);
+  });
+
+  it('reports an error when auto-import of the processed zip fails after raw upload', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: { name: 'obs.csv', uri: 'file://obs.csv', mimeType: 'text/csv' } as never,
+    });
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'obs.zip',
+      status: 200,
+    });
+    mockNormalizeRawUploadedParquetBundle.mockImplementationOnce(() => {
+      throw new Error('corrupt bundle');
+    });
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processRawObservations();
+    });
+
+    expect(result.current.zipUploadError).toBe('corrupt bundle');
+    expect(mockTriggerErrorHaptic).toHaveBeenCalled();
+  });
+
+  it('fires the upload progress callback including queued-with-position state', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: { name: 'obs.csv', uri: 'file://obs.csv', mimeType: 'text/csv' } as never,
+    });
+    mockUploadRawObservations.mockImplementationOnce(
+      async (_payload, onProgress) => {
+        onProgress?.({ status: 'queued', position: 3 });
+        onProgress?.({ status: 'queued', position: 1 });
+        onProgress?.({ status: 'processing', position: 0 });
+        return { blob: new Blob(['zip']), contentType: 'application/zip', filename: 'obs.zip', status: 200 };
+      },
+    );
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processRawObservations();
+    });
+
+    expect(result.current.rawUploadStatusMessage).toContain('obs.zip');
+  });
 });

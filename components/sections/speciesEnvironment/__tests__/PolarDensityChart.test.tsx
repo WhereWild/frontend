@@ -127,11 +127,12 @@ describe('PolarDensityChart', () => {
         typeof node.type === 'string' && node.props?.onStartShouldSetResponder,
     )[0];
 
+    // Start at top (North, 0°) and move to the right (East, 90°) — 90° CW drag.
     fireEvent(wrapper, 'responderGrant', {
-      nativeEvent: { locationX: 130, locationY: 130 },
+      nativeEvent: { locationX: 130, locationY: 80 },
     });
     fireEvent(wrapper, 'responderMove', {
-      nativeEvent: { locationX: 200, locationY: 130 },
+      nativeEvent: { locationX: 180, locationY: 130 },
     });
 
     const rangeCalls = onSelectionChange.mock.calls.filter(

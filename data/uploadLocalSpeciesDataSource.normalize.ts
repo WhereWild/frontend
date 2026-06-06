@@ -38,40 +38,6 @@ export const validateUploadedParquetBundle = (
     issues.push('occurrence did not produce any valid rows');
   }
 
-  if (!bundle.occurrenceIndex.length) {
-    issues.push('occurrence_index did not produce any valid rows');
-  }
-
-  const summaryVariables = new Set(
-    bundle.summaryStats.map((row) => row.variable),
-  );
-  const indexVariables = new Set(
-    bundle.occurrenceIndex.map((row) => row.variable),
-  );
-  const missingIndexVariables = Array.from(summaryVariables).filter(
-    (variable) => !indexVariables.has(variable),
-  );
-  if (missingIndexVariables.length) {
-    issues.push(
-      `occurrence_index missing variables present in summary_stats: ${missingIndexVariables.join(', ')}`,
-    );
-  }
-
-  const occurrenceCatalogs = new Set(
-    bundle.occurrences.map((row) => String(row.catalogNumber)),
-  );
-  const missingCatalogIds = bundle.occurrenceIndex
-    .flatMap((row) => row.observationIds)
-    .map((id) => String(id))
-    .filter((id) => !occurrenceCatalogs.has(id));
-
-  if (missingCatalogIds.length) {
-    const sample = Array.from(new Set(missingCatalogIds)).slice(0, 10);
-    issues.push(
-      `occurrence_index references catalogNumber values not found in occurrence: ${sample.join(', ')}`,
-    );
-  }
-
   if (issues.length) {
     throw new UploadedParquetBundleValidationError(issues);
   }
@@ -250,7 +216,7 @@ export const normalizeRawUploadedParquetBundle = (
   ]);
 
   const occurrenceIndex: UploadedOccurrenceIndexRow[] = [];
-  rawBundle.occurrenceIndex.forEach((row) => {
+  rawBundle.occurrences.forEach((row) => {
     const catalogNumber = toStringValue(row.catalogNumber);
     if (!catalogNumber) {
       return;

@@ -137,14 +137,9 @@ describe('upload local species data source variable categories', () => {
       ],
       densityGraph: [],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 52,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'landcover',
@@ -200,13 +195,8 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 52,
-},
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 }],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'landcover',
@@ -265,13 +255,8 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 52,
-},
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 }],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'landcover',
@@ -565,14 +550,9 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 12.5 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 12.5,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -645,14 +625,9 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, 'Annual Mean Temperature': 12.5 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  'Annual Mean Temperature': 12.5,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'Annual Mean Temperature',
@@ -960,14 +935,9 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 123, decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 123, decimalLatitude: 10, decimalLongitude: 20, bio_1: 2.1 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 123,
-  bio_1: 2.1,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1022,15 +992,9 @@ describe('upload local species data source variable categories', () => {
       ],
       densityGraph: [],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 'forest', bio_1: 2.1 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 'forest',
-  bio_1: 2.1,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1086,14 +1050,10 @@ describe('upload local species data source variable categories', () => {
           decimalLatitude: 10,
           decimalLongitude: 20,
           locationGid: 'county-us-ca-sf',
+          bio_1: 2.1,
         },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 2.1,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1212,26 +1172,19 @@ describe('upload local species data source variable categories', () => {
           decimalLatitude: 10,
           decimalLongitude: 20,
           locationGid: 'county-us-ca-sf',
+          bio_1: 2.1,
+          landcover: 52,
         },
         {
           catalogNumber: 'obs_nv',
           decimalLatitude: 11,
           decimalLongitude: 21,
           locationGid: 'county-us-nv-ck',
+          bio_1: 3.1,
+          landcover: 130,
         },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_ca',
-  bio_1: 2.1,
-  landcover: 52,
-},
-{
-  catalogNumber: 'obs_nv',
-  bio_1: 3.1,
-  landcover: 130,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1426,5 +1379,53 @@ describe('upload local species data source variable categories', () => {
     await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toMatchObject({
       occurrences: [expect.objectContaining({ catalogNumber: 'obs_selected' })],
     });
+  });
+
+  it('converts variable units and stats to imperial when requested', async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [],
+      densityGraph: [],
+      occurrences: [
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 20 },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          count: 1,
+          min: 20,
+          mean: 20,
+          max: 20,
+          std: 1,
+          '10th percentile': 20,
+          '90th percentile': 20,
+        },
+      ],
+      variableMetadata: [
+        { id: 'bio_1', name: 'Annual Mean Temperature', units: '°C' },
+      ],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const defs = await dataSource.fetchEnvironmentVariables({ units: 'imperial' });
+    expect(defs[0]?.units).toBe('°F');
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { units: 'imperial' });
+    expect(stats.units).toBe('°F');
+    expect(stats.summary.mean).toBeCloseTo(68, 1);
+
+    const metricStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+    expect(metricStats.units).toBe('°C');
+
+    const sliceImperial = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 68,
+      max: 68,
+      units: 'imperial',
+    });
+    expect(sliceImperial.observations).toHaveLength(1);
   });
 });
