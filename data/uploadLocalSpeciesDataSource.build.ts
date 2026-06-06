@@ -16,6 +16,12 @@ import type {
 } from '@/data/types';
 import { isCategoricalAggregateMetric } from '@/data/uploadLocalSpeciesDataSource.shared';
 import { validateUploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource.normalize';
+import {
+  applyConv,
+  getMetricToImperial,
+  reverseConv,
+  type LinearConversion,
+} from '@/data/unitConversions';
 import type {
   UploadedCategoricalStatsRow,
   UploadedDensityGraphPoint,
@@ -767,6 +773,51 @@ const pickOccurrenceObservations = (
     }));
 };
 
+// ---------------------------------------------------------------------------
+// Display-time unit conversion helpers (mirrors wherewild/util/units.py)
+// ---------------------------------------------------------------------------
+
+const convertSummaryFields = (
+  summary: SpeciesEnvironmentStats['summary'],
+  conv: LinearConversion,
+): SpeciesEnvironmentStats['summary'] => {
+  const pos = (v: number | null | undefined) => applyConv(v, conv);
+  return {
+    ...summary,
+    min: pos(summary.min),
+    mean: pos(summary.mean),
+    max: pos(summary.max),
+    stddev: summary.stddev != null ? applyConv(summary.stddev, conv, true) : summary.stddev,
+    q01: pos(summary.q01),
+    q10: pos(summary.q10),
+    q90: pos(summary.q90),
+    q99: pos(summary.q99),
+    mode: typeof summary.mode === 'number' ? pos(summary.mode) : summary.mode,
+    // rbar, circular_mean, circular_std, unique_classes, entropy, count: unitless — no conversion
+  };
+};
+
+const convertStats = (
+  stats: SpeciesEnvironmentStats,
+  conv: LinearConversion,
+): SpeciesEnvironmentStats => ({
+  ...stats,
+  units: conv.unit,
+  summary: convertSummaryFields(stats.summary, conv),
+  baselineSummary: stats.baselineSummary
+    ? convertSummaryFields(stats.baselineSummary, conv)
+    : stats.baselineSummary,
+  histogram: stats.histogram
+    ? { bins: stats.histogram.bins.map((b) => applyConv(b, conv) ?? b), counts: stats.histogram.counts }
+    : stats.histogram,
+  densityCurve: stats.densityCurve
+    ? {
+        points: stats.densityCurve.points.map((p) => applyConv(p, conv) ?? p),
+        density: stats.densityCurve.density, // normalized by chart — no need to scale
+      }
+    : stats.densityCurve,
+});
+
 export const buildUploadLocalSpeciesDataSource = ({
   bundle,
   speciesId = DEFAULT_SPECIES_ID,
@@ -783,21 +834,35 @@ export const buildUploadLocalSpeciesDataSource = ({
 
   return createSpeciesDataSource({
     locationParentIdentityMode: 'gid',
-    fetchEnvironmentVariables: async () => {
-      if (bundle.variableDefinitions && bundle.variableDefinitions.length > 0) {
-        return bundle.variableDefinitions.filter((definition) =>
-          supportedVariableIds.has(definition.id),
-        );
-      }
+    fetchEnvironmentVariables: async (options) => {
+      const rawDefs =
+        bundle.variableDefinitions && bundle.variableDefinitions.length > 0
+          ? bundle.variableDefinitions.filter((definition) =>
+              supportedVariableIds.has(definition.id),
+            )
+          : Array.from(supportedVariableIds).map((variable) => {
+              const stats = statsByVariable[variable];
+              return {
+                id: variable,
+                name: stats.variableName,
+                units: stats.units ?? null,
+                valueType: stats.variableType ?? null,
+                category: null,
+                renderMin: null,
+                renderMax: null,
+              };
+            });
 
-      return Array.from(supportedVariableIds).map((variable) => {
-        const stats = statsByVariable[variable];
+      if (options?.units !== 'imperial') return rawDefs;
+
+      return rawDefs.map((def) => {
+        const conv = getMetricToImperial(def.units);
+        if (!conv) return def;
         return {
-          id: variable,
-          name: stats.variableName,
-          units: stats.units ?? null,
-          valueType: stats.variableType ?? null,
-          category: null,
+          ...def,
+          units: conv.unit,
+          renderMin: applyConv(def.renderMin, conv) ?? def.renderMin,
+          renderMax: applyConv(def.renderMax, conv) ?? def.renderMax,
         };
       });
     },
@@ -810,19 +875,34 @@ export const buildUploadLocalSpeciesDataSource = ({
         );
       }
 
-      return buildScopedStats({
+      const scoped = buildScopedStats({
         stats,
         locationGid: options?.location,
         observationsByCatalog,
         locationLookup,
         indexRows: indexRowsByVariable[variableId] ?? [],
       });
+
+      if (options?.units !== 'imperial') return scoped;
+      const conv = getMetricToImperial(scoped.units);
+      return conv ? convertStats(scoped, conv) : scoped;
     },
 
     fetchEnvironmentRangeSlice: async (params) => {
       const indexRows = indexRowsByVariable[params.variableId] ?? [];
+      // The occurrence index stores metric values; reverse-convert selection bounds
+      // when the caller is working in imperial so the overlap check is apples-to-apples.
+      let { min, max } = params;
+      if (params.units === 'imperial') {
+        const rawStats = statsByVariable[params.variableId];
+        const conv = getMetricToImperial(rawStats?.units);
+        if (conv) {
+          min = reverseConv(min, conv) ?? min;
+          max = reverseConv(max, conv) ?? max;
+        }
+      }
       const catalogs = filterCatalogIdsByLocation(
-        collectCatalogsForRange(indexRows, params.min, params.max),
+        collectCatalogsForRange(indexRows, min, max),
         observationsByCatalog,
         locationLookup,
         params.location,
@@ -910,18 +990,24 @@ export const buildUploadLocalSpeciesDataSource = ({
         };
       }
 
-      const value = findObservationEnvironmentValue(
+      const rawValue = findObservationEnvironmentValue(
         indexRowsByVariable[variableId] ?? [],
         catalogNumber,
       );
-      const categoryEntry = findCategoricalDistributionEntry(stats, value);
+      const conv =
+        options?.units === 'imperial' ? getMetricToImperial(stats?.units) : null;
+      const value =
+        conv && typeof rawValue === 'number'
+          ? (applyConv(rawValue, conv) ?? rawValue)
+          : rawValue;
+      const categoryEntry = findCategoricalDistributionEntry(stats, rawValue);
 
       return {
         variable: variableId,
         value,
         valueLabel: categoryEntry?.className ?? null,
         valueDescription: categoryEntry?.description ?? null,
-        units: stats?.units ?? null,
+        units: conv ? conv.unit : (stats?.units ?? null),
       };
     },
 

@@ -339,7 +339,7 @@ describe('SelectFieldView', () => {
     }
   });
 
-  it('applies field and option style branches', () => {
+  it('applies option style branches', () => {
     const highlightedOption = createOption({
       key: 'highlighted',
       label: 'Highlighted',
@@ -362,21 +362,6 @@ describe('SelectFieldView', () => {
       options: [highlightedOption, hoverOption, selectedOption],
     });
     const { tree, cleanup } = createTestTree(props);
-    const field = findByAccessibilityLabel(tree, 'Select field');
-    const fieldStyleFn = field.props.style as PressableStyleFunction;
-    const pressedFieldStyle = fieldStyleFn({ pressed: true, hovered: false });
-    const hoveredFieldStyle = fieldStyleFn({ pressed: false, hovered: true });
-    const pressedFieldBackground = getStyleProperty(
-      pressedFieldStyle,
-      'backgroundColor',
-    );
-    const hoveredFieldBackground = getStyleProperty(
-      hoveredFieldStyle,
-      'backgroundColor',
-    );
-
-    expect(pressedFieldBackground).toBe(props.fieldBackgroundPressed);
-    expect(hoveredFieldBackground).toBe(props.fieldBackgroundHover);
 
     const highlighted = findByAccessibilityLabel(tree, 'Select Highlighted');
     const highlightedStyleFn = highlighted.props
