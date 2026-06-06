@@ -137,14 +137,9 @@ describe('upload local species data source variable categories', () => {
       ],
       densityGraph: [],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 52,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'landcover',
@@ -200,13 +195,8 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 52,
-},
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 }],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'landcover',
@@ -265,13 +255,8 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 52,
-},
-      ],
+      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 }],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'landcover',
@@ -565,14 +550,9 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 12.5 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 12.5,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -645,14 +625,9 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, 'Annual Mean Temperature': 12.5 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  'Annual Mean Temperature': 12.5,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'Annual Mean Temperature',
@@ -960,14 +935,9 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 123, decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 123, decimalLatitude: 10, decimalLongitude: 20, bio_1: 2.1 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 123,
-  bio_1: 2.1,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1022,15 +992,9 @@ describe('upload local species data source variable categories', () => {
       ],
       densityGraph: [],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 'forest', bio_1: 2.1 },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 'forest',
-  bio_1: 2.1,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1086,14 +1050,10 @@ describe('upload local species data source variable categories', () => {
           decimalLatitude: 10,
           decimalLongitude: 20,
           locationGid: 'county-us-ca-sf',
+          bio_1: 2.1,
         },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 2.1,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
@@ -1212,26 +1172,19 @@ describe('upload local species data source variable categories', () => {
           decimalLatitude: 10,
           decimalLongitude: 20,
           locationGid: 'county-us-ca-sf',
+          bio_1: 2.1,
+          landcover: 52,
         },
         {
           catalogNumber: 'obs_nv',
           decimalLatitude: 11,
           decimalLongitude: 21,
           locationGid: 'county-us-nv-ck',
+          bio_1: 3.1,
+          landcover: 130,
         },
       ],
-      occurrenceIndex: [
-{
-  catalogNumber: 'obs_ca',
-  bio_1: 2.1,
-  landcover: 52,
-},
-{
-  catalogNumber: 'obs_nv',
-  bio_1: 3.1,
-  landcover: 130,
-},
-      ],
+      occurrenceIndex: [],
       summaryStats: [
         {
           variable: 'bio_1',
