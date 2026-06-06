@@ -84,7 +84,7 @@ describe('uploadWorkflowHelpers', () => {
   type MockDocumentAssetInput = {
     uri: string;
     name: string;
-    mimeType: string;
+    mimeType?: string;
     file?: File;
     lastModified?: number;
   };
@@ -303,7 +303,7 @@ describe('uploadWorkflowHelpers', () => {
   it('falls back to application/octet-stream when mimeType is absent', () => {
     expect(
       createFilePayload(
-        makeDocumentAsset({ uri: 'file://data', name: 'data' }),
+        makeDocumentAsset({ uri: 'file://data', name: 'data', mimeType: undefined }),
       ),
     ).toEqual(expect.objectContaining({ type: 'application/octet-stream' }));
   });
