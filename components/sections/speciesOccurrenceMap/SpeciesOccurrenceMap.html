@@ -309,14 +309,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       opacity: 0.9,
       fillOpacity: 0.9,
     };
-    const highlightStyle = {
-      radius: markerStyle.radius,
+    const nodataStyle = {
+      radius: 4,
       fillColor: '#ffffff',
-      color: 'rgba(0,0,0,0.65)',
-      weight: 2,
-      opacity: 1,
-      fillOpacity: 1,
+      color: '#999999',
+      weight: 1,
+      opacity: 0.7,
+      fillOpacity: 0.5,
     };
+    const hiddenStyle = { radius: 0, opacity: 0, fillOpacity: 0, weight: 0 };
     const activeHighlightCatalogs = new Set();
     const markers = new Map();
     let selectedPointMarker = null;
@@ -332,7 +333,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function buildObservationValueHtml(varValue, varColor, varLabel) {
-      if (varValue == null) return '';
+      if (varValue == null) return isVariableColorMode ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
       var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
       if (varColor) {
         var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + varColor + ';margin-right:5px;flex-shrink:0"></span>';
@@ -448,14 +449,22 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     var markerBaseColors = new Map();
 
+    var NODATA_SENTINEL = '__nodata__';
+
     function styleForCatalog(catalog) {
-      if (activeHighlightCatalogs.has(catalog)) return highlightStyle;
       var baseColor = markerBaseColors.get(catalog);
+      if (baseColor === NODATA_SENTINEL) return nodataStyle;
       return baseColor ? Object.assign({}, markerStyle, { fillColor: baseColor, color: baseColor }) : markerStyle;
     }
 
+    function effectiveStyleForCatalog(catalog) {
+      if (activeHighlightCatalogs.size > 0 && !activeHighlightCatalogs.has(catalog)) return hiddenStyle;
+      return styleForCatalog(catalog);
+    }
+
+    var isVariableColorMode = IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN);
+
     function baseStyleForPoint(pt, catalog) {
-      if (activeHighlightCatalogs.has(catalog)) return highlightStyle;
       if (pt.varColor) {
         markerBaseColors.set(catalog, pt.varColor);
         return Object.assign({}, markerStyle, { fillColor: pt.varColor, color: pt.varColor });
@@ -471,6 +480,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         markerBaseColors.set(catalog, color);
         return Object.assign({}, markerStyle, { fillColor: color, color: color });
       }
+      if (isVariableColorMode && pt.varValue == null) {
+        markerBaseColors.set(catalog, NODATA_SENTINEL);
+        return nodataStyle;
+      }
       return markerStyle;
     }
 
@@ -482,8 +495,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         });
       }
       markers.forEach((marker, catalog) => {
-        marker.setStyle(styleForCatalog(catalog));
+        marker.setStyle(effectiveStyleForCatalog(catalog));
       });
+      refreshVisibleMarkerPresentation();
     }
 
     function handleHighlightMessage(payload) {
@@ -738,6 +752,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               popup.setContent(content);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
+          } else if (isVariableColorMode) {
+            var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>';
+            var popup = marker.getPopup();
+            if (!popup) {
+              marker.bindPopup(content);
+              popup = marker.getPopup();
+            } else {
+              popup.setContent(content);
+            }
+            if (!marker.isPopupOpen()) marker.openPopup();
           } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
             fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
           }
@@ -771,7 +795,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (!entry.directMarker) {
           entry.directMarker = L.circleMarker(
             [entry.latitude, alignedLongitude],
-            styleForCatalog(entry.key),
+            effectiveStyleForCatalog(entry.key),
           );
           if (entry.popupHtml) {
             entry.directMarker.bindPopup(entry.popupHtml);
@@ -785,7 +809,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
           entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
-          entry.directMarker.setStyle(styleForCatalog(entry.key));
+          entry.directMarker.setStyle(effectiveStyleForCatalog(entry.key));
         }
         entry.alignedLongitude = alignedLongitude;
       }
@@ -858,9 +882,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
         const centerLongitude = map.getCenter().lng;
         const visibleEntries = visibleEntriesForCurrentView(centerLongitude);
+        const activeVisibleEntries = visibleEntries.filter(({ entry }) => !entry.clusterMarkerHidden);
         const shouldShowVisibleIndividuals =
-          visibleEntries.length > 0 &&
-          visibleEntries.length <= MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+          activeVisibleEntries.length > 0 &&
+          activeVisibleEntries.length <= MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
 
         if (shouldShowVisibleIndividuals) {
           if (!showingVisibleIndividualMarkers) {
@@ -870,7 +895,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           }
 
           const visibleKeys = new Set();
-          visibleEntries.forEach(({ entry, alignedLongitude }) => {
+          activeVisibleEntries.forEach(({ entry, alignedLongitude }) => {
             visibleKeys.add(entry.key);
             ensureVisibleDirectMarker(entry, alignedLongitude);
           });
@@ -962,6 +987,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           markerEntries.push(markerEntry);
           markers.set(markerKey, {
             setStyle(style) {
+              if (style === hiddenStyle) {
+                hideClusterMarker(markerEntry);
+              } else {
+                restoreClusterMarker(markerEntry);
+              }
               applyEntryStyle(markerEntry, style);
             },
           });
@@ -1001,22 +1031,23 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       map.on('zoomend', refreshVisibleMarkerPresentation);
       refreshVisibleMarkerPresentation();
 
-      function postMapBounds() {
-        var b = map.getBounds();
-        var msg = { type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-        } else {
-          // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-          window.parent.postMessage(msg, '*');
-        }
-      }
       map.on('moveend', postMapBounds);
       map.on('zoomend', postMapBounds);
       postMapBounds();
     } else {
       map.setView([INITIAL_LAT, INITIAL_LON], INITIAL_ZOOM);
       postMapBounds();
+    }
+
+    function postMapBounds() {
+      var b = map.getBounds();
+      var msg = { type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+        window.parent.postMessage(msg, '*');
+      }
     }
 
     map.on('click', function(event) {

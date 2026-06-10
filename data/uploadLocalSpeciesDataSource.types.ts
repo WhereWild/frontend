@@ -169,6 +169,13 @@ export type RawVariableMetadataRow = {
   legend_classes?: unknown;
 };
 
+export type RawLocationRow = {
+  gid?: unknown;
+  name?: unknown;
+  level?: unknown;
+  hierarchy?: unknown;
+};
+
 export type RawUploadedParquetBundle = {
   categoricalStats: RawCategoricalStatsRow[];
   circularStats?: RawSummaryStatsRow[];
@@ -180,7 +187,7 @@ export type RawUploadedParquetBundle = {
   variableMetadata?: RawVariableMetadataRow[];
   variableDefinitions?: EnvironmentVariableDefinition[];
   dataSources?: Record<string, DataSource>;
-  locations?: LocationSearchResult[];
+  locations?: RawLocationRow[];
   meta?: LocalSourceMeta;
 };
 

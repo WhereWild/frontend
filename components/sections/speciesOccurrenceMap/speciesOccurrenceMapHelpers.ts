@@ -24,7 +24,7 @@ export const MAP_TILE_URL_TEMPLATE_DARK =
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
-export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 5000;
+export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 10000;
 
 export type MapTileMode = 'light' | 'dark';
 

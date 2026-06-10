@@ -1041,7 +1041,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     );
     expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);
-    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(5000);
+    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(10000);
   });
 
   it('resolves a tile template for both light and dark map modes', () => {

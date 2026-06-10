@@ -5,8 +5,10 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SpeciesEnvironmentSection, SpeciesOccurrenceMap } from '@/components';
+import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { Size } from '@/constants/theme';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
@@ -48,14 +50,36 @@ function UploadSpeciesPreviewSection({
 }) {
   const settings = useOptionalSettings();
   const units = settings?.units;
+  const {
+    countryOptions, stateOptions, countyOptions,
+    countryLoading, stateLoading, countyLoading,
+    selectedCountryGid, selectedStateGid, selectedCountyGid,
+    finalLocationGid,
+    onCountryChange, onStateChange, onCountyChange,
+  } = useSpeciesLocationFilters({ taxonId: UPLOAD_PREVIEW_TAXON_ID, locationSearchLimit: 500 });
   return (
     <View style={styles.previewSection}>
+      <SpeciesLocationFilters
+        countryOptions={countryOptions}
+        stateOptions={stateOptions}
+        countyOptions={countyOptions}
+        countryLoading={countryLoading}
+        stateLoading={stateLoading}
+        countyLoading={countyLoading}
+        selectedCountryGid={selectedCountryGid}
+        selectedStateGid={selectedStateGid}
+        selectedCountyGid={selectedCountyGid}
+        onCountryChange={onCountryChange}
+        onStateChange={onStateChange}
+        onCountyChange={onCountyChange}
+      />
       <SpeciesEnvironmentSection
         taxonId={UPLOAD_PREVIEW_TAXON_ID}
         onHighlightChange={onHighlightChange}
         pinnedObservation={pinnedObservation}
         onVariableMetaChange={onVariableMetaChange}
         units={units}
+        locationGid={finalLocationGid}
       />
     </View>
   );
