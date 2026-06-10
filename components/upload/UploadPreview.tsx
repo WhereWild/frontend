@@ -206,6 +206,7 @@ export function UploadPreview({
 
   const cbMode = settings?.cbMode;
   const shapesEnabled = settings?.shapesEnabled ?? false;
+  const markerOutlineEnabled = (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
@@ -366,6 +367,7 @@ export function UploadPreview({
             observationValues={observationValues}
             classColors={classColors}
             classShapes={classShapes}
+            markerOutlineEnabled={markerOutlineEnabled}
             classLabels={classLabels}
             dotMin={dotMin}
             dotMax={dotMax}
@@ -421,7 +423,7 @@ export function UploadPreview({
             />
           )}
           {cbVisibleCategoricalClasses && (
-            <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} />
+            <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} markerOutlineEnabled={markerOutlineEnabled} />
           )}
           {visibleCategoricalClasses && selectedVariableMeta && settings?.setCbMode && (
             <MapCbModePicker
@@ -430,6 +432,7 @@ export function UploadPreview({
               topClasses={visibleCategoricalClasses.slice(0, 3)}
               variableId={selectedVariableMeta.id ?? ''}
               shapesEnabled={shapesEnabled}
+              markerOutlineEnabled={markerOutlineEnabled}
             />
           )}
         </View>

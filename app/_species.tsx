@@ -168,7 +168,8 @@ export default function Species({
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
-  const { units, colormap: selectedColormap, setColormap: setSelectedColormap, circularColormap: selectedCircularColormap, setCircularColormap: setSelectedCircularColormap, cbMode, setCbMode, shapesEnabled } = useSettings();
+  const { units, colormap: selectedColormap, setColormap: setSelectedColormap, circularColormap: selectedCircularColormap, setCircularColormap: setSelectedCircularColormap, cbMode, setCbMode, shapesEnabled, markerOutlineEnabled } = useSettings();
+  const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
   const { height: viewportHeight } = useWindowDimensions();
   const observationMapHeight = React.useMemo(() => {
     return calculateObservationMapHeight({
@@ -590,6 +591,7 @@ export default function Species({
                   classColors={classColors}
                   classLabels={classLabels}
                   classShapes={classShapes}
+                  markerOutlineEnabled={effectiveOutline}
                   dotMin={obsDotMin}
                   dotMax={obsDotMax}
                   varUnits={
@@ -649,7 +651,7 @@ export default function Species({
                   />
                 )}
                 {cbVisibleCategoricalClasses && (
-                  <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} />
+                  <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} markerOutlineEnabled={effectiveOutline} />
                 )}
                 {visibleCategoricalClasses && selectedVariableMeta && (
                   <MapCbModePicker
@@ -658,6 +660,7 @@ export default function Species({
                     topClasses={visibleCategoricalClasses.slice(0, 3)}
                     variableId={selectedVariableMeta.id ?? ''}
                     shapesEnabled={shapesEnabled}
+                    markerOutlineEnabled={effectiveOutline}
                   />
                 )}
               </View>

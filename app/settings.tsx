@@ -53,7 +53,7 @@ const COLOR_MODE_OPTIONS = [
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap, cbMode, setCbMode, shapesEnabled, setShapesEnabled } =
+  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap, cbMode, setCbMode, shapesEnabled, setShapesEnabled, markerOutlineEnabled, setMarkerOutlineEnabled } =
     useSettings();
 
   const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({ label: COLORMAPS[id].label, value: id }));
@@ -213,16 +213,17 @@ export default function Settings() {
                     onValueChange={handleCbModeChange}
                     description='Adjusts categorical map colors for color vision deficiencies'
                   />
-                  {cbMode === 'achromatopsia' && (
-                    <ThemedText variant='bodyTiny' style={styles.hint}>
-                      {'For best visibility, also set Color mode to Light and Sequential colormap to Cividis.'}
-                    </ThemedText>
-                  )}
                   <SwitchField
                     label='Show category shapes'
                     description='Display a distinct shape per category alongside color'
                     value={shapesEnabled}
                     onValueChange={setShapesEnabled}
+                  />
+                  <SwitchField
+                    label='Marker outlines'
+                    description='Add a gray outline around markers for contrast on dark tiles'
+                    value={markerOutlineEnabled}
+                    onValueChange={setMarkerOutlineEnabled}
                   />
                 </View>
               </View>

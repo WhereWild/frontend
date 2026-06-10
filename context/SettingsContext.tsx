@@ -57,6 +57,8 @@ type SettingsContextType = {
   setCbMode: (v: CbMode | null) => void;
   shapesEnabled: boolean;
   setShapesEnabled: (v: boolean) => void;
+  markerOutlineEnabled: boolean;
+  setMarkerOutlineEnabled: (v: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -98,6 +100,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.shapesEnabled',
     false,
   );
+  const [markerOutlineEnabled, setMarkerOutlineEnabled] = useAsyncStorageState<boolean>(
+    'settings.markerOutlineEnabled',
+    false,
+  );
 
   return (
     <SettingsContext.Provider
@@ -118,6 +124,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setCbMode,
         shapesEnabled,
         setShapesEnabled,
+        markerOutlineEnabled,
+        setMarkerOutlineEnabled,
       }}
     >
       {children}

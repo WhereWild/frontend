@@ -30,9 +30,10 @@ type MapCategoricalLegendProps = {
   variableId?: string;
   cbMode?: CbMode | null;
   shapesEnabled?: boolean;
+  markerOutlineEnabled?: boolean;
 };
 
-export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnabled = false }: MapCategoricalLegendProps) {
+export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnabled = false, markerOutlineEnabled = false }: MapCategoricalLegendProps) {
   const useShapes = (cbMode === 'achromatopsia' || shapesEnabled) && variableId != null;
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -71,11 +72,12 @@ export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnable
                 shape={getCbShape(variableId!, cls.id as number)}
                 color={cls.color ?? '#888888'}
                 size={8}
+                outline={markerOutlineEnabled}
               />
             ) : (
               <View
                 key={cls.id}
-                style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }]}
+                style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }, markerOutlineEnabled && styles.dotOutline]}
               />
             ),
           )}
@@ -98,10 +100,11 @@ export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnable
                   shape={getCbShape(variableId!, cls.id as number)}
                   color={cls.color ?? '#888888'}
                   size={8}
+                  outline={markerOutlineEnabled}
                 />
               ) : (
                 <View
-                  style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }]}
+                  style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }, markerOutlineEnabled && styles.dotOutline]}
                 />
               )}
               <ThemedText
@@ -160,6 +163,10 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     flexShrink: 0,
+  },
+  dotOutline: {
+    borderWidth: 1,
+    borderColor: 'rgba(176,176,176,0.65)',
   },
   label: {
     flexShrink: 1,

@@ -23,6 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       margin: 0;
       padding: 0;
     }
+    .leaflet-interactive { paint-order: stroke fill; }
   </style>
 </head>
 
@@ -67,6 +68,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const VAR_UNITS = __VAR_UNITS_JSON__;
     const CLASS_COLORS = __CLASS_COLORS_JSON__;
     const CLASS_SHAPES = __CLASS_SHAPES_JSON__;
+    const MARKER_OUTLINE = __MARKER_OUTLINE__;
+    var OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
 
     var ASPECT_STOPS = __ASPECT_STOPS_JSON__;
     function aspectColor(deg) {
@@ -308,8 +311,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const markerStyle = {
       radius: 4,
       fillColor: palette.markerFill,
-      color: palette.markerStroke,
-      weight: 1,
+      color: OUTLINE_STROKE || palette.markerStroke,
+      weight: MARKER_OUTLINE ? 2 : 1,
       opacity: 0.9,
       fillOpacity: 0.9,
     };
@@ -396,17 +399,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function shapeToPopupSvg(shape, color) {
+      var outlineShadow = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
+      var outlineStroke = MARKER_OUTLINE ? ' stroke="rgba(176,176,176,0.65)" stroke-width="2.5"' : '';
       if (shape === 'ring') {
-        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid ' + color + ';background:transparent;margin-right:5px;flex-shrink:0;box-sizing:border-box;vertical-align:middle"></span>';
+        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid ' + color + ';background:transparent;margin-right:5px;flex-shrink:0;box-sizing:border-box;vertical-align:middle' + outlineShadow + '"></span>';
       }
       var pts = shape && SHAPE_POINTS[shape];
       if (!pts) {
-        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle"></span>';
+        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle' + outlineShadow + '"></span>';
       }
       var d = pts.map(function(p, i) {
         return (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1);
       }).join(' ') + 'Z';
-      return '<svg width="8" height="8" viewBox="-0.5 -0.5 9 9" style="display:inline-block;margin-right:5px;flex-shrink:0;vertical-align:middle" xmlns="http://www.w3.org/2000/svg"><path d="' + d + '" fill="' + color + '"/></svg>';
+      return '<svg width="8" height="8" viewBox="-0.5 -0.5 9 9" style="display:inline-block;margin-right:5px;flex-shrink:0;vertical-align:middle" xmlns="http://www.w3.org/2000/svg"><path d="' + d + '" fill="' + color + '"' + outlineStroke + '/></svg>';
     }
 
     function buildObservationValueHtml(varValue, varColor, varLabel, varShape) {
@@ -417,16 +422,17 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         var labelText = varLabel || '';
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
       }
+      var obsOutlineCss = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
       if (IS_CIRCULAR) {
         var color = aspectColor(varValue);
-        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle"></span>';
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle' + obsOutlineCss + '"></span>';
         var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
       }
       if (isNumericVar) {
         var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
         var color = gradientColor(t);
-        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle"></span>';
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle' + obsOutlineCss + '"></span>';
         var units = VAR_UNITS ? ' ' + VAR_UNITS : '';
         var fmt = Math.abs(varValue) >= 1000 ? varValue.toLocaleString(undefined, {maximumFractionDigits: 0}) : varValue.toLocaleString(undefined, {maximumFractionDigits: 2});
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
@@ -531,7 +537,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     function styleForCatalog(catalog) {
       var baseColor = markerBaseColors.get(catalog);
       if (baseColor === NODATA_SENTINEL) return nodataStyle;
-      return baseColor ? Object.assign({}, markerStyle, { fillColor: baseColor, color: baseColor }) : markerStyle;
+      return baseColor ? Object.assign({}, markerStyle, { fillColor: baseColor, color: OUTLINE_STROKE || baseColor }) : markerStyle;
     }
 
     function effectiveStyleForCatalog(catalog) {
@@ -544,18 +550,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     function baseStyleForPoint(pt, catalog) {
       if (pt.varColor) {
         markerBaseColors.set(catalog, pt.varColor);
-        return Object.assign({}, markerStyle, { fillColor: pt.varColor, color: pt.varColor });
+        return Object.assign({}, markerStyle, { fillColor: pt.varColor, color: OUTLINE_STROKE || pt.varColor });
       }
       if (IS_CIRCULAR && pt.varValue != null) {
         var color = aspectColor(pt.varValue);
         markerBaseColors.set(catalog, color);
-        return Object.assign({}, markerStyle, { fillColor: color, color: color });
+        return Object.assign({}, markerStyle, { fillColor: color, color: OUTLINE_STROKE || color });
       }
       if (DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN && pt.varValue != null) {
         var t = Math.max(0, Math.min(1, (pt.varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
         var color = gradientColor(t);
         markerBaseColors.set(catalog, color);
-        return Object.assign({}, markerStyle, { fillColor: color, color: color });
+        return Object.assign({}, markerStyle, { fillColor: color, color: OUTLINE_STROKE || color });
       }
       if (isVariableColorMode && pt.varValue == null) {
         markerBaseColors.set(catalog, NODATA_SENTINEL);
@@ -821,15 +827,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 }
                 var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
                 var units = data.units ? ' ' + data.units : (VAR_UNITS ? ' ' + VAR_UNITS : '');
+                var dotOutlineCss = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
                 if (IS_CIRCULAR) {
                   var color = aspectColor(numVal);
-                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
                   var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
                   valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
                 } else if (isNumericVar) {
                   var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
                   var color = gradientColor(t);
-                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
                   var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0}) : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
                   valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
                 }

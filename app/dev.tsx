@@ -226,6 +226,7 @@ export default function About() {
   const cbMode = settings?.cbMode ?? null;
   const setCbMode = settings?.setCbMode;
   const shapesEnabled = settings?.shapesEnabled ?? false;
+  const markerOutlineEnabled = (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -1487,6 +1488,7 @@ export default function About() {
                       ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
                       : null
                   }
+                  markerOutlineEnabled={markerOutlineEnabled}
                 />
                 {(() => {
                   const isCircular = isVariableCircular(mapSelectedVariableMeta);
@@ -1535,7 +1537,7 @@ export default function About() {
                       : visibleClasses;
                     return (
                       <>
-                        <MapCategoricalLegend classes={cbClasses} variableId={mapSelectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} />
+                        <MapCategoricalLegend classes={cbClasses} variableId={mapSelectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} markerOutlineEnabled={markerOutlineEnabled} />
                         {setCbMode && (
                           <MapCbModePicker
                             selected={cbMode}
@@ -1543,6 +1545,7 @@ export default function About() {
                             topClasses={visibleClasses.slice(0, 3)}
                             variableId={mapSelectedVariableMeta?.id ?? ''}
                             shapesEnabled={shapesEnabled}
+                            markerOutlineEnabled={markerOutlineEnabled}
                           />
                         )}
                       </>

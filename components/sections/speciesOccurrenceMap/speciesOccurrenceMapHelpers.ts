@@ -71,6 +71,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   aspectStops: '__ASPECT_STOPS_JSON__',
   classColorsJson: '__CLASS_COLORS_JSON__',
   classShapesJson: '__CLASS_SHAPES_JSON__',
+  markerOutline: '__MARKER_OUTLINE__',
 } as const;
 
 export type HighlightMessage = {
@@ -255,6 +256,7 @@ export const buildLeafletHtml = (
   gradientStops?: [number, number, number][] | null,
   aspectStops?: [number, number, number][] | null,
   classShapes?: Map<string, string> | null,
+  markerOutlineEnabled?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -395,6 +397,9 @@ export const buildLeafletHtml = (
         ? JSON.stringify(Object.fromEntries(classShapes))
         : 'null',
     );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.markerOutline)
+    .join(markerOutlineEnabled ? 'true' : 'false');
   return html;
 };
 

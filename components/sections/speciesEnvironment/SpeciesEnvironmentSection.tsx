@@ -486,6 +486,7 @@ function SpeciesEnvironmentSectionComponent({
               highlightOutlineColor='#F59E0B'
               variableId={selectedVariable ?? undefined}
               shapesEnabled={settings?.shapesEnabled ?? false}
+              markerOutlineEnabled={settings?.markerOutlineEnabled ?? false}
             />
           )}
           {typeof displayState?.summary?.unique_classes === 'number' && (

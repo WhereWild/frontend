@@ -54,6 +54,8 @@ type StackedCategoryBarProps = {
   variableId?: string;
   /** Whether to show per-category shapes on pill icons. */
   shapesEnabled?: boolean;
+  /** Whether to draw a gray outline around pill icons. */
+  markerOutlineEnabled?: boolean;
 };
 
 /** Builds human-readable description text for the selected category. */
@@ -81,6 +83,7 @@ export function StackedCategoryBar({
   highlightOutlineColor = '#F59E0B',
   variableId,
   shapesEnabled = false,
+  markerOutlineEnabled = false,
 }: StackedCategoryBarProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -194,6 +197,7 @@ export function StackedCategoryBar({
             shape={getCbShape(variableId, classId)}
             color={color}
             size={12}
+            outline={markerOutlineEnabled}
           />
         ) : (
           <View
@@ -202,6 +206,7 @@ export function StackedCategoryBar({
               height: 12,
               borderRadius: 6,
               backgroundColor: color,
+              ...(markerOutlineEnabled ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' } : {}),
             }}
           />
         ),
@@ -223,6 +228,7 @@ export function StackedCategoryBar({
             shape={getCbShape(variableId, otherClassId)}
             color={otherColor}
             size={12}
+            outline={markerOutlineEnabled}
           />
         ) : (
           <View
@@ -231,13 +237,14 @@ export function StackedCategoryBar({
               height: 12,
               borderRadius: 6,
               backgroundColor: otherColor,
+              ...(markerOutlineEnabled ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' } : {}),
             }}
           />
         ),
       });
     }
     return base;
-  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory, shapesEnabled, variableId]);
+  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory, shapesEnabled, markerOutlineEnabled, variableId]);
 
   const handlePillSelectionChange = React.useCallback(
     (key: string) => {

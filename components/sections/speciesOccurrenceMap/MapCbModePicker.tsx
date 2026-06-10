@@ -24,6 +24,7 @@ type MapCbModePickerProps = {
   topClasses: LegendClass[];
   variableId: string;
   shapesEnabled?: boolean;
+  markerOutlineEnabled?: boolean;
 };
 
 export function MapCbModePicker({
@@ -32,6 +33,7 @@ export function MapCbModePicker({
   topClasses,
   variableId,
   shapesEnabled = false,
+  markerOutlineEnabled = false,
 }: MapCbModePickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -70,13 +72,14 @@ export function MapCbModePicker({
                     shape={getCbShape(variableId, cls.id as number)}
                     color={color}
                     size={8}
+                    outline={markerOutlineEnabled}
                   />
                 );
               }
               return (
                 <View
                   key={cls.id}
-                  style={[styles.dot, { backgroundColor: color }]}
+                  style={[styles.dot, { backgroundColor: color }, markerOutlineEnabled && styles.dotOutline]}
                 />
               );
             })}
@@ -121,5 +124,9 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     flexShrink: 0,
+  },
+  dotOutline: {
+    borderWidth: 1,
+    borderColor: 'rgba(176,176,176,0.65)',
   },
 });
