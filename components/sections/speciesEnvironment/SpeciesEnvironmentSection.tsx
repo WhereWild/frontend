@@ -484,6 +484,8 @@ function SpeciesEnvironmentSectionComponent({
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               highlightOutlineColor='#F59E0B'
+              variableId={selectedVariable ?? undefined}
+              shapesEnabled={settings?.shapesEnabled ?? false}
             />
           )}
           {typeof displayState?.summary?.unique_classes === 'number' && (

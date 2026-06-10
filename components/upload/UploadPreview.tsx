@@ -24,7 +24,7 @@ import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/Ma
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
 import { COLORMAPS, CIRCULAR_COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
-import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
+import { getCbColor, getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
@@ -205,6 +205,7 @@ export function UploadPreview({
   }, [selectedVariableMeta, uploadedBundle, metricToCodeByVariable, units]);
 
   const cbMode = settings?.cbMode;
+  const shapesEnabled = settings?.shapesEnabled ?? false;
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
@@ -215,6 +216,17 @@ export function UploadPreview({
     }
     return map.size > 0 ? map : null;
   }, [selectedVariableMeta, cbMode]);
+
+  const classShapes = React.useMemo((): Map<string, string> | null => {
+    if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
+    if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta)) return null;
+    const variableId = selectedVariableMeta.id ?? '';
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta.legendClasses ?? []) {
+      map.set(String(cls.id), getCbShape(variableId, cls.id as number));
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta, cbMode, shapesEnabled]);
 
   const classLabels = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
@@ -353,6 +365,7 @@ export function UploadPreview({
             }
             observationValues={observationValues}
             classColors={classColors}
+            classShapes={classShapes}
             classLabels={classLabels}
             dotMin={dotMin}
             dotMax={dotMax}
@@ -408,7 +421,7 @@ export function UploadPreview({
             />
           )}
           {cbVisibleCategoricalClasses && (
-            <MapCategoricalLegend classes={cbVisibleCategoricalClasses} />
+            <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} />
           )}
           {visibleCategoricalClasses && selectedVariableMeta && settings?.setCbMode && (
             <MapCbModePicker
@@ -416,6 +429,7 @@ export function UploadPreview({
               onChange={settings.setCbMode}
               topClasses={visibleCategoricalClasses.slice(0, 3)}
               variableId={selectedVariableMeta.id ?? ''}
+              shapesEnabled={shapesEnabled}
             />
           )}
         </View>

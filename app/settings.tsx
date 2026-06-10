@@ -12,6 +12,7 @@ import {
   SelectField,
   PageScrollContainer,
 } from '@/components';
+import { SwitchField } from '@/components/inputs/SwitchField';
 import { PageSurface } from '@/components/PageSurface';
 import { IconChevronRight, IconInfo, IconUpload } from '@/assets/icons';
 import { Size } from '@/constants/theme';
@@ -52,7 +53,7 @@ const COLOR_MODE_OPTIONS = [
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap, cbMode, setCbMode } =
+  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap, cbMode, setCbMode, shapesEnabled, setShapesEnabled } =
     useSettings();
 
   const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({ label: COLORMAPS[id].label, value: id }));
@@ -212,6 +213,17 @@ export default function Settings() {
                     onValueChange={handleCbModeChange}
                     description='Adjusts categorical map colors for color vision deficiencies'
                   />
+                  {cbMode === 'achromatopsia' && (
+                    <ThemedText variant='bodyTiny' style={styles.hint}>
+                      {'For best visibility, also set Color mode to Light and Sequential colormap to Cividis.'}
+                    </ThemedText>
+                  )}
+                  <SwitchField
+                    label='Show category shapes'
+                    description='Display a distinct shape per category alongside color'
+                    value={shapesEnabled}
+                    onValueChange={setShapesEnabled}
+                  />
                 </View>
               </View>
 
@@ -286,6 +298,10 @@ const styles = StyleSheet.create({
     width: 240,
     maxWidth: '100%',
     alignItems: 'stretch',
+  },
+  hint: {
+    opacity: 0.65,
+    marginTop: -Size.space.text.paragraph / 2,
   },
   actionStack: {
     width: '100%',

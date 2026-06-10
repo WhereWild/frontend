@@ -66,6 +66,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
     const VAR_UNITS = __VAR_UNITS_JSON__;
     const CLASS_COLORS = __CLASS_COLORS_JSON__;
+    const CLASS_SHAPES = __CLASS_SHAPES_JSON__;
 
     var ASPECT_STOPS = __ASPECT_STOPS_JSON__;
     function aspectColor(deg) {
@@ -322,6 +323,65 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     };
     const hiddenStyle = { radius: 0, opacity: 0, fillOpacity: 0, weight: 0 };
     const activeHighlightCatalogs = new Set();
+
+    // Shape points defined in an 8×8 coordinate system, center at (4,4), radius 4.
+    var SHAPE_POINTS = {
+      square:          [[0,0],[8,0],[8,8],[0,8]],
+      triangle:        [[4,-0.4],[8.4,8.4],[-0.4,8.4]],
+      'triangle-down': [[-0.4,-0.4],[8.4,-0.4],[4,8.4]],
+      diamond:         [[4,0],[8,4],[4,8],[0,4]],
+      cross:           [[1.5,0],[4,2.5],[6.5,0],[8,1.5],[5.5,4],[8,6.5],[6.5,8],[4,5.5],[1.5,8],[0,6.5],[2.5,4],[0,1.5]],
+      plus:            [[3,0],[5,0],[5,3],[8,3],[8,5],[5,5],[5,8],[3,8],[3,5],[0,5],[0,3],[3,3]],
+      star:            [[4,0],[5,3],[8,4],[5,5],[4,8],[3,5],[0,4],[3,3]],
+      hexagon:         [[8,4],[6,7.46],[2,7.46],[0,4],[2,0.54],[6,0.54]],
+      pentagon:        [[4,0],[7.8,2.76],[6.35,7.24],[1.65,7.24],[0.2,2.76]],
+      arrow:           [[0,2.5],[5,2.5],[5,0],[8,4],[5,8],[5,5.5],[0,5.5]],
+    };
+
+    function viewBoxToPath(points, cx, cy, r) {
+      var s = r / 4;
+      return points.map(function(p, i) {
+        return (i === 0 ? 'M' : 'L') + (cx + (p[0] - 4) * s).toFixed(2) + ',' + (cy + (p[1] - 4) * s).toFixed(2);
+      }).join(' ') + 'Z';
+    }
+
+    // Patch the SVG renderer so circleMarkers with a `shape` option draw as
+    // custom paths rather than <circle> elements — same rendering layer,
+    // no per-marker DOM overhead.
+    (function() {
+      var _orig = L.SVG.prototype._updateCircle;
+      L.SVG.prototype._updateCircle = function(layer) {
+        var shape = layer.options && layer.options.shape;
+        if (!shape || shape === 'circle') { _orig.call(this, layer); return; }
+        var el = layer._path;
+        if (el && el.tagName.toLowerCase() !== 'path') {
+          var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          var cls = el.getAttribute('class') || '';
+          if (cls) p.setAttribute('class', cls);
+          if (el.parentNode) el.parentNode.replaceChild(p, el);
+          layer._path = p;
+        }
+        var pts = SHAPE_POINTS[shape];
+        if (!pts) { _orig.call(this, layer); return; }
+        var r = layer._radius || 0;
+        layer._path.setAttribute('d', r > 0 ? viewBoxToPath(pts, layer._point.x, layer._point.y, r) : 'M0,0');
+      };
+    })();
+
+    function createShapeMarker(latlng, shape, style) {
+      if (shape === 'ring') {
+        return L.circleMarker(latlng, Object.assign({}, style, { fill: false, weight: 2 }));
+      }
+      return L.circleMarker(latlng, Object.assign({}, style, { shape: shape }));
+    }
+
+    function applyStyleToMarker(marker, style, varShape) {
+      if (varShape === 'ring') {
+        marker.setStyle(Object.assign({}, style, { fill: false, weight: 2 }));
+      } else {
+        marker.setStyle(style);
+      }
+    }
     const markers = new Map();
     let selectedPointMarker = null;
 
@@ -335,24 +395,38 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
     }
 
-    function buildObservationValueHtml(varValue, varColor, varLabel) {
+    function shapeToPopupSvg(shape, color) {
+      if (shape === 'ring') {
+        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid ' + color + ';background:transparent;margin-right:5px;flex-shrink:0;box-sizing:border-box;vertical-align:middle"></span>';
+      }
+      var pts = shape && SHAPE_POINTS[shape];
+      if (!pts) {
+        return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle"></span>';
+      }
+      var d = pts.map(function(p, i) {
+        return (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1);
+      }).join(' ') + 'Z';
+      return '<svg width="8" height="8" viewBox="-0.5 -0.5 9 9" style="display:inline-block;margin-right:5px;flex-shrink:0;vertical-align:middle" xmlns="http://www.w3.org/2000/svg"><path d="' + d + '" fill="' + color + '"/></svg>';
+    }
+
+    function buildObservationValueHtml(varValue, varColor, varLabel, varShape) {
       if (varValue == null) return isVariableColorMode ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
       var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
       if (varColor) {
-        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + varColor + ';margin-right:5px;flex-shrink:0"></span>';
+        var dot = shapeToPopupSvg(varShape || null, varColor);
         var labelText = varLabel || '';
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
       }
       if (IS_CIRCULAR) {
         var color = aspectColor(varValue);
-        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle"></span>';
         var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
       }
       if (isNumericVar) {
         var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
         var color = gradientColor(t);
-        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle"></span>';
         var units = VAR_UNITS ? ' ' + VAR_UNITS : '';
         var fmt = Math.abs(varValue) >= 1000 ? varValue.toLocaleString(undefined, {maximumFractionDigits: 0}) : varValue.toLocaleString(undefined, {maximumFractionDigits: 2});
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
@@ -360,11 +434,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return '';
     }
 
-    function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel) {
+    function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape) {
       var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
         ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
         : '';
-      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel);
+      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel, varShape);
     }
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
@@ -600,20 +674,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           { radius: markerStyle.radius, fillOpacity: markerStyle.fillOpacity, opacity: 1,
             weight: 2, color: palette.selectedPointStroke, dashArray: '2 2' }
         );
-        selectedCatalogDirectMarker = L.circleMarker(
-          [latitude, alignedLongitude],
-          pinnedObsStyle,
-        );
+        selectedCatalogDirectMarker = matchingEntry.varShape
+          ? createShapeMarker([latitude, alignedLongitude], matchingEntry.varShape, pinnedObsStyle)
+          : L.circleMarker([latitude, alignedLongitude], pinnedObsStyle);
         var selectedPopupContent = buildObservationPopupContent(
           matchingEntry.catalogHref, matchingEntry.catalogLabel,
-          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel
+          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel, matchingEntry.varShape
         );
         selectedCatalogDirectMarker.bindPopup(selectedPopupContent || matchingEntry.popupHtml || '');
         bindObservationMarkerEvents(
           selectedCatalogDirectMarker,
           matchingEntry.catalogValue, matchingEntry.catalogHref, matchingEntry.catalogLabel,
           latitude, matchingEntry.longitude,
-          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel
+          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel, matchingEntry.varShape
         );
         map.addLayer(selectedCatalogDirectMarker);
         if (selectedPopupContent) {
@@ -628,11 +701,29 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         return;
       }
 
-      selectedPointMarker = L.circleMarker(
-        [latitude, alignedLongitude],
-        { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
-          color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' }
-      ).addTo(map);
+      var bgLat = latitude;
+      var bgLon = alignedLongitude;
+      var bgStyle = { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
+        color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' };
+      selectedPointMarker = L.circleMarker([bgLat, bgLon], bgStyle).addTo(map);
+
+      if (CLASS_SHAPES && POINT_QUERY_URL) {
+        (function(markerRef) {
+          fetch(POINT_QUERY_URL + '&lat=' + bgLat + '&lon=' + bgLon)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(function(data) {
+              if (selectedPointMarker !== markerRef) return;
+              if (data.value == null) return;
+              var classKey = String(Math.round(Number(data.value)));
+              var shape = CLASS_SHAPES[classKey];
+              if (!shape || shape === 'circle') return;
+              map.removeLayer(markerRef);
+              selectedPointMarker = createShapeMarker([bgLat, bgLon], shape, bgStyle);
+              selectedPointMarker.addTo(map);
+            })
+            .catch(function() {});
+        })(selectedPointMarker);
+      }
 
       refreshVisibleMarkerPresentation();
     }
@@ -753,7 +844,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           });
       }
 
-      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude, varValue, varColor, varLabel) {
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude, varValue, varColor, varLabel, varShape) {
         var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '';
@@ -770,7 +861,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(pvMsg, '*');
             }
-            var content = buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel);
+            var content = buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape);
             var popup = marker.getPopup();
             if (!popup) {
               marker.bindPopup(content);
@@ -796,8 +887,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
 
       function applyEntryStyle(entry, style) {
-        entry.clusterMarker?.setStyle(style);
-        entry.directMarker?.setStyle(style);
+        if (entry.clusterMarker) applyStyleToMarker(entry.clusterMarker, style, entry.varShape);
+        if (entry.directMarker) applyStyleToMarker(entry.directMarker, style, entry.varShape);
       }
 
       function visibleEntriesForCurrentView(centerLongitude) {
@@ -820,10 +911,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           return;
         }
         if (!entry.directMarker) {
-          entry.directMarker = L.circleMarker(
-            [entry.latitude, alignedLongitude],
-            effectiveStyleForCatalog(entry.key),
-          );
+          var dmStyle = effectiveStyleForCatalog(entry.key);
+          entry.directMarker = entry.varShape
+            ? createShapeMarker([entry.latitude, alignedLongitude], entry.varShape, dmStyle)
+            : L.circleMarker([entry.latitude, alignedLongitude], dmStyle);
           if (entry.popupHtml) {
             entry.directMarker.bindPopup(entry.popupHtml);
           }
@@ -831,12 +922,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             entry.directMarker,
             entry.catalogValue, entry.catalogHref, entry.catalogLabel,
             entry.latitude, entry.longitude,
-            entry.varValue, entry.varColor, entry.varLabel
+            entry.varValue, entry.varColor, entry.varLabel, entry.varShape
           );
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
           entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
-          entry.directMarker.setStyle(effectiveStyleForCatalog(entry.key));
+          applyStyleToMarker(entry.directMarker, effectiveStyleForCatalog(entry.key), entry.varShape);
         }
         entry.alignedLongitude = alignedLongitude;
       }
@@ -984,14 +1075,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         );
 
         if (useVisibilityManagedClustering && clusterGroup) {
-          const clusterMarker = L.circleMarker(
-            [latitude, initialLongitude],
-            baseStyleForPoint(pt, markerKey),
-          );
+          var ptStyle = baseStyleForPoint(pt, markerKey);
+          const clusterMarker = pt.varShape
+            ? createShapeMarker([latitude, initialLongitude], pt.varShape, ptStyle)
+            : L.circleMarker([latitude, initialLongitude], ptStyle);
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml);
           }
-          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null);
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null, pt.varShape ?? null);
 
           const markerEntry = {
             key: markerKey,
@@ -1008,6 +1099,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             varValue: pt.varValue ?? null,
             varColor: pt.varColor ?? null,
             varLabel: pt.varLabel ?? null,
+            varShape: pt.varShape ?? null,
           };
 
           clusterGroup.addLayer(clusterMarker);
@@ -1024,14 +1116,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             },
           });
         } else {
-          const marker = L.circleMarker(
-            [latitude, initialLongitude],
-            baseStyleForPoint(pt, markerKey),
-          );
+          var ptStyle2 = baseStyleForPoint(pt, markerKey);
+          const marker = pt.varShape
+            ? createShapeMarker([latitude, initialLongitude], pt.varShape, ptStyle2)
+            : L.circleMarker([latitude, initialLongitude], ptStyle2);
           if (popupHtml) {
             marker.bindPopup(popupHtml);
           }
-          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null);
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null, pt.varShape ?? null);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -1041,7 +1133,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           });
           markers.set(markerKey, {
             varValue: pt.varValue ?? null,
-            setStyle(style) { marker.setStyle(style); },
+            setStyle(style) { applyStyleToMarker(marker, style, pt.varShape ?? null); },
           });
         }
 
@@ -1115,8 +1207,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
             var isNumeric = colorMin != null && colorMax != null && colorMax > colorMin;
             if (data.class_name || data.class_color) {
-              var resolvedClassColor = (CLASS_COLORS && data.value != null && CLASS_COLORS[String(Math.round(Number(data.value)))]) || data.class_color || null;
-              var dot = resolvedClassColor ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>' : '';
+              var classKey = data.value != null ? String(Math.round(Number(data.value))) : null;
+              var resolvedClassColor = (CLASS_COLORS && classKey && CLASS_COLORS[classKey]) || data.class_color || null;
+              var resolvedClassShape = (CLASS_SHAPES && classKey && CLASS_SHAPES[classKey]) || null;
+              var dot = resolvedClassColor ? shapeToPopupSvg(resolvedClassShape, resolvedClassColor) : '';
               var label = data.class_name || String(numVal);
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
             } else if (IS_CIRCULAR) {
@@ -1134,10 +1228,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
             } else {
-              var resolvedClassColor2 = (CLASS_COLORS && data.value != null && CLASS_COLORS[String(Math.round(Number(data.value)))]) || data.class_color || null;
-              var dot = resolvedClassColor2
-                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor2 + ';margin-right:5px;flex-shrink:0"></span>'
-                : '';
+              var classKey2 = data.value != null ? String(Math.round(Number(data.value))) : null;
+              var resolvedClassColor2 = (CLASS_COLORS && classKey2 && CLASS_COLORS[classKey2]) || data.class_color || null;
+              var resolvedClassShape2 = (CLASS_SHAPES && classKey2 && CLASS_SHAPES[classKey2]) || null;
+              var dot = resolvedClassColor2 ? shapeToPopupSvg(resolvedClassShape2, resolvedClassColor2) : '';
               var units = data.units ? ' ' + data.units : '';
               var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');

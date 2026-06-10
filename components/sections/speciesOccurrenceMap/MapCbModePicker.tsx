@@ -6,7 +6,8 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { getCbColor, type CbMode } from './cbColors';
+import { getCbColor, getCbShape, type CbMode } from './cbColors';
+import { ShapeMarker } from './ShapeMarker';
 import type { LegendClass } from '@/data/types';
 
 const MODES: Array<{ id: CbMode | null; label: string }> = [
@@ -22,6 +23,7 @@ type MapCbModePickerProps = {
   onChange: (mode: CbMode | null) => void;
   topClasses: LegendClass[];
   variableId: string;
+  shapesEnabled?: boolean;
 };
 
 export function MapCbModePicker({
@@ -29,6 +31,7 @@ export function MapCbModePicker({
   onChange,
   topClasses,
   variableId,
+  shapesEnabled = false,
 }: MapCbModePickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -53,22 +56,30 @@ export function MapCbModePicker({
             accessibilityRole='radio'
             accessibilityState={{ selected: isSelected }}
           >
-            {preview.map((cls) => (
-              <View
-                key={cls.id}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: getCbColor(
-                      variableId,
-                      cls.id as number,
-                      entry.id,
-                      cls.color ?? '#888888',
-                    ),
-                  },
-                ]}
-              />
-            ))}
+            {preview.map((cls) => {
+              const color = getCbColor(
+                variableId,
+                cls.id as number,
+                entry.id,
+                cls.color ?? '#888888',
+              );
+              if (shapesEnabled || entry.id === 'achromatopsia') {
+                return (
+                  <ShapeMarker
+                    key={cls.id}
+                    shape={getCbShape(variableId, cls.id as number)}
+                    color={color}
+                    size={8}
+                  />
+                );
+              }
+              return (
+                <View
+                  key={cls.id}
+                  style={[styles.dot, { backgroundColor: color }]}
+                />
+              );
+            })}
             {preview.length === 0 && (
               <View style={[styles.dot, { backgroundColor: '#888888' }]} />
             )}

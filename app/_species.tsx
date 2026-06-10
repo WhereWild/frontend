@@ -20,7 +20,7 @@ import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/Ma
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
 import { COLORMAPS, CIRCULAR_COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
-import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
+import { getCbColor, getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
@@ -168,7 +168,7 @@ export default function Species({
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
-  const { units, colormap: selectedColormap, setColormap: setSelectedColormap, circularColormap: selectedCircularColormap, setCircularColormap: setSelectedCircularColormap, cbMode, setCbMode } = useSettings();
+  const { units, colormap: selectedColormap, setColormap: setSelectedColormap, circularColormap: selectedCircularColormap, setCircularColormap: setSelectedCircularColormap, cbMode, setCbMode, shapesEnabled } = useSettings();
   const { height: viewportHeight } = useWindowDimensions();
   const observationMapHeight = React.useMemo(() => {
     return calculateObservationMapHeight({
@@ -337,6 +337,17 @@ export default function Species({
       cancelled = true;
     };
   }, [taxonId, selectedVariableMeta, units]);
+
+  const classShapes = React.useMemo(() => {
+    if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
+    if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const variableId = selectedVariableMeta?.id ?? '';
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta?.legendClasses ?? []) {
+      map.set(String(cls.id), getCbShape(variableId, cls.id as number));
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta, cbMode, shapesEnabled]);
 
   const classColors = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -578,6 +589,7 @@ export default function Species({
                   observationValues={observationValues}
                   classColors={classColors}
                   classLabels={classLabels}
+                  classShapes={classShapes}
                   dotMin={obsDotMin}
                   dotMax={obsDotMax}
                   varUnits={
@@ -637,7 +649,7 @@ export default function Species({
                   />
                 )}
                 {cbVisibleCategoricalClasses && (
-                  <MapCategoricalLegend classes={cbVisibleCategoricalClasses} />
+                  <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} />
                 )}
                 {visibleCategoricalClasses && selectedVariableMeta && (
                   <MapCbModePicker
@@ -645,6 +657,7 @@ export default function Species({
                     onChange={setCbMode}
                     topClasses={visibleCategoricalClasses.slice(0, 3)}
                     variableId={selectedVariableMeta.id ?? ''}
+                    shapesEnabled={shapesEnabled}
                   />
                 )}
               </View>

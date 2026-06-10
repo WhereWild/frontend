@@ -139,6 +139,7 @@ type SpeciesOccurrenceMapProps = {
   observationValues?: Map<string, number> | null;
   classColors?: Map<string, string> | null;
   classLabels?: Map<string, string> | null;
+  classShapes?: Map<string, string> | null;
   dotMin?: number | null;
   dotMax?: number | null;
   onMapBounds?: (bounds: MapBounds) => void;
@@ -177,6 +178,7 @@ export function SpeciesOccurrenceMap({
   observationValues = null,
   classColors = null,
   classLabels = null,
+  classShapes = null,
   dotMin = null,
   dotMax = null,
   onMapBounds,
@@ -369,6 +371,7 @@ export function SpeciesOccurrenceMap({
       varUnits,
       gradientStops,
       aspectStops,
+      classShapes,
     );
   }, [
     allowPinObservations,
@@ -379,6 +382,7 @@ export function SpeciesOccurrenceMap({
     observationValues,
     classColors,
     classLabels,
+    classShapes,
     dotMin,
     dotMax,
     disableObservationQuery,

@@ -225,6 +225,7 @@ export default function About() {
   const setSelectedCircularColormap = settings?.setCircularColormap;
   const cbMode = settings?.cbMode ?? null;
   const setCbMode = settings?.setCbMode;
+  const shapesEnabled = settings?.shapesEnabled ?? false;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -1534,13 +1535,14 @@ export default function About() {
                       : visibleClasses;
                     return (
                       <>
-                        <MapCategoricalLegend classes={cbClasses} />
+                        <MapCategoricalLegend classes={cbClasses} variableId={mapSelectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} />
                         {setCbMode && (
                           <MapCbModePicker
                             selected={cbMode}
                             onChange={setCbMode}
                             topClasses={visibleClasses.slice(0, 3)}
                             variableId={mapSelectedVariableMeta?.id ?? ''}
+                            shapesEnabled={shapesEnabled}
                           />
                         )}
                       </>

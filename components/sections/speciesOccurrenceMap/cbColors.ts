@@ -2,6 +2,7 @@
 // Re-run the script to regenerate after updating legend JSON files.
 
 export type CbMode = 'colorblind' | 'achromatopsia';
+export type ShapeKey = 'circle' | 'square' | 'triangle' | 'diamond' | 'ring' | 'triangle-down' | 'cross' | 'plus' | 'star' | 'hexagon' | 'pentagon' | 'arrow';
 
 /** Maps variable layer_id → CB mode → class ID → CB-safe hex color. */
 export const CB_CLASS_COLORS: Record<string, Partial<Record<CbMode, Record<number, string>>>> = {
@@ -42,4 +43,20 @@ export function getCbColor(
   // Strip temporal suffix (e.g. weather_code_simple_mode_168h → weather_code_simple)
   const baseId = variableId.replace(/_(avg|sum|mode|snapshot)_\d+h$/i, '');
   return CB_CLASS_COLORS[baseId]?.[cbMode]?.[classId] ?? fallback;
+}
+
+/** Maps variable layer_id → class ID → shape key used in achromatopsia mode. */
+export const CB_CLASS_SHAPES: Record<string, Record<number, ShapeKey>> = {
+  kg0: { 1: 'circle', 2: 'circle', 3: 'square', 4: 'square', 5: 'triangle', 6: 'triangle', 7: 'diamond', 8: 'diamond', 9: 'ring', 10: 'ring', 11: 'ring', 12: 'triangle-down', 13: 'triangle-down', 14: 'triangle-down', 15: 'ring', 16: 'ring', 17: 'ring', 18: 'cross', 19: 'cross', 20: 'plus', 21: 'plus', 22: 'star', 23: 'star', 24: 'star', 25: 'star', 26: 'cross', 27: 'cross', 28: 'plus', 29: 'plus', 30: 'hexagon', 31: 'hexagon' },
+  landcover: { 0: 'circle', 10: 'square', 11: 'square', 12: 'square', 20: 'square', 51: 'triangle', 52: 'triangle', 61: 'triangle', 62: 'triangle', 71: 'triangle', 72: 'triangle', 81: 'triangle', 82: 'triangle', 91: 'triangle', 92: 'triangle', 120: 'diamond', 121: 'diamond', 122: 'diamond', 130: 'ring', 140: 'triangle-down', 150: 'triangle-down', 152: 'triangle-down', 153: 'triangle-down', 181: 'cross', 182: 'cross', 183: 'cross', 184: 'cross', 185: 'cross', 186: 'cross', 187: 'cross', 190: 'plus', 200: 'star', 201: 'star', 202: 'star', 210: 'hexagon', 220: 'pentagon', 250: 'circle' },
+  landform: { 1: 'circle', 2: 'square', 3: 'triangle', 4: 'circle', 5: 'circle', 6: 'triangle', 7: 'square' },
+  lithology: { 1: 'circle', 2: 'square', 3: 'circle', 4: 'square', 5: 'triangle', 6: 'triangle', 7: 'diamond', 8: 'circle', 9: 'square', 10: 'ring', 11: 'triangle', 12: 'square', 13: 'triangle', 14: 'triangle-down', 15: 'cross' },
+  weather_code_simple: { 0: 'circle', 1: 'square', 2: 'square', 3: 'square', 51: 'triangle', 53: 'triangle', 55: 'triangle', 61: 'diamond', 63: 'diamond', 65: 'diamond', 71: 'ring', 73: 'ring', 75: 'ring' },
+  wrb: { 0: 'circle', 1: 'square', 2: 'square', 3: 'triangle', 4: 'diamond', 5: 'ring', 6: 'triangle-down', 7: 'cross', 8: 'plus', 9: 'ring', 10: 'circle', 11: 'star', 12: 'star', 13: 'ring', 14: 'hexagon', 15: 'cross', 16: 'pentagon', 17: 'circle', 18: 'square', 19: 'circle', 20: 'cross', 21: 'star', 22: 'circle', 23: 'arrow', 24: 'pentagon', 25: 'ring', 26: 'ring', 27: 'star', 28: 'arrow', 29: 'star' },
+};
+
+/** Look up the shape for a class in achromatopsia mode. */
+export function getCbShape(variableId: string, classId: number): ShapeKey {
+  const baseId = variableId.replace(/_(avg|sum|mode|snapshot)_\d+h$/i, '');
+  return CB_CLASS_SHAPES[baseId]?.[classId] ?? 'circle';
 }

@@ -55,6 +55,8 @@ type SettingsContextType = {
   setCircularColormap: (v: CircularColormapId) => void;
   cbMode: CbMode | null;
   setCbMode: (v: CbMode | null) => void;
+  shapesEnabled: boolean;
+  setShapesEnabled: (v: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -92,6 +94,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     null,
   );
   const setCbMode = (v: CbMode | null) => setCbModeRaw(v);
+  const [shapesEnabled, setShapesEnabled] = useAsyncStorageState<boolean>(
+    'settings.shapesEnabled',
+    false,
+  );
 
   return (
     <SettingsContext.Provider
@@ -110,6 +116,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setCircularColormap,
         cbMode,
         setCbMode,
+        shapesEnabled,
+        setShapesEnabled,
       }}
     >
       {children}

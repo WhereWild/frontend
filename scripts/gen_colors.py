@@ -162,6 +162,12 @@ _PALETTE_KRZYWINSKI_12: List[str] = [
 _NEUTRAL_GROUPS = {'filled', 'undefined'}
 _NEUTRAL_HEX = '#aaaaaa'
 
+_SHAPES = [
+    'circle', 'square', 'triangle', 'diamond', 'ring',
+    'triangle-down', 'cross', 'plus', 'star', 'hexagon',
+    'pentagon', 'arrow',
+]
+
 def _select_palette(n_groups: int) -> List[str]:
     if n_groups <= len(_PALETTE_OKABE_ITO):
         return _PALETTE_OKABE_ITO
@@ -301,17 +307,29 @@ def _ach_l_values(all_count: int, group_rank: int, group_size: int) -> List[floa
 # Main generation
 # ---------------------------------------------------------------------------
 
-def generate_variable(classes: List[dict]) -> Dict[str, Dict[int, str]]:
-    """Return {mode_key: {class_id: hex_color}} for 'cb' and 'ach'."""
+def generate_variable(classes: List[dict]) -> Dict[str, Dict]:
+    """Return {'cb', 'ach', 'shapes'} → {class_id → value} dicts."""
     groups: Dict[str, List[dict]] = defaultdict(list)
     for cls in classes:
         groups[cls['group']].append(cls)
+
+    # Track first-appearance order for stable shape assignment
+    seen_groups: List[str] = []
+    for cls in classes:
+        if cls['group'] not in seen_groups:
+            seen_groups.append(cls['group'])
 
     # Sort members within each group by source L (darkest first)
     for members in groups.values():
         members.sort(key=lambda c: hex_to_lch(c['traits']['color'])[0])
 
-    result: Dict[str, Dict[int, str]] = {'cb': {}, 'ach': {}}
+    result: Dict[str, Dict] = {'cb': {}, 'ach': {}, 'shapes': {}}
+
+    # Shapes: sequential from _SHAPES by first-appearance group order
+    for gi, g in enumerate(seen_groups):
+        shape = _SHAPES[gi % len(_SHAPES)]
+        for cls in groups[g]:
+            result['shapes'][cls['id']] = shape
 
     # Achromatopsia: pure lightness spread, palette irrelevant
     group_order = list(groups.keys())
@@ -352,6 +370,7 @@ _TS_HEADER = """\
 // Re-run the script to regenerate after updating legend JSON files.
 
 export type CbMode = 'colorblind' | 'achromatopsia';
+export type ShapeKey = 'circle' | 'square' | 'triangle' | 'diamond' | 'ring' | 'triangle-down' | 'cross' | 'plus' | 'star' | 'hexagon' | 'pentagon' | 'arrow';
 
 /** Maps variable layer_id → CB mode → class ID → CB-safe hex color. */
 export const CB_CLASS_COLORS: Record<string, Partial<Record<CbMode, Record<number, string>>>> = {
@@ -362,7 +381,7 @@ _MODE_TS_KEY: Dict[str, str] = {
     'ach': 'achromatopsia',
 }
 
-def _format_variable(layer_id: str, data: Dict[str, Dict[int, str]]) -> str:
+def _format_variable(layer_id: str, data: Dict[str, Dict]) -> str:
     lines = [f'  {layer_id}: {{']
     for mode_key, ts_key in _MODE_TS_KEY.items():
         entries = data[mode_key]
@@ -370,6 +389,10 @@ def _format_variable(layer_id: str, data: Dict[str, Dict[int, str]]) -> str:
         lines.append(f'    {ts_key}: {{ {inner} }},')
     lines.append('  },')
     return '\n'.join(lines)
+
+def _format_shapes_variable(layer_id: str, shapes: Dict[int, str]) -> str:
+    inner = ', '.join(f"{cid}: '{s}'" for cid, s in sorted(shapes.items()))
+    return f'  {layer_id}: {{ {inner} }},'
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -418,6 +441,16 @@ def main() -> None:
     ts += '  // Strip temporal suffix (e.g. weather_code_simple_mode_168h → weather_code_simple)\n'
     ts += '  const baseId = variableId.replace(/_(avg|sum|mode|snapshot)_\\d+h$/i, \'\');\n'
     ts += '  return CB_CLASS_COLORS[baseId]?.[cbMode]?.[classId] ?? fallback;\n'
+    ts += '}\n'
+    ts += '\n'
+    ts += '/** Maps variable layer_id → class ID → shape key used in achromatopsia mode. */\n'
+    ts += 'export const CB_CLASS_SHAPES: Record<string, Record<number, ShapeKey>> = {\n'
+    ts += '\n'.join(_format_shapes_variable(lid, data['shapes']) for lid, data in variables.items())
+    ts += '\n};\n\n'
+    ts += '/** Look up the shape for a class in achromatopsia mode. */\n'
+    ts += 'export function getCbShape(variableId: string, classId: number): ShapeKey {\n'
+    ts += '  const baseId = variableId.replace(/_(avg|sum|mode|snapshot)_\\d+h$/i, \'\');\n'
+    ts += "  return CB_CLASS_SHAPES[baseId]?.[classId] ?? 'circle';\n"
     ts += '}\n'
 
     with open(out_path, 'w') as f:

@@ -70,6 +70,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   gradientStops: '__GRADIENT_STOPS_JSON__',
   aspectStops: '__ASPECT_STOPS_JSON__',
   classColorsJson: '__CLASS_COLORS_JSON__',
+  classShapesJson: '__CLASS_SHAPES_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -191,6 +192,7 @@ const preparePointsForMapHtml = (
   observationValues?: Map<string, number> | null,
   classColors?: Map<string, string> | null,
   classLabels?: Map<string, string> | null,
+  classShapes?: Map<string, string> | null,
 ) => {
   return (points ?? []).map((point) => {
     const catalogNumber = point.catalogNumber;
@@ -207,6 +209,8 @@ const preparePointsForMapHtml = (
       classKey && classColors ? (classColors.get(classKey) ?? null) : null;
     const varLabel =
       classKey && classLabels ? (classLabels.get(classKey) ?? null) : null;
+    const varShape =
+      classKey && classShapes ? (classShapes.get(classKey) ?? null) : null;
 
     return {
       ...point,
@@ -216,6 +220,7 @@ const preparePointsForMapHtml = (
       varValue,
       varColor,
       varLabel,
+      varShape,
     };
   });
 };
@@ -249,6 +254,7 @@ export const buildLeafletHtml = (
   varUnits?: string | null,
   gradientStops?: [number, number, number][] | null,
   aspectStops?: [number, number, number][] | null,
+  classShapes?: Map<string, string> | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -281,6 +287,7 @@ export const buildLeafletHtml = (
           observationValues,
           classColors,
           classLabels,
+          classShapes,
         ),
       ),
     );
@@ -379,6 +386,13 @@ export const buildLeafletHtml = (
     .join(
       classColors
         ? JSON.stringify(Object.fromEntries(classColors))
+        : 'null',
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.classShapesJson)
+    .join(
+      classShapes
+        ? JSON.stringify(Object.fromEntries(classShapes))
         : 'null',
     );
   return html;

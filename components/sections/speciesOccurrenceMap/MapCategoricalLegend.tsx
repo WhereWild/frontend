@@ -6,6 +6,8 @@ import type { LegendClass } from '@/data/types';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
+import { getCbShape, type CbMode } from './cbColors';
+import { ShapeMarker } from './ShapeMarker';
 import {
   LayoutAnimation,
   Platform,
@@ -25,9 +27,13 @@ const DOTS_PREVIEW = 3;
 
 type MapCategoricalLegendProps = {
   classes: LegendClass[];
+  variableId?: string;
+  cbMode?: CbMode | null;
+  shapesEnabled?: boolean;
 };
 
-export function MapCategoricalLegend({ classes }: MapCategoricalLegendProps) {
+export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnabled = false }: MapCategoricalLegendProps) {
+  const useShapes = (cbMode === 'achromatopsia' || shapesEnabled) && variableId != null;
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -58,12 +64,21 @@ export function MapCategoricalLegend({ classes }: MapCategoricalLegendProps) {
           collapsable={false}
           style={collapsed ? styles.previewRow : styles.hidden}
         >
-          {classes.slice(0, DOTS_PREVIEW).map((cls) => (
-            <View
-              key={cls.id}
-              style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }]}
-            />
-          ))}
+          {classes.slice(0, DOTS_PREVIEW).map((cls) =>
+            useShapes ? (
+              <ShapeMarker
+                key={cls.id}
+                shape={getCbShape(variableId!, cls.id as number)}
+                color={cls.color ?? '#888888'}
+                size={8}
+              />
+            ) : (
+              <View
+                key={cls.id}
+                style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }]}
+              />
+            ),
+          )}
           {classes.length > DOTS_PREVIEW && (
             <ThemedText variant='bodyTiny' style={styles.previewCount}>
               +{classes.length - DOTS_PREVIEW}
@@ -78,12 +93,17 @@ export function MapCategoricalLegend({ classes }: MapCategoricalLegendProps) {
         >
           {classes.map((cls) => (
             <View key={cls.id} style={styles.row}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: cls.color ?? '#888888' },
-                ]}
-              />
+              {useShapes ? (
+                <ShapeMarker
+                  shape={getCbShape(variableId!, cls.id as number)}
+                  color={cls.color ?? '#888888'}
+                  size={8}
+                />
+              ) : (
+                <View
+                  style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }]}
+                />
+              )}
               <ThemedText
                 variant='bodyTiny'
                 numberOfLines={1}
