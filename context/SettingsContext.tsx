@@ -12,6 +12,7 @@ import {
   DEFAULT_COLORMAP,
   DEFAULT_CIRCULAR_COLORMAP,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { type CbMode } from '@/components/sections/speciesOccurrenceMap/cbColors';
 
 export type UnitSystem = 'metric' | 'imperial';
 export type ColorModeOverride = 'system' | 'light' | 'dark';
@@ -32,6 +33,13 @@ export function isCircularColormapId(value: string): value is CircularColormapId
   return (CIRCULAR_COLORMAP_ORDER as string[]).includes(value);
 }
 
+const CB_MODES: CbMode[] = ['colorblind', 'achromatopsia'];
+export function isCbMode(value: string): value is CbMode {
+  return (CB_MODES as string[]).includes(value);
+}
+
+export type { CbMode };
+
 type SettingsContextType = {
   region: string;
   setRegion: (v: string) => void;
@@ -45,6 +53,8 @@ type SettingsContextType = {
   setColormap: (v: ColormapId) => void;
   circularColormap: CircularColormapId;
   setCircularColormap: (v: CircularColormapId) => void;
+  cbMode: CbMode | null;
+  setCbMode: (v: CbMode | null) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -77,6 +87,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.circularColormap',
     DEFAULT_CIRCULAR_COLORMAP,
   );
+  const [cbMode, setCbModeRaw] = useAsyncStorageState<CbMode | null>(
+    'settings.cbMode',
+    null,
+  );
+  const setCbMode = (v: CbMode | null) => setCbModeRaw(v);
 
   return (
     <SettingsContext.Provider
@@ -93,6 +108,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setColormap,
         circularColormap,
         setCircularColormap,
+        cbMode,
+        setCbMode,
       }}
     >
       {children}

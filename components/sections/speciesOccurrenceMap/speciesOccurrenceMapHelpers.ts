@@ -69,6 +69,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   varUnits: '__VAR_UNITS_JSON__',
   gradientStops: '__GRADIENT_STOPS_JSON__',
   aspectStops: '__ASPECT_STOPS_JSON__',
+  classColorsJson: '__CLASS_COLORS_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -372,6 +373,13 @@ export const buildLeafletHtml = (
       Array.isArray(aspectStops) && aspectStops.length > 0
         ? JSON.stringify(aspectStops)
         : JSON.stringify([[40,95,220],[45,175,65],[240,195,15],[220,50,50]]),
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.classColorsJson)
+    .join(
+      classColors
+        ? JSON.stringify(Object.fromEntries(classColors))
+        : 'null',
     );
   return html;
 };

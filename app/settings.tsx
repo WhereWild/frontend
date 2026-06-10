@@ -21,8 +21,10 @@ import {
   isColorModeOverride,
   isColormapId,
   isCircularColormapId,
+  isCbMode,
   isUnitSystem,
   useSettings,
+  type CbMode,
 } from '@/context/SettingsContext';
 import {
   COLORMAPS,
@@ -50,7 +52,7 @@ const COLOR_MODE_OPTIONS = [
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap } =
+  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap, cbMode, setCbMode } =
     useSettings();
 
   const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({ label: COLORMAPS[id].label, value: id }));
@@ -74,6 +76,17 @@ export default function Settings() {
 
   const handleCircularColormapChange = (value: string) => {
     if (isCircularColormapId(value)) setCircularColormap(value);
+  };
+
+  const CB_MODE_OPTIONS = [
+    { label: 'Default', value: 'none' },
+    { label: 'Colorblind friendly', value: 'colorblind' },
+    { label: 'Monochrome friendly', value: 'achromatopsia' },
+  ];
+
+  const handleCbModeChange = (value: string) => {
+    if (value === 'none') { setCbMode(null); return; }
+    if (isCbMode(value)) setCbMode(value as CbMode);
   };
 
   return (
@@ -188,6 +201,16 @@ export default function Settings() {
                     value={circularColormap}
                     onValueChange={handleCircularColormapChange}
                     description='Color wheel for directional variables (aspect)'
+                  />
+
+                  <SelectField
+                    label='Nominal colormap'
+                    placeholder='Select mode'
+                    allowSearch={false}
+                    options={CB_MODE_OPTIONS}
+                    value={cbMode ?? 'none'}
+                    onValueChange={handleCbModeChange}
+                    description='Adjusts categorical map colors for color vision deficiencies'
                   />
                 </View>
               </View>

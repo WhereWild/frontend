@@ -22,7 +22,9 @@ import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/Ma
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
+import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
 import { COLORMAPS, CIRCULAR_COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
@@ -202,15 +204,17 @@ export function UploadPreview({
     return result.size > 0 ? result : null;
   }, [selectedVariableMeta, uploadedBundle, metricToCodeByVariable, units]);
 
+  const cbMode = settings?.cbMode;
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
+    const variableId = selectedVariableMeta.id ?? '';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
-      if (cls.color) map.set(String(cls.id), cls.color);
+      if (cls.color) map.set(String(cls.id), getCbColor(variableId, cls.id as number, cbMode, cls.color));
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta]);
+  }, [selectedVariableMeta, cbMode]);
 
   const classLabels = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
@@ -283,6 +287,16 @@ export function UploadPreview({
     uploadedBundle.occurrences,
     mapBounds,
   ]);
+
+  const cbVisibleCategoricalClasses = React.useMemo(() => {
+    if (!visibleCategoricalClasses) return null;
+    if (!cbMode) return visibleCategoricalClasses;
+    const variableId = selectedVariableMeta?.id ?? '';
+    return visibleCategoricalClasses.map((cls) => ({
+      ...cls,
+      color: getCbColor(variableId, cls.id as number, cbMode, cls.color ?? '#888888'),
+    }));
+  }, [visibleCategoricalClasses, cbMode, selectedVariableMeta]);
 
   // Observation pins: prefer local value (offline-safe); fall back to pinnedPointValue
   // (set by the map's onPointValue when it fires varValue for the clicked dot, or via
@@ -393,8 +407,16 @@ export function UploadPreview({
               onChange={setSelectedCircularColormap}
             />
           )}
-          {visibleCategoricalClasses && (
-            <MapCategoricalLegend classes={visibleCategoricalClasses} />
+          {cbVisibleCategoricalClasses && (
+            <MapCategoricalLegend classes={cbVisibleCategoricalClasses} />
+          )}
+          {visibleCategoricalClasses && selectedVariableMeta && settings?.setCbMode && (
+            <MapCbModePicker
+              selected={cbMode ?? null}
+              onChange={settings.setCbMode}
+              topClasses={visibleCategoricalClasses.slice(0, 3)}
+              variableId={selectedVariableMeta.id ?? ''}
+            />
           )}
         </View>
       ) : null}

@@ -65,6 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const RENDER_MAX = __RENDER_MAX_JSON__;
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
     const VAR_UNITS = __VAR_UNITS_JSON__;
+    const CLASS_COLORS = __CLASS_COLORS_JSON__;
 
     var ASPECT_STOPS = __ASPECT_STOPS_JSON__;
     function aspectColor(deg) {
@@ -1114,7 +1115,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
             var isNumeric = colorMin != null && colorMax != null && colorMax > colorMin;
             if (data.class_name || data.class_color) {
-              var dot = data.class_color ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>' : '';
+              var resolvedClassColor = (CLASS_COLORS && data.value != null && CLASS_COLORS[String(Math.round(Number(data.value)))]) || data.class_color || null;
+              var dot = resolvedClassColor ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>' : '';
               var label = data.class_name || String(numVal);
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
             } else if (IS_CIRCULAR) {
@@ -1132,8 +1134,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
             } else {
-              var dot = data.class_color
-                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + data.class_color + ';margin-right:5px;flex-shrink:0"></span>'
+              var resolvedClassColor2 = (CLASS_COLORS && data.value != null && CLASS_COLORS[String(Math.round(Number(data.value)))]) || data.class_color || null;
+              var dot = resolvedClassColor2
+                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor2 + ';margin-right:5px;flex-shrink:0"></span>'
                 : '';
               var units = data.units ? ' ' + data.units : '';
               var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;

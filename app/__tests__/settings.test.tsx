@@ -57,6 +57,12 @@ jest.mock('@/context/SettingsContext', () => ({
   isUnitSystem: (value: string) => value === 'metric' || value === 'imperial',
   isColorModeOverride: (value: string) =>
     value === 'system' || value === 'light' || value === 'dark',
+  isColormapId: (value: string) =>
+    ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'turbo'].includes(value),
+  isCircularColormapId: (value: string) =>
+    ['twilight', 'twilight_90', 'twilight_180', 'twilight_270'].includes(value),
+  isCbMode: (value: string) =>
+    ['colorblind', 'achromatopsia'].includes(value),
 }));
 
 jest.mock('@/components', () => {
@@ -133,6 +139,8 @@ describe('Settings screen', () => {
       setColormap: jest.fn(),
       circularColormap: 'twilight_90',
       setCircularColormap: jest.fn(),
+      cbMode: null,
+      setCbMode: jest.fn(),
     });
   });
 

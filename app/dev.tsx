@@ -51,6 +51,8 @@ import {
   normalizeLabel,
 } from '@/components/sections/speciesEnvironment/model';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
+import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
@@ -221,6 +223,8 @@ export default function About() {
   const setSelectedColormap = settings?.setColormap;
   const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
   const setSelectedCircularColormap = settings?.setCircularColormap;
+  const cbMode = settings?.cbMode ?? null;
+  const setCbMode = settings?.setCbMode;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -1522,7 +1526,25 @@ export default function About() {
                           (visibleNominalCounts.get(a.id as number) ?? 0),
                       );
                     if (visibleClasses.length === 0) return null;
-                    return <MapCategoricalLegend classes={visibleClasses} />;
+                    const cbClasses = cbMode
+                      ? visibleClasses.map((cls) => ({
+                          ...cls,
+                          color: getCbColor(mapSelectedVariableMeta?.id ?? '', cls.id as number, cbMode, cls.color ?? '#888888'),
+                        }))
+                      : visibleClasses;
+                    return (
+                      <>
+                        <MapCategoricalLegend classes={cbClasses} />
+                        {setCbMode && (
+                          <MapCbModePicker
+                            selected={cbMode}
+                            onChange={setCbMode}
+                            topClasses={visibleClasses.slice(0, 3)}
+                            variableId={mapSelectedVariableMeta?.id ?? ''}
+                          />
+                        )}
+                      </>
+                    );
                   }
 
                   const rmin = mapSelectedVariableMeta?.renderMin;
