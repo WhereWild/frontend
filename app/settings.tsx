@@ -19,9 +19,17 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import {
   isColorModeOverride,
+  isColormapId,
+  isCircularColormapId,
   isUnitSystem,
   useSettings,
 } from '@/context/SettingsContext';
+import {
+  COLORMAPS,
+  COLORMAP_ORDER,
+  CIRCULAR_COLORMAPS,
+  CIRCULAR_COLORMAP_ORDER,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { WebMetadata } from '@/utils/webMetadata';
 
 const LOCATION_OPTIONS = [{ label: 'Utah', value: 'utah' }];
@@ -42,8 +50,11 @@ const COLOR_MODE_OPTIONS = [
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits, colorModeOverride, setColorModeOverride } =
+  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap } =
     useSettings();
+
+  const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({ label: COLORMAPS[id].label, value: id }));
+  const CIRCULAR_COLORMAP_OPTIONS = CIRCULAR_COLORMAP_ORDER.map((id) => ({ label: CIRCULAR_COLORMAPS[id].label, value: id }));
 
   const handleUnitsChange = (value: string) => {
     if (isUnitSystem(value)) {
@@ -55,6 +66,14 @@ export default function Settings() {
     if (isColorModeOverride(value)) {
       setColorModeOverride(value);
     }
+  };
+
+  const handleColormapChange = (value: string) => {
+    if (isColormapId(value)) setColormap(value);
+  };
+
+  const handleCircularColormapChange = (value: string) => {
+    if (isCircularColormapId(value)) setCircularColormap(value);
   };
 
   return (
@@ -143,6 +162,32 @@ export default function Settings() {
                     value={units}
                     onValueChange={handleUnitsChange}
                     description='Display temperatures and distances'
+                  />
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <ThemedText variant='heading'>Map display</ThemedText>
+
+                <View style={[styles.subsection, styles.fieldStack]}>
+                  <SelectField
+                    label='Sequential colormap'
+                    placeholder='Select colormap'
+                    allowSearch={false}
+                    options={COLORMAP_OPTIONS}
+                    value={colormap}
+                    onValueChange={handleColormapChange}
+                    description='Color ramp for continuous variables (elevation, temperature, etc.)'
+                  />
+
+                  <SelectField
+                    label='Circular colormap'
+                    placeholder='Select circular colormap'
+                    allowSearch={false}
+                    options={CIRCULAR_COLORMAP_OPTIONS}
+                    value={circularColormap}
+                    onValueChange={handleCircularColormapChange}
+                    description='Color wheel for directional variables (aspect)'
                   />
                 </View>
               </View>

@@ -52,10 +52,14 @@ import {
 } from '@/components/sections/speciesEnvironment/model';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
+import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import {
   ASPECT_CONIC_CSS,
   ASPECT_NATIVE_COLOR,
+  COLORMAPS,
+  CIRCULAR_COLORMAPS,
   VIRIDIS_COLORS,
   VIRIDIS_CSS,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
@@ -184,12 +188,14 @@ const mapAboutVariableOptions = (
 
 const buildAboutVariableTileUrl = ({
   cacheKey,
+  colormap,
   forecast,
   isLiveWeather,
   selectedVariable,
   window,
 }: {
   cacheKey: number;
+  colormap: string;
   forecast: string;
   isLiveWeather: boolean;
   selectedVariable: string;
@@ -197,7 +203,7 @@ const buildAboutVariableTileUrl = ({
 }) => {
   const baseUrl = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     selectedVariable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${cacheKey}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(colormap)}&_cb=${cacheKey}`;
 
   if (!isLiveWeather) {
     return baseUrl;
@@ -211,6 +217,10 @@ const buildAboutVariableTileUrl = ({
 export default function About() {
   const settings = useOptionalSettings();
   const unitSystem = settings?.units ?? 'metric';
+  const selectedColormap = settings?.colormap ?? 'viridis';
+  const setSelectedColormap = settings?.setColormap;
+  const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
+  const setSelectedCircularColormap = settings?.setCircularColormap;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -311,6 +321,7 @@ export default function About() {
   const aboutVariableTileUrl = useMemo(() => {
     return buildAboutVariableTileUrl({
       cacheKey: aboutTileCacheKey,
+      colormap: selectedColormap,
       forecast: selectedForecast,
       isLiveWeather,
       selectedVariable: mapSelectedVariable,
@@ -318,6 +329,7 @@ export default function About() {
     });
   }, [
     aboutTileCacheKey,
+    selectedColormap,
     isLiveWeather,
     mapSelectedVariable,
     selectedForecast,
@@ -1459,34 +1471,51 @@ export default function About() {
                       ? null
                       : (mapSelectedVariableMeta?.renderMax ?? null)
                   }
+                  gradientStops={
+                    !isVariableCategorical(mapSelectedVariableMeta) &&
+                    !isVariableCircular(mapSelectedVariableMeta)
+                      ? COLORMAPS[selectedColormap].stops
+                      : null
+                  }
+                  aspectStops={
+                    isVariableCircular(mapSelectedVariableMeta)
+                      ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                      : null
+                  }
                 />
                 {(() => {
-                  const isCircular = isVariableCircular(
-                    mapSelectedVariableMeta,
-                  );
-                  const isCategorical = isVariableCategorical(
-                    mapSelectedVariableMeta,
-                  );
+                  const isCircular = isVariableCircular(mapSelectedVariableMeta);
+                  const isCategorical = isVariableCategorical(mapSelectedVariableMeta);
                   const isNumeric =
-                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() ===
-                      'continuous' && !isCircular;
+                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() === 'continuous' && !isCircular;
 
                   if (isCircular) {
-                    return <MapCircularLegend pinnedValue={pinnedValue} />;
+                    return (
+                      <>
+                        <MapCircularLegend
+                          pinnedValue={pinnedValue}
+                          conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+                          nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+                        />
+                        {setSelectedCircularColormap && (
+                          <MapCircularColormapPicker
+                            selected={selectedCircularColormap}
+                            onChange={setSelectedCircularColormap}
+                          />
+                        )}
+                      </>
+                    );
                   }
 
                   if (isCategorical) {
-                    const isLandcover =
-                      mapSelectedVariableMeta?.id === 'landcover';
-                    const allClasses = (
-                      mapSelectedVariableMeta?.legendClasses ?? []
-                    ).filter((cls) => !(isLandcover && cls.id === 0));
+                    const isLandcover = mapSelectedVariableMeta?.id === 'landcover';
+                    const allClasses = (mapSelectedVariableMeta?.legendClasses ?? []).filter(
+                      (cls) => !(isLandcover && cls.id === 0),
+                    );
                     if (allClasses.length === 0) return null;
                     if (visibleNominalCounts.size === 0) return null;
                     const visibleClasses = allClasses
-                      .filter((cls) =>
-                        visibleNominalCounts.has(cls.id as number),
-                      )
+                      .filter((cls) => visibleNominalCounts.has(cls.id as number))
                       .sort(
                         (a, b) =>
                           (visibleNominalCounts.get(b.id as number) ?? 0) -
@@ -1500,12 +1529,22 @@ export default function About() {
                   const rmax = mapSelectedVariableMeta?.renderMax;
                   if (!isNumeric || rmin == null || rmax == null) return null;
                   return (
-                    <MapVariableLegend
-                      min={rmin}
-                      max={rmax}
-                      units={mapSelectedVariableMeta?.units}
-                      pinnedValue={pinnedValue}
-                    />
+                    <>
+                      <MapVariableLegend
+                        min={rmin}
+                        max={rmax}
+                        units={mapSelectedVariableMeta?.units}
+                        pinnedValue={pinnedValue}
+                        barCss={COLORMAPS[selectedColormap].barCss}
+                        barColors={COLORMAPS[selectedColormap].stops.slice().reverse().map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                      />
+                      {setSelectedColormap && (
+                        <MapColormapPicker
+                          selected={selectedColormap}
+                          onChange={setSelectedColormap}
+                        />
+                      )}
+                    </>
                   );
                 })()}
               </View>

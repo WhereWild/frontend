@@ -66,15 +66,17 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
     const VAR_UNITS = __VAR_UNITS_JSON__;
 
-    var ASPECT_STOPS = [[40,95,220],[45,175,65],[240,195,15],[220,50,50]];
+    var ASPECT_STOPS = __ASPECT_STOPS_JSON__;
     function aspectColor(deg) {
-      var t = (deg % 360) / 90;
-      var seg = Math.floor(t) % 4;
-      var f = t - Math.floor(t);
-      var c0 = ASPECT_STOPS[seg], c1 = ASPECT_STOPS[(seg+1)%4];
+      var n = ASPECT_STOPS.length;
+      var t = ((deg % 360) + 360) % 360 / 360;
+      var fi = t * n;
+      var i = Math.floor(fi) % n;
+      var f = fi - Math.floor(fi);
+      var c0 = ASPECT_STOPS[i], c1 = ASPECT_STOPS[(i + 1) % n];
       return 'rgb('+Math.round(c0[0]+f*(c1[0]-c0[0]))+','+Math.round(c0[1]+f*(c1[1]-c0[1]))+','+Math.round(c0[2]+f*(c1[2]-c0[2]))+')';
     }
-    var GRADIENT_STOPS = [[68,1,84],[59,82,139],[33,145,140],[94,201,98],[253,231,37]];
+    var GRADIENT_STOPS = __GRADIENT_STOPS_JSON__;
     function gradientColor(t) {
       var n = GRADIENT_STOPS.length - 1;
       var i = Math.min(Math.floor(t * n), n - 1);
@@ -516,6 +518,30 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       if (data && data.type === SELECTED_POINT_MESSAGE_TYPE) {
         applySelectedPoint(data.point || null);
+        return;
+      }
+
+      if (data && data.type === 'colormapUpdate') {
+        if (Array.isArray(data.stops) && DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN) {
+          GRADIENT_STOPS = data.stops;
+          markers.forEach(function(entry, catalog) {
+            if (entry.varValue != null) {
+              var t = Math.max(0, Math.min(1, (entry.varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+              markerBaseColors.set(catalog, gradientColor(t));
+              entry.setStyle(effectiveStyleForCatalog(catalog));
+            }
+          });
+        }
+        if (Array.isArray(data.circularStops) && IS_CIRCULAR) {
+          ASPECT_STOPS = data.circularStops;
+          markers.forEach(function(entry, catalog) {
+            if (entry.varValue != null) {
+              var color = aspectColor(entry.varValue);
+              markerBaseColors.set(catalog, color);
+              entry.setStyle(effectiveStyleForCatalog(catalog));
+            }
+          });
+        }
       }
     }
 
@@ -986,6 +1012,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           clusterGroup.addLayer(clusterMarker);
           markerEntries.push(markerEntry);
           markers.set(markerKey, {
+            varValue: pt.varValue ?? null,
             setStyle(style) {
               if (style === hiddenStyle) {
                 hideClusterMarker(markerEntry);
@@ -1011,7 +1038,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             longitude: canonicalLongitude,
             alignedLongitude: initialLongitude,
           });
-          markers.set(markerKey, marker);
+          markers.set(markerKey, {
+            varValue: pt.varValue ?? null,
+            setStyle(style) { marker.setStyle(style); },
+          });
         }
 
         observedBounds.push([latitude, initialLongitude]);

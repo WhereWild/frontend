@@ -6,6 +6,7 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
+export const COLORMAP_UPDATE_MESSAGE_TYPE = 'colormapUpdate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
@@ -66,6 +67,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   dotMax: '__DOT_MAX_JSON__',
   disableObservationQuery: '__DISABLE_OBSERVATION_QUERY__',
   varUnits: '__VAR_UNITS_JSON__',
+  gradientStops: '__GRADIENT_STOPS_JSON__',
+  aspectStops: '__ASPECT_STOPS_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -243,6 +246,8 @@ export const buildLeafletHtml = (
   dotMax?: number | null,
   disableObservationQuery?: boolean,
   varUnits?: string | null,
+  gradientStops?: [number, number, number][] | null,
+  aspectStops?: [number, number, number][] | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -353,6 +358,20 @@ export const buildLeafletHtml = (
       typeof varUnits === 'string' && varUnits.length > 0
         ? JSON.stringify(varUnits)
         : 'null',
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.gradientStops)
+    .join(
+      Array.isArray(gradientStops) && gradientStops.length > 0
+        ? JSON.stringify(gradientStops)
+        : JSON.stringify([[68,1,84],[72,26,108],[71,47,125],[65,68,135],[57,86,140],[49,104,142],[42,120,142],[35,136,142],[31,152,139],[34,168,132],[53,183,121],[84,197,104],[122,209,81],[165,219,54],[210,226,27],[253,231,37]]),
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.aspectStops)
+    .join(
+      Array.isArray(aspectStops) && aspectStops.length > 0
+        ? JSON.stringify(aspectStops)
+        : JSON.stringify([[40,95,220],[45,175,65],[240,195,15],[220,50,50]]),
     );
   return html;
 };

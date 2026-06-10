@@ -30,6 +30,7 @@ import {
   toSelectedPointMessagePayload,
   isOpenExternalUrlMessage,
   isPinObservationMessage,
+  COLORMAP_UPDATE_MESSAGE_TYPE,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -143,6 +144,8 @@ type SpeciesOccurrenceMapProps = {
   onMapBounds?: (bounds: MapBounds) => void;
   disableObservationQuery?: boolean;
   varUnits?: string | null;
+  gradientStops?: [number, number, number][] | null;
+  aspectStops?: [number, number, number][] | null;
 };
 
 export function SpeciesOccurrenceMap({
@@ -179,6 +182,8 @@ export function SpeciesOccurrenceMap({
   onMapBounds,
   disableObservationQuery = false,
   varUnits = null,
+  gradientStops = null,
+  aspectStops = null,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -362,6 +367,8 @@ export function SpeciesOccurrenceMap({
       dotMax,
       disableObservationQuery,
       varUnits,
+      gradientStops,
+      aspectStops,
     );
   }, [
     allowPinObservations,
@@ -376,6 +383,8 @@ export function SpeciesOccurrenceMap({
     dotMax,
     disableObservationQuery,
     varUnits,
+    gradientStops,
+    aspectStops,
     heatmapOpacity,
     heatmapTileUrl,
     initialLat,
@@ -448,6 +457,20 @@ export function SpeciesOccurrenceMap({
     selectedPointMessage,
     sendHighlightMessage,
   ]);
+
+  React.useEffect(() => {
+    if (!mapReady || (!gradientStops && !aspectStops)) {
+      return;
+    }
+    const msg: Record<string, unknown> = { type: COLORMAP_UPDATE_MESSAGE_TYPE };
+    if (gradientStops) msg.stops = gradientStops;
+    if (aspectStops) msg.circularStops = aspectStops;
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [gradientStops, aspectStops, mapReady]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') {

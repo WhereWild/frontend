@@ -20,6 +20,9 @@ import {
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
+import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
+import { COLORMAPS, CIRCULAR_COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
@@ -92,7 +95,12 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
-  const units = useOptionalSettings()?.units;
+  const settings = useOptionalSettings();
+  const units = settings?.units;
+  const selectedColormap = settings?.colormap ?? 'viridis';
+  const setSelectedColormap = settings?.setColormap;
+  const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
+  const setSelectedCircularColormap = settings?.setCircularColormap;
 
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
@@ -345,6 +353,12 @@ export function UploadPreview({
                 : null
             }
             isCircular={isCircular}
+            gradientStops={
+              !isCategorical && !isCircular ? COLORMAPS[selectedColormap].stops : null
+            }
+            aspectStops={
+              isCircular ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops : null
+            }
           />
           {selectedVariableMeta &&
             !isCategorical &&
@@ -356,10 +370,28 @@ export function UploadPreview({
                 max={dotMax}
                 units={selectedVariableMeta.units}
                 pinnedValue={pinnedValue}
+                barCss={COLORMAPS[selectedColormap].barCss}
+                barColors={COLORMAPS[selectedColormap].stops.slice().reverse().map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
               />
             )}
+          {selectedVariableMeta && !isCategorical && !isCircular && setSelectedColormap && (
+            <MapColormapPicker
+              selected={selectedColormap}
+              onChange={setSelectedColormap}
+            />
+          )}
           {selectedVariableMeta && isCircular && (
-            <MapCircularLegend pinnedValue={pinnedValue} />
+            <MapCircularLegend
+              pinnedValue={pinnedValue}
+              conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+              nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+            />
+          )}
+          {selectedVariableMeta && isCircular && setSelectedCircularColormap && (
+            <MapCircularColormapPicker
+              selected={selectedCircularColormap}
+              onChange={setSelectedCircularColormap}
+            />
           )}
           {visibleCategoricalClasses && (
             <MapCategoricalLegend classes={visibleCategoricalClasses} />

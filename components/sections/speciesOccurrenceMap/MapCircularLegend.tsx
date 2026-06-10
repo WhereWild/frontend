@@ -14,13 +14,17 @@ const HOLE = 32;
 
 type MapCircularLegendProps = {
   pinnedValue?: number | null;
+  conicCss?: string;
+  nativeColor?: string;
 };
 
-export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
+export function MapCircularLegend({ pinnedValue, conicCss, nativeColor }: MapCircularLegendProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const bg = palette.background.default.secondary;
+  const activeConic = conicCss ?? ASPECT_CONIC_CSS;
+  const activeNativeColor = nativeColor ?? ASPECT_NATIVE_COLOR;
 
   return (
     <View style={[styles.overlay, { backgroundColor: bg }]}>
@@ -38,7 +42,7 @@ export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
                 StyleSheet.absoluteFillObject,
                 {
                   borderRadius: RING / 2,
-                  backgroundImage: ASPECT_CONIC_CSS,
+                  backgroundImage: activeConic,
                 } as object,
               ]}
             />
@@ -48,7 +52,7 @@ export function MapCircularLegend({ pinnedValue }: MapCircularLegendProps) {
                 StyleSheet.absoluteFillObject,
                 {
                   borderRadius: RING / 2,
-                  backgroundColor: ASPECT_NATIVE_COLOR,
+                  backgroundColor: activeNativeColor,
                 },
               ]}
             />

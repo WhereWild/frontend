@@ -4,6 +4,14 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAsyncStorageState } from '@/hooks/useAsyncStorageState';
+import {
+  type ColormapId,
+  type CircularColormapId,
+  COLORMAP_ORDER,
+  CIRCULAR_COLORMAP_ORDER,
+  DEFAULT_COLORMAP,
+  DEFAULT_CIRCULAR_COLORMAP,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 
 export type UnitSystem = 'metric' | 'imperial';
 export type ColorModeOverride = 'system' | 'light' | 'dark';
@@ -16,6 +24,14 @@ export function isColorModeOverride(value: string): value is ColorModeOverride {
   return value === 'system' || value === 'light' || value === 'dark';
 }
 
+export function isColormapId(value: string): value is ColormapId {
+  return (COLORMAP_ORDER as string[]).includes(value);
+}
+
+export function isCircularColormapId(value: string): value is CircularColormapId {
+  return (CIRCULAR_COLORMAP_ORDER as string[]).includes(value);
+}
+
 type SettingsContextType = {
   region: string;
   setRegion: (v: string) => void;
@@ -25,6 +41,10 @@ type SettingsContextType = {
   setLanguage: (v: string) => void;
   colorModeOverride: ColorModeOverride;
   setColorModeOverride: (v: ColorModeOverride) => void;
+  colormap: ColormapId;
+  setColormap: (v: ColormapId) => void;
+  circularColormap: CircularColormapId;
+  setCircularColormap: (v: CircularColormapId) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -49,6 +69,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       'settings.colorModeOverride',
       'system',
     );
+  const [colormap, setColormap] = useAsyncStorageState<ColormapId>(
+    'settings.colormap',
+    DEFAULT_COLORMAP,
+  );
+  const [circularColormap, setCircularColormap] = useAsyncStorageState<CircularColormapId>(
+    'settings.circularColormap',
+    DEFAULT_CIRCULAR_COLORMAP,
+  );
 
   return (
     <SettingsContext.Provider
@@ -61,6 +89,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setLanguage,
         colorModeOverride,
         setColorModeOverride,
+        colormap,
+        setColormap,
+        circularColormap,
+        setCircularColormap,
       }}
     >
       {children}

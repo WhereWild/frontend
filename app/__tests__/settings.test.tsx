@@ -129,6 +129,10 @@ describe('Settings screen', () => {
       setLanguage: jest.fn(),
       colorModeOverride: 'system',
       setColorModeOverride: mockSetColorModeOverride,
+      colormap: 'viridis',
+      setColormap: jest.fn(),
+      circularColormap: 'twilight_90',
+      setCircularColormap: jest.fn(),
     });
   });
 

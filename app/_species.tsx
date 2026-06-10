@@ -16,6 +16,9 @@ import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/Ma
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
+import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
+import { COLORMAPS, CIRCULAR_COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
@@ -163,7 +166,7 @@ export default function Species({
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
-  const { units } = useSettings();
+  const { units, colormap: selectedColormap, setColormap: setSelectedColormap, circularColormap: selectedCircularColormap, setCircularColormap: setSelectedCircularColormap } = useSettings();
   const { height: viewportHeight } = useWindowDimensions();
   const observationMapHeight = React.useMemo(() => {
     return calculateObservationMapHeight({
@@ -571,6 +574,18 @@ export default function Species({
                       ? (selectedVariableMeta.units ?? null)
                       : null
                   }
+                  gradientStops={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? COLORMAPS[selectedColormap].stops
+                      : null
+                  }
+                  aspectStops={
+                    selectedVariableMeta && isVariableCircular(selectedVariableMeta)
+                      ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                      : null
+                  }
                 />
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&
@@ -582,12 +597,32 @@ export default function Species({
                       max={obsDotMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
+                      barCss={COLORMAPS[selectedColormap].barCss}
+                      barColors={COLORMAPS[selectedColormap].stops.slice().reverse().map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                    />
+                  )}
+                {selectedVariableMeta &&
+                  !isVariableCategorical(selectedVariableMeta) &&
+                  !isVariableCircular(selectedVariableMeta) && (
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
                     />
                   )}
                 {selectedVariableMeta &&
                   isVariableCircular(selectedVariableMeta) && (
-                    <MapCircularLegend pinnedValue={pinnedPointValue} />
+                    <MapCircularLegend
+                      pinnedValue={pinnedPointValue}
+                      conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+                      nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+                    />
                   )}
+                {selectedVariableMeta && isVariableCircular(selectedVariableMeta) && (
+                  <MapCircularColormapPicker
+                    selected={selectedCircularColormap}
+                    onChange={setSelectedCircularColormap}
+                  />
+                )}
                 {visibleCategoricalClasses && (
                   <MapCategoricalLegend classes={visibleCategoricalClasses} />
                 )}
