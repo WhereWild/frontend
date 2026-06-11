@@ -13,6 +13,7 @@ export {
   type RawCategoricalStatsRow,
   type RawCategoricalValueLookupRow,
   type RawDensityGraphRow,
+  type RawLocationRow,
   type RawOccurrenceIndexRow,
   type RawOccurrenceRow,
   type RawSummaryStatsRow,

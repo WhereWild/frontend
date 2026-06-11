@@ -5,8 +5,10 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SpeciesEnvironmentSection, SpeciesOccurrenceMap } from '@/components';
+import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { Size } from '@/constants/theme';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
@@ -18,6 +20,17 @@ import {
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
+import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
+import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
+import {
+  COLORMAPS,
+  CIRCULAR_COLORMAPS,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
+import {
+  getCbColor,
+  getCbShape,
+} from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
@@ -48,14 +61,47 @@ function UploadSpeciesPreviewSection({
 }) {
   const settings = useOptionalSettings();
   const units = settings?.units;
+  const {
+    countryOptions,
+    stateOptions,
+    countyOptions,
+    countryLoading,
+    stateLoading,
+    countyLoading,
+    selectedCountryGid,
+    selectedStateGid,
+    selectedCountyGid,
+    finalLocationGid,
+    onCountryChange,
+    onStateChange,
+    onCountyChange,
+  } = useSpeciesLocationFilters({
+    taxonId: UPLOAD_PREVIEW_TAXON_ID,
+    locationSearchLimit: 500,
+  });
   return (
     <View style={styles.previewSection}>
+      <SpeciesLocationFilters
+        countryOptions={countryOptions}
+        stateOptions={stateOptions}
+        countyOptions={countyOptions}
+        countryLoading={countryLoading}
+        stateLoading={stateLoading}
+        countyLoading={countyLoading}
+        selectedCountryGid={selectedCountryGid}
+        selectedStateGid={selectedStateGid}
+        selectedCountyGid={selectedCountyGid}
+        onCountryChange={onCountryChange}
+        onStateChange={onStateChange}
+        onCountyChange={onCountyChange}
+      />
       <SpeciesEnvironmentSection
         taxonId={UPLOAD_PREVIEW_TAXON_ID}
         onHighlightChange={onHighlightChange}
         pinnedObservation={pinnedObservation}
         onVariableMetaChange={onVariableMetaChange}
         units={units}
+        locationGid={finalLocationGid}
       />
     </View>
   );
@@ -68,7 +114,12 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
-  const units = useOptionalSettings()?.units;
+  const settings = useOptionalSettings();
+  const units = settings?.units;
+  const selectedColormap = settings?.colormap ?? 'viridis';
+  const setSelectedColormap = settings?.setColormap;
+  const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
+  const setSelectedCircularColormap = settings?.setCircularColormap;
 
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
@@ -170,15 +221,52 @@ export function UploadPreview({
     return result.size > 0 ? result : null;
   }, [selectedVariableMeta, uploadedBundle, metricToCodeByVariable, units]);
 
+  const cbMode = settings?.cbMode;
+  const shapesEnabled = settings?.shapesEnabled ?? false;
+  const markerOutlineEnabled =
+    (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
+  const circularShapesEnabled =
+    (shapesEnabled || cbMode === 'achromatopsia') &&
+    isVariableCircular(selectedVariableMeta);
+  const nsweColors = React.useMemo((): [string, string, string, string] => {
+    const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
+    const n = stops.length;
+    return [0, 90, 180, 270].map((deg) => {
+      const t = (((deg % 360) + 360) % 360) / 360;
+      const fi = t * n;
+      const i = Math.floor(fi) % n;
+      const f = fi - Math.floor(fi);
+      const c0 = stops[i],
+        c1 = stops[(i + 1) % n];
+      return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
+    }) as [string, string, string, string];
+  }, [selectedCircularColormap]);
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
+    const variableId = selectedVariableMeta.id ?? '';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
-      if (cls.color) map.set(String(cls.id), cls.color);
+      if (cls.color)
+        map.set(
+          String(cls.id),
+          getCbColor(variableId, cls.id as number, cbMode, cls.color),
+        );
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta]);
+  }, [selectedVariableMeta, cbMode]);
+
+  const classShapes = React.useMemo((): Map<string, string> | null => {
+    if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
+    if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
+      return null;
+    const variableId = selectedVariableMeta.id ?? '';
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta.legendClasses ?? []) {
+      map.set(String(cls.id), getCbShape(variableId, cls.id as number));
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta, cbMode, shapesEnabled]);
 
   const classLabels = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
@@ -252,6 +340,21 @@ export function UploadPreview({
     mapBounds,
   ]);
 
+  const cbVisibleCategoricalClasses = React.useMemo(() => {
+    if (!visibleCategoricalClasses) return null;
+    if (!cbMode) return visibleCategoricalClasses;
+    const variableId = selectedVariableMeta?.id ?? '';
+    return visibleCategoricalClasses.map((cls) => ({
+      ...cls,
+      color: getCbColor(
+        variableId,
+        cls.id as number,
+        cbMode,
+        cls.color ?? '#888888',
+      ),
+    }));
+  }, [visibleCategoricalClasses, cbMode, selectedVariableMeta]);
+
   // Observation pins: prefer local value (offline-safe); fall back to pinnedPointValue
   // (set by the map's onPointValue when it fires varValue for the clicked dot, or via
   // the API point-query for background clicks).
@@ -307,6 +410,8 @@ export function UploadPreview({
             }
             observationValues={observationValues}
             classColors={classColors}
+            classShapes={classShapes}
+            markerOutlineEnabled={markerOutlineEnabled}
             classLabels={classLabels}
             dotMin={dotMin}
             dotMax={dotMax}
@@ -321,6 +426,17 @@ export function UploadPreview({
                 : null
             }
             isCircular={isCircular}
+            circularShapesEnabled={circularShapesEnabled}
+            gradientStops={
+              !isCategorical && !isCircular
+                ? COLORMAPS[selectedColormap].stops
+                : null
+            }
+            aspectStops={
+              isCircular
+                ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                : null
+            }
           />
           {selectedVariableMeta &&
             !isCategorical &&
@@ -332,14 +448,64 @@ export function UploadPreview({
                 max={dotMax}
                 units={selectedVariableMeta.units}
                 pinnedValue={pinnedValue}
+                barCss={COLORMAPS[selectedColormap].barCss}
+                barColors={COLORMAPS[selectedColormap].stops
+                  .slice()
+                  .reverse()
+                  .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+              />
+            )}
+          {selectedVariableMeta &&
+            !isCategorical &&
+            !isCircular &&
+            setSelectedColormap && (
+              <MapColormapPicker
+                selected={selectedColormap}
+                onChange={setSelectedColormap}
               />
             )}
           {selectedVariableMeta && isCircular && (
-            <MapCircularLegend pinnedValue={pinnedValue} />
+            <MapCircularLegend
+              pinnedValue={pinnedValue}
+              conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+              nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+              shapesEnabled={circularShapesEnabled}
+              markerOutlineEnabled={markerOutlineEnabled}
+              nsweColors={nsweColors}
+            />
           )}
-          {visibleCategoricalClasses && (
-            <MapCategoricalLegend classes={visibleCategoricalClasses} />
+          {selectedVariableMeta &&
+            isCircular &&
+            setSelectedCircularColormap && (
+              <MapCircularColormapPicker
+                selected={selectedCircularColormap}
+                onChange={setSelectedCircularColormap}
+                cbMode={cbMode}
+                onCbModeChange={settings?.setCbMode}
+                markerOutlineEnabled={markerOutlineEnabled}
+              />
+            )}
+          {cbVisibleCategoricalClasses && (
+            <MapCategoricalLegend
+              classes={cbVisibleCategoricalClasses}
+              variableId={selectedVariableMeta?.id}
+              cbMode={cbMode}
+              shapesEnabled={shapesEnabled}
+              markerOutlineEnabled={markerOutlineEnabled}
+            />
           )}
+          {visibleCategoricalClasses &&
+            selectedVariableMeta &&
+            settings?.setCbMode && (
+              <MapCbModePicker
+                selected={cbMode ?? null}
+                onChange={settings.setCbMode}
+                topClasses={visibleCategoricalClasses.slice(0, 3)}
+                variableId={selectedVariableMeta.id ?? ''}
+                shapesEnabled={shapesEnabled}
+                markerOutlineEnabled={markerOutlineEnabled}
+              />
+            )}
         </View>
       ) : null}
     </SpeciesDataSourceProvider>

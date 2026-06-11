@@ -6,7 +6,7 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 import { TopAppBar } from '../TopAppBar.tsx';
-import { TopAppBar as TopAppBarNative } from '../TopAppBar.native';
+import { TopAppBar as TopAppBarNative } from '../TopAppBar.native.tsx';
 
 jest.mock('../TopAppBar.native', () => ({
   TopAppBar: jest.fn(() => null),

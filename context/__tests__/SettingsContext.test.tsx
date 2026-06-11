@@ -38,6 +38,12 @@ describe('SettingsContext', () => {
           return ['en', setLanguage] as const;
         case 'settings.colorModeOverride':
           return ['system', setColorModeOverride] as const;
+        case 'settings.colormap':
+        case 'settings.circularColormap':
+        case 'settings.cbMode':
+        case 'settings.shapesEnabled':
+        case 'settings.markerOutlineEnabled':
+          return [undefined, jest.fn()] as const;
         default:
           throw new Error(`Unexpected settings key: ${key}`);
       }

@@ -17,6 +17,7 @@ const CATEGORICAL_AGGREGATE_METRICS = new Set([
 ]);
 
 export const toFiniteNumber = (value: unknown): number | null => {
+  if (value == null) return null;
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }

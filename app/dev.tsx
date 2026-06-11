@@ -51,11 +51,17 @@ import {
   normalizeLabel,
 } from '@/components/sections/speciesEnvironment/model';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
+import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
+import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
+import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import {
   ASPECT_CONIC_CSS,
   ASPECT_NATIVE_COLOR,
+  COLORMAPS,
+  CIRCULAR_COLORMAPS,
   VIRIDIS_COLORS,
   VIRIDIS_CSS,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
@@ -184,12 +190,14 @@ const mapAboutVariableOptions = (
 
 const buildAboutVariableTileUrl = ({
   cacheKey,
+  colormap,
   forecast,
   isLiveWeather,
   selectedVariable,
   window,
 }: {
   cacheKey: number;
+  colormap: string;
   forecast: string;
   isLiveWeather: boolean;
   selectedVariable: string;
@@ -197,7 +205,7 @@ const buildAboutVariableTileUrl = ({
 }) => {
   const baseUrl = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     selectedVariable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&_cb=${cacheKey}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(colormap)}&_cb=${cacheKey}`;
 
   if (!isLiveWeather) {
     return baseUrl;
@@ -211,6 +219,15 @@ const buildAboutVariableTileUrl = ({
 export default function About() {
   const settings = useOptionalSettings();
   const unitSystem = settings?.units ?? 'metric';
+  const selectedColormap = settings?.colormap ?? 'viridis';
+  const setSelectedColormap = settings?.setColormap;
+  const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
+  const setSelectedCircularColormap = settings?.setCircularColormap;
+  const cbMode = settings?.cbMode ?? null;
+  const setCbMode = settings?.setCbMode;
+  const shapesEnabled = settings?.shapesEnabled ?? false;
+  const markerOutlineEnabled =
+    (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -311,6 +328,7 @@ export default function About() {
   const aboutVariableTileUrl = useMemo(() => {
     return buildAboutVariableTileUrl({
       cacheKey: aboutTileCacheKey,
+      colormap: selectedColormap,
       forecast: selectedForecast,
       isLiveWeather,
       selectedVariable: mapSelectedVariable,
@@ -318,6 +336,7 @@ export default function About() {
     });
   }, [
     aboutTileCacheKey,
+    selectedColormap,
     isLiveWeather,
     mapSelectedVariable,
     selectedForecast,
@@ -1459,6 +1478,18 @@ export default function About() {
                       ? null
                       : (mapSelectedVariableMeta?.renderMax ?? null)
                   }
+                  gradientStops={
+                    !isVariableCategorical(mapSelectedVariableMeta) &&
+                    !isVariableCircular(mapSelectedVariableMeta)
+                      ? COLORMAPS[selectedColormap].stops
+                      : null
+                  }
+                  aspectStops={
+                    isVariableCircular(mapSelectedVariableMeta)
+                      ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                      : null
+                  }
+                  markerOutlineEnabled={markerOutlineEnabled}
                 />
                 {(() => {
                   const isCircular = isVariableCircular(
@@ -1472,7 +1503,24 @@ export default function About() {
                       'continuous' && !isCircular;
 
                   if (isCircular) {
-                    return <MapCircularLegend pinnedValue={pinnedValue} />;
+                    return (
+                      <>
+                        <MapCircularLegend
+                          pinnedValue={pinnedValue}
+                          conicCss={
+                            CIRCULAR_COLORMAPS[selectedCircularColormap]
+                              .conicCss
+                          }
+                          nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+                        />
+                        {setSelectedCircularColormap && (
+                          <MapCircularColormapPicker
+                            selected={selectedCircularColormap}
+                            onChange={setSelectedCircularColormap}
+                          />
+                        )}
+                      </>
+                    );
                   }
 
                   if (isCategorical) {
@@ -1493,19 +1541,63 @@ export default function About() {
                           (visibleNominalCounts.get(a.id as number) ?? 0),
                       );
                     if (visibleClasses.length === 0) return null;
-                    return <MapCategoricalLegend classes={visibleClasses} />;
+                    const cbClasses = cbMode
+                      ? visibleClasses.map((cls) => ({
+                          ...cls,
+                          color: getCbColor(
+                            mapSelectedVariableMeta?.id ?? '',
+                            cls.id as number,
+                            cbMode,
+                            cls.color ?? '#888888',
+                          ),
+                        }))
+                      : visibleClasses;
+                    return (
+                      <>
+                        <MapCategoricalLegend
+                          classes={cbClasses}
+                          variableId={mapSelectedVariableMeta?.id}
+                          cbMode={cbMode}
+                          shapesEnabled={shapesEnabled}
+                          markerOutlineEnabled={markerOutlineEnabled}
+                        />
+                        {setCbMode && (
+                          <MapCbModePicker
+                            selected={cbMode}
+                            onChange={setCbMode}
+                            topClasses={visibleClasses.slice(0, 3)}
+                            variableId={mapSelectedVariableMeta?.id ?? ''}
+                            shapesEnabled={shapesEnabled}
+                            markerOutlineEnabled={markerOutlineEnabled}
+                          />
+                        )}
+                      </>
+                    );
                   }
 
                   const rmin = mapSelectedVariableMeta?.renderMin;
                   const rmax = mapSelectedVariableMeta?.renderMax;
                   if (!isNumeric || rmin == null || rmax == null) return null;
                   return (
-                    <MapVariableLegend
-                      min={rmin}
-                      max={rmax}
-                      units={mapSelectedVariableMeta?.units}
-                      pinnedValue={pinnedValue}
-                    />
+                    <>
+                      <MapVariableLegend
+                        min={rmin}
+                        max={rmax}
+                        units={mapSelectedVariableMeta?.units}
+                        pinnedValue={pinnedValue}
+                        barCss={COLORMAPS[selectedColormap].barCss}
+                        barColors={COLORMAPS[selectedColormap].stops
+                          .slice()
+                          .reverse()
+                          .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                      />
+                      {setSelectedColormap && (
+                        <MapColormapPicker
+                          selected={selectedColormap}
+                          onChange={setSelectedColormap}
+                        />
+                      )}
+                    </>
                   );
                 })()}
               </View>

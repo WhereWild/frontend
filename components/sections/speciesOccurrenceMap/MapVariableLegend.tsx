@@ -14,6 +14,8 @@ type MapVariableLegendProps = {
   max: number;
   units?: string | null;
   pinnedValue?: number | null;
+  barCss?: string;
+  barColors?: string[];
 };
 
 function fmt(v: number): string {
@@ -27,7 +29,11 @@ export function MapVariableLegend({
   max,
   units,
   pinnedValue,
+  barCss,
+  barColors,
 }: MapVariableLegendProps) {
+  const activeCss = barCss ?? VIRIDIS_CSS;
+  const activeColors = barColors ?? VIRIDIS_COLORS;
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -53,7 +59,7 @@ export function MapVariableLegend({
             <View
               style={[
                 StyleSheet.absoluteFillObject,
-                { borderRadius: 4, backgroundImage: VIRIDIS_CSS } as object,
+                { borderRadius: 4, backgroundImage: activeCss } as object,
               ]}
             />
           ) : (
@@ -63,7 +69,7 @@ export function MapVariableLegend({
                 { borderRadius: 4, overflow: 'hidden' },
               ]}
             >
-              {VIRIDIS_COLORS.map((color, i) => (
+              {activeColors.map((color, i) => (
                 <View
                   key={i}
                   style={[styles.segment, { backgroundColor: color }]}

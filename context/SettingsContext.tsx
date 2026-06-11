@@ -4,6 +4,15 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAsyncStorageState } from '@/hooks/useAsyncStorageState';
+import {
+  type ColormapId,
+  type CircularColormapId,
+  COLORMAP_ORDER,
+  CIRCULAR_COLORMAP_ORDER,
+  DEFAULT_COLORMAP,
+  DEFAULT_CIRCULAR_COLORMAP,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { type CbMode } from '@/components/sections/speciesOccurrenceMap/cbColors';
 
 export type UnitSystem = 'metric' | 'imperial';
 export type ColorModeOverride = 'system' | 'light' | 'dark';
@@ -16,6 +25,21 @@ export function isColorModeOverride(value: string): value is ColorModeOverride {
   return value === 'system' || value === 'light' || value === 'dark';
 }
 
+export function isColormapId(value: string): value is ColormapId {
+  return (COLORMAP_ORDER as string[]).includes(value);
+}
+
+export function isCircularColormapId(value: string): value is CircularColormapId {
+  return (CIRCULAR_COLORMAP_ORDER as string[]).includes(value);
+}
+
+const CB_MODES: CbMode[] = ['colorblind', 'achromatopsia'];
+export function isCbMode(value: string): value is CbMode {
+  return (CB_MODES as string[]).includes(value);
+}
+
+export type { CbMode };
+
 type SettingsContextType = {
   region: string;
   setRegion: (v: string) => void;
@@ -25,6 +49,16 @@ type SettingsContextType = {
   setLanguage: (v: string) => void;
   colorModeOverride: ColorModeOverride;
   setColorModeOverride: (v: ColorModeOverride) => void;
+  colormap: ColormapId;
+  setColormap: (v: ColormapId) => void;
+  circularColormap: CircularColormapId;
+  setCircularColormap: (v: CircularColormapId) => void;
+  cbMode: CbMode | null;
+  setCbMode: (v: CbMode | null) => void;
+  shapesEnabled: boolean;
+  setShapesEnabled: (v: boolean) => void;
+  markerOutlineEnabled: boolean;
+  setMarkerOutlineEnabled: (v: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -49,6 +83,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       'settings.colorModeOverride',
       'system',
     );
+  const [colormap, setColormap] = useAsyncStorageState<ColormapId>(
+    'settings.colormap',
+    DEFAULT_COLORMAP,
+  );
+  const [circularColormap, setCircularColormap] = useAsyncStorageState<CircularColormapId>(
+    'settings.circularColormap',
+    DEFAULT_CIRCULAR_COLORMAP,
+  );
+  const [cbMode, setCbModeRaw] = useAsyncStorageState<CbMode | null>(
+    'settings.cbMode',
+    null,
+  );
+  const setCbMode = (v: CbMode | null) => setCbModeRaw(v);
+  const [shapesEnabled, setShapesEnabled] = useAsyncStorageState<boolean>(
+    'settings.shapesEnabled',
+    false,
+  );
+  const [markerOutlineEnabled, setMarkerOutlineEnabled] = useAsyncStorageState<boolean>(
+    'settings.markerOutlineEnabled',
+    false,
+  );
 
   return (
     <SettingsContext.Provider
@@ -61,6 +116,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setLanguage,
         colorModeOverride,
         setColorModeOverride,
+        colormap,
+        setColormap,
+        circularColormap,
+        setCircularColormap,
+        cbMode,
+        setCbMode,
+        shapesEnabled,
+        setShapesEnabled,
+        markerOutlineEnabled,
+        setMarkerOutlineEnabled,
       }}
     >
       {children}
