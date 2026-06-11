@@ -128,7 +128,9 @@ export function UploadPreview({
   const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
   const setSelectedCircularColormap = settings?.setCircularColormap;
 
-  const [finalLocationGid, setFinalLocationGid] = React.useState<string | null>(null);
+  const [finalLocationGid, setFinalLocationGid] = React.useState<string | null>(
+    null,
+  );
   const [mapOccurrences, setMapOccurrences] = React.useState(() =>
     uploadedBundle.occurrences.map((row) => ({
       catalogNumber: row.catalogNumber,

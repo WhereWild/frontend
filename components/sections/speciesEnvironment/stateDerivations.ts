@@ -118,14 +118,25 @@ export const buildSummaryComparisons = (
   baselineRangeValue: number | null,
 ): Record<string, string | null> => {
   const empty: Record<string, string | null> = {
-    min: null, mean: null, max: null, std: null, range99: null,
-    circular_mean: null, rbar: null, circular_std: null,
-    entropy: null, unique_classes: null,
+    min: null,
+    mean: null,
+    max: null,
+    std: null,
+    range99: null,
+    circular_mean: null,
+    rbar: null,
+    circular_std: null,
+    entropy: null,
+    unique_classes: null,
   };
   if (!filterActive) return empty;
 
-  const fcl = (curr: number | null | undefined, base: number | null | undefined, digits = 1, unit = '') =>
-    formatComparisonLabel(curr, base, digits, unit);
+  const fcl = (
+    curr: number | null | undefined,
+    base: number | null | undefined,
+    digits = 1,
+    unit = '',
+  ) => formatComparisonLabel(curr, base, digits, unit);
 
   return {
     min: fcl(summary?.min, baselineSummary?.min),
@@ -133,12 +144,23 @@ export const buildSummaryComparisons = (
     max: fcl(summary?.max, baselineSummary?.max),
     std: fcl(summary?.stddev, baselineSummary?.stddev),
     range99: fcl(summaryRangeValue, baselineRangeValue),
-    circular_mean: fcl(summary?.circular_mean, baselineSummary?.circular_mean, 1, '°'),
+    circular_mean: fcl(
+      summary?.circular_mean,
+      baselineSummary?.circular_mean,
+      1,
+      '°',
+    ),
     rbar: fcl(summary?.rbar, baselineSummary?.rbar, 3),
-    circular_std: fcl(summary?.circular_std, baselineSummary?.circular_std, 1, '°'),
+    circular_std: fcl(
+      summary?.circular_std,
+      baselineSummary?.circular_std,
+      1,
+      '°',
+    ),
     entropy: fcl(summary?.entropy, baselineSummary?.entropy, 3),
     unique_classes:
-      typeof summary?.unique_classes === 'number' && typeof baselineSummary?.unique_classes === 'number'
+      typeof summary?.unique_classes === 'number' &&
+      typeof baselineSummary?.unique_classes === 'number'
         ? `vs. ${Math.round(baselineSummary.unique_classes)} globally`
         : null,
   };

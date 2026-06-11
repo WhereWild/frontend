@@ -6,6 +6,7 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { MapCategoricalLegend } from '../speciesOccurrenceMap/MapCategoricalLegend';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import type { LegendClass } from '@/data/types';
 
 jest.mock('@/hooks/useResponsive', () => ({
@@ -18,6 +19,7 @@ jest.mock('@/hooks/useResponsive', () => ({
 }));
 
 const mockUseResponsive = useResponsive as jest.Mock;
+const mockUseColorScheme = useColorScheme as jest.Mock;
 
 const sampleClasses: LegendClass[] = [
   { id: 1, name: 'Forest', color: '#228B22' },
@@ -114,8 +116,7 @@ describe('MapCategoricalLegend', () => {
   });
 
   it('renders in light mode', () => {
-    const { useColorScheme } = require('@/hooks/useColorScheme');
-    (useColorScheme as jest.Mock).mockReturnValueOnce('light');
+    mockUseColorScheme.mockReturnValueOnce('light');
     expect(() =>
       render(<MapCategoricalLegend classes={sampleClasses} />),
     ).not.toThrow();

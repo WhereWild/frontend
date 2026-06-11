@@ -206,9 +206,7 @@ export function NominalInsights({
             locationFilterActive ? undefined : (summaryRanks.entropy ?? null)
           }
           comparison={
-            locationFilterActive
-              ? (summaryComparisons?.entropy ?? null)
-              : null
+            locationFilterActive ? (summaryComparisons?.entropy ?? null) : null
           }
           stacked={isStacked}
           prominent={!showRankContext}

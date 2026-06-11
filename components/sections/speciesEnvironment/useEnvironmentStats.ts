@@ -78,7 +78,11 @@ export function useEnvironmentStats({
             endTs: endTimestamp,
           }),
           filterActive
-            ? speciesDataSource.fetchSpeciesEnvironment(taxonId, selectedVariable, { units })
+            ? speciesDataSource.fetchSpeciesEnvironment(
+                taxonId,
+                selectedVariable,
+                { units },
+              )
             : Promise.resolve(null),
         ]);
 
@@ -87,10 +91,10 @@ export function useEnvironmentStats({
             ? {
                 ...filteredResponse,
                 baselineSummary: globalResponse.summary,
-                baselineCategoricalDistribution:
-                  filteredResponse.baselineCategoricalDistribution?.length
-                    ? filteredResponse.baselineCategoricalDistribution
-                    : globalResponse.categoricalDistribution,
+                baselineCategoricalDistribution: filteredResponse
+                  .baselineCategoricalDistribution?.length
+                  ? filteredResponse.baselineCategoricalDistribution
+                  : globalResponse.categoricalDistribution,
               }
             : filteredResponse;
         if (

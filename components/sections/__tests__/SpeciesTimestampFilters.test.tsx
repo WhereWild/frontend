@@ -18,8 +18,8 @@ jest.mock('@/components/inputs/DateRangeSlider', () => ({
     minDate: { year: number; month: number; day?: number };
     maxDate: { year: number; month: number; day?: number };
   }) => {
-    const React = require('react');
-    const { View, Pressable } = require('react-native');
+    const React = jest.requireActual('react');
+    const { View, Pressable } = jest.requireActual('react-native');
     return React.createElement(
       View,
       { testID: 'date-range-slider' },
