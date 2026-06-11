@@ -23,6 +23,8 @@ import {
 import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
+import { useOptionalSettings } from '@/context/SettingsContext';
+import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
 
 const SLICEABLE_RANKS = new Set([
   'SPECIES',
@@ -191,6 +193,41 @@ function SpeciesEnvironmentSectionComponent({
     onVariableMetaChange?.(selectedVariableMeta ?? null);
   }, [selectedVariableMeta, onVariableMetaChange]);
 
+  const settings = useOptionalSettings();
+  const cbMode = settings?.cbMode ?? null;
+
+  const cbCategoricalDistribution = React.useMemo(() => {
+    if (!cbMode || !categoricalDistribution.length)
+      return categoricalDistribution;
+    const varId = selectedVariable ?? '';
+    return categoricalDistribution.map((cat) => {
+      const rawId = cat.value;
+      const classId =
+        typeof rawId === 'string' && rawId.startsWith('class_')
+          ? Number(rawId.slice(6))
+          : Number(rawId);
+      return {
+        ...cat,
+        color: getCbColor(varId, classId, cbMode, cat.color ?? '#888888'),
+      };
+    });
+  }, [categoricalDistribution, cbMode, selectedVariable]);
+
+  const cbPinnedUnobservedCategory = React.useMemo(() => {
+    if (!cbMode || !pinnedUnobservedCategory?.color)
+      return pinnedUnobservedCategory;
+    const varId = selectedVariable ?? '';
+    const rawId = pinnedUnobservedCategory.value;
+    const classId =
+      typeof rawId === 'string' && rawId.startsWith('class_')
+        ? Number(rawId.slice(6))
+        : Number(rawId);
+    return {
+      ...pinnedUnobservedCategory,
+      color: getCbColor(varId, classId, cbMode, pinnedUnobservedCategory.color),
+    };
+  }, [pinnedUnobservedCategory, cbMode, selectedVariable]);
+
   const isDiscrete = isVariableDiscrete(selectedVariableMeta);
 
   const effectiveDensityCurve = React.useMemo(() => {
@@ -251,7 +288,7 @@ function SpeciesEnvironmentSectionComponent({
         headingText,
         metaText,
         isCategorical,
-        categoricalDistribution,
+        categoricalDistribution: cbCategoricalDistribution,
         selectedCategoryValue,
         densityCurve,
         summary,
@@ -263,7 +300,7 @@ function SpeciesEnvironmentSectionComponent({
         summaryComparisons,
         locationFilterActive,
         pinnedCategoryValue,
-        pinnedUnobservedCategory,
+        pinnedUnobservedCategory: cbPinnedUnobservedCategory,
         pinnedClassName,
         pinnedValue,
       }
@@ -449,6 +486,9 @@ function SpeciesEnvironmentSectionComponent({
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               highlightOutlineColor='#F59E0B'
+              variableId={selectedVariable ?? undefined}
+              shapesEnabled={settings?.shapesEnabled ?? false}
+              markerOutlineEnabled={settings?.markerOutlineEnabled ?? false}
             />
           )}
           {typeof displayState?.summary?.unique_classes === 'number' && (

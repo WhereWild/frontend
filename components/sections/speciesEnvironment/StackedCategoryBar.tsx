@@ -9,6 +9,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ShapeMarker } from '@/components/sections/speciesOccurrenceMap/ShapeMarker';
+import { getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import {
   formatCategoryPercent,
   formatValue,
@@ -48,6 +50,12 @@ type StackedCategoryBarProps = {
   descriptionColor: string;
   /** Outline color used for the location-derived highlighted category. */
   highlightOutlineColor?: string;
+  /** Variable ID used to look up CB shapes. */
+  variableId?: string;
+  /** Whether to show per-category shapes on pill icons. */
+  shapesEnabled?: boolean;
+  /** Whether to draw a gray outline around pill icons. */
+  markerOutlineEnabled?: boolean;
 };
 
 /** Builds human-readable description text for the selected category. */
@@ -73,6 +81,9 @@ export function StackedCategoryBar({
   onSelect,
   descriptionColor,
   highlightOutlineColor = '#F59E0B',
+  variableId,
+  shapesEnabled = false,
+  markerOutlineEnabled = false,
 }: StackedCategoryBarProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -171,40 +182,84 @@ export function StackedCategoryBar({
   }, [resolvedPinnedKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pills = React.useMemo(() => {
-    const base = displayCategories.map((category, index) => ({
-      key: String(category.value),
-      label: category.className,
-      icon: (
-        <View
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: 6,
-            backgroundColor:
-              category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-          }}
-        />
-      ),
-    }));
+    const base = displayCategories.map((category, index) => {
+      const color =
+        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const rawId = category.value;
+      const classId =
+        typeof rawId === 'string' && rawId.startsWith('class_')
+          ? Number(rawId.slice(6))
+          : Number(rawId);
+      return {
+        key: String(category.value),
+        label: category.className,
+        icon:
+          shapesEnabled && variableId ? (
+            <ShapeMarker
+              shape={getCbShape(variableId, classId)}
+              color={color}
+              size={12}
+              outline={markerOutlineEnabled}
+            />
+          ) : (
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: color,
+                ...(markerOutlineEnabled
+                  ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
+                  : {}),
+              }}
+            />
+          ),
+      };
+    });
     if (pinnedOtherLabel) {
+      const otherColor = unobservedHighlightedCategory?.color ?? '#9CA3AF';
+      const rawOtherId = unobservedHighlightedCategory?.value;
+      const otherClassId =
+        rawOtherId != null
+          ? typeof rawOtherId === 'string' && rawOtherId.startsWith('class_')
+            ? Number(rawOtherId.slice(6))
+            : Number(rawOtherId)
+          : -1;
       base.push({
         key: '__other__',
         label: pinnedOtherLabel,
-        icon: (
-          <View
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor:
-                unobservedHighlightedCategory?.color ?? '#9CA3AF',
-            }}
-          />
-        ),
+        icon:
+          shapesEnabled && variableId && otherClassId >= 0 ? (
+            <ShapeMarker
+              shape={getCbShape(variableId, otherClassId)}
+              color={otherColor}
+              size={12}
+              outline={markerOutlineEnabled}
+            />
+          ) : (
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: otherColor,
+                ...(markerOutlineEnabled
+                  ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
+                  : {}),
+              }}
+            />
+          ),
       });
     }
     return base;
-  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory]);
+  }, [
+    displayCategories,
+    pinnedOtherLabel,
+    unobservedHighlightedCategory,
+    shapesEnabled,
+    markerOutlineEnabled,
+    variableId,
+  ]);
 
   const handlePillSelectionChange = React.useCallback(
     (key: string) => {

@@ -97,12 +97,22 @@ jest.mock('@/context/SettingsContext', () => {
     useSettings: jest.fn(() => ({
       units: 'metric',
       colorModeOverride: 'system',
+      colormap: 'viridis',
+      circularColormap: 'twilight_90',
+      cbMode: null,
+      shapesEnabled: false,
+      markerOutlineEnabled: false,
     })),
     // Mirrors runtime fallback behavior for suites rendering components outside
     // SettingsProvider (for example isolated/unit-level tests).
     useOptionalSettings: jest.fn(() => ({
       units: 'metric',
       colorModeOverride: 'system',
+      colormap: 'viridis',
+      circularColormap: 'twilight_90',
+      cbMode: null,
+      shapesEnabled: false,
+      markerOutlineEnabled: false,
     })),
     /**
      * @param {{ children: React.ReactNode }} props

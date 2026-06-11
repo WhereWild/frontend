@@ -171,6 +171,7 @@ jest.mock('expo-sharing', () => ({
 
 jest.mock('@/data/api', () => ({
   uploadRawObservations: jest.fn(),
+  fetchDataSources: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('@/data/uploadZipParquetParser', () => ({

@@ -12,6 +12,7 @@ import {
   SelectField,
   PageScrollContainer,
 } from '@/components';
+import { SwitchField } from '@/components/inputs/SwitchField';
 import { PageSurface } from '@/components/PageSurface';
 import { IconChevronRight, IconInfo, IconUpload } from '@/assets/icons';
 import { Size } from '@/constants/theme';
@@ -19,9 +20,19 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import {
   isColorModeOverride,
+  isColormapId,
+  isCircularColormapId,
+  isCbMode,
   isUnitSystem,
   useSettings,
+  type CbMode,
 } from '@/context/SettingsContext';
+import {
+  COLORMAPS,
+  COLORMAP_ORDER,
+  CIRCULAR_COLORMAPS,
+  CIRCULAR_COLORMAP_ORDER,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { WebMetadata } from '@/utils/webMetadata';
 
 const LOCATION_OPTIONS = [{ label: 'Utah', value: 'utah' }];
@@ -42,8 +53,31 @@ const COLOR_MODE_OPTIONS = [
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits, colorModeOverride, setColorModeOverride } =
-    useSettings();
+  const {
+    units,
+    setUnits,
+    colorModeOverride,
+    setColorModeOverride,
+    colormap,
+    setColormap,
+    circularColormap,
+    setCircularColormap,
+    cbMode,
+    setCbMode,
+    shapesEnabled,
+    setShapesEnabled,
+    markerOutlineEnabled,
+    setMarkerOutlineEnabled,
+  } = useSettings();
+
+  const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({
+    label: COLORMAPS[id].label,
+    value: id,
+  }));
+  const CIRCULAR_COLORMAP_OPTIONS = CIRCULAR_COLORMAP_ORDER.map((id) => ({
+    label: CIRCULAR_COLORMAPS[id].label,
+    value: id,
+  }));
 
   const handleUnitsChange = (value: string) => {
     if (isUnitSystem(value)) {
@@ -55,6 +89,28 @@ export default function Settings() {
     if (isColorModeOverride(value)) {
       setColorModeOverride(value);
     }
+  };
+
+  const handleColormapChange = (value: string) => {
+    if (isColormapId(value)) setColormap(value);
+  };
+
+  const handleCircularColormapChange = (value: string) => {
+    if (isCircularColormapId(value)) setCircularColormap(value);
+  };
+
+  const CB_MODE_OPTIONS = [
+    { label: 'Default', value: 'none' },
+    { label: 'Colorblind friendly', value: 'colorblind' },
+    { label: 'Monochrome friendly', value: 'achromatopsia' },
+  ];
+
+  const handleCbModeChange = (value: string) => {
+    if (value === 'none') {
+      setCbMode(null);
+      return;
+    }
+    if (isCbMode(value)) setCbMode(value as CbMode);
   };
 
   return (
@@ -103,47 +159,97 @@ export default function Settings() {
                 { maxWidth: responsive.contentWidth },
               ]}
             >
-              <View style={styles.section}>
-                <ThemedText variant='heading'>Localization</ThemedText>
+              <View style={styles.sectionRow}>
+                <View style={styles.section}>
+                  <ThemedText variant='heading'>Localization</ThemedText>
 
-                <View style={[styles.subsection, styles.fieldStack]}>
-                  <SelectField
-                    label='Color mode'
-                    placeholder='Select color mode'
-                    allowSearch={false}
-                    options={COLOR_MODE_OPTIONS}
-                    value={colorModeOverride}
-                    onValueChange={handleColorModeChange}
-                    description='Choose light, dark, or follow your device setting'
-                  />
+                  <View style={[styles.subsection, styles.fieldStack]}>
+                    <SelectField
+                      label='Color mode'
+                      placeholder='Select color mode'
+                      allowSearch={false}
+                      options={COLOR_MODE_OPTIONS}
+                      value={colorModeOverride}
+                      onValueChange={handleColorModeChange}
+                      description='Choose light, dark, or follow your device setting'
+                    />
 
-                  <SelectField
-                    label='Location'
-                    placeholder='Select a location'
-                    options={LOCATION_OPTIONS}
-                    value='utah'
-                    disabled
-                    description='Default observation location'
-                  />
+                    <SelectField
+                      label='Location'
+                      placeholder='Select a location'
+                      options={LOCATION_OPTIONS}
+                      value='utah'
+                      disabled
+                      description='Default observation location'
+                    />
 
-                  <SelectField
-                    label='Language'
-                    placeholder='Select language'
-                    options={LANGUAGE_OPTIONS}
-                    value='en'
-                    disabled
-                    description='Preferred UI language'
-                  />
+                    <SelectField
+                      label='Language'
+                      placeholder='Select language'
+                      options={LANGUAGE_OPTIONS}
+                      value='en'
+                      disabled
+                      description='Preferred UI language'
+                    />
 
-                  <SelectField
-                    label='Units'
-                    placeholder='Select units'
-                    allowSearch={false}
-                    options={UNITS_OPTIONS}
-                    value={units}
-                    onValueChange={handleUnitsChange}
-                    description='Display temperatures and distances'
-                  />
+                    <SelectField
+                      label='Units'
+                      placeholder='Select units'
+                      allowSearch={false}
+                      options={UNITS_OPTIONS}
+                      value={units}
+                      onValueChange={handleUnitsChange}
+                      description='Display temperatures and distances'
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.section}>
+                  <ThemedText variant='heading'>Map display</ThemedText>
+
+                  <View style={[styles.subsection, styles.fieldStack]}>
+                    <SelectField
+                      label='Sequential colormap'
+                      placeholder='Select colormap'
+                      allowSearch={false}
+                      options={COLORMAP_OPTIONS}
+                      value={colormap}
+                      onValueChange={handleColormapChange}
+                      description='Color ramp for continuous variables (elevation, temperature, etc.)'
+                    />
+
+                    <SelectField
+                      label='Circular colormap'
+                      placeholder='Select circular colormap'
+                      allowSearch={false}
+                      options={CIRCULAR_COLORMAP_OPTIONS}
+                      value={circularColormap}
+                      onValueChange={handleCircularColormapChange}
+                      description='Color wheel for directional variables (aspect)'
+                    />
+
+                    <SelectField
+                      label='Color accessibility'
+                      placeholder='Select mode'
+                      allowSearch={false}
+                      options={CB_MODE_OPTIONS}
+                      value={cbMode ?? 'none'}
+                      onValueChange={handleCbModeChange}
+                      description='Adjust colors and shapes for color vision differences'
+                    />
+                    <SwitchField
+                      label='Show category shapes'
+                      description='Display a distinct shape per category alongside color'
+                      value={shapesEnabled}
+                      onValueChange={setShapesEnabled}
+                    />
+                    <SwitchField
+                      label='Marker outlines'
+                      description='Add a gray outline around markers for contrast on dark tiles'
+                      value={markerOutlineEnabled}
+                      onValueChange={setMarkerOutlineEnabled}
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -208,6 +314,12 @@ const styles = StyleSheet.create({
   contentWeb: {
     width: '100%',
   },
+  sectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space.text.section,
+    alignItems: 'flex-start',
+  },
   section: {
     gap: Size.space.text.subsection,
   },
@@ -218,6 +330,10 @@ const styles = StyleSheet.create({
     width: 240,
     maxWidth: '100%',
     alignItems: 'stretch',
+  },
+  hint: {
+    opacity: 0.65,
+    marginTop: -Size.space.text.paragraph / 2,
   },
   actionStack: {
     width: '100%',

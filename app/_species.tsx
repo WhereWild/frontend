@@ -16,6 +16,17 @@ import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/Ma
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
+import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
+import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
+import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
+import {
+  COLORMAPS,
+  CIRCULAR_COLORMAPS,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
+import {
+  getCbColor,
+  getCbShape,
+} from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
@@ -163,7 +174,18 @@ export default function Species({
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
-  const { units } = useSettings();
+  const {
+    units,
+    colormap: selectedColormap,
+    setColormap: setSelectedColormap,
+    circularColormap: selectedCircularColormap,
+    setCircularColormap: setSelectedCircularColormap,
+    cbMode,
+    setCbMode,
+    shapesEnabled,
+    markerOutlineEnabled,
+  } = useSettings();
+  const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
   const { height: viewportHeight } = useWindowDimensions();
   const observationMapHeight = React.useMemo(() => {
     return calculateObservationMapHeight({
@@ -333,16 +355,32 @@ export default function Species({
     };
   }, [taxonId, selectedVariableMeta, units]);
 
+  const classShapes = React.useMemo(() => {
+    if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
+    if (!isVariableCategorical(selectedVariableMeta)) return null;
+    const variableId = selectedVariableMeta?.id ?? '';
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta?.legendClasses ?? []) {
+      map.set(String(cls.id), getCbShape(variableId, cls.id as number));
+    }
+    return map.size > 0 ? map : null;
+  }, [selectedVariableMeta, cbMode, shapesEnabled]);
+
   const classColors = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
     const isLandcover = selectedVariableMeta?.id === 'landcover';
+    const variableId = selectedVariableMeta?.id ?? '';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta?.legendClasses ?? []) {
       if (isLandcover && cls.id === 0) continue;
-      if (cls.color) map.set(String(cls.id), cls.color);
+      if (cls.color)
+        map.set(
+          String(cls.id),
+          getCbColor(variableId, cls.id as number, cbMode, cls.color),
+        );
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta]);
+  }, [selectedVariableMeta, cbMode]);
 
   const classLabels = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -385,6 +423,39 @@ export default function Species({
       );
     return classes.length > 0 ? classes : null;
   }, [selectedVariableMeta, observationValues, occurrences, mapBounds]);
+
+  const cbVisibleCategoricalClasses = React.useMemo(() => {
+    if (!visibleCategoricalClasses) return null;
+    if (!cbMode) return visibleCategoricalClasses;
+    const variableId = selectedVariableMeta?.id ?? '';
+    return visibleCategoricalClasses.map((cls) => ({
+      ...cls,
+      color: getCbColor(
+        variableId,
+        cls.id as number,
+        cbMode,
+        cls.color ?? '#888888',
+      ),
+    }));
+  }, [visibleCategoricalClasses, cbMode, selectedVariableMeta]);
+
+  const circularShapesEnabled =
+    (shapesEnabled || cbMode === 'achromatopsia') &&
+    isVariableCircular(selectedVariableMeta);
+
+  const nsweColors = React.useMemo((): [string, string, string, string] => {
+    const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
+    const n = stops.length;
+    return [0, 90, 180, 270].map((deg) => {
+      const t = (((deg % 360) + 360) % 360) / 360;
+      const fi = t * n;
+      const i = Math.floor(fi) % n;
+      const f = fi - Math.floor(fi);
+      const c0 = stops[i],
+        c1 = stops[(i + 1) % n];
+      return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
+    }) as [string, string, string, string];
+  }, [selectedCircularColormap]);
 
   const displayCommonNames = React.useMemo(() => {
     return buildCommonNamesWithPrimary(commonName, commonNames);
@@ -562,6 +633,9 @@ export default function Species({
                   observationValues={observationValues}
                   classColors={classColors}
                   classLabels={classLabels}
+                  classShapes={classShapes}
+                  markerOutlineEnabled={effectiveOutline}
+                  circularShapesEnabled={circularShapesEnabled}
                   dotMin={obsDotMin}
                   dotMax={obsDotMax}
                   varUnits={
@@ -569,6 +643,19 @@ export default function Species({
                     !isVariableCategorical(selectedVariableMeta) &&
                     !isVariableCircular(selectedVariableMeta)
                       ? (selectedVariableMeta.units ?? null)
+                      : null
+                  }
+                  gradientStops={
+                    selectedVariableMeta &&
+                    !isVariableCategorical(selectedVariableMeta) &&
+                    !isVariableCircular(selectedVariableMeta)
+                      ? COLORMAPS[selectedColormap].stops
+                      : null
+                  }
+                  aspectStops={
+                    selectedVariableMeta &&
+                    isVariableCircular(selectedVariableMeta)
+                      ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
                       : null
                   }
                 />
@@ -582,14 +669,62 @@ export default function Species({
                       max={obsDotMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
+                      barCss={COLORMAPS[selectedColormap].barCss}
+                      barColors={COLORMAPS[selectedColormap].stops
+                        .slice()
+                        .reverse()
+                        .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                    />
+                  )}
+                {selectedVariableMeta &&
+                  !isVariableCategorical(selectedVariableMeta) &&
+                  !isVariableCircular(selectedVariableMeta) && (
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
                     />
                   )}
                 {selectedVariableMeta &&
                   isVariableCircular(selectedVariableMeta) && (
-                    <MapCircularLegend pinnedValue={pinnedPointValue} />
+                    <MapCircularLegend
+                      pinnedValue={pinnedPointValue}
+                      conicCss={
+                        CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss
+                      }
+                      nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+                      shapesEnabled={circularShapesEnabled}
+                      markerOutlineEnabled={effectiveOutline}
+                      nsweColors={nsweColors}
+                    />
                   )}
-                {visibleCategoricalClasses && (
-                  <MapCategoricalLegend classes={visibleCategoricalClasses} />
+                {selectedVariableMeta &&
+                  isVariableCircular(selectedVariableMeta) && (
+                    <MapCircularColormapPicker
+                      selected={selectedCircularColormap}
+                      onChange={setSelectedCircularColormap}
+                      cbMode={cbMode}
+                      onCbModeChange={setCbMode}
+                      markerOutlineEnabled={effectiveOutline}
+                    />
+                  )}
+                {cbVisibleCategoricalClasses && (
+                  <MapCategoricalLegend
+                    classes={cbVisibleCategoricalClasses}
+                    variableId={selectedVariableMeta?.id}
+                    cbMode={cbMode}
+                    shapesEnabled={shapesEnabled}
+                    markerOutlineEnabled={effectiveOutline}
+                  />
+                )}
+                {visibleCategoricalClasses && selectedVariableMeta && (
+                  <MapCbModePicker
+                    selected={cbMode ?? null}
+                    onChange={setCbMode}
+                    topClasses={visibleCategoricalClasses.slice(0, 3)}
+                    variableId={selectedVariableMeta.id ?? ''}
+                    shapesEnabled={shapesEnabled}
+                    markerOutlineEnabled={effectiveOutline}
+                  />
                 )}
               </View>
             )}

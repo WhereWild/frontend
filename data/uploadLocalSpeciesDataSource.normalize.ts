@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { EnvironmentVariableDefinition, LegendClass } from '@/data/types';
+import type { EnvironmentVariableDefinition, LegendClass, LocationSearchResult } from '@/data/types';
 import {
   getVariableMetadataDisplayName,
   getVariableMetadataId,
@@ -533,6 +533,24 @@ export const normalizeRawUploadedParquetBundle = (
       };
     });
 
+  const locations: LocationSearchResult[] = (rawBundle.locations ?? [])
+    .flatMap((row) => {
+      const gid = toStringValue(row.gid);
+      const name = toStringValue(row.name);
+      const level = typeof row.level === 'number' ? row.level : parseInt(String(row.level ?? ''), 10);
+      if (!gid || !name || !Number.isFinite(level)) return [];
+      let hierarchy: string[] = [];
+      if (Array.isArray(row.hierarchy)) {
+        hierarchy = row.hierarchy.filter((v): v is string => typeof v === 'string');
+      } else {
+        try {
+          const parsed = JSON.parse(String(row.hierarchy ?? '[]'));
+          if (Array.isArray(parsed)) hierarchy = parsed.filter((v): v is string => typeof v === 'string');
+        } catch {}
+      }
+      return [{ gid, name, level, hierarchy }];
+    });
+
   const normalizedBundle: UploadedParquetBundle = {
     categoricalStats,
     categoricalValueLookup,
@@ -542,7 +560,7 @@ export const normalizeRawUploadedParquetBundle = (
     summaryStats,
     variableDefinitions: normalizedVariableDefinitions,
     dataSources: rawBundle.dataSources,
-    locations: rawBundle.locations,
+    locations: locations.length > 0 ? locations : undefined,
     meta: {
       source: 'upload-local',
       uploadedAt: rawBundle.meta?.uploadedAt ?? new Date(0).toISOString(),

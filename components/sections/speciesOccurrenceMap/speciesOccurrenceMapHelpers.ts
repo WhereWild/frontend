@@ -6,6 +6,7 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
+export const COLORMAP_UPDATE_MESSAGE_TYPE = 'colormapUpdate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
@@ -24,7 +25,7 @@ export const MAP_TILE_URL_TEMPLATE_DARK =
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
-export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 5000;
+export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 10000;
 
 export type MapTileMode = 'light' | 'dark';
 
@@ -66,6 +67,12 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   dotMax: '__DOT_MAX_JSON__',
   disableObservationQuery: '__DISABLE_OBSERVATION_QUERY__',
   varUnits: '__VAR_UNITS_JSON__',
+  gradientStops: '__GRADIENT_STOPS_JSON__',
+  aspectStops: '__ASPECT_STOPS_JSON__',
+  classColorsJson: '__CLASS_COLORS_JSON__',
+  classShapesJson: '__CLASS_SHAPES_JSON__',
+  markerOutline: '__MARKER_OUTLINE__',
+  circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
 } as const;
 
 export type HighlightMessage = {
@@ -174,6 +181,21 @@ export const getMapTileUrlTemplate = (mode: MapTileMode) => {
     : baseTemplate;
 };
 
+const NSWE_SHAPES = {
+  N: 'triangle',
+  E: 'arrow',
+  S: 'triangle-down',
+  W: 'diamond',
+} as const;
+
+const aspectToCardinalShape = (deg: number): string => {
+  const d = ((deg % 360) + 360) % 360;
+  if (d >= 315 || d < 45) return NSWE_SHAPES.N;
+  if (d < 135) return NSWE_SHAPES.E;
+  if (d < 225) return NSWE_SHAPES.S;
+  return NSWE_SHAPES.W;
+};
+
 const escapeHtml = (value: string) =>
   value
     .replaceAll('&', '&amp;')
@@ -187,6 +209,8 @@ const preparePointsForMapHtml = (
   observationValues?: Map<string, number> | null,
   classColors?: Map<string, string> | null,
   classLabels?: Map<string, string> | null,
+  classShapes?: Map<string, string> | null,
+  circularShapesEnabled?: boolean,
 ) => {
   return (points ?? []).map((point) => {
     const catalogNumber = point.catalogNumber;
@@ -203,6 +227,12 @@ const preparePointsForMapHtml = (
       classKey && classColors ? (classColors.get(classKey) ?? null) : null;
     const varLabel =
       classKey && classLabels ? (classLabels.get(classKey) ?? null) : null;
+    const varShape =
+      classKey && classShapes
+        ? (classShapes.get(classKey) ?? null)
+        : circularShapesEnabled && varValue != null
+          ? aspectToCardinalShape(varValue)
+          : null;
 
     return {
       ...point,
@@ -212,6 +242,7 @@ const preparePointsForMapHtml = (
       varValue,
       varColor,
       varLabel,
+      varShape,
     };
   });
 };
@@ -243,6 +274,11 @@ export const buildLeafletHtml = (
   dotMax?: number | null,
   disableObservationQuery?: boolean,
   varUnits?: string | null,
+  gradientStops?: [number, number, number][] | null,
+  aspectStops?: [number, number, number][] | null,
+  classShapes?: Map<string, string> | null,
+  markerOutlineEnabled?: boolean,
+  circularShapesEnabled?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -275,6 +311,8 @@ export const buildLeafletHtml = (
           observationValues,
           classColors,
           classLabels,
+          classShapes,
+          circularShapesEnabled,
         ),
       ),
     );
@@ -354,6 +392,54 @@ export const buildLeafletHtml = (
         ? JSON.stringify(varUnits)
         : 'null',
     );
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.gradientStops).join(
+    Array.isArray(gradientStops) && gradientStops.length > 0
+      ? JSON.stringify(gradientStops)
+      : JSON.stringify([
+          [68, 1, 84],
+          [72, 26, 108],
+          [71, 47, 125],
+          [65, 68, 135],
+          [57, 86, 140],
+          [49, 104, 142],
+          [42, 120, 142],
+          [35, 136, 142],
+          [31, 152, 139],
+          [34, 168, 132],
+          [53, 183, 121],
+          [84, 197, 104],
+          [122, 209, 81],
+          [165, 219, 54],
+          [210, 226, 27],
+          [253, 231, 37],
+        ]),
+  );
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.aspectStops).join(
+    Array.isArray(aspectStops) && aspectStops.length > 0
+      ? JSON.stringify(aspectStops)
+      : JSON.stringify([
+          [40, 95, 220],
+          [45, 175, 65],
+          [240, 195, 15],
+          [220, 50, 50],
+        ]),
+  );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.classColorsJson)
+    .join(
+      classColors ? JSON.stringify(Object.fromEntries(classColors)) : 'null',
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.classShapesJson)
+    .join(
+      classShapes ? JSON.stringify(Object.fromEntries(classShapes)) : 'null',
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.markerOutline)
+    .join(markerOutlineEnabled ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.circularShapesEnabled)
+    .join(circularShapesEnabled ? 'true' : 'false');
   return html;
 };
 
