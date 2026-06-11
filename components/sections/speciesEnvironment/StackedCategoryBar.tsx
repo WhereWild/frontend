@@ -183,7 +183,8 @@ export function StackedCategoryBar({
 
   const pills = React.useMemo(() => {
     const base = displayCategories.map((category, index) => {
-      const color = category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const color =
+        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
       const rawId = category.value;
       const classId =
         typeof rawId === 'string' && rawId.startsWith('class_')
@@ -192,59 +193,73 @@ export function StackedCategoryBar({
       return {
         key: String(category.value),
         label: category.className,
-        icon: shapesEnabled && variableId ? (
-          <ShapeMarker
-            shape={getCbShape(variableId, classId)}
-            color={color}
-            size={12}
-            outline={markerOutlineEnabled}
-          />
-        ) : (
-          <View
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: color,
-              ...(markerOutlineEnabled ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' } : {}),
-            }}
-          />
-        ),
+        icon:
+          shapesEnabled && variableId ? (
+            <ShapeMarker
+              shape={getCbShape(variableId, classId)}
+              color={color}
+              size={12}
+              outline={markerOutlineEnabled}
+            />
+          ) : (
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: color,
+                ...(markerOutlineEnabled
+                  ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
+                  : {}),
+              }}
+            />
+          ),
       };
     });
     if (pinnedOtherLabel) {
       const otherColor = unobservedHighlightedCategory?.color ?? '#9CA3AF';
       const rawOtherId = unobservedHighlightedCategory?.value;
-      const otherClassId = rawOtherId != null
-        ? (typeof rawOtherId === 'string' && rawOtherId.startsWith('class_')
-          ? Number(rawOtherId.slice(6))
-          : Number(rawOtherId))
-        : -1;
+      const otherClassId =
+        rawOtherId != null
+          ? typeof rawOtherId === 'string' && rawOtherId.startsWith('class_')
+            ? Number(rawOtherId.slice(6))
+            : Number(rawOtherId)
+          : -1;
       base.push({
         key: '__other__',
         label: pinnedOtherLabel,
-        icon: shapesEnabled && variableId && otherClassId >= 0 ? (
-          <ShapeMarker
-            shape={getCbShape(variableId, otherClassId)}
-            color={otherColor}
-            size={12}
-            outline={markerOutlineEnabled}
-          />
-        ) : (
-          <View
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: otherColor,
-              ...(markerOutlineEnabled ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' } : {}),
-            }}
-          />
-        ),
+        icon:
+          shapesEnabled && variableId && otherClassId >= 0 ? (
+            <ShapeMarker
+              shape={getCbShape(variableId, otherClassId)}
+              color={otherColor}
+              size={12}
+              outline={markerOutlineEnabled}
+            />
+          ) : (
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: otherColor,
+                ...(markerOutlineEnabled
+                  ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
+                  : {}),
+              }}
+            />
+          ),
       });
     }
     return base;
-  }, [displayCategories, pinnedOtherLabel, unobservedHighlightedCategory, shapesEnabled, markerOutlineEnabled, variableId]);
+  }, [
+    displayCategories,
+    pinnedOtherLabel,
+    unobservedHighlightedCategory,
+    shapesEnabled,
+    markerOutlineEnabled,
+    variableId,
+  ]);
 
   const handlePillSelectionChange = React.useCallback(
     (key: string) => {

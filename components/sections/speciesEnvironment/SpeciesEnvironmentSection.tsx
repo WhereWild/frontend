@@ -197,7 +197,8 @@ function SpeciesEnvironmentSectionComponent({
   const cbMode = settings?.cbMode ?? null;
 
   const cbCategoricalDistribution = React.useMemo(() => {
-    if (!cbMode || !categoricalDistribution.length) return categoricalDistribution;
+    if (!cbMode || !categoricalDistribution.length)
+      return categoricalDistribution;
     const varId = selectedVariable ?? '';
     return categoricalDistribution.map((cat) => {
       const rawId = cat.value;
@@ -213,7 +214,8 @@ function SpeciesEnvironmentSectionComponent({
   }, [categoricalDistribution, cbMode, selectedVariable]);
 
   const cbPinnedUnobservedCategory = React.useMemo(() => {
-    if (!cbMode || !pinnedUnobservedCategory?.color) return pinnedUnobservedCategory;
+    if (!cbMode || !pinnedUnobservedCategory?.color)
+      return pinnedUnobservedCategory;
     const varId = selectedVariable ?? '';
     const rawId = pinnedUnobservedCategory.value;
     const classId =

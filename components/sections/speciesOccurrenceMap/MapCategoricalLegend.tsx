@@ -33,8 +33,15 @@ type MapCategoricalLegendProps = {
   markerOutlineEnabled?: boolean;
 };
 
-export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnabled = false, markerOutlineEnabled = false }: MapCategoricalLegendProps) {
-  const useShapes = (cbMode === 'achromatopsia' || shapesEnabled) && variableId != null;
+export function MapCategoricalLegend({
+  classes,
+  variableId,
+  cbMode,
+  shapesEnabled = false,
+  markerOutlineEnabled = false,
+}: MapCategoricalLegendProps) {
+  const useShapes =
+    (cbMode === 'achromatopsia' || shapesEnabled) && variableId != null;
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -65,22 +72,28 @@ export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnable
           collapsable={false}
           style={collapsed ? styles.previewRow : styles.hidden}
         >
-          {classes.slice(0, DOTS_PREVIEW).map((cls) =>
-            useShapes ? (
-              <ShapeMarker
-                key={cls.id}
-                shape={getCbShape(variableId!, cls.id as number)}
-                color={cls.color ?? '#888888'}
-                size={8}
-                outline={markerOutlineEnabled}
-              />
-            ) : (
-              <View
-                key={cls.id}
-                style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }, markerOutlineEnabled && styles.dotOutline]}
-              />
-            ),
-          )}
+          {classes
+            .slice(0, DOTS_PREVIEW)
+            .map((cls) =>
+              useShapes ? (
+                <ShapeMarker
+                  key={cls.id}
+                  shape={getCbShape(variableId!, cls.id as number)}
+                  color={cls.color ?? '#888888'}
+                  size={8}
+                  outline={markerOutlineEnabled}
+                />
+              ) : (
+                <View
+                  key={cls.id}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: cls.color ?? '#888888' },
+                    markerOutlineEnabled && styles.dotOutline,
+                  ]}
+                />
+              ),
+            )}
           {classes.length > DOTS_PREVIEW && (
             <ThemedText variant='bodyTiny' style={styles.previewCount}>
               +{classes.length - DOTS_PREVIEW}
@@ -104,7 +117,11 @@ export function MapCategoricalLegend({ classes, variableId, cbMode, shapesEnable
                 />
               ) : (
                 <View
-                  style={[styles.dot, { backgroundColor: cls.color ?? '#888888' }, markerOutlineEnabled && styles.dotOutline]}
+                  style={[
+                    styles.dot,
+                    { backgroundColor: cls.color ?? '#888888' },
+                    markerOutlineEnabled && styles.dotOutline,
+                  ]}
                 />
               )}
               <ThemedText

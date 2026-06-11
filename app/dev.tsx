@@ -226,7 +226,8 @@ export default function About() {
   const cbMode = settings?.cbMode ?? null;
   const setCbMode = settings?.setCbMode;
   const shapesEnabled = settings?.shapesEnabled ?? false;
-  const markerOutlineEnabled = (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
+  const markerOutlineEnabled =
+    (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -1491,17 +1492,25 @@ export default function About() {
                   markerOutlineEnabled={markerOutlineEnabled}
                 />
                 {(() => {
-                  const isCircular = isVariableCircular(mapSelectedVariableMeta);
-                  const isCategorical = isVariableCategorical(mapSelectedVariableMeta);
+                  const isCircular = isVariableCircular(
+                    mapSelectedVariableMeta,
+                  );
+                  const isCategorical = isVariableCategorical(
+                    mapSelectedVariableMeta,
+                  );
                   const isNumeric =
-                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() === 'continuous' && !isCircular;
+                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() ===
+                      'continuous' && !isCircular;
 
                   if (isCircular) {
                     return (
                       <>
                         <MapCircularLegend
                           pinnedValue={pinnedValue}
-                          conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+                          conicCss={
+                            CIRCULAR_COLORMAPS[selectedCircularColormap]
+                              .conicCss
+                          }
                           nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
                         />
                         {setSelectedCircularColormap && (
@@ -1515,14 +1524,17 @@ export default function About() {
                   }
 
                   if (isCategorical) {
-                    const isLandcover = mapSelectedVariableMeta?.id === 'landcover';
-                    const allClasses = (mapSelectedVariableMeta?.legendClasses ?? []).filter(
-                      (cls) => !(isLandcover && cls.id === 0),
-                    );
+                    const isLandcover =
+                      mapSelectedVariableMeta?.id === 'landcover';
+                    const allClasses = (
+                      mapSelectedVariableMeta?.legendClasses ?? []
+                    ).filter((cls) => !(isLandcover && cls.id === 0));
                     if (allClasses.length === 0) return null;
                     if (visibleNominalCounts.size === 0) return null;
                     const visibleClasses = allClasses
-                      .filter((cls) => visibleNominalCounts.has(cls.id as number))
+                      .filter((cls) =>
+                        visibleNominalCounts.has(cls.id as number),
+                      )
                       .sort(
                         (a, b) =>
                           (visibleNominalCounts.get(b.id as number) ?? 0) -
@@ -1532,12 +1544,23 @@ export default function About() {
                     const cbClasses = cbMode
                       ? visibleClasses.map((cls) => ({
                           ...cls,
-                          color: getCbColor(mapSelectedVariableMeta?.id ?? '', cls.id as number, cbMode, cls.color ?? '#888888'),
+                          color: getCbColor(
+                            mapSelectedVariableMeta?.id ?? '',
+                            cls.id as number,
+                            cbMode,
+                            cls.color ?? '#888888',
+                          ),
                         }))
                       : visibleClasses;
                     return (
                       <>
-                        <MapCategoricalLegend classes={cbClasses} variableId={mapSelectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} markerOutlineEnabled={markerOutlineEnabled} />
+                        <MapCategoricalLegend
+                          classes={cbClasses}
+                          variableId={mapSelectedVariableMeta?.id}
+                          cbMode={cbMode}
+                          shapesEnabled={shapesEnabled}
+                          markerOutlineEnabled={markerOutlineEnabled}
+                        />
                         {setCbMode && (
                           <MapCbModePicker
                             selected={cbMode}
@@ -1563,7 +1586,10 @@ export default function About() {
                         units={mapSelectedVariableMeta?.units}
                         pinnedValue={pinnedValue}
                         barCss={COLORMAPS[selectedColormap].barCss}
-                        barColors={COLORMAPS[selectedColormap].stops.slice().reverse().map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                        barColors={COLORMAPS[selectedColormap].stops
+                          .slice()
+                          .reverse()
+                          .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
                       />
                       {setSelectedColormap && (
                         <MapColormapPicker

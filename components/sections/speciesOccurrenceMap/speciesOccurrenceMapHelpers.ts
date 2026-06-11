@@ -181,7 +181,12 @@ export const getMapTileUrlTemplate = (mode: MapTileMode) => {
     : baseTemplate;
 };
 
-const NSWE_SHAPES = { N: 'triangle', E: 'arrow', S: 'triangle-down', W: 'diamond' } as const;
+const NSWE_SHAPES = {
+  N: 'triangle',
+  E: 'arrow',
+  S: 'triangle-down',
+  W: 'diamond',
+} as const;
 
 const aspectToCardinalShape = (deg: number): string => {
   const d = ((deg % 360) + 360) % 360;
@@ -387,33 +392,47 @@ export const buildLeafletHtml = (
         ? JSON.stringify(varUnits)
         : 'null',
     );
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.gradientStops)
-    .join(
-      Array.isArray(gradientStops) && gradientStops.length > 0
-        ? JSON.stringify(gradientStops)
-        : JSON.stringify([[68,1,84],[72,26,108],[71,47,125],[65,68,135],[57,86,140],[49,104,142],[42,120,142],[35,136,142],[31,152,139],[34,168,132],[53,183,121],[84,197,104],[122,209,81],[165,219,54],[210,226,27],[253,231,37]]),
-    );
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.aspectStops)
-    .join(
-      Array.isArray(aspectStops) && aspectStops.length > 0
-        ? JSON.stringify(aspectStops)
-        : JSON.stringify([[40,95,220],[45,175,65],[240,195,15],[220,50,50]]),
-    );
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.gradientStops).join(
+    Array.isArray(gradientStops) && gradientStops.length > 0
+      ? JSON.stringify(gradientStops)
+      : JSON.stringify([
+          [68, 1, 84],
+          [72, 26, 108],
+          [71, 47, 125],
+          [65, 68, 135],
+          [57, 86, 140],
+          [49, 104, 142],
+          [42, 120, 142],
+          [35, 136, 142],
+          [31, 152, 139],
+          [34, 168, 132],
+          [53, 183, 121],
+          [84, 197, 104],
+          [122, 209, 81],
+          [165, 219, 54],
+          [210, 226, 27],
+          [253, 231, 37],
+        ]),
+  );
+  html = html.split(MAP_TEMPLATE_PLACEHOLDERS.aspectStops).join(
+    Array.isArray(aspectStops) && aspectStops.length > 0
+      ? JSON.stringify(aspectStops)
+      : JSON.stringify([
+          [40, 95, 220],
+          [45, 175, 65],
+          [240, 195, 15],
+          [220, 50, 50],
+        ]),
+  );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.classColorsJson)
     .join(
-      classColors
-        ? JSON.stringify(Object.fromEntries(classColors))
-        : 'null',
+      classColors ? JSON.stringify(Object.fromEntries(classColors)) : 'null',
     );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.classShapesJson)
     .join(
-      classShapes
-        ? JSON.stringify(Object.fromEntries(classShapes))
-        : 'null',
+      classShapes ? JSON.stringify(Object.fromEntries(classShapes)) : 'null',
     );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.markerOutline)

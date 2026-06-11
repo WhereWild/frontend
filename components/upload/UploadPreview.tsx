@@ -23,8 +23,14 @@ import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
-import { COLORMAPS, CIRCULAR_COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
-import { getCbColor, getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
+import {
+  COLORMAPS,
+  CIRCULAR_COLORMAPS,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
+import {
+  getCbColor,
+  getCbShape,
+} from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
@@ -56,12 +62,23 @@ function UploadSpeciesPreviewSection({
   const settings = useOptionalSettings();
   const units = settings?.units;
   const {
-    countryOptions, stateOptions, countyOptions,
-    countryLoading, stateLoading, countyLoading,
-    selectedCountryGid, selectedStateGid, selectedCountyGid,
+    countryOptions,
+    stateOptions,
+    countyOptions,
+    countryLoading,
+    stateLoading,
+    countyLoading,
+    selectedCountryGid,
+    selectedStateGid,
+    selectedCountyGid,
     finalLocationGid,
-    onCountryChange, onStateChange, onCountyChange,
-  } = useSpeciesLocationFilters({ taxonId: UPLOAD_PREVIEW_TAXON_ID, locationSearchLimit: 500 });
+    onCountryChange,
+    onStateChange,
+    onCountyChange,
+  } = useSpeciesLocationFilters({
+    taxonId: UPLOAD_PREVIEW_TAXON_ID,
+    locationSearchLimit: 500,
+  });
   return (
     <View style={styles.previewSection}>
       <SpeciesLocationFilters
@@ -206,8 +223,11 @@ export function UploadPreview({
 
   const cbMode = settings?.cbMode;
   const shapesEnabled = settings?.shapesEnabled ?? false;
-  const markerOutlineEnabled = (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
-  const circularShapesEnabled = (shapesEnabled || cbMode === 'achromatopsia') && isVariableCircular(selectedVariableMeta);
+  const markerOutlineEnabled =
+    (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
+  const circularShapesEnabled =
+    (shapesEnabled || cbMode === 'achromatopsia') &&
+    isVariableCircular(selectedVariableMeta);
   const nsweColors = React.useMemo((): [string, string, string, string] => {
     const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
     const n = stops.length;
@@ -216,8 +236,9 @@ export function UploadPreview({
       const fi = t * n;
       const i = Math.floor(fi) % n;
       const f = fi - Math.floor(fi);
-      const c0 = stops[i], c1 = stops[(i + 1) % n];
-      return `rgb(${Math.round(c0[0]+f*(c1[0]-c0[0]))},${Math.round(c0[1]+f*(c1[1]-c0[1]))},${Math.round(c0[2]+f*(c1[2]-c0[2]))})`;
+      const c0 = stops[i],
+        c1 = stops[(i + 1) % n];
+      return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
     }) as [string, string, string, string];
   }, [selectedCircularColormap]);
   const classColors = React.useMemo((): Map<string, string> | null => {
@@ -226,14 +247,19 @@ export function UploadPreview({
     const variableId = selectedVariableMeta.id ?? '';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
-      if (cls.color) map.set(String(cls.id), getCbColor(variableId, cls.id as number, cbMode, cls.color));
+      if (cls.color)
+        map.set(
+          String(cls.id),
+          getCbColor(variableId, cls.id as number, cbMode, cls.color),
+        );
     }
     return map.size > 0 ? map : null;
   }, [selectedVariableMeta, cbMode]);
 
   const classShapes = React.useMemo((): Map<string, string> | null => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
-    if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta)) return null;
+    if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
+      return null;
     const variableId = selectedVariableMeta.id ?? '';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
@@ -320,7 +346,12 @@ export function UploadPreview({
     const variableId = selectedVariableMeta?.id ?? '';
     return visibleCategoricalClasses.map((cls) => ({
       ...cls,
-      color: getCbColor(variableId, cls.id as number, cbMode, cls.color ?? '#888888'),
+      color: getCbColor(
+        variableId,
+        cls.id as number,
+        cbMode,
+        cls.color ?? '#888888',
+      ),
     }));
   }, [visibleCategoricalClasses, cbMode, selectedVariableMeta]);
 
@@ -397,10 +428,14 @@ export function UploadPreview({
             isCircular={isCircular}
             circularShapesEnabled={circularShapesEnabled}
             gradientStops={
-              !isCategorical && !isCircular ? COLORMAPS[selectedColormap].stops : null
+              !isCategorical && !isCircular
+                ? COLORMAPS[selectedColormap].stops
+                : null
             }
             aspectStops={
-              isCircular ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops : null
+              isCircular
+                ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                : null
             }
           />
           {selectedVariableMeta &&
@@ -414,15 +449,21 @@ export function UploadPreview({
                 units={selectedVariableMeta.units}
                 pinnedValue={pinnedValue}
                 barCss={COLORMAPS[selectedColormap].barCss}
-                barColors={COLORMAPS[selectedColormap].stops.slice().reverse().map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                barColors={COLORMAPS[selectedColormap].stops
+                  .slice()
+                  .reverse()
+                  .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
               />
             )}
-          {selectedVariableMeta && !isCategorical && !isCircular && setSelectedColormap && (
-            <MapColormapPicker
-              selected={selectedColormap}
-              onChange={setSelectedColormap}
-            />
-          )}
+          {selectedVariableMeta &&
+            !isCategorical &&
+            !isCircular &&
+            setSelectedColormap && (
+              <MapColormapPicker
+                selected={selectedColormap}
+                onChange={setSelectedColormap}
+              />
+            )}
           {selectedVariableMeta && isCircular && (
             <MapCircularLegend
               pinnedValue={pinnedValue}
@@ -433,28 +474,38 @@ export function UploadPreview({
               nsweColors={nsweColors}
             />
           )}
-          {selectedVariableMeta && isCircular && setSelectedCircularColormap && (
-            <MapCircularColormapPicker
-              selected={selectedCircularColormap}
-              onChange={setSelectedCircularColormap}
-              cbMode={cbMode}
-              onCbModeChange={settings?.setCbMode}
-              markerOutlineEnabled={markerOutlineEnabled}
-            />
-          )}
+          {selectedVariableMeta &&
+            isCircular &&
+            setSelectedCircularColormap && (
+              <MapCircularColormapPicker
+                selected={selectedCircularColormap}
+                onChange={setSelectedCircularColormap}
+                cbMode={cbMode}
+                onCbModeChange={settings?.setCbMode}
+                markerOutlineEnabled={markerOutlineEnabled}
+              />
+            )}
           {cbVisibleCategoricalClasses && (
-            <MapCategoricalLegend classes={cbVisibleCategoricalClasses} variableId={selectedVariableMeta?.id} cbMode={cbMode} shapesEnabled={shapesEnabled} markerOutlineEnabled={markerOutlineEnabled} />
-          )}
-          {visibleCategoricalClasses && selectedVariableMeta && settings?.setCbMode && (
-            <MapCbModePicker
-              selected={cbMode ?? null}
-              onChange={settings.setCbMode}
-              topClasses={visibleCategoricalClasses.slice(0, 3)}
-              variableId={selectedVariableMeta.id ?? ''}
+            <MapCategoricalLegend
+              classes={cbVisibleCategoricalClasses}
+              variableId={selectedVariableMeta?.id}
+              cbMode={cbMode}
               shapesEnabled={shapesEnabled}
               markerOutlineEnabled={markerOutlineEnabled}
             />
           )}
+          {visibleCategoricalClasses &&
+            selectedVariableMeta &&
+            settings?.setCbMode && (
+              <MapCbModePicker
+                selected={cbMode ?? null}
+                onChange={settings.setCbMode}
+                topClasses={visibleCategoricalClasses.slice(0, 3)}
+                variableId={selectedVariableMeta.id ?? ''}
+                shapesEnabled={shapesEnabled}
+                markerOutlineEnabled={markerOutlineEnabled}
+              />
+            )}
         </View>
       ) : null}
     </SpeciesDataSourceProvider>

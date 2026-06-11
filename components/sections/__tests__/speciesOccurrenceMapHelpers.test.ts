@@ -198,6 +198,11 @@ describe('speciesOccurrenceMapHelpers', () => {
       popup: jest.fn(() => popup),
       markerClusterGroup: jest.fn(() => makeLayer()),
       layerGroup: jest.fn(() => makeLayer()),
+      SVG: {
+        prototype: {
+          _updateCircle: jest.fn(),
+        },
+      },
     };
 
     const document = {
@@ -626,6 +631,20 @@ describe('speciesOccurrenceMapHelpers', () => {
       ),
     ];
 
+    const expectedHighlightStyles: Record<
+      string,
+      { fillColor: string; color: string }
+    > = {
+      'SpeciesOccurrenceMap.html': {
+        fillColor: markerPalette.markerFill,
+        color: markerPalette.markerStroke,
+      },
+      'SpeciesOccurrenceMapFallback.html': {
+        fillColor: '#ffffff',
+        color: 'rgba(0,0,0,0.65)',
+      },
+    };
+
     templatePaths.forEach((templatePath) => {
       const rawTemplate = fs.readFileSync(templatePath, 'utf8');
       const html = buildLeafletHtml(
@@ -636,7 +655,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         ],
         markerPalette,
         getMapTileUrlTemplate('light'),
-      ).replace(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS), '1');
+      ).replace(
+        `MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = ${MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS}`,
+        'MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 1',
+      );
       const harness = createLeafletHarness();
       harness.setVisibleLongitudePredicate(() => true);
 
@@ -651,10 +673,11 @@ describe('speciesOccurrenceMapHelpers', () => {
       harness.setVisibleLongitudePredicate((longitude) => longitude === 20);
       harness.eventHandlers.get('zoomend')?.();
 
+      const templateName = path.basename(templatePath);
+      const expectedStyle = expectedHighlightStyles[templateName];
       expect(harness.createdMarkers).toHaveLength(3);
       expect(harness.createdMarkers[2]?.style).toMatchObject({
-        fillColor: '#ffffff',
-        color: 'rgba(0,0,0,0.65)',
+        ...expectedStyle,
         radius: 4,
       });
     });
@@ -758,7 +781,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         ],
         markerPalette,
         getMapTileUrlTemplate('light'),
-      ).replace(String(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS), '1');
+      ).replace(
+        `MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = ${MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS}`,
+        'MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 1',
+      );
       const harness = createLeafletHarness();
 
       vm.runInNewContext(extractInlineScript(html), harness.context);
@@ -1025,6 +1051,54 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       'mock://SpeciesOccurrenceMapFallback.html',
     );
+  });
+
+  it('assigns cardinal shapes to points when circularShapesEnabled is true', () => {
+    const observationValues = new Map([
+      ['10', 0],
+      ['20', 90],
+      ['30', 180],
+      ['40', 270],
+    ]);
+    const html = buildLeafletHtml(
+      '__POINTS_JSON__',
+      [
+        { catalogNumber: 10, latitude: 1, longitude: 10 },
+        { catalogNumber: 20, latitude: 2, longitude: 20 },
+        { catalogNumber: 30, latitude: 3, longitude: 30 },
+        { catalogNumber: 40, latitude: 4, longitude: 40 },
+      ],
+      markerPalette,
+      getMapTileUrlTemplate('light'),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+      observationValues,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null,
+      null,
+      null,
+      null,
+      false,
+      true,
+    );
+    expect(html).toContain('varShape');
   });
 
   it('exposes a stable document base url for map referrers', () => {

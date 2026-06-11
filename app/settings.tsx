@@ -53,11 +53,31 @@ const COLOR_MODE_OPTIONS = [
 export default function Settings() {
   const router = useRouter();
   const responsive = useResponsive();
-  const { units, setUnits, colorModeOverride, setColorModeOverride, colormap, setColormap, circularColormap, setCircularColormap, cbMode, setCbMode, shapesEnabled, setShapesEnabled, markerOutlineEnabled, setMarkerOutlineEnabled } =
-    useSettings();
+  const {
+    units,
+    setUnits,
+    colorModeOverride,
+    setColorModeOverride,
+    colormap,
+    setColormap,
+    circularColormap,
+    setCircularColormap,
+    cbMode,
+    setCbMode,
+    shapesEnabled,
+    setShapesEnabled,
+    markerOutlineEnabled,
+    setMarkerOutlineEnabled,
+  } = useSettings();
 
-  const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({ label: COLORMAPS[id].label, value: id }));
-  const CIRCULAR_COLORMAP_OPTIONS = CIRCULAR_COLORMAP_ORDER.map((id) => ({ label: CIRCULAR_COLORMAPS[id].label, value: id }));
+  const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({
+    label: COLORMAPS[id].label,
+    value: id,
+  }));
+  const CIRCULAR_COLORMAP_OPTIONS = CIRCULAR_COLORMAP_ORDER.map((id) => ({
+    label: CIRCULAR_COLORMAPS[id].label,
+    value: id,
+  }));
 
   const handleUnitsChange = (value: string) => {
     if (isUnitSystem(value)) {
@@ -86,7 +106,10 @@ export default function Settings() {
   ];
 
   const handleCbModeChange = (value: string) => {
-    if (value === 'none') { setCbMode(null); return; }
+    if (value === 'none') {
+      setCbMode(null);
+      return;
+    }
     if (isCbMode(value)) setCbMode(value as CbMode);
   };
 

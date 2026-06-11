@@ -10,7 +10,9 @@ const OUTLINE_STROKE = 'rgba(176,176,176,0.65)';
 const OUTLINE_WIDTH = 2.5;
 
 function shapeContent(shape: ShapeKey, color: string, outline: boolean) {
-  const s = outline ? { stroke: OUTLINE_STROKE, strokeWidth: OUTLINE_WIDTH } : {};
+  const s = outline
+    ? { stroke: OUTLINE_STROKE, strokeWidth: OUTLINE_WIDTH }
+    : {};
   switch (shape) {
     case 'circle':
       return <Circle cx={4} cy={4} r={3.8} fill={color} {...s} />;
@@ -25,11 +27,32 @@ function shapeContent(shape: ShapeKey, color: string, outline: boolean) {
     case 'ring':
       return outline ? (
         <>
-          <Circle cx={4} cy={4} r={2.8} stroke={OUTLINE_STROKE} strokeWidth={OUTLINE_WIDTH + 1.5} fill='none' />
-          <Circle cx={4} cy={4} r={2.8} stroke={color} strokeWidth={2.2} fill='none' />
+          <Circle
+            cx={4}
+            cy={4}
+            r={2.8}
+            stroke={OUTLINE_STROKE}
+            strokeWidth={OUTLINE_WIDTH + 1.5}
+            fill='none'
+          />
+          <Circle
+            cx={4}
+            cy={4}
+            r={2.8}
+            stroke={color}
+            strokeWidth={2.2}
+            fill='none'
+          />
         </>
       ) : (
-        <Circle cx={4} cy={4} r={2.8} stroke={color} strokeWidth={2.2} fill='none' />
+        <Circle
+          cx={4}
+          cy={4}
+          r={2.8}
+          stroke={color}
+          strokeWidth={2.2}
+          fill='none'
+        />
       );
     case 'cross':
       return (
@@ -48,10 +71,16 @@ function shapeContent(shape: ShapeKey, color: string, outline: boolean) {
         />
       );
     case 'star':
-      return <Polygon points='4,0 5,3 8,4 5,5 4,8 3,5 0,4 3,3' fill={color} {...s} />;
+      return (
+        <Polygon points='4,0 5,3 8,4 5,5 4,8 3,5 0,4 3,3' fill={color} {...s} />
+      );
     case 'hexagon':
       return (
-        <Polygon points='8,4 6,7.46 2,7.46 0,4 2,0.54 6,0.54' fill={color} {...s} />
+        <Polygon
+          points='8,4 6,7.46 2,7.46 0,4 2,0.54 6,0.54'
+          fill={color}
+          {...s}
+        />
       );
     case 'pentagon':
       return (
@@ -63,7 +92,11 @@ function shapeContent(shape: ShapeKey, color: string, outline: boolean) {
       );
     case 'arrow':
       return (
-        <Polygon points='0,2.5 5,2.5 5,0 8,4 5,8 5,5.5 0,5.5' fill={color} {...s} />
+        <Polygon
+          points='0,2.5 5,2.5 5,0 8,4 5,8 5,5.5 0,5.5'
+          fill={color}
+          {...s}
+        />
       );
   }
 }
@@ -75,9 +108,19 @@ type ShapeMarkerProps = {
   outline?: boolean;
 };
 
-export function ShapeMarker({ shape, color, size = 8, outline = false }: ShapeMarkerProps) {
+export function ShapeMarker({
+  shape,
+  color,
+  size = 8,
+  outline = false,
+}: ShapeMarkerProps) {
   return (
-    <Svg width={size} height={size} viewBox='-0.5 -0.5 9 9' style={{ flexShrink: 0 }}>
+    <Svg
+      width={size}
+      height={size}
+      viewBox='-0.5 -0.5 9 9'
+      style={{ flexShrink: 0 }}
+    >
       {shapeContent(shape, color, outline)}
     </Svg>
   );

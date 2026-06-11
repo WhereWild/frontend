@@ -13,13 +13,21 @@ type MapColormapPickerProps = {
   onChange: (id: ColormapId) => void;
 };
 
-export function MapColormapPicker({ selected, onChange }: MapColormapPickerProps) {
+export function MapColormapPicker({
+  selected,
+  onChange,
+}: MapColormapPickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.background.default.secondary }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: palette.background.default.secondary },
+      ]}
+    >
       {COLORMAP_ORDER.map((id) => {
         const cm = COLORMAPS[id];
         const isSelected = id === selected;
@@ -27,10 +35,7 @@ export function MapColormapPicker({ selected, onChange }: MapColormapPickerProps
           <Pressable
             key={id}
             onPress={() => onChange(id)}
-            style={[
-              styles.swatch,
-              isSelected && styles.swatchSelected,
-            ]}
+            style={[styles.swatch, isSelected && styles.swatchSelected]}
             accessibilityLabel={cm.label}
             accessibilityRole='radio'
             accessibilityState={{ selected: isSelected }}
@@ -43,11 +48,19 @@ export function MapColormapPicker({ selected, onChange }: MapColormapPickerProps
                 ]}
               />
             ) : (
-              <View style={[StyleSheet.absoluteFillObject, { borderRadius: 3, flexDirection: 'row' }]}>
+              <View
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  { borderRadius: 3, flexDirection: 'row' },
+                ]}
+              >
                 {cm.stops.map((s, i) => (
                   <View
                     key={i}
-                    style={{ flex: 1, backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})` }}
+                    style={{
+                      flex: 1,
+                      backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
+                    }}
                   />
                 ))}
               </View>

@@ -540,10 +540,14 @@ export const normalizeRawUploadedParquetBundle = (
       const level = typeof row.level === 'number' ? row.level : parseInt(String(row.level ?? ''), 10);
       if (!gid || !name || !Number.isFinite(level)) return [];
       let hierarchy: string[] = [];
-      try {
-        const parsed = JSON.parse(String(row.hierarchy ?? '[]'));
-        if (Array.isArray(parsed)) hierarchy = parsed.filter((v): v is string => typeof v === 'string');
-      } catch {}
+      if (Array.isArray(row.hierarchy)) {
+        hierarchy = row.hierarchy.filter((v): v is string => typeof v === 'string');
+      } else {
+        try {
+          const parsed = JSON.parse(String(row.hierarchy ?? '[]'));
+          if (Array.isArray(parsed)) hierarchy = parsed.filter((v): v is string => typeof v === 'string');
+        } catch {}
+      }
       return [{ gid, name, level, hierarchy }];
     });
 

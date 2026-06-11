@@ -58,11 +58,12 @@ jest.mock('@/context/SettingsContext', () => ({
   isColorModeOverride: (value: string) =>
     value === 'system' || value === 'light' || value === 'dark',
   isColormapId: (value: string) =>
-    ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'turbo'].includes(value),
+    ['viridis', 'plasma', 'inferno', 'magma', 'cividis', 'turbo'].includes(
+      value,
+    ),
   isCircularColormapId: (value: string) =>
     ['twilight', 'twilight_90', 'twilight_180', 'twilight_270'].includes(value),
-  isCbMode: (value: string) =>
-    ['colorblind', 'achromatopsia'].includes(value),
+  isCbMode: (value: string) => ['colorblind', 'achromatopsia'].includes(value),
 }));
 
 jest.mock('@/components', () => {

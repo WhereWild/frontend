@@ -5,17 +5,22 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { getCbColor, getCbShape, type CbMode, type ShapeKey } from './cbColors';
 import { ShapeMarker } from './ShapeMarker';
 import { CIRCULAR_COLORMAPS } from './variableColors';
 import type { LegendClass } from '@/data/types';
 
-const NSWE_SHAPES: ShapeKey[] = ['triangle', 'arrow', 'triangle-down', 'diamond'];
+const NSWE_SHAPES: ShapeKey[] = [
+  'triangle',
+  'arrow',
+  'triangle-down',
+  'diamond',
+];
 const BASE_CIRCULAR_STOPS = CIRCULAR_COLORMAPS['twilight'].stops;
 const BASE_CIRCULAR_SWATCH_CSS = CIRCULAR_COLORMAPS['twilight'].swatchCss;
 
-const MODES: Array<{ id: CbMode | null; label: string }> = [
+const MODES: { id: CbMode | null; label: string }[] = [
   { id: null, label: 'Default' },
   { id: 'colorblind', label: 'Colorblind friendly' },
   { id: 'achromatopsia', label: 'Monochrome' },
@@ -42,7 +47,7 @@ export function MapCbModePicker({
   shapesEnabled = false,
   markerOutlineEnabled = false,
   isCircular = false,
-  nsweColors,
+  nsweColors: _nsweColors,
 }: MapCbModePickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -71,15 +76,34 @@ export function MapCbModePicker({
             {isCircular ? (
               isMono ? (
                 NSWE_SHAPES.map((shape, i) => (
-                  <ShapeMarker key={i} shape={shape} color='#999999' size={8} outline={markerOutlineEnabled} />
+                  <ShapeMarker
+                    key={i}
+                    shape={shape}
+                    color='#999999'
+                    size={8}
+                    outline={markerOutlineEnabled}
+                  />
                 ))
               ) : Platform.OS === 'web' ? (
-                <View style={[styles.circularSwatch, { backgroundImage: BASE_CIRCULAR_SWATCH_CSS } as object]} />
+                <View
+                  style={[
+                    styles.circularSwatch,
+                    { backgroundImage: BASE_CIRCULAR_SWATCH_CSS } as object,
+                  ]}
+                />
               ) : (
                 <View style={[styles.circularSwatch, { flexDirection: 'row' }]}>
-                  {[...BASE_CIRCULAR_STOPS, BASE_CIRCULAR_STOPS[0]].map((s, i) => (
-                    <View key={i} style={{ flex: 1, backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})` }} />
-                  ))}
+                  {[...BASE_CIRCULAR_STOPS, BASE_CIRCULAR_STOPS[0]].map(
+                    (s, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          flex: 1,
+                          backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
+                        }}
+                      />
+                    ),
+                  )}
                 </View>
               )
             ) : (
@@ -105,7 +129,11 @@ export function MapCbModePicker({
                   return (
                     <View
                       key={cls.id}
-                      style={[styles.dot, { backgroundColor: color }, markerOutlineEnabled && styles.dotOutline]}
+                      style={[
+                        styles.dot,
+                        { backgroundColor: color },
+                        markerOutlineEnabled && styles.dotOutline,
+                      ]}
                     />
                   );
                 })}

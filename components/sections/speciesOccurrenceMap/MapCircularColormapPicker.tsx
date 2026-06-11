@@ -6,12 +6,20 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { CIRCULAR_COLORMAP_ORDER, CIRCULAR_COLORMAPS, type CircularColormapId } from './variableColors';
+import {
+  CIRCULAR_COLORMAP_ORDER,
+  CIRCULAR_COLORMAPS,
+  type CircularColormapId,
+} from './variableColors';
 import { ShapeMarker } from './ShapeMarker';
-import type { ShapeKey } from './cbColors';
-import type { CbMode } from './cbColors';
+import type { ShapeKey, CbMode } from './cbColors';
 
-const NSWE_SHAPES: ShapeKey[] = ['triangle', 'arrow', 'triangle-down', 'diamond'];
+const NSWE_SHAPES: ShapeKey[] = [
+  'triangle',
+  'arrow',
+  'triangle-down',
+  'diamond',
+];
 
 type MapCircularColormapPickerProps = {
   selected: CircularColormapId;
@@ -21,21 +29,35 @@ type MapCircularColormapPickerProps = {
   markerOutlineEnabled?: boolean;
 };
 
-export function MapCircularColormapPicker({ selected, onChange, cbMode, onCbModeChange, markerOutlineEnabled = false }: MapCircularColormapPickerProps) {
+export function MapCircularColormapPicker({
+  selected,
+  onChange,
+  cbMode,
+  onCbModeChange,
+  markerOutlineEnabled = false,
+}: MapCircularColormapPickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const isMono = cbMode === 'achromatopsia';
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.background.default.secondary }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: palette.background.default.secondary },
+      ]}
+    >
       {CIRCULAR_COLORMAP_ORDER.map((id) => {
         const cm = CIRCULAR_COLORMAPS[id];
         const isSelected = !isMono && id === selected;
         return (
           <Pressable
             key={id}
-            onPress={() => { onChange(id); onCbModeChange?.(null); }}
+            onPress={() => {
+              onChange(id);
+              onCbModeChange?.(null);
+            }}
             style={[styles.swatch, isSelected && styles.swatchSelected]}
             accessibilityLabel={cm.label}
             accessibilityRole='radio'
@@ -49,11 +71,19 @@ export function MapCircularColormapPicker({ selected, onChange, cbMode, onCbMode
                 ]}
               />
             ) : (
-              <View style={[StyleSheet.absoluteFillObject, { borderRadius: 3, flexDirection: 'row' }]}>
+              <View
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  { borderRadius: 3, flexDirection: 'row' },
+                ]}
+              >
                 {[...cm.stops, cm.stops[0]].map((s, i) => (
                   <View
                     key={i}
-                    style={{ flex: 1, backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})` }}
+                    style={{
+                      flex: 1,
+                      backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
+                    }}
                   />
                 ))}
               </View>
@@ -70,7 +100,13 @@ export function MapCircularColormapPicker({ selected, onChange, cbMode, onCbMode
           accessibilityState={{ selected: isMono }}
         >
           {NSWE_SHAPES.map((shape, i) => (
-            <ShapeMarker key={i} shape={shape} color='#999999' size={8} outline={markerOutlineEnabled} />
+            <ShapeMarker
+              key={i}
+              shape={shape}
+              color='#999999'
+              size={8}
+              outline={markerOutlineEnabled}
+            />
           ))}
         </Pressable>
       )}
