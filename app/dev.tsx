@@ -1181,7 +1181,6 @@ export default function About() {
                 })()}
               </View>
             </View>
-
           </PageScrollContainer>
         </View>
       </PageSurface>

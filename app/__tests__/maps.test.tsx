@@ -3,23 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { fetchEnvironmentVariables } from '@/data/api';
-import { Shadows, Time, Typography } from '@/constants/theme';
 import {
   fireEvent,
   render,
   screen,
   waitFor,
-  within,
 } from '@testing-library/react-native';
 import React from 'react';
-import About from '../dev';
+import Maps from '../maps';
 
-const mockPush = jest.fn();
-let mockPathname: '/' | '/about' = '/';
-
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
-  usePathname: () => mockPathname,
+jest.mock('expo-router/head', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 jest.mock('@/hooks/useResponsive', () => ({
@@ -33,7 +28,6 @@ jest.mock('@/hooks/useColorScheme', () => ({
 jest.mock('@/data/api', () => ({
   BACKEND_BASE: 'https://api.example.test',
   fetchEnvironmentVariables: jest.fn(async () => []),
-  fetchDataSources: jest.fn(() => Promise.resolve({})),
 }));
 
 jest.mock('@/components', () => {
@@ -83,10 +77,15 @@ jest.mock('@/components', () => {
     },
     SpeciesOccurrenceMap: ({
       heatmapTileUrl,
+      onTileClasses,
     }: {
       heatmapTileUrl?: string | null;
-    }) =>
-      mockReact.createElement(
+      onTileClasses?: (classes: { id: number; count: number }[], removed: boolean) => void;
+    }) => {
+      mockReact.useEffect(() => {
+        onTileClasses?.([{ id: 1, count: 5 }, { id: 2, count: 3 }], false);
+      }, [onTileClasses]);
+      return mockReact.createElement(
         MockView,
         { testID: 'species-occurrence-map-mock' },
         mockReact.createElement(
@@ -94,7 +93,8 @@ jest.mock('@/components', () => {
           { testID: 'species-occurrence-map-url' },
           heatmapTileUrl ?? 'none',
         ),
-      ),
+      );
+    },
   };
 });
 
@@ -144,6 +144,24 @@ jest.mock(
             }}
           >
             <Text>Select Land Cover</Text>
+          </Pressable>
+          <Pressable
+            testID='select-aspect'
+            onPress={() => {
+              onCategoryChange?.('Terrain');
+              onVariableChange?.('aspect');
+            }}
+          >
+            <Text>Select Aspect</Text>
+          </Pressable>
+          <Pressable
+            testID='select-bio1'
+            onPress={() => {
+              onCategoryChange?.('Bioclim');
+              onVariableChange?.('bio_1');
+            }}
+          >
+            <Text>Select Bio 1</Text>
           </Pressable>
         </View>
       ),
@@ -217,40 +235,15 @@ jest.mock(
     };
   },
 );
+
 const mockFetchEnvironmentVariables =
   fetchEnvironmentVariables as jest.MockedFunction<
     typeof fetchEnvironmentVariables
   >;
-const TYPOGRAPHY_SAMPLE_TEXT = 'Sphinx of black quartz, judge my vow.';
-const EXPECTED_TYPOGRAPHY_LABELS = [
-  'Title Hero',
-  'Title Page',
-  'Subtitle',
-  'Heading',
-  'Subheading',
-  'Body',
-  'Body Emphasis',
-  'Body Strong',
-  'Body Small',
-  'Body Small Emphasis',
-  'Body Small Strong',
-  'Body Small Link',
-  'Body Tiny',
-  'Body Tiny Strong',
-  'Link',
-  'Code',
-  'Single Line Body',
-  'Single Line Body Small',
-  'Single Line Body Small Strong',
-  'Single Line Body Tiny',
-  'Single Line Body Tiny Strong',
-] as const;
 
-describe('Dev screen', () => {
+describe('Maps screen', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    mockPush.mockClear();
-    mockPathname = '/';
     mockFetchEnvironmentVariables.mockReturnValue(
       new Promise(() => undefined) as any,
     );
@@ -260,99 +253,156 @@ describe('Dev screen', () => {
     jest.useRealTimers();
   });
 
-  it('renders the species component preview with sample data', () => {
-    render(<About />);
+  it('shows live weather controls and updates the tile url for weather windows and forecasts', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValueOnce([
+      {
+        id: 'temporal-only',
+        name: 'Temporal Only',
+        category: 'Temporal',
+        valueType: 'continuous',
+      },
+      {
+        id: 'recent-weather-only',
+        name: 'Recent Weather Only',
+        category: 'Recent Weather',
+        valueType: 'continuous',
+      },
+      {
+        id: 'wind_speed',
+        name: 'Wind Speed',
+        category: 'Live Weather',
+        valueType: 'continuous',
+      },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        category: 'Categorical',
+        valueType: 'categorical',
+      },
+    ] as any);
 
-    expect(screen.queryByText('Developer Tools')).toBeNull();
+    render(<Maps />);
 
-    expect(screen.getByText('Species Page Components')).toBeTruthy();
     expect(
-      screen.getByText(
-        'Preview of the composable building blocks used on the species detail page.',
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText('Mountain Ball Cactus')).toBeTruthy();
-    expect(screen.getByText('Pediocactus simpsonii')).toBeTruthy();
-    expect(screen.getByText('Nearby Species')).toBeTruthy();
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).toContain('/api/variables/');
+    expect(screen.queryByText('Aggregation window')).toBeNull();
+    expect(screen.queryByText('Forecast offset')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('select-live-weather'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('selected-variable-category').props.children,
+      ).toBe('Live Weather');
+    });
+    expect(screen.getByText('Aggregation window')).toBeTruthy();
+    expect(screen.getByText('Forecast offset')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Aggregation window'));
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).toContain('&window=1h');
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).not.toContain('&forecast=');
+
+    fireEvent.press(screen.getByLabelText('Forecast offset'));
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).toContain('&forecast=1h');
+
+    fireEvent.press(screen.getByTestId('select-landcover'));
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-variable').props.children).toBe(
+        'landcover',
+      );
+    });
+    expect(screen.queryByText('Aggregation window')).toBeNull();
+    expect(screen.queryByText('Forecast offset')).toBeNull();
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).toContain('/api/variables/landcover/tiles/{z}/{x}/{y}.png');
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).not.toContain('&window=');
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).not.toContain('&forecast=');
   });
 
-  it('updates the playground search status text when typing and clearing', () => {
-    render(<About />);
+  it('switches to circular colormap when a circular variable is selected', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValueOnce([
+      { id: 'aspect', name: 'Aspect', category: 'Terrain', valueType: 'circular' },
+      { id: 'landcover', name: 'Land Cover', category: 'Categorical', valueType: 'categorical' },
+    ] as any);
 
-    const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
-    fireEvent.changeText(speciesSearchInput, 'pinyon');
-    expect(screen.getByText('Query changed: pinyon')).toBeTruthy();
+    render(<Maps />);
 
-    const clearSpeciesSearch = screen.getByLabelText('Clear search');
-    fireEvent.press(clearSpeciesSearch);
-    expect(screen.getByText('Search cleared')).toBeTruthy();
-  });
-
-  it('records submission events for the playground search input', () => {
-    render(<About />);
-
-    const speciesSearchInput = screen.getAllByLabelText('Search species')[0];
-    fireEvent.changeText(speciesSearchInput, 'sage');
-    fireEvent(speciesSearchInput, 'submitEditing', {
-      nativeEvent: { text: 'sage' },
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-variable').props.children).toBeDefined();
     });
 
-    expect(screen.getByText('Search submitted with "sage"')).toBeTruthy();
-  });
+    fireEvent.press(screen.getByTestId('select-aspect'));
 
-  it('renders previews for typography, shadow, and time token examples', () => {
-    render(<About />);
-
-    const typographyVariantCount = Object.keys(Typography.light).length;
-    expect(EXPECTED_TYPOGRAPHY_LABELS).toHaveLength(typographyVariantCount);
-    const typographySamples = screen.getAllByTestId('typography-sample');
-    expect(typographySamples).toHaveLength(typographyVariantCount);
-    typographySamples.forEach((sample, index) => {
-      const scoped = within(sample);
-      expect(scoped.getByText(EXPECTED_TYPOGRAPHY_LABELS[index])).toBeTruthy();
-      expect(scoped.getByText(TYPOGRAPHY_SAMPLE_TEXT)).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('species-occurrence-map-url').props.children,
+      ).toContain('twilight_90');
     });
-    expect(screen.getAllByTestId('shadow-sample')).toHaveLength(
-      Object.keys(Shadows).length,
-    );
-
-    expect(screen.getByText('Time + Easing Tokens')).toBeTruthy();
-    expect(screen.getByText('Duration \\ Easing')).toBeTruthy();
-    expect(screen.getAllByTestId('time-duration-header')).toHaveLength(
-      Object.keys(Time.duration).length,
-    );
-    expect(screen.getAllByTestId('time-easing-header')).toHaveLength(
-      Object.keys(Time.easing).length,
-    );
-    expect(screen.getAllByTestId('time-motion-preview-cell')).toHaveLength(
-      Object.keys(Time.duration).length * Object.keys(Time.easing).length,
-    );
   });
 
-  it('does not trigger navigation from local Dev screen content', () => {
-    mockPathname = '/about';
-    render(<About />);
+  it('renders gradient legend for continuous variable with renderMin/renderMax', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValueOnce([
+      {
+        id: 'bio_1',
+        name: 'Annual Mean Temperature',
+        category: 'Bioclim',
+        valueType: 'continuous',
+        renderMin: -5,
+        renderMax: 30,
+        units: '°C',
+      },
+      { id: 'landcover', name: 'Land Cover', category: 'Categorical', valueType: 'categorical' },
+    ] as any);
 
-    expect(mockPush).not.toHaveBeenCalled();
+    render(<Maps />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-variable').props.children).toBeDefined();
+    });
+
+    fireEvent.press(screen.getByTestId('select-bio1'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-variable').props.children).toBe('bio_1');
+    });
+
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).toContain('/api/variables/bio_1/');
   });
 
-  it('switches through each tab showcase and renders the matching pill section', () => {
-    render(<About />);
+  it('renders categorical legend after tile classes are reported', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValueOnce([
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        category: 'Categorical',
+        valueType: 'categorical',
+        legendClasses: [
+          { id: 1, name: 'Forest', color: '#228B22' },
+          { id: 2, name: 'Water', color: '#4169E1' },
+        ],
+      },
+    ] as any);
 
-    fireEvent.press(screen.getByText('Habitat & Range'));
-    expect(screen.getByText('Vertical list')).toBeTruthy();
+    render(<Maps />);
 
-    fireEvent.press(screen.getByText('Tracking and Sightings'));
-    expect(screen.getByText('Mixed label lengths')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Images'));
-    expect(screen.getByText('Image categories')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Field Notes'));
-    expect(screen.getByText('Notes sections')).toBeTruthy();
-
-    fireEvent.press(screen.getByText('Overview'));
-    expect(screen.getByText('Horizontal wrap')).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('species-occurrence-map-url').props.children,
+      ).toContain('landcover');
+    });
   });
-
 });

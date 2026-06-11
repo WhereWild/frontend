@@ -62,7 +62,9 @@ describe('UploadPreview', () => {
           occurrenceIndex: [],
           summaryStats: [],
         }}
-        uploadedDataSource={{} as never}
+        uploadedDataSource={{
+          fetchSpeciesOccurrences: jest.fn().mockResolvedValue({ occurrences: [], minTimestamp: null, maxTimestamp: null, phenologyCounts: null }),
+        } as never}
         onHighlightChange={jest.fn()}
       />,
     );

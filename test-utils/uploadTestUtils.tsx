@@ -312,7 +312,7 @@ export const makeUploadPreviewDataSource = () => ({
   }),
   fetchEnvironmentRangeSlice: jest.fn().mockResolvedValue([]),
   fetchSpeciesEnvironmentCategorySamples: jest.fn().mockResolvedValue(null),
-  fetchSpeciesOccurrences: jest.fn().mockResolvedValue([]),
+  fetchSpeciesOccurrences: jest.fn().mockResolvedValue({ occurrences: [], minTimestamp: null, maxTimestamp: null, phenologyCounts: null }),
   fetchSpeciesLocations: jest.fn().mockResolvedValue([]),
 });
 

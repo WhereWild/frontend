@@ -118,7 +118,10 @@ export function MapCbModePicker({
                     entry.id,
                     cls.color ?? '#888888',
                   );
-                  if (!dotsOnly && (shapesEnabled || entry.id === 'achromatopsia')) {
+                  if (
+                    !dotsOnly &&
+                    (shapesEnabled || entry.id === 'achromatopsia')
+                  ) {
                     return (
                       <ShapeMarker
                         key={cls.id}

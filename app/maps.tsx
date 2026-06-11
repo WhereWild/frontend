@@ -39,9 +39,25 @@ const MAP_HEIGHT = 520;
 const MAP_MIN_ZOOM = 4;
 
 const FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
-  { id: 'landcover', label: 'Land Cover', valueType: 'categorical', category: 'Categorical' },
-  { id: 'koppen_geiger', label: 'Köppen-Geiger', valueType: 'categorical', category: 'Categorical' },
-  { id: 'bio_1', label: 'Annual Mean Temperature', units: 'C', valueType: 'continuous', category: 'Bioclim' },
+  {
+    id: 'landcover',
+    label: 'Land Cover',
+    valueType: 'categorical',
+    category: 'Categorical',
+  },
+  {
+    id: 'koppen_geiger',
+    label: 'Köppen-Geiger',
+    valueType: 'categorical',
+    category: 'Categorical',
+  },
+  {
+    id: 'bio_1',
+    label: 'Annual Mean Temperature',
+    units: 'C',
+    valueType: 'continuous',
+    category: 'Bioclim',
+  },
 ];
 
 const EXCLUDED_CATEGORIES = new Set(['temporal']);
@@ -124,15 +140,19 @@ export default function Maps() {
     setCbMode,
     markerOutlineEnabled: markerOutlineEnabledSetting,
   } = useSettings();
-  const markerOutlineEnabled = markerOutlineEnabledSetting || cbMode === 'achromatopsia';
+  const markerOutlineEnabled =
+    markerOutlineEnabledSetting || cbMode === 'achromatopsia';
 
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
 
-  const [variables, setVariables] = useState<EnvironmentVariableOption[]>(FALLBACK_VARIABLES);
-  const [visibleNominalCounts, setVisibleNominalCounts] = useState<Map<number, number>>(new Map());
+  const [variables, setVariables] =
+    useState<EnvironmentVariableOption[]>(FALLBACK_VARIABLES);
+  const [visibleNominalCounts, setVisibleNominalCounts] = useState<
+    Map<number, number>
+  >(new Map());
   const [pinnedValue, setPinnedValue] = useState<number | null>(null);
   const [selectedWindow, setSelectedWindow] = useState('live');
   const [selectedForecast, setSelectedForecast] = useState('now');
@@ -149,7 +169,9 @@ export default function Maps() {
         // keep fallback
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [units]);
 
   const {
@@ -162,7 +184,8 @@ export default function Maps() {
     selectedVariableMeta,
   } = useEnvironmentVariableSelection({ variableId: 'landcover', variables });
 
-  const isLiveWeather = (selectedVariableCategory ?? '').toLowerCase() === 'live weather';
+  const isLiveWeather =
+    (selectedVariableCategory ?? '').toLowerCase() === 'live weather';
   const isCircular = isVariableCircular(selectedVariableMeta);
   const isCategorical = isVariableCategorical(selectedVariableMeta);
 
@@ -199,7 +222,10 @@ export default function Maps() {
     setPinnedValue(null);
   }, [selectedVariable]);
 
-  const handlePointValue = useCallback((value: number) => setPinnedValue(value), []);
+  const handlePointValue = useCallback(
+    (value: number) => setPinnedValue(value),
+    [],
+  );
 
   const handleTileClasses = useCallback(
     (classes: { id: number; count: number }[], removed: boolean) => {
@@ -228,7 +254,11 @@ export default function Maps() {
     );
     const visible = allClasses
       .filter((cls) => visibleNominalCounts.has(cls.id as number))
-      .sort((a, b) => (visibleNominalCounts.get(b.id as number) ?? 0) - (visibleNominalCounts.get(a.id as number) ?? 0));
+      .sort(
+        (a, b) =>
+          (visibleNominalCounts.get(b.id as number) ?? 0) -
+          (visibleNominalCounts.get(a.id as number) ?? 0),
+      );
     return visible.length > 0 ? visible : null;
   }, [isCategorical, selectedVariableMeta, visibleNominalCounts]);
 
@@ -237,19 +267,30 @@ export default function Maps() {
       cbMode && visibleCategoricalClasses
         ? visibleCategoricalClasses.map((cls) => ({
             ...cls,
-            color: getCbColor(selectedVariableMeta?.id ?? '', cls.id as number, cbMode, cls.color ?? '#888888'),
+            color: getCbColor(
+              selectedVariableMeta?.id ?? '',
+              cls.id as number,
+              cbMode,
+              cls.color ?? '#888888',
+            ),
           }))
         : visibleCategoricalClasses,
     [cbMode, selectedVariableMeta, visibleCategoricalClasses],
   );
 
   const classColors = useMemo(() => {
-    if (!isCategorical || !selectedVariableMeta?.legendClasses?.length) return null;
+    if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)
+      return null;
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
       if (cls.id != null && cls.color) {
         const color = cbMode
-          ? getCbColor(selectedVariableMeta.id, cls.id as number, cbMode, cls.color)
+          ? getCbColor(
+              selectedVariableMeta.id,
+              cls.id as number,
+              cbMode,
+              cls.color,
+            )
           : cls.color;
         map.set(String(cls.id), color);
       }
@@ -258,7 +299,8 @@ export default function Maps() {
   }, [isCategorical, selectedVariableMeta, cbMode]);
 
   const classLabels = useMemo(() => {
-    if (!isCategorical || !selectedVariableMeta?.legendClasses?.length) return null;
+    if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)
+      return null;
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
       if (cls.id != null && cls.name) {
@@ -271,13 +313,20 @@ export default function Maps() {
   return (
     <>
       {/* @ts-ignore — Head is web-only */}
-      <Head><title>WhereWild | Maps</title></Head>
+      <Head>
+        <title>WhereWild | Maps</title>
+      </Head>
       <PageSurface>
         <PageScrollContainer
           contentContainerStyle={getResponsiveContentContainerStyle(responsive)}
           bounces={false}
         >
-          <View style={[styles.section, { backgroundColor: palette.background.default.default }]}>
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: palette.background.default.default },
+            ]}
+          >
             <VariableSelectorHeader
               categories={categories}
               selectedVariableCategory={selectedVariableCategory}
@@ -294,7 +343,10 @@ export default function Maps() {
                 variant='tertiary'
                 options={WINDOW_OPTIONS}
                 value={selectedWindow}
-                onValueChange={(v) => { setSelectedWindow(v); setSelectedForecast('now'); }}
+                onValueChange={(v) => {
+                  setSelectedWindow(v);
+                  setSelectedForecast('now');
+                }}
                 placeholder='Aggregation window'
               />
             )}
@@ -326,10 +378,26 @@ export default function Maps() {
                     : null
                 }
                 isCircular={isCircular}
-                renderMin={!isCategorical && !isCircular ? (selectedVariableMeta?.renderMin ?? null) : null}
-                renderMax={!isCategorical && !isCircular ? (selectedVariableMeta?.renderMax ?? null) : null}
-                gradientStops={!isCategorical && !isCircular ? COLORMAPS[selectedColormap].stops : null}
-                aspectStops={isCircular ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops : null}
+                renderMin={
+                  !isCategorical && !isCircular
+                    ? (selectedVariableMeta?.renderMin ?? null)
+                    : null
+                }
+                renderMax={
+                  !isCategorical && !isCircular
+                    ? (selectedVariableMeta?.renderMax ?? null)
+                    : null
+                }
+                gradientStops={
+                  !isCategorical && !isCircular
+                    ? COLORMAPS[selectedColormap].stops
+                    : null
+                }
+                aspectStops={
+                  isCircular
+                    ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                    : null
+                }
                 classColors={classColors}
                 classLabels={classLabels}
                 markerOutlineEnabled={markerOutlineEnabled}
@@ -339,7 +407,9 @@ export default function Maps() {
                 <>
                   <MapCircularLegend
                     pinnedValue={pinnedValue}
-                    conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+                    conicCss={
+                      CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss
+                    }
                     nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
                   />
                   <MapCircularColormapPicker
@@ -370,7 +440,8 @@ export default function Maps() {
                 </>
               )}
 
-              {!isCircular && !isCategorical &&
+              {!isCircular &&
+                !isCategorical &&
                 selectedVariableMeta?.renderMin != null &&
                 selectedVariableMeta?.renderMax != null && (
                   <>
@@ -385,7 +456,10 @@ export default function Maps() {
                         .reverse()
                         .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
                     />
-                    <MapColormapPicker selected={selectedColormap} onChange={setSelectedColormap} />
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
+                    />
                   </>
                 )}
             </View>
