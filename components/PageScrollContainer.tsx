@@ -47,7 +47,9 @@ export function PageScrollContainer({
       document.body.style.touchAction = '';
     };
     return (
-      <ScrollLockContext.Provider value={{ lockScroll: webLockScroll, unlockScroll: webUnlockScroll }}>
+      <ScrollLockContext.Provider
+        value={{ lockScroll: webLockScroll, unlockScroll: webUnlockScroll }}
+      >
         <View style={style} testID={scrollViewProps.testID}>
           <View style={contentContainerStyle}>{children}</View>
         </View>

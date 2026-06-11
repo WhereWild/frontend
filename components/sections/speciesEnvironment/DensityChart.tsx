@@ -248,7 +248,7 @@ export function DensityChart({
       dragOrigin.current = null;
       dragValue.current = null;
       hasDragged.current = false;
-      if (Platform.OS === 'web') setResponderKey(k => k + 1);
+      if (Platform.OS === 'web') setResponderKey((k) => k + 1);
     },
     [
       unlockScroll,
@@ -266,12 +266,12 @@ export function DensityChart({
     if (isDiscrete) {
       dragOrigin.current = null;
       hasDragged.current = false;
-      if (Platform.OS === 'web') setResponderKey(k => k + 1);
+      if (Platform.OS === 'web') setResponderKey((k) => k + 1);
       return;
     }
     if (dragOrigin.current === null) {
       onSelectionChange?.(null);
-      if (Platform.OS === 'web') setResponderKey(k => k + 1);
+      if (Platform.OS === 'web') setResponderKey((k) => k + 1);
       return;
     }
     const value = dragValue.current ?? dragOrigin.current;
@@ -283,7 +283,7 @@ export function DensityChart({
     dragOrigin.current = null;
     dragValue.current = null;
     hasDragged.current = false;
-    if (Platform.OS === 'web') setResponderKey(k => k + 1);
+    if (Platform.OS === 'web') setResponderKey((k) => k + 1);
   }, [unlockScroll, isDiscrete, onSelectionChange]);
 
   // On web, prevent pointercancel from terminating drags mid-gesture.
@@ -295,19 +295,28 @@ export function DensityChart({
     if (Platform.OS !== 'web') return;
     if (!hasCurveData) return;
 
-    const el = document.querySelector('[data-testid="density-chart-responder"]') as HTMLElement | null;
+    const el = document.querySelector(
+      '[data-testid="density-chart-responder"]',
+    ) as HTMLElement | null;
     if (el?.style) el.style.touchAction = 'none';
 
     // Explicitly set pointer capture on pointerdown so the browser observes
     // this element's touch-action:none and does not fire pointercancel.
     // Uses document capture so it survives View remounts (key changes).
     const onDocPointerDown = (e: PointerEvent) => {
-      const responder = document.querySelector('[data-testid="density-chart-responder"]');
-      if (responder && (e.target === responder || responder.contains(e.target as Node))) {
+      const responder = document.querySelector(
+        '[data-testid="density-chart-responder"]',
+      );
+      if (
+        responder &&
+        (e.target === responder || responder.contains(e.target as Node))
+      ) {
         responder.setPointerCapture(e.pointerId);
       }
     };
-    document.addEventListener('pointerdown', onDocPointerDown, { capture: true });
+    document.addEventListener('pointerdown', onDocPointerDown, {
+      capture: true,
+    });
 
     const styleEl = document.createElement('style');
     styleEl.textContent =
@@ -315,7 +324,9 @@ export function DensityChart({
     document.head.appendChild(styleEl);
 
     return () => {
-      document.removeEventListener('pointerdown', onDocPointerDown, { capture: true });
+      document.removeEventListener('pointerdown', onDocPointerDown, {
+        capture: true,
+      });
       styleEl.remove();
     };
   }, [hasCurveData]);
