@@ -81,17 +81,17 @@ export function MapCircularColormapPicker({
                     x2='1'
                     y2='0.5'
                   >
-                    {cm.stops.map((s, i) => (
+                    {[...cm.stops, cm.stops[0]].map((s, i) => (
                       <Stop
                         key={i}
-                        offset={`${Math.round((i / cm.stops.length) * 100)}%`}
+                        offset={
+                          i < cm.stops.length
+                            ? `${Math.round((i / cm.stops.length) * 100)}%`
+                            : '100%'
+                        }
                         stopColor={`rgb(${s[0]},${s[1]},${s[2]})`}
                       />
                     ))}
-                    <Stop
-                      offset='100%'
-                      stopColor={`rgb(${cm.stops[0][0]},${cm.stops[0][1]},${cm.stops[0][2]})`}
-                    />
                   </LinearGradient>
                 </Defs>
                 <Rect
