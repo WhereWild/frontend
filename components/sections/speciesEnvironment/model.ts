@@ -173,22 +173,12 @@ export const formatComparisonLabel = (
   current: number | null | undefined,
   baseline: number | null | undefined,
   digits = 1,
+  unit = '',
 ) => {
   if (typeof current !== 'number' || typeof baseline !== 'number') {
     return null;
   }
-  const baselineText = formatValue(baseline, digits);
-  const delta = current - baseline;
-  const percent =
-    Math.abs(baseline) > 1e-9
-      ? ((delta / Math.abs(baseline)) * 100).toFixed(0)
-      : null;
-  if (percent === null || Number.isNaN(Number(percent))) {
-    return `vs. ${baselineText} globally`;
-  }
-  const signed =
-    delta > 0 ? `+${percent}%` : delta < 0 ? `${percent}%` : `${percent}%`;
-  return `vs. ${baselineText} (${signed}) globally`;
+  return `vs. ${formatValue(baseline, digits)}${unit} globally`;
 };
 
 /** Computes summary statistics for categorical distributions. */

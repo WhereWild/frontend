@@ -6,10 +6,13 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { MapColormapPicker } from '../speciesOccurrenceMap/MapColormapPicker';
 import { COLORMAP_ORDER } from '../speciesOccurrenceMap/variableColors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
+
+const mockUseColorScheme = useColorScheme as jest.Mock;
 
 describe('MapColormapPicker', () => {
   it('renders all colormap options', () => {
@@ -44,8 +47,7 @@ describe('MapColormapPicker', () => {
   });
 
   it('renders in light mode', () => {
-    const { useColorScheme } = require('@/hooks/useColorScheme');
-    (useColorScheme as jest.Mock).mockReturnValue('light');
+    mockUseColorScheme.mockReturnValue('light');
     const onChange = jest.fn();
     expect(() =>
       render(

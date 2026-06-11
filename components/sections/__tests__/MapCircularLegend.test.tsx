@@ -5,6 +5,9 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { MapCircularLegend } from '../speciesOccurrenceMap/MapCircularLegend';
+import { useColorScheme } from '@/hooks/useColorScheme';
+
+const mockUseColorScheme = useColorScheme as jest.Mock;
 
 describe('MapCircularLegend', () => {
   it('renders with no props (all defaults)', () => {
@@ -55,8 +58,7 @@ describe('MapCircularLegend', () => {
   });
 
   it('renders in light mode', () => {
-    const { useColorScheme } = require('@/hooks/useColorScheme');
-    (useColorScheme as jest.Mock).mockReturnValueOnce('light');
+    mockUseColorScheme.mockReturnValueOnce('light');
     expect(() => render(<MapCircularLegend />)).not.toThrow();
   });
 });

@@ -121,7 +121,10 @@ const buildScopeTokens = (
 
   return new Set(
     resolvedByGid
-      ? [normalizeLocationToken(resolvedByGid.gid)].filter(Boolean)
+      ? [
+          normalizeLocationToken(resolvedByGid.gid),
+          normalizeLocationToken(resolvedByGid.name),
+        ].filter(Boolean)
       : [
           normalizedToken,
           ...matchingEntriesByName.map((location) =>
@@ -558,22 +561,99 @@ const buildHistogramFromValues = (
   return { bins, counts };
 };
 
-const buildDensityCurveFromHistogram = (
-  histogram: { bins: number[]; counts: number[] } | null,
-  totalCount: number,
-) => {
-  if (!histogram || !histogram.bins.length || !totalCount) {
-    return null;
+const KDE_N_POINTS = 128;
+const INV_SQRT_2PI = 1 / Math.sqrt(2 * Math.PI);
+
+const buildGaussianKde = (
+  sortedValues: number[],
+): { points: number[]; density: number[] } | null => {
+  const n = sortedValues.length;
+  if (n < 2) return null;
+
+  let minVal = sortedValues[0];
+  let maxVal = sortedValues[n - 1];
+  if (Math.abs(maxVal - minVal) < 1e-10) {
+    const span = Math.abs(minVal) * 0.1 || 1.0;
+    minVal -= span;
+    maxVal += span;
   }
 
-  return {
-    points: histogram.counts.map(
-      (_, index) =>
-        histogram.bins[index] +
-        (histogram.bins[index + 1] - histogram.bins[index]) / 2,
-    ),
-    density: histogram.counts.map((count) => count / totalCount),
-  };
+  const mean = sortedValues.reduce((s, v) => s + v, 0) / n;
+  const variance = sortedValues.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1);
+  const std = Math.sqrt(variance);
+
+  const h = std < 1e-10
+    ? (Math.abs(sortedValues[0]) * 0.01 || 0.1)
+    : 1.06 * std * Math.pow(n, -0.2);
+
+  const step = (maxVal - minVal) / (KDE_N_POINTS - 1);
+  const points: number[] = [];
+  const density: number[] = [];
+
+  for (let i = 0; i < KDE_N_POINTS; i++) {
+    const x = minVal + i * step;
+    let sum = 0;
+    for (let j = 0; j < n; j++) {
+      const u = (x - sortedValues[j]) / h;
+      sum += INV_SQRT_2PI * Math.exp(-0.5 * u * u);
+    }
+    points.push(x);
+    density.push(sum / (n * h));
+  }
+
+  return { points, density };
+};
+
+// Wrapped Gaussian KDE for circular variables (degrees, [0,360)).
+// Matches the backend's _von_mises_kde_curve bandwidth and grid.
+const buildCircularKde = (
+  values: number[],
+): { points: number[]; density: number[] } | null => {
+  const n = values.length;
+  if (n < 2) return null;
+
+  // Circular std via mean resultant length R
+  let sinSum = 0;
+  let cosSum = 0;
+  for (const v of values) {
+    const r = (v * Math.PI) / 180;
+    sinSum += Math.sin(r);
+    cosSum += Math.cos(r);
+  }
+  const R = Math.sqrt(sinSum * sinSum + cosSum * cosSum) / n;
+  const cstdRad = Math.sqrt(-2 * Math.log(Math.max(R, 1e-10)));
+  if (!isFinite(cstdRad) || cstdRad < 1e-6) return null;
+
+  const hRad = Math.max(Math.pow(4 / (3 * n), 0.2) * cstdRad, 0.05);
+
+  const points: number[] = [];
+  const density: number[] = [];
+  const TWO_PI = 2 * Math.PI;
+
+  for (let i = 0; i < KDE_N_POINTS; i++) {
+    const xDeg = (i / KDE_N_POINTS) * 360;
+    const xRad = (xDeg * Math.PI) / 180;
+    let sum = 0;
+    for (const vDeg of values) {
+      const vRad = (vDeg * Math.PI) / 180;
+      // Wrap difference to [-π, π]
+      let d = xRad - vRad;
+      d -= TWO_PI * Math.round(d / TWO_PI);
+      const u = d / hRad;
+      sum += INV_SQRT_2PI * Math.exp(-0.5 * u * u);
+    }
+    points.push(xDeg);
+    density.push(sum / (n * hRad));
+  }
+
+  // Normalize so integral over [0, 2π) ≈ 1
+  const stepRad = TWO_PI / KDE_N_POINTS;
+  const area = density.reduce((s, d) => s + d, 0) * stepRad;
+  if (area > 0) {
+    for (let i = 0; i < density.length; i++) density[i] /= area;
+  }
+
+  return { points, density };
 };
 
 const buildScopedCategoricalStats = ({
@@ -623,11 +703,29 @@ const buildScopedCategoricalStats = ({
         value: baseline?.value ?? classValue,
         className: baseline?.className ?? classValue,
         description: baseline?.description ?? null,
+        color: baseline?.color ?? null,
         count,
         fraction: totalCount > 0 ? count / totalCount : 0,
       };
     })
     .sort((left, right) => right.count - left.count);
+
+  // Compute entropy and mode from filtered distribution
+  let entropy: number | null = null;
+  let mode: string | null = null;
+  if (totalCount > 0) {
+    let entropySum = 0;
+    let maxCount = -1;
+    for (const [classKey, cnt] of countsByClass.entries()) {
+      const p = cnt / totalCount;
+      if (p > 0) entropySum -= p * Math.log(p);
+      if (cnt > maxCount) {
+        maxCount = cnt;
+        mode = classKey;
+      }
+    }
+    entropy = entropySum;
+  }
 
   return {
     ...stats,
@@ -641,6 +739,9 @@ const buildScopedCategoricalStats = ({
       q10: null,
       q90: null,
       q99: null,
+      entropy,
+      unique_classes: countsByClass.size || null,
+      mode,
     },
     categoricalDistribution,
     baselineSummary: stats.summary,
@@ -699,6 +800,24 @@ const buildScopedNumericStats = ({
     stats.histogram?.counts.length,
   );
 
+  let circular_mean: number | null = null;
+  let rbar: number | null = null;
+  let circular_std: number | null = null;
+  if (stats.variableType?.toLowerCase() === 'circular' && count > 0) {
+    let sinSum = 0;
+    let cosSum = 0;
+    for (const v of sortedValues) {
+      const r = (v * Math.PI) / 180;
+      sinSum += Math.sin(r);
+      cosSum += Math.cos(r);
+    }
+    const R = Math.sqrt(sinSum * sinSum + cosSum * cosSum) / count;
+    rbar = R;
+    circular_mean = ((Math.atan2(sinSum, cosSum) * 180) / Math.PI + 360) % 360;
+    const cstdRad = Math.sqrt(-2 * Math.log(Math.max(R, 1e-10)));
+    circular_std = isFinite(cstdRad) ? (cstdRad * 180) / Math.PI : null;
+  }
+
   return {
     ...stats,
     summary: {
@@ -711,9 +830,15 @@ const buildScopedNumericStats = ({
       q10: quantileFromSortedValues(sortedValues, 0.1),
       q90: quantileFromSortedValues(sortedValues, 0.9),
       q99: quantileFromSortedValues(sortedValues, 0.99),
+      circular_mean,
+      rbar,
+      circular_std,
     },
     histogram,
-    densityCurve: buildDensityCurveFromHistogram(histogram, count),
+    densityCurve:
+      stats.variableType?.toLowerCase() === 'circular'
+        ? buildCircularKde(sortedValues)
+        : buildGaussianKde(sortedValues),
     baselineSummary: stats.summary,
   };
 };
@@ -737,6 +862,7 @@ const buildScopedStats = ({
 
   const isCategorical =
     stats.variableType?.toLowerCase() === 'categorical' ||
+    stats.variableType?.toLowerCase() === 'nominal' ||
     (stats.categoricalDistribution?.length ?? 0) > 0;
 
   if (isCategorical) {
@@ -831,6 +957,35 @@ export const buildUploadLocalSpeciesDataSource = ({
   const indexRowsByVariable = groupIndexRowsByVariable(bundle.occurrenceIndex);
   const locations = bundle.locations ?? [];
   const locationLookup = buildLocationLookupMaps(locations);
+
+  // Derive parent GID from child GID using GADM format ("AA.N.M_V" → "AA.N_V" → "AA").
+  // This avoids name-based lookups which fail when a county shares a name with a state
+  // (e.g., "Utah County" in Utah state has GADM name "Utah", shadowing the state in byName).
+  const deriveParentGid = (gid: string): string | null => {
+    const match = gid.match(/^(.+)\.\d+_\d+$/);
+    if (!match) return null;
+    const parentCore = match[1];
+    if (locationLookup.byGid.has(normalizeLocationToken(parentCore + '_1'))) {
+      return parentCore + '_1';
+    }
+    if (locationLookup.byGid.has(normalizeLocationToken(parentCore))) {
+      return parentCore;
+    }
+    return null;
+  };
+
+  // Precompute observation count per location GID and aggregate up to ancestors
+  // so fetchSpeciesLocations can sort by count.
+  const countByGid = new Map<string, number>();
+  for (const row of bundle.occurrences) {
+    if (!row.locationGid) continue;
+    let current: string | null = row.locationGid;
+    while (current) {
+      const norm = normalizeLocationToken(current);
+      countByGid.set(norm, (countByGid.get(norm) ?? 0) + 1);
+      current = deriveParentGid(current);
+    }
+  }
 
   return createSpeciesDataSource({
     locationParentIdentityMode: 'gid',
@@ -1061,6 +1216,11 @@ export const buildUploadLocalSpeciesDataSource = ({
         return matchesParentLocation(location, parent, locationLookup);
       });
 
+      filtered.sort((a, b) => {
+        const ca = countByGid.get(normalizeLocationToken(a.gid)) ?? 0;
+        const cb = countByGid.get(normalizeLocationToken(b.gid)) ?? 0;
+        return cb - ca || a.name.localeCompare(b.name);
+      });
       return filtered.slice(0, limit);
     },
   });

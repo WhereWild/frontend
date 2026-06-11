@@ -115,6 +115,9 @@ function SpeciesEnvironmentSectionComponent({
     summaryComparisons: ReturnType<
       typeof useSpeciesEnvironmentState
     >['summaryComparisons'];
+    baselineCategoricalDistribution: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['baselineCategoricalDistribution'];
     locationFilterActive: boolean;
     pinnedCategoryValue: ReturnType<
       typeof useSpeciesEnvironmentState
@@ -157,6 +160,7 @@ function SpeciesEnvironmentSectionComponent({
     error,
     isCategorical,
     categoricalDistribution,
+    baselineCategoricalDistribution,
     selectedCategoryValue,
     setSelectedCategoryValue,
     densityCurve,
@@ -298,6 +302,7 @@ function SpeciesEnvironmentSectionComponent({
         selectedRankContext,
         summaryRanks,
         summaryComparisons,
+        baselineCategoricalDistribution,
         locationFilterActive,
         pinnedCategoryValue,
         pinnedUnobservedCategory: cbPinnedUnobservedCategory,
@@ -506,6 +511,10 @@ function SpeciesEnvironmentSectionComponent({
                 selected_class:
                   displayState?.summaryRanks?.selected_class ?? null,
               }}
+              summaryComparisons={displayState?.summaryComparisons ?? {}}
+              baselineCategoricalDistribution={
+                displayState?.baselineCategoricalDistribution ?? null
+              }
               categoricalDistribution={
                 displayState?.categoricalDistribution ?? []
               }

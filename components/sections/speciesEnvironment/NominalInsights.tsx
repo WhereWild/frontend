@@ -9,6 +9,7 @@ import type {
   SpeciesEnvironmentCategory,
   SpeciesEnvironmentRelativeRank,
 } from '@/data/types';
+
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
@@ -36,6 +37,8 @@ type NominalInsightsProps = {
     mode_class: SpeciesEnvironmentRelativeRank | null;
     selected_class: SpeciesEnvironmentRelativeRank | null;
   };
+  summaryComparisons?: Record<string, string | null>;
+  baselineCategoricalDistribution?: SpeciesEnvironmentCategory[] | null;
   categoricalDistribution: SpeciesEnvironmentCategory[];
   selectedCategoryValue: number | string | null;
   locationFilterActive: boolean;
@@ -48,6 +51,8 @@ export function NominalInsights({
   onRankContextChange,
   summary,
   summaryRanks,
+  summaryComparisons,
+  baselineCategoricalDistribution,
   categoricalDistribution,
   selectedCategoryValue,
   locationFilterActive,
@@ -82,6 +87,19 @@ export function NominalInsights({
 
   const modeCategory =
     categoricalDistribution.find((c) => c.value === summary?.mode) ?? null;
+
+  const thirdSlotCategoryValue =
+    selectedCategory != null ? selectedCategoryValue : summary?.mode;
+  const baselineThirdFraction =
+    locationFilterActive && thirdSlotCategoryValue != null
+      ? (baselineCategoricalDistribution?.find(
+          (c) => String(c.value) === String(thirdSlotCategoryValue),
+        )?.fraction ?? null)
+      : null;
+  const thirdSlotComparison =
+    baselineThirdFraction != null
+      ? `vs. ${formatCategoryPercent(baselineThirdFraction)} globally`
+      : null;
 
   const thirdSlot =
     selectedCategory != null
@@ -173,6 +191,11 @@ export function NominalInsights({
               ? undefined
               : (summaryRanks.unique_classes ?? null)
           }
+          comparison={
+            locationFilterActive
+              ? (summaryComparisons?.unique_classes ?? null)
+              : null
+          }
           stacked={isStacked}
           prominent={!showRankContext}
         />
@@ -182,6 +205,9 @@ export function NominalInsights({
           rank={
             locationFilterActive ? undefined : (summaryRanks.entropy ?? null)
           }
+          comparison={
+            locationFilterActive ? (summaryComparisons?.entropy ?? null) : null
+          }
           stacked={isStacked}
           prominent={!showRankContext}
         />
@@ -189,6 +215,7 @@ export function NominalInsights({
           label={thirdSlot.label}
           value={thirdSlot.value}
           rank={locationFilterActive ? undefined : (thirdSlot.rank ?? null)}
+          comparison={locationFilterActive ? thirdSlotComparison : null}
           stacked={isStacked}
           prominent={!showRankContext}
           isLast

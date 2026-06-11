@@ -87,6 +87,9 @@ const resolvePresentationState = ({
 
   return {
     baselineSummary,
+    baselineCategoricalDistribution: locationFilterActive
+      ? (stats?.baselineCategoricalDistribution ?? null)
+      : null,
     summary,
     categoricalDistribution,
     isCategorical,
@@ -136,6 +139,11 @@ export function useSpeciesEnvironmentState({
   });
 
   const locationFilterActive = Boolean(locationGid);
+  const filterActive =
+    Boolean(locationGid) ||
+    Boolean(phenology) ||
+    startTimestamp != null ||
+    endTimestamp != null;
   const { stats, error, loading } = useEnvironmentStats({
     taxonId,
     selectedVariable,
@@ -148,6 +156,7 @@ export function useSpeciesEnvironmentState({
 
   const {
     baselineSummary,
+    baselineCategoricalDistribution,
     summary,
     categoricalDistribution,
     isCategorical,
@@ -324,7 +333,7 @@ export function useSpeciesEnvironmentState({
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
     () =>
       buildSummaryComparisons(
-        locationFilterActive,
+        filterActive,
         summary,
         baselineSummary,
         summaryRangeValue,
@@ -333,7 +342,7 @@ export function useSpeciesEnvironmentState({
     [
       baselineRangeValue,
       baselineSummary,
-      locationFilterActive,
+      filterActive,
       summary,
       summaryRangeValue,
     ],
@@ -454,6 +463,7 @@ export function useSpeciesEnvironmentState({
     error,
     isCategorical,
     categoricalDistribution,
+    baselineCategoricalDistribution,
     selectedCategoryValue,
     setSelectedCategoryValue,
     densityCurve,

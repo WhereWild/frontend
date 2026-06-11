@@ -68,6 +68,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const VAR_UNITS = __VAR_UNITS_JSON__;
     const CLASS_COLORS = __CLASS_COLORS_JSON__;
     const CLASS_SHAPES = __CLASS_SHAPES_JSON__;
+    const CLASS_LABELS = __CLASS_LABELS_JSON__;
     const MARKER_OUTLINE = __MARKER_OUTLINE__;
     var OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
     const CIRCULAR_SHAPES_ENABLED = __CIRCULAR_SHAPES_ENABLED__;
@@ -883,6 +884,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                   var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
                   var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0}) : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
                   valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + units + '</span></div>';
+                } else if (CLASS_COLORS) {
+                  var classKey = String(Math.round(numVal));
+                  var classColor = CLASS_COLORS[classKey];
+                  if (classColor) {
+                    var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + classColor + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
+                    var classLabel = CLASS_LABELS && CLASS_LABELS[classKey] ? CLASS_LABELS[classKey] : classKey;
+                    valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + classLabel + '</span></div>';
+                  }
                 }
               }
             } else {

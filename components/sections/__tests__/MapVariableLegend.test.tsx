@@ -5,6 +5,9 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { MapVariableLegend } from '../speciesOccurrenceMap/MapVariableLegend';
+import { useColorScheme } from '@/hooks/useColorScheme';
+
+const mockUseColorScheme = useColorScheme as jest.Mock;
 
 describe('MapVariableLegend', () => {
   it('renders with basic min/max', () => {
@@ -73,8 +76,7 @@ describe('MapVariableLegend', () => {
   });
 
   it('renders in light mode', () => {
-    const { useColorScheme } = require('@/hooks/useColorScheme');
-    (useColorScheme as jest.Mock).mockReturnValueOnce('light');
+    mockUseColorScheme.mockReturnValueOnce('light');
     expect(() => render(<MapVariableLegend min={0} max={100} />)).not.toThrow();
   });
 });

@@ -225,6 +225,7 @@ const baseState: SpeciesEnvironmentState = {
   error: null,
   isCategorical: false,
   categoricalDistribution: [],
+  baselineCategoricalDistribution: null,
   selectedCategoryValue: null,
   setSelectedCategoryValue: jest.fn(),
   densityCurve: null,

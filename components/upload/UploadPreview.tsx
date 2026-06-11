@@ -54,10 +54,12 @@ function UploadSpeciesPreviewSection({
   onHighlightChange,
   pinnedObservation,
   onVariableMetaChange,
+  onLocationChange,
 }: {
   onHighlightChange: (catalogNumbers: (number | string)[]) => void;
   pinnedObservation: PinnedObservation | null;
   onVariableMetaChange: (meta: EnvironmentVariableOption | null) => void;
+  onLocationChange: (gid: string | null) => void;
 }) {
   const settings = useOptionalSettings();
   const units = settings?.units;
@@ -79,6 +81,11 @@ function UploadSpeciesPreviewSection({
     taxonId: UPLOAD_PREVIEW_TAXON_ID,
     locationSearchLimit: 500,
   });
+
+  React.useEffect(() => {
+    onLocationChange(finalLocationGid);
+  }, [finalLocationGid, onLocationChange]);
+
   return (
     <View style={styles.previewSection}>
       <SpeciesLocationFilters
@@ -121,6 +128,16 @@ export function UploadPreview({
   const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
   const setSelectedCircularColormap = settings?.setCircularColormap;
 
+  const [finalLocationGid, setFinalLocationGid] = React.useState<string | null>(
+    null,
+  );
+  const [mapOccurrences, setMapOccurrences] = React.useState(() =>
+    uploadedBundle.occurrences.map((row) => ({
+      catalogNumber: row.catalogNumber,
+      latitude: row.latitude,
+      longitude: row.longitude,
+    })),
+  );
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
   const [selectedVariableMeta, setSelectedVariableMeta] =
@@ -140,7 +157,30 @@ export function UploadPreview({
 
   React.useEffect(() => {
     setPinnedObservation(null);
+    setFinalLocationGid(null);
   }, [uploadedBundle, uploadedDataSource]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    uploadedDataSource
+      .fetchSpeciesOccurrences(UPLOAD_PREVIEW_TAXON_ID, {
+        location: finalLocationGid ?? undefined,
+      })
+      .then((result) => {
+        if (!cancelled) {
+          setMapOccurrences(
+            result.occurrences.map((occ) => ({
+              catalogNumber: occ.catalogNumber,
+              latitude: occ.latitude,
+              longitude: occ.longitude,
+            })),
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [uploadedDataSource, finalLocationGid]);
 
   React.useEffect(() => {
     setPinnedPointValue(null);
@@ -383,15 +423,12 @@ export function UploadPreview({
         onHighlightChange={onHighlightChange}
         pinnedObservation={pinnedObservation}
         onVariableMetaChange={setSelectedVariableMeta}
+        onLocationChange={setFinalLocationGid}
       />
       {uploadedBundle.occurrences.length > 0 ? (
         <View style={styles.mapContainer}>
           <SpeciesOccurrenceMap
-            occurrences={uploadedBundle.occurrences.map((row) => ({
-              catalogNumber: row.catalogNumber,
-              latitude: row.latitude,
-              longitude: row.longitude,
-            }))}
+            occurrences={mapOccurrences}
             loading={false}
             error={null}
             highlightedCatalogs={highlightedCatalogs}
