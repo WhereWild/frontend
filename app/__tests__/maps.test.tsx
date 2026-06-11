@@ -80,10 +80,19 @@ jest.mock('@/components', () => {
       onTileClasses,
     }: {
       heatmapTileUrl?: string | null;
-      onTileClasses?: (classes: { id: number; count: number }[], removed: boolean) => void;
+      onTileClasses?: (
+        classes: { id: number; count: number }[],
+        removed: boolean,
+      ) => void;
     }) => {
       mockReact.useEffect(() => {
-        onTileClasses?.([{ id: 1, count: 5 }, { id: 2, count: 3 }], false);
+        onTileClasses?.(
+          [
+            { id: 1, count: 5 },
+            { id: 2, count: 3 },
+          ],
+          false,
+        );
       }, [onTileClasses]);
       return mockReact.createElement(
         MockView,
@@ -333,14 +342,26 @@ describe('Maps screen', () => {
 
   it('switches to circular colormap when a circular variable is selected', async () => {
     mockFetchEnvironmentVariables.mockResolvedValueOnce([
-      { id: 'aspect', name: 'Aspect', category: 'Terrain', valueType: 'circular' },
-      { id: 'landcover', name: 'Land Cover', category: 'Categorical', valueType: 'categorical' },
+      {
+        id: 'aspect',
+        name: 'Aspect',
+        category: 'Terrain',
+        valueType: 'circular',
+      },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        category: 'Categorical',
+        valueType: 'categorical',
+      },
     ] as any);
 
     render(<Maps />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('selected-variable').props.children).toBeDefined();
+      expect(
+        screen.getByTestId('selected-variable').props.children,
+      ).toBeDefined();
     });
 
     fireEvent.press(screen.getByTestId('select-aspect'));
@@ -363,19 +384,28 @@ describe('Maps screen', () => {
         renderMax: 30,
         units: '°C',
       },
-      { id: 'landcover', name: 'Land Cover', category: 'Categorical', valueType: 'categorical' },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        category: 'Categorical',
+        valueType: 'categorical',
+      },
     ] as any);
 
     render(<Maps />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('selected-variable').props.children).toBeDefined();
+      expect(
+        screen.getByTestId('selected-variable').props.children,
+      ).toBeDefined();
     });
 
     fireEvent.press(screen.getByTestId('select-bio1'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('selected-variable').props.children).toBe('bio_1');
+      expect(screen.getByTestId('selected-variable').props.children).toBe(
+        'bio_1',
+      );
     });
 
     expect(

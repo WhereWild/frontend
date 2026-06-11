@@ -8,7 +8,6 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor,
   within,
 } from '@testing-library/react-native';
 import React from 'react';
@@ -354,5 +353,4 @@ describe('Dev screen', () => {
     fireEvent.press(screen.getByText('Overview'));
     expect(screen.getByText('Horizontal wrap')).toBeTruthy();
   });
-
 });
