@@ -191,6 +191,9 @@ const mapAboutVariableOptions = (
 const buildAboutVariableTileUrl = ({
   cacheKey,
   colormap,
+  circularColormap,
+  isCircular,
+  cbMode,
   forecast,
   isLiveWeather,
   selectedVariable,
@@ -198,14 +201,19 @@ const buildAboutVariableTileUrl = ({
 }: {
   cacheKey: number;
   colormap: string;
+  circularColormap: string;
+  isCircular: boolean;
+  cbMode: string | null;
   forecast: string;
   isLiveWeather: boolean;
   selectedVariable: string;
   window: string;
 }) => {
+  const effectiveColormap = isCircular ? circularColormap : colormap;
+  const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
   const baseUrl = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     selectedVariable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(colormap)}&_cb=${cacheKey}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}`;
 
   if (!isLiveWeather) {
     return baseUrl;
@@ -329,6 +337,9 @@ export default function About() {
     return buildAboutVariableTileUrl({
       cacheKey: aboutTileCacheKey,
       colormap: selectedColormap,
+      circularColormap: selectedCircularColormap,
+      isCircular: isVariableCircular(mapSelectedVariableMeta),
+      cbMode,
       forecast: selectedForecast,
       isLiveWeather,
       selectedVariable: mapSelectedVariable,
@@ -337,8 +348,11 @@ export default function About() {
   }, [
     aboutTileCacheKey,
     selectedColormap,
+    selectedCircularColormap,
+    cbMode,
     isLiveWeather,
     mapSelectedVariable,
+    mapSelectedVariableMeta,
     selectedForecast,
     selectedWindow,
   ]);
