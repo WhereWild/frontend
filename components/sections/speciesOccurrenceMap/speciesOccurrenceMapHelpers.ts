@@ -70,6 +70,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   gradientStops: '__GRADIENT_STOPS_JSON__',
   aspectStops: '__ASPECT_STOPS_JSON__',
   classColorsJson: '__CLASS_COLORS_JSON__',
+  classLabelsJson: '__CLASS_LABELS_JSON__',
   classShapesJson: '__CLASS_SHAPES_JSON__',
   markerOutline: '__MARKER_OUTLINE__',
   circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
@@ -428,6 +429,11 @@ export const buildLeafletHtml = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.classColorsJson)
     .join(
       classColors ? JSON.stringify(Object.fromEntries(classColors)) : 'null',
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.classLabelsJson)
+    .join(
+      classLabels ? JSON.stringify(Object.fromEntries(classLabels)) : 'null',
     );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.classShapesJson)

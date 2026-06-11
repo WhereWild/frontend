@@ -92,7 +92,6 @@ const buildTileUrl = ({
   isLiveWeather,
   variable,
   window,
-  units,
 }: {
   cacheKey: number;
   colormap: string;
@@ -103,7 +102,6 @@ const buildTileUrl = ({
   isLiveWeather: boolean;
   variable: string;
   window: string;
-  units: string;
 }) => {
   const effectiveColormap = isCircular ? circularColormap : colormap;
   const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
@@ -124,7 +122,6 @@ export default function Maps() {
     setCircularColormap: setSelectedCircularColormap,
     cbMode,
     setCbMode,
-    shapesEnabled,
     markerOutlineEnabled: markerOutlineEnabledSetting,
   } = useSettings();
   const markerOutlineEnabled = markerOutlineEnabledSetting || cbMode === 'achromatopsia';
@@ -183,7 +180,6 @@ export default function Maps() {
         isLiveWeather,
         variable: selectedVariable,
         window: selectedWindow,
-        units,
       }),
     [
       tileCacheKey,
@@ -195,7 +191,6 @@ export default function Maps() {
       isLiveWeather,
       selectedVariable,
       selectedWindow,
-      units,
     ],
   );
 
@@ -247,6 +242,31 @@ export default function Maps() {
         : visibleCategoricalClasses,
     [cbMode, selectedVariableMeta, visibleCategoricalClasses],
   );
+
+  const classColors = useMemo(() => {
+    if (!isCategorical || !selectedVariableMeta?.legendClasses?.length) return null;
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta.legendClasses) {
+      if (cls.id != null && cls.color) {
+        const color = cbMode
+          ? getCbColor(selectedVariableMeta.id, cls.id as number, cbMode, cls.color)
+          : cls.color;
+        map.set(String(cls.id), color);
+      }
+    }
+    return map;
+  }, [isCategorical, selectedVariableMeta, cbMode]);
+
+  const classLabels = useMemo(() => {
+    if (!isCategorical || !selectedVariableMeta?.legendClasses?.length) return null;
+    const map = new Map<string, string>();
+    for (const cls of selectedVariableMeta.legendClasses) {
+      if (cls.id != null && cls.name) {
+        map.set(String(cls.id), cls.name);
+      }
+    }
+    return map;
+  }, [isCategorical, selectedVariableMeta]);
 
   return (
     <>
@@ -310,6 +330,8 @@ export default function Maps() {
                 renderMax={!isCategorical && !isCircular ? (selectedVariableMeta?.renderMax ?? null) : null}
                 gradientStops={!isCategorical && !isCircular ? COLORMAPS[selectedColormap].stops : null}
                 aspectStops={isCircular ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops : null}
+                classColors={classColors}
+                classLabels={classLabels}
                 markerOutlineEnabled={markerOutlineEnabled}
               />
 
@@ -333,7 +355,7 @@ export default function Maps() {
                     classes={cbVisibleClasses}
                     variableId={selectedVariableMeta?.id}
                     cbMode={cbMode}
-                    shapesEnabled={shapesEnabled}
+                    shapesEnabled={false}
                     markerOutlineEnabled={markerOutlineEnabled}
                   />
                   <MapCbModePicker
@@ -341,7 +363,8 @@ export default function Maps() {
                     onChange={setCbMode}
                     topClasses={visibleCategoricalClasses?.slice(0, 3) ?? []}
                     variableId={selectedVariableMeta?.id ?? ''}
-                    shapesEnabled={shapesEnabled}
+                    shapesEnabled={false}
+                    dotsOnly
                     markerOutlineEnabled={markerOutlineEnabled}
                   />
                 </>
