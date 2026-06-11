@@ -37,6 +37,8 @@ type MapCbModePickerProps = {
   markerOutlineEnabled?: boolean;
   isCircular?: boolean;
   nsweColors?: [string, string, string, string];
+  /** When true, always renders dots regardless of shapesEnabled or mode (for tile-based maps where shapes can't appear) */
+  dotsOnly?: boolean;
 };
 
 export function MapCbModePicker({
@@ -48,6 +50,7 @@ export function MapCbModePicker({
   markerOutlineEnabled = false,
   isCircular = false,
   nsweColors: _nsweColors,
+  dotsOnly = false,
 }: MapCbModePickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -115,7 +118,10 @@ export function MapCbModePicker({
                     entry.id,
                     cls.color ?? '#888888',
                   );
-                  if (shapesEnabled || entry.id === 'achromatopsia') {
+                  if (
+                    !dotsOnly &&
+                    (shapesEnabled || entry.id === 'achromatopsia')
+                  ) {
                     return (
                       <ShapeMarker
                         key={cls.id}

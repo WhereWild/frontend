@@ -111,44 +111,58 @@ export const resolveMetricRank = ({
 
 /** Produces baseline comparison labels when location filtering is active. */
 export const buildSummaryComparisons = (
-  locationFilterActive: boolean,
+  filterActive: boolean,
   summary: SpeciesEnvironmentSummary | null | undefined,
   baselineSummary: SpeciesEnvironmentSummary | null,
   summaryRangeValue: number | null,
   baselineRangeValue: number | null,
 ): Record<string, string | null> => {
-  if (!locationFilterActive) {
-    return {
-      min: null,
-      mean: null,
-      max: null,
-      std: null,
-      range99: null,
-    };
-  }
+  const empty: Record<string, string | null> = {
+    min: null,
+    mean: null,
+    max: null,
+    std: null,
+    range99: null,
+    circular_mean: null,
+    rbar: null,
+    circular_std: null,
+    entropy: null,
+    unique_classes: null,
+  };
+  if (!filterActive) return empty;
+
+  const fcl = (
+    curr: number | null | undefined,
+    base: number | null | undefined,
+    digits = 1,
+    unit = '',
+  ) => formatComparisonLabel(curr, base, digits, unit);
 
   return {
-    min: formatComparisonLabel(
-      summary?.min ?? null,
-      baselineSummary?.min ?? null,
+    min: fcl(summary?.min, baselineSummary?.min),
+    mean: fcl(summary?.mean, baselineSummary?.mean),
+    max: fcl(summary?.max, baselineSummary?.max),
+    std: fcl(summary?.stddev, baselineSummary?.stddev),
+    range99: fcl(summaryRangeValue, baselineRangeValue),
+    circular_mean: fcl(
+      summary?.circular_mean,
+      baselineSummary?.circular_mean,
       1,
+      '°',
     ),
-    mean: formatComparisonLabel(
-      summary?.mean ?? null,
-      baselineSummary?.mean ?? null,
+    rbar: fcl(summary?.rbar, baselineSummary?.rbar, 3),
+    circular_std: fcl(
+      summary?.circular_std,
+      baselineSummary?.circular_std,
       1,
+      '°',
     ),
-    max: formatComparisonLabel(
-      summary?.max ?? null,
-      baselineSummary?.max ?? null,
-      1,
-    ),
-    std: formatComparisonLabel(
-      summary?.stddev ?? null,
-      baselineSummary?.stddev ?? null,
-      1,
-    ),
-    range99: formatComparisonLabel(summaryRangeValue, baselineRangeValue, 1),
+    entropy: fcl(summary?.entropy, baselineSummary?.entropy, 3),
+    unique_classes:
+      typeof summary?.unique_classes === 'number' &&
+      typeof baselineSummary?.unique_classes === 'number'
+        ? `vs. ${Math.round(baselineSummary.unique_classes)} globally`
+        : null,
   };
 };
 

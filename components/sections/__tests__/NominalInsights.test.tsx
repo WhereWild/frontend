@@ -6,6 +6,11 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { NominalInsights } from '../speciesEnvironment/NominalInsights';
 import type { SpeciesEnvironmentCategory } from '@/data/types';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useColorScheme } from '@/hooks/useColorScheme';
+
+const mockUseResponsive = useResponsive as jest.Mock;
+const mockUseColorScheme = useColorScheme as jest.Mock;
 
 jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(() => ({
@@ -17,8 +22,8 @@ jest.mock('@/hooks/useResponsive', () => ({
 }));
 
 jest.mock('@/components/navigation/NavigationPillList', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   return {
     NavigationPillList: () =>
       React.createElement(View, { testID: 'pill-list' }),
@@ -26,8 +31,8 @@ jest.mock('@/components/navigation/NavigationPillList', () => {
 });
 
 jest.mock('../speciesEnvironment/SummaryItem', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
   return {
     SummaryItem: ({ label }: { label: string }) =>
       React.createElement(View, { testID: `summary-item-${label}` }),
@@ -179,8 +184,7 @@ describe('NominalInsights', () => {
   });
 
   it('renders stacked layout on phone breakpoint', () => {
-    const { useResponsive } = require('@/hooks/useResponsive');
-    (useResponsive as jest.Mock).mockReturnValue({
+    mockUseResponsive.mockReturnValue({
       breakpoint: 'phone',
       contentWidth: 375,
       gap: 16,
@@ -190,8 +194,7 @@ describe('NominalInsights', () => {
   });
 
   it('renders stacked layout on tablet breakpoint', () => {
-    const { useResponsive } = require('@/hooks/useResponsive');
-    (useResponsive as jest.Mock).mockReturnValue({
+    mockUseResponsive.mockReturnValue({
       breakpoint: 'tablet',
       contentWidth: 768,
       gap: 24,
@@ -201,14 +204,12 @@ describe('NominalInsights', () => {
   });
 
   it('renders in light mode', () => {
-    const { useColorScheme } = require('@/hooks/useColorScheme');
-    (useColorScheme as jest.Mock).mockReturnValue('light');
+    mockUseColorScheme.mockReturnValue('light');
     expect(() => render(<NominalInsights {...baseProps} />)).not.toThrow();
   });
 
   it('handles mode category present in distribution', () => {
-    const { useResponsive } = require('@/hooks/useResponsive');
-    (useResponsive as jest.Mock).mockReturnValue({
+    mockUseResponsive.mockReturnValue({
       breakpoint: 'desktop',
       contentWidth: 1200,
       gap: 32,

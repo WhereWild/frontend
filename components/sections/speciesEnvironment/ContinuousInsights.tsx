@@ -160,6 +160,11 @@ export function ContinuousInsights({
             <SummaryItem
               label='Mean'
               value={formatDeg(summary?.circular_mean)}
+              comparison={
+                locationFilterActive
+                  ? (summaryComparisons.circular_mean ?? null)
+                  : null
+              }
               stacked={isStacked}
               prominent={!showRankContext}
             />
@@ -168,6 +173,9 @@ export function ContinuousInsights({
               value={formatValue(summary?.rbar, 3)}
               rank={
                 locationFilterActive ? undefined : (summaryRanks.rbar ?? null)
+              }
+              comparison={
+                locationFilterActive ? (summaryComparisons.rbar ?? null) : null
               }
               stacked={isStacked}
               prominent={!showRankContext}
@@ -179,6 +187,11 @@ export function ContinuousInsights({
                 locationFilterActive
                   ? undefined
                   : (summaryRanks.circular_std ?? null)
+              }
+              comparison={
+                locationFilterActive
+                  ? (summaryComparisons.circular_std ?? null)
+                  : null
               }
               isLast
               stacked={isStacked}

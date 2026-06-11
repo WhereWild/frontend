@@ -63,17 +63,40 @@ export function useEnvironmentStats({
       setLoadingVariable(selectedVariable);
       setErrorByVariable((prev) => ({ ...prev, [selectedVariable]: null }));
       try {
-        const response = await speciesDataSource.fetchSpeciesEnvironment(
-          taxonId,
-          selectedVariable,
-          {
+        const filterActive =
+          Boolean(locationGid) ||
+          Boolean(phenology) ||
+          startTimestamp != null ||
+          endTimestamp != null;
+
+        const [filteredResponse, globalResponse] = await Promise.all([
+          speciesDataSource.fetchSpeciesEnvironment(taxonId, selectedVariable, {
             location: locationGid,
-            units: units,
-            phenology: phenology,
+            units,
+            phenology,
             startTs: startTimestamp,
             endTs: endTimestamp,
-          },
-        );
+          }),
+          filterActive
+            ? speciesDataSource.fetchSpeciesEnvironment(
+                taxonId,
+                selectedVariable,
+                { units },
+              )
+            : Promise.resolve(null),
+        ]);
+
+        const response =
+          filterActive && !filteredResponse.baselineSummary && globalResponse
+            ? {
+                ...filteredResponse,
+                baselineSummary: globalResponse.summary,
+                baselineCategoricalDistribution: filteredResponse
+                  .baselineCategoricalDistribution?.length
+                  ? filteredResponse.baselineCategoricalDistribution
+                  : globalResponse.categoricalDistribution,
+              }
+            : filteredResponse;
         if (
           response.histogram &&
           !isValidHistogramContract(response.histogram)

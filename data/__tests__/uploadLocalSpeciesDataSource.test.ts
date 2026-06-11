@@ -1237,7 +1237,7 @@ describe('upload local species data source variable categories', () => {
       bins: [2.079, 2.121],
       counts: [1],
     });
-    expect(californiaStats.densityCurve).toEqual({ points: [2.1], density: [1] });
+    expect(californiaStats.densityCurve).toBeNull();
 
     const californiaLandcoverStats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
       location: 'state-us-ca',

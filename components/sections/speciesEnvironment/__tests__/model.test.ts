@@ -25,10 +25,11 @@ describe('speciesEnvironment model helpers', () => {
     expect(formatValue(Number.NaN)).toBe('—');
   });
 
-  it('formats comparison labels with deltas', () => {
-    expect(formatComparisonLabel(12, 10, 0)).toBe('vs. 10 (+20%) globally');
-    expect(formatComparisonLabel(8, 10, 0)).toBe('vs. 10 (-20%) globally');
-    expect(formatComparisonLabel(10, 10, 0)).toBe('vs. 10 (0%) globally');
+  it('formats comparison labels without deltas', () => {
+    expect(formatComparisonLabel(12, 10, 0)).toBe('vs. 10 globally');
+    expect(formatComparisonLabel(8, 10, 0)).toBe('vs. 10 globally');
+    expect(formatComparisonLabel(10, 10, 0)).toBe('vs. 10 globally');
+    expect(formatComparisonLabel(12, 10, 1, '°')).toBe('vs. 10.0° globally');
   });
 
   it('returns null comparison when values are invalid', () => {
