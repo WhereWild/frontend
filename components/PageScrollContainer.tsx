@@ -38,10 +38,23 @@ export function PageScrollContainer({
   );
 
   if (Platform.OS === 'web') {
+    const webLockScroll = () => {
+      console.log('[PSC] lockScroll web');
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      console.log('[PSC] body touchAction=', document.body.style.touchAction);
+    };
+    const webUnlockScroll = () => {
+      console.log('[PSC] unlockScroll web');
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
     return (
-      <View style={style} testID={scrollViewProps.testID}>
-        <View style={contentContainerStyle}>{children}</View>
-      </View>
+      <ScrollLockContext.Provider value={{ lockScroll: webLockScroll, unlockScroll: webUnlockScroll }}>
+        <View style={style} testID={scrollViewProps.testID}>
+          <View style={contentContainerStyle}>{children}</View>
+        </View>
+      </ScrollLockContext.Provider>
     );
   }
 
