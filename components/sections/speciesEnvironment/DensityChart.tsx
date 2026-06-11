@@ -178,7 +178,6 @@ export function DensityChart({
 
   const handleSelectionStart = React.useCallback(
     (event: GestureResponderEvent) => {
-      console.log('[DC] START origin=', dragOrigin.current, 'x=', event.nativeEvent.locationX, 'pid=', (event.nativeEvent as any).pointerId);
       lockScroll();
       hasDragged.current = false;
       if (isDiscrete) {
@@ -197,7 +196,6 @@ export function DensityChart({
 
   const handleSelectionMove = React.useCallback(
     (event: GestureResponderEvent) => {
-      console.log('[DC] MOVE origin=', dragOrigin.current, 'x=', event.nativeEvent.locationX);
       if (dragOrigin.current === null) return;
       hasDragged.current = true;
       if (isDiscrete) {
@@ -213,7 +211,6 @@ export function DensityChart({
 
   const handleSelectionEnd = React.useCallback(
     (event?: GestureResponderEvent) => {
-      console.log('[DC] END origin=', dragOrigin.current, 'hasDragged=', hasDragged.current, 'x=', event?.nativeEvent?.locationX);
       unlockScroll();
       if (isDiscrete) {
         const idx = event
@@ -265,7 +262,6 @@ export function DensityChart({
   );
 
   const handleSelectionTerminate = React.useCallback(() => {
-    console.log('[DC] TERMINATE origin=', dragOrigin.current, 'hasDragged=', hasDragged.current);
     unlockScroll();
     if (isDiscrete) {
       dragOrigin.current = null;
@@ -290,21 +286,17 @@ export function DensityChart({
     if (Platform.OS === 'web') setResponderKey(k => k + 1);
   }, [unlockScroll, isDiscrete, onSelectionChange]);
 
-  // On web, prevent pointercancel (which force-terminates the RN responder mid-drag)
-  // by ensuring touch-action:none reaches the DOM. The ref may not be a raw DOM node
-  // in RNW, so we also query by data-testid and attach a pointerdown preventDefault.
-  // Runs when hasCurveData flips true so the responder View is actually mounted.
+  // On web, prevent pointercancel from terminating drags mid-gesture.
+  // Sets touch-action:none and explicitly calls setPointerCapture on each pointerdown
+  // so the browser observes the responder element's touch-action for the captured pointer.
+  // The document listener survives View remounts (responderKey changes).
+  // Runs when hasCurveData flips true so the responder View is in the DOM.
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
     if (!hasCurveData) return;
 
     const el = document.querySelector('[data-testid="density-chart-responder"]') as HTMLElement | null;
-    console.log('[DC] setup query=', el);
-
-    if (el?.style) {
-      el.style.touchAction = 'none';
-      console.log('[DC] set touchAction:', el.style.touchAction);
-    }
+    if (el?.style) el.style.touchAction = 'none';
 
     // Explicitly set pointer capture on pointerdown so the browser observes
     // this element's touch-action:none and does not fire pointercancel.
@@ -313,7 +305,6 @@ export function DensityChart({
       const responder = document.querySelector('[data-testid="density-chart-responder"]');
       if (responder && (e.target === responder || responder.contains(e.target as Node))) {
         responder.setPointerCapture(e.pointerId);
-        console.log('[DC] explicit setPointerCapture id=', e.pointerId);
       }
     };
     document.addEventListener('pointerdown', onDocPointerDown, { capture: true });
@@ -329,64 +320,22 @@ export function DensityChart({
     };
   }, [hasCurveData]);
 
-  // On web, mouseup outside the element is not reliably captured by the RN
-  // responder system. A stuck dragOrigin causes handleSelectionMove to fire on
-  // plain hover (via onMoveShouldSetResponderCapture), breaking the next slice.
+  // On web, mouseup outside the element is not delivered to the RN responder.
+  // This fallback ensures dragOrigin is cleared if the user releases outside.
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
-    const onWindowPointerCancelCapture = (e: PointerEvent) => {
-      console.log('[DC] pointercancel CAPTURE isTrusted=', e.isTrusted, 'id=', e.pointerId, 'target=', e.target, 'origin=', dragOrigin.current);
-    };
-    const onWindowPointerCancel = (e: PointerEvent) => {
-      console.log('[DC] window pointercancel id=', e.pointerId, 'buttons=', e.buttons, 'origin=', dragOrigin.current);
-    };
-    const onGotCapture = (e: PointerEvent) => {
-      console.log('[DC] gotpointercapture target=', e.target, 'id=', e.pointerId, 'origin=', dragOrigin.current);
-    };
-    const onLostCapture = (e: PointerEvent) => {
-      console.log('[DC] lostpointercapture target=', e.target, 'id=', e.pointerId, 'origin=', dragOrigin.current);
-    };
-    window.addEventListener('pointercancel', onWindowPointerCancelCapture, { capture: true });
-    window.addEventListener('gotpointercapture', onGotCapture, { capture: true });
-    window.addEventListener('lostpointercapture', onLostCapture, { capture: true });
-    const onWindowMouseMove = (e: MouseEvent) => {
-      if (dragOrigin.current !== null) {
-        console.log('[DC] window mousemove buttons=', e.buttons, 'origin=', dragOrigin.current);
-      }
-    };
-    window.addEventListener('pointermove', onWindowMouseMove as EventListener);
-    window.addEventListener('pointercancel', onWindowPointerCancel);
     const onWindowMouseUp = () => {
-      console.log('[DC] window mouseup origin=', dragOrigin.current);
-      if (dragOrigin.current !== null) {
-        handleSelectionEnd();
-      }
+      if (dragOrigin.current !== null) handleSelectionEnd();
     };
     window.addEventListener('mouseup', onWindowMouseUp);
-    return () => {
-      window.removeEventListener('mouseup', onWindowMouseUp);
-      window.removeEventListener('pointermove', onWindowMouseMove as EventListener);
-      window.removeEventListener('pointercancel', onWindowPointerCancelCapture, { capture: true });
-      window.removeEventListener('pointercancel', onWindowPointerCancel);
-      window.removeEventListener('gotpointercapture', onGotCapture, { capture: true });
-      window.removeEventListener('lostpointercapture', onLostCapture, { capture: true });
-    };
+    return () => window.removeEventListener('mouseup', onWindowMouseUp);
   }, [handleSelectionEnd]);
 
-  const shouldSetSelectionResponder = () => {
-    console.log('[DC] shouldSet origin=', dragOrigin.current);
-    return true;
-  };
+  const shouldSetSelectionResponder = () => true;
 
-  const shouldKeepSelectionResponder = () => {
-    console.log('[DC] shouldKeep origin=', dragOrigin.current);
-    return dragOrigin.current !== null;
-  };
+  const shouldKeepSelectionResponder = () => dragOrigin.current !== null;
 
-  const shouldAllowSelectionTermination = () => {
-    console.log('[DC] allowTerminate? origin=', dragOrigin.current);
-    return dragOrigin.current === null;
-  };
+  const shouldAllowSelectionTermination = () => dragOrigin.current === null;
 
   const meanPosition =
     summary?.mean != null
