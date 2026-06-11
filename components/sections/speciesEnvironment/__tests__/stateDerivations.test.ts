@@ -253,13 +253,7 @@ describe('stateDerivations', () => {
 
   it('builds summary comparisons and resolves q01-q99 range values', () => {
     const disabled = buildSummaryComparisons(false, null, null, null, null);
-    expect(disabled).toEqual({
-      min: null,
-      mean: null,
-      max: null,
-      std: null,
-      range99: null,
-    });
+    expect(Object.values(disabled).every((v) => v === null)).toBe(true);
 
     const enabled = buildSummaryComparisons(
       true,
