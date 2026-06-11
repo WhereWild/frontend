@@ -98,4 +98,35 @@ describe('MapCircularColormapPicker', () => {
     );
     expect(getAllByRole('radio').length).toBeGreaterThan(0);
   });
+
+  it('calls onCbModeChange with achromatopsia when mono button pressed', () => {
+    const onChange = jest.fn();
+    const onCbModeChange = jest.fn();
+    const { getAllByRole } = render(
+      <MapCircularColormapPicker
+        selected={CIRCULAR_COLORMAP_ORDER[0]}
+        onChange={onChange}
+        onCbModeChange={onCbModeChange}
+      />,
+    );
+    const radios = getAllByRole('radio');
+    fireEvent.press(radios[radios.length - 1]);
+    expect(onCbModeChange).toHaveBeenCalledWith('achromatopsia');
+  });
+
+  it('calls onCbModeChange with null when mono button pressed in mono mode', () => {
+    const onChange = jest.fn();
+    const onCbModeChange = jest.fn();
+    const { getAllByRole } = render(
+      <MapCircularColormapPicker
+        selected={CIRCULAR_COLORMAP_ORDER[0]}
+        onChange={onChange}
+        cbMode='achromatopsia'
+        onCbModeChange={onCbModeChange}
+      />,
+    );
+    const radios = getAllByRole('radio');
+    fireEvent.press(radios[radios.length - 1]);
+    expect(onCbModeChange).toHaveBeenCalledWith(null);
+  });
 });
