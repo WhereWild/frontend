@@ -485,11 +485,7 @@ export function UploadPreview({
                 max={dotMax}
                 units={selectedVariableMeta.units}
                 pinnedValue={pinnedValue}
-                barCss={COLORMAPS[selectedColormap].barCss}
-                barColors={COLORMAPS[selectedColormap].stops
-                  .slice()
-                  .reverse()
-                  .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
               />
             )}
           {selectedVariableMeta &&
@@ -505,7 +501,9 @@ export function UploadPreview({
             <MapCircularLegend
               pinnedValue={pinnedValue}
               conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
-              nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+              arcSegmentColors={
+                CIRCULAR_COLORMAPS[selectedCircularColormap].arcSegmentColors
+              }
               shapesEnabled={circularShapesEnabled}
               markerOutlineEnabled={markerOutlineEnabled}
               nsweColors={nsweColors}

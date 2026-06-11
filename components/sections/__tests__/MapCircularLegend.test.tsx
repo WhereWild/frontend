@@ -51,9 +51,16 @@ describe('MapCircularLegend', () => {
     ).not.toThrow();
   });
 
-  it('renders with custom nativeColor', () => {
+  it('renders with custom arcSegmentColors', () => {
     expect(() =>
-      render(<MapCircularLegend nativeColor='rgb(255,0,0)' />),
+      render(
+        <MapCircularLegend
+          arcSegmentColors={Array.from(
+            { length: 72 },
+            (_, i) => `hsl(${i * 5},70%,50%)`,
+          )}
+        />,
+      ),
     ).not.toThrow();
   });
 

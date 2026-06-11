@@ -9,6 +9,7 @@ import { GestureResponderEvent, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { buildDensitySamples } from './densityChartUtils';
+import { useScrollLock } from '@/context/ScrollLockContext';
 import type { DensitySelectionRange } from './model';
 
 const CHART_SIZE = 260;
@@ -101,14 +102,19 @@ export function PolarDensityChart({
   const samples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const dragOrigin = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
+  const { lockScroll, unlockScroll } = useScrollLock();
 
-  const handleTouchStart = React.useCallback((e: GestureResponderEvent) => {
-    dragOrigin.current = touchToDeg(
-      e.nativeEvent.locationX,
-      e.nativeEvent.locationY,
-    );
-    hasDragged.current = false;
-  }, []);
+  const handleTouchStart = React.useCallback(
+    (e: GestureResponderEvent) => {
+      lockScroll();
+      dragOrigin.current = touchToDeg(
+        e.nativeEvent.locationX,
+        e.nativeEvent.locationY,
+      );
+      hasDragged.current = false;
+    },
+    [lockScroll],
+  );
 
   const handleTouchMove = React.useCallback(
     (e: GestureResponderEvent) => {
@@ -124,12 +130,13 @@ export function PolarDensityChart({
   );
 
   const handleTouchEnd = React.useCallback(() => {
+    unlockScroll();
     if (!hasDragged.current) {
       onSelectionChange?.(null);
     }
     dragOrigin.current = null;
     hasDragged.current = false;
-  }, [onSelectionChange]);
+  }, [unlockScroll, onSelectionChange]);
 
   if (!samples.length) {
     return (

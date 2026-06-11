@@ -168,6 +168,8 @@ export const useSelectFieldController = ({
   // autoFocus mounting the portal input (focus/blur churn that would otherwise close the list).
   const justOpenedRef = React.useRef(false);
   const isClosingRef = React.useRef(false);
+  // When true, the dropdown was opened by tapping the icon — skip auto-focus so the keyboard stays hidden.
+  const openedViaIconRef = React.useRef(false);
   const [isFocused, setIsFocused] = React.useState(false);
 
   // Controlled value is the single source of truth for selection.
@@ -215,6 +217,23 @@ export const useSelectFieldController = ({
     setHighlightedIndex(null);
     onOpenChange?.(true);
   }, [allowSearch, isDisabled, onOpenChange, selectedLabel]);
+
+  // On native with search enabled, manually focus the input after open — but only when
+  // the user tapped the text area, not the icon. autoFocus is disabled on native for
+  // searchable selects so we can suppress it here when opened via icon.
+  React.useEffect(() => {
+    if (!isOpen || !allowSearch || Platform.OS === 'web') {
+      return;
+    }
+    if (openedViaIconRef.current) {
+      openedViaIconRef.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, allowSearch]);
 
   const closeSelect = React.useCallback(() => {
     if (isClosingRef.current) {
@@ -680,7 +699,7 @@ export const useSelectFieldController = ({
             : isError
               ? palette.text.danger.onDangerSecondary
               : palette.text.disabled.default,
-          autoFocus: true,
+          autoFocus: Platform.OS === 'web',
           editable: !isDisabled,
           autoCorrect: false,
           autoCapitalize: 'none',
@@ -735,6 +754,9 @@ export const useSelectFieldController = ({
       icon: iconNode,
       onPress: (event?: GestureResponderEvent) => {
         event?.stopPropagation?.();
+        if (!isOpen) {
+          openedViaIconRef.current = true;
+        }
         (isOpen ? closeSelect : toggleSelect)();
       },
       extraProps: webIconButtonProps,

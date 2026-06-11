@@ -13,6 +13,8 @@ export type ColormapDef = {
   barCss: string;
   /** CSS linear-gradient for a horizontal swatch (left = min, right = max) */
   swatchCss: string;
+  /** SVG LinearGradient stops for the vertical bar (index 0 = top = max) */
+  barSvgStops: { offset: string; color: string }[];
 };
 
 // Stops precomputed from matplotlib at 16 evenly-spaced samples.
@@ -118,6 +120,17 @@ function makeSwatchCss(stops: [number, number, number][]): string {
   return `linear-gradient(to right, ${parts.join(', ')})`;
 }
 
+function makeBarSvgStops(
+  stops: [number, number, number][],
+): { offset: string; color: string }[] {
+  const reversed = [...stops].reverse();
+  const n = reversed.length;
+  return reversed.map((s, i) => ({
+    offset: `${Math.round((i / (n - 1)) * 100)}%`,
+    color: `rgb(${s[0]},${s[1]},${s[2]})`,
+  }));
+}
+
 export const COLORMAPS: Record<ColormapId, ColormapDef> = {
   viridis: {
     id: 'viridis',
@@ -125,6 +138,7 @@ export const COLORMAPS: Record<ColormapId, ColormapDef> = {
     stops: VIRIDIS_STOPS,
     barCss: makeBarCss(VIRIDIS_STOPS),
     swatchCss: makeSwatchCss(VIRIDIS_STOPS),
+    barSvgStops: makeBarSvgStops(VIRIDIS_STOPS),
   },
   plasma: {
     id: 'plasma',
@@ -132,6 +146,7 @@ export const COLORMAPS: Record<ColormapId, ColormapDef> = {
     stops: PLASMA_STOPS,
     barCss: makeBarCss(PLASMA_STOPS),
     swatchCss: makeSwatchCss(PLASMA_STOPS),
+    barSvgStops: makeBarSvgStops(PLASMA_STOPS),
   },
   inferno: {
     id: 'inferno',
@@ -139,6 +154,7 @@ export const COLORMAPS: Record<ColormapId, ColormapDef> = {
     stops: INFERNO_STOPS,
     barCss: makeBarCss(INFERNO_STOPS),
     swatchCss: makeSwatchCss(INFERNO_STOPS),
+    barSvgStops: makeBarSvgStops(INFERNO_STOPS),
   },
   magma: {
     id: 'magma',
@@ -146,6 +162,7 @@ export const COLORMAPS: Record<ColormapId, ColormapDef> = {
     stops: MAGMA_STOPS,
     barCss: makeBarCss(MAGMA_STOPS),
     swatchCss: makeSwatchCss(MAGMA_STOPS),
+    barSvgStops: makeBarSvgStops(MAGMA_STOPS),
   },
   cividis: {
     id: 'cividis',
@@ -153,6 +170,7 @@ export const COLORMAPS: Record<ColormapId, ColormapDef> = {
     stops: CIVIDIS_STOPS,
     barCss: makeBarCss(CIVIDIS_STOPS),
     swatchCss: makeSwatchCss(CIVIDIS_STOPS),
+    barSvgStops: makeBarSvgStops(CIVIDIS_STOPS),
   },
 };
 
@@ -166,11 +184,38 @@ export const COLORMAP_ORDER: ColormapId[] = [
 
 export const DEFAULT_COLORMAP: ColormapId = 'viridis';
 
-// Legacy exports kept for MapVariableLegend (will be replaced by colormap-aware versions)
+// Legacy CSS exports (used by web-only rendering paths)
 export const VIRIDIS_CSS = COLORMAPS.viridis.barCss;
 export const VIRIDIS_COLORS = VIRIDIS_STOPS.slice()
   .reverse()
   .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`);
+
+/**
+ * SVG path string for a donut arc segment.
+ * startDeg / endDeg use compass convention: 0° = North (top), clockwise.
+ */
+export function donutArcPath(
+  cx: number,
+  cy: number,
+  outerR: number,
+  innerR: number,
+  startDeg: number,
+  endDeg: number,
+): string {
+  const toRad = (d: number) => ((d - 90) * Math.PI) / 180;
+  const a1 = toRad(startDeg);
+  const a2 = toRad(endDeg);
+  const ox1 = cx + outerR * Math.cos(a1),
+    oy1 = cy + outerR * Math.sin(a1);
+  const ox2 = cx + outerR * Math.cos(a2),
+    oy2 = cy + outerR * Math.sin(a2);
+  const ix1 = cx + innerR * Math.cos(a1),
+    iy1 = cy + innerR * Math.sin(a1);
+  const ix2 = cx + innerR * Math.cos(a2),
+    iy2 = cy + innerR * Math.sin(a2);
+  const large = endDeg - startDeg > 180 ? 1 : 0;
+  return `M${ox1},${oy1} A${outerR},${outerR},0,${large},1,${ox2},${oy2} L${ix2},${iy2} A${innerR},${innerR},0,${large},0,${ix1},${iy1} Z`;
+}
 
 // ---------------------------------------------------------------------------
 // Circular (aspect) colormaps
@@ -191,6 +236,8 @@ export type CircularColormapDef = {
   conicCss: string;
   /** CSS linear swatch (left=0°, right=360°) */
   swatchCss: string;
+  /** Midpoint color for each 5° segment (72 total) for SVG donut ring rendering */
+  arcSegmentColors: string[];
 };
 
 // Twilight variants — 16 stops sampled over [0, 1) with phase offset
@@ -283,6 +330,24 @@ function makeCircularSwatchCss(stops: [number, number, number][]): string {
   return `linear-gradient(to right, ${parts.join(', ')})`;
 }
 
+function lerpChannel(a: number, b: number, t: number): number {
+  return Math.round(a + (b - a) * t);
+}
+
+function makeArcSegmentColors(stops: [number, number, number][]): string[] {
+  const n = stops.length;
+  return Array.from({ length: 72 }, (_, i) => {
+    const deg = i * 5 + 2.5;
+    const frac = (deg / 360) * n;
+    const lo = Math.floor(frac) % n;
+    const hi = (lo + 1) % n;
+    const t = frac - Math.floor(frac);
+    const s0 = stops[lo];
+    const s1 = stops[hi];
+    return `rgb(${lerpChannel(s0[0], s1[0], t)},${lerpChannel(s0[1], s1[1], t)},${lerpChannel(s0[2], s1[2], t)})`;
+  });
+}
+
 export const CIRCULAR_COLORMAPS: Record<
   CircularColormapId,
   CircularColormapDef
@@ -293,6 +358,7 @@ export const CIRCULAR_COLORMAPS: Record<
     stops: TWILIGHT_STOPS,
     conicCss: makeConicCss(TWILIGHT_STOPS),
     swatchCss: makeCircularSwatchCss(TWILIGHT_STOPS),
+    arcSegmentColors: makeArcSegmentColors(TWILIGHT_STOPS),
   },
   twilight_90: {
     id: 'twilight_90',
@@ -300,6 +366,7 @@ export const CIRCULAR_COLORMAPS: Record<
     stops: TWILIGHT_90_STOPS,
     conicCss: makeConicCss(TWILIGHT_90_STOPS),
     swatchCss: makeCircularSwatchCss(TWILIGHT_90_STOPS),
+    arcSegmentColors: makeArcSegmentColors(TWILIGHT_90_STOPS),
   },
   twilight_180: {
     id: 'twilight_180',
@@ -307,6 +374,7 @@ export const CIRCULAR_COLORMAPS: Record<
     stops: TWILIGHT_180_STOPS,
     conicCss: makeConicCss(TWILIGHT_180_STOPS),
     swatchCss: makeCircularSwatchCss(TWILIGHT_180_STOPS),
+    arcSegmentColors: makeArcSegmentColors(TWILIGHT_180_STOPS),
   },
   twilight_270: {
     id: 'twilight_270',
@@ -314,6 +382,7 @@ export const CIRCULAR_COLORMAPS: Record<
     stops: TWILIGHT_270_STOPS,
     conicCss: makeConicCss(TWILIGHT_270_STOPS),
     swatchCss: makeCircularSwatchCss(TWILIGHT_270_STOPS),
+    arcSegmentColors: makeArcSegmentColors(TWILIGHT_270_STOPS),
   },
 };
 

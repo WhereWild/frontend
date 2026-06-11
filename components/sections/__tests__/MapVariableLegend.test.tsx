@@ -62,8 +62,10 @@ describe('MapVariableLegend', () => {
         <MapVariableLegend
           min={0}
           max={100}
-          barColors={['#ff0000', '#00ff00', '#0000ff']}
-          barCss='linear-gradient(to right, red, blue)'
+          barSvgStops={[
+            { offset: '0%', color: '#ff0000' },
+            { offset: '100%', color: '#0000ff' },
+          ]}
         />,
       ),
     ).not.toThrow();

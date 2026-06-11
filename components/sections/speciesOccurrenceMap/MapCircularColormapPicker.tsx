@@ -6,6 +6,7 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import {
   CIRCULAR_COLORMAP_ORDER,
   CIRCULAR_COLORMAPS,
@@ -71,22 +72,49 @@ export function MapCircularColormapPicker({
                 ]}
               />
             ) : (
-              <View
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  { borderRadius: 3, flexDirection: 'row' },
-                ]}
-              >
-                {[...cm.stops, cm.stops[0]].map((s, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flex: 1,
-                      backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
-                    }}
+              <Svg width={44} height={10}>
+                <Defs>
+                  <LinearGradient
+                    id={`cg-${id}`}
+                    x1='0'
+                    y1='0.5'
+                    x2='1'
+                    y2='0.5'
+                  >
+                    {cm.stops.map((s, i) => (
+                      <Stop
+                        key={i}
+                        offset={`${Math.round((i / cm.stops.length) * 100)}%`}
+                        stopColor={`rgb(${s[0]},${s[1]},${s[2]})`}
+                      />
+                    ))}
+                    <Stop
+                      offset='100%'
+                      stopColor={`rgb(${cm.stops[0][0]},${cm.stops[0][1]},${cm.stops[0][2]})`}
+                    />
+                  </LinearGradient>
+                </Defs>
+                <Rect
+                  x={0}
+                  y={0}
+                  width={44}
+                  height={10}
+                  fill={`url(#cg-${id})`}
+                  rx={3}
+                />
+                {isSelected && (
+                  <Rect
+                    x={0.75}
+                    y={0.75}
+                    width={42.5}
+                    height={8.5}
+                    fill='none'
+                    stroke='#ffffff'
+                    strokeWidth={1.5}
+                    rx={2.5}
                   />
-                ))}
-              </View>
+                )}
+              </Svg>
             )}
           </Pressable>
         );
@@ -135,9 +163,6 @@ const styles = StyleSheet.create({
   },
   swatchSelected: {
     opacity: 1,
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
-    borderRadius: 3,
   },
   shapesRow: {
     flexDirection: 'row',

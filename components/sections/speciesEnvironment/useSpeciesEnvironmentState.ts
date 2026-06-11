@@ -139,11 +139,6 @@ export function useSpeciesEnvironmentState({
   });
 
   const locationFilterActive = Boolean(locationGid);
-  const filterActive =
-    Boolean(locationGid) ||
-    Boolean(phenology) ||
-    startTimestamp != null ||
-    endTimestamp != null;
   const { stats, error, loading } = useEnvironmentStats({
     taxonId,
     selectedVariable,
@@ -333,7 +328,7 @@ export function useSpeciesEnvironmentState({
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
     () =>
       buildSummaryComparisons(
-        filterActive,
+        locationFilterActive,
         summary,
         baselineSummary,
         summaryRangeValue,
@@ -342,7 +337,7 @@ export function useSpeciesEnvironmentState({
     [
       baselineRangeValue,
       baselineSummary,
-      filterActive,
+      locationFilterActive,
       summary,
       summaryRangeValue,
     ],
@@ -438,9 +433,15 @@ export function useSpeciesEnvironmentState({
     stats?.units,
   );
 
+  const isCircularForMeta = isVariableCircular({
+    id: selectedVariable ?? '',
+    valueType: selectedVariableMeta?.valueType ?? null,
+  });
+
   const metaText = buildMetaText({
     hasStats: Boolean(stats),
     isCategorical,
+    isCircular: isCircularForMeta,
     selectedDensityRange,
     rangeObservationCount: rangeObservationItems.length,
     observationCount: stats?.observationCount,

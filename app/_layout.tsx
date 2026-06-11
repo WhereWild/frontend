@@ -63,6 +63,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Keyboard,
   LayoutChangeEvent,
   Platform,
   StyleSheet,
@@ -406,6 +407,10 @@ function RootLayoutNativeFrame() {
   const router = useRouter();
   const pathname = usePathname();
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    Keyboard.dismiss();
+  }, [pathname]);
   const { config: nativeTopAppBarConfig } = useNativeTopAppBarConfig();
   const {
     hasActiveFilter,

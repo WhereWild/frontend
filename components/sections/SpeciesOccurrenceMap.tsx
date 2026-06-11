@@ -628,6 +628,7 @@ export function SpeciesOccurrenceMap({
             source={{ html, baseUrl: MAP_DOCUMENT_BASE_URL }}
             automaticallyAdjustContentInsets={false}
             scrollEnabled={false}
+            overScrollMode='never'
             onLoadEnd={() => setMapReady(true)}
             onMessage={(event) => {
               try {
