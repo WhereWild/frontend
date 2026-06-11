@@ -21,18 +21,15 @@ import {
   PageScrollContainer,
   RadioGroup,
   SearchInput,
-  SelectField,
-  SpeciesOccurrenceMap,
   SwitchField,
   SpeciesCard,
   SpeciesPageTitle,
   Tabs,
   ThemedText,
 } from '@/components';
-import type { ButtonProps, SelectOption } from '@/components';
+import type { ButtonProps } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { Colors, Shadows, Size } from '@/constants/theme';
-import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -41,76 +38,16 @@ import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixS
 import { DateRangeSlider } from '@/components/inputs/DateRangeSlider';
 import type { MonthYear } from '@/components/inputs/DateRangeSlider';
 import Head from 'expo-router/head';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useOptionalSettings } from '@/context/SettingsContext';
+import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
-import {
-  isVariableCategorical,
-  isVariableCircular,
-  normalizeLabel,
-} from '@/components/sections/speciesEnvironment/model';
-import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
-import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
-import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
-import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
-import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
-import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
-import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import {
   ASPECT_CONIC_CSS,
   ASPECT_NATIVE_COLOR,
-  COLORMAPS,
-  CIRCULAR_COLORMAPS,
   VIRIDIS_COLORS,
   VIRIDIS_CSS,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
-import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
-import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
 const SPECIES_CARD_IMAGE = require('@/assets/images/placeholder.png');
-const ABOUT_LANDCOVER_MAP_HEIGHT = 520;
-const ABOUT_LANDCOVER_MIN_ZOOM = 4;
-const ABOUT_MAP_FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
-  {
-    id: 'landcover',
-    label: 'Land Cover',
-    valueType: 'categorical',
-    category: 'Categorical',
-  },
-  {
-    id: 'koppen_geiger',
-    label: 'Köppen-Geiger',
-    valueType: 'categorical',
-    category: 'Categorical',
-  },
-  {
-    id: 'bio_1',
-    label: 'Annual Mean Temperature',
-    units: 'C',
-    valueType: 'continuous',
-    category: 'Bioclim',
-  },
-];
-const ABOUT_MAP_EXCLUDED_CATEGORIES = new Set(['temporal']);
-const ABOUT_WINDOW_OPTIONS: SelectOption[] = [
-  { value: 'live', label: 'Live (current)' },
-  { value: '1h', label: 'Last 1 hour' },
-  { value: '8h', label: 'Last 8 hours' },
-  { value: '24h', label: 'Last 24 hours' },
-  { value: '3d', label: 'Last 3 days' },
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-];
-const ABOUT_FORECAST_OPTIONS: SelectOption[] = [
-  { value: 'now', label: 'Now' },
-  { value: '1h', label: '+1 hour' },
-  { value: '8h', label: '+8 hours' },
-  { value: '24h', label: '+24 hours' },
-  { value: '3d', label: '+3 days' },
-  { value: '7d', label: '+7 days' },
-];
 
 type ButtonVariant = 'primary' | 'neutral' | 'subtle';
 
@@ -168,74 +105,7 @@ const formatTokenLabel = (value: string) =>
     .trim()
     .replace(/^./, (char) => char.toUpperCase());
 
-const mapAboutVariableOptions = (
-  variables: Awaited<ReturnType<typeof fetchEnvironmentVariables>>,
-) => {
-  return variables
-    .filter((entry) => {
-      const category = (entry.category ?? '').toLowerCase();
-      return !ABOUT_MAP_EXCLUDED_CATEGORIES.has(category);
-    })
-    .map((entry) => ({
-      id: entry.id,
-      label: entry.name ?? normalizeLabel(entry.id),
-      units: entry.units ?? null,
-      valueType: entry.valueType ?? null,
-      category: entry.category ?? 'Other',
-      legendClasses: entry.legendClasses ?? null,
-      renderMin: entry.renderMin ?? null,
-      renderMax: entry.renderMax ?? null,
-    }));
-};
-
-const buildAboutVariableTileUrl = ({
-  cacheKey,
-  colormap,
-  circularColormap,
-  isCircular,
-  cbMode,
-  forecast,
-  isLiveWeather,
-  selectedVariable,
-  window,
-}: {
-  cacheKey: number;
-  colormap: string;
-  circularColormap: string;
-  isCircular: boolean;
-  cbMode: string | null;
-  forecast: string;
-  isLiveWeather: boolean;
-  selectedVariable: string;
-  window: string;
-}) => {
-  const effectiveColormap = isCircular ? circularColormap : colormap;
-  const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
-  const baseUrl = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
-    selectedVariable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}`;
-
-  if (!isLiveWeather) {
-    return baseUrl;
-  }
-
-  const withWindow =
-    window !== 'live' ? `${baseUrl}&window=${window}` : baseUrl;
-  return forecast !== 'now' ? `${withWindow}&forecast=${forecast}` : withWindow;
-};
-
 export default function About() {
-  const settings = useOptionalSettings();
-  const unitSystem = settings?.units ?? 'metric';
-  const selectedColormap = settings?.colormap ?? 'viridis';
-  const setSelectedColormap = settings?.setColormap;
-  const selectedCircularColormap = settings?.circularColormap ?? 'twilight_90';
-  const setSelectedCircularColormap = settings?.setCircularColormap;
-  const cbMode = settings?.cbMode ?? null;
-  const setCbMode = settings?.setCbMode;
-  const shapesEnabled = settings?.shapesEnabled ?? false;
-  const markerOutlineEnabled =
-    (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -280,110 +150,6 @@ export default function About() {
   >('ascending');
   const [filterNumResults, setFilterNumResults] = useState(10);
   const [filterMinSamples, setFilterMinSamples] = useState(1);
-  const [aboutMapVariables, setAboutMapVariables] = useState<
-    EnvironmentVariableOption[]
-  >(ABOUT_MAP_FALLBACK_VARIABLES);
-  const [visibleNominalCounts, setVisibleNominalCounts] = useState<
-    Map<number, number>
-  >(new Map());
-  const [pinnedValue, setPinnedValue] = useState<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const variables = await fetchEnvironmentVariables({
-          units: unitSystem,
-        });
-        if (cancelled || !variables.length) {
-          return;
-        }
-        const mapped = mapAboutVariableOptions(variables);
-
-        if (mapped.length > 0) {
-          setAboutMapVariables(mapped);
-        }
-      } catch {
-        // Keep fallback options when variable catalog is unavailable.
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [unitSystem]);
-
-  const {
-    categories: mapVariableCategories,
-    selectedVariableCategory: mapSelectedVariableCategory,
-    setSelectedVariableCategory: setMapSelectedVariableCategory,
-    filteredVariables: mapFilteredVariables,
-    selectedVariable: mapSelectedVariable,
-    setSelectedVariable: setMapSelectedVariable,
-    selectedVariableMeta: mapSelectedVariableMeta,
-  } = useEnvironmentVariableSelection({
-    variableId: 'landcover',
-    variables: aboutMapVariables,
-  });
-  const [selectedWindow, setSelectedWindow] = useState<string>('live');
-  const [selectedForecast, setSelectedForecast] = useState<string>('now');
-  const aboutTileCacheKey = useMemo(() => Date.now(), []);
-
-  const isLiveWeather =
-    (mapSelectedVariableCategory ?? '').toLowerCase() === 'live weather';
-
-  const aboutVariableTileUrl = useMemo(() => {
-    return buildAboutVariableTileUrl({
-      cacheKey: aboutTileCacheKey,
-      colormap: selectedColormap,
-      circularColormap: selectedCircularColormap,
-      isCircular: isVariableCircular(mapSelectedVariableMeta),
-      cbMode,
-      forecast: selectedForecast,
-      isLiveWeather,
-      selectedVariable: mapSelectedVariable,
-      window: selectedWindow,
-    });
-  }, [
-    aboutTileCacheKey,
-    selectedColormap,
-    selectedCircularColormap,
-    cbMode,
-    isLiveWeather,
-    mapSelectedVariable,
-    mapSelectedVariableMeta,
-    selectedForecast,
-    selectedWindow,
-  ]);
-  useEffect(() => {
-    setVisibleNominalCounts(new Map());
-    setPinnedValue(null);
-  }, [mapSelectedVariable]);
-
-  const handleMapPointValue = useCallback((value: number) => {
-    setPinnedValue(value);
-  }, []);
-
-  const handleMapTileClasses = useCallback(
-    (classes: { id: number; count: number }[], removed: boolean) => {
-      setVisibleNominalCounts((prev) => {
-        const next = new Map(prev);
-        for (const { id, count } of classes) {
-          if (removed) {
-            const remaining = (next.get(id) ?? 0) - count;
-            if (remaining <= 0) next.delete(id);
-            else next.set(id, remaining);
-          } else {
-            next.set(id, (next.get(id) ?? 0) + count);
-          }
-        }
-        return next;
-      });
-    },
-    [],
-  );
-
   const speciesSample = mountainBallCactusData;
   const radioOptions = [
     { label: 'Label', description: 'Description', value: 'checked' },
@@ -1416,206 +1182,6 @@ export default function About() {
               </View>
             </View>
 
-            <View style={styles.aboutMapSection}>
-              <ThemedText variant='heading'>Variable Tile Map</ThemedText>
-              <ThemedText variant='body'>
-                Backend-served variable tiles using the same overview and tile
-                extraction flow as SDM.
-              </ThemedText>
-              <VariableSelectorHeader
-                categories={mapVariableCategories}
-                selectedVariableCategory={mapSelectedVariableCategory}
-                onCategoryChange={setMapSelectedVariableCategory}
-                filteredVariables={mapFilteredVariables}
-                selectedVariable={mapSelectedVariable}
-                onVariableChange={setMapSelectedVariable}
-                headingText={mapSelectedVariableMeta?.label ?? 'Map Variable'}
-                metaText={`Tile variable id: ${mapSelectedVariable}`}
-              />
-              {isLiveWeather && (
-                <SelectField
-                  variant='tertiary'
-                  options={ABOUT_WINDOW_OPTIONS}
-                  value={selectedWindow}
-                  onValueChange={(v) => {
-                    setSelectedWindow(v);
-                    setSelectedForecast('now');
-                  }}
-                  placeholder='Aggregation window'
-                />
-              )}
-              {isLiveWeather && (
-                <SelectField
-                  variant='tertiary'
-                  options={ABOUT_FORECAST_OPTIONS}
-                  value={selectedForecast}
-                  onValueChange={setSelectedForecast}
-                  placeholder='Forecast offset'
-                />
-              )}
-              <ThemedText variant='bodySmall'>
-                Pick a variable to test tile rendering. Only backend map-enabled
-                variables will display.
-              </ThemedText>
-              <View style={{ position: 'relative' }}>
-                <SpeciesOccurrenceMap
-                  occurrences={[]}
-                  loading={false}
-                  error={null}
-                  height={ABOUT_LANDCOVER_MAP_HEIGHT}
-                  heatmapTileUrl={aboutVariableTileUrl}
-                  heatmapOpacity={0.85}
-                  minZoom={ABOUT_LANDCOVER_MIN_ZOOM}
-                  showMarkers={false}
-                  onTileClasses={handleMapTileClasses}
-                  onPointValue={handleMapPointValue}
-                  pointQueryUrl={
-                    mapSelectedVariable
-                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(mapSelectedVariable)}&unit_system=${unitSystem}`
-                      : null
-                  }
-                  isCircular={
-                    mapSelectedVariableMeta?.id === 'aspect' ||
-                    mapSelectedVariableMeta?.id === 'aspect_deg'
-                  }
-                  renderMin={
-                    isVariableCategorical(mapSelectedVariableMeta) ||
-                    mapSelectedVariableMeta?.id === 'aspect' ||
-                    mapSelectedVariableMeta?.id === 'aspect_deg'
-                      ? null
-                      : (mapSelectedVariableMeta?.renderMin ?? null)
-                  }
-                  renderMax={
-                    isVariableCategorical(mapSelectedVariableMeta) ||
-                    mapSelectedVariableMeta?.id === 'aspect' ||
-                    mapSelectedVariableMeta?.id === 'aspect_deg'
-                      ? null
-                      : (mapSelectedVariableMeta?.renderMax ?? null)
-                  }
-                  gradientStops={
-                    !isVariableCategorical(mapSelectedVariableMeta) &&
-                    !isVariableCircular(mapSelectedVariableMeta)
-                      ? COLORMAPS[selectedColormap].stops
-                      : null
-                  }
-                  aspectStops={
-                    isVariableCircular(mapSelectedVariableMeta)
-                      ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
-                      : null
-                  }
-                  markerOutlineEnabled={markerOutlineEnabled}
-                />
-                {(() => {
-                  const isCircular = isVariableCircular(
-                    mapSelectedVariableMeta,
-                  );
-                  const isCategorical = isVariableCategorical(
-                    mapSelectedVariableMeta,
-                  );
-                  const isNumeric =
-                    (mapSelectedVariableMeta?.valueType ?? '').toLowerCase() ===
-                      'continuous' && !isCircular;
-
-                  if (isCircular) {
-                    return (
-                      <>
-                        <MapCircularLegend
-                          pinnedValue={pinnedValue}
-                          conicCss={
-                            CIRCULAR_COLORMAPS[selectedCircularColormap]
-                              .conicCss
-                          }
-                          nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
-                        />
-                        {setSelectedCircularColormap && (
-                          <MapCircularColormapPicker
-                            selected={selectedCircularColormap}
-                            onChange={setSelectedCircularColormap}
-                          />
-                        )}
-                      </>
-                    );
-                  }
-
-                  if (isCategorical) {
-                    const isLandcover =
-                      mapSelectedVariableMeta?.id === 'landcover';
-                    const allClasses = (
-                      mapSelectedVariableMeta?.legendClasses ?? []
-                    ).filter((cls) => !(isLandcover && cls.id === 0));
-                    if (allClasses.length === 0) return null;
-                    if (visibleNominalCounts.size === 0) return null;
-                    const visibleClasses = allClasses
-                      .filter((cls) =>
-                        visibleNominalCounts.has(cls.id as number),
-                      )
-                      .sort(
-                        (a, b) =>
-                          (visibleNominalCounts.get(b.id as number) ?? 0) -
-                          (visibleNominalCounts.get(a.id as number) ?? 0),
-                      );
-                    if (visibleClasses.length === 0) return null;
-                    const cbClasses = cbMode
-                      ? visibleClasses.map((cls) => ({
-                          ...cls,
-                          color: getCbColor(
-                            mapSelectedVariableMeta?.id ?? '',
-                            cls.id as number,
-                            cbMode,
-                            cls.color ?? '#888888',
-                          ),
-                        }))
-                      : visibleClasses;
-                    return (
-                      <>
-                        <MapCategoricalLegend
-                          classes={cbClasses}
-                          variableId={mapSelectedVariableMeta?.id}
-                          cbMode={cbMode}
-                          shapesEnabled={shapesEnabled}
-                          markerOutlineEnabled={markerOutlineEnabled}
-                        />
-                        {setCbMode && (
-                          <MapCbModePicker
-                            selected={cbMode}
-                            onChange={setCbMode}
-                            topClasses={visibleClasses.slice(0, 3)}
-                            variableId={mapSelectedVariableMeta?.id ?? ''}
-                            shapesEnabled={shapesEnabled}
-                            markerOutlineEnabled={markerOutlineEnabled}
-                          />
-                        )}
-                      </>
-                    );
-                  }
-
-                  const rmin = mapSelectedVariableMeta?.renderMin;
-                  const rmax = mapSelectedVariableMeta?.renderMax;
-                  if (!isNumeric || rmin == null || rmax == null) return null;
-                  return (
-                    <>
-                      <MapVariableLegend
-                        min={rmin}
-                        max={rmax}
-                        units={mapSelectedVariableMeta?.units}
-                        pinnedValue={pinnedValue}
-                        barCss={COLORMAPS[selectedColormap].barCss}
-                        barColors={COLORMAPS[selectedColormap].stops
-                          .slice()
-                          .reverse()
-                          .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
-                      />
-                      {setSelectedColormap && (
-                        <MapColormapPicker
-                          selected={selectedColormap}
-                          onChange={setSelectedColormap}
-                        />
-                      )}
-                    </>
-                  );
-                })()}
-              </View>
-            </View>
           </PageScrollContainer>
         </View>
       </PageSurface>
