@@ -5,10 +5,15 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { getCbColor, getCbShape, type CbMode } from './cbColors';
+import { Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { getCbColor, getCbShape, type CbMode, type ShapeKey } from './cbColors';
 import { ShapeMarker } from './ShapeMarker';
+import { CIRCULAR_COLORMAPS } from './variableColors';
 import type { LegendClass } from '@/data/types';
+
+const NSWE_SHAPES: ShapeKey[] = ['triangle', 'arrow', 'triangle-down', 'diamond'];
+const BASE_CIRCULAR_STOPS = CIRCULAR_COLORMAPS['twilight'].stops;
+const BASE_CIRCULAR_SWATCH_CSS = CIRCULAR_COLORMAPS['twilight'].swatchCss;
 
 const MODES: Array<{ id: CbMode | null; label: string }> = [
   { id: null, label: 'Default' },
@@ -25,6 +30,8 @@ type MapCbModePickerProps = {
   variableId: string;
   shapesEnabled?: boolean;
   markerOutlineEnabled?: boolean;
+  isCircular?: boolean;
+  nsweColors?: [string, string, string, string];
 };
 
 export function MapCbModePicker({
@@ -34,6 +41,8 @@ export function MapCbModePicker({
   variableId,
   shapesEnabled = false,
   markerOutlineEnabled = false,
+  isCircular = false,
+  nsweColors,
 }: MapCbModePickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -49,6 +58,7 @@ export function MapCbModePicker({
     >
       {MODES.map((entry) => {
         const isSelected = entry.id === selected;
+        const isMono = entry.id === 'achromatopsia';
         return (
           <Pressable
             key={entry.id ?? 'original'}
@@ -58,33 +68,51 @@ export function MapCbModePicker({
             accessibilityRole='radio'
             accessibilityState={{ selected: isSelected }}
           >
-            {preview.map((cls) => {
-              const color = getCbColor(
-                variableId,
-                cls.id as number,
-                entry.id,
-                cls.color ?? '#888888',
-              );
-              if (shapesEnabled || entry.id === 'achromatopsia') {
-                return (
-                  <ShapeMarker
-                    key={cls.id}
-                    shape={getCbShape(variableId, cls.id as number)}
-                    color={color}
-                    size={8}
-                    outline={markerOutlineEnabled}
-                  />
-                );
-              }
-              return (
-                <View
-                  key={cls.id}
-                  style={[styles.dot, { backgroundColor: color }, markerOutlineEnabled && styles.dotOutline]}
-                />
-              );
-            })}
-            {preview.length === 0 && (
-              <View style={[styles.dot, { backgroundColor: '#888888' }]} />
+            {isCircular ? (
+              isMono ? (
+                NSWE_SHAPES.map((shape, i) => (
+                  <ShapeMarker key={i} shape={shape} color='#999999' size={8} outline={markerOutlineEnabled} />
+                ))
+              ) : Platform.OS === 'web' ? (
+                <View style={[styles.circularSwatch, { backgroundImage: BASE_CIRCULAR_SWATCH_CSS } as object]} />
+              ) : (
+                <View style={[styles.circularSwatch, { flexDirection: 'row' }]}>
+                  {[...BASE_CIRCULAR_STOPS, BASE_CIRCULAR_STOPS[0]].map((s, i) => (
+                    <View key={i} style={{ flex: 1, backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})` }} />
+                  ))}
+                </View>
+              )
+            ) : (
+              <>
+                {preview.map((cls) => {
+                  const color = getCbColor(
+                    variableId,
+                    cls.id as number,
+                    entry.id,
+                    cls.color ?? '#888888',
+                  );
+                  if (shapesEnabled || entry.id === 'achromatopsia') {
+                    return (
+                      <ShapeMarker
+                        key={cls.id}
+                        shape={getCbShape(variableId, cls.id as number)}
+                        color={color}
+                        size={8}
+                        outline={markerOutlineEnabled}
+                      />
+                    );
+                  }
+                  return (
+                    <View
+                      key={cls.id}
+                      style={[styles.dot, { backgroundColor: color }, markerOutlineEnabled && styles.dotOutline]}
+                    />
+                  );
+                })}
+                {preview.length === 0 && (
+                  <View style={[styles.dot, { backgroundColor: '#888888' }]} />
+                )}
+              </>
             )}
           </Pressable>
         );
@@ -128,5 +156,11 @@ const styles = StyleSheet.create({
   dotOutline: {
     borderWidth: 1,
     borderColor: 'rgba(176,176,176,0.65)',
+  },
+  circularSwatch: {
+    width: 44,
+    height: 10,
+    borderRadius: 3,
+    overflow: 'hidden',
   },
 });

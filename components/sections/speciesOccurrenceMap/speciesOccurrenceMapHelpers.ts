@@ -72,6 +72,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   classColorsJson: '__CLASS_COLORS_JSON__',
   classShapesJson: '__CLASS_SHAPES_JSON__',
   markerOutline: '__MARKER_OUTLINE__',
+  circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
 } as const;
 
 export type HighlightMessage = {
@@ -180,6 +181,16 @@ export const getMapTileUrlTemplate = (mode: MapTileMode) => {
     : baseTemplate;
 };
 
+const NSWE_SHAPES = { N: 'triangle', E: 'arrow', S: 'triangle-down', W: 'diamond' } as const;
+
+const aspectToCardinalShape = (deg: number): string => {
+  const d = ((deg % 360) + 360) % 360;
+  if (d >= 315 || d < 45) return NSWE_SHAPES.N;
+  if (d < 135) return NSWE_SHAPES.E;
+  if (d < 225) return NSWE_SHAPES.S;
+  return NSWE_SHAPES.W;
+};
+
 const escapeHtml = (value: string) =>
   value
     .replaceAll('&', '&amp;')
@@ -194,6 +205,7 @@ const preparePointsForMapHtml = (
   classColors?: Map<string, string> | null,
   classLabels?: Map<string, string> | null,
   classShapes?: Map<string, string> | null,
+  circularShapesEnabled?: boolean,
 ) => {
   return (points ?? []).map((point) => {
     const catalogNumber = point.catalogNumber;
@@ -211,7 +223,11 @@ const preparePointsForMapHtml = (
     const varLabel =
       classKey && classLabels ? (classLabels.get(classKey) ?? null) : null;
     const varShape =
-      classKey && classShapes ? (classShapes.get(classKey) ?? null) : null;
+      classKey && classShapes
+        ? (classShapes.get(classKey) ?? null)
+        : circularShapesEnabled && varValue != null
+          ? aspectToCardinalShape(varValue)
+          : null;
 
     return {
       ...point,
@@ -257,6 +273,7 @@ export const buildLeafletHtml = (
   aspectStops?: [number, number, number][] | null,
   classShapes?: Map<string, string> | null,
   markerOutlineEnabled?: boolean,
+  circularShapesEnabled?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -290,6 +307,7 @@ export const buildLeafletHtml = (
           classColors,
           classLabels,
           classShapes,
+          circularShapesEnabled,
         ),
       ),
     );
@@ -400,6 +418,9 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.markerOutline)
     .join(markerOutlineEnabled ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.circularShapesEnabled)
+    .join(circularShapesEnabled ? 'true' : 'false');
   return html;
 };
 

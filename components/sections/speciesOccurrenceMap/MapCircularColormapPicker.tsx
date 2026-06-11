@@ -7,26 +7,35 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { CIRCULAR_COLORMAP_ORDER, CIRCULAR_COLORMAPS, type CircularColormapId } from './variableColors';
+import { ShapeMarker } from './ShapeMarker';
+import type { ShapeKey } from './cbColors';
+import type { CbMode } from './cbColors';
+
+const NSWE_SHAPES: ShapeKey[] = ['triangle', 'arrow', 'triangle-down', 'diamond'];
 
 type MapCircularColormapPickerProps = {
   selected: CircularColormapId;
   onChange: (id: CircularColormapId) => void;
+  cbMode?: CbMode | null;
+  onCbModeChange?: (mode: CbMode | null) => void;
+  markerOutlineEnabled?: boolean;
 };
 
-export function MapCircularColormapPicker({ selected, onChange }: MapCircularColormapPickerProps) {
+export function MapCircularColormapPicker({ selected, onChange, cbMode, onCbModeChange, markerOutlineEnabled = false }: MapCircularColormapPickerProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const isMono = cbMode === 'achromatopsia';
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background.default.secondary }]}>
       {CIRCULAR_COLORMAP_ORDER.map((id) => {
         const cm = CIRCULAR_COLORMAPS[id];
-        const isSelected = id === selected;
+        const isSelected = !isMono && id === selected;
         return (
           <Pressable
             key={id}
-            onPress={() => onChange(id)}
+            onPress={() => { onChange(id); onCbModeChange?.(null); }}
             style={[styles.swatch, isSelected && styles.swatchSelected]}
             accessibilityLabel={cm.label}
             accessibilityRole='radio'
@@ -52,6 +61,19 @@ export function MapCircularColormapPicker({ selected, onChange }: MapCircularCol
           </Pressable>
         );
       })}
+      {onCbModeChange && (
+        <Pressable
+          onPress={() => onCbModeChange(isMono ? null : 'achromatopsia')}
+          style={[styles.shapesRow, isMono && styles.swatchSelected]}
+          accessibilityLabel='Monochrome'
+          accessibilityRole='radio'
+          accessibilityState={{ selected: isMono }}
+        >
+          {NSWE_SHAPES.map((shape, i) => (
+            <ShapeMarker key={i} shape={shape} color='#999999' size={8} outline={markerOutlineEnabled} />
+          ))}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -80,5 +102,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#ffffff',
     borderRadius: 3,
+  },
+  shapesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 1,
+    borderRadius: 3,
+    opacity: 0.7,
+    minWidth: 44,
   },
 });

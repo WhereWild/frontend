@@ -141,6 +141,10 @@ describe('Settings screen', () => {
       setCircularColormap: jest.fn(),
       cbMode: null,
       setCbMode: jest.fn(),
+      shapesEnabled: false,
+      setShapesEnabled: jest.fn(),
+      markerOutlineEnabled: false,
+      setMarkerOutlineEnabled: jest.fn(),
     });
   });
 

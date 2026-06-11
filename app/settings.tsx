@@ -136,95 +136,97 @@ export default function Settings() {
                 { maxWidth: responsive.contentWidth },
               ]}
             >
-              <View style={styles.section}>
-                <ThemedText variant='heading'>Localization</ThemedText>
+              <View style={styles.sectionRow}>
+                <View style={styles.section}>
+                  <ThemedText variant='heading'>Localization</ThemedText>
 
-                <View style={[styles.subsection, styles.fieldStack]}>
-                  <SelectField
-                    label='Color mode'
-                    placeholder='Select color mode'
-                    allowSearch={false}
-                    options={COLOR_MODE_OPTIONS}
-                    value={colorModeOverride}
-                    onValueChange={handleColorModeChange}
-                    description='Choose light, dark, or follow your device setting'
-                  />
+                  <View style={[styles.subsection, styles.fieldStack]}>
+                    <SelectField
+                      label='Color mode'
+                      placeholder='Select color mode'
+                      allowSearch={false}
+                      options={COLOR_MODE_OPTIONS}
+                      value={colorModeOverride}
+                      onValueChange={handleColorModeChange}
+                      description='Choose light, dark, or follow your device setting'
+                    />
 
-                  <SelectField
-                    label='Location'
-                    placeholder='Select a location'
-                    options={LOCATION_OPTIONS}
-                    value='utah'
-                    disabled
-                    description='Default observation location'
-                  />
+                    <SelectField
+                      label='Location'
+                      placeholder='Select a location'
+                      options={LOCATION_OPTIONS}
+                      value='utah'
+                      disabled
+                      description='Default observation location'
+                    />
 
-                  <SelectField
-                    label='Language'
-                    placeholder='Select language'
-                    options={LANGUAGE_OPTIONS}
-                    value='en'
-                    disabled
-                    description='Preferred UI language'
-                  />
+                    <SelectField
+                      label='Language'
+                      placeholder='Select language'
+                      options={LANGUAGE_OPTIONS}
+                      value='en'
+                      disabled
+                      description='Preferred UI language'
+                    />
 
-                  <SelectField
-                    label='Units'
-                    placeholder='Select units'
-                    allowSearch={false}
-                    options={UNITS_OPTIONS}
-                    value={units}
-                    onValueChange={handleUnitsChange}
-                    description='Display temperatures and distances'
-                  />
+                    <SelectField
+                      label='Units'
+                      placeholder='Select units'
+                      allowSearch={false}
+                      options={UNITS_OPTIONS}
+                      value={units}
+                      onValueChange={handleUnitsChange}
+                      description='Display temperatures and distances'
+                    />
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.section}>
-                <ThemedText variant='heading'>Map display</ThemedText>
+                <View style={styles.section}>
+                  <ThemedText variant='heading'>Map display</ThemedText>
 
-                <View style={[styles.subsection, styles.fieldStack]}>
-                  <SelectField
-                    label='Sequential colormap'
-                    placeholder='Select colormap'
-                    allowSearch={false}
-                    options={COLORMAP_OPTIONS}
-                    value={colormap}
-                    onValueChange={handleColormapChange}
-                    description='Color ramp for continuous variables (elevation, temperature, etc.)'
-                  />
+                  <View style={[styles.subsection, styles.fieldStack]}>
+                    <SelectField
+                      label='Sequential colormap'
+                      placeholder='Select colormap'
+                      allowSearch={false}
+                      options={COLORMAP_OPTIONS}
+                      value={colormap}
+                      onValueChange={handleColormapChange}
+                      description='Color ramp for continuous variables (elevation, temperature, etc.)'
+                    />
 
-                  <SelectField
-                    label='Circular colormap'
-                    placeholder='Select circular colormap'
-                    allowSearch={false}
-                    options={CIRCULAR_COLORMAP_OPTIONS}
-                    value={circularColormap}
-                    onValueChange={handleCircularColormapChange}
-                    description='Color wheel for directional variables (aspect)'
-                  />
+                    <SelectField
+                      label='Circular colormap'
+                      placeholder='Select circular colormap'
+                      allowSearch={false}
+                      options={CIRCULAR_COLORMAP_OPTIONS}
+                      value={circularColormap}
+                      onValueChange={handleCircularColormapChange}
+                      description='Color wheel for directional variables (aspect)'
+                    />
 
-                  <SelectField
-                    label='Nominal colormap'
-                    placeholder='Select mode'
-                    allowSearch={false}
-                    options={CB_MODE_OPTIONS}
-                    value={cbMode ?? 'none'}
-                    onValueChange={handleCbModeChange}
-                    description='Adjusts categorical map colors for color vision deficiencies'
-                  />
-                  <SwitchField
-                    label='Show category shapes'
-                    description='Display a distinct shape per category alongside color'
-                    value={shapesEnabled}
-                    onValueChange={setShapesEnabled}
-                  />
-                  <SwitchField
-                    label='Marker outlines'
-                    description='Add a gray outline around markers for contrast on dark tiles'
-                    value={markerOutlineEnabled}
-                    onValueChange={setMarkerOutlineEnabled}
-                  />
+                    <SelectField
+                      label='Color accessibility'
+                      placeholder='Select mode'
+                      allowSearch={false}
+                      options={CB_MODE_OPTIONS}
+                      value={cbMode ?? 'none'}
+                      onValueChange={handleCbModeChange}
+                      description='Adjust colors and shapes for color vision differences'
+                    />
+                    <SwitchField
+                      label='Show category shapes'
+                      description='Display a distinct shape per category alongside color'
+                      value={shapesEnabled}
+                      onValueChange={setShapesEnabled}
+                    />
+                    <SwitchField
+                      label='Marker outlines'
+                      description='Add a gray outline around markers for contrast on dark tiles'
+                      value={markerOutlineEnabled}
+                      onValueChange={setMarkerOutlineEnabled}
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -288,6 +290,12 @@ const styles = StyleSheet.create({
   },
   contentWeb: {
     width: '100%',
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Size.space.text.section,
+    alignItems: 'flex-start',
   },
   section: {
     gap: Size.space.text.subsection,

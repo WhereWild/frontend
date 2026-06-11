@@ -207,6 +207,19 @@ export function UploadPreview({
   const cbMode = settings?.cbMode;
   const shapesEnabled = settings?.shapesEnabled ?? false;
   const markerOutlineEnabled = (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
+  const circularShapesEnabled = (shapesEnabled || cbMode === 'achromatopsia') && isVariableCircular(selectedVariableMeta);
+  const nsweColors = React.useMemo((): [string, string, string, string] => {
+    const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
+    const n = stops.length;
+    return [0, 90, 180, 270].map((deg) => {
+      const t = (((deg % 360) + 360) % 360) / 360;
+      const fi = t * n;
+      const i = Math.floor(fi) % n;
+      const f = fi - Math.floor(fi);
+      const c0 = stops[i], c1 = stops[(i + 1) % n];
+      return `rgb(${Math.round(c0[0]+f*(c1[0]-c0[0]))},${Math.round(c0[1]+f*(c1[1]-c0[1]))},${Math.round(c0[2]+f*(c1[2]-c0[2]))})`;
+    }) as [string, string, string, string];
+  }, [selectedCircularColormap]);
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
@@ -382,6 +395,7 @@ export function UploadPreview({
                 : null
             }
             isCircular={isCircular}
+            circularShapesEnabled={circularShapesEnabled}
             gradientStops={
               !isCategorical && !isCircular ? COLORMAPS[selectedColormap].stops : null
             }
@@ -414,12 +428,18 @@ export function UploadPreview({
               pinnedValue={pinnedValue}
               conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
               nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+              shapesEnabled={circularShapesEnabled}
+              markerOutlineEnabled={markerOutlineEnabled}
+              nsweColors={nsweColors}
             />
           )}
           {selectedVariableMeta && isCircular && setSelectedCircularColormap && (
             <MapCircularColormapPicker
               selected={selectedCircularColormap}
               onChange={setSelectedCircularColormap}
+              cbMode={cbMode}
+              onCbModeChange={settings?.setCbMode}
+              markerOutlineEnabled={markerOutlineEnabled}
             />
           )}
           {cbVisibleCategoricalClasses && (

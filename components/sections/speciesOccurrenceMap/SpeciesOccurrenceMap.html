@@ -70,6 +70,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const CLASS_SHAPES = __CLASS_SHAPES_JSON__;
     const MARKER_OUTLINE = __MARKER_OUTLINE__;
     var OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
+    const CIRCULAR_SHAPES_ENABLED = __CIRCULAR_SHAPES_ENABLED__;
+    var CARDINAL_SHAPES = { N: 'triangle', E: 'arrow', S: 'triangle-down', W: 'diamond' };
+    function aspectToCardinal(deg) {
+      var d = ((deg % 360) + 360) % 360;
+      if (d >= 315 || d < 45) return 'N';
+      if (d < 135) return 'E';
+      if (d < 225) return 'S';
+      return 'W';
+    }
 
     var ASPECT_STOPS = __ASPECT_STOPS_JSON__;
     function aspectColor(deg) {
@@ -424,6 +433,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
       var obsOutlineCss = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
       if (IS_CIRCULAR) {
+        if (CIRCULAR_SHAPES_ENABLED) {
+          var cardinal = aspectToCardinal(varValue);
+          var shape = CARDINAL_SHAPES[cardinal];
+          var dot = shapeToPopupSvg(shape, palette.markerFill);
+          var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
+          return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '° (' + cardinal + ')</span></div>';
+        }
         var color = aspectColor(varValue);
         var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle' + obsOutlineCss + '"></span>';
         var fmt = varValue.toLocaleString(undefined, {maximumFractionDigits: 1});
@@ -551,6 +567,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       if (pt.varColor) {
         markerBaseColors.set(catalog, pt.varColor);
         return Object.assign({}, markerStyle, { fillColor: pt.varColor, color: OUTLINE_STROKE || pt.varColor });
+      }
+      if (IS_CIRCULAR && CIRCULAR_SHAPES_ENABLED && pt.varValue != null) {
+        markerBaseColors.set(catalog, markerStyle.fillColor);
+        return markerStyle;
       }
       if (IS_CIRCULAR && pt.varValue != null) {
         var color = aspectColor(pt.varValue);
@@ -730,6 +750,22 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             .catch(function() {});
         })(selectedPointMarker);
       }
+      if (CIRCULAR_SHAPES_ENABLED && IS_CIRCULAR && POINT_QUERY_URL) {
+        (function(markerRef) {
+          fetch(POINT_QUERY_URL + '&lat=' + bgLat + '&lon=' + bgLon)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(function(data) {
+              if (selectedPointMarker !== markerRef) return;
+              if (data.value == null) return;
+              var cardinal = aspectToCardinal(Number(data.value));
+              var shape = CARDINAL_SHAPES[cardinal];
+              map.removeLayer(markerRef);
+              selectedPointMarker = createShapeMarker([bgLat, bgLon], shape, bgStyle);
+              selectedPointMarker.addTo(map);
+            })
+            .catch(function() {});
+        })(selectedPointMarker);
+      }
 
       refreshVisibleMarkerPresentation();
     }
@@ -829,10 +865,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 var units = data.units ? ' ' + data.units : (VAR_UNITS ? ' ' + VAR_UNITS : '');
                 var dotOutlineCss = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
                 if (IS_CIRCULAR) {
-                  var color = aspectColor(numVal);
-                  var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
-                  var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
-                  valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
+                  if (CIRCULAR_SHAPES_ENABLED) {
+                    var cardinal = aspectToCardinal(numVal);
+                    var shape = CARDINAL_SHAPES[cardinal];
+                    var dot = shapeToPopupSvg(shape, palette.markerFill);
+                    var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+                    valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '° (' + cardinal + ')</span></div>';
+                  } else {
+                    var color = aspectColor(numVal);
+                    var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
+                    var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+                    valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
+                  }
                 } else if (isNumericVar) {
                   var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
                   var color = gradientColor(t);
@@ -1221,10 +1265,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               var label = data.class_name || String(numVal);
               popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
             } else if (IS_CIRCULAR) {
-              var color = aspectColor(numVal);
-              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
-              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0</span></div>');
+              if (CIRCULAR_SHAPES_ENABLED) {
+                var cardinal = aspectToCardinal(numVal);
+                var shape = CARDINAL_SHAPES[cardinal];
+                var dot = shapeToPopupSvg(shape, palette.markerFill);
+                var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+                popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0 (' + cardinal + ')</span></div>');
+              } else {
+                var color = aspectColor(numVal);
+                var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+                var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+                popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0</span></div>');
+              }
             } else if (isNumeric) {
               var t = Math.max(0, Math.min(1, (numVal - colorMin) / (colorMax - colorMin)));
               var color = gradientColor(t);
