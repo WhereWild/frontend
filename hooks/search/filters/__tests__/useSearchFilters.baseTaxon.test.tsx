@@ -333,6 +333,7 @@ describe('useSearchFilters (base taxon)', () => {
         q: 'canis',
         limit: 5,
         offset: 0,
+        minSamples: 0,
       });
       expect(result.current.baseTaxonSuggestions[0]?.taxonId).toBe(100);
     });
@@ -489,6 +490,7 @@ describe('useSearchFilters (base taxon)', () => {
         q: 'canis',
         limit: 1,
         offset: 0,
+        minSamples: 0,
       });
       expect(result.current.filterParams.withinTaxonId).toBe(4242);
     });
@@ -577,6 +579,7 @@ describe('useSearchFilters (base taxon)', () => {
         q: 'can',
         limit: 5,
         offset: 0,
+        minSamples: 0,
       });
       expect(result.current.baseTaxonSuggestionsVisible).toBe(true);
     });
@@ -747,6 +750,7 @@ describe('useSearchFilters (base taxon)', () => {
       q: '12.5',
       limit: 1,
       offset: 0,
+      minSamples: 0,
     });
     expect(result.current.filterParams.withinTaxonId).toBe(654);
   });
@@ -1056,6 +1060,7 @@ describe('useSearchFilters (base taxon)', () => {
         q: 'canis',
         limit: 5,
         offset: 0,
+        minSamples: 0,
       });
       expect(result.current.baseTaxonSuggestions).toEqual([]);
       expect(result.current.baseTaxonSuggestionsLoading).toBe(false);

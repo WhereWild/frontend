@@ -113,9 +113,15 @@ describe('ContinuousInsights', () => {
     );
 
     expect(screen.getByText('Rankings within Mammalia')).toBeTruthy();
-    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
-    expect(screen.getByText(/Mean\s*:\s*5\.0/)).toBeTruthy();
-    expect(screen.getByText(/Max\s*:\s*10\.0/)).toBeTruthy();
+    expect(
+      screen.getByText(/Min\s*:\s*1\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Mean\s*:\s*5\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Max\s*:\s*10\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
   });
 
   it('renders comparison values in location filter mode', () => {
@@ -158,9 +164,15 @@ describe('ContinuousInsights', () => {
       />,
     );
 
-    expect(screen.getByText('vs. 0 (+10%)')).toBeTruthy();
-    expect(screen.getByText('vs. 4 (+25%)')).toBeTruthy();
-    expect(screen.getByText('vs. 9 (+11%)')).toBeTruthy();
+    expect(
+      screen.getByText('vs. 0 (+10%)', { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('vs. 4 (+25%)', { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('vs. 9 (+11%)', { includeHiddenElements: true }),
+    ).toBeTruthy();
   });
 
   it('does not render rank context copy when showRankContext is true but no options exist', () => {
@@ -179,7 +191,9 @@ describe('ContinuousInsights', () => {
 
     expect(screen.queryByText(/Select a taxon/)).toBeNull();
     expect(screen.queryByText(/Rankings within/)).toBeNull();
-    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
+    expect(
+      screen.getByText(/Min\s*:\s*1\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
   });
 
   it('keeps rank-context host slots mounted across selector visibility changes', () => {
@@ -342,9 +356,15 @@ describe('ContinuousInsights', () => {
 
     expect(screen.getByText(/Select a taxon/)).toBeTruthy();
     expect(screen.queryByText(/vs\./)).toBeNull();
-    expect(screen.getByText(/Min\s*:\s*1\.0/)).toBeTruthy();
-    expect(screen.getByText(/Mean\s*:\s*5\.0/)).toBeTruthy();
-    expect(screen.getByText(/Max\s*:\s*10\.0/)).toBeTruthy();
+    expect(
+      screen.getByText(/Min\s*:\s*1\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Mean\s*:\s*5\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Max\s*:\s*10\.0/, { includeHiddenElements: true }),
+    ).toBeTruthy();
   });
 
   it('renders correctly in dark mode', () => {
@@ -376,6 +396,7 @@ describe('ContinuousInsights', () => {
       summaryRanks: { min: null, mean: null, max: null },
       summaryComparisons: { min: null, mean: null, max: null },
       locationFilterActive: false,
+      valueType: 'circular',
     };
 
     it('stacks summary items vertically on phone breakpoint', () => {

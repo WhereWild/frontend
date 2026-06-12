@@ -75,7 +75,13 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-const TOP_LEVEL_PATHS = ['/', '/maps', '/help', '/search', '/settings'] as const;
+const TOP_LEVEL_PATHS = [
+  '/',
+  '/maps',
+  '/help',
+  '/search',
+  '/settings',
+] as const;
 const NOOP = () => {};
 const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;

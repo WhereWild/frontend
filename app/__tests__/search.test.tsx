@@ -623,6 +623,7 @@ describe('Search screen', () => {
         sortOrder: 'descending',
         sortReference: 0,
         minRbar: 0.15,
+        listOffset: 0,
       },
       quantity: {
         numberOfResults: 20,

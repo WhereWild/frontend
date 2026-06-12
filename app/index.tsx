@@ -24,16 +24,23 @@ export default function HomeScreen() {
           <PageTitle title='WhereWild' />
           <View style={styles.body}>
             <ThemedText variant='body'>
-              {'Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use '}
+              {
+                'Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use '
+              }
               <ThemedText variant='link' onPress={() => router.push('/search')}>
                 {'search filters'}
               </ThemedText>
-              {' to sort and filter species by many criteria. Explore GIS data on the '}
+              {
+                ' to sort and filter species by many criteria. Explore GIS data on the '
+              }
               <ThemedText variant='link' onPress={() => router.push('/maps')}>
                 {'maps'}
               </ThemedText>
               {' page, adjust your preferences in '}
-              <ThemedText variant='link' onPress={() => router.push('/settings')}>
+              <ThemedText
+                variant='link'
+                onPress={() => router.push('/settings')}
+              >
                 {'settings'}
               </ThemedText>
               {', or read the '}
