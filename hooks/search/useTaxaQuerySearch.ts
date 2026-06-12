@@ -94,8 +94,12 @@ export function useTaxaQuerySearch({
   const minSamples = filterParams?.minSamples ?? 0;
   const includeSpeciesLike = filterParams?.includeSpeciesLike ?? null;
   const location = filterParams?.location ?? null;
+  const hasScopedRankingContext = withinTaxonId != null && descendantRank != null;
+  // Keyword-only searches skip the min-samples gate — you're looking up a name,
+  // not filtering for well-sampled taxa.
+  const effectiveMinSamples = hasScopedRankingContext ? minSamples : 0;
   const hasMinimumSamplesFilter = hasExplicitMinimumSamplesFilter({
-    minSamples,
+    minSamples: effectiveMinSamples,
   });
 
   const abortActiveRequest = React.useCallback(() => {
@@ -146,7 +150,7 @@ export function useTaxaQuerySearch({
       minRbar,
       limit,
       offset: listOffset ?? 0,
-      minSamples,
+      minSamples: effectiveMinSamples,
       includeSpeciesLike,
       location,
       units,
@@ -255,6 +259,7 @@ export function useTaxaQuerySearch({
     clearSearchState,
     debouncedQuery,
     descendantRank,
+    effectiveMinSamples,
     enabled,
     hasMinimumSamplesFilter,
     includeSpeciesLike,
@@ -262,7 +267,6 @@ export function useTaxaQuerySearch({
     listOffset,
     location,
     minRbar,
-    minSamples,
     sortMetric,
     sortOrder,
     sortReference,
