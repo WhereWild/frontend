@@ -664,22 +664,77 @@ type NativeLeafletFrameProps = {
 const NativeLeafletFrame = React.forwardRef<
   HTMLIFrameElement,
   NativeLeafletFrameProps
->(({ html, onLoad }, ref) => {
-  return React.createElement('iframe', {
-    ref,
-    srcDoc: html,
-    style: {
-      width: '100%',
-      height: '100%',
-      border: '0',
+>(({ html, onLoad }, forwardedRef) => {
+  const internalRef = React.useRef<HTMLIFrameElement | null>(null);
+
+  const setRef = React.useCallback(
+    (el: HTMLIFrameElement | null) => {
+      internalRef.current = el;
+      if (typeof forwardedRef === 'function') {
+        forwardedRef(el);
+      } else if (forwardedRef) {
+        (forwardedRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el;
+      }
     },
-    title: 'Observation map',
-    loading: 'eager',
-    sandbox:
-      'allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox',
-    referrerPolicy: MAP_REFERRER_POLICY,
-    onLoad,
-  });
+    [forwardedRef],
+  );
+
+  React.useEffect(() => {
+    const iframe = internalRef.current;
+    if (!iframe || typeof window === 'undefined') return;
+
+    // Track when the user intentionally scrolls (wheel or touch).
+    // Any window scroll that happens without a recent gesture is focus-triggered
+    // (browser scrolling to bring the focused iframe into view) and gets reversed.
+    let lastGestureTime = 0;
+    const onGesture = () => { lastGestureTime = Date.now(); };
+    window.addEventListener('wheel', onGesture, { passive: true, capture: true });
+    window.addEventListener('touchmove', onGesture, { passive: true, capture: true });
+
+    let savedWinY = window.scrollY;
+    let savedWinX = window.scrollX;
+    const onWindowScroll = () => {
+      const gestureRecent = (Date.now() - lastGestureTime) < 150;
+      if (!gestureRecent) {
+        window.scrollTo({ top: savedWinY, left: savedWinX, behavior: 'instant' } as ScrollToOptions);
+      } else {
+        savedWinY = window.scrollY;
+        savedWinX = window.scrollX;
+      }
+    };
+    window.addEventListener('scroll', onWindowScroll, { passive: true, capture: true });
+
+    return () => {
+      window.removeEventListener('scroll', onWindowScroll, { capture: true } as EventListenerOptions);
+      window.removeEventListener('wheel', onGesture, { capture: true } as EventListenerOptions);
+      window.removeEventListener('touchmove', onGesture, { capture: true } as EventListenerOptions);
+    };
+  }, []);
+
+  return React.createElement(
+    'div',
+    {
+      // overflow-anchor: none prevents the browser from treating this iframe
+      // as a scroll anchor, which would lock the outer page in place when a
+      // popup is open inside the map.
+      style: { width: '100%', height: '100%', overflowAnchor: 'none' },
+    },
+    React.createElement('iframe', {
+      ref: setRef,
+      srcDoc: html,
+      style: {
+        width: '100%',
+        height: '100%',
+        border: '0',
+      },
+      title: 'Observation map',
+      loading: 'eager',
+      sandbox:
+        'allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox',
+      referrerPolicy: MAP_REFERRER_POLICY,
+      onLoad,
+    }),
+  );
 });
 NativeLeafletFrame.displayName = 'NativeLeafletFrame';
 

@@ -220,31 +220,31 @@ export function ContinuousInsights({
           ) : (
             <>
               <SummaryItem
-                label='Min'
-                value={formatValue(summary?.min, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.min}
+                label='Median'
+                value={formatValue(summary?.median, 1)}
+                rank={locationFilterActive ? undefined : (summaryRanks.median ?? null)}
                 comparison={
-                  locationFilterActive ? (summaryComparisons.min ?? null) : null
+                  locationFilterActive ? (summaryComparisons.median ?? null) : null
                 }
                 stacked={isStacked}
                 prominent={!showRankContext}
               />
               <SummaryItem
-                label='Mean'
-                value={formatValue(summary?.mean, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.mean}
+                label='Std Dev'
+                value={formatValue(summary?.std, 2)}
+                rank={locationFilterActive ? undefined : (summaryRanks.std ?? null)}
                 comparison={
-                  locationFilterActive ? (summaryComparisons.mean ?? null) : null
+                  locationFilterActive ? (summaryComparisons.std ?? null) : null
                 }
                 stacked={isStacked}
                 prominent={!showRankContext}
               />
               <SummaryItem
-                label='Max'
-                value={formatValue(summary?.max, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.max}
+                label='Range'
+                value={formatValue(summary?.range, 1)}
+                rank={locationFilterActive ? undefined : (summaryRanks.range ?? null)}
                 comparison={
-                  locationFilterActive ? (summaryComparisons.max ?? null) : null
+                  locationFilterActive ? (summaryComparisons.range ?? null) : null
                 }
                 stacked={isStacked}
                 prominent={!showRankContext}
@@ -289,7 +289,7 @@ export function ContinuousInsights({
           </View>
         ) : (
           <>
-            {/* Row 2: Median / Range / Std Dev */}
+            {/* Row 2: Mean / Min / Max */}
             <View
               collapsable={false}
               style={[
@@ -299,23 +299,23 @@ export function ContinuousInsights({
               ]}
             >
               <SummaryItem
-                label='Median'
-                value={formatValue(summary?.median, 1)}
-                rank={locationFilterActive ? undefined : (summaryRanks.median ?? null)}
+                label='Mean'
+                value={formatValue(summary?.mean, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.mean}
                 stacked={isStacked}
                 prominent
               />
               <SummaryItem
-                label='Range'
-                value={formatValue(summary?.range, 1)}
-                rank={locationFilterActive ? undefined : (summaryRanks.range ?? null)}
+                label='Min'
+                value={formatValue(summary?.min, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.min}
                 stacked={isStacked}
                 prominent
               />
               <SummaryItem
-                label='Std Dev'
-                value={formatValue(summary?.std, 2)}
-                rank={locationFilterActive ? undefined : (summaryRanks.std ?? null)}
+                label='Max'
+                value={formatValue(summary?.max, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.max}
                 stacked={isStacked}
                 prominent
                 isLast
