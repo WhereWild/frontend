@@ -827,6 +827,18 @@ const buildScopedNumericStats = ({
     circular_std = isFinite(cstdRad) ? (cstdRad * 180) / Math.PI : null;
   }
 
+  const stddev = variance !== null ? Math.sqrt(variance) : null;
+  const q01 = quantileFromSortedValues(sortedValues, 0.01);
+  const q10 = quantileFromSortedValues(sortedValues, 0.1);
+  const q25 = quantileFromSortedValues(sortedValues, 0.25);
+  const median = quantileFromSortedValues(sortedValues, 0.5);
+  const q75 = quantileFromSortedValues(sortedValues, 0.75);
+  const q90 = quantileFromSortedValues(sortedValues, 0.9);
+  const q99 = quantileFromSortedValues(sortedValues, 0.99);
+  const iqr = q25 !== null && q75 !== null ? q75 - q25 : null;
+  const range = min !== null && max !== null ? max - min : null;
+  const q10_90_range = q10 !== null && q90 !== null ? q90 - q10 : null;
+
   return {
     ...stats,
     summary: {
@@ -834,11 +846,19 @@ const buildScopedNumericStats = ({
       min,
       mean,
       max,
-      stddev: variance !== null ? Math.sqrt(variance) : null,
-      q01: quantileFromSortedValues(sortedValues, 0.01),
-      q10: quantileFromSortedValues(sortedValues, 0.1),
-      q90: quantileFromSortedValues(sortedValues, 0.9),
-      q99: quantileFromSortedValues(sortedValues, 0.99),
+      median,
+      stddev,
+      std: stddev,
+      variance,
+      range,
+      q01,
+      q10,
+      q25,
+      q75,
+      q90,
+      q99,
+      iqr,
+      q10_90_range,
       circular_mean,
       rbar,
       circular_std,
