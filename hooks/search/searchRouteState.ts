@@ -179,7 +179,7 @@ export const toSearchRouteParams = (
     routeParams.minRbar = filterParams.minRbar.toFixed(2);
   }
 
-  if (typeof filterParams.minSamples === 'number' && filterParams.minSamples > 0) {
+  if (typeof filterParams.minSamples === 'number' && filterParams.minSamples !== DEFAULT_QUANTITY.minimumSamples) {
     routeParams.minSamples = String(filterParams.minSamples);
   }
 
