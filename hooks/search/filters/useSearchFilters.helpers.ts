@@ -27,7 +27,7 @@ export const SORT_METRIC_OPTIONS: SelectOption[] = [
 ];
 
 export const DEFAULT_NUMBER_OF_RESULTS = 10;
-export const DEFAULT_MINIMUM_SAMPLES = 0;
+export const DEFAULT_MINIMUM_SAMPLES = 10;
 export const DEFAULT_QUANTITY = {
   numberOfResults: DEFAULT_NUMBER_OF_RESULTS,
   minimumSamples: DEFAULT_MINIMUM_SAMPLES,
@@ -134,6 +134,7 @@ export const resolveAncestorTaxonId = async (
     q: trimmed,
     limit: 1,
     offset: 0,
+    minSamples: 0,
   });
   const top = response.results[0];
   const resolved =

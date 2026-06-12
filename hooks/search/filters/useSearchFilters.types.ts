@@ -61,6 +61,8 @@ export type UseSearchFiltersResult = {
   onSortOrderChange: (value: 'ascending' | 'descending') => void;
   sortReference: number;
   onSortReferenceChange: (value: number) => void;
+  listOffset: number;
+  onListOffsetChange: (value: number) => void;
   minRbar: number;
   onMinRbarChange: (value: number) => void;
 

@@ -444,6 +444,7 @@ export default function About() {
                 sortOrder={filterSortOrder}
                 onSortOrderChange={setFilterSortOrder}
                 sortReference={0}
+                listOffset={0}
                 minRbar={0.15}
                 numberOfResults={filterNumResults}
                 onNumberOfResultsChange={setFilterNumResults}
