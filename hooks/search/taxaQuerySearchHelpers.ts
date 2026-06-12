@@ -114,8 +114,9 @@ const buildRankedDescription = (
   const percentileFromRank =
     rankPart &&
     typeof entry.position === 'number' &&
-    typeof totalResults === 'number'
-      ? (1 - (entry.position - 1) / totalResults) * 100
+    typeof totalResults === 'number' &&
+    totalResults > 0
+      ? ((entry.position - 1) / totalResults) * 100
       : null;
   const percentile = percentileFromEntry ?? percentileFromRank;
   const percentilePercentage =
@@ -124,7 +125,7 @@ const buildRankedDescription = (
       : null;
   const percentilePart =
     typeof percentilePercentage === 'number'
-      ? `Percentile ${formatMetricNumber(percentilePercentage)}%`
+      ? `Percentile ${Number(percentilePercentage.toFixed(2))}%`
       : null;
 
   const sampleValue =
