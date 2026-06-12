@@ -239,6 +239,7 @@ export function useSearchFiltersEffects({
         q: trimmed,
         limit: SUGGESTION_LIMIT,
         offset: 0,
+        minSamples: 0,
       })
         .then((response) => {
           if (cancelled) {

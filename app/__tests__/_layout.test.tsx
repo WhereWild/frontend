@@ -343,13 +343,10 @@ describe('Root layout', () => {
     const { rerender } = render(<RootLayout />);
 
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
-    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Active Near You');
-    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.isVisible).toBe(true);
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('WhereWild');
+    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.isVisible).toBe(false);
     expect(recordedTopAppBarProps.at(-1)?.secondaryAction?.isVisible).toBe(
       false,
-    );
-    expect(recordedTopAppBarProps.at(-1)?.primaryAction?.buttonLabel).toBe(
-      'Filter',
     );
 
     pathnameState.value = '/species/123';
@@ -370,11 +367,11 @@ describe('Root layout', () => {
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('page');
     expect(recordedTopAppBarProps.at(-1)?.title).toBe('Upload Custom Data');
 
-    pathnameState.value = '/map';
+    pathnameState.value = '/maps';
     rerender(<RootLayout />);
 
     expect(recordedTopAppBarProps.at(-1)?.variant).toBe('home');
-    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Local Map');
+    expect(recordedTopAppBarProps.at(-1)?.title).toBe('Maps');
     expect(recordedTopAppBarProps.at(-1)?.primaryAction?.isVisible).toBe(true);
     expect(recordedTopAppBarProps.at(-1)?.secondaryAction?.isVisible).toBe(
       false,
@@ -402,7 +399,7 @@ describe('Root layout', () => {
 
     mockUseFonts.mockReturnValue([true, null]);
     mockUseRouter.mockReturnValue(createRouterMock() as never);
-    mockUsePathname.mockReturnValue('/');
+    mockUsePathname.mockReturnValue('/maps');
     mockUseNativeHomeTabs.mockReturnValue({
       hasActiveFilter: true,
       isFilterVisible: true,
@@ -456,9 +453,7 @@ describe('Root layout', () => {
     const searchTabAfter = getRenderedTabs().find(
       (tab) => tab.key === 'search',
     );
-    const mapTabAfter = getRenderedTabs().find(
-      (tab) => tab.key === 'local-map',
-    );
+    const mapTabAfter = getRenderedTabs().find((tab) => tab.key === 'maps');
     expect(searchTabAfter?.state).toBe('active');
     expect(mapTabAfter?.state).toBe('default');
   });
@@ -470,8 +465,8 @@ describe('Root layout', () => {
 
     render(<RootLayout />);
 
-    expect(getTabByKey('explore')?.state).toBe('active');
-    expect(getTabByKey('local-map')?.state).toBe('default');
+    expect(getTabByKey('home')?.state).toBe('active');
+    expect(getTabByKey('maps')?.state).toBe('default');
     expect(getTabByKey('search')?.state).toBe('default');
     expect(getTabByKey('settings')?.state).toBe('default');
   });
@@ -486,7 +481,7 @@ describe('Root layout', () => {
       render(<RootLayout />);
 
       expect(getTabByKey('settings')?.state).toBe('active');
-      expect(getTabByKey('explore')?.state).toBe('default');
+      expect(getTabByKey('home')?.state).toBe('default');
     },
   );
 
@@ -505,9 +500,9 @@ describe('Root layout', () => {
     rerender(<RootLayout />);
 
     expect(getTabByKey('settings')?.state).toBe('active');
-    expect(getTabByKey('local-map')?.state).toBe('default');
+    expect(getTabByKey('maps')?.state).toBe('default');
     expect(getTabByKey('search')?.state).toBe('default');
-    expect(getTabByKey('explore')?.state).toBe('default');
+    expect(getTabByKey('home')?.state).toBe('default');
   });
 
   it('keeps Settings active when native About-owned pages are cold-started directly', () => {
@@ -522,13 +517,13 @@ describe('Root layout', () => {
     const { rerender } = render(<RootLayout />);
 
     expect(getTabByKey('settings')?.state).toBe('active');
-    expect(getTabByKey('explore')?.state).toBe('default');
+    expect(getTabByKey('home')?.state).toBe('default');
 
     pathnameState.value = '/acknowledgements';
     rerender(<RootLayout />);
 
     expect(getTabByKey('settings')?.state).toBe('active');
-    expect(getTabByKey('explore')?.state).toBe('default');
+    expect(getTabByKey('home')?.state).toBe('default');
   });
 
   it('tab presses dismissTo only when target path differs', () => {
@@ -543,11 +538,11 @@ describe('Root layout', () => {
     expect(mockPush).not.toHaveBeenCalled();
     expect(mockDismissAll).not.toHaveBeenCalled();
 
-    getTabByKey('local-map')?.onPress?.();
-    expect(mockDismissTo).toHaveBeenCalledWith('/map');
+    getTabByKey('maps')?.onPress?.();
+    expect(mockDismissTo).toHaveBeenCalledWith('/maps');
     expect(mockPush).not.toHaveBeenCalled();
 
-    getTabByKey('explore')?.onPress?.();
+    getTabByKey('home')?.onPress?.();
     expect(mockDismissTo).toHaveBeenCalledWith('/');
 
     getTabByKey('settings')?.onPress?.();
@@ -664,7 +659,7 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/map';
+    pathnameState.value = '/maps';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
@@ -677,7 +672,7 @@ describe('Root layout', () => {
 
     await waitFor(() => {
       expect(getTabByKey('search')?.state).toBe('active');
-      expect(getTabByKey('explore')?.state).toBe('default');
+      expect(getTabByKey('home')?.state).toBe('default');
     });
   });
 
@@ -698,7 +693,7 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123/photos';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/map';
+    pathnameState.value = '/maps';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
@@ -728,7 +723,7 @@ describe('Root layout', () => {
     pathnameState.value = '/species/123';
     rerender(<RootLayout />);
 
-    pathnameState.value = '/map';
+    pathnameState.value = '/maps';
     rerender(<RootLayout />);
 
     getTabByKey('search')?.onPress?.();
@@ -746,10 +741,10 @@ describe('Root layout', () => {
 
     render(<RootLayout />);
 
-    getTabByKey('local-map')?.onPress?.();
+    getTabByKey('maps')?.onPress?.();
 
     expect(mockDismissAll).not.toHaveBeenCalled();
-    expect(mockDismissTo).toHaveBeenCalledWith('/map');
+    expect(mockDismissTo).toHaveBeenCalledWith('/maps');
     expect(mockPush).not.toHaveBeenCalled();
   });
 });

@@ -75,6 +75,7 @@ export type TaxaQueryParams = {
   sortMetric?: string | null;
   sortOrder?: 'asc' | 'desc' | null;
   sortReference?: number | null;
+  listOffset?: number | null;
   minRbar?: number | null;
   limit?: number | null;
   offset?: number | null;
@@ -93,6 +94,7 @@ export type SearchTaxaQueryFilters = Pick<
   | 'sortMetric'
   | 'sortOrder'
   | 'sortReference'
+  | 'listOffset'
   | 'minRbar'
   | 'limit'
   | 'minSamples'

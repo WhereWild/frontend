@@ -317,12 +317,21 @@ export const normalizeRawUploadedParquetBundle = (
         min: toFiniteNumber(row.min),
         mean: toFiniteNumber(row.mean),
         max: toFiniteNumber(row.max),
+        median: toFiniteNumber(row.median),
+        std: toFiniteNumber(row.std),
         stddev: toFiniteNumber(row.std),
-        q10: toFiniteNumber(row['10th percentile']),
-        q90: toFiniteNumber(row['90th percentile']),
+        variance: toFiniteNumber(row.variance),
+        range: toFiniteNumber(row.range),
+        q10: toFiniteNumber(row['10th percentile'] ?? row['10th_percentile']),
+        q25: toFiniteNumber(row['25th percentile'] ?? row['25th_percentile']),
+        q75: toFiniteNumber(row['75th percentile'] ?? row['75th_percentile']),
+        q90: toFiniteNumber(row['90th percentile'] ?? row['90th_percentile']),
+        iqr: toFiniteNumber(row.iqr),
+        q10_90_range: toFiniteNumber(row['10_90_range']),
         circular_mean: toFiniteNumber(row.circular_mean),
         rbar: toFiniteNumber(row.rbar),
         circular_std: toFiniteNumber(row.circular_std),
+        circular_var: toFiniteNumber(row.circular_var),
       };
     })
     .filter((row): row is UploadedSummaryStatsRow => row !== null);

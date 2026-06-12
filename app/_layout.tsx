@@ -15,7 +15,7 @@ import {
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono';
 import {
   IconFilter,
-  IconCompass,
+  IconHome,
   IconHelpCircle,
   IconMap,
   IconSearch,
@@ -63,6 +63,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Keyboard,
   LayoutChangeEvent,
   Platform,
   StyleSheet,
@@ -74,7 +75,13 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
-const TOP_LEVEL_PATHS = ['/', '/map', '/help', '/search', '/settings'] as const;
+const TOP_LEVEL_PATHS = [
+  '/',
+  '/maps',
+  '/help',
+  '/search',
+  '/settings',
+] as const;
 const NOOP = () => {};
 const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
@@ -182,12 +189,12 @@ const NATIVE_STATIC_TOP_APP_BAR_CONFIG_BY_PATH: Partial<
 > = {
   '/': {
     variant: 'home',
-    title: 'Active Near You',
+    title: 'WhereWild',
     onPressLogo: NOOP,
   },
-  '/map': {
+  '/maps': {
     variant: 'home',
-    title: 'Local Map',
+    title: 'Maps',
     onPressLogo: NOOP,
   },
   '/help': {
@@ -235,7 +242,7 @@ const resolveNativeStaticTopAppBarConfig = (
   const staticConfig = NATIVE_STATIC_TOP_APP_BAR_CONFIG_BY_PATH[pathname];
 
   if (staticConfig) {
-    const usesFilterActions = pathname === '/' || pathname === '/map';
+    const usesFilterActions = pathname === '/maps';
 
     return {
       ...staticConfig,
@@ -265,7 +272,7 @@ const resolveNativeStaticTopAppBarConfig = (
 
 const buildInitialTabRouteHistory = (): Record<TopLevelPath, string[]> => ({
   '/': ['/'],
-  '/map': ['/map'],
+  '/maps': ['/maps'],
   '/help': ['/help'],
   '/search': ['/search'],
   '/settings': ['/settings'],
@@ -406,6 +413,10 @@ function RootLayoutNativeFrame() {
   const router = useRouter();
   const pathname = usePathname();
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    Keyboard.dismiss();
+  }, [pathname]);
   const { config: nativeTopAppBarConfig } = useNativeTopAppBarConfig();
   const {
     hasActiveFilter,
@@ -637,20 +648,20 @@ function RootLayoutNativeFrame() {
   const navigationTabs: NonNullable<NavigationBarProps['tabs']> = useMemo(
     () => [
       {
-        key: 'explore',
-        label: 'Explore',
-        icon: IconCompass,
+        key: 'home',
+        label: 'Home',
+        icon: IconHome,
         state: activeTabPath === '/' ? 'active' : ('default' as const),
         onPress: () => navigateIfDifferent('/'),
-        accessibilityLabel: 'Explore tab',
+        accessibilityLabel: 'Home tab',
       },
       {
-        key: 'local-map',
-        label: 'Map',
+        key: 'maps',
+        label: 'Maps',
         icon: IconMap,
-        state: activeTabPath === '/map' ? 'active' : ('default' as const),
-        onPress: () => navigateIfDifferent('/map'),
-        accessibilityLabel: 'Local Map tab',
+        state: activeTabPath === '/maps' ? 'active' : ('default' as const),
+        onPress: () => navigateIfDifferent('/maps'),
+        accessibilityLabel: 'Maps tab',
       },
       {
         key: 'search',

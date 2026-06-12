@@ -71,16 +71,25 @@ export type UploadedSummaryStatsRow = {
   min: number | null;
   mean: number | null;
   max: number | null;
+  median?: number | null;
+  std?: number | null;
   stddev?: number | null;
+  variance?: number | null;
+  range?: number | null;
   q01?: number | null;
   q10?: number | null;
+  q25?: number | null;
+  q75?: number | null;
   q90?: number | null;
   q99?: number | null;
+  iqr?: number | null;
+  q10_90_range?: number | null;
   bins?: number[];
   counts?: number[];
   circular_mean?: number | null;
   rbar?: number | null;
   circular_std?: number | null;
+  circular_var?: number | null;
   unique_classes?: number | null;
   entropy?: number | null;
   mode?: string | number | null;
@@ -136,6 +145,7 @@ export type RawSummaryStatsRow = {
   circular_mean?: unknown;
   rbar?: unknown;
   circular_std?: unknown;
+  circular_var?: unknown;
   variable_type?: unknown;
   valueType?: unknown;
   value_type?: unknown;
@@ -144,9 +154,20 @@ export type RawSummaryStatsRow = {
   min?: unknown;
   mean?: unknown;
   max?: unknown;
+  median?: unknown;
   std?: unknown;
+  variance?: unknown;
+  range?: unknown;
+  iqr?: unknown;
   ['10th percentile']?: unknown;
+  ['25th percentile']?: unknown;
+  ['75th percentile']?: unknown;
   ['90th percentile']?: unknown;
+  ['10_90_range']?: unknown;
+  ['10th_percentile']?: unknown;
+  ['25th_percentile']?: unknown;
+  ['75th_percentile']?: unknown;
+  ['90th_percentile']?: unknown;
 };
 
 export type RawVariableMetadataRow = {

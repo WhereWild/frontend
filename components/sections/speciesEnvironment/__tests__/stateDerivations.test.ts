@@ -189,6 +189,7 @@ describe('stateDerivations', () => {
       buildMetaText({
         hasStats: false,
         isCategorical: false,
+        isCircular: false,
         selectedDensityRange: null,
         rangeObservationCount: 0,
         observationCount: 0,
@@ -201,6 +202,7 @@ describe('stateDerivations', () => {
       buildMetaText({
         hasStats: true,
         isCategorical: false,
+        isCircular: false,
         selectedDensityRange: { start: 1.2, end: 2.8 },
         rangeObservationCount: 3,
         observationCount: 10,
@@ -213,6 +215,7 @@ describe('stateDerivations', () => {
       buildMetaText({
         hasStats: true,
         isCategorical: false,
+        isCircular: false,
         selectedDensityRange: {
           start: -0.5,
           end: 9.5,
@@ -230,6 +233,7 @@ describe('stateDerivations', () => {
       buildMetaText({
         hasStats: true,
         isCategorical: true,
+        isCircular: false,
         selectedDensityRange: null,
         rangeObservationCount: 0,
         observationCount: 7,
@@ -242,6 +246,7 @@ describe('stateDerivations', () => {
       buildMetaText({
         hasStats: true,
         isCategorical: false,
+        isCircular: false,
         selectedDensityRange: null,
         rangeObservationCount: 0,
         observationCount: 12,

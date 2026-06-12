@@ -202,6 +202,13 @@ export function useSearchFiltersActions({
     [dispatch],
   );
 
+  const onListOffsetChange = React.useCallback(
+    (value: number) => {
+      dispatch({ type: 'set-list-offset', value });
+    },
+    [dispatch],
+  );
+
   const onMinRbarChange = React.useCallback(
     (value: number) => {
       dispatch({ type: 'set-min-rbar', value });
@@ -234,6 +241,7 @@ export function useSearchFiltersActions({
     onNumberOfResultsChange,
     onMinimumSamplesChange,
     onSortReferenceChange,
+    onListOffsetChange,
     onMinRbarChange,
     onResetFilters,
   };

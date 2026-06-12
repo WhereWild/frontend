@@ -73,6 +73,8 @@ export type FiltersProps = {
   onSortOrderChange?: (value: 'ascending' | 'descending') => void;
   sortReference: number;
   onSortReferenceChange?: (value: number) => void;
+  listOffset: number;
+  onListOffsetChange?: (value: number) => void;
   minRbar: number;
   onMinRbarChange?: (value: number) => void;
   rankingFilterHint?: string | null;
@@ -126,6 +128,8 @@ export function Filters({
   onSortOrderChange,
   sortReference,
   onSortReferenceChange,
+  listOffset,
+  onListOffsetChange,
   minRbar,
   onMinRbarChange,
   rankingFilterHint,
@@ -245,33 +249,45 @@ export function Filters({
             onValueChange={() => onSortOrderChange?.('descending')}
           />
         </View>
-        {isCircularBearing && (
+        {sortMetricValue.length > 0 && (
           <>
-            <NumberSpinner
-              label='Offset (°)'
-              description='Starting bearing for the sort walk (0–359°).'
-              value={sortReference}
-              min={0}
-              max={359}
-              onValueChange={onSortReferenceChange}
-            />
-            <NumberSpinner
-              label='Min. concentration (R̄)'
-              description='Exclude taxa whose circular mean has low concentration. Each step = 0.05; set to 0 to disable.'
-              value={minRbar}
-              min={0}
-              max={1}
-              step={0.05}
-              precision={2}
-              onValueChange={onMinRbarChange}
-            />
+            {isCircularBearing ? (
+              <>
+                <NumberSpinner
+                  label='Offset (°)'
+                  description='Starting bearing for the sort walk (0–359°).'
+                  value={sortReference}
+                  min={0}
+                  max={359}
+                  onValueChange={onSortReferenceChange}
+                />
+                <NumberSpinner
+                  label='Min. concentration (R̄)'
+                  description='Exclude taxa whose circular mean has low concentration. Each step = 0.05; set to 0 to disable.'
+                  value={minRbar}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  precision={2}
+                  onValueChange={onMinRbarChange}
+                />
+              </>
+            ) : (
+              <NumberSpinner
+                label='Offset'
+                description='Skip this many results — shows the list starting from this position.'
+                value={listOffset}
+                min={0}
+                onValueChange={onListOffsetChange}
+              />
+            )}
           </>
         )}
         <NumberSpinner
           label='Minimum samples'
-          description='Show only ranked results with at least this number of samples. Set to 0 for no minimum.'
+          description='Show only ranked results with at least this number of samples.'
           value={minimumSamples}
-          min={0}
+          min={10}
           onValueChange={onMinimumSamplesChange}
         />
       </View>

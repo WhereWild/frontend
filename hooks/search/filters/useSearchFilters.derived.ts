@@ -83,6 +83,7 @@ export const toSearchFilterParams = (
           : 'desc'
         : null,
     sortReference: isAngularMetric ? state.sortReference : null,
+    listOffset: !isAngularMetric && hasScopedRankingContext && hasCompleteSortSelection && state.listOffset > 0 ? state.listOffset : null,
     minRbar: isAngularMetric && state.minRbar > 0 ? state.minRbar : null,
     minSamples:
       state.debouncedQuantity.minimumSamples > 0

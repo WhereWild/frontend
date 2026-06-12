@@ -115,6 +115,7 @@ describe('taxaQuerySearchHelpers', () => {
       } as any,
       createPayload({
         total: 48,
+        eligibleTotal: 48,
         sort: {
           variable: 'bio_1',
           metric: 'mean',
@@ -129,7 +130,7 @@ describe('taxaQuerySearchHelpers', () => {
       commonName: 'Gray wolf',
       commonNames: ['Gray wolf'],
       scientificName: 'Canis lupus',
-      description: '12.5 degC | Rank 2 of 48 | Percentile 98.5% | 7 samples',
+      description: '12.5 degC | Rank 2 of 48 | Percentile 2.08% | 7 samples',
       imageSource: {
         uri: 'http://localhost:8000/static/species_images/wolf.png',
       },
