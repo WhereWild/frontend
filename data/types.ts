@@ -123,17 +123,26 @@ export type SpeciesEnvironmentSummary = {
   min: number | null;
   mean: number | null;
   max: number | null;
+  median?: number | null;
+  mode?: number | string | null;
+  std?: number | null;
   stddev?: number | null;
+  variance?: number | null;
+  range?: number | null;
   q01?: number | null;
   q10?: number | null;
+  q25?: number | null;
+  q75?: number | null;
   q90?: number | null;
   q99?: number | null;
+  iqr?: number | null;
+  q10_90_range?: number | null;
   circular_mean?: number | null;
   rbar?: number | null;
   circular_std?: number | null;
+  circular_var?: number | null;
   unique_classes?: number | null;
   entropy?: number | null;
-  mode?: number | string | null;
 };
 
 export type SpeciesEnvironmentHistogram = {

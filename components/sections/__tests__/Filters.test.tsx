@@ -71,6 +71,7 @@ const baseProps: FiltersProps = {
   sortMetricOptions,
   sortOrder: 'ascending',
   sortReference: 0,
+  listOffset: 0,
   minRbar: 0.15,
   numberOfResults: 10,
   minimumSamples: 0,

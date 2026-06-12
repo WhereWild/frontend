@@ -59,22 +59,31 @@ const coerceEnvironmentSummary = (
   min: toFiniteNumber(value?.min),
   mean: toFiniteNumber(value?.mean),
   max: toFiniteNumber(value?.max),
-  stddev: toFiniteNumber(value?.stddev),
-  q01: toFiniteNumber(value?.q01),
-  q10: toFiniteNumber(value?.q10),
-  q90: toFiniteNumber(value?.q90),
-  q99: toFiniteNumber(value?.q99),
-  circular_mean: toFiniteNumber(value?.circular_mean),
-  rbar: toFiniteNumber(value?.rbar),
-  circular_std: toFiniteNumber(value?.circular_std),
-  unique_classes: toFiniteNumber(value?.unique_classes),
-  entropy: toFiniteNumber(value?.entropy),
+  median: toFiniteNumber(value?.median),
   mode:
     typeof value?.mode === 'number'
       ? value.mode
       : typeof value?.mode === 'string'
         ? value.mode
         : null,
+  std: toFiniteNumber(value?.std),
+  stddev: toFiniteNumber(value?.stddev),
+  variance: toFiniteNumber(value?.variance),
+  range: toFiniteNumber(value?.range),
+  q01: toFiniteNumber(value?.q01),
+  q10: toFiniteNumber(value?.['10th_percentile'] ?? value?.q10),
+  q25: toFiniteNumber(value?.['25th_percentile'] ?? value?.q25),
+  q75: toFiniteNumber(value?.['75th_percentile'] ?? value?.q75),
+  q90: toFiniteNumber(value?.['90th_percentile'] ?? value?.q90),
+  q99: toFiniteNumber(value?.q99),
+  iqr: toFiniteNumber(value?.iqr),
+  q10_90_range: toFiniteNumber(value?.['10_90_range'] ?? value?.q10_90_range),
+  circular_mean: toFiniteNumber(value?.circular_mean),
+  rbar: toFiniteNumber(value?.rbar),
+  circular_std: toFiniteNumber(value?.circular_std),
+  circular_var: toFiniteNumber(value?.circular_var),
+  unique_classes: toFiniteNumber(value?.unique_classes),
+  entropy: toFiniteNumber(value?.entropy),
 });
 
 const coerceHistogram = (

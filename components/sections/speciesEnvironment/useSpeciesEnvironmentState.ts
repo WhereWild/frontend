@@ -139,11 +139,6 @@ export function useSpeciesEnvironmentState({
   });
 
   const locationFilterActive = Boolean(locationGid);
-  const filterActive =
-    Boolean(locationGid) ||
-    Boolean(phenology) ||
-    startTimestamp != null ||
-    endTimestamp != null;
   const { stats, error, loading } = useEnvironmentStats({
     taxonId,
     selectedVariable,
@@ -271,7 +266,31 @@ export function useSpeciesEnvironmentState({
       min: resolveRankForMetric('min', summary?.min),
       mean: resolveRankForMetric('mean', summary?.mean),
       max: resolveRankForMetric('max', summary?.max),
-      std: resolveRankForMetric('std', summary?.stddev, {
+      median: resolveRankForMetric('median', summary?.median, {
+        allowHistogramFallback: false,
+      }),
+      range: resolveRankForMetric('range', summary?.range, {
+        allowHistogramFallback: false,
+      }),
+      std: resolveRankForMetric('std', summary?.std ?? summary?.stddev, {
+        allowHistogramFallback: false,
+      }),
+      q10: resolveRankForMetric('10th_percentile', summary?.q10, {
+        allowHistogramFallback: false,
+      }),
+      q25: resolveRankForMetric('25th_percentile', summary?.q25, {
+        allowHistogramFallback: false,
+      }),
+      q75: resolveRankForMetric('75th_percentile', summary?.q75, {
+        allowHistogramFallback: false,
+      }),
+      q90: resolveRankForMetric('90th_percentile', summary?.q90, {
+        allowHistogramFallback: false,
+      }),
+      iqr: resolveRankForMetric('iqr', summary?.iqr, {
+        allowHistogramFallback: false,
+      }),
+      q10_90_range: resolveRankForMetric('10_90_range', summary?.q10_90_range, {
         allowHistogramFallback: false,
       }),
       range99: resolveRankForMetric('1-99 range', summaryRangeValue, {
@@ -286,6 +305,11 @@ export function useSpeciesEnvironmentState({
         {
           allowHistogramFallback: false,
         },
+      ),
+      circular_var: resolveRankForMetric(
+        'circular_var',
+        summary?.circular_var,
+        { allowHistogramFallback: false },
       ),
       unique_classes: resolveRankForMetric(
         'unique_classes',
@@ -325,6 +349,16 @@ export function useSpeciesEnvironmentState({
     summary?.unique_classes,
     summary?.entropy,
     summary?.mode,
+    summary?.circular_var,
+    summary?.iqr,
+    summary?.median,
+    summary?.q10,
+    summary?.q10_90_range,
+    summary?.q25,
+    summary?.q75,
+    summary?.q90,
+    summary?.range,
+    summary?.std,
     summaryRangeValue,
     categoricalDistribution,
     selectedCategoryValue,
@@ -333,7 +367,7 @@ export function useSpeciesEnvironmentState({
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
     () =>
       buildSummaryComparisons(
-        filterActive,
+        locationFilterActive,
         summary,
         baselineSummary,
         summaryRangeValue,
@@ -342,7 +376,7 @@ export function useSpeciesEnvironmentState({
     [
       baselineRangeValue,
       baselineSummary,
-      filterActive,
+      locationFilterActive,
       summary,
       summaryRangeValue,
     ],
@@ -438,9 +472,15 @@ export function useSpeciesEnvironmentState({
     stats?.units,
   );
 
+  const isCircularForMeta = isVariableCircular({
+    id: selectedVariable ?? '',
+    valueType: selectedVariableMeta?.valueType ?? null,
+  });
+
   const metaText = buildMetaText({
     hasStats: Boolean(stats),
     isCategorical,
+    isCircular: isCircularForMeta,
     selectedDensityRange,
     rangeObservationCount: rangeObservationItems.length,
     observationCount: stats?.observationCount,

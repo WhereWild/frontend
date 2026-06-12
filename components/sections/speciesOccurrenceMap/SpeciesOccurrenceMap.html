@@ -394,6 +394,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       } else {
         marker.setStyle(style);
       }
+      var path = marker._path;
+      if (path) {
+        path.style.pointerEvents = (style === hiddenStyle) ? 'none' : '';
+      }
     }
     const markers = new Map();
     let selectedPointMarker = null;

@@ -72,6 +72,7 @@ describe('useSearchFilters.helpers', () => {
       q: 'canis',
       limit: 1,
       offset: 0,
+      minSamples: 0,
     });
   });
 

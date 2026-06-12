@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { View } from 'react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { MapVariableLegend } from '../speciesOccurrenceMap/MapVariableLegend';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -62,8 +63,10 @@ describe('MapVariableLegend', () => {
         <MapVariableLegend
           min={0}
           max={100}
-          barColors={['#ff0000', '#00ff00', '#0000ff']}
-          barCss='linear-gradient(to right, red, blue)'
+          barSvgStops={[
+            { offset: '0%', color: '#ff0000' },
+            { offset: '100%', color: '#0000ff' },
+          ]}
         />,
       ),
     ).not.toThrow();
@@ -78,5 +81,33 @@ describe('MapVariableLegend', () => {
   it('renders in light mode', () => {
     mockUseColorScheme.mockReturnValueOnce('light');
     expect(() => render(<MapVariableLegend min={0} max={100} />)).not.toThrow();
+  });
+
+  it('renders GradientBar with pin line after layout event', () => {
+    const { UNSAFE_getAllByType } = render(
+      <MapVariableLegend min={0} max={100} pinnedValue={50} />,
+    );
+    const views = UNSAFE_getAllByType(View);
+    const barRow = views.find(
+      (v: any) => typeof v.props.onLayout === 'function',
+    );
+    expect(barRow).toBeTruthy();
+    fireEvent(barRow!, 'layout', {
+      nativeEvent: { layout: { width: 12, height: 100 } },
+    });
+  });
+
+  it('renders GradientBar without pin line after layout event', () => {
+    const { UNSAFE_getAllByType } = render(
+      <MapVariableLegend min={0} max={100} />,
+    );
+    const views = UNSAFE_getAllByType(View);
+    const barRow = views.find(
+      (v: any) => typeof v.props.onLayout === 'function',
+    );
+    expect(barRow).toBeTruthy();
+    fireEvent(barRow!, 'layout', {
+      nativeEvent: { layout: { width: 12, height: 100 } },
+    });
   });
 });

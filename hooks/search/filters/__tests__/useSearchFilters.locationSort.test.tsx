@@ -371,14 +371,14 @@ describe('useSearchFilters (location and sort)', () => {
     expect(result.current.numberOfResults).toBe(25);
     expect(result.current.minimumSamples).toBe(3);
     expect(result.current.filterParams.limit).toBe(10);
-    expect(result.current.filterParams.minSamples).toBeNull();
+    expect(result.current.filterParams.minSamples).toBe(10);
 
     act(() => {
       jest.advanceTimersByTime(299);
     });
 
     expect(result.current.filterParams.limit).toBe(10);
-    expect(result.current.filterParams.minSamples).toBeNull();
+    expect(result.current.filterParams.minSamples).toBe(10);
 
     act(() => {
       jest.advanceTimersByTime(1);
@@ -439,7 +439,7 @@ describe('useSearchFilters (location and sort)', () => {
     expect(result.current.sortMetricValue).toBe('median');
     expect(result.current.sortOrder).toBe('ascending');
     expect(result.current.numberOfResults).toBe(10);
-    expect(result.current.minimumSamples).toBe(0);
+    expect(result.current.minimumSamples).toBe(10);
     expect(result.current.filterParams.withinTaxonId).toBeNull();
     expect(result.current.filterParams.location).toBeNull();
     expect(result.current.hasActiveFilters).toBe(false);
@@ -592,6 +592,7 @@ describe('useSearchFilters (location and sort)', () => {
       minRbar: null,
       minSamples: 25,
       limit: 20,
+      listOffset: null,
     });
   });
 

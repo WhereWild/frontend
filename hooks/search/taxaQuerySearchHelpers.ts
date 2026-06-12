@@ -56,14 +56,6 @@ const formatMetricNumber = (value: number) => {
   return Number(value.toFixed(3)).toString();
 };
 
-const normalizePercentileToPercentage = (value: number) => {
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-
-  const normalized = value >= 0 && value <= 1 ? value * 100 : value;
-  return Math.max(0, Math.min(100, normalized));
-};
 
 const normalizeUnitLabel = (units?: string | null) => {
   const raw = toNonEmptyTrimmedString(units);
@@ -85,12 +77,12 @@ const buildRankedDescription = (
   entry: {
     value?: number | null;
     position?: number | null;
-    percentile?: number | null;
     count?: number | null;
     sampleCount?: number | null;
   },
   totalResults?: number | null,
   units?: string | null,
+  sortOrder?: string | null,
 ) => {
   const normalizedUnits = normalizeUnitLabel(units);
   const valuePart =
@@ -107,24 +99,18 @@ const buildRankedDescription = (
       ? `Rank ${Math.trunc(entry.position)} of ${Math.trunc(totalResults)}`
       : null;
 
-  const percentileFromEntry =
-    typeof entry.percentile === 'number' && Number.isFinite(entry.percentile)
-      ? entry.percentile
-      : null;
-  const percentileFromRank =
+  const percentilePercentage =
     rankPart &&
     typeof entry.position === 'number' &&
-    typeof totalResults === 'number'
-      ? (1 - (entry.position - 1) / totalResults) * 100
-      : null;
-  const percentile = percentileFromEntry ?? percentileFromRank;
-  const percentilePercentage =
-    typeof percentile === 'number'
-      ? normalizePercentileToPercentage(percentile)
+    typeof totalResults === 'number' &&
+    totalResults > 0
+      ? sortOrder === 'desc'
+        ? Math.max(0, Math.min(100, ((totalResults - entry.position) / totalResults) * 100))
+        : Math.max(0, Math.min(100, ((entry.position - 1) / totalResults) * 100))
       : null;
   const percentilePart =
     typeof percentilePercentage === 'number'
-      ? `Percentile ${formatMetricNumber(percentilePercentage)}%`
+      ? `Percentile ${Number(percentilePercentage.toFixed(2))}%`
       : null;
 
   const sampleValue =
@@ -254,11 +240,11 @@ export const mapTaxaQueryResultToSummary = (
           value: entry.sort_value,
           count: entry.count,
           position: entry.position,
-          percentile: entry.percentile,
           sampleCount: entry.sample_count,
         },
-        payload.total,
+        payload.eligibleTotal,
         payload.sort.units,
+        payload.sort.order,
       )
     : appendSampleCountToDescription(
         mapSpeciesApiNormalizedToSummary(entry, {

@@ -5,17 +5,66 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Line, Rect, Stop } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
-import { VIRIDIS_CSS, VIRIDIS_COLORS } from './variableColors';
+import { COLORMAPS } from './variableColors';
+
+const BAR_WIDTH = 12;
+const DEFAULT_SVG_STOPS = COLORMAPS.viridis.barSvgStops;
+
+type GradientBarProps = {
+  width?: number;
+  height: number;
+  stops: { offset: string; color: string }[];
+  pinFraction?: number | null;
+};
+
+function GradientBar({
+  width = BAR_WIDTH,
+  height,
+  stops,
+  pinFraction,
+}: GradientBarProps) {
+  const pinY = pinFraction != null ? Math.round(pinFraction * height) : null;
+  return (
+    <Svg width={width} height={height}>
+      <Defs>
+        <LinearGradient id='grad' x1='0' y1='0' x2='0' y2='1'>
+          {stops.map(({ offset, color }) => (
+            <Stop key={offset} offset={offset} stopColor={color} />
+          ))}
+        </LinearGradient>
+      </Defs>
+      <Rect
+        x={0}
+        y={0}
+        width={width}
+        height={height}
+        fill='url(#grad)'
+        rx={4}
+      />
+      {pinY != null && (
+        <Line
+          x1={-2}
+          y1={pinY}
+          x2={width + 2}
+          y2={pinY}
+          stroke='#fffffff2'
+          strokeWidth={1.5}
+          strokeDasharray='3,2'
+        />
+      )}
+    </Svg>
+  );
+}
 
 type MapVariableLegendProps = {
   min: number;
   max: number;
   units?: string | null;
   pinnedValue?: number | null;
-  barCss?: string;
-  barColors?: string[];
+  barSvgStops?: { offset: string; color: string }[];
 };
 
 function fmt(v: number): string {
@@ -29,19 +78,19 @@ export function MapVariableLegend({
   max,
   units,
   pinnedValue,
-  barCss,
-  barColors,
+  barSvgStops,
 }: MapVariableLegendProps) {
-  const activeCss = barCss ?? VIRIDIS_CSS;
-  const activeColors = barColors ?? VIRIDIS_COLORS;
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const [barHeight, setBarHeight] = React.useState(0);
 
   const pinFraction =
     pinnedValue != null && max > min
       ? Math.max(0, Math.min(1, (max - pinnedValue) / (max - min)))
       : null;
+
+  const activeStops = barSvgStops ?? DEFAULT_SVG_STOPS;
 
   return (
     <View
@@ -53,60 +102,19 @@ export function MapVariableLegend({
       <ThemedText variant='bodyTiny' style={styles.label}>
         {fmt(max)}
       </ThemedText>
-      <View style={styles.barRow}>
+      <View
+        style={styles.barRow}
+        onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))}
+      >
         <View style={styles.barContainer}>
-          {Platform.OS === 'web' ? (
-            <View
-              style={[
-                StyleSheet.absoluteFillObject,
-                { borderRadius: 4, backgroundImage: activeCss } as object,
-              ]}
-            />
-          ) : (
-            <View
-              style={[
-                StyleSheet.absoluteFillObject,
-                { borderRadius: 4, overflow: 'hidden' },
-              ]}
-            >
-              {activeColors.map((color, i) => (
-                <View
-                  key={i}
-                  style={[styles.segment, { backgroundColor: color }]}
-                />
-              ))}
-            </View>
-          )}
-          {pinFraction != null && (
-            <View
-              style={[
-                styles.pinLine,
-                {
-                  top: `${Math.round(pinFraction * 100)}%` as unknown as number,
-                },
-                Platform.OS === 'web'
-                  ? ({ borderTopStyle: 'dashed' } as object)
-                  : {},
-              ]}
+          {barHeight > 0 && (
+            <GradientBar
+              height={barHeight}
+              stops={activeStops}
+              pinFraction={pinFraction}
             />
           )}
         </View>
-        {pinFraction != null && (
-          <View style={styles.pinLabelContainer}>
-            <ThemedText
-              variant='bodyTiny'
-              numberOfLines={1}
-              style={[
-                styles.pinLabel,
-                {
-                  top: `${Math.round(pinFraction * 100)}%` as unknown as number,
-                },
-              ]}
-            >
-              {fmt(pinnedValue!)}
-            </ThemedText>
-          </View>
-        )}
       </View>
       <ThemedText variant='bodyTiny' style={styles.label}>
         {fmt(min)}
@@ -136,34 +144,9 @@ const styles = StyleSheet.create({
   },
   barRow: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'stretch',
   },
   barContainer: {
-    width: 12,
-    position: 'relative',
-  },
-  segment: {
-    flex: 1,
-    width: 12,
-  },
-  pinLine: {
-    position: 'absolute',
-    left: -2,
-    right: -2,
-    height: 0,
-    borderTopWidth: 1.5,
-    borderTopColor: '#fffffff2',
-  },
-  pinLabelContainer: {
-    flex: 1,
-    position: 'relative',
-    marginLeft: 4,
-  },
-  pinLabel: {
-    position: 'absolute',
-    color: '#fffffff2',
-    transform: [{ translateY: -6 }],
+    width: BAR_WIDTH,
   },
   label: {
     textAlign: 'center',

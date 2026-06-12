@@ -5,9 +5,12 @@
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
-import type { SpeciesEnvironmentRelativeRank } from '@/data/types';
+import type {
+  SpeciesEnvironmentRelativeRank,
+  SpeciesEnvironmentSummary,
+} from '@/data/types';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { SummaryItem } from './SummaryItem';
@@ -30,22 +33,21 @@ type ContinuousInsightsProps = {
   /** Updates the selected rank context key. */
   onRankContextChange: (value: string) => void;
   /** Numeric summary values shown under the density chart. */
-  summary:
-    | {
-        min?: number | null;
-        mean?: number | null;
-        max?: number | null;
-        circular_mean?: number | null;
-        rbar?: number | null;
-        circular_std?: number | null;
-      }
-    | null
-    | undefined;
-  /** Rank metadata for min/mean/max (continuous) and rbar/circular_std (circular) values. */
+  summary: SpeciesEnvironmentSummary | null | undefined;
+  /** Rank metadata for summary metrics. */
   summaryRanks: {
     min: SpeciesEnvironmentRelativeRank | null;
     mean: SpeciesEnvironmentRelativeRank | null;
     max: SpeciesEnvironmentRelativeRank | null;
+    median?: SpeciesEnvironmentRelativeRank | null;
+    range?: SpeciesEnvironmentRelativeRank | null;
+    std?: SpeciesEnvironmentRelativeRank | null;
+    q10?: SpeciesEnvironmentRelativeRank | null;
+    q25?: SpeciesEnvironmentRelativeRank | null;
+    q75?: SpeciesEnvironmentRelativeRank | null;
+    q90?: SpeciesEnvironmentRelativeRank | null;
+    iqr?: SpeciesEnvironmentRelativeRank | null;
+    q10_90_range?: SpeciesEnvironmentRelativeRank | null;
     rbar?: SpeciesEnvironmentRelativeRank | null;
     circular_std?: SpeciesEnvironmentRelativeRank | null;
   };
@@ -90,6 +92,9 @@ export function ContinuousInsights({
     rankContextOptions.length > 0
       ? (selectedRankContext ?? rankContextOptions[0].key)
       : '';
+
+  const [expanded, setExpanded] = React.useState(false);
+  const handleToggle = React.useCallback(() => setExpanded((e) => !e), []);
 
   return (
     <View collapsable={false} style={styles.container}>
@@ -146,94 +151,278 @@ export function ContinuousInsights({
         </View>
       </View>
 
-      <View
-        collapsable={false}
-        testID='summary-row'
-        style={[
-          styles.summaryRow,
-          { paddingTop: Size.space['300'] },
-          isStacked && styles.summaryRowStacked,
-        ]}
-      >
-        {isCircular ? (
-          <>
+      {/* Primary row — plain View for circular (non-interactive), Pressable for numeric */}
+      {isCircular ? (
+        <View
+          collapsable={false}
+          testID='summary-row'
+          style={[
+            styles.summaryRow,
+            { paddingTop: Size.space['300'] },
+            isStacked && styles.summaryRowStacked,
+          ]}
+        >
+          <SummaryItem
+            label='Mean'
+            value={formatDeg(summary?.circular_mean)}
+            comparison={
+              locationFilterActive
+                ? (summaryComparisons.circular_mean ?? null)
+                : null
+            }
+            stacked={isStacked}
+            prominent={!showRankContext}
+          />
+          <SummaryItem
+            label='R̄'
+            value={formatValue(summary?.rbar, 3)}
+            rank={
+              locationFilterActive ? undefined : (summaryRanks.rbar ?? null)
+            }
+            comparison={
+              locationFilterActive ? (summaryComparisons.rbar ?? null) : null
+            }
+            stacked={isStacked}
+            prominent={!showRankContext}
+          />
+          <SummaryItem
+            label='Standard Deviation'
+            value={formatDeg(summary?.circular_std)}
+            rank={
+              locationFilterActive
+                ? undefined
+                : (summaryRanks.circular_std ?? null)
+            }
+            comparison={
+              locationFilterActive
+                ? (summaryComparisons.circular_std ?? null)
+                : null
+            }
+            stacked={isStacked}
+            prominent={!showRankContext}
+            isLast
+          />
+        </View>
+      ) : (
+        <Pressable
+          onPress={handleToggle}
+          testID='summary-row'
+          accessibilityRole='button'
+          accessibilityLabel={expanded ? 'Show fewer stats' : 'Show more stats'}
+          accessibilityState={{ expanded }}
+          style={({ pressed, hovered }) => [
+            (pressed || (hovered ?? false)) && {
+              backgroundColor: palette.background.default.secondaryHover,
+              borderRadius: Size.radius['100'],
+            },
+          ]}
+        >
+          {/* Primary row */}
+          <View
+            collapsable={false}
+            style={[
+              styles.summaryRow,
+              { paddingTop: Size.space['300'] },
+              isStacked && styles.summaryRowStacked,
+            ]}
+          >
             <SummaryItem
-              label='Mean'
-              value={formatDeg(summary?.circular_mean)}
+              label='Median'
+              value={formatValue(summary?.median, 1)}
+              rank={
+                locationFilterActive ? undefined : (summaryRanks.median ?? null)
+              }
               comparison={
                 locationFilterActive
-                  ? (summaryComparisons.circular_mean ?? null)
+                  ? (summaryComparisons.median ?? null)
                   : null
               }
               stacked={isStacked}
               prominent={!showRankContext}
             />
             <SummaryItem
-              label='R̄'
-              value={formatValue(summary?.rbar, 3)}
+              label='Std Dev'
+              value={formatValue(summary?.std, 2)}
               rank={
-                locationFilterActive ? undefined : (summaryRanks.rbar ?? null)
+                locationFilterActive ? undefined : (summaryRanks.std ?? null)
               }
               comparison={
-                locationFilterActive ? (summaryComparisons.rbar ?? null) : null
+                locationFilterActive ? (summaryComparisons.std ?? null) : null
               }
               stacked={isStacked}
               prominent={!showRankContext}
             />
             <SummaryItem
-              label='Standard Deviation'
-              value={formatDeg(summary?.circular_std)}
+              label='Range'
+              value={formatValue(summary?.range, 1)}
               rank={
-                locationFilterActive
-                  ? undefined
-                  : (summaryRanks.circular_std ?? null)
+                locationFilterActive ? undefined : (summaryRanks.range ?? null)
               }
               comparison={
-                locationFilterActive
-                  ? (summaryComparisons.circular_std ?? null)
-                  : null
+                locationFilterActive ? (summaryComparisons.range ?? null) : null
               }
+              stacked={isStacked}
+              prominent={!showRankContext}
               isLast
-              stacked={isStacked}
-              prominent={!showRankContext}
             />
-          </>
-        ) : (
-          <>
-            <SummaryItem
-              label='Min'
-              value={formatValue(summary?.min, 1)}
-              rank={locationFilterActive ? undefined : summaryRanks.min}
-              comparison={
-                locationFilterActive ? (summaryComparisons.min ?? null) : null
-              }
-              stacked={isStacked}
-              prominent={!showRankContext}
-            />
-            <SummaryItem
-              label='Mean'
-              value={formatValue(summary?.mean, 1)}
-              rank={locationFilterActive ? undefined : summaryRanks.mean}
-              comparison={
-                locationFilterActive ? (summaryComparisons.mean ?? null) : null
-              }
-              stacked={isStacked}
-              prominent={!showRankContext}
-            />
-            <SummaryItem
-              label='Max'
-              value={formatValue(summary?.max, 1)}
-              rank={locationFilterActive ? undefined : summaryRanks.max}
-              comparison={
-                locationFilterActive ? (summaryComparisons.max ?? null) : null
-              }
-              isLast
-              stacked={isStacked}
-              prominent={!showRankContext}
-            />
-          </>
-        )}
-      </View>
+          </View>
+
+          {/* Expanded rows */}
+          <View
+            collapsable={false}
+            style={!expanded ? styles.hiddenSlot : undefined}
+            accessibilityElementsHidden={!expanded}
+            importantForAccessibility={
+              expanded ? 'auto' : 'no-hide-descendants'
+            }
+            pointerEvents={expanded ? 'auto' : 'none'}
+          >
+            {/* Row 2: Mean / Min / Max */}
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Mean'
+                value={formatValue(summary?.mean, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.mean}
+                comparison={
+                  locationFilterActive
+                    ? (summaryComparisons.mean ?? null)
+                    : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Min'
+                value={formatValue(summary?.min, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.min}
+                comparison={
+                  locationFilterActive ? (summaryComparisons.min ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Max'
+                value={formatValue(summary?.max, 1)}
+                rank={locationFilterActive ? undefined : summaryRanks.max}
+                comparison={
+                  locationFilterActive ? (summaryComparisons.max ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+
+            {/* Row 3: Q10 / Q90 / Q10–Q90 */}
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Q10'
+                value={formatValue(summary?.q10, 1)}
+                rank={
+                  locationFilterActive ? undefined : (summaryRanks.q10 ?? null)
+                }
+                comparison={
+                  locationFilterActive ? (summaryComparisons.q10 ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Q90'
+                value={formatValue(summary?.q90, 1)}
+                rank={
+                  locationFilterActive ? undefined : (summaryRanks.q90 ?? null)
+                }
+                comparison={
+                  locationFilterActive ? (summaryComparisons.q90 ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Q10–Q90'
+                value={formatValue(summary?.q10_90_range, 1)}
+                rank={
+                  locationFilterActive
+                    ? undefined
+                    : (summaryRanks.q10_90_range ?? null)
+                }
+                comparison={
+                  locationFilterActive
+                    ? (summaryComparisons.q10_90_range ?? null)
+                    : null
+                }
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+
+            {/* Row 4: Q25 / Q75 / IQR */}
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Q25'
+                value={formatValue(summary?.q25, 1)}
+                rank={
+                  locationFilterActive ? undefined : (summaryRanks.q25 ?? null)
+                }
+                comparison={
+                  locationFilterActive ? (summaryComparisons.q25 ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Q75'
+                value={formatValue(summary?.q75, 1)}
+                rank={
+                  locationFilterActive ? undefined : (summaryRanks.q75 ?? null)
+                }
+                comparison={
+                  locationFilterActive ? (summaryComparisons.q75 ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='IQR'
+                value={formatValue(summary?.iqr, 1)}
+                rank={
+                  locationFilterActive ? undefined : (summaryRanks.iqr ?? null)
+                }
+                comparison={
+                  locationFilterActive ? (summaryComparisons.iqr ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+          </View>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -269,6 +458,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-evenly',
+    alignItems: 'center',
   },
   summaryRowStacked: {
     flexDirection: 'column',

@@ -515,8 +515,8 @@ describe('WebPageHeader', () => {
       <WebPageHeader
         filterParams={{
           location: null,
-          withinTaxonId: null,
-          descendantRank: null,
+          withinTaxonId: 212,
+          descendantRank: 'species',
           includeSpeciesLike: null,
           sortVariable: null,
           sortMetric: null,
@@ -682,7 +682,7 @@ describe('WebPageHeader', () => {
     const result = await screen.findByTestId('search-result-77');
     expect(screen.getByText('Canis lupus')).toBeTruthy();
     expect(result.props.accessibilityLabel).toContain(
-      '12.5 | Rank 1 of 1 | Percentile 100% | 9 samples',
+      '12.5 | Rank 1 of 1 | Percentile 0% | 9 samples',
     );
 
     jest.useRealTimers();
@@ -729,7 +729,7 @@ describe('WebPageHeader', () => {
 
     const result = await screen.findByTestId('search-result-78');
     expect(result.props.accessibilityLabel).toContain(
-      '7 | Rank 2 of 10 | Percentile 95% | 9 samples',
+      '7 | Rank 2 of 10 | Percentile 10% | 9 samples',
     );
 
     jest.useRealTimers();
@@ -787,7 +787,7 @@ describe('WebPageHeader', () => {
 
     const result = await screen.findByTestId('search-result-501');
     expect(result.props.accessibilityLabel).toContain(
-      '15.2 | Rank 1 of 3 | Percentile 100% | 12 samples',
+      '15.2 | Rank 1 of 3 | Percentile 0% | 12 samples',
     );
     expect(mockFetchTaxaQuery).toHaveBeenCalledTimes(1);
 

@@ -111,7 +111,7 @@ export const resolveMetricRank = ({
 
 /** Produces baseline comparison labels when location filtering is active. */
 export const buildSummaryComparisons = (
-  filterActive: boolean,
+  locationFilterActive: boolean,
   summary: SpeciesEnvironmentSummary | null | undefined,
   baselineSummary: SpeciesEnvironmentSummary | null,
   summaryRangeValue: number | null,
@@ -121,15 +121,23 @@ export const buildSummaryComparisons = (
     min: null,
     mean: null,
     max: null,
+    median: null,
     std: null,
+    range: null,
     range99: null,
+    q10: null,
+    q25: null,
+    q75: null,
+    q90: null,
+    iqr: null,
+    q10_90_range: null,
     circular_mean: null,
     rbar: null,
     circular_std: null,
     entropy: null,
     unique_classes: null,
   };
-  if (!filterActive) return empty;
+  if (!locationFilterActive) return empty;
 
   const fcl = (
     curr: number | null | undefined,
@@ -142,8 +150,16 @@ export const buildSummaryComparisons = (
     min: fcl(summary?.min, baselineSummary?.min),
     mean: fcl(summary?.mean, baselineSummary?.mean),
     max: fcl(summary?.max, baselineSummary?.max),
+    median: fcl(summary?.median, baselineSummary?.median),
     std: fcl(summary?.stddev, baselineSummary?.stddev),
+    range: fcl(summary?.range, baselineSummary?.range),
     range99: fcl(summaryRangeValue, baselineRangeValue),
+    q10: fcl(summary?.q10, baselineSummary?.q10),
+    q25: fcl(summary?.q25, baselineSummary?.q25),
+    q75: fcl(summary?.q75, baselineSummary?.q75),
+    q90: fcl(summary?.q90, baselineSummary?.q90),
+    iqr: fcl(summary?.iqr, baselineSummary?.iqr),
+    q10_90_range: fcl(summary?.q10_90_range, baselineSummary?.q10_90_range),
     circular_mean: fcl(
       summary?.circular_mean,
       baselineSummary?.circular_mean,
@@ -170,6 +186,7 @@ export const buildSummaryComparisons = (
 type BuildMetaTextParams = {
   hasStats: boolean;
   isCategorical: boolean;
+  isCircular: boolean;
   selectedDensityRange: DensitySelectionRange | null;
   rangeObservationCount: number;
   observationCount: number | null | undefined;
@@ -198,6 +215,7 @@ export const buildHeadingText = (
 export const buildMetaText = ({
   hasStats,
   isCategorical,
+  isCircular,
   selectedDensityRange,
   rangeObservationCount,
   observationCount,
@@ -216,7 +234,13 @@ export const buildMetaText = ({
     const dispStart =
       selectedDensityRange.displayStart ?? selectedDensityRange.start;
     const dispEnd = selectedDensityRange.displayEnd ?? selectedDensityRange.end;
-    return `Selected range: ${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
+
+    const isFullCircle = isCircular && (dispEnd - dispStart + 360) % 360 >= 359;
+    const rangeLabel = isFullCircle
+      ? 'Full circle'
+      : `${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)}`;
+
+    return `Selected range: ${rangeLabel} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
   }
 
   return `(Based on ${formatValue(resolvedObservationCount)} observations)`;

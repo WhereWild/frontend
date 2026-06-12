@@ -326,14 +326,23 @@ const buildStatsByVariable = (
         min: summaryRow?.min ?? null,
         mean: summaryRow?.mean ?? null,
         max: summaryRow?.max ?? null,
+        median: summaryRow?.median ?? null,
+        std: summaryRow?.std ?? null,
         stddev: summaryRow?.stddev ?? null,
+        variance: summaryRow?.variance ?? null,
+        range: summaryRow?.range ?? null,
         q01: summaryRow?.q01 ?? null,
         q10: summaryRow?.q10 ?? null,
+        q25: summaryRow?.q25 ?? null,
+        q75: summaryRow?.q75 ?? null,
         q90: summaryRow?.q90 ?? null,
         q99: summaryRow?.q99 ?? null,
+        iqr: summaryRow?.iqr ?? null,
+        q10_90_range: summaryRow?.q10_90_range ?? null,
         circular_mean: summaryRow?.circular_mean ?? null,
         rbar: summaryRow?.rbar ?? null,
         circular_std: summaryRow?.circular_std ?? null,
+        circular_var: summaryRow?.circular_var ?? null,
         unique_classes:
           summaryRow?.unique_classes ??
           (uniqueClassesRow && Number.isFinite(uniqueClassesRow.value)
@@ -818,6 +827,18 @@ const buildScopedNumericStats = ({
     circular_std = isFinite(cstdRad) ? (cstdRad * 180) / Math.PI : null;
   }
 
+  const stddev = variance !== null ? Math.sqrt(variance) : null;
+  const q01 = quantileFromSortedValues(sortedValues, 0.01);
+  const q10 = quantileFromSortedValues(sortedValues, 0.1);
+  const q25 = quantileFromSortedValues(sortedValues, 0.25);
+  const median = quantileFromSortedValues(sortedValues, 0.5);
+  const q75 = quantileFromSortedValues(sortedValues, 0.75);
+  const q90 = quantileFromSortedValues(sortedValues, 0.9);
+  const q99 = quantileFromSortedValues(sortedValues, 0.99);
+  const iqr = q25 !== null && q75 !== null ? q75 - q25 : null;
+  const range = min !== null && max !== null ? max - min : null;
+  const q10_90_range = q10 !== null && q90 !== null ? q90 - q10 : null;
+
   return {
     ...stats,
     summary: {
@@ -825,11 +846,19 @@ const buildScopedNumericStats = ({
       min,
       mean,
       max,
-      stddev: variance !== null ? Math.sqrt(variance) : null,
-      q01: quantileFromSortedValues(sortedValues, 0.01),
-      q10: quantileFromSortedValues(sortedValues, 0.1),
-      q90: quantileFromSortedValues(sortedValues, 0.9),
-      q99: quantileFromSortedValues(sortedValues, 0.99),
+      median,
+      stddev,
+      std: stddev,
+      variance,
+      range,
+      q01,
+      q10,
+      q25,
+      q75,
+      q90,
+      q99,
+      iqr,
+      q10_90_range,
       circular_mean,
       rbar,
       circular_std,
@@ -908,16 +937,25 @@ const convertSummaryFields = (
   conv: LinearConversion,
 ): SpeciesEnvironmentStats['summary'] => {
   const pos = (v: number | null | undefined) => applyConv(v, conv);
+  const scale = (v: number | null | undefined) => applyConv(v, conv, true);
   return {
     ...summary,
     min: pos(summary.min),
     mean: pos(summary.mean),
     max: pos(summary.max),
-    stddev: summary.stddev != null ? applyConv(summary.stddev, conv, true) : summary.stddev,
+    median: pos(summary.median),
+    std: scale(summary.std),
+    stddev: scale(summary.stddev),
+    variance: summary.variance != null ? (conv.scale * conv.scale * summary.variance) : summary.variance,
+    range: scale(summary.range),
     q01: pos(summary.q01),
     q10: pos(summary.q10),
+    q25: pos(summary.q25),
+    q75: pos(summary.q75),
     q90: pos(summary.q90),
     q99: pos(summary.q99),
+    iqr: scale(summary.iqr),
+    q10_90_range: scale(summary.q10_90_range),
     mode: typeof summary.mode === 'number' ? pos(summary.mode) : summary.mode,
     // rbar, circular_mean, circular_std, unique_classes, entropy, count: unitless — no conversion
   };

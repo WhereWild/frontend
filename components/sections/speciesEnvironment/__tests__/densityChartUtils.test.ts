@@ -4,6 +4,7 @@
 
 import {
   buildDensitySamples,
+  buildSelectionAreaPath,
   getDensityDomain,
   getSelectionBounds,
   getValueForLocation,
@@ -125,6 +126,45 @@ describe('densityChartUtils', () => {
 
       expect(result[0].y).toBeCloseTo(0.5);
       expect(result[1].y).toBeCloseTo(0.5);
+    });
+  });
+
+  describe('buildSelectionAreaPath', () => {
+    it('returns empty string for empty normalized array', () => {
+      expect(buildSelectionAreaPath([], 0, 100, 200)).toBe('');
+    });
+
+    it('returns empty string when selLeft >= selRight', () => {
+      const pts = [
+        { x: 0, y: 100 },
+        { x: 100, y: 50 },
+      ];
+      expect(buildSelectionAreaPath(pts, 50, 50, 200)).toBe('');
+      expect(buildSelectionAreaPath(pts, 80, 20, 200)).toBe('');
+    });
+
+    it('builds a closed area path for an interior selection', () => {
+      const pts = [
+        { x: 0, y: 100 },
+        { x: 50, y: 60 },
+        { x: 100, y: 80 },
+      ];
+      const path = buildSelectionAreaPath(pts, 20, 80, 200);
+      expect(path).toContain('Z');
+      expect(path).toContain('L80,200');
+      expect(path).toContain('L20,200');
+    });
+
+    it('extrapolates y when selRight exceeds the last normalized point', () => {
+      const pts = [
+        { x: 0, y: 100 },
+        { x: 50, y: 60 },
+        { x: 100, y: 80 },
+      ];
+      // selRight=120 is beyond the last point (x=100) → uses last point's y
+      const path = buildSelectionAreaPath(pts, 10, 120, 200);
+      expect(path).toBeTruthy();
+      expect(path).toContain('120,200');
     });
   });
 });

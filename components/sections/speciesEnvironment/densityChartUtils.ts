@@ -176,3 +176,43 @@ export const resampleHistogram = (
   }
   return result;
 };
+
+/**
+ * Builds an SVG area path clipped to [selLeft, selRight] in viewBox x-units (0–100).
+ * Avoids SVG clipPath which is unreliable on Android in react-native-svg.
+ * Interpolates y at the selection boundaries so the shape follows the curve precisely.
+ */
+export function buildSelectionAreaPath(
+  normalized: { x: number; y: number }[],
+  selLeft: number,
+  selRight: number,
+  chartHeight: number,
+): string {
+  if (normalized.length === 0 || selLeft >= selRight) return '';
+
+  const interpY = (targetX: number): number => {
+    for (let i = 0; i < normalized.length - 1; i++) {
+      const a = normalized[i];
+      const b = normalized[i + 1];
+      if (targetX >= a.x && targetX <= b.x) {
+        const t = (targetX - a.x) / (b.x - a.x);
+        return a.y + t * (b.y - a.y);
+      }
+    }
+    return targetX <= normalized[0].x
+      ? normalized[0].y
+      : normalized[normalized.length - 1].y;
+  };
+
+  const yLeft = interpY(selLeft);
+  const yRight = interpY(selRight);
+  const inner = normalized.filter((p) => p.x > selLeft && p.x < selRight);
+  const pts = [{ x: selLeft, y: yLeft }, ...inner, { x: selRight, y: yRight }];
+
+  const toSvg = (p: { x: number; y: number }) => `${p.x},${p.y}`;
+
+  const linePath = pts
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${toSvg(p)}`)
+    .join(' ');
+  return `${linePath} L${selRight},${chartHeight} L${selLeft},${chartHeight} Z`;
+}

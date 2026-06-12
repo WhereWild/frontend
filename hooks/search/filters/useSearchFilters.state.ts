@@ -30,6 +30,7 @@ export type SearchFilterRankingInitialState = {
   sortMetricValue?: string;
   sortOrder?: 'ascending' | 'descending';
   sortReference?: number;
+  listOffset?: number;
   /** R̄ threshold (0.00–1.00). */
   minRbar?: number;
 };
@@ -79,6 +80,7 @@ export type SearchFiltersState = {
   sortMetricValue: string;
   sortOrder: 'ascending' | 'descending';
   sortReference: number;
+  listOffset: number;
   minRbar: number;
   numberOfResults: number;
   minimumSamples: number;
@@ -135,6 +137,7 @@ export type SearchFiltersAction =
   | { type: 'set-sort-metric'; value: string }
   | { type: 'set-sort-order'; value: 'ascending' | 'descending' }
   | { type: 'set-sort-reference'; value: number }
+  | { type: 'set-list-offset'; value: number }
   | { type: 'set-min-rbar'; value: number }
   | { type: 'reset-ranking' }
   | { type: 'set-number-of-results'; value: number }
@@ -185,6 +188,7 @@ export const createInitialSearchFiltersState = (
     sortMetricValue: initialState?.ranking?.sortMetricValue ?? '',
     sortOrder: initialState?.ranking?.sortOrder ?? 'ascending',
     sortReference: initialState?.ranking?.sortReference ?? 0,
+    listOffset: initialState?.ranking?.listOffset ?? 0,
     minRbar: initialState?.ranking?.minRbar ?? 0.15,
     numberOfResults: initialQuantity.numberOfResults,
     minimumSamples: initialQuantity.minimumSamples,
@@ -502,6 +506,8 @@ export const searchFiltersReducer = (
       return { ...state, sortOrder: action.value };
     case 'set-sort-reference':
       return { ...state, sortReference: action.value };
+    case 'set-list-offset':
+      return { ...state, listOffset: action.value };
     case 'set-min-rbar':
       return { ...state, minRbar: action.value };
     case 'reset-ranking':
@@ -513,6 +519,7 @@ export const searchFiltersReducer = (
         sortMetricValue: '',
         sortOrder: 'ascending',
         sortReference: 0,
+        listOffset: 0,
         minRbar: 0.15,
         sortVariableLoading: false,
       };

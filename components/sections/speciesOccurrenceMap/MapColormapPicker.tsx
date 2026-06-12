@@ -6,6 +6,7 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { COLORMAP_ORDER, COLORMAPS, type ColormapId } from './variableColors';
 
 type MapColormapPickerProps = {
@@ -48,22 +49,41 @@ export function MapColormapPicker({
                 ]}
               />
             ) : (
-              <View
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  { borderRadius: 3, flexDirection: 'row' },
-                ]}
-              >
-                {cm.stops.map((s, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flex: 1,
-                      backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
-                    }}
+              <Svg width={44} height={10}>
+                <Defs>
+                  <LinearGradient
+                    id={`sg-${id}`}
+                    x1='1'
+                    y1='0.5'
+                    x2='0'
+                    y2='0.5'
+                  >
+                    {cm.barSvgStops.map(({ offset, color }) => (
+                      <Stop key={offset} offset={offset} stopColor={color} />
+                    ))}
+                  </LinearGradient>
+                </Defs>
+                <Rect
+                  x={0}
+                  y={0}
+                  width={44}
+                  height={10}
+                  fill={`url(#sg-${id})`}
+                  rx={3}
+                />
+                {isSelected && (
+                  <Rect
+                    x={0.75}
+                    y={0.75}
+                    width={42.5}
+                    height={8.5}
+                    fill='none'
+                    stroke='#ffffff'
+                    strokeWidth={1.5}
+                    rx={2.5}
                   />
-                ))}
-              </View>
+                )}
+              </Svg>
             )}
           </Pressable>
         );
@@ -93,8 +113,5 @@ const styles = StyleSheet.create({
   },
   swatchSelected: {
     opacity: 1,
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
-    borderRadius: 3,
   },
 });

@@ -16,6 +16,7 @@ export type SearchRouteParams = {
   sortMetric?: string | string[];
   sortOrder?: string | string[];
   sortReference?: string | string[];
+  listOffset?: string | string[];
   minRbar?: string | string[];
   minSamples?: string | string[];
   limit?: string | string[];
@@ -37,6 +38,7 @@ const SEARCH_ROUTE_PARAM_KEYS = [
   'sortMetric',
   'sortOrder',
   'sortReference',
+  'listOffset',
   'minRbar',
   'minSamples',
   'limit',
@@ -76,6 +78,7 @@ export const pickSearchRouteParams = (
   sortMetric: params.sortMetric,
   sortOrder: params.sortOrder,
   sortReference: params.sortReference,
+  listOffset: params.listOffset,
   minRbar: params.minRbar,
   minSamples: params.minSamples,
   limit: params.limit,
@@ -161,16 +164,22 @@ export const toSearchRouteParams = (
   if (
     hasScopedRankingContext &&
     filterParams.sortMetric &&
+    typeof filterParams.listOffset === 'number' &&
+    filterParams.listOffset > 0
+  ) {
+    routeParams.listOffset = String(filterParams.listOffset);
+  }
+
+  if (
+    hasScopedRankingContext &&
+    filterParams.sortMetric &&
     typeof filterParams.minRbar === 'number' &&
     filterParams.minRbar > 0
   ) {
     routeParams.minRbar = filterParams.minRbar.toFixed(2);
   }
 
-  if (
-    typeof filterParams.minSamples === 'number' &&
-    filterParams.minSamples !== DEFAULT_QUANTITY.minimumSamples
-  ) {
+  if (typeof filterParams.minSamples === 'number' && filterParams.minSamples > 0) {
     routeParams.minSamples = String(filterParams.minSamples);
   }
 
@@ -360,6 +369,7 @@ export const toInitialSearchFilterState = (
   const sortMetric = toSingleRouteParamValue(params.sortMetric);
   const sortOrder = toSingleRouteParamValue(params.sortOrder);
   const sortReferenceRaw = toNumberParam(toSingleRouteParamValue(params.sortReference));
+  const listOffsetRaw = toNumberParam(toSingleRouteParamValue(params.listOffset));
   const minRbarRaw = toNumberParam(toSingleRouteParamValue(params.minRbar));
   const minSamples = toNumberParam(toSingleRouteParamValue(params.minSamples));
   const limit = toNumberParam(toSingleRouteParamValue(params.limit));
@@ -378,6 +388,7 @@ export const toInitialSearchFilterState = (
       sortMetricValue: sortMetric ?? '',
       sortOrder: sortOrder === 'desc' ? 'descending' : 'ascending',
       sortReference: sortReferenceRaw,
+      listOffset: listOffsetRaw,
       minRbar: minRbarRaw,
     },
     quantity: {

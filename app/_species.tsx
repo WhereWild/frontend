@@ -32,6 +32,7 @@ import {
   isVariableCategorical,
   isVariableCircular,
 } from '@/components/sections/speciesEnvironment/model';
+import { useScrollLock } from '@/context/ScrollLockContext';
 import { BACKEND_BASE } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { buildCommonNamesWithPrimary } from '@/data/commonNames';
@@ -126,6 +127,28 @@ export const shouldRenderObservationMapFrame = ({
   measuredWebHeaderHeight: number;
   platform: string;
 }) => platform !== 'web' || measuredWebHeaderHeight > 0;
+
+// Rendered inside PageScrollContainer so useScrollLock sees the provider.
+function MapScrollLockWrapper({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: object;
+}) {
+  const { lockScroll, unlockScroll } = useScrollLock();
+  return (
+    <View
+      collapsable={false}
+      style={style}
+      onTouchStart={Platform.OS !== 'web' ? lockScroll : undefined}
+      onTouchEnd={Platform.OS !== 'web' ? unlockScroll : undefined}
+      onTouchCancel={Platform.OS !== 'web' ? unlockScroll : undefined}
+    >
+      {children}
+    </View>
+  );
+}
 
 function SectionShell({
   responsive,
@@ -594,7 +617,7 @@ export default function Species({
             }
           >
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
-              <View style={{ position: 'relative' }}>
+              <MapScrollLockWrapper style={{ position: 'relative' }}>
                 <SpeciesOccurrenceMap
                   occurrences={
                     selectedVariableMeta && observationValues == null
@@ -669,11 +692,7 @@ export default function Species({
                       max={obsDotMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
-                      barCss={COLORMAPS[selectedColormap].barCss}
-                      barColors={COLORMAPS[selectedColormap].stops
-                        .slice()
-                        .reverse()
-                        .map((s) => `rgb(${s[0]},${s[1]},${s[2]})`)}
+                      barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
                     />
                   )}
                 {selectedVariableMeta &&
@@ -691,7 +710,10 @@ export default function Species({
                       conicCss={
                         CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss
                       }
-                      nativeColor={`rgb(${CIRCULAR_COLORMAPS[selectedCircularColormap].stops[Math.floor(CIRCULAR_COLORMAPS[selectedCircularColormap].stops.length / 4)].join(',')})`}
+                      arcSegmentColors={
+                        CIRCULAR_COLORMAPS[selectedCircularColormap]
+                          .arcSegmentColors
+                      }
                       shapesEnabled={circularShapesEnabled}
                       markerOutlineEnabled={effectiveOutline}
                       nsweColors={nsweColors}
@@ -726,7 +748,7 @@ export default function Species({
                     markerOutlineEnabled={effectiveOutline}
                   />
                 )}
-              </View>
+              </MapScrollLockWrapper>
             )}
           </View>
         </PageScrollContainer>
