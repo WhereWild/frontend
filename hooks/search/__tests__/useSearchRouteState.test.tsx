@@ -49,7 +49,7 @@ const oakFilters: SearchTaxaQueryFilters = {
   sortVariable: null,
   sortMetric: null,
   sortOrder: null,
-  minSamples: 0,
+  minSamples: null,
   limit: 10,
 };
 
