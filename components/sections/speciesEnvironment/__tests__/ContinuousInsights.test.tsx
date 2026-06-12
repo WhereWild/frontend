@@ -65,7 +65,7 @@ const findHostNodesByTestId = (
   );
 
 describe('ContinuousInsights', () => {
-  const summary = { min: 1, mean: 5, max: 10 };
+  const summary = { count: 0, min: 1, mean: 5, max: 10 };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -372,7 +372,7 @@ describe('ContinuousInsights', () => {
       rankContextOptions: [],
       selectedRankContext: null,
       onRankContextChange: jest.fn(),
-      summary: { min: 1, mean: 5, max: 10 },
+      summary: { count: 0, min: 1, mean: 5, max: 10 },
       summaryRanks: { min: null, mean: null, max: null },
       summaryComparisons: { min: null, mean: null, max: null },
       locationFilterActive: false,
