@@ -2,148 +2,59 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { Colors, Shadows } from '@/constants/theme';
-import { ActiveNearYouSection, HomeRecommendationFilter } from '@/components';
+import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { useNativeHomeTabs } from '@/context/NativeHomeTabsContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
+import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import { WebHomeDashboard } from '../components/sections/WebHomeDashboard';
+import { useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+import { WebMetadata } from '@/utils/webMetadata';
 
-function ExploreScreenContent({
-  activeGroup,
-  allScored,
-  isFilterVisible,
-  recommendations,
-  scoresLoading,
-  setActiveGroup,
-}: {
-  activeGroup: string;
-  allScored: ReturnType<typeof useNativeHomeTabs>['allScored'];
-  isFilterVisible: boolean;
-  recommendations: ReturnType<typeof useNativeHomeTabs>['recommendations'];
-  scoresLoading: boolean;
-  setActiveGroup: ReturnType<typeof useNativeHomeTabs>['setActiveGroup'];
-}) {
+export default function HomeScreen() {
+  const router = useRouter();
   const responsive = useResponsive();
-  const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const palette = Colors[mode];
-  const [isListScrolled, setIsListScrolled] = React.useState(false);
-  const horizontalInsetStyle = {
-    paddingHorizontal: responsive.marginHorizontal,
-  };
+  const contentContainerStyle = getResponsiveContentContainerStyle(responsive);
 
   return (
     <PageSurface>
-      <View style={styles.screen}>
-        <View
-          testID='native-explore-content'
-          style={styles.nativeExploreContent}
-        >
-          <View
-            collapsable={false}
-            testID='explore-filter-slot'
-            accessibilityElementsHidden={!isFilterVisible}
-            importantForAccessibility={
-              isFilterVisible ? 'auto' : 'no-hide-descendants'
-            }
-            style={[
-              styles.filterSlot,
-              isFilterVisible && { paddingTop: responsive.gap },
-              !isFilterVisible && styles.hiddenSlot,
-            ]}
-          >
-            <View
-              testID='explore-filter-surface'
-              style={[
-                styles.filterSurface,
-                { backgroundColor: palette.background.default.default },
-                isFilterVisible && { paddingBottom: responsive.gap },
-              ]}
-            >
-              <View
-                testID='explore-filter-shadow-seam'
-                pointerEvents='none'
-                style={[
-                  styles.filterShadowSeam,
-                  { backgroundColor: palette.background.default.default },
-                  isFilterVisible &&
-                    isListScrolled &&
-                    Shadows.dropShadow200.style,
-                ]}
-              />
-              <View style={horizontalInsetStyle}>
-                <HomeRecommendationFilter
-                  allRecommendations={allScored}
-                  activeGroup={activeGroup}
-                  onGroupChange={setActiveGroup}
-                  loading={scoresLoading}
-                />
-              </View>
-            </View>
+      <WebMetadata title='WhereWild' />
+      <PageScrollContainer>
+        <View style={[styles.container, contentContainerStyle]}>
+          <PageTitle title='WhereWild' />
+          <View style={styles.body}>
+            <ThemedText variant='body'>
+              {'Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use '}
+              <ThemedText variant='link' onPress={() => router.push('/search')}>
+                {'search filters'}
+              </ThemedText>
+              {' to sort and filter species by many criteria. Explore GIS data on the '}
+              <ThemedText variant='link' onPress={() => router.push('/maps')}>
+                {'maps'}
+              </ThemedText>
+              {' page, adjust your preferences in '}
+              <ThemedText variant='link' onPress={() => router.push('/settings')}>
+                {'settings'}
+              </ThemedText>
+              {', or read the '}
+              <ThemedText variant='link' onPress={() => router.push('/help')}>
+                {'help page'}
+              </ThemedText>
+              {' to learn more about how everything works.'}
+            </ThemedText>
           </View>
-          <ActiveNearYouSection
-            recommendations={recommendations}
-            allRecommendations={allScored}
-            activeGroup={activeGroup}
-            loading={scoresLoading}
-            showHeading={false}
-            style={[styles.nativeContent, horizontalInsetStyle]}
-            nativeFirstItemTopMargin={isFilterVisible ? 0 : responsive.gap}
-            onNativeScrolledChange={setIsListScrolled}
-          />
         </View>
-      </View>
+      </PageScrollContainer>
     </PageSurface>
   );
 }
 
-function NativeExploreScreen() {
-  const state = useNativeHomeTabs();
-  return <ExploreScreenContent {...state} />;
-}
-
-export default function HomeScreen() {
-  if (Platform.OS === 'web') {
-    return <WebHomeDashboard />;
-  }
-
-  return <NativeExploreScreen />;
-}
-
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
+  container: {
+    paddingBottom: Size.space['400'],
+    gap: Size.space['400'],
   },
-  nativeExploreContent: {
-    flex: 1,
-    minHeight: 0,
-    width: '100%',
-  },
-  nativeContent: {
-    flex: 1,
-    minHeight: 0,
-  },
-  filterSlot: {
-    width: '100%',
-  },
-  filterSurface: {
-    position: 'relative',
-    width: '100%',
-    zIndex: 1,
-  },
-  filterShadowSeam: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 1,
-  },
-  hiddenSlot: {
-    height: 0,
-    opacity: 0,
-    overflow: 'hidden',
+  body: {
+    gap: Size.space['200'],
   },
 });
