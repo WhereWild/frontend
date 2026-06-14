@@ -235,6 +235,16 @@ export const useSelectFieldController = ({
     return () => cancelAnimationFrame(frame);
   }, [isOpen, allowSearch]);
 
+  // On web, reset the icon-open flag after the input has had a chance to mount
+  // and evaluate autoFocus. Without this, subsequent icon taps stay suppressed.
+  React.useEffect(() => {
+    if (!isOpen || Platform.OS !== 'web') return;
+    const frame = requestAnimationFrame(() => {
+      openedViaIconRef.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen]);
+
   const closeSelect = React.useCallback(() => {
     if (isClosingRef.current) {
       return;
@@ -265,7 +275,7 @@ export const useSelectFieldController = ({
   );
 
   const measureDropdownAnchor = React.useCallback(() => {
-    const node = fieldPressableRef.current ?? fieldWrapperRef.current;
+    const node = fieldWrapperRef.current ?? fieldPressableRef.current;
     if (!node || !node.measureInWindow) {
       return;
     }
@@ -699,7 +709,7 @@ export const useSelectFieldController = ({
             : isError
               ? palette.text.danger.onDangerSecondary
               : palette.text.disabled.default,
-          autoFocus: Platform.OS === 'web',
+          autoFocus: Platform.OS === 'web' && !openedViaIconRef.current,
           editable: !isDisabled,
           autoCorrect: false,
           autoCapitalize: 'none',
@@ -730,7 +740,7 @@ export const useSelectFieldController = ({
           // Only auto-focus this hidden input on web. On native platforms, autoFocus would still
           // cause the soft keyboard to appear even with showSoftInputOnFocus=false, which is not
           // desirable for list-only selects that should not summon the on-screen keyboard.
-          autoFocus: Platform.OS === 'web',
+          autoFocus: Platform.OS === 'web' && !openedViaIconRef.current,
           editable: true,
           // Prevent on-screen keyboard from appearing on iOS/Android for list-only selects.
           // This keeps the list-only variant from behaving like a text input while still
