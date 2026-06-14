@@ -5,7 +5,12 @@
 import { Size } from '@/constants/theme';
 import type { SpeciesEnvironmentDensity } from '@/data/types';
 import React from 'react';
-import { GestureResponderEvent, Platform, StyleSheet, View } from 'react-native';
+import {
+  GestureResponderEvent,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { buildDensitySamples } from './densityChartUtils';

@@ -231,7 +231,12 @@ export function VariableSelectorHeader({
       <View style={styles.variableHeadingRow}>
         {filteredVariables.length ? (
           isTemporalCategory ? (
-            <View style={[styles.temporalSelectRow, breakpoint === 'phone' && styles.temporalSelectRowPhone]}>
+            <View
+              style={[
+                styles.temporalSelectRow,
+                breakpoint === 'phone' && styles.temporalSelectRowPhone,
+              ]}
+            >
               <View style={styles.temporalSelectItem}>
                 <SelectField
                   variant='secondary'
@@ -253,7 +258,12 @@ export function VariableSelectorHeader({
               </View>
             </View>
           ) : isGroupedCategory ? (
-            <View style={[styles.temporalSelectRow, breakpoint === 'phone' && styles.temporalSelectRowPhone]}>
+            <View
+              style={[
+                styles.temporalSelectRow,
+                breakpoint === 'phone' && styles.temporalSelectRowPhone,
+              ]}
+            >
               <View style={styles.temporalSelectItem}>
                 <SelectField
                   variant='secondary'

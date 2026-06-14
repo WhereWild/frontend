@@ -329,6 +329,13 @@ function RootLayoutWebFrame() {
   );
 
   useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
+    }
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (typeof document === 'undefined') {
       return undefined;
     }
@@ -365,6 +372,7 @@ function RootLayoutWebFrame() {
           content={webHeaderThemeColorDark}
           media='(prefers-color-scheme: dark)'
         />
+        <link rel='manifest' href='/manifest.json' />
         <style>{webScrollRootCss}</style>
       </Head>
       <View

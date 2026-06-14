@@ -103,6 +103,7 @@ jobs:
       - run: npx expo export --platform ios --output-dir dist-ios
       - run: npx expo export --platform android --output-dir dist-android
       - run: npm run export:web
+      - run: sed -i "s/__BUILD_VERSION__/${{ github.sha }}/g" dist/sw.js
       - uses: actions/upload-artifact@v5
         with:
           name: dist
