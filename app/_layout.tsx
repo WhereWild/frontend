@@ -171,6 +171,17 @@ function RootLayoutWebFrame() {
   );
 
   useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    if (process.env.NODE_ENV !== 'production') {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => reg.unregister());
+      });
+      return;
+    }
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (typeof document === 'undefined') {
       return undefined;
     }
@@ -207,6 +218,7 @@ function RootLayoutWebFrame() {
           content={webHeaderThemeColorDark}
           media='(prefers-color-scheme: dark)'
         />
+        <link rel='manifest' href='/manifest.json' />
         <style>{webScrollRootCss}</style>
       </Head>
       <View style={styles.webAppShell}>

@@ -256,6 +256,8 @@ export type DataSourceReference = {
   year?: number | null;
   title: string;
   journal?: string | null;
+  volume_issue?: string | null;
+  pages?: string | null;
   doi?: string | null;
   url?: string | null;
 };
@@ -265,7 +267,6 @@ export type DataSource = {
   url: string;
   license: string;
   license_url?: string | null;
-  notes?: string | null;
   references: DataSourceReference[];
 };
 
