@@ -289,6 +289,7 @@ const styles = StyleSheet.create({
   },
   pillWrapper: {
     alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   pillWrapperHorizontal: {
     flexShrink: 0,

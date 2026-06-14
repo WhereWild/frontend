@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    maxWidth: '100%',
   },
   innerContent: {
     flexDirection: 'row',

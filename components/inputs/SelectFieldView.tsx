@@ -131,91 +131,64 @@ export const SelectFieldView = ({
           onLayout={onFieldWrapperLayout}
           style={styles.fieldWrapper}
         >
-          <Pressable
-            ref={fieldPressableRef}
-            {...fieldPressableProps}
-            style={({ pressed, hovered }) => [
+          {/* Split into two touch zones: left (value) opens with keyboard; right (icon) opens without. */}
+          <View
+            style={[
               getInteractiveCursorStyle(iconButtonProps.disabled),
               styles.field,
-              {
-                backgroundColor: pressed
-                  ? fieldBackgroundPressed
-                  : hovered
-                    ? fieldBackgroundHover
-                    : fieldBackgroundDefault,
-              },
+              { backgroundColor: fieldBackgroundDefault },
               ...fieldStyleOverrides,
             ]}
           >
-            {({ pressed, hovered }) => (
-              <View style={styles.fieldContent} collapsable={false}>
-                <View style={styles.fieldValueSlot} collapsable={false}>
-                  <View
-                    collapsable={false}
-                    style={
-                      showSearchPlaceholder
-                        ? styles.hiddenContentSlot
-                        : undefined
-                    }
-                  >
-                    <ThemedText
-                      variant='singleLineBody'
-                      style={{
-                        color: showPlaceholder ? placeholderColor : valueColor,
-                        flex: 1,
-                      }}
-                    >
-                      {valueText || placeholder}
-                    </ThemedText>
-                  </View>
-                  <View
-                    collapsable={false}
-                    style={
-                      !showSearchPlaceholder
-                        ? styles.hiddenContentSlot
-                        : undefined
-                    }
-                  >
-                    {/*
-                     * When the dropdown is open with search enabled, we render the actual TextInput
-                     * inside the Portal (see the portal-mounted input that uses inputRef/inputProps).
-                     *
-                     * This View is a non-interactive placeholder that keeps the field row height and
-                     * layout stable while the real input lives in the portal overlay. The fixed
-                     * PLACEHOLDER_INPUT_HEIGHT is chosen to visually match the portal input so that
-                     * opening/closing the dropdown does not cause the field to jump or resize.
-                     *
-                     * If you change the height or layout of the portal input, update this placeholder
-                     * accordingly so that the dual-input pattern (placeholder here + real input in
-                     * the Portal) continues to behave and look consistent.
-                     */}
-                    <View
-                      style={[
-                        styles.input,
-                        { height: PLACEHOLDER_INPUT_HEIGHT },
-                      ]}
-                    />
-                  </View>
-                </View>
-                <View style={styles.fieldIconSlot} collapsable={false}>
-                  {/*
-                   * The select icon visually reads as a button, but the field owns the interaction.
-                   * Rendering it as a non-interactive visual avoids nested pressables toggling the
-                   * same control while preserving whole-button hover/press affordances.
-                   */}
-                  <IconButton
-                    variant='subtle'
-                    size='small'
-                    interactive={false}
-                    hovered={hovered ?? false}
-                    pressed={pressed}
-                    icon={iconButtonProps.icon}
-                    disabled={iconButtonProps.disabled}
-                  />
-                </View>
+            <Pressable
+              ref={fieldPressableRef}
+              {...fieldPressableProps}
+              style={styles.fieldValueSlot}
+            >
+              <View
+                collapsable={false}
+                style={
+                  showSearchPlaceholder ? styles.hiddenContentSlot : undefined
+                }
+              >
+                <ThemedText
+                  variant='singleLineBody'
+                  style={{
+                    color: showPlaceholder ? placeholderColor : valueColor,
+                    flex: 1,
+                  }}
+                >
+                  {valueText || placeholder}
+                </ThemedText>
               </View>
-            )}
-          </Pressable>
+              <View
+                collapsable={false}
+                style={
+                  !showSearchPlaceholder ? styles.hiddenContentSlot : undefined
+                }
+              >
+                <View
+                  style={[styles.input, { height: PLACEHOLDER_INPUT_HEIGHT }]}
+                />
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={iconButtonProps.onPress}
+              disabled={iconButtonProps.disabled}
+              accessibilityRole='button'
+              accessibilityLabel={iconButtonProps.accessibilityLabel}
+              style={styles.fieldIconSlot}
+              {...(iconButtonProps.extraProps ?? {})}
+            >
+              <IconButton
+                variant='subtle'
+                size='small'
+                interactive={false}
+                icon={iconButtonProps.icon}
+                disabled={iconButtonProps.disabled}
+              />
+            </Pressable>
+          </View>
         </View>
         {errorMessage ? (
           <ThemedText variant='body' style={{ color: errorColor }}>

@@ -48,6 +48,14 @@ export function MapCategoricalLegend({
   const { breakpoint } = useResponsive();
   const [collapsed, setCollapsed] = React.useState(breakpoint === 'phone');
 
+  const hasAutoCollapsed = React.useRef(breakpoint === 'phone');
+  React.useEffect(() => {
+    if (!hasAutoCollapsed.current && breakpoint === 'phone') {
+      hasAutoCollapsed.current = true;
+      setCollapsed(true);
+    }
+  }, [breakpoint]);
+
   if (classes.length === 0) return null;
 
   const toggle = () => {
