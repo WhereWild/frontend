@@ -122,6 +122,9 @@ jest.mock(
         onVariableChange,
         selectedVariable,
         selectedVariableCategory,
+        forecastOptions,
+        selectedForecast,
+        onForecastChange,
       }: {
         headingText?: string;
         metaText?: string;
@@ -129,6 +132,9 @@ jest.mock(
         onVariableChange?: (value: string) => void;
         selectedVariable?: string;
         selectedVariableCategory?: string | null;
+        forecastOptions?: { value: string; label: string }[];
+        selectedForecast?: string;
+        onForecastChange?: (value: string) => void;
       }) => (
         <View>
           <Text>{headingText}</Text>
@@ -137,14 +143,30 @@ jest.mock(
           <Text testID='selected-variable-category'>
             {selectedVariableCategory ?? 'none'}
           </Text>
+          {forecastOptions &&
+            forecastOptions.length > 0 &&
+            onForecastChange && (
+              <Pressable
+                accessibilityLabel='Forecast offset'
+                onPress={() =>
+                  onForecastChange(
+                    forecastOptions[1]?.value ??
+                      forecastOptions[0]?.value ??
+                      '',
+                  )
+                }
+              >
+                <Text>Forecast offset</Text>
+              </Pressable>
+            )}
           <Pressable
-            testID='select-live-weather'
+            testID='select-recent-weather'
             onPress={() => {
-              onCategoryChange?.('Live Weather');
+              onCategoryChange?.('Recent Weather');
               onVariableChange?.('wind_speed');
             }}
           >
-            <Text>Select Live Weather</Text>
+            <Text>Select Recent Weather</Text>
           </Pressable>
           <Pressable
             testID='select-landcover'
@@ -263,24 +285,12 @@ describe('Maps screen', () => {
     jest.useRealTimers();
   });
 
-  it('shows live weather controls and updates the tile url for weather windows and forecasts', async () => {
+  it('shows recent weather controls and updates the tile url for forecasts', async () => {
     mockFetchEnvironmentVariables.mockResolvedValueOnce([
       {
-        id: 'temporal-only',
-        name: 'Temporal Only',
-        category: 'Temporal',
-        valueType: 'continuous',
-      },
-      {
-        id: 'recent-weather-only',
-        name: 'Recent Weather Only',
-        category: 'Recent Weather',
-        valueType: 'continuous',
-      },
-      {
-        id: 'wind_speed',
+        id: 'wind_speed_avg_24h',
         name: 'Wind Speed',
-        category: 'Live Weather',
+        category: 'Recent Weather',
         valueType: 'continuous',
       },
       {
@@ -296,31 +306,29 @@ describe('Maps screen', () => {
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
     ).toContain('/api/variables/');
-    expect(screen.queryByText('Aggregation window')).toBeNull();
     expect(screen.queryByText('Forecast offset')).toBeNull();
 
-    fireEvent.press(screen.getByTestId('select-live-weather'));
+    fireEvent.press(screen.getByTestId('select-recent-weather'));
 
     await waitFor(() => {
       expect(
         screen.getByTestId('selected-variable-category').props.children,
-      ).toBe('Live Weather');
+      ).toBe('Recent Weather');
     });
-    expect(screen.getByText('Aggregation window')).toBeTruthy();
     expect(screen.getByText('Forecast offset')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText('Aggregation window'));
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
-    ).toContain('&window=1h');
+    ).toContain('/api/variables/wind_speed/tiles/');
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
-    ).not.toContain('&forecast=');
+    ).not.toContain('&forecast_h=');
 
+    // pressing Forecast offset picks options[1] → '+1 hour' → forecast_h=1
     fireEvent.press(screen.getByLabelText('Forecast offset'));
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
-    ).toContain('&forecast=1h');
+    ).toContain('&forecast_h=1');
 
     fireEvent.press(screen.getByTestId('select-landcover'));
     await waitFor(() => {
@@ -328,17 +336,13 @@ describe('Maps screen', () => {
         'landcover',
       );
     });
-    expect(screen.queryByText('Aggregation window')).toBeNull();
     expect(screen.queryByText('Forecast offset')).toBeNull();
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
     ).toContain('/api/variables/landcover/tiles/{z}/{x}/{y}.png');
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
-    ).not.toContain('&window=');
-    expect(
-      screen.getByTestId('species-occurrence-map-url').props.children,
-    ).not.toContain('&forecast=');
+    ).not.toContain('&forecast_h=');
   });
 
   it('switches to circular colormap when a circular variable is selected', async () => {

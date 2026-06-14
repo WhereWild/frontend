@@ -36,6 +36,12 @@ type VariableSelectorHeaderProps = {
   headingText: string | null;
   /** Optional metadata subtitle (counts/range text). */
   metaText: string | null;
+  /** Optional forecast options to show as a third selector in temporal rows. */
+  forecastOptions?: { value: string; label: string }[];
+  /** Currently selected forecast value. */
+  selectedForecast?: string;
+  /** Updates selected forecast value. */
+  onForecastChange?: (forecast: string) => void;
 };
 
 /** Renders category tabs, variable selector, and contextual heading/meta text. */
@@ -48,6 +54,9 @@ export function VariableSelectorHeader({
   onVariableChange,
   headingText,
   metaText,
+  forecastOptions,
+  selectedForecast,
+  onForecastChange,
 }: VariableSelectorHeaderProps) {
   // Use split UI when at least one variable in the category has a time window.
   // This assumes a category will not mix live/current variables with temporal
@@ -256,6 +265,21 @@ export function VariableSelectorHeader({
                   disabled={windowOptions.length === 0}
                 />
               </View>
+              {forecastOptions &&
+                forecastOptions.length > 0 &&
+                onForecastChange && (
+                  <View style={styles.temporalSelectItem}>
+                    <SelectField
+                      variant='secondary'
+                      options={forecastOptions}
+                      value={
+                        selectedForecast ?? forecastOptions[0]?.value ?? ''
+                      }
+                      onValueChange={onForecastChange}
+                      placeholder='Forecast'
+                    />
+                  </View>
+                )}
             </View>
           ) : isGroupedCategory ? (
             <View
