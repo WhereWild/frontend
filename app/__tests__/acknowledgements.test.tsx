@@ -15,6 +15,79 @@ jest.mock('expo-router/head', () => {
   return Head;
 });
 
+jest.mock('@/hooks/useDataSources', () => ({
+  useDataSources: () => ({
+    gbif_occurrence: {
+      name: 'GBIF Occurrence Download',
+      url: 'https://www.gbif.org/occurrence/download',
+      license: 'CC BY 4.0',
+      references: [
+        {
+          authors: 'GBIF.org',
+          title: 'GBIF.org (2026) GBIF Occurrence Download',
+          doi: 'https://doi.org/10.15468/dl.test',
+        },
+      ],
+    },
+    inat_observations: {
+      name: 'iNaturalist Research-grade Observations',
+      url: 'https://www.inaturalist.org/',
+      license: 'Varies by record (CC BY, CC BY-NC, or CC0)',
+      references: [
+        {
+          authors: 'iNaturalist contributors, iNaturalist',
+          year: 2026,
+          title:
+            'iNaturalist Research-grade Observations. iNaturalist.org. Occurrence dataset https://doi.org/10.15468/ab3s5x accessed via GBIF.org on 2026-06-05.',
+        },
+      ],
+    },
+    open_meteo: {
+      name: 'Open-Meteo',
+      url: 'https://open-meteo.com/',
+      license: 'CC BY 4.0',
+      references: [
+        {
+          authors: 'Zippenfenig, P.',
+          year: 2023,
+          title: 'Open-Meteo.com Weather API',
+          journal: 'Zenodo',
+          doi: 'https://doi.org/10.5281/ZENODO.7970649',
+        },
+      ],
+    },
+    copernicus_era5: {
+      name: 'ERA5',
+      url: 'https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels',
+      license: 'CC BY 4.0',
+      references: [
+        {
+          authors: 'Hersbach, H., Bell, B., Berrisford, P., et al.',
+          year: 2023,
+          title: 'ERA5 hourly data on single levels from 1940 to present',
+          journal: 'ECMWF',
+          doi: 'https://doi.org/10.24381/cds.adbb2d47',
+        },
+      ],
+    },
+    gadm: {
+      name: 'GADM (Global Administrative Areas)',
+      url: 'https://gadm.org/',
+      license: 'Free for academic, research, and teaching use.',
+      references: [
+        {
+          authors:
+            'Hijmans, R.J., Garcia, N., Kapoor, J., Rala, A., Maunahan, A., and Wieczorek, J.',
+          year: 2012,
+          title:
+            'Global Administrative Areas (GADM database of Global Administrative Areas)',
+          url: 'https://gadm.org/data.html',
+        },
+      ],
+    },
+  }),
+}));
+
 const mockUseResponsive = jest.fn(() => ({ textWidth: 720 }));
 
 jest.mock('@/hooks/useResponsive', () => ({
@@ -78,15 +151,14 @@ describe('Acknowledgements screen', () => {
   it('renders representative data sources and citations', () => {
     render(<AcknowledgementsScreen />);
 
-    expect(screen.getByText('GBIF / iNaturalist')).toBeTruthy();
-    expect(screen.getByText('Open-Meteo (ERA5 / ERA5-Land)')).toBeTruthy();
-    expect(screen.getByText('GADM (Global Administrative Areas)')).toBeTruthy();
-    expect(screen.getAllByText(/Open-Meteo\.com Weather API/).length).toBe(2);
+    expect(screen.getByText('GBIF Occurrence Download')).toBeTruthy();
     expect(
-      screen.getByText(
-        /University of California, Berkeley, Museum of Vertebrate Zoology/,
-      ),
+      screen.getByText('iNaturalist Research-grade Observations'),
     ).toBeTruthy();
+    expect(screen.getByText('Open-Meteo')).toBeTruthy();
+    expect(screen.getByText('ERA5')).toBeTruthy();
+    expect(screen.getByText('GADM (Global Administrative Areas)')).toBeTruthy();
+    expect(screen.getByText(/Open-Meteo\.com Weather API/)).toBeTruthy();
   });
 
   it('shows the page title on web', () => {
@@ -133,7 +205,7 @@ describe('Acknowledgements screen', () => {
     expect(screen.getByText('Test Source')).toBeTruthy();
     expect(screen.getByText(/License:\s*Custom License/)).toBeTruthy();
     expect(
-      screen.getByText(/Doe, J\. \(2024\)\. “Test Citation\.”\./),
+      screen.getByText(/Doe, J\. \(2024\)\. Test Citation\./),
     ).toBeTruthy();
   });
 

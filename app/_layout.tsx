@@ -329,7 +329,8 @@ function RootLayoutWebFrame() {
   );
 
   useEffect(() => {
-    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator))
+      return;
     if (process.env.NODE_ENV !== 'production') {
       navigator.serviceWorker.getRegistrations().then((regs) => {
         regs.forEach((reg) => reg.unregister());

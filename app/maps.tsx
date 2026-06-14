@@ -472,7 +472,8 @@ export default function Maps() {
               selectedVariableMeta.sourceIds.length > 0 && (
                 <SourceAttribution
                   sourceIds={
-                    selectedVariableMeta.category?.toLowerCase() === 'recent weather'
+                    selectedVariableMeta.category?.toLowerCase() ===
+                    'recent weather'
                       ? [...selectedVariableMeta.sourceIds, 'gfs']
                       : selectedVariableMeta.sourceIds
                   }

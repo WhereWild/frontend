@@ -17,7 +17,10 @@ export function SourceEntry({ source }: { source: DataSource }) {
     <View style={styles.sourceEntry}>
       <View style={styles.sourceHeader}>
         <ThemedText variant='subheading'>
-          <ThemedText variant='link' onPress={() => Linking.openURL(source.url)}>
+          <ThemedText
+            variant='link'
+            onPress={() => Linking.openURL(source.url)}
+          >
             {source.name}
           </ThemedText>
         </ThemedText>
