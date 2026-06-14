@@ -688,9 +688,16 @@ const NativeLeafletFrame = React.forwardRef<
     // Track when the user intentionally scrolls (wheel or touch).
     // Any window scroll that happens without a recent gesture is focus-triggered
     // (browser scrolling to bring the focused iframe into view) and gets reversed.
-    let lastGestureTime = 0;
+    //
+    // On mobile, iOS momentum scrolling fires scroll events long after touchend,
+    // so we extend the gesture deadline after touchend to cover the full momentum
+    // phase (up to ~2 s), preventing the reversal logic from fighting native inertia.
+    let gestureDeadline = 0;
     const onGesture = () => {
-      lastGestureTime = Date.now();
+      gestureDeadline = Date.now() + 150;
+    };
+    const onTouchEnd = () => {
+      gestureDeadline = Date.now() + 2000;
     };
     window.addEventListener('wheel', onGesture, {
       passive: true,
@@ -700,11 +707,15 @@ const NativeLeafletFrame = React.forwardRef<
       passive: true,
       capture: true,
     });
+    window.addEventListener('touchend', onTouchEnd, {
+      passive: true,
+      capture: true,
+    });
 
     let savedWinY = window.scrollY;
     let savedWinX = window.scrollX;
     const onWindowScroll = () => {
-      const gestureRecent = Date.now() - lastGestureTime < 150;
+      const gestureRecent = Date.now() < gestureDeadline;
       if (!gestureRecent) {
         window.scrollTo({
           top: savedWinY,
@@ -729,6 +740,9 @@ const NativeLeafletFrame = React.forwardRef<
         capture: true,
       } as EventListenerOptions);
       window.removeEventListener('touchmove', onGesture, {
+        capture: true,
+      } as EventListenerOptions);
+      window.removeEventListener('touchend', onTouchEnd, {
         capture: true,
       } as EventListenerOptions);
     };

@@ -5,7 +5,7 @@
 import { Size } from '@/constants/theme';
 import type { SpeciesEnvironmentDensity } from '@/data/types';
 import React from 'react';
-import { GestureResponderEvent, StyleSheet, View } from 'react-native';
+import { GestureResponderEvent, Platform, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { buildDensitySamples } from './densityChartUtils';
@@ -34,6 +34,20 @@ const toSvgPoint = (aspectDeg: number, r: number) => {
 /** Converts a touch position (relative to the chart view) to a compass bearing 0–360. */
 const touchToDeg = (x: number, y: number): number =>
   ((Math.atan2(y - CY, x - CX) * 180) / Math.PI + 90 + 360) % 360;
+
+/**
+ * Full-donut SVG path: outer circle CW + inner circle CCW.
+ * Nonzero winding makes the inner region transparent, matching the arc donut shape.
+ */
+const FULL_DONUT_PATH = [
+  `M ${CX} ${CY - MAX_RADIUS}`,
+  `A ${MAX_RADIUS} ${MAX_RADIUS} 0 1 1 ${CX} ${CY + MAX_RADIUS}`,
+  `A ${MAX_RADIUS} ${MAX_RADIUS} 0 1 1 ${CX} ${CY - MAX_RADIUS}`,
+  `M ${CX} ${CY - INNER_RADIUS}`,
+  `A ${INNER_RADIUS} ${INNER_RADIUS} 0 1 0 ${CX} ${CY + INNER_RADIUS}`,
+  `A ${INNER_RADIUS} ${INNER_RADIUS} 0 1 0 ${CX} ${CY - INNER_RADIUS}`,
+  'Z',
+].join(' ');
 
 /**
  * Builds a donut-sector arc path clockwise from startDeg to endDeg.
@@ -101,16 +115,50 @@ export function PolarDensityChart({
 }: PolarDensityChartProps) {
   const samples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const dragOrigin = React.useRef<number | null>(null);
+  const cumulativeSpan = React.useRef<number>(0);
+  const prevAngle = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
   const { lockScroll, unlockScroll } = useScrollLock();
+  const wrapperRef = React.useRef<View>(null);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || !onSelectionChange) return;
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent =
+      '[data-testid="polar-density-chart-responder"] { touch-action: none !important; }';
+    document.head.appendChild(styleEl);
+
+    const onDocPointerDown = (e: PointerEvent) => {
+      const responder = document.querySelector(
+        '[data-testid="polar-density-chart-responder"]',
+      );
+      if (
+        responder &&
+        (e.target === responder || responder.contains(e.target as Node))
+      ) {
+        responder.setPointerCapture(e.pointerId);
+      }
+    };
+    document.addEventListener('pointerdown', onDocPointerDown, {
+      capture: true,
+    });
+
+    return () => {
+      styleEl.remove();
+      document.removeEventListener('pointerdown', onDocPointerDown, {
+        capture: true,
+      });
+    };
+  }, [onSelectionChange]);
 
   const handleTouchStart = React.useCallback(
     (e: GestureResponderEvent) => {
       lockScroll();
-      dragOrigin.current = touchToDeg(
-        e.nativeEvent.locationX,
-        e.nativeEvent.locationY,
-      );
+      const deg = touchToDeg(e.nativeEvent.locationX, e.nativeEvent.locationY);
+      dragOrigin.current = deg;
+      prevAngle.current = deg;
+      cumulativeSpan.current = 0;
       hasDragged.current = false;
     },
     [lockScroll],
@@ -118,13 +166,42 @@ export function PolarDensityChart({
 
   const handleTouchMove = React.useCallback(
     (e: GestureResponderEvent) => {
-      if (dragOrigin.current === null) return;
+      if (dragOrigin.current === null || prevAngle.current === null) return;
       hasDragged.current = true;
-      const currentDeg = touchToDeg(
+
+      const currentAngle = touchToDeg(
         e.nativeEvent.locationX,
         e.nativeEvent.locationY,
       );
-      onSelectionChange?.({ start: dragOrigin.current, end: currentDeg });
+
+      // Shortest angular step, signed: + = CW, - = CCW, range (-180, 180].
+      const delta = ((currentAngle - prevAngle.current + 540) % 360) - 180;
+      prevAngle.current = currentAngle;
+
+      // Accumulate span, capped at a full circle in either direction.
+      // 359.9° keeps start !== end (avoids degenerate arc) while the gap is invisible.
+      const newSpan = Math.max(
+        -359.9,
+        Math.min(359.9, cumulativeSpan.current + delta),
+      );
+      cumulativeSpan.current = newSpan;
+
+      const absSpan = Math.abs(newSpan);
+      if (absSpan < 3) {
+        onSelectionChange?.(null);
+        return;
+      }
+
+      const anchor = dragOrigin.current;
+      if (newSpan >= 0) {
+        // CW arc: anchor → anchor + span
+        const arcEnd = (anchor + absSpan + 360) % 360;
+        onSelectionChange?.({ start: anchor, end: arcEnd });
+      } else {
+        // CCW arc: represented as CW from arcStart → anchor
+        const arcStart = (anchor - absSpan + 360) % 360;
+        onSelectionChange?.({ start: arcStart, end: anchor });
+      }
     },
     [onSelectionChange],
   );
@@ -135,6 +212,8 @@ export function PolarDensityChart({
       onSelectionChange?.(null);
     }
     dragOrigin.current = null;
+    prevAngle.current = null;
+    cumulativeSpan.current = 0;
     hasDragged.current = false;
   }, [unlockScroll, onSelectionChange]);
 
@@ -165,8 +244,11 @@ export function PolarDensityChart({
   pathCommands.push('Z');
   const densityPath = pathCommands.join(' ');
 
+  const selectionSpan =
+    selection != null ? (selection.end - selection.start + 360) % 360 : 0;
+  const isFullCircleSelection = selection != null && selectionSpan >= 358;
   const selectionPath =
-    selection != null
+    selection != null && !isFullCircleSelection
       ? buildSelectionArcPath(selection.start, selection.end)
       : null;
 
@@ -190,6 +272,8 @@ export function PolarDensityChart({
 
   return (
     <View
+      ref={wrapperRef}
+      testID='polar-density-chart-responder'
       style={styles.wrapper}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
@@ -235,9 +319,11 @@ export function PolarDensityChart({
           );
         })}
 
-        {/* Selection arc */}
+        {/* Selection arc — or full donut ring when span ≥ 358° */}
         {selectionPath ? (
           <Path d={selectionPath} fill={lineColor} opacity={0.35} />
+        ) : isFullCircleSelection ? (
+          <Path d={FULL_DONUT_PATH} fill={lineColor} opacity={0.35} />
         ) : null}
 
         {/* Density fill */}

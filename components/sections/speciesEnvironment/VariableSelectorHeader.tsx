@@ -5,6 +5,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Size } from '@/constants/theme';
+import { useResponsive } from '@/hooks/useResponsive';
 import { ThemedText } from '@/components/text/ThemedText';
 import { SelectField } from '@/components/inputs/SelectField';
 import { Tabs } from '@/components/tabs/Tabs';
@@ -213,6 +214,8 @@ export function VariableSelectorHeader({
     [filteredVariables, sortVariantsByStatOrder, onVariableChange],
   );
 
+  const { breakpoint } = useResponsive();
+
   return (
     <>
       {categories.length > 0 ? (
@@ -228,7 +231,7 @@ export function VariableSelectorHeader({
       <View style={styles.variableHeadingRow}>
         {filteredVariables.length ? (
           isTemporalCategory ? (
-            <View style={styles.temporalSelectRow}>
+            <View style={[styles.temporalSelectRow, breakpoint === 'phone' && styles.temporalSelectRowPhone]}>
               <View style={styles.temporalSelectItem}>
                 <SelectField
                   variant='secondary'
@@ -250,7 +253,7 @@ export function VariableSelectorHeader({
               </View>
             </View>
           ) : isGroupedCategory ? (
-            <View style={styles.temporalSelectRow}>
+            <View style={[styles.temporalSelectRow, breakpoint === 'phone' && styles.temporalSelectRowPhone]}>
               <View style={styles.temporalSelectItem}>
                 <SelectField
                   variant='secondary'
@@ -322,10 +325,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Size.space['200'],
   },
+  temporalSelectRowPhone: {
+    flexDirection: 'column',
+  },
   temporalSelectItem: {
     flexShrink: 0,
   },
   metaText: {
-    flexShrink: 0,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
 });

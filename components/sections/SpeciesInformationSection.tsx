@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   textColumn: {
     flex: 1,
-    minWidth: 360,
+    minWidth: 320,
     gap: Size.space['400'],
   },
   textSection: {
