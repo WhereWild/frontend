@@ -9,6 +9,8 @@ import { PageScrollContainer } from '@/components/PageScrollContainer';
 import { Colors, Size } from '@/constants/theme';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
+import { useDataSources } from '@/hooks/useDataSources';
+import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
@@ -96,6 +98,7 @@ const toVariableOption = (
       legendClasses: e.legendClasses ?? null,
       renderMin: e.renderMin ?? null,
       renderMax: e.renderMax ?? null,
+      sourceIds: e.sourceIds ?? [],
     }));
 
 const buildTileUrl = ({
@@ -147,6 +150,8 @@ export default function Maps() {
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+
+  const dataSources = useDataSources();
 
   const [variables, setVariables] =
     useState<EnvironmentVariableOption[]>(FALLBACK_VARIABLES);
@@ -462,6 +467,19 @@ export default function Maps() {
                   </>
                 )}
             </View>
+
+            {selectedVariableMeta?.sourceIds &&
+              selectedVariableMeta.sourceIds.length > 0 && (
+                <SourceAttribution
+                  sourceIds={
+                    selectedVariableMeta.category?.toLowerCase() ===
+                    'recent weather'
+                      ? [...selectedVariableMeta.sourceIds, 'gfs']
+                      : selectedVariableMeta.sourceIds
+                  }
+                  dataSources={dataSources}
+                />
+              )}
           </View>
         </PageScrollContainer>
       </PageSurface>
