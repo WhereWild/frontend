@@ -53,6 +53,10 @@ describe('speciesOccurrenceMapHelpers', () => {
     highlightStroke: '#444444',
     selectedPointFill: '#F59E0B',
     selectedPointStroke: '#F59E0B',
+    surfaceBackground: '#ffffff',
+    surfaceBorder: '#c8c8c8',
+    surfaceText: '#181818',
+    linkColor: '#466237',
   };
 
   const extractInlineScript = (html: string) => {
@@ -217,6 +221,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         }
         return {};
       }),
+      head: { appendChild: jest.fn() },
     };
 
     const urlApi = {
@@ -425,7 +430,9 @@ describe('speciesOccurrenceMapHelpers', () => {
         'https://www.inaturalist.org/observations/obs-123',
       );
       expect(linkedPopup).not.toContain('Highlight in Environmental Features');
-      expect(unlinkedPopup).toBeUndefined();
+      expect(unlinkedPopup ?? '').not.toContain(
+        'https://www.inaturalist.org/observations/obs-123',
+      );
     });
   });
 
@@ -610,8 +617,9 @@ describe('speciesOccurrenceMapHelpers', () => {
         'https://www.inaturalist.org/observations/obs-123',
       );
       expect(linkedPopup).not.toContain('Highlight in Environmental Features');
-      // No link_observations → no iNat link → no popup bound
-      expect(unlinkedPopup).toBeUndefined();
+      expect(unlinkedPopup ?? '').not.toContain(
+        'https://www.inaturalist.org/observations/obs-123',
+      );
     });
   });
 

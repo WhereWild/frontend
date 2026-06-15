@@ -209,10 +209,10 @@ describe('VariableSelectorHeader', () => {
       />,
     );
 
-    expect(screen.getByText('Air Temperature (2m)')).toBeTruthy();
-    expect(screen.getByText('Precipitation')).toBeTruthy();
-    expect(screen.getByText('1 day')).toBeTruthy();
-    expect(screen.getByText('1 week')).toBeTruthy();
+    expect(screen.getByText('Air Temperature (2m) (C)')).toBeTruthy();
+    expect(screen.getByText('Precipitation (mm)')).toBeTruthy();
+    expect(screen.getByText('1 day (avg)')).toBeTruthy();
+    expect(screen.getByText('1 week (avg)')).toBeTruthy();
     expect(
       screen.getByTestId('selected-variable-Select variable'),
     ).toHaveTextContent('temperature_2m');
