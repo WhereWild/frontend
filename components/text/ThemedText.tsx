@@ -62,7 +62,7 @@ export function ThemedText({
     resolvedVariant === 'link' || resolvedVariant === 'bodySmallLink';
   const isWebLinkVariant = Platform.OS === 'web' && isLinkVariant;
   const [isWebHovered, setIsWebHovered] = useState(false);
-  const underlineProgress = useRef(new Animated.Value(0)).current;
+  const underlineProgress = useRef(new Animated.Value(1)).current;
   const variantColor =
     typographyStyles[resolvedVariant]?.color ?? typographyStyles.link.color;
 
@@ -85,7 +85,7 @@ export function ThemedText({
     }
 
     return {
-      textDecorationColor: isWebHovered ? variantColor : 'transparent',
+      textDecorationColor: variantColor,
       transitionProperty: 'text-decoration-color',
       transitionDuration: `${Time.duration.short}ms`,
       transitionTimingFunction: `cubic-bezier(${TimeEasingCurves['in-and-out'].join(', ')})`,

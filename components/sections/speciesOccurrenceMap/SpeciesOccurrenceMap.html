@@ -24,6 +24,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       padding: 0;
     }
     .leaflet-interactive { paint-order: stroke fill; }
+    /* Themed UI — overwritten at runtime by injectThemeCss() */
   </style>
 </head>
 
@@ -99,6 +100,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       var c0 = GRADIENT_STOPS[i], c1 = GRADIENT_STOPS[i + 1];
       return 'rgb(' + Math.round(c0[0]+f*(c1[0]-c0[0])) + ',' + Math.round(c0[1]+f*(c1[1]-c0[1])) + ',' + Math.round(c0[2]+f*(c1[2]-c0[2])) + ')';
     }
+    function safeT(val, lo, hi) {
+      return lo < hi ? Math.max(0, Math.min(1, (val - lo) / (hi - lo))) : 0;
+    }
     const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
     const mapBounds = CUSTOM_MAX_BOUNDS
       ? L.latLngBounds(CUSTOM_MAX_BOUNDS[0], CUSTOM_MAX_BOUNDS[1])
@@ -127,6 +131,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
       return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM, Math.log2(width / TILE_SIZE));
     }
+
+    function injectThemeCss() {
+      var bg   = palette.surfaceBackground;
+      var text = palette.surfaceText;
+      var link = palette.linkColor;
+      var bdr  = palette.surfaceBorder;
+      var css  = [
+        '.leaflet-container a,.leaflet-container a:visited{color:' + link + ' !important}',
+        '.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:' + bg + ';color:' + text + ';box-shadow:0 2px 8px rgba(0,0,0,0.25)}',
+        '.leaflet-container a.leaflet-popup-close-button{color:' + text + ' !important}',
+        '.leaflet-bar a,.leaflet-bar a:hover{background:' + bg + ';color:' + text + ' !important;border-bottom-color:' + bdr + '}',
+        '.leaflet-bar{border-color:' + bdr + '}',
+        '.leaflet-control-attribution{background:' + bg + ' !important;color:' + text + '}',
+        '.leaflet-control-attribution a{color:' + link + ' !important}',
+      ].join('');
+      var el = document.createElement('style');
+      el.textContent = css;
+      document.head.appendChild(el);
+    }
+    injectThemeCss();
 
     const map = L.map('map', {
       maxBounds: mapBounds,
@@ -430,7 +454,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     function buildObservationValueHtml(varValue, varColor, varLabel, varShape) {
       if (varValue == null) return isVariableColorMode ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
-      var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+      var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN;
       if (varColor) {
         var dot = shapeToPopupSvg(varShape || null, varColor);
         var labelText = varLabel || '';
@@ -451,7 +475,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
       }
       if (isNumericVar) {
-        var t = Math.max(0, Math.min(1, (varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+        var t = safeT(varValue, DOT_MIN, DOT_MAX);
         var color = gradientColor(t);
         var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0;vertical-align:middle' + obsOutlineCss + '"></span>';
         var units = VAR_UNITS ? ' ' + VAR_UNITS : '';
@@ -462,8 +486,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape) {
-      var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
-        ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+      var inatHtml = catalogLabel
+        ? (LINK_OBSERVATIONS && catalogHref
+            ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+            : '<span>Observation #' + catalogLabel + '</span>')
         : '';
       return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel, varShape);
     }
@@ -566,7 +592,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return styleForCatalog(catalog);
     }
 
-    var isVariableColorMode = IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN);
+    var isVariableColorMode = IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN);
 
     function baseStyleForPoint(pt, catalog) {
       if (pt.varColor) {
@@ -582,8 +608,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         markerBaseColors.set(catalog, color);
         return Object.assign({}, markerStyle, { fillColor: color, color: OUTLINE_STROKE || color });
       }
-      if (DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN && pt.varValue != null) {
-        var t = Math.max(0, Math.min(1, (pt.varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+      if (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN && pt.varValue != null) {
+        var t = safeT(pt.varValue, DOT_MIN, DOT_MAX);
         var color = gradientColor(t);
         markerBaseColors.set(catalog, color);
         return Object.assign({}, markerStyle, { fillColor: color, color: OUTLINE_STROKE || color });
@@ -628,11 +654,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
 
       if (data && data.type === 'colormapUpdate') {
-        if (Array.isArray(data.stops) && DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN) {
+        if (Array.isArray(data.stops) && DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN) {
           GRADIENT_STOPS = data.stops;
           markers.forEach(function(entry, catalog) {
             if (entry.varValue != null) {
-              var t = Math.max(0, Math.min(1, (entry.varValue - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+              var t = safeT(entry.varValue, DOT_MIN, DOT_MAX);
               markerBaseColors.set(catalog, gradientColor(t));
               entry.setStyle(effectiveStyleForCatalog(catalog));
             }
@@ -712,7 +738,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           matchingEntry.catalogHref, matchingEntry.catalogLabel,
           matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel, matchingEntry.varShape
         );
-        selectedCatalogDirectMarker.bindPopup(selectedPopupContent || matchingEntry.popupHtml || '');
+        selectedCatalogDirectMarker.bindPopup(selectedPopupContent || matchingEntry.popupHtml || '', { autoPan: false });
         bindObservationMarkerEvents(
           selectedCatalogDirectMarker,
           matchingEntry.catalogValue, matchingEntry.catalogHref, matchingEntry.catalogLabel,
@@ -723,8 +749,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (selectedPopupContent) {
           selectedCatalogDirectMarker.openPopup();
         } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
-          var selInatHtml = (LINK_OBSERVATIONS && matchingEntry.catalogLabel && matchingEntry.catalogHref)
-            ? '<a href="https://www.inaturalist.org/observations/' + matchingEntry.catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + matchingEntry.catalogLabel + '</a>'
+          var selInatHtml = matchingEntry.catalogLabel
+            ? (LINK_OBSERVATIONS && matchingEntry.catalogHref
+                ? '<a href="https://www.inaturalist.org/observations/' + matchingEntry.catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + matchingEntry.catalogLabel + '</a>'
+                : '<span>Observation #' + matchingEntry.catalogLabel + '</span>')
             : '';
           fetchAndShowPointValue(selectedCatalogDirectMarker, selInatHtml, latitude, matchingEntry.longitude);
         }
@@ -833,10 +861,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
       function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
-        if (!LINK_OBSERVATIONS || !catalogHref || !catalogLabel) {
+        if (!catalogLabel) {
           return '';
         }
-        return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
+        if (LINK_OBSERVATIONS && catalogHref) {
+          return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
+        }
+        return '<span>Observation #' + catalogLabel + '</span>';
       }
 
       function fetchAndShowPointValue(marker, inatHtml, latitude, longitude) {
@@ -866,7 +897,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                   // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
           window.parent.postMessage(pvMsg, '*');
                 }
-                var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX > DOT_MIN;
+                var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN;
                 var units = data.units ? ' ' + data.units : (VAR_UNITS ? ' ' + VAR_UNITS : '');
                 var dotOutlineCss = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
                 if (IS_CIRCULAR) {
@@ -883,7 +914,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                     valueHtml = '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + '<span>' + fmt + '°</span></div>';
                   }
                 } else if (isNumericVar) {
-                  var t = Math.max(0, Math.min(1, (numVal - DOT_MIN) / (DOT_MAX - DOT_MIN)));
+                  var t = safeT(numVal, DOT_MIN, DOT_MAX);
                   var color = gradientColor(t);
                   var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0' + dotOutlineCss + '"></span>';
                   var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0}) : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
@@ -980,7 +1011,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             ? createShapeMarker([entry.latitude, alignedLongitude], entry.varShape, dmStyle)
             : L.circleMarker([entry.latitude, alignedLongitude], dmStyle);
           if (entry.popupHtml) {
-            entry.directMarker.bindPopup(entry.popupHtml);
+            entry.directMarker.bindPopup(entry.popupHtml, { autoPan: false });
           }
           bindObservationMarkerEvents(
             entry.directMarker,
@@ -1144,7 +1175,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             ? createShapeMarker([latitude, initialLongitude], pt.varShape, ptStyle)
             : L.circleMarker([latitude, initialLongitude], ptStyle);
           if (popupHtml) {
-            clusterMarker.bindPopup(popupHtml);
+            clusterMarker.bindPopup(popupHtml, { autoPan: false });
           }
           bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null, pt.varShape ?? null);
 
@@ -1185,7 +1216,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             ? createShapeMarker([latitude, initialLongitude], pt.varShape, ptStyle2)
             : L.circleMarker([latitude, initialLongitude], ptStyle2);
           if (popupHtml) {
-            marker.bindPopup(popupHtml);
+            marker.bindPopup(popupHtml, { autoPan: false });
           }
           bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null, pt.varShape ?? null);
           map.addLayer(marker);
@@ -1269,7 +1300,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             }
             var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
             var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
-            var isNumeric = colorMin != null && colorMax != null && colorMax > colorMin;
+            var isNumeric = colorMin != null && colorMax != null && colorMax >= colorMin;
             if (data.class_name || data.class_color) {
               var classKey = data.value != null ? String(Math.round(Number(data.value))) : null;
               var resolvedClassColor = (CLASS_COLORS && classKey && CLASS_COLORS[classKey]) || data.class_color || null;
@@ -1291,7 +1322,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
                 popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0</span></div>');
               }
             } else if (isNumeric) {
-              var t = Math.max(0, Math.min(1, (numVal - colorMin) / (colorMax - colorMin)));
+              var t = safeT(numVal, colorMin, colorMax);
               var color = gradientColor(t);
               var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
               var units = data.units ? ' ' + data.units : '';
@@ -1353,6 +1384,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     map.on('moveend', sendTiles);
     map.on('zoomend', sendTiles);
     sendTiles();
+
+    // When a popup with a link opens, the browser auto-focuses the link and
+    // scrolls the parent page to bring the iframe into view. Blurring here
+    // prevents that focus from persisting and fighting user scroll.
+    map.on('popupopen', function() {
+      var active = document.activeElement;
+      if (active && active !== document.body && typeof active.blur === 'function') {
+        active.blur();
+      }
+    });
 
     applyHighlights([]);
     applySelectedPoint(null);

@@ -53,6 +53,10 @@ describe('speciesOccurrenceMapHelpers', () => {
     highlightStroke: '#444444',
     selectedPointFill: '#F59E0B',
     selectedPointStroke: '#F59E0B',
+    surfaceBackground: '#ffffff',
+    surfaceBorder: '#c8c8c8',
+    surfaceText: '#181818',
+    linkColor: '#466237',
   };
 
   const extractInlineScript = (html: string) => {

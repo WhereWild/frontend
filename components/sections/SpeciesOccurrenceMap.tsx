@@ -326,12 +326,20 @@ export function SpeciesOccurrenceMap({
       highlightStroke: palette.border.danger.default,
       selectedPointFill: '#F59E0B',
       selectedPointStroke: '#F59E0B',
+      surfaceBackground: palette.background.default.secondary,
+      surfaceBorder: palette.background.default.tertiary,
+      surfaceText: palette.text.default.default,
+      linkColor: palette.text.brand.default,
     }),
     [
       palette.background.brand.default,
       palette.background.danger.default,
+      palette.background.default.secondary,
+      palette.background.default.tertiary,
       palette.border.brand.default,
       palette.border.danger.default,
+      palette.text.brand.default,
+      palette.text.default.default,
     ],
   );
   const highlightKeys = React.useMemo(
@@ -685,38 +693,37 @@ const NativeLeafletFrame = React.forwardRef<
     const iframe = internalRef.current;
     if (!iframe || typeof window === 'undefined') return;
 
-    // Track when the user intentionally scrolls (wheel or touch).
-    // Any window scroll that happens without a recent gesture is focus-triggered
-    // (browser scrolling to bring the focused iframe into view) and gets reversed.
-    //
-    // On mobile, iOS momentum scrolling fires scroll events long after touchend,
-    // so we extend the gesture deadline after touchend to cover the full momentum
-    // phase (up to ~2 s), preventing the reversal logic from fighting native inertia.
-    let gestureDeadline = 0;
-    const onGesture = () => {
-      gestureDeadline = Date.now() + 150;
+    // When the user presses Tab to reach the iframe, the browser auto-scrolls
+    // the page to bring it into view. We detect that by watching for a Tab
+    // keydown followed by an iframe focus event, then reverse the resulting
+    // scroll. All other scrolls — scrollbar drag, wheel, touch, or popup links
+    // getting auto-focused inside the iframe — are left alone.
+    let focusTriggerDeadline = 0;
+    let tabPendingDeadline = 0;
+
+    // Only reverse scroll when iframe focus was reached via keyboard Tab.
+    // A Tab keydown sets a short window; if iframe focus fires inside that
+    // window we know the browser is about to auto-scroll the page to bring
+    // the iframe into view and we want to cancel that scroll.
+    // Focus from clicking inside the iframe (e.g. a popup link getting
+    // auto-focused) does NOT follow a Tab keydown, so it never trips this.
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') tabPendingDeadline = Date.now() + 1000;
     };
-    const onTouchEnd = () => {
-      gestureDeadline = Date.now() + 2000;
+    const onIframeFocus = () => {
+      if (Date.now() < tabPendingDeadline) {
+        focusTriggerDeadline = Date.now() + 500;
+        tabPendingDeadline = 0;
+      }
     };
-    window.addEventListener('wheel', onGesture, {
-      passive: true,
-      capture: true,
-    });
-    window.addEventListener('touchmove', onGesture, {
-      passive: true,
-      capture: true,
-    });
-    window.addEventListener('touchend', onTouchEnd, {
-      passive: true,
-      capture: true,
-    });
+
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    iframe.addEventListener('focus', onIframeFocus);
 
     let savedWinY = window.scrollY;
     let savedWinX = window.scrollX;
     const onWindowScroll = () => {
-      const gestureRecent = Date.now() < gestureDeadline;
-      if (!gestureRecent) {
+      if (Date.now() < focusTriggerDeadline) {
         window.scrollTo({
           top: savedWinY,
           left: savedWinX,
@@ -733,18 +740,13 @@ const NativeLeafletFrame = React.forwardRef<
     });
 
     return () => {
+      window.removeEventListener('keydown', onKeyDown, {
+        capture: true,
+      } as EventListenerOptions);
       window.removeEventListener('scroll', onWindowScroll, {
         capture: true,
       } as EventListenerOptions);
-      window.removeEventListener('wheel', onGesture, {
-        capture: true,
-      } as EventListenerOptions);
-      window.removeEventListener('touchmove', onGesture, {
-        capture: true,
-      } as EventListenerOptions);
-      window.removeEventListener('touchend', onTouchEnd, {
-        capture: true,
-      } as EventListenerOptions);
+      iframe.removeEventListener('focus', onIframeFocus);
     };
   }, []);
 

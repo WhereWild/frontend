@@ -85,12 +85,23 @@ export function VariableSelectorHeader({
       const parsed = parseTemporalId(v.id);
       if (parsed) {
         if (!seen.has(parsed.baseId)) {
-          seen.set(parsed.baseId, stripTemporalSuffix(v.label));
+          const base = stripTemporalSuffix(v.label);
+          seen.set(
+            parsed.baseId,
+            !isVariableCategorical(v) && v.units
+              ? `${base} (${v.units})`
+              : base,
+          );
         }
       } else {
         // Non-temporal variable: use the full id as key so it appears as its own entry.
         if (!seen.has(v.id)) {
-          seen.set(v.id, v.label);
+          seen.set(
+            v.id,
+            !isVariableCategorical(v) && v.units
+              ? `${v.label} (${v.units})`
+              : v.label,
+          );
         }
       }
     }
@@ -116,7 +127,7 @@ export function VariableSelectorHeader({
       .sort((a, b) => a.p.windowHours - b.p.windowHours)
       .map(({ p, id }) => ({
         value: id,
-        label: formatWindowHours(p.windowHours),
+        label: `${formatWindowHours(p.windowHours)} (${p.agg})`,
       }));
   }, [isTemporalCategory, selectedBaseKey, filteredVariables]);
 
@@ -345,25 +356,26 @@ export function VariableSelectorHeader({
 
 const styles = StyleSheet.create({
   variableHeadingRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
     gap: Size.space.text.line,
   },
   selectFieldContainer: {
-    flexShrink: 0,
+    minWidth: 0,
   },
   temporalSelectRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Size.space['200'],
+    flexShrink: 1,
+    minWidth: 0,
   },
   temporalSelectRowPhone: {
     flexDirection: 'column',
+    width: '100%',
   },
   temporalSelectItem: {
-    flexShrink: 0,
+    flex: 1,
+    minWidth: 0,
   },
   metaText: {
     flexShrink: 1,
