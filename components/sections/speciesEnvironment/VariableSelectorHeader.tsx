@@ -36,6 +36,12 @@ type VariableSelectorHeaderProps = {
   headingText: string | null;
   /** Optional metadata subtitle (counts/range text). */
   metaText: string | null;
+  /** Optional forecast options to show as a third selector in temporal rows. */
+  forecastOptions?: { value: string; label: string }[];
+  /** Currently selected forecast value. */
+  selectedForecast?: string;
+  /** Updates selected forecast value. */
+  onForecastChange?: (forecast: string) => void;
 };
 
 /** Renders category tabs, variable selector, and contextual heading/meta text. */
@@ -48,6 +54,9 @@ export function VariableSelectorHeader({
   onVariableChange,
   headingText,
   metaText,
+  forecastOptions,
+  selectedForecast,
+  onForecastChange,
 }: VariableSelectorHeaderProps) {
   // Use split UI when at least one variable in the category has a time window.
   // This assumes a category will not mix live/current variables with temporal
@@ -76,12 +85,23 @@ export function VariableSelectorHeader({
       const parsed = parseTemporalId(v.id);
       if (parsed) {
         if (!seen.has(parsed.baseId)) {
-          seen.set(parsed.baseId, stripTemporalSuffix(v.label));
+          const base = stripTemporalSuffix(v.label);
+          seen.set(
+            parsed.baseId,
+            !isVariableCategorical(v) && v.units
+              ? `${base} (${v.units})`
+              : base,
+          );
         }
       } else {
         // Non-temporal variable: use the full id as key so it appears as its own entry.
         if (!seen.has(v.id)) {
-          seen.set(v.id, v.label);
+          seen.set(
+            v.id,
+            !isVariableCategorical(v) && v.units
+              ? `${v.label} (${v.units})`
+              : v.label,
+          );
         }
       }
     }
@@ -107,7 +127,7 @@ export function VariableSelectorHeader({
       .sort((a, b) => a.p.windowHours - b.p.windowHours)
       .map(({ p, id }) => ({
         value: id,
-        label: formatWindowHours(p.windowHours),
+        label: `${formatWindowHours(p.windowHours)} (${p.agg})`,
       }));
   }, [isTemporalCategory, selectedBaseKey, filteredVariables]);
 
@@ -256,6 +276,21 @@ export function VariableSelectorHeader({
                   disabled={windowOptions.length === 0}
                 />
               </View>
+              {forecastOptions &&
+                forecastOptions.length > 0 &&
+                onForecastChange && (
+                  <View style={styles.temporalSelectItem}>
+                    <SelectField
+                      variant='secondary'
+                      options={forecastOptions}
+                      value={
+                        selectedForecast ?? forecastOptions[0]?.value ?? ''
+                      }
+                      onValueChange={onForecastChange}
+                      placeholder='Forecast'
+                    />
+                  </View>
+                )}
             </View>
           ) : isGroupedCategory ? (
             <View
@@ -321,25 +356,26 @@ export function VariableSelectorHeader({
 
 const styles = StyleSheet.create({
   variableHeadingRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
     gap: Size.space.text.line,
   },
   selectFieldContainer: {
-    flexShrink: 0,
+    minWidth: 0,
   },
   temporalSelectRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Size.space['200'],
+    flexShrink: 1,
+    minWidth: 0,
   },
   temporalSelectRowPhone: {
     flexDirection: 'column',
+    width: '100%',
   },
   temporalSelectItem: {
-    flexShrink: 0,
+    flex: 1,
+    minWidth: 0,
   },
   metaText: {
     flexShrink: 1,

@@ -148,14 +148,16 @@ export const SelectFieldView = ({
               <View
                 collapsable={false}
                 style={
-                  showSearchPlaceholder ? styles.hiddenContentSlot : undefined
+                  showSearchPlaceholder
+                    ? styles.hiddenContentSlot
+                    : styles.visibleContentSlot
                 }
               >
                 <ThemedText
                   variant='singleLineBody'
+                  numberOfLines={1}
                   style={{
                     color: showPlaceholder ? placeholderColor : valueColor,
-                    flex: 1,
                   }}
                 >
                   {valueText || placeholder}
@@ -355,8 +357,9 @@ export const SelectFieldView = ({
 const styles = StyleSheet.create({
   container: {
     gap: Size.space['100'],
-    minWidth: 240,
+    minWidth: 0,
     maxWidth: '100%',
+    flex: 1,
   },
   fieldWrapper: {
     position: 'relative',
@@ -380,6 +383,7 @@ const styles = StyleSheet.create({
   },
   fieldValueSlot: {
     flex: 1,
+    minWidth: 0,
   },
   fieldIconSlot: {
     justifyContent: 'center',
@@ -388,6 +392,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     padding: 0,
+  },
+  visibleContentSlot: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
   },
   hiddenContentSlot: {
     opacity: 0,

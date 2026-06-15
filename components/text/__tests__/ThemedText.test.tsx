@@ -197,7 +197,7 @@ describe('ThemedText', () => {
 
       expect(text.props.style).toEqual(
         expect.objectContaining({
-          textDecorationColor: 'transparent',
+          textDecorationColor: '#00ff00',
           transitionDuration: `${Time.duration.short}ms`,
         }),
       );
@@ -213,7 +213,7 @@ describe('ThemedText', () => {
         screen.getByText('Read More').props.onMouseLeave({} as any);
       });
       expect(screen.getByText('Read More').props.style).toEqual(
-        expect.objectContaining({ textDecorationColor: 'transparent' }),
+        expect.objectContaining({ textDecorationColor: '#00ff00' }),
       );
 
       expect(timingSpy).not.toHaveBeenCalled();
@@ -251,7 +251,7 @@ describe('ThemedText', () => {
       });
       expect(onPressOutSpy).toHaveBeenCalledTimes(1);
       expect(screen.getByText('Read More').props.style).toEqual(
-        expect.objectContaining({ textDecorationColor: 'transparent' }),
+        expect.objectContaining({ textDecorationColor: '#00ff00' }),
       );
 
       expect(timingSpy).not.toHaveBeenCalled();

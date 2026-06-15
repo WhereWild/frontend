@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { SelectField, SpeciesOccurrenceMap } from '@/components';
+import { SpeciesOccurrenceMap } from '@/components';
 import type { SelectOption } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { PageScrollContainer } from '@/components/PageScrollContainer';
@@ -62,19 +62,6 @@ const FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
   },
 ];
 
-const EXCLUDED_CATEGORIES = new Set(['temporal']);
-
-const WINDOW_OPTIONS: SelectOption[] = [
-  { value: 'live', label: 'Live (current)' },
-  { value: '1h', label: 'Last 1 hour' },
-  { value: '8h', label: 'Last 8 hours' },
-  { value: '24h', label: 'Last 24 hours' },
-  { value: '3d', label: 'Last 3 days' },
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-];
-
 const FORECAST_OPTIONS: SelectOption[] = [
   { value: 'now', label: 'Now' },
   { value: '1h', label: '+1 hour' },
@@ -84,22 +71,29 @@ const FORECAST_OPTIONS: SelectOption[] = [
   { value: '7d', label: '+7 days' },
 ];
 
+const FORECAST_HOUR_MAP: Record<string, number> = {
+  now: 0,
+  '1h': 1,
+  '8h': 8,
+  '24h': 24,
+  '3d': 72,
+  '7d': 168,
+};
+
 const toVariableOption = (
   variables: Awaited<ReturnType<typeof fetchEnvironmentVariables>>,
 ): EnvironmentVariableOption[] =>
-  variables
-    .filter((e) => !EXCLUDED_CATEGORIES.has((e.category ?? '').toLowerCase()))
-    .map((e) => ({
-      id: e.id,
-      label: e.name ?? normalizeLabel(e.id),
-      units: e.units ?? null,
-      valueType: e.valueType ?? null,
-      category: e.category ?? 'Other',
-      legendClasses: e.legendClasses ?? null,
-      renderMin: e.renderMin ?? null,
-      renderMax: e.renderMax ?? null,
-      sourceIds: e.sourceIds ?? [],
-    }));
+  variables.map((e) => ({
+    id: e.id,
+    label: e.name ?? normalizeLabel(e.id),
+    units: e.units ?? null,
+    valueType: e.valueType ?? null,
+    category: e.category ?? 'Other',
+    legendClasses: e.legendClasses ?? null,
+    renderMin: e.renderMin ?? null,
+    renderMax: e.renderMax ?? null,
+    sourceIds: e.sourceIds ?? [],
+  }));
 
 const buildTileUrl = ({
   cacheKey,
@@ -107,29 +101,23 @@ const buildTileUrl = ({
   circularColormap,
   isCircular,
   cbMode,
-  forecast,
-  isLiveWeather,
+  forecastH,
   variable,
-  window,
 }: {
   cacheKey: number;
   colormap: string;
   circularColormap: string;
   isCircular: boolean;
   cbMode: string | null;
-  forecast: string;
-  isLiveWeather: boolean;
+  forecastH: number;
   variable: string;
-  window: string;
 }) => {
   const effectiveColormap = isCircular ? circularColormap : colormap;
   const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
-  const base = `${BACKEND_BASE}/api/variables/${encodeURIComponent(
+  const fcParam = forecastH > 0 ? `&forecast_h=${forecastH}` : '';
+  return `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     variable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}`;
-  if (!isLiveWeather) return base;
-  const withWindow = window !== 'live' ? `${base}&window=${window}` : base;
-  return forecast !== 'now' ? `${withWindow}&forecast=${forecast}` : withWindow;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}`;
 };
 
 export default function Maps() {
@@ -159,7 +147,6 @@ export default function Maps() {
     Map<number, number>
   >(new Map());
   const [pinnedValue, setPinnedValue] = useState<number | null>(null);
-  const [selectedWindow, setSelectedWindow] = useState('live');
   const [selectedForecast, setSelectedForecast] = useState('now');
 
   useEffect(() => {
@@ -189,10 +176,14 @@ export default function Maps() {
     selectedVariableMeta,
   } = useEnvironmentVariableSelection({ variableId: 'landcover', variables });
 
-  const isLiveWeather =
-    (selectedVariableCategory ?? '').toLowerCase() === 'live weather';
+  const isRecentWeather =
+    (selectedVariableCategory ?? '').toLowerCase() === 'recent weather';
   const isCircular = isVariableCircular(selectedVariableMeta);
   const isCategorical = isVariableCategorical(selectedVariableMeta);
+
+  const forecastH = isRecentWeather
+    ? (FORECAST_HOUR_MAP[selectedForecast] ?? 0)
+    : 0;
 
   const tileCacheKey = useMemo(() => Date.now(), []);
 
@@ -204,10 +195,8 @@ export default function Maps() {
         circularColormap: selectedCircularColormap,
         isCircular,
         cbMode,
-        forecast: selectedForecast,
-        isLiveWeather,
+        forecastH,
         variable: selectedVariable,
-        window: selectedWindow,
       }),
     [
       tileCacheKey,
@@ -215,10 +204,8 @@ export default function Maps() {
       selectedCircularColormap,
       isCircular,
       cbMode,
-      selectedForecast,
-      isLiveWeather,
+      forecastH,
       selectedVariable,
-      selectedWindow,
     ],
   );
 
@@ -341,29 +328,10 @@ export default function Maps() {
               onVariableChange={setSelectedVariable}
               headingText={selectedVariableMeta?.label ?? 'Variable'}
               metaText={`id: ${selectedVariable}`}
+              forecastOptions={isRecentWeather ? FORECAST_OPTIONS : undefined}
+              selectedForecast={selectedForecast}
+              onForecastChange={setSelectedForecast}
             />
-
-            {isLiveWeather && (
-              <SelectField
-                variant='tertiary'
-                options={WINDOW_OPTIONS}
-                value={selectedWindow}
-                onValueChange={(v) => {
-                  setSelectedWindow(v);
-                  setSelectedForecast('now');
-                }}
-                placeholder='Aggregation window'
-              />
-            )}
-            {isLiveWeather && (
-              <SelectField
-                variant='tertiary'
-                options={FORECAST_OPTIONS}
-                value={selectedForecast}
-                onValueChange={setSelectedForecast}
-                placeholder='Forecast offset'
-              />
-            )}
 
             <View style={styles.mapContainer}>
               <SpeciesOccurrenceMap

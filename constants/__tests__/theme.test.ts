@@ -171,13 +171,13 @@ describe('Theme Tokens', () => {
       expect(bodySmallLinkStyle.fontFamily).toBe('Inter_400Regular');
       expect(bodySmallLinkStyle.color).toBe(Colors.light.text.brand.default);
       expect(Typography.light.bodySmallLink.textDecorationLine).toBe('underline');
-      expect(Typography.light.bodySmallLink.textDecorationColor).toBe('transparent');
+      expect(Typography.light.bodySmallLink.textDecorationColor).toBe(Colors.light.text.brand.default);
       expect(Typography.light.link.textDecorationLine).toBe('underline');
-      expect(Typography.light.link.textDecorationColor).toBe('transparent');
+      expect(Typography.light.link.textDecorationColor).toBe(Colors.light.text.brand.default);
       expect(Typography.dark.bodySmallLink.textDecorationLine).toBe('underline');
-      expect(Typography.dark.bodySmallLink.textDecorationColor).toBe('transparent');
+      expect(Typography.dark.bodySmallLink.textDecorationColor).toBe(Colors.dark.text.brand.default);
       expect(Typography.dark.link.textDecorationLine).toBe('underline');
-      expect(Typography.dark.link.textDecorationColor).toBe('transparent');
+      expect(Typography.dark.link.textDecorationColor).toBe(Colors.dark.text.brand.default);
       expect(Typography.dark.bodySmallLink.color).toBe(Colors.dark.text.brand.default);
       expect(Typography.dark.link.color).toBe(Colors.dark.text.brand.default);
     });
