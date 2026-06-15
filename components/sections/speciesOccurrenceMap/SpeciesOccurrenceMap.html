@@ -1385,16 +1385,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     map.on('zoomend', sendTiles);
     sendTiles();
 
-    // When a popup with a link opens, the browser auto-focuses the link and
-    // scrolls the parent page to bring the iframe into view. Blurring here
-    // prevents that focus from persisting and fighting user scroll.
-    map.on('popupopen', function() {
-      var active = document.activeElement;
-      if (active && active !== document.body && typeof active.blur === 'function') {
-        active.blur();
-      }
-    });
-
     applyHighlights([]);
     applySelectedPoint(null);
   </script>
