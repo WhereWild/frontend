@@ -54,7 +54,7 @@ type ContinuousInsightsProps = {
   /** Comparison labels against baseline/location-filter context. */
   summaryComparisons: Record<string, string | null>;
   /** Indicates whether comparisons should be shown instead of rank labels. */
-  locationFilterActive: boolean;
+  anyFilterActive: boolean;
   /** When 'circular', renders circular mean / R̄ / std dev instead of min/mean/max. */
   valueType?: string | null;
 };
@@ -68,7 +68,7 @@ export function ContinuousInsights({
   summary,
   summaryRanks,
   summaryComparisons,
-  locationFilterActive,
+  anyFilterActive,
   valueType,
 }: ContinuousInsightsProps) {
   const isCircular = valueType?.toLowerCase() === 'circular';
@@ -166,7 +166,7 @@ export function ContinuousInsights({
             label='Mean'
             value={formatDeg(summary?.circular_mean)}
             comparison={
-              locationFilterActive
+              anyFilterActive
                 ? (summaryComparisons.circular_mean ?? null)
                 : null
             }
@@ -177,10 +177,10 @@ export function ContinuousInsights({
             label='R̄'
             value={formatValue(summary?.rbar, 3)}
             rank={
-              locationFilterActive ? undefined : (summaryRanks.rbar ?? null)
+              anyFilterActive ? undefined : (summaryRanks.rbar ?? null)
             }
             comparison={
-              locationFilterActive ? (summaryComparisons.rbar ?? null) : null
+              anyFilterActive ? (summaryComparisons.rbar ?? null) : null
             }
             stacked={isStacked}
             prominent={!showRankContext}
@@ -189,12 +189,12 @@ export function ContinuousInsights({
             label='Standard Deviation'
             value={formatDeg(summary?.circular_std)}
             rank={
-              locationFilterActive
+              anyFilterActive
                 ? undefined
                 : (summaryRanks.circular_std ?? null)
             }
             comparison={
-              locationFilterActive
+              anyFilterActive
                 ? (summaryComparisons.circular_std ?? null)
                 : null
             }
@@ -230,10 +230,10 @@ export function ContinuousInsights({
               label='Median'
               value={formatValue(summary?.median, 1)}
               rank={
-                locationFilterActive ? undefined : (summaryRanks.median ?? null)
+                anyFilterActive ? undefined : (summaryRanks.median ?? null)
               }
               comparison={
-                locationFilterActive
+                anyFilterActive
                   ? (summaryComparisons.median ?? null)
                   : null
               }
@@ -244,10 +244,10 @@ export function ContinuousInsights({
               label='Std Dev'
               value={formatValue(summary?.std, 2)}
               rank={
-                locationFilterActive ? undefined : (summaryRanks.std ?? null)
+                anyFilterActive ? undefined : (summaryRanks.std ?? null)
               }
               comparison={
-                locationFilterActive ? (summaryComparisons.std ?? null) : null
+                anyFilterActive ? (summaryComparisons.std ?? null) : null
               }
               stacked={isStacked}
               prominent={!showRankContext}
@@ -256,10 +256,10 @@ export function ContinuousInsights({
               label='Range'
               value={formatValue(summary?.range, 1)}
               rank={
-                locationFilterActive ? undefined : (summaryRanks.range ?? null)
+                anyFilterActive ? undefined : (summaryRanks.range ?? null)
               }
               comparison={
-                locationFilterActive ? (summaryComparisons.range ?? null) : null
+                anyFilterActive ? (summaryComparisons.range ?? null) : null
               }
               stacked={isStacked}
               prominent={!showRankContext}
@@ -289,9 +289,9 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Mean'
                 value={formatValue(summary?.mean, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.mean}
+                rank={anyFilterActive ? undefined : summaryRanks.mean}
                 comparison={
-                  locationFilterActive
+                  anyFilterActive
                     ? (summaryComparisons.mean ?? null)
                     : null
                 }
@@ -301,9 +301,9 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Min'
                 value={formatValue(summary?.min, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.min}
+                rank={anyFilterActive ? undefined : summaryRanks.min}
                 comparison={
-                  locationFilterActive ? (summaryComparisons.min ?? null) : null
+                  anyFilterActive ? (summaryComparisons.min ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -311,9 +311,9 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Max'
                 value={formatValue(summary?.max, 1)}
-                rank={locationFilterActive ? undefined : summaryRanks.max}
+                rank={anyFilterActive ? undefined : summaryRanks.max}
                 comparison={
-                  locationFilterActive ? (summaryComparisons.max ?? null) : null
+                  anyFilterActive ? (summaryComparisons.max ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -334,10 +334,10 @@ export function ContinuousInsights({
                 label='Q10'
                 value={formatValue(summary?.q10, 1)}
                 rank={
-                  locationFilterActive ? undefined : (summaryRanks.q10 ?? null)
+                  anyFilterActive ? undefined : (summaryRanks.q10 ?? null)
                 }
                 comparison={
-                  locationFilterActive ? (summaryComparisons.q10 ?? null) : null
+                  anyFilterActive ? (summaryComparisons.q10 ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -346,10 +346,10 @@ export function ContinuousInsights({
                 label='Q90'
                 value={formatValue(summary?.q90, 1)}
                 rank={
-                  locationFilterActive ? undefined : (summaryRanks.q90 ?? null)
+                  anyFilterActive ? undefined : (summaryRanks.q90 ?? null)
                 }
                 comparison={
-                  locationFilterActive ? (summaryComparisons.q90 ?? null) : null
+                  anyFilterActive ? (summaryComparisons.q90 ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -358,12 +358,12 @@ export function ContinuousInsights({
                 label='Q10–Q90'
                 value={formatValue(summary?.q10_90_range, 1)}
                 rank={
-                  locationFilterActive
+                  anyFilterActive
                     ? undefined
                     : (summaryRanks.q10_90_range ?? null)
                 }
                 comparison={
-                  locationFilterActive
+                  anyFilterActive
                     ? (summaryComparisons.q10_90_range ?? null)
                     : null
                 }
@@ -386,10 +386,10 @@ export function ContinuousInsights({
                 label='Q25'
                 value={formatValue(summary?.q25, 1)}
                 rank={
-                  locationFilterActive ? undefined : (summaryRanks.q25 ?? null)
+                  anyFilterActive ? undefined : (summaryRanks.q25 ?? null)
                 }
                 comparison={
-                  locationFilterActive ? (summaryComparisons.q25 ?? null) : null
+                  anyFilterActive ? (summaryComparisons.q25 ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -398,10 +398,10 @@ export function ContinuousInsights({
                 label='Q75'
                 value={formatValue(summary?.q75, 1)}
                 rank={
-                  locationFilterActive ? undefined : (summaryRanks.q75 ?? null)
+                  anyFilterActive ? undefined : (summaryRanks.q75 ?? null)
                 }
                 comparison={
-                  locationFilterActive ? (summaryComparisons.q75 ?? null) : null
+                  anyFilterActive ? (summaryComparisons.q75 ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -410,10 +410,10 @@ export function ContinuousInsights({
                 label='IQR'
                 value={formatValue(summary?.iqr, 1)}
                 rank={
-                  locationFilterActive ? undefined : (summaryRanks.iqr ?? null)
+                  anyFilterActive ? undefined : (summaryRanks.iqr ?? null)
                 }
                 comparison={
-                  locationFilterActive ? (summaryComparisons.iqr ?? null) : null
+                  anyFilterActive ? (summaryComparisons.iqr ?? null) : null
                 }
                 stacked={isStacked}
                 prominent

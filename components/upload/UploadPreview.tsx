@@ -327,12 +327,16 @@ export function UploadPreview({
     ) {
       return { dotMin: null, dotMax: null };
     }
-    let mn = Infinity;
-    let mx = -Infinity;
-    for (const v of observationValues.values()) {
-      if (v < mn) mn = v;
-      if (v > mx) mx = v;
-    }
+    const vals = Array.from(observationValues.values()).sort((a, b) => a - b);
+    if (vals.length === 0) return { dotMin: null, dotMax: null };
+    const pct = (p: number) => {
+      const idx = (p / 100) * (vals.length - 1);
+      const lo = Math.floor(idx);
+      const hi = Math.min(lo + 1, vals.length - 1);
+      return vals[lo] + (idx - lo) * (vals[hi] - vals[lo]);
+    };
+    const mn = vals.length >= 2 ? pct(0.1) : vals[0];
+    const mx = vals.length >= 2 ? pct(99.9) : vals[0];
     return Number.isFinite(mn) && Number.isFinite(mx)
       ? { dotMin: mn, dotMax: mx }
       : { dotMin: null, dotMax: null };

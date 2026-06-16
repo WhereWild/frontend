@@ -17,10 +17,10 @@ import {
 
 /** Builds rank-context options from available relative-rank payload labels. */
 export const getRankContextOptions = (
-  locationFilterActive: boolean,
+  anyFilterActive: boolean,
   relativeRanks?: SpeciesEnvironmentRelativeRank[] | null,
 ): RankContextOption[] => {
-  if (locationFilterActive || !relativeRanks || !relativeRanks.length) {
+  if (anyFilterActive || !relativeRanks || !relativeRanks.length) {
     return [];
   }
 
@@ -111,7 +111,7 @@ export const resolveMetricRank = ({
 
 /** Produces baseline comparison labels when location filtering is active. */
 export const buildSummaryComparisons = (
-  locationFilterActive: boolean,
+  anyFilterActive: boolean,
   summary: SpeciesEnvironmentSummary | null | undefined,
   baselineSummary: SpeciesEnvironmentSummary | null,
   summaryRangeValue: number | null,
@@ -137,7 +137,7 @@ export const buildSummaryComparisons = (
     entropy: null,
     unique_classes: null,
   };
-  if (!locationFilterActive) return empty;
+  if (!anyFilterActive) return empty;
 
   const fcl = (
     curr: number | null | undefined,

@@ -640,7 +640,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
-    expect(result.current.locationFilterActive).toBe(true);
+    expect(result.current.anyFilterActive).toBe(true);
     expect(result.current.showRankContext).toBe(false);
     expect(result.current.rankContextOptions).toEqual([]);
   });
@@ -912,7 +912,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
-    expect(result.current.locationFilterActive).toBe(true);
+    expect(result.current.anyFilterActive).toBe(true);
     expect(result.current.summaryComparisons.mean).toContain('vs');
     expect(result.current.summaryComparisons.range99).toContain('vs');
   });

@@ -59,7 +59,7 @@ type PresentationInput = {
   stats: ReturnType<typeof useEnvironmentStats>['stats'];
   selectedVariable: string;
   selectedVariableMeta: EnvironmentVariableOption | null;
-  locationFilterActive: boolean;
+  anyFilterActive: boolean;
 };
 
 /** Derives baseline/summary/density display state from selected stats context. */
@@ -67,9 +67,9 @@ const resolvePresentationState = ({
   stats,
   selectedVariable,
   selectedVariableMeta,
-  locationFilterActive,
+  anyFilterActive,
 }: PresentationInput) => {
-  const baselineSummary = locationFilterActive
+  const baselineSummary = anyFilterActive
     ? (stats?.baselineSummary ?? null)
     : null;
   const summary = stats?.summary;
@@ -87,7 +87,7 @@ const resolvePresentationState = ({
 
   return {
     baselineSummary,
-    baselineCategoricalDistribution: locationFilterActive
+    baselineCategoricalDistribution: anyFilterActive
       ? (stats?.baselineCategoricalDistribution ?? null)
       : null,
     summary,
@@ -138,7 +138,11 @@ export function useSpeciesEnvironmentState({
     remapCategories: SPECIES_CATEGORY_REMAP,
   });
 
-  const locationFilterActive = Boolean(locationGid);
+  const anyFilterActive =
+    Boolean(locationGid) ||
+    Boolean(phenology) ||
+    startTimestamp != null ||
+    endTimestamp != null;
   const { stats, error, loading } = useEnvironmentStats({
     taxonId,
     selectedVariable,
@@ -162,9 +166,9 @@ export function useSpeciesEnvironmentState({
         stats,
         selectedVariable,
         selectedVariableMeta,
-        locationFilterActive,
+        anyFilterActive,
       }),
-    [locationFilterActive, selectedVariable, selectedVariableMeta, stats],
+    [anyFilterActive, selectedVariable, selectedVariableMeta, stats],
   );
 
   const {
@@ -207,8 +211,8 @@ export function useSpeciesEnvironmentState({
   );
 
   const rankContextOptions = React.useMemo<RankContextOption[]>(
-    () => getRankContextOptions(locationFilterActive, stats?.relativeRanks),
-    [locationFilterActive, stats?.relativeRanks],
+    () => getRankContextOptions(anyFilterActive, stats?.relativeRanks),
+    [anyFilterActive, stats?.relativeRanks],
   );
 
   const [selectedRankContextState, setSelectedRankContext] = React.useState<
@@ -367,7 +371,7 @@ export function useSpeciesEnvironmentState({
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
     () =>
       buildSummaryComparisons(
-        locationFilterActive,
+        anyFilterActive,
         summary,
         baselineSummary,
         summaryRangeValue,
@@ -376,7 +380,7 @@ export function useSpeciesEnvironmentState({
     [
       baselineRangeValue,
       baselineSummary,
-      locationFilterActive,
+      anyFilterActive,
       summary,
       summaryRangeValue,
     ],
@@ -391,7 +395,7 @@ export function useSpeciesEnvironmentState({
   );
 
   const showRankContext =
-    !locationFilterActive && rankContextOptions.length > 0;
+    !anyFilterActive && rankContextOptions.length > 0;
 
   const pinnedCategoryValue = React.useMemo(() => {
     if (!isCategorical || pinnedValue === null) {
@@ -516,7 +520,7 @@ export function useSpeciesEnvironmentState({
     setSelectedRankContext,
     summaryRanks,
     summaryComparisons,
-    locationFilterActive,
+    anyFilterActive,
     pinnedCategoryValue,
     pinnedUnobservedCategory,
     pinnedClassName,

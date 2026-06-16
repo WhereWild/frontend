@@ -357,6 +357,8 @@ export default function Species({
           observations?: { catalogNumber: string | number; value: number }[];
           min?: number | null;
           max?: number | null;
+          q01?: number | null;
+          q99?: number | null;
         }) => {
           if (cancelled) return;
           const map = new Map<string, number>();
@@ -366,8 +368,8 @@ export default function Species({
             }
           }
           setObservationValues(map);
-          setObsDotMin(typeof data.min === 'number' ? data.min : null);
-          setObsDotMax(typeof data.max === 'number' ? data.max : null);
+          setObsDotMin(typeof data.q01 === 'number' ? data.q01 : typeof data.min === 'number' ? data.min : null);
+          setObsDotMax(typeof data.q99 === 'number' ? data.q99 : typeof data.max === 'number' ? data.max : null);
         },
       )
       .catch(() => {
