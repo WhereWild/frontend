@@ -703,7 +703,11 @@ const NativeLeafletFrame = React.forwardRef<
       const x = window.scrollX;
       setTimeout(() => {
         if (window.scrollY !== y || window.scrollX !== x) {
-          window.scrollTo({ top: y, left: x, behavior: 'instant' } as ScrollToOptions);
+          window.scrollTo({
+            top: y,
+            left: x,
+            behavior: 'instant',
+          } as ScrollToOptions);
         }
       }, 0);
     };
