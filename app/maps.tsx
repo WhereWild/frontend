@@ -347,7 +347,7 @@ export default function Maps() {
                 onPointValue={handlePointValue}
                 pointQueryUrl={
                   selectedVariable
-                    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}`
+                    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}`
                     : null
                 }
                 isCircular={isCircular}

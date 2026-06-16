@@ -89,7 +89,7 @@ describe('ContinuousInsights', () => {
         summary={summary}
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
-        locationFilterActive={false}
+        anyFilterActive={false}
       />,
     );
 
@@ -108,7 +108,7 @@ describe('ContinuousInsights', () => {
         summary={summary}
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
-        locationFilterActive={false}
+        anyFilterActive={false}
       />,
     );
 
@@ -160,7 +160,7 @@ describe('ContinuousInsights', () => {
           mean: 'vs. 4 (+25%)',
           max: 'vs. 9 (+11%)',
         }}
-        locationFilterActive={true}
+        anyFilterActive={true}
       />,
     );
 
@@ -185,7 +185,7 @@ describe('ContinuousInsights', () => {
         summary={summary}
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
-        locationFilterActive={false}
+        anyFilterActive={false}
       />,
     );
 
@@ -212,7 +212,7 @@ describe('ContinuousInsights', () => {
           summary={summary}
           summaryRanks={{ min: null, mean: null, max: null }}
           summaryComparisons={{ min: null, mean: null, max: null }}
-          locationFilterActive={false}
+          anyFilterActive={false}
         />,
       );
     });
@@ -248,7 +248,7 @@ describe('ContinuousInsights', () => {
           summary={summary}
           summaryRanks={{ min: null, mean: null, max: null }}
           summaryComparisons={{ min: null, mean: null, max: null }}
-          locationFilterActive={false}
+          anyFilterActive={false}
         />,
       );
     });
@@ -286,7 +286,7 @@ describe('ContinuousInsights', () => {
           summary={summary}
           summaryRanks={{ min: null, mean: null, max: null }}
           summaryComparisons={{ min: null, mean: null, max: null }}
-          locationFilterActive={false}
+          anyFilterActive={false}
         />,
       );
     });
@@ -350,7 +350,7 @@ describe('ContinuousInsights', () => {
           },
         }}
         summaryComparisons={{ min: null, mean: null, max: null }}
-        locationFilterActive={true}
+        anyFilterActive={true}
       />,
     );
 
@@ -379,7 +379,7 @@ describe('ContinuousInsights', () => {
         summary={summary}
         summaryRanks={{ min: null, mean: null, max: null }}
         summaryComparisons={{ min: null, mean: null, max: null }}
-        locationFilterActive={false}
+        anyFilterActive={false}
       />,
     );
 
@@ -395,7 +395,7 @@ describe('ContinuousInsights', () => {
       summary: { count: 0, min: 1, mean: 5, max: 10 },
       summaryRanks: { min: null, mean: null, max: null },
       summaryComparisons: { min: null, mean: null, max: null },
-      locationFilterActive: false,
+      anyFilterActive: false,
       valueType: 'circular',
     };
 

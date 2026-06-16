@@ -62,7 +62,7 @@ const baseProps = {
   summaryRanks: baseSummaryRanks,
   categoricalDistribution: [],
   selectedCategoryValue: null,
-  locationFilterActive: false,
+  anyFilterActive: false,
 };
 
 describe('NominalInsights', () => {
@@ -166,12 +166,12 @@ describe('NominalInsights', () => {
     ).not.toThrow();
   });
 
-  it('renders with locationFilterActive true (hides rank indicators)', () => {
+  it('renders with anyFilterActive true (hides rank indicators)', () => {
     expect(() =>
       render(
         <NominalInsights
           {...baseProps}
-          locationFilterActive
+          anyFilterActive
           summaryRanks={{
             unique_classes: { rank: 3, total: 10 } as never,
             entropy: null,

@@ -693,61 +693,26 @@ const NativeLeafletFrame = React.forwardRef<
     const iframe = internalRef.current;
     if (!iframe || typeof window === 'undefined') return;
 
-    // When the user presses Tab to reach the iframe, the browser auto-scrolls
-    // the page to bring it into view. We detect that by watching for a Tab
-    // keydown followed by an iframe focus event, then reverse the resulting
-    // scroll. All other scrolls — scrollbar drag, wheel, touch, or popup links
-    // getting auto-focused inside the iframe — are left alone.
-    let focusTriggerDeadline = 0;
-    let tabPendingDeadline = 0;
-
-    // Only reverse scroll when iframe focus was reached via keyboard Tab.
-    // A Tab keydown sets a short window; if iframe focus fires inside that
-    // window we know the browser is about to auto-scroll the page to bring
-    // the iframe into view and we want to cancel that scroll.
-    // Focus from clicking inside the iframe (e.g. a popup link getting
-    // auto-focused) does NOT follow a Tab keydown, so it never trips this.
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') tabPendingDeadline = Date.now() + 1000;
+    // Clicking inside the iframe causes the browser to auto-scroll the outer
+    // page to bring the iframe fully into view. We intercept pointerdown on
+    // the iframe element (which fires in the outer document before focus
+    // changes), snapshot the scroll position, and restore it in the next
+    // animation frame after the browser has finished its auto-scroll.
+    const onPointerDown = () => {
+      const y = window.scrollY;
+      const x = window.scrollX;
+      setTimeout(() => {
+        if (window.scrollY !== y || window.scrollX !== x) {
+          window.scrollTo({
+            top: y,
+            left: x,
+            behavior: 'instant',
+          } as ScrollToOptions);
+        }
+      }, 0);
     };
-    const onIframeFocus = () => {
-      if (Date.now() < tabPendingDeadline) {
-        focusTriggerDeadline = Date.now() + 500;
-        tabPendingDeadline = 0;
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown, { capture: true });
-    iframe.addEventListener('focus', onIframeFocus);
-
-    let savedWinY = window.scrollY;
-    let savedWinX = window.scrollX;
-    const onWindowScroll = () => {
-      if (Date.now() < focusTriggerDeadline) {
-        window.scrollTo({
-          top: savedWinY,
-          left: savedWinX,
-          behavior: 'instant',
-        } as ScrollToOptions);
-      } else {
-        savedWinY = window.scrollY;
-        savedWinX = window.scrollX;
-      }
-    };
-    window.addEventListener('scroll', onWindowScroll, {
-      passive: true,
-      capture: true,
-    });
-
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, {
-        capture: true,
-      } as EventListenerOptions);
-      window.removeEventListener('scroll', onWindowScroll, {
-        capture: true,
-      } as EventListenerOptions);
-      iframe.removeEventListener('focus', onIframeFocus);
-    };
+    iframe.addEventListener('pointerdown', onPointerDown);
+    return () => iframe.removeEventListener('pointerdown', onPointerDown);
   }, []);
 
   return React.createElement(
