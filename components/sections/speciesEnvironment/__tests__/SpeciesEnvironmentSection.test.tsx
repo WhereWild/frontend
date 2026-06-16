@@ -265,7 +265,7 @@ const baseState: SpeciesEnvironmentState = {
     std: null,
     range99: null,
   },
-  locationFilterActive: false,
+  anyFilterActive: false,
   pinnedCategoryValue: null,
   pinnedUnobservedCategory: null,
   pinnedClassName: null,
@@ -404,7 +404,7 @@ describe('SpeciesEnvironmentSection', () => {
         ...baseContinuousStats,
         allObscured: true,
       },
-      locationFilterActive: true,
+      anyFilterActive: true,
       isCategorical: false,
       densityCurve: baseContinuousStats.densityCurve ?? null,
       summary: baseContinuousStats.summary,
@@ -414,7 +414,7 @@ describe('SpeciesEnvironmentSection', () => {
 
     expect(
       screen.getByText(
-        'All observations for this species in the selected location have obscured locations and cannot be used for environmental analysis.',
+        'All observations for this species matching the active filters have obscured locations and cannot be used for environmental analysis.',
       ),
     ).toBeTruthy();
   });

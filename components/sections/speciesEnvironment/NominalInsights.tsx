@@ -41,7 +41,7 @@ type NominalInsightsProps = {
   baselineCategoricalDistribution?: SpeciesEnvironmentCategory[] | null;
   categoricalDistribution: SpeciesEnvironmentCategory[];
   selectedCategoryValue: number | string | null;
-  locationFilterActive: boolean;
+  anyFilterActive: boolean;
 };
 
 export function NominalInsights({
@@ -55,7 +55,7 @@ export function NominalInsights({
   baselineCategoricalDistribution,
   categoricalDistribution,
   selectedCategoryValue,
-  locationFilterActive,
+  anyFilterActive,
 }: NominalInsightsProps) {
   const { breakpoint } = useResponsive();
   const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
@@ -91,7 +91,7 @@ export function NominalInsights({
   const thirdSlotCategoryValue =
     selectedCategory != null ? selectedCategoryValue : summary?.mode;
   const baselineThirdFraction =
-    locationFilterActive && thirdSlotCategoryValue != null
+    anyFilterActive && thirdSlotCategoryValue != null
       ? (baselineCategoricalDistribution?.find(
           (c) => String(c.value) === String(thirdSlotCategoryValue),
         )?.fraction ?? null)
@@ -187,12 +187,10 @@ export function NominalInsights({
               : '—'
           }
           rank={
-            locationFilterActive
-              ? undefined
-              : (summaryRanks.unique_classes ?? null)
+            anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)
           }
           comparison={
-            locationFilterActive
+            anyFilterActive
               ? (summaryComparisons?.unique_classes ?? null)
               : null
           }
@@ -202,11 +200,9 @@ export function NominalInsights({
         <SummaryItem
           label='Entropy'
           value={formatValue(summary?.entropy, 3)}
-          rank={
-            locationFilterActive ? undefined : (summaryRanks.entropy ?? null)
-          }
+          rank={anyFilterActive ? undefined : (summaryRanks.entropy ?? null)}
           comparison={
-            locationFilterActive ? (summaryComparisons?.entropy ?? null) : null
+            anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
           }
           stacked={isStacked}
           prominent={!showRankContext}
@@ -214,8 +210,8 @@ export function NominalInsights({
         <SummaryItem
           label={thirdSlot.label}
           value={thirdSlot.value}
-          rank={locationFilterActive ? undefined : (thirdSlot.rank ?? null)}
-          comparison={locationFilterActive ? thirdSlotComparison : null}
+          rank={anyFilterActive ? undefined : (thirdSlot.rank ?? null)}
+          comparison={anyFilterActive ? thirdSlotComparison : null}
           stacked={isStacked}
           prominent={!showRankContext}
           isLast

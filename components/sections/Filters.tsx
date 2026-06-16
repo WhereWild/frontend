@@ -4,6 +4,11 @@
 
 import React from 'react';
 import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
+import {
+  formatWindowHours,
+  parseTemporalId,
+  stripTemporalSuffix,
+} from '@/components/sections/speciesEnvironment/temporalHelpers';
 import { IconRotateCcw } from '@/assets/icons';
 import type { SpeciesSummary } from '@/data/types';
 import { SearchResults } from '../lists/SearchResults';
@@ -145,6 +150,63 @@ export function Filters({
   const includeSubspeciesEnabled = rankValue === 'species';
   const isCircularBearing =
     sortMetricValue === 'circular_mean' || sortMetricValue === 'mode';
+
+  const baseVariableOptions = React.useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const option of sortVariableOptions) {
+      const parsed = parseTemporalId(option.value);
+      if (parsed) {
+        if (!seen.has(parsed.baseId)) {
+          seen.set(parsed.baseId, stripTemporalSuffix(option.label));
+        }
+      } else {
+        if (!seen.has(option.value)) {
+          seen.set(option.value, option.label);
+        }
+      }
+    }
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
+  }, [sortVariableOptions]);
+
+  const parsedSortVariable = React.useMemo(
+    () => parseTemporalId(sortVariableValue),
+    [sortVariableValue],
+  );
+
+  const selectedBaseKey = parsedSortVariable?.baseId ?? sortVariableValue;
+
+  const windowOptions = React.useMemo(() => {
+    if (!parsedSortVariable || !selectedBaseKey) return [];
+    return sortVariableOptions
+      .flatMap((option) => {
+        const p = parseTemporalId(option.value);
+        return p && p.baseId === selectedBaseKey
+          ? [{ p, value: option.value }]
+          : [];
+      })
+      .sort((a, b) => a.p.windowHours - b.p.windowHours)
+      .map(({ p, value }) => ({
+        value,
+        label: `${formatWindowHours(p.windowHours)} (${p.agg})`,
+      }));
+  }, [parsedSortVariable, selectedBaseKey, sortVariableOptions]);
+
+  const handleBaseChange = React.useCallback(
+    (newBase: string) => {
+      const firstWindow = sortVariableOptions
+        .flatMap((option) => {
+          const p = parseTemporalId(option.value);
+          return p && p.baseId === newBase ? [{ p, value: option.value }] : [];
+        })
+        .sort((a, b) => a.p.windowHours - b.p.windowHours)[0];
+      onSortVariableChange?.(firstWindow ? firstWindow.value : newBase);
+    },
+    [sortVariableOptions, onSortVariableChange],
+  );
+
   const countrySelectOptions = React.useMemo(
     () => prependAllOption(countryOptions, 'All countries'),
     [countryOptions],
@@ -218,10 +280,18 @@ export function Filters({
           label='Variable'
           placeholder='Select variable'
           disabled={sortVariableDisabled}
-          value={sortVariableValue}
-          options={sortVariableOptions}
-          onValueChange={onSortVariableChange}
+          value={selectedBaseKey}
+          options={baseVariableOptions}
+          onValueChange={handleBaseChange}
         />
+        {!sortVariableDisabled && windowOptions.length > 0 && (
+          <SelectField
+            label='Time window'
+            value={sortVariableValue}
+            options={windowOptions}
+            onValueChange={onSortVariableChange}
+          />
+        )}
         {sortVariableSourceIds && sortVariableSourceIds.length > 0 && (
           <SourceAttribution
             sourceIds={sortVariableSourceIds}

@@ -118,7 +118,7 @@ function SpeciesEnvironmentSectionComponent({
     baselineCategoricalDistribution: ReturnType<
       typeof useSpeciesEnvironmentState
     >['baselineCategoricalDistribution'];
-    locationFilterActive: boolean;
+    anyFilterActive: boolean;
     pinnedCategoryValue: ReturnType<
       typeof useSpeciesEnvironmentState
     >['pinnedCategoryValue'];
@@ -173,7 +173,7 @@ function SpeciesEnvironmentSectionComponent({
     setSelectedRankContext,
     summaryRanks,
     summaryComparisons,
-    locationFilterActive,
+    anyFilterActive,
     pinnedCategoryValue,
     pinnedUnobservedCategory,
     pinnedClassName,
@@ -303,7 +303,7 @@ function SpeciesEnvironmentSectionComponent({
         summaryRanks,
         summaryComparisons,
         baselineCategoricalDistribution,
-        locationFilterActive,
+        anyFilterActive,
         pinnedCategoryValue,
         pinnedUnobservedCategory: cbPinnedUnobservedCategory,
         pinnedClassName,
@@ -431,7 +431,7 @@ function SpeciesEnvironmentSectionComponent({
               style={{ color: palette.text.warning.default }}
             >
               All observations for this species
-              {locationFilterActive ? ' in the selected location' : ''} have
+              {anyFilterActive ? ' matching the active filters' : ''} have
               obscured locations and cannot be used for environmental analysis.
             </ThemedText>
           </View>
@@ -521,7 +521,7 @@ function SpeciesEnvironmentSectionComponent({
               selectedCategoryValue={
                 displayState?.selectedCategoryValue ?? null
               }
-              locationFilterActive={locationFilterActive}
+              anyFilterActive={anyFilterActive}
             />
           )}
         </View>
@@ -574,9 +574,7 @@ function SpeciesEnvironmentSectionComponent({
                   }
                 }
                 summaryComparisons={displayState?.summaryComparisons ?? {}}
-                locationFilterActive={
-                  displayState?.locationFilterActive ?? false
-                }
+                anyFilterActive={displayState?.anyFilterActive ?? false}
                 valueType='circular'
               />
             </>
@@ -617,9 +615,7 @@ function SpeciesEnvironmentSectionComponent({
                     max: null,
                   }
                 }
-                locationFilterActive={
-                  displayState?.locationFilterActive ?? false
-                }
+                anyFilterActive={displayState?.anyFilterActive ?? false}
               />
             </>
           )}
