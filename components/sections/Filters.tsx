@@ -165,7 +165,10 @@ export function Filters({
         }
       }
     }
-    return Array.from(seen.entries()).map(([value, label]) => ({ value, label }));
+    return Array.from(seen.entries()).map(([value, label]) => ({
+      value,
+      label,
+    }));
   }, [sortVariableOptions]);
 
   const parsedSortVariable = React.useMemo(
@@ -180,7 +183,9 @@ export function Filters({
     return sortVariableOptions
       .flatMap((option) => {
         const p = parseTemporalId(option.value);
-        return p && p.baseId === selectedBaseKey ? [{ p, value: option.value }] : [];
+        return p && p.baseId === selectedBaseKey
+          ? [{ p, value: option.value }]
+          : [];
       })
       .sort((a, b) => a.p.windowHours - b.p.windowHours)
       .map(({ p, value }) => ({

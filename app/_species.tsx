@@ -368,8 +368,20 @@ export default function Species({
             }
           }
           setObservationValues(map);
-          setObsDotMin(typeof data.q01 === 'number' ? data.q01 : typeof data.min === 'number' ? data.min : null);
-          setObsDotMax(typeof data.q99 === 'number' ? data.q99 : typeof data.max === 'number' ? data.max : null);
+          setObsDotMin(
+            typeof data.q01 === 'number'
+              ? data.q01
+              : typeof data.min === 'number'
+                ? data.min
+                : null,
+          );
+          setObsDotMax(
+            typeof data.q99 === 'number'
+              ? data.q99
+              : typeof data.max === 'number'
+                ? data.max
+                : null,
+          );
         },
       )
       .catch(() => {

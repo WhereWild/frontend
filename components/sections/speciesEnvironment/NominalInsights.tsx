@@ -187,9 +187,7 @@ export function NominalInsights({
               : '—'
           }
           rank={
-            anyFilterActive
-              ? undefined
-              : (summaryRanks.unique_classes ?? null)
+            anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)
           }
           comparison={
             anyFilterActive
@@ -202,9 +200,7 @@ export function NominalInsights({
         <SummaryItem
           label='Entropy'
           value={formatValue(summary?.entropy, 3)}
-          rank={
-            anyFilterActive ? undefined : (summaryRanks.entropy ?? null)
-          }
+          rank={anyFilterActive ? undefined : (summaryRanks.entropy ?? null)}
           comparison={
             anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
           }

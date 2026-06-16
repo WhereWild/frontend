@@ -574,9 +574,7 @@ function SpeciesEnvironmentSectionComponent({
                   }
                 }
                 summaryComparisons={displayState?.summaryComparisons ?? {}}
-                anyFilterActive={
-                  displayState?.anyFilterActive ?? false
-                }
+                anyFilterActive={displayState?.anyFilterActive ?? false}
                 valueType='circular'
               />
             </>
@@ -617,9 +615,7 @@ function SpeciesEnvironmentSectionComponent({
                     max: null,
                   }
                 }
-                anyFilterActive={
-                  displayState?.anyFilterActive ?? false
-                }
+                anyFilterActive={displayState?.anyFilterActive ?? false}
               />
             </>
           )}

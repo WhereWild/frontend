@@ -394,8 +394,7 @@ export function useSpeciesEnvironmentState({
     [categoricalDistribution, isCategorical, summary],
   );
 
-  const showRankContext =
-    !anyFilterActive && rankContextOptions.length > 0;
+  const showRankContext = !anyFilterActive && rankContextOptions.length > 0;
 
   const pinnedCategoryValue = React.useMemo(() => {
     if (!isCategorical || pinnedValue === null) {

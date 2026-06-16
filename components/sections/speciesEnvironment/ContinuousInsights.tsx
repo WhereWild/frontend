@@ -176,9 +176,7 @@ export function ContinuousInsights({
           <SummaryItem
             label='R̄'
             value={formatValue(summary?.rbar, 3)}
-            rank={
-              anyFilterActive ? undefined : (summaryRanks.rbar ?? null)
-            }
+            rank={anyFilterActive ? undefined : (summaryRanks.rbar ?? null)}
             comparison={
               anyFilterActive ? (summaryComparisons.rbar ?? null) : null
             }
@@ -189,14 +187,10 @@ export function ContinuousInsights({
             label='Standard Deviation'
             value={formatDeg(summary?.circular_std)}
             rank={
-              anyFilterActive
-                ? undefined
-                : (summaryRanks.circular_std ?? null)
+              anyFilterActive ? undefined : (summaryRanks.circular_std ?? null)
             }
             comparison={
-              anyFilterActive
-                ? (summaryComparisons.circular_std ?? null)
-                : null
+              anyFilterActive ? (summaryComparisons.circular_std ?? null) : null
             }
             stacked={isStacked}
             prominent={!showRankContext}
@@ -229,13 +223,9 @@ export function ContinuousInsights({
             <SummaryItem
               label='Median'
               value={formatValue(summary?.median, 1)}
-              rank={
-                anyFilterActive ? undefined : (summaryRanks.median ?? null)
-              }
+              rank={anyFilterActive ? undefined : (summaryRanks.median ?? null)}
               comparison={
-                anyFilterActive
-                  ? (summaryComparisons.median ?? null)
-                  : null
+                anyFilterActive ? (summaryComparisons.median ?? null) : null
               }
               stacked={isStacked}
               prominent={!showRankContext}
@@ -243,9 +233,7 @@ export function ContinuousInsights({
             <SummaryItem
               label='Std Dev'
               value={formatValue(summary?.std, 2)}
-              rank={
-                anyFilterActive ? undefined : (summaryRanks.std ?? null)
-              }
+              rank={anyFilterActive ? undefined : (summaryRanks.std ?? null)}
               comparison={
                 anyFilterActive ? (summaryComparisons.std ?? null) : null
               }
@@ -255,9 +243,7 @@ export function ContinuousInsights({
             <SummaryItem
               label='Range'
               value={formatValue(summary?.range, 1)}
-              rank={
-                anyFilterActive ? undefined : (summaryRanks.range ?? null)
-              }
+              rank={anyFilterActive ? undefined : (summaryRanks.range ?? null)}
               comparison={
                 anyFilterActive ? (summaryComparisons.range ?? null) : null
               }
@@ -291,9 +277,7 @@ export function ContinuousInsights({
                 value={formatValue(summary?.mean, 1)}
                 rank={anyFilterActive ? undefined : summaryRanks.mean}
                 comparison={
-                  anyFilterActive
-                    ? (summaryComparisons.mean ?? null)
-                    : null
+                  anyFilterActive ? (summaryComparisons.mean ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
@@ -333,9 +317,7 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Q10'
                 value={formatValue(summary?.q10, 1)}
-                rank={
-                  anyFilterActive ? undefined : (summaryRanks.q10 ?? null)
-                }
+                rank={anyFilterActive ? undefined : (summaryRanks.q10 ?? null)}
                 comparison={
                   anyFilterActive ? (summaryComparisons.q10 ?? null) : null
                 }
@@ -345,9 +327,7 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Q90'
                 value={formatValue(summary?.q90, 1)}
-                rank={
-                  anyFilterActive ? undefined : (summaryRanks.q90 ?? null)
-                }
+                rank={anyFilterActive ? undefined : (summaryRanks.q90 ?? null)}
                 comparison={
                   anyFilterActive ? (summaryComparisons.q90 ?? null) : null
                 }
@@ -385,9 +365,7 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Q25'
                 value={formatValue(summary?.q25, 1)}
-                rank={
-                  anyFilterActive ? undefined : (summaryRanks.q25 ?? null)
-                }
+                rank={anyFilterActive ? undefined : (summaryRanks.q25 ?? null)}
                 comparison={
                   anyFilterActive ? (summaryComparisons.q25 ?? null) : null
                 }
@@ -397,9 +375,7 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Q75'
                 value={formatValue(summary?.q75, 1)}
-                rank={
-                  anyFilterActive ? undefined : (summaryRanks.q75 ?? null)
-                }
+                rank={anyFilterActive ? undefined : (summaryRanks.q75 ?? null)}
                 comparison={
                   anyFilterActive ? (summaryComparisons.q75 ?? null) : null
                 }
@@ -409,9 +385,7 @@ export function ContinuousInsights({
               <SummaryItem
                 label='IQR'
                 value={formatValue(summary?.iqr, 1)}
-                rank={
-                  anyFilterActive ? undefined : (summaryRanks.iqr ?? null)
-                }
+                rank={anyFilterActive ? undefined : (summaryRanks.iqr ?? null)}
                 comparison={
                   anyFilterActive ? (summaryComparisons.iqr ?? null) : null
                 }
