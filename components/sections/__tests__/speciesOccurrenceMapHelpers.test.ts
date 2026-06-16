@@ -245,6 +245,8 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
     };
 
+    const HTMLElement = { prototype: { focus: jest.fn() } };
+
     return {
       context: {
         L,
@@ -258,6 +260,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         JSON,
         isFinite,
         URL: urlApi,
+        HTMLElement,
         fetch: undefined as
           | ((
               input: string,
