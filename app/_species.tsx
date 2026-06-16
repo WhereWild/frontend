@@ -252,6 +252,8 @@ export default function Species({
   > | null>(null);
   const [obsDotMin, setObsDotMin] = React.useState<number | null>(null);
   const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
+  const [obsLabelMin, setObsLabelMin] = React.useState<number | null>(null);
+  const [obsLabelMax, setObsLabelMax] = React.useState<number | null>(null);
   const [selectedPhenology, setSelectedPhenology] = React.useState<
     string | null
   >(null);
@@ -335,6 +337,8 @@ export default function Species({
       setObservationValues(null);
       setObsDotMin(null);
       setObsDotMax(null);
+      setObsLabelMin(null);
+      setObsLabelMax(null);
     },
     [],
   );
@@ -382,6 +386,8 @@ export default function Species({
                 ? data.max
                 : null,
           );
+          setObsLabelMin(typeof data.min === 'number' ? data.min : null);
+          setObsLabelMax(typeof data.max === 'number' ? data.max : null);
         },
       )
       .catch(() => {
@@ -699,11 +705,11 @@ export default function Species({
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&
                   !isVariableCircular(selectedVariableMeta) &&
-                  obsDotMin != null &&
-                  obsDotMax != null && (
+                  obsLabelMin != null &&
+                  obsLabelMax != null && (
                     <MapVariableLegend
-                      min={obsDotMin}
-                      max={obsDotMax}
+                      min={obsLabelMin}
+                      max={obsLabelMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
                       barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
