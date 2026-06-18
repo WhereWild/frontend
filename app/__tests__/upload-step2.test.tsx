@@ -86,6 +86,7 @@ describe('Upload screen step 2', () => {
   it('shows a non-fatal warning when uploaded categorical keys cannot support highlighting', async () => {
     mockNormalize.mockReturnValue({
       categoricalStats: [],
+      ordinalStats: [],
       densityGraph: [],
       occurrences: [{ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }],
       occurrenceIndex: [],

@@ -55,6 +55,7 @@ describe('UploadPreview', () => {
         height={320}
         uploadedBundle={{
           categoricalStats: [],
+          ordinalStats: [],
           densityGraph: [],
           occurrences: [
             { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },

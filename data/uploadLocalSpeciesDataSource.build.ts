@@ -200,6 +200,16 @@ const buildStatsByVariable = (
     return acc;
   }, {});
 
+  const ordinalByVariable = bundle.ordinalStats.reduce<
+    Record<string, UploadedCategoricalStatsRow[]>
+  >((acc, row) => {
+    if (!acc[row.variable]) {
+      acc[row.variable] = [];
+    }
+    acc[row.variable].push(row);
+    return acc;
+  }, {});
+
   const categoricalLookupByVariableAndMetric = (
     bundle.categoricalValueLookup ?? []
   ).reduce<
@@ -229,6 +239,7 @@ const buildStatsByVariable = (
     ...Object.keys(summaryByVariable),
     ...Object.keys(densityByVariable),
     ...Object.keys(categoricalByVariable),
+    ...Object.keys(ordinalByVariable),
   ]);
 
   return Array.from(variableIds).reduce<
@@ -237,6 +248,75 @@ const buildStatsByVariable = (
     const summaryRow = summaryByVariable[variable];
     const variableDefinition = variableDefinitionsById.get(variable);
     const densityRows = densityByVariable[variable] ?? [];
+
+    // Ordinal path: class_id-sorted distribution + quantile stats from tall rows.
+    const ordinalRows = ordinalByVariable[variable];
+    if (ordinalRows) {
+      const ordinalLookupByMetric = categoricalLookupByVariableAndMetric[variable] ?? {};
+      const metricVal = (m: string) => ordinalRows.find((r) => r.metric === m)?.value ?? null;
+      const totalSamples = metricVal('total_samples');
+      const classRows = ordinalRows
+        .filter((r) => r.metric.startsWith('class_'))
+        .map((r) => {
+          const classId = parseInt(r.metric.slice(6), 10);
+          const fraction = r.value;
+          const count = typeof totalSamples === 'number' ? Math.round(totalSamples * fraction) : 0;
+          const lookupEntry = ordinalLookupByMetric[r.metric];
+          const legendClass = variableDefinition?.legendClasses?.find(
+            (cls) => String(cls.id) === String(classId),
+          );
+          return {
+            value: r.metric,
+            className: r.metricLabel ?? lookupEntry?.label ?? r.metric,
+            description: lookupEntry?.description ?? null,
+            color: legendClass?.color ?? null,
+            count,
+            fraction,
+            classId,
+          };
+        })
+        .sort((a, b) => a.classId - b.classId)
+        .map(({ classId: _cid, ...rest }) => rest);
+
+      acc[variable] = {
+        speciesId,
+        variable,
+        variableName: summaryRow?.variableName ?? variableDefinition?.name ?? variable,
+        units: summaryRow?.units ?? variableDefinition?.units ?? null,
+        variableType: 'ordinal',
+        summary: {
+          count: typeof totalSamples === 'number' ? Math.round(totalSamples) : (summaryRow?.count ?? 0),
+          min: null,
+          mean: null,
+          max: null,
+          median: metricVal('median'),
+          std: null,
+          stddev: null,
+          variance: null,
+          range: null,
+          q01: null,
+          q10: metricVal('10th_percentile'),
+          q25: metricVal('25th_percentile'),
+          q75: metricVal('75th_percentile'),
+          q90: metricVal('90th_percentile'),
+          q99: null,
+          iqr: null,
+          q10_90_range: null,
+          circular_mean: null,
+          rbar: null,
+          circular_std: null,
+          circular_var: null,
+          unique_classes: metricVal('unique_classes'),
+          entropy: metricVal('entropy'),
+          mode: metricVal('mode'),
+        },
+        histogram: null,
+        densityCurve: null,
+        categoricalDistribution: classRows,
+      };
+      return acc;
+    }
+
     const categoryRows = categoricalByVariable[variable] ?? [];
     const categoryLookupByMetric =
       categoricalLookupByVariableAndMetric[variable] ?? {};
@@ -893,6 +973,7 @@ const buildScopedStats = ({
   const isCategorical =
     stats.variableType?.toLowerCase() === 'categorical' ||
     stats.variableType?.toLowerCase() === 'nominal' ||
+    stats.variableType?.toLowerCase() === 'ordinal' ||
     (stats.categoricalDistribution?.length ?? 0) > 0;
 
   if (isCategorical) {

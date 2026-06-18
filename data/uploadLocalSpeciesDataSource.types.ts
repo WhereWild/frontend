@@ -200,6 +200,7 @@ export type RawLocationRow = {
 
 export type RawUploadedParquetBundle = {
   categoricalStats: RawCategoricalStatsRow[];
+  ordinalStats?: RawCategoricalStatsRow[];
   circularStats?: RawSummaryStatsRow[];
   categoricalValueLookup?: RawCategoricalValueLookupRow[];
   densityGraph: RawDensityGraphRow[];
@@ -215,6 +216,7 @@ export type RawUploadedParquetBundle = {
 
 export type UploadedParquetBundle = {
   categoricalStats: UploadedCategoricalStatsRow[];
+  ordinalStats: UploadedCategoricalStatsRow[];
   categoricalValueLookup?: UploadedCategoricalValueLookupRow[];
   densityGraph: UploadedDensityGraphPoint[];
   occurrences: UploadedOccurrenceRow[];

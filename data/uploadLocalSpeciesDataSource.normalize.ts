@@ -108,6 +108,22 @@ export const normalizeRawUploadedParquetBundle = (
     })
     .filter((row): row is UploadedCategoricalStatsRow => row !== null);
 
+  const ordinalStats = (rawBundle.ordinalStats ?? [])
+    .map((row): UploadedCategoricalStatsRow | null => {
+      const variable = toStringValue(row.variable);
+      const variableCategory = toStringValue(row.variableCategory);
+      const metric = toStringValue(row.metric);
+      const metricLabel = toStringValue(row.metricLabel);
+      const value = toFiniteNumber(row.value);
+      if (!variable || !metric || value === null) {
+        return null;
+      }
+      assignDisplayName(variable, row.variableName);
+      assignValueType(variable, 'ordinal');
+      return { variable, variableCategory, metric, metricLabel, value };
+    })
+    .filter((row): row is UploadedCategoricalStatsRow => row !== null);
+
   const categoricalValueLookup = (rawBundle.categoricalValueLookup ?? [])
     .map((row): UploadedCategoricalValueLookupRow | null => {
       const variable = toStringValue(row.variable);
@@ -183,10 +199,13 @@ export const normalizeRawUploadedParquetBundle = (
     })
     .filter((row): row is UploadedOccurrenceRow => row !== null);
 
-  const categoryMetricsByVariable = categoricalStats.reduce<
+  const categoryMetricsByVariable = [...categoricalStats, ...ordinalStats].reduce<
     Record<string, string[]>
   >((acc, row) => {
     if (isCategoricalAggregateMetric(row.metric)) {
+      return acc;
+    }
+    if (!row.metric.startsWith('class_')) {
       return acc;
     }
     if (!acc[row.variable]) {
@@ -394,6 +413,7 @@ export const normalizeRawUploadedParquetBundle = (
   const variableIds = new Set<string>([
     ...summaryStats.map((row) => row.variable),
     ...categoricalStats.map((row) => row.variable),
+    ...ordinalStats.map((row) => row.variable),
     ...categoricalValueLookup.map((row) => row.variable),
     ...densityGraph.map((row) => row.variable),
     ...occurrenceIndex.map((row) => row.variable),
@@ -517,9 +537,10 @@ export const normalizeRawUploadedParquetBundle = (
     })
     .map((variable): EnvironmentVariableDefinition => {
       const existing = variableDefinitionsById.get(variable);
-      const inferredValueType = categoricalVariables.has(variable)
-        ? 'categorical'
-        : (existing?.valueType ?? null);
+      const inferredValueType =
+        existing?.valueType ??
+        variableTypeById.get(variable) ??
+        (categoricalVariables.has(variable) ? 'categorical' : null);
       const sourceIds =
         sourceIdsByVariable.get(variable) ?? existing?.sourceIds;
 
@@ -529,7 +550,7 @@ export const normalizeRawUploadedParquetBundle = (
           existing?.name ?? variableDisplayNameById.get(variable) ?? variable,
         units: existing?.units ?? variableUnitsById.get(variable) ?? null,
         description: existing?.description ?? null,
-        valueType: inferredValueType ?? variableTypeById.get(variable) ?? null,
+        valueType: inferredValueType,
         domain: existing?.domain ?? domainByVariable.get(variable) ?? null,
         category:
           existing?.category ?? categoryByVariable.get(variable) ?? null,
@@ -563,6 +584,7 @@ export const normalizeRawUploadedParquetBundle = (
 
   const normalizedBundle: UploadedParquetBundle = {
     categoricalStats,
+    ordinalStats,
     categoricalValueLookup,
     densityGraph,
     occurrences,

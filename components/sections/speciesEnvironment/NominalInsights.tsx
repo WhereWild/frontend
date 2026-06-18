@@ -11,7 +11,7 @@ import type {
 } from '@/data/types';
 
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { SummaryItem } from './SummaryItem';
@@ -23,11 +23,17 @@ type NominalInsightsProps = {
   rankContextOptions: RankContextOption[];
   selectedRankContext: string | null;
   onRankContextChange: (value: string) => void;
+  isOrdinal?: boolean;
   summary:
     | {
         unique_classes?: number | null;
         entropy?: number | null;
         mode?: number | string | null;
+        median?: number | null;
+        q10?: number | null;
+        q25?: number | null;
+        q75?: number | null;
+        q90?: number | null;
       }
     | null
     | undefined;
@@ -49,6 +55,7 @@ export function NominalInsights({
   rankContextOptions,
   selectedRankContext,
   onRankContextChange,
+  isOrdinal = false,
   summary,
   summaryRanks,
   summaryComparisons,
@@ -62,6 +69,23 @@ export function NominalInsights({
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const [expanded, setExpanded] = React.useState(false);
+  const handleToggle = React.useCallback(() => setExpanded((e) => !e), []);
+
+  const resolveOrdinalClassName = React.useCallback(
+    (classId: number | null | undefined): string | null => {
+      if (classId == null) return null;
+      const rounded = Math.round(classId);
+      return (
+        categoricalDistribution.find(
+          (c) =>
+            String(c.value) === `class_${rounded}` ||
+            String(c.value) === String(rounded),
+        )?.className ?? null
+      );
+    },
+    [categoricalDistribution],
+  );
   const hasMultipleRankContexts =
     showRankContext && rankContextOptions.length > 1;
   const hasSingleRankContext =
@@ -85,8 +109,18 @@ export function NominalInsights({
         ) ?? null)
       : null;
 
-  const modeCategory =
-    categoricalDistribution.find((c) => c.value === summary?.mode) ?? null;
+  const modeCategory = (() => {
+    const mode = summary?.mode;
+    if (mode == null) return null;
+    return (
+      categoricalDistribution.find((c) => c.value === mode) ??
+      (isOrdinal
+        ? (categoricalDistribution.find(
+            (c) => String(c.value) === `class_${Math.round(Number(mode))}`,
+          ) ?? null)
+        : null)
+    );
+  })();
 
   const thirdSlotCategoryValue =
     selectedCategory != null ? selectedCategoryValue : summary?.mode;
@@ -170,53 +204,182 @@ export function NominalInsights({
         </View>
       </View>
 
-      <View
-        collapsable={false}
-        testID='summary-row'
-        style={[
-          styles.summaryRow,
-          { paddingTop: Size.space['300'] },
-          isStacked && styles.summaryRowStacked,
-        ]}
-      >
-        <SummaryItem
-          label='Unique classes'
-          value={
-            typeof summary?.unique_classes === 'number'
-              ? String(summary.unique_classes)
-              : '—'
-          }
-          rank={
-            anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)
-          }
-          comparison={
-            anyFilterActive
-              ? (summaryComparisons?.unique_classes ?? null)
-              : null
-          }
-          stacked={isStacked}
-          prominent={!showRankContext}
-        />
-        <SummaryItem
-          label='Entropy'
-          value={formatValue(summary?.entropy, 3)}
-          rank={anyFilterActive ? undefined : (summaryRanks.entropy ?? null)}
-          comparison={
-            anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
-          }
-          stacked={isStacked}
-          prominent={!showRankContext}
-        />
-        <SummaryItem
-          label={thirdSlot.label}
-          value={thirdSlot.value}
-          rank={anyFilterActive ? undefined : (thirdSlot.rank ?? null)}
-          comparison={anyFilterActive ? thirdSlotComparison : null}
-          stacked={isStacked}
-          prominent={!showRankContext}
-          isLast
-        />
-      </View>
+      {isOrdinal ? (
+        <Pressable
+          onPress={handleToggle}
+          testID='summary-row'
+          accessibilityRole='button'
+          accessibilityLabel={expanded ? 'Show fewer stats' : 'Show more stats'}
+          accessibilityState={{ expanded }}
+          style={({ pressed, hovered }) => [
+            (pressed || (hovered ?? false)) && {
+              backgroundColor: palette.background.default.secondaryHover,
+              borderRadius: Size.radius['100'],
+            },
+          ]}
+        >
+          <View
+            collapsable={false}
+            style={[
+              styles.summaryRow,
+              { paddingTop: Size.space['300'] },
+              isStacked && styles.summaryRowStacked,
+            ]}
+          >
+            <SummaryItem
+              label='Unique classes'
+              value={
+                typeof summary?.unique_classes === 'number'
+                  ? String(summary.unique_classes)
+                  : '—'
+              }
+              rank={anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)}
+              comparison={
+                anyFilterActive
+                  ? (summaryComparisons?.unique_classes ?? null)
+                  : null
+              }
+              stacked={isStacked}
+              prominent={!showRankContext}
+            />
+            <SummaryItem
+              label='Entropy'
+              value={formatValue(summary?.entropy, 3)}
+              rank={anyFilterActive ? undefined : (summaryRanks.entropy ?? null)}
+              comparison={
+                anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
+              }
+              stacked={isStacked}
+              prominent={!showRankContext}
+            />
+            <SummaryItem
+              label={thirdSlot.label}
+              value={thirdSlot.value}
+              rank={anyFilterActive ? undefined : (thirdSlot.rank ?? null)}
+              comparison={anyFilterActive ? thirdSlotComparison : null}
+              stacked={isStacked}
+              prominent={!showRankContext}
+              isLast
+            />
+          </View>
+          <View
+            collapsable={false}
+            style={!expanded ? styles.hiddenSlot : undefined}
+            accessibilityElementsHidden={!expanded}
+            importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
+            pointerEvents={expanded ? 'auto' : 'none'}
+          >
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Q25'
+                value={resolveOrdinalClassName(summary?.q25) ?? '—'}
+                rank={null}
+                comparison={null}
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Median'
+                value={resolveOrdinalClassName(summary?.median) ?? '—'}
+                rank={null}
+                comparison={null}
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Q75'
+                value={resolveOrdinalClassName(summary?.q75) ?? '—'}
+                rank={null}
+                comparison={null}
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Q10'
+                value={resolveOrdinalClassName(summary?.q10) ?? '—'}
+                rank={null}
+                comparison={null}
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Q90'
+                value={resolveOrdinalClassName(summary?.q90) ?? '—'}
+                rank={null}
+                comparison={null}
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+          </View>
+        </Pressable>
+      ) : (
+        <View
+          collapsable={false}
+          testID='summary-row'
+          style={[
+            styles.summaryRow,
+            { paddingTop: Size.space['300'] },
+            isStacked && styles.summaryRowStacked,
+          ]}
+        >
+          <SummaryItem
+            label='Unique classes'
+            value={
+              typeof summary?.unique_classes === 'number'
+                ? String(summary.unique_classes)
+                : '—'
+            }
+            rank={
+              anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)
+            }
+            comparison={
+              anyFilterActive
+                ? (summaryComparisons?.unique_classes ?? null)
+                : null
+            }
+            stacked={isStacked}
+            prominent={!showRankContext}
+          />
+          <SummaryItem
+            label='Entropy'
+            value={formatValue(summary?.entropy, 3)}
+            rank={anyFilterActive ? undefined : (summaryRanks.entropy ?? null)}
+            comparison={
+              anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
+            }
+            stacked={isStacked}
+            prominent={!showRankContext}
+          />
+          <SummaryItem
+            label={thirdSlot.label}
+            value={thirdSlot.value}
+            rank={anyFilterActive ? undefined : (thirdSlot.rank ?? null)}
+            comparison={anyFilterActive ? thirdSlotComparison : null}
+            stacked={isStacked}
+            prominent={!showRankContext}
+            isLast
+          />
+        </View>
+      )}
     </View>
   );
 }
