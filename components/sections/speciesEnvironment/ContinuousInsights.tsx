@@ -170,6 +170,7 @@ export function ContinuousInsights({
         >
           <View
             collapsable={false}
+            testID='summary-row-layout'
             style={[
               styles.summaryRow,
               { paddingTop: Size.space['300'] },
@@ -238,7 +239,9 @@ export function ContinuousInsights({
                 stacked={isStacked}
                 prominent
                 rank={null}
-                comparison={anyFilterActive ? (summaryComparisons.mode ?? null) : null}
+                comparison={
+                  anyFilterActive ? (summaryComparisons.mode ?? null) : null
+                }
               />
               <SummaryItem
                 label='Entropy'
