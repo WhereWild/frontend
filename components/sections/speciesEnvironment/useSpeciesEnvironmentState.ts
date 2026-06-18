@@ -325,9 +325,13 @@ export function useSpeciesEnvironmentState({
       entropy: resolveRankForMetric('entropy', summary?.entropy, {
         allowHistogramFallback: false,
       }),
-      mode: resolveRankForMetric('mode', summary?.mode as number | null | undefined, {
-        allowHistogramFallback: false,
-      }),
+      mode: resolveRankForMetric(
+        'mode',
+        summary?.mode as number | null | undefined,
+        {
+          allowHistogramFallback: false,
+        },
+      ),
       mode_class:
         summary?.mode != null && modeFraction != null
           ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {

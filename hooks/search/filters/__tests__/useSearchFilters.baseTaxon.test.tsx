@@ -649,9 +649,9 @@ describe('useSearchFilters (base taxon)', () => {
 
     await waitFor(() => {
       expect(result.current.baseTaxonQuery).toBe('Canis lupus');
-      expect(result.current.sortVariableValue).toBe('');
-      expect(result.current.filterParams.sortVariable).toBeNull();
-      expect(result.current.filterParams.sortMetric).toBeNull();
+      expect(result.current.sortVariableValue).toBe('bio_12');
+      expect(result.current.filterParams.sortVariable).toBe('bio_12');
+      expect(result.current.filterParams.sortMetric).toBe('max');
     });
 
     act(() => {

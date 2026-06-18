@@ -241,7 +241,8 @@ export function Filters({
   }, [parsedSortVariable, selectedBaseKey, sortVariableOptions]);
 
   const climateAggOptions = React.useMemo(() => {
-    if (!selectedSortVariableDef?.group || !selectedSortVariableDef?.agg) return [];
+    if (!selectedSortVariableDef?.group || !selectedSortVariableDef?.agg)
+      return [];
     const group = selectedSortVariableDef.group;
     const options = sortVariableOptions
       .filter((option) => {
