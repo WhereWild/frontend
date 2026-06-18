@@ -293,7 +293,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q25'
                 value={resolveOrdinalClassName(summary?.q25) ?? '—'}
-                rank={anyFilterActive ? undefined : (summaryRanks.q25 ?? null)}
+                rank={null}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -301,7 +301,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Median'
                 value={resolveOrdinalClassName(summary?.median) ?? '—'}
-                rank={anyFilterActive ? undefined : (summaryRanks.median ?? null)}
+                rank={null}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -309,7 +309,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q75'
                 value={resolveOrdinalClassName(summary?.q75) ?? '—'}
-                rank={anyFilterActive ? undefined : (summaryRanks.q75 ?? null)}
+                rank={null}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -327,7 +327,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q10'
                 value={resolveOrdinalClassName(summary?.q10) ?? '—'}
-                rank={anyFilterActive ? undefined : (summaryRanks.q10 ?? null)}
+                rank={null}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -335,7 +335,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q90'
                 value={resolveOrdinalClassName(summary?.q90) ?? '—'}
-                rank={anyFilterActive ? undefined : (summaryRanks.q90 ?? null)}
+                rank={null}
                 comparison={null}
                 stacked={isStacked}
                 prominent
