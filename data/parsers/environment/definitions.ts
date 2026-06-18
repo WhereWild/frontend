@@ -46,6 +46,7 @@ const rawSourceIds = source?.source_ids ?? source?.sourceIds;
     renderMax: typeof source?.render_max === 'number' ? source.render_max : typeof source?.renderMax === 'number' ? source.renderMax : null,
     group: typeof source?.group === 'string' ? source.group : null,
     groupLabel: typeof source?.group_label === 'string' ? source.group_label : null,
+    agg: typeof source?.agg === 'string' ? source.agg : null,
   };
 };
 

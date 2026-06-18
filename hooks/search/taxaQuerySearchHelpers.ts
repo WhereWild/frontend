@@ -90,13 +90,17 @@ const buildRankedDescription = (
       ? `${formatMetricNumber(entry.value)}${normalizedUnits ? ` ${normalizedUnits}` : ''}`
       : null;
 
-  const rankPart =
+  const displayRank =
     typeof entry.position === 'number' &&
-    Number.isFinite(entry.position) &&
     typeof totalResults === 'number' &&
-    Number.isFinite(totalResults) &&
     totalResults > 0
-      ? `Rank ${Math.trunc(entry.position)} of ${Math.trunc(totalResults)}`
+      ? sortOrder === 'desc'
+        ? Math.trunc(totalResults - entry.position + 1)
+        : Math.trunc(entry.position)
+      : null;
+  const rankPart =
+    displayRank !== null && Number.isFinite(displayRank) && typeof totalResults === 'number'
+      ? `Rank ${displayRank} of ${Math.trunc(totalResults)}`
       : null;
 
   const percentilePercentage =

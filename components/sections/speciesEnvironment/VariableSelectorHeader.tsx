@@ -146,14 +146,18 @@ export function VariableSelectorHeader({
     [filteredVariables, onVariableChange],
   );
 
-  // Grouped base options: one entry per group (or per ungrouped variable).
+  // Grouped base options: one entry per group (or per ungrouped variable), with units appended.
   const groupedBaseOptions = React.useMemo(() => {
     if (!isGroupedCategory) return [];
     const seen = new Map<string, string>(); // group key -> display label
     for (const v of filteredVariables) {
       const key = v.group ?? v.id;
       if (!seen.has(key)) {
-        seen.set(key, v.groupLabel ?? v.label);
+        const base = v.groupLabel ?? v.label;
+        seen.set(
+          key,
+          !isVariableCategorical(v) && v.units ? `${base} (${v.units})` : base,
+        );
       }
     }
     return Array.from(seen.entries()).map(([value, label]) => ({

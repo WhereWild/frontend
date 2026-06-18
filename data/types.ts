@@ -333,6 +333,7 @@ export type EnvironmentVariableDefinition = {
   renderMax?: number | null;
   group?: string | null;
   groupLabel?: string | null;
+  agg?: string | null;
 };
 
 /** Query parameters for numeric environment slice requests. */

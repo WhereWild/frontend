@@ -37,6 +37,23 @@ const prependAllOption = (
   return [{ label, value: '' }, ...options];
 };
 
+type VariableGroupInfo = {
+  id: string;
+  group?: string | null;
+  groupLabel?: string | null;
+  agg?: string | null;
+  units?: string | null;
+};
+
+const AGG_LABELS: Record<string, string> = {
+  max: 'Maximum',
+  mean: 'Mean',
+  min: 'Minimum',
+  range: 'Range',
+};
+
+const AGG_ORDER = ['mean', 'min', 'max', 'range'];
+
 export type FiltersProps = {
   /** Location */
   countryValue: string;
@@ -68,9 +85,14 @@ export type FiltersProps = {
   /** Sort */
   sortVariableValue: string;
   sortVariableOptions: SelectOption[];
+  sortVariableDefinitions?: VariableGroupInfo[];
+  sortVariableCategoryValue?: string;
+  sortVariableCategoryOptions?: SelectOption[];
+  onSortVariableCategoryChange?: (value: string) => void;
   sortVariableDisabled?: boolean;
   onSortVariableChange?: (value: string) => void;
   sortVariableSourceIds?: string[];
+  sortVariableIsCircular?: boolean;
   sortMetricValue: string;
   sortMetricOptions: SelectOption[];
   onSortMetricChange?: (value: string) => void;
@@ -123,9 +145,14 @@ export function Filters({
   onIncludeSubspeciesChange,
   sortVariableValue,
   sortVariableOptions,
+  sortVariableDefinitions = [],
+  sortVariableCategoryValue = '',
+  sortVariableCategoryOptions = [],
+  onSortVariableCategoryChange,
   sortVariableDisabled = false,
   onSortVariableChange,
   sortVariableSourceIds,
+  sortVariableIsCircular = false,
   sortMetricValue,
   sortMetricOptions,
   onSortMetricChange,
@@ -149,7 +176,13 @@ export function Filters({
   const dataSources = useDataSources();
   const includeSubspeciesEnabled = rankValue === 'species';
   const isCircularBearing =
-    sortMetricValue === 'circular_mean' || sortMetricValue === 'mode';
+    sortVariableIsCircular &&
+    (sortMetricValue === 'circular_mean' || sortMetricValue === 'mode');
+
+  const sortVariableDefMap = React.useMemo(
+    () => new Map(sortVariableDefinitions.map((d) => [d.id, d])),
+    [sortVariableDefinitions],
+  );
 
   const baseVariableOptions = React.useMemo(() => {
     const seen = new Map<string, string>();
@@ -160,8 +193,16 @@ export function Filters({
           seen.set(parsed.baseId, stripTemporalSuffix(option.label));
         }
       } else {
-        if (!seen.has(option.value)) {
-          seen.set(option.value, option.label);
+        const def = sortVariableDefMap.get(option.value);
+        if (def?.group && def?.agg) {
+          if (!seen.has(def.group)) {
+            const base = def.groupLabel ?? option.label;
+            seen.set(def.group, def.units ? `${base} (${def.units})` : base);
+          }
+        } else {
+          if (!seen.has(option.value)) {
+            seen.set(option.value, option.label);
+          }
         }
       }
     }
@@ -169,14 +210,19 @@ export function Filters({
       value,
       label,
     }));
-  }, [sortVariableOptions]);
+  }, [sortVariableOptions, sortVariableDefMap]);
 
   const parsedSortVariable = React.useMemo(
     () => parseTemporalId(sortVariableValue),
     [sortVariableValue],
   );
 
-  const selectedBaseKey = parsedSortVariable?.baseId ?? sortVariableValue;
+  const selectedSortVariableDef = sortVariableDefMap.get(sortVariableValue);
+  const selectedBaseKey =
+    parsedSortVariable?.baseId ??
+    (selectedSortVariableDef?.group && selectedSortVariableDef?.agg
+      ? selectedSortVariableDef.group
+      : sortVariableValue);
 
   const windowOptions = React.useMemo(() => {
     if (!parsedSortVariable || !selectedBaseKey) return [];
@@ -194,6 +240,26 @@ export function Filters({
       }));
   }, [parsedSortVariable, selectedBaseKey, sortVariableOptions]);
 
+  const climateAggOptions = React.useMemo(() => {
+    if (!selectedSortVariableDef?.group || !selectedSortVariableDef?.agg) return [];
+    const group = selectedSortVariableDef.group;
+    const options = sortVariableOptions
+      .filter((option) => {
+        const d = sortVariableDefMap.get(option.value);
+        return d?.group === group && d?.agg;
+      })
+      .map((option) => {
+        const d = sortVariableDefMap.get(option.value)!;
+        return { value: option.value, label: AGG_LABELS[d.agg!] ?? d.agg! };
+      })
+      .sort(
+        (a, b) =>
+          AGG_ORDER.indexOf(sortVariableDefMap.get(a.value)?.agg ?? '') -
+          AGG_ORDER.indexOf(sortVariableDefMap.get(b.value)?.agg ?? ''),
+      );
+    return options;
+  }, [selectedSortVariableDef, sortVariableOptions, sortVariableDefMap]);
+
   const handleBaseChange = React.useCallback(
     (newBase: string) => {
       const firstWindow = sortVariableOptions
@@ -202,9 +268,24 @@ export function Filters({
           return p && p.baseId === newBase ? [{ p, value: option.value }] : [];
         })
         .sort((a, b) => a.p.windowHours - b.p.windowHours)[0];
-      onSortVariableChange?.(firstWindow ? firstWindow.value : newBase);
+      if (firstWindow) {
+        onSortVariableChange?.(firstWindow.value);
+        return;
+      }
+      const groupVariants = sortVariableOptions.filter((option) => {
+        const d = sortVariableDefMap.get(option.value);
+        return d?.group === newBase && d?.agg;
+      });
+      if (groupVariants.length > 0) {
+        const meanVariant = groupVariants.find(
+          (option) => sortVariableDefMap.get(option.value)?.agg === 'mean',
+        );
+        onSortVariableChange?.((meanVariant ?? groupVariants[0]).value);
+        return;
+      }
+      onSortVariableChange?.(newBase);
     },
-    [sortVariableOptions, onSortVariableChange],
+    [sortVariableOptions, sortVariableDefMap, onSortVariableChange],
   );
 
   const countrySelectOptions = React.useMemo(
@@ -276,6 +357,15 @@ export function Filters({
           onValueChange={onIncludeSubspeciesChange}
           style={styles.switchFieldFull}
         />
+        {sortVariableCategoryOptions.length > 2 && (
+          <SelectField
+            label='Category'
+            disabled={sortVariableDisabled}
+            value={sortVariableCategoryValue}
+            options={sortVariableCategoryOptions}
+            onValueChange={onSortVariableCategoryChange}
+          />
+        )}
         <SelectField
           label='Variable'
           placeholder='Select variable'
@@ -292,6 +382,14 @@ export function Filters({
             onValueChange={onSortVariableChange}
           />
         )}
+        {!sortVariableDisabled && climateAggOptions.length > 0 && (
+          <SelectField
+            label='Aggregate'
+            value={sortVariableValue}
+            options={climateAggOptions}
+            onValueChange={onSortVariableChange}
+          />
+        )}
         {sortVariableSourceIds && sortVariableSourceIds.length > 0 && (
           <SourceAttribution
             sourceIds={sortVariableSourceIds}
@@ -300,6 +398,7 @@ export function Filters({
         )}
         <SelectField
           label='Sorting metric'
+          disabled={sortVariableDisabled || sortMetricOptions.length === 0}
           value={sortMetricValue}
           options={sortMetricOptions}
           onValueChange={onSortMetricChange}
