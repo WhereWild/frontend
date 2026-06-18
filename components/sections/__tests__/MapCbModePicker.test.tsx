@@ -21,7 +21,7 @@ describe('MapCbModePicker', () => {
         selected={null}
         onChange={onChange}
         topClasses={sampleClasses}
-        variableId='kg0'
+        variableId='kg2'
       />,
     );
     expect(getAllByRole('radio').length).toBe(3);
@@ -34,7 +34,7 @@ describe('MapCbModePicker', () => {
         selected={null}
         onChange={onChange}
         topClasses={sampleClasses}
-        variableId='kg0'
+        variableId='kg2'
       />,
     );
     fireEvent.press(getAllByRole('radio')[1]);
@@ -48,7 +48,7 @@ describe('MapCbModePicker', () => {
         selected={null}
         onChange={onChange}
         topClasses={sampleClasses}
-        variableId='kg0'
+        variableId='kg2'
       />,
     );
     const selected = getAllByRole('radio').filter(
@@ -65,7 +65,7 @@ describe('MapCbModePicker', () => {
           selected='colorblind'
           onChange={onChange}
           topClasses={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
         />,
       ),
     ).not.toThrow();
@@ -79,7 +79,7 @@ describe('MapCbModePicker', () => {
           selected='achromatopsia'
           onChange={onChange}
           topClasses={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
         />,
       ),
     ).not.toThrow();
@@ -93,7 +93,7 @@ describe('MapCbModePicker', () => {
           selected={null}
           onChange={onChange}
           topClasses={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           shapesEnabled
         />,
       ),
@@ -108,7 +108,7 @@ describe('MapCbModePicker', () => {
           selected={null}
           onChange={onChange}
           topClasses={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           markerOutlineEnabled
         />,
       ),
@@ -123,7 +123,7 @@ describe('MapCbModePicker', () => {
           selected={null}
           onChange={onChange}
           topClasses={[]}
-          variableId='kg0'
+          variableId='kg2'
         />,
       ),
     ).not.toThrow();
@@ -137,7 +137,7 @@ describe('MapCbModePicker', () => {
           selected={null}
           onChange={onChange}
           topClasses={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           isCircular
         />,
       ),
@@ -152,7 +152,7 @@ describe('MapCbModePicker', () => {
           selected='achromatopsia'
           onChange={onChange}
           topClasses={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           isCircular
         />,
       ),

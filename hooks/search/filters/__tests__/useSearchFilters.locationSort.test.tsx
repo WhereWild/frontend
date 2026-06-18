@@ -436,7 +436,7 @@ describe('useSearchFilters (location and sort)', () => {
     expect(result.current.rankValue).toBe('');
     expect(result.current.includeSubspecies).toBe(true);
     expect(result.current.sortVariableValue).toBe('');
-    expect(result.current.sortMetricValue).toBe('median');
+    expect(result.current.sortMetricValue).toBe('');
     expect(result.current.sortOrder).toBe('ascending');
     expect(result.current.numberOfResults).toBe(10);
     expect(result.current.minimumSamples).toBe(10);
@@ -492,13 +492,13 @@ describe('useSearchFilters (location and sort)', () => {
       expect(result.current.sortVariableOptions).toEqual([
         { label: 'Precipitation', value: 'bio_12' },
       ]);
-      expect(result.current.sortVariableValue).toBe('');
+      expect(result.current.sortVariableValue).toBe('bio_12');
     });
 
-    expect(result.current.sortMetricValue).toBe('median');
+    expect(result.current.sortMetricValue).toBe('min');
   });
 
-  it('does not auto-select a ranking variable when scoped ranking options load', async () => {
+  it('auto-selects first ranking variable when scoped ranking options load', async () => {
     mockFetchEnvironmentVariables.mockResolvedValue([
       { id: 'bio_12', name: 'Annual Precipitation' },
       { id: 'bio_1', name: 'Annual Mean Temperature' },
@@ -544,8 +544,8 @@ describe('useSearchFilters (location and sort)', () => {
         { label: 'Annual Precipitation', value: 'bio_12' },
         { label: 'Annual Mean Temperature', value: 'bio_1' },
       ]);
-      expect(result.current.sortVariableValue).toBe('');
-      expect(result.current.sortMetricValue).toBe('median');
+      expect(result.current.sortVariableValue).toBe('bio_12');
+      expect(result.current.sortMetricValue).toBe('max');
     });
   });
 
@@ -869,7 +869,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(result.current.sortVariableLoading).toBe(false);
       expect(result.current.sortVariableOptions).toEqual([]);
       expect(result.current.sortVariableValue).toBe('');
-      expect(result.current.sortMetricValue).toBe('median');
+      expect(result.current.sortMetricValue).toBe('');
     });
   });
 
@@ -906,7 +906,7 @@ describe('useSearchFilters (location and sort)', () => {
     await waitFor(() => {
       expect(result.current.sortVariableOptions).toEqual([]);
       expect(result.current.sortVariableValue).toBe('');
-      expect(result.current.sortMetricValue).toBe('median');
+      expect(result.current.sortMetricValue).toBe('');
       expect(result.current.rankingFilterHint).toBe(
         'No ranking variables are available for the selected Scope taxon and Rank.',
       );
@@ -952,7 +952,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(result.current.sortVariableOptions).toEqual([
         { label: 'Precipitation', value: 'bio_12' },
       ]);
-      expect(result.current.sortVariableValue).toBe('');
+      expect(result.current.sortVariableValue).toBe('bio_12');
     });
   });
 
@@ -990,7 +990,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(result.current.sortVariableOptions).toEqual([
         { label: 'Precipitation', value: 'bio_12' },
       ]);
-      expect(result.current.sortVariableValue).toBe('');
+      expect(result.current.sortVariableValue).toBe('bio_12');
     });
 
     act(() => {
@@ -1032,14 +1032,10 @@ describe('useSearchFilters (location and sort)', () => {
 
     await waitFor(() => {
       expect(result.current.sortMetricOptions).toEqual([
-        { label: 'Average', value: 'mean' },
-        { label: 'Median', value: 'median' },
-        { label: 'Minimum', value: 'min' },
-        { label: 'Maximum', value: 'max' },
-        { label: 'Standard deviation', value: 'std' },
+        { label: 'max', value: 'max' },
       ]);
-      expect(result.current.sortVariableValue).toBe('');
-      expect(result.current.sortMetricValue).toBe('median');
+      expect(result.current.sortVariableValue).toBe('bio_12');
+      expect(result.current.sortMetricValue).toBe('max');
     });
   });
 
@@ -1118,7 +1114,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(result.current.sortVariableOptions).toEqual([
         { label: 'final_var', value: 'final_var' },
       ]);
-      expect(result.current.sortVariableValue).toBe('');
+      expect(result.current.sortVariableValue).toBe('final_var');
     });
   });
 
@@ -1478,7 +1474,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await waitFor(() => {
       expect(result.current.sortVariableValue).toBe('');
-      expect(result.current.sortMetricValue).toBe('median');
+      expect(result.current.sortMetricValue).toBe('');
       expect(result.current.sortOrder).toBe('ascending');
     });
   });

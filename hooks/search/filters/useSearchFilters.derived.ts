@@ -11,13 +11,23 @@ import {
 } from './useSearchFilters.helpers';
 import type { SearchFiltersState } from './useSearchFilters.state';
 
+const METRIC_SORT_ORDER: Record<string, number> = {
+  median: 0,
+  mean: 1,
+  min: 2,
+  max: 3,
+  std: 4,
+  stddev: 4,
+  circular_mean: 5,
+  mode: 6,
+};
+
 export const toSortMetricOptions = (
   rankingSortOptions: SearchFiltersState['rankingSortOptions'],
   sortVariableValue: string,
-  defaultOptions: SelectOption[],
 ): SelectOption[] => {
   if (!rankingSortOptions.length || !sortVariableValue) {
-    return defaultOptions;
+    return [];
   }
 
   const seen = new Set<string>();
@@ -33,9 +43,10 @@ export const toSortMetricOptions = (
     })
     .map((entry) => ({ label: entry.label, value: entry.metric }));
 
-  if (!metricOptions.length) {
-    return defaultOptions;
-  }
+  metricOptions.sort(
+    (a, b) =>
+      (METRIC_SORT_ORDER[a.value] ?? 99) - (METRIC_SORT_ORDER[b.value] ?? 99),
+  );
 
   return metricOptions;
 };
@@ -58,9 +69,14 @@ export const toSearchFilterParams = (
     hasScopedRankingContext && state.rankValue === 'species'
       ? state.includeSubspecies
       : null;
+  const isCircularVariable =
+    state.sortVariableDefinitions.find(
+      (v) => v.id === state.sortVariableValue,
+    )?.valueType === 'circular';
   const isAngularMetric =
     hasScopedRankingContext &&
     hasCompleteSortSelection &&
+    isCircularVariable &&
     ANGULAR_METRICS.has(state.sortMetricValue);
 
   return {

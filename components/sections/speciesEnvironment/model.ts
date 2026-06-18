@@ -84,6 +84,7 @@ export const isVariableCircular = (
   if (variable.valueType?.toLowerCase() === 'circular') return true;
   if (variable.valueType?.toLowerCase() === 'categorical') return false;
   if (variable.valueType?.toLowerCase() === 'nominal') return false;
+  if (variable.valueType?.toLowerCase() === 'ordinal') return false;
   const lower = variable.id.toLowerCase();
   return lower === 'aspect_deg' || lower === 'aspect';
 };
@@ -113,7 +114,7 @@ export const isVariableCategorical = (
     return true;
   }
   const vt = variable.valueType?.toLowerCase();
-  return vt === 'categorical' || vt === 'nominal';
+  return vt === 'categorical' || vt === 'nominal' || vt === 'ordinal';
 };
 
 /** Converts underscore-separated variable ids into title-cased labels. */

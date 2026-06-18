@@ -405,7 +405,7 @@ describe('ContinuousInsights', () => {
       >);
       render(<ContinuousInsights {...baseProps} />);
 
-      const row = screen.getByTestId('summary-row');
+      const row = screen.getByTestId('summary-row-layout');
       const style = StyleSheet.flatten(row.props.style);
       expect(style.flexDirection).toBe('column');
     });
@@ -416,7 +416,7 @@ describe('ContinuousInsights', () => {
       >);
       render(<ContinuousInsights {...baseProps} />);
 
-      const row = screen.getByTestId('summary-row');
+      const row = screen.getByTestId('summary-row-layout');
       const style = StyleSheet.flatten(row.props.style);
       expect(style.flexDirection).toBe('column');
     });
@@ -427,7 +427,7 @@ describe('ContinuousInsights', () => {
       >);
       render(<ContinuousInsights {...baseProps} />);
 
-      const row = screen.getByTestId('summary-row');
+      const row = screen.getByTestId('summary-row-layout');
       const style = StyleSheet.flatten(row.props.style);
       expect(style.flexDirection).toBe('row');
     });

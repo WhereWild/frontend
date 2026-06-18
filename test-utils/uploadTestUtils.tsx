@@ -318,6 +318,7 @@ export const makeUploadPreviewDataSource = () => ({
 
 export const makeRawBundle = (): RawUploadedParquetBundle => ({
   categoricalStats: [],
+  ordinalStats: [],
   densityGraph: [],
   occurrences: [
     { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
@@ -329,6 +330,7 @@ export const makeRawBundle = (): RawUploadedParquetBundle => ({
 
 export const makeNormalizedBundle = () => ({
   categoricalStats: [],
+  ordinalStats: [],
   densityGraph: [],
   occurrences: [{ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }],
   occurrenceIndex: [],

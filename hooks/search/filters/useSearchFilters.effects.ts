@@ -57,7 +57,6 @@ export function useSearchFiltersEffects({
     return toSortMetricOptions(
       state.rankingSortOptions,
       state.sortVariableValue,
-      SORT_METRIC_OPTIONS,
     );
   }, [state.rankingSortOptions, state.sortVariableValue]);
 
@@ -506,10 +505,13 @@ export function useSearchFiltersEffects({
   }, [dispatch, state.sortVariableOptions, state.sortVariableValue]);
 
   React.useEffect(() => {
+    if (!sortMetricOptions.length) return;
+
     const fallbackMetric =
       getPreferredOptionValue(sortMetricOptions, PREFERRED_SORT_METRICS) ??
-      sortMetricOptions[0]?.value ??
-      'mean';
+      sortMetricOptions[0]?.value;
+
+    if (!fallbackMetric) return;
 
     if (!state.sortMetricValue) {
       dispatch({ type: 'set-sort-metric', value: fallbackMetric });
@@ -519,8 +521,7 @@ export function useSearchFiltersEffects({
     if (
       !sortMetricOptions.some(
         (option) => option.value === state.sortMetricValue,
-      ) &&
-      state.sortMetricValue !== fallbackMetric
+      )
     ) {
       dispatch({ type: 'set-sort-metric', value: fallbackMetric });
     }

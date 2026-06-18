@@ -169,6 +169,8 @@ export type RawSummaryStatsRow = {
   ['25th_percentile']?: unknown;
   ['75th_percentile']?: unknown;
   ['90th_percentile']?: unknown;
+  entropy?: unknown;
+  mode?: unknown;
 };
 
 export type RawVariableMetadataRow = {
@@ -200,6 +202,7 @@ export type RawLocationRow = {
 
 export type RawUploadedParquetBundle = {
   categoricalStats: RawCategoricalStatsRow[];
+  ordinalStats?: RawCategoricalStatsRow[];
   circularStats?: RawSummaryStatsRow[];
   categoricalValueLookup?: RawCategoricalValueLookupRow[];
   densityGraph: RawDensityGraphRow[];
@@ -215,6 +218,7 @@ export type RawUploadedParquetBundle = {
 
 export type UploadedParquetBundle = {
   categoricalStats: UploadedCategoricalStatsRow[];
+  ordinalStats: UploadedCategoricalStatsRow[];
   categoricalValueLookup?: UploadedCategoricalValueLookupRow[];
   densityGraph: UploadedDensityGraphPoint[];
   occurrences: UploadedOccurrenceRow[];

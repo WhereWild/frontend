@@ -56,6 +56,8 @@ type StackedCategoryBarProps = {
   shapesEnabled?: boolean;
   /** Whether to draw a gray outline around pill icons. */
   markerOutlineEnabled?: boolean;
+  /** Preserve input order instead of sorting by frequency (use for ordinal). */
+  preserveOrder?: boolean;
 };
 
 /** Builds human-readable description text for the selected category. */
@@ -84,22 +86,21 @@ export function StackedCategoryBar({
   variableId,
   shapesEnabled = false,
   markerOutlineEnabled = false,
+  preserveOrder = false,
 }: StackedCategoryBarProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
   const [expanded, setExpanded] = React.useState(false);
 
-  const validCategories = React.useMemo(
-    () =>
-      categories
-        .filter(
-          (category) =>
-            Number.isFinite(category.fraction) && category.fraction > 0,
-        )
-        .sort((a, b) => b.count - a.count),
-    [categories],
-  );
+  const validCategories = React.useMemo(() => {
+    const filtered = categories.filter(
+      (category) => Number.isFinite(category.fraction) && category.fraction > 0,
+    );
+    return preserveOrder
+      ? filtered
+      : filtered.sort((a, b) => b.count - a.count);
+  }, [categories, preserveOrder]);
 
   const hiddenCount = Math.max(
     0,
