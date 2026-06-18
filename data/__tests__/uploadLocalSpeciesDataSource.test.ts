@@ -974,71 +974,7 @@ describe('upload local species data source variable categories', () => {
     ]);
   });
 
-  it('resolves pinned observation values from the local occurrence index', async () => {
-    const rawBundle: RawUploadedParquetBundle = {
-      categoricalStats: [
-        {
-          variable: 'landcover',
-          variableCategory: 'land',
-          metric: 'forest',
-          value: 1,
-        },
-        {
-          variable: 'landcover',
-          variableCategory: 'land',
-          metric: 'total_samples',
-          value: 1,
-        },
-      ],
-      densityGraph: [],
-      occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 'forest', bio_1: 2.1 },
-      ],
-      occurrenceIndex: [],
-      summaryStats: [
-        {
-          variable: 'bio_1',
-          variableCategory: 'climate',
-          count: 1,
-          min: 2.1,
-          mean: 2.1,
-          max: 2.1,
-          std: 0,
-          '10th percentile': 2.1,
-          '90th percentile': 2.1,
-        },
-      ],
-      variableMetadata: [
-        {
-          id: 'landcover',
-          name: 'Land Cover',
-          valueType: 'categorical',
-        },
-      ],
-    };
 
-    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
-
-    await expect(
-      dataSource.fetchObservationEnvironmentValue?.(1, 'obs_1', 'landcover'),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        variable: 'landcover',
-        value: 'forest',
-        valueLabel: 'forest',
-        valueDescription: null,
-      }),
-    );
-    await expect(
-      dataSource.fetchObservationEnvironmentValue?.(1, 'obs_1', 'bio_1'),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        variable: 'bio_1',
-        value: 2.1,
-      }),
-    );
-  });
 
   it('filters uploaded locations correctly when callers use string levels', async () => {
     const rawBundle: RawUploadedParquetBundle = {

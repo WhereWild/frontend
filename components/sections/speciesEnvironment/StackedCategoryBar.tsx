@@ -97,7 +97,9 @@ export function StackedCategoryBar({
     const filtered = categories.filter(
       (category) => Number.isFinite(category.fraction) && category.fraction > 0,
     );
-    return preserveOrder ? filtered : filtered.sort((a, b) => b.count - a.count);
+    return preserveOrder
+      ? filtered
+      : filtered.sort((a, b) => b.count - a.count);
   }, [categories, preserveOrder]);
 
   const hiddenCount = Math.max(

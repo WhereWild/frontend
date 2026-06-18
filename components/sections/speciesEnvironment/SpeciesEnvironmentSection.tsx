@@ -321,7 +321,8 @@ function SpeciesEnvironmentSectionComponent({
   const displayHeadingText = displayState?.headingText ?? null;
   const displayMetaText = displayState?.metaText ?? null;
   const showCategoricalContent = Boolean(displayState?.isCategorical);
-  const isOrdinalVar = selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const isOrdinalVar =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
   const showContinuousContent = Boolean(
     displayState && !displayState.isCategorical,
   );
@@ -498,37 +499,40 @@ function SpeciesEnvironmentSectionComponent({
               preserveOrder={isOrdinalVar}
             />
           )}
-          {typeof displayState?.summary?.unique_classes === 'number' && (() => {
-            return (
-              <NominalInsights
-                showRankContext={displayState?.showRankContext ?? false}
-                rankContextOptions={displayState?.rankContextOptions ?? []}
-                selectedRankContext={displayState?.selectedRankContext ?? null}
-                onRankContextChange={handleRankContextChange}
-                isOrdinal={isOrdinalVar}
-                summary={displayState?.summary}
-                summaryRanks={{
-                  unique_classes:
-                    displayState?.summaryRanks?.unique_classes ?? null,
-                  entropy: displayState?.summaryRanks?.entropy ?? null,
-                  mode_class: displayState?.summaryRanks?.mode_class ?? null,
-                  selected_class:
-                    displayState?.summaryRanks?.selected_class ?? null,
-                }}
-                summaryComparisons={displayState?.summaryComparisons ?? {}}
-                baselineCategoricalDistribution={
-                  displayState?.baselineCategoricalDistribution ?? null
-                }
-                categoricalDistribution={
-                  displayState?.categoricalDistribution ?? []
-                }
-                selectedCategoryValue={
-                  displayState?.selectedCategoryValue ?? null
-                }
-                anyFilterActive={anyFilterActive}
-              />
-            );
-          })()}
+          {typeof displayState?.summary?.unique_classes === 'number' &&
+            (() => {
+              return (
+                <NominalInsights
+                  showRankContext={displayState?.showRankContext ?? false}
+                  rankContextOptions={displayState?.rankContextOptions ?? []}
+                  selectedRankContext={
+                    displayState?.selectedRankContext ?? null
+                  }
+                  onRankContextChange={handleRankContextChange}
+                  isOrdinal={isOrdinalVar}
+                  summary={displayState?.summary}
+                  summaryRanks={{
+                    unique_classes:
+                      displayState?.summaryRanks?.unique_classes ?? null,
+                    entropy: displayState?.summaryRanks?.entropy ?? null,
+                    mode_class: displayState?.summaryRanks?.mode_class ?? null,
+                    selected_class:
+                      displayState?.summaryRanks?.selected_class ?? null,
+                  }}
+                  summaryComparisons={displayState?.summaryComparisons ?? {}}
+                  baselineCategoricalDistribution={
+                    displayState?.baselineCategoricalDistribution ?? null
+                  }
+                  categoricalDistribution={
+                    displayState?.categoricalDistribution ?? []
+                  }
+                  selectedCategoryValue={
+                    displayState?.selectedCategoryValue ?? null
+                  }
+                  anyFilterActive={anyFilterActive}
+                />
+              );
+            })()}
         </View>
 
         <View

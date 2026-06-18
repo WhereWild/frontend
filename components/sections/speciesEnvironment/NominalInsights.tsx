@@ -233,7 +233,11 @@ export function NominalInsights({
                   ? String(summary.unique_classes)
                   : '—'
               }
-              rank={anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)}
+              rank={
+                anyFilterActive
+                  ? undefined
+                  : (summaryRanks.unique_classes ?? null)
+              }
               comparison={
                 anyFilterActive
                   ? (summaryComparisons?.unique_classes ?? null)
@@ -245,7 +249,9 @@ export function NominalInsights({
             <SummaryItem
               label='Entropy'
               value={formatValue(summary?.entropy, 3)}
-              rank={anyFilterActive ? undefined : (summaryRanks.entropy ?? null)}
+              rank={
+                anyFilterActive ? undefined : (summaryRanks.entropy ?? null)
+              }
               comparison={
                 anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
               }
@@ -266,7 +272,9 @@ export function NominalInsights({
             collapsable={false}
             style={!expanded ? styles.hiddenSlot : undefined}
             accessibilityElementsHidden={!expanded}
-            importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
+            importantForAccessibility={
+              expanded ? 'auto' : 'no-hide-descendants'
+            }
             pointerEvents={expanded ? 'auto' : 'none'}
           >
             <View
@@ -349,7 +357,9 @@ export function NominalInsights({
                 : '—'
             }
             rank={
-              anyFilterActive ? undefined : (summaryRanks.unique_classes ?? null)
+              anyFilterActive
+                ? undefined
+                : (summaryRanks.unique_classes ?? null)
             }
             comparison={
               anyFilterActive
