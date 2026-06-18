@@ -8,7 +8,7 @@ export type ShapeKey =
 
 /** Maps variable layer_id → CB mode → class ID → CB-safe hex color. */
 export const CB_CLASS_COLORS: Record<string, Partial<Record<CbMode, Record<number, string>>>> = {
-  kg0: {
+  kg2: {
     colorblind: { 1: '#2d1d83', 2: '#39278d', 3: '#82c6e8', 4: '#8ed2f4', 5: '#d26b7c', 6: '#c66172', 7: '#e3d27c', 8: '#d7c672', 9: '#2f8c46', 10: '#187b37', 11: '#006b28', 12: '#a4a43e', 13: '#999933', 14: '#8e8f28', 15: '#24843e', 16: '#08732f', 17: '#006320', 18: '#e8e8e8', 19: '#d7d7d7', 20: '#993363', 21: '#770e47', 22: '#bb54a9', 23: '#a43f94', 24: '#993489', 25: '#b0499e', 26: '#e3e3e3', 27: '#cccccc', 28: '#8e285a', 29: '#821c50', 30: '#4aaf9e', 31: '#3ea594' },
     achromatopsia: { 1: '#1b1b1b', 2: '#242424', 3: '#2d2d2d', 4: '#363636', 5: '#494949', 6: '#404040', 7: '#5d5d5d', 8: '#535353', 9: '#757575', 10: '#6e6e6e', 11: '#676767', 12: '#898989', 13: '#828282', 14: '#7a7a7a', 15: '#727272', 16: '#6b6b6b', 17: '#646464', 18: '#a0a0a0', 19: '#959595', 20: '#b7b7b7', 21: '#a6a6a6', 22: '#cecece', 23: '#c2c2c2', 24: '#bcbcbc', 25: '#c8c8c8', 26: '#9a9a9a', 27: '#8f8f8f', 28: '#b1b1b1', 29: '#ababab', 30: '#e2e2e2', 31: '#d7d7d7' },
   },
@@ -53,7 +53,7 @@ export function getCbColor(
 
 /** Maps variable layer_id → class ID → shape key used in achromatopsia mode. */
 export const CB_CLASS_SHAPES: Record<string, Record<number, ShapeKey>> = {
-  kg0: { 1: 'circle', 2: 'circle', 3: 'square', 4: 'square', 5: 'triangle', 6: 'triangle', 7: 'diamond', 8: 'diamond', 9: 'ring', 10: 'ring', 11: 'ring', 12: 'triangle-down', 13: 'triangle-down', 14: 'triangle-down', 15: 'ring', 16: 'ring', 17: 'ring', 18: 'cross', 19: 'cross', 20: 'plus', 21: 'plus', 22: 'star', 23: 'star', 24: 'star', 25: 'star', 26: 'cross', 27: 'cross', 28: 'plus', 29: 'plus', 30: 'hexagon', 31: 'hexagon' },
+  kg2: { 1: 'circle', 2: 'circle', 3: 'square', 4: 'square', 5: 'triangle', 6: 'triangle', 7: 'diamond', 8: 'diamond', 9: 'ring', 10: 'ring', 11: 'ring', 12: 'triangle-down', 13: 'triangle-down', 14: 'triangle-down', 15: 'ring', 16: 'ring', 17: 'ring', 18: 'cross', 19: 'cross', 20: 'plus', 21: 'plus', 22: 'star', 23: 'star', 24: 'star', 25: 'star', 26: 'cross', 27: 'cross', 28: 'plus', 29: 'plus', 30: 'hexagon', 31: 'hexagon' },
   landcover: { 10: 'circle', 11: 'circle', 12: 'circle', 20: 'circle', 51: 'square', 52: 'square', 61: 'square', 62: 'square', 71: 'square', 72: 'square', 81: 'square', 82: 'square', 91: 'square', 92: 'square', 120: 'triangle', 121: 'triangle', 122: 'triangle', 130: 'diamond', 140: 'ring', 150: 'ring', 152: 'ring', 153: 'ring', 181: 'triangle-down', 182: 'triangle-down', 183: 'triangle-down', 184: 'triangle-down', 185: 'triangle-down', 186: 'triangle-down', 187: 'triangle-down', 190: 'cross', 200: 'plus', 201: 'plus', 202: 'plus', 210: 'star', 220: 'hexagon' },
   landform: { 1: 'circle', 2: 'square', 3: 'triangle', 4: 'circle', 5: 'circle', 6: 'triangle', 7: 'square' },
   lithology: { 1: 'circle', 2: 'square', 3: 'circle', 4: 'square', 5: 'triangle', 6: 'triangle', 7: 'diamond', 8: 'circle', 9: 'square', 10: 'ring', 11: 'triangle', 12: 'square', 13: 'triangle', 14: 'triangle-down', 15: 'cross' },

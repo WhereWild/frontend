@@ -72,7 +72,7 @@ describe('MapCategoricalLegend', () => {
       render(
         <MapCategoricalLegend
           classes={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           shapesEnabled
         />,
       ),
@@ -84,7 +84,7 @@ describe('MapCategoricalLegend', () => {
       render(
         <MapCategoricalLegend
           classes={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           cbMode='achromatopsia'
         />,
       ),
@@ -96,7 +96,7 @@ describe('MapCategoricalLegend', () => {
       render(
         <MapCategoricalLegend
           classes={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           cbMode='colorblind'
         />,
       ),
@@ -108,7 +108,7 @@ describe('MapCategoricalLegend', () => {
       render(
         <MapCategoricalLegend
           classes={sampleClasses}
-          variableId='kg0'
+          variableId='kg2'
           markerOutlineEnabled
         />,
       ),
