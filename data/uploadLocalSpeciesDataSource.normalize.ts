@@ -352,6 +352,8 @@ export const normalizeRawUploadedParquetBundle = (
         rbar: toFiniteNumber(row.rbar),
         circular_std: toFiniteNumber(row.circular_std),
         circular_var: toFiniteNumber(row.circular_var),
+        entropy: toFiniteNumber(row.entropy),
+        mode: toFiniteNumber(row.mode),
       };
     })
     .filter((row): row is UploadedSummaryStatsRow => row !== null);

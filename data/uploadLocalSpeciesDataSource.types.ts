@@ -169,6 +169,8 @@ export type RawSummaryStatsRow = {
   ['25th_percentile']?: unknown;
   ['75th_percentile']?: unknown;
   ['90th_percentile']?: unknown;
+  entropy?: unknown;
+  mode?: unknown;
 };
 
 export type RawVariableMetadataRow = {

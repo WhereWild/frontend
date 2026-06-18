@@ -920,6 +920,33 @@ const buildScopedNumericStats = ({
   const range = min !== null && max !== null ? max - min : null;
   const q10_90_range = q10 !== null && q90 !== null ? q90 - q10 : null;
 
+  const isCircular = stats.variableType?.toLowerCase() === 'circular';
+  const densityCurve = isCircular
+    ? buildCircularKde(sortedValues)
+    : buildGaussianKde(sortedValues);
+
+  let kdeMode: number | null = null;
+  let kdeEntropy: number | null = null;
+  if (densityCurve !== null) {
+    const { points, density } = densityCurve;
+    let maxDens = -Infinity;
+    let maxIdx = 0;
+    for (let i = 0; i < density.length; i++) {
+      if (density[i] > maxDens) { maxDens = density[i]; maxIdx = i; }
+    }
+    kdeMode = points[maxIdx] ?? null;
+
+    // H ≈ -∫ f(x) log(f(x)) dx, trapezoidal with uniform step
+    const step = isCircular
+      ? (2 * Math.PI) / points.length          // stepRad — density is per-radian
+      : (points[points.length - 1] - points[0]) / (points.length - 1);
+    let entropySum = 0;
+    for (let i = 0; i < density.length; i++) {
+      if (density[i] > 0) entropySum -= density[i] * Math.log(density[i]) * step;
+    }
+    kdeEntropy = isFinite(entropySum) ? entropySum : null;
+  }
+
   return {
     ...stats,
     summary: {
@@ -943,12 +970,11 @@ const buildScopedNumericStats = ({
       circular_mean,
       rbar,
       circular_std,
+      mode: kdeMode,
+      entropy: kdeEntropy,
     },
     histogram,
-    densityCurve:
-      stats.variableType?.toLowerCase() === 'circular'
-        ? buildCircularKde(sortedValues)
-        : buildGaussianKde(sortedValues),
+    densityCurve,
     baselineSummary: stats.summary,
   };
 };
@@ -1039,7 +1065,11 @@ const convertSummaryFields = (
     iqr: scale(summary.iqr),
     q10_90_range: scale(summary.q10_90_range),
     mode: typeof summary.mode === 'number' ? pos(summary.mode) : summary.mode,
-    // rbar, circular_mean, circular_std, unique_classes, entropy, count: unitless — no conversion
+    // H(aX+b) = H(X) + log|a|; only applies when scale ≠ 1 (circular/discrete entropy is dimensionless)
+    entropy: summary.entropy != null && conv.scale !== 1
+      ? summary.entropy + Math.log(Math.abs(conv.scale))
+      : summary.entropy,
+    // rbar, circular_mean, circular_std, unique_classes, count: unitless — no conversion
   };
 };
 
