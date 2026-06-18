@@ -94,9 +94,7 @@ const buildRankedDescription = (
     typeof entry.position === 'number' &&
     typeof totalResults === 'number' &&
     totalResults > 0
-      ? sortOrder === 'desc'
-        ? Math.trunc(totalResults - entry.position + 1)
-        : Math.trunc(entry.position)
+      ? Math.trunc(entry.position)
       : null;
   const rankPart =
     displayRank !== null && Number.isFinite(displayRank) && typeof totalResults === 'number'
@@ -108,9 +106,7 @@ const buildRankedDescription = (
     typeof entry.position === 'number' &&
     typeof totalResults === 'number' &&
     totalResults > 0
-      ? sortOrder === 'desc'
-        ? Math.max(0, Math.min(100, ((totalResults - entry.position) / totalResults) * 100))
-        : Math.max(0, Math.min(100, ((entry.position - 1) / totalResults) * 100))
+      ? Math.max(0, Math.min(100, ((entry.position - 1) / totalResults) * 100))
       : null;
   const percentilePart =
     typeof percentilePercentage === 'number'
