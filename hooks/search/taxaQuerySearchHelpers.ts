@@ -90,13 +90,15 @@ const buildRankedDescription = (
       ? `${formatMetricNumber(entry.value)}${normalizedUnits ? ` ${normalizedUnits}` : ''}`
       : null;
 
-  const rankPart =
+  const displayRank =
     typeof entry.position === 'number' &&
-    Number.isFinite(entry.position) &&
     typeof totalResults === 'number' &&
-    Number.isFinite(totalResults) &&
     totalResults > 0
-      ? `Rank ${Math.trunc(entry.position)} of ${Math.trunc(totalResults)}`
+      ? Math.trunc(entry.position)
+      : null;
+  const rankPart =
+    displayRank !== null && Number.isFinite(displayRank) && typeof totalResults === 'number'
+      ? `Rank ${displayRank} of ${Math.trunc(totalResults)}`
       : null;
 
   const percentilePercentage =
@@ -104,9 +106,7 @@ const buildRankedDescription = (
     typeof entry.position === 'number' &&
     typeof totalResults === 'number' &&
     totalResults > 0
-      ? sortOrder === 'desc'
-        ? Math.max(0, Math.min(100, ((totalResults - entry.position) / totalResults) * 100))
-        : Math.max(0, Math.min(100, ((entry.position - 1) / totalResults) * 100))
+      ? Math.max(0, Math.min(100, ((entry.position - 1) / totalResults) * 100))
       : null;
   const percentilePart =
     typeof percentilePercentage === 'number'

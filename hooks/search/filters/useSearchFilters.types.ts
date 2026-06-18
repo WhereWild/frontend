@@ -53,6 +53,10 @@ export type UseSearchFiltersResult = {
   sortVariableOptions: SelectOption[];
   sortVariableLoading: boolean;
   sortVariableSourceIds: string[];
+  sortVariableIsCircular: boolean;
+  sortVariableCategoryValue: string;
+  sortVariableCategoryOptions: SelectOption[];
+  onSortVariableCategoryChange: (value: string) => void;
   onSortVariableChange: (value: string) => void;
   sortMetricValue: string;
   sortMetricOptions: SelectOption[];

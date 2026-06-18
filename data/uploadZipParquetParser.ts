@@ -24,6 +24,7 @@ type AsyncBufferLike = {
 
 type UploadParquetTableKey =
   | 'categoricalStats'
+  | 'ordinalStats'
   | 'circularStats'
   | 'categoricalValueLookup'
   | 'densityGraph'
@@ -62,6 +63,10 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
     key: 'categoricalStats',
     aliases: buildTableAliases('nominal_stats', 'categorical_stats'),
     required: true,
+  },
+  {
+    key: 'ordinalStats',
+    aliases: buildTableAliases('ordinal_stats'),
   },
   {
     key: 'circularStats',
@@ -320,6 +325,7 @@ export const parseUploadedParquetZipToRawBundle = async (
 
   const [
     categoricalStatsRows,
+    ordinalStatsRows,
     circularStatsRows,
     categoricalValueLookupRows,
     densityGraphRows,
@@ -331,6 +337,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     dataSources,
   ] = await Promise.all([
     readTable('categoricalStats'),
+    readTable('ordinalStats'),
     readTable('circularStats'),
     readTable('categoricalValueLookup'),
     readTable('densityGraph'),
@@ -348,6 +355,7 @@ export const parseUploadedParquetZipToRawBundle = async (
 
   return {
     categoricalStats: toTypedRows<RawCategoricalStatsRow>(categoricalStatsRows),
+    ordinalStats: toTypedRows<RawCategoricalStatsRow>(ordinalStatsRows),
     circularStats: toTypedRows<RawSummaryStatsRow>(circularStatsRows),
     categoricalValueLookup: toTypedRows<RawCategoricalValueLookupRow>(
       categoricalValueLookupRows,

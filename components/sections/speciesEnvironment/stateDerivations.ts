@@ -135,6 +135,7 @@ export const buildSummaryComparisons = (
     rbar: null,
     circular_std: null,
     entropy: null,
+    mode: null,
     unique_classes: null,
   };
   if (!anyFilterActive) return empty;
@@ -174,6 +175,10 @@ export const buildSummaryComparisons = (
       '°',
     ),
     entropy: fcl(summary?.entropy, baselineSummary?.entropy, 3),
+    mode: fcl(
+      summary?.mode as number | null | undefined,
+      baselineSummary?.mode as number | null | undefined,
+    ),
     unique_classes:
       typeof summary?.unique_classes === 'number' &&
       typeof baselineSummary?.unique_classes === 'number'

@@ -160,6 +160,8 @@ export function useSearchFilters(
     typeof setTimeout
   > | null>(null);
   const baseTaxonSubmitRequestIdRef = React.useRef(0);
+  const [sortVariableCategoryValue, setSortVariableCategoryValue] =
+    React.useState<string | null>(null);
 
   const {
     countryValue,
@@ -271,6 +273,77 @@ export function useSearchFilters(
       )?.sourceIds ?? [],
     [state.sortVariableDefinitions, state.sortVariableValue],
   );
+  const sortVariableIsCircular = React.useMemo(
+    () =>
+      state.sortVariableDefinitions.find(
+        (variable) => variable.id === state.sortVariableValue,
+      )?.valueType === 'circular',
+    [state.sortVariableDefinitions, state.sortVariableValue],
+  );
+
+  const sortVariableCategoryOptions = React.useMemo(() => {
+    const categoriesWithData = new Set(
+      state.sortVariableDefinitions
+        .filter(
+          (d) => d.category && sortVariableOptions.some((o) => o.value === d.id),
+        )
+        .map((d) => d.category!),
+    );
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [
+      { label: 'All', value: '' },
+    ];
+    for (const def of state.sortVariableDefinitions) {
+      if (def.category && !seen.has(def.category) && categoriesWithData.has(def.category)) {
+        seen.add(def.category);
+        const label = def.category
+          .replace(/_/g, ' ')
+          .replace(/^./, (c) => c.toUpperCase());
+        options.push({ label, value: def.category });
+      }
+    }
+    return options;
+  }, [state.sortVariableDefinitions, sortVariableOptions]);
+
+  // null = user has never explicitly chosen; default to first available category.
+  // Only apply the default when a base taxon is set (matching rank/variable/metric).
+  const effectiveSortVariableCategoryValue = React.useMemo(
+    () =>
+      hasScopedRankingContext
+        ? (sortVariableCategoryValue ?? sortVariableCategoryOptions[1]?.value ?? '')
+        : '',
+    [hasScopedRankingContext, sortVariableCategoryValue, sortVariableCategoryOptions],
+  );
+
+  const filteredSortVariableDefinitions = React.useMemo(() => {
+    if (!effectiveSortVariableCategoryValue) return state.sortVariableDefinitions;
+    return state.sortVariableDefinitions.filter(
+      (d) => d.category === effectiveSortVariableCategoryValue,
+    );
+  }, [state.sortVariableDefinitions, effectiveSortVariableCategoryValue]);
+
+  const filteredSortVariableOptions = React.useMemo(() => {
+    if (!effectiveSortVariableCategoryValue) return sortVariableOptions;
+    const inCategory = new Set(filteredSortVariableDefinitions.map((d) => d.id));
+    return sortVariableOptions.filter((o) => inCategory.has(o.value));
+  }, [sortVariableOptions, effectiveSortVariableCategoryValue, filteredSortVariableDefinitions]);
+
+  const onSortVariableCategoryChange = React.useCallback(
+    (value: string) => {
+      setSortVariableCategoryValue(value);
+      if (state.sortVariableValue) {
+        const currentDef = state.sortVariableDefinitions.find(
+          (d) => d.id === state.sortVariableValue,
+        );
+        if (value && currentDef?.category !== value) {
+          dispatch({ type: 'set-sort-variable', value: '' });
+          dispatch({ type: 'set-sort-metric', value: 'median' });
+        }
+      }
+    },
+    [state.sortVariableValue, state.sortVariableDefinitions, dispatch],
+  );
+
   const hasActiveFilters = React.useMemo(
     () => getHasActiveSearchFilters(state),
     [state],
@@ -283,7 +356,7 @@ export function useSearchFilters(
 
     if (
       sortVariableValue.length === 0 &&
-      sortMetricValue === 'median' &&
+      sortMetricValue === '' &&
       sortOrder === 'ascending'
     ) {
       return;
@@ -291,8 +364,8 @@ export function useSearchFilters(
 
     dispatch({ type: 'set-sort-variable', value: '' });
 
-    if (sortMetricValue !== 'median') {
-      dispatch({ type: 'set-sort-metric', value: 'median' });
+    if (sortMetricValue !== '') {
+      dispatch({ type: 'set-sort-metric', value: '' });
     }
 
     if (sortOrder !== 'ascending') {
@@ -305,6 +378,18 @@ export function useSearchFilters(
     sortOrder,
     sortVariableValue,
   ]);
+
+  React.useEffect(() => {
+    if (!hasScopedRankingContext || rankValue) return;
+    const firstRank = RANK_OPTIONS.find((o) => o.value !== '')?.value;
+    if (firstRank) dispatch({ type: 'set-rank', value: firstRank });
+  }, [hasScopedRankingContext, rankValue, dispatch]);
+
+  React.useEffect(() => {
+    if (!hasScopedRankingContext || sortVariableValue || !filteredSortVariableOptions.length) return;
+    const firstId = filteredSortVariableOptions[0]?.value;
+    if (firstId) dispatch({ type: 'set-sort-variable', value: firstId });
+  }, [hasScopedRankingContext, sortVariableValue, filteredSortVariableOptions, dispatch]);
 
   const panelProps = React.useMemo<SearchFiltersPanelProps>(
     () => ({
@@ -332,7 +417,11 @@ export function useSearchFilters(
       includeSubspecies,
       onIncludeSubspeciesChange,
       sortVariableValue,
-      sortVariableOptions,
+      sortVariableOptions: filteredSortVariableOptions,
+      sortVariableDefinitions: filteredSortVariableDefinitions,
+      sortVariableCategoryValue: effectiveSortVariableCategoryValue,
+      sortVariableCategoryOptions,
+      onSortVariableCategoryChange,
       sortVariableDisabled: !hasScopedRankingContext,
       onSortVariableChange,
       sortMetricValue,
@@ -395,10 +484,14 @@ export function useSearchFilters(
       sortMetricOptions,
       sortMetricValue,
       sortOrder,
-      sortVariableOptions,
+      filteredSortVariableOptions,
       sortVariableValue,
       stateOptions,
       stateValue,
+      filteredSortVariableDefinitions,
+      effectiveSortVariableCategoryValue,
+      sortVariableCategoryOptions,
+      onSortVariableCategoryChange,
     ],
   );
 
@@ -494,9 +587,13 @@ export function useSearchFilters(
     includeSubspecies,
     onIncludeSubspeciesChange,
     sortVariableValue,
-    sortVariableOptions,
+    sortVariableOptions: filteredSortVariableOptions,
     sortVariableLoading,
     sortVariableSourceIds,
+    sortVariableIsCircular,
+    sortVariableCategoryValue: effectiveSortVariableCategoryValue,
+    sortVariableCategoryOptions,
+    onSortVariableCategoryChange,
     onSortVariableChange,
     sortMetricValue,
     sortMetricOptions,

@@ -104,10 +104,15 @@ export function DensityChart({
     return resampleHistogram(rawSamples, maxBars);
   }, [isDiscrete, rawSamples, chartWidth]);
   const hasCurveData = samples.length > 0;
-  const densityDomain = React.useMemo(
-    () => getDensityDomain(samples),
-    [samples],
-  );
+  const densityDomain = React.useMemo(() => {
+    const raw = getDensityDomain(samples);
+    const minX =
+      summary?.min != null && summary.min > raw.minX ? summary.min : raw.minX;
+    const maxX =
+      summary?.max != null && summary.max < raw.maxX ? summary.max : raw.maxX;
+    const spanX = Math.max(maxX - minX, 1);
+    return { ...raw, minX, maxX, spanX };
+  }, [samples, summary]);
   const normalized = React.useMemo(
     () =>
       normalizeDensitySamples(

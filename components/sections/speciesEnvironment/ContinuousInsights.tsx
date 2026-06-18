@@ -50,6 +50,8 @@ type ContinuousInsightsProps = {
     q10_90_range?: SpeciesEnvironmentRelativeRank | null;
     rbar?: SpeciesEnvironmentRelativeRank | null;
     circular_std?: SpeciesEnvironmentRelativeRank | null;
+    entropy?: SpeciesEnvironmentRelativeRank | null;
+    mode?: SpeciesEnvironmentRelativeRank | null;
   };
   /** Comparison labels against baseline/location-filter context. */
   summaryComparisons: Record<string, string | null>;
@@ -153,50 +155,110 @@ export function ContinuousInsights({
 
       {/* Primary row — plain View for circular (non-interactive), Pressable for numeric */}
       {isCircular ? (
-        <View
-          collapsable={false}
+        <Pressable
+          onPress={handleToggle}
           testID='summary-row'
-          style={[
-            styles.summaryRow,
-            { paddingTop: Size.space['300'] },
-            isStacked && styles.summaryRowStacked,
+          accessibilityRole='button'
+          accessibilityLabel={expanded ? 'Show fewer stats' : 'Show more stats'}
+          accessibilityState={{ expanded }}
+          style={({ pressed, hovered }) => [
+            (pressed || (hovered ?? false)) && {
+              backgroundColor: palette.background.default.secondaryHover,
+              borderRadius: Size.radius['100'],
+            },
           ]}
         >
-          <SummaryItem
-            label='Mean'
-            value={formatDeg(summary?.circular_mean)}
-            comparison={
-              anyFilterActive
-                ? (summaryComparisons.circular_mean ?? null)
-                : null
+          <View
+            collapsable={false}
+            testID='summary-row-layout'
+            style={[
+              styles.summaryRow,
+              { paddingTop: Size.space['300'] },
+              isStacked && styles.summaryRowStacked,
+            ]}
+          >
+            <SummaryItem
+              label='Mean'
+              value={formatDeg(summary?.circular_mean)}
+              comparison={
+                anyFilterActive
+                  ? (summaryComparisons.circular_mean ?? null)
+                  : null
+              }
+              stacked={isStacked}
+              prominent={!showRankContext}
+            />
+            <SummaryItem
+              label='R̄'
+              value={formatValue(summary?.rbar, 3)}
+              rank={anyFilterActive ? undefined : (summaryRanks.rbar ?? null)}
+              comparison={
+                anyFilterActive ? (summaryComparisons.rbar ?? null) : null
+              }
+              stacked={isStacked}
+              prominent={!showRankContext}
+            />
+            <SummaryItem
+              label='Standard Deviation'
+              value={formatDeg(summary?.circular_std)}
+              rank={
+                anyFilterActive
+                  ? undefined
+                  : (summaryRanks.circular_std ?? null)
+              }
+              comparison={
+                anyFilterActive
+                  ? (summaryComparisons.circular_std ?? null)
+                  : null
+              }
+              stacked={isStacked}
+              prominent={!showRankContext}
+              isLast
+            />
+          </View>
+          <View
+            collapsable={false}
+            style={!expanded ? styles.hiddenSlot : undefined}
+            accessibilityElementsHidden={!expanded}
+            importantForAccessibility={
+              expanded ? 'auto' : 'no-hide-descendants'
             }
-            stacked={isStacked}
-            prominent={!showRankContext}
-          />
-          <SummaryItem
-            label='R̄'
-            value={formatValue(summary?.rbar, 3)}
-            rank={anyFilterActive ? undefined : (summaryRanks.rbar ?? null)}
-            comparison={
-              anyFilterActive ? (summaryComparisons.rbar ?? null) : null
-            }
-            stacked={isStacked}
-            prominent={!showRankContext}
-          />
-          <SummaryItem
-            label='Standard Deviation'
-            value={formatDeg(summary?.circular_std)}
-            rank={
-              anyFilterActive ? undefined : (summaryRanks.circular_std ?? null)
-            }
-            comparison={
-              anyFilterActive ? (summaryComparisons.circular_std ?? null) : null
-            }
-            stacked={isStacked}
-            prominent={!showRankContext}
-            isLast
-          />
-        </View>
+            pointerEvents={expanded ? 'auto' : 'none'}
+          >
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Mode'
+                value={formatDeg(summary?.mode as number | null | undefined)}
+                stacked={isStacked}
+                prominent
+                rank={null}
+                comparison={
+                  anyFilterActive ? (summaryComparisons.mode ?? null) : null
+                }
+              />
+              <SummaryItem
+                label='Entropy'
+                value={formatValue(summary?.entropy, 3)}
+                rank={
+                  anyFilterActive ? undefined : (summaryRanks.entropy ?? null)
+                }
+                comparison={
+                  anyFilterActive ? (summaryComparisons.entropy ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+          </View>
+        </Pressable>
       ) : (
         <Pressable
           onPress={handleToggle}
@@ -388,6 +450,43 @@ export function ContinuousInsights({
                 rank={anyFilterActive ? undefined : (summaryRanks.iqr ?? null)}
                 comparison={
                   anyFilterActive ? (summaryComparisons.iqr ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+                isLast
+              />
+            </View>
+
+            {/* Row 5: Mode / Entropy */}
+            <View
+              collapsable={false}
+              style={[
+                styles.summaryRow,
+                { paddingTop: Size.space['200'] },
+                isStacked && styles.summaryRowStacked,
+              ]}
+            >
+              <SummaryItem
+                label='Mode'
+                value={formatValue(
+                  summary?.mode as number | null | undefined,
+                  1,
+                )}
+                rank={anyFilterActive ? undefined : (summaryRanks.mode ?? null)}
+                comparison={
+                  anyFilterActive ? (summaryComparisons.mode ?? null) : null
+                }
+                stacked={isStacked}
+                prominent
+              />
+              <SummaryItem
+                label='Entropy'
+                value={formatValue(summary?.entropy, 3)}
+                rank={
+                  anyFilterActive ? undefined : (summaryRanks.entropy ?? null)
+                }
+                comparison={
+                  anyFilterActive ? (summaryComparisons.entropy ?? null) : null
                 }
                 stacked={isStacked}
                 prominent
