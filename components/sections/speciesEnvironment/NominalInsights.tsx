@@ -42,6 +42,11 @@ type NominalInsightsProps = {
     entropy: SpeciesEnvironmentRelativeRank | null;
     mode_class: SpeciesEnvironmentRelativeRank | null;
     selected_class: SpeciesEnvironmentRelativeRank | null;
+    q10?: SpeciesEnvironmentRelativeRank | null;
+    q25?: SpeciesEnvironmentRelativeRank | null;
+    median?: SpeciesEnvironmentRelativeRank | null;
+    q75?: SpeciesEnvironmentRelativeRank | null;
+    q90?: SpeciesEnvironmentRelativeRank | null;
   };
   summaryComparisons?: Record<string, string | null>;
   baselineCategoricalDistribution?: SpeciesEnvironmentCategory[] | null;
@@ -288,7 +293,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q25'
                 value={resolveOrdinalClassName(summary?.q25) ?? '—'}
-                rank={null}
+                rank={anyFilterActive ? undefined : (summaryRanks.q25 ?? null)}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -296,7 +301,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Median'
                 value={resolveOrdinalClassName(summary?.median) ?? '—'}
-                rank={null}
+                rank={anyFilterActive ? undefined : (summaryRanks.median ?? null)}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -304,7 +309,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q75'
                 value={resolveOrdinalClassName(summary?.q75) ?? '—'}
-                rank={null}
+                rank={anyFilterActive ? undefined : (summaryRanks.q75 ?? null)}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -322,7 +327,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q10'
                 value={resolveOrdinalClassName(summary?.q10) ?? '—'}
-                rank={null}
+                rank={anyFilterActive ? undefined : (summaryRanks.q10 ?? null)}
                 comparison={null}
                 stacked={isStacked}
                 prominent
@@ -330,7 +335,7 @@ export function NominalInsights({
               <SummaryItem
                 label='Q90'
                 value={resolveOrdinalClassName(summary?.q90) ?? '—'}
-                rank={null}
+                rank={anyFilterActive ? undefined : (summaryRanks.q90 ?? null)}
                 comparison={null}
                 stacked={isStacked}
                 prominent

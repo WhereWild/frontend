@@ -518,6 +518,11 @@ function SpeciesEnvironmentSectionComponent({
                     mode_class: displayState?.summaryRanks?.mode_class ?? null,
                     selected_class:
                       displayState?.summaryRanks?.selected_class ?? null,
+                    q10: displayState?.summaryRanks?.q10 ?? null,
+                    q25: displayState?.summaryRanks?.q25 ?? null,
+                    median: displayState?.summaryRanks?.median ?? null,
+                    q75: displayState?.summaryRanks?.q75 ?? null,
+                    q90: displayState?.summaryRanks?.q90 ?? null,
                   }}
                   summaryComparisons={displayState?.summaryComparisons ?? {}}
                   baselineCategoricalDistribution={
