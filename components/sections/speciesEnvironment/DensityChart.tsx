@@ -110,7 +110,7 @@ export function DensityChart({
       summary?.min != null && summary.min > raw.minX ? summary.min : raw.minX;
     const maxX =
       summary?.max != null && summary.max < raw.maxX ? summary.max : raw.maxX;
-    const spanX = Math.max(maxX - minX, 1);
+    const spanX = maxX - minX || 1;
     return { ...raw, minX, maxX, spanX };
   }, [samples, summary]);
   const normalized = React.useMemo(
