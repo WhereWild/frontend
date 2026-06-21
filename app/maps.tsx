@@ -157,7 +157,10 @@ export default function Maps() {
     let cancelled = false;
     (async () => {
       try {
-        const fetched = await fetchEnvironmentVariables({ units, forecastH: selectedForecastH });
+        const fetched = await fetchEnvironmentVariables({
+          units,
+          forecastH: selectedForecastH,
+        });
         if (cancelled || !fetched.length) return;
         const mapped = toVariableOption(fetched);
         if (mapped.length > 0) setVariables(mapped);
