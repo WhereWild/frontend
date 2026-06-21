@@ -93,6 +93,8 @@ const toVariableOption = (
     renderMin: e.renderMin ?? null,
     renderMax: e.renderMax ?? null,
     sourceIds: e.sourceIds ?? [],
+    group: e.group ?? null,
+    groupLabel: e.groupLabel ?? null,
   }));
 
 const buildTileUrl = ({
