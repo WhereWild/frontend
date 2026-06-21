@@ -151,11 +151,16 @@ export default function Maps() {
   const [pinnedValue, setPinnedValue] = useState<number | null>(null);
   const [selectedForecast, setSelectedForecast] = useState('now');
 
+  const selectedForecastH = FORECAST_HOUR_MAP[selectedForecast] ?? 0;
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const fetched = await fetchEnvironmentVariables({ units });
+        const fetched = await fetchEnvironmentVariables({
+          units,
+          forecastH: selectedForecastH,
+        });
         if (cancelled || !fetched.length) return;
         const mapped = toVariableOption(fetched);
         if (mapped.length > 0) setVariables(mapped);
@@ -166,7 +171,7 @@ export default function Maps() {
     return () => {
       cancelled = true;
     };
-  }, [units]);
+  }, [units, selectedForecastH]);
 
   const {
     categories,
