@@ -7,6 +7,7 @@ import { BACKEND_BASE, fetchJsonOrThrow } from './apiShared';
 
 export type FetchEnvironmentVariablesOptions = {
   units?: string | null;
+  forecastH?: number;
   signal?: AbortSignal;
 };
 
@@ -18,6 +19,7 @@ export async function fetchEnvironmentVariables(
 ) {
   const params = new URLSearchParams();
   if (options?.units) params.set('unit_system', options.units);
+  if (options?.forecastH) params.set('forecast_h', String(options.forecastH));
   const url = `${BACKEND_BASE}/variables${params.toString() ? `?${params.toString()}` : ''}`;
   const requestOptions = options?.signal
     ? { signal: options.signal }
