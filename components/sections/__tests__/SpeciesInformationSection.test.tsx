@@ -53,7 +53,6 @@ describe('SpeciesInformationSection', () => {
     render(
       <SpeciesInformationSection
         commonName='Test Cactus'
-        commonNames={['Test Cactus', 'Spiny Test Cactus']}
         overview={{
           description: 'Ignored fallback',
           imageSource: { uri: 'https://images.example/cactus.jpg' },
@@ -108,7 +107,6 @@ describe('SpeciesInformationSection', () => {
     render(
       <SpeciesInformationSection
         commonName='Test Cactus'
-        commonNames={['Test Cactus']}
         overview={{
           description: 'Fallback overview description.',
           imageSource: { uri: 'https://images.example/cactus.jpg' },
@@ -127,7 +125,6 @@ describe('SpeciesInformationSection', () => {
     render(
       <SpeciesInformationSection
         commonName='Test Cactus'
-        commonNames={['Test Cactus']}
         allObscured
         overview={{
           description: 'Fallback overview description.',

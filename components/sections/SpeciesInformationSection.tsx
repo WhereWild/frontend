@@ -23,32 +23,10 @@ const GBIF_SOURCE_ID = 'gbif_inaturalist';
 
 export type SpeciesInformationSectionProps = {
   commonName: string;
-  commonNames: string[];
   overview: SpeciesOverview;
   style?: StyleProp<ViewStyle>;
   allObscured?: boolean;
 };
-
-function CommonNamesList({ names }: { names: string[] }) {
-  return (
-    <View style={styles.textBody}>
-      {names.map((name) => (
-        <View key={name} style={styles.commonNameRow}>
-          <ThemedText
-            variant='body'
-            style={styles.commonNameBullet}
-            accessible={false}
-            importantForAccessibility='no'
-            accessibilityElementsHidden
-          >
-            •
-          </ThemedText>
-          <ThemedText variant='body'>{name}</ThemedText>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 const renderOverviewLineText = (line: SpeciesOverviewLine) => {
   const body = line.body?.trim();
@@ -66,7 +44,6 @@ const renderOverviewLineText = (line: SpeciesOverviewLine) => {
 
 export function SpeciesInformationSection({
   commonName,
-  commonNames,
   overview,
   style,
   allObscured,
@@ -206,11 +183,6 @@ export function SpeciesInformationSection({
           )}
         </View>
 
-        <View style={styles.textSection}>
-          <ThemedText variant='heading'>Common Names</ThemedText>
-          <CommonNamesList names={commonNames} />
-        </View>
-
         {gbifSource && (
           <View style={styles.gbifAttribution}>
             <ThemedText
@@ -271,14 +243,6 @@ const styles = StyleSheet.create({
   imageAttribution: {
     marginTop: Size.space['100'],
     gap: Size.space.text.line,
-  },
-  commonNameRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Size.space.text.line,
-  },
-  commonNameBullet: {
-    minWidth: Size.space['200'],
   },
   gbifAttribution: {
     flexDirection: 'row',
