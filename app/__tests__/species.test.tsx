@@ -281,7 +281,6 @@ const createData = (
 ): SpeciesScreenData => ({
   taxonId: 13579,
   commonName: 'Test Cactus',
-  commonNames: ['Test Cactus', 'Prickly Test Cactus'],
   scientificName: 'Testus cactus',
   overview: {
     description: 'A sample species used for testing.',
@@ -369,9 +368,6 @@ describe('Species screen', () => {
     expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(0);
     expect(screen.getByText('Testus cactus')).toBeTruthy();
     expect(screen.getByText('A sample species used for testing.')).toBeTruthy();
-    expect(screen.getByText('Common Names')).toBeTruthy();
-    expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(0);
-    expect(screen.getByText('Prickly Test Cactus')).toBeTruthy();
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     try {
       fireEvent.press(screen.getByText('Download'));
@@ -392,9 +388,6 @@ describe('Species screen', () => {
     expect(screen.getAllByText('Mountain Ball Cactus').length).toBeGreaterThan(
       0,
     );
-    expect(screen.getByText('Common Names')).toBeTruthy();
-    expect(screen.getByText('Mountain Cactus')).toBeTruthy();
-    expect(screen.getByText('Snowball Cactus')).toBeTruthy();
   });
 
   it('renders overview sub-sections when structured description sections are provided', async () => {
@@ -427,15 +420,6 @@ describe('Species screen', () => {
     expect(screen.getByText('Summary')).toBeTruthy();
     expect(screen.getByText('Habitat')).toBeTruthy();
     expect(screen.getByText(/Often in:\s+dry uplands/)).toBeTruthy();
-  });
-
-  it('falls back to single commonName when commonNames list is empty', async () => {
-    render(<SpeciesScreen data={createData({ commonNames: [] })} />);
-
-    await waitForSpeciesEffectsToSettle();
-
-    expect(screen.getByText('Common Names')).toBeTruthy();
-    expect(screen.getAllByText('Test Cactus').length).toBeGreaterThan(1);
   });
 
   it('loads occurrence and country options on mount', async () => {
