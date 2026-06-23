@@ -35,7 +35,6 @@ import {
 import { useScrollLock } from '@/context/ScrollLockContext';
 import { BACKEND_BASE } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
-import { buildCommonNamesWithPrimary } from '@/data/commonNames';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesPageData } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -74,7 +73,6 @@ export type SpeciesScreenData = Pick<
   | 'taxonId'
   | 'scientificName'
   | 'commonName'
-  | 'commonNames'
   | 'overview'
   | 'nearbySpecies'
   | 'heatmap'
@@ -182,7 +180,6 @@ export default function Species({
   const {
     taxonId,
     commonName,
-    commonNames,
     scientificName,
     overview,
     allObscured,
@@ -500,9 +497,6 @@ export default function Species({
     }) as [string, string, string, string];
   }, [selectedCircularColormap]);
 
-  const displayCommonNames = React.useMemo(() => {
-    return buildCommonNamesWithPrimary(commonName, commonNames);
-  }, [commonName, commonNames]);
   const speciesPath = React.useMemo(() => {
     if (Platform.OS === 'web' && pathname.startsWith('/species/')) {
       return pathname;
@@ -579,7 +573,6 @@ export default function Species({
             <SectionShell responsive={responsive}>
               <SpeciesInformationSection
                 commonName={commonName}
-                commonNames={displayCommonNames}
                 overview={overview}
                 allObscured={allObscured}
               />
