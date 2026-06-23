@@ -115,14 +115,22 @@ export function SpeciesInformationSection({
                 View on iNaturalist
               </ThemedText>
             )}
-            {overview.imageLicense && (
-              <ThemedText
-                variant='bodySmall'
-                style={{ color: palette.text.default.secondary }}
-              >
-                {overview.imageLicense}
-              </ThemedText>
-            )}
+            {overview.imageLicense &&
+              (overview.imageLicenseUrl ? (
+                <ThemedText
+                  variant='bodySmallLink'
+                  onPress={() => Linking.openURL(overview.imageLicenseUrl!)}
+                >
+                  {overview.imageLicense}
+                </ThemedText>
+              ) : (
+                <ThemedText
+                  variant='bodySmall'
+                  style={{ color: palette.text.default.secondary }}
+                >
+                  {overview.imageLicense}
+                </ThemedText>
+              ))}
           </View>
         )}
       </View>
