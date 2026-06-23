@@ -81,6 +81,7 @@ export type SpeciesOverview = {
   sections?: SpeciesOverviewSection[];
   imageSource: ImageSourcePropType;
   imageLicense?: string;
+  imageLicenseUrl?: string;
   imageCreator?: string;
   imageRightsHolder?: string;
   imageReferences?: string;
@@ -214,6 +215,7 @@ export type SpeciesApiDetail = SpeciesApiNormalized & {
   description: string;
   description_sections?: SpeciesOverviewSection[];
   image_license?: string | null;
+  image_license_url?: string | null;
   image_creator?: string | null;
   image_rights_holder?: string | null;
   image_references?: string | null;

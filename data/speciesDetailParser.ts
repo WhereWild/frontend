@@ -48,6 +48,7 @@ export const parseSpeciesApiDetail = (
     description,
     description_sections: parseOverviewSectionsFromDetailSource(source, description),
     image_license: toFirstString(source.image_license, source.imageLicense),
+    image_license_url: toFirstString(source.image_license_url, source.imageLicenseUrl),
     image_creator: toFirstString(source.image_creator, source.imageCreator),
     image_rights_holder: toFirstString(source.image_rights_holder, source.imageRightsHolder),
     image_references: toFirstString(source.image_references, source.imageReferences),
