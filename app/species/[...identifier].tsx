@@ -113,7 +113,8 @@ const buildSpeciesPageData = (
       imageSource:
         normalizeImageSource(payload) ?? fallback.overview.imageSource,
       imageLicense: payload.image_license ?? fallback.overview.imageLicense,
-      imageLicenseUrl: payload.image_license_url ?? fallback.overview.imageLicenseUrl,
+      imageLicenseUrl:
+        payload.image_license_url ?? fallback.overview.imageLicenseUrl,
       imageCreator: payload.image_creator ?? fallback.overview.imageCreator,
       imageRightsHolder:
         payload.image_rights_holder ?? fallback.overview.imageRightsHolder,

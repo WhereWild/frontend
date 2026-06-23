@@ -115,8 +115,8 @@ export function SpeciesInformationSection({
                 View on iNaturalist
               </ThemedText>
             )}
-            {overview.imageLicense && (
-              overview.imageLicenseUrl ? (
+            {overview.imageLicense &&
+              (overview.imageLicenseUrl ? (
                 <ThemedText
                   variant='bodySmallLink'
                   onPress={() => Linking.openURL(overview.imageLicenseUrl!)}
@@ -130,8 +130,7 @@ export function SpeciesInformationSection({
                 >
                   {overview.imageLicense}
                 </ThemedText>
-              )
-            )}
+              ))}
           </View>
         )}
       </View>
