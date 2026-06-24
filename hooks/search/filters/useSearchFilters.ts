@@ -424,6 +424,8 @@ export function useSearchFilters(
       onSortVariableCategoryChange,
       sortVariableDisabled: !hasScopedRankingContext,
       onSortVariableChange,
+      sortVariableSourceIds,
+      sortVariableIsCircular,
       sortMetricValue,
       sortMetricOptions,
       onSortMetricChange,
@@ -492,6 +494,8 @@ export function useSearchFilters(
       effectiveSortVariableCategoryValue,
       sortVariableCategoryOptions,
       onSortVariableCategoryChange,
+      sortVariableSourceIds,
+      sortVariableIsCircular,
     ],
   );
 
