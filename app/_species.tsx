@@ -343,7 +343,7 @@ export default function Species({
   );
 
   React.useEffect(() => {
-    if (!taxonId || !selectedVariableMeta?.id) {
+    if (!taxonId || !selectedVariableMeta?.id || !shouldRenderOccurrenceMap) {
       setObservationValues(null);
       return;
     }
@@ -395,7 +395,7 @@ export default function Species({
     return () => {
       cancelled = true;
     };
-  }, [taxonId, selectedVariableMeta, units]);
+  }, [taxonId, selectedVariableMeta, units, shouldRenderOccurrenceMap]);
 
   const classShapes = React.useMemo(() => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
