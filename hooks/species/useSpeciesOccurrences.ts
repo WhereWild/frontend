@@ -52,7 +52,7 @@ export const useSpeciesOccurrences = ({
 
     if (!taxonId) {
       setOccurrences([]);
-      setError('No taxon ID supplied.');
+      setError(null);
       setLoading(false);
       return;
     }

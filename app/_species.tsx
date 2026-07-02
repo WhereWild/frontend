@@ -78,6 +78,7 @@ export type SpeciesScreenData = Pick<
   | 'heatmap'
   | 'allObscured'
   | 'taxonRank'
+  | 'largeTaxon'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -184,6 +185,7 @@ export default function Species({
     overview,
     allObscured,
     taxonRank,
+    largeTaxon,
   } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -224,7 +226,7 @@ export default function Species({
     webHeaderHeight,
   ]);
 
-  const shouldRenderOccurrenceMap = Boolean(taxonId);
+  const shouldRenderOccurrenceMap = Boolean(taxonId) && !largeTaxon;
   const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
@@ -283,7 +285,7 @@ export default function Species({
     phenologyCounts,
     phenologyNoData,
   } = useSpeciesOccurrences({
-    taxonId,
+    taxonId: largeTaxon ? undefined : taxonId,
     locationGid: finalLocationGid,
     phenology: selectedPhenology,
     startTimestamp,
@@ -578,6 +580,29 @@ export default function Species({
               />
             </SectionShell>
 
+            {largeTaxon && Boolean(taxonId) && (
+              <SectionShell responsive={responsive}>
+                <ThemedText variant='heading'>Observation Map</ThemedText>
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 12,
+                    backgroundColor: palette.background.warning.secondary,
+                    borderColor: palette.border.warning.default,
+                  }}
+                >
+                  <ThemedText
+                    variant='bodySmall'
+                    style={{ color: palette.text.warning.default }}
+                  >
+                    Too many observations to display on map. Location filters
+                    and slicing are disabled for this taxon.
+                  </ThemedText>
+                </View>
+              </SectionShell>
+            )}
+
             {shouldRenderOccurrenceMap && (
               <SectionShell responsive={responsive}>
                 <ThemedText variant='heading'>Observation Map</ThemedText>
@@ -605,6 +630,7 @@ export default function Species({
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
+                  largeTaxon={largeTaxon}
                   onHighlightChange={setHighlightedCatalogs}
                   onVariableMetaChange={handleVariableMetaChange}
                   locationGid={finalLocationGid}

@@ -122,6 +122,8 @@ type UseEnvironmentHighlightsParams = {
     lat: number;
     lon: number;
   } | null;
+  /** When false, suppresses slice and category-sample network requests. */
+  slicingEnabled?: boolean;
 };
 
 /** Handles category/range selections and resolves corresponding highlighted observations. */
@@ -137,6 +139,7 @@ export function useEnvironmentHighlights({
   units,
   onHighlightChange,
   pinnedObservation,
+  slicingEnabled = true,
 }: UseEnvironmentHighlightsParams) {
   const speciesDataSource = useSpeciesDataSource();
   const [selectedCategoryValue, setSelectedCategoryValueState] = React.useState<
@@ -335,7 +338,7 @@ export function useEnvironmentHighlights({
         setPinnedValue(result.value);
         setPinnedValueLabel(result.valueLabel ?? null);
         setPinnedValueDescription(result.valueDescription ?? null);
-        if (!isCategorical || result.value === null || !taxonId) {
+        if (!isCategorical || result.value === null || !taxonId || !slicingEnabled) {
           setPinnedCategoryObserved(null);
         } else {
           try {
@@ -479,7 +482,7 @@ export function useEnvironmentHighlights({
         }
       }
 
-      if (!isCategorical || !taxonId || !selectedVariable) {
+      if (!isCategorical || !taxonId || !selectedVariable || !slicingEnabled) {
         emitHighlightChange([]);
         return;
       }
@@ -640,7 +643,7 @@ export function useEnvironmentHighlights({
       setRangeObservations([]);
       return;
     }
-    if (!taxonId || !selectedVariable || !selectedDensityRange) {
+    if (!taxonId || !selectedVariable || !selectedDensityRange || !slicingEnabled) {
       setRangeObservations([]);
       emitHighlightChange([]);
       return;

@@ -43,6 +43,8 @@ export type SpeciesEnvironmentSectionProps = {
   taxonId?: number;
   /** Taxon rank string as returned by the backend (e.g. 'SPECIES', 'GENUS'). */
   taxonRank?: string | null;
+  /** True when the taxon exceeds the observation threshold — disables slicing and filtering. */
+  largeTaxon?: boolean;
   /** Initial environment variable ID to load. */
   variableId?: string;
   /** Optional environment variable catalog override. */
@@ -70,6 +72,7 @@ export type SpeciesEnvironmentSectionProps = {
 function SpeciesEnvironmentSectionComponent({
   taxonId,
   taxonRank,
+  largeTaxon = false,
   variableId = DEFAULT_VARIABLE,
   variables,
   onHighlightChange,
@@ -82,7 +85,7 @@ function SpeciesEnvironmentSectionComponent({
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
   const slicingEnabled =
-    taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase());
+    !largeTaxon && (taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase()));
   const rankLabel =
     taxonRank == null
       ? 'Species'
@@ -191,6 +194,7 @@ function SpeciesEnvironmentSectionComponent({
     endTimestamp,
     units,
     pinnedObservation,
+    slicingEnabled,
   });
 
   React.useEffect(() => {

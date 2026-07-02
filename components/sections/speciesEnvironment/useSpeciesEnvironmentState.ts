@@ -52,6 +52,8 @@ type UseSpeciesEnvironmentStateParams = {
     lat: number;
     lon: number;
   } | null;
+  /** When false, suppresses slice and category-sample network requests. */
+  slicingEnabled?: boolean;
 };
 
 /** Inputs used to derive presentational state from loaded stats and selection metadata. */
@@ -121,6 +123,7 @@ export function useSpeciesEnvironmentState({
   endTimestamp,
   units,
   pinnedObservation,
+  slicingEnabled = true,
 }: UseSpeciesEnvironmentStateParams) {
   const {
     categories,
@@ -196,6 +199,7 @@ export function useSpeciesEnvironmentState({
     onHighlightChange,
     units,
     pinnedObservation,
+    slicingEnabled,
   });
 
   const rangeObservationItems = React.useMemo(

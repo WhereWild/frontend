@@ -49,6 +49,7 @@ type SpeciesBasics = {
   } | null;
   rank?: string | null;
   taxon_rank?: string | null;
+  large_taxon?: boolean;
 };
 
 type SpeciesRouteParams = {
@@ -133,6 +134,7 @@ const buildSpeciesPageData = (
       typeof payload.taxon_rank === 'string'
         ? payload.taxon_rank.toUpperCase()
         : null,
+    largeTaxon: payload.large_taxon === true,
   };
 };
 

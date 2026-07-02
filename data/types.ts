@@ -117,6 +117,7 @@ export type SpeciesPageData = SpeciesSummary & {
   taxonomyPath?: string | null;
   allObscured?: boolean;
   taxonRank?: string | null;
+  largeTaxon?: boolean;
 };
 
 export type SpeciesEnvironmentSummary = {
