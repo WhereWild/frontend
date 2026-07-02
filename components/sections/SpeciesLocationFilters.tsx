@@ -24,6 +24,7 @@ type SpeciesLocationFiltersProps = {
   onCountryChange: (gid: string | null) => void;
   onStateChange: (gid: string | null) => void;
   onCountyChange: (gid: string | null) => void;
+  disabled?: boolean;
 };
 
 export function SpeciesLocationFilters({
@@ -39,6 +40,7 @@ export function SpeciesLocationFilters({
   onCountryChange,
   onStateChange,
   onCountyChange,
+  disabled = false,
 }: SpeciesLocationFiltersProps) {
   const { breakpoint } = useResponsive();
   const isStacked = breakpoint === 'phone' || breakpoint === 'tablet';
@@ -55,7 +57,7 @@ export function SpeciesLocationFilters({
         placeholder: countryLoading ? 'Loading…' : 'Select',
         options: [{ label: 'All countries', value: '' }, ...countryOptions],
         value: selectedCountryGid ?? '',
-        disabled: countryLoading || countryOptions.length === 0,
+        disabled: disabled || countryLoading || countryOptions.length === 0,
         onChange: (value: string) => onCountryChange(toNullableGid(value)),
       },
       {
@@ -65,7 +67,10 @@ export function SpeciesLocationFilters({
         options: [{ label: 'All states', value: '' }, ...stateOptions],
         value: selectedStateGid ?? '',
         disabled:
-          !selectedCountryGid || stateLoading || stateOptions.length === 0,
+          disabled ||
+          !selectedCountryGid ||
+          stateLoading ||
+          stateOptions.length === 0,
         onChange: (value: string) => onStateChange(toNullableGid(value)),
       },
       {
@@ -75,11 +80,15 @@ export function SpeciesLocationFilters({
         options: [{ label: 'All counties', value: '' }, ...countyOptions],
         value: selectedCountyGid ?? '',
         disabled:
-          !selectedStateGid || countyLoading || countyOptions.length === 0,
+          disabled ||
+          !selectedStateGid ||
+          countyLoading ||
+          countyOptions.length === 0,
         onChange: (value: string) => onCountyChange(toNullableGid(value)),
       },
     ],
     [
+      disabled,
       countryLoading,
       countryOptions,
       countyLoading,

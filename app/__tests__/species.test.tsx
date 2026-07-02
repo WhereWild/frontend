@@ -536,7 +536,6 @@ describe('Species screen', () => {
 
     await waitForSpeciesEffectsToSettle();
 
-    expect(screen.getByText('Observation Map')).toBeTruthy();
     expect(screen.getByText('Filter Observations by Location')).toBeTruthy();
   });
 

@@ -78,6 +78,7 @@ export type SpeciesScreenData = Pick<
   | 'heatmap'
   | 'allObscured'
   | 'taxonRank'
+  | 'largeTaxon'
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
@@ -184,6 +185,7 @@ export default function Species({
     overview,
     allObscured,
     taxonRank,
+    largeTaxon,
   } = data;
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -224,7 +226,7 @@ export default function Species({
     webHeaderHeight,
   ]);
 
-  const shouldRenderOccurrenceMap = Boolean(taxonId);
+  const shouldRenderOccurrenceMap = Boolean(taxonId) && !largeTaxon;
   const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
@@ -272,7 +274,7 @@ export default function Species({
     onStateChange,
     onCountyChange,
   } = useSpeciesLocationFilters({
-    taxonId,
+    taxonId: largeTaxon ? undefined : taxonId,
     locationSearchLimit: LOCATION_SEARCH_LIMIT,
   });
 
@@ -283,7 +285,7 @@ export default function Species({
     phenologyCounts,
     phenologyNoData,
   } = useSpeciesOccurrences({
-    taxonId,
+    taxonId: largeTaxon ? undefined : taxonId,
     locationGid: finalLocationGid,
     phenology: selectedPhenology,
     startTimestamp,
@@ -341,7 +343,7 @@ export default function Species({
   );
 
   React.useEffect(() => {
-    if (!taxonId || !selectedVariableMeta?.id) {
+    if (!taxonId || !selectedVariableMeta?.id || !shouldRenderOccurrenceMap) {
       setObservationValues(null);
       return;
     }
@@ -393,7 +395,7 @@ export default function Species({
     return () => {
       cancelled = true;
     };
-  }, [taxonId, selectedVariableMeta, units]);
+  }, [taxonId, selectedVariableMeta, units, shouldRenderOccurrenceMap]);
 
   const classShapes = React.useMemo(() => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -578,9 +580,8 @@ export default function Species({
               />
             </SectionShell>
 
-            {shouldRenderOccurrenceMap && (
+            {Boolean(taxonId) && (
               <SectionShell responsive={responsive}>
-                <ThemedText variant='heading'>Observation Map</ThemedText>
                 <SpeciesLocationFilters
                   countryOptions={countryOptions}
                   stateOptions={stateOptions}
@@ -594,17 +595,20 @@ export default function Species({
                   onCountryChange={onCountryChange}
                   onStateChange={onStateChange}
                   onCountyChange={onCountyChange}
+                  disabled={largeTaxon}
                 />
 
                 <SpeciesObservationFilters
                   selectedPhenology={selectedPhenology}
                   onPhenologyChange={setSelectedPhenology}
                   phenologyCounts={phenologyCounts}
+                  disabled={largeTaxon}
                 />
 
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
+                  largeTaxon={largeTaxon}
                   onHighlightChange={setHighlightedCatalogs}
                   onVariableMetaChange={handleVariableMetaChange}
                   locationGid={finalLocationGid}
@@ -617,6 +621,28 @@ export default function Species({
               </SectionShell>
             )}
           </View>
+
+          {largeTaxon && Boolean(taxonId) && (
+            <SectionShell responsive={responsive}>
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: palette.background.warning.secondary,
+                  borderColor: palette.border.warning.default,
+                }}
+              >
+                <ThemedText
+                  variant='bodySmall'
+                  style={{ color: palette.text.warning.default }}
+                >
+                  Too many observations to display on map. Location filters and
+                  slicing are disabled for this taxon.
+                </ThemedText>
+              </View>
+            </SectionShell>
+          )}
 
           {/* Always mount the map container to keep ScrollView child indices
               stable — toggling between a component and null shifts Fabric indices

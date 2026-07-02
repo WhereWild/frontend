@@ -12,12 +12,14 @@ type SpeciesObservationFiltersProps = {
   selectedPhenology: string | null;
   onPhenologyChange: (value: string | null) => void;
   phenologyCounts: Record<string, number> | null;
+  disabled?: boolean;
 };
 
 export function SpeciesObservationFilters({
   selectedPhenology,
   onPhenologyChange,
   phenologyCounts,
+  disabled = false,
 }: SpeciesObservationFiltersProps) {
   const toNullable = React.useCallback(
     (value: string) => (value ? value : null),
@@ -47,7 +49,7 @@ export function SpeciesObservationFilters({
         options={options}
         value={selectedPhenology ?? ''}
         onValueChange={(value) => onPhenologyChange(toNullable(value))}
-        disabled={isLoading}
+        disabled={disabled || isLoading}
       />
     </View>
   );
