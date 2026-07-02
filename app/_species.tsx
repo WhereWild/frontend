@@ -274,7 +274,7 @@ export default function Species({
     onStateChange,
     onCountyChange,
   } = useSpeciesLocationFilters({
-    taxonId,
+    taxonId: largeTaxon ? undefined : taxonId,
     locationSearchLimit: LOCATION_SEARCH_LIMIT,
   });
 
