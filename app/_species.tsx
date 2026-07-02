@@ -595,12 +595,14 @@ export default function Species({
                   onCountryChange={onCountryChange}
                   onStateChange={onStateChange}
                   onCountyChange={onCountyChange}
+                  disabled={largeTaxon}
                 />
 
                 <SpeciesObservationFilters
                   selectedPhenology={selectedPhenology}
                   onPhenologyChange={setSelectedPhenology}
                   phenologyCounts={phenologyCounts}
+                  disabled={largeTaxon}
                 />
 
                 <SpeciesEnvironmentSection
