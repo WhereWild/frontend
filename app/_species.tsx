@@ -635,8 +635,8 @@ export default function Species({
                   variant='bodySmall'
                   style={{ color: palette.text.warning.default }}
                 >
-                  Too many observations to display on map. Location filters
-                  and slicing are disabled for this taxon.
+                  Too many observations to display on map. Location filters and
+                  slicing are disabled for this taxon.
                 </ThemedText>
               </View>
             </SectionShell>
