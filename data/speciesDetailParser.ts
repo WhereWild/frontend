@@ -53,6 +53,7 @@ export const parseSpeciesApiDetail = (
     image_rights_holder: toFirstString(source.image_rights_holder, source.imageRightsHolder),
     image_references: toFirstString(source.image_references, source.imageReferences),
     taxonomyPath: toFirstString(source.taxonomy_path, source.taxonomyPath),
+    large_taxon: toOptionalBoolean(source.large_taxon),
     heatmap: heatmapSource
       ? {
           available: toOptionalBoolean(heatmapSource.available),
