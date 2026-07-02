@@ -85,7 +85,8 @@ function SpeciesEnvironmentSectionComponent({
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
   const slicingEnabled =
-    !largeTaxon && (taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase()));
+    !largeTaxon &&
+    (taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase()));
   const rankLabel =
     taxonRank == null
       ? 'Species'

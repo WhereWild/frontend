@@ -338,7 +338,12 @@ export function useEnvironmentHighlights({
         setPinnedValue(result.value);
         setPinnedValueLabel(result.valueLabel ?? null);
         setPinnedValueDescription(result.valueDescription ?? null);
-        if (!isCategorical || result.value === null || !taxonId || !slicingEnabled) {
+        if (
+          !isCategorical ||
+          result.value === null ||
+          !taxonId ||
+          !slicingEnabled
+        ) {
           setPinnedCategoryObserved(null);
         } else {
           try {
@@ -416,6 +421,7 @@ export function useEnvironmentHighlights({
     taxonId,
     stats,
     units,
+    slicingEnabled,
   ]);
 
   React.useEffect(() => {
@@ -553,6 +559,7 @@ export function useEnvironmentHighlights({
       speciesDataSource,
       taxonId,
       units,
+      slicingEnabled,
     ],
   );
 
@@ -643,7 +650,12 @@ export function useEnvironmentHighlights({
       setRangeObservations([]);
       return;
     }
-    if (!taxonId || !selectedVariable || !selectedDensityRange || !slicingEnabled) {
+    if (
+      !taxonId ||
+      !selectedVariable ||
+      !selectedDensityRange ||
+      !slicingEnabled
+    ) {
       setRangeObservations([]);
       emitHighlightChange([]);
       return;
@@ -720,6 +732,7 @@ export function useEnvironmentHighlights({
     startTimestamp,
     taxonId,
     units,
+    slicingEnabled,
   ]);
 
   return {

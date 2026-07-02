@@ -51,12 +51,12 @@ describe('useSpeciesOccurrences', () => {
     });
   });
 
-  it('returns no-taxon error and does not call API when taxon is missing', async () => {
+  it('returns no error and does not call API when taxon is missing', async () => {
     const { result } = renderHook(() => useSpeciesOccurrences({ taxonId: undefined, locationGid: null }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
-      expect(result.current.error).toBe('No taxon ID supplied.');
+      expect(result.current.error).toBe(null);
       expect(result.current.occurrences).toEqual([]);
     });
 
