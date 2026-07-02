@@ -221,6 +221,7 @@ export type SpeciesApiDetail = SpeciesApiNormalized & {
   image_rights_holder?: string | null;
   image_references?: string | null;
   taxonomyPath?: string | null;
+  large_taxon?: boolean;
   heatmap?: {
     available?: boolean;
     resolved_model_id?: string | null;

@@ -580,32 +580,8 @@ export default function Species({
               />
             </SectionShell>
 
-            {largeTaxon && Boolean(taxonId) && (
+            {Boolean(taxonId) && (
               <SectionShell responsive={responsive}>
-                <ThemedText variant='heading'>Observation Map</ThemedText>
-                <View
-                  style={{
-                    borderWidth: 1,
-                    borderRadius: 8,
-                    padding: 12,
-                    backgroundColor: palette.background.warning.secondary,
-                    borderColor: palette.border.warning.default,
-                  }}
-                >
-                  <ThemedText
-                    variant='bodySmall'
-                    style={{ color: palette.text.warning.default }}
-                  >
-                    Too many observations to display on map. Location filters
-                    and slicing are disabled for this taxon.
-                  </ThemedText>
-                </View>
-              </SectionShell>
-            )}
-
-            {shouldRenderOccurrenceMap && (
-              <SectionShell responsive={responsive}>
-                <ThemedText variant='heading'>Observation Map</ThemedText>
                 <SpeciesLocationFilters
                   countryOptions={countryOptions}
                   stateOptions={stateOptions}
@@ -643,6 +619,28 @@ export default function Species({
               </SectionShell>
             )}
           </View>
+
+          {largeTaxon && Boolean(taxonId) && (
+            <SectionShell responsive={responsive}>
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: palette.background.warning.secondary,
+                  borderColor: palette.border.warning.default,
+                }}
+              >
+                <ThemedText
+                  variant='bodySmall'
+                  style={{ color: palette.text.warning.default }}
+                >
+                  Too many observations to display on map. Location filters
+                  and slicing are disabled for this taxon.
+                </ThemedText>
+              </View>
+            </SectionShell>
+          )}
 
           {/* Always mount the map container to keep ScrollView child indices
               stable — toggling between a component and null shifts Fabric indices
