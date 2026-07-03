@@ -112,10 +112,17 @@ describe('speciesOccurrenceMapHelpers', () => {
       removeLayer: jest.fn(),
     });
 
-    const makeTileLayer = () => ({
+    const makeTileLayer = (url = '') => ({
+      _url: url,
       addTo: jest.fn().mockReturnThis(),
       createTile: jest.fn(() => ({ referrerPolicy: '' })),
       on: jest.fn(),
+      getTileUrl(coords: { z: number; x: number; y: number }) {
+        return this._url
+          .replace('{z}', String(coords.z))
+          .replace('{x}', String(coords.x))
+          .replace('{y}', String(coords.y));
+      },
     });
 
     const map = {
@@ -178,7 +185,7 @@ describe('speciesOccurrenceMapHelpers', () => {
       latLngBounds: jest.fn(() => ({})),
       latLng: jest.fn((lat: number, lng: number) => ({ lat, lng })),
       map: jest.fn(() => map),
-      tileLayer: jest.fn(() => makeTileLayer()),
+      tileLayer: jest.fn((url: string) => makeTileLayer(url)),
       circleMarker: jest.fn(
         (coords: [number, number], style: Record<string, unknown>) => {
           const marker: MockLeafletMarker = {

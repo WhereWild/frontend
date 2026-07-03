@@ -49,6 +49,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
+    const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
+    const LINES_OVERLAY_URL = __LINES_OVERLAY_URL_JSON__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
@@ -92,6 +94,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     applyMinZoomForSize();
     map.on('resize', applyMinZoomForSize);
+
+    if (LINES_OVERLAY_URL) {
+      map.createPane('linesPane');
+      map.getPane('linesPane').style.zIndex = 625;
+    }
+    if (LABELS_OVERLAY_URL) {
+      map.createPane('labelsPane');
+      map.getPane('labelsPane').style.zIndex = 650;
+    }
 
     const tileLayer = L.tileLayer(TILE_URL, {
       attribution: TILE_ATTRIBUTION,
@@ -193,7 +204,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           finish(error || new Error('Heatmap tile image load failed'));
         };
 
-        fetch(resolveTileUrl(urlTemplate, coords), {
+        fetch(layer.getTileUrl(coords), {
           signal: controller.signal,
           referrerPolicy: TILE_REFERRER_POLICY,
         })
@@ -228,8 +239,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return layer;
     }
 
+    let heatmapLayer = null;
     if (HEATMAP_TILE_URL) {
-      const heatmapLayer = supportsAbortableTileFetch()
+      heatmapLayer = supportsAbortableTileFetch()
         ? createAbortableHeatmapLayer(HEATMAP_TILE_URL)
         : L.tileLayer(HEATMAP_TILE_URL, {
             opacity: HEATMAP_OPACITY,
@@ -237,6 +249,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             maxZoom: TILE_MAX_ZOOM,
           });
       heatmapLayer.addTo(map);
+    }
+
+    if (LINES_OVERLAY_URL) {
+      L.tileLayer(LINES_OVERLAY_URL, {
+        attribution: '',
+        maxZoom: TILE_MAX_ZOOM,
+        referrerPolicy: TILE_REFERRER_POLICY,
+        pane: 'linesPane',
+        opacity: 0.5,
+      }).addTo(map);
+    }
+
+    if (LABELS_OVERLAY_URL) {
+      L.tileLayer(LABELS_OVERLAY_URL, {
+        attribution: '',
+        maxZoom: TILE_MAX_ZOOM,
+        referrerPolicy: TILE_REFERRER_POLICY,
+        pane: 'labelsPane',
+        opacity: 0.8,
+      }).addTo(map);
     }
 
     const markerStyle = {
@@ -376,6 +408,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
       if (data && data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs || []);
+        return;
+      }
+
+      if (data && data.type === 'heatmapUpdate') {
+        if (data.heatmapTileUrl != null && heatmapLayer) {
+          heatmapLayer.setUrl(data.heatmapTileUrl);
+        }
         return;
       }
 
