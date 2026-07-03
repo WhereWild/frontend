@@ -351,7 +351,8 @@ export function SpeciesOccurrenceMap({
     [highlightedCatalogs],
   );
   const tileUrlTemplate = React.useMemo(
-    () => useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
+    () =>
+      useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
     [mode, useLabelsOverlay],
   );
   const labelsOverlayTileUrl = React.useMemo(
