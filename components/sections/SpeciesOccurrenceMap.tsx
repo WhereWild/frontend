@@ -19,6 +19,8 @@ import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
   buildLeafletHtml,
+  getBackgroundTileUrl,
+  getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
   loadMapTemplate,
@@ -149,6 +151,7 @@ type SpeciesOccurrenceMapProps = {
   varUnits?: string | null;
   gradientStops?: [number, number, number][] | null;
   aspectStops?: [number, number, number][] | null;
+  useLabelsOverlay?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -190,6 +193,7 @@ export function SpeciesOccurrenceMap({
   varUnits = null,
   gradientStops = null,
   aspectStops = null,
+  useLabelsOverlay = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -347,8 +351,12 @@ export function SpeciesOccurrenceMap({
     [highlightedCatalogs],
   );
   const tileUrlTemplate = React.useMemo(
-    () => getMapTileUrlTemplate(mode),
-    [mode],
+    () => useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
+    [mode, useLabelsOverlay],
+  );
+  const labelsOverlayTileUrl = React.useMemo(
+    () => (useLabelsOverlay ? getLabelsOverlayTileUrl() : null),
+    [useLabelsOverlay],
   );
   const html = React.useMemo(() => {
     if (!mapTemplate) {
@@ -386,6 +394,8 @@ export function SpeciesOccurrenceMap({
       classShapes,
       markerOutlineEnabled,
       circularShapesEnabled,
+      labelsOverlayTileUrl,
+      null,
     );
   }, [
     allowPinObservations,
@@ -419,6 +429,7 @@ export function SpeciesOccurrenceMap({
     showMarkers,
     linkObservations,
     tileUrlTemplate,
+    labelsOverlayTileUrl,
   ]);
 
   React.useEffect(() => {

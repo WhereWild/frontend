@@ -350,6 +350,7 @@ export default function Maps() {
                 heatmapOpacity={0.85}
                 minZoom={MAP_MIN_ZOOM}
                 showMarkers={false}
+                useLabelsOverlay
                 onTileClasses={handleTileClasses}
                 onPointValue={handlePointValue}
                 pointQueryUrl={

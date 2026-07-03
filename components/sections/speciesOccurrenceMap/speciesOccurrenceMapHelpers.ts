@@ -22,6 +22,12 @@ export const MAP_TILE_URL_TEMPLATE_LIGHT =
   'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
 export const MAP_TILE_URL_TEMPLATE_DARK =
   'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
+export const MAP_LABELS_TILE_URL_TEMPLATE =
+  'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png';
+export const MAP_LINES_TILE_URL_TEMPLATE =
+  'https://tiles.stadiamaps.com/tiles/stamen_toner_lines/{z}/{x}/{y}{r}.png';
+export const MAP_BACKGROUND_TILE_URL_TEMPLATE =
+  'https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png';
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
@@ -74,6 +80,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   classShapesJson: '__CLASS_SHAPES_JSON__',
   markerOutline: '__MARKER_OUTLINE__',
   circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
+  labelsOverlayUrl: '__LABELS_OVERLAY_URL_JSON__',
+  linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -186,6 +194,21 @@ export const getMapTileUrlTemplate = (mode: MapTileMode) => {
     : baseTemplate;
 };
 
+export const getLabelsOverlayTileUrl = () =>
+  MAP_TILE_API_KEY
+    ? `${MAP_LABELS_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
+    : MAP_LABELS_TILE_URL_TEMPLATE;
+
+export const getLinesOverlayTileUrl = () =>
+  MAP_TILE_API_KEY
+    ? `${MAP_LINES_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
+    : MAP_LINES_TILE_URL_TEMPLATE;
+
+export const getBackgroundTileUrl = () =>
+  MAP_TILE_API_KEY
+    ? `${MAP_BACKGROUND_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
+    : MAP_BACKGROUND_TILE_URL_TEMPLATE;
+
 const NSWE_SHAPES = {
   N: 'triangle',
   E: 'arrow',
@@ -285,6 +308,8 @@ export const buildLeafletHtml = (
   classShapes?: Map<string, string> | null,
   markerOutlineEnabled?: boolean,
   circularShapesEnabled?: boolean,
+  labelsOverlayUrl?: string | null,
+  linesOverlayUrl?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -451,6 +476,12 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.circularShapesEnabled)
     .join(circularShapesEnabled ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.labelsOverlayUrl)
+    .join(labelsOverlayUrl ? JSON.stringify(labelsOverlayUrl) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.linesOverlayUrl)
+    .join(linesOverlayUrl ? JSON.stringify(linesOverlayUrl) : 'null');
   return html;
 };
 
