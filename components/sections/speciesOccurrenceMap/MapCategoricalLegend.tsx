@@ -55,7 +55,7 @@ export function MapCategoricalLegend({
 
   const hasAutoCollapsed = React.useRef(breakpoint === 'phone');
   React.useEffect(() => {
-    if (!hasAutoCollapsed.current && isPhone) {
+    if (!hasAutoCollapsed.current && breakpoint === 'phone') {
       hasAutoCollapsed.current = true;
       setCollapsed(true);
     }

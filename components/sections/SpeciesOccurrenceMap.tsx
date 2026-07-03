@@ -381,6 +381,45 @@ export function SpeciesOccurrenceMap({
   const initialClassShapes = React.useRef(classShapes);
   const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
 
+  // When preserving map position, freeze live props to their initial values so
+  // the html memo stays stable and we update the map via postMessage instead.
+  const memoHeatmapTileUrl = preserveMapPosition
+    ? initialHeatmapTileUrl.current
+    : heatmapTileUrl;
+  const memoPointQueryUrl = preserveMapPosition
+    ? initialPointQueryUrl.current
+    : pointQueryUrl;
+  const memoRenderMin = preserveMapPosition
+    ? initialRenderMin.current
+    : renderMin;
+  const memoRenderMax = preserveMapPosition
+    ? initialRenderMax.current
+    : renderMax;
+  const memoVarUnits = preserveMapPosition ? initialVarUnits.current : varUnits;
+  const memoDotMin = preserveMapPosition ? initialDotMin.current : dotMin;
+  const memoDotMax = preserveMapPosition ? initialDotMax.current : dotMax;
+  const memoGradientStops = preserveMapPosition
+    ? initialGradientStops.current
+    : gradientStops;
+  const memoAspectStops = preserveMapPosition
+    ? initialAspectStops.current
+    : aspectStops;
+  const memoIsCircular = preserveMapPosition
+    ? initialIsCircular.current
+    : isCircular;
+  const memoClassColors = preserveMapPosition
+    ? initialClassColors.current
+    : classColors;
+  const memoClassLabels = preserveMapPosition
+    ? initialClassLabels.current
+    : classLabels;
+  const memoClassShapes = preserveMapPosition
+    ? initialClassShapes.current
+    : classShapes;
+  const memoMarkerOutlineEnabled = preserveMapPosition
+    ? initialMarkerOutlineEnabled.current
+    : markerOutlineEnabled;
+
   const html = React.useMemo(() => {
     if (!mapTemplate) {
       return null;
@@ -390,7 +429,7 @@ export function SpeciesOccurrenceMap({
       occurrences,
       markerPalette,
       tileUrlTemplate,
-      preserveMapPosition ? initialHeatmapTileUrl.current : heatmapTileUrl,
+      memoHeatmapTileUrl,
       heatmapOpacity,
       minZoom,
       showMarkers,
@@ -401,28 +440,25 @@ export function SpeciesOccurrenceMap({
       maxBounds,
       linkObservations,
       allowPinObservations,
-      preserveMapPosition ? initialPointQueryUrl.current : pointQueryUrl,
-      preserveMapPosition ? initialRenderMin.current : renderMin,
-      preserveMapPosition ? initialRenderMax.current : renderMax,
-      preserveMapPosition ? initialIsCircular.current : isCircular,
+      memoPointQueryUrl,
+      memoRenderMin,
+      memoRenderMax,
+      memoIsCircular,
       observationValues,
-      preserveMapPosition ? initialClassColors.current : classColors,
-      preserveMapPosition ? initialClassLabels.current : classLabels,
-      preserveMapPosition ? initialDotMin.current : dotMin,
-      preserveMapPosition ? initialDotMax.current : dotMax,
+      memoClassColors,
+      memoClassLabels,
+      memoDotMin,
+      memoDotMax,
       disableObservationQuery,
-      preserveMapPosition ? initialVarUnits.current : varUnits,
-      preserveMapPosition ? initialGradientStops.current : gradientStops,
-      preserveMapPosition ? initialAspectStops.current : aspectStops,
-      preserveMapPosition ? initialClassShapes.current : classShapes,
-      preserveMapPosition
-        ? initialMarkerOutlineEnabled.current
-        : markerOutlineEnabled,
+      memoVarUnits,
+      memoGradientStops,
+      memoAspectStops,
+      memoClassShapes,
+      memoMarkerOutlineEnabled,
       circularShapesEnabled,
       labelsOverlayTileUrl,
       null,
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     allowPinObservations,
     observationValues,
@@ -442,26 +478,20 @@ export function SpeciesOccurrenceMap({
     linkObservations,
     tileUrlTemplate,
     labelsOverlayTileUrl,
-    preserveMapPosition,
-    // When not preserving, include the live props so changes rebuild the html.
-    ...(preserveMapPosition
-      ? []
-      : [
-          heatmapTileUrl,
-          pointQueryUrl,
-          renderMin,
-          renderMax,
-          varUnits,
-          dotMin,
-          dotMax,
-          gradientStops,
-          aspectStops,
-          isCircular,
-          classColors,
-          classLabels,
-          classShapes,
-          markerOutlineEnabled,
-        ]),
+    memoHeatmapTileUrl,
+    memoPointQueryUrl,
+    memoRenderMin,
+    memoRenderMax,
+    memoVarUnits,
+    memoDotMin,
+    memoDotMax,
+    memoGradientStops,
+    memoAspectStops,
+    memoIsCircular,
+    memoClassColors,
+    memoClassLabels,
+    memoClassShapes,
+    memoMarkerOutlineEnabled,
   ]);
 
   React.useEffect(() => {
