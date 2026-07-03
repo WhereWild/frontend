@@ -146,6 +146,10 @@ describe('Settings screen', () => {
       setShapesEnabled: jest.fn(),
       markerOutlineEnabled: false,
       setMarkerOutlineEnabled: jest.fn(),
+      localLat: null,
+      setLocalLat: jest.fn(),
+      localLon: null,
+      setLocalLon: jest.fn(),
     });
   });
 
@@ -165,7 +169,6 @@ describe('Settings screen', () => {
       expect(screen.queryByTestId('page-title')).toBeNull();
       expect(screen.getByText('Localization')).toBeTruthy();
       expect(screen.getByTestId('select-Color mode')).toBeTruthy();
-      expect(screen.getByTestId('select-Location')).toBeTruthy();
       expect(screen.getByTestId('select-Language')).toBeTruthy();
       expect(screen.getByTestId('select-Units')).toBeTruthy();
     });
@@ -190,23 +193,15 @@ describe('Settings screen', () => {
       });
     });
 
-    it('renders disabled location and language fields with fixed values', () => {
+    it('renders disabled language field with fixed value', () => {
       mockUseColorScheme.mockReturnValue('dark');
 
       render(<Settings />);
 
-      const locationCall = mockSelectField.mock.calls.find(
-        ([props]) => props?.label === 'Location',
-      );
       const languageCall = mockSelectField.mock.calls.find(
         ([props]) => props?.label === 'Language',
       );
 
-      expect(locationCall?.[0]).toMatchObject({
-        disabled: true,
-        value: 'utah',
-        options: [{ label: 'Utah', value: 'utah' }],
-      });
       expect(languageCall?.[0]).toMatchObject({
         disabled: true,
         value: 'en',

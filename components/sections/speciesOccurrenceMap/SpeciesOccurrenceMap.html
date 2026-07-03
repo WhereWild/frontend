@@ -24,6 +24,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       padding: 0;
     }
     .leaflet-interactive { paint-order: stroke fill; }
+    .leaflet-locate-btn { background:white;border:2px solid rgba(0,0,0,0.2);border-radius:4px;cursor:pointer;font-size:16px;width:30px;height:30px;display:flex;align-items:center;justify-content:center; }
+    .leaflet-locate-btn:hover { background:#f4f4f4; }
     /* Themed UI — overwritten at runtime by injectThemeCss() */
   </style>
 </head>
@@ -61,6 +63,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
+    const LOCATION_PICKER_MODE = __LOCATION_PICKER_MODE__;
+    const INITIAL_LOCAL_LAT = __INITIAL_LOCAL_LAT_JSON__;
+    const INITIAL_LOCAL_LON = __INITIAL_LOCAL_LON_JSON__;
     let POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
     let IS_CIRCULAR = __IS_CIRCULAR__;
     let DOT_MIN = __DOT_MIN_JSON__;
@@ -146,6 +151,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         '.leaflet-bar a,.leaflet-bar a:hover{background:' + bg + ';color:' + text + ' !important;border-bottom-color:' + bdr + '}',
         '.leaflet-bar a.leaflet-disabled,.leaflet-bar a.leaflet-disabled:hover{background:' + bg + ';color:' + bdr + ' !important;pointer-events:none}',
         '.leaflet-bar{border-color:' + bdr + '}',
+        '.leaflet-locate-btn{background:' + bg + ' !important;color:' + text + ';border-color:' + bdr + '}',
+        '.leaflet-locate-btn:hover{background:' + bdr + ' !important}',
         '.leaflet-control-attribution{background:' + bg + ' !important;color:' + text + '}',
         '.leaflet-control-attribution a{color:' + link + ' !important}',
       ].join('');
@@ -384,6 +391,69 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         opacity: 0.8,
       }).addTo(map);
     }
+
+    var LocationControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function(m) {
+        var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
+        btn.title = 'Show my location';
+        btn.innerHTML = '⊕';
+        L.DomEvent.disableClickPropagation(btn);
+        L.DomEvent.on(btn, 'click', function() {
+          m.locate({ setView: true, maxZoom: 10 });
+        });
+        return btn;
+      },
+    });
+    map.addControl(new LocationControl());
+
+    var locateMarker = null;
+    var locateCircle = null;
+
+    var savedLocationMarker = null;
+    function makeSavedLocationIcon() {
+      var fill = palette.markerFill;
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 30" width="20" height="30">' +
+        '<path d="M10 1C5.03 1 1 5.03 1 10c0 6.5 9 19 9 19s9-12.5 9-19c0-4.97-4.03-9-9-9z" fill="' + fill + '" stroke="white" stroke-width="1.5"/>' +
+        '<circle cx="10" cy="10" r="3.5" fill="white" opacity="0.85"/>' +
+        '</svg>';
+      return L.divIcon({ html: svg, className: '', iconSize: [20, 30], iconAnchor: [10, 30] });
+    }
+    function placeOrMoveSavedMarker(latlng) {
+      if (savedLocationMarker) {
+        savedLocationMarker.setLatLng(latlng);
+      } else {
+        savedLocationMarker = L.marker(latlng, {
+          icon: makeSavedLocationIcon(),
+          interactive: false,
+          zIndexOffset: 1000,
+        }).addTo(map);
+      }
+    }
+    if (LOCATION_PICKER_MODE && INITIAL_LOCAL_LAT != null && INITIAL_LOCAL_LON != null) {
+      placeOrMoveSavedMarker([INITIAL_LOCAL_LAT, INITIAL_LOCAL_LON]);
+    }
+
+    map.on('locationfound', function(e) {
+      if (locateMarker) map.removeLayer(locateMarker);
+      if (locateCircle) map.removeLayer(locateCircle);
+      locateCircle = L.circle(e.latlng, {
+        radius: e.accuracy / 2,
+        color: palette.markerFill,
+        fillColor: palette.markerFill,
+        fillOpacity: 0.15,
+        weight: 1,
+        interactive: false,
+      }).addTo(map);
+      locateMarker = L.circleMarker(e.latlng, {
+        radius: 7,
+        color: '#fff',
+        weight: 2,
+        fillColor: palette.markerFill,
+        fillOpacity: 1,
+        interactive: false,
+      }).addTo(map);
+    });
 
     const markerStyle = {
       radius: 4,
@@ -717,6 +787,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         return;
       }
 
+      if (data && data.type === 'localLocationUpdate') {
+        if (data.lat != null && data.lon != null) {
+          placeOrMoveSavedMarker([data.lat, data.lon]);
+        } else if (savedLocationMarker) {
+          map.removeLayer(savedLocationMarker);
+          savedLocationMarker = null;
+        }
+      }
       if (data && data.type === 'colormapUpdate') {
         if (Array.isArray(data.stops)) {
           GRADIENT_STOPS = data.stops;
@@ -1338,6 +1416,36 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       const latitude = Number(event.latlng?.lat);
       const longitude = Number(event.latlng?.lng);
       if (!isFinite(latitude) || !isFinite(longitude)) {
+        return;
+      }
+
+      if (LOCATION_PICKER_MODE) {
+        var pickerLat = latitude;
+        var pickerLon = longitude;
+        var btnId = 'loc-confirm-' + Date.now();
+        var content = document.createElement('div');
+        content.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:2px 0;';
+        var label = document.createElement('span');
+        label.style.cssText = 'font-size:13px;font-weight:600;';
+        label.textContent = 'Set home region?';
+        var btn = document.createElement('button');
+        btn.id = btnId;
+        btn.textContent = 'Confirm';
+        btn.style.cssText = 'padding:4px 14px;border-radius:4px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:' + palette.markerFill + ';color:#fff;';
+        content.appendChild(label);
+        content.appendChild(btn);
+        var picker = L.popup({ closeButton: true }).setLatLng(event.latlng).setContent(content).openOn(map);
+        btn.addEventListener('click', function() {
+          placeOrMoveSavedMarker([pickerLat, pickerLon]);
+          var msg = { type: 'locationPicked', lat: pickerLat, lon: pickerLon };
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+          } else {
+            // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
+            window.parent.postMessage(msg, '*');
+          }
+          picker.close();
+        });
         return;
       }
 
