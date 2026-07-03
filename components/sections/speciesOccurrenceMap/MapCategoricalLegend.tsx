@@ -31,6 +31,8 @@ type MapCategoricalLegendProps = {
   cbMode?: CbMode | null;
   shapesEnabled?: boolean;
   markerOutlineEnabled?: boolean;
+  selectedClassId?: number | null;
+  onClassClick?: (id: number) => void;
 };
 
 export function MapCategoricalLegend({
@@ -39,6 +41,8 @@ export function MapCategoricalLegend({
   cbMode,
   shapesEnabled = false,
   markerOutlineEnabled = false,
+  selectedClassId = null,
+  onClassClick,
 }: MapCategoricalLegendProps) {
   const useShapes =
     (cbMode === 'achromatopsia' || shapesEnabled) && variableId != null;
@@ -46,7 +50,8 @@ export function MapCategoricalLegend({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const { breakpoint } = useResponsive();
-  const [collapsed, setCollapsed] = React.useState(breakpoint === 'phone');
+  const isPhone = breakpoint === 'phone';
+  const [collapsed, setCollapsed] = React.useState(isPhone);
 
   const hasAutoCollapsed = React.useRef(breakpoint === 'phone');
   React.useEffect(() => {
@@ -114,33 +119,52 @@ export function MapCategoricalLegend({
           collapsable={false}
           style={collapsed ? styles.hidden : styles.list}
         >
-          {classes.map((cls) => (
-            <View key={cls.id} style={styles.row}>
-              {useShapes ? (
-                <ShapeMarker
-                  shape={getCbShape(variableId!, cls.id as number)}
-                  color={cls.color ?? '#888888'}
-                  size={8}
-                  outline={markerOutlineEnabled}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.dot,
-                    { backgroundColor: cls.color ?? '#888888' },
-                    markerOutlineEnabled && styles.dotOutline,
-                  ]}
-                />
-              )}
-              <ThemedText
-                variant='bodyTiny'
-                numberOfLines={1}
-                style={styles.label}
+          {classes.map((cls) => {
+            const clsId = cls.id as number;
+            const isSelected = selectedClassId === clsId;
+            const rowContent = (
+              <>
+                {useShapes ? (
+                  <ShapeMarker
+                    shape={getCbShape(variableId!, clsId)}
+                    color={cls.color ?? '#888888'}
+                    size={8}
+                    outline={markerOutlineEnabled}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.dot,
+                      { backgroundColor: cls.color ?? '#888888' },
+                      markerOutlineEnabled && styles.dotOutline,
+                      isSelected && styles.dotSelected,
+                    ]}
+                  />
+                )}
+                <ThemedText
+                  variant='bodyTiny'
+                  numberOfLines={1}
+                  style={[styles.label, isSelected && styles.labelSelected]}
+                >
+                  {cls.name}
+                </ThemedText>
+              </>
+            );
+            return !isPhone && onClassClick ? (
+              <Pressable
+                key={clsId}
+                style={styles.row}
+                onPress={() => onClassClick(clsId)}
+                hitSlop={4}
               >
-                {cls.name}
-              </ThemedText>
-            </View>
-          ))}
+                {rowContent}
+              </Pressable>
+            ) : (
+              <View key={clsId} style={styles.row}>
+                {rowContent}
+              </View>
+            );
+          })}
         </View>
       </Pressable>
     </View>
@@ -193,7 +217,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(176,176,176,0.65)',
   },
+  dotSelected: {
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
   label: {
     flexShrink: 1,
+  },
+  labelSelected: {
+    fontWeight: '600' as const,
   },
 });

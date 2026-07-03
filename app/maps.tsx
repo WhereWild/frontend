@@ -105,6 +105,7 @@ const buildTileUrl = ({
   cbMode,
   forecastH,
   variable,
+  classFilter,
 }: {
   cacheKey: number;
   colormap: string;
@@ -113,13 +114,15 @@ const buildTileUrl = ({
   cbMode: string | null;
   forecastH: number;
   variable: string;
+  classFilter: number | null;
 }) => {
   const effectiveColormap = isCircular ? circularColormap : colormap;
   const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
   const fcParam = forecastH > 0 ? `&forecast_h=${forecastH}` : '';
+  const cfParam = classFilter != null ? `&class_filter=${classFilter}` : '';
   return `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     variable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}`;
 };
 
 export default function Maps() {
@@ -150,6 +153,9 @@ export default function Maps() {
   >(new Map());
   const [pinnedValue, setPinnedValue] = useState<number | null>(null);
   const [selectedForecast, setSelectedForecast] = useState('now');
+  const [selectedClassFilter, setSelectedClassFilter] = useState<number | null>(
+    null,
+  );
 
   const selectedForecastH = FORECAST_HOUR_MAP[selectedForecast] ?? 0;
 
@@ -204,6 +210,7 @@ export default function Maps() {
         cbMode,
         forecastH,
         variable: selectedVariable,
+        classFilter: isCategorical ? selectedClassFilter : null,
       }),
     [
       tileCacheKey,
@@ -213,12 +220,15 @@ export default function Maps() {
       cbMode,
       forecastH,
       selectedVariable,
+      isCategorical,
+      selectedClassFilter,
     ],
   );
 
   useEffect(() => {
     setVisibleNominalCounts(new Map());
     setPinnedValue(null);
+    setSelectedClassFilter(null);
   }, [selectedVariable]);
 
   const handlePointValue = useCallback(
@@ -350,6 +360,8 @@ export default function Maps() {
                 heatmapOpacity={0.85}
                 minZoom={MAP_MIN_ZOOM}
                 showMarkers={false}
+                useLabelsOverlay
+                preserveMapPosition
                 onTileClasses={handleTileClasses}
                 onPointValue={handlePointValue}
                 pointQueryUrl={
@@ -410,6 +422,12 @@ export default function Maps() {
                     cbMode={cbMode}
                     shapesEnabled={false}
                     markerOutlineEnabled={markerOutlineEnabled}
+                    selectedClassId={selectedClassFilter}
+                    onClassClick={(id) =>
+                      setSelectedClassFilter((prev) =>
+                        prev === id ? null : id,
+                      )
+                    }
                   />
                   <MapCbModePicker
                     selected={cbMode}

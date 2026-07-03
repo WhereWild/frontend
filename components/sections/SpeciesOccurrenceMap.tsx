@@ -19,6 +19,8 @@ import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
   buildLeafletHtml,
+  getBackgroundTileUrl,
+  getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
   loadMapTemplate,
@@ -31,6 +33,7 @@ import {
   isOpenExternalUrlMessage,
   isPinObservationMessage,
   COLORMAP_UPDATE_MESSAGE_TYPE,
+  HEATMAP_UPDATE_MESSAGE_TYPE,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -149,6 +152,8 @@ type SpeciesOccurrenceMapProps = {
   varUnits?: string | null;
   gradientStops?: [number, number, number][] | null;
   aspectStops?: [number, number, number][] | null;
+  useLabelsOverlay?: boolean;
+  preserveMapPosition?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -190,6 +195,8 @@ export function SpeciesOccurrenceMap({
   varUnits = null,
   gradientStops = null,
   aspectStops = null,
+  useLabelsOverlay = false,
+  preserveMapPosition = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -347,9 +354,72 @@ export function SpeciesOccurrenceMap({
     [highlightedCatalogs],
   );
   const tileUrlTemplate = React.useMemo(
-    () => getMapTileUrlTemplate(mode),
-    [mode],
+    () =>
+      useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
+    [mode, useLabelsOverlay],
   );
+  const labelsOverlayTileUrl = React.useMemo(
+    () => (useLabelsOverlay ? getLabelsOverlayTileUrl() : null),
+    [useLabelsOverlay],
+  );
+
+  // When preserveMapPosition is true, the html memo is built once with initial
+  // values for the "live" props. Subsequent changes are sent via postMessage so
+  // Leaflet can update the tile layer without reloading the WebView.
+  const initialHeatmapTileUrl = React.useRef(heatmapTileUrl);
+  const initialPointQueryUrl = React.useRef(pointQueryUrl);
+  const initialRenderMin = React.useRef(renderMin);
+  const initialRenderMax = React.useRef(renderMax);
+  const initialVarUnits = React.useRef(varUnits);
+  const initialDotMin = React.useRef(dotMin);
+  const initialDotMax = React.useRef(dotMax);
+  const initialGradientStops = React.useRef(gradientStops);
+  const initialAspectStops = React.useRef(aspectStops);
+  const initialIsCircular = React.useRef(isCircular);
+  const initialClassColors = React.useRef(classColors);
+  const initialClassLabels = React.useRef(classLabels);
+  const initialClassShapes = React.useRef(classShapes);
+  const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
+
+  // When preserving map position, freeze live props to their initial values so
+  // the html memo stays stable and we update the map via postMessage instead.
+  const memoHeatmapTileUrl = preserveMapPosition
+    ? initialHeatmapTileUrl.current
+    : heatmapTileUrl;
+  const memoPointQueryUrl = preserveMapPosition
+    ? initialPointQueryUrl.current
+    : pointQueryUrl;
+  const memoRenderMin = preserveMapPosition
+    ? initialRenderMin.current
+    : renderMin;
+  const memoRenderMax = preserveMapPosition
+    ? initialRenderMax.current
+    : renderMax;
+  const memoVarUnits = preserveMapPosition ? initialVarUnits.current : varUnits;
+  const memoDotMin = preserveMapPosition ? initialDotMin.current : dotMin;
+  const memoDotMax = preserveMapPosition ? initialDotMax.current : dotMax;
+  const memoGradientStops = preserveMapPosition
+    ? initialGradientStops.current
+    : gradientStops;
+  const memoAspectStops = preserveMapPosition
+    ? initialAspectStops.current
+    : aspectStops;
+  const memoIsCircular = preserveMapPosition
+    ? initialIsCircular.current
+    : isCircular;
+  const memoClassColors = preserveMapPosition
+    ? initialClassColors.current
+    : classColors;
+  const memoClassLabels = preserveMapPosition
+    ? initialClassLabels.current
+    : classLabels;
+  const memoClassShapes = preserveMapPosition
+    ? initialClassShapes.current
+    : classShapes;
+  const memoMarkerOutlineEnabled = preserveMapPosition
+    ? initialMarkerOutlineEnabled.current
+    : markerOutlineEnabled;
+
   const html = React.useMemo(() => {
     if (!mapTemplate) {
       return null;
@@ -359,7 +429,7 @@ export function SpeciesOccurrenceMap({
       occurrences,
       markerPalette,
       tileUrlTemplate,
-      heatmapTileUrl,
+      memoHeatmapTileUrl,
       heatmapOpacity,
       minZoom,
       showMarkers,
@@ -370,43 +440,31 @@ export function SpeciesOccurrenceMap({
       maxBounds,
       linkObservations,
       allowPinObservations,
-      pointQueryUrl,
-      renderMin,
-      renderMax,
-      isCircular,
+      memoPointQueryUrl,
+      memoRenderMin,
+      memoRenderMax,
+      memoIsCircular,
       observationValues,
-      classColors,
-      classLabels,
-      dotMin,
-      dotMax,
+      memoClassColors,
+      memoClassLabels,
+      memoDotMin,
+      memoDotMax,
       disableObservationQuery,
-      varUnits,
-      gradientStops,
-      aspectStops,
-      classShapes,
-      markerOutlineEnabled,
+      memoVarUnits,
+      memoGradientStops,
+      memoAspectStops,
+      memoClassShapes,
+      memoMarkerOutlineEnabled,
       circularShapesEnabled,
+      labelsOverlayTileUrl,
+      null,
     );
   }, [
     allowPinObservations,
-    pointQueryUrl,
-    renderMin,
-    renderMax,
-    isCircular,
     observationValues,
-    classColors,
-    classLabels,
-    classShapes,
-    markerOutlineEnabled,
     circularShapesEnabled,
-    dotMin,
-    dotMax,
     disableObservationQuery,
-    varUnits,
-    gradientStops,
-    aspectStops,
     heatmapOpacity,
-    heatmapTileUrl,
     initialLat,
     initialLon,
     initialZoom,
@@ -419,6 +477,21 @@ export function SpeciesOccurrenceMap({
     showMarkers,
     linkObservations,
     tileUrlTemplate,
+    labelsOverlayTileUrl,
+    memoHeatmapTileUrl,
+    memoPointQueryUrl,
+    memoRenderMin,
+    memoRenderMax,
+    memoVarUnits,
+    memoDotMin,
+    memoDotMax,
+    memoGradientStops,
+    memoAspectStops,
+    memoIsCircular,
+    memoClassColors,
+    memoClassLabels,
+    memoClassShapes,
+    memoMarkerOutlineEnabled,
   ]);
 
   React.useEffect(() => {
@@ -491,6 +564,45 @@ export function SpeciesOccurrenceMap({
       webViewRef.current?.postMessage(JSON.stringify(msg));
     }
   }, [gradientStops, aspectStops, mapReady]);
+
+  React.useEffect(() => {
+    if (!preserveMapPosition || !mapReady) return;
+    const msg: Record<string, unknown> = {
+      type: HEATMAP_UPDATE_MESSAGE_TYPE,
+      heatmapTileUrl,
+      pointQueryUrl,
+      renderMin,
+      renderMax,
+      varUnits,
+      dotMin,
+      dotMax,
+      isCircular,
+      classColors: classColors ? Object.fromEntries(classColors) : null,
+      classLabels: classLabels ? Object.fromEntries(classLabels) : null,
+      classShapes: classShapes ? Object.fromEntries(classShapes) : null,
+      markerOutline: markerOutlineEnabled,
+    };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [
+    preserveMapPosition,
+    mapReady,
+    heatmapTileUrl,
+    pointQueryUrl,
+    renderMin,
+    renderMax,
+    varUnits,
+    dotMin,
+    dotMax,
+    isCircular,
+    classColors,
+    classLabels,
+    classShapes,
+    markerOutlineEnabled,
+  ]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') {

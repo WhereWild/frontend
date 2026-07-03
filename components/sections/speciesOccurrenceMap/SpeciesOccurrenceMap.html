@@ -51,6 +51,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
+    const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
+    const LINES_OVERLAY_URL = __LINES_OVERLAY_URL_JSON__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
     const INITIAL_LAT = __INITIAL_LAT__;
@@ -59,18 +61,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const SHOW_MARKERS = __SHOW_MARKERS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
-    const POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
-    const IS_CIRCULAR = __IS_CIRCULAR__;
-    const DOT_MIN = __DOT_MIN_JSON__;
-    const DOT_MAX = __DOT_MAX_JSON__;
-    const RENDER_MIN = __RENDER_MIN_JSON__;
-    const RENDER_MAX = __RENDER_MAX_JSON__;
+    let POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
+    let IS_CIRCULAR = __IS_CIRCULAR__;
+    let DOT_MIN = __DOT_MIN_JSON__;
+    let DOT_MAX = __DOT_MAX_JSON__;
+    let RENDER_MIN = __RENDER_MIN_JSON__;
+    let RENDER_MAX = __RENDER_MAX_JSON__;
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
-    const VAR_UNITS = __VAR_UNITS_JSON__;
-    const CLASS_COLORS = __CLASS_COLORS_JSON__;
-    const CLASS_SHAPES = __CLASS_SHAPES_JSON__;
-    const CLASS_LABELS = __CLASS_LABELS_JSON__;
-    const MARKER_OUTLINE = __MARKER_OUTLINE__;
+    let VAR_UNITS = __VAR_UNITS_JSON__;
+    let CLASS_COLORS = __CLASS_COLORS_JSON__;
+    let CLASS_SHAPES = __CLASS_SHAPES_JSON__;
+    let CLASS_LABELS = __CLASS_LABELS_JSON__;
+    let MARKER_OUTLINE = __MARKER_OUTLINE__;
     var OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
     const CIRCULAR_SHAPES_ENABLED = __CIRCULAR_SHAPES_ENABLED__;
     var CARDINAL_SHAPES = { N: 'triangle', E: 'arrow', S: 'triangle-down', W: 'diamond' };
@@ -177,6 +179,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     applyMinZoomForSize();
     map.on('resize', applyMinZoomForSize);
+
+    if (LINES_OVERLAY_URL) {
+      map.createPane('linesPane');
+      map.getPane('linesPane').style.zIndex = 625;
+    }
+    if (LABELS_OVERLAY_URL) {
+      map.createPane('labelsPane');
+      map.getPane('labelsPane').style.zIndex = 650;
+    }
 
     const tileLayer = L.tileLayer(TILE_URL, {
       attribution: TILE_ATTRIBUTION,
@@ -294,7 +305,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           finish(error || new Error('Heatmap tile image load failed'));
         };
 
-        fetch(resolveTileUrl(urlTemplate, coords), {
+        fetch(layer.getTileUrl(coords), {
           signal: controller.signal,
           referrerPolicy: TILE_REFERRER_POLICY,
         })
@@ -342,8 +353,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return layer;
     }
 
+    let heatmapLayer = null;
     if (HEATMAP_TILE_URL) {
-      const heatmapLayer = supportsAbortableTileFetch()
+      heatmapLayer = supportsAbortableTileFetch()
         ? createAbortableHeatmapLayer(HEATMAP_TILE_URL)
         : L.tileLayer(HEATMAP_TILE_URL, {
             opacity: HEATMAP_OPACITY,
@@ -351,6 +363,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             maxZoom: TILE_MAX_ZOOM,
           });
       heatmapLayer.addTo(map);
+    }
+
+    if (LINES_OVERLAY_URL) {
+      L.tileLayer(LINES_OVERLAY_URL, {
+        attribution: '',
+        maxZoom: TILE_MAX_ZOOM,
+        referrerPolicy: TILE_REFERRER_POLICY,
+        pane: 'linesPane',
+        opacity: 0.5,
+      }).addTo(map);
+    }
+
+    if (LABELS_OVERLAY_URL) {
+      L.tileLayer(LABELS_OVERLAY_URL, {
+        attribution: '',
+        maxZoom: TILE_MAX_ZOOM,
+        referrerPolicy: TILE_REFERRER_POLICY,
+        pane: 'labelsPane',
+        opacity: 0.8,
+      }).addTo(map);
     }
 
     const markerStyle = {
@@ -664,16 +696,39 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         return;
       }
 
+      if (data && data.type === 'heatmapUpdate') {
+        if (data.heatmapTileUrl != null && heatmapLayer) {
+          heatmapLayer.setUrl(data.heatmapTileUrl);
+        }
+        if (data.pointQueryUrl !== undefined) { POINT_QUERY_URL = data.pointQueryUrl; }
+        if (data.renderMin !== undefined) { RENDER_MIN = data.renderMin; }
+        if (data.renderMax !== undefined) { RENDER_MAX = data.renderMax; }
+        if (data.varUnits !== undefined) { VAR_UNITS = data.varUnits; }
+        if (data.dotMin !== undefined) { DOT_MIN = data.dotMin; }
+        if (data.dotMax !== undefined) { DOT_MAX = data.dotMax; }
+        if (data.isCircular !== undefined) { IS_CIRCULAR = data.isCircular; }
+        if (data.classColors !== undefined) { CLASS_COLORS = data.classColors; }
+        if (data.classLabels !== undefined) { CLASS_LABELS = data.classLabels; }
+        if (data.classShapes !== undefined) { CLASS_SHAPES = data.classShapes; }
+        if (data.markerOutline !== undefined) {
+          MARKER_OUTLINE = data.markerOutline;
+          OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
+        }
+        return;
+      }
+
       if (data && data.type === 'colormapUpdate') {
-        if (Array.isArray(data.stops) && DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN) {
+        if (Array.isArray(data.stops)) {
           GRADIENT_STOPS = data.stops;
-          markers.forEach(function(entry, catalog) {
-            if (entry.varValue != null) {
-              var t = safeT(entry.varValue, DOT_MIN, DOT_MAX);
-              markerBaseColors.set(catalog, gradientColor(t));
-              entry.setStyle(effectiveStyleForCatalog(catalog));
-            }
-          });
+          if (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN) {
+            markers.forEach(function(entry, catalog) {
+              if (entry.varValue != null) {
+                var t = safeT(entry.varValue, DOT_MIN, DOT_MAX);
+                markerBaseColors.set(catalog, gradientColor(t));
+                entry.setStyle(effectiveStyleForCatalog(catalog));
+              }
+            });
+          }
         }
         if (Array.isArray(data.circularStops) && IS_CIRCULAR) {
           ASPECT_STOPS = data.circularStops;
