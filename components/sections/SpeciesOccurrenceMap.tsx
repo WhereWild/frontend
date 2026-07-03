@@ -33,6 +33,7 @@ import {
   isOpenExternalUrlMessage,
   isPinObservationMessage,
   COLORMAP_UPDATE_MESSAGE_TYPE,
+  HEATMAP_UPDATE_MESSAGE_TYPE,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -152,6 +153,7 @@ type SpeciesOccurrenceMapProps = {
   gradientStops?: [number, number, number][] | null;
   aspectStops?: [number, number, number][] | null;
   useLabelsOverlay?: boolean;
+  preserveMapPosition?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -194,6 +196,7 @@ export function SpeciesOccurrenceMap({
   gradientStops = null,
   aspectStops = null,
   useLabelsOverlay = false,
+  preserveMapPosition = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -359,6 +362,25 @@ export function SpeciesOccurrenceMap({
     () => (useLabelsOverlay ? getLabelsOverlayTileUrl() : null),
     [useLabelsOverlay],
   );
+
+  // When preserveMapPosition is true, the html memo is built once with initial
+  // values for the "live" props. Subsequent changes are sent via postMessage so
+  // Leaflet can update the tile layer without reloading the WebView.
+  const initialHeatmapTileUrl = React.useRef(heatmapTileUrl);
+  const initialPointQueryUrl = React.useRef(pointQueryUrl);
+  const initialRenderMin = React.useRef(renderMin);
+  const initialRenderMax = React.useRef(renderMax);
+  const initialVarUnits = React.useRef(varUnits);
+  const initialDotMin = React.useRef(dotMin);
+  const initialDotMax = React.useRef(dotMax);
+  const initialGradientStops = React.useRef(gradientStops);
+  const initialAspectStops = React.useRef(aspectStops);
+  const initialIsCircular = React.useRef(isCircular);
+  const initialClassColors = React.useRef(classColors);
+  const initialClassLabels = React.useRef(classLabels);
+  const initialClassShapes = React.useRef(classShapes);
+  const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
+
   const html = React.useMemo(() => {
     if (!mapTemplate) {
       return null;
@@ -368,7 +390,7 @@ export function SpeciesOccurrenceMap({
       occurrences,
       markerPalette,
       tileUrlTemplate,
-      heatmapTileUrl,
+      preserveMapPosition ? initialHeatmapTileUrl.current : heatmapTileUrl,
       heatmapOpacity,
       minZoom,
       showMarkers,
@@ -379,45 +401,34 @@ export function SpeciesOccurrenceMap({
       maxBounds,
       linkObservations,
       allowPinObservations,
-      pointQueryUrl,
-      renderMin,
-      renderMax,
-      isCircular,
+      preserveMapPosition ? initialPointQueryUrl.current : pointQueryUrl,
+      preserveMapPosition ? initialRenderMin.current : renderMin,
+      preserveMapPosition ? initialRenderMax.current : renderMax,
+      preserveMapPosition ? initialIsCircular.current : isCircular,
       observationValues,
-      classColors,
-      classLabels,
-      dotMin,
-      dotMax,
+      preserveMapPosition ? initialClassColors.current : classColors,
+      preserveMapPosition ? initialClassLabels.current : classLabels,
+      preserveMapPosition ? initialDotMin.current : dotMin,
+      preserveMapPosition ? initialDotMax.current : dotMax,
       disableObservationQuery,
-      varUnits,
-      gradientStops,
-      aspectStops,
-      classShapes,
-      markerOutlineEnabled,
+      preserveMapPosition ? initialVarUnits.current : varUnits,
+      preserveMapPosition ? initialGradientStops.current : gradientStops,
+      preserveMapPosition ? initialAspectStops.current : aspectStops,
+      preserveMapPosition ? initialClassShapes.current : classShapes,
+      preserveMapPosition
+        ? initialMarkerOutlineEnabled.current
+        : markerOutlineEnabled,
       circularShapesEnabled,
       labelsOverlayTileUrl,
       null,
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     allowPinObservations,
-    pointQueryUrl,
-    renderMin,
-    renderMax,
-    isCircular,
     observationValues,
-    classColors,
-    classLabels,
-    classShapes,
-    markerOutlineEnabled,
     circularShapesEnabled,
-    dotMin,
-    dotMax,
     disableObservationQuery,
-    varUnits,
-    gradientStops,
-    aspectStops,
     heatmapOpacity,
-    heatmapTileUrl,
     initialLat,
     initialLon,
     initialZoom,
@@ -431,6 +442,26 @@ export function SpeciesOccurrenceMap({
     linkObservations,
     tileUrlTemplate,
     labelsOverlayTileUrl,
+    preserveMapPosition,
+    // When not preserving, include the live props so changes rebuild the html.
+    ...(preserveMapPosition
+      ? []
+      : [
+          heatmapTileUrl,
+          pointQueryUrl,
+          renderMin,
+          renderMax,
+          varUnits,
+          dotMin,
+          dotMax,
+          gradientStops,
+          aspectStops,
+          isCircular,
+          classColors,
+          classLabels,
+          classShapes,
+          markerOutlineEnabled,
+        ]),
   ]);
 
   React.useEffect(() => {
@@ -503,6 +534,45 @@ export function SpeciesOccurrenceMap({
       webViewRef.current?.postMessage(JSON.stringify(msg));
     }
   }, [gradientStops, aspectStops, mapReady]);
+
+  React.useEffect(() => {
+    if (!preserveMapPosition || !mapReady) return;
+    const msg: Record<string, unknown> = {
+      type: HEATMAP_UPDATE_MESSAGE_TYPE,
+      heatmapTileUrl,
+      pointQueryUrl,
+      renderMin,
+      renderMax,
+      varUnits,
+      dotMin,
+      dotMax,
+      isCircular,
+      classColors: classColors ? Object.fromEntries(classColors) : null,
+      classLabels: classLabels ? Object.fromEntries(classLabels) : null,
+      classShapes: classShapes ? Object.fromEntries(classShapes) : null,
+      markerOutline: markerOutlineEnabled,
+    };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [
+    preserveMapPosition,
+    mapReady,
+    heatmapTileUrl,
+    pointQueryUrl,
+    renderMin,
+    renderMax,
+    varUnits,
+    dotMin,
+    dotMax,
+    isCircular,
+    classColors,
+    classLabels,
+    classShapes,
+    markerOutlineEnabled,
+  ]);
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') {

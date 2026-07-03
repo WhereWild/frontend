@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const COLORMAP_UPDATE_MESSAGE_TYPE = 'colormapUpdate';
+export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
