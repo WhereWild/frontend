@@ -42,6 +42,25 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const SELECTED_POINT_MESSAGE_TYPE = __SELECTED_POINT_MESSAGE_TYPE_JSON__;
     const OPEN_EXTERNAL_URL_MESSAGE_TYPE = __OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__;
 
+    var PARENT_POSTMESSAGE_ORIGIN = (function() {
+      try {
+        var params = new URLSearchParams(window.location.search || '');
+        var configured = params.get('parentOrigin');
+        if (!configured) return '*';
+        var parsed = new URL(configured);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '*';
+        return parsed.origin;
+      } catch (e) { return '*'; }
+    })();
+
+    function postToParent(msg) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        window.parent.postMessage(msg, PARENT_POSTMESSAGE_ORIGIN);
+      }
+    }
+
     const MERCATOR_MAX_LAT = 85.05112878;
     const TILE_SIZE = 256;
     const BASE_MIN_ZOOM = 2;
@@ -239,13 +258,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       const tileClassData = new WeakMap();
 
       function postClassMessage(type, classes) {
-        var msg = { type: type, classes: classes };
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-        } else {
-          // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-          window.parent.postMessage(msg, '*');
-        }
+        postToParent({ type: type, classes: classes });
       }
 
       function releaseTile(tile) {
@@ -608,32 +621,17 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
-      const msg = {
+      postToParent({
         type: PIN_OBSERVATION_MESSAGE_TYPE,
         catalogNumber: catalogNumber,
         latitude: latitude,
         longitude: longitude,
-      };
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else {
-        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-        window.parent.postMessage(msg, '*');
-      }
+      });
       map.closePopup();
     }
 
     function sendOpenExternalUrlMessage(url) {
-      const msg = {
-        type: OPEN_EXTERNAL_URL_MESSAGE_TYPE,
-        url: url,
-      };
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else {
-        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-        window.parent.postMessage(msg, '*');
-      }
+      postToParent({ type: OPEN_EXTERNAL_URL_MESSAGE_TYPE, url: url });
     }
 
     function handlePinButtonClick(event) {
@@ -1034,13 +1032,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             if (data.value != null) {
               var numVal = Number(data.value);
               if (isFinite(numVal)) {
-                var pvMsg = { type: 'pointValue', value: numVal };
-                if (window.ReactNativeWebView) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
-                } else {
-                  // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-          window.parent.postMessage(pvMsg, '*');
-                }
+                postToParent({ type: 'pointValue', value: numVal });
                 var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN;
                 var units = data.units ? ' ' + data.units : (VAR_UNITS ? ' ' + VAR_UNITS : '');
                 var dotOutlineCss = MARKER_OUTLINE ? ';box-shadow:0 0 0 1.5px rgba(176,176,176,0.65)' : '';
@@ -1093,13 +1085,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             sendPinMessage(catalogValue, latitude, longitude);
           }
           if (varValue != null) {
-            var pvMsg = { type: 'pointValue', value: varValue };
-            if (window.ReactNativeWebView) {
-              window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
-            } else {
-              // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-          window.parent.postMessage(pvMsg, '*');
-            }
+            postToParent({ type: 'pointValue', value: varValue });
             var content = buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape);
             var popup = marker.getPopup();
             if (!popup) {
@@ -1403,13 +1389,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     function postMapBounds() {
       var b = map.getBounds();
-      var msg = { type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else {
-        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-        window.parent.postMessage(msg, '*');
-      }
+      postToParent({ type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() });
     }
 
     map.on('click', function(event) {
@@ -1437,13 +1417,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         var picker = L.popup({ closeButton: true }).setLatLng(event.latlng).setContent(content).openOn(map);
         btn.addEventListener('click', function() {
           placeOrMoveSavedMarker([pickerLat, pickerLon]);
-          var msg = { type: 'locationPicked', lat: pickerLat, lon: pickerLon };
-          if (window.ReactNativeWebView) {
-            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-          } else {
-            // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-            window.parent.postMessage(msg, '*');
-          }
+          postToParent({ type: 'locationPicked', lat: pickerLat, lon: pickerLon });
           picker.close();
         });
         return;
@@ -1464,13 +1438,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             }
             var numVal = Number(data.value);
             if (isFinite(numVal)) {
-              var pvMsg = { type: 'pointValue', value: numVal };
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify(pvMsg));
-              } else {
-                // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-          window.parent.postMessage(pvMsg, '*');
-              }
+              postToParent({ type: 'pointValue', value: numVal });
             }
             var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
             var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
@@ -1547,12 +1515,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         x0: nw.x, y0: nw.y,
         x1: se.x, y1: se.y,
       };
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-      } else {
-        // codeql[js/cross-window-information-leak] -- internal WebView iframe, loaded as blob URL so location.origin is "null"
-        window.parent.postMessage(msg, '*');
-      }
+      postToParent(msg);
     }
 
     map.on('moveend', sendTiles);

@@ -192,6 +192,19 @@ export function StackedCategoryBar({
     validCategories,
   ]);
 
+  // Key to pass as homeHighlightedKey to NavigationPillList.
+  // '__home_match__' means we also add an extra pill (home same as obs, or not in display).
+  // A category value string means we reuse the existing pill (no extra pill needed).
+  const homeMatchKey = React.useMemo(() => {
+    if (homeHighlightedValue == null || homeUnobservedCategory) return null;
+    const homeStr = String(homeHighlightedValue);
+    const existsInDisplay = displayCategories.some(
+      (c) => String(c.value) === homeStr,
+    );
+    if (!existsInDisplay || resolvedPinnedKey === homeStr) return '__home_match__';
+    return homeStr;
+  }, [homeHighlightedValue, homeUnobservedCategory, displayCategories, resolvedPinnedKey]);
+
   React.useEffect(() => {
     if (!resolvedPinnedKey || expanded) return;
     const visibleKeys = new Set(
@@ -259,9 +272,9 @@ export function StackedCategoryBar({
         />
       );
 
-    // Build the home extra pill (matched or unobserved), if any.
+    // Build the home extra pill only when needed (same as obs or not in display).
     let homePill: (typeof base)[number] | null = null;
-    if (homeHighlightedValue != null && !homeUnobservedCategory) {
+    if (homeMatchKey === '__home_match__' && homeHighlightedValue != null) {
       const homeMatchDisplayIndex = displayCategories.findIndex(
         (c) => String(c.value) === String(homeHighlightedValue),
       );
@@ -334,6 +347,7 @@ export function StackedCategoryBar({
     resolvedPinnedKey,
     pinnedOtherLabel,
     unobservedHighlightedCategory,
+    homeMatchKey,
     homeHighlightedValue,
     homeUnobservedCategory,
     shapesEnabled,
@@ -423,11 +437,7 @@ export function StackedCategoryBar({
             : undefined
         }
         homeHighlightedKey={
-          homeHighlightedValue != null && !homeUnobservedCategory
-            ? '__home_match__'
-            : homeUnobservedCategory
-              ? '__home_other__'
-              : undefined
+          homeMatchKey ?? (homeUnobservedCategory ? '__home_other__' : undefined)
         }
         homeHighlightOutlineColor={homeHighlightOutlineColor}
         onSelectionChange={handlePillSelectionChange}
