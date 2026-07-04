@@ -34,6 +34,8 @@ import {
   isPinObservationMessage,
   COLORMAP_UPDATE_MESSAGE_TYPE,
   HEATMAP_UPDATE_MESSAGE_TYPE,
+  LOCATION_PICKED_MESSAGE_TYPE,
+  LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -154,6 +156,10 @@ type SpeciesOccurrenceMapProps = {
   aspectStops?: [number, number, number][] | null;
   useLabelsOverlay?: boolean;
   preserveMapPosition?: boolean;
+  locationPickerMode?: boolean;
+  onLocationPicked?: (lat: number, lon: number) => void;
+  localLat?: number | null;
+  localLon?: number | null;
 };
 
 export function SpeciesOccurrenceMap({
@@ -197,6 +203,10 @@ export function SpeciesOccurrenceMap({
   aspectStops = null,
   useLabelsOverlay = false,
   preserveMapPosition = false,
+  locationPickerMode = false,
+  onLocationPicked,
+  localLat = null,
+  localLon = null,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -207,6 +217,8 @@ export function SpeciesOccurrenceMap({
   const webViewRef = React.useRef<WebView>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  const initialLocalLat = React.useRef(localLat);
+  const initialLocalLon = React.useRef(localLon);
   const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
   const [templateLoadWarning, setTemplateLoadWarning] = React.useState<
     string | null
@@ -269,6 +281,21 @@ export function SpeciesOccurrenceMap({
           east: msg.east,
           west: msg.west,
         });
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === LOCATION_PICKED_MESSAGE_TYPE &&
+        'lat' in msg &&
+        'lon' in msg &&
+        typeof (msg as Record<string, unknown>).lat === 'number' &&
+        typeof (msg as Record<string, unknown>).lon === 'number'
+      ) {
+        const m = msg as { lat: number; lon: number };
+        onLocationPicked?.(m.lat, m.lon);
       }
     },
     [
@@ -278,13 +305,18 @@ export function SpeciesOccurrenceMap({
       onPointValue,
       onMapBounds,
       openExternalUrl,
+      onLocationPicked,
     ],
   );
 
   const hasOccurrences = occurrences.length > 0;
 
   React.useEffect(() => {
-    if (loading || error || (!hasOccurrences && !heatmapTileUrl)) {
+    if (
+      loading ||
+      error ||
+      (!hasOccurrences && !heatmapTileUrl && !locationPickerMode)
+    ) {
       return;
     }
 
@@ -323,7 +355,7 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasOccurrences, heatmapTileUrl, loading]);
+  }, [error, hasOccurrences, heatmapTileUrl, loading, locationPickerMode]);
 
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
@@ -458,6 +490,9 @@ export function SpeciesOccurrenceMap({
       circularShapesEnabled,
       labelsOverlayTileUrl,
       null,
+      locationPickerMode,
+      initialLocalLat.current,
+      initialLocalLon.current,
     );
   }, [
     allowPinObservations,
@@ -478,6 +513,7 @@ export function SpeciesOccurrenceMap({
     linkObservations,
     tileUrlTemplate,
     labelsOverlayTileUrl,
+    locationPickerMode,
     memoHeatmapTileUrl,
     memoPointQueryUrl,
     memoRenderMin,
@@ -605,6 +641,20 @@ export function SpeciesOccurrenceMap({
   ]);
 
   React.useEffect(() => {
+    if (!locationPickerMode || !mapReady) return;
+    const msg = {
+      type: LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
+      lat: localLat,
+      lon: localLon,
+    };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [locationPickerMode, mapReady, localLat, localLon]);
+
+  React.useEffect(() => {
     if (Platform.OS !== 'web') {
       return;
     }
@@ -662,6 +712,23 @@ export function SpeciesOccurrenceMap({
           east: data.east,
           west: data.west,
         });
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === LOCATION_PICKED_MESSAGE_TYPE &&
+        'lat' in data &&
+        'lon' in data &&
+        typeof (data as Record<string, unknown>).lat === 'number' &&
+        typeof (data as Record<string, unknown>).lon === 'number'
+      ) {
+        const d = data as { lat: number; lon: number };
+        onLocationPicked?.(d.lat, d.lon);
       }
     };
     window.addEventListener('message', handler);
@@ -677,6 +744,7 @@ export function SpeciesOccurrenceMap({
     onTileClasses,
     onPointValue,
     openExternalUrl,
+    onLocationPicked,
   ]);
 
   if (error) {

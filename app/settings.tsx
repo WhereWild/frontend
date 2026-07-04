@@ -35,8 +35,6 @@ import {
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { WebMetadata } from '@/utils/webMetadata';
 
-const LOCATION_OPTIONS = [{ label: 'Utah', value: 'utah' }];
-
 const UNITS_OPTIONS = [
   { label: 'Metric (°C, km)', value: 'metric' },
   { label: 'Imperial (°F, mi)', value: 'imperial' },
@@ -68,6 +66,8 @@ export default function Settings() {
     setShapesEnabled,
     markerOutlineEnabled,
     setMarkerOutlineEnabled,
+    localLat,
+    localLon,
   } = useSettings();
 
   const COLORMAP_OPTIONS = COLORMAP_ORDER.map((id) => ({
@@ -174,14 +174,22 @@ export default function Settings() {
                       description='Choose light, dark, or follow your device setting'
                     />
 
-                    <SelectField
-                      label='Location'
-                      placeholder='Select a location'
-                      options={LOCATION_OPTIONS}
-                      value='utah'
-                      disabled
-                      description='Default observation location'
-                    />
+                    <View style={styles.locationEntry}>
+                      <Button
+                        variant='neutral'
+                        label='Local comparison location'
+                        onPress={() => router.push('/home-region')}
+                        style={styles.actionButton}
+                      />
+                      <ThemedText
+                        variant='bodyTiny'
+                        style={styles.locationHint}
+                      >
+                        {localLat != null && localLon != null
+                          ? `${localLat.toFixed(4)}, ${localLon.toFixed(4)}`
+                          : 'Not set'}
+                      </ThemedText>
+                    </View>
 
                     <SelectField
                       label='Language'
@@ -343,5 +351,13 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignSelf: 'stretch',
+  },
+  locationEntry: {
+    gap: Size.space['100'],
+  },
+  locationHint: {
+    opacity: 0.6,
+    paddingLeft: Size.space['100'],
+    fontVariant: ['tabular-nums'] as const,
   },
 });

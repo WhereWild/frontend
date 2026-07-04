@@ -40,6 +40,7 @@ const MEAN_LABEL_HALF_WIDTH = 24;
 const PIN_LABEL_HALF_WIDTH = 36;
 const PIN_IMAGE_WIDTH = 22;
 const PIN_IMAGE_HEIGHT = 29;
+const HOME_PIN_DOT_SIZE = 12;
 const PIN_IMAGE = require('@/assets/images/wherewild.png');
 
 /** Selected value range on the density curve. */
@@ -68,6 +69,10 @@ type DensityChartProps = {
   onSelectionChange?: (range: DensitySelectionRange | null) => void;
   pinValue?: number | null;
   pinLoading?: boolean;
+  homePinValue?: number | null;
+  homePinLoading?: boolean;
+  anyFilterActive?: boolean;
+  temporalFilterActive?: boolean;
   /** When true, renders as a discrete histogram (bar chart) instead of a smooth KDE curve. */
   isDiscrete?: boolean;
 };
@@ -83,6 +88,10 @@ export function DensityChart({
   onSelectionChange,
   pinValue,
   pinLoading,
+  homePinValue,
+  homePinLoading,
+  anyFilterActive = false,
+  temporalFilterActive = false,
   isDiscrete = false,
 }: DensityChartProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -347,6 +356,16 @@ export function DensityChart({
     return () => window.removeEventListener('mouseup', onWindowMouseUp);
   }, [handleSelectionEnd]);
 
+  const locLabel = temporalFilterActive
+    ? 'Location value at the current time'
+    : 'Location value';
+  const homeLabel = temporalFilterActive
+    ? 'Your home location at the current time'
+    : 'Your home location';
+  const filterSuffix = anyFilterActive
+    ? ' with the current filters applied'
+    : '';
+
   const shouldSetSelectionResponder = () => true;
 
   const shouldKeepSelectionResponder = () => dragOrigin.current !== null;
@@ -397,68 +416,153 @@ export function DensityChart({
   const pinPosition = pinIsOutsideRange ? null : pinRawPosition;
   const pinMarkerVisible = pinPosition != null && Number.isFinite(pinPosition);
 
-  // Nudge mean and pin labels apart if they overlap. Hide pin label if it
-  // gets too close to the fixed min/max labels. All calculations in pixels.
-  const { meanLeft, pinLeft, pinLabelVisible } = React.useMemo(() => {
-    if (chartWidth === 0) {
-      return {
-        meanLeft: meanPosition,
-        pinLeft: pinPosition,
-        pinLabelVisible: true,
-      };
-    }
+  const homePinRawPosition =
+    homePinValue != null && !homePinLoading && densityDomain.spanX > 0
+      ? ((homePinValue - densityDomain.minX) / densityDomain.spanX) * 100
+      : null;
+  const homePinIsOutsideRange =
+    homePinValue != null &&
+    !homePinLoading &&
+    (summary?.min != null || summary?.max != null
+      ? (summary.min != null && homePinValue < summary.min) ||
+        (summary.max != null && homePinValue > summary.max)
+      : homePinRawPosition != null &&
+        Number.isFinite(homePinRawPosition) &&
+        (homePinRawPosition < 0 || homePinRawPosition > 100));
+  const homePinIsBelowRange =
+    homePinIsOutsideRange &&
+    (summary?.min != null
+      ? homePinValue! < summary.min
+      : (homePinRawPosition ?? 0) < 0);
+  const homePinBarIndex = React.useMemo(() => {
+    if (
+      !isDiscrete ||
+      !discreteBars ||
+      homePinValue == null ||
+      homePinLoading ||
+      homePinIsOutsideRange
+    )
+      return -1;
+    return discreteBars.findIndex(
+      (bar) => homePinValue >= bar.domainStart && homePinValue <= bar.domainEnd,
+    );
+  }, [
+    isDiscrete,
+    discreteBars,
+    homePinValue,
+    homePinLoading,
+    homePinIsOutsideRange,
+  ]);
+  const homePinInUnobservedBin =
+    isDiscrete &&
+    homePinBarIndex === -1 &&
+    homePinValue != null &&
+    !homePinLoading &&
+    !homePinIsOutsideRange;
+  const homePinPosition = homePinIsOutsideRange ? null : homePinRawPosition;
+  const homePinMarkerVisible =
+    homePinPosition != null && Number.isFinite(homePinPosition);
 
-    const gap = 4; // minimum pixel gap between label edges
+  // Nudge mean, obs-pin, and home-pin labels apart when they overlap.
+  // Hide pin/home labels if too close to the fixed min/max edge labels.
+  // All calculations in pixels; convert back to % for positioning.
+  const {
+    meanLeft,
+    pinLeft,
+    pinLabelVisible,
+    homePinLeft,
+    homePinLabelVisible,
+  } = React.useMemo(() => {
+    const fallback = {
+      meanLeft: meanPosition,
+      pinLeft: pinPosition,
+      pinLabelVisible: true,
+      homePinLeft: homePinPosition,
+      homePinLabelVisible: true,
+    };
+    if (chartWidth === 0) return fallback;
+
+    const gap = 4;
     const meanHalf = MEAN_LABEL_HALF_WIDTH;
     const pinHalf = PIN_LABEL_HALF_WIDTH;
-    const MIN_LABEL_WIDTH = MEAN_LABEL_HALF_WIDTH * 2;
-    const MAX_LABEL_WIDTH = MEAN_LABEL_HALF_WIDTH * 2;
+    const edgeW = MEAN_LABEL_HALF_WIDTH * 2;
 
-    // Start with raw pixel centers.
     let meanCenter =
       meanPosition != null ? (meanPosition / 100) * chartWidth : null;
     let pinCenter =
       pinPosition != null ? (pinPosition / 100) * chartWidth : null;
+    let homeCenter =
+      homePinPosition != null ? (homePinPosition / 100) * chartWidth : null;
 
-    // Hide pin label if it overlaps min or max labels.
+    // Hide pin labels that land too close to the fixed min/max edge labels.
     let pinLabelVisible = true;
     if (pinCenter != null) {
-      const pinLeftEdge = pinCenter - pinHalf;
-      const pinRightEdge = pinCenter + pinHalf;
-      if (summary?.min != null && pinLeftEdge < MIN_LABEL_WIDTH + gap) {
+      if (summary?.min != null && pinCenter - pinHalf < edgeW + gap)
         pinLabelVisible = false;
-      }
       if (
         summary?.max != null &&
-        pinRightEdge > chartWidth - MAX_LABEL_WIDTH - gap
-      ) {
+        pinCenter + pinHalf > chartWidth - edgeW - gap
+      )
         pinLabelVisible = false;
-      }
+    }
+    let homePinLabelVisible = true;
+    if (homeCenter != null) {
+      if (summary?.min != null && homeCenter - pinHalf < edgeW + gap)
+        homePinLabelVisible = false;
+      if (
+        summary?.max != null &&
+        homeCenter + pinHalf > chartWidth - edgeW - gap
+      )
+        homePinLabelVisible = false;
     }
 
-    // Nudge mean and pin apart symmetrically.
-    if (meanCenter != null && pinCenter != null) {
-      const overlap =
-        meanHalf + pinHalf + gap - Math.abs(meanCenter - pinCenter);
-      if (overlap > 0) {
-        const shift = overlap / 2;
-        const direction = meanCenter <= pinCenter ? -1 : 1;
-        meanCenter = meanCenter + direction * shift;
-        pinCenter = pinCenter - direction * shift;
-      }
+    // Helper: nudge two centers apart symmetrically.
+    const nudge = (
+      aCenter: number,
+      aHalf: number,
+      bCenter: number,
+      bHalf: number,
+    ): [number, number] => {
+      const overlap = aHalf + bHalf + gap - Math.abs(aCenter - bCenter);
+      if (overlap <= 0) return [aCenter, bCenter];
+      const shift = overlap / 2;
+      const dir = aCenter <= bCenter ? -1 : 1;
+      return [aCenter + dir * shift, bCenter - dir * shift];
+    };
+
+    // Nudge all pairs repeatedly until stable (needed for triple overlap).
+    for (let pass = 0; pass < 4; pass++) {
+      if (meanCenter != null && pinCenter != null)
+        [meanCenter, pinCenter] = nudge(
+          meanCenter,
+          meanHalf,
+          pinCenter,
+          pinHalf,
+        );
+      if (meanCenter != null && homeCenter != null)
+        [meanCenter, homeCenter] = nudge(
+          meanCenter,
+          meanHalf,
+          homeCenter,
+          pinHalf,
+        );
+      if (pinCenter != null && homeCenter != null)
+        [pinCenter, homeCenter] = nudge(
+          pinCenter,
+          pinHalf,
+          homeCenter,
+          pinHalf,
+        );
     }
 
-    // Clamp mean label away from min/max edge labels.
+    // Clamp mean away from edge labels.
     if (meanCenter != null) {
-      const minSafeLeft =
-        summary?.min != null ? MIN_LABEL_WIDTH + gap + meanHalf : meanHalf;
-      const maxSafeRight =
+      const lo = summary?.min != null ? edgeW + gap + meanHalf : meanHalf;
+      const hi =
         summary?.max != null
-          ? chartWidth - MAX_LABEL_WIDTH - gap - meanHalf
+          ? chartWidth - edgeW - gap - meanHalf
           : chartWidth - meanHalf;
-      if (minSafeLeft < maxSafeRight) {
-        meanCenter = Math.min(Math.max(meanCenter, minSafeLeft), maxSafeRight);
-      }
+      if (lo < hi) meanCenter = Math.min(Math.max(meanCenter, lo), hi);
     }
 
     return {
@@ -466,8 +570,18 @@ export function DensityChart({
         meanCenter != null ? (meanCenter / chartWidth) * 100 : meanPosition,
       pinLeft: pinCenter != null ? (pinCenter / chartWidth) * 100 : pinPosition,
       pinLabelVisible,
+      homePinLeft:
+        homeCenter != null ? (homeCenter / chartWidth) * 100 : homePinPosition,
+      homePinLabelVisible,
     };
-  }, [meanPosition, pinPosition, chartWidth, summary?.min, summary?.max]);
+  }, [
+    meanPosition,
+    pinPosition,
+    homePinPosition,
+    chartWidth,
+    summary?.min,
+    summary?.max,
+  ]);
 
   const start = normalized.length > 0 ? normalized[0] : null;
   const end = normalized.length > 0 ? normalized[normalized.length - 1] : null;
@@ -525,6 +639,17 @@ export function DensityChart({
                     : 0.5;
                 return <Path key={i} d={path} fill={fill} opacity={opacity} />;
               })}
+              {homePinBarIndex !== -1 ? (
+                <Path
+                  key='home-pin-outline'
+                  d={discreteBars[homePinBarIndex].path}
+                  fill='none'
+                  stroke={palette.background.brand.default}
+                  strokeWidth={2}
+                  strokeDasharray='4 3'
+                  vectorEffect='non-scaling-stroke'
+                />
+              ) : null}
               {pinBarIndex !== -1 ? (
                 <Path
                   key='pin-outline'
@@ -565,6 +690,18 @@ export function DensityChart({
             />
           ) : null}
           {!isDiscrete &&
+          homePinPosition != null &&
+          Number.isFinite(homePinPosition) ? (
+            <Path
+              d={`M${homePinPosition},0 L${homePinPosition},${CHART_HEIGHT}`}
+              fill='none'
+              stroke={palette.background.brand.default}
+              strokeWidth={2}
+              strokeDasharray='4 3'
+              vectorEffect='non-scaling-stroke'
+            />
+          ) : null}
+          {!isDiscrete &&
           pinPosition != null &&
           Number.isFinite(pinPosition) ? (
             <Path
@@ -586,6 +723,24 @@ export function DensityChart({
             />
           )}
         </Svg>
+        {!isDiscrete ? (
+          <View
+            pointerEvents='none'
+            style={[
+              styles.pinImageContainer,
+              {
+                opacity: homePinMarkerVisible ? 1 : 0,
+                left: homePinMarkerVisible ? `${homePinPosition}%` : '0%',
+              },
+            ]}
+          >
+            <Image
+              source={PIN_IMAGE}
+              resizeMode='contain'
+              style={styles.pinImage}
+            />
+          </View>
+        ) : null}
         {!isDiscrete ? (
           <View
             pointerEvents='none'
@@ -645,6 +800,31 @@ export function DensityChart({
             <ThemedText variant='bodySmall'>mean</ThemedText>
           </View>
         ) : null}
+        {homePinLeft != null &&
+        Number.isFinite(homePinLeft) &&
+        homePinLabelVisible ? (
+          <View
+            style={{
+              ...styles.meanLabelContainer,
+              left: `${homePinLeft}%`,
+              marginLeft: -PIN_LABEL_HALF_WIDTH,
+              width: PIN_LABEL_HALF_WIDTH * 2,
+            }}
+          >
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.background.brand.default }}
+            >
+              {formatValue(homePinValue, 1)}
+            </ThemedText>
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.background.brand.default }}
+            >
+              Home
+            </ThemedText>
+          </View>
+        ) : null}
         {pinLeft != null && Number.isFinite(pinLeft) && pinLabelVisible ? (
           <View
             style={{
@@ -654,10 +834,18 @@ export function DensityChart({
               width: PIN_LABEL_HALF_WIDTH * 2,
             }}
           >
-            <ThemedText variant='bodySmall'>
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.background.warning.default }}
+            >
               {formatValue(pinValue, 1)}
             </ThemedText>
-            <ThemedText variant='bodySmall'>Selected</ThemedText>
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.background.warning.default }}
+            >
+              Selected
+            </ThemedText>
           </View>
         ) : null}
         {summary?.max != null && (
@@ -683,7 +871,7 @@ export function DensityChart({
             variant='bodySmall'
             style={{ color: palette.text.warning.default }}
           >
-            {`Location value (${formatValue(pinValue, 1)}) is ${pinIsBelowRange ? 'below' : 'above'} this species' observed range`}
+            {`${locLabel} (${formatValue(pinValue, 1)}) is ${pinIsBelowRange ? 'below' : 'above'} this species' observed range${filterSuffix}`}
           </ThemedText>
         </View>
       ) : null}
@@ -701,9 +889,25 @@ export function DensityChart({
             variant='bodySmall'
             style={{ color: palette.text.warning.default }}
           >
-            {`Location value (${formatValue(pinValue, 1)}) has no observed occurrences in this range`}
+            {`${locLabel} (${formatValue(pinValue, 1)}) has no observed occurrences in this range${filterSuffix}`}
           </ThemedText>
         </View>
+      ) : null}
+      {homePinIsOutsideRange && homePinValue != null ? (
+        <ThemedText
+          variant='bodySmall'
+          style={{ color: palette.text.brand.default }}
+        >
+          {`${homeLabel} (${formatValue(homePinValue, 1)}) is ${homePinIsBelowRange ? 'below' : 'above'} this species' observed range${filterSuffix}`}
+        </ThemedText>
+      ) : null}
+      {homePinInUnobservedBin && homePinValue != null ? (
+        <ThemedText
+          variant='bodySmall'
+          style={{ color: palette.text.brand.default }}
+        >
+          {`${homeLabel} (${formatValue(homePinValue, 1)}) has no observed occurrences in this range${filterSuffix}`}
+        </ThemedText>
       ) : null}
     </View>
   );
@@ -720,6 +924,14 @@ const styles = StyleSheet.create({
   },
   chartResponder: {
     ...StyleSheet.absoluteFillObject,
+  },
+  homePinDotContainer: {
+    position: 'absolute',
+    top: -(HOME_PIN_DOT_SIZE / 2),
+    marginLeft: -(HOME_PIN_DOT_SIZE / 2),
+    width: HOME_PIN_DOT_SIZE,
+    height: HOME_PIN_DOT_SIZE,
+    borderRadius: HOME_PIN_DOT_SIZE / 2,
   },
   pinImageContainer: {
     position: 'absolute',

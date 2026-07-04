@@ -50,6 +50,15 @@ type StackedCategoryBarProps = {
   descriptionColor: string;
   /** Outline color used for the location-derived highlighted category. */
   highlightOutlineColor?: string;
+  /** Home location category value to emphasize, if any. */
+  homeHighlightedValue?: number | string | null;
+  /** Outline color used for the home location highlighted category. */
+  homeHighlightOutlineColor?: string;
+  /** Home location category that is not in the observed distribution. */
+  homeUnobservedCategory?: PinnedCategoryBadge | null;
+  anyFilterActive?: boolean;
+  /** Word substituted for "environment" in never-observed messages. */
+  environmentNoun?: string;
   /** Variable ID used to look up CB shapes. */
   variableId?: string;
   /** Whether to show per-category shapes on pill icons. */
@@ -79,10 +88,15 @@ export function StackedCategoryBar({
   pinnedValue = null,
   pinnedClassName = null,
   highlightedValue = null,
+  homeHighlightedValue = null,
+  homeUnobservedCategory = null,
+  anyFilterActive = false,
+  environmentNoun = 'environment',
   unobservedHighlightedCategory = null,
   onSelect,
   descriptionColor,
   highlightOutlineColor = '#F59E0B',
+  homeHighlightOutlineColor = '#466237',
   variableId,
   shapesEnabled = false,
   markerOutlineEnabled = false,
@@ -108,13 +122,19 @@ export function StackedCategoryBar({
   );
   const hasMore = hiddenCount > 0;
 
-  const displayCategories = React.useMemo(
-    () =>
-      expanded || !hasMore
-        ? validCategories
-        : validCategories.slice(0, CATEGORY_DISPLAY_LIMIT),
-    [validCategories, expanded, hasMore],
-  );
+  const displayCategories = React.useMemo(() => {
+    if (expanded || !hasMore) return validCategories;
+    const base = validCategories.slice(0, CATEGORY_DISPLAY_LIMIT);
+    if (homeHighlightedValue != null) {
+      const homeIndex = validCategories.findIndex(
+        (c) => String(c.value) === String(homeHighlightedValue),
+      );
+      if (homeIndex >= CATEGORY_DISPLAY_LIMIT) {
+        base[CATEGORY_DISPLAY_LIMIT - 1] = validCategories[homeIndex];
+      }
+    }
+    return base;
+  }, [validCategories, expanded, hasMore, homeHighlightedValue]);
 
   const selectedCategory = React.useMemo(
     () =>
@@ -172,6 +192,25 @@ export function StackedCategoryBar({
     validCategories,
   ]);
 
+  // Key to pass as homeHighlightedKey to NavigationPillList.
+  // '__home_match__' means we also add an extra pill (home same as obs, or not in display).
+  // A category value string means we reuse the existing pill (no extra pill needed).
+  const homeMatchKey = React.useMemo(() => {
+    if (homeHighlightedValue == null || homeUnobservedCategory) return null;
+    const homeStr = String(homeHighlightedValue);
+    const existsInDisplay = displayCategories.some(
+      (c) => String(c.value) === homeStr,
+    );
+    if (!existsInDisplay || resolvedPinnedKey === homeStr)
+      return '__home_match__';
+    return homeStr;
+  }, [
+    homeHighlightedValue,
+    homeUnobservedCategory,
+    displayCategories,
+    resolvedPinnedKey,
+  ]);
+
   React.useEffect(() => {
     if (!resolvedPinnedKey || expanded) return;
     const visibleKeys = new Set(
@@ -217,6 +256,68 @@ export function StackedCategoryBar({
           ),
       };
     });
+    const makeIcon = (color: string, classId: number) =>
+      shapesEnabled && variableId && classId >= 0 ? (
+        <ShapeMarker
+          shape={getCbShape(variableId, classId)}
+          color={color}
+          size={12}
+          outline={markerOutlineEnabled}
+        />
+      ) : (
+        <View
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: color,
+            ...(markerOutlineEnabled
+              ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
+              : {}),
+          }}
+        />
+      );
+
+    // Build the home extra pill only when needed (same as obs or not in display).
+    let homePill: (typeof base)[number] | null = null;
+    if (homeMatchKey === '__home_match__' && homeHighlightedValue != null) {
+      const homeMatchDisplayIndex = displayCategories.findIndex(
+        (c) => String(c.value) === String(homeHighlightedValue),
+      );
+      if (homeMatchDisplayIndex >= 0) {
+        const homeMatchCat = displayCategories[homeMatchDisplayIndex];
+        const homeMatchColor =
+          homeMatchCat.color ??
+          CATEGORY_COLORS[homeMatchDisplayIndex % CATEGORY_COLORS.length];
+        const homeMatchRawId = homeMatchCat.value;
+        const homeMatchClassId =
+          typeof homeMatchRawId === 'string' &&
+          homeMatchRawId.startsWith('class_')
+            ? Number(homeMatchRawId.slice(6))
+            : Number(homeMatchRawId);
+        homePill = {
+          key: '__home_match__',
+          label: homeMatchCat.className,
+          icon: makeIcon(homeMatchColor, homeMatchClassId),
+        };
+      }
+    } else if (homeUnobservedCategory) {
+      const homeOtherColor = homeUnobservedCategory.color ?? '#9CA3AF';
+      const homeRawId = homeUnobservedCategory.value;
+      const homeClassId =
+        homeRawId != null
+          ? typeof homeRawId === 'string' && homeRawId.startsWith('class_')
+            ? Number(homeRawId.slice(6))
+            : Number(homeRawId)
+          : -1;
+      homePill = {
+        key: '__home_other__',
+        label: homeUnobservedCategory.label,
+        icon: makeIcon(homeOtherColor, homeClassId),
+      };
+    }
+
+    // Build obs extra pill and insert home pill immediately after it.
     if (pinnedOtherLabel) {
       const otherColor = unobservedHighlightedCategory?.color ?? '#9CA3AF';
       const rawOtherId = unobservedHighlightedCategory?.value;
@@ -229,34 +330,32 @@ export function StackedCategoryBar({
       base.push({
         key: '__other__',
         label: pinnedOtherLabel,
-        icon:
-          shapesEnabled && variableId && otherClassId >= 0 ? (
-            <ShapeMarker
-              shape={getCbShape(variableId, otherClassId)}
-              color={otherColor}
-              size={12}
-              outline={markerOutlineEnabled}
-            />
-          ) : (
-            <View
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                backgroundColor: otherColor,
-                ...(markerOutlineEnabled
-                  ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
-                  : {}),
-              }}
-            />
-          ),
+        icon: makeIcon(otherColor, otherClassId),
       });
+      if (homePill) base.push(homePill);
+    } else if (resolvedPinnedKey) {
+      // Obs matched a regular category — insert home pill right after that pill.
+      const obsIndex = base.findIndex((p) => p.key === resolvedPinnedKey);
+      if (homePill) {
+        if (obsIndex >= 0) {
+          base.splice(obsIndex + 1, 0, homePill);
+        } else {
+          base.push(homePill);
+        }
+      }
+    } else if (homePill) {
+      base.push(homePill);
     }
+
     return base;
   }, [
     displayCategories,
+    resolvedPinnedKey,
     pinnedOtherLabel,
     unobservedHighlightedCategory,
+    homeMatchKey,
+    homeHighlightedValue,
+    homeUnobservedCategory,
     shapesEnabled,
     markerOutlineEnabled,
     variableId,
@@ -304,6 +403,10 @@ export function StackedCategoryBar({
           const isHighlighted =
             effectiveHighlightedValue !== null &&
             String(category.value) === String(effectiveHighlightedValue);
+          const isHomeHighlighted =
+            !isHighlighted &&
+            homeHighlightedValue != null &&
+            String(category.value) === String(homeHighlightedValue);
 
           return (
             <Pressable
@@ -316,11 +419,14 @@ export function StackedCategoryBar({
                 {
                   width: `${percent}%`,
                   backgroundColor,
-                  borderWidth: 3,
+                  borderWidth: isHighlighted || isHomeHighlighted ? 3 : 0,
                   borderColor: isHighlighted
                     ? highlightOutlineColor
-                    : 'transparent',
-                  borderStyle: isHighlighted ? 'dashed' : 'solid',
+                    : isHomeHighlighted
+                      ? homeHighlightOutlineColor
+                      : 'transparent',
+                  borderStyle:
+                    isHighlighted || isHomeHighlighted ? 'dashed' : 'solid',
                 },
               ]}
             />
@@ -336,6 +442,11 @@ export function StackedCategoryBar({
             ? String(effectiveHighlightedValue)
             : undefined
         }
+        homeHighlightedKey={
+          homeMatchKey ??
+          (homeUnobservedCategory ? '__home_other__' : undefined)
+        }
+        homeHighlightOutlineColor={homeHighlightOutlineColor}
         onSelectionChange={handlePillSelectionChange}
         direction='horizontal'
         accessibilityLabel='Category selection'
@@ -371,7 +482,7 @@ export function StackedCategoryBar({
               variant='bodySmall'
               style={{ color: palette.text.warning.default }}
             >
-              Species has never been observed in this environment
+              {`Species has never been observed in this ${environmentNoun}${anyFilterActive ? ' with the current filters applied' : ''}`}
             </ThemedText>
           </View>
         ) : (
@@ -382,6 +493,14 @@ export function StackedCategoryBar({
             {descriptionDisplayText}
           </ThemedText>
         )}
+        {homeUnobservedCategory && !selectedCategoryDescription ? (
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.brand.default }}
+          >
+            {`Species has never been observed in home location ${environmentNoun}${anyFilterActive ? ' with the current filters applied' : ''}`}
+          </ThemedText>
+        ) : null}
       </View>
     </View>
   );

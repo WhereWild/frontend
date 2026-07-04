@@ -275,6 +275,10 @@ const baseState: SpeciesEnvironmentState = {
   pinnedNoData: false,
   selectedVariableMeta: null,
   isCircularVariable: false,
+  homePinValue: null,
+  homePinLoading: false,
+  homePinnedCategoryValue: null,
+  homeUnobservedCategory: null,
 };
 
 describe('SpeciesEnvironmentSection', () => {

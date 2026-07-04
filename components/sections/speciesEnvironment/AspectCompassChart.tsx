@@ -142,6 +142,15 @@ type AspectCompassChartProps = {
   selectedFillColor?: string;
   /** Outline color used for the location-derived highlighted category. */
   highlightOutlineColor?: string;
+  /** Home location category value to emphasize, if any. */
+  homeHighlightedValue?: number | string | null;
+  /** Outline color used for the home location highlighted category. */
+  homeHighlightOutlineColor?: string;
+  /** Home location category that is not in the observed distribution. */
+  homeUnobservedCategory?: PinnedCategoryBadge | null;
+  anyFilterActive?: boolean;
+  /** Word substituted for "environment" in never-observed messages. */
+  environmentNoun?: string;
 };
 
 /** Renders aspect distribution as an interactive compass rose (polar bar chart). */
@@ -149,12 +158,17 @@ export function AspectCompassChart({
   categories,
   selectedValue,
   highlightedValue = null,
+  homeHighlightedValue = null,
+  homeUnobservedCategory = null,
+  anyFilterActive = false,
+  environmentNoun = 'environment',
   unobservedHighlightedCategory = null,
   onSelect,
   descriptionColor,
   fillColor = '#466237',
   selectedFillColor = '#81B29A',
   highlightOutlineColor = '#F59E0B',
+  homeHighlightOutlineColor = '#466237',
 }: AspectCompassChartProps) {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -197,8 +211,20 @@ export function AspectCompassChart({
   const highlightedDir = highlightedCategory
     ? resolveDirection(highlightedCategory)
     : null;
+  const homeHighlightedCategory =
+    homeHighlightedValue !== null
+      ? (validCategories.find(
+          (cat) => String(cat.value) === String(homeHighlightedValue),
+        ) ?? null)
+      : null;
+  const homeHighlightedDir = homeHighlightedCategory
+    ? resolveDirection(homeHighlightedCategory)
+    : null;
   const unobservedPillKey = unobservedHighlightedCategory
     ? `__unobserved__:${String(unobservedHighlightedCategory.value)}`
+    : null;
+  const homeUnobservedPillKey = homeUnobservedCategory
+    ? `__home_unobserved__:${String(homeUnobservedCategory.value)}`
     : null;
 
   // Sort pills in compass order for consistent display
@@ -250,10 +276,17 @@ export function AspectCompassChart({
 
             const isSelected = selectedDir === dir;
             const isHighlighted = highlightedDir === dir;
+            const isHomeHighlighted =
+              !isHighlighted && homeHighlightedDir === dir;
             const wedgeFill =
               cat.color ?? (isSelected ? selectedFillColor : fillColor);
             const svgAngle = COMPASS_SVG_ANGLES[dir];
             const d = buildWedgePath(svgAngle, outerR);
+            const activeHighlightColor = isHighlighted
+              ? highlightOutlineColor
+              : isHomeHighlighted
+                ? homeHighlightOutlineColor
+                : undefined;
 
             return (
               <Path
@@ -262,9 +295,11 @@ export function AspectCompassChart({
                 d={d}
                 fill={wedgeFill}
                 opacity={isSelected ? 1 : 0.72}
-                stroke={isHighlighted ? highlightOutlineColor : undefined}
-                strokeWidth={isHighlighted ? 3 : undefined}
-                strokeDasharray={isHighlighted ? '6 4' : undefined}
+                stroke={activeHighlightColor}
+                strokeWidth={isHighlighted || isHomeHighlighted ? 3 : undefined}
+                strokeDasharray={
+                  isHighlighted || isHomeHighlighted ? '6 4' : undefined
+                }
                 onPress={() => cat && onSelect?.(cat.value)}
               />
             );
@@ -310,6 +345,14 @@ export function AspectCompassChart({
                 },
               ]
             : []),
+          ...(homeUnobservedCategory && homeUnobservedPillKey
+            ? [
+                {
+                  key: homeUnobservedPillKey,
+                  label: homeUnobservedCategory.label,
+                },
+              ]
+            : []),
         ]}
         selectedKey={selectedValue !== null ? String(selectedValue) : ''}
         highlightedKey={
@@ -317,8 +360,14 @@ export function AspectCompassChart({
             ? String(highlightedValue)
             : (unobservedPillKey ?? undefined)
         }
+        homeHighlightedKey={
+          homeHighlightedValue !== null
+            ? String(homeHighlightedValue)
+            : (homeUnobservedPillKey ?? undefined)
+        }
+        homeHighlightOutlineColor={homeHighlightOutlineColor}
         onSelectionChange={(key) => {
-          if (key === unobservedPillKey) {
+          if (key === unobservedPillKey || key === homeUnobservedPillKey) {
             return;
           }
           const cat = validCategories.find((c) => String(c.value) === key);
@@ -350,9 +399,19 @@ export function AspectCompassChart({
             variant='bodySmall'
             style={{ color: palette.text.warning.default }}
           >
-            Species has never been observed in this environment
+            {`Species has never been observed in this ${environmentNoun}${anyFilterActive ? ' with the current filters applied' : ''}`}
           </ThemedText>
         </View>
+      ) : null}
+      {homeUnobservedCategory &&
+      !selectedCategory &&
+      !unobservedHighlightedCategory ? (
+        <ThemedText
+          variant='bodySmall'
+          style={{ color: palette.text.brand.default }}
+        >
+          {`Species has never been observed in home location ${environmentNoun}${anyFilterActive ? ' with the current filters applied' : ''}`}
+        </ThemedText>
       ) : null}
     </View>
   );
