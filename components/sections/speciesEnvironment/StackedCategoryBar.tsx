@@ -201,9 +201,15 @@ export function StackedCategoryBar({
     const existsInDisplay = displayCategories.some(
       (c) => String(c.value) === homeStr,
     );
-    if (!existsInDisplay || resolvedPinnedKey === homeStr) return '__home_match__';
+    if (!existsInDisplay || resolvedPinnedKey === homeStr)
+      return '__home_match__';
     return homeStr;
-  }, [homeHighlightedValue, homeUnobservedCategory, displayCategories, resolvedPinnedKey]);
+  }, [
+    homeHighlightedValue,
+    homeUnobservedCategory,
+    displayCategories,
+    resolvedPinnedKey,
+  ]);
 
   React.useEffect(() => {
     if (!resolvedPinnedKey || expanded) return;
@@ -437,7 +443,8 @@ export function StackedCategoryBar({
             : undefined
         }
         homeHighlightedKey={
-          homeMatchKey ?? (homeUnobservedCategory ? '__home_other__' : undefined)
+          homeMatchKey ??
+          (homeUnobservedCategory ? '__home_other__' : undefined)
         }
         homeHighlightOutlineColor={homeHighlightOutlineColor}
         onSelectionChange={handlePillSelectionChange}
