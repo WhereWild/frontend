@@ -102,6 +102,12 @@ type PolarDensityChartProps = {
   pinValue?: number | null;
   /** Whether the pin value is still loading. */
   pinLoading?: boolean;
+  /** Bearing (0–360°) of the home location to highlight. */
+  homePinValue?: number | null;
+  /** Whether the home pin value is still loading. */
+  homePinLoading?: boolean;
+  /** Color for the home pin line and label. */
+  homePinColor?: string;
   /** Circular mean bearing (0–360°) to render as a reference line. */
   circularMean?: number | null;
 };
@@ -116,6 +122,9 @@ export function PolarDensityChart({
   onSelectionChange,
   pinValue,
   pinLoading,
+  homePinValue,
+  homePinLoading,
+  homePinColor = '#466237',
   circularMean,
 }: PolarDensityChartProps) {
   const samples = React.useMemo(() => buildDensitySamples(curve), [curve]);
@@ -266,6 +275,15 @@ export function PolarDensityChart({
         }
       : null;
 
+  const homePinPoint =
+    homePinValue != null && !homePinLoading
+      ? {
+          inner: toSvgPoint(homePinValue, INNER_RADIUS),
+          outer: toSvgPoint(homePinValue, MAX_RADIUS),
+          label: toSvgPoint(homePinValue, LABEL_RADIUS),
+        }
+      : null;
+
   const meanPoint =
     circularMean != null
       ? {
@@ -381,6 +399,34 @@ export function PolarDensityChart({
           opacity={0.4}
         />
 
+        {/* Home pin radial line for saved home location bearing */}
+        {homePinPoint ? (
+          <>
+            <Line
+              x1={homePinPoint.inner.x}
+              y1={homePinPoint.inner.y}
+              x2={homePinPoint.outer.x}
+              y2={homePinPoint.outer.y}
+              stroke={homePinColor}
+              strokeWidth={2}
+              strokeDasharray='4 3'
+              pointerEvents='none'
+            />
+            <SvgText
+              x={homePinPoint.label.x}
+              y={homePinPoint.label.y}
+              textAnchor='middle'
+              alignmentBaseline='middle'
+              fontSize={10}
+              fill={homePinColor}
+              fontWeight='bold'
+              pointerEvents='none'
+            >
+              {`${Math.round(homePinValue!)}°`}
+            </SvgText>
+          </>
+        ) : null}
+
         {/* Pin radial line for selected observation bearing */}
         {pinPoint ? (
           <>
@@ -409,10 +455,14 @@ export function PolarDensityChart({
           </>
         ) : null}
 
-        {/* Cardinal labels — hidden when pin or mean is within 5° to avoid overlap */}
+        {/* Cardinal labels — hidden when pin, home pin, or mean is within 5° to avoid overlap */}
         {CARDINALS.map(({ label, deg }) => {
           if (pinPoint != null) {
             const diff = Math.abs(((pinValue! - deg + 540) % 360) - 180);
+            if (diff <= 5) return null;
+          }
+          if (homePinPoint != null) {
+            const diff = Math.abs(((homePinValue! - deg + 540) % 360) - 180);
             if (diff <= 5) return null;
           }
           if (meanPoint != null) {

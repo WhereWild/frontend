@@ -59,6 +59,10 @@ type SettingsContextType = {
   setShapesEnabled: (v: boolean) => void;
   markerOutlineEnabled: boolean;
   setMarkerOutlineEnabled: (v: boolean) => void;
+  localLat: number | null;
+  setLocalLat: (v: number | null) => void;
+  localLon: number | null;
+  setLocalLon: (v: number | null) => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -104,6 +108,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.markerOutlineEnabled',
     false,
   );
+  const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
+    'settings.localLat',
+    null,
+  );
+  const [localLon, setLocalLon] = useAsyncStorageState<number | null>(
+    'settings.localLon',
+    null,
+  );
 
   return (
     <SettingsContext.Provider
@@ -126,6 +138,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setShapesEnabled,
         markerOutlineEnabled,
         setMarkerOutlineEnabled,
+        localLat,
+        setLocalLat,
+        localLon,
+        setLocalLon,
       }}
     >
       {children}

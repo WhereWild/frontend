@@ -8,9 +8,12 @@ import Constants from 'expo-constants';
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const COLORMAP_UPDATE_MESSAGE_TYPE = 'colormapUpdate';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
+export const LOCATE_MESSAGE_TYPE = 'locate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
+export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
+export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -83,6 +86,9 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
   labelsOverlayUrl: '__LABELS_OVERLAY_URL_JSON__',
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
+  locationPickerMode: '__LOCATION_PICKER_MODE__',
+  initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
+  initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
 } as const;
 
 export type HighlightMessage = {
@@ -311,6 +317,9 @@ export const buildLeafletHtml = (
   circularShapesEnabled?: boolean,
   labelsOverlayUrl?: string | null,
   linesOverlayUrl?: string | null,
+  locationPickerMode?: boolean,
+  initialLocalLat?: number | null,
+  initialLocalLon?: number | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -483,6 +492,15 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.linesOverlayUrl)
     .join(linesOverlayUrl ? JSON.stringify(linesOverlayUrl) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.locationPickerMode)
+    .join(locationPickerMode ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialLocalLat)
+    .join(initialLocalLat != null ? String(initialLocalLat) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialLocalLon)
+    .join(initialLocalLon != null ? String(initialLocalLon) : 'null');
   return html;
 };
 

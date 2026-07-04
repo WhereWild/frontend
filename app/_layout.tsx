@@ -138,7 +138,8 @@ const resolveTabRootRouteForOwnedSubpage = (
   if (
     route === '/about' ||
     route === '/acknowledgements' ||
-    route === '/upload'
+    route === '/upload' ||
+    route === '/home-region'
   ) {
     return '/settings';
   }
@@ -740,6 +741,12 @@ function RootLayoutNativeFrame() {
           />
           <Stack.Screen
             name='upload'
+            options={{
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
+            name='home-region'
             options={{
               gestureEnabled: true,
             }}

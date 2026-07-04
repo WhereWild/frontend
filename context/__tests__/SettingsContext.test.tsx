@@ -43,6 +43,8 @@ describe('SettingsContext', () => {
         case 'settings.cbMode':
         case 'settings.shapesEnabled':
         case 'settings.markerOutlineEnabled':
+        case 'settings.localLat':
+        case 'settings.localLon':
           return [undefined, jest.fn()] as const;
         default:
           throw new Error(`Unexpected settings key: ${key}`);

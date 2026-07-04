@@ -153,6 +153,8 @@ describe('speciesOccurrenceMapHelpers', () => {
       fitBounds: jest.fn(),
       setView: jest.fn(),
       closePopup: jest.fn(),
+      addControl: jest.fn(),
+      locate: jest.fn(),
     };
 
     const createTileElement = () => {
@@ -206,6 +208,7 @@ describe('speciesOccurrenceMapHelpers', () => {
           return marker;
         },
       ),
+      circle: jest.fn(() => ({ addTo: jest.fn() })),
       popup: jest.fn(() => popup),
       markerClusterGroup: jest.fn(() => makeLayer()),
       layerGroup: jest.fn(() => makeLayer()),
@@ -213,6 +216,23 @@ describe('speciesOccurrenceMapHelpers', () => {
         prototype: {
           _updateCircle: jest.fn(),
         },
+      },
+      Control: {
+        extend: jest.fn(() => {
+          const Ctrl = function () {};
+          Ctrl.prototype.addTo = jest.fn();
+          return Ctrl;
+        }),
+      },
+      DomUtil: {
+        create: jest.fn(() => ({
+          style: {},
+          addEventListener: jest.fn(),
+        })),
+      },
+      DomEvent: {
+        disableClickPropagation: jest.fn(),
+        on: jest.fn(),
       },
     };
 
