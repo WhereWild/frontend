@@ -312,7 +312,11 @@ export function SpeciesOccurrenceMap({
   const hasOccurrences = occurrences.length > 0;
 
   React.useEffect(() => {
-    if (loading || error || (!hasOccurrences && !heatmapTileUrl && !locationPickerMode)) {
+    if (
+      loading ||
+      error ||
+      (!hasOccurrences && !heatmapTileUrl && !locationPickerMode)
+    ) {
       return;
     }
 

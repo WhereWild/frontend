@@ -133,6 +133,12 @@ function SpeciesEnvironmentSectionComponent({
       typeof useSpeciesEnvironmentState
     >['pinnedClassName'];
     pinnedValue: ReturnType<typeof useSpeciesEnvironmentState>['pinnedValue'];
+    homePinnedCategoryValue: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['homePinnedCategoryValue'];
+    homeUnobservedCategory: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['homeUnobservedCategory'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
   const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${startTimestamp ?? ''}|${endTimestamp ?? ''}|${units ?? ''}`;
@@ -183,6 +189,10 @@ function SpeciesEnvironmentSectionComponent({
     pinnedClassName,
     pinnedValue,
     pinnedLoading,
+    homePinValue,
+    homePinLoading,
+    homePinnedCategoryValue,
+    homeUnobservedCategory,
     isCircularVariable,
   } = useSpeciesEnvironmentState({
     taxonId,
@@ -238,6 +248,12 @@ function SpeciesEnvironmentSectionComponent({
   }, [pinnedUnobservedCategory, cbMode, selectedVariable]);
 
   const isDiscrete = isVariableDiscrete(selectedVariableMeta);
+
+  const environmentNoun =
+    selectedVariableCategory === 'Recent Weather' ||
+    selectedVariableMeta?.valueType?.toLowerCase() === 'nominal'
+      ? 'weather'
+      : 'environment';
 
   const effectiveDensityCurve = React.useMemo(() => {
     if (isDiscrete && isValidHistogramContract(stats?.histogram)) {
@@ -313,6 +329,8 @@ function SpeciesEnvironmentSectionComponent({
         pinnedUnobservedCategory: cbPinnedUnobservedCategory,
         pinnedClassName,
         pinnedValue,
+        homePinnedCategoryValue,
+        homeUnobservedCategory,
       }
     : shouldPreservePreviousUi
       ? stableDisplayRef.current
@@ -333,6 +351,8 @@ function SpeciesEnvironmentSectionComponent({
   );
   const numericPinnedValue =
     typeof pinnedValue === 'number' ? pinnedValue : null;
+  const numericHomePinValue =
+    typeof homePinValue === 'number' ? homePinValue : null;
 
   return (
     <View collapsable={false} style={styles.container}>
@@ -476,14 +496,23 @@ function SpeciesEnvironmentSectionComponent({
               categories={displayState?.categoricalDistribution ?? []}
               selectedValue={displayState?.selectedCategoryValue ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
+              homeHighlightedValue={
+                displayState?.homePinnedCategoryValue ?? null
+              }
               unobservedHighlightedCategory={
                 displayState?.pinnedUnobservedCategory ?? null
               }
+              homeUnobservedCategory={
+                displayState?.homeUnobservedCategory ?? null
+              }
+              anyFilterActive={displayState?.anyFilterActive ?? false}
+              environmentNoun={environmentNoun}
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               fillColor={palette.background.brand.default}
               selectedFillColor={palette.background.brand.default}
               highlightOutlineColor='#F59E0B'
+              homeHighlightOutlineColor={palette.background.brand.default}
             />
           ) : (
             <StackedCategoryBar
@@ -492,12 +521,21 @@ function SpeciesEnvironmentSectionComponent({
               pinnedValue={displayState?.pinnedValue ?? null}
               pinnedClassName={displayState?.pinnedClassName ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
+              homeHighlightedValue={
+                displayState?.homePinnedCategoryValue ?? null
+              }
               unobservedHighlightedCategory={
                 displayState?.pinnedUnobservedCategory ?? null
               }
+              homeUnobservedCategory={
+                displayState?.homeUnobservedCategory ?? null
+              }
+              anyFilterActive={displayState?.anyFilterActive ?? false}
+              environmentNoun={environmentNoun}
               onSelect={handleCategorySelect}
               descriptionColor={palette.text.default.secondary}
               highlightOutlineColor='#F59E0B'
+              homeHighlightOutlineColor={palette.background.brand.default}
               variableId={selectedVariable ?? undefined}
               shapesEnabled={settings?.shapesEnabled ?? false}
               markerOutlineEnabled={settings?.markerOutlineEnabled ?? false}
@@ -570,6 +608,9 @@ function SpeciesEnvironmentSectionComponent({
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
+                homePinValue={numericHomePinValue}
+                homePinLoading={homePinLoading}
+                homePinColor={palette.background.brand.default}
                 circularMean={
                   typeof displayState?.summary?.circular_mean === 'number'
                     ? displayState.summary.circular_mean
@@ -611,6 +652,12 @@ function SpeciesEnvironmentSectionComponent({
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
+                homePinValue={numericHomePinValue}
+                homePinLoading={homePinLoading}
+                anyFilterActive={anyFilterActive}
+                temporalFilterActive={
+                  selectedVariableCategory === 'Recent Weather'
+                }
                 isDiscrete={isDiscrete}
               />
 

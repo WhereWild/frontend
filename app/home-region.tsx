@@ -4,7 +4,12 @@
 
 import React, { useCallback } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { Button, PageScrollContainer, PageTitle, ThemedText } from '@/components';
+import {
+  Button,
+  PageScrollContainer,
+  PageTitle,
+  ThemedText,
+} from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { IconMapPin } from '@/assets/icons';
@@ -16,8 +21,11 @@ import { useSettings } from '@/context/SettingsContext';
 import { WebMetadata } from '@/utils/webMetadata';
 
 const MAP_HEIGHT = 480;
-const DESCRIPTION =
-  'Set the location of an area you want to compare to the distribution of species, e.g. an area near where you live. It will automatically be highlighted on the density graph of any species page you visit.';
+const DESCRIPTION_MAIN =
+  'Set the location of an area you want to compare to the distribution of species, e.g. an area near where you live to see how suitable your location is for the species. It will automatically be highlighted on the density graph of any species page you visit.';
+
+const DESCRIPTION_PRIVACY =
+  'Your location is stored in your local browser and not shared with WhereWild, but do note that any such requests that rely on this feature must go through the API. WhereWild does not store or analyze API request logs in the long-term, but if you are still worried about this, you can consider choosing a location near, but not at your home, or ignore this feature entirely.';
 
 export default function HomeRegion() {
   const responsive = useResponsive();
@@ -79,7 +87,10 @@ export default function HomeRegion() {
             ]}
           >
             <ThemedText variant='body' style={styles.description}>
-              {DESCRIPTION}
+              {DESCRIPTION_MAIN}
+            </ThemedText>
+            <ThemedText variant='bodySmall' style={styles.descriptionPrivacy}>
+              {DESCRIPTION_PRIVACY}
             </ThemedText>
 
             <SpeciesOccurrenceMap
@@ -135,6 +146,9 @@ const styles = StyleSheet.create({
   },
   description: {
     opacity: 0.75,
+  },
+  descriptionPrivacy: {
+    opacity: 0.5,
   },
   status: {
     flexDirection: 'row',

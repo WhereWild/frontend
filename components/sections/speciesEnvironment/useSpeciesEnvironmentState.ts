@@ -24,6 +24,7 @@ import {
 import { useEnvironmentHighlights } from './useEnvironmentHighlights';
 import { useEnvironmentStats } from './useEnvironmentStats';
 import { useEnvironmentVariableSelection } from './useEnvironmentVariableSelection';
+import { useHomeLocationPin } from './useHomeLocationPin';
 
 const SPECIES_CATEGORY_REMAP: Record<string, string> = {
   'live weather': 'Recent Weather',
@@ -201,6 +202,73 @@ export function useSpeciesEnvironmentState({
     pinnedObservation,
     slicingEnabled,
   });
+
+  const { homePinValue, homePinValueLabel, homePinLoading } =
+    useHomeLocationPin({
+      selectedVariable,
+      units,
+    });
+
+  const homePinnedCategoryValue = React.useMemo(() => {
+    if (!isCategorical || homePinValue === null) return null;
+    const normalizedPinnedValue = normalizeCategoryIdentity(homePinValue);
+    const normalizedPinnedLabel = normalizeCategoryIdentity(homePinValueLabel);
+    const classFormatPinned = normalizedPinnedValue.startsWith('class_')
+      ? normalizedPinnedValue
+      : `class_${normalizedPinnedValue}`;
+    return (
+      categoricalDistribution.find(
+        (category) =>
+          categoryHasObservedSamples(category) &&
+          (normalizeCategoryIdentity(category.value) ===
+            normalizedPinnedValue ||
+            normalizeCategoryIdentity(category.value) === classFormatPinned ||
+            normalizeCategoryIdentity(category.className) ===
+              normalizedPinnedValue ||
+            (normalizedPinnedLabel.length > 0 &&
+              (normalizeCategoryIdentity(category.value) ===
+                normalizedPinnedLabel ||
+                normalizeCategoryIdentity(category.className) ===
+                  normalizedPinnedLabel))),
+      )?.value ?? null
+    );
+  }, [categoricalDistribution, isCategorical, homePinValue, homePinValueLabel]);
+
+  const homeUnobservedCategory =
+    React.useMemo<PinnedCategoryBadge | null>(() => {
+      if (!isCategorical || homePinValue === null || homePinLoading)
+        return null;
+      if (homePinnedCategoryValue !== null) return null;
+
+      const normalizedPinned = normalizeCategoryIdentity(homePinValue);
+      const distributionColor =
+        categoricalDistribution.find(
+          (cat) => normalizeCategoryIdentity(cat.value) === normalizedPinned,
+        )?.color ?? null;
+      const legendColor =
+        distributionColor ??
+        selectedVariableMeta?.legendClasses?.find(
+          (cls) => String(cls.id) === String(homePinValue),
+        )?.color ??
+        null;
+
+      return {
+        value: homePinValue,
+        label: homePinValueLabel?.trim().length
+          ? homePinValueLabel
+          : String(homePinValue),
+        description: null,
+        ...(legendColor !== null ? { color: legendColor } : {}),
+      };
+    }, [
+      categoricalDistribution,
+      isCategorical,
+      homePinLoading,
+      homePinnedCategoryValue,
+      homePinValue,
+      homePinValueLabel,
+      selectedVariableMeta,
+    ]);
 
   const rangeObservationItems = React.useMemo(
     () =>
@@ -537,6 +605,10 @@ export function useSpeciesEnvironmentState({
     pinnedValue,
     pinnedLoading,
     pinnedNoData,
+    homePinValue,
+    homePinLoading,
+    homePinnedCategoryValue,
+    homeUnobservedCategory,
     selectedVariableMeta,
     isCircularVariable: isVariableCircular({
       id: selectedVariable ?? '',

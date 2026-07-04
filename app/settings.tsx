@@ -181,7 +181,10 @@ export default function Settings() {
                         onPress={() => router.push('/home-region')}
                         style={styles.actionButton}
                       />
-                      <ThemedText variant='bodyTiny' style={styles.locationHint}>
+                      <ThemedText
+                        variant='bodyTiny'
+                        style={styles.locationHint}
+                      >
                         {localLat != null && localLon != null
                           ? `${localLat.toFixed(4)}, ${localLon.toFixed(4)}`
                           : 'Not set'}

@@ -105,9 +105,7 @@ describe('StackedCategoryBar', () => {
     );
 
     expect(screen.getByTestId('stacked-segment-0')).toHaveStyle({
-      borderWidth: 3,
-      borderColor: 'transparent',
-      borderStyle: 'solid',
+      borderWidth: 0,
     });
     expect(screen.getByTestId('stacked-segment-1')).toHaveStyle({
       borderWidth: 3,

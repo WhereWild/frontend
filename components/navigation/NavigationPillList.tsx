@@ -25,6 +25,8 @@ export type NavigationPillListProps = {
   pills: NavigationPillItem[];
   selectedKey: string;
   highlightedKey?: string;
+  homeHighlightedKey?: string;
+  homeHighlightOutlineColor?: string;
   onSelectionChange: (key: string) => void;
   direction?: 'horizontal' | 'vertical';
   accessibilityLabel?: string;
@@ -43,6 +45,8 @@ export function NavigationPillList({
   pills,
   selectedKey,
   highlightedKey,
+  homeHighlightedKey,
+  homeHighlightOutlineColor,
   onSelectionChange,
   direction = 'horizontal',
   accessibilityLabel = 'Navigation pills',
@@ -195,7 +199,17 @@ export function NavigationPillList({
       {renderedPills.map((pill, index) => {
         const isVisible = currentPillKeys.has(pill.key);
         const isActive = isVisible && pill.key === selectedKey;
-        const isHighlighted = isVisible && pill.key === highlightedKey;
+        const isHomeHighlightedPill =
+          isVisible &&
+          pill.key === homeHighlightedKey &&
+          pill.key !== highlightedKey;
+        const isHighlighted =
+          isVisible && pill.key === highlightedKey
+            ? true
+            : isHomeHighlightedPill;
+        const effectiveHighlightColor = isHomeHighlightedPill
+          ? (homeHighlightOutlineColor ?? highlightOutlineColor)
+          : highlightOutlineColor;
         const tabbableIndex =
           focusedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0);
         const isTabbable = isWeb && isVisible && index === tabbableIndex;
@@ -235,7 +249,7 @@ export function NavigationPillList({
             accessibilityLabel={pill.accessibilityLabel ?? pill.label}
             testID={pill.testID}
             icon={pill.icon}
-            highlightOutlineColor={highlightOutlineColor}
+            highlightOutlineColor={effectiveHighlightColor}
             style={!isVisible ? styles.hiddenPill : undefined}
           />
         );
