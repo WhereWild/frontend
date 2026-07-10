@@ -775,6 +775,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (data.dotMin !== undefined) { DOT_MIN = data.dotMin; }
         if (data.dotMax !== undefined) { DOT_MAX = data.dotMax; }
         if (data.isCircular !== undefined) { IS_CIRCULAR = data.isCircular; }
+        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) { ASPECT_STOPS = data.circularStops; }
         if (data.classColors !== undefined) { CLASS_COLORS = data.classColors; }
         if (data.classLabels !== undefined) { CLASS_LABELS = data.classLabels; }
         if (data.classShapes !== undefined) { CLASS_SHAPES = data.classShapes; }
@@ -806,7 +807,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             });
           }
         }
-        if (Array.isArray(data.circularStops) && IS_CIRCULAR) {
+        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) {
           ASPECT_STOPS = data.circularStops;
           markers.forEach(function(entry, catalog) {
             if (entry.varValue != null) {
