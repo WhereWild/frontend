@@ -285,7 +285,7 @@ const preparePointsForMapHtml = (
   });
 };
 
-export const buildLeafletHtml = (
+const fillMapTemplatePlaceholders = (
   mapTemplate: string,
   points: Record<string, unknown>[],
   markerPalette: MapMarkerPalette,
@@ -514,6 +514,97 @@ export const buildLeafletHtml = (
   return html;
 };
 
+type FillMapTemplateArgs = Parameters<typeof fillMapTemplatePlaceholders>;
+
+export const buildLeafletHtml = (...args: FillMapTemplateArgs): string =>
+  fillMapTemplatePlaceholders(...args);
+
+// MapLibre raster sources don't understand Leaflet's `{r}` retina-tile
+// placeholder — left in, it produces a literal `{r}` in the request URL,
+// which 404s (and shows up in-browser as a misleading CORS error since the
+// 404 response has no CORS headers).
+export const stripRetinaPlaceholder = (url: string): string =>
+  url.replaceAll('{r}', '');
+
+export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
+  const [
+    mapTemplate,
+    points,
+    markerPalette,
+    tileUrlTemplate,
+    heatmapTileUrl,
+    heatmapOpacity,
+    minZoom,
+    showMarkers,
+    maxZoom,
+    initialLat,
+    initialLon,
+    initialZoom,
+    maxBounds,
+    linkObservations,
+    allowPinObservations,
+    pointQueryUrl,
+    renderMin,
+    renderMax,
+    isCircular,
+    observationValues,
+    classColors,
+    classLabels,
+    dotMin,
+    dotMax,
+    disableObservationQuery,
+    varUnits,
+    gradientStops,
+    aspectStops,
+    classShapes,
+    markerOutlineEnabled,
+    circularShapesEnabled,
+    labelsOverlayUrl,
+    linesOverlayUrl,
+    locationPickerMode,
+    initialLocalLat,
+    initialLocalLon,
+  ] = args;
+  return fillMapTemplatePlaceholders(
+    mapTemplate,
+    points,
+    markerPalette,
+    stripRetinaPlaceholder(tileUrlTemplate),
+    heatmapTileUrl,
+    heatmapOpacity,
+    minZoom,
+    showMarkers,
+    maxZoom,
+    initialLat,
+    initialLon,
+    initialZoom,
+    maxBounds,
+    linkObservations,
+    allowPinObservations,
+    pointQueryUrl,
+    renderMin,
+    renderMax,
+    isCircular,
+    observationValues,
+    classColors,
+    classLabels,
+    dotMin,
+    dotMax,
+    disableObservationQuery,
+    varUnits,
+    gradientStops,
+    aspectStops,
+    classShapes,
+    markerOutlineEnabled,
+    circularShapesEnabled,
+    labelsOverlayUrl ? stripRetinaPlaceholder(labelsOverlayUrl) : labelsOverlayUrl,
+    linesOverlayUrl ? stripRetinaPlaceholder(linesOverlayUrl) : linesOverlayUrl,
+    locationPickerMode,
+    initialLocalLat,
+    initialLocalLon,
+  );
+};
+
 const loadHtmlAsset = async (
   templateModule: number,
 ): Promise<string | null> => {
@@ -552,6 +643,10 @@ const loadHtmlAsset = async (
 
 export const loadMapTemplate = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceMap.html'));
+};
+
+export const loadGlobeMapTemplate = async (): Promise<string | null> => {
+  return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMap.html'));
 };
 
 export const loadFallbackMapTemplate = async (): Promise<string | null> => {
