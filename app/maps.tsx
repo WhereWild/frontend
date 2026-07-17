@@ -38,7 +38,7 @@ import { useEnvironmentVariableSelection } from '@/components/sections/speciesEn
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
 
 const MAP_HEIGHT = 520;
-const MAP_MIN_ZOOM = 4;
+const MAP_MIN_ZOOM = 0;
 
 const FALLBACK_VARIABLES: EnvironmentVariableOption[] = [
   {
@@ -135,6 +135,7 @@ export default function Maps() {
     cbMode,
     setCbMode,
     markerOutlineEnabled: markerOutlineEnabledSetting,
+    globeViewEnabled,
   } = useSettings();
   const markerOutlineEnabled =
     markerOutlineEnabledSetting || cbMode === 'achromatopsia';
@@ -226,10 +227,14 @@ export default function Maps() {
   );
 
   useEffect(() => {
+    // Also reset when the renderer changes (globe <-> flat map): swapping
+    // templates discards the old WebView/iframe document outright, so any
+    // tileClassesRemoved messages it still owed never get sent, and the new
+    // renderer only ever adds to this map from then on.
     setVisibleNominalCounts(new Map());
     setPinnedValue(null);
     setSelectedClassFilter(null);
-  }, [selectedVariable]);
+  }, [selectedVariable, globeViewEnabled]);
 
   const handlePointValue = useCallback(
     (value: number) => setPinnedValue(value),
@@ -243,7 +248,15 @@ export default function Maps() {
         for (const { id, count } of classes) {
           if (removed) {
             const remaining = (next.get(id) ?? 0) - count;
-            if (remaining <= 0) next.delete(id);
+            // Globe-mode counts are fractional (angle-weighted pixel
+            // counts), so repeated add/subtract cycles as tiles enter and
+            // leave view accumulate floating-point rounding error — a class
+            // that should fully cancel out can land on something like
+            // 1e-13 instead of exactly 0, which `remaining <= 0` never
+            // catches, leaving it stuck in the map (and thus the legend)
+            // forever. A small epsilon is safe here: real counts are pixel
+            // counts scaled by a weight that's floored well above this.
+            if (remaining <= 1e-6) next.delete(id);
             else next.set(id, remaining);
           } else {
             next.set(id, (next.get(id) ?? 0) + count);

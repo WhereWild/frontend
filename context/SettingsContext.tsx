@@ -59,6 +59,8 @@ type SettingsContextType = {
   setShapesEnabled: (v: boolean) => void;
   markerOutlineEnabled: boolean;
   setMarkerOutlineEnabled: (v: boolean) => void;
+  globeViewEnabled: boolean;
+  setGlobeViewEnabled: (v: boolean) => void;
   localLat: number | null;
   setLocalLat: (v: number | null) => void;
   localLon: number | null;
@@ -108,6 +110,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.markerOutlineEnabled',
     false,
   );
+  const [globeViewEnabled, setGlobeViewEnabled] = useAsyncStorageState<boolean>(
+    'settings.globeViewEnabled',
+    false,
+  );
   const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
     'settings.localLat',
     null,
@@ -138,6 +144,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setShapesEnabled,
         markerOutlineEnabled,
         setMarkerOutlineEnabled,
+        globeViewEnabled,
+        setGlobeViewEnabled,
         localLat,
         setLocalLat,
         localLon,

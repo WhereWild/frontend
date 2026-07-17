@@ -668,7 +668,7 @@ export default function Species({
                   highlightedCatalogs={highlightedCatalogs}
                   selectedPoint={selectedMapPoint}
                   height={observationMapHeight}
-                  minZoom={2}
+                  minZoom={0}
                   onPinObservation={handlePinObservation}
                   onPointValue={handleMapPointValue}
                   onMapBounds={handleMapBounds}

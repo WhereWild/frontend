@@ -66,6 +66,8 @@ export default function Settings() {
     setShapesEnabled,
     markerOutlineEnabled,
     setMarkerOutlineEnabled,
+    globeViewEnabled,
+    setGlobeViewEnabled,
     localLat,
     localLon,
   } = useSettings();
@@ -256,6 +258,12 @@ export default function Settings() {
                       description='Add a gray outline around markers for contrast on dark tiles'
                       value={markerOutlineEnabled}
                       onValueChange={setMarkerOutlineEnabled}
+                    />
+                    <SwitchField
+                      label='Globe view'
+                      description='Show maps as a 3D globe (web only)'
+                      value={globeViewEnabled}
+                      onValueChange={setGlobeViewEnabled}
                     />
                   </View>
                 </View>

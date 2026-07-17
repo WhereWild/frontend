@@ -63,7 +63,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     const MERCATOR_MAX_LAT = 85.05112878;
     const TILE_SIZE = 256;
-    const BASE_MIN_ZOOM = 2;
+    const BASE_MIN_ZOOM = 0;
     const MAX_LONGITUDE_BOUND = 1000000000;
     const TILE_REFERRER_POLICY = __REFERRER_POLICY_JSON__;
     const TILE_URL = __TILE_URL_JSON__;
@@ -151,11 +151,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function minZoomForMaxLongitudeSpan(sizeX) {
-      const width = Number(sizeX);
-      if (!isFinite(width) || width <= 0) {
-        return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM);
-      }
-      return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM, Math.log2(width / TILE_SIZE));
+      return Math.max(BASE_MIN_ZOOM, CUSTOM_MIN_ZOOM);
     }
 
     function injectThemeCss() {

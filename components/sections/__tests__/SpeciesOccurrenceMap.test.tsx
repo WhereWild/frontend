@@ -4,6 +4,7 @@
 
 import React from 'react';
 import {
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -69,6 +70,11 @@ describe('SpeciesOccurrenceMap', () => {
   };
 
   afterEach(() => {
+    // Unmount while the (possibly stubbed) window from this test is still
+    // in place — effect cleanups (e.g. useResponsive's resize listener) run
+    // during unmount and need a window with real addEventListener/
+    // removeEventListener, which `originalWindow` below may not provide.
+    cleanup();
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
     mockPostMessage.mockClear();
     openURLSpy.mockClear();
@@ -250,7 +256,7 @@ describe('SpeciesOccurrenceMap', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
     } as unknown as Window & typeof globalThis;
-    const { UNSAFE_getByProps } = render(
+    const { UNSAFE_getByProps, unmount } = render(
       <SpeciesOccurrenceMap
         occurrences={[{ catalogNumber: 2, latitude: 11, longitude: 21 }]}
       />,
@@ -266,6 +272,14 @@ describe('SpeciesOccurrenceMap', () => {
     expect(iframe.props.src).toBeUndefined();
     expect(iframe.props.sandbox).toContain('allow-same-origin');
     expect(iframe.props.referrerPolicy).toBe('strict-origin-when-cross-origin');
+
+    // Unmount now, while the stubbed window (with real addEventListener/
+    // removeEventListener) above is still in place — effect cleanups (e.g.
+    // useResponsive's resize listener, mounted transitively via the globe
+    // toggle's ThemedText label) read `window` at cleanup time, not mount
+    // time, so tearing down after `originalWindow` is restored in afterEach
+    // would throw.
+    unmount();
   });
 
   it('opens external observation URLs from native webview messages', async () => {
