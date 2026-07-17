@@ -1,0 +1,951 @@
+<!--
+SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
+<!--
+  MapLibre GL JS globe-projection counterpart to SpeciesOccurrenceMap.html.
+  Speaks the exact same postMessage protocol (pointValue, pin_observation,
+  mapBounds, tilesChanged, selected_point, highlight, heatmapUpdate,
+  colormapUpdate, localLocationUpdate, locationPicked, open_external_url) so
+  SpeciesOccurrenceMap.tsx's message handling works unmodified against either
+  renderer. This is the first-pass port (basemap, heatmap overlay, click
+  point-query, plain occurrence markers) — clustering, custom shape icons,
+  and live colormap recoloring of markers are not yet ported.
+-->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="referrer" content="__REFERRER_POLICY__" />
+  <base href="__DOCUMENT_BASE_URL__" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" />
+  <style>
+    html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #000; }
+    .maplibregl-popup-content { font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/gl-matrix@3.4.3/gl-matrix-min.js"></script>
+  <script>
+    const points = __POINTS_JSON__;
+    const palette = __PALETTE_JSON__;
+    const HIGHLIGHT_MESSAGE_TYPE = __HIGHLIGHT_MESSAGE_TYPE_JSON__;
+    const PIN_OBSERVATION_MESSAGE_TYPE = __PIN_OBSERVATION_MESSAGE_TYPE_JSON__;
+    const SELECTED_POINT_MESSAGE_TYPE = __SELECTED_POINT_MESSAGE_TYPE_JSON__;
+    const OPEN_EXTERNAL_URL_MESSAGE_TYPE = __OPEN_EXTERNAL_URL_MESSAGE_TYPE_JSON__;
+
+    var PARENT_POSTMESSAGE_ORIGIN = (function() {
+      try {
+        var params = new URLSearchParams(window.location.search || '');
+        var configured = params.get('parentOrigin');
+        if (!configured) return '*';
+        var parsed = new URL(configured);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '*';
+        return parsed.origin;
+      } catch (e) { return '*'; }
+    })();
+
+    function postToParent(msg) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      } else {
+        window.parent.postMessage(msg, PARENT_POSTMESSAGE_ORIGIN);
+      }
+    }
+
+    const TILE_REFERRER_POLICY = __REFERRER_POLICY_JSON__;
+    const TILE_URL = __TILE_URL_JSON__;
+    const TILE_MAX_ZOOM = __TILE_MAX_ZOOM__;
+    const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
+    const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
+    const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
+    const LINES_OVERLAY_URL = __LINES_OVERLAY_URL_JSON__;
+    const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
+    const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
+    const INITIAL_LAT = __INITIAL_LAT__;
+    const INITIAL_LON = __INITIAL_LON__;
+    const INITIAL_ZOOM = __INITIAL_ZOOM__;
+    const SHOW_MARKERS = __SHOW_MARKERS__;
+    const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
+    const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
+    const LOCATION_PICKER_MODE = __LOCATION_PICKER_MODE__;
+    const INITIAL_LOCAL_LAT = __INITIAL_LOCAL_LAT_JSON__;
+    const INITIAL_LOCAL_LON = __INITIAL_LOCAL_LON_JSON__;
+    let POINT_QUERY_URL = __POINT_QUERY_URL_JSON__;
+    let IS_CIRCULAR = __IS_CIRCULAR__;
+    let DOT_MIN = __DOT_MIN_JSON__;
+    let DOT_MAX = __DOT_MAX_JSON__;
+    let RENDER_MIN = __RENDER_MIN_JSON__;
+    let RENDER_MAX = __RENDER_MAX_JSON__;
+    const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
+    let VAR_UNITS = __VAR_UNITS_JSON__;
+    let CLASS_COLORS = __CLASS_COLORS_JSON__;
+    let CLASS_LABELS = __CLASS_LABELS_JSON__;
+    const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
+
+    var GRADIENT_STOPS = __GRADIENT_STOPS_JSON__;
+    function gradientColor(t) {
+      var n = GRADIENT_STOPS.length - 1;
+      var i = Math.min(Math.floor(t * n), n - 1);
+      var f = t * n - i;
+      var c0 = GRADIENT_STOPS[i], c1 = GRADIENT_STOPS[i + 1];
+      return 'rgb(' + Math.round(c0[0]+f*(c1[0]-c0[0])) + ',' + Math.round(c0[1]+f*(c1[1]-c0[1])) + ',' + Math.round(c0[2]+f*(c1[2]-c0[2])) + ')';
+    }
+    var ASPECT_STOPS = __ASPECT_STOPS_JSON__;
+    function aspectColor(deg) {
+      var n = ASPECT_STOPS.length;
+      var t = ((deg % 360) + 360) % 360 / 360;
+      var fi = t * n;
+      var i = Math.floor(fi) % n;
+      var f = fi - Math.floor(fi);
+      var c0 = ASPECT_STOPS[i], c1 = ASPECT_STOPS[(i + 1) % n];
+      return 'rgb('+Math.round(c0[0]+f*(c1[0]-c0[0]))+','+Math.round(c0[1]+f*(c1[1]-c0[1]))+','+Math.round(c0[2]+f*(c1[2]-c0[2]))+')';
+    }
+    function safeT(val, lo, hi) {
+      return lo < hi ? Math.max(0, Math.min(1, (val - lo) / (hi - lo))) : 0;
+    }
+
+    // Tracks which categorical classes are present in the heatmap tiles
+    // currently in view, mirroring the Leaflet template's tileClasses/
+    // tileClassesRemoved lifecycle (there driven by per-tile DOM element
+    // load/unload) but generalized to fractional weights instead of a
+    // binary in/out toggle. On a globe, a tile is either fully requested or
+    // not at all — there's no such thing as "80% of a tile" — but a tile
+    // near the horizon can be almost entirely curving out of view while
+    // still contributing its *full* per-tile class histogram, which let
+    // distant, barely-visible tiles (e.g. Siberian taiga while looking at
+    // the US) dominate the legend. So instead of counting a tile as fully
+    // present or fully absent, each tile's contribution is scaled by how
+    // close it is to dead center vs. the actual horizon, recomputed every
+    // time the camera moves. The parent side (maps.tsx's handleTileClasses)
+    // already just adds/subtracts whatever numeric counts we send it, so
+    // fractional weighted counts work without any change on that end — we
+    // just send the *delta* between this refresh's weighted count and the
+    // last one we sent, as an add (positive delta) or remove (negative
+    // delta) message using the same protocol.
+    var TILE_CLASS_CACHE = new Map(); // "z/x/y" -> raw [{id,count}] from the X-Nominal-Classes header
+    var LAST_SENT_WEIGHTED = new Map(); // "z/x/y" -> Map<classId, weightedCount> last sent to the parent
+    var MAX_TRACKED_TILES = 512;
+    var HEATMAP_TILE_KEY_RE = /\/tiles\/(\d+)\/(\d+)\/(\d+)\.[a-zA-Z0-9]+/;
+
+    function tileKey(z, x, y) { return z + '/' + x + '/' + y; }
+
+    // The zoom level MapLibre actually requests raster tiles at doesn't
+    // necessarily equal Math.round(map.getZoom()) — using that as a guess
+    // made the visible-tile bookkeeping race against reality (tiles arriving
+    // "for the wrong z" as far as our own math was concerned), which showed
+    // up as the legend flickering/going stale during pans and zooms. Instead
+    // ask MapLibre's own Transform for the same "covering zoom level" it
+    // uses internally for a tileSize:256 raster source (roundZoom matches
+    // how raster sources — as opposed to vector, which use ceil — pick a
+    // zoom), so our tile math always agrees with the tiles MapLibre is
+    // actually fetching.
+    function currentHeatmapTileZoom() {
+      var z = null;
+      try {
+        if (map.transform && typeof map.transform.coveringZoomLevel === 'function') {
+          var computed = map.transform.coveringZoomLevel({ tileSize: 256, roundZoom: true });
+          if (typeof computed === 'number' && isFinite(computed)) z = computed;
+        }
+      } catch (e) {}
+      if (z == null) z = Math.round(map.getZoom());
+      z = Math.max(0, Math.round(z));
+      if (CUSTOM_MAX_ZOOM !== null) z = Math.min(z, CUSTOM_MAX_ZOOM);
+      return Math.min(z, TILE_MAX_ZOOM);
+    }
+
+    // The angular distance (from the map's center point) beyond which
+    // MapLibre's own GPU clipping plane discards globe geometry as not
+    // visible — ported from the clipping-plane math in maplibre-gl-js
+    // v5.1.0's vertical_perspective_transform.ts (_computeClippingPlane) /
+    // globe_utils.ts (getGlobeRadiusPixels). Shrinks toward 0 as zoom
+    // increases (cameraToCenterDistance is fixed by viewport size, while the
+    // globe's rendered radius grows with 2^zoom), which is mathematically
+    // correct — at high zoom you're looking at a vanishingly small fraction
+    // of the whole sphere's surface even though it fills the screen — and
+    // is exactly what makes the weighting below self-adjust with zoom.
+    function horizonHalfAngleRadians() {
+      var t = map.transform;
+      if (!t) return null;
+      var globeRadiusPixels = t.worldSize / (2 * Math.PI) / Math.cos(t.center.lat * Math.PI / 180);
+      var pitch = t.pitchInRadians || 0;
+      var distanceCameraToB = t.cameraToCenterDistance / globeRadiusPixels;
+      var distanceCameraToA = Math.sin(pitch) * distanceCameraToB;
+      var distanceAtoC = Math.cos(pitch) * distanceCameraToB + 1;
+      var distanceCameraToC = Math.sqrt(distanceCameraToA * distanceCameraToA + distanceAtoC * distanceAtoC);
+      var camCTcosine = 1 / distanceCameraToC;
+      return Math.acos(Math.max(-1, Math.min(1, camCTcosine)));
+    }
+
+    function angularDistanceRadians(lng1, lat1, lng2, lat2) {
+      var phi1 = lat1 * Math.PI / 180;
+      var phi2 = lat2 * Math.PI / 180;
+      var dPhi = (lat2 - lat1) * Math.PI / 180;
+      var dLambda = (lng2 - lng1) * Math.PI / 180;
+      var a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2)
+        + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+      return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function tileCenterLngLat(z, x, y) {
+      var n = Math.pow(2, z);
+      var lon = (x + 0.5) / n * 360 - 180;
+      var latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n)));
+      return [lon, latRad * 180 / Math.PI];
+    }
+
+    // Below this the horizon angle is numerically unstable to divide by (and
+    // at that zoom the globe is effectively flat anyway), so the hard
+    // sphere-occlusion gate below is skipped entirely in that regime.
+    var MIN_MEANINGFUL_HORIZON_RADIANS = 1e-4;
+
+    // How close a point is to the edge of the *actual* on-screen canvas —
+    // not an assumed circle, the real rectangle, using its real current
+    // pixel dimensions. This is what makes the weighting aspect-ratio- and
+    // device-aware: a wide landscape viewport has a wider horizontal FOV
+    // than vertical (mat4.perspective's aspect scales the horizontal FOV
+    // off a fixed vertical one), so it actually crops the *top and bottom*
+    // sooner in angular terms, not the sides — rather than assume either
+    // direction, this measures real projected pixels against the real
+    // container size and lets whichever dimension is narrower dominate.
+    // 1 at dead center, falling to 0 exactly at the canvas edge (Chebyshev/
+    // max distance, not Euclidean — correct for a rectangle, where a point
+    // in the exact middle of an edge is just as "at the edge" as a corner).
+    function screenEdgeWeight(lng, lat) {
+      var point;
+      try {
+        point = map.project([lng, lat]);
+      } catch (e) {
+        return 1;
+      }
+      var width = (map.transform && map.transform.width) || (map.getContainer && map.getContainer().clientWidth);
+      var height = (map.transform && map.transform.height) || (map.getContainer && map.getContainer().clientHeight);
+      if (!width || !height || !point || !isFinite(point.x) || !isFinite(point.y)) return 1;
+      var nx = Math.abs((point.x - width / 2) / (width / 2));
+      var ny = Math.abs((point.y - height / 2) / (height / 2));
+      var edgeDistance = Math.max(nx, ny);
+      if (edgeDistance >= 1) return 0;
+      return Math.cos(edgeDistance * Math.PI / 2);
+    }
+
+    function tileVisibilityWeight(z, x, y) {
+      var tileCenter = tileCenterLngLat(z, x, y);
+      var horizon = horizonHalfAngleRadians();
+      if (horizon != null && horizon >= MIN_MEANINGFUL_HORIZON_RADIANS) {
+        var center = map.getCenter();
+        var angle = angularDistanceRadians(center.lng, center.lat, tileCenter[0], tileCenter[1]);
+        // Hard gate: the sphere itself occludes this tile entirely — no
+        // amount of screen-edge falloff matters if it's genuinely on the
+        // far side. This check doesn't depend on map.project(), so it stays
+        // correct even if projection behaves oddly for occluded points.
+        if (angle >= horizon) return 0;
+      }
+      return screenEdgeWeight(tileCenter[0], tileCenter[1]);
+    }
+
+    function postClassMessage(type, classes) {
+      if (!classes || !classes.length) return;
+      postToParent({ type: type, classes: classes });
+    }
+
+    function parseNominalClassesHeader(headerValue) {
+      if (!headerValue) return [];
+      return headerValue.split(',').reduce(function(acc, part) {
+        var sep = part.indexOf(':');
+        if (sep === -1) return acc;
+        var id = Number(part.slice(0, sep));
+        var count = Number(part.slice(sep + 1));
+        if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
+        return acc;
+      }, []);
+    }
+
+    // Finds the MapLibre-internal cache tracking which tiles are currently
+    // loaded for a given source. Not part of the public API (field names
+    // have moved across versions), so every access here is defensive with a
+    // bounds-based fallback below.
+    function getSourceCache(sourceId) {
+      try {
+        var style = map.style;
+        if (!style) return null;
+        if (style.sourceCaches && style.sourceCaches[sourceId]) return style.sourceCaches[sourceId];
+        if (style._otherSourceCaches && style._otherSourceCaches[sourceId]) return style._otherSourceCaches[sourceId];
+        if (typeof style.getOwnSourceCache === 'function') {
+          var cache = style.getOwnSourceCache(sourceId);
+          if (cache) return cache;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    // Rectangular lat/lng-bounds approximation of the viewport tile grid.
+    // Used only as a fallback when the internal source cache (below) isn't
+    // reachable — on a globe this overcounts (the visible area is a curved
+    // cap, not a rectangle, so at low zoom this can include tiles on the far
+    // side of the sphere that were never actually fetched) and can also
+    // miss tiles MapLibre did fetch near the horizon, so it's best-effort
+    // (the angular weighting above is what actually corrects for this now).
+    function computeCandidateTileSetFromBounds() {
+      var result = new Set();
+      var z = currentHeatmapTileZoom();
+      var b = map.getBounds();
+      var n = Math.pow(2, z);
+      function lonToX(lon) { return Math.floor((lon + 180) / 360 * n); }
+      function latToY(lat) {
+        var clamped = Math.max(-85.05112878, Math.min(85.05112878, lat));
+        var latRad = clamped * Math.PI / 180;
+        return Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+      }
+      var x0 = lonToX(b.getWest());
+      var x1 = lonToX(b.getEast());
+      var y0 = Math.max(0, Math.min(n - 1, latToY(b.getNorth())));
+      var y1 = Math.max(0, Math.min(n - 1, latToY(b.getSouth())));
+      if (x1 < x0) x1 += n;
+      var tileCount = (x1 - x0 + 1) * (y1 - y0 + 1);
+      if (!(tileCount > 0) || tileCount > MAX_TRACKED_TILES) return result;
+      for (var x = x0; x <= x1; x++) {
+        var wrappedX = ((x % n) + n) % n;
+        for (var y = y0; y <= y1; y++) {
+          result.add(tileKey(z, wrappedX, y));
+        }
+      }
+      return result;
+    }
+
+    // The set of tiles to consider weighting at all — ground truth from
+    // MapLibre's own loaded-tile cache when reachable, otherwise the
+    // bounds-based approximation above.
+    function computeCandidateTileSet() {
+      var result = new Set();
+      if (!HEATMAP_TILE_URL) return result;
+      var cache = getSourceCache('heatmap');
+      if (cache) {
+        try {
+          var tiles = cache._tiles || {};
+          var keys = Object.keys(tiles);
+          for (var i = 0; i < keys.length; i++) {
+            var tile = tiles[keys[i]];
+            var coord = tile && tile.tileID && tile.tileID.canonical;
+            if (coord && tile.state === 'loaded') {
+              result.add(tileKey(coord.z, coord.x, coord.y));
+            }
+          }
+          return result;
+        } catch (e) {}
+      }
+      return computeCandidateTileSetFromBounds();
+    }
+
+    function refreshVisibleTileClasses() {
+      if (!HEATMAP_TILE_URL) return;
+      var candidates = computeCandidateTileSet();
+      var nextWeighted = new Map();
+
+      candidates.forEach(function(key) {
+        var classes = TILE_CLASS_CACHE.get(key);
+        if (!classes || !classes.length) return;
+        var parts = key.split('/');
+        var weight = tileVisibilityWeight(Number(parts[0]), Number(parts[1]), Number(parts[2]));
+        if (weight <= 0) return;
+        var weightedForTile = new Map();
+        classes.forEach(function(c) {
+          weightedForTile.set(c.id, c.count * weight);
+        });
+        nextWeighted.set(key, weightedForTile);
+      });
+
+      var touchedKeys = new Set();
+      LAST_SENT_WEIGHTED.forEach(function(_value, key) { touchedKeys.add(key); });
+      nextWeighted.forEach(function(_value, key) { touchedKeys.add(key); });
+
+      var addClasses = [];
+      var removeClasses = [];
+      touchedKeys.forEach(function(key) {
+        var oldMap = LAST_SENT_WEIGHTED.get(key);
+        var newMap = nextWeighted.get(key);
+        var ids = new Set();
+        if (oldMap) oldMap.forEach(function(_value, id) { ids.add(id); });
+        if (newMap) newMap.forEach(function(_value, id) { ids.add(id); });
+        ids.forEach(function(id) {
+          var oldCount = (oldMap && oldMap.get(id)) || 0;
+          var newCount = (newMap && newMap.get(id)) || 0;
+          var delta = newCount - oldCount;
+          if (Math.abs(delta) < 1e-6) return;
+          if (delta > 0) addClasses.push({ id: id, count: delta });
+          else removeClasses.push({ id: id, count: -delta });
+        });
+      });
+
+      if (addClasses.length) postClassMessage('tileClasses', addClasses);
+      if (removeClasses.length) postClassMessage('tileClassesRemoved', removeClasses);
+
+      LAST_SENT_WEIGHTED = nextWeighted;
+    }
+
+    function resetTileClassTracking() {
+      var removeClasses = [];
+      LAST_SENT_WEIGHTED.forEach(function(classMap) {
+        classMap.forEach(function(count, id) {
+          if (Math.abs(count) > 1e-6) removeClasses.push({ id: id, count: count });
+        });
+      });
+      if (removeClasses.length) postClassMessage('tileClassesRemoved', removeClasses);
+      TILE_CLASS_CACHE.clear();
+      LAST_SENT_WEIGHTED = new Map();
+    }
+
+    // refreshVisibleTileClasses() gets triggered from several independent
+    // async sources — moveend, zoomend, idle, and every individual tile
+    // finishing its fetch — each of which recomputes the candidate set fresh
+    // from MapLibre's internal tile cache at that instant. If the user pans
+    // away before an in-flight tile fetch from the *previous* view finishes,
+    // that fetch's completion can trigger a recompute that still finds the
+    // old tile momentarily retained in MapLibre's cache (eviction isn't
+    // instant), re-adding something that was just correctly removed — a
+    // real race between overlapping triggers, not just noise. Debouncing so
+    // we only actually snapshot state once things have settled avoids
+    // running the computation mid-churn.
+    var REFRESH_DEBOUNCE_MS = 200;
+    var refreshDebounceTimer = null;
+    function scheduleRefreshVisibleTileClasses() {
+      if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+      refreshDebounceTimer = setTimeout(function() {
+        refreshDebounceTimer = null;
+        refreshVisibleTileClasses();
+      }, REFRESH_DEBOUNCE_MS);
+    }
+
+    if (HEATMAP_TILE_URL && typeof maplibregl.addProtocol === 'function') {
+      // MapLibre GL JS v3+ addProtocol handlers are Promise-based:
+      // (params, abortController) => Promise<{ data }>, not the older
+      // (params, callback) => ({ cancel }) style.
+      maplibregl.addProtocol('heatmap', function(params, abortController) {
+        var realUrl = params.url.slice('heatmap://'.length);
+        return fetch(realUrl, { signal: abortController.signal, referrerPolicy: TILE_REFERRER_POLICY })
+          .then(function(response) {
+            if (!response.ok) {
+              throw new Error('Heatmap tile request failed with status ' + response.status);
+            }
+            var match = HEATMAP_TILE_KEY_RE.exec(realUrl);
+            if (match) {
+              var key = tileKey(Number(match[1]), Number(match[2]), Number(match[3]));
+              var classes = parseNominalClassesHeader(response.headers.get('X-Nominal-Classes'));
+              TILE_CLASS_CACHE.set(key, classes);
+              scheduleRefreshVisibleTileClasses();
+            }
+            return response.arrayBuffer();
+          })
+          .then(function(data) {
+            return { data: data };
+          });
+      });
+    }
+
+    // ---- starfield/cubemap skybox, ported from MapTiler SDK JS's
+    // CubemapLayer (BSD-3-Clause, https://github.com/maptiler/maptiler-sdk-js).
+    // It builds entirely on MapLibre's public Transform interface, so it
+    // works with plain maplibre-gl and needs neither @maptiler/sdk nor an
+    // API key — the cubemap face images are served unauthenticated from
+    // api.maptiler.com/resources/space. Fixed to the 'milkyway-colored'
+    // preset (the one settled on after comparing all of them live).
+    var SPACE_IMAGES_BASE_URL = 'https://api.maptiler.com/resources/space';
+    var SPACE_PRESET = 'milkyway-colored';
+
+    var CUBE_VERTEX_SHADER = [
+      'attribute vec3 a_vertexPosition;',
+      'varying vec3 vTextureCoord;',
+      'uniform mat4 u_projectionMatrix;',
+      'uniform mat4 u_modelViewMatrix;',
+      'void main(void) {',
+      '  vTextureCoord = vec3(-a_vertexPosition.x, a_vertexPosition.y, a_vertexPosition.z);',
+      '  gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(a_vertexPosition, 1.0);',
+      '}',
+    ].join('\n');
+
+    var CUBE_FRAGMENT_SHADER = [
+      'precision mediump float;',
+      'varying vec3 vTextureCoord;',
+      'uniform samplerCube u_cubeSampler;',
+      'uniform float u_fadeOpacity;',
+      'uniform vec4 u_bgColor;',
+      'void main(void) {',
+      '  vec4 texColor = textureCube(u_cubeSampler, vTextureCoord);',
+      '  gl_FragColor = mix(u_bgColor, texColor, min(texColor.a, u_fadeOpacity));',
+      '  gl_FragColor.a = max(gl_FragColor.a, u_fadeOpacity);',
+      '}',
+    ].join('\n');
+
+    var CUBE_SIZE = 1;
+    var CUBE_HW = CUBE_SIZE / 2, CUBE_HH = CUBE_SIZE / 2, CUBE_HD = CUBE_SIZE / 2;
+    var CUBE_FRONT_FACE = [-CUBE_HW, -CUBE_HH, CUBE_HD, CUBE_HW, -CUBE_HH, CUBE_HD, CUBE_HW, CUBE_HH, CUBE_HD, -CUBE_HW, CUBE_HH, CUBE_HD];
+    var CUBE_BACK_FACE = [-CUBE_HW, -CUBE_HH, -CUBE_HD, -CUBE_HW, CUBE_HH, -CUBE_HD, CUBE_HW, CUBE_HH, -CUBE_HD, CUBE_HW, -CUBE_HH, -CUBE_HD];
+    var CUBE_TOP_FACE = [-CUBE_HW, CUBE_HH, -CUBE_HD, -CUBE_HW, CUBE_HH, CUBE_HD, CUBE_HW, CUBE_HH, CUBE_HD, CUBE_HW, CUBE_HH, -CUBE_HD];
+    var CUBE_BOTTOM_FACE = [-CUBE_HW, -CUBE_HH, -CUBE_HD, CUBE_HW, -CUBE_HH, -CUBE_HD, CUBE_HW, -CUBE_HH, CUBE_HD, -CUBE_HW, -CUBE_HH, CUBE_HD];
+    var CUBE_RIGHT_FACE = [CUBE_HW, -CUBE_HH, -CUBE_HD, CUBE_HW, CUBE_HH, -CUBE_HD, CUBE_HW, CUBE_HH, CUBE_HD, CUBE_HW, -CUBE_HH, CUBE_HD];
+    var CUBE_LEFT_FACE = [-CUBE_HW, -CUBE_HH, -CUBE_HD, -CUBE_HW, -CUBE_HH, CUBE_HD, -CUBE_HW, CUBE_HH, CUBE_HD, -CUBE_HW, CUBE_HH, -CUBE_HD];
+    var CUBE_VERTICES = [].concat(CUBE_FRONT_FACE, CUBE_BACK_FACE, CUBE_TOP_FACE, CUBE_BOTTOM_FACE, CUBE_RIGHT_FACE, CUBE_LEFT_FACE);
+    var CUBE_INDICES = [
+      0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14, 15, 16, 17, 18, 16, 18, 19, 20, 21,
+      22, 20, 22, 23,
+    ];
+
+    function parseColorToVec4(color) {
+      var canvas = document.createElement('canvas').getContext('2d');
+      if (!canvas) return [0, 0, 0, 1];
+      canvas.fillStyle = color;
+      var normalized = canvas.fillStyle;
+      var hexMatch = /^#([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})?$/i.exec(normalized);
+      if (hexMatch) {
+        return [
+          parseInt(hexMatch[1], 16) / 255,
+          parseInt(hexMatch[2], 16) / 255,
+          parseInt(hexMatch[3], 16) / 255,
+          hexMatch[4] ? parseInt(hexMatch[4], 16) / 255 : 1,
+        ];
+      }
+      var nums = (normalized.match(/[\d.]+/g) || ['0', '0', '0']).map(Number);
+      return [nums[0] / 255, nums[1] / 255, nums[2] / 255, nums[3] != null ? nums[3] : 1];
+    }
+
+    function loadStarfieldShader(gl, type, source) {
+      var shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        throw new Error('Shader compile error: ' + gl.getShaderInfoLog(shader));
+      }
+      return shader;
+    }
+
+    function createStarfieldLayer(preset) {
+      var gl, glMap, shaderProgram, positionBuffer, indexBuffer, texture, attribLoc;
+      var uniforms = {};
+      var bgColor = parseColorToVec4('black');
+      var fadeOpacity = 0;
+
+      var loadFaces = function() {
+        var targets = [
+          gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+          gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+          gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+          gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+          gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+          gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
+        ];
+        var faceNames = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
+        Promise.all(
+          faceNames.map(function(face) {
+            return new Promise(function(resolve, reject) {
+              var img = new Image();
+              img.crossOrigin = 'anonymous';
+              img.onload = function() { resolve(img); };
+              img.onerror = function() { reject(new Error('Failed to load ' + face)); };
+              img.src = SPACE_IMAGES_BASE_URL + '/' + preset + '/' + face + '.webp';
+            });
+          }),
+        ).then(function(images) {
+          gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+          images.forEach(function(img, i) {
+            gl.texImage2D(targets[i], 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+          });
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+          fadeOpacity = 1;
+          glMap.triggerRepaint();
+        });
+      };
+
+      return {
+        id: 'starfield',
+        type: 'custom',
+        renderingMode: '3d',
+
+        onAdd: function(mapInstance, glContext) {
+          glMap = mapInstance;
+          gl = glContext;
+
+          var vertexShader = loadStarfieldShader(gl, gl.VERTEX_SHADER, CUBE_VERTEX_SHADER);
+          var fragmentShader = loadStarfieldShader(gl, gl.FRAGMENT_SHADER, CUBE_FRAGMENT_SHADER);
+          shaderProgram = gl.createProgram();
+          gl.attachShader(shaderProgram, vertexShader);
+          gl.attachShader(shaderProgram, fragmentShader);
+          gl.linkProgram(shaderProgram);
+          if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            throw new Error('Program link error: ' + gl.getProgramInfoLog(shaderProgram));
+          }
+
+          attribLoc = gl.getAttribLocation(shaderProgram, 'a_vertexPosition');
+          ['projectionMatrix', 'modelViewMatrix', 'cubeSampler', 'bgColor', 'fadeOpacity'].forEach(function(name) {
+            uniforms[name] = gl.getUniformLocation(shaderProgram, 'u_' + name);
+          });
+
+          positionBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(CUBE_VERTICES), gl.STATIC_DRAW);
+
+          indexBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+          gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(CUBE_INDICES), gl.STATIC_DRAW);
+
+          texture = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+
+          loadFaces();
+        },
+
+        render: function(glContext) {
+          var projectionType = glMap.getProjection && glMap.getProjection() && glMap.getProjection().type;
+          if (projectionType !== 'globe' || !texture) return;
+
+          var mat4 = window.glMatrix.mat4;
+          var transform = glMap.transform;
+          var canvas = glContext.canvas;
+          var aspect = canvas.clientWidth / canvas.clientHeight;
+
+          var projectionMatrix = mat4.create();
+          mat4.perspective(projectionMatrix, transform.fovInRadians != null ? transform.fovInRadians : transform.fov, aspect, 0.1, 10000);
+          mat4.rotateZ(projectionMatrix, projectionMatrix, transform.rollInRadians || 0);
+          mat4.rotateX(projectionMatrix, projectionMatrix, -transform.pitchInRadians);
+          mat4.rotateZ(projectionMatrix, projectionMatrix, transform.bearingInRadians);
+          mat4.rotateX(projectionMatrix, projectionMatrix, (transform.center.lat * Math.PI) / 180);
+          mat4.rotateY(projectionMatrix, projectionMatrix, -(transform.center.lng * Math.PI) / 180);
+
+          var modelViewMatrix = mat4.create();
+
+          glContext.disable(glContext.DEPTH_TEST);
+          glContext.enable(glContext.BLEND);
+          glContext.blendFunc(glContext.SRC_ALPHA, glContext.DST_ALPHA);
+          glContext.useProgram(shaderProgram);
+
+          glContext.bindBuffer(glContext.ARRAY_BUFFER, positionBuffer);
+          glContext.vertexAttribPointer(attribLoc, 3, glContext.FLOAT, false, 0, 0);
+          glContext.enableVertexAttribArray(attribLoc);
+
+          glContext.uniformMatrix4fv(uniforms.projectionMatrix, false, projectionMatrix);
+          glContext.uniformMatrix4fv(uniforms.modelViewMatrix, false, modelViewMatrix);
+          glContext.uniform4fv(uniforms.bgColor, new Float32Array(bgColor));
+          glContext.uniform1f(uniforms.fadeOpacity, fadeOpacity);
+
+          glContext.activeTexture(glContext.TEXTURE0);
+          glContext.bindTexture(glContext.TEXTURE_CUBE_MAP, texture);
+          glContext.uniform1i(uniforms.cubeSampler, 0);
+
+          glContext.bindBuffer(glContext.ELEMENT_ARRAY_BUFFER, indexBuffer);
+          glContext.drawElements(glContext.TRIANGLES, CUBE_INDICES.length, glContext.UNSIGNED_SHORT, 0);
+        },
+      };
+    }
+    // ---- end starfield/cubemap skybox ----
+
+    var mapOptions = {
+      container: 'map',
+      style: {
+        version: 8,
+        sources: Object.assign(
+          {
+            basemap: { type: 'raster', tiles: [TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM },
+          },
+          HEATMAP_TILE_URL ? { heatmap: { type: 'raster', tiles: ['heatmap://' + HEATMAP_TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
+          LINES_OVERLAY_URL ? { lines: { type: 'raster', tiles: [LINES_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
+          LABELS_OVERLAY_URL ? { labels: { type: 'raster', tiles: [LABELS_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {}
+        ),
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#000' } },
+          { id: 'basemap-layer', type: 'raster', source: 'basemap' },
+        ]
+          .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY } }] : [])
+          .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
+          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 } }] : []),
+      },
+      center: [INITIAL_LON || 0, INITIAL_LAT || 20],
+      zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
+      minZoom: CUSTOM_MIN_ZOOM,
+    };
+    if (CUSTOM_MAX_ZOOM !== null) mapOptions.maxZoom = CUSTOM_MAX_ZOOM;
+    if (CUSTOM_MAX_BOUNDS) {
+      mapOptions.maxBounds = [
+        [CUSTOM_MAX_BOUNDS[0][1], CUSTOM_MAX_BOUNDS[0][0]],
+        [CUSTOM_MAX_BOUNDS[1][1], CUSTOM_MAX_BOUNDS[1][0]],
+      ];
+    }
+
+    const map = new maplibregl.Map(mapOptions);
+    map.addControl(new maplibregl.NavigationControl());
+    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }));
+
+    let mapReady = false;
+
+    function formatPointValueHtml(numVal, units) {
+      var isNumeric = (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN)
+        || (RENDER_MIN != null && RENDER_MAX != null && RENDER_MAX >= RENDER_MIN);
+      var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
+      var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
+      if (IS_CIRCULAR) {
+        var color = aspectColor(numVal);
+        var fmt = numVal.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        return '<div style="display:flex;align-items:center"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px"></span><span>' + fmt + '°</span></div>';
+      }
+      if (isNumeric && colorMin != null && colorMax != null && colorMax >= colorMin) {
+        var t = safeT(numVal, colorMin, colorMax);
+        var color = gradientColor(t);
+        var fmt = Math.abs(numVal) >= 1000 ? numVal.toLocaleString(undefined, { maximumFractionDigits: 0 }) : numVal.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        return '<div style="display:flex;align-items:center"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px"></span><span>' + fmt + (units ? ' ' + units : '') + '</span></div>';
+      }
+      var classKey = String(Math.round(numVal));
+      var classColor = CLASS_COLORS && CLASS_COLORS[classKey];
+      var classLabel = (CLASS_LABELS && CLASS_LABELS[classKey]) || classKey;
+      var dot = classColor ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + classColor + ';margin-right:5px"></span>' : '';
+      return '<div style="display:flex;align-items:center">' + dot + '<span>' + classLabel + '</span></div>';
+    }
+
+    function sendPinMessage(catalogNumber, latitude, longitude) {
+      postToParent({ type: PIN_OBSERVATION_MESSAGE_TYPE, catalogNumber: catalogNumber, latitude: latitude, longitude: longitude });
+    }
+
+    map.on('load', function() {
+      mapReady = true;
+      if (typeof map.setProjection === 'function') {
+        map.setProjection({ type: 'globe' });
+      }
+      applyPendingHeatmapUpdate();
+
+      if (typeof window.glMatrix !== 'undefined') {
+        try {
+          map.addLayer(createStarfieldLayer(SPACE_PRESET), 'background');
+        } catch (e) {
+          // Non-essential visual flourish — a missing WebGL feature or a
+          // failed gl-matrix load shouldn't take down the rest of the map.
+        }
+      }
+
+      if (SHOW_MARKERS && Array.isArray(points) && points.length) {
+        map.addSource('occurrences', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: points
+              .filter(function(pt) { return typeof pt.latitude === 'number' && typeof pt.longitude === 'number'; })
+              .map(function(pt) {
+                return {
+                  type: 'Feature',
+                  geometry: { type: 'Point', coordinates: [pt.longitude, pt.latitude] },
+                  properties: {
+                    catalog: pt.popupCatalogValue || '',
+                    catalogHref: pt.popupCatalogHref || '',
+                    catalogLabel: pt.popupCatalogLabel || '',
+                    varValue: pt.varValue != null ? pt.varValue : null,
+                    varColor: pt.varColor || null,
+                  },
+                };
+              }),
+          },
+        });
+        map.addLayer({
+          id: 'occurrences-layer',
+          type: 'circle',
+          source: 'occurrences',
+          paint: {
+            'circle-radius': 5,
+            'circle-color': ['coalesce', ['get', 'varColor'], palette.markerFill],
+            'circle-stroke-color': palette.markerStroke,
+            'circle-stroke-width': 1,
+            'circle-opacity': 0.9,
+          },
+        });
+
+        map.on('click', 'occurrences-layer', function(e) {
+          var feature = e.features && e.features[0];
+          if (!feature) return;
+          var props = feature.properties;
+          var lngLat = feature.geometry.coordinates;
+          if (ALLOW_PIN_OBSERVATIONS && props.catalog) {
+            sendPinMessage(props.catalog, lngLat[1], lngLat[0]);
+          }
+          var html = '';
+          if (LINK_OBSERVATIONS && props.catalogHref && props.catalogLabel) {
+            html += '<a href="https://www.inaturalist.org/observations/' + props.catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + props.catalogLabel + '</a>';
+          } else if (props.catalogLabel) {
+            html += '<span>Observation #' + props.catalogLabel + '</span>';
+          }
+          if (props.varValue != null) {
+            postToParent({ type: 'pointValue', value: props.varValue });
+            html += formatPointValueHtml(props.varValue, VAR_UNITS);
+          }
+          new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
+        });
+        map.on('mouseenter', 'occurrences-layer', function() { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'occurrences-layer', function() { map.getCanvas().style.cursor = ''; });
+      }
+
+      postBounds();
+      scheduleRefreshVisibleTileClasses();
+    });
+
+    map.on('click', function(event) {
+      if (event.defaultPrevented) return;
+      var latitude = event.lngLat.lat;
+      var longitude = event.lngLat.lng;
+
+      if (LOCATION_PICKER_MODE) {
+        var container = document.createElement('div');
+        container.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;padding:2px 0;';
+        var label = document.createElement('span');
+        label.style.cssText = 'font-size:13px;font-weight:600;';
+        label.textContent = 'Set home region?';
+        var btn = document.createElement('button');
+        btn.textContent = 'Confirm';
+        btn.style.cssText = 'padding:4px 14px;border-radius:4px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:' + palette.markerFill + ';color:#fff;';
+        container.appendChild(label);
+        container.appendChild(btn);
+        var picker = new maplibregl.Popup({ closeButton: true }).setLngLat(event.lngLat).setDOMContent(container).addTo(map);
+        btn.addEventListener('click', function() {
+          postToParent({ type: 'locationPicked', lat: latitude, lon: longitude });
+          picker.remove();
+        });
+        return;
+      }
+
+      if (POINT_QUERY_URL) {
+        if (ALLOW_PIN_OBSERVATIONS) {
+          sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+        }
+        var popup = new maplibregl.Popup({ closeButton: true })
+          .setLngLat(event.lngLat)
+          .setHTML('<span style="opacity:0.6;font-size:11px">Loading…</span>')
+          .addTo(map);
+        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function(data) {
+            if (!popup.isOpen()) return;
+            if (data.value == null) {
+              popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
+              return;
+            }
+            var numVal = Number(data.value);
+            if (isFinite(numVal)) {
+              postToParent({ type: 'pointValue', value: numVal });
+              if (data.class_name || data.class_color) {
+                var classKey = String(Math.round(numVal));
+                var resolvedClassColor = (CLASS_COLORS && CLASS_COLORS[classKey]) || data.class_color || null;
+                var dot = resolvedClassColor
+                  ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>'
+                  : '';
+                var label = data.class_name || String(numVal);
+                popup.setHTML('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+              } else {
+                popup.setHTML(formatPointValueHtml(numVal, data.units || VAR_UNITS));
+              }
+            }
+          })
+          .catch(function() {
+            if (popup.isOpen()) popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
+          });
+        return;
+      }
+
+      if (ALLOW_PIN_OBSERVATIONS) {
+        sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+      }
+    });
+
+    document.addEventListener('click', function(event) {
+      var externalLink = event.target && typeof event.target.closest === 'function'
+        ? event.target.closest('[data-open-external-url="true"]')
+        : null;
+      if (!externalLink) return;
+      var url = externalLink.getAttribute('href');
+      if (!url) return;
+      event.preventDefault();
+      postToParent({ type: OPEN_EXTERNAL_URL_MESSAGE_TYPE, url: url });
+    });
+
+    function postBounds() {
+      var b = map.getBounds();
+      postToParent({ type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() });
+      var z = Math.round(map.getZoom());
+      var n = Math.pow(2, z);
+      function tile(lat, lon) {
+        var x = Math.floor((lon + 180) / 360 * n);
+        var latRad = lat * Math.PI / 180;
+        var y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+        return { x: Math.max(0, Math.min(n - 1, x)), y: Math.max(0, Math.min(n - 1, y)) };
+      }
+      var nw = tile(b.getNorth(), b.getWest());
+      var se = tile(b.getSouth(), b.getEast());
+      postToParent({ type: 'tilesChanged', z: z, x0: nw.x, y0: nw.y, x1: se.x, y1: se.y });
+    }
+    map.on('moveend', postBounds);
+    map.on('moveend', scheduleRefreshVisibleTileClasses);
+    map.on('zoomend', scheduleRefreshVisibleTileClasses);
+    map.on('idle', scheduleRefreshVisibleTileClasses);
+
+    // Even though the 'heatmap' source is defined in the style object we
+    // hand to the Map constructor, MapLibre still needs a brief async
+    // moment to parse that style before map.getSource('heatmap') returns
+    // anything — a heatmapUpdate message arriving in that window (racing
+    // against React's own iframe-onLoad-based readiness signal, which is a
+    // different, earlier event than MapLibre's internal 'load') would
+    // otherwise just get silently dropped with nothing to retry it. Instead
+    // of gating on any particular readiness check, always remember the
+    // latest desired URL and (re)try applying it — on receipt, and again
+    // once the map has definitely finished loading — so it's eventually
+    // applied no matter how the timing falls.
+    var pendingHeatmapUrl = null;
+    function applyPendingHeatmapUpdate() {
+      if (pendingHeatmapUrl == null) return;
+      var source = map.getSource('heatmap');
+      if (!source) return;
+      resetTileClassTracking();
+      source.setTiles(['heatmap://' + pendingHeatmapUrl]);
+      scheduleRefreshVisibleTileClasses();
+      pendingHeatmapUrl = null;
+    }
+
+    function handleParentMessage(payload) {
+      var data = payload;
+      if (typeof payload === 'string') {
+        try { data = JSON.parse(payload); } catch (e) { return; }
+      }
+      if (!data || !data.type) return;
+
+      if (data.type === 'heatmapUpdate') {
+        if (data.heatmapTileUrl != null) {
+          pendingHeatmapUrl = data.heatmapTileUrl;
+          applyPendingHeatmapUpdate();
+        }
+        if (data.pointQueryUrl !== undefined) POINT_QUERY_URL = data.pointQueryUrl;
+        if (data.renderMin !== undefined) RENDER_MIN = data.renderMin;
+        if (data.renderMax !== undefined) RENDER_MAX = data.renderMax;
+        if (data.varUnits !== undefined) VAR_UNITS = data.varUnits;
+        if (data.dotMin !== undefined) DOT_MIN = data.dotMin;
+        if (data.dotMax !== undefined) DOT_MAX = data.dotMax;
+        if (data.isCircular !== undefined) IS_CIRCULAR = data.isCircular;
+        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) ASPECT_STOPS = data.circularStops;
+        if (data.classColors !== undefined) CLASS_COLORS = data.classColors;
+        if (data.classLabels !== undefined) CLASS_LABELS = data.classLabels;
+        return;
+      }
+
+      if (data.type === 'colormapUpdate') {
+        if (Array.isArray(data.stops)) GRADIENT_STOPS = data.stops;
+        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) ASPECT_STOPS = data.circularStops;
+        return;
+      }
+    }
+
+    window.addEventListener('message', function(event) { handleParentMessage(event.data); });
+    document.addEventListener('message', function(event) { handleParentMessage(event.data); });
+  </script>
+</body>
+
+</html>

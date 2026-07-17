@@ -146,6 +146,8 @@ describe('Settings screen', () => {
       setShapesEnabled: jest.fn(),
       markerOutlineEnabled: false,
       setMarkerOutlineEnabled: jest.fn(),
+      globeViewEnabled: false,
+      setGlobeViewEnabled: jest.fn(),
       localLat: null,
       setLocalLat: jest.fn(),
       localLon: null,

@@ -102,6 +102,8 @@ jest.mock('@/context/SettingsContext', () => {
       cbMode: null,
       shapesEnabled: false,
       markerOutlineEnabled: false,
+      globeViewEnabled: false,
+      setGlobeViewEnabled: jest.fn(),
     })),
     // Mirrors runtime fallback behavior for suites rendering components outside
     // SettingsProvider (for example isolated/unit-level tests).
@@ -113,6 +115,8 @@ jest.mock('@/context/SettingsContext', () => {
       cbMode: null,
       shapesEnabled: false,
       markerOutlineEnabled: false,
+      globeViewEnabled: false,
+      setGlobeViewEnabled: jest.fn(),
     })),
     /**
      * @param {{ children: React.ReactNode }} props

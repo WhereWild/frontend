@@ -14,15 +14,19 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useOptionalSettings } from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
+import { SwitchField } from '../inputs/SwitchField';
 import {
+  buildGlobeHtml,
   buildLeafletHtml,
   getBackgroundTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
+  loadGlobeMapTemplate,
   loadMapTemplate,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
@@ -170,7 +174,7 @@ export function SpeciesOccurrenceMap({
   highlightedCatalogs = [],
   heatmapTileUrl = null,
   heatmapOpacity = 0.6,
-  minZoom = 2,
+  minZoom = 0,
   maxZoom = null,
   initialLat = null,
   initialLon = null,
@@ -226,6 +230,10 @@ export function SpeciesOccurrenceMap({
   const [templateLoadError, setTemplateLoadError] = React.useState<
     string | null
   >(null);
+
+  const settings = useOptionalSettings();
+  const globeViewSupported = Platform.OS === 'web';
+  const globeView = globeViewSupported && !!settings?.globeViewEnabled;
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, latitude: number, longitude: number) => {
@@ -323,7 +331,9 @@ export function SpeciesOccurrenceMap({
     let isMounted = true;
 
     void (async () => {
-      const templateContent = await loadMapTemplate();
+      const templateContent = globeView
+        ? await loadGlobeMapTemplate()
+        : await loadMapTemplate();
       if (!isMounted) {
         return;
       }
@@ -355,7 +365,14 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasOccurrences, heatmapTileUrl, loading, locationPickerMode]);
+  }, [
+    error,
+    hasOccurrences,
+    heatmapTileUrl,
+    loading,
+    locationPickerMode,
+    globeView,
+  ]);
 
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
@@ -413,6 +430,38 @@ export function SpeciesOccurrenceMap({
   const initialClassShapes = React.useRef(classShapes);
   const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
 
+  // The refs above are meant to capture "whatever was true when the current
+  // WebView/iframe document was built," not "whatever was true on this
+  // component's very first render ever" — but a plain useRef(initialValue)
+  // only ever does the latter. Without this, switching renderers (e.g.
+  // toggling globe view, which forces mapTemplate to reload) rebuilds the
+  // iframe using props frozen from the original mount — on maps.tsx that's
+  // always the landcover default — and the freshly built map would flash
+  // that stale data until a live postMessage update corrects it. Resetting
+  // these refs synchronously during render (an accepted React pattern for
+  // "reset derived state when a key changes") whenever mapTemplate changes
+  // — i.e. whenever the underlying document is genuinely about to be
+  // rebuilt from scratch — makes the *next* html build start from current
+  // truth instead of ancient history.
+  const mapTemplateForInitialRefs = React.useRef(mapTemplate);
+  if (mapTemplateForInitialRefs.current !== mapTemplate) {
+    mapTemplateForInitialRefs.current = mapTemplate;
+    initialHeatmapTileUrl.current = heatmapTileUrl;
+    initialPointQueryUrl.current = pointQueryUrl;
+    initialRenderMin.current = renderMin;
+    initialRenderMax.current = renderMax;
+    initialVarUnits.current = varUnits;
+    initialDotMin.current = dotMin;
+    initialDotMax.current = dotMax;
+    initialGradientStops.current = gradientStops;
+    initialAspectStops.current = aspectStops;
+    initialIsCircular.current = isCircular;
+    initialClassColors.current = classColors;
+    initialClassLabels.current = classLabels;
+    initialClassShapes.current = classShapes;
+    initialMarkerOutlineEnabled.current = markerOutlineEnabled;
+  }
+
   // When preserving map position, freeze live props to their initial values so
   // the html memo stays stable and we update the map via postMessage instead.
   const memoHeatmapTileUrl = preserveMapPosition
@@ -456,7 +505,8 @@ export function SpeciesOccurrenceMap({
     if (!mapTemplate) {
       return null;
     }
-    return buildLeafletHtml(
+    const buildHtml = globeView ? buildGlobeHtml : buildLeafletHtml;
+    return buildHtml(
       mapTemplate,
       occurrences,
       markerPalette,
@@ -528,6 +578,7 @@ export function SpeciesOccurrenceMap({
     memoClassLabels,
     memoClassShapes,
     memoMarkerOutlineEnabled,
+    globeView,
   ]);
 
   React.useEffect(() => {
@@ -782,6 +833,13 @@ export function SpeciesOccurrenceMap({
         shouldFillAvailableHeight && styles.containerFill,
       ]}
     >
+      {globeViewSupported && settings ? (
+        <SwitchField
+          label='Globe view'
+          value={settings.globeViewEnabled}
+          onValueChange={settings.setGlobeViewEnabled}
+        />
+      ) : null}
       {templateLoadWarning ? (
         <View
           style={[
