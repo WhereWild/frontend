@@ -10,9 +10,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   mapBounds, tilesChanged, selected_point, highlight, heatmapUpdate,
   colormapUpdate, localLocationUpdate, locationPicked, open_external_url) so
   SpeciesOccurrenceMap.tsx's message handling works unmodified against either
-  renderer. This is the first-pass port (basemap, heatmap overlay, click
-  point-query, plain occurrence markers) — clustering, custom shape icons,
-  and live colormap recoloring of markers are not yet ported.
+  renderer. Full parity with SpeciesOccurrenceMap.html: basemap, heatmap
+  overlay, click point-query, occurrence markers (colored/shaped, native
+  MapLibre GeoJSON clustering), highlighting, and live colormap recoloring.
 -->
 
 <!DOCTYPE html>
@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no" />
   <meta name="referrer" content="__REFERRER_POLICY__" />
   <base href="__DOCUMENT_BASE_URL__" />
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
   <style>
     html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #000; }
     .maplibregl-popup-content { font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -31,7 +31,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 <body>
   <div id="map"></div>
-  <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/gl-matrix@3.4.3/gl-matrix-min.js"></script>
   <script>
     const points = __POINTS_JSON__;
@@ -73,6 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const INITIAL_LON = __INITIAL_LON__;
     const INITIAL_ZOOM = __INITIAL_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
+    const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const LOCATION_PICKER_MODE = __LOCATION_PICKER_MODE__;
@@ -88,6 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     let VAR_UNITS = __VAR_UNITS_JSON__;
     let CLASS_COLORS = __CLASS_COLORS_JSON__;
     let CLASS_LABELS = __CLASS_LABELS_JSON__;
+    let MARKER_OUTLINE = __MARKER_OUTLINE__;
     const CUSTOM_MAX_BOUNDS = __MAX_BOUNDS_JSON__;
 
     var GRADIENT_STOPS = __GRADIENT_STOPS_JSON__;
@@ -110,6 +112,235 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
     function safeT(val, lo, hi) {
       return lo < hi ? Math.max(0, Math.min(1, (val - lo) / (hi - lo))) : 0;
+    }
+
+    // Shape marker icons — ported from the Leaflet template's SHAPE_POINTS
+    // table (8×8 coordinate system, center (4,4), radius 4). MapLibre's
+    // circle layers can only ever draw circles, so anything else needs to
+    // be a symbol layer with a pre-rendered icon image — these get drawn
+    // on a canvas on demand and registered via map.addImage(), cached by a
+    // key derived from shape+fill+stroke so the same combo is never redrawn.
+    var SHAPE_POINTS = {
+      square:          [[0, 0], [8, 0], [8, 8], [0, 8]],
+      triangle:        [[4, -0.4], [8.4, 8.4], [-0.4, 8.4]],
+      'triangle-down': [[-0.4, -0.4], [8.4, -0.4], [4, 8.4]],
+      diamond:         [[4, 0], [8, 4], [4, 8], [0, 4]],
+      cross:           [[1.5, 0], [4, 2.5], [6.5, 0], [8, 1.5], [5.5, 4], [8, 6.5], [6.5, 8], [4, 5.5], [1.5, 8], [0, 6.5], [2.5, 4], [0, 1.5]],
+      plus:            [[3, 0], [5, 0], [5, 3], [8, 3], [8, 5], [5, 5], [5, 8], [3, 8], [3, 5], [0, 5], [0, 3], [3, 3]],
+      star:            [[4, 0], [5, 3], [8, 4], [5, 5], [4, 8], [3, 5], [0, 4], [3, 3]],
+      hexagon:         [[8, 4], [6, 7.46], [2, 7.46], [0, 4], [2, 0.54], [6, 0.54]],
+      pentagon:        [[4, 0], [7.8, 2.76], [6.35, 7.24], [1.65, 7.24], [0.2, 2.76]],
+      arrow:           [[0, 2.5], [5, 2.5], [5, 0], [8, 4], [5, 8], [5, 5.5], [0, 5.5]],
+    };
+    var SHAPE_ICON_SIZE = 20;
+
+    function shapeIconKey(shape, fillColor, strokeColor) {
+      return 'marker-' + (shape || 'circle') + '-' + fillColor + '-' + (strokeColor || 'none');
+    }
+
+    function ensureShapeIcon(shape, fillColor, strokeColor) {
+      var key = shapeIconKey(shape, fillColor, strokeColor);
+      if (map.hasImage(key)) return key;
+      var canvas = document.createElement('canvas');
+      canvas.width = SHAPE_ICON_SIZE;
+      canvas.height = SHAPE_ICON_SIZE;
+      var ctx = canvas.getContext('2d');
+      var cx = SHAPE_ICON_SIZE / 2, cy = SHAPE_ICON_SIZE / 2, r = SHAPE_ICON_SIZE * 0.4;
+
+      ctx.beginPath();
+      if (shape === 'ring') {
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = fillColor;
+        ctx.stroke();
+        map.addImage(key, ctx.getImageData(0, 0, SHAPE_ICON_SIZE, SHAPE_ICON_SIZE));
+        return key;
+      }
+
+      var pts = shape && SHAPE_POINTS[shape];
+      if (pts) {
+        var s = r / 4;
+        pts.forEach(function(p, i) {
+          var x = cx + (p[0] - 4) * s;
+          var y = cy + (p[1] - 4) * s;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+      } else {
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+      if (strokeColor) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = strokeColor;
+        ctx.stroke();
+      }
+
+      map.addImage(key, ctx.getImageData(0, 0, SHAPE_ICON_SIZE, SHAPE_ICON_SIZE));
+      return key;
+    }
+
+    // Occurrence marker color resolution — mirrors Leaflet's
+    // baseStyleForPoint: a precomputed varColor wins if present
+    // (categorical classColors case); otherwise fall back to computing from
+    // the raw varValue using whichever colormap is active (circular/aspect
+    // takes priority over continuous gradient, matching Leaflet). Points
+    // with no resolvable color while some colormap IS active get a
+    // distinct nodata style instead of silently using the plain default.
+    var OCCURRENCE_POINTS = [];
+
+    function isVariableColorMode() {
+      return IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN);
+    }
+
+    function resolveMarkerColor(pt) {
+      if (pt.varColor) return pt.varColor;
+      if (IS_CIRCULAR && pt.varValue != null) return aspectColor(pt.varValue);
+      if (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN && pt.varValue != null) {
+        return gradientColor(safeT(pt.varValue, DOT_MIN, DOT_MAX));
+      }
+      return null;
+    }
+
+    function buildOccurrenceFeature(pt) {
+      var color = resolveMarkerColor(pt);
+      var isNodata = !color && isVariableColorMode();
+      var outlineStroke = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
+      var displayColor = isNodata ? '#ffffff' : (color || palette.markerFill);
+      var displayStroke = isNodata ? '#999999' : (outlineStroke || displayColor);
+      var hasShape = !!pt.varShape;
+      // Canvas-rasterized icons only for markers that actually have a
+      // shape — MapLibre's native circle layer renders perfectly smooth,
+      // GPU-vector circles at any zoom/DPI, so the plain default case stays
+      // on that instead of a small rasterized sprite (which looked visibly
+      // rough/"deformed" by comparison).
+      var iconKey = hasShape ? ensureShapeIcon(pt.varShape, displayColor, displayStroke) : null;
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [pt.longitude, pt.latitude] },
+        properties: {
+          catalog: pt.popupCatalogValue || '',
+          catalogHref: pt.popupCatalogHref || '',
+          catalogLabel: pt.popupCatalogLabel || '',
+          varValue: pt.varValue != null ? pt.varValue : null,
+          // Kept separate from markerColor/iconKey (below): rawVarColor/
+          // varLabel are the precomputed-server-side categorical values,
+          // used to decide/populate the popup content, not for styling.
+          rawVarColor: pt.varColor || null,
+          varLabel: pt.varLabel || null,
+          hasShape: hasShape,
+          iconKey: iconKey,
+          markerColor: displayColor,
+          markerStroke: displayStroke,
+          isNodata: isNodata,
+        },
+      };
+    }
+
+    // Popup content for a clicked MARKER — distinct from
+    // formatPointValueHtml (which is for the empty-map point-QUERY case,
+    // driven by a fresh backend response). Mirrors Leaflet's
+    // buildObservationValueHtml: a precomputed varColor+varLabel (the
+    // categorical case) is used as-is rather than recomputed from the
+    // CLASS_COLORS/CLASS_LABELS globals, which is what caused the label to
+    // fall back to a bare class number instead of resolving.
+    function buildMarkerValueHtml(pt) {
+      if (pt.varValue == null) {
+        return isVariableColorMode()
+          ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>'
+          : '';
+      }
+      if (pt.varColor) {
+        var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + pt.varColor + ';margin-right:5px;flex-shrink:0"></span>';
+        var labelText = pt.varLabel || '';
+        return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
+      }
+      return formatPointValueHtml(pt.varValue, VAR_UNITS);
+    }
+
+    function buildOccurrenceFeatureCollection(pointList) {
+      return {
+        type: 'FeatureCollection',
+        features: pointList.map(buildOccurrenceFeature),
+      };
+    }
+
+    function refreshOccurrenceMarkerColors() {
+      var source = map.getSource('occurrences');
+      if (!source || !OCCURRENCE_POINTS.length) return;
+      var collection = buildOccurrenceFeatureCollection(OCCURRENCE_POINTS);
+      source.setData(collection);
+      var clusteredSource = map.getSource('occurrences-clustered');
+      if (clusteredSource) clusteredSource.setData(collection);
+    }
+
+    // Occurrence markers can render in one of two MODES, mirroring Leaflet's
+    // useVisibilityManagedClustering/showingVisibleIndividualMarkers dance:
+    // 'individual' (every point drawn as its own marker, no clustering) or
+    // 'clustered' (MapLibre GeoJSON clustering, small aggregates fanned into
+    // cluster bubbles). Which mode is active is re-evaluated on every
+    // moveend based on how many points currently fall inside the viewport —
+    // NOT the total dataset size — so a 40k-observation species still ends
+    // up fully unclustered once you've zoomed in far enough that only a
+    // few dozen of those points are actually on screen, matching Leaflet's
+    // "does what's currently visible fit under the threshold" logic
+    // exactly rather than a one-time all-or-nothing choice.
+    //
+    // Each mode has its own plain/shaped layer pair, fed by parallel
+    // sources ('occurrences' = cluster:false, always the full dataset;
+    // 'occurrences-clustered' = cluster:true, only created when the total
+    // point count exceeds the threshold at all — see useClustering below).
+    // These arrays start empty and get populated once the actual layers
+    // are known to exist (inside the SHOW_MARKERS block), since which
+    // layers exist depends on useClustering.
+    var OCCURRENCE_LAYERS = [];
+    var OCCURRENCE_LAYER_IDS = [];
+    var CLUSTER_LAYER_ID = 'occurrences-clusters-layer';
+    var CLUSTER_COUNT_LAYER_ID = 'occurrences-cluster-count-layer';
+    // Anything that needs to touch "all occurrence marker layers" — hover
+    // handlers, hit-testing — has to account for every mode's layers,
+    // including cluster bubbles (which sit outside OCCURRENCE_LAYERS/
+    // applyHighlightsNow below since clustered features are aggregates with
+    // no `catalog` property, so the "isolate to these catalogs" highlight
+    // filter can't meaningfully apply to them — they're left unfiltered).
+    var ALL_MARKER_LAYER_IDS = [];
+
+    function occurrenceLayersExist() {
+      return OCCURRENCE_LAYER_IDS.length > 0 && !!map.getLayer(OCCURRENCE_LAYER_IDS[0]);
+    }
+
+    // Mirrors Leaflet's applyHighlights: when a non-empty highlight list
+    // arrives, every marker NOT in it gets hidden entirely (not dimmed) —
+    // it's really an "isolate to just these" behavior, not a glow effect.
+    // An empty/absent list means show everything again. Same early-message
+    // race as heatmapUpdate applies here (a highlight message can arrive
+    // before MapLibre's 'load' event / the occurrence layers actually
+    // exist), so this remembers the latest desired list and retries once
+    // ready instead of silently dropping it.
+    var pendingHighlightCatalogs = null;
+
+    function applyHighlightsNow(catalogs) {
+      var highlightFilter = Array.isArray(catalogs) && catalogs.length > 0
+        ? ['in', ['get', 'catalog'], ['literal', catalogs.map(String)]]
+        : null;
+      OCCURRENCE_LAYERS.forEach(function(layer) {
+        map.setFilter(layer.id, highlightFilter ? ['all', layer.baseFilter, highlightFilter] : layer.baseFilter);
+      });
+    }
+
+    function applyHighlights(catalogs) {
+      pendingHighlightCatalogs = catalogs || [];
+      if (occurrenceLayersExist()) {
+        applyHighlightsNow(pendingHighlightCatalogs);
+        pendingHighlightCatalogs = null;
+      }
+    }
+
+    function applyPendingHighlights() {
+      if (pendingHighlightCatalogs === null || !occurrenceLayersExist()) return;
+      applyHighlightsNow(pendingHighlightCatalogs);
+      pendingHighlightCatalogs = null;
     }
 
     // Tracks which categorical classes are present in the heatmap tiles
@@ -651,6 +882,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       container: 'map',
       style: {
         version: 8,
+        // Only used for cluster-count labels (text-field on the cluster
+        // symbol layer below) — MapLibre demo glyphs, no API key needed.
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: Object.assign(
           {
             basemap: { type: 'raster', tiles: [TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM },
@@ -728,44 +962,230 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         }
       }
 
+      console.log(
+        '[markers-debug] SHOW_MARKERS=' + SHOW_MARKERS
+        + ' points.length=' + (Array.isArray(points) ? points.length : 'n/a (' + typeof points + ')')
+        + ' rawSample=' + JSON.stringify((points && points[0]) || null)
+      );
+
       if (SHOW_MARKERS && Array.isArray(points) && points.length) {
+        var validPoints = points.filter(function(pt) {
+          return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
+        });
+        console.log('[markers-debug] validPoints.length=' + validPoints.length + ' sample=' + JSON.stringify(validPoints[0] || null));
+
+        OCCURRENCE_POINTS = validPoints;
+
+        try {
+
+        // Plain/shaped marker layer pair, parameterized by source id so the
+        // exact same paint/layout gets reused for both the always-present
+        // "individual mode" source and (when clustering is active) the
+        // clustered source's own unclustered leaf points — a cluster of
+        // points too sparse to merge at the current zoom still needs to
+        // render as normal markers, same as a lone marker inside a Leaflet
+        // clusterGroup does.
+        function addOccurrencePointLayers(sourceId, idSuffix, extraFilter) {
+          var plainFilter = ['!', ['get', 'hasShape']];
+          var shapeFilter = ['get', 'hasShape'];
+          map.addLayer({
+            id: 'occurrences' + idSuffix + '-layer',
+            type: 'circle',
+            source: sourceId,
+            filter: extraFilter ? ['all', extraFilter, plainFilter] : plainFilter,
+            paint: {
+              'circle-radius': 5,
+              'circle-color': ['get', 'markerColor'],
+              'circle-stroke-color': ['get', 'markerStroke'],
+              'circle-stroke-width': ['case', ['boolean', ['get', 'isNodata'], false], 1, MARKER_OUTLINE ? 2 : 1],
+              'circle-opacity': ['case', ['boolean', ['get', 'isNodata'], false], 0.5, 0.9],
+            },
+          });
+          map.addLayer({
+            id: 'occurrences' + idSuffix + '-shapes-layer',
+            type: 'symbol',
+            source: sourceId,
+            filter: extraFilter ? ['all', extraFilter, shapeFilter] : shapeFilter,
+            layout: {
+              'icon-image': ['get', 'iconKey'],
+              'icon-size': 1,
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+            },
+            paint: {
+              'icon-opacity': ['case', ['boolean', ['get', 'isNodata'], false], 0.5, 0.9],
+            },
+          });
+        }
+
+        // Mirrors Leaflet's useVisibilityManagedClustering: below the
+        // threshold, points render individually with no clustering at all,
+        // full stop — no second source, no dynamic mode-switching needed.
+        // Above it, both modes exist and MODE is re-evaluated on every
+        // moveend (see updateClusterMode) based on how many points are
+        // currently inside the viewport, not the total dataset size —
+        // matching Leaflet's shouldShowVisibleIndividuals check exactly.
+        // clusterRadius matches leaflet.markercluster's default
+        // maxClusterRadius (80px); clusterMaxZoom is left high (Leaflet
+        // doesn't set disableClusteringAtZoom either) so clustering keeps
+        // applying all the way in — clusters only stop forming once points
+        // are naturally farther apart than the radius at that zoom.
+        var useClustering = validPoints.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+
         map.addSource('occurrences', {
           type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: points
-              .filter(function(pt) { return typeof pt.latitude === 'number' && typeof pt.longitude === 'number'; })
-              .map(function(pt) {
-                return {
-                  type: 'Feature',
-                  geometry: { type: 'Point', coordinates: [pt.longitude, pt.latitude] },
-                  properties: {
-                    catalog: pt.popupCatalogValue || '',
-                    catalogHref: pt.popupCatalogHref || '',
-                    catalogLabel: pt.popupCatalogLabel || '',
-                    varValue: pt.varValue != null ? pt.varValue : null,
-                    varColor: pt.varColor || null,
-                  },
-                };
-              }),
-          },
+          data: buildOccurrenceFeatureCollection(validPoints),
+          cluster: false,
         });
-        map.addLayer({
-          id: 'occurrences-layer',
-          type: 'circle',
-          source: 'occurrences',
-          paint: {
-            'circle-radius': 5,
-            'circle-color': ['coalesce', ['get', 'varColor'], palette.markerFill],
-            'circle-stroke-color': palette.markerStroke,
-            'circle-stroke-width': 1,
-            'circle-opacity': 0.9,
-          },
-        });
+        addOccurrencePointLayers('occurrences', '', null);
 
-        map.on('click', 'occurrences-layer', function(e) {
+        if (useClustering) {
+          map.addSource('occurrences-clustered', {
+            type: 'geojson',
+            data: buildOccurrenceFeatureCollection(validPoints),
+            cluster: true,
+            clusterMaxZoom: 24,
+            clusterRadius: 80,
+          });
+          addOccurrencePointLayers('occurrences-clustered', '-clustered', ['!', ['has', 'point_count']]);
+          map.addLayer({
+            id: CLUSTER_LAYER_ID,
+            type: 'circle',
+            source: 'occurrences-clustered',
+            filter: ['has', 'point_count'],
+            paint: {
+              'circle-radius': ['step', ['get', 'point_count'], 14, 10, 18, 100, 24],
+              // Themed via palette.markerFill (the app's brand/green token,
+              // same one plain markers use) rather than a hardcoded color —
+              // larger clusters get progressively more opaque instead of a
+              // different hue, so the whole cluster UI stays one color.
+              'circle-color': palette.markerFill,
+              'circle-opacity': ['step', ['get', 'point_count'], 0.75, 10, 0.85, 100, 0.95],
+              'circle-stroke-color': '#fff',
+              'circle-stroke-width': 2,
+            },
+          });
+          map.addLayer({
+            id: CLUSTER_COUNT_LAYER_ID,
+            type: 'symbol',
+            source: 'occurrences-clustered',
+            filter: ['has', 'point_count'],
+            layout: {
+              'text-field': ['get', 'point_count_abbreviated'],
+              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              'text-size': 12,
+              'text-allow-overlap': true,
+              'text-ignore-placement': true,
+            },
+            paint: {
+              'text-color': '#fff',
+            },
+          });
+        }
+
+        OCCURRENCE_LAYERS = [
+          { id: 'occurrences-layer', baseFilter: ['!', ['get', 'hasShape']] },
+          { id: 'occurrences-shapes-layer', baseFilter: ['get', 'hasShape'] },
+        ];
+        if (useClustering) {
+          OCCURRENCE_LAYERS.push(
+            { id: 'occurrences-clustered-layer', baseFilter: ['all', ['!', ['has', 'point_count']], ['!', ['get', 'hasShape']]] },
+            { id: 'occurrences-clustered-shapes-layer', baseFilter: ['all', ['!', ['has', 'point_count']], ['get', 'hasShape']] }
+          );
+        }
+        OCCURRENCE_LAYER_IDS = OCCURRENCE_LAYERS.map(function(l) { return l.id; });
+        ALL_MARKER_LAYER_IDS = OCCURRENCE_LAYER_IDS.concat(useClustering ? [CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID] : []);
+
+        var INDIVIDUAL_MODE_LAYER_IDS = ['occurrences-layer', 'occurrences-shapes-layer'];
+        var CLUSTERED_MODE_LAYER_IDS = ['occurrences-clustered-layer', 'occurrences-clustered-shapes-layer', CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID];
+
+        function setMarkerMode(mode) {
+          var showIndividual = mode === 'individual';
+          INDIVIDUAL_MODE_LAYER_IDS.forEach(function(id) {
+            map.setLayoutProperty(id, 'visibility', showIndividual ? 'visible' : 'none');
+          });
+          CLUSTERED_MODE_LAYER_IDS.forEach(function(id) {
+            map.setLayoutProperty(id, 'visibility', showIndividual ? 'none' : 'visible');
+          });
+        }
+
+        // bounds.contains is a reasonable approximation for the deep-zoom
+        // views this actually matters for; it isn't antimeridian-exact at
+        // extreme zoomed-out globe angles, but at that scale the visible
+        // count is always far above the threshold anyway (clustered mode),
+        // so any imprecision there is inconsequential.
+        function updateClusterMode() {
+          if (!useClustering) return;
+          var bounds = map.getBounds();
+          var visibleCount = 0;
+          for (var i = 0; i < validPoints.length; i++) {
+            if (bounds.contains([validPoints[i].longitude, validPoints[i].latitude])) visibleCount++;
+          }
+          var wantIndividual = visibleCount > 0 && visibleCount <= MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+          setMarkerMode(wantIndividual ? 'individual' : 'clustered');
+        }
+        if (useClustering) {
+          map.on('moveend', updateClusterMode);
+        }
+
+        // Unlike Leaflet (which always fits the view to the observation
+        // points when there are any), the globe otherwise just opens at the
+        // fixed default center/zoom — meaning real occurrence data could be
+        // sitting anywhere on the sphere, off-screen, looking like there
+        // are no markers at all. map.fitBounds() is deliberately NOT used
+        // here — MapLibre has several open bugs around bounds-fitting
+        // specifically under globe projection (e.g. maxBounds not being
+        // respected, camera fitting behaving oddly), so instead of trusting
+        // its globe-aware camera math, the center/zoom are computed here
+        // with plain arithmetic and applied directly.
+        if (validPoints.length) {
+          var minLng = validPoints[0].longitude, maxLng = validPoints[0].longitude;
+          var minLat = validPoints[0].latitude, maxLat = validPoints[0].latitude;
+          var sumLng = 0, sumLat = 0;
+          validPoints.forEach(function(pt) {
+            if (pt.longitude < minLng) minLng = pt.longitude;
+            if (pt.longitude > maxLng) maxLng = pt.longitude;
+            if (pt.latitude < minLat) minLat = pt.latitude;
+            if (pt.latitude > maxLat) maxLat = pt.latitude;
+            sumLng += pt.longitude;
+            sumLat += pt.latitude;
+          });
+          var centerLng = sumLng / validPoints.length;
+          var centerLat = sumLat / validPoints.length;
+          var lngSpan = Math.max(maxLng - minLng, 0.02);
+          var latSpan = Math.max(maxLat - minLat, 0.02);
+          // Rough "which zoom level would this span fit at" table — doesn't
+          // need to be exact, just needs to reliably land on-screen.
+          var span = Math.max(lngSpan, latSpan);
+          var fitZoom =
+            span > 170 ? 1 :
+            span > 90 ? 2 :
+            span > 45 ? 3 :
+            span > 22 ? 4 :
+            span > 11 ? 5 :
+            span > 6 ? 6 :
+            span > 3 ? 7 :
+            span > 1.5 ? 8 :
+            span > 0.75 ? 9 :
+            span > 0.35 ? 10 :
+            span > 0.18 ? 11 :
+            span > 0.09 ? 12 :
+            13;
+          var zoom = Math.max(CUSTOM_MIN_ZOOM, fitZoom);
+          if (CUSTOM_MAX_ZOOM !== null) zoom = Math.min(zoom, CUSTOM_MAX_ZOOM);
+          console.log('[markers-debug] setting view center=[' + centerLng + ',' + centerLat + '] zoom=' + zoom + ' (lngSpan=' + lngSpan + ' latSpan=' + latSpan + ')');
+          map.jumpTo({ center: [centerLng, centerLat], zoom: zoom });
+        }
+
+        function handleOccurrenceMarkerClick(e) {
           var feature = e.features && e.features[0];
           if (!feature) return;
+          // Without this, the generic map-level click handler below (used
+          // for empty-map point queries) also fires for this same click —
+          // MapLibre doesn't stop propagation to it automatically the way
+          // Leaflet does for marker clicks — producing a second, unwanted
+          // "background point" popup right alongside the observation one.
+          e.preventDefault();
           var props = feature.properties;
           var lngLat = feature.geometry.coordinates;
           if (ALLOW_PIN_OBSERVATIONS && props.catalog) {
@@ -779,12 +1199,45 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           }
           if (props.varValue != null) {
             postToParent({ type: 'pointValue', value: props.varValue });
-            html += formatPointValueHtml(props.varValue, VAR_UNITS);
+            html += buildMarkerValueHtml({
+              varValue: props.varValue,
+              varColor: props.rawVarColor,
+              varLabel: props.varLabel,
+            });
           }
           new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
+        }
+
+        OCCURRENCE_LAYER_IDS.forEach(function(layerId) {
+          map.on('click', layerId, handleOccurrenceMarkerClick);
         });
-        map.on('mouseenter', 'occurrences-layer', function() { map.getCanvas().style.cursor = 'pointer'; });
-        map.on('mouseleave', 'occurrences-layer', function() { map.getCanvas().style.cursor = ''; });
+
+        function handleClusterClick(e) {
+          var feature = e.features && e.features[0];
+          if (!feature) return;
+          e.preventDefault();
+          var clusterId = feature.properties.cluster_id;
+          map.getSource('occurrences-clustered').getClusterExpansionZoom(clusterId, function(err, zoom) {
+            if (err) return;
+            map.easeTo({ center: feature.geometry.coordinates, zoom: zoom });
+          });
+        }
+        map.on('click', CLUSTER_LAYER_ID, handleClusterClick);
+        map.on('click', CLUSTER_COUNT_LAYER_ID, handleClusterClick);
+
+        ALL_MARKER_LAYER_IDS.forEach(function(layerId) {
+          map.on('mouseenter', layerId, function() { map.getCanvas().style.cursor = 'pointer'; });
+          map.on('mouseleave', layerId, function() { map.getCanvas().style.cursor = ''; });
+        });
+        applyPendingHighlights();
+        // Set the initial individual-vs-clustered mode now that the camera
+        // is in its final position (see updateClusterMode/jumpTo above) —
+        // subsequent re-evaluation happens on 'moveend'.
+        updateClusterMode();
+
+        } catch (markerError) {
+          console.error('[markers-debug] error while adding occurrence markers:', markerError);
+        }
       }
 
       postBounds();
@@ -793,6 +1246,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     map.on('click', function(event) {
       if (event.defaultPrevented) return;
+      // event.defaultPrevented alone isn't reliable here — query directly
+      // instead of trusting it propagated from the layer-specific handler.
+      if (occurrenceLayersExist()) {
+        var hits = map.queryRenderedFeatures(event.point, { layers: ALL_MARKER_LAYER_IDS });
+        if (hits && hits.length) return;
+      }
       var latitude = event.lngLat.lat;
       var longitude = event.lngLat.lng;
 
@@ -918,6 +1377,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
       if (!data || !data.type) return;
 
+      if (data.type === HIGHLIGHT_MESSAGE_TYPE) {
+        applyHighlights(data.catalogs);
+        return;
+      }
+
       if (data.type === 'heatmapUpdate') {
         if (data.heatmapTileUrl != null) {
           pendingHeatmapUrl = data.heatmapTileUrl;
@@ -933,12 +1397,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (Array.isArray(data.circularStops) && data.circularStops.length > 0) ASPECT_STOPS = data.circularStops;
         if (data.classColors !== undefined) CLASS_COLORS = data.classColors;
         if (data.classLabels !== undefined) CLASS_LABELS = data.classLabels;
+        if (data.markerOutline !== undefined) MARKER_OUTLINE = data.markerOutline;
         return;
       }
 
       if (data.type === 'colormapUpdate') {
         if (Array.isArray(data.stops)) GRADIENT_STOPS = data.stops;
         if (Array.isArray(data.circularStops) && data.circularStops.length > 0) ASPECT_STOPS = data.circularStops;
+        // Matches Leaflet: only continuous (gradient) and circular (aspect)
+        // marker colors get live-recolored here — categorical classColors-
+        // driven markers don't, in either renderer, since that's not what a
+        // colormap picker change actually means for those.
+        refreshOccurrenceMarkerColors();
         return;
       }
     }

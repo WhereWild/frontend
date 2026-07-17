@@ -2,7 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-export type ColormapId = 'viridis' | 'plasma' | 'inferno' | 'magma' | 'cividis';
+export type ColormapId =
+  | 'viridis'
+  | 'plasma'
+  | 'inferno'
+  | 'magma'
+  | 'cividis'
+  | 'gray';
 
 export type ColormapDef = {
   id: ColormapId;
@@ -109,6 +115,27 @@ const CIVIDIS_STOPS: [number, number, number][] = [
   [254, 232, 56],
 ];
 
+// matplotlib's 'gray' colormap is a pure linear ramp from black (0) to
+// white (1), so these 16 stops are exact (255 / 15 = 17 with no rounding).
+const GRAY_STOPS: [number, number, number][] = [
+  [0, 0, 0],
+  [17, 17, 17],
+  [34, 34, 34],
+  [51, 51, 51],
+  [68, 68, 68],
+  [85, 85, 85],
+  [102, 102, 102],
+  [119, 119, 119],
+  [136, 136, 136],
+  [153, 153, 153],
+  [170, 170, 170],
+  [187, 187, 187],
+  [204, 204, 204],
+  [221, 221, 221],
+  [238, 238, 238],
+  [255, 255, 255],
+];
+
 function makeBarCss(stops: [number, number, number][]): string {
   const reversed = [...stops].reverse();
   const parts = reversed.map((s) => `rgb(${s[0]},${s[1]},${s[2]})`);
@@ -172,6 +199,14 @@ export const COLORMAPS: Record<ColormapId, ColormapDef> = {
     swatchCss: makeSwatchCss(CIVIDIS_STOPS),
     barSvgStops: makeBarSvgStops(CIVIDIS_STOPS),
   },
+  gray: {
+    id: 'gray',
+    label: 'Grayscale',
+    stops: GRAY_STOPS,
+    barCss: makeBarCss(GRAY_STOPS),
+    swatchCss: makeSwatchCss(GRAY_STOPS),
+    barSvgStops: makeBarSvgStops(GRAY_STOPS),
+  },
 };
 
 export const COLORMAP_ORDER: ColormapId[] = [
@@ -180,6 +215,7 @@ export const COLORMAP_ORDER: ColormapId[] = [
   'inferno',
   'magma',
   'cividis',
+  'gray',
 ];
 
 export const DEFAULT_COLORMAP: ColormapId = 'viridis';
