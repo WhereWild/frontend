@@ -219,6 +219,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       attribution: TILE_ATTRIBUTION,
       maxZoom: TILE_MAX_ZOOM,
       referrerPolicy: TILE_REFERRER_POLICY,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      keepBuffer: 4,
     });
 
     const originalCreateTile = tileLayer.createTile;
@@ -392,6 +395,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         referrerPolicy: TILE_REFERRER_POLICY,
         pane: 'linesPane',
         opacity: 0.5,
+        updateWhenIdle: true,
+        updateWhenZooming: false,
+        keepBuffer: 4,
       }).addTo(map);
     }
 
@@ -402,6 +408,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         referrerPolicy: TILE_REFERRER_POLICY,
         pane: 'labelsPane',
         opacity: 0.8,
+        updateWhenIdle: true,
+        updateWhenZooming: false,
+        keepBuffer: 4,
       }).addTo(map);
     }
 
