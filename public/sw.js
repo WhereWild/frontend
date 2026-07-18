@@ -13,6 +13,31 @@ const NETWORK_ONLY_PREFIXES = ['/api/', '/search', '/maps', '/map', '/species/',
 // Content-hashed static assets served cache-first forever.
 const CACHE_FIRST_PREFIXES = ['/_expo/static/', '/assets/'];
 
+// Basemap tile hosts cached client-side (cache-first). Stadia's terms cap
+// client-side tile caching at 7 days, so the cache bucket rotates weekly —
+// looking up a request always targets the current bucket, which structurally
+// prevents ever serving an entry older than the cap (see stadiaCacheName()).
+const TILE_CACHE_HOSTS = new Set(['tiles.stadiamaps.com']);
+const TILE_CACHE_PREFIX = 'stadia-tiles-';
+const TILE_CACHE_BUCKET_MS = 7 * 24 * 60 * 60 * 1000;
+
+function stadiaCacheName() {
+  return `${TILE_CACHE_PREFIX}${Math.floor(Date.now() / TILE_CACHE_BUCKET_MS)}`;
+}
+
+async function cachedTileResponse(request) {
+  const cache = await caches.open(stadiaCacheName());
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  // Cross-origin tile <img> loads are typically opaque (status 0, unreadable
+  // body) — they're still cacheable as opaque responses, just not inspectable.
+  if (response.ok || response.type === 'opaque') {
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
 self.addEventListener('install', (event) => {
   // Pre-cache the offline-capable route shells.
   event.waitUntil(
@@ -28,7 +53,11 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith('wherewild-') && key !== CACHE_NAME)
+            .filter(
+              (key) =>
+                (key.startsWith('wherewild-') && key !== CACHE_NAME) ||
+                (key.startsWith(TILE_CACHE_PREFIX) && key !== stadiaCacheName()),
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -43,6 +72,12 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+
+  // Basemap tiles: cache-first across origins, capped to a rolling weekly bucket.
+  if (TILE_CACHE_HOSTS.has(url.hostname)) {
+    event.respondWith(cachedTileResponse(request));
+    return;
+  }
 
   // Different origin — let the browser handle it.
   if (url.origin !== self.location.origin) return;
