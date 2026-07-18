@@ -5,14 +5,23 @@
 import React from 'react';
 import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 import {
-  formatWindowHours,
-  parseTemporalId,
-  stripTemporalSuffix,
-} from '@/components/sections/speciesEnvironment/temporalHelpers';
-import { IconRotateCcw } from '@/assets/icons';
-import type { SpeciesSummary } from '@/data/types';
+  IconChevronLeft,
+  IconChevronRight,
+  IconRotateCcw,
+} from '@/assets/icons';
+import type {
+  EnvironmentVariableDefinition,
+  SpeciesSummary,
+} from '@/data/types';
+import type { FilterPredicate } from '@/hooks/search/filters/useSearchFilters.state';
+import {
+  useVariableGroupSelection,
+  type VariableGroupInfo,
+} from '@/hooks/search/filters/useVariableGroupSelection';
 import { SearchResults } from '../lists/SearchResults';
+import { SearchFilterPredicates } from './SearchFilterPredicates';
 import { ButtonDanger } from '@/components/buttons/ButtonDanger';
+import { IconButton } from '@/components/buttons/IconButton';
 import { NumberSpinner } from '@/components/inputs/NumberSpinner';
 import { RadioField } from '@/components/inputs/RadioField';
 import { SearchInput } from '@/components/inputs/SearchInput';
@@ -36,23 +45,6 @@ const prependAllOption = (
   }
   return [{ label, value: '' }, ...options];
 };
-
-type VariableGroupInfo = {
-  id: string;
-  group?: string | null;
-  groupLabel?: string | null;
-  agg?: string | null;
-  units?: string | null;
-};
-
-const AGG_LABELS: Record<string, string> = {
-  max: 'Maximum',
-  mean: 'Mean',
-  min: 'Minimum',
-  range: 'Range',
-};
-
-const AGG_ORDER = ['mean', 'min', 'max', 'range'];
 
 export type FiltersProps = {
   /** Location */
@@ -105,6 +97,18 @@ export type FiltersProps = {
   minRbar: number;
   onMinRbarChange?: (value: number) => void;
   rankingFilterHint?: string | null;
+  /** Total results for the active query — drives the pager's page count. */
+  totalResults?: number;
+
+  /** Filter predicates (chained stat filters) */
+  predicates?: FilterPredicate[];
+  filterVariableDefinitions?: EnvironmentVariableDefinition[];
+  onAddFilterPredicate?: () => void;
+  onRemoveFilterPredicate?: (id: string) => void;
+  onUpdateFilterPredicate?: (
+    id: string,
+    patch: Partial<Omit<FilterPredicate, 'id'>>,
+  ) => void;
 
   /** Quantity */
   numberOfResults: number;
@@ -165,6 +169,12 @@ export function Filters({
   minRbar,
   onMinRbarChange,
   rankingFilterHint,
+  totalResults = 0,
+  predicates = [],
+  filterVariableDefinitions = [],
+  onAddFilterPredicate,
+  onRemoveFilterPredicate,
+  onUpdateFilterPredicate,
   numberOfResults,
   onNumberOfResultsChange,
   minimumSamples,
@@ -179,115 +189,30 @@ export function Filters({
     sortVariableIsCircular &&
     (sortMetricValue === 'circular_mean' || sortMetricValue === 'mode');
 
-  const sortVariableDefMap = React.useMemo(
-    () => new Map(sortVariableDefinitions.map((d) => [d.id, d])),
-    [sortVariableDefinitions],
-  );
+  const pageSize = numberOfResults > 0 ? numberOfResults : 1;
+  const currentPage = Math.floor(listOffset / pageSize) + 1;
+  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+  const onPreviousPage = React.useCallback(() => {
+    onListOffsetChange?.(Math.max(0, listOffset - pageSize));
+  }, [listOffset, onListOffsetChange, pageSize]);
+  const onNextPage = React.useCallback(() => {
+    onListOffsetChange?.(listOffset + pageSize);
+  }, [listOffset, onListOffsetChange, pageSize]);
 
-  const baseVariableOptions = React.useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const option of sortVariableOptions) {
-      const parsed = parseTemporalId(option.value);
-      if (parsed) {
-        if (!seen.has(parsed.baseId)) {
-          seen.set(parsed.baseId, stripTemporalSuffix(option.label));
-        }
-      } else {
-        const def = sortVariableDefMap.get(option.value);
-        if (def?.group && def?.agg) {
-          if (!seen.has(def.group)) {
-            const base = def.groupLabel ?? option.label;
-            seen.set(def.group, def.units ? `${base} (${def.units})` : base);
-          }
-        } else {
-          if (!seen.has(option.value)) {
-            seen.set(option.value, option.label);
-          }
-        }
-      }
-    }
-    return Array.from(seen.entries()).map(([value, label]) => ({
-      value,
-      label,
-    }));
-  }, [sortVariableOptions, sortVariableDefMap]);
-
-  const parsedSortVariable = React.useMemo(
-    () => parseTemporalId(sortVariableValue),
-    [sortVariableValue],
-  );
-
-  const selectedSortVariableDef = sortVariableDefMap.get(sortVariableValue);
-  const selectedBaseKey =
-    parsedSortVariable?.baseId ??
-    (selectedSortVariableDef?.group && selectedSortVariableDef?.agg
-      ? selectedSortVariableDef.group
-      : sortVariableValue);
-
-  const windowOptions = React.useMemo(() => {
-    if (!parsedSortVariable || !selectedBaseKey) return [];
-    return sortVariableOptions
-      .flatMap((option) => {
-        const p = parseTemporalId(option.value);
-        return p && p.baseId === selectedBaseKey
-          ? [{ p, value: option.value }]
-          : [];
-      })
-      .sort((a, b) => a.p.windowHours - b.p.windowHours)
-      .map(({ p, value }) => ({
-        value,
-        label: `${formatWindowHours(p.windowHours)} (${p.agg})`,
-      }));
-  }, [parsedSortVariable, selectedBaseKey, sortVariableOptions]);
-
-  const climateAggOptions = React.useMemo(() => {
-    if (!selectedSortVariableDef?.group || !selectedSortVariableDef?.agg)
-      return [];
-    const group = selectedSortVariableDef.group;
-    const options = sortVariableOptions
-      .filter((option) => {
-        const d = sortVariableDefMap.get(option.value);
-        return d?.group === group && d?.agg;
-      })
-      .map((option) => {
-        const d = sortVariableDefMap.get(option.value)!;
-        return { value: option.value, label: AGG_LABELS[d.agg!] ?? d.agg! };
-      })
-      .sort(
-        (a, b) =>
-          AGG_ORDER.indexOf(sortVariableDefMap.get(a.value)?.agg ?? '') -
-          AGG_ORDER.indexOf(sortVariableDefMap.get(b.value)?.agg ?? ''),
-      );
-    return options;
-  }, [selectedSortVariableDef, sortVariableOptions, sortVariableDefMap]);
-
-  const handleBaseChange = React.useCallback(
-    (newBase: string) => {
-      const firstWindow = sortVariableOptions
-        .flatMap((option) => {
-          const p = parseTemporalId(option.value);
-          return p && p.baseId === newBase ? [{ p, value: option.value }] : [];
-        })
-        .sort((a, b) => a.p.windowHours - b.p.windowHours)[0];
-      if (firstWindow) {
-        onSortVariableChange?.(firstWindow.value);
-        return;
-      }
-      const groupVariants = sortVariableOptions.filter((option) => {
-        const d = sortVariableDefMap.get(option.value);
-        return d?.group === newBase && d?.agg;
-      });
-      if (groupVariants.length > 0) {
-        const meanVariant = groupVariants.find(
-          (option) => sortVariableDefMap.get(option.value)?.agg === 'mean',
-        );
-        onSortVariableChange?.((meanVariant ?? groupVariants[0]).value);
-        return;
-      }
-      onSortVariableChange?.(newBase);
-    },
-    [sortVariableOptions, sortVariableDefMap, onSortVariableChange],
-  );
+  const {
+    baseVariableOptions,
+    selectedBaseKey,
+    windowOptions,
+    climateAggOptions,
+    onBaseChange: handleBaseChange,
+  } = useVariableGroupSelection({
+    variableOptions: sortVariableOptions,
+    variableDefinitions: sortVariableDefinitions,
+    selectedValue: sortVariableValue,
+    onSelectedValueChange: onSortVariableChange,
+  });
 
   const countrySelectOptions = React.useMemo(
     () => prependAllOption(countryOptions, 'All countries'),
@@ -419,38 +344,26 @@ export function Filters({
             onValueChange={() => onSortOrderChange?.('descending')}
           />
         </View>
-        {sortMetricValue.length > 0 && (
+        {sortMetricValue.length > 0 && isCircularBearing && (
           <>
-            {isCircularBearing ? (
-              <>
-                <NumberSpinner
-                  label='Offset (°)'
-                  description='Starting bearing for the sort walk (0–359°).'
-                  value={sortReference}
-                  min={0}
-                  max={359}
-                  onValueChange={onSortReferenceChange}
-                />
-                <NumberSpinner
-                  label='Min. concentration (R̄)'
-                  description='Exclude taxa whose circular mean has low concentration. Each step = 0.05; set to 0 to disable.'
-                  value={minRbar}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  precision={2}
-                  onValueChange={onMinRbarChange}
-                />
-              </>
-            ) : (
-              <NumberSpinner
-                label='Offset'
-                description='Skip this many results — shows the list starting from this position.'
-                value={listOffset}
-                min={0}
-                onValueChange={onListOffsetChange}
-              />
-            )}
+            <NumberSpinner
+              label='Offset (°)'
+              description='Starting bearing for the sort walk (0–359°).'
+              value={sortReference}
+              min={0}
+              max={359}
+              onValueChange={onSortReferenceChange}
+            />
+            <NumberSpinner
+              label='Min. concentration (R̄)'
+              description='Exclude taxa whose circular mean has low concentration. Each step = 0.05; set to 0 to disable.'
+              value={minRbar}
+              min={0}
+              max={1}
+              step={0.05}
+              precision={2}
+              onValueChange={onMinRbarChange}
+            />
           </>
         )}
         <NumberSpinner
@@ -461,6 +374,41 @@ export function Filters({
           onValueChange={onMinimumSamplesChange}
         />
       </View>
+
+      <SearchFilterPredicates
+        predicates={predicates}
+        variableDefinitions={filterVariableDefinitions}
+        onAddPredicate={onAddFilterPredicate}
+        onRemovePredicate={onRemoveFilterPredicate}
+        onUpdatePredicate={onUpdateFilterPredicate}
+      />
+
+      {totalPages > 1 && (
+        <View style={styles.subSection}>
+          <ThemedText variant='subheading'>Page</ThemedText>
+          <View style={styles.pagerRow}>
+            <IconButton
+              icon={<IconChevronLeft />}
+              variant='neutral'
+              size='medium'
+              disabled={!canGoPrevious}
+              accessibilityLabel='Previous page'
+              onPress={onPreviousPage}
+            />
+            <ThemedText variant='body'>
+              Page {currentPage} of {totalPages}
+            </ThemedText>
+            <IconButton
+              icon={<IconChevronRight />}
+              variant='neutral'
+              size='medium'
+              disabled={!canGoNext}
+              accessibilityLabel='Next page'
+              onPress={onNextPage}
+            />
+          </View>
+        </View>
+      )}
 
       {/* Location */}
       <View style={styles.subSection}>
@@ -540,6 +488,11 @@ const styles = StyleSheet.create({
   },
   sortOrderOption: {
     flex: 1,
+  },
+  pagerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
   },
   switchFieldFull: {
     maxWidth: '100%',

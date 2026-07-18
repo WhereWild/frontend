@@ -32,6 +32,7 @@ describe('useSearchController', () => {
       searchContext: null,
       searchError: null,
       searchResults: [],
+      searchTotal: 0,
       searching: false,
     });
   });

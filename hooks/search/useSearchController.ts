@@ -36,17 +36,19 @@ export function useSearchController({
   }, [isNative, nativeInitialQuery]);
 
   const resolvedSearchQuery = isNative ? nativeSearchQuery : searchQuery;
-  const { searchContext, searchResults, searching } = useTaxaQuerySearch({
-    enabled: searchEnabled && (isNative || isWeb),
-    query: resolvedSearchQuery,
-    filterParams,
-  });
+  const { searchContext, searchResults, searchTotal, searching } =
+    useTaxaQuerySearch({
+      enabled: searchEnabled && (isNative || isWeb),
+      query: resolvedSearchQuery,
+      filterParams,
+    });
 
   return {
     nativeSearchQuery,
     setNativeSearchQuery,
     searchContext,
     searchResults,
+    searchTotal,
     searching,
   };
 }

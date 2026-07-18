@@ -78,6 +78,7 @@ describe('searchRouteState', () => {
       sortVariableValue: '',
       sortMetricValue: '',
       sortOrder: 'ascending',
+      predicates: [],
     });
   });
 
@@ -175,6 +176,7 @@ describe('searchRouteState', () => {
       sortVariableValue: '',
       sortMetricValue: '',
       sortOrder: 'ascending',
+      predicates: [],
     });
   });
 

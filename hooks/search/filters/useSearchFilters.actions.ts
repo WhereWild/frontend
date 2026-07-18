@@ -9,6 +9,7 @@ import {
   resolveAncestorTaxonId,
 } from './useSearchFilters.helpers';
 import type {
+  FilterPredicate,
   SearchFilterLocationInitialState,
   SearchFiltersAction,
   SearchFiltersState,
@@ -163,6 +164,7 @@ export function useSearchFiltersActions({
   const onSortVariableChange = React.useCallback(
     (value: string) => {
       dispatch({ type: 'set-sort-variable', value });
+      dispatch({ type: 'set-list-offset', value: 0 });
     },
     [dispatch],
   );
@@ -170,6 +172,7 @@ export function useSearchFiltersActions({
   const onSortMetricChange = React.useCallback(
     (value: string) => {
       dispatch({ type: 'set-sort-metric', value });
+      dispatch({ type: 'set-list-offset', value: 0 });
     },
     [dispatch],
   );
@@ -216,6 +219,24 @@ export function useSearchFiltersActions({
     [dispatch],
   );
 
+  const onAddFilterPredicate = React.useCallback(() => {
+    dispatch({ type: 'add-filter-predicate' });
+  }, [dispatch]);
+
+  const onRemoveFilterPredicate = React.useCallback(
+    (id: string) => {
+      dispatch({ type: 'remove-filter-predicate', id });
+    },
+    [dispatch],
+  );
+
+  const onUpdateFilterPredicate = React.useCallback(
+    (id: string, patch: Partial<Omit<FilterPredicate, 'id'>>) => {
+      dispatch({ type: 'update-filter-predicate', id, patch });
+    },
+    [dispatch],
+  );
+
   const onResetFilters = React.useCallback(() => {
     invalidateBaseTaxonSubmit();
     clearBaseTaxonDismissTimeout();
@@ -243,6 +264,9 @@ export function useSearchFiltersActions({
     onSortReferenceChange,
     onListOffsetChange,
     onMinRbarChange,
+    onAddFilterPredicate,
+    onRemoveFilterPredicate,
+    onUpdateFilterPredicate,
     onResetFilters,
   };
 }

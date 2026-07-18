@@ -98,6 +98,7 @@ export function useSearchRouteSync({
   const [, setPopStateVersion] = useState(0);
   const {
     descendantRank,
+    filters,
     includeSpeciesLike,
     limit,
     listOffset,
@@ -134,9 +135,11 @@ export function useSearchRouteSync({
         minRbar,
         minSamples,
         limit,
+        filters,
       }),
     [
       descendantRank,
+      filters,
       includeSpeciesLike,
       limit,
       listOffset,

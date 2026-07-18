@@ -103,6 +103,9 @@ export type { NavigationBarProps } from './sections/navigationBar/NavigationBar'
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
 export { SpeciesObservationFilters } from './sections/SpeciesObservationFilters';
 
+export { SearchFilterPredicates } from './sections/SearchFilterPredicates';
+export type { SearchFilterPredicatesProps } from './sections/SearchFilterPredicates';
+
 export { SpeciesTimestampFilters } from './sections/SpeciesTimestampFilters';
 export type { SpeciesTimestampFiltersProps } from './sections/SpeciesTimestampFilters';
 

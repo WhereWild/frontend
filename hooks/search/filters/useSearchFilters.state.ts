@@ -33,12 +33,51 @@ export type SearchFilterRankingInitialState = {
   listOffset?: number;
   /** R̄ threshold (0.00–1.00). */
   minRbar?: number;
+  predicates?: FilterPredicate[];
 };
 
 export type SearchFilterQuantityInitialState = {
   numberOfResults?: number;
   minimumSamples?: number;
 };
+
+export type FilterOperator = 'gte' | 'gt' | 'lte' | 'lt' | 'eq' | 'ne';
+
+/**
+ * 'stat' filters a scalar summary metric (e.g. bio1 mean < 20).
+ * 'category' filters one nominal/ordinal legend class's share of a taxon's
+ * observations (e.g. at least 10% — or 10 raw observations, via `asCount` —
+ * in ecoregion "Great Basin montane forests").
+ */
+export type FilterPredicateMode = 'stat' | 'category';
+
+export type FilterPredicate = {
+  id: string;
+  variable: string;
+  mode: FilterPredicateMode;
+  /** Scalar metric id — used when mode === 'stat'. */
+  metric: string;
+  /** Legend class id (as a string) — used when mode === 'category'. */
+  categoryId: string;
+  /** Category mode only: compare the reconstructed raw observation count
+   * instead of the percentage share. */
+  asCount: boolean;
+  op: FilterOperator;
+  value: number | null;
+};
+
+let filterPredicateIdCounter = 0;
+
+export const createEmptyFilterPredicate = (): FilterPredicate => ({
+  id: `filter-predicate-${++filterPredicateIdCounter}`,
+  variable: '',
+  mode: 'stat',
+  metric: '',
+  categoryId: '',
+  asCount: false,
+  op: 'gte',
+  value: null,
+});
 
 export type UseSearchFiltersInitialState = {
   location?: SearchFilterLocationInitialState;
@@ -82,6 +121,7 @@ export type SearchFiltersState = {
   sortReference: number;
   listOffset: number;
   minRbar: number;
+  predicates: FilterPredicate[];
   numberOfResults: number;
   minimumSamples: number;
   debouncedQuantity: typeof DEFAULT_QUANTITY;
@@ -139,6 +179,13 @@ export type SearchFiltersAction =
   | { type: 'set-sort-reference'; value: number }
   | { type: 'set-list-offset'; value: number }
   | { type: 'set-min-rbar'; value: number }
+  | { type: 'add-filter-predicate' }
+  | { type: 'remove-filter-predicate'; id: string }
+  | {
+      type: 'update-filter-predicate';
+      id: string;
+      patch: Partial<Omit<FilterPredicate, 'id'>>;
+    }
   | { type: 'reset-ranking' }
   | { type: 'set-number-of-results'; value: number }
   | { type: 'set-minimum-samples'; value: number }
@@ -190,6 +237,7 @@ export const createInitialSearchFiltersState = (
     sortReference: initialState?.ranking?.sortReference ?? 0,
     listOffset: initialState?.ranking?.listOffset ?? 0,
     minRbar: initialState?.ranking?.minRbar ?? 0.15,
+    predicates: initialState?.ranking?.predicates ?? [],
     numberOfResults: initialQuantity.numberOfResults,
     minimumSamples: initialQuantity.minimumSamples,
     debouncedQuantity: initialQuantity,
@@ -431,6 +479,7 @@ export const searchFiltersReducer = (
         sortOrder: normalizedState.sortOrder,
         sortReference: normalizedState.sortReference,
         minRbar: normalizedState.minRbar,
+        predicates: normalizedState.predicates,
         numberOfResults: normalizedState.numberOfResults,
         minimumSamples: normalizedState.minimumSamples,
         debouncedQuantity: normalizedState.debouncedQuantity,
@@ -510,6 +559,26 @@ export const searchFiltersReducer = (
       return { ...state, listOffset: action.value };
     case 'set-min-rbar':
       return { ...state, minRbar: action.value };
+    case 'add-filter-predicate':
+      return {
+        ...state,
+        predicates: [...state.predicates, createEmptyFilterPredicate()],
+        listOffset: 0,
+      };
+    case 'remove-filter-predicate':
+      return {
+        ...state,
+        predicates: state.predicates.filter((p) => p.id !== action.id),
+        listOffset: 0,
+      };
+    case 'update-filter-predicate':
+      return {
+        ...state,
+        predicates: state.predicates.map((p) =>
+          p.id === action.id ? { ...p, ...action.patch } : p,
+        ),
+        listOffset: 0,
+      };
     case 'reset-ranking':
       return {
         ...state,
@@ -521,6 +590,7 @@ export const searchFiltersReducer = (
         sortReference: 0,
         listOffset: 0,
         minRbar: 0.15,
+        predicates: [],
         sortVariableLoading: false,
       };
     case 'set-number-of-results':
@@ -558,7 +628,9 @@ export const searchFiltersReducer = (
         sortMetricValue: '',
         sortOrder: 'ascending',
         sortReference: 0,
+        listOffset: 0,
         minRbar: 0.15,
+        predicates: [],
         sortVariableLoading: false,
         numberOfResults: DEFAULT_QUANTITY.numberOfResults,
         minimumSamples: DEFAULT_QUANTITY.minimumSamples,

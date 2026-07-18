@@ -182,6 +182,11 @@ const mockFiltersResult = {
   onListOffsetChange: jest.fn(),
   minRbar: 0.15,
   onMinRbarChange: jest.fn(),
+  predicates: [],
+  filterVariableDefinitions: [],
+  onAddFilterPredicate: jest.fn(),
+  onRemoveFilterPredicate: jest.fn(),
+  onUpdateFilterPredicate: jest.fn(),
   numberOfResults: 10,
   onNumberOfResultsChange: jest.fn(),
   minimumSamples: 0,
@@ -628,6 +633,7 @@ describe('Search screen', () => {
         sortReference: 0,
         minRbar: 0.15,
         listOffset: 0,
+        predicates: [],
       },
       quantity: {
         numberOfResults: 20,
@@ -915,6 +921,7 @@ describe('Search screen', () => {
         sortVariableValue: 'bio_1',
         sortMetricValue: 'median',
         sortOrder: 'descending',
+        predicates: [],
       },
       quantity: {
         minimumSamples: 25,
@@ -966,6 +973,7 @@ describe('Search screen', () => {
           sortVariableValue: 'bio_1',
           sortMetricValue: 'median',
           sortOrder: 'descending',
+          predicates: [],
         },
         quantity: {
           minimumSamples: 25,

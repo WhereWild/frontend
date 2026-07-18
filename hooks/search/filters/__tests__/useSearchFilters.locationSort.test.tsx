@@ -593,6 +593,7 @@ describe('useSearchFilters (location and sort)', () => {
       minSamples: 25,
       limit: 20,
       listOffset: null,
+      filters: [],
     });
   });
 
