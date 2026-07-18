@@ -47,6 +47,7 @@ const rawSourceIds = source?.source_ids ?? source?.sourceIds;
     group: typeof source?.group === 'string' ? source.group : null,
     groupLabel: typeof source?.group_label === 'string' ? source.group_label : null,
     agg: typeof source?.agg === 'string' ? source.agg : null,
+    version: typeof source?.version === 'number' ? source.version : null,
   };
 };
 

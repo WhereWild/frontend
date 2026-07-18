@@ -95,6 +95,7 @@ const toVariableOption = (
     sourceIds: e.sourceIds ?? [],
     group: e.group ?? null,
     groupLabel: e.groupLabel ?? null,
+    version: e.version ?? null,
   }));
 
 const buildTileUrl = ({
@@ -198,7 +199,10 @@ export default function Maps() {
     ? (FORECAST_HOUR_MAP[selectedForecast] ?? 0)
     : 0;
 
-  const tileCacheKey = useMemo(() => Date.now(), []);
+  // Backend derives this from the layer's source-file mtime, so it only
+  // changes when the underlying data is actually rebuilt — letting tile
+  // responses be cached indefinitely instead of busted on every page load.
+  const tileCacheKey = selectedVariableMeta?.version ?? 0;
 
   const tileUrl = useMemo(
     () =>

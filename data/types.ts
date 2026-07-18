@@ -338,6 +338,7 @@ export type EnvironmentVariableDefinition = {
   group?: string | null;
   groupLabel?: string | null;
   agg?: string | null;
+  version?: number | null;
 };
 
 /** Query parameters for numeric environment slice requests. */

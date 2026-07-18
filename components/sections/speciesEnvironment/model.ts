@@ -32,6 +32,7 @@ export type EnvironmentVariableOption = {
   renderMax?: number | null;
   group?: string | null;
   groupLabel?: string | null;
+  version?: number | null;
 };
 
 /** Loading/result state for one categorical class sample request. */
