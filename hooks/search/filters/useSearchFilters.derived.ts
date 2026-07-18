@@ -9,7 +9,125 @@ import {
   deriveLocationGid,
   toRankingFilterHint,
 } from './useSearchFilters.helpers';
-import type { SearchFiltersState } from './useSearchFilters.state';
+import {
+  createEmptyFilterPredicate,
+  type FilterOperator,
+  type FilterPredicate,
+  type SearchFiltersState,
+} from './useSearchFilters.state';
+
+const FILTER_OPERATORS: ReadonlySet<string> = new Set([
+  'gte',
+  'gt',
+  'lte',
+  'lt',
+  'eq',
+  'ne',
+]);
+
+/**
+ * Serializes one predicate row into the backend's "variable:metric:op:value[:count]"
+ * filter-string grammar. Returns null for incomplete rows (still being edited) —
+ * those are silently dropped rather than sent as a malformed filter.
+ *
+ * Category mode value: the UI collects a 0-100 percentage unless `asCount` is
+ * set, in which case the value is a raw observation-count threshold and the
+ * backend reconstructs the actual count from (fraction * total_samples) itself
+ * — see util/rankings.py::_filter_tall. Percentage is converted to the 0-1
+ * fraction the backend expects.
+ */
+export const serializeFilterPredicate = (
+  predicate: FilterPredicate,
+): string | null => {
+  if (!predicate.variable || predicate.value == null || Number.isNaN(predicate.value)) {
+    return null;
+  }
+
+  if (predicate.mode === 'category') {
+    if (!predicate.categoryId) {
+      return null;
+    }
+    const metric = `class_${predicate.categoryId}`;
+    const value = predicate.asCount ? predicate.value : predicate.value / 100;
+    const suffix = predicate.asCount ? ':count' : '';
+    return `${predicate.variable}:${metric}:${predicate.op}:${value}${suffix}`;
+  }
+
+  if (!predicate.metric) {
+    return null;
+  }
+  return `${predicate.variable}:${predicate.metric}:${predicate.op}:${predicate.value}`;
+};
+
+export const toSearchFilterStrings = (
+  predicates: FilterPredicate[],
+): string[] =>
+  predicates
+    .map(serializeFilterPredicate)
+    .filter((value): value is string => value != null);
+
+/**
+ * Inverse of serializeFilterPredicate — reconstructs a predicate row from one
+ * "variable:metric:op:value[:count]" filter string (e.g. when hydrating from
+ * a shared/bookmarked URL). Returns null for anything that doesn't parse.
+ */
+export const parseFilterPredicateString = (
+  raw: string,
+): FilterPredicate | null => {
+  const parts = raw.split(':');
+  if (parts.length < 4 || parts.length > 5) {
+    return null;
+  }
+  const [variable, metric, op, valueStr, modifier] = parts;
+  if (!variable || !metric || !FILTER_OPERATORS.has(op)) {
+    return null;
+  }
+  const rawValue = Number(valueStr);
+  if (!Number.isFinite(rawValue)) {
+    return null;
+  }
+  const asCount = modifier === 'count';
+  if (modifier && !asCount) {
+    return null;
+  }
+
+  const base = createEmptyFilterPredicate();
+  if (metric.startsWith('class_')) {
+    return {
+      ...base,
+      variable,
+      mode: 'category',
+      categoryId: metric.slice('class_'.length),
+      asCount,
+      op: op as FilterOperator,
+      value: asCount ? rawValue : rawValue * 100,
+    };
+  }
+
+  return {
+    ...base,
+    variable,
+    mode: 'stat',
+    metric,
+    op: op as FilterOperator,
+    value: rawValue,
+  };
+};
+
+/** Splits the comma-joined `filters` route param and parses each entry. */
+export const toFilterPredicatesFromRouteValue = (
+  raw?: string,
+): FilterPredicate[] => {
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map(parseFilterPredicateString)
+    .filter((predicate): predicate is FilterPredicate => predicate != null);
+};
 
 const METRIC_SORT_ORDER: Record<string, number> = {
   median: 0,
@@ -99,13 +217,17 @@ export const toSearchFilterParams = (
           : 'desc'
         : null,
     sortReference: isAngularMetric ? state.sortReference : null,
-    listOffset: !isAngularMetric && hasScopedRankingContext && hasCompleteSortSelection && state.listOffset > 0 ? state.listOffset : null,
+    // Every query mode (catalog browse, ranked-scoped, text, ranked-text)
+    // accepts limit/offset generically on the backend, so pagination isn't
+    // gated behind having a sort selected.
+    listOffset: state.listOffset > 0 ? state.listOffset : null,
     minRbar: isAngularMetric && state.minRbar > 0 ? state.minRbar : null,
     minSamples:
       state.debouncedQuantity.minimumSamples > 0
         ? state.debouncedQuantity.minimumSamples
         : null,
     limit: state.debouncedQuantity.numberOfResults,
+    filters: toSearchFilterStrings(state.predicates),
   };
 };
 
@@ -145,6 +267,7 @@ export const getHasActiveSearchFilters = (state: SearchFiltersState) => {
     hasCompleteSortSelection ||
     (hasCompleteSortSelection && state.sortOrder !== 'ascending') ||
     state.numberOfResults !== DEFAULT_QUANTITY.numberOfResults ||
-    state.minimumSamples !== DEFAULT_QUANTITY.minimumSamples,
+    state.minimumSamples !== DEFAULT_QUANTITY.minimumSamples ||
+    state.predicates.length > 0,
   );
 };

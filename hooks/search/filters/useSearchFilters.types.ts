@@ -4,9 +4,10 @@
 
 import type { SearchTaxaQueryFilters } from '@/data/api';
 import type { FiltersProps } from '@/components';
-import type { SpeciesSummary } from '@/data/types';
+import type { EnvironmentVariableDefinition, SpeciesSummary } from '@/data/types';
 import type { SelectOption } from '@/components';
 import type {
+  FilterPredicate,
   SearchFilterLocationInitialState,
   UseSearchFiltersInitialState,
 } from './useSearchFilters.state';
@@ -69,6 +70,16 @@ export type UseSearchFiltersResult = {
   onListOffsetChange: (value: number) => void;
   minRbar: number;
   onMinRbarChange: (value: number) => void;
+
+  // Filter predicates (chained stat filters, e.g. "bio1 mean < 20")
+  predicates: FilterPredicate[];
+  filterVariableDefinitions: EnvironmentVariableDefinition[];
+  onAddFilterPredicate: () => void;
+  onRemoveFilterPredicate: (id: string) => void;
+  onUpdateFilterPredicate: (
+    id: string,
+    patch: Partial<Omit<FilterPredicate, 'id'>>,
+  ) => void;
 
   // Quantity
   numberOfResults: number;

@@ -36,6 +36,7 @@ import { useSearchPageChrome } from '@/hooks/search/useSearchPageChrome';
 import { useSearchRouteLocationHydration } from '../hooks/search/useSearchRouteLocationHydration';
 import { WebMetadata } from '@/utils/webMetadata';
 import type { UseSearchFiltersInitialState } from '@/hooks/search/filters/useSearchFilters';
+import type { FilterPredicate } from '@/hooks/search/filters/useSearchFilters.state';
 
 const FILTERS_COLUMN_MAX_WIDTH = 480;
 const FILTERS_COLUMN_MIN_WIDTH = 240;
@@ -58,6 +59,7 @@ type PersistedSearchFiltersStateInput = {
   sortReference: number;
   listOffset: number;
   minRbar: number;
+  predicates: FilterPredicate[];
   sortVariableValue: string;
   stateOptions: SelectOption[];
   stateValue: string;
@@ -82,6 +84,7 @@ const toPersistedSearchFiltersState = ({
   sortReference,
   listOffset,
   minRbar,
+  predicates,
   sortVariableValue,
   stateOptions,
   stateValue,
@@ -107,6 +110,7 @@ const toPersistedSearchFiltersState = ({
     sortReference,
     listOffset,
     minRbar,
+    predicates,
   },
   quantity: {
     numberOfResults,
@@ -132,6 +136,7 @@ const usePersistedSearchFiltersState = (
   const sortReference = filters.sortReference;
   const listOffset = filters.listOffset;
   const minRbar = filters.minRbar;
+  const predicates = filters.predicates;
   const sortVariableValue = filters.sortVariableValue;
   const stateOptions = filters.stateOptions;
   const stateValue = filters.stateValue;
@@ -154,6 +159,7 @@ const usePersistedSearchFiltersState = (
         sortReference,
         listOffset,
         minRbar,
+        predicates,
         sortVariableValue,
         stateOptions,
         stateValue,
@@ -169,6 +175,7 @@ const usePersistedSearchFiltersState = (
       minimumSamples,
       listOffset,
       minRbar,
+      predicates,
       numberOfResults,
       rankValue,
       sortMetricValue,
@@ -285,6 +292,7 @@ export default function Search() {
     setNativeSearchQuery,
     searchContext,
     searchResults,
+    searchTotal,
     searching,
   } = useSearchController({
     filterParams: filters.filterParams,
@@ -451,7 +459,11 @@ export default function Search() {
                 isFilterCollapsed ? styles.filtersHidden : undefined,
               ]}
             >
-              <Filters {...filters.panelProps} style={styles.filtersContent} />
+              <Filters
+                {...filters.panelProps}
+                totalResults={searchTotal}
+                style={styles.filtersContent}
+              />
             </Animated.View>
 
             <View style={styles.main}>

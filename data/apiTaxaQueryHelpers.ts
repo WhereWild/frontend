@@ -83,6 +83,9 @@ export type TaxaQueryParams = {
   includeSpeciesLike?: boolean | null;
   location?: string | null;
   units?: string | null;
+  /** Chained stat predicates, each "variable:metric:op:value[:count]" — see
+   * util/rankings.py::parse_stat_filter. Sent as repeated ?filter= params. */
+  filters?: string[] | null;
 };
 
 export type SearchTaxaQueryFilters = Pick<
@@ -100,6 +103,7 @@ export type SearchTaxaQueryFilters = Pick<
   | 'minSamples'
   | 'includeSpeciesLike'
   | 'location'
+  | 'filters'
 >;
 
 export type FetchTaxaQueryOptions = {
@@ -163,6 +167,13 @@ export const buildTaxaQuerySearchParams = (params: TaxaQueryParams) => {
   }
   if (params.units) {
     query.set('unit_system', params.units);
+  }
+  if (params.filters) {
+    for (const filter of params.filters) {
+      if (filter) {
+        query.append('filter', filter);
+      }
+    }
   }
 
   return query;
