@@ -97,6 +97,7 @@ const resolvePresentationState = ({
     categoricalDistribution,
     isCategorical,
     densityCurve: isCategorical ? null : (stats?.densityCurve ?? null),
+    ternaryCompositionDensity: stats?.ternaryCompositionDensity ?? null,
   };
 };
 
@@ -164,6 +165,7 @@ export function useSpeciesEnvironmentState({
     categoricalDistribution,
     isCategorical,
     densityCurve,
+    ternaryCompositionDensity,
   } = React.useMemo(
     () =>
       resolvePresentationState({
@@ -589,6 +591,7 @@ export function useSpeciesEnvironmentState({
     selectedCategoryValue,
     setSelectedCategoryValue,
     densityCurve,
+    ternaryCompositionDensity,
     summary,
     selectedDensityRange,
     handleDensitySelectionChange,

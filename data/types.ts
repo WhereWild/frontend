@@ -162,6 +162,39 @@ export type SpeciesEnvironmentDensity = {
   density: number[];
 };
 
+/**
+ * A KDE density grid over a 3-part ("ternary") compositional variable — e.g.
+ * sand/silt/clay soil composition — fit in ILR (isometric log-ratio) space so
+ * the components' fixed sum is respected rather than treating them as
+ * independent. Generic across any such variable; which real-world quantities
+ * `a`/`b`/`c` refer to and where they render on the triangle comes from the
+ * variable's `compositionAxis` metadata (see `EnvironmentVariableDefinition`),
+ * not from this type. Grid coordinates aren't transmitted — index i of
+ * `density` corresponds to barycentric grid vertex i of a canonical
+ * (resolution+1)-per-edge triangular grid, reconstructable from `resolution`
+ * alone.
+ */
+export type TernaryCompositionDensity = {
+  resolution: number;
+  density: number[];
+  /** Class id per grid vertex, classified server-side — only present for a
+   * compositional variable that has a registered classifier (e.g. USDA
+   * texture classes for soil_texture). A compositional variable with no
+   * associated classes simply omits this — density-only is a valid shape. */
+  classIds?: number[] | null;
+  /** Exact class boundary line segments, computed server-side by binary
+   * search against the real classifier (not approximated from the coarse
+   * density grid) — so lines are straight regardless of a boundary's slope.
+   * Flat, paired: (classBoundaryA[2k], classBoundaryB[2k]) and
+   * (classBoundaryA[2k+1], classBoundaryB[2k+1]) are one segment's two
+   * endpoints; the third component is derivable as 1 - a - b. */
+  classBoundaryA?: number[] | null;
+  classBoundaryB?: number[] | null;
+  sampleA?: number[] | null;
+  sampleB?: number[] | null;
+  sampleC?: number[] | null;
+};
+
 export type SpeciesEnvironmentObservation = {
   catalogNumber: number | string;
   value?: number | null;
@@ -288,6 +321,7 @@ export type SpeciesEnvironmentStats = {
   summary: SpeciesEnvironmentSummary;
   histogram: SpeciesEnvironmentHistogram | null;
   densityCurve?: SpeciesEnvironmentDensity | null;
+  ternaryCompositionDensity?: TernaryCompositionDensity | null;
   binSamples?: SpeciesEnvironmentBinSample[];
   categoricalDistribution?: SpeciesEnvironmentCategory[];
   dominantCategories?: SpeciesEnvironmentCategory[];
@@ -339,6 +373,19 @@ export type EnvironmentVariableDefinition = {
   groupLabel?: string | null;
   agg?: string | null;
   version?: number | null;
+  /** Which ternary/compositional group (if any) this variable's raw value is
+   * a member of, e.g. "soil_texture" for sand/silt/clay — see
+   * config/gis/catalog.json's composition_group. */
+  compositionGroup?: string | null;
+  /** Where this variable renders on the composition's triangle, when it's a
+   * member of a composition_group. Absent on the group's own classifier/
+   * legend variable (e.g. soil_texture itself isn't an axis). */
+  compositionAxis?: 'top' | 'bottom_left' | 'bottom_right' | null;
+  /** Short corner label for a composition triangle (e.g. "Sand"), distinct
+   * from `name`/`display_name` which is the full label used elsewhere (e.g.
+   * "Sand Content (0–5cm)") — too long for a small triangle corner. Falls
+   * back to the full label if a compositional variable doesn't supply one. */
+  compositionLabel?: string | null;
 };
 
 /** Query parameters for numeric environment slice requests. */

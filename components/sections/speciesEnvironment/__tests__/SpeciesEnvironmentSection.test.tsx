@@ -229,6 +229,7 @@ const baseState: SpeciesEnvironmentState = {
   selectedCategoryValue: null,
   setSelectedCategoryValue: jest.fn(),
   densityCurve: null,
+  ternaryCompositionDensity: null,
   summary: undefined,
   selectedDensityRange: null,
   handleDensitySelectionChange: jest.fn(),
