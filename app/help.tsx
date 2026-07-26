@@ -5,8 +5,9 @@
 import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
+import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
 
 export default function HelpScreen() {
@@ -25,7 +26,7 @@ export default function HelpScreen() {
           contentContainerStyle={getResponsiveContentContainerStyle(
             responsive,
             {
-              includeHorizontalPadding: true,
+              includeHorizontalPadding: false,
               includeBottomPadding: true,
               includeGap: true,
             },
@@ -33,10 +34,34 @@ export default function HelpScreen() {
           bounces={false}
         >
           {Platform.OS === 'web' ? <PageTitle title='Help' /> : null}
-          <ThemedText variant='heading'>{'Help'}</ThemedText>
-          <ThemedText variant='body'>{'TBD'}</ThemedText>
+          <View
+            style={[
+              styles.contentShell,
+              getResponsiveContentContainerStyle(responsive, {
+                includeWidth: false,
+                includeTopPadding: false,
+              }),
+            ]}
+          >
+            <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
+              <ThemedText variant='heading'>{'Help'}</ThemedText>
+              <ThemedText variant='body'>{'TBD'}</ThemedText>
+            </View>
+          </View>
         </PageScrollContainer>
       </PageSurface>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  contentShell: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  content: {
+    width: '100%',
+    alignSelf: 'center',
+    gap: Size.space.text.section,
+  },
+});
