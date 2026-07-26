@@ -71,8 +71,11 @@ describe('Home screen', () => {
   });
 
   it('renders the WhereWild page title', () => {
+    const original = Object.getOwnPropertyDescriptor(require('react-native').Platform, 'OS');
+    Object.defineProperty(require('react-native').Platform, 'OS', { configurable: true, value: 'web' });
     render(<HomeScreen />);
     expect(screen.getByTestId('page-title').props.children).toBe('WhereWild');
+    if (original) Object.defineProperty(require('react-native').Platform, 'OS', original);
   });
 
   it('navigates to search when search filters link is pressed', () => {
