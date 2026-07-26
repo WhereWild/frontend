@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import React from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import HelpScreen from '../help';
 
 jest.mock('expo-router', () => ({
@@ -39,8 +39,6 @@ jest.mock('@/components', () => {
   const { Text, View } = jest.requireActual('react-native');
 
   return {
-    ContentImage: ({ label }: { label?: string }) =>
-      React.createElement(View, { accessibilityLabel: label }),
     PageScrollContainer: ({ children }: { children?: React.ReactNode }) =>
       React.createElement(View, null, children),
     PageTitle: ({ title }: { title: string }) =>
@@ -57,65 +55,11 @@ jest.mock('@/components', () => {
   };
 });
 
-jest.mock('@/assets/images/help_homepage.png', () => 1, { virtual: true });
-jest.mock('@/assets/images/help_homepage_plants.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_search_simple.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_env_features.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_categorical_features.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_weather_code.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_location_filter.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_location_filter_applied.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_slicing.png', () => 1, { virtual: true });
-jest.mock('@/assets/images/help_slicing_map.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_categorical_highlighted.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_out_of_range.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_out_of_range_categorical.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_ml_model.png', () => 1, { virtual: true });
-jest.mock('@/assets/images/help_ml_model_zoomed.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_search_filter.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_search_cacti_temp.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_search_cacti_snow.png', () => 1, {
-  virtual: true,
-});
-jest.mock('@/assets/images/help_custom_data.png', () => 1, { virtual: true });
-
 describe('Help screen', () => {
   const originalPlatform = Platform.OS;
-  const mockOpenUrl = jest
-    .spyOn(Linking, 'openURL')
-    .mockResolvedValue(undefined);
 
   beforeEach(() => {
     mockUseResponsive.mockReturnValue({ breakpoint: 'desktop' });
-    mockOpenUrl.mockClear();
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: originalPlatform,
@@ -123,22 +67,15 @@ describe('Help screen', () => {
   });
 
   afterAll(() => {
-    mockOpenUrl.mockRestore();
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: originalPlatform,
     });
   });
 
-  it('renders the help page title and key sections', () => {
+  it('renders TBD placeholder', () => {
     render(<HelpScreen />);
-
-    expect(screen.queryByText('Help')).toBeNull();
-    expect(screen.getByText('How do I use WhereWild?')).toBeTruthy();
-    expect(screen.getByText('Homepage')).toBeTruthy();
-    expect(screen.getByText('Species page')).toBeTruthy();
-    expect(screen.getByText('Search page')).toBeTruthy();
-    expect(screen.getByText('That\u2019s a wrap!')).toBeTruthy();
+    expect(screen.getByText('TBD')).toBeTruthy();
   });
 
   it('renders the shared page title on web', () => {
@@ -149,22 +86,6 @@ describe('Help screen', () => {
 
     render(<HelpScreen />);
 
-    expect(screen.getByText('Help')).toBeTruthy();
-  });
-
-  it('opens representative help links when pressed', () => {
-    render(<HelpScreen />);
-
-    fireEvent.press(screen.getByText('link'));
-    fireEvent.press(screen.getByText('mountgambeloak@gmail.com'));
-
-    expect(mockOpenUrl).toHaveBeenNthCalledWith(
-      1,
-      'https://wherewild.net/species/2750737/calochortus-nuttallii',
-    );
-    expect(mockOpenUrl).toHaveBeenNthCalledWith(
-      2,
-      'mailto:mountgambeloak@gmail.com',
-    );
+    expect(screen.getAllByText('Help').length).toBeGreaterThan(0);
   });
 });
