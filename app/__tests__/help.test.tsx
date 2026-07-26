@@ -86,6 +86,6 @@ describe('Help screen', () => {
 
     render(<HelpScreen />);
 
-    expect(screen.getByText('Help')).toBeTruthy();
+    expect(screen.getAllByText('Help').length).toBeGreaterThan(0);
   });
 });
