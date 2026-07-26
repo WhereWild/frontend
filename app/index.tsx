@@ -8,60 +8,85 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
 
 export default function HomeScreen() {
   const router = useRouter();
   const responsive = useResponsive();
-  const contentContainerStyle = getResponsiveContentContainerStyle(responsive);
 
   return (
-    <PageSurface>
+    <>
       <WebMetadata title='WhereWild' />
-      <PageScrollContainer>
-        <View style={[styles.container, contentContainerStyle]}>
-          <PageTitle title='WhereWild' />
-          <View style={styles.body}>
-            <ThemedText variant='body'>
-              {
-                'Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use '
-              }
-              <ThemedText variant='link' onPress={() => router.push('/search')}>
-                {'search filters'}
+      <PageSurface>
+        <PageScrollContainer
+          contentContainerStyle={getResponsiveContentContainerStyle(
+            responsive,
+            {
+              includeHorizontalPadding: false,
+              includeBottomPadding: true,
+              includeGap: true,
+            },
+          )}
+          bounces={false}
+        >
+          {Platform.OS === 'web' ? <PageTitle title='WhereWild' /> : null}
+
+          <View
+            style={[
+              styles.contentShell,
+              getResponsiveContentContainerStyle(responsive, {
+                includeWidth: false,
+                includeTopPadding: false,
+              }),
+            ]}
+          >
+            <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
+              <ThemedText variant='body'>
+                {
+                  'Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use '
+                }
+                <ThemedText
+                  variant='link'
+                  onPress={() => router.push('/search')}
+                >
+                  {'search filters'}
+                </ThemedText>
+                {
+                  ' to sort and filter species by many criteria. Explore GIS data on the '
+                }
+                <ThemedText variant='link' onPress={() => router.push('/maps')}>
+                  {'maps'}
+                </ThemedText>
+                {' page, adjust your preferences in '}
+                <ThemedText
+                  variant='link'
+                  onPress={() => router.push('/settings')}
+                >
+                  {'settings'}
+                </ThemedText>
+                {', or read the '}
+                <ThemedText variant='link' onPress={() => router.push('/help')}>
+                  {'help page'}
+                </ThemedText>
+                {' to learn more about how everything works.'}
               </ThemedText>
-              {
-                ' to sort and filter species by many criteria. Explore GIS data on the '
-              }
-              <ThemedText variant='link' onPress={() => router.push('/maps')}>
-                {'maps'}
-              </ThemedText>
-              {' page, adjust your preferences in '}
-              <ThemedText
-                variant='link'
-                onPress={() => router.push('/settings')}
-              >
-                {'settings'}
-              </ThemedText>
-              {', or read the '}
-              <ThemedText variant='link' onPress={() => router.push('/help')}>
-                {'help page'}
-              </ThemedText>
-              {' to learn more about how everything works.'}
-            </ThemedText>
+            </View>
           </View>
-        </View>
-      </PageScrollContainer>
-    </PageSurface>
+        </PageScrollContainer>
+      </PageSurface>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingBottom: Size.space['400'],
-    gap: Size.space['400'],
+  contentShell: {
+    width: '100%',
+    alignItems: 'center',
   },
-  body: {
-    gap: Size.space['200'],
+  content: {
+    width: '100%',
+    alignSelf: 'center',
+    gap: Size.space.text.section,
   },
 });

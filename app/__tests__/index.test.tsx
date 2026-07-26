@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import HomeScreen from '../index';
 
 const mockPush = jest.fn();
@@ -71,8 +72,11 @@ describe('Home screen', () => {
   });
 
   it('renders the WhereWild page title', () => {
+    const original = Object.getOwnPropertyDescriptor(Platform, 'OS');
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
     render(<HomeScreen />);
     expect(screen.getByTestId('page-title').props.children).toBe('WhereWild');
+    if (original) Object.defineProperty(Platform, 'OS', original);
   });
 
   it('navigates to search when search filters link is pressed', () => {
