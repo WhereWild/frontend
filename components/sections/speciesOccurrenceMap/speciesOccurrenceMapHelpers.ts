@@ -597,9 +597,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     classShapes,
     markerOutlineEnabled,
     circularShapesEnabled,
-    labelsOverlayUrl
-      ? stripRetinaPlaceholder(labelsOverlayUrl)
-      : labelsOverlayUrl,
+    labelsOverlayUrl ? stripRetinaPlaceholder(labelsOverlayUrl) : labelsOverlayUrl,
     linesOverlayUrl ? stripRetinaPlaceholder(linesOverlayUrl) : linesOverlayUrl,
     locationPickerMode,
     initialLocalLat,
