@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -35,7 +35,7 @@ jobs:
 
       - name: Copy dist to server
         run: |
-          cd ~/wherewild/frontend && git pull origin main
+          cd ~/wherewild/frontend && git fetch origin main && git reset --hard origin/main
           rsync -av $GITHUB_WORKSPACE/dist/ ~/wherewild/frontend/dist/
 
       - name: Rebuild and restart frontend container
