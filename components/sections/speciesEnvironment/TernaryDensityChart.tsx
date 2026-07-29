@@ -444,9 +444,19 @@ export function TernaryDensityChart({
     if (lastPointerPosition) {
       const rect = el.getBoundingClientRect();
       const { x, y } = lastPointerPosition;
-      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+      if (
+        x >= rect.left &&
+        x <= rect.right &&
+        y >= rect.top &&
+        y <= rect.bottom
+      ) {
         setHoverInfo(
-          resolveHoverInfo(x - rect.left, y - rect.top, rect.width, rect.height),
+          resolveHoverInfo(
+            x - rect.left,
+            y - rect.top,
+            rect.width,
+            rect.height,
+          ),
         );
       }
     }
