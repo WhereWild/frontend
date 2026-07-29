@@ -26,6 +26,8 @@ import SpeciesScreen, {
 const mockPush = jest.fn();
 
 jest.mock('@/data/api', () => ({
+  BACKEND_BASE: 'https://backend.test',
+  parseFilenameFromContentDisposition: jest.fn(() => null),
   fetchSpeciesLocations: jest.fn(),
   fetchSpeciesOccurrences: jest.fn(),
   fetchEnvironmentVariables: jest.fn(),
@@ -196,6 +198,22 @@ jest.mock(
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'dark'),
 }));
+
+jest.mock('@/hooks/upload/uploadWorkflowHelpers', () => ({
+  deliverProcessedZip: jest.fn(() =>
+    Promise.resolve({ kind: 'downloaded', filename: 'test-cactus-13579.zip' }),
+  ),
+  getProcessedZipDeliveryStatusMessage: jest.fn(
+    (delivery) => `Downloaded: ${delivery.filename}`,
+  ),
+}));
+
+const mockedUploadWorkflowHelpers = jest.requireMock(
+  '@/hooks/upload/uploadWorkflowHelpers',
+) as {
+  deliverProcessedZip: jest.Mock;
+  getProcessedZipDeliveryStatusMessage: jest.Mock;
+};
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
@@ -369,14 +387,40 @@ describe('Species screen', () => {
     expect(screen.getByText('Testus cactus')).toBeTruthy();
     expect(screen.getByText('A sample species used for testing.')).toBeTruthy();
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const testBlob = { size: 1 } as Blob;
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/zip' }),
+      blob: () => Promise.resolve(testBlob),
+      text: () => Promise.resolve(''),
+    } as Response);
     try {
       fireEvent.press(screen.getByText('Download'));
       expect(alertSpy).toHaveBeenCalledWith(
         'Download started',
         expect.any(String),
       );
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          'https://backend.test/species/13579/download',
+        );
+      });
+      await waitFor(() => {
+        expect(
+          mockedUploadWorkflowHelpers.deliverProcessedZip,
+        ).toHaveBeenCalledWith(expect.objectContaining({ blob: testBlob }));
+      });
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Download complete',
+          expect.any(String),
+        );
+      });
     } finally {
       alertSpy.mockRestore();
+      fetchSpy.mockRestore();
     }
   });
 

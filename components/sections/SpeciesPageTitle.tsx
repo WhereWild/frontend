@@ -8,7 +8,13 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { Button } from '../buttons/Button';
 import { ThemedText } from '../text/ThemedText';
 
@@ -17,6 +23,11 @@ export type SpeciesPageTitleProps = {
   scientificName: string;
   onPressDownload?: () => void;
   downloadLabel?: string;
+  isDownloading?: boolean;
+  /** Disables the download button for a reason other than an in-flight
+   * download — e.g. a taxon too large to download, matching the map and
+   * location filters' existing large-taxon disable behavior. */
+  downloadDisabled?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -24,6 +35,8 @@ export function SpeciesPageTitle({
   commonName,
   scientificName,
   downloadLabel = 'Download',
+  isDownloading = false,
+  downloadDisabled = false,
   onPressDownload,
   style,
 }: SpeciesPageTitleProps) {
@@ -52,15 +65,24 @@ export function SpeciesPageTitle({
             <ThemedText variant='titlePage'>{commonName}</ThemedText>
             <ThemedText variant='bodyEmphasis'>{scientificName}</ThemedText>
           </View>
-          <Button
-            variant='neutral'
-            iconStart={<IconDownload />}
-            onPress={onPressDownload}
-            accessibilityLabel={`${downloadLabel} ${commonName}`}
-            style={styles.downloadButton}
-          >
-            {downloadLabel}
-          </Button>
+          <View style={styles.downloadRow}>
+            {isDownloading && (
+              <ActivityIndicator
+                color={palette.icon.brand.default}
+                testID='species-page-title-download-spinner'
+              />
+            )}
+            <Button
+              variant='neutral'
+              iconStart={<IconDownload />}
+              disabled={isDownloading || downloadDisabled}
+              onPress={onPressDownload}
+              accessibilityLabel={`${downloadLabel} ${commonName}`}
+              style={styles.downloadButton}
+            >
+              {downloadLabel}
+            </Button>
+          </View>
         </View>
         <View
           style={[
@@ -97,6 +119,12 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     flexShrink: 0,
     maxWidth: '100%',
+  },
+  downloadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['100'],
+    flexShrink: 0,
   },
   downloadButton: {
     flexShrink: 0,
