@@ -13,6 +13,25 @@ import { ThemedText } from '@/components/text/ThemedText';
 
 const RESPONDER_TEST_ID = 'ternary-density-responder';
 
+/** Last known pointer position on web, tracked globally (module scope, one
+ * listener for the whole app) so a chart that mounts — or swaps in — directly
+ * under an already-stationary cursor can still initialize its hover state.
+ * A plain `mousemove` listener on the chart itself only fires on actual
+ * pointer movement, so without this, picking a variable from a selector
+ * without then moving the mouse would leave the hover row blank until the
+ * user nudged the cursor or clicked (which works only because RN's Responder
+ * system fires on mousedown regardless of prior movement). */
+let lastPointerPosition: { x: number; y: number } | null = null;
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  window.addEventListener(
+    'mousemove',
+    (event: MouseEvent) => {
+      lastPointerPosition = { x: event.clientX, y: event.clientY };
+    },
+    { passive: true },
+  );
+}
+
 const CHART_WIDTH = 260;
 const MARGIN = 34;
 const SIDE = CHART_WIDTH - 2 * MARGIN;
@@ -321,6 +340,7 @@ export function TernaryDensityChart({
     width: number;
     height: number;
   } | null>(null);
+  const responderRef = React.useRef<HTMLElement | null>(null);
 
   const { lockScroll, unlockScroll } = useScrollLock();
 
@@ -397,12 +417,14 @@ export function TernaryDensityChart({
   // Web: true pointer hover, no press required — matches how a desktop user
   // would expect to explore a chart with the mouse. RN's own Responder system
   // (used above for the touch fallback) only starts from a press, so this is
-  // a direct DOM listener rather than a cross-platform RN event.
+  // a direct DOM listener rather than a cross-platform RN event. Reads the
+  // element off `responderRef` (set via the View's `ref`) rather than
+  // `document.querySelector` — the old lookup keyed off the shared
+  // `RESPONDER_TEST_ID` constant, which would silently resolve to the wrong
+  // instance's node if more than one chart were ever mounted at once.
   React.useEffect(() => {
     if (Platform.OS !== 'web' || !mesh) return;
-    const el = document.querySelector(
-      `[data-testid="${RESPONDER_TEST_ID}"]`,
-    ) as HTMLElement | null;
+    const el = responderRef.current;
     if (!el) return;
     const handleMouseMove = (event: MouseEvent) => {
       const rect = el.getBoundingClientRect();
@@ -413,6 +435,22 @@ export function TernaryDensityChart({
     const handleMouseLeave = () => setHoverInfo(null);
     el.addEventListener('mousemove', handleMouseMove);
     el.addEventListener('mouseleave', handleMouseLeave);
+
+    // The chart may have just mounted (or swapped in) directly under a
+    // cursor that isn't moving — e.g. right after clicking a variable
+    // selector — in which case no mousemove event will fire to populate the
+    // hover state. Synthesize one from the last globally tracked pointer
+    // position if it currently falls within this chart's bounds.
+    if (lastPointerPosition) {
+      const rect = el.getBoundingClientRect();
+      const { x, y } = lastPointerPosition;
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        setHoverInfo(
+          resolveHoverInfo(x - rect.left, y - rect.top, rect.width, rect.height),
+        );
+      }
+    }
+
     return () => {
       el.removeEventListener('mousemove', handleMouseMove);
       el.removeEventListener('mouseleave', handleMouseLeave);
@@ -568,6 +606,7 @@ export function TernaryDensityChart({
 
         <View
           testID={RESPONDER_TEST_ID}
+          ref={responderRef as React.Ref<View>}
           collapsable={false}
           style={styles.responderOverlay}
           onLayout={handleLayout}
