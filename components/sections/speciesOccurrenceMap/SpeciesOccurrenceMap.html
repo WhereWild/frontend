@@ -588,7 +588,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function buildObservationValueHtml(varValue, varColor, varLabel, varShape) {
-      if (varValue == null) return isVariableColorMode ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
+      if (varValue == null) return isVariableColorMode() ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
       var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN;
       if (varColor) {
         var dot = shapeToPopupSvg(varShape || null, varColor);
@@ -712,7 +712,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return styleForCatalog(catalog);
     }
 
-    var isVariableColorMode = IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN);
+    // A function, not a snapshot value — IS_CIRCULAR/DOT_MIN/DOT_MAX/CLASS_COLORS
+    // are reassigned in place (see the postMessage listener below) when the
+    // selected variable changes without a full page reload, so a `var` captured
+    // once at load time would go stale. Categorical variables (soil_texture,
+    // landcover, etc.) never set DOT_MIN/DOT_MAX or IS_CIRCULAR — they're only
+    // "in color mode" via CLASS_COLORS — so that has to be checked too, or a
+    // categorical point with no resolvable color (no data, or an unmapped
+    // value) falls through to the default brand-color marker instead of nodata.
+    function isVariableColorMode() {
+      return IS_CIRCULAR
+        || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN)
+        || (CLASS_COLORS != null && Object.keys(CLASS_COLORS).length > 0);
+    }
 
     function baseStyleForPoint(pt, catalog) {
       if (pt.varColor) {
@@ -734,7 +746,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         markerBaseColors.set(catalog, color);
         return Object.assign({}, markerStyle, { fillColor: color, color: OUTLINE_STROKE || color });
       }
-      if (isVariableColorMode && pt.varValue == null) {
+      if (isVariableColorMode()) {
+        // In variable-color mode, every earlier branch above resolves a real
+        // color for a point that has one. Reaching here means this point's
+        // value didn't produce a resolvable color — missing data, or a value
+        // that didn't map to a known class/gradient range — so it must not
+        // fall back to the brand marker color, which would misrepresent it
+        // as a real, uncolored observation.
         markerBaseColors.set(catalog, NODATA_SENTINEL);
         return nodataStyle;
       }
@@ -1105,7 +1123,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
               popup.setContent(content);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
-          } else if (isVariableColorMode) {
+          } else if (isVariableColorMode()) {
             var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>';
             var popup = marker.getPopup();
             if (!popup) {

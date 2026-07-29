@@ -9,6 +9,7 @@ import type {
   RawCategoricalStatsRow,
   RawCategoricalValueLookupRow,
   RawDensityGraphRow,
+  RawDensityGridRow,
   RawLocationRow,
   RawOccurrenceIndexRow,
   RawOccurrenceRow,
@@ -28,6 +29,7 @@ type UploadParquetTableKey =
   | 'circularStats'
   | 'categoricalValueLookup'
   | 'densityGraph'
+  | 'densityGrid'
   | 'locations'
   | 'occurrences'
   | 'occurrenceIndex'
@@ -80,6 +82,10 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
     key: 'densityGraph',
     aliases: buildTableAliases('numerical_density', 'density_graph', 'density', 'desntiy_graph'),
     required: true,
+  },
+  {
+    key: 'densityGrid',
+    aliases: buildTableAliases('density_grid'),
   },
   {
     key: 'occurrences',
@@ -329,6 +335,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     circularStatsRows,
     categoricalValueLookupRows,
     densityGraphRows,
+    densityGridRows,
     locationRows,
     occurrenceRows,
     occurrenceIndexRows,
@@ -341,6 +348,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     readTable('circularStats'),
     readTable('categoricalValueLookup'),
     readTable('densityGraph'),
+    readTable('densityGrid'),
     readTable('locations'),
     readTable('occurrences'),
     readTable('occurrenceIndex'),
@@ -361,6 +369,7 @@ export const parseUploadedParquetZipToRawBundle = async (
       categoricalValueLookupRows,
     ),
     densityGraph: toTypedRows<RawDensityGraphRow>(densityGraphRows),
+    densityGrid: toTypedRows<RawDensityGridRow>(densityGridRows),
     locations: toTypedRows<RawLocationRow>(locationRows),
     occurrences: toTypedRows<RawOccurrenceRow>(occurrenceRows),
     occurrenceIndex: toTypedRows<RawOccurrenceIndexRow>(occurrenceIndexRows),

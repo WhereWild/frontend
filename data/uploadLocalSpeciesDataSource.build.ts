@@ -7,6 +7,7 @@ import {
   type SpeciesDataSource,
 } from '@/data/speciesDataSource';
 import type {
+  EnvironmentVariableDefinition,
   LocationSearchResult,
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentObservation,
@@ -25,6 +26,7 @@ import {
 import type {
   UploadedCategoricalStatsRow,
   UploadedDensityGraphPoint,
+  UploadedDensityGridRow,
   UploadedOccurrenceIndexRow,
   UploadedOccurrenceRow,
   UploadedParquetBundle,
@@ -187,6 +189,13 @@ const buildStatsByVariable = (
       acc[row.variable] = [];
     }
     acc[row.variable].push(row);
+    return acc;
+  }, {});
+
+  const densityGridByVariable = (bundle.densityGrid ?? []).reduce<
+    Record<string, UploadedDensityGridRow>
+  >((acc, row) => {
+    acc[row.variable] = row;
     return acc;
   }, {});
 
@@ -392,6 +401,8 @@ const buildStatsByVariable = (
             0,
           );
 
+    const densityGridRow = densityGridByVariable[variable];
+
     acc[variable] = {
       speciesId,
       variable,
@@ -457,6 +468,18 @@ const buildStatsByVariable = (
             }
           : null,
       categoricalDistribution,
+      ternaryCompositionDensity: densityGridRow
+        ? {
+            resolution: densityGridRow.resolution,
+            density: densityGridRow.density,
+            classIds: densityGridRow.classIds,
+            classBoundaryA: densityGridRow.classBoundaryA,
+            classBoundaryB: densityGridRow.classBoundaryB,
+            sampleA: densityGridRow.sampleA,
+            sampleB: densityGridRow.sampleB,
+            sampleC: densityGridRow.sampleC,
+          }
+        : undefined,
     };
     return acc;
   }, {});
@@ -530,6 +553,32 @@ const toObservationsByCatalog = (rows: UploadedOccurrenceRow[]) => {
     acc[String(row.catalogNumber)] = row;
     return acc;
   }, {});
+};
+
+// {groupId: [colTop, colBottomLeft, colBottomRight]} — mirrors
+// util.ternary.composition_group_members; only a group with all 3 axes
+// present is usable.
+const buildCompositionGroupMembers = (
+  definitions: EnvironmentVariableDefinition[] | undefined,
+): Record<string, [string, string, string]> => {
+  const byGroup: Record<
+    string,
+    Partial<Record<'top' | 'bottom_left' | 'bottom_right', string>>
+  > = {};
+  (definitions ?? []).forEach((definition) => {
+    if (!definition.compositionGroup || !definition.compositionAxis) {
+      return;
+    }
+    byGroup[definition.compositionGroup] = byGroup[definition.compositionGroup] ?? {};
+    byGroup[definition.compositionGroup][definition.compositionAxis] = definition.id;
+  });
+  const result: Record<string, [string, string, string]> = {};
+  Object.entries(byGroup).forEach(([group, axes]) => {
+    if (axes.top && axes.bottom_left && axes.bottom_right) {
+      result[group] = [axes.top, axes.bottom_left, axes.bottom_right];
+    }
+  });
+  return result;
 };
 
 const groupIndexRowsByVariable = (rows: UploadedOccurrenceIndexRow[]) => {
@@ -746,18 +795,184 @@ const buildCircularKde = (
   return { points, density };
 };
 
+// ---------------------------------------------------------------------------
+// Ternary (3-part compositional) density — JS mirror of util/ternary.py's
+// build_ternary_density_grid, so a location-filtered custom-upload scope can
+// refit the density over just the filtered samples instead of reusing the
+// unfiltered global grid. Classification (class ids/boundaries) is NOT
+// mirrored here — it's static per classifier (identical for every dataset),
+// so it's computed once server-side and carried over unchanged from the
+// unfiltered stats instead of being recomputed on every filter change.
+// ---------------------------------------------------------------------------
+
+const TERNARY_MIN_SAMPLES = 2;
+const TERNARY_SAMPLE_CAP = 200;
+const TERNARY_ILR_EPS = 1e-6;
+const TERNARY_SQRT2 = Math.sqrt(2);
+const TERNARY_SQRT6 = Math.sqrt(6);
+// Helmert sub-basis for the zero-sum CLR hyperplane — see util/ternary.py's
+// _ILR_HELMERT for why this specific basis makes the transform isometric.
+const TERNARY_ILR_HELMERT: [number, number][] = [
+  [1 / TERNARY_SQRT2, 1 / TERNARY_SQRT6],
+  [-1 / TERNARY_SQRT2, 1 / TERNARY_SQRT6],
+  [0, -2 / TERNARY_SQRT6],
+];
+
+const ternaryIlr = (triple: [number, number, number]): [number, number] => {
+  const clipped = triple.map((v) => Math.max(v, TERNARY_ILR_EPS));
+  const logs = clipped.map((v) => Math.log(v));
+  const mean = (logs[0] + logs[1] + logs[2]) / 3;
+  const clr = logs.map((v) => v - mean);
+  return [
+    clr[0] * TERNARY_ILR_HELMERT[0][0] +
+      clr[1] * TERNARY_ILR_HELMERT[1][0] +
+      clr[2] * TERNARY_ILR_HELMERT[2][0],
+    clr[0] * TERNARY_ILR_HELMERT[0][1] +
+      clr[1] * TERNARY_ILR_HELMERT[1][1] +
+      clr[2] * TERNARY_ILR_HELMERT[2][1],
+  ];
+};
+
+const ternaryGridPoints = (resolution: number): [number, number, number][] => {
+  const points: [number, number, number][] = [];
+  for (let i = 0; i <= resolution; i++) {
+    for (let j = 0; j <= resolution - i; j++) {
+      points.push([i / resolution, j / resolution, (resolution - i - j) / resolution]);
+    }
+  }
+  return points;
+};
+
+// 2D Gaussian KDE with a full (possibly correlated) bandwidth covariance,
+// matching scipy.stats.gaussian_kde's default Scott's-rule factor and use of
+// the sample covariance matrix — a diagonal/independent-axis KDE would not
+// account for correlation between the two ILR coordinates.
+const buildGaussianKde2d = (
+  points: [number, number][],
+): ((x: number, y: number) => number) | null => {
+  const n = points.length;
+  if (n < 2) return null;
+
+  let meanU = 0;
+  let meanV = 0;
+  for (const [u, v] of points) {
+    meanU += u;
+    meanV += v;
+  }
+  meanU /= n;
+  meanV /= n;
+
+  let c00 = 0;
+  let c01 = 0;
+  let c11 = 0;
+  for (const [u, v] of points) {
+    const du = u - meanU;
+    const dv = v - meanV;
+    c00 += du * du;
+    c01 += du * dv;
+    c11 += dv * dv;
+  }
+  const ddof = n > 1 ? n - 1 : 1;
+  c00 /= ddof;
+  c01 /= ddof;
+  c11 /= ddof;
+
+  const factor = Math.pow(n, -1 / 6); // Scott's rule, 2 dimensions
+  const f2 = factor * factor;
+  const s00 = c00 * f2;
+  const s01 = c01 * f2;
+  const s11 = c11 * f2;
+  const det = s00 * s11 - s01 * s01;
+  if (!(det > 0) || !isFinite(det)) return null;
+
+  const inv00 = s11 / det;
+  const inv01 = -s01 / det;
+  const inv11 = s00 / det;
+  const norm = 1 / (2 * Math.PI * Math.sqrt(det) * n);
+
+  return (x: number, y: number) => {
+    let sum = 0;
+    for (const [u, v] of points) {
+      const du = x - u;
+      const dv = y - v;
+      const mahal = du * du * inv00 + 2 * du * dv * inv01 + dv * dv * inv11;
+      sum += Math.exp(-0.5 * mahal);
+    }
+    return sum * norm;
+  };
+};
+
+const pickTernarySampleIndices = (total: number, cap: number): number[] => {
+  if (total <= cap) {
+    return Array.from({ length: total }, (_, i) => i);
+  }
+  const step = total / cap;
+  const indices: number[] = [];
+  for (let i = 0; i < cap; i++) {
+    indices.push(Math.min(total - 1, Math.floor(i * step)));
+  }
+  return indices;
+};
+
+type TernaryDensityGridResult = {
+  resolution: number;
+  density: number[];
+  sampleA: number[];
+  sampleB: number[];
+  sampleC: number[];
+};
+
+const buildTernaryDensityGridJs = (
+  triples: [number, number, number][],
+  resolution: number,
+): TernaryDensityGridResult | null => {
+  const valid = triples.filter(
+    (t) => t.every((v) => Number.isFinite(v)) && t[0] + t[1] + t[2] > 0,
+  );
+  if (valid.length < TERNARY_MIN_SAMPLES) return null;
+
+  const comp: [number, number, number][] = valid.map((t) => {
+    const sum = t[0] + t[1] + t[2];
+    return [t[0] / sum, t[1] / sum, t[2] / sum];
+  });
+
+  const ilrCoords = comp.map(ternaryIlr);
+  const kde = buildGaussianKde2d(ilrCoords);
+  if (!kde) return null;
+
+  const grid = ternaryGridPoints(resolution);
+  const density = grid.map((point) => {
+    const [u, v] = ternaryIlr(point);
+    return kde(u, v);
+  });
+  const maxDensity = Math.max(...density);
+  if (!(maxDensity > 0) || !isFinite(maxDensity)) return null;
+  const densityNorm = density.map((d) => d / maxDensity);
+
+  const sampleIdx = pickTernarySampleIndices(comp.length, TERNARY_SAMPLE_CAP);
+  return {
+    resolution,
+    density: densityNorm,
+    sampleA: sampleIdx.map((i) => comp[i][0]),
+    sampleB: sampleIdx.map((i) => comp[i][1]),
+    sampleC: sampleIdx.map((i) => comp[i][2]),
+  };
+};
+
 const buildScopedCategoricalStats = ({
   stats,
   locationGid,
   observationsByCatalog,
   locationLookup,
   indexRows,
+  compositionColumns,
 }: {
   stats: SpeciesEnvironmentStats;
   locationGid: string;
   observationsByCatalog: Record<string, UploadedOccurrenceRow>;
   locationLookup: ReturnType<typeof buildLocationLookupMaps>;
   indexRows: UploadedOccurrenceIndexRow[];
+  compositionColumns?: [string, string, string];
 }): SpeciesEnvironmentStats => {
   const countsByClass = new Map<string, number>();
   let totalCount = 0;
@@ -817,6 +1032,43 @@ const buildScopedCategoricalStats = ({
     entropy = entropySum;
   }
 
+  // Classification (class ids/boundary lines) is static per classifier, so it's
+  // carried over unchanged from the unfiltered stats — only the density itself
+  // is refit over the scoped (filtered) samples.
+  let ternaryCompositionDensity = stats.ternaryCompositionDensity;
+  if (compositionColumns) {
+    const triples: [number, number, number][] = [];
+    Object.values(observationsByCatalog).forEach((row) => {
+      if (!matchesObservationLocation(row.locationGid, locationLookup, locationGid)) {
+        return;
+      }
+      const values = row.compositionValues;
+      if (!values) return;
+      const a = values[compositionColumns[0]];
+      const b = values[compositionColumns[1]];
+      const c = values[compositionColumns[2]];
+      if (typeof a === 'number' && typeof b === 'number' && typeof c === 'number') {
+        triples.push([a, b, c]);
+      }
+    });
+    const grid = buildTernaryDensityGridJs(
+      triples,
+      stats.ternaryCompositionDensity?.resolution ?? 24,
+    );
+    ternaryCompositionDensity = grid
+      ? {
+          resolution: grid.resolution,
+          density: grid.density,
+          sampleA: grid.sampleA,
+          sampleB: grid.sampleB,
+          sampleC: grid.sampleC,
+          classIds: stats.ternaryCompositionDensity?.classIds ?? null,
+          classBoundaryA: stats.ternaryCompositionDensity?.classBoundaryA ?? null,
+          classBoundaryB: stats.ternaryCompositionDensity?.classBoundaryB ?? null,
+        }
+      : undefined;
+  }
+
   return {
     ...stats,
     summary: {
@@ -834,6 +1086,7 @@ const buildScopedCategoricalStats = ({
       mode,
     },
     categoricalDistribution,
+    ternaryCompositionDensity,
     baselineSummary: stats.summary,
     baselineCategoricalDistribution: baselineDistribution,
   };
@@ -985,12 +1238,14 @@ const buildScopedStats = ({
   observationsByCatalog,
   locationLookup,
   indexRows,
+  compositionGroupMembers,
 }: {
   stats: SpeciesEnvironmentStats;
   locationGid?: string | null;
   observationsByCatalog: Record<string, UploadedOccurrenceRow>;
   locationLookup: ReturnType<typeof buildLocationLookupMaps>;
   indexRows: UploadedOccurrenceIndexRow[];
+  compositionGroupMembers?: Record<string, [string, string, string]>;
 }): SpeciesEnvironmentStats => {
   if (!locationGid) {
     return stats;
@@ -1009,6 +1264,7 @@ const buildScopedStats = ({
       observationsByCatalog,
       locationLookup,
       indexRows,
+      compositionColumns: compositionGroupMembers?.[stats.variable],
     });
   }
 
@@ -1105,6 +1361,7 @@ export const buildUploadLocalSpeciesDataSource = ({
   const occurrences = toSpeciesOccurrences(bundle.occurrences);
   const observationsByCatalog = toObservationsByCatalog(bundle.occurrences);
   const indexRowsByVariable = groupIndexRowsByVariable(bundle.occurrenceIndex);
+  const compositionGroupMembers = buildCompositionGroupMembers(bundle.variableDefinitions);
   const locations = bundle.locations ?? [];
   const locationLookup = buildLocationLookupMaps(locations);
 
@@ -1186,6 +1443,7 @@ export const buildUploadLocalSpeciesDataSource = ({
         observationsByCatalog,
         locationLookup,
         indexRows: indexRowsByVariable[variableId] ?? [],
+        compositionGroupMembers,
       });
 
       if (options?.units !== 'imperial') return scoped;
