@@ -67,7 +67,7 @@ const resolveUploadEndpoint = (endpoint: string) =>
     ? endpoint
     : `${BACKEND_BASE}${endpoint}`;
 
-const parseFilenameFromContentDisposition = (
+export const parseFilenameFromContentDisposition = (
   contentDisposition: string | null,
 ): string | null => {
   if (!contentDisposition) {

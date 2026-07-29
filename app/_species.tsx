@@ -33,10 +33,14 @@ import {
   isVariableCircular,
 } from '@/components/sections/speciesEnvironment/model';
 import { useScrollLock } from '@/context/ScrollLockContext';
-import { BACKEND_BASE } from '@/data/api';
+import { BACKEND_BASE, parseFilenameFromContentDisposition } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type { SpeciesPageData } from '@/data/types';
+import {
+  deliverProcessedZip,
+  getProcessedZipDeliveryStatusMessage,
+} from '@/hooks/upload/uploadWorkflowHelpers';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -306,9 +310,43 @@ export default function Species({
     setPinnedObservation(null);
   }, [finalLocationGid, taxonId]);
 
-  const handleDownload = React.useCallback(() => {
+  const [isDownloading, setIsDownloading] = React.useState(false);
+
+  const handleDownload = React.useCallback(async () => {
+    if (!taxonId || isDownloading || largeTaxon) {
+      return;
+    }
+    setIsDownloading(true);
     Alert.alert('Download started', `Preparing ${commonName} data…`);
-  }, [commonName]);
+    try {
+      const response = await fetch(
+        `${BACKEND_BASE}/species/${encodeURIComponent(String(taxonId))}/download`,
+      );
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        throw new Error(
+          `Failed to download data: ${response.status}${errorBody ? ` ${errorBody}` : ''}`,
+        );
+      }
+      const delivery = await deliverProcessedZip({
+        blob: await response.blob(),
+        contentType: response.headers.get('content-type'),
+        filename:
+          parseFilenameFromContentDisposition(
+            response.headers.get('content-disposition'),
+          ) ?? `${commonName || 'species'}.zip`,
+      });
+      Alert.alert('Download complete', getProcessedZipDeliveryStatusMessage(delivery));
+    } catch (error) {
+      console.error('Failed to download species data:', error);
+      Alert.alert(
+        'Download failed',
+        error instanceof Error ? error.message : 'Failed to download species data.',
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [commonName, isDownloading, largeTaxon, taxonId]);
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
@@ -570,6 +608,8 @@ export default function Species({
               commonName={commonName}
               scientificName={scientificName}
               onPressDownload={handleDownload}
+              isDownloading={isDownloading}
+              downloadDisabled={largeTaxon}
             />
 
             <SectionShell responsive={responsive}>
@@ -637,8 +677,8 @@ export default function Species({
                   variant='bodySmall'
                   style={{ color: palette.text.warning.default }}
                 >
-                  Too many observations to display on map. Location filters and
-                  slicing are disabled for this taxon.
+                  Too many observations to display on map. Filters, slicing,
+                  and downloading are disabled for this taxon.
                 </ThemedText>
               </View>
             </SectionShell>

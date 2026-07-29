@@ -52,6 +52,24 @@ describe('SpeciesPageTitle', () => {
     expect(handleDownload).toHaveBeenCalledTimes(1);
   });
 
+  it('shows a loading state and disables the button while downloading', () => {
+    const handleDownload = jest.fn();
+
+    render(
+      <SpeciesPageTitle
+        commonName={commonName}
+        scientificName={scientificName}
+        onPressDownload={handleDownload}
+        isDownloading
+      />,
+    );
+
+    expect(screen.getByText('Download')).toBeTruthy();
+    expect(screen.getByTestId('species-page-title-download-spinner')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(`Download ${commonName}`));
+    expect(handleDownload).not.toHaveBeenCalled();
+  });
+
   it('shows the default download label', () => {
     render(
       <SpeciesPageTitle
