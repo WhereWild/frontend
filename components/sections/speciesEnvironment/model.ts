@@ -33,6 +33,9 @@ export type EnvironmentVariableOption = {
   group?: string | null;
   groupLabel?: string | null;
   version?: number | null;
+  compositionGroup?: string | null;
+  compositionAxis?: 'top' | 'bottom_left' | 'bottom_right' | null;
+  compositionLabel?: string | null;
 };
 
 /** Loading/result state for one categorical class sample request. */
@@ -116,6 +119,41 @@ export const isVariableCategorical = (
   }
   const vt = variable.valueType?.toLowerCase();
   return vt === 'categorical' || vt === 'nominal' || vt === 'ordinal';
+};
+
+/** For a variable that's the classifier/legend for a ternary compositional
+ * group (e.g. soil_texture summarizing sand/silt/clay), finds that group's 3
+ * member variables among the full variable catalog and returns their short
+ * corner labels (compositionLabel, e.g. "Sand" — falling back to the full
+ * `label` if a compositional variable doesn't supply one, e.g. "Sand Content
+ * (0–5cm)" is too long for a triangle corner) in [top, bottom-left,
+ * bottom-right] triangle order — driven entirely by catalog
+ * compositionGroup/compositionAxis metadata, no hardcoded variable ids or
+ * names. Returns null if the variable isn't a composition anchor, or its
+ * group doesn't have all 3 axes represented in `allVariables`. */
+export const getCompositionAxisLabels = (
+  selected:
+    | Pick<EnvironmentVariableOption, 'compositionGroup'>
+    | null
+    | undefined,
+  allVariables: Pick<
+    EnvironmentVariableOption,
+    'label' | 'compositionGroup' | 'compositionAxis' | 'compositionLabel'
+  >[],
+): [string, string, string] | null => {
+  const group = selected?.compositionGroup;
+  if (!group) return null;
+  const byAxis: Partial<
+    Record<'top' | 'bottom_left' | 'bottom_right', string>
+  > = {};
+  for (const variable of allVariables) {
+    if (variable.compositionGroup === group && variable.compositionAxis) {
+      byAxis[variable.compositionAxis] =
+        variable.compositionLabel ?? variable.label;
+    }
+  }
+  if (!byAxis.top || !byAxis.bottom_left || !byAxis.bottom_right) return null;
+  return [byAxis.top, byAxis.bottom_left, byAxis.bottom_right];
 };
 
 /** Converts underscore-separated variable ids into title-cased labels. */

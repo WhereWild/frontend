@@ -13,9 +13,11 @@ import { DensityChart } from './DensityChart';
 import { NominalInsights } from './NominalInsights';
 import { PolarDensityChart } from './PolarDensityChart';
 import { StackedCategoryBar } from './StackedCategoryBar';
+import { TernaryDensityChart } from './TernaryDensityChart';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
 import {
   DEFAULT_VARIABLE,
+  getCompositionAxisLabels,
   isValidHistogramContract,
   isVariableDiscrete,
   type EnvironmentVariableOption,
@@ -104,6 +106,9 @@ function SpeciesEnvironmentSectionComponent({
       typeof useSpeciesEnvironmentState
     >['selectedCategoryValue'];
     densityCurve: ReturnType<typeof useSpeciesEnvironmentState>['densityCurve'];
+    ternaryCompositionDensity: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['ternaryCompositionDensity'];
     summary: ReturnType<typeof useSpeciesEnvironmentState>['summary'];
     selectedDensityRange: ReturnType<
       typeof useSpeciesEnvironmentState
@@ -174,6 +179,7 @@ function SpeciesEnvironmentSectionComponent({
     selectedCategoryValue,
     setSelectedCategoryValue,
     densityCurve,
+    ternaryCompositionDensity,
     summary,
     selectedDensityRange,
     handleDensitySelectionChange,
@@ -249,6 +255,11 @@ function SpeciesEnvironmentSectionComponent({
 
   const isDiscrete = isVariableDiscrete(selectedVariableMeta);
 
+  const compositionAxisLabels = React.useMemo(
+    () => getCompositionAxisLabels(selectedVariableMeta, filteredVariables),
+    [selectedVariableMeta, filteredVariables],
+  );
+
   const environmentNoun =
     selectedVariableCategory === 'Recent Weather' ||
     selectedVariableMeta?.valueType?.toLowerCase() === 'nominal'
@@ -316,6 +327,7 @@ function SpeciesEnvironmentSectionComponent({
         categoricalDistribution: cbCategoricalDistribution,
         selectedCategoryValue,
         densityCurve,
+        ternaryCompositionDensity,
         summary,
         selectedDensityRange,
         showRankContext,
@@ -515,32 +527,45 @@ function SpeciesEnvironmentSectionComponent({
               homeHighlightOutlineColor={palette.background.brand.default}
             />
           ) : (
-            <StackedCategoryBar
-              categories={displayState?.categoricalDistribution ?? []}
-              selectedValue={displayState?.selectedCategoryValue ?? null}
-              pinnedValue={displayState?.pinnedValue ?? null}
-              pinnedClassName={displayState?.pinnedClassName ?? null}
-              highlightedValue={displayState?.pinnedCategoryValue ?? null}
-              homeHighlightedValue={
-                displayState?.homePinnedCategoryValue ?? null
-              }
-              unobservedHighlightedCategory={
-                displayState?.pinnedUnobservedCategory ?? null
-              }
-              homeUnobservedCategory={
-                displayState?.homeUnobservedCategory ?? null
-              }
-              anyFilterActive={displayState?.anyFilterActive ?? false}
-              environmentNoun={environmentNoun}
-              onSelect={handleCategorySelect}
-              descriptionColor={palette.text.default.secondary}
-              highlightOutlineColor='#F59E0B'
-              homeHighlightOutlineColor={palette.background.brand.default}
-              variableId={selectedVariable ?? undefined}
-              shapesEnabled={settings?.shapesEnabled ?? false}
-              markerOutlineEnabled={settings?.markerOutlineEnabled ?? false}
-              preserveOrder={isOrdinalVar}
-            />
+            <>
+              {displayState?.ternaryCompositionDensity &&
+                compositionAxisLabels && (
+                  <TernaryDensityChart
+                    density={displayState.ternaryCompositionDensity}
+                    axisLabels={compositionAxisLabels}
+                    fillColor={palette.background.brand.default}
+                    contourColor={palette.border.default.secondary}
+                    textColor={palette.text.default.secondary}
+                    legendClasses={selectedVariableMeta?.legendClasses ?? null}
+                  />
+                )}
+              <StackedCategoryBar
+                categories={displayState?.categoricalDistribution ?? []}
+                selectedValue={displayState?.selectedCategoryValue ?? null}
+                pinnedValue={displayState?.pinnedValue ?? null}
+                pinnedClassName={displayState?.pinnedClassName ?? null}
+                highlightedValue={displayState?.pinnedCategoryValue ?? null}
+                homeHighlightedValue={
+                  displayState?.homePinnedCategoryValue ?? null
+                }
+                unobservedHighlightedCategory={
+                  displayState?.pinnedUnobservedCategory ?? null
+                }
+                homeUnobservedCategory={
+                  displayState?.homeUnobservedCategory ?? null
+                }
+                anyFilterActive={displayState?.anyFilterActive ?? false}
+                environmentNoun={environmentNoun}
+                onSelect={handleCategorySelect}
+                descriptionColor={palette.text.default.secondary}
+                highlightOutlineColor='#F59E0B'
+                homeHighlightOutlineColor={palette.background.brand.default}
+                variableId={selectedVariable ?? undefined}
+                shapesEnabled={settings?.shapesEnabled ?? false}
+                markerOutlineEnabled={settings?.markerOutlineEnabled ?? false}
+                preserveOrder={isOrdinalVar}
+              />
+            </>
           )}
           {typeof displayState?.summary?.unique_classes === 'number' &&
             (() => {

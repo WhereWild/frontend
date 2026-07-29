@@ -73,6 +73,9 @@ const mapEnvironmentVariableOptions = (
         renderMax: variableDefinition.renderMax ?? null,
         group: variableDefinition.group ?? null,
         groupLabel: variableDefinition.groupLabel ?? null,
+        compositionGroup: variableDefinition.compositionGroup ?? null,
+        compositionAxis: variableDefinition.compositionAxis ?? null,
+        compositionLabel: variableDefinition.compositionLabel ?? null,
       };
     });
 };

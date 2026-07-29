@@ -48,6 +48,28 @@ const rawSourceIds = source?.source_ids ?? source?.sourceIds;
     groupLabel: typeof source?.group_label === 'string' ? source.group_label : null,
     agg: typeof source?.agg === 'string' ? source.agg : null,
     version: typeof source?.version === 'number' ? source.version : null,
+    compositionGroup:
+      typeof source?.composition_group === 'string'
+        ? source.composition_group
+        : typeof source?.compositionGroup === 'string'
+          ? source.compositionGroup
+          : null,
+    compositionAxis:
+      source?.composition_axis === 'top' ||
+      source?.composition_axis === 'bottom_left' ||
+      source?.composition_axis === 'bottom_right'
+        ? source.composition_axis
+        : source?.compositionAxis === 'top' ||
+            source?.compositionAxis === 'bottom_left' ||
+            source?.compositionAxis === 'bottom_right'
+          ? source.compositionAxis
+          : null,
+    compositionLabel:
+      typeof source?.composition_label === 'string'
+        ? source.composition_label
+        : typeof source?.compositionLabel === 'string'
+          ? source.compositionLabel
+          : null,
   };
 };
 

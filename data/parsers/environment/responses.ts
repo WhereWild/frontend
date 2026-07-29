@@ -15,6 +15,7 @@ import type {
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
   SpeciesEnvironmentSummary,
+  TernaryCompositionDensity,
 } from '../../types';
 import { asRecord, getArray, type JsonRecord } from '../core';
 
@@ -358,6 +359,26 @@ const coerceDensityCurve = (payload: unknown): SpeciesEnvironmentDensity | null 
   };
 };
 
+const coerceTernaryCompositionDensity = (payload: unknown): TernaryCompositionDensity | null => {
+  const source = asRecord(payload);
+  const grid = asRecord(source?.ternary_composition_density ?? source?.ternaryCompositionDensity);
+  const resolution = toFiniteNumber(grid?.resolution);
+  const density = toNumericArray(grid?.density);
+  if (resolution === null || !density.length) {
+    return null;
+  }
+  return {
+    resolution,
+    density,
+    classIds: toNumericArray(grid?.class_ids ?? grid?.classIds),
+    classBoundaryA: toNumericArray(grid?.class_boundary_a ?? grid?.classBoundaryA),
+    classBoundaryB: toNumericArray(grid?.class_boundary_b ?? grid?.classBoundaryB),
+    sampleA: toNumericArray(grid?.sample_a ?? grid?.sampleA),
+    sampleB: toNumericArray(grid?.sample_b ?? grid?.sampleB),
+    sampleC: toNumericArray(grid?.sample_c ?? grid?.sampleC),
+  };
+};
+
 /**
  * Parses species environment stats payloads into app-safe shapes.
  */
@@ -407,6 +428,7 @@ export const parseSpeciesEnvironmentStats = (
     summary,
     histogram: coerceHistogram(asRecord(source.histogram)),
     densityCurve: coerceDensityCurve(source),
+    ternaryCompositionDensity: coerceTernaryCompositionDensity(source),
     binSamples: coerceBinSamples(source.bin_samples),
     categoricalDistribution: distribution.length ? distribution : tallStats?.distribution ?? [],
     dominantCategories: dominant.length ? dominant : tallStats?.dominant ?? [],
