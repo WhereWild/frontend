@@ -336,12 +336,17 @@ export default function Species({
             response.headers.get('content-disposition'),
           ) ?? `${commonName || 'species'}.zip`,
       });
-      Alert.alert('Download complete', getProcessedZipDeliveryStatusMessage(delivery));
+      Alert.alert(
+        'Download complete',
+        getProcessedZipDeliveryStatusMessage(delivery),
+      );
     } catch (error) {
       console.error('Failed to download species data:', error);
       Alert.alert(
         'Download failed',
-        error instanceof Error ? error.message : 'Failed to download species data.',
+        error instanceof Error
+          ? error.message
+          : 'Failed to download species data.',
       );
     } finally {
       setIsDownloading(false);
@@ -677,8 +682,8 @@ export default function Species({
                   variant='bodySmall'
                   style={{ color: palette.text.warning.default }}
                 >
-                  Too many observations to display on map. Filters, slicing,
-                  and downloading are disabled for this taxon.
+                  Too many observations to display on map. Filters, slicing, and
+                  downloading are disabled for this taxon.
                 </ThemedText>
               </View>
             </SectionShell>

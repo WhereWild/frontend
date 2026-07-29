@@ -408,9 +408,9 @@ describe('Species screen', () => {
         );
       });
       await waitFor(() => {
-        expect(mockedUploadWorkflowHelpers.deliverProcessedZip).toHaveBeenCalledWith(
-          expect.objectContaining({ blob: testBlob }),
-        );
+        expect(
+          mockedUploadWorkflowHelpers.deliverProcessedZip,
+        ).toHaveBeenCalledWith(expect.objectContaining({ blob: testBlob }));
       });
       await waitFor(() => {
         expect(alertSpy).toHaveBeenCalledWith(

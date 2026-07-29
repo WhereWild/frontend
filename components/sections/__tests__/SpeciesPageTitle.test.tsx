@@ -65,7 +65,9 @@ describe('SpeciesPageTitle', () => {
     );
 
     expect(screen.getByText('Download')).toBeTruthy();
-    expect(screen.getByTestId('species-page-title-download-spinner')).toBeTruthy();
+    expect(
+      screen.getByTestId('species-page-title-download-spinner'),
+    ).toBeTruthy();
     fireEvent.press(screen.getByLabelText(`Download ${commonName}`));
     expect(handleDownload).not.toHaveBeenCalled();
   });
