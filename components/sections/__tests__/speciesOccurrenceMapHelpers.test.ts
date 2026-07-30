@@ -59,12 +59,16 @@ describe('speciesOccurrenceMapHelpers', () => {
     linkColor: '#466237',
   };
 
+  // The template now also inlines vendored Leaflet/MarkerCluster libraries as
+  // earlier <script> blocks (so the map works fully offline), so the map's
+  // own logic is always the *last* inline script block, not the first.
   const extractInlineScript = (html: string) => {
-    const match = html.match(/<script>([\s\S]*?)<\/script>/i);
-    if (!match?.[1]) {
+    const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
+    const last = matches[matches.length - 1]?.[1];
+    if (!last) {
       throw new Error('Expected inline map script in template');
     }
-    return match[1];
+    return last;
   };
 
   type MockLeafletMarker = {
@@ -125,7 +129,14 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
     });
 
+    const panes = new Map<string, { style: Record<string, unknown> }>();
     const map = {
+      createPane: jest.fn((name: string) => {
+        const pane = { style: {} as Record<string, unknown> };
+        panes.set(name, pane);
+        return pane;
+      }),
+      getPane: jest.fn((name: string) => panes.get(name)),
       on: jest.fn((eventName: string, handler: () => void) => {
         const existing = eventHandlers.get(eventName);
         if (existing) {
@@ -139,17 +150,28 @@ describe('speciesOccurrenceMapHelpers', () => {
       }),
       setMinZoom: jest.fn(),
       getSize: jest.fn(() => ({ x: 256 })),
-      getBounds: jest.fn(() => ({
-        contains: ({ lng }: { lng: number }) => visibleLongitudePredicate(lng),
-        getWest: jest.fn(() => -180),
-        getSouth: jest.fn(() => -90),
-        getEast: jest.fn(() => 180),
-        getNorth: jest.fn(() => 90),
-      })),
+      getBounds: jest.fn(() => {
+        const bounds: Record<string, unknown> = {
+          contains: ({ lng }: { lng: number }) => visibleLongitudePredicate(lng),
+          getWest: jest.fn(() => -180),
+          getSouth: jest.fn(() => -90),
+          getEast: jest.fn(() => 180),
+          getNorth: jest.fn(() => 90),
+        };
+        bounds.pad = jest.fn(() => bounds);
+        return bounds;
+      }),
       getZoom: jest.fn(() => 8),
       getCenter: jest.fn(() => ({ lng: 0 })),
       removeLayer: jest.fn(),
       addLayer: jest.fn(),
+      hasLayer: jest.fn(() => false),
+      getContainer: jest.fn(() => ({ style: {} as Record<string, unknown> })),
+      whenReady: jest.fn((callback: () => void) => callback()),
+      latLngToContainerPoint: jest.fn(({ lat, lng }: { lat: number; lng: number }) => ({
+        x: lng,
+        y: lat,
+      })),
       fitBounds: jest.fn(),
       setView: jest.fn(),
       closePopup: jest.fn(),
@@ -209,6 +231,9 @@ describe('speciesOccurrenceMapHelpers', () => {
         },
       ),
       circle: jest.fn(() => ({ addTo: jest.fn() })),
+      geoJSON: jest.fn(() => ({ addTo: jest.fn() })),
+      marker: jest.fn(() => ({ addTo: jest.fn() })),
+      divIcon: jest.fn((opts: Record<string, unknown>) => opts),
       popup: jest.fn(() => popup),
       markerClusterGroup: jest.fn(() => makeLayer()),
       layerGroup: jest.fn(() => makeLayer()),

@@ -89,6 +89,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
   initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
+  mapTileMode: '__MAP_TILE_MODE_JSON__',
+  enableOfflineFallback: '__ENABLE_OFFLINE_FALLBACK__',
 } as const;
 
 export type HighlightMessage = {
@@ -320,6 +322,8 @@ export const buildLeafletHtml = (
   locationPickerMode?: boolean,
   initialLocalLat?: number | null,
   initialLocalLon?: number | null,
+  tileMode?: MapTileMode,
+  enableOfflineFallback?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -501,6 +505,12 @@ export const buildLeafletHtml = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.initialLocalLon)
     .join(initialLocalLon != null ? String(initialLocalLon) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.mapTileMode)
+    .join(JSON.stringify(tileMode === 'dark' ? 'dark' : 'light'));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.enableOfflineFallback)
+    .join(enableOfflineFallback ? 'true' : 'false');
   return html;
 };
 

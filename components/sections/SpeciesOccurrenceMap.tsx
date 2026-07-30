@@ -160,6 +160,12 @@ type SpeciesOccurrenceMapProps = {
   onLocationPicked?: (lat: number, lon: number) => void;
   localLat?: number | null;
   localLon?: number | null;
+  // Natural Earth offline background layer (land/water/roads/places, shown
+  // only when tiles fail to load) — real weight (embedded data + LOD +
+  // label-declutter recomputed on every pan/zoom), so it must stay opt-in
+  // rather than run on every map instance across the app. Only the custom
+  // upload page (which genuinely needs to work offline) should enable it.
+  enableOfflineFallback?: boolean;
 };
 
 export function SpeciesOccurrenceMap({
@@ -207,6 +213,7 @@ export function SpeciesOccurrenceMap({
   onLocationPicked,
   localLat = null,
   localLon = null,
+  enableOfflineFallback = false,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -493,6 +500,8 @@ export function SpeciesOccurrenceMap({
       locationPickerMode,
       initialLocalLat.current,
       initialLocalLon.current,
+      mode,
+      enableOfflineFallback,
     );
   }, [
     allowPinObservations,
@@ -528,6 +537,8 @@ export function SpeciesOccurrenceMap({
     memoClassLabels,
     memoClassShapes,
     memoMarkerOutlineEnabled,
+    mode,
+    enableOfflineFallback,
   ]);
 
   React.useEffect(() => {

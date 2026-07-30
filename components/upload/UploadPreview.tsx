@@ -438,6 +438,7 @@ export function UploadPreview({
             highlightedCatalogs={highlightedCatalogs}
             height={height}
             linkObservations={false}
+            enableOfflineFallback={true}
             onPinObservation={handlePinObservation}
             selectedPoint={selectedMapPoint}
             onMapBounds={setMapBounds}
