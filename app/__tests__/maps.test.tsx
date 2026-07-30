@@ -81,19 +81,13 @@ jest.mock('@/components', () => {
       onTileClasses,
     }: {
       heatmapTileUrl?: string | null;
-      onTileClasses?: (
-        classes: { id: number; count: number }[],
-        removed: boolean,
-      ) => void;
+      onTileClasses?: (classes: { id: number; count: number }[]) => void;
     }) => {
       mockReact.useEffect(() => {
-        onTileClasses?.(
-          [
-            { id: 1, count: 5 },
-            { id: 2, count: 3 },
-          ],
-          false,
-        );
+        onTileClasses?.([
+          { id: 1, count: 5 },
+          { id: 2, count: 3 },
+        ]);
       }, [onTileClasses]);
       return mockReact.createElement(
         MockView,

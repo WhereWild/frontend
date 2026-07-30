@@ -16,6 +16,7 @@ export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
 export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
+export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 
 type FullscreenCapableElement = Element & {
   webkitRequestFullscreen?: () => void;

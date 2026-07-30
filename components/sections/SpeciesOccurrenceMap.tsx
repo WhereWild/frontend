@@ -43,6 +43,7 @@ import {
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
+  TILE_CLASSES_SYNC_MESSAGE_TYPE,
   toggleFullscreenElement,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
@@ -71,8 +72,13 @@ function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
 }
 
 type TileClassEntry = { id: number; count: number };
+// A full snapshot of every nominal class currently visible, recomputed from
+// scratch by the map template each time it settles (see
+// SpeciesOccurrenceMap.html's layer.syncClasses) — not an incremental
+// add/remove delta. Replacing the whole set each time means there's no
+// per-tile add/remove pairing to keep consistent, so nothing can drift.
 type TileClassesMessage = {
-  type: 'tileClasses' | 'tileClassesRemoved';
+  type: typeof TILE_CLASSES_SYNC_MESSAGE_TYPE;
   classes: TileClassEntry[];
 };
 
@@ -81,7 +87,7 @@ function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
     !!msg &&
     typeof msg === 'object' &&
     'type' in msg &&
-    (msg.type === 'tileClasses' || msg.type === 'tileClassesRemoved') &&
+    msg.type === TILE_CLASSES_SYNC_MESSAGE_TYPE &&
     'classes' in msg &&
     Array.isArray((msg as TileClassesMessage).classes)
   );
@@ -140,10 +146,9 @@ type SpeciesOccurrenceMapProps = {
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
-  onTileClasses?: (
-    classes: { id: number; count: number }[],
-    removed: boolean,
-  ) => void;
+  // A full snapshot of currently-visible nominal classes, not an
+  // incremental delta — see TileClassesMessage's doc comment.
+  onTileClasses?: (classes: { id: number; count: number }[]) => void;
   onPointValue?: (value: number) => void;
   pointQueryUrl?: string | null;
   renderMin?: number | null;
@@ -331,7 +336,7 @@ export function SpeciesOccurrenceMap({
       }
 
       if (isTileClassesMessage(msg)) {
-        onTileClasses?.(msg.classes, msg.type === 'tileClassesRemoved');
+        onTileClasses?.(msg.classes);
         return;
       }
 
@@ -376,6 +381,22 @@ export function SpeciesOccurrenceMap({
   );
 
   const hasOccurrences = occurrences.length > 0;
+  // Tracks which renderer the currently-loaded mapTemplate was fetched for.
+  // heatmapTileUrl (and hasOccurrences/locationPickerMode) have to stay in
+  // this effect's deps so it reacts the first time either becomes available
+  // — on maps.tsx, occurrences is always [] and heatmapTileUrl is the only
+  // signal that there's anything to show at all. But once a template is
+  // already loaded for the current (globeView, enableOfflineFallback) pair,
+  // re-running the fetch on every later heatmapTileUrl change (switching
+  // colormap/variable/class filter/value range, all of which change the
+  // tile URL) was refetching the same bytes into a new string instance,
+  // which — since preserveMapPosition's whole point is to push those
+  // changes via postMessage instead — pointlessly rebuilt the html memo and
+  // fully reloaded the iframe. That reload silently destroys whatever the
+  // old iframe was mid-tracking (in-flight tileClasses adds with no chance
+  // to ever send the matching tileClassesRemoved), which is exactly what
+  // made the nominal legend's live counts drift/stick.
+  const loadedRendererKeyRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (
@@ -383,6 +404,11 @@ export function SpeciesOccurrenceMap({
       error ||
       (!hasOccurrences && !heatmapTileUrl && !locationPickerMode)
     ) {
+      return;
+    }
+
+    const rendererKey = `${globeView}:${enableOfflineFallback}`;
+    if (mapTemplate && loadedRendererKeyRef.current === rendererKey) {
       return;
     }
 
@@ -401,6 +427,7 @@ export function SpeciesOccurrenceMap({
       }
 
       if (templateContent) {
+        loadedRendererKeyRef.current = rendererKey;
         setMapTemplate(templateContent);
         setTemplateLoadWarning(null);
         setTemplateLoadError(null);
@@ -413,12 +440,14 @@ export function SpeciesOccurrenceMap({
       }
 
       if (fallbackTemplate) {
+        loadedRendererKeyRef.current = rendererKey;
         setMapTemplate(fallbackTemplate);
         setTemplateLoadWarning(fallbackWarningMessage);
         setTemplateLoadError(null);
         return;
       }
 
+      loadedRendererKeyRef.current = null;
       setMapTemplate(null);
       setTemplateLoadWarning(null);
       setTemplateLoadError(rendererLoadErrorMessage);
@@ -435,6 +464,7 @@ export function SpeciesOccurrenceMap({
     locationPickerMode,
     globeView,
     enableOfflineFallback,
+    mapTemplate,
   ]);
 
   const markerPalette = React.useMemo<MapMarkerPalette>(
@@ -816,7 +846,7 @@ export function SpeciesOccurrenceMap({
       }
 
       if (frameWindow && source === frameWindow && isTileClassesMessage(data)) {
-        onTileClasses?.(data.classes, data.type === 'tileClassesRemoved');
+        onTileClasses?.(data.classes);
         return;
       }
 

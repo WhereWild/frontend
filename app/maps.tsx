@@ -291,29 +291,16 @@ export default function Maps() {
     [],
   );
 
+  // A full snapshot of currently-visible nominal classes, recomputed from
+  // scratch by the map template each time it settles — not an incremental
+  // add/remove delta (see SpeciesOccurrenceMap.html's layer.syncClasses).
+  // A plain replace, so a class with no currently-visible pixels is
+  // automatically absent from `classes` and therefore dropped here — no
+  // separate removal step needed, and nothing for stale per-tile add/remove
+  // pairing to ever drift out of sync.
   const handleTileClasses = useCallback(
-    (classes: { id: number; count: number }[], removed: boolean) => {
-      setVisibleNominalCounts((prev) => {
-        const next = new Map(prev);
-        for (const { id, count } of classes) {
-          if (removed) {
-            const remaining = (next.get(id) ?? 0) - count;
-            // Globe-mode counts are fractional (angle-weighted pixel
-            // counts), so repeated add/subtract cycles as tiles enter and
-            // leave view accumulate floating-point rounding error — a class
-            // that should fully cancel out can land on something like
-            // 1e-13 instead of exactly 0, which `remaining <= 0` never
-            // catches, leaving it stuck in the map (and thus the legend)
-            // forever. A small epsilon is safe here: real counts are pixel
-            // counts scaled by a weight that's floored well above this.
-            if (remaining <= 1e-6) next.delete(id);
-            else next.set(id, remaining);
-          } else {
-            next.set(id, (next.get(id) ?? 0) + count);
-          }
-        }
-        return next;
-      });
+    (classes: { id: number; count: number }[]) => {
+      setVisibleNominalCounts(new Map(classes.map(({ id, count }) => [id, count])));
     },
     [],
   );
