@@ -152,7 +152,8 @@ describe('speciesOccurrenceMapHelpers', () => {
       getSize: jest.fn(() => ({ x: 256 })),
       getBounds: jest.fn(() => {
         const bounds: Record<string, unknown> = {
-          contains: ({ lng }: { lng: number }) => visibleLongitudePredicate(lng),
+          contains: ({ lng }: { lng: number }) =>
+            visibleLongitudePredicate(lng),
           getWest: jest.fn(() => -180),
           getSouth: jest.fn(() => -90),
           getEast: jest.fn(() => 180),
@@ -168,10 +169,12 @@ describe('speciesOccurrenceMapHelpers', () => {
       hasLayer: jest.fn(() => false),
       getContainer: jest.fn(() => ({ style: {} as Record<string, unknown> })),
       whenReady: jest.fn((callback: () => void) => callback()),
-      latLngToContainerPoint: jest.fn(({ lat, lng }: { lat: number; lng: number }) => ({
-        x: lng,
-        y: lat,
-      })),
+      latLngToContainerPoint: jest.fn(
+        ({ lat, lng }: { lat: number; lng: number }) => ({
+          x: lng,
+          y: lat,
+        }),
+      ),
       fitBounds: jest.fn(),
       setView: jest.fn(),
       closePopup: jest.fn(),
