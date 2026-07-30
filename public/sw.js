@@ -27,9 +27,16 @@ function stadiaCacheName() {
 
 async function cachedTileResponse(request) {
   const cache = await caches.open(stadiaCacheName());
-  const cached = await cache.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
+  // Network-first, cache as a write-through side effect only — never served
+  // as a fallback on failure. This keeps offline behavior deterministic (a
+  // blocked/failed fetch always means "no tile", never a stale cached one)
+  // without depending on navigator.onLine, which doesn't reliably reflect
+  // DevTools' offline network emulation inside a service worker's scope.
+  // `cache: 'no-store'` forces every request to actually hit the network —
+  // otherwise a plain fetch() can silently resolve from the browser's own
+  // HTTP cache (separate from the Cache Storage above) with zero network
+  // attempt, which is indistinguishable from "online" even when offline.
+  const response = await fetch(request, { cache: 'no-store' });
   // Cross-origin tile <img> loads are typically opaque (status 0, unreadable
   // body) — they're still cacheable as opaque responses, just not inspectable.
   if (response.ok || response.type === 'opaque') {
@@ -73,7 +80,10 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Basemap tiles: cache-first across origins, capped to a rolling weekly bucket.
+  // Basemap tiles: network-first across origins, capped to a rolling weekly
+  // cache bucket (see cachedTileResponse — cache is write-through only, never
+  // a fallback), so offline always means "no tile" rather than depending on
+  // whatever tiles happen to already be cached from earlier browsing.
   if (TILE_CACHE_HOSTS.has(url.hostname)) {
     event.respondWith(cachedTileResponse(request));
     return;

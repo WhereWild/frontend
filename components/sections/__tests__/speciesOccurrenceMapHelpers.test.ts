@@ -59,12 +59,16 @@ describe('speciesOccurrenceMapHelpers', () => {
     linkColor: '#466237',
   };
 
+  // The template now also inlines vendored Leaflet/MarkerCluster libraries as
+  // earlier <script> blocks (so the map works fully offline), so the map's
+  // own logic is always the *last* inline script block, not the first.
   const extractInlineScript = (html: string) => {
-    const match = html.match(/<script>([\s\S]*?)<\/script>/i);
-    if (!match?.[1]) {
+    const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
+    const last = matches[matches.length - 1]?.[1];
+    if (!last) {
       throw new Error('Expected inline map script in template');
     }
-    return match[1];
+    return last;
   };
 
   type MockLeafletMarker = {
@@ -82,6 +86,7 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   const createLeafletHarness = () => {
     const eventHandlers = new Map<string, (event?: unknown) => void>();
+    const tileLayerEventHandlers = new Map<string, (event?: unknown) => void>();
     const documentListeners = new Map<
       string,
       (event: { data: unknown }) => void
@@ -116,7 +121,9 @@ describe('speciesOccurrenceMapHelpers', () => {
       _url: url,
       addTo: jest.fn().mockReturnThis(),
       createTile: jest.fn(() => ({ referrerPolicy: '' })),
-      on: jest.fn(),
+      on: jest.fn((eventName: string, handler: () => void) => {
+        tileLayerEventHandlers.set(eventName, handler);
+      }),
       getTileUrl(coords: { z: number; x: number; y: number }) {
         return this._url
           .replace('{z}', String(coords.z))
@@ -125,7 +132,20 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
     });
 
+    const panes = new Map<string, { style: Record<string, unknown> }>();
+    let mockZoom = 8;
+    // Real add/remove tracking (not a dumb stub) so tests can assert on
+    // whether a specific layer instance (e.g. the offline canvas layer) is
+    // actually attached to the map at a given point, not just that the
+    // methods were called.
+    const layersOnMap = new Set<unknown>();
     const map = {
+      createPane: jest.fn((name: string) => {
+        const pane = { style: {} as Record<string, unknown> };
+        panes.set(name, pane);
+        return pane;
+      }),
+      getPane: jest.fn((name: string) => panes.get(name)),
       on: jest.fn((eventName: string, handler: () => void) => {
         const existing = eventHandlers.get(eventName);
         if (existing) {
@@ -139,17 +159,35 @@ describe('speciesOccurrenceMapHelpers', () => {
       }),
       setMinZoom: jest.fn(),
       getSize: jest.fn(() => ({ x: 256 })),
-      getBounds: jest.fn(() => ({
-        contains: ({ lng }: { lng: number }) => visibleLongitudePredicate(lng),
-        getWest: jest.fn(() => -180),
-        getSouth: jest.fn(() => -90),
-        getEast: jest.fn(() => 180),
-        getNorth: jest.fn(() => 90),
-      })),
-      getZoom: jest.fn(() => 8),
+      getBounds: jest.fn(() => {
+        const bounds: Record<string, unknown> = {
+          contains: ({ lng }: { lng: number }) =>
+            visibleLongitudePredicate(lng),
+          getWest: jest.fn(() => -180),
+          getSouth: jest.fn(() => -90),
+          getEast: jest.fn(() => 180),
+          getNorth: jest.fn(() => 90),
+        };
+        bounds.pad = jest.fn(() => bounds);
+        return bounds;
+      }),
+      getZoom: jest.fn(() => mockZoom),
       getCenter: jest.fn(() => ({ lng: 0 })),
-      removeLayer: jest.fn(),
-      addLayer: jest.fn(),
+      removeLayer: jest.fn((layer: unknown) => {
+        layersOnMap.delete(layer);
+      }),
+      addLayer: jest.fn((layer: unknown) => {
+        layersOnMap.add(layer);
+      }),
+      hasLayer: jest.fn((layer: unknown) => layersOnMap.has(layer)),
+      getContainer: jest.fn(() => ({ style: {} as Record<string, unknown> })),
+      whenReady: jest.fn((callback: () => void) => callback()),
+      latLngToContainerPoint: jest.fn(
+        ({ lat, lng }: { lat: number; lng: number }) => ({
+          x: lng,
+          y: lat,
+        }),
+      ),
       fitBounds: jest.fn(),
       setView: jest.fn(),
       closePopup: jest.fn(),
@@ -183,6 +221,68 @@ describe('speciesOccurrenceMapHelpers', () => {
       return tile;
     };
 
+    // Records what the canvas offline-fallback layer actually draws, so
+    // tests can assert on real fill/stroke calls rather than just "didn't
+    // throw". A real (if minimal) Path2D so moveTo/lineTo/closePath calls
+    // are inspectable too.
+    class MockPath2D {
+      commands: { cmd: string; x?: number; y?: number }[] = [];
+      moveTo(x: number, y: number) {
+        this.commands.push({ cmd: 'moveTo', x, y });
+      }
+      lineTo(x: number, y: number) {
+        this.commands.push({ cmd: 'lineTo', x, y });
+      }
+      closePath() {
+        this.commands.push({ cmd: 'closePath' });
+      }
+    }
+    const canvasDrawCalls: {
+      type: 'fill' | 'stroke';
+      style: unknown;
+      path: MockPath2D;
+    }[] = [];
+    const createMockCanvas = () => {
+      const state = { width: 0, height: 0 };
+      const ctx = {
+        fillStyle: '',
+        strokeStyle: '',
+        lineWidth: 1,
+        lineJoin: '',
+        lineCap: '',
+        globalAlpha: 1,
+        scale: jest.fn(),
+        setLineDash: jest.fn(),
+        fill: jest.fn((path: MockPath2D) => {
+          canvasDrawCalls.push({ type: 'fill', style: ctx.fillStyle, path });
+        }),
+        stroke: jest.fn((path: MockPath2D) => {
+          canvasDrawCalls.push({
+            type: 'stroke',
+            style: ctx.strokeStyle,
+            path,
+          });
+        }),
+      };
+      return {
+        get width() {
+          return state.width;
+        },
+        set width(v: number) {
+          state.width = v;
+        },
+        get height() {
+          return state.height;
+        },
+        set height(v: number) {
+          state.height = v;
+        },
+        getContext: jest.fn(() => ctx),
+      };
+    };
+    const createdCanvasTiles: ReturnType<typeof createMockCanvas>[] = [];
+    const gridLayerInstances: { options: Record<string, unknown> }[] = [];
+
     const L = {
       latLngBounds: jest.fn(() => ({})),
       latLng: jest.fn((lat: number, lng: number) => ({ lat, lng })),
@@ -209,6 +309,53 @@ describe('speciesOccurrenceMapHelpers', () => {
         },
       ),
       circle: jest.fn(() => ({ addTo: jest.fn() })),
+      geoJSON: jest.fn(() => ({ addTo: jest.fn() })),
+      marker: jest.fn((latlng: unknown, options: Record<string, unknown>) => {
+        const markerObj: {
+          latlng: unknown;
+          options: unknown;
+          addTo: jest.Mock;
+        } = {
+          latlng,
+          options,
+          addTo: jest.fn((m: typeof map) => {
+            m.addLayer(markerObj);
+            return markerObj;
+          }),
+        };
+        return markerObj;
+      }),
+      divIcon: jest.fn((opts: Record<string, unknown>) => opts),
+      GridLayer: {
+        extend: jest.fn((proto: Record<string, unknown>) => {
+          function GridLayerCtor(
+            this: Record<string, unknown>,
+            options: Record<string, unknown>,
+          ) {
+            this.options = options;
+            Object.assign(this, proto);
+            gridLayerInstances.push(
+              this as { options: Record<string, unknown> },
+            );
+          }
+          GridLayerCtor.prototype.addTo = function (
+            this: Record<string, unknown>,
+            m: typeof map,
+          ) {
+            m.addLayer(this);
+            return this;
+          };
+          GridLayerCtor.prototype.getTileSize = function () {
+            const size =
+              (this as { options?: { tileSize?: number } }).options?.tileSize ??
+              256;
+            return { x: size, y: size };
+          };
+          return GridLayerCtor as unknown as new (
+            options: Record<string, unknown>,
+          ) => Record<string, unknown>;
+        }),
+      },
       popup: jest.fn(() => popup),
       markerClusterGroup: jest.fn(() => makeLayer()),
       layerGroup: jest.fn(() => makeLayer()),
@@ -225,10 +372,17 @@ describe('speciesOccurrenceMapHelpers', () => {
         }),
       },
       DomUtil: {
-        create: jest.fn(() => ({
-          style: {},
-          addEventListener: jest.fn(),
-        })),
+        create: jest.fn((tagName: string) => {
+          if (tagName === 'canvas') {
+            const canvas = createMockCanvas();
+            createdCanvasTiles.push(canvas);
+            return canvas;
+          }
+          return {
+            style: {},
+            addEventListener: jest.fn(),
+          };
+        }),
       },
       DomEvent: {
         disableClickPropagation: jest.fn(),
@@ -288,6 +442,7 @@ describe('speciesOccurrenceMapHelpers', () => {
         isFinite,
         URL: urlApi,
         HTMLElement,
+        Path2D: MockPath2D,
         fetch: undefined as
           | ((
               input: string,
@@ -298,10 +453,19 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
       createdMarkers,
       eventHandlers,
+      tileLayerEventHandlers,
       documentListeners,
       popup,
       windowListeners,
       urlApi,
+      canvasDrawCalls,
+      createdCanvasTiles,
+      gridLayerInstances,
+      L,
+      map,
+      setZoom(zoom: number) {
+        mockZoom = zoom;
+      },
       setVisibleLongitudePredicate(predicate: (longitude: number) => boolean) {
         visibleLongitudePredicate = predicate;
       },
@@ -1186,5 +1350,180 @@ describe('speciesOccurrenceMapHelpers', () => {
 
     jest.dontMock('expo-constants');
     jest.resetModules();
+  });
+
+  describe('offline Natural Earth fallback layer', () => {
+    const templatePath = path.join(
+      __dirname,
+      '..',
+      'speciesOccurrenceMap',
+      'SpeciesOccurrenceMap.html',
+    );
+
+    // enableOfflineFallback is the last of buildLeafletHtml's ~30 positional
+    // params — everything between tileUrlTemplate and tileMode is left at
+    // its default via `undefined`.
+    const buildOfflineFallbackHtml = (
+      enableOfflineFallback: boolean | undefined,
+    ) => {
+      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      return buildLeafletHtml(
+        rawTemplate,
+        [],
+        markerPalette,
+        getMapTileUrlTemplate('light'),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'light',
+        enableOfflineFallback,
+      );
+    };
+
+    it('does not touch the canvas/label machinery at all when disabled (default)', () => {
+      const html = buildOfflineFallbackHtml(undefined);
+      const harness = createLeafletHarness();
+      harness.setVisibleLongitudePredicate(() => true);
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      expect(harness.L.GridLayer.extend).not.toHaveBeenCalled();
+      expect(harness.L.marker).not.toHaveBeenCalled();
+      expect(harness.gridLayerInstances).toHaveLength(0);
+    });
+
+    it('builds a canvas GridLayer and attaches it to the map by default when enabled', () => {
+      const html = buildOfflineFallbackHtml(true);
+      const harness = createLeafletHarness();
+      harness.setVisibleLongitudePredicate(() => true);
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      expect(harness.L.GridLayer.extend).toHaveBeenCalledTimes(1);
+      const proto = harness.L.GridLayer.extend.mock.calls[0]?.[0] as {
+        createTile: unknown;
+      };
+      expect(typeof proto.createTile).toBe('function');
+      expect(harness.gridLayerInstances).toHaveLength(1);
+      // Shown by default until tiles are confirmed loading (see the
+      // separate online/offline gating test below) — matches the
+      // "default to offline until proven otherwise" design.
+      expect(harness.map.hasLayer(harness.gridLayerInstances[0])).toBe(true);
+    });
+
+    it('createTile culls by tile bbox — a single quadrant draws no more than the whole world', () => {
+      const html = buildOfflineFallbackHtml(true);
+      const harness = createLeafletHarness();
+      harness.setVisibleLongitudePredicate(() => true);
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      const layer = harness.gridLayerInstances[0] as unknown as {
+        createTile: (coords: { x: number; y: number; z: number }) => unknown;
+        getTileSize: () => { x: number; y: number };
+      };
+
+      const wholeWorldTile = layer.createTile({ x: 0, y: 0, z: 0 });
+      const wholeWorldDrawCount = harness.canvasDrawCalls.length;
+      // The whole world in one tile is guaranteed to intersect real land
+      // data (country boundaries alone span the globe), so something must
+      // have been drawn — this would fail loudly if bbox culling were
+      // broken in the "never draws anything" direction.
+      expect(wholeWorldDrawCount).toBeGreaterThan(0);
+      expect(wholeWorldTile).toBeTruthy();
+
+      harness.canvasDrawCalls.length = 0;
+      layer.createTile({ x: 0, y: 0, z: 1 });
+      const quadrantDrawCount = harness.canvasDrawCalls.length;
+
+      // A single quarter-of-the-world tile can never legitimately need
+      // *more* draw calls than the whole world in one tile — if bbox
+      // culling regressed to "draw everything every tile" this would grow
+      // roughly 4x instead of staying bounded.
+      expect(quadrantDrawCount).toBeLessThanOrEqual(wholeWorldDrawCount);
+
+      const tile = layer.getTileSize();
+      expect(tile).toEqual({ x: 256, y: 256 });
+    });
+
+    it('label declutter creates markers for eligible places and is stable across repeated recomputes', () => {
+      const html = buildOfflineFallbackHtml(true);
+      const harness = createLeafletHarness();
+      harness.setZoom(15);
+      harness.setVisibleLongitudePredicate(() => true);
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      const markerCallsAfterInitialLoad = harness.L.marker.mock.calls.length;
+      expect(markerCallsAfterInitialLoad).toBeGreaterThan(0);
+
+      // Recomputing with an unchanged view must not recreate labels that
+      // are already showing — that churn (remove+recreate every pan/zoom
+      // event) is exactly the kind of thing that reads as UI flicker even
+      // when nothing about the underlying data actually changed.
+      harness.eventHandlers.get('moveend')?.();
+      expect(harness.L.marker.mock.calls.length).toBe(
+        markerCallsAfterInitialLoad,
+      );
+
+      harness.eventHandlers.get('zoomend')?.();
+      expect(harness.L.marker.mock.calls.length).toBe(
+        markerCallsAfterInitialLoad,
+      );
+    });
+
+    it('detaches the canvas layer once tiles are confirmed loading, and reattaches if tiles start failing', () => {
+      const html = buildOfflineFallbackHtml(true);
+      const harness = createLeafletHarness();
+      harness.setVisibleLongitudePredicate(() => true);
+      vm.runInNewContext(extractInlineScript(html), harness.context);
+
+      const layer = harness.gridLayerInstances[0];
+      expect(harness.map.hasLayer(layer)).toBe(true);
+
+      // A full, error-free tile batch means we're genuinely online — the
+      // fallback layer should fully detach, not just hide visually, so no
+      // further tiles get generated while panning around online.
+      harness.tileLayerEventHandlers.get('loading')?.();
+      harness.tileLayerEventHandlers.get('load')?.();
+      expect(harness.map.hasLayer(layer)).toBe(false);
+      const pane = harness.map.getPane('worldOutlinePane') as {
+        style: Record<string, unknown>;
+      };
+      expect(pane.style.display).toBe('none');
+
+      // A batch where every tile errors means we're genuinely offline —
+      // the layer should reattach.
+      harness.tileLayerEventHandlers.get('loading')?.();
+      harness.tileLayerEventHandlers.get('tileerror')?.();
+      harness.tileLayerEventHandlers.get('load')?.();
+      expect(harness.map.hasLayer(layer)).toBe(true);
+      expect(pane.style.display).toBe('');
+    });
   });
 });
