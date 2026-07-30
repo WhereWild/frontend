@@ -1525,6 +1525,5 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(harness.map.hasLayer(layer)).toBe(true);
       expect(pane.style.display).toBe('');
     });
-
   });
 });
