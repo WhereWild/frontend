@@ -16,7 +16,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSettings } from '@/context/SettingsContext';
+import { useSettings, type UnitSystem } from '@/context/SettingsContext';
 import { StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
@@ -30,6 +30,7 @@ import { MapCircularColormapPicker } from '@/components/sections/speciesOccurren
 import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/MapCircularLegend';
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
+import type { LegendRange } from '@/components/sections/speciesOccurrenceMap/legendRangeSelection';
 import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import {
   CIRCULAR_COLORMAPS,
@@ -108,6 +109,8 @@ const buildTileUrl = ({
   forecastH,
   variable,
   classFilter,
+  valueRange,
+  unitSystem,
 }: {
   cacheKey: number;
   colormap: string;
@@ -116,15 +119,30 @@ const buildTileUrl = ({
   cbMode: string | null;
   forecastH: number;
   variable: string;
-  classFilter: number | null;
+  classFilter: number[] | null;
+  valueRange: LegendRange | null;
+  unitSystem: UnitSystem | undefined;
 }) => {
   const effectiveColormap = isCircular ? circularColormap : colormap;
   const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
   const fcParam = forecastH > 0 ? `&forecast_h=${forecastH}` : '';
-  const cfParam = classFilter != null ? `&class_filter=${classFilter}` : '';
+  // Repeated params (class_filter=1&class_filter=2) — FastAPI's
+  // `list[int] = Query(None)` on the backend route collects these the same
+  // way it already does for any other repeated-key query param.
+  const cfParam =
+    classFilter && classFilter.length > 0
+      ? classFilter.map((id) => `&class_filter=${id}`).join('')
+      : '';
+  // value_min/value_max come from the legend, which displays (and the user
+  // drags across) values in the current unit system — the backend needs to
+  // know that to convert back to the raw/metric units its raster pixels are
+  // actually stored in before masking (see main.py's layer_tile route).
+  const vrParam = valueRange
+    ? `&value_min=${valueRange.min}&value_max=${valueRange.max}&unit_system=${unitSystem ?? 'metric'}`
+    : '';
   return `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     variable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}${vrParam}`;
 };
 
 export default function Maps() {
@@ -156,9 +174,24 @@ export default function Maps() {
   >(new Map());
   const [pinnedValue, setPinnedValue] = useState<number | null>(null);
   const [selectedForecast, setSelectedForecast] = useState('now');
-  const [selectedClassFilter, setSelectedClassFilter] = useState<number | null>(
-    null,
-  );
+  // Multiple classes can be toggled on at once — an empty array means no
+  // filter (all classes shown), same as the previous single-select's null.
+  const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
+  const toggleSelectedClassId = useCallback((id: number) => {
+    setSelectedClassIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }, []);
+  // Drag-selected value range on MapVariableLegend's gradient bar (numeric
+  // variables) — filters which pixels render, same idea as classFilter but
+  // for a continuous range instead of a discrete class.
+  const [selectedValueRange, setSelectedValueRange] =
+    useState<LegendRange | null>(null);
+  // Same for MapCircularLegend's ring (circular variables) — min/max here
+  // are a clockwise start/end angle, not a sorted range; see LegendRange's
+  // doc comment on MapCircularLegendProps for the wraparound convention.
+  const [selectedAngleRange, setSelectedAngleRange] =
+    useState<LegendRange | null>(null);
   // Fullscreens the map + its legend/colormap-picker overlays together —
   // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
   const mapContainerRef = useRef<View | null>(null);
@@ -219,7 +252,11 @@ export default function Maps() {
         cbMode,
         forecastH,
         variable: selectedVariable,
-        classFilter: isCategorical ? selectedClassFilter : null,
+        classFilter: isCategorical ? selectedClassIds : null,
+        valueRange: isCategorical
+          ? null
+          : (isCircular ? selectedAngleRange : selectedValueRange),
+        unitSystem: units,
       }),
     [
       tileCacheKey,
@@ -230,7 +267,10 @@ export default function Maps() {
       forecastH,
       selectedVariable,
       isCategorical,
-      selectedClassFilter,
+      selectedClassIds,
+      selectedAngleRange,
+      selectedValueRange,
+      units,
     ],
   );
 
@@ -241,7 +281,9 @@ export default function Maps() {
     // renderer only ever adds to this map from then on.
     setVisibleNominalCounts(new Map());
     setPinnedValue(null);
-    setSelectedClassFilter(null);
+    setSelectedClassIds([]);
+    setSelectedValueRange(null);
+    setSelectedAngleRange(null);
   }, [selectedVariable, globeViewEnabled]);
 
   const handlePointValue = useCallback(
@@ -432,6 +474,8 @@ export default function Maps() {
                       CIRCULAR_COLORMAPS[selectedCircularColormap]
                         .arcSegmentColors
                     }
+                    selectedRange={selectedAngleRange}
+                    onRangeChange={setSelectedAngleRange}
                   />
                   <MapCircularColormapPicker
                     selected={selectedCircularColormap}
@@ -448,12 +492,8 @@ export default function Maps() {
                     cbMode={cbMode}
                     shapesEnabled={false}
                     markerOutlineEnabled={markerOutlineEnabled}
-                    selectedClassId={selectedClassFilter}
-                    onClassClick={(id) =>
-                      setSelectedClassFilter((prev) =>
-                        prev === id ? null : id,
-                      )
-                    }
+                    selectedClassIds={selectedClassIds}
+                    onClassClick={toggleSelectedClassId}
                   />
                   <MapCbModePicker
                     selected={cbMode}
@@ -478,6 +518,8 @@ export default function Maps() {
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedValue}
                       barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
+                      selectedRange={selectedValueRange}
+                      onRangeChange={setSelectedValueRange}
                     />
                     <MapColormapPicker
                       selected={selectedColormap}
