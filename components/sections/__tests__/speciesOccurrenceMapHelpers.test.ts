@@ -7,6 +7,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { Asset } from 'expo-asset';
 import {
+  buildGlobeHtml,
   buildLeafletHtml,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
@@ -403,6 +404,9 @@ describe('speciesOccurrenceMapHelpers', () => {
         return {};
       }),
       head: { appendChild: jest.fn() },
+      // Absent (not stubbed with requestFullscreen) on purpose: exercises the
+      // same feature-detection path a real Fullscreen-API-less WebView takes.
+      documentElement: {},
     };
 
     const urlApi = {
@@ -500,6 +504,58 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).not.toContain('__POINTS_JSON__');
   });
 
+  it('buildGlobeHtml forwards tileMode and enableOfflineFallback like buildLeafletHtml', () => {
+    // buildGlobeHtml used to destructure only the first 34 of
+    // fillMapTemplatePlaceholders' ~36 positional params, silently dropping
+    // tileMode and enableOfflineFallback — this pins that both now reach the
+    // template.
+    const html = buildGlobeHtml(
+      '__MAP_TILE_MODE_JSON__|__ENABLE_OFFLINE_FALLBACK__',
+      [],
+      markerPalette,
+      getMapTileUrlTemplate('light'),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'dark',
+      true,
+    );
+
+    expect(html).toContain(JSON.stringify('dark'));
+    expect(html).toContain('true');
+    expect(html).not.toContain('__MAP_TILE_MODE_JSON__');
+    expect(html).not.toContain('__ENABLE_OFFLINE_FALLBACK__');
+  });
+
   it('prepares popup-safe catalog fields before injecting map points', () => {
     const html = buildLeafletHtml(
       '__POINTS_JSON__',
@@ -529,6 +585,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -570,6 +632,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -637,6 +705,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -715,6 +789,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         __dirname,
         '..',
         'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
         'SpeciesOccurrenceMapFallback.html',
       ),
     ];
@@ -757,6 +837,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -824,6 +910,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -917,6 +1009,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         __dirname,
         '..',
         'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
         'SpeciesOccurrenceMapFallback.html',
       ),
     ];
@@ -964,6 +1062,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -1023,6 +1127,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -1353,11 +1463,16 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   describe('offline Natural Earth fallback layer', () => {
+    // The offline vector basemap/label data (and the code that renders it)
+    // was split out of SpeciesOccurrenceMap.html into its own asset so every
+    // other Leaflet map (species pages, maps page) doesn't pay for ~26MB of
+    // template it never uses — SpeciesOccurrenceMapOffline.html is the one
+    // actually loaded when enableOfflineFallback is true (upload page only).
     const templatePath = path.join(
       __dirname,
       '..',
       'speciesOccurrenceMap',
-      'SpeciesOccurrenceMap.html',
+      'SpeciesOccurrenceMapOffline.html',
     );
 
     // enableOfflineFallback is the last of buildLeafletHtml's ~30 positional

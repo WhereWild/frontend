@@ -14,6 +14,35 @@ export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
 export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
 export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
 export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
+export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
+export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
+
+type FullscreenCapableElement = Element & {
+  webkitRequestFullscreen?: () => void;
+};
+type FullscreenCapableDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => void;
+};
+
+// Shared by SpeciesOccurrenceMap's own (map-only) fallback and by consuming
+// pages that want to include their own overlay siblings (legends, colormap
+// pickers) in the fullscreened area — see onFullscreenToggle's doc comment
+// on SpeciesOccurrenceMapProps for why this can't just live inside the map's
+// WebView/iframe.
+export const toggleFullscreenElement = (el: Element | null | undefined) => {
+  if (!el || typeof document === 'undefined') {
+    return;
+  }
+  const doc = document as FullscreenCapableDocument;
+  const isFullscreen = doc.fullscreenElement || doc.webkitFullscreenElement;
+  if (isFullscreen) {
+    (doc.exitFullscreen || doc.webkitExitFullscreen)?.call(doc);
+    return;
+  }
+  const target = el as FullscreenCapableElement;
+  (target.requestFullscreen || target.webkitRequestFullscreen)?.call(target);
+};
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
@@ -564,6 +593,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     locationPickerMode,
     initialLocalLat,
     initialLocalLon,
+    tileMode,
+    enableOfflineFallback,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -602,6 +633,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     locationPickerMode,
     initialLocalLat,
     initialLocalLon,
+    tileMode,
+    enableOfflineFallback,
   );
 };
 
@@ -645,8 +678,30 @@ export const loadMapTemplate = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceMap.html'));
 };
 
+// Same problem, same fix, as loadGlobeMapTemplateOffline below: the offline
+// Natural Earth basemap + place-label data adds ~26MB to this template, and
+// every variable switch re-runs fillMapTemplatePlaceholders' ~40
+// .split()/.join() passes over the whole string — a measured ~300ms+ per
+// switch, independent of zoom, entirely from that one template being this
+// big. enableOfflineFallback is only ever true on the upload page, so keep
+// that weight out of every other Leaflet map (species pages, maps page) by
+// splitting it into its own asset.
+export const loadMapTemplateOffline = async (): Promise<string | null> => {
+  return loadHtmlAsset(require('./SpeciesOccurrenceMapOffline.html'));
+};
+
 export const loadGlobeMapTemplate = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMap.html'));
+};
+
+// The offline vector basemap + place-label data adds ~25MB to the globe
+// template — every extra .split()/.join() pass in fillMapTemplatePlaceholders
+// copies that whole string, which is enough to visibly stall the globe on
+// every load. Since enableOfflineFallback is only ever true on the upload
+// page, keep that weight out of the template every other globe view loads by
+// splitting it into its own asset, loaded only when actually needed.
+export const loadGlobeMapTemplateOffline = async (): Promise<string | null> => {
+  return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMapOffline.html'));
 };
 
 export const loadFallbackMapTemplate = async (): Promise<string | null> => {

@@ -19,6 +19,7 @@ import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
+import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
@@ -132,16 +133,17 @@ export const shouldRenderObservationMapFrame = ({
 }) => platform !== 'web' || measuredWebHeaderHeight > 0;
 
 // Rendered inside PageScrollContainer so useScrollLock sees the provider.
-function MapScrollLockWrapper({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: object;
-}) {
+const MapScrollLockWrapper = React.forwardRef<
+  View,
+  {
+    children: React.ReactNode;
+    style?: object;
+  }
+>(function MapScrollLockWrapper({ children, style }, ref) {
   const { lockScroll, unlockScroll } = useScrollLock();
   return (
     <View
+      ref={ref}
       collapsable={false}
       style={style}
       onTouchStart={Platform.OS !== 'web' ? lockScroll : undefined}
@@ -151,7 +153,7 @@ function MapScrollLockWrapper({
       {children}
     </View>
   );
-}
+});
 
 function SectionShell({
   responsive,
@@ -245,6 +247,9 @@ export default function Species({
   } | null>(null);
   const [selectedVariableMeta, setSelectedVariableMeta] =
     React.useState<EnvironmentVariableOption | null>(null);
+  // Fullscreens the map + its legend/colormap-picker overlays together —
+  // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
+  const mapContainerRef = React.useRef<View | null>(null);
   const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
     null,
   );
@@ -701,8 +706,16 @@ export default function Species({
             }
           >
             {shouldRenderOccurrenceMap && isOccurrenceMapReadyToRender && (
-              <MapScrollLockWrapper style={{ position: 'relative' }}>
+              <MapScrollLockWrapper
+                ref={mapContainerRef}
+                style={{ position: 'relative' }}
+              >
                 <SpeciesOccurrenceMap
+                  onFullscreenToggle={() =>
+                    toggleFullscreenElement(
+                      mapContainerRef.current as unknown as Element | null,
+                    )
+                  }
                   occurrences={
                     selectedVariableMeta && observationValues == null
                       ? []

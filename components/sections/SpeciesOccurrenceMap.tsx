@@ -18,7 +18,6 @@ import { useOptionalSettings } from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
-import { SwitchField } from '../inputs/SwitchField';
 import {
   buildGlobeHtml,
   buildLeafletHtml,
@@ -27,7 +26,9 @@ import {
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
   loadGlobeMapTemplate,
+  loadGlobeMapTemplateOffline,
   loadMapTemplate,
+  loadMapTemplateOffline,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
   type HighlightMessage,
@@ -40,6 +41,9 @@ import {
   HEATMAP_UPDATE_MESSAGE_TYPE,
   LOCATION_PICKED_MESSAGE_TYPE,
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
+  TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
+  TOGGLE_FULLSCREEN_MESSAGE_TYPE,
+  toggleFullscreenElement,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -170,6 +174,17 @@ type SpeciesOccurrenceMapProps = {
   // rather than run on every map instance across the app. Only the custom
   // upload page (which genuinely needs to work offline) should enable it.
   enableOfflineFallback?: boolean;
+  // Called (web only) when the in-map fullscreen button is toggled, instead
+  // of this component handling it internally. Fullscreening only ever
+  // covers a single DOM element and its descendants — this component's own
+  // WebView/iframe is a sibling of any legend/colormap-picker overlays the
+  // consuming page renders alongside it (see maps.tsx, _species.tsx,
+  // UploadPreview.tsx), so fullscreening the map alone would hide them.
+  // Pass a callback that toggles fullscreen on a wider ancestor that
+  // actually contains those overlays too. Omit to fall back to
+  // fullscreening just this component (map-only, no overlays) — better
+  // than nothing, but a page with its own overlays should provide this.
+  onFullscreenToggle?: () => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -218,6 +233,7 @@ export function SpeciesOccurrenceMap({
   localLat = null,
   localLon = null,
   enableOfflineFallback = false,
+  onFullscreenToggle,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -227,7 +243,42 @@ export function SpeciesOccurrenceMap({
   const palette = Colors[mode];
   const webViewRef = React.useRef<WebView>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
+  // react-native-web forwards View refs to the underlying DOM node — used
+  // as the default (map-only) fullscreen target when a page doesn't supply
+  // onFullscreenToggle. Typed loosely since this only matters on web.
+  const containerRef = React.useRef<View | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  // Even when a fixed `height` prop is set (the common case — most pages
+  // give the map a set height in its normal layout), fullscreen should fill
+  // the whole screen rather than leaving the map pinned at its original
+  // pixel height with blank space below it. Fullscreen is toggled on some
+  // ancestor of this component (see onFullscreenToggle), not on this
+  // component's own root, so this can't just check "is my own node the
+  // fullscreen element" — it checks containment instead.
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') {
+      return;
+    }
+    const fullscreenDoc = document as Document & {
+      webkitFullscreenElement?: Element | null;
+    };
+    const updateIsFullscreen = () => {
+      const fullscreenElement =
+        fullscreenDoc.fullscreenElement ?? fullscreenDoc.webkitFullscreenElement;
+      const node = containerRef.current as unknown as Element | null;
+      setIsFullscreen(
+        !!fullscreenElement && !!node && fullscreenElement.contains(node),
+      );
+    };
+    updateIsFullscreen();
+    document.addEventListener('fullscreenchange', updateIsFullscreen);
+    document.addEventListener('webkitfullscreenchange', updateIsFullscreen);
+    return () => {
+      document.removeEventListener('fullscreenchange', updateIsFullscreen);
+      document.removeEventListener('webkitfullscreenchange', updateIsFullscreen);
+    };
+  }, []);
   const initialLocalLat = React.useRef(localLat);
   const initialLocalLon = React.useRef(localLon);
   const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
@@ -339,8 +390,12 @@ export function SpeciesOccurrenceMap({
 
     void (async () => {
       const templateContent = globeView
-        ? await loadGlobeMapTemplate()
-        : await loadMapTemplate();
+        ? await (enableOfflineFallback
+            ? loadGlobeMapTemplateOffline()
+            : loadGlobeMapTemplate())
+        : await (enableOfflineFallback
+            ? loadMapTemplateOffline()
+            : loadMapTemplate());
       if (!isMounted) {
         return;
       }
@@ -379,6 +434,7 @@ export function SpeciesOccurrenceMap({
     loading,
     locationPickerMode,
     globeView,
+    enableOfflineFallback,
   ]);
 
   const markerPalette = React.useMemo<MapMarkerPalette>(
@@ -609,7 +665,7 @@ export function SpeciesOccurrenceMap({
       ),
     [selectedPoint],
   );
-  const shouldFillAvailableHeight = height == null;
+  const shouldFillAvailableHeight = height == null || isFullscreen;
   const feedbackContainerStyle = [
     styles.feedback,
     shouldFillAvailableHeight && styles.feedbackFill,
@@ -793,6 +849,36 @@ export function SpeciesOccurrenceMap({
       ) {
         const d = data as { lat: number; lon: number };
         onLocationPicked?.(d.lat, d.lon);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_GLOBE_VIEW_MESSAGE_TYPE
+      ) {
+        settings?.setGlobeViewEnabled(!settings.globeViewEnabled);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_FULLSCREEN_MESSAGE_TYPE
+      ) {
+        if (onFullscreenToggle) {
+          onFullscreenToggle();
+        } else {
+          toggleFullscreenElement(
+            containerRef.current as unknown as Element | null,
+          );
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -809,6 +895,8 @@ export function SpeciesOccurrenceMap({
     onPointValue,
     openExternalUrl,
     onLocationPicked,
+    settings,
+    onFullscreenToggle,
   ]);
 
   if (error) {
@@ -839,18 +927,12 @@ export function SpeciesOccurrenceMap({
 
   return (
     <View
+      ref={containerRef}
       style={[
         styles.container,
         shouldFillAvailableHeight && styles.containerFill,
       ]}
     >
-      {globeViewSupported && settings ? (
-        <SwitchField
-          label='Globe view'
-          value={settings.globeViewEnabled}
-          onValueChange={settings.setGlobeViewEnabled}
-        />
-      ) : null}
       {templateLoadWarning ? (
         <View
           style={[
@@ -864,7 +946,7 @@ export function SpeciesOccurrenceMap({
       <View
         style={[
           styles.mapWrapper,
-          height == null
+          shouldFillAvailableHeight
             ? [
                 styles.mapWrapperFill,
                 { backgroundColor: palette.background.default.tertiary },

@@ -4,6 +4,7 @@
 
 import { SpeciesOccurrenceMap } from '@/components';
 import type { SelectOption } from '@/components';
+import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { PageSurface } from '@/components/PageSurface';
 import { PageScrollContainer } from '@/components/PageScrollContainer';
 import { Colors, Size } from '@/constants/theme';
@@ -14,7 +15,7 @@ import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings } from '@/context/SettingsContext';
 import { StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
@@ -158,6 +159,9 @@ export default function Maps() {
   const [selectedClassFilter, setSelectedClassFilter] = useState<number | null>(
     null,
   );
+  // Fullscreens the map + its legend/colormap-picker overlays together —
+  // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
+  const mapContainerRef = useRef<View | null>(null);
 
   const selectedForecastH = FORECAST_HOUR_MAP[selectedForecast] ?? 0;
 
@@ -367,7 +371,7 @@ export default function Maps() {
               onForecastChange={setSelectedForecast}
             />
 
-            <View style={styles.mapContainer}>
+            <View ref={mapContainerRef} style={styles.mapContainer}>
               <SpeciesOccurrenceMap
                 occurrences={[]}
                 loading={false}
@@ -379,6 +383,11 @@ export default function Maps() {
                 showMarkers={false}
                 useLabelsOverlay
                 preserveMapPosition
+                onFullscreenToggle={() =>
+                  toggleFullscreenElement(
+                    mapContainerRef.current as unknown as Element | null,
+                  )
+                }
                 onTileClasses={handleTileClasses}
                 onPointValue={handlePointValue}
                 pointQueryUrl={
