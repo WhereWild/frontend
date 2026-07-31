@@ -436,6 +436,7 @@ export function UploadPreview({
       {uploadedBundle.occurrences.length > 0 ? (
         <View ref={mapContainerRef} style={styles.mapContainer}>
           <SpeciesOccurrenceMap
+            preserveMapPosition
             occurrences={mapOccurrences}
             loading={false}
             error={null}

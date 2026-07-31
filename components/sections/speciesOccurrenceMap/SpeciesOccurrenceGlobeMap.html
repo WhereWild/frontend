@@ -190,6 +190,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // with no resolvable color while some colormap IS active get a
     // distinct nodata style instead of silently using the plain default.
     var OCCURRENCE_POINTS = [];
+    // Set inside the SHOW_MARKERS block below (once the occurrences source/
+    // layers exist) — swaps in a genuinely different set of points (e.g. a
+    // location/phenology filter refetch) and repositions the camera, unlike
+    // refreshOccurrenceMarkerColors which only recolors the existing set.
+    var replaceOccurrencePointsImpl = null;
+    function replaceOccurrencePoints(newPoints) {
+      if (replaceOccurrencePointsImpl) {
+        replaceOccurrencePointsImpl(newPoints);
+      }
+    }
 
     function isVariableColorMode() {
       return IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN);
@@ -655,6 +665,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         '.maplibregl-ctrl-attrib{background:' + bg + ' !important;color:' + text + '}',
         '.maplibregl-ctrl-attrib a{color:' + link + ' !important}',
         '.maplibregl-popup-content{background:' + bg + ';color:' + text + '}',
+        '.maplibregl-popup-content a,.maplibregl-popup-content a:visited{color:' + link + ' !important}',
         '.maplibregl-popup-tip{border-top-color:' + bg + ' !important;border-bottom-color:' + bg + ' !important}',
       ].join('');
       var el = document.createElement('style');
@@ -882,12 +893,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         // specifically under globe projection (e.g. maxBounds not being
         // respected, camera fitting behaving oddly), so instead of trusting
         // its globe-aware camera math, the center/zoom are computed here
-        // with plain arithmetic and applied directly.
-        if (validPoints.length) {
-          var minLng = validPoints[0].longitude, maxLng = validPoints[0].longitude;
-          var minLat = validPoints[0].latitude, maxLat = validPoints[0].latitude;
+        // with plain arithmetic and applied directly. Extracted into a
+        // function so replaceOccurrencePoints (below) can reposition the
+        // same way when occurrences itself changes (location/phenology
+        // filter), not just at initial load.
+        function positionMapForOccurrencePoints(pointsList) {
+          if (!pointsList.length) return;
+          var minLng = pointsList[0].longitude, maxLng = pointsList[0].longitude;
+          var minLat = pointsList[0].latitude, maxLat = pointsList[0].latitude;
           var sumLng = 0, sumLat = 0;
-          validPoints.forEach(function(pt) {
+          pointsList.forEach(function(pt) {
             if (pt.longitude < minLng) minLng = pt.longitude;
             if (pt.longitude > maxLng) maxLng = pt.longitude;
             if (pt.latitude < minLat) minLat = pt.latitude;
@@ -895,8 +910,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             sumLng += pt.longitude;
             sumLat += pt.latitude;
           });
-          var centerLng = sumLng / validPoints.length;
-          var centerLat = sumLat / validPoints.length;
+          var centerLng = sumLng / pointsList.length;
+          var centerLat = sumLat / pointsList.length;
           var lngSpan = Math.max(maxLng - minLng, 0.02);
           var latSpan = Math.max(maxLat - minLat, 0.02);
           // Rough "which zoom level would this span fit at" table — doesn't
@@ -918,9 +933,27 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             13;
           var zoom = Math.max(CUSTOM_MIN_ZOOM, fitZoom);
           if (CUSTOM_MAX_ZOOM !== null) zoom = Math.min(zoom, CUSTOM_MAX_ZOOM);
-          console.log('[markers-debug] setting view center=[' + centerLng + ',' + centerLat + '] zoom=' + zoom + ' (lngSpan=' + lngSpan + ' latSpan=' + latSpan + ')');
           map.jumpTo({ center: [centerLng, centerLat], zoom: zoom });
         }
+        positionMapForOccurrencePoints(validPoints);
+
+        replaceOccurrencePointsImpl = function(newPoints) {
+          var validNewPoints = newPoints.filter(function(pt) {
+            return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
+          });
+          OCCURRENCE_POINTS = validNewPoints;
+          var source = map.getSource('occurrences');
+          if (source) {
+            // Unlike refreshOccurrenceMarkerColors, always setData here
+            // (even when empty) — a filter matching zero results must
+            // still clear whatever's currently shown, not leave it stale.
+            var collection = buildOccurrenceFeatureCollection(validNewPoints);
+            source.setData(collection);
+            var clusteredSource = map.getSource('occurrences-clustered');
+            if (clusteredSource) clusteredSource.setData(collection);
+          }
+          positionMapForOccurrencePoints(validNewPoints);
+        };
 
         function handleOccurrenceMarkerClick(e) {
           var feature = e.features && e.features[0];
@@ -1143,6 +1176,45 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (data.classColors !== undefined) CLASS_COLORS = data.classColors;
         if (data.classLabels !== undefined) CLASS_LABELS = data.classLabels;
         if (data.markerOutline !== undefined) MARKER_OUTLINE = data.markerOutline;
+        return;
+      }
+
+      if (data.type === 'pointStylesUpdate') {
+        // Recolors/reshapes already-rendered occurrence markers in place —
+        // sent whenever the selected variable changes but the underlying
+        // occurrences (positions) don't, so switching variables never has
+        // to reload the whole map. Matched by catalog number against the
+        // same OCCURRENCE_POINTS array buildOccurrenceFeature reads from;
+        // setData() on refreshOccurrenceMarkerColors() below picks up the
+        // mutated fields automatically (hasShape/iconKey included).
+        if (Array.isArray(data.points) && OCCURRENCE_POINTS.length) {
+          var pointStyleUpdates = new Map();
+          data.points.forEach(function(entry) {
+            if (entry && entry.catalog) pointStyleUpdates.set(entry.catalog, entry);
+          });
+          OCCURRENCE_POINTS.forEach(function(pt) {
+            var update = pointStyleUpdates.get(pt.popupCatalogValue);
+            if (!update) return;
+            pt.varValue = update.varValue != null ? update.varValue : null;
+            pt.varColor = update.varColor || null;
+            pt.varLabel = update.varLabel || null;
+            pt.varShape = update.varShape || null;
+          });
+          refreshOccurrenceMarkerColors();
+        }
+        return;
+      }
+
+      if (data.type === 'pointsUpdate') {
+        // occurrences itself changed (location/phenology filter refetch, or
+        // the upload page's offline client-side filter) — a genuinely
+        // different set of points, not just new colors for the same ones.
+        // See replaceOccurrencePointsImpl. Unlike pointStylesUpdate, an
+        // empty array is meaningful here (filter matched nothing) and must
+        // still clear whatever's currently shown.
+        if (Array.isArray(data.points)) {
+          replaceOccurrencePoints(data.points);
+        }
         return;
       }
 

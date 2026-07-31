@@ -1220,10 +1220,24 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     let selectedCatalogKey = null;
     let selectedCatalogDirectMarker = null;
     let refreshVisibleMarkerPresentationImpl = null;
+    let rebuildOccurrenceMarkersImpl = null;
+    let replaceOccurrenceMarkersImpl = null;
 
     function refreshVisibleMarkerPresentation() {
       if (refreshVisibleMarkerPresentationImpl) {
         refreshVisibleMarkerPresentationImpl();
+      }
+    }
+
+    function rebuildOccurrenceMarkers(updates) {
+      if (rebuildOccurrenceMarkersImpl) {
+        rebuildOccurrenceMarkersImpl(updates);
+      }
+    }
+
+    function replaceOccurrenceMarkers(newPoints) {
+      if (replaceOccurrenceMarkersImpl) {
+        replaceOccurrenceMarkersImpl(newPoints);
       }
     }
 
@@ -1469,6 +1483,30 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         return;
       }
 
+      if (data && data.type === 'pointStylesUpdate') {
+        // Recolors already-rendered occurrence markers in place — sent
+        // whenever the selected variable changes but the underlying
+        // occurrences (positions) don't, so switching variables never has
+        // to reload the whole map. See rebuildOccurrenceMarkersImpl.
+        if (Array.isArray(data.points) && data.points.length) {
+          rebuildOccurrenceMarkers(data.points);
+        }
+        return;
+      }
+
+      if (data && data.type === 'pointsUpdate') {
+        // occurrences itself changed (location/phenology filter refetch,
+        // or the upload page's offline client-side filter) — a genuinely
+        // different set of points, not just new colors. See
+        // replaceOccurrenceMarkersImpl. Unlike pointStylesUpdate, an empty
+        // array is meaningful here (filter matched nothing) and must still
+        // clear whatever's currently shown.
+        if (Array.isArray(data.points)) {
+          replaceOccurrenceMarkers(data.points);
+        }
+        return;
+      }
+
       if (data && data.type === 'localLocationUpdate') {
         if (data.lat != null && data.lon != null) {
           placeOrMoveSavedMarker([data.lat, data.lon]);
@@ -1569,7 +1607,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           selectedCatalogDirectMarker,
           matchingEntry.catalogValue, matchingEntry.catalogHref, matchingEntry.catalogLabel,
           latitude, matchingEntry.longitude,
-          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel, matchingEntry.varShape
+          matchingEntry
         );
         map.addLayer(selectedCatalogDirectMarker);
         if (selectedPopupContent) {
@@ -1671,7 +1709,6 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     }
 
     if (SHOW_MARKERS && Array.isArray(points) && points.length) {
-      const observedBounds = [];
       const directMarkerAnchors = [];
       const useVisibilityManagedClustering =
         points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
@@ -1759,7 +1796,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           });
       }
 
-      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude, varValue, varColor, varLabel, varShape) {
+      // varData is the mutable pt/markerEntry object itself (not a snapshot
+      // of its varValue/varColor/varLabel/varShape fields) — read fresh
+      // inside the click handler below, not destructured into the closure
+      // here, so a variable switch's in-place recolor (which mutates that
+      // same object — see rebuildOccurrenceMarkersImpl) is reflected the
+      // next time this popup opens, even for a marker created long before
+      // the switch.
+      function bindObservationMarkerEvents(marker, catalogValue, catalogHref, catalogLabel, latitude, longitude, varData) {
         var inatHtml = (LINK_OBSERVATIONS && catalogLabel && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '';
@@ -1768,9 +1812,9 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           if (ALLOW_PIN_OBSERVATIONS && catalogValue) {
             sendPinMessage(catalogValue, latitude, longitude);
           }
-          if (varValue != null) {
-            postToParent({ type: 'pointValue', value: varValue });
-            var content = buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape);
+          if (varData.varValue != null) {
+            postToParent({ type: 'pointValue', value: varData.varValue });
+            var content = buildObservationPopupContent(catalogHref, catalogLabel, varData.varValue, varData.varColor, varData.varLabel, varData.varShape);
             var popup = marker.getPopup();
             if (!popup) {
               marker.bindPopup(content);
@@ -1831,7 +1875,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             entry.directMarker,
             entry.catalogValue, entry.catalogHref, entry.catalogLabel,
             entry.latitude, entry.longitude,
-            entry.varValue, entry.varColor, entry.varLabel, entry.varShape
+            entry
           );
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
@@ -1961,7 +2005,13 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         }
       };
 
-      points.forEach((pt, idx) => {
+      // Extracted so a variable switch (new varValue/varColor/varLabel/
+      // varShape per catalog, positions unchanged) can rebuild just the
+      // marker layer in place — see rebuildOccurrenceMarkersImpl below —
+      // instead of the whole page/iframe reloading.
+      function buildOccurrenceMarkers(pointsList) {
+        const observedBounds = [];
+        pointsList.forEach((pt, idx) => {
         if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') {
           return;
         }
@@ -1991,7 +2041,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           if (popupHtml) {
             clusterMarker.bindPopup(popupHtml, { autoPan: false });
           }
-          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null, pt.varShape ?? null);
+          bindObservationMarkerEvents(clusterMarker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt);
 
           const markerEntry = {
             key: markerKey,
@@ -2015,6 +2065,8 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           markerEntries.push(markerEntry);
           markers.set(markerKey, {
             varValue: pt.varValue ?? null,
+            pt: pt,
+            markerEntry: markerEntry,
             setStyle(style) {
               if (style === hiddenStyle) {
                 hideClusterMarker(markerEntry);
@@ -2032,7 +2084,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           if (popupHtml) {
             marker.bindPopup(popupHtml, { autoPan: false });
           }
-          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt.varValue ?? null, pt.varColor ?? null, pt.varLabel ?? null, pt.varShape ?? null);
+          bindObservationMarkerEvents(marker, pt.popupCatalogValue, pt.popupCatalogHref, pt.popupCatalogLabel, latitude, canonicalLongitude, pt);
           map.addLayer(marker);
           directMarkerAnchors.push({
             marker,
@@ -2042,12 +2094,82 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           });
           markers.set(markerKey, {
             varValue: pt.varValue ?? null,
+            pt: pt,
             setStyle(style) { applyStyleToMarker(marker, style, pt.varShape ?? null); },
           });
         }
 
         observedBounds.push([latitude, initialLongitude]);
-      });
+        });
+        return observedBounds;
+      }
+
+      // Called from handleHighlightMessage's 'pointStylesUpdate' handler when
+      // the selected variable changes (positions unchanged, but varValue/
+      // varColor/varLabel/varShape per catalog do). Same mechanism as the
+      // existing colormapUpdate live-recolor below (markerBaseColors +
+      // effectiveStyleForCatalog + entry.setStyle on the already-created
+      // markers) — no teardown/recreate, no page/iframe reload, no
+      // viewport change. Doesn't reassign a marker's shape (triangle vs
+      // circle etc. is fixed at creation, same limitation colormapUpdate
+      // already has) — only color/value/label update in place.
+      rebuildOccurrenceMarkersImpl = function(updates) {
+        updates.forEach(function(update) {
+          var entry = markers.get(update.catalog);
+          if (!entry || !entry.pt) return;
+          entry.pt.varValue = update.varValue != null ? update.varValue : null;
+          entry.pt.varColor = update.varColor || null;
+          entry.pt.varLabel = update.varLabel || null;
+          entry.pt.varShape = update.varShape || null;
+          if (entry.markerEntry) {
+            entry.markerEntry.varValue = entry.pt.varValue;
+            entry.markerEntry.varColor = entry.pt.varColor;
+            entry.markerEntry.varLabel = entry.pt.varLabel;
+            entry.markerEntry.varShape = entry.pt.varShape;
+          }
+          entry.varValue = entry.pt.varValue;
+          baseStyleForPoint(entry.pt, update.catalog);
+          entry.setStyle(effectiveStyleForCatalog(update.catalog));
+        });
+      };
+
+      // Called from handleHighlightMessage's 'pointsUpdate' handler when
+      // occurrences itself changes — a genuinely different set of points
+      // (e.g. a location/phenology filter refetching from the backend),
+      // not just new colors for the same points (see
+      // rebuildOccurrenceMarkersImpl above for that case). Tears down and
+      // rebuilds the marker layer from scratch, then refits the viewport —
+      // unlike the recolor path, holding position wouldn't make sense here
+      // since it's a different dataset. Doesn't re-decide clustering vs.
+      // individual-marker mode (useVisibilityManagedClustering is fixed
+      // from the original point count) — a filter that crosses the
+      // MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS threshold in either direction
+      // keeps whichever mode was picked at first load.
+      replaceOccurrenceMarkersImpl = function(newPoints) {
+        if (clusterGroup) clusterGroup.clearLayers();
+        if (visibleMarkerLayer) visibleMarkerLayer.clearLayers();
+        directMarkerAnchors.forEach(function(anchor) { map.removeLayer(anchor.marker); });
+        directMarkerAnchors.length = 0;
+        if (selectedCatalogDirectMarker) {
+          map.removeLayer(selectedCatalogDirectMarker);
+          selectedCatalogDirectMarker = null;
+          selectedCatalogKey = null;
+        }
+        markerEntries = [];
+        markers.clear();
+        var newBounds = buildOccurrenceMarkers(newPoints);
+        if (useVisibilityManagedClustering && clusterGroup && !map.hasLayer(clusterGroup)) {
+          map.addLayer(clusterGroup);
+        }
+        if (newBounds.length) {
+          map.fitBounds(newBounds, { padding: [20, 20] });
+        } else {
+          map.setView([0, 0], BASE_MIN_ZOOM);
+        }
+        refreshVisibleMarkerPresentation();
+      };
+
+      const observedBounds = buildOccurrenceMarkers(points);
 
       if (useVisibilityManagedClustering && clusterGroup) {
         map.addLayer(clusterGroup);

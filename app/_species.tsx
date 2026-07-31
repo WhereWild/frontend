@@ -711,16 +711,13 @@ export default function Species({
                 style={{ position: 'relative' }}
               >
                 <SpeciesOccurrenceMap
+                  preserveMapPosition
                   onFullscreenToggle={() =>
                     toggleFullscreenElement(
                       mapContainerRef.current as unknown as Element | null,
                     )
                   }
-                  occurrences={
-                    selectedVariableMeta && observationValues == null
-                      ? []
-                      : occurrences
-                  }
+                  occurrences={occurrences}
                   loading={occurrenceLoading}
                   error={occurrenceError}
                   highlightedCatalogs={highlightedCatalogs}

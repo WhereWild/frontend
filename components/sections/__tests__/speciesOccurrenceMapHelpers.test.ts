@@ -9,6 +9,7 @@ import { Asset } from 'expo-asset';
 import {
   buildGlobeHtml,
   buildLeafletHtml,
+  computePointStyleUpdates,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
   isOpenExternalUrlEventFromFrame,
@@ -1414,6 +1415,97 @@ describe('speciesOccurrenceMapHelpers', () => {
       true,
     );
     expect(html).toContain('varShape');
+  });
+
+  describe('computePointStyleUpdates', () => {
+    it('computes per-catalog varValue/varColor/varLabel/varShape for a live variable switch', () => {
+      const points = [
+        { catalogNumber: 10, latitude: 1, longitude: 10 },
+        { catalogNumber: 20, latitude: 2, longitude: 20 },
+        { catalogNumber: 'no-value', latitude: 3, longitude: 30 },
+      ];
+      const observationValues = new Map([
+        ['10', 1],
+        ['20', 2],
+      ]);
+      const classColors = new Map([
+        ['1', '#111111'],
+        ['2', '#222222'],
+      ]);
+      const classLabels = new Map([
+        ['1', 'Forest'],
+        ['2', 'Water'],
+      ]);
+
+      const updates = computePointStyleUpdates(
+        points,
+        observationValues,
+        classColors,
+        classLabels,
+        null,
+        false,
+      );
+
+      expect(updates).toEqual([
+        {
+          catalog: '10',
+          varValue: 1,
+          varColor: '#111111',
+          varLabel: 'Forest',
+          varShape: null,
+        },
+        {
+          catalog: '20',
+          varValue: 2,
+          varColor: '#222222',
+          varLabel: 'Water',
+          varShape: null,
+        },
+        {
+          catalog: 'no-value',
+          varValue: null,
+          varColor: null,
+          varLabel: null,
+          varShape: null,
+        },
+      ]);
+    });
+
+    it('omits points with no resolvable catalog number', () => {
+      const updates = computePointStyleUpdates(
+        [{ latitude: 1, longitude: 1 }],
+        null,
+        null,
+        null,
+        null,
+        false,
+      );
+      expect(updates).toEqual([]);
+    });
+
+    it('assigns cardinal shapes for circular variables the same way preparePointsForMapHtml does', () => {
+      const points = [{ catalogNumber: 5, latitude: 1, longitude: 1 }];
+      const observationValues = new Map([['5', 90]]);
+
+      const updates = computePointStyleUpdates(
+        points,
+        observationValues,
+        null,
+        null,
+        null,
+        true,
+      );
+
+      expect(updates).toEqual([
+        {
+          catalog: '5',
+          varValue: 90,
+          varColor: null,
+          varLabel: null,
+          varShape: 'arrow',
+        },
+      ]);
+    });
   });
 
   it('exposes a stable document base url for map referrers', () => {

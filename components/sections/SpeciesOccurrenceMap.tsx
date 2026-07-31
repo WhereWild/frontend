@@ -44,6 +44,10 @@ import {
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
+  POINT_STYLES_UPDATE_MESSAGE_TYPE,
+  POINTS_UPDATE_MESSAGE_TYPE,
+  computePointStyleUpdates,
+  preparePointsForMapHtml,
   toggleFullscreenElement,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
@@ -526,6 +530,24 @@ export function SpeciesOccurrenceMap({
   const initialClassLabels = React.useRef(classLabels);
   const initialClassShapes = React.useRef(classShapes);
   const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
+  // Freezing these too means a variable switch on the species/upload pages
+  // (which changes observationValues — new per-observation values for
+  // whatever's now selected — but not occurrences' positions) no longer
+  // forces the html memo to rebuild the whole WebView/iframe. The new
+  // per-point colors/shapes are instead pushed live via postMessage (see
+  // the pointStylesUpdate effect below), the same way heatmap tile/legend
+  // updates already work.
+  const initialOccurrences = React.useRef(occurrences);
+  const initialObservationValues = React.useRef(observationValues);
+  const initialCircularShapesEnabled = React.useRef(circularShapesEnabled);
+  // Tracks the last occurrences reference actually pushed to the map via
+  // pointsUpdate (see below) — deliberately separate from initialOccurrences
+  // above, which must stay frozen for the html memo's sake. When a location/
+  // phenology filter genuinely changes which occurrences were fetched (as
+  // opposed to a variable switch, which only changes observationValues for
+  // the same occurrences), the map needs a real marker-set swap + refit,
+  // not just a recolor.
+  const lastSyncedOccurrences = React.useRef(occurrences);
 
   // The refs above are meant to capture "whatever was true when the current
   // WebView/iframe document was built," not "whatever was true on this
@@ -557,6 +579,9 @@ export function SpeciesOccurrenceMap({
     initialClassLabels.current = classLabels;
     initialClassShapes.current = classShapes;
     initialMarkerOutlineEnabled.current = markerOutlineEnabled;
+    initialOccurrences.current = occurrences;
+    initialObservationValues.current = observationValues;
+    initialCircularShapesEnabled.current = circularShapesEnabled;
   }
 
   // When preserving map position, freeze live props to their initial values so
@@ -597,6 +622,15 @@ export function SpeciesOccurrenceMap({
   const memoMarkerOutlineEnabled = preserveMapPosition
     ? initialMarkerOutlineEnabled.current
     : markerOutlineEnabled;
+  const memoOccurrences = preserveMapPosition
+    ? initialOccurrences.current
+    : occurrences;
+  const memoObservationValues = preserveMapPosition
+    ? initialObservationValues.current
+    : observationValues;
+  const memoCircularShapesEnabled = preserveMapPosition
+    ? initialCircularShapesEnabled.current
+    : circularShapesEnabled;
 
   const html = React.useMemo(() => {
     if (!mapTemplate) {
@@ -605,7 +639,7 @@ export function SpeciesOccurrenceMap({
     const buildHtml = globeView ? buildGlobeHtml : buildLeafletHtml;
     return buildHtml(
       mapTemplate,
-      occurrences,
+      memoOccurrences,
       markerPalette,
       tileUrlTemplate,
       memoHeatmapTileUrl,
@@ -623,7 +657,7 @@ export function SpeciesOccurrenceMap({
       memoRenderMin,
       memoRenderMax,
       memoIsCircular,
-      observationValues,
+      memoObservationValues,
       memoClassColors,
       memoClassLabels,
       memoDotMin,
@@ -634,7 +668,7 @@ export function SpeciesOccurrenceMap({
       memoAspectStops,
       memoClassShapes,
       memoMarkerOutlineEnabled,
-      circularShapesEnabled,
+      memoCircularShapesEnabled,
       labelsOverlayTileUrl,
       null,
       locationPickerMode,
@@ -645,8 +679,8 @@ export function SpeciesOccurrenceMap({
     );
   }, [
     allowPinObservations,
-    observationValues,
-    circularShapesEnabled,
+    memoObservationValues,
+    memoCircularShapesEnabled,
     disableObservationQuery,
     heatmapOpacity,
     initialLat,
@@ -657,7 +691,7 @@ export function SpeciesOccurrenceMap({
     maxBounds,
     maxZoom,
     minZoom,
-    occurrences,
+    memoOccurrences,
     showMarkers,
     linkObservations,
     tileUrlTemplate,
@@ -792,6 +826,76 @@ export function SpeciesOccurrenceMap({
     classLabels,
     classShapes,
     markerOutlineEnabled,
+  ]);
+
+  // The occurrences/observationValues counterpart to the heatmapUpdate
+  // effect above: recolors/reshapes already-rendered markers in place
+  // (matched by catalog number) instead of rebuilding the whole map, so
+  // switching the selected variable on the species/upload pages doesn't
+  // reload the WebView/iframe. positions themselves (memoOccurrences) stay
+  // frozen — only which dot goes with which color/shape changes.
+  React.useEffect(() => {
+    if (!preserveMapPosition || !mapReady) return;
+    const updates = computePointStyleUpdates(
+      occurrences,
+      observationValues,
+      classColors,
+      classLabels,
+      classShapes,
+      circularShapesEnabled,
+    );
+    if (updates.length === 0) return;
+    const msg = { type: POINT_STYLES_UPDATE_MESSAGE_TYPE, points: updates };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [
+    preserveMapPosition,
+    mapReady,
+    occurrences,
+    observationValues,
+    classColors,
+    classLabels,
+    classShapes,
+    circularShapesEnabled,
+  ]);
+
+  // Fires only when occurrences itself changes (a genuinely different set
+  // of points — e.g. a location/phenology filter refetching from the
+  // backend, or the upload page's offline client-side filter), as opposed
+  // to the pointStylesUpdate effect above, which fires when the same
+  // occurrences just need new colors. Unlike that one, this rebuilds the
+  // marker layer and refits the viewport to the new results, since holding
+  // position wouldn't make sense for a genuinely different dataset.
+  React.useEffect(() => {
+    if (!preserveMapPosition || !mapReady) return;
+    if (occurrences === lastSyncedOccurrences.current) return;
+    lastSyncedOccurrences.current = occurrences;
+    const newPoints = preparePointsForMapHtml(
+      occurrences,
+      observationValues,
+      classColors,
+      classLabels,
+      classShapes,
+      circularShapesEnabled,
+    );
+    const msg = { type: POINTS_UPDATE_MESSAGE_TYPE, points: newPoints };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [
+    preserveMapPosition,
+    mapReady,
+    occurrences,
+    observationValues,
+    classColors,
+    classLabels,
+    classShapes,
+    circularShapesEnabled,
   ]);
 
   React.useEffect(() => {
