@@ -1462,6 +1462,11 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       }
 
       if (data && data.type === 'heatmapUpdate') {
+        // Tile/legend-only concerns — the marker color SCALE (dotMin/
+        // dotMax/isCircular/classColors/classLabels/gradientStops/
+        // aspectStops) travels with pointStylesUpdate below instead, so it
+        // can never arrive out of sync with the per-point values it's
+        // paired with.
         if (data.heatmapTileUrl != null && heatmapLayer) {
           heatmapLayer.setUrl(data.heatmapTileUrl);
         }
@@ -1469,12 +1474,6 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         if (data.renderMin !== undefined) { RENDER_MIN = data.renderMin; }
         if (data.renderMax !== undefined) { RENDER_MAX = data.renderMax; }
         if (data.varUnits !== undefined) { VAR_UNITS = data.varUnits; }
-        if (data.dotMin !== undefined) { DOT_MIN = data.dotMin; }
-        if (data.dotMax !== undefined) { DOT_MAX = data.dotMax; }
-        if (data.isCircular !== undefined) { IS_CIRCULAR = data.isCircular; }
-        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) { ASPECT_STOPS = data.circularStops; }
-        if (data.classColors !== undefined) { CLASS_COLORS = data.classColors; }
-        if (data.classLabels !== undefined) { CLASS_LABELS = data.classLabels; }
         if (data.classShapes !== undefined) { CLASS_SHAPES = data.classShapes; }
         if (data.markerOutline !== undefined) {
           MARKER_OUTLINE = data.markerOutline;
@@ -1487,7 +1486,19 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         // Recolors already-rendered occurrence markers in place — sent
         // whenever the selected variable changes but the underlying
         // occurrences (positions) don't, so switching variables never has
-        // to reload the whole map. See rebuildOccurrenceMarkersImpl.
+        // to reload the whole map. Carries BOTH the color scale and the
+        // per-point values in one message (see the effect that sends this
+        // in SpeciesOccurrenceMap.tsx for why they're bundled together),
+        // applied here in the same order every time: scale globals first,
+        // then per-point values via rebuildOccurrenceMarkersImpl, so a
+        // single repaint never sees a mismatched combination of the two.
+        if (data.dotMin !== undefined) { DOT_MIN = data.dotMin; }
+        if (data.dotMax !== undefined) { DOT_MAX = data.dotMax; }
+        if (data.isCircular !== undefined) { IS_CIRCULAR = data.isCircular; }
+        if (data.classColors !== undefined) { CLASS_COLORS = data.classColors; }
+        if (data.classLabels !== undefined) { CLASS_LABELS = data.classLabels; }
+        if (Array.isArray(data.gradientStops) && data.gradientStops.length > 0) { GRADIENT_STOPS = data.gradientStops; }
+        if (Array.isArray(data.aspectStops) && data.aspectStops.length > 0) { ASPECT_STOPS = data.aspectStops; }
         if (Array.isArray(data.points) && data.points.length) {
           rebuildOccurrenceMarkers(data.points);
         }
@@ -1513,30 +1524,6 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         } else if (savedLocationMarker) {
           map.removeLayer(savedLocationMarker);
           savedLocationMarker = null;
-        }
-      }
-      if (data && data.type === 'colormapUpdate') {
-        if (Array.isArray(data.stops)) {
-          GRADIENT_STOPS = data.stops;
-          if (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN) {
-            markers.forEach(function(entry, catalog) {
-              if (entry.varValue != null) {
-                var t = safeT(entry.varValue, DOT_MIN, DOT_MAX);
-                markerBaseColors.set(catalog, gradientColor(t));
-                entry.setStyle(effectiveStyleForCatalog(catalog));
-              }
-            });
-          }
-        }
-        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) {
-          ASPECT_STOPS = data.circularStops;
-          markers.forEach(function(entry, catalog) {
-            if (entry.varValue != null) {
-              var color = aspectColor(entry.varValue);
-              markerBaseColors.set(catalog, color);
-              entry.setStyle(effectiveStyleForCatalog(catalog));
-            }
-          });
         }
       }
     }
@@ -2106,13 +2093,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
 
       // Called from handleHighlightMessage's 'pointStylesUpdate' handler when
       // the selected variable changes (positions unchanged, but varValue/
-      // varColor/varLabel/varShape per catalog do). Same mechanism as the
-      // existing colormapUpdate live-recolor below (markerBaseColors +
+      // varColor/varLabel/varShape per catalog do — the scale globals
+      // DOT_MIN/DOT_MAX/IS_CIRCULAR/CLASS_COLORS/CLASS_LABELS/GRADIENT_
+      // STOPS/ASPECT_STOPS are updated by that same handler right before
+      // calling this). Recolors in place via markerBaseColors +
       // effectiveStyleForCatalog + entry.setStyle on the already-created
-      // markers) — no teardown/recreate, no page/iframe reload, no
-      // viewport change. Doesn't reassign a marker's shape (triangle vs
-      // circle etc. is fixed at creation, same limitation colormapUpdate
-      // already has) — only color/value/label update in place.
+      // markers — no teardown/recreate, no page/iframe reload, no viewport
+      // change. Doesn't reassign a marker's shape (triangle vs circle etc.
+      // is fixed at creation) — only color/value/label update in place.
       rebuildOccurrenceMarkersImpl = function(updates) {
         updates.forEach(function(update) {
           var entry = markers.get(update.catalog);

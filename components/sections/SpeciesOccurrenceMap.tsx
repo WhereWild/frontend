@@ -37,7 +37,6 @@ import {
   toSelectedPointMessagePayload,
   isOpenExternalUrlMessage,
   isPinObservationMessage,
-  COLORMAP_UPDATE_MESSAGE_TYPE,
   HEATMAP_UPDATE_MESSAGE_TYPE,
   LOCATION_PICKED_MESSAGE_TYPE,
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
@@ -166,6 +165,15 @@ type SpeciesOccurrenceMapProps = {
   circularShapesEnabled?: boolean;
   dotMin?: number | null;
   dotMax?: number | null;
+  // True while the currently-selected variable's per-observation values are
+  // still being fetched (classColors/isCircular/dotMin/dotMax below already
+  // reflect the NEW variable synchronously — they're derived straight from
+  // variable metadata — but observationValues lags behind on an async
+  // fetch). Recoloring markers with the new scheme before the matching
+  // values arrive flashes every dot to a default/nodata style; holding the
+  // old, still-self-consistent combination until this flips back to false
+  // avoids that.
+  variableDataLoading?: boolean;
   onMapBounds?: (bounds: MapBounds) => void;
   disableObservationQuery?: boolean;
   varUnits?: string | null;
@@ -230,6 +238,7 @@ export function SpeciesOccurrenceMap({
   circularShapesEnabled = false,
   dotMin = null,
   dotMax = null,
+  variableDataLoading = false,
   onMapBounds,
   disableObservationQuery = false,
   varUnits = null,
@@ -521,14 +530,33 @@ export function SpeciesOccurrenceMap({
   const initialRenderMin = React.useRef(renderMin);
   const initialRenderMax = React.useRef(renderMax);
   const initialVarUnits = React.useRef(varUnits);
-  const initialDotMin = React.useRef(dotMin);
-  const initialDotMax = React.useRef(dotMax);
+  // classColors/isCircular/dotMin/dotMax come straight from variable
+  // metadata (synchronous), while observationValues lags behind an async
+  // fetch — so at the exact instant this ref is born, it's possible for the
+  // scale to already describe the new variable while there's no per-point
+  // data yet to go with it. Baking that mismatch into the initial HTML
+  // renders every dot as "nodata" (scale active, value null) instead of a
+  // plain default until the first pointStylesUpdate corrects it. Freezing
+  // the scale to a neutral, self-consistent state whenever
+  // variableDataLoading is true at capture time (matching
+  // observationValues, which is null in that state too) keeps the initial
+  // paint a plain default instead of a broken-looking nodata flash.
+  const initialDotMin = React.useRef(variableDataLoading ? null : dotMin);
+  const initialDotMax = React.useRef(variableDataLoading ? null : dotMax);
   const initialGradientStops = React.useRef(gradientStops);
   const initialAspectStops = React.useRef(aspectStops);
-  const initialIsCircular = React.useRef(isCircular);
-  const initialClassColors = React.useRef(classColors);
-  const initialClassLabels = React.useRef(classLabels);
-  const initialClassShapes = React.useRef(classShapes);
+  const initialIsCircular = React.useRef(
+    variableDataLoading ? false : isCircular,
+  );
+  const initialClassColors = React.useRef(
+    variableDataLoading ? null : classColors,
+  );
+  const initialClassLabels = React.useRef(
+    variableDataLoading ? null : classLabels,
+  );
+  const initialClassShapes = React.useRef(
+    variableDataLoading ? null : classShapes,
+  );
   const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
   // Freezing these too means a variable switch on the species/upload pages
   // (which changes observationValues — new per-observation values for
@@ -538,7 +566,9 @@ export function SpeciesOccurrenceMap({
   // the pointStylesUpdate effect below), the same way heatmap tile/legend
   // updates already work.
   const initialOccurrences = React.useRef(occurrences);
-  const initialObservationValues = React.useRef(observationValues);
+  const initialObservationValues = React.useRef(
+    variableDataLoading ? null : observationValues,
+  );
   const initialCircularShapesEnabled = React.useRef(circularShapesEnabled);
   // Tracks the last occurrences reference actually pushed to the map via
   // pointsUpdate (see below) — deliberately separate from initialOccurrences
@@ -570,17 +600,23 @@ export function SpeciesOccurrenceMap({
     initialRenderMin.current = renderMin;
     initialRenderMax.current = renderMax;
     initialVarUnits.current = varUnits;
-    initialDotMin.current = dotMin;
-    initialDotMax.current = dotMax;
+    // See the initial-ref comment above: keep the same neutral,
+    // self-consistent freeze while a variable's data is still loading, so
+    // toggling renderers (e.g. Leaflet/Globe) mid-fetch doesn't rebuild the
+    // new template with a scale/values mismatch either.
+    initialDotMin.current = variableDataLoading ? null : dotMin;
+    initialDotMax.current = variableDataLoading ? null : dotMax;
     initialGradientStops.current = gradientStops;
     initialAspectStops.current = aspectStops;
-    initialIsCircular.current = isCircular;
-    initialClassColors.current = classColors;
-    initialClassLabels.current = classLabels;
-    initialClassShapes.current = classShapes;
+    initialIsCircular.current = variableDataLoading ? false : isCircular;
+    initialClassColors.current = variableDataLoading ? null : classColors;
+    initialClassLabels.current = variableDataLoading ? null : classLabels;
+    initialClassShapes.current = variableDataLoading ? null : classShapes;
     initialMarkerOutlineEnabled.current = markerOutlineEnabled;
     initialOccurrences.current = occurrences;
-    initialObservationValues.current = observationValues;
+    initialObservationValues.current = variableDataLoading
+      ? null
+      : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
   }
 
@@ -773,20 +809,10 @@ export function SpeciesOccurrenceMap({
     sendHighlightMessage,
   ]);
 
-  React.useEffect(() => {
-    if (!mapReady || (!gradientStops && !aspectStops)) {
-      return;
-    }
-    const msg: Record<string, unknown> = { type: COLORMAP_UPDATE_MESSAGE_TYPE };
-    if (gradientStops) msg.stops = gradientStops;
-    if (aspectStops) msg.circularStops = aspectStops;
-    if (Platform.OS === 'web') {
-      iframeRef.current?.contentWindow?.postMessage(msg, '*');
-    } else {
-      webViewRef.current?.postMessage(JSON.stringify(msg));
-    }
-  }, [gradientStops, aspectStops, mapReady]);
-
+  // Tile/legend-only concerns — nothing here feeds marker per-point color
+  // resolution (see the single consolidated marker-style effect below),
+  // so this can update independently without any risk of a scale/value
+  // mismatch flashing on the markers themselves.
   React.useEffect(() => {
     if (!preserveMapPosition || !mapReady) return;
     const msg: Record<string, unknown> = {
@@ -796,12 +822,6 @@ export function SpeciesOccurrenceMap({
       renderMin,
       renderMax,
       varUnits,
-      dotMin,
-      dotMax,
-      isCircular,
-      circularStops: aspectStops ?? null,
-      classColors: classColors ? Object.fromEntries(classColors) : null,
-      classLabels: classLabels ? Object.fromEntries(classLabels) : null,
       classShapes: classShapes ? Object.fromEntries(classShapes) : null,
       markerOutline: markerOutlineEnabled,
     };
@@ -818,24 +838,25 @@ export function SpeciesOccurrenceMap({
     renderMin,
     renderMax,
     varUnits,
-    dotMin,
-    dotMax,
-    isCircular,
-    aspectStops,
-    classColors,
-    classLabels,
     classShapes,
     markerOutlineEnabled,
   ]);
 
-  // The occurrences/observationValues counterpart to the heatmapUpdate
-  // effect above: recolors/reshapes already-rendered markers in place
-  // (matched by catalog number) instead of rebuilding the whole map, so
-  // switching the selected variable on the species/upload pages doesn't
-  // reload the WebView/iframe. positions themselves (memoOccurrences) stay
-  // frozen — only which dot goes with which color/shape changes.
+  // The single source of truth for "what color/shape does each marker get,
+  // right now": both the color SCALE (dotMin/dotMax/isCircular/classColors/
+  // classLabels/gradientStops/aspectStops — derived synchronously from
+  // variable metadata) and the per-point VALUES (observationValues — loaded
+  // async, behind variableDataLoading) are bundled into one message and
+  // applied by one handler in the iframe. Splitting these across separate
+  // messages/effects (as this used to do — a heatmapUpdate-carried scale, a
+  // standalone colormapUpdate, and this point-values update, each on its
+  // own timer) meant the iframe could receive a new scale before the
+  // matching values arrived (or vice versa) and repaint with a mismatched
+  // combination — every dot flashing nodata/default until the next message
+  // caught it up. One message, one handler, one repaint removes that
+  // ordering hazard structurally instead of by gating each one separately.
   React.useEffect(() => {
-    if (!preserveMapPosition || !mapReady) return;
+    if (!preserveMapPosition || !mapReady || variableDataLoading) return;
     const updates = computePointStyleUpdates(
       occurrences,
       observationValues,
@@ -845,7 +866,17 @@ export function SpeciesOccurrenceMap({
       circularShapesEnabled,
     );
     if (updates.length === 0) return;
-    const msg = { type: POINT_STYLES_UPDATE_MESSAGE_TYPE, points: updates };
+    const msg: Record<string, unknown> = {
+      type: POINT_STYLES_UPDATE_MESSAGE_TYPE,
+      points: updates,
+      dotMin,
+      dotMax,
+      isCircular,
+      classColors: classColors ? Object.fromEntries(classColors) : null,
+      classLabels: classLabels ? Object.fromEntries(classLabels) : null,
+      gradientStops: gradientStops ?? null,
+      aspectStops: aspectStops ?? null,
+    };
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage(msg, '*');
     } else {
@@ -854,12 +885,18 @@ export function SpeciesOccurrenceMap({
   }, [
     preserveMapPosition,
     mapReady,
+    variableDataLoading,
     occurrences,
     observationValues,
     classColors,
     classLabels,
     classShapes,
     circularShapesEnabled,
+    dotMin,
+    dotMax,
+    isCircular,
+    gradientStops,
+    aspectStops,
   ]);
 
   // Fires only when occurrences itself changes (a genuinely different set

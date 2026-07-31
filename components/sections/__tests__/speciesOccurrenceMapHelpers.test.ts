@@ -981,6 +981,168 @@ describe('speciesOccurrenceMapHelpers', () => {
     });
   });
 
+  describe('live pointStylesUpdate variable switches (Leaflet)', () => {
+    // Reproduces the exact "switch selected variable while preserveMapPosition
+    // holds the map open" live-recolor path: build the map with one variable's
+    // scale+values baked in (as SpeciesOccurrenceMap.tsx's initial html memo
+    // would), then push a pointStylesUpdate message carrying the NEW
+    // variable's scale+values (as the consolidated marker-style effect does),
+    // and assert the marker actually ends up styled for the new variable —
+    // not stuck on nodata white or the plain default fill.
+    const NODATA_FILL = '#ffffff';
+    const DEFAULT_FILL = markerPalette.markerFill; // '#111111'
+
+    type Profile = {
+      name: string;
+      // Args 20-21 (observationValues, classColors/classLabels via 22),
+      // dotMin/dotMax (24/25), isCircular (18) for the INITIAL html build.
+      observationValues: Map<string, number> | null;
+      classColors: Map<string, string> | null;
+      classLabels: Map<string, string> | null;
+      dotMin: number | null;
+      dotMax: number | null;
+      isCircular: boolean;
+      // Matching per-point + scale payload for the live pointStylesUpdate
+      // message (mirrors what computePointStyleUpdates + the consolidated
+      // effect in SpeciesOccurrenceMap.tsx would actually send).
+      liveMessageExtra: Record<string, unknown>;
+      point: { varValue: number | null; varColor: string | null; varLabel: string | null };
+      expectedFill: string;
+    };
+
+    const numeric: Profile = {
+      name: 'numeric',
+      observationValues: new Map([['101', 5]]),
+      classColors: null,
+      classLabels: null,
+      dotMin: 0,
+      dotMax: 10,
+      isCircular: false,
+      liveMessageExtra: {
+        dotMin: 0,
+        dotMax: 10,
+        isCircular: false,
+        classColors: null,
+        classLabels: null,
+        gradientStops: null,
+        aspectStops: null,
+      },
+      point: { varValue: 5, varColor: null, varLabel: null },
+      expectedFill: 'gradient', // computed — just must differ from nodata/default
+    };
+
+    const nominal: Profile = {
+      name: 'nominal',
+      observationValues: new Map([['101', 3]]),
+      classColors: new Map([['3', '#ff00ff']]),
+      classLabels: new Map([['3', 'ClassC']]),
+      dotMin: null,
+      dotMax: null,
+      isCircular: false,
+      liveMessageExtra: {
+        dotMin: null,
+        dotMax: null,
+        isCircular: false,
+        classColors: { '3': '#ff00ff' },
+        classLabels: { '3': 'ClassC' },
+        gradientStops: null,
+        aspectStops: null,
+      },
+      point: { varValue: 3, varColor: '#ff00ff', varLabel: 'ClassC' },
+      expectedFill: '#ff00ff',
+    };
+
+    const circular: Profile = {
+      name: 'circular',
+      observationValues: new Map([['101', 45]]),
+      classColors: null,
+      classLabels: null,
+      dotMin: null,
+      dotMax: null,
+      isCircular: true,
+      liveMessageExtra: {
+        dotMin: null,
+        dotMax: null,
+        isCircular: true,
+        classColors: null,
+        classLabels: null,
+        gradientStops: null,
+        aspectStops: null,
+      },
+      point: { varValue: 45, varColor: null, varLabel: null },
+      expectedFill: 'aspect', // computed — just must differ from nodata/default
+    };
+
+    const combos: [Profile, Profile][] = [
+      [numeric, numeric],
+      [numeric, nominal],
+      [nominal, nominal],
+      [nominal, numeric],
+      [numeric, circular],
+      [circular, numeric],
+      [circular, nominal],
+      [nominal, circular],
+    ];
+
+    combos.forEach(([from, to]) => {
+      it(`${from.name} -> ${to.name} recolors the marker for the new variable, not nodata/default`, () => {
+        const rawTemplate = fs.readFileSync(
+          path.join(
+            __dirname,
+            '..',
+            'speciesOccurrenceMap',
+            'SpeciesOccurrenceMap.html',
+          ),
+          'utf8',
+        );
+        const html = buildLeafletHtml(
+          rawTemplate,
+          [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+          markerPalette,
+          getMapTileUrlTemplate('light'),
+          null,
+          0.6,
+          0,
+          true,
+          null,
+          null,
+          null,
+          null,
+          null,
+          true,
+          true,
+          null,
+          null,
+          null,
+          from.isCircular,
+          from.observationValues,
+          from.classColors,
+          from.classLabels,
+          from.dotMin,
+          from.dotMax,
+        );
+        const harness = createLeafletHarness();
+        vm.runInNewContext(extractInlineScript(html), harness.context);
+        expect(harness.createdMarkers).toHaveLength(1);
+
+        harness.windowListeners.get('message')?.({
+          data: {
+            type: 'pointStylesUpdate',
+            points: [{ catalog: '101', ...to.point }],
+            ...to.liveMessageExtra,
+          },
+        });
+
+        const fill = harness.createdMarkers[0]?.style.fillColor;
+        expect(fill).not.toBe(NODATA_FILL);
+        expect(fill).not.toBe(DEFAULT_FILL);
+        if (to.expectedFill !== 'gradient' && to.expectedFill !== 'aspect') {
+          expect(fill).toBe(to.expectedFill);
+        }
+      });
+    });
+  });
+
   it('creates the expected highlight payload', () => {
     expect(toHighlightMessagePayload(['10', '20'])).toEqual({
       type: HIGHLIGHT_MESSAGE_TYPE,

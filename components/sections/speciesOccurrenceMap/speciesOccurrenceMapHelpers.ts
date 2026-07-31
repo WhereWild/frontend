@@ -6,7 +6,6 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
-export const COLORMAP_UPDATE_MESSAGE_TYPE = 'colormapUpdate';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
 export const LOCATE_MESSAGE_TYPE = 'locate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
