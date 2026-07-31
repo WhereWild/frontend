@@ -841,6 +841,10 @@ describe('useSpeciesEnvironmentState', () => {
       expect(mockFetchSpeciesEnvironment).toHaveBeenCalledWith(1, 'bio_12', {
         location: undefined,
         units: undefined,
+        phenology: undefined,
+        startTs: undefined,
+        endTs: undefined,
+        extra: [],
       });
       expect(result.current.loading).toBe(false);
     });
@@ -917,6 +921,288 @@ describe('useSpeciesEnvironmentState', () => {
     expect(result.current.summaryComparisons.range99).toContain('vs');
   });
 
+  it('treats a chained slice from another variable as a filter too — unlocking the "vs global" baseline comparison with no location/phenology active', async () => {
+    const twoContinuousVariables: EnvironmentVariableOption[] = [
+      { id: 'bio_1', label: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Climate' },
+      { id: 'bio_2', label: 'Annual Rain', units: 'mm', valueType: 'continuous', category: 'Climate' },
+    ];
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous' },
+      { id: 'bio_2', name: 'Annual Rain', units: 'mm', valueType: 'continuous' },
+    ]);
+    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId, options) => {
+      const hasChain = Array.isArray(options?.extra) && options.extra.length > 0;
+      if (variableId === 'bio_1') {
+        return { ...continuousStats, variable: 'bio_1' };
+      }
+      return {
+        ...continuousStats,
+        variable: 'bio_2',
+        summary: { count: 5, min: 3, mean: 6, max: 9, stddev: 1, q01: 3, q99: 9 },
+        baselineSummary: hasChain
+          ? { count: 50, min: 0, mean: 10, max: 20, stddev: 3, q01: 1, q99: 19 }
+          : undefined,
+      };
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        variables: twoContinuousVariables,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    expect(result.current.anyFilterActive).toBe(false);
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 2, end: 12 });
+    });
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+    );
+
+    act(() => {
+      result.current.setSelectedVariable('bio_2');
+    });
+
+    await waitFor(() => expect(result.current.selectedVariable).toBe('bio_2'));
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironment).toHaveBeenCalledWith(
+        1,
+        'bio_2',
+        expect.objectContaining({
+          extra: [{ variableId: 'bio_1', min: 2, max: 12 }],
+        }),
+      ),
+    );
+    await waitFor(() => expect(result.current.anyFilterActive).toBe(true));
+    await waitFor(() =>
+      expect(result.current.summaryComparisons.mean).toContain('vs'),
+    );
+    await waitFor(() =>
+      expect(result.current.chainDescription).toBe(
+        'And filtering from 2.0 to 12.0 C Annual Temperature',
+      ),
+    );
+  });
+
+  it('describes a chained categorical filter with its class name and variable label', async () => {
+    const bioAndLandcover: EnvironmentVariableOption[] = [
+      { id: 'landcover', label: 'Land Cover', units: null, valueType: 'categorical', category: 'Aardvark Soil' },
+      { id: 'bio_1', label: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Zzz Climate' },
+    ];
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      { id: 'landcover', name: 'Land Cover', units: null, valueType: 'categorical' },
+      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous' },
+    ]);
+    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId) => {
+      if (variableId === 'landcover') {
+        return {
+          ...categoricalStats,
+          variable: 'landcover',
+          categoricalDistribution: [
+            { value: 'class_52', className: 'Forest', count: 1, fraction: 1 },
+          ],
+          categoricalSamples: [],
+        };
+      }
+      return { ...continuousStats, variable: 'bio_1' };
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 52,
+      count: 1,
+      observations: [
+        { catalogNumber: 'A1', value: null, latitude: 0, longitude: 0 },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        variables: bioAndLandcover,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+
+    act(() => {
+      result.current.setSelectedCategoryValue('class_52');
+    });
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
+    );
+
+    act(() => {
+      result.current.setSelectedVariableCategory('Zzz Climate');
+    });
+    await waitFor(() => expect(result.current.selectedVariable).toBe('bio_1'));
+
+    await waitFor(() =>
+      expect(result.current.chainDescription).toBe(
+        'And filtering to only Forest Land Cover',
+      ),
+    );
+  });
+
+  it('keeps the map filtered to the chained subset when switching from one categorical variable to ANOTHER categorical variable (through the real async stats fetch cycle)', async () => {
+    const onHighlightChange = jest.fn();
+    const twoCategoricalVariables: EnvironmentVariableOption[] = [
+      { id: 'landcover', label: 'Land Cover', units: null, valueType: 'categorical', category: 'Categorical' },
+      { id: 'soiltype', label: 'Soil Type', units: null, valueType: 'categorical', category: 'Categorical' },
+    ];
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      { id: 'landcover', name: 'Land Cover', units: null, valueType: 'categorical' },
+      { id: 'soiltype', name: 'Soil Type', units: null, valueType: 'categorical' },
+    ]);
+    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId) => {
+      if (variableId === 'landcover') {
+        return {
+          ...categoricalStats,
+          variable: 'landcover',
+          categoricalDistribution: [
+            { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+          ],
+          categoricalSamples: [
+            { value: 'class_52', observationIds: ['A1', 'B2'] },
+          ],
+        };
+      }
+      return {
+        ...categoricalStats,
+        variable: 'soiltype',
+        categoricalDistribution: [
+          { value: 'class_1', className: 'Loam', count: 3, fraction: 1 },
+        ],
+        categoricalSamples: [],
+      };
+    });
+    mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+      speciesId: 1,
+      variable: 'landcover',
+      classValue: 52,
+      count: 2,
+      observations: [
+        { catalogNumber: 'A1', value: null, latitude: 0, longitude: 0 },
+        { catalogNumber: 'B2', value: null, latitude: 0, longitude: 0 },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'landcover',
+        onHighlightChange,
+        variables: twoCategoricalVariables,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    expect(result.current.isCategorical).toBe(true);
+
+    act(() => {
+      result.current.setSelectedCategoryValue('class_52');
+    });
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
+
+    act(() => {
+      result.current.setSelectedVariable('soiltype');
+    });
+
+    await waitFor(() => expect(result.current.selectedVariable).toBe('soiltype'));
+    await waitFor(() => expect(result.current.isCategorical).toBe(true));
+
+    // The chained landcover=Forest filter should still be driving the map
+    // highlight — not an empty/unfiltered set.
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenLastCalledWith(['A1', 'B2']),
+    );
+  });
+
+  it('reproduces the reported flow: slice bio_1, tab to Climate (kg2, inherits filter), then tab to Earth and Soil (landcover) — filter should still hold, not reset to all dots', async () => {
+    const onHighlightChange = jest.fn();
+    const threeVariables: EnvironmentVariableOption[] = [
+      { id: 'bio_1', label: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Bioclim' },
+      { id: 'kg2', label: 'Koppen Climate', units: null, valueType: 'categorical', category: 'Climate' },
+      { id: 'landcover', label: 'Land Cover', units: null, valueType: 'categorical', category: 'Earth and Soil' },
+    ];
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous' },
+      { id: 'kg2', name: 'Koppen Climate', units: null, valueType: 'categorical' },
+      { id: 'landcover', name: 'Land Cover', units: null, valueType: 'categorical' },
+    ]);
+    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId) => {
+      if (variableId === 'bio_1') return { ...continuousStats, variable: 'bio_1' };
+      if (variableId === 'kg2') {
+        return {
+          ...categoricalStats,
+          variable: 'kg2',
+          categoricalDistribution: [{ value: 'class_1', className: 'Tropical', count: 1, fraction: 1 }],
+          categoricalSamples: [],
+        };
+      }
+      return {
+        ...categoricalStats,
+        variable: 'landcover',
+        categoricalDistribution: [{ value: 'class_52', className: 'Forest', count: 1, fraction: 1 }],
+        categoricalSamples: [],
+      };
+    });
+    mockFetchEnvironmentRangeSlice.mockResolvedValue({
+      speciesId: 1,
+      variable: 'bio_1',
+      range: { min: 2, max: 12 },
+      limit: null,
+      count: 1,
+      observations: [{ catalogNumber: 42, value: 5, latitude: 0, longitude: 0 }],
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: 1,
+        variableId: 'bio_1',
+        onHighlightChange,
+        variables: threeVariables,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    expect(result.current.selectedVariable).toBe('bio_1');
+
+    act(() => {
+      result.current.handleDensitySelectionChange({ start: 2, end: 12 });
+    });
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([42]));
+
+    // Tab to "Climate" — picks kg2, the only variable in that category.
+    act(() => {
+      result.current.setSelectedVariableCategory('Climate');
+    });
+    await waitFor(() => expect(result.current.selectedVariable).toBe('kg2'));
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenLastCalledWith([42]),
+    );
+
+    // Tab to "Earth and Soil" — picks landcover, the only variable there.
+    act(() => {
+      result.current.setSelectedVariableCategory('Earth and Soil');
+    });
+    await waitFor(() =>
+      expect(result.current.selectedVariable).toBe('landcover'),
+    );
+    // The bio_1 range filter should still be driving the highlight here —
+    // not reset to an empty/unfiltered "all dots" state.
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenLastCalledWith([42]),
+    );
+  });
+
   it('fetches category samples with location filter when categorical samples are not preloaded', async () => {
     const onHighlightChange = jest.fn();
     mockFetchSpeciesEnvironment.mockResolvedValue({
@@ -956,7 +1242,7 @@ describe('useSpeciesEnvironmentState', () => {
       1,
       'landcover',
       'forest',
-      { location: 'USA.1_1' },
+      { location: 'USA.1_1', units: undefined, extra: [] },
     );
     expect(onHighlightChange).toHaveBeenCalled();
   });

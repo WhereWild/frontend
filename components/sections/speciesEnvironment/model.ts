@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type {
+  ExtraVariableFilter,
   LegendClass,
   SpeciesEnvironmentCategory,
   SpeciesEnvironmentCategoricalTotals,
@@ -66,6 +67,25 @@ export type DensitySelectionRange = {
   /** Human-readable bounds for display (e.g. actual chunk edges for discrete bars). */
   displayStart?: number;
   displayEnd?: number;
+};
+
+/**
+ * A slice/category selection that was active on a variable the user has
+ * since switched away from, held onto as an additional filter chained onto
+ * whatever variable is selected now (e.g. "elevation 500-1500m AND
+ * landcover=Forest"). `label` is resolved once at the moment the selection
+ * was made (from that variable's own stats), since by the time this entry
+ * is displayed the stats prop may already reflect a different variable.
+ */
+export type ChainedVariableFilter = {
+  variableId: string;
+  isCategorical: boolean;
+  extra: ExtraVariableFilter;
+  /** Human-readable summary of the filter's value alone (e.g. "10-20" or "Forest") — the caller prepends the variable's own display name. */
+  label: string;
+  /** Original selection, kept so switching back to this variable can restore it as the live selection instead of just leaving it chained. */
+  originalRange?: DensitySelectionRange;
+  originalCategoryValue?: number | string;
 };
 
 /** Fallback variable list used when remote catalog is unavailable. */

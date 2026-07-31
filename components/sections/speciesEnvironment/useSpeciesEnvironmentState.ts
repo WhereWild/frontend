@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { SpeciesEnvironmentRelativeRank } from '@/data/types';
+import type {
+  ExtraVariableFilter,
+  SpeciesEnvironmentRelativeRank,
+} from '@/data/types';
 import React from 'react';
 import {
   buildCategoricalSummary,
@@ -132,6 +135,7 @@ export function useSpeciesEnvironmentState({
     selectedVariableCategory,
     setSelectedVariableCategory,
     filteredVariables,
+    allVariables,
     selectedVariable,
     setSelectedVariable,
     selectedVariableMeta,
@@ -143,11 +147,32 @@ export function useSpeciesEnvironmentState({
     remapCategories: SPECIES_CATEGORY_REMAP,
   });
 
+  // useEnvironmentStats needs the active chain (to send as `extra`, so the
+  // density curve/histogram/categorical distribution it returns reflect a
+  // chained slice from another variable, not just the raw unfiltered
+  // dataset) — but the chain itself only exists on useEnvironmentHighlights'
+  // return below, which in turn needs THIS hook's `stats` as one of its own
+  // inputs. Bridged via a ref + version signal instead of a plain prop: the
+  // chain lands here one render after it actually changes, which is
+  // invisible since this hook's fetch is already async/effect-driven.
+  const activeChainRef = React.useRef<ExtraVariableFilter[]>([]);
+  const [chainSignal, setChainSignal] = React.useState(0);
+  // A chained slice from another variable is a filter just like location/
+  // phenology/timestamp — it should also unlock the "vs global" baseline
+  // comparison and the other anyFilterActive-gated UI below, but ONLY when
+  // the chain actually affects what's shown (i.e. the KDE for THIS variable
+  // was actually recomputed against a filter) — a chain entry naming the
+  // currently-selected variable itself shouldn't count (by construction it
+  // never should exist — switching back to a chained variable restores it
+  // as the live selection instead — but check explicitly rather than lean
+  // on that invariant never breaking). Reads the same ref useEnvironmentStats
+  // does (one render behind at worst, same as the stats themselves).
   const anyFilterActive =
     Boolean(locationGid) ||
     Boolean(phenology) ||
     startTimestamp != null ||
-    endTimestamp != null;
+    endTimestamp != null ||
+    activeChainRef.current.some((f) => f.variableId !== selectedVariable);
   const { stats, error, loading } = useEnvironmentStats({
     taxonId,
     selectedVariable,
@@ -156,6 +181,8 @@ export function useSpeciesEnvironmentState({
     startTimestamp,
     endTimestamp,
     units,
+    extraRef: activeChainRef,
+    chainSignal,
   });
 
   const {
@@ -183,6 +210,9 @@ export function useSpeciesEnvironmentState({
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
+    activeChain,
+    removeChainedFilter,
+    clearChain,
     pinnedClassName,
     pinnedNoData,
     pinnedValueLabel,
@@ -204,6 +234,38 @@ export function useSpeciesEnvironmentState({
     pinnedObservation,
     slicingEnabled,
   });
+
+  // A single combined line for display right below metaText, e.g. "And
+  // filtering from 35.5 to 39.0 °F Annual Mean Temperature and to only
+  // Continental, subarctic Köppen-Geiger Climate Classification" — one
+  // "And filtering" prefix with each additional chained variable joined by
+  // "and", not a separate line per entry. No edit/remove affordance is
+  // exposed here on purpose — a reload gives a clean slate, so this is
+  // read-only context. Class/variable names are shown exactly as they come
+  // from the catalog metadata, no forced casing.
+  const chainDescription = React.useMemo(() => {
+    if (activeChain.length === 0) {
+      return null;
+    }
+    const clauses = activeChain.map((entry) => {
+      const variableMeta = allVariables.find((v) => v.id === entry.variableId);
+      const variableName = variableMeta?.label ?? entry.variableId;
+      if (entry.isCategorical) {
+        return `to only ${entry.label} ${variableName}`;
+      }
+      const range = entry.originalRange;
+      const start = formatValue(range?.displayStart ?? range?.start, 1);
+      const end = formatValue(range?.displayEnd ?? range?.end, 1);
+      const unitsSuffix = variableMeta?.units ? ` ${variableMeta.units}` : '';
+      return `from ${start} to ${end}${unitsSuffix} ${variableName}`;
+    });
+    return `And filtering ${clauses.join(' and ')}`;
+  }, [activeChain, allVariables]);
+
+  React.useEffect(() => {
+    activeChainRef.current = activeChain.map((f) => f.extra);
+    setChainSignal((v) => v + 1);
+  }, [activeChain]);
 
   const { homePinValue, homePinValueLabel, homePinLoading } =
     useHomeLocationPin({
@@ -595,6 +657,10 @@ export function useSpeciesEnvironmentState({
     summary,
     selectedDensityRange,
     handleDensitySelectionChange,
+    activeChain,
+    chainDescription,
+    removeChainedFilter,
+    clearChain,
     showRankContext,
     rankContextOptions,
     selectedRankContext,

@@ -388,6 +388,17 @@ export type EnvironmentVariableDefinition = {
   compositionLabel?: string | null;
 };
 
+/**
+ * An additional per-variable filter chained onto a slice/class-samples
+ * request — e.g. holding an elevation range active while switching to and
+ * slicing a landcover class. min/max (for a continuous/circular range) or
+ * classValue (for an exact categorical match) are in DISPLAY units for that
+ * filter's OWN variable, same convention as the primary slice's min/max.
+ */
+export type ExtraVariableFilter =
+  | { variableId: string; min: number; max: number }
+  | { variableId: string; classValue: number };
+
 /** Query parameters for numeric environment slice requests. */
 export type EnvironmentSliceParams = {
   taxonId: number | string;
@@ -400,6 +411,8 @@ export type EnvironmentSliceParams = {
   phenology?: string | null;
   startTs?: number | null;
   endTs?: number | null;
+  /** Additional variable filters ANDed onto this slice — see chained-slice support. */
+  extra?: ExtraVariableFilter[] | null;
 };
 
 export type RelativeRankingEntry = {

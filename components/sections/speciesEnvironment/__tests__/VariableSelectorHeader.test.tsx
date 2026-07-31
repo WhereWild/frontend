@@ -152,6 +152,49 @@ describe('VariableSelectorHeader', () => {
     expect(screen.getByText('(Based on 10 observations)')).toBeTruthy();
   });
 
+  it('renders a chained-filter description right below metaText', () => {
+    render(
+      <VariableSelectorHeader
+        categories={[]}
+        selectedVariableCategory={null}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[]}
+        selectedVariable={'bio_1'}
+        onVariableChange={jest.fn()}
+        headingText={'Environment'}
+        metaText={'(Based on 10 observations)'}
+        chainDescription={
+          'And filtering from 500 to 1500 m Elevation and to only Forest Land Cover'
+        }
+      />,
+    );
+
+    expect(screen.getByText('(Based on 10 observations)')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'And filtering from 500 to 1500 m Elevation and to only Forest Land Cover',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('renders no chain-description line when the chain is empty', () => {
+    render(
+      <VariableSelectorHeader
+        categories={[]}
+        selectedVariableCategory={null}
+        onCategoryChange={jest.fn()}
+        filteredVariables={[]}
+        selectedVariable={'bio_1'}
+        onVariableChange={jest.fn()}
+        headingText={'Environment'}
+        metaText={'(Based on 10 observations)'}
+        chainDescription={null}
+      />,
+    );
+
+    expect(screen.queryByText(/And filtering/)).toBeNull();
+  });
+
   it('defaults to first category when selected category is null and omits heading/meta when absent', () => {
     render(
       <VariableSelectorHeader

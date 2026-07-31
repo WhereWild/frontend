@@ -233,6 +233,10 @@ export function useEnvironmentVariableSelection({
     selectedVariableCategory,
     setSelectedVariableCategory,
     filteredVariables,
+    // Full catalog across all categories, not just the active one — needed
+    // to resolve display name/units for a chained filter that belongs to a
+    // variable outside the currently-viewed category.
+    allVariables: resolvedVariables,
     selectedVariable,
     setSelectedVariable,
     selectedVariableMeta,

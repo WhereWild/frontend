@@ -732,6 +732,19 @@ describe('useEnvironmentHighlights', () => {
     );
 
     rerender({ variable: 'bio_2' });
+
+    // Switching variables while the bio_1 request is still pending stashes
+    // it onto the chain — and since bio_2 has no selection of its own, the
+    // chain-only fallback effect immediately issues its own (separate,
+    // freshly-mocked, not the stale deferred) request for it. That's the
+    // new chaining behavior working as intended, not the thing under test
+    // here — this test only cares that the ORIGINAL, now-stale request's
+    // later rejection has no further effect.
+    await waitFor(() =>
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith(['42']));
+
     const callsBeforeReject = onHighlightChange.mock.calls.length;
 
     await act(async () => {
@@ -1308,5 +1321,644 @@ describe('useEnvironmentHighlights', () => {
     await waitFor(() =>
       expect(onHighlightChange).toHaveBeenCalledWith(['X-1']),
     );
+  });
+
+  describe('chained slices across variable switches', () => {
+    const variableAStats: SpeciesEnvironmentStats = {
+      ...continuousStats,
+      variable: 'bio_1',
+    };
+    const variableBStats: SpeciesEnvironmentStats = {
+      ...continuousStats,
+      variable: 'bio_2',
+    };
+
+    type ChainTestProps = {
+      variable: string;
+      stats: SpeciesEnvironmentStats;
+      isCategorical: boolean;
+      locationGid?: string | null;
+      pinnedObservation?: {
+        catalogNumber: string;
+        lat: number;
+        lon: number;
+      } | null;
+    };
+
+    const renderChainHook = (
+      onHighlightChange: jest.Mock,
+      initialProps: ChainTestProps,
+    ) =>
+      renderHook<EnvironmentHighlightsHookResult, ChainTestProps>(
+        ({ variable, stats, isCategorical, locationGid, pinnedObservation }) =>
+          useEnvironmentHighlights({
+            taxonId: 1,
+            selectedVariable: variable,
+            stats,
+            isCategorical,
+            locationGid,
+            pinnedObservation,
+            onHighlightChange,
+          }),
+        { initialProps },
+      );
+
+    it('stashes an active density range onto the chain when switching variables, and applies it as an extra filter for the next slice', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+      mockFetchEnvironmentRangeSlice.mockClear();
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+
+      expect(result.current.selectedDensityRange).toBeNull();
+      expect(result.current.activeChain).toEqual([
+        expect.objectContaining({
+          variableId: 'bio_1',
+          extra: { variableId: 'bio_1', min: 10, max: 20 },
+        }),
+      ]);
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 5, end: 8 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+      expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variableId: 'bio_2',
+          min: 5,
+          max: 8,
+          extra: [{ variableId: 'bio_1', min: 10, max: 20 }],
+        }),
+      );
+    });
+
+    it('applies the chained filter on its own when the new variable has no selection of its own yet — not the unfiltered view', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+      mockFetchEnvironmentRangeSlice.mockClear();
+
+      // Switch variables and make NO new selection on bio_2 at all.
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+
+      // The stashed bio_1 filter alone should still be queried/applied —
+      // not left as an unfiltered "pulls up the full thing" view.
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variableId: 'bio_1',
+            min: 10,
+            max: 20,
+            extra: [],
+          }),
+        ),
+      );
+      await waitFor(() =>
+        expect(onHighlightChange).toHaveBeenLastCalledWith(['42']),
+      );
+    });
+
+    it('combines two chained filters (no live selection on either variable) by treating the first as primary and the rest as extra', async () => {
+      const onHighlightChange = jest.fn();
+      const variableCStats: SpeciesEnvironmentStats = {
+        ...categoricalStats,
+        variable: 'landcover',
+        categoricalDistribution: [
+          { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+        ],
+      };
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+
+      rerender({
+        variable: 'landcover',
+        stats: variableCStats,
+        isCategorical: true,
+      });
+      act(() => {
+        result.current.setSelectedCategoryValue('class_52');
+      });
+      await waitFor(() =>
+        expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
+      );
+      mockFetchEnvironmentRangeSlice.mockClear();
+      mockFetchSpeciesEnvironmentCategorySamples.mockClear();
+
+      // Switch to a THIRD variable with no selection of its own — both
+      // bio_1's range and landcover's class are now chained. bio_1 was
+      // stashed first (still index 0 in the chain, since a later stash
+      // only appends), so it's the one treated as primary; landcover rides
+      // along as `extra`.
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+          expect.objectContaining({
+            variableId: 'bio_1',
+            min: 10,
+            max: 20,
+            extra: [{ variableId: 'landcover', classValue: 52 }],
+          }),
+        ),
+      );
+      expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
+    });
+
+    it('restores a chained range as the live selection when switching back to that variable', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+      expect(result.current.activeChain).toHaveLength(1);
+
+      rerender({
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      expect(result.current.activeChain).toHaveLength(0);
+      expect(result.current.selectedDensityRange).toEqual({
+        start: 10,
+        end: 20,
+      });
+    });
+
+it('does not chain a categorical selection whose value has no resolvable numeric class code', async () => {
+      const onHighlightChange = jest.fn();
+      mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+        speciesId: 1,
+        variable: 'landcover',
+        classValue: 'forest',
+        count: 2,
+        observations: [
+          { catalogNumber: 'A1', value: null, latitude: 0, longitude: 0 },
+        ],
+      } as never);
+
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'landcover',
+        stats: categoricalStats,
+        isCategorical: true,
+      });
+
+      act(() => {
+        result.current.setSelectedCategoryValue('forest');
+      });
+      // 'forest' is served from categoricalStats.categoricalSamples (the
+      // preloaded fast path) here, not the network — wait on the highlight
+      // callback instead of the fetch mock.
+      await waitFor(() =>
+        expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+      );
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+
+      expect(result.current.selectedCategoryValue).toBeNull();
+      // 'forest' has no numeric class value on this fixture (a plain string,
+      // no "class_"/numeric form) — there's nothing valid to send as an
+      // `extra` classValue filter, so no chain entry is created at all
+      // rather than one with a broken/undefined extra.
+      expect(result.current.activeChain).toEqual([]);
+    });
+
+    it('resolves a numeric-coded categorical selection into a classValue extra filter', async () => {
+      const onHighlightChange = jest.fn();
+      const numericCategoricalStats: SpeciesEnvironmentStats = {
+        ...categoricalStats,
+        categoricalDistribution: [
+          { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+        ],
+        categoricalSamples: [
+          { value: 'class_52', observationIds: ['A1', 'B2'] },
+        ],
+      };
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'landcover',
+        stats: numericCategoricalStats,
+        isCategorical: true,
+      });
+
+      act(() => {
+        result.current.setSelectedCategoryValue('class_52');
+      });
+      await waitFor(() =>
+        expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+      );
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+
+      expect(result.current.activeChain).toEqual([
+        expect.objectContaining({
+          variableId: 'landcover',
+          extra: { variableId: 'landcover', classValue: 52 },
+        }),
+      ]);
+    });
+
+    it('applies a chained categorical filter on its own when switching from one nominal variable to ANOTHER nominal variable with no selection yet', async () => {
+      const onHighlightChange = jest.fn();
+      const numericCategoricalStats: SpeciesEnvironmentStats = {
+        ...categoricalStats,
+        variable: 'landcover',
+        categoricalDistribution: [
+          { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+        ],
+        categoricalSamples: [
+          { value: 'class_52', observationIds: ['A1', 'B2'] },
+        ],
+      };
+      const soilTextureStats: SpeciesEnvironmentStats = {
+        ...categoricalStats,
+        variable: 'soiltype',
+        categoricalDistribution: [
+          { value: 'class_1', className: 'Loam', count: 3, fraction: 1 },
+        ],
+        categoricalSamples: [],
+      };
+      mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+        speciesId: 1,
+        variable: 'landcover',
+        classValue: 52,
+        count: 2,
+        observations: [
+          { catalogNumber: 'A1', value: null, latitude: 0, longitude: 0 },
+          { catalogNumber: 'B2', value: null, latitude: 0, longitude: 0 },
+        ],
+      } as never);
+
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'landcover',
+        stats: numericCategoricalStats,
+        isCategorical: true,
+      });
+
+      act(() => {
+        result.current.setSelectedCategoryValue('class_52');
+      });
+      await waitFor(() =>
+        expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+      );
+      mockFetchSpeciesEnvironmentCategorySamples.mockClear();
+
+      // Switch to ANOTHER categorical variable (isCategorical: true again,
+      // unlike the sibling test above which switches to a continuous one)
+      // with no selection made on it yet.
+      rerender({
+        variable: 'soiltype',
+        stats: soilTextureStats,
+        isCategorical: true,
+      });
+
+      expect(result.current.selectedCategoryValue).toBeNull();
+      expect(result.current.activeChain).toEqual([
+        expect.objectContaining({
+          variableId: 'landcover',
+          extra: { variableId: 'landcover', classValue: 52 },
+        }),
+      ]);
+
+      await waitFor(() =>
+        expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
+          1,
+          'landcover',
+          52,
+          expect.objectContaining({ extra: [] }),
+        ),
+      );
+      // The map should stay showing just the chained subset — not fall back
+      // to an empty/unfiltered highlight set.
+      await waitFor(() =>
+        expect(onHighlightChange).toHaveBeenLastCalledWith(['A1', 'B2']),
+      );
+    });
+
+    it('clears the entire chain on a genuine context change like locationGid, not just on a variable switch', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+        locationGid: null,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+        locationGid: null,
+      });
+      expect(result.current.activeChain).toHaveLength(1);
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+        locationGid: 'USA',
+      });
+
+      expect(result.current.activeChain).toHaveLength(0);
+    });
+
+    it('removeChainedFilter removes a single chained entry without touching others', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+      expect(result.current.activeChain).toHaveLength(1);
+
+      act(() => {
+        result.current.removeChainedFilter('bio_1');
+      });
+
+      expect(result.current.activeChain).toHaveLength(0);
+    });
+
+    it('never flashes an empty/unfiltered highlight when switching into a variable a chain will cover (no "all dots" flicker)', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+      onHighlightChange.mockClear();
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalledWith(
+          expect.objectContaining({ variableId: 'bio_1' }),
+        ),
+      );
+      // Not even transiently — every call across the whole switch should
+      // carry the chained (non-empty) result, never a bare [] in between.
+      for (const call of onHighlightChange.mock.calls) {
+        expect(call[0]).not.toEqual([]);
+      }
+    });
+
+    it('never flashes an empty highlight when switching back to a variable being restored from the chain', async () => {
+      const onHighlightChange = jest.fn();
+      const { result, rerender } = renderChainHook(onHighlightChange, {
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+
+      act(() => {
+        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+      });
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+
+      rerender({
+        variable: 'bio_2',
+        stats: variableBStats,
+        isCategorical: false,
+      });
+      await waitFor(() => expect(result.current.activeChain).toHaveLength(1));
+      onHighlightChange.mockClear();
+      mockFetchEnvironmentRangeSlice.mockClear();
+
+      // Switch back to bio_1 — its slice should be restored as the live
+      // selection, not left chained, and never flash empty in between.
+      rerender({
+        variable: 'bio_1',
+        stats: variableAStats,
+        isCategorical: false,
+      });
+      expect(result.current.selectedDensityRange).toEqual({
+        start: 10,
+        end: 20,
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
+      });
+      await waitFor(() =>
+        expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
+      );
+      for (const call of onHighlightChange.mock.calls) {
+        expect(call[0]).not.toEqual([]);
+      }
+    });
+
+    it('does not read a pinned observation value from rangeObservations populated by a DIFFERENT (chained) variable\'s fallback fetch', async () => {
+      jest.useRealTimers();
+      try {
+        const onHighlightChange = jest.fn();
+        // landcover=52 chained, matching the reported scenario ("filtering
+        // to only ...") — its category-samples response's observations
+        // carry landcover's own class code (52) as `value`, not bio_1's.
+        mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
+          speciesId: 1,
+          variable: 'landcover',
+          classValue: 52,
+          count: 1,
+          observations: [
+            { catalogNumber: 'PIN-1', value: 52, latitude: 0, longitude: 0 },
+          ],
+        } as never);
+        // The real per-observation lookup for bio_1 at PIN-1 — the CORRECT
+        // value, unrelated to landcover's class code.
+        mockFetchPointEnvironmentValue.mockResolvedValue({
+          variable: 'bio_1',
+          units: 'F',
+          lat: 40.2,
+          lon: -105.1,
+          value: 47.03,
+          valueLabel: null,
+          valueDescription: null,
+        });
+
+        const numericCategoricalStats: SpeciesEnvironmentStats = {
+          ...categoricalStats,
+          variable: 'landcover',
+          categoricalDistribution: [
+            { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+          ],
+          categoricalSamples: [],
+        };
+        const { result, rerender } = renderChainHook(onHighlightChange, {
+          variable: 'landcover',
+          stats: numericCategoricalStats,
+          isCategorical: true,
+        });
+
+        act(() => {
+          result.current.setSelectedCategoryValue('class_52');
+        });
+        await waitFor(() =>
+          expect(
+            mockFetchSpeciesEnvironmentCategorySamples,
+          ).toHaveBeenCalled(),
+        );
+
+        // Switch to bio_1 (numeric) with nothing selected on it — landcover
+        // gets chained, and the chain-only fallback effect populates
+        // rangeObservations from landcover's own fetch (class code 52),
+        // not bio_1's.
+        rerender({
+          variable: 'bio_1',
+          stats: variableAStats,
+          isCategorical: false,
+        });
+        await waitFor(() =>
+          expect(result.current.activeChain).toHaveLength(1),
+        );
+
+        // Now pin the SAME catalog number the chain fallback already has
+        // in rangeObservations (value: 52) — this is the exact collision
+        // the bug hit. Since nothing is selected on bio_1 itself
+        // (selectedDensityRange is null), the pinned-value resolver must
+        // not treat rangeObservations' value as bio_1's — it should fetch
+        // bio_1's real value instead.
+        rerender({
+          variable: 'bio_1',
+          stats: variableAStats,
+          isCategorical: false,
+          pinnedObservation: {
+            catalogNumber: 'PIN-1',
+            lat: 40.2,
+            lon: -105.1,
+          },
+        });
+
+        await waitFor(() => expect(result.current.pinnedValue).toBe(47.03));
+        expect(result.current.pinnedValue).not.toBe(52);
+      } finally {
+        jest.useFakeTimers();
+      }
+    });
   });
 });

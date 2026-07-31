@@ -1365,3 +1365,84 @@ describe('upload local species data source variable categories', () => {
     expect(sliceImperial.observations).toHaveLength(1);
   });
 });
+
+describe('upload local species data source chained extra-variable filters', () => {
+  // obs_1: bio_1=10, landcover=52   obs_2: bio_1=20, landcover=52   obs_3: bio_1=30, landcover=130
+  const rawBundle: RawUploadedParquetBundle = {
+    categoricalStats: [
+      { variable: 'landcover', variableCategory: 'land', metric: 'class_52', metricLabel: 'Impervious surfaces', value: 2 },
+      { variable: 'landcover', variableCategory: 'land', metric: 'class_130', metricLabel: 'Grassland', value: 1 },
+      { variable: 'landcover', variableCategory: 'land', metric: 'total_samples', value: 3 },
+    ],
+    categoricalValueLookup: [
+      { variable: 'landcover', variableName: 'Land Cover Classes', variableCategory: 'land', code: 52, metric: 'class_52', label: 'Impervious surfaces' },
+      { variable: 'landcover', variableName: 'Land Cover Classes', variableCategory: 'land', code: 130, metric: 'class_130', label: 'Grassland' },
+    ],
+    densityGraph: [
+      { variable: 'bio_1', variableCategory: 'climate', points: [10, 20, 30], density: [0.1, 0.2, 0.1] },
+    ],
+    occurrences: [
+      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 10, landcover: 52 },
+      { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21, bio_1: 20, landcover: 52 },
+      { catalogNumber: 'obs_3', decimalLatitude: 12, decimalLongitude: 22, bio_1: 30, landcover: 130 },
+    ],
+    occurrenceIndex: [],
+    summaryStats: [
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        count: 3,
+        min: 10,
+        mean: 20,
+        max: 30,
+        std: 8.16,
+        '10th percentile': 10,
+        '90th percentile': 30,
+      },
+    ],
+    variableMetadata: [],
+  };
+
+  it('intersects a chained categorical filter onto a numeric slice request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'landcover', classValue: 52 }],
+    });
+
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_2']),
+    );
+  });
+
+  it('intersects a chained numeric range filter onto a categorical samples request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52', {
+      extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
+    });
+
+    expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_2']);
+  });
+
+  it('returns nothing when a chained filter matches no rows', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'landcover', classValue: 999 }],
+    });
+
+    expect(slice.observations).toHaveLength(0);
+  });
+});

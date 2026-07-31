@@ -36,6 +36,8 @@ type VariableSelectorHeaderProps = {
   headingText: string | null;
   /** Optional metadata subtitle (counts/range text). */
   metaText: string | null;
+  /** Read-only combined summary of any chained filters from other variables (e.g. "And filtering from 500 to 1500 m Elevation and to only Forest Land Cover"). */
+  chainDescription?: string | null;
   /** Optional forecast options to show as a third selector in temporal rows. */
   forecastOptions?: { value: string; label: string }[];
   /** Currently selected forecast value. */
@@ -54,6 +56,7 @@ export function VariableSelectorHeader({
   onVariableChange,
   headingText,
   metaText,
+  chainDescription,
   forecastOptions,
   selectedForecast,
   onForecastChange,
@@ -351,6 +354,12 @@ export function VariableSelectorHeader({
         {metaText ? (
           <ThemedText variant='bodySmall' style={styles.metaText}>
             {metaText}
+          </ThemedText>
+        ) : null}
+
+        {chainDescription ? (
+          <ThemedText variant='bodySmall' style={styles.metaText}>
+            {chainDescription}
           </ThemedText>
         ) : null}
       </View>

@@ -13,6 +13,7 @@ import {
 import type {
   EnvironmentSliceParams,
   EnvironmentVariableDefinition,
+  ExtraVariableFilter,
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
@@ -26,6 +27,7 @@ type EnvironmentRequestOptions = {
   phenology?: string | null;
   startTs?: number | null;
   endTs?: number | null;
+  extra?: ExtraVariableFilter[] | null;
 };
 
 type CategorySampleOptions = EnvironmentRequestOptions & {

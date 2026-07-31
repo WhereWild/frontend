@@ -113,6 +113,9 @@ function SpeciesEnvironmentSectionComponent({
     selectedDensityRange: ReturnType<
       typeof useSpeciesEnvironmentState
     >['selectedDensityRange'];
+    chainDescription: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['chainDescription'];
     showRankContext: boolean;
     rankContextOptions: ReturnType<
       typeof useSpeciesEnvironmentState
@@ -183,6 +186,7 @@ function SpeciesEnvironmentSectionComponent({
     summary,
     selectedDensityRange,
     handleDensitySelectionChange,
+    chainDescription,
     showRankContext,
     rankContextOptions,
     selectedRankContext,
@@ -330,6 +334,7 @@ function SpeciesEnvironmentSectionComponent({
         ternaryCompositionDensity,
         summary,
         selectedDensityRange,
+        chainDescription,
         showRankContext,
         rankContextOptions,
         selectedRankContext,
@@ -355,6 +360,7 @@ function SpeciesEnvironmentSectionComponent({
   const hasDisplayState = Boolean(displayState);
   const displayHeadingText = displayState?.headingText ?? null;
   const displayMetaText = displayState?.metaText ?? null;
+  const displayChainDescription = displayState?.chainDescription ?? null;
   const showCategoricalContent = Boolean(displayState?.isCategorical);
   const isOrdinalVar =
     selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
@@ -379,6 +385,7 @@ function SpeciesEnvironmentSectionComponent({
         onVariableChange={handleVariableChange}
         headingText={displayHeadingText}
         metaText={displayMetaText}
+        chainDescription={displayChainDescription}
       />
 
       <View collapsable={false} style={styles.statusSlot}>

@@ -5,11 +5,16 @@
 import { fetchPointEnvironmentValue } from '@/data/api';
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type {
+  ExtraVariableFilter,
   SpeciesEnvironmentObservation,
   SpeciesEnvironmentStats,
 } from '@/data/types';
 import React from 'react';
-import { CategorySampleState, DensitySelectionRange } from './model';
+import {
+  CategorySampleState,
+  ChainedVariableFilter,
+  DensitySelectionRange,
+} from './model';
 
 const DENSITY_SLICE_DEBOUNCE_MS = 200;
 type CatalogId = number | string;
@@ -46,6 +51,21 @@ const normalizeCategoryIdentity = (
 
 const isSyntheticPinnedPoint = (catalogNumber: string | number) =>
   typeof catalogNumber === 'string' && catalogNumber.startsWith('point:');
+
+// A chained filter's classValue must be the raw numeric class code (see
+// ExtraVariableFilter) — the backend's /slice and /class/:value/samples
+// endpoints both key categorical values by that code. selectedCategoryValue
+// here can arrive as a plain number (remote data source) or a resolved
+// metric-string key like "class_52" (local upload data source) — strip a
+// "class_" prefix before parsing so both shapes resolve to the same code.
+const toNumericClassValue = (value: number | string): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  const stripped = value.startsWith('class_') ? value.slice(6) : value;
+  const parsed = Number(stripped);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 const resolvePinnedCategoryQueryValue = ({
   stats,
@@ -159,6 +179,28 @@ export function useEnvironmentHighlights({
   React.useEffect(() => {
     rangeObservationsRef.current = rangeObservations;
   }, [rangeObservations]);
+
+  // Slices/category selections stashed from variables the user has since
+  // switched away from — applied as additional `extra` filters onto
+  // whatever variable is selected now, so switching variables no longer
+  // discards an active slice, it chains onto it instead. Cleared entirely
+  // on a genuine context change (location/phenology/timestamp/units/taxon),
+  // same as the old single-slice behavior for those.
+  const [activeChain, setActiveChain] = React.useState<ChainedVariableFilter[]>(
+    [],
+  );
+  // Tracks which variable + mode the CURRENT selectedDensityRange/
+  // selectedCategoryValue belongs to, plus its already-resolved display
+  // label — set at the moment a selection is made (when `stats` reliably
+  // still matches that variable), not derived at variable-switch time
+  // (when `stats`/isCategorical may have already flipped to the new
+  // variable, same synchronous-prop-update hazard as elsewhere in this
+  // codebase's variable-switch handling).
+  const selectionMetaRef = React.useRef<{
+    variableId: string;
+    isCategorical: boolean;
+    label: string;
+  } | null>(null);
   const [pinnedValue, setPinnedValue] = React.useState<number | string | null>(
     null,
   );
@@ -215,6 +257,12 @@ export function useEnvironmentHighlights({
     setSelectedDensityRange(null);
     setRangeObservations([]);
     setCategorySamplesByValue({});
+    // Preserve reference identity when already empty (as it is on every
+    // mount) — callers may derive a signal from activeChain's *reference*
+    // changing (see useSpeciesEnvironmentState's stats-refetch bridge), and
+    // a no-op reset shouldn't look like a real chain change to them.
+    setActiveChain((prev) => (prev.length === 0 ? prev : []));
+    selectionMetaRef.current = null;
     emitHighlightChange([]);
   }, [emitHighlightChange]);
 
@@ -246,6 +294,9 @@ export function useEnvironmentHighlights({
     };
   }, []);
 
+  // A genuine context change (not just switching which variable is
+  // selected) invalidates any chained filters too — the whole underlying
+  // dataset shifted, so there's nothing meaningful left to chain onto.
   React.useEffect(() => {
     resetHighlightState();
   }, [
@@ -253,11 +304,116 @@ export function useEnvironmentHighlights({
     locationGid,
     phenology,
     resetHighlightState,
-    selectedVariable,
     startTimestamp,
     taxonId,
     units,
   ]);
+
+  // Switching the selected variable, by contrast, stashes whatever
+  // selection was active on the OUTGOING variable onto the chain instead of
+  // discarding it — that's what lets a slice from one variable stay applied
+  // while looking at another. If the INCOMING variable already has a
+  // stashed entry (the user switched back to it), that entry is restored
+  // as the live selection instead of staying chained, so it's visible/
+  // editable again rather than orphaned.
+  const previousVariableRef = React.useRef(selectedVariable);
+  React.useEffect(() => {
+    if (previousVariableRef.current === selectedVariable) {
+      return;
+    }
+    const outgoingVariableId = previousVariableRef.current;
+    previousVariableRef.current = selectedVariable;
+
+    const outgoingMeta = selectionMetaRef.current;
+    let nextChain = activeChain;
+    if (outgoingMeta && outgoingMeta.variableId === outgoingVariableId) {
+      const entry: ChainedVariableFilter | null = outgoingMeta.isCategorical
+        ? selectedCategoryValue === null
+          ? null
+          : (() => {
+              const numericValue = toNumericClassValue(selectedCategoryValue);
+              return numericValue === null
+                ? null
+                : {
+                    variableId: outgoingVariableId,
+                    isCategorical: true,
+                    extra: { variableId: outgoingVariableId, classValue: numericValue },
+                    label: outgoingMeta.label,
+                    originalCategoryValue: selectedCategoryValue,
+                  };
+            })()
+        : selectedDensityRange === null
+          ? null
+          : {
+              variableId: outgoingVariableId,
+              isCategorical: false,
+              extra: {
+                variableId: outgoingVariableId,
+                min: selectedDensityRange.start,
+                max: selectedDensityRange.end,
+              },
+              label: outgoingMeta.label,
+              originalRange: selectedDensityRange,
+            };
+      if (entry) {
+        nextChain = [
+          ...activeChain.filter((e) => e.variableId !== outgoingVariableId),
+          entry,
+        ];
+      }
+    }
+    selectionMetaRef.current = null;
+
+    const restored = nextChain.find((e) => e.variableId === selectedVariable);
+    categoryRequestRef.current += 1;
+    setCategorySamplesByValue({});
+    setRangeObservations([]);
+    if (restored) {
+      setActiveChain(
+        nextChain.filter((e) => e.variableId !== selectedVariable),
+      );
+      selectionMetaRef.current = {
+        variableId: selectedVariable,
+        isCategorical: restored.isCategorical,
+        label: restored.label,
+      };
+      if (restored.isCategorical) {
+        setSelectedCategoryValueState(restored.originalCategoryValue ?? null);
+        setSelectedDensityRange(null);
+      } else {
+        setSelectedDensityRange(restored.originalRange ?? null);
+        setSelectedCategoryValueState(null);
+      }
+    } else {
+      setActiveChain(nextChain);
+      setSelectedCategoryValueState(null);
+      setSelectedDensityRange(null);
+    }
+    // The slice/category-fetch effects below react to the resulting
+    // selectedDensityRange/selectedCategoryValue/activeChain changes and
+    // will emit the correct (non-empty) highlight set once they resolve —
+    // but that's an async fetch, same as the earlier marker-color flicker.
+    // Clearing to [] here unconditionally means the map shows every dot
+    // "unfiltered" for that gap before narrowing back down: a visible
+    // flicker, not a fix. Only clear now when there's genuinely nothing
+    // left to filter by (no chain, nothing restored) — otherwise hold
+    // whatever's currently displayed until the real data lands, same
+    // "don't update until ready" approach as the color fix.
+    if (nextChain.length === 0 && !restored) {
+      emitHighlightChange([]);
+    }
+  }, [selectedVariable, activeChain, emitHighlightChange, selectedCategoryValue, selectedDensityRange]);
+
+  const removeChainedFilter = React.useCallback((variableId: string) => {
+    setActiveChain((prev) => {
+      const next = prev.filter((e) => e.variableId !== variableId);
+      return next.length === prev.length ? prev : next;
+    });
+  }, []);
+
+  const clearChain = React.useCallback(() => {
+    setActiveChain((prev) => (prev.length === 0 ? prev : []));
+  }, []);
 
   React.useEffect(() => {
     pinnedRequestRef.current += 1;
@@ -283,7 +439,17 @@ export function useEnvironmentHighlights({
     // For non-categorical variables, prefer the stored index value when the observation
     // is already in rangeObservations. The raster value at lat/lon can differ slightly
     // from the stored occurrence index value, making the pin appear outside the selection arc.
-    if (!isCategorical) {
+    //
+    // Gated on selectedDensityRange specifically: rangeObservations is no
+    // longer guaranteed to hold THIS variable's own values — the chain-only
+    // fallback effect also populates it, from whichever OTHER variable is
+    // primary in the chain, whenever nothing is selected on the current
+    // one. Without this gate, a categorical chain entry's class code (e.g.
+    // a Köppen-Geiger zone id) could get read as if it were this numeric
+    // variable's value. selectedDensityRange is only ever set by a live
+    // slice on THIS variable, so its presence is what actually confirms
+    // rangeObservations.value here means what this code assumes it means.
+    if (!isCategorical && selectedDensityRange) {
       const stored = rangeObservationsRef.current.find(
         (obs) =>
           obs.catalogNumber === pinnedObservation.catalogNumber &&
@@ -415,6 +581,7 @@ export function useEnvironmentHighlights({
     phenology,
     pinnedObservation,
     resetPinnedState,
+    selectedDensityRange,
     selectedVariable,
     speciesDataSource,
     startTimestamp,
@@ -462,13 +629,18 @@ export function useEnvironmentHighlights({
 
   const resolveCategorySelection = React.useCallback(
     (nextKey: string) => {
-      const cached = categorySamplesByValue[nextKey];
+      // Neither the per-value cache nor the preloaded stats.categoricalSamples
+      // shortcut below account for chained filters from other variables —
+      // both were populated (or would be populated) against the unfiltered
+      // set, so a chain in effect means always going to the network instead.
+      const hasActiveChain = activeChain.length > 0;
+      const cached = hasActiveChain ? undefined : categorySamplesByValue[nextKey];
       if (cached?.loaded && !cached.error) {
         emitHighlightChange(toCatalogIdsFromObservations(cached.observations));
         return;
       }
 
-      if (!locationGid && stats?.categoricalSamples?.length) {
+      if (!hasActiveChain && !locationGid && stats?.categoricalSamples?.length) {
         const preloaded = stats.categoricalSamples.find(
           (entry) => String(entry.value) === nextKey,
         );
@@ -512,7 +684,11 @@ export function useEnvironmentHighlights({
               taxonId,
               selectedVariable,
               nextKey,
-              { location: locationGid ?? undefined, units },
+              {
+                location: locationGid ?? undefined,
+                units,
+                extra: activeChain.map((f) => f.extra),
+              },
             );
           if (categoryRequestRef.current !== requestId) {
             return;
@@ -550,6 +726,7 @@ export function useEnvironmentHighlights({
       })();
     },
     [
+      activeChain,
       categorySamplesByValue,
       emitHighlightChange,
       isCategorical,
@@ -580,11 +757,24 @@ export function useEnvironmentHighlights({
       if (!nextKey || nextKey === currentKey) {
         categoryRequestRef.current += 1;
         setSelectedCategoryValueState(null);
+        selectionMetaRef.current = null;
         emitHighlightChange([]);
         return;
       }
 
       setSelectedCategoryValueState(nextValue);
+      // Resolved now, while `stats` still reliably matches selectedVariable
+      // — see selectionMetaRef's own comment for why this can't wait until
+      // the variable-switch effect runs.
+      const label =
+        stats?.categoricalDistribution?.find(
+          (category) => String(category.value) === nextKey,
+        )?.className ?? nextKey;
+      selectionMetaRef.current = {
+        variableId: selectedVariable,
+        isCategorical: true,
+        label,
+      };
       if (!stats) {
         return;
       }
@@ -594,6 +784,7 @@ export function useEnvironmentHighlights({
       emitHighlightChange,
       resolveCategorySelection,
       selectedCategoryValue,
+      selectedVariable,
       stats,
     ],
   );
@@ -641,8 +832,19 @@ export function useEnvironmentHighlights({
   const handleDensitySelectionChange = React.useCallback(
     (range: DensitySelectionRange | null) => {
       setSelectedDensityRange(range);
+      if (!range) {
+        selectionMetaRef.current = null;
+        return;
+      }
+      const startLabel = range.displayStart ?? range.start;
+      const endLabel = range.displayEnd ?? range.end;
+      selectionMetaRef.current = {
+        variableId: selectedVariable,
+        isCategorical: false,
+        label: `${startLabel}–${endLabel}`,
+      };
     },
-    [],
+    [selectedVariable],
   );
 
   React.useEffect(() => {
@@ -650,14 +852,21 @@ export function useEnvironmentHighlights({
       setRangeObservations([]);
       return;
     }
-    if (
-      !taxonId ||
-      !selectedVariable ||
-      !selectedDensityRange ||
-      !slicingEnabled
-    ) {
+    if (!taxonId || !selectedVariable || !slicingEnabled) {
       setRangeObservations([]);
       emitHighlightChange([]);
+      return;
+    }
+    if (!selectedDensityRange) {
+      // Nothing selected on the CURRENT variable. If a chain is active, the
+      // chain-only fallback effect below owns applying/emitting it instead
+      // — clearing here unconditionally would immediately wipe out
+      // whatever that effect just set, since both react to activeChain
+      // changing (switching variables changes both at once).
+      if (activeChain.length === 0) {
+        setRangeObservations([]);
+        emitHighlightChange([]);
+      }
       return;
     }
     const { start, end } = selectedDensityRange;
@@ -687,6 +896,7 @@ export function useEnvironmentHighlights({
                 phenology: phenology ?? undefined,
                 startTs: startTimestamp ?? undefined,
                 endTs: endTimestamp ?? undefined,
+                extra: activeChain.map((f) => f.extra),
               }),
             ),
           );
@@ -721,6 +931,7 @@ export function useEnvironmentHighlights({
       clearTimeout(timer);
     };
   }, [
+    activeChain,
     emitHighlightChange,
     endTimestamp,
     isCategorical,
@@ -735,12 +946,124 @@ export function useEnvironmentHighlights({
     slicingEnabled,
   ]);
 
+  // When nothing is selected on the CURRENT variable but the chain isn't
+  // empty, the view should still reflect the chained filter(s) on their
+  // own — otherwise switching to a fresh variable shows the fully
+  // unfiltered dataset until the user ALSO slices that variable, even
+  // though a slice from a previous variable is meant to still be in
+  // effect. Treats the first chain entry as the "primary" request (as it
+  // would have been before it was stashed) and the rest as `extra`.
+  React.useEffect(() => {
+    if (selectedDensityRange || selectedCategoryValue !== null) {
+      // The effects above already cover "there's a live selection".
+      return;
+    }
+    if (activeChain.length === 0 || !taxonId || !slicingEnabled) {
+      return;
+    }
+    const [primary, ...rest] = activeChain;
+    const extra = rest.map((f) => f.extra);
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (primary.isCategorical) {
+          if (!('classValue' in primary.extra)) {
+            return;
+          }
+          const response =
+            await speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
+              taxonId,
+              primary.variableId,
+              primary.extra.classValue,
+              { location: locationGid ?? undefined, units, extra },
+            );
+          if (cancelled) {
+            return;
+          }
+          const observations = response.observations ?? [];
+          setRangeObservations(observations);
+          emitHighlightChange(toCatalogIdsFromObservations(observations));
+          return;
+        }
+        if (!('min' in primary.extra)) {
+          return;
+        }
+        const { min, max } = primary.extra;
+        const isWrapped = min > max;
+        const sliceParams = isWrapped
+          ? [
+              { min, max: 360 },
+              { min: 0, max },
+            ]
+          : [{ min, max }];
+        const responses = await Promise.all(
+          sliceParams.map((range) =>
+            speciesDataSource.fetchEnvironmentRangeSlice({
+              taxonId,
+              variableId: primary.variableId,
+              min: range.min,
+              max: range.max,
+              location: locationGid ?? undefined,
+              units,
+              phenology: phenology ?? undefined,
+              startTs: startTimestamp ?? undefined,
+              endTs: endTimestamp ?? undefined,
+              extra,
+            }),
+          ),
+        );
+        if (cancelled) {
+          return;
+        }
+        const seen = new Set<number | string>();
+        const observations: SpeciesEnvironmentObservation[] = [];
+        for (const response of responses) {
+          for (const obs of response.observations ?? []) {
+            const id = obs.catalogNumber;
+            if (id !== null && id !== undefined && !seen.has(id)) {
+              seen.add(id);
+              observations.push(obs);
+            }
+          }
+        }
+        setRangeObservations(observations);
+        emitHighlightChange(toCatalogIdsFromObservations(observations));
+      } catch {
+        if (cancelled) {
+          return;
+        }
+        setRangeObservations([]);
+        emitHighlightChange([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeChain,
+    selectedVariable,
+    selectedDensityRange,
+    selectedCategoryValue,
+    taxonId,
+    locationGid,
+    phenology,
+    startTimestamp,
+    endTimestamp,
+    units,
+    slicingEnabled,
+    speciesDataSource,
+    emitHighlightChange,
+  ]);
+
   return {
     selectedCategoryValue,
     setSelectedCategoryValue,
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
+    activeChain,
+    removeChainedFilter,
+    clearChain,
     pinnedClassName: pinnedValueLabel,
     pinnedNoData:
       pinnedValue === null &&

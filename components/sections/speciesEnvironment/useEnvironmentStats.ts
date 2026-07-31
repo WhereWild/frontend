@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
-import type { SpeciesEnvironmentStats } from '@/data/types';
+import type { ExtraVariableFilter, SpeciesEnvironmentStats } from '@/data/types';
 import React from 'react';
 import { isValidHistogramContract } from './model';
 
@@ -22,6 +22,18 @@ type UseEnvironmentStatsParams = {
   endTimestamp?: number | null;
 
   units?: 'metric' | 'imperial' | undefined;
+  /**
+   * Chained filters from other variables (see useEnvironmentHighlights'
+   * activeChain), read via ref rather than passed as a plain array. The
+   * caller (useSpeciesEnvironmentState) computes activeChain from a hook
+   * that itself needs THIS hook's stats as an input — a same-render
+   * circular dependency — so the chain arrives here through a ref +
+   * `chainSignal` version bump instead of a normal prop, landing one
+   * render after it actually changes. Since this hook's fetch is already
+   * effect-driven/async, that one-render lag is imperceptible.
+   */
+  extraRef?: React.RefObject<ExtraVariableFilter[]>;
+  chainSignal?: number;
 };
 
 /** Fetches and caches environment stats keyed by selected variable. */
@@ -33,6 +45,8 @@ export function useEnvironmentStats({
   startTimestamp,
   endTimestamp,
   units,
+  extraRef,
+  chainSignal,
 }: UseEnvironmentStatsParams) {
   const speciesDataSource = useSpeciesDataSource();
   const [statsByVariable, setStatsByVariable] = React.useState<
@@ -48,7 +62,15 @@ export function useEnvironmentStats({
   React.useEffect(() => {
     setStatsByVariable({});
     setErrorByVariable({});
-  }, [taxonId, locationGid, phenology, startTimestamp, endTimestamp, units]);
+  }, [
+    taxonId,
+    locationGid,
+    phenology,
+    startTimestamp,
+    endTimestamp,
+    units,
+    chainSignal,
+  ]);
 
   const hasStatsForSelection = Boolean(
     selectedVariable && statsByVariable[selectedVariable],
@@ -63,11 +85,13 @@ export function useEnvironmentStats({
       setLoadingVariable(selectedVariable);
       setErrorByVariable((prev) => ({ ...prev, [selectedVariable]: null }));
       try {
+        const extra = extraRef?.current ?? [];
         const filterActive =
           Boolean(locationGid) ||
           Boolean(phenology) ||
           startTimestamp != null ||
-          endTimestamp != null;
+          endTimestamp != null ||
+          extra.some((f) => f.variableId !== selectedVariable);
 
         const [filteredResponse, globalResponse] = await Promise.all([
           speciesDataSource.fetchSpeciesEnvironment(taxonId, selectedVariable, {
@@ -76,6 +100,7 @@ export function useEnvironmentStats({
             phenology,
             startTs: startTimestamp,
             endTs: endTimestamp,
+            extra,
           }),
           filterActive
             ? speciesDataSource.fetchSpeciesEnvironment(
@@ -136,6 +161,7 @@ export function useEnvironmentStats({
       cancelled = true;
     };
   }, [
+    chainSignal,
     endTimestamp,
     hasStatsForSelection,
     locationGid,

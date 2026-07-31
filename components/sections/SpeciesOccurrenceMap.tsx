@@ -857,6 +857,16 @@ export function SpeciesOccurrenceMap({
   // ordering hazard structurally instead of by gating each one separately.
   React.useEffect(() => {
     if (!preserveMapPosition || !mapReady || variableDataLoading) return;
+    // Deliberately NOT skipped when there are zero points to update (e.g.
+    // maps.tsx, which always passes occurrences={[]} since it has no
+    // occurrence markers at all) — this message is the only place the
+    // color SCALE globals (isCircular/dotMin/dotMax/gradientStops/
+    // aspectStops/classColors) get pushed live, and those are also read by
+    // the point-query popup (formatPointValueHtml), which has nothing to
+    // do with markers. Skipping the send here left them frozen at
+    // whatever the iframe was first built with, so switching to e.g. a
+    // circular variable on the no-markers map never updated IS_CIRCULAR —
+    // the popup fell through to the plain value with no dot/unit.
     const updates = computePointStyleUpdates(
       occurrences,
       observationValues,
@@ -865,7 +875,6 @@ export function SpeciesOccurrenceMap({
       classShapes,
       circularShapesEnabled,
     );
-    if (updates.length === 0) return;
     const msg: Record<string, unknown> = {
       type: POINT_STYLES_UPDATE_MESSAGE_TYPE,
       points: updates,

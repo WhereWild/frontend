@@ -4,6 +4,7 @@
 
 import type {
   EnvironmentSliceParams,
+  ExtraVariableFilter,
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
@@ -18,22 +19,40 @@ import {
 } from './environmentParsers';
 import { BACKEND_BASE, asRecord, fetchJsonOrThrow } from './apiShared';
 
-type LocationOptions = {
+export type LocationOptions = {
   location?: string | null;
   units?: string | null;
   phenology?: string | null;
   startTs?: number | null;
   endTs?: number | null;
+  extra?: ExtraVariableFilter[] | null;
 };
 
-type CategorySampleOptions = {
+export type CategorySampleOptions = {
   limit?: number;
   location?: string | null;
   units?: string | null;
   phenology?: string | null;
   startTs?: number | null;
   endTs?: number | null;
+  extra?: ExtraVariableFilter[] | null;
 };
+
+/** Serializes chained per-variable filters into the `extra` query param the
+ * backend's _parse_extra_variable_filters expects — a JSON array of
+ * {variable, min, max} or {variable, classValue} entries. */
+function serializeExtraFilters(extra?: ExtraVariableFilter[] | null): string | null {
+  if (!extra || extra.length === 0) {
+    return null;
+  }
+  return JSON.stringify(
+    extra.map((filter) =>
+      'classValue' in filter
+        ? { variable: filter.variableId, classValue: filter.classValue }
+        : { variable: filter.variableId, min: filter.min, max: filter.max },
+    ),
+  );
+}
 
 /**
  * Fetches species environment statistics and normalizes the response.
@@ -61,6 +80,10 @@ export async function fetchSpeciesEnvironment(
   if (options?.endTs != null) {
     params.set('end_ts', String(options.endTs));
   }
+  const serializedStatsExtra = serializeExtraFilters(options?.extra);
+  if (serializedStatsExtra) {
+    params.set('extra', serializedStatsExtra);
+  }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}${query ? `?${query}` : ''}`;
   const payload = await fetchJsonOrThrow(
@@ -76,7 +99,7 @@ export async function fetchSpeciesEnvironment(
 export async function fetchEnvironmentRangeSlice(
   params: EnvironmentSliceParams,
 ): Promise<SpeciesEnvironmentSliceResponse> {
-  const { taxonId, variableId, min, max, limit, location, units, phenology, startTs, endTs } = params;
+  const { taxonId, variableId, min, max, limit, location, units, phenology, startTs, endTs, extra } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const query = new URLSearchParams({
@@ -100,6 +123,10 @@ export async function fetchEnvironmentRangeSlice(
   }
   if (endTs != null) {
     query.set('end_ts', String(endTs));
+  }
+  const serializedExtra = serializeExtraFilters(extra);
+  if (serializedExtra) {
+    query.set('extra', serializedExtra);
   }
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/slice?${query.toString()}`;
   const payload = await fetchJsonOrThrow(
@@ -139,6 +166,10 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   }
   if (options?.endTs != null) {
     query.set('end_ts', String(options.endTs));
+  }
+  const serializedExtra = serializeExtraFilters(options?.extra);
+  if (serializedExtra) {
+    query.set('extra', serializedExtra);
   }
   const queryString = query.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/environment/${encodedVariable}/class/${encodedClass}/samples${queryString ? `?${queryString}` : ''}`;
