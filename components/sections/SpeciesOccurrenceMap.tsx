@@ -14,16 +14,21 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useOptionalSettings } from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
+  buildGlobeHtml,
   buildLeafletHtml,
   getBackgroundTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
+  loadGlobeMapTemplate,
+  loadGlobeMapTemplateOffline,
   loadMapTemplate,
+  loadMapTemplateOffline,
   MAP_DOCUMENT_BASE_URL,
   MAP_REFERRER_POLICY,
   type HighlightMessage,
@@ -36,6 +41,14 @@ import {
   HEATMAP_UPDATE_MESSAGE_TYPE,
   LOCATION_PICKED_MESSAGE_TYPE,
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
+  TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
+  TOGGLE_FULLSCREEN_MESSAGE_TYPE,
+  TILE_CLASSES_SYNC_MESSAGE_TYPE,
+  POINT_STYLES_UPDATE_MESSAGE_TYPE,
+  POINTS_UPDATE_MESSAGE_TYPE,
+  computePointStyleUpdates,
+  preparePointsForMapHtml,
+  toggleFullscreenElement,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -63,8 +76,13 @@ function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
 }
 
 type TileClassEntry = { id: number; count: number };
+// A full snapshot of every nominal class currently visible, recomputed from
+// scratch by the map template each time it settles (see
+// SpeciesOccurrenceMap.html's layer.syncClasses) — not an incremental
+// add/remove delta. Replacing the whole set each time means there's no
+// per-tile add/remove pairing to keep consistent, so nothing can drift.
 type TileClassesMessage = {
-  type: 'tileClasses' | 'tileClassesRemoved';
+  type: typeof TILE_CLASSES_SYNC_MESSAGE_TYPE;
   classes: TileClassEntry[];
 };
 
@@ -73,7 +91,7 @@ function isTileClassesMessage(msg: unknown): msg is TileClassesMessage {
     !!msg &&
     typeof msg === 'object' &&
     'type' in msg &&
-    (msg.type === 'tileClasses' || msg.type === 'tileClassesRemoved') &&
+    msg.type === TILE_CLASSES_SYNC_MESSAGE_TYPE &&
     'classes' in msg &&
     Array.isArray((msg as TileClassesMessage).classes)
   );
@@ -132,10 +150,9 @@ type SpeciesOccurrenceMapProps = {
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
-  onTileClasses?: (
-    classes: { id: number; count: number }[],
-    removed: boolean,
-  ) => void;
+  // A full snapshot of currently-visible nominal classes, not an
+  // incremental delta — see TileClassesMessage's doc comment.
+  onTileClasses?: (classes: { id: number; count: number }[]) => void;
   onPointValue?: (value: number) => void;
   pointQueryUrl?: string | null;
   renderMin?: number | null;
@@ -166,6 +183,17 @@ type SpeciesOccurrenceMapProps = {
   // rather than run on every map instance across the app. Only the custom
   // upload page (which genuinely needs to work offline) should enable it.
   enableOfflineFallback?: boolean;
+  // Called (web only) when the in-map fullscreen button is toggled, instead
+  // of this component handling it internally. Fullscreening only ever
+  // covers a single DOM element and its descendants — this component's own
+  // WebView/iframe is a sibling of any legend/colormap-picker overlays the
+  // consuming page renders alongside it (see maps.tsx, _species.tsx,
+  // UploadPreview.tsx), so fullscreening the map alone would hide them.
+  // Pass a callback that toggles fullscreen on a wider ancestor that
+  // actually contains those overlays too. Omit to fall back to
+  // fullscreening just this component (map-only, no overlays) — better
+  // than nothing, but a page with its own overlays should provide this.
+  onFullscreenToggle?: () => void;
 };
 
 export function SpeciesOccurrenceMap({
@@ -176,7 +204,7 @@ export function SpeciesOccurrenceMap({
   highlightedCatalogs = [],
   heatmapTileUrl = null,
   heatmapOpacity = 0.6,
-  minZoom = 2,
+  minZoom = 0,
   maxZoom = null,
   initialLat = null,
   initialLon = null,
@@ -214,6 +242,7 @@ export function SpeciesOccurrenceMap({
   localLat = null,
   localLon = null,
   enableOfflineFallback = false,
+  onFullscreenToggle,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -223,7 +252,46 @@ export function SpeciesOccurrenceMap({
   const palette = Colors[mode];
   const webViewRef = React.useRef<WebView>(null);
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
+  // react-native-web forwards View refs to the underlying DOM node — used
+  // as the default (map-only) fullscreen target when a page doesn't supply
+  // onFullscreenToggle. Typed loosely since this only matters on web.
+  const containerRef = React.useRef<View | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  // Even when a fixed `height` prop is set (the common case — most pages
+  // give the map a set height in its normal layout), fullscreen should fill
+  // the whole screen rather than leaving the map pinned at its original
+  // pixel height with blank space below it. Fullscreen is toggled on some
+  // ancestor of this component (see onFullscreenToggle), not on this
+  // component's own root, so this can't just check "is my own node the
+  // fullscreen element" — it checks containment instead.
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') {
+      return;
+    }
+    const fullscreenDoc = document as Document & {
+      webkitFullscreenElement?: Element | null;
+    };
+    const updateIsFullscreen = () => {
+      const fullscreenElement =
+        fullscreenDoc.fullscreenElement ??
+        fullscreenDoc.webkitFullscreenElement;
+      const node = containerRef.current as unknown as Element | null;
+      setIsFullscreen(
+        !!fullscreenElement && !!node && fullscreenElement.contains(node),
+      );
+    };
+    updateIsFullscreen();
+    document.addEventListener('fullscreenchange', updateIsFullscreen);
+    document.addEventListener('webkitfullscreenchange', updateIsFullscreen);
+    return () => {
+      document.removeEventListener('fullscreenchange', updateIsFullscreen);
+      document.removeEventListener(
+        'webkitfullscreenchange',
+        updateIsFullscreen,
+      );
+    };
+  }, []);
   const initialLocalLat = React.useRef(localLat);
   const initialLocalLon = React.useRef(localLon);
   const [mapTemplate, setMapTemplate] = React.useState<string | null>(null);
@@ -233,6 +301,10 @@ export function SpeciesOccurrenceMap({
   const [templateLoadError, setTemplateLoadError] = React.useState<
     string | null
   >(null);
+
+  const settings = useOptionalSettings();
+  const globeViewSupported = Platform.OS === 'web';
+  const globeView = globeViewSupported && !!settings?.globeViewEnabled;
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, latitude: number, longitude: number) => {
@@ -272,7 +344,7 @@ export function SpeciesOccurrenceMap({
       }
 
       if (isTileClassesMessage(msg)) {
-        onTileClasses?.(msg.classes, msg.type === 'tileClassesRemoved');
+        onTileClasses?.(msg.classes);
         return;
       }
 
@@ -317,6 +389,22 @@ export function SpeciesOccurrenceMap({
   );
 
   const hasOccurrences = occurrences.length > 0;
+  // Tracks which renderer the currently-loaded mapTemplate was fetched for.
+  // heatmapTileUrl (and hasOccurrences/locationPickerMode) have to stay in
+  // this effect's deps so it reacts the first time either becomes available
+  // — on maps.tsx, occurrences is always [] and heatmapTileUrl is the only
+  // signal that there's anything to show at all. But once a template is
+  // already loaded for the current (globeView, enableOfflineFallback) pair,
+  // re-running the fetch on every later heatmapTileUrl change (switching
+  // colormap/variable/class filter/value range, all of which change the
+  // tile URL) was refetching the same bytes into a new string instance,
+  // which — since preserveMapPosition's whole point is to push those
+  // changes via postMessage instead — pointlessly rebuilt the html memo and
+  // fully reloaded the iframe. That reload silently destroys whatever the
+  // old iframe was mid-tracking (in-flight tileClasses adds with no chance
+  // to ever send the matching tileClassesRemoved), which is exactly what
+  // made the nominal legend's live counts drift/stick.
+  const loadedRendererKeyRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (
@@ -327,15 +415,27 @@ export function SpeciesOccurrenceMap({
       return;
     }
 
+    const rendererKey = `${globeView}:${enableOfflineFallback}`;
+    if (mapTemplate && loadedRendererKeyRef.current === rendererKey) {
+      return;
+    }
+
     let isMounted = true;
 
     void (async () => {
-      const templateContent = await loadMapTemplate();
+      const templateContent = globeView
+        ? await (enableOfflineFallback
+            ? loadGlobeMapTemplateOffline()
+            : loadGlobeMapTemplate())
+        : await (enableOfflineFallback
+            ? loadMapTemplateOffline()
+            : loadMapTemplate());
       if (!isMounted) {
         return;
       }
 
       if (templateContent) {
+        loadedRendererKeyRef.current = rendererKey;
         setMapTemplate(templateContent);
         setTemplateLoadWarning(null);
         setTemplateLoadError(null);
@@ -348,12 +448,14 @@ export function SpeciesOccurrenceMap({
       }
 
       if (fallbackTemplate) {
+        loadedRendererKeyRef.current = rendererKey;
         setMapTemplate(fallbackTemplate);
         setTemplateLoadWarning(fallbackWarningMessage);
         setTemplateLoadError(null);
         return;
       }
 
+      loadedRendererKeyRef.current = null;
       setMapTemplate(null);
       setTemplateLoadWarning(null);
       setTemplateLoadError(rendererLoadErrorMessage);
@@ -362,7 +464,16 @@ export function SpeciesOccurrenceMap({
     return () => {
       isMounted = false;
     };
-  }, [error, hasOccurrences, heatmapTileUrl, loading, locationPickerMode]);
+  }, [
+    error,
+    hasOccurrences,
+    heatmapTileUrl,
+    loading,
+    locationPickerMode,
+    globeView,
+    enableOfflineFallback,
+    mapTemplate,
+  ]);
 
   const markerPalette = React.useMemo<MapMarkerPalette>(
     () => ({
@@ -419,6 +530,59 @@ export function SpeciesOccurrenceMap({
   const initialClassLabels = React.useRef(classLabels);
   const initialClassShapes = React.useRef(classShapes);
   const initialMarkerOutlineEnabled = React.useRef(markerOutlineEnabled);
+  // Freezing these too means a variable switch on the species/upload pages
+  // (which changes observationValues — new per-observation values for
+  // whatever's now selected — but not occurrences' positions) no longer
+  // forces the html memo to rebuild the whole WebView/iframe. The new
+  // per-point colors/shapes are instead pushed live via postMessage (see
+  // the pointStylesUpdate effect below), the same way heatmap tile/legend
+  // updates already work.
+  const initialOccurrences = React.useRef(occurrences);
+  const initialObservationValues = React.useRef(observationValues);
+  const initialCircularShapesEnabled = React.useRef(circularShapesEnabled);
+  // Tracks the last occurrences reference actually pushed to the map via
+  // pointsUpdate (see below) — deliberately separate from initialOccurrences
+  // above, which must stay frozen for the html memo's sake. When a location/
+  // phenology filter genuinely changes which occurrences were fetched (as
+  // opposed to a variable switch, which only changes observationValues for
+  // the same occurrences), the map needs a real marker-set swap + refit,
+  // not just a recolor.
+  const lastSyncedOccurrences = React.useRef(occurrences);
+
+  // The refs above are meant to capture "whatever was true when the current
+  // WebView/iframe document was built," not "whatever was true on this
+  // component's very first render ever" — but a plain useRef(initialValue)
+  // only ever does the latter. Without this, switching renderers (e.g.
+  // toggling globe view, which forces mapTemplate to reload) rebuilds the
+  // iframe using props frozen from the original mount — on maps.tsx that's
+  // always the landcover default — and the freshly built map would flash
+  // that stale data until a live postMessage update corrects it. Resetting
+  // these refs synchronously during render (an accepted React pattern for
+  // "reset derived state when a key changes") whenever mapTemplate changes
+  // — i.e. whenever the underlying document is genuinely about to be
+  // rebuilt from scratch — makes the *next* html build start from current
+  // truth instead of ancient history.
+  const mapTemplateForInitialRefs = React.useRef(mapTemplate);
+  if (mapTemplateForInitialRefs.current !== mapTemplate) {
+    mapTemplateForInitialRefs.current = mapTemplate;
+    initialHeatmapTileUrl.current = heatmapTileUrl;
+    initialPointQueryUrl.current = pointQueryUrl;
+    initialRenderMin.current = renderMin;
+    initialRenderMax.current = renderMax;
+    initialVarUnits.current = varUnits;
+    initialDotMin.current = dotMin;
+    initialDotMax.current = dotMax;
+    initialGradientStops.current = gradientStops;
+    initialAspectStops.current = aspectStops;
+    initialIsCircular.current = isCircular;
+    initialClassColors.current = classColors;
+    initialClassLabels.current = classLabels;
+    initialClassShapes.current = classShapes;
+    initialMarkerOutlineEnabled.current = markerOutlineEnabled;
+    initialOccurrences.current = occurrences;
+    initialObservationValues.current = observationValues;
+    initialCircularShapesEnabled.current = circularShapesEnabled;
+  }
 
   // When preserving map position, freeze live props to their initial values so
   // the html memo stays stable and we update the map via postMessage instead.
@@ -458,14 +622,24 @@ export function SpeciesOccurrenceMap({
   const memoMarkerOutlineEnabled = preserveMapPosition
     ? initialMarkerOutlineEnabled.current
     : markerOutlineEnabled;
+  const memoOccurrences = preserveMapPosition
+    ? initialOccurrences.current
+    : occurrences;
+  const memoObservationValues = preserveMapPosition
+    ? initialObservationValues.current
+    : observationValues;
+  const memoCircularShapesEnabled = preserveMapPosition
+    ? initialCircularShapesEnabled.current
+    : circularShapesEnabled;
 
   const html = React.useMemo(() => {
     if (!mapTemplate) {
       return null;
     }
-    return buildLeafletHtml(
+    const buildHtml = globeView ? buildGlobeHtml : buildLeafletHtml;
+    return buildHtml(
       mapTemplate,
-      occurrences,
+      memoOccurrences,
       markerPalette,
       tileUrlTemplate,
       memoHeatmapTileUrl,
@@ -483,7 +657,7 @@ export function SpeciesOccurrenceMap({
       memoRenderMin,
       memoRenderMax,
       memoIsCircular,
-      observationValues,
+      memoObservationValues,
       memoClassColors,
       memoClassLabels,
       memoDotMin,
@@ -494,7 +668,7 @@ export function SpeciesOccurrenceMap({
       memoAspectStops,
       memoClassShapes,
       memoMarkerOutlineEnabled,
-      circularShapesEnabled,
+      memoCircularShapesEnabled,
       labelsOverlayTileUrl,
       null,
       locationPickerMode,
@@ -505,8 +679,8 @@ export function SpeciesOccurrenceMap({
     );
   }, [
     allowPinObservations,
-    observationValues,
-    circularShapesEnabled,
+    memoObservationValues,
+    memoCircularShapesEnabled,
     disableObservationQuery,
     heatmapOpacity,
     initialLat,
@@ -517,7 +691,7 @@ export function SpeciesOccurrenceMap({
     maxBounds,
     maxZoom,
     minZoom,
-    occurrences,
+    memoOccurrences,
     showMarkers,
     linkObservations,
     tileUrlTemplate,
@@ -539,6 +713,7 @@ export function SpeciesOccurrenceMap({
     memoMarkerOutlineEnabled,
     mode,
     enableOfflineFallback,
+    globeView,
   ]);
 
   React.useEffect(() => {
@@ -558,7 +733,7 @@ export function SpeciesOccurrenceMap({
       ),
     [selectedPoint],
   );
-  const shouldFillAvailableHeight = height == null;
+  const shouldFillAvailableHeight = height == null || isFullscreen;
   const feedbackContainerStyle = [
     styles.feedback,
     shouldFillAvailableHeight && styles.feedbackFill,
@@ -653,6 +828,76 @@ export function SpeciesOccurrenceMap({
     markerOutlineEnabled,
   ]);
 
+  // The occurrences/observationValues counterpart to the heatmapUpdate
+  // effect above: recolors/reshapes already-rendered markers in place
+  // (matched by catalog number) instead of rebuilding the whole map, so
+  // switching the selected variable on the species/upload pages doesn't
+  // reload the WebView/iframe. positions themselves (memoOccurrences) stay
+  // frozen — only which dot goes with which color/shape changes.
+  React.useEffect(() => {
+    if (!preserveMapPosition || !mapReady) return;
+    const updates = computePointStyleUpdates(
+      occurrences,
+      observationValues,
+      classColors,
+      classLabels,
+      classShapes,
+      circularShapesEnabled,
+    );
+    if (updates.length === 0) return;
+    const msg = { type: POINT_STYLES_UPDATE_MESSAGE_TYPE, points: updates };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [
+    preserveMapPosition,
+    mapReady,
+    occurrences,
+    observationValues,
+    classColors,
+    classLabels,
+    classShapes,
+    circularShapesEnabled,
+  ]);
+
+  // Fires only when occurrences itself changes (a genuinely different set
+  // of points — e.g. a location/phenology filter refetching from the
+  // backend, or the upload page's offline client-side filter), as opposed
+  // to the pointStylesUpdate effect above, which fires when the same
+  // occurrences just need new colors. Unlike that one, this rebuilds the
+  // marker layer and refits the viewport to the new results, since holding
+  // position wouldn't make sense for a genuinely different dataset.
+  React.useEffect(() => {
+    if (!preserveMapPosition || !mapReady) return;
+    if (occurrences === lastSyncedOccurrences.current) return;
+    lastSyncedOccurrences.current = occurrences;
+    const newPoints = preparePointsForMapHtml(
+      occurrences,
+      observationValues,
+      classColors,
+      classLabels,
+      classShapes,
+      circularShapesEnabled,
+    );
+    const msg = { type: POINTS_UPDATE_MESSAGE_TYPE, points: newPoints };
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify(msg));
+    }
+  }, [
+    preserveMapPosition,
+    mapReady,
+    occurrences,
+    observationValues,
+    classColors,
+    classLabels,
+    classShapes,
+    circularShapesEnabled,
+  ]);
+
   React.useEffect(() => {
     if (!locationPickerMode || !mapReady) return;
     const msg = {
@@ -709,7 +954,7 @@ export function SpeciesOccurrenceMap({
       }
 
       if (frameWindow && source === frameWindow && isTileClassesMessage(data)) {
-        onTileClasses?.(data.classes, data.type === 'tileClassesRemoved');
+        onTileClasses?.(data.classes);
         return;
       }
 
@@ -742,6 +987,36 @@ export function SpeciesOccurrenceMap({
       ) {
         const d = data as { lat: number; lon: number };
         onLocationPicked?.(d.lat, d.lon);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_GLOBE_VIEW_MESSAGE_TYPE
+      ) {
+        settings?.setGlobeViewEnabled(!settings.globeViewEnabled);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_FULLSCREEN_MESSAGE_TYPE
+      ) {
+        if (onFullscreenToggle) {
+          onFullscreenToggle();
+        } else {
+          toggleFullscreenElement(
+            containerRef.current as unknown as Element | null,
+          );
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -758,6 +1033,8 @@ export function SpeciesOccurrenceMap({
     onPointValue,
     openExternalUrl,
     onLocationPicked,
+    settings,
+    onFullscreenToggle,
   ]);
 
   if (error) {
@@ -788,6 +1065,7 @@ export function SpeciesOccurrenceMap({
 
   return (
     <View
+      ref={containerRef}
       style={[
         styles.container,
         shouldFillAvailableHeight && styles.containerFill,
@@ -806,7 +1084,7 @@ export function SpeciesOccurrenceMap({
       <View
         style={[
           styles.mapWrapper,
-          height == null
+          shouldFillAvailableHeight
             ? [
                 styles.mapWrapperFill,
                 { backgroundColor: palette.background.default.tertiary },

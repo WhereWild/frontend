@@ -23,6 +23,7 @@ import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
+import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
@@ -131,6 +132,9 @@ export function UploadPreview({
   const [finalLocationGid, setFinalLocationGid] = React.useState<string | null>(
     null,
   );
+  // Fullscreens the map + its legend/colormap-picker overlays together —
+  // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
+  const mapContainerRef = React.useRef<View | null>(null);
   const [mapOccurrences, setMapOccurrences] = React.useState(() =>
     uploadedBundle.occurrences.map((row) => ({
       catalogNumber: row.catalogNumber,
@@ -430,8 +434,9 @@ export function UploadPreview({
         onLocationChange={setFinalLocationGid}
       />
       {uploadedBundle.occurrences.length > 0 ? (
-        <View style={styles.mapContainer}>
+        <View ref={mapContainerRef} style={styles.mapContainer}>
           <SpeciesOccurrenceMap
+            preserveMapPosition
             occurrences={mapOccurrences}
             loading={false}
             error={null}
@@ -439,6 +444,11 @@ export function UploadPreview({
             height={height}
             linkObservations={false}
             enableOfflineFallback={true}
+            onFullscreenToggle={() =>
+              toggleFullscreenElement(
+                mapContainerRef.current as unknown as Element | null,
+              )
+            }
             onPinObservation={handlePinObservation}
             selectedPoint={selectedMapPoint}
             onMapBounds={setMapBounds}

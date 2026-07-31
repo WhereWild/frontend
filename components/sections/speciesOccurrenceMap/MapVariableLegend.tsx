@@ -9,15 +9,21 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Rect, Stop } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { COLORMAPS } from './variableColors';
+import { useLegendRangeDrag, type LegendRange } from './legendRangeSelection';
 
 const BAR_WIDTH = 12;
 const DEFAULT_SVG_STOPS = COLORMAPS.viridis.barSvgStops;
+/** Dims everything outside a drag-selected sub-range, so the selected slice
+ * of the gradient reads as "still active" against the rest. */
+const DIM_OVERLAY_FILL = '#00000066';
 
 type GradientBarProps = {
   width?: number;
   height: number;
   stops: { offset: string; color: string }[];
   pinFraction?: number | null;
+  /** [0,1] fractions (0 = max/top) bounding the drag-selected sub-range. */
+  selectionFractions?: { top: number; bottom: number } | null;
 };
 
 function GradientBar({
@@ -25,8 +31,15 @@ function GradientBar({
   height,
   stops,
   pinFraction,
+  selectionFractions,
 }: GradientBarProps) {
   const pinY = pinFraction != null ? Math.round(pinFraction * height) : null;
+  const selTopY = selectionFractions
+    ? Math.round(selectionFractions.top * height)
+    : null;
+  const selBottomY = selectionFractions
+    ? Math.round(selectionFractions.bottom * height)
+    : null;
   return (
     <Svg width={width} height={height}>
       <Defs>
@@ -44,6 +57,28 @@ function GradientBar({
         fill='url(#grad)'
         rx={4}
       />
+      {selTopY != null && selBottomY != null && (
+        <>
+          {selTopY > 0 && (
+            <Rect
+              x={0}
+              y={0}
+              width={width}
+              height={selTopY}
+              fill={DIM_OVERLAY_FILL}
+            />
+          )}
+          {selBottomY < height && (
+            <Rect
+              x={0}
+              y={selBottomY}
+              width={width}
+              height={height - selBottomY}
+              fill={DIM_OVERLAY_FILL}
+            />
+          )}
+        </>
+      )}
       {pinY != null && (
         <Line
           x1={-2}
@@ -65,6 +100,9 @@ type MapVariableLegendProps = {
   units?: string | null;
   pinnedValue?: number | null;
   barSvgStops?: { offset: string; color: string }[];
+  /** Drag-selected value range, filtering which pixels render on the map. */
+  selectedRange?: LegendRange | null;
+  onRangeChange?: (range: LegendRange | null) => void;
 };
 
 function fmt(v: number): string {
@@ -79,6 +117,8 @@ export function MapVariableLegend({
   units,
   pinnedValue,
   barSvgStops,
+  selectedRange,
+  onRangeChange,
 }: MapVariableLegendProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -92,6 +132,39 @@ export function MapVariableLegend({
 
   const activeStops = barSvgStops ?? DEFAULT_SVG_STOPS;
 
+  // Top of the bar is `max`, bottom is `min` — mirrors pinFraction's mapping.
+  const locationToValue = React.useCallback(
+    (_locationX: number, locationY: number) => {
+      if (!barHeight || max <= min) {
+        return null;
+      }
+      const fraction = Math.max(0, Math.min(1, locationY / barHeight));
+      return max - fraction * (max - min);
+    },
+    [barHeight, min, max],
+  );
+
+  const responderHandlers = useLegendRangeDrag(
+    locationToValue,
+    (start, end) =>
+      onRangeChange?.({ min: Math.min(start, end), max: Math.max(start, end) }),
+    () => onRangeChange?.(null),
+  );
+
+  const selectionFractions =
+    selectedRange && max > min
+      ? {
+          top: Math.max(
+            0,
+            Math.min(1, (max - selectedRange.max) / (max - min)),
+          ),
+          bottom: Math.max(
+            0,
+            Math.min(1, (max - selectedRange.min) / (max - min)),
+          ),
+        }
+      : null;
+
   return (
     <View
       style={[
@@ -103,15 +176,21 @@ export function MapVariableLegend({
         {fmt(max)}
       </ThemedText>
       <View
+        testID='map-variable-legend-bar-row'
         style={styles.barRow}
         onLayout={(e) => setBarHeight(Math.round(e.nativeEvent.layout.height))}
       >
-        <View style={styles.barContainer}>
+        <View
+          testID='map-variable-legend-bar'
+          style={styles.barContainer}
+          {...(onRangeChange ? responderHandlers : null)}
+        >
           {barHeight > 0 && (
             <GradientBar
               height={barHeight}
               stops={activeStops}
               pinFraction={pinFraction}
+              selectionFractions={selectionFractions}
             />
           )}
         </View>
@@ -123,6 +202,37 @@ export function MapVariableLegend({
         <ThemedText variant='bodyTiny' style={styles.units}>
           {units}
         </ThemedText>
+      ) : null}
+      {selectedRange ? (
+        <View style={styles.selectedRangeStack}>
+          <ThemedText
+            variant='bodyTiny'
+            style={[
+              styles.selectedRange,
+              { color: palette.text.default.tertiary },
+            ]}
+          >
+            {fmt(selectedRange.min)}
+          </ThemedText>
+          <ThemedText
+            variant='bodyTiny'
+            style={[
+              styles.selectedRange,
+              { color: palette.text.default.tertiary },
+            ]}
+          >
+            to
+          </ThemedText>
+          <ThemedText
+            variant='bodyTiny'
+            style={[
+              styles.selectedRange,
+              { color: palette.text.default.tertiary },
+            ]}
+          >
+            {fmt(selectedRange.max)}
+          </ThemedText>
+        </View>
       ) : null}
     </View>
   );
@@ -140,7 +250,7 @@ const styles = StyleSheet.create({
     paddingVertical: Size.space['200'],
     alignItems: 'center',
     gap: Size.space['100'],
-    pointerEvents: 'none',
+    pointerEvents: 'box-none',
   },
   barRow: {
     flex: 1,
@@ -154,5 +264,13 @@ const styles = StyleSheet.create({
   units: {
     textAlign: 'center',
     opacity: 0.7,
+  },
+  selectedRangeStack: {
+    alignItems: 'center',
+  },
+  selectedRange: {
+    textAlign: 'center',
+    fontSize: 9,
+    lineHeight: 11,
   },
 });

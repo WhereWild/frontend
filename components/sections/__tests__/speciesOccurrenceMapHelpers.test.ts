@@ -7,7 +7,9 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { Asset } from 'expo-asset';
 import {
+  buildGlobeHtml,
   buildLeafletHtml,
+  computePointStyleUpdates,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
   isOpenExternalUrlEventFromFrame,
@@ -371,6 +373,9 @@ describe('speciesOccurrenceMapHelpers', () => {
           return Ctrl;
         }),
       },
+      control: {
+        attribution: jest.fn(() => ({ addTo: jest.fn() })),
+      },
       DomUtil: {
         create: jest.fn((tagName: string) => {
           if (tagName === 'canvas') {
@@ -403,6 +408,9 @@ describe('speciesOccurrenceMapHelpers', () => {
         return {};
       }),
       head: { appendChild: jest.fn() },
+      // Absent (not stubbed with requestFullscreen) on purpose: exercises the
+      // same feature-detection path a real Fullscreen-API-less WebView takes.
+      documentElement: {},
     };
 
     const urlApi = {
@@ -500,6 +508,58 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).not.toContain('__POINTS_JSON__');
   });
 
+  it('buildGlobeHtml forwards tileMode and enableOfflineFallback like buildLeafletHtml', () => {
+    // buildGlobeHtml used to destructure only the first 34 of
+    // fillMapTemplatePlaceholders' ~36 positional params, silently dropping
+    // tileMode and enableOfflineFallback — this pins that both now reach the
+    // template.
+    const html = buildGlobeHtml(
+      '__MAP_TILE_MODE_JSON__|__ENABLE_OFFLINE_FALLBACK__',
+      [],
+      markerPalette,
+      getMapTileUrlTemplate('light'),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'dark',
+      true,
+    );
+
+    expect(html).toContain(JSON.stringify('dark'));
+    expect(html).toContain('true');
+    expect(html).not.toContain('__MAP_TILE_MODE_JSON__');
+    expect(html).not.toContain('__ENABLE_OFFLINE_FALLBACK__');
+  });
+
   it('prepares popup-safe catalog fields before injecting map points', () => {
     const html = buildLeafletHtml(
       '__POINTS_JSON__',
@@ -529,6 +589,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -570,6 +636,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -637,6 +709,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -715,6 +793,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         __dirname,
         '..',
         'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
         'SpeciesOccurrenceMapFallback.html',
       ),
     ];
@@ -757,6 +841,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -824,6 +914,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -917,6 +1013,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         __dirname,
         '..',
         'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
         'SpeciesOccurrenceMapFallback.html',
       ),
     ];
@@ -964,6 +1066,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -1023,6 +1131,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
+      ),
+      path.join(
+        __dirname,
+        '..',
+        'speciesOccurrenceMap',
+        'SpeciesOccurrenceMapOffline.html',
       ),
       path.join(
         __dirname,
@@ -1303,6 +1417,97 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(html).toContain('varShape');
   });
 
+  describe('computePointStyleUpdates', () => {
+    it('computes per-catalog varValue/varColor/varLabel/varShape for a live variable switch', () => {
+      const points = [
+        { catalogNumber: 10, latitude: 1, longitude: 10 },
+        { catalogNumber: 20, latitude: 2, longitude: 20 },
+        { catalogNumber: 'no-value', latitude: 3, longitude: 30 },
+      ];
+      const observationValues = new Map([
+        ['10', 1],
+        ['20', 2],
+      ]);
+      const classColors = new Map([
+        ['1', '#111111'],
+        ['2', '#222222'],
+      ]);
+      const classLabels = new Map([
+        ['1', 'Forest'],
+        ['2', 'Water'],
+      ]);
+
+      const updates = computePointStyleUpdates(
+        points,
+        observationValues,
+        classColors,
+        classLabels,
+        null,
+        false,
+      );
+
+      expect(updates).toEqual([
+        {
+          catalog: '10',
+          varValue: 1,
+          varColor: '#111111',
+          varLabel: 'Forest',
+          varShape: null,
+        },
+        {
+          catalog: '20',
+          varValue: 2,
+          varColor: '#222222',
+          varLabel: 'Water',
+          varShape: null,
+        },
+        {
+          catalog: 'no-value',
+          varValue: null,
+          varColor: null,
+          varLabel: null,
+          varShape: null,
+        },
+      ]);
+    });
+
+    it('omits points with no resolvable catalog number', () => {
+      const updates = computePointStyleUpdates(
+        [{ latitude: 1, longitude: 1 }],
+        null,
+        null,
+        null,
+        null,
+        false,
+      );
+      expect(updates).toEqual([]);
+    });
+
+    it('assigns cardinal shapes for circular variables the same way preparePointsForMapHtml does', () => {
+      const points = [{ catalogNumber: 5, latitude: 1, longitude: 1 }];
+      const observationValues = new Map([['5', 90]]);
+
+      const updates = computePointStyleUpdates(
+        points,
+        observationValues,
+        null,
+        null,
+        null,
+        true,
+      );
+
+      expect(updates).toEqual([
+        {
+          catalog: '5',
+          varValue: 90,
+          varColor: null,
+          varLabel: null,
+          varShape: 'arrow',
+        },
+      ]);
+    });
+  });
+
   it('exposes a stable document base url for map referrers', () => {
     expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.net/');
   });
@@ -1353,11 +1558,16 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   describe('offline Natural Earth fallback layer', () => {
+    // The offline vector basemap/label data (and the code that renders it)
+    // was split out of SpeciesOccurrenceMap.html into its own asset so every
+    // other Leaflet map (species pages, maps page) doesn't pay for ~26MB of
+    // template it never uses — SpeciesOccurrenceMapOffline.html is the one
+    // actually loaded when enableOfflineFallback is true (upload page only).
     const templatePath = path.join(
       __dirname,
       '..',
       'speciesOccurrenceMap',
-      'SpeciesOccurrenceMap.html',
+      'SpeciesOccurrenceMapOffline.html',
     );
 
     // enableOfflineFallback is the last of buildLeafletHtml's ~30 positional

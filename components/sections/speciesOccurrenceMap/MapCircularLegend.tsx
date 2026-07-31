@@ -11,6 +11,17 @@ import { ThemedText } from '@/components/text/ThemedText';
 import { CIRCULAR_COLORMAPS, donutArcPath } from './variableColors';
 import { ShapeMarker } from './ShapeMarker';
 import type { ShapeKey } from './cbColors';
+import type { LegendRange } from './legendRangeSelection';
+import {
+  useCircularDragSelection,
+  circularRangeSpan,
+  FULL_CIRCLE_SPAN_THRESHOLD,
+} from '@/hooks/useCircularDragSelection';
+
+/** Dims everything outside a drag-selected angular slice — the complement
+ * (unselected) arc, drawn on top of both the web CSS ring and the native
+ * SVG ring so neither needs its own selection-aware rendering path. */
+const DIM_OVERLAY_FILL = '#00000066';
 
 const RING = 56;
 const HOLE = 32;
@@ -82,6 +93,11 @@ type MapCircularLegendProps = {
   shapesEnabled?: boolean;
   markerOutlineEnabled?: boolean;
   nsweColors?: [string, string, string, string];
+  /** Drag-selected angular slice (degrees, clockwise from min to max — if
+   * min > max the slice wraps through 0°, e.g. min:350, max:20 is a 30°
+   * slice facing roughly north), filtering which pixels render on the map. */
+  selectedRange?: LegendRange | null;
+  onRangeChange?: (range: LegendRange | null) => void;
 };
 
 const DEFAULT_CONIC_CSS = CIRCULAR_COLORMAPS['twilight_90'].conicCss;
@@ -95,6 +111,8 @@ export function MapCircularLegend({
   shapesEnabled = false,
   markerOutlineEnabled = false,
   nsweColors,
+  selectedRange,
+  onRangeChange,
 }: MapCircularLegendProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -102,6 +120,34 @@ export function MapCircularLegend({
   const bg = palette.background.default.secondary;
 
   const activeArcColors = arcSegmentColors ?? DEFAULT_ARC_SEGMENT_COLORS;
+
+  // Same wraparound-aware cumulative-delta drag algorithm PolarDensityChart
+  // (species page) uses for its arc selection — see useCircularDragSelection
+  // for why a naive "angle at start vs. angle now" comparison can't tell
+  // drag direction or handle wraparound correctly.
+  const handleCircularRangeChange = React.useCallback(
+    (range: { start: number; end: number } | null) => {
+      onRangeChange?.(range ? { min: range.start, max: range.end } : null);
+    },
+    [onRangeChange],
+  );
+  const responderHandlers = useCircularDragSelection({
+    center: { cx: RING / 2, cy: RING / 2 },
+    onRangeChange: handleCircularRangeChange,
+  });
+
+  // The complement (unselected) slice — swapping min/max and wrapping if
+  // needed always yields "the rest of the circle," regardless of whether
+  // the selection itself wraps through 0°.
+  const dimArc = selectedRange
+    ? {
+        start: selectedRange.max,
+        end:
+          selectedRange.min >= selectedRange.max
+            ? selectedRange.min
+            : selectedRange.min + 360,
+      }
+    : null;
 
   return (
     <View style={[styles.overlay, { backgroundColor: bg }]}>
@@ -152,6 +198,32 @@ export function MapCircularLegend({
               pinnedValue={pinnedValue}
             />
           )}
+          {dimArc && (
+            <Svg
+              width={RING}
+              height={RING}
+              style={StyleSheet.absoluteFillObject}
+            >
+              <Path
+                d={donutArcPath(
+                  RING / 2,
+                  RING / 2,
+                  OUTER_R,
+                  INNER_R,
+                  dimArc.start,
+                  dimArc.end,
+                )}
+                fill={DIM_OVERLAY_FILL}
+              />
+            </Svg>
+          )}
+          {onRangeChange && (
+            <View
+              testID='map-circular-legend-responder'
+              style={StyleSheet.absoluteFillObject}
+              {...responderHandlers}
+            />
+          )}
         </View>
         <ThemedText variant='bodyTiny' style={styles.cardinal}>
           E
@@ -177,6 +249,22 @@ export function MapCircularLegend({
           ))}
         </View>
       )}
+      {selectedRange ? (
+        <ThemedText
+          variant='bodyTiny'
+          style={[
+            styles.selectedRange,
+            { color: palette.text.default.tertiary },
+          ]}
+        >
+          {circularRangeSpan({
+            start: selectedRange.min,
+            end: selectedRange.max,
+          }) >= FULL_CIRCLE_SPAN_THRESHOLD
+            ? 'Full circle'
+            : `${Math.round(selectedRange.min)}° to ${Math.round(selectedRange.max)}°`}
+        </ThemedText>
+      ) : null}
     </View>
   );
 }
@@ -191,7 +279,7 @@ const styles = StyleSheet.create({
     padding: Size.space['200'],
     alignItems: 'center',
     gap: 2,
-    pointerEvents: 'none',
+    pointerEvents: 'box-none',
   },
   row: {
     flexDirection: 'row',
@@ -232,5 +320,10 @@ const styles = StyleSheet.create({
   },
   nsweLabel: {
     opacity: 0.85,
+  },
+  selectedRange: {
+    textAlign: 'center',
+    fontSize: 9,
+    lineHeight: 11,
   },
 });

@@ -31,7 +31,11 @@ type MapCategoricalLegendProps = {
   cbMode?: CbMode | null;
   shapesEnabled?: boolean;
   markerOutlineEnabled?: boolean;
-  selectedClassId?: number | null;
+  /** Currently selected classes — empty/null means no filter (all shown).
+   * Clicking a class toggles its membership, so multiple can be active at
+   * once; onClassClick reports which id was clicked, toggling is the
+   * caller's job (see maps.tsx). */
+  selectedClassIds?: number[] | null;
   onClassClick?: (id: number) => void;
 };
 
@@ -41,7 +45,7 @@ export function MapCategoricalLegend({
   cbMode,
   shapesEnabled = false,
   markerOutlineEnabled = false,
-  selectedClassId = null,
+  selectedClassIds = null,
   onClassClick,
 }: MapCategoricalLegendProps) {
   const useShapes =
@@ -52,6 +56,10 @@ export function MapCategoricalLegend({
   const { breakpoint } = useResponsive();
   const isPhone = breakpoint === 'phone';
   const [collapsed, setCollapsed] = React.useState(isPhone);
+  const selectedSet = React.useMemo(
+    () => new Set(selectedClassIds ?? []),
+    [selectedClassIds],
+  );
 
   const hasAutoCollapsed = React.useRef(breakpoint === 'phone');
   React.useEffect(() => {
@@ -71,7 +79,7 @@ export function MapCategoricalLegend({
   return (
     // Bounding box: defines the maximum space the legend can occupy.
     // The inner Pressable shrinks to content but never exceeds this height.
-    <View style={styles.boundingBox}>
+    <View style={styles.boundingBox} pointerEvents='box-none'>
       <Pressable
         collapsable={false}
         style={[
@@ -121,7 +129,7 @@ export function MapCategoricalLegend({
         >
           {classes.map((cls) => {
             const clsId = cls.id as number;
-            const isSelected = selectedClassId === clsId;
+            const isSelected = selectedSet.has(clsId);
             const rowContent = (
               <>
                 {useShapes ? (
