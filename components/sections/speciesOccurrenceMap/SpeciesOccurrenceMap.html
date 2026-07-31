@@ -947,7 +947,12 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       minZoom: BASE_MIN_ZOOM,
       ...(CUSTOM_MAX_ZOOM !== null ? { maxZoom: CUSTOM_MAX_ZOOM } : {}),
       worldCopyJump: !CUSTOM_MAX_BOUNDS,
+      // Default attribution control sits bottom-right, directly under the
+      // colormap-picker overlay the consuming page renders there — added
+      // manually below at bottomleft instead so the two never collide.
+      attributionControl: false,
     });
+    L.control.attribution({ position: 'bottomleft' }).addTo(map);
 
     function applyMinZoomForSize() {
       map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));

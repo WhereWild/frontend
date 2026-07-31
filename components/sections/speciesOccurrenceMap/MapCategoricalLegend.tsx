@@ -79,7 +79,7 @@ export function MapCategoricalLegend({
   return (
     // Bounding box: defines the maximum space the legend can occupy.
     // The inner Pressable shrinks to content but never exceeds this height.
-    <View style={styles.boundingBox}>
+    <View style={styles.boundingBox} pointerEvents='box-none'>
       <Pressable
         collapsable={false}
         style={[

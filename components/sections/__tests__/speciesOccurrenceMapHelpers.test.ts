@@ -372,6 +372,9 @@ describe('speciesOccurrenceMapHelpers', () => {
           return Ctrl;
         }),
       },
+      control: {
+        attribution: jest.fn(() => ({ addTo: jest.fn() })),
+      },
       DomUtil: {
         create: jest.fn((tagName: string) => {
           if (tagName === 'canvas') {

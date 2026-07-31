@@ -571,6 +571,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       center: [INITIAL_LON || 0, INITIAL_LAT || 20],
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
       minZoom: CUSTOM_MIN_ZOOM,
+      // Default attribution control sits bottom-right, directly under the
+      // colormap-picker overlay the consuming page renders there — added
+      // manually below at bottom-left instead so the two never collide.
+      attributionControl: false,
     };
     if (CUSTOM_MAX_ZOOM !== null) mapOptions.maxZoom = CUSTOM_MAX_ZOOM;
     if (CUSTOM_MAX_BOUNDS) {
@@ -586,6 +590,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     map.addControl(new maplibregl.NavigationControl());
     map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }));
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     // MapLibre's built-in FullscreenControl fullscreens map.getContainer()
     // itself, inside this iframe's own document — that would only ever show
     // the map, hiding any legend/colormap-picker overlays the consuming

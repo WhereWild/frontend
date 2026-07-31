@@ -3,13 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Colors, Size } from '@/constants/theme';
+import { ThemedText } from '@/components/text/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  StyleSheet,
+  UIManager,
+  View,
+} from 'react-native';
 import { getCbColor, getCbShape, type CbMode, type ShapeKey } from './cbColors';
 import { ShapeMarker } from './ShapeMarker';
 import { CIRCULAR_COLORMAPS } from './variableColors';
 import type { LegendClass } from '@/data/types';
+
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
 
 const NSWE_SHAPES: ShapeKey[] = [
   'triangle',
@@ -56,114 +69,178 @@ export function MapCbModePicker({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const preview = topClasses.slice(0, DOTS);
+  const { breakpoint } = useResponsive();
+  const isPhone = breakpoint === 'phone';
+  const [collapsed, setCollapsed] = React.useState(isPhone);
+
+  const hasAutoCollapsed = React.useRef(breakpoint === 'phone');
+  React.useEffect(() => {
+    if (!hasAutoCollapsed.current && breakpoint === 'phone') {
+      hasAutoCollapsed.current = true;
+      setCollapsed(true);
+    }
+  }, [breakpoint]);
+
+  const toggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsed((c) => !c);
+  };
+
+  const renderEntryPreview = (entry: (typeof MODES)[number]) => {
+    const isMono = entry.id === 'achromatopsia';
+    if (isCircular) {
+      if (isMono) {
+        return NSWE_SHAPES.map((shape, i) => (
+          <ShapeMarker
+            key={i}
+            shape={shape}
+            color='#999999'
+            size={8}
+            outline={markerOutlineEnabled}
+          />
+        ));
+      }
+      return Platform.OS === 'web' ? (
+        <View
+          style={[
+            styles.circularSwatch,
+            { backgroundImage: BASE_CIRCULAR_SWATCH_CSS } as object,
+          ]}
+        />
+      ) : (
+        <View style={[styles.circularSwatch, { flexDirection: 'row' }]}>
+          {[...BASE_CIRCULAR_STOPS, BASE_CIRCULAR_STOPS[0]].map((s, i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
+              }}
+            />
+          ))}
+        </View>
+      );
+    }
+    return (
+      <>
+        {preview.map((cls) => {
+          const color = getCbColor(
+            variableId,
+            cls.id as number,
+            entry.id,
+            cls.color ?? '#888888',
+          );
+          if (!dotsOnly && (shapesEnabled || entry.id === 'achromatopsia')) {
+            return (
+              <ShapeMarker
+                key={cls.id}
+                shape={getCbShape(variableId, cls.id as number)}
+                color={color}
+                size={8}
+                outline={markerOutlineEnabled}
+              />
+            );
+          }
+          return (
+            <View
+              key={cls.id}
+              style={[
+                styles.dot,
+                { backgroundColor: color },
+                markerOutlineEnabled && styles.dotOutline,
+              ]}
+            />
+          );
+        })}
+        {preview.length === 0 && (
+          <View style={[styles.dot, { backgroundColor: '#888888' }]} />
+        )}
+      </>
+    );
+  };
+
+  const selectedEntry =
+    MODES.find((entry) => entry.id === selected) ?? MODES[0];
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: palette.background.default.secondary },
-      ]}
-    >
-      {MODES.map((entry) => {
-        const isSelected = entry.id === selected;
-        const isMono = entry.id === 'achromatopsia';
-        return (
-          <Pressable
-            key={entry.id ?? 'original'}
-            onPress={() => onChange(entry.id)}
-            style={[styles.row, isSelected && styles.rowSelected]}
-            accessibilityLabel={entry.label}
-            accessibilityRole='radio'
-            accessibilityState={{ selected: isSelected }}
-          >
-            {isCircular ? (
-              isMono ? (
-                NSWE_SHAPES.map((shape, i) => (
-                  <ShapeMarker
-                    key={i}
-                    shape={shape}
-                    color='#999999'
-                    size={8}
-                    outline={markerOutlineEnabled}
-                  />
-                ))
-              ) : Platform.OS === 'web' ? (
-                <View
-                  style={[
-                    styles.circularSwatch,
-                    { backgroundImage: BASE_CIRCULAR_SWATCH_CSS } as object,
-                  ]}
-                />
-              ) : (
-                <View style={[styles.circularSwatch, { flexDirection: 'row' }]}>
-                  {[...BASE_CIRCULAR_STOPS, BASE_CIRCULAR_STOPS[0]].map(
-                    (s, i) => (
-                      <View
-                        key={i}
-                        style={{
-                          flex: 1,
-                          backgroundColor: `rgb(${s[0]},${s[1]},${s[2]})`,
-                        }}
-                      />
-                    ),
-                  )}
-                </View>
-              )
-            ) : (
-              <>
-                {preview.map((cls) => {
-                  const color = getCbColor(
-                    variableId,
-                    cls.id as number,
-                    entry.id,
-                    cls.color ?? '#888888',
-                  );
-                  if (
-                    !dotsOnly &&
-                    (shapesEnabled || entry.id === 'achromatopsia')
-                  ) {
-                    return (
-                      <ShapeMarker
-                        key={cls.id}
-                        shape={getCbShape(variableId, cls.id as number)}
-                        color={color}
-                        size={8}
-                        outline={markerOutlineEnabled}
-                      />
-                    );
-                  }
-                  return (
-                    <View
-                      key={cls.id}
-                      style={[
-                        styles.dot,
-                        { backgroundColor: color },
-                        markerOutlineEnabled && styles.dotOutline,
-                      ]}
-                    />
-                  );
-                })}
-                {preview.length === 0 && (
-                  <View style={[styles.dot, { backgroundColor: '#888888' }]} />
-                )}
-              </>
-            )}
-          </Pressable>
-        );
-      })}
+    // Bounding box: defines the maximum space this can occupy. The inner
+    // Pressable shrinks to content but never exceeds this height, so it
+    // can't grow into the map's top controls on a short viewport — instead
+    // it starts (and can be toggled back to) a collapsed preview there.
+    <View style={styles.boundingBox} pointerEvents='box-none'>
+      <Pressable
+        collapsable={false}
+        style={[
+          styles.overlay,
+          { backgroundColor: palette.background.default.secondary },
+        ]}
+        onPress={toggle}
+      >
+        {/* Collapsed preview — always mounted, hidden when expanded */}
+        <View
+          collapsable={false}
+          style={collapsed ? styles.previewRow : styles.hidden}
+        >
+          {renderEntryPreview(selectedEntry)}
+          <ThemedText variant='bodyTiny' style={styles.previewCount}>
+            {selectedEntry.label}
+          </ThemedText>
+        </View>
+
+        {/* Full list — always mounted, hidden when collapsed */}
+        <View
+          collapsable={false}
+          style={collapsed ? styles.hidden : styles.list}
+        >
+          {MODES.map((entry) => {
+            const isSelected = entry.id === selected;
+            return (
+              <Pressable
+                key={entry.id ?? 'original'}
+                onPress={() => onChange(entry.id)}
+                style={[styles.row, isSelected && styles.rowSelected]}
+                accessibilityLabel={entry.label}
+                accessibilityRole='radio'
+                accessibilityState={{ selected: isSelected }}
+              >
+                {renderEntryPreview(entry)}
+              </Pressable>
+            );
+          })}
+        </View>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  boundingBox: {
     position: 'absolute',
     right: 8,
+    top: 8,
     bottom: 10,
     zIndex: 1000,
+    justifyContent: 'flex-end',
+  },
+  overlay: {
+    maxHeight: '100%' as unknown as number,
     borderRadius: Size.radius['400'],
     paddingHorizontal: Size.space['200'],
     paddingVertical: Size.space['200'],
+    overflow: 'hidden',
+  },
+  hidden: {
+    display: 'none',
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['100'],
+  },
+  previewCount: {
+    opacity: 0.7,
+  },
+  list: {
     gap: Size.space['100'],
   },
   row: {
