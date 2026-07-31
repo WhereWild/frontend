@@ -270,7 +270,8 @@ export function SpeciesOccurrenceMap({
     };
     const updateIsFullscreen = () => {
       const fullscreenElement =
-        fullscreenDoc.fullscreenElement ?? fullscreenDoc.webkitFullscreenElement;
+        fullscreenDoc.fullscreenElement ??
+        fullscreenDoc.webkitFullscreenElement;
       const node = containerRef.current as unknown as Element | null;
       setIsFullscreen(
         !!fullscreenElement && !!node && fullscreenElement.contains(node),
@@ -281,7 +282,10 @@ export function SpeciesOccurrenceMap({
     document.addEventListener('webkitfullscreenchange', updateIsFullscreen);
     return () => {
       document.removeEventListener('fullscreenchange', updateIsFullscreen);
-      document.removeEventListener('webkitfullscreenchange', updateIsFullscreen);
+      document.removeEventListener(
+        'webkitfullscreenchange',
+        updateIsFullscreen,
+      );
     };
   }, []);
   const initialLocalLat = React.useRef(localLat);

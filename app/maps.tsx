@@ -255,7 +255,9 @@ export default function Maps() {
         classFilter: isCategorical ? selectedClassIds : null,
         valueRange: isCategorical
           ? null
-          : (isCircular ? selectedAngleRange : selectedValueRange),
+          : isCircular
+            ? selectedAngleRange
+            : selectedValueRange,
         unitSystem: units,
       }),
     [
@@ -300,7 +302,9 @@ export default function Maps() {
   // pairing to ever drift out of sync.
   const handleTileClasses = useCallback(
     (classes: { id: number; count: number }[]) => {
-      setVisibleNominalCounts(new Map(classes.map(({ id, count }) => [id, count])));
+      setVisibleNominalCounts(
+        new Map(classes.map(({ id, count }) => [id, count])),
+      );
     },
     [],
   );

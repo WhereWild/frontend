@@ -29,11 +29,7 @@ describe('MapVariableLegend range selection', () => {
   it('reports a sorted min/max range while dragging, regardless of drag direction', () => {
     const onRangeChange = jest.fn();
     const { getByTestId } = render(
-      <MapVariableLegend
-        min={0}
-        max={100}
-        onRangeChange={onRangeChange}
-      />,
+      <MapVariableLegend min={0} max={100} onRangeChange={onRangeChange} />,
     );
 
     fireEvent(getByTestId('map-variable-legend-bar-row'), 'layout', {

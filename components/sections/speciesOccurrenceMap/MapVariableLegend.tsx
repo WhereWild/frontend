@@ -60,7 +60,13 @@ function GradientBar({
       {selTopY != null && selBottomY != null && (
         <>
           {selTopY > 0 && (
-            <Rect x={0} y={0} width={width} height={selTopY} fill={DIM_OVERLAY_FILL} />
+            <Rect
+              x={0}
+              y={0}
+              width={width}
+              height={selTopY}
+              fill={DIM_OVERLAY_FILL}
+            />
           )}
           {selBottomY < height && (
             <Rect
@@ -148,8 +154,14 @@ export function MapVariableLegend({
   const selectionFractions =
     selectedRange && max > min
       ? {
-          top: Math.max(0, Math.min(1, (max - selectedRange.max) / (max - min))),
-          bottom: Math.max(0, Math.min(1, (max - selectedRange.min) / (max - min))),
+          top: Math.max(
+            0,
+            Math.min(1, (max - selectedRange.max) / (max - min)),
+          ),
+          bottom: Math.max(
+            0,
+            Math.min(1, (max - selectedRange.min) / (max - min)),
+          ),
         }
       : null;
 

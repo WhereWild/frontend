@@ -252,7 +252,10 @@ export function MapCircularLegend({
       {selectedRange ? (
         <ThemedText
           variant='bodyTiny'
-          style={[styles.selectedRange, { color: palette.text.default.tertiary }]}
+          style={[
+            styles.selectedRange,
+            { color: palette.text.default.tertiary },
+          ]}
         >
           {circularRangeSpan({
             start: selectedRange.min,

@@ -22,8 +22,6 @@ if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
 
-const SWATCHES_PREVIEW = 1;
-
 type MapColormapPickerProps = {
   selected: ColormapId;
   onChange: (id: ColormapId) => void;

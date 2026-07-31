@@ -17,6 +17,7 @@ export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
+export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
 
 type FullscreenCapableElement = Element & {
   webkitRequestFullscreen?: () => void;
@@ -1253,7 +1254,9 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     classShapes,
     markerOutlineEnabled,
     circularShapesEnabled,
-    labelsOverlayUrl ? stripRetinaPlaceholder(labelsOverlayUrl) : labelsOverlayUrl,
+    labelsOverlayUrl
+      ? stripRetinaPlaceholder(labelsOverlayUrl)
+      : labelsOverlayUrl,
     linesOverlayUrl ? stripRetinaPlaceholder(linesOverlayUrl) : linesOverlayUrl,
     locationPickerMode,
     initialLocalLat,
