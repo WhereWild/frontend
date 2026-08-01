@@ -9,6 +9,7 @@ import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFil
 import { Size } from '@/constants/theme';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
@@ -122,6 +123,7 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
+  const isOnline = useIsOnline();
   const settings = useOptionalSettings();
   const units = settings?.units;
   const selectedColormap = settings?.colormap ?? 'viridis';
@@ -443,7 +445,7 @@ export function UploadPreview({
             highlightedCatalogs={highlightedCatalogs}
             height={height}
             linkObservations={false}
-            enableOfflineFallback={true}
+            enableOfflineFallback={!isOnline}
             onFullscreenToggle={() =>
               toggleFullscreenElement(
                 mapContainerRef.current as unknown as Element | null,

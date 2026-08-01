@@ -171,7 +171,7 @@ describe('PolarDensityChart', () => {
     });
     fireEvent(wrapper, 'responderRelease', { nativeEvent: {} });
 
-    expect(onSelectionChange).toHaveBeenCalledWith(null);
+    expect(onSelectionChange).toHaveBeenCalledWith(null, undefined);
   });
 
   it('clears selection on terminate when no drag has occurred', () => {
@@ -197,7 +197,7 @@ describe('PolarDensityChart', () => {
     });
     fireEvent(wrapper, 'responderTerminate', { nativeEvent: {} });
 
-    expect(onSelectionChange).toHaveBeenCalledWith(null);
+    expect(onSelectionChange).toHaveBeenCalledWith(null, undefined);
   });
 
   it('does not clear selection on release after a drag has moved', () => {
@@ -266,7 +266,7 @@ describe('PolarDensityChart', () => {
     });
     fireEvent(wrapper, 'responderRelease', { nativeEvent: {} });
 
-    expect(onSelectionChange).toHaveBeenCalledWith(null);
+    expect(onSelectionChange).toHaveBeenCalledWith(null, undefined);
   });
 
   it('renders amber pin line and bearing label when pinValue is provided', () => {

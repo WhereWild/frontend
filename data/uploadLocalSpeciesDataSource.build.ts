@@ -1133,6 +1133,29 @@ const buildScopedCategoricalStats = ({
   const countsByClass = new Map<string, number>();
   let totalCount = 0;
 
+  // Computed ONCE, not per class: intersectWithExtraFilters re-scans the
+  // chained variable's own index rows from scratch on every call, and that
+  // result doesn't depend on which class we're currently counting — calling
+  // it inside the per-class loop below used to redo that full scan once per
+  // distinct class value (K classes = K redundant scans of the SAME chain
+  // filter), which is what actually made switching into a categorical
+  // variable with an active chained slice visibly freeze the local/offline
+  // data source (this recompute runs as synchronous JS on the browser's own
+  // thread, unlike the backend's async, server-side equivalent).
+  const chainAllowedCatalogsForClassCounts =
+    extra && extra.length > 0
+      ? new Set(
+          intersectWithExtraFilters(
+            Object.keys(observationsByCatalog),
+            extra,
+            indexRowsByVariable,
+            statsByVariable,
+            categoryValueLookupByVariable,
+            units,
+          ),
+        )
+      : null;
+
   indexRows
     .filter((row) => row.mode === 'category')
     .forEach((row) => {
@@ -1146,14 +1169,11 @@ const buildScopedCategoricalStats = ({
             )
           : row.observationIds
       ).map((id) => String(id));
-      scopedObservationIds = intersectWithExtraFilters(
-        scopedObservationIds,
-        extra,
-        indexRowsByVariable,
-        statsByVariable,
-        categoryValueLookupByVariable,
-        units,
-      );
+      if (chainAllowedCatalogsForClassCounts) {
+        scopedObservationIds = scopedObservationIds.filter((id) =>
+          chainAllowedCatalogsForClassCounts.has(id),
+        );
+      }
       if (!scopedObservationIds.length) {
         return;
       }
@@ -1319,6 +1339,24 @@ const buildScopedNumericStats = ({
   statsByVariable: Record<string, SpeciesEnvironmentStats>;
   units?: string | null;
 }): SpeciesEnvironmentStats => {
+  // Computed ONCE, not per index row — see buildScopedCategoricalStats's
+  // identical comment above. A discrete/binned numeric variable can have
+  // many 'range' index rows (one per bin), and this result doesn't depend
+  // on which bin is currently being scoped.
+  const chainAllowedCatalogsForNumericScope =
+    extra && extra.length > 0
+      ? new Set(
+          intersectWithExtraFilters(
+            Object.keys(observationsByCatalog),
+            extra,
+            indexRowsByVariable,
+            statsByVariable,
+            categoryValueLookupByVariable,
+            units,
+          ),
+        )
+      : null;
+
   const scopedValues = indexRows
     .filter((row) => row.mode === 'range')
     .flatMap((row) => {
@@ -1336,14 +1374,11 @@ const buildScopedNumericStats = ({
             )
           : row.observationIds
       ).map((id) => String(id));
-      scopedObservationIds = intersectWithExtraFilters(
-        scopedObservationIds,
-        extra,
-        indexRowsByVariable,
-        statsByVariable,
-        categoryValueLookupByVariable,
-        units,
-      );
+      if (chainAllowedCatalogsForNumericScope) {
+        scopedObservationIds = scopedObservationIds.filter((id) =>
+          chainAllowedCatalogsForNumericScope.has(id),
+        );
+      }
       if (!scopedObservationIds.length) {
         return [];
       }

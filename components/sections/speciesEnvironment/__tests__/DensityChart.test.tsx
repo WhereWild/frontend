@@ -273,7 +273,10 @@ describe('DensityChart', () => {
       nativeEvent: { locationX: 130 },
     });
 
-    expect(onSelectionChange).toHaveBeenLastCalledWith({ start: 1, end: 6 });
+    expect(onSelectionChange).toHaveBeenLastCalledWith(
+      { start: 1, end: 6 },
+      { additive: false, sessionId: 1, final: true },
+    );
   });
 
   it('rejects responder termination once dragging is active', () => {

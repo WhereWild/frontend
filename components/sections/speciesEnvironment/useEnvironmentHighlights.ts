@@ -1388,11 +1388,14 @@ export function useEnvironmentHighlights({
   // loading, no error), same reasoning as the categorical union-and-emit
   // effect.
   React.useEffect(() => {
-    if (
-      isCategorical ||
-      !onHighlightChange ||
-      selectedDensityRanges.length === 0
-    ) {
+    // NOT gated on `onHighlightChange` — unlike the categorical union-and-
+    // emit effect above (which ONLY ever calls emitHighlightChange, nothing
+    // else), this one also populates rangeObservations, which callers use
+    // for their own display purposes (e.g. the meta text's observation
+    // count) independent of whether they gave us a highlight callback at
+    // all. emitHighlightChange itself already no-ops safely when
+    // onHighlightChange is undefined.
+    if (isCategorical || selectedDensityRanges.length === 0) {
       return;
     }
     const keys = selectedDensityRanges.map(densityRangeKey);
@@ -1415,13 +1418,7 @@ export function useEnvironmentHighlights({
     }
     setRangeObservations(merged);
     emitHighlightChange(toCatalogIdsFromObservations(merged));
-  }, [
-    emitHighlightChange,
-    isCategorical,
-    onHighlightChange,
-    rangeSamplesByKey,
-    selectedDensityRanges,
-  ]);
+  }, [emitHighlightChange, isCategorical, rangeSamplesByKey, selectedDensityRanges]);
 
   // When nothing is selected on the CURRENT variable but the chain isn't
   // empty, the view should still reflect the chained filter(s) on their

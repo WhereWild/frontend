@@ -43,6 +43,11 @@ const PIN_IMAGE_WIDTH = 22;
 const PIN_IMAGE_HEIGHT = 29;
 const HOME_PIN_DOT_SIZE = 12;
 const PIN_IMAGE = require('@/assets/images/wherewild.png');
+/** Pixels of wander tolerated before a long-press-to-arm is cancelled — a
+ * finger resting on a touchscreen (or a mouse held "still") is never
+ * perfectly stationary, so too tight a tolerance made arming close to
+ * impossible to hit consistently on mobile. */
+const LONG_PRESS_MOVEMENT_TOLERANCE_PX = 10;
 
 /** Selected value range on the density curve. */
 type DensitySelectionRange = {
@@ -66,15 +71,15 @@ type DensityChartProps = {
   summary?: SpeciesEnvironmentSummary | null;
   /** Currently selected drag range(s). */
   selections: DensitySelectionRange[];
-  /** Called when a drag selection changes or clears. `options.additive`
-   * (shift/cmd-drag on the continuous curve, or ctrl/cmd-click on a
-   * discrete bar) adds the range to whatever's already selected instead of
-   * replacing it. Discrete bars use ctrl (a real Pressable click, unaffected
-   * by react-native-web's responder-level ctrl exclusion below); the
-   * continuous drag can't use ctrl at all — react-native-web's
-   * GestureResponder system refuses to start ANY drag gesture while ctrl is
-   * held (see useAdditiveModifierRef's docs), so shift is used there
-   * instead. */
+  /** Called when a drag selection changes or clears. `options.additive` adds
+   * the range to whatever's already selected instead of replacing it —
+   * either shift/cmd held for the whole gesture on a keyboard (continuous
+   * drag or discrete-bar tap alike — see useAdditiveModifierRef's docs for
+   * why ctrl can't be used here), OR the touch/click held still for ~500ms
+   * before any movement, which arms the gesture as additive on its own
+   * (same long-press-to-add vocabulary as the discrete/categorical charts —
+   * this is what makes it reachable with just a mouse-and-no-keyboard or a
+   * touchscreen), with a haptic tick marking the moment it arms. */
   onSelectionChange?: (
     range: DensitySelectionRange | null,
     options?: {
@@ -119,7 +124,9 @@ export function DensityChart({
   const dragOrigin = React.useRef<number | null>(null);
   const dragValue = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
-  const isAdditive = useAdditiveModifierRef();
+  const pressOriginX = React.useRef<number | null>(null);
+  const { isAdditive, beginPress, cancelPressIfUnarmed, endPress } =
+    useAdditiveModifierRef();
   // Identifies one continuous drag gesture across its many move events plus
   // its final release — lets the hook recognize repeated calls as "the same
   // in-progress selection", not a fresh one each frame (see
@@ -220,6 +227,8 @@ export function DensityChart({
       lockScroll();
       hasDragged.current = false;
       dragSessionId.current += 1;
+      pressOriginX.current = event.nativeEvent.locationX;
+      beginPress();
       if (isDiscrete) {
         dragOrigin.current = getBarIndexForLocation(
           event.nativeEvent.locationX,
@@ -231,14 +240,36 @@ export function DensityChart({
       dragOrigin.current = value;
       dragValue.current = value;
     },
-    [isDiscrete, getBarIndexForLocation, getValueForLocation, lockScroll],
+    [
+      isDiscrete,
+      getBarIndexForLocation,
+      getValueForLocation,
+      lockScroll,
+      beginPress,
+    ],
   );
 
   const handleSelectionMove = React.useCallback(
     (event: GestureResponderEvent) => {
       if (dragOrigin.current === null) return;
       hasDragged.current = true;
+      const movedPastTolerance =
+        pressOriginX.current === null ||
+        Math.abs(event.nativeEvent.locationX - pressOriginX.current) >
+          LONG_PRESS_MOVEMENT_TOLERANCE_PX;
+      if (movedPastTolerance) {
+        cancelPressIfUnarmed();
+      }
       if (isDiscrete) {
+        return;
+      }
+      if (!movedPastTolerance && !isAdditive.current) {
+        // Still just the long-press dwell — nothing has moved enough (and
+        // we're not yet armed as additive) to count as a real gesture.
+        // Emit nothing: the caller treats any non-additive call here as
+        // "replace the whole selection", which would wipe out whatever's
+        // already selected before we even know whether this becomes an
+        // additive drag.
         return;
       }
       const value = getValueForLocation(event.nativeEvent.locationX);
@@ -249,7 +280,7 @@ export function DensityChart({
         sessionId: dragSessionId.current,
       });
     },
-    [isDiscrete, getValueForLocation, onSelectionChange],
+    [isDiscrete, getValueForLocation, onSelectionChange, cancelPressIfUnarmed],
   );
 
   const handleSelectionEnd = React.useCallback(
@@ -278,10 +309,12 @@ export function DensityChart({
             { additive: isAdditive.current, discrete: true },
           );
         }
+        endPress();
         return;
       }
       if (dragOrigin.current === null) {
         onSelectionChange?.(null);
+        endPress();
         return;
       }
       const value =
@@ -301,6 +334,7 @@ export function DensityChart({
       dragOrigin.current = null;
       dragValue.current = null;
       hasDragged.current = false;
+      endPress();
       if (Platform.OS === 'web') setResponderKey((k) => k + 1);
     },
     [
@@ -311,6 +345,7 @@ export function DensityChart({
       samples,
       getValueForLocation,
       onSelectionChange,
+      endPress,
     ],
   );
 
@@ -319,11 +354,13 @@ export function DensityChart({
     if (isDiscrete) {
       dragOrigin.current = null;
       hasDragged.current = false;
+      endPress();
       if (Platform.OS === 'web') setResponderKey((k) => k + 1);
       return;
     }
     if (dragOrigin.current === null) {
       onSelectionChange?.(null);
+      endPress();
       if (Platform.OS === 'web') setResponderKey((k) => k + 1);
       return;
     }
@@ -340,8 +377,9 @@ export function DensityChart({
     dragOrigin.current = null;
     dragValue.current = null;
     hasDragged.current = false;
+    endPress();
     if (Platform.OS === 'web') setResponderKey((k) => k + 1);
-  }, [unlockScroll, isDiscrete, onSelectionChange]);
+  }, [unlockScroll, isDiscrete, onSelectionChange, endPress]);
 
   // On web, prevent pointercancel from terminating drags mid-gesture.
   // Sets touch-action:none and explicitly calls setPointerCapture on each pointerdown
@@ -375,9 +413,16 @@ export function DensityChart({
       capture: true,
     });
 
+    // touch-action:none only suppresses the browser's scroll/pan/zoom
+    // gestures — it does NOT stop a real touchscreen's OWN long-press
+    // gesture (Safari/Chrome's text-selection callout, "Add to Reading
+    // List", image-save sheet, etc), which fires around the same ~500ms
+    // mark as our own long-press-to-arm timer and can steal/cancel the
+    // touch before that timer ever gets to run. -webkit-touch-callout and
+    // user-select are what actually suppress that.
     const styleEl = document.createElement('style');
     styleEl.textContent =
-      '[data-testid="density-chart-responder"] { touch-action: none !important; }';
+      '[data-testid="density-chart-responder"] { touch-action: none !important; -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important; }';
     document.head.appendChild(styleEl);
 
     return () => {

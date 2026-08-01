@@ -10,6 +10,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { buildDensitySamples } from './densityChartUtils';
 import { useScrollLock } from '@/context/ScrollLockContext';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { DensitySelectionRange } from './model';
 import {
   useCircularDragSelection,
@@ -138,9 +139,16 @@ export function PolarDensityChart({
   React.useEffect(() => {
     if (Platform.OS !== 'web' || !onSelectionChange) return;
 
+    // touch-action:none only suppresses the browser's scroll/pan/zoom
+    // gestures — it does NOT stop a real touchscreen's OWN long-press
+    // gesture (Safari/Chrome's text-selection callout, "Add to Reading
+    // List", image-save sheet, etc), which fires around the same ~500ms
+    // mark as our own long-press-to-arm timer and can steal/cancel the
+    // touch before that timer ever gets to run. -webkit-touch-callout and
+    // user-select are what actually suppress that.
     const styleEl = document.createElement('style');
     styleEl.textContent =
-      '[data-testid="polar-density-chart-responder"] { touch-action: none !important; }';
+      '[data-testid="polar-density-chart-responder"] { touch-action: none !important; -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important; }';
     document.head.appendChild(styleEl);
 
     const onDocPointerDown = (e: PointerEvent) => {
@@ -171,11 +179,17 @@ export function PolarDensityChart({
       onSelectionChange?.(range, options),
     [onSelectionChange],
   );
+  // On phones, long-press-to-arm turned out too unreliable across mobile
+  // browsers/devices (native long-press callouts, touch-jitter magnitude,
+  // etc. vary too much) to be worth fighting — every drag is just additive
+  // there instead, with a plain tap (no drag) still clearing the selection.
+  const { breakpoint } = useResponsive();
   const responderHandlers = useCircularDragSelection({
     center: { cx: CX, cy: CY },
     onRangeChange: handleRangeChange,
     onDragStart: lockScroll,
     onDragEnd: unlockScroll,
+    forceAdditive: breakpoint === 'phone',
   });
 
   if (!samples.length) {

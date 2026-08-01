@@ -1442,6 +1442,33 @@ describe('upload local species data source chained extra-variable filters', () =
     expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_2']);
   });
 
+  it('intersects a chained numeric range filter onto the categorical stats/distribution endpoint', async () => {
+    // Exercises buildScopedCategoricalStats specifically (the stats
+    // endpoint's per-class-value distribution), not the samples endpoint —
+    // this is the code path that recomputed the chain-filter match once PER
+    // CLASS before being fixed (redundant work, only visible as a real
+    // slowdown, not a correctness bug — but a correctness regression here
+    // would mean the fix broke something while removing that redundancy).
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
+      extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
+    });
+
+    // bio_1 15-100 excludes obs_1 (bio_1=10), keeping obs_2 (landcover=52)
+    // and obs_3 (landcover=130) — one of each class, not the unfiltered
+    // 2-vs-1 split across all three rows.
+    expect(stats.summary?.count).toBe(2);
+    const fractions = Object.fromEntries(
+      (stats.categoricalDistribution ?? []).map((entry) => [
+        entry.value,
+        entry.fraction,
+      ]),
+    );
+    expect(fractions).toEqual({ class_52: 0.5, class_130: 0.5 });
+  });
+
   it('intersects a chained multi-class (OR) filter onto a numeric slice request', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
