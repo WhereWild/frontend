@@ -843,7 +843,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 1, end: 2 });
+      result.current.selectDensityRange({ start: 1, end: 2 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -875,7 +875,7 @@ describe('useEnvironmentHighlights', () => {
     expect(onHighlightChange).not.toHaveBeenCalledWith([STALE_RANGE_CATALOG]);
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 3, end: 4 });
+      result.current.selectDensityRange({ start: 3, end: 4 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -916,7 +916,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 1, end: 2 });
+      result.current.selectDensityRange({ start: 1, end: 2 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -980,7 +980,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 1, end: 2 });
+      result.current.selectDensityRange({ start: 1, end: 2 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -990,7 +990,7 @@ describe('useEnvironmentHighlights', () => {
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 3, end: 4 });
+      result.current.selectDensityRange({ start: 3, end: 4 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -1351,7 +1351,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 45, end: 135 });
+      result.current.selectDensityRange({ start: 45, end: 135 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -1399,7 +1399,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 315, end: 45 });
+      result.current.selectDensityRange({ start: 315, end: 45 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -1458,7 +1458,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 350, end: 10 });
+      result.current.selectDensityRange({ start: 350, end: 10 });
       jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
     });
 
@@ -1565,7 +1565,7 @@ describe('useEnvironmentHighlights', () => {
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1581,7 +1581,7 @@ describe('useEnvironmentHighlights', () => {
         isCategorical: false,
       });
 
-      expect(result.current.selectedDensityRange).toBeNull();
+      expect(result.current.selectedDensityRanges).toEqual([]);
       expect(result.current.activeChain).toEqual([
         expect.objectContaining({
           variableId: 'bio_1',
@@ -1590,7 +1590,7 @@ describe('useEnvironmentHighlights', () => {
       ]);
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 5, end: 8 });
+        result.current.selectDensityRange({ start: 5, end: 8 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1618,7 +1618,7 @@ describe('useEnvironmentHighlights', () => {
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1668,7 +1668,7 @@ describe('useEnvironmentHighlights', () => {
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1724,7 +1724,7 @@ describe('useEnvironmentHighlights', () => {
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1747,10 +1747,12 @@ describe('useEnvironmentHighlights', () => {
       });
 
       expect(result.current.activeChain).toHaveLength(0);
-      expect(result.current.selectedDensityRange).toEqual({
-        start: 10,
-        end: 20,
-      });
+      expect(result.current.selectedDensityRanges).toEqual([
+        {
+          start: 10,
+          end: 20,
+        },
+      ]);
     });
 
 it('does not chain a categorical selection whose value has no resolvable numeric class code', async () => {
@@ -1920,7 +1922,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1956,7 +1958,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -1988,7 +1990,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -2025,7 +2027,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.handleDensitySelectionChange({ start: 10, end: 20 });
+        result.current.selectDensityRange({ start: 10, end: 20 });
       });
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -2050,10 +2052,12 @@ it('does not chain a categorical selection whose value has no resolvable numeric
         stats: variableAStats,
         isCategorical: false,
       });
-      expect(result.current.selectedDensityRange).toEqual({
-        start: 10,
-        end: 20,
-      });
+      expect(result.current.selectedDensityRanges).toEqual([
+        {
+          start: 10,
+          end: 20,
+        },
+      ]);
 
       act(() => {
         jest.advanceTimersByTime(DEBOUNCE_SETTLE_MS);
@@ -2133,7 +2137,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
         // Now pin the SAME catalog number the chain fallback already has
         // in rangeObservations (value: 52) — this is the exact collision
         // the bug hit. Since nothing is selected on bio_1 itself
-        // (selectedDensityRange is null), the pinned-value resolver must
+        // (selectedDensityRanges is empty), the pinned-value resolver must
         // not treat rangeObservations' value as bio_1's — it should fetch
         // bio_1's real value instead.
         rerender({

@@ -11,6 +11,7 @@ import {
   estimatePercentileFromHistogram,
   formatComparisonLabel,
   formatValue,
+  joinClassNamesWithAnd,
   type DensitySelectionRange,
   type RankContextOption,
 } from './model';
@@ -192,7 +193,7 @@ type BuildMetaTextParams = {
   hasStats: boolean;
   isCategorical: boolean;
   isCircular: boolean;
-  selectedDensityRange: DensitySelectionRange | null;
+  selectedDensityRanges: DensitySelectionRange[];
   rangeObservationCount: number;
   observationCount: number | null | undefined;
   summaryCount: number | null | undefined;
@@ -221,7 +222,7 @@ export const buildMetaText = ({
   hasStats,
   isCategorical,
   isCircular,
-  selectedDensityRange,
+  selectedDensityRanges,
   rangeObservationCount,
   observationCount,
   summaryCount,
@@ -235,15 +236,18 @@ export const buildMetaText = ({
     ? (categoricalTotalSamples ?? observationCount ?? summaryCount ?? 0)
     : (observationCount ?? summaryCount ?? 0);
 
-  if (!isCategorical && selectedDensityRange) {
-    const dispStart =
-      selectedDensityRange.displayStart ?? selectedDensityRange.start;
-    const dispEnd = selectedDensityRange.displayEnd ?? selectedDensityRange.end;
-
-    const isFullCircle = isCircular && (dispEnd - dispStart + 360) % 360 >= 359;
-    const rangeLabel = isFullCircle
-      ? 'Full circle'
-      : `${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)}`;
+  if (!isCategorical && selectedDensityRanges.length > 0) {
+    const rangeLabel = joinClassNamesWithAnd(
+      selectedDensityRanges.map((range) => {
+        const dispStart = range.displayStart ?? range.start;
+        const dispEnd = range.displayEnd ?? range.end;
+        const isFullCircle =
+          isCircular && (dispEnd - dispStart + 360) % 360 >= 359;
+        return isFullCircle
+          ? 'Full circle'
+          : `${formatValue(dispStart, 1)} to ${formatValue(dispEnd, 1)}`;
+      }),
+    );
 
     return `Selected range: ${rangeLabel} (${rangeObservationCount} of ${formatValue(resolvedObservationCount)} observations)`;
   }

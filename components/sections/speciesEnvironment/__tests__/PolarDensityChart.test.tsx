@@ -67,6 +67,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
       />,
     );
     expect(screen.getByText('Density curve unavailable.')).toBeTruthy();
@@ -79,6 +80,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
       />,
     );
     expect(screen.getByText('Density curve unavailable.')).toBeTruthy();
@@ -91,6 +93,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
       />,
     );
     expect(screen.getByText('Density curve unavailable.')).toBeTruthy();
@@ -103,6 +106,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
       />,
     );
     expect(screen.queryByText('Density curve unavailable.')).toBeNull();
@@ -117,7 +121,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
-        selection={null}
+        selections={[]}
         onSelectionChange={onSelectionChange}
       />,
     );
@@ -152,7 +156,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
-        selection={{ start: 45, end: 135 }}
+        selections={[{ start: 45, end: 135 }]}
         onSelectionChange={onSelectionChange}
       />,
     );
@@ -178,7 +182,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
-        selection={null}
+        selections={[]}
         onSelectionChange={onSelectionChange}
       />,
     );
@@ -204,7 +208,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
-        selection={null}
+        selections={[]}
         onSelectionChange={onSelectionChange}
       />,
     );
@@ -237,7 +241,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
-        selection={null}
+        selections={[]}
         onSelectionChange={onSelectionChange}
       />,
     );
@@ -272,6 +276,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={90}
         pinLoading={false}
       />,
@@ -288,6 +293,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={182.7}
         pinLoading={false}
       />,
@@ -303,6 +309,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={90}
         pinLoading={true}
       />,
@@ -319,6 +326,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={null}
         pinLoading={false}
       />,
@@ -334,6 +342,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
       />,
     );
 
@@ -348,6 +357,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={3}
         pinLoading={false}
       />,
@@ -367,6 +377,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={357}
         pinLoading={false}
       />,
@@ -384,6 +395,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
         pinValue={6}
         pinLoading={false}
       />,
@@ -399,6 +411,7 @@ describe('PolarDensityChart', () => {
         fillColor='#000'
         lineColor='#000'
         guideColor='#999'
+        selections={[]}
       />,
     );
 

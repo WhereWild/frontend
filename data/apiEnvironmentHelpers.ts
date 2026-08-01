@@ -40,9 +40,11 @@ export type CategorySampleOptions = {
 
 /** Serializes chained per-variable filters into the `extra` query param the
  * backend's _parse_extra_variable_filters expects — a JSON array of
- * {variable, min, max}, {variable, classValue}, or {variable, classValues}
- * entries. */
-function serializeExtraFilters(extra?: ExtraVariableFilter[] | null): string | null {
+ * {variable, min, max}, {variable, ranges}, {variable, classValue}, or
+ * {variable, classValues} entries. */
+function serializeExtraFilters(
+  extra?: ExtraVariableFilter[] | null,
+): string | null {
   if (!extra || extra.length === 0) {
     return null;
   }
@@ -52,7 +54,9 @@ function serializeExtraFilters(extra?: ExtraVariableFilter[] | null): string | n
         ? { variable: filter.variableId, classValues: filter.classValues }
         : 'classValue' in filter
           ? { variable: filter.variableId, classValue: filter.classValue }
-          : { variable: filter.variableId, min: filter.min, max: filter.max },
+          : 'ranges' in filter
+            ? { variable: filter.variableId, ranges: filter.ranges }
+            : { variable: filter.variableId, min: filter.min, max: filter.max },
     ),
   );
 }
@@ -102,7 +106,19 @@ export async function fetchSpeciesEnvironment(
 export async function fetchEnvironmentRangeSlice(
   params: EnvironmentSliceParams,
 ): Promise<SpeciesEnvironmentSliceResponse> {
-  const { taxonId, variableId, min, max, limit, location, units, phenology, startTs, endTs, extra } = params;
+  const {
+    taxonId,
+    variableId,
+    min,
+    max,
+    limit,
+    location,
+    units,
+    phenology,
+    startTs,
+    endTs,
+    extra,
+  } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
   const query = new URLSearchParams({
@@ -136,7 +152,13 @@ export async function fetchEnvironmentRangeSlice(
     url,
     `Failed to fetch environment slice (${variableId}) for ${taxonId}`,
   );
-  return parseEnvironmentSliceResponse(payload, { taxonId, variableId, min, max, limit });
+  return parseEnvironmentSliceResponse(payload, {
+    taxonId,
+    variableId,
+    min,
+    max,
+    limit,
+  });
 }
 
 /**
@@ -180,7 +202,11 @@ export async function fetchSpeciesEnvironmentCategorySamples(
     url,
     `Failed to fetch samples for ${variableId}=${classValue}`,
   );
-  return parseEnvironmentCategorySampleResponse(payload, { taxonId, variableId, classValue });
+  return parseEnvironmentCategorySampleResponse(payload, {
+    taxonId,
+    variableId,
+    classValue,
+  });
 }
 
 /**
@@ -206,7 +232,9 @@ export async function fetchSpeciesOccurrences(
   }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
-  const payload = asRecord(await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`));
+  const payload = asRecord(
+    await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`),
+  );
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
   const occurrences: SpeciesOccurrence[] = rows
     .map((entry) => {
@@ -223,8 +251,15 @@ export async function fetchSpeciesOccurrences(
       };
     })
     .filter(
-      (entry): entry is { catalogNumber: string | number; latitude: number; longitude: number } =>
-        typeof entry.latitude === 'number' && typeof entry.longitude === 'number',
+      (
+        entry,
+      ): entry is {
+        catalogNumber: string | number;
+        latitude: number;
+        longitude: number;
+      } =>
+        typeof entry.latitude === 'number' &&
+        typeof entry.longitude === 'number',
     )
     .map((entry) => ({
       catalogNumber: entry.catalogNumber ?? '',
@@ -237,8 +272,10 @@ export async function fetchSpeciesOccurrences(
       : null;
   return {
     occurrences,
-    minTimestamp: typeof payload.min_timestamp === 'number' ? payload.min_timestamp : null,
-    maxTimestamp: typeof payload.max_timestamp === 'number' ? payload.max_timestamp : null,
+    minTimestamp:
+      typeof payload.min_timestamp === 'number' ? payload.min_timestamp : null,
+    maxTimestamp:
+      typeof payload.max_timestamp === 'number' ? payload.max_timestamp : null,
     phenologyCounts,
   };
 }

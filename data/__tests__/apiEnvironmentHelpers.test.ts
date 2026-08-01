@@ -72,6 +72,35 @@ describe('chained extra-variable filters (extra query param)', () => {
     expect(extra).toEqual([{ variable: 'kg2', classValues: [1, 3] }]);
   });
 
+  it('serializes a chained multi-range (OR) filter onto a numeric slice request', async () => {
+    await fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'kg2',
+      min: 0,
+      max: 30,
+      extra: [
+        {
+          variableId: 'bio1',
+          ranges: [
+            { min: 5, max: 15 },
+            { min: 35, max: 45 },
+          ],
+        },
+      ],
+    });
+    const url = new URL(calledUrl());
+    const extra = JSON.parse(url.searchParams.get('extra') as string);
+    expect(extra).toEqual([
+      {
+        variable: 'bio1',
+        ranges: [
+          { min: 5, max: 15 },
+          { min: 35, max: 45 },
+        ],
+      },
+    ]);
+  });
+
   it('serializes multiple chained filters in order', async () => {
     await fetchEnvironmentRangeSlice({
       taxonId: 1,

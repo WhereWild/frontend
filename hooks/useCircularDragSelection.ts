@@ -4,6 +4,7 @@
 
 import React from 'react';
 import type { GestureResponderEvent } from 'react-native';
+import { useAdditiveModifierRef } from './useAdditiveModifierRef';
 
 /** A clockwise arc from start to end (degrees, 0 = north) — start > end means
  * the arc wraps through 0°/360°, e.g. {start: 350, end: 20} is a 30° slice
@@ -14,7 +15,17 @@ type UseCircularDragSelectionOptions = {
   /** Center of the circular control, in the same coordinate space as the
    * responder view's locationX/locationY (i.e. relative to that view). */
   center: { cx: number; cy: number };
-  onRangeChange: (range: CircularDragRange | null) => void;
+  /** `options.additive` reflects whether shift/cmd was held at the START of
+   * this drag (captured once at grant, not re-checked per move) — callers
+   * that don't care about multi-select can ignore the second argument.
+   * `options.sessionId` identifies this one drag gesture across its many
+   * move calls plus its final release, so a caller doing additive
+   * multi-select can recognize repeated calls as updates to the SAME
+   * in-progress selection rather than a new one each frame. */
+  onRangeChange: (
+    range: CircularDragRange | null,
+    options?: { additive?: boolean; sessionId?: number },
+  ) => void;
   /** Below this cumulative drag distance (degrees), a release is treated as
    * a tap-to-clear rather than a real selection. */
   minDragDeg?: number;
@@ -46,6 +57,8 @@ export function useCircularDragSelection({
   const cumulativeSpan = React.useRef(0);
   const prevAngle = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
+  const isAdditive = useAdditiveModifierRef();
+  const dragSessionId = React.useRef(0);
 
   const touchToDeg = React.useCallback(
     (locationX: number, locationY: number) =>
@@ -68,6 +81,7 @@ export function useCircularDragSelection({
       prevAngle.current = deg;
       cumulativeSpan.current = 0;
       hasDragged.current = false;
+      dragSessionId.current += 1;
     },
     [touchToDeg, onDragStart],
   );
@@ -97,18 +111,31 @@ export function useCircularDragSelection({
 
       const absSpan = Math.abs(newSpan);
       if (absSpan < minDragDeg) {
-        onRangeChange(null);
+        onRangeChange(null, {
+          additive: isAdditive.current,
+          sessionId: dragSessionId.current,
+        });
         return;
       }
 
       const anchor = dragOrigin.current;
+      const additiveOptions = {
+        additive: isAdditive.current,
+        sessionId: dragSessionId.current,
+      };
       if (newSpan >= 0) {
         // CW arc: anchor → anchor + span
-        onRangeChange({ start: anchor, end: (anchor + absSpan + 360) % 360 });
+        onRangeChange(
+          { start: anchor, end: (anchor + absSpan + 360) % 360 },
+          additiveOptions,
+        );
       } else {
         // CCW arc: represented the same way as a CW arc from arcStart →
         // anchor, so callers only ever need to handle one direction.
-        onRangeChange({ start: (anchor - absSpan + 360) % 360, end: anchor });
+        onRangeChange(
+          { start: (anchor - absSpan + 360) % 360, end: anchor },
+          additiveOptions,
+        );
       }
     },
     [touchToDeg, onRangeChange, minDragDeg],

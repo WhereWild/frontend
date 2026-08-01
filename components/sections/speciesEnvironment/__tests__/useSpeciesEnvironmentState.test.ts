@@ -240,7 +240,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 2, end: 12 });
+      result.current.selectDensityRange({ start: 2, end: 12 });
     });
 
     await waitFor(() =>
@@ -703,7 +703,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 1, end: 2 });
+      result.current.selectDensityRange({ start: 1, end: 2 });
     });
 
     await waitFor(() =>
@@ -711,7 +711,7 @@ describe('useSpeciesEnvironmentState', () => {
     );
 
     act(() => {
-      result.current.handleDensitySelectionChange(null);
+      result.current.selectDensityRange(null);
     });
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
   });
@@ -957,7 +957,7 @@ describe('useSpeciesEnvironmentState', () => {
     expect(result.current.anyFilterActive).toBe(false);
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 2, end: 12 });
+      result.current.selectDensityRange({ start: 2, end: 12 });
     });
     await waitFor(() =>
       expect(mockFetchEnvironmentRangeSlice).toHaveBeenCalled(),
@@ -1176,7 +1176,7 @@ describe('useSpeciesEnvironmentState', () => {
     expect(result.current.selectedVariable).toBe('bio_1');
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 2, end: 12 });
+      result.current.selectDensityRange({ start: 2, end: 12 });
     });
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([42]));
 
@@ -1289,7 +1289,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 3, end: 7 });
+      result.current.selectDensityRange({ start: 3, end: 7 });
     });
 
     await waitFor(() =>
@@ -1323,7 +1323,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
     act(() => {
-      result.current.handleDensitySelectionChange({ start: 2, end: 5 });
+      result.current.selectDensityRange({ start: 2, end: 5 });
     });
 
     await waitFor(() => {

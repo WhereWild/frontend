@@ -13,6 +13,7 @@ import {
   formatValue,
   isVariableCategorical as isVariableCategoricalOption,
   isVariableCircular,
+  joinClassNamesWithAnd,
   type PinnedCategoryBadge,
   RankContextOption,
 } from './model';
@@ -207,8 +208,8 @@ export function useSpeciesEnvironmentState({
   const {
     selectedCategoryValues,
     selectCategoryValue,
-    selectedDensityRange,
-    handleDensitySelectionChange,
+    selectedDensityRanges,
+    selectDensityRange,
     rangeObservations,
     activeChain,
     removeChainedFilter,
@@ -253,11 +254,15 @@ export function useSpeciesEnvironmentState({
       if (entry.isCategorical) {
         return `to only ${entry.label} ${variableName}`;
       }
-      const range = entry.originalRange;
-      const start = formatValue(range?.displayStart ?? range?.start, 1);
-      const end = formatValue(range?.displayEnd ?? range?.end, 1);
+      const ranges = entry.originalRanges ?? [];
+      const rangeText = joinClassNamesWithAnd(
+        ranges.map(
+          (range) =>
+            `${formatValue(range.displayStart ?? range.start, 1)} to ${formatValue(range.displayEnd ?? range.end, 1)}`,
+        ),
+      );
       const unitsSuffix = variableMeta?.units ? ` ${variableMeta.units}` : '';
-      return `from ${start} to ${end}${unitsSuffix} ${variableName}`;
+      return `from ${rangeText}${unitsSuffix} ${variableName}`;
     });
     return `And filtering ${clauses.join(' and ')}`;
   }, [activeChain, allVariables]);
@@ -629,7 +634,7 @@ export function useSpeciesEnvironmentState({
     hasStats: Boolean(stats),
     isCategorical,
     isCircular: isCircularForMeta,
-    selectedDensityRange,
+    selectedDensityRanges,
     rangeObservationCount: rangeObservationItems.length,
     observationCount: stats?.observationCount,
     summaryCount: summary?.count,
@@ -657,8 +662,8 @@ export function useSpeciesEnvironmentState({
     densityCurve,
     ternaryCompositionDensity,
     summary,
-    selectedDensityRange,
-    handleDensitySelectionChange,
+    selectedDensityRanges,
+    selectDensityRange,
     activeChain,
     chainDescription,
     removeChainedFilter,

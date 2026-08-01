@@ -110,9 +110,9 @@ function SpeciesEnvironmentSectionComponent({
       typeof useSpeciesEnvironmentState
     >['ternaryCompositionDensity'];
     summary: ReturnType<typeof useSpeciesEnvironmentState>['summary'];
-    selectedDensityRange: ReturnType<
+    selectedDensityRanges: ReturnType<
       typeof useSpeciesEnvironmentState
-    >['selectedDensityRange'];
+    >['selectedDensityRanges'];
     chainDescription: ReturnType<
       typeof useSpeciesEnvironmentState
     >['chainDescription'];
@@ -184,8 +184,8 @@ function SpeciesEnvironmentSectionComponent({
     densityCurve,
     ternaryCompositionDensity,
     summary,
-    selectedDensityRange,
-    handleDensitySelectionChange,
+    selectedDensityRanges,
+    selectDensityRange,
     chainDescription,
     showRankContext,
     rankContextOptions,
@@ -334,7 +334,7 @@ function SpeciesEnvironmentSectionComponent({
         densityCurve,
         ternaryCompositionDensity,
         summary,
-        selectedDensityRange,
+        selectedDensityRanges,
         chainDescription,
         showRankContext,
         rankContextOptions,
@@ -635,9 +635,9 @@ function SpeciesEnvironmentSectionComponent({
                 fillColor={palette.background.brand.default}
                 lineColor={palette.background.brand.default}
                 guideColor={palette.text.default.secondary}
-                selection={displayState?.selectedDensityRange ?? null}
+                selections={displayState?.selectedDensityRanges ?? []}
                 onSelectionChange={
-                  slicingEnabled ? handleDensitySelectionChange : undefined
+                  slicingEnabled ? selectDensityRange : undefined
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
@@ -679,9 +679,9 @@ function SpeciesEnvironmentSectionComponent({
                 fillColor={palette.background.brand.default}
                 baselineColor={palette.border.neutral.default}
                 summary={displayState?.summary}
-                selection={displayState?.selectedDensityRange ?? null}
+                selections={displayState?.selectedDensityRanges ?? []}
                 onSelectionChange={
-                  slicingEnabled ? handleDensitySelectionChange : undefined
+                  slicingEnabled ? selectDensityRange : undefined
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}

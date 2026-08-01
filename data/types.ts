@@ -396,9 +396,13 @@ export type EnvironmentVariableDefinition = {
  * filter's OWN variable, same convention as the primary slice's min/max.
  * classValues ORs together multiple classes of that same variable (e.g.
  * Forest OR Grassland) — ANDed against everything else same as classValue.
+ * ranges ORs together multiple disjoint numeric ranges of that same
+ * variable (e.g. two separately-selected slices of a histogram/KDE) — same
+ * relationship to a single min/max as classValues has to classValue.
  */
 export type ExtraVariableFilter =
   | { variableId: string; min: number; max: number }
+  | { variableId: string; ranges: { min: number; max: number }[] }
   | { variableId: string; classValue: number }
   | { variableId: string; classValues: number[] };
 

@@ -1450,6 +1450,28 @@ describe('upload local species data source chained extra-variable filters', () =
     );
   });
 
+  it('intersects a chained multi-range (OR) filter onto a categorical samples request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52', {
+      extra: [
+        {
+          variableId: 'bio_1',
+          ranges: [
+            { min: 5, max: 15 },
+            { min: 25, max: 35 },
+          ],
+        },
+      ],
+    });
+
+    // Primary landcover=52 matches obs_1 (bio_1=10) and obs_2 (bio_1=20).
+    // ranges OR-matches [5,15] and [25,35] — obs_1's bio_1=10 falls in the
+    // first range; obs_2's bio_1=20 falls in neither.
+    expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_1']);
+  });
+
   it('returns nothing when a chained filter matches no rows', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });

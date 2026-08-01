@@ -444,13 +444,6 @@ export function StackedCategoryBar({
                 const additive = Boolean(
                   nativeEvent?.ctrlKey || nativeEvent?.metaKey,
                 );
-                // eslint-disable-next-line no-console
-                console.log('[MULTISELECT DEBUG] segment press', {
-                  value: category.value,
-                  ctrlKey: nativeEvent?.ctrlKey,
-                  metaKey: nativeEvent?.metaKey,
-                  additive,
-                });
                 onSelect?.(category.value, { additive });
               }}
               onLongPress={() => onSelect?.(category.value, { additive: true })}

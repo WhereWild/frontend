@@ -69,6 +69,18 @@ const toNumericClassValue = (value: number | string): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// Stable identity for a density range — used to detect "the user
+// clicked/dragged this exact range again" (toggle it off) when multiple
+// ranges are selected at once.
+const densityRangeKey = (range: DensitySelectionRange): string =>
+  `${range.start}_${range.end}`;
+
+const formatDensityRangeLabel = (range: DensitySelectionRange): string => {
+  const start = range.displayStart ?? range.start;
+  const end = range.displayEnd ?? range.end;
+  return `${start}–${end}`;
+};
+
 const resolvePinnedCategoryQueryValue = ({
   stats,
   pointValue,
@@ -184,8 +196,25 @@ export function useEnvironmentHighlights({
   const [categorySamplesByValue, setCategorySamplesByValue] = React.useState<
     Record<string, CategorySampleState>
   >({});
-  const [selectedDensityRange, setSelectedDensityRange] =
-    React.useState<DensitySelectionRange | null>(null);
+  const [selectedDensityRanges, setSelectedDensityRangesState] = React.useState<
+    DensitySelectionRange[]
+  >([]);
+  // Same eager-ref-mirror pattern as selectedCategoryValuesRef — protects
+  // against two rapid selectDensityRange calls (e.g. ctrl-click on two
+  // histogram bars in quick succession, batched via startTransition) both
+  // computing their additive toggle against the same stale pre-update
+  // snapshot.
+  const selectedDensityRangesRef = React.useRef<DensitySelectionRange[]>([]);
+  const setSelectedDensityRanges = React.useCallback(
+    (next: DensitySelectionRange[]) => {
+      selectedDensityRangesRef.current = next;
+      setSelectedDensityRangesState(next);
+    },
+    [],
+  );
+  const [rangeSamplesByKey, setRangeSamplesByKey] = React.useState<
+    Record<string, CategorySampleState>
+  >({});
   const [rangeObservations, setRangeObservations] = React.useState<
     SpeciesEnvironmentObservation[]
   >([]);
@@ -205,7 +234,7 @@ export function useEnvironmentHighlights({
   const [activeChain, setActiveChain] = React.useState<ChainedVariableFilter[]>(
     [],
   );
-  // Tracks which variable + mode the CURRENT selectedDensityRange/
+  // Tracks which variable + mode the CURRENT selectedDensityRanges/
   // selectedCategoryValues belongs to, plus its already-resolved display
   // label — set at the moment a selection is made (when `stats` reliably
   // still matches that variable), not derived at variable-switch time
@@ -272,9 +301,12 @@ export function useEnvironmentHighlights({
     if (selectedCategoryValuesRef.current.length !== 0) {
       setSelectedCategoryValues([]);
     }
-    setSelectedDensityRange(null);
+    if (selectedDensityRangesRef.current.length !== 0) {
+      setSelectedDensityRanges([]);
+    }
     setRangeObservations([]);
     setCategorySamplesByValue({});
+    setRangeSamplesByKey({});
     // Preserve reference identity when already empty (as it is on every
     // mount) — callers may derive a signal from activeChain's *reference*
     // changing (see useSpeciesEnvironmentState's stats-refetch bridge), and
@@ -343,14 +375,6 @@ export function useEnvironmentHighlights({
     previousVariableRef.current = selectedVariable;
 
     const outgoingMeta = selectionMetaRef.current;
-    // eslint-disable-next-line no-console
-    console.log('[MULTISELECT DEBUG] variable-switch chain effect', {
-      outgoingVariableId,
-      incomingVariableId: selectedVariable,
-      outgoingMeta,
-      selectedCategoryValues,
-      selectedCategoryValuesRef: selectedCategoryValuesRef.current,
-    });
     let nextChain = activeChain;
     if (outgoingMeta && outgoingMeta.variableId === outgoingVariableId) {
       const entry: ChainedVariableFilter | null = outgoingMeta.isCategorical
@@ -364,24 +388,37 @@ export function useEnvironmentHighlights({
               : {
                   variableId: outgoingVariableId,
                   isCategorical: true,
-                  extra: { variableId: outgoingVariableId, classValues: numericValues },
+                  extra: {
+                    variableId: outgoingVariableId,
+                    classValues: numericValues,
+                  },
                   label: outgoingMeta.label,
                   originalCategoryValues: selectedCategoryValues,
                 };
           })()
-        : selectedDensityRange === null
-          ? null
-          : {
+        : (() => {
+            if (selectedDensityRanges.length === 0) return null;
+            return {
               variableId: outgoingVariableId,
               isCategorical: false,
-              extra: {
-                variableId: outgoingVariableId,
-                min: selectedDensityRange.start,
-                max: selectedDensityRange.end,
-              },
+              extra:
+                selectedDensityRanges.length === 1
+                  ? {
+                      variableId: outgoingVariableId,
+                      min: selectedDensityRanges[0].start,
+                      max: selectedDensityRanges[0].end,
+                    }
+                  : {
+                      variableId: outgoingVariableId,
+                      ranges: selectedDensityRanges.map((r) => ({
+                        min: r.start,
+                        max: r.end,
+                      })),
+                    },
               label: outgoingMeta.label,
-              originalRange: selectedDensityRange,
+              originalRanges: selectedDensityRanges,
             };
+          })();
       if (entry) {
         nextChain = [
           ...activeChain.filter((e) => e.variableId !== outgoingVariableId),
@@ -394,6 +431,7 @@ export function useEnvironmentHighlights({
     const restored = nextChain.find((e) => e.variableId === selectedVariable);
     categoryRequestRef.current += 1;
     setCategorySamplesByValue({});
+    setRangeSamplesByKey({});
     setRangeObservations([]);
     if (restored) {
       setActiveChain(
@@ -406,18 +444,18 @@ export function useEnvironmentHighlights({
       };
       if (restored.isCategorical) {
         setSelectedCategoryValues(restored.originalCategoryValues ?? []);
-        setSelectedDensityRange(null);
+        setSelectedDensityRanges([]);
       } else {
-        setSelectedDensityRange(restored.originalRange ?? null);
+        setSelectedDensityRanges(restored.originalRanges ?? []);
         setSelectedCategoryValues([]);
       }
     } else {
       setActiveChain(nextChain);
       setSelectedCategoryValues([]);
-      setSelectedDensityRange(null);
+      setSelectedDensityRanges([]);
     }
     // The slice/category-fetch effects below react to the resulting
-    // selectedDensityRange/selectedCategoryValues/activeChain changes and
+    // selectedDensityRanges/selectedCategoryValues/activeChain changes and
     // will emit the correct (non-empty) highlight set once they resolve —
     // but that's an async fetch, same as the earlier marker-color flicker.
     // Clearing to [] here unconditionally means the map shows every dot
@@ -429,7 +467,13 @@ export function useEnvironmentHighlights({
     if (nextChain.length === 0 && !restored) {
       emitHighlightChange([]);
     }
-  }, [selectedVariable, activeChain, emitHighlightChange, selectedCategoryValues, selectedDensityRange]);
+  }, [
+    selectedVariable,
+    activeChain,
+    emitHighlightChange,
+    selectedCategoryValues,
+    selectedDensityRanges,
+  ]);
 
   const removeChainedFilter = React.useCallback((variableId: string) => {
     setActiveChain((prev) => {
@@ -467,16 +511,16 @@ export function useEnvironmentHighlights({
     // is already in rangeObservations. The raster value at lat/lon can differ slightly
     // from the stored occurrence index value, making the pin appear outside the selection arc.
     //
-    // Gated on selectedDensityRange specifically: rangeObservations is no
+    // Gated on selectedDensityRanges specifically: rangeObservations is no
     // longer guaranteed to hold THIS variable's own values — the chain-only
     // fallback effect also populates it, from whichever OTHER variable is
     // primary in the chain, whenever nothing is selected on the current
     // one. Without this gate, a categorical chain entry's class code (e.g.
     // a Köppen-Geiger zone id) could get read as if it were this numeric
-    // variable's value. selectedDensityRange is only ever set by a live
+    // variable's value. selectedDensityRanges is only ever set by a live
     // slice on THIS variable, so its presence is what actually confirms
     // rangeObservations.value here means what this code assumes it means.
-    if (!isCategorical && selectedDensityRange) {
+    if (!isCategorical && selectedDensityRanges.length > 0) {
       const stored = rangeObservationsRef.current.find(
         (obs) =>
           obs.catalogNumber === pinnedObservation.catalogNumber &&
@@ -608,7 +652,7 @@ export function useEnvironmentHighlights({
     phenology,
     pinnedObservation,
     resetPinnedState,
-    selectedDensityRange,
+    selectedDensityRanges,
     selectedVariable,
     speciesDataSource,
     startTimestamp,
@@ -668,12 +712,18 @@ export function useEnvironmentHighlights({
       // both were populated (or would be populated) against the unfiltered
       // set, so a chain in effect means always going to the network instead.
       const hasActiveChain = activeChain.length > 0;
-      const cached = hasActiveChain ? undefined : categorySamplesByValue[nextKey];
+      const cached = hasActiveChain
+        ? undefined
+        : categorySamplesByValue[nextKey];
       if (cached?.loaded && !cached.error) {
         return;
       }
 
-      if (!hasActiveChain && !locationGid && stats?.categoricalSamples?.length) {
+      if (
+        !hasActiveChain &&
+        !locationGid &&
+        stats?.categoricalSamples?.length
+      ) {
         const preloaded = stats.categoricalSamples.find(
           (entry) => String(entry.value) === nextKey,
         );
@@ -695,7 +745,12 @@ export function useEnvironmentHighlights({
       if (!isCategorical || !taxonId || !selectedVariable || !slicingEnabled) {
         setCategorySamplesByValue((prev) => ({
           ...prev,
-          [nextKey]: { observations: [], loading: false, loaded: true, error: null },
+          [nextKey]: {
+            observations: [],
+            loading: false,
+            loaded: true,
+            error: null,
+          },
         }));
         return;
       }
@@ -810,14 +865,6 @@ export function useEnvironmentHighlights({
           ? [...current, value]
           : [value];
 
-      // eslint-disable-next-line no-console
-      console.log('[MULTISELECT DEBUG] selectCategoryValue', {
-        value,
-        additive,
-        current,
-        nextValues,
-      });
-
       if (nextValues.length === 0) {
         categoryRequestRef.current += 1;
         setSelectedCategoryValues([]);
@@ -870,18 +917,9 @@ export function useEnvironmentHighlights({
     }
     const keys = selectedCategoryValues.map((v) => String(v));
     const states = keys.map((key) => categorySamplesByValue[key]);
-    // eslint-disable-next-line no-console
-    console.log('[MULTISELECT DEBUG] union-and-emit effect check', {
-      selectedCategoryValues,
-      keys,
-      states: states.map((s) => ({
-        loaded: s?.loaded,
-        loading: s?.loading,
-        error: s?.error,
-        obsCount: s?.observations?.length,
-      })),
-    });
-    if (states.some((state) => !state?.loaded || state.loading || state.error)) {
+    if (
+      states.some((state) => !state?.loaded || state.loading || state.error)
+    ) {
       return;
     }
     const seen = new Set<CatalogId>();
@@ -894,10 +932,6 @@ export function useEnvironmentHighlights({
         }
       }
     }
-    // eslint-disable-next-line no-console
-    console.log('[MULTISELECT DEBUG] union-and-emit EMITTING', {
-      mergedCount: merged.length,
-    });
     emitHighlightChange(toCatalogIdsFromObservations(merged));
   }, [
     categorySamplesByValue,
@@ -927,68 +961,186 @@ export function useEnvironmentHighlights({
     stats,
   ]);
 
-  const handleDensitySelectionChange = React.useCallback(
-    (range: DensitySelectionRange | null) => {
-      setSelectedDensityRange(range);
-      if (!range) {
+  // Replaces the whole selection with just this one range — unless it's
+  // already selected, in which case it's removed instead (regardless of
+  // `additive`; see below) — UNLESS `options.discrete` is set (histogram
+  // bars, which behave exactly like category pills/bar segments) and 2+
+  // ranges are already selected, in which case a plain click on a
+  // not-yet-selected bar is a no-op rather than silently collapsing the
+  // multi-selection down to just that bar. Continuous/circular charts don't
+  // get that no-op treatment: a plain drag there always defines a brand new
+  // selection and wipes whatever was selected before, since there's no
+  // discrete "click an existing thing" gesture to protect there (dragging
+  // is inherently a fresh gesture each time). `additive` (shift/cmd-drag on
+  // the continuous/circular charts, ctrl/cmd-click on a discrete bar)
+  // instead adds this range to whatever's currently selected.
+  // `range === null` (a tap without a drag on a continuous/circular chart)
+  // clears the whole selection.
+  // Tracks the in-progress additive drag's own slot in selectedDensityRanges
+  // — a continuous drag calls this on every mousemove frame (live preview)
+  // plus once more on release, all for what's conceptually ONE gesture. Each
+  // of those calls needs to keep updating the SAME array entry (the range
+  // currently being dragged), not append a new one every frame — otherwise
+  // one ctrl-drag would flood the selection with dozens of near-duplicate
+  // ranges. `sessionId` (from DensityChart/PolarDensityChart, incremented
+  // once per new gesture) is how a run of calls is recognized as "the same
+  // drag" versus "a new one has started".
+  const activeDragSessionRef = React.useRef<{
+    id: number;
+    index: number;
+  } | null>(null);
+
+  const selectDensityRange = React.useCallback(
+    (
+      range: DensitySelectionRange | null,
+      options?: { additive?: boolean; discrete?: boolean; sessionId?: number },
+    ) => {
+      if (range === null) {
+        // An additive drag that hasn't moved far enough yet to register a
+        // real range (or ended without ever doing so) calls this — it's
+        // NOT the user asking to clear the whole multi-selection, just
+        // "nothing new from THIS gesture yet". Only remove this session's
+        // own tentative slot (if it had already appended one), leaving the
+        // rest of the selection untouched. A plain (non-additive) null — a
+        // genuine tap-to-clear — still clears everything.
+        if (options?.additive && options?.sessionId != null) {
+          if (activeDragSessionRef.current?.id === options.sessionId) {
+            const index = activeDragSessionRef.current.index;
+            const current = selectedDensityRangesRef.current;
+            const nextRanges = current.filter((_, i) => i !== index);
+            activeDragSessionRef.current = null;
+            setSelectedDensityRanges(nextRanges);
+            if (nextRanges.length === 0) {
+              selectionMetaRef.current = null;
+              emitHighlightChange([]);
+            } else {
+              selectionMetaRef.current = {
+                variableId: selectedVariable,
+                isCategorical: false,
+                label: joinClassNamesWithAnd(
+                  nextRanges.map(formatDensityRangeLabel),
+                ),
+              };
+            }
+          }
+          return;
+        }
+        activeDragSessionRef.current = null;
+        setSelectedDensityRanges([]);
         selectionMetaRef.current = null;
+        emitHighlightChange([]);
         return;
       }
-      const startLabel = range.displayStart ?? range.start;
-      const endLabel = range.displayEnd ?? range.end;
+      const additive = options?.additive ?? false;
+      const discrete = options?.discrete ?? false;
+      const current = selectedDensityRangesRef.current;
+
+      let nextRanges: DensitySelectionRange[];
+      if (additive && options?.sessionId != null) {
+        if (activeDragSessionRef.current?.id === options.sessionId) {
+          const index = activeDragSessionRef.current.index;
+          nextRanges = current.map((r, i) => (i === index ? range : r));
+        } else {
+          nextRanges = [...current, range];
+          activeDragSessionRef.current = {
+            id: options.sessionId,
+            index: nextRanges.length - 1,
+          };
+        }
+      } else {
+        activeDragSessionRef.current = null;
+        const key = densityRangeKey(range);
+        // The "click an already-selected thing again toggles it off" rule
+        // only makes sense for discrete bars (distinct, stable, individually
+        // clickable — same semantics as pills/bar segments). For a
+        // continuous drag, applying it here would be a bug:
+        // handleSelectionMove already sets the selection to this exact
+        // range on every intermediate frame, so by release time this SAME
+        // range is already "selected" — treating that as a toggle-off would
+        // cancel the drag's own result the instant it finishes, discarding
+        // the just-made selection.
+        const alreadySelected =
+          discrete && current.some((r) => densityRangeKey(r) === key);
+        if (!alreadySelected && !additive && discrete && current.length > 1) {
+          return;
+        }
+        nextRanges = alreadySelected
+          ? current.filter((r) => densityRangeKey(r) !== key)
+          : additive
+            ? [...current, range]
+            : [range];
+      }
+
+      if (nextRanges.length === 0) {
+        setSelectedDensityRanges([]);
+        selectionMetaRef.current = null;
+        emitHighlightChange([]);
+        return;
+      }
+
+      setSelectedDensityRanges(nextRanges);
       selectionMetaRef.current = {
         variableId: selectedVariable,
         isCategorical: false,
-        label: `${startLabel}–${endLabel}`,
+        label: joinClassNamesWithAnd(nextRanges.map(formatDensityRangeLabel)),
       };
     },
-    [selectedVariable],
+    [emitHighlightChange, selectedVariable],
   );
 
-  React.useEffect(() => {
-    if (isCategorical) {
-      setRangeObservations([]);
-      return;
-    }
-    if (!taxonId || !selectedVariable || !slicingEnabled) {
-      setRangeObservations([]);
-      emitHighlightChange([]);
-      return;
-    }
-    if (!selectedDensityRange) {
-      // Nothing selected on the CURRENT variable. If a chain is active, the
-      // chain-only fallback effect below owns applying/emitting it instead
-      // — clearing here unconditionally would immediately wipe out
-      // whatever that effect just set, since both react to activeChain
-      // changing (switching variables changes both at once).
-      if (activeChain.length === 0) {
-        setRangeObservations([]);
-        emitHighlightChange([]);
+  // Resolves ONE range's observations into rangeSamplesByKey's cache — never
+  // emits a highlight itself, same reason as resolveCategorySelection: with
+  // multiple ranges selected, each one resolves independently/at different
+  // speeds, and a separate union-and-emit effect below waits for all of them
+  // to settle before emitting once (avoiding a flash of a partial union).
+  const resolveDensityRange = React.useCallback(
+    (key: string, range: DensitySelectionRange) => {
+      if (!taxonId || !selectedVariable || !slicingEnabled) {
+        setRangeSamplesByKey((prev) => ({
+          ...prev,
+          [key]: {
+            observations: [],
+            loading: false,
+            loaded: true,
+            error: null,
+          },
+        }));
+        return;
       }
-      return;
-    }
-    const { start, end } = selectedDensityRange;
-    // Circular variables (e.g. aspect_deg 0–360°) can produce a wrap-around arc
-    // where start > end (e.g. 315° → 45°). Split into two linear slices and merge.
-    const isWrapped = start > end;
-    let cancelled = false;
-    const timer = setTimeout(() => {
+      // Reads (never bumps) the shared generation counter — same fix as
+      // resolveCategorySelection: minting a new id per call here would make
+      // resolving one range while another is still in flight look like it
+      // invalidated the first one.
+      const requestGeneration = categoryRequestRef.current;
+      setRangeSamplesByKey((prev) => ({
+        ...prev,
+        [key]: {
+          observations: prev[key]?.observations ?? [],
+          loading: true,
+          loaded: false,
+          error: null,
+        },
+      }));
+      const { start, end } = range;
+      // Circular variables (e.g. aspect_deg 0–360°) can produce a wrap-around
+      // arc where start > end (e.g. 315° → 45°). Split into two linear
+      // slices and merge.
+      const isWrapped = start > end;
+      const sliceParams = isWrapped
+        ? [
+            { min: start, max: 360 },
+            { min: 0, max: end },
+          ]
+        : [{ min: start, max: end }];
       void (async () => {
         try {
-          const sliceParams = isWrapped
-            ? [
-                { min: start, max: 360 },
-                { min: 0, max: end },
-              ]
-            : [{ min: start, max: end }];
-
           const responses = await Promise.all(
-            sliceParams.map((range) =>
+            sliceParams.map((slice) =>
               speciesDataSource.fetchEnvironmentRangeSlice({
                 taxonId,
                 variableId: selectedVariable,
-                min: range.min,
-                max: range.max,
+                min: slice.min,
+                max: slice.max,
                 location: locationGid ?? undefined,
                 units,
                 phenology: phenology ?? undefined,
@@ -998,8 +1150,7 @@ export function useEnvironmentHighlights({
               }),
             ),
           );
-
-          if (cancelled) {
+          if (categoryRequestRef.current !== requestGeneration) {
             return;
           }
           const seen = new Set<number | string>();
@@ -1013,35 +1164,149 @@ export function useEnvironmentHighlights({
               }
             }
           }
-          setRangeObservations(observations);
-          emitHighlightChange(toCatalogIdsFromObservations(observations));
-        } catch {
-          if (cancelled) {
+          setRangeSamplesByKey((prev) => ({
+            ...prev,
+            [key]: { observations, loading: false, loaded: true, error: null },
+          }));
+        } catch (err) {
+          if (categoryRequestRef.current !== requestGeneration) {
             return;
           }
-          setRangeObservations([]);
-          emitHighlightChange([]);
+          const errorMessage =
+            err instanceof Error
+              ? err.message
+              : 'Failed to load range observations.';
+          setRangeSamplesByKey((prev) => ({
+            ...prev,
+            [key]: {
+              observations: [],
+              loading: false,
+              loaded: true,
+              error: errorMessage,
+            },
+          }));
         }
       })();
+    },
+    [
+      activeChain,
+      locationGid,
+      phenology,
+      endTimestamp,
+      selectedVariable,
+      slicingEnabled,
+      speciesDataSource,
+      startTimestamp,
+      taxonId,
+      units,
+    ],
+  );
+
+  // Clears rangeObservations/emits [] when nothing is selected on the
+  // current variable — but only when the chain is ALSO empty; if a chain is
+  // active, the chain-only fallback effect further below owns
+  // applying/emitting it instead (clearing here unconditionally would
+  // immediately wipe out whatever that effect just set, since both react to
+  // activeChain changing when switching variables).
+  React.useEffect(() => {
+    if (isCategorical) {
+      setRangeObservations([]);
+      return;
+    }
+    if (!taxonId || !selectedVariable || !slicingEnabled) {
+      setRangeObservations([]);
+      emitHighlightChange([]);
+      return;
+    }
+    if (selectedDensityRanges.length === 0 && activeChain.length === 0) {
+      setRangeObservations([]);
+      emitHighlightChange([]);
+    }
+  }, [
+    activeChain.length,
+    emitHighlightChange,
+    isCategorical,
+    selectedDensityRanges,
+    selectedVariable,
+    slicingEnabled,
+    taxonId,
+  ]);
+
+  // Debounced trigger: fires resolveDensityRange for any currently-selected
+  // range not yet cached, DENSITY_SLICE_DEBOUNCE_MS after the selection
+  // settles — same debounce the single-range implementation always had, so
+  // dragging doesn't fire a network request on every intermediate frame.
+  const densityResolveTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  React.useEffect(() => {
+    if (densityResolveTimerRef.current) {
+      clearTimeout(densityResolveTimerRef.current);
+      densityResolveTimerRef.current = null;
+    }
+    if (isCategorical || selectedDensityRanges.length === 0) {
+      return;
+    }
+    densityResolveTimerRef.current = setTimeout(() => {
+      for (const range of selectedDensityRangesRef.current) {
+        const key = densityRangeKey(range);
+        const state = rangeSamplesByKey[key];
+        if (state?.loading || state?.loaded) {
+          continue;
+        }
+        resolveDensityRange(key, range);
+      }
     }, DENSITY_SLICE_DEBOUNCE_MS);
     return () => {
-      cancelled = true;
-      clearTimeout(timer);
+      if (densityResolveTimerRef.current) {
+        clearTimeout(densityResolveTimerRef.current);
+      }
     };
   }, [
-    activeChain,
-    emitHighlightChange,
-    endTimestamp,
     isCategorical,
-    locationGid,
-    phenology,
-    selectedDensityRange,
-    selectedVariable,
-    speciesDataSource,
-    startTimestamp,
-    taxonId,
-    units,
-    slicingEnabled,
+    rangeSamplesByKey,
+    resolveDensityRange,
+    selectedDensityRanges,
+  ]);
+
+  // Emits the UNION of every currently-selected range's resolved
+  // observations — but only once ALL of them have settled (loaded, not
+  // loading, no error), same reasoning as the categorical union-and-emit
+  // effect.
+  React.useEffect(() => {
+    if (
+      isCategorical ||
+      !onHighlightChange ||
+      selectedDensityRanges.length === 0
+    ) {
+      return;
+    }
+    const keys = selectedDensityRanges.map(densityRangeKey);
+    const states = keys.map((key) => rangeSamplesByKey[key]);
+    if (
+      states.some((state) => !state?.loaded || state.loading || state.error)
+    ) {
+      return;
+    }
+    const seen = new Set<number | string>();
+    const merged: SpeciesEnvironmentObservation[] = [];
+    for (const state of states) {
+      for (const obs of state?.observations ?? []) {
+        const id = obs.catalogNumber;
+        if (id !== null && id !== undefined && !seen.has(id)) {
+          seen.add(id);
+          merged.push(obs);
+        }
+      }
+    }
+    setRangeObservations(merged);
+    emitHighlightChange(toCatalogIdsFromObservations(merged));
+  }, [
+    emitHighlightChange,
+    isCategorical,
+    onHighlightChange,
+    rangeSamplesByKey,
+    selectedDensityRanges,
   ]);
 
   // When nothing is selected on the CURRENT variable but the chain isn't
@@ -1052,7 +1317,7 @@ export function useEnvironmentHighlights({
   // effect. Treats the first chain entry as the "primary" request (as it
   // would have been before it was stashed) and the rest as `extra`.
   React.useEffect(() => {
-    if (selectedDensityRange || selectedCategoryValues.length > 0) {
+    if (selectedDensityRanges.length > 0 || selectedCategoryValues.length > 0) {
       // The effects above already cover "there's a live selection".
       return;
     }
@@ -1112,6 +1377,50 @@ export function useEnvironmentHighlights({
           emitHighlightChange(toCatalogIdsFromObservations(observations));
           return;
         }
+        if ('ranges' in primary.extra) {
+          const responses = await Promise.all(
+            primary.extra.ranges.flatMap(({ min, max }) => {
+              const isWrapped = min > max;
+              const sliceParams = isWrapped
+                ? [
+                    { min, max: 360 },
+                    { min: 0, max },
+                  ]
+                : [{ min, max }];
+              return sliceParams.map((slice) =>
+                speciesDataSource.fetchEnvironmentRangeSlice({
+                  taxonId,
+                  variableId: primary.variableId,
+                  min: slice.min,
+                  max: slice.max,
+                  location: locationGid ?? undefined,
+                  units,
+                  phenology: phenology ?? undefined,
+                  startTs: startTimestamp ?? undefined,
+                  endTs: endTimestamp ?? undefined,
+                  extra,
+                }),
+              );
+            }),
+          );
+          if (cancelled) {
+            return;
+          }
+          const seenRanges = new Set<number | string>();
+          const mergedRanges: SpeciesEnvironmentObservation[] = [];
+          for (const response of responses) {
+            for (const obs of response.observations ?? []) {
+              const id = obs.catalogNumber;
+              if (id !== null && id !== undefined && !seenRanges.has(id)) {
+                seenRanges.add(id);
+                mergedRanges.push(obs);
+              }
+            }
+          }
+          setRangeObservations(mergedRanges);
+          emitHighlightChange(toCatalogIdsFromObservations(mergedRanges));
+          return;
+        }
         if (!('min' in primary.extra)) {
           return;
         }
@@ -1169,7 +1478,7 @@ export function useEnvironmentHighlights({
   }, [
     activeChain,
     selectedVariable,
-    selectedDensityRange,
+    selectedDensityRanges,
     selectedCategoryValues,
     taxonId,
     locationGid,
@@ -1185,8 +1494,8 @@ export function useEnvironmentHighlights({
   return {
     selectedCategoryValues,
     selectCategoryValue,
-    selectedDensityRange,
-    handleDensitySelectionChange,
+    selectedDensityRanges,
+    selectDensityRange,
     rangeObservations,
     activeChain,
     removeChainedFilter,

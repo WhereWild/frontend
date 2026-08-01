@@ -83,8 +83,8 @@ export type ChainedVariableFilter = {
   extra: ExtraVariableFilter;
   /** Human-readable summary of the filter's value alone (e.g. "10-20" or "Forest") — the caller prepends the variable's own display name. */
   label: string;
-  /** Original selection, kept so switching back to this variable can restore it as the live selection instead of just leaving it chained. */
-  originalRange?: DensitySelectionRange;
+  /** One or more selected ranges (multi-select OR within this one variable, e.g. two disjoint histogram/KDE slices), kept so switching back to this variable can restore them as the live selection instead of just leaving them chained. */
+  originalRanges?: DensitySelectionRange[];
   /** One or more selected classes (multi-select OR within this one variable, e.g. Forest + Grassland). */
   originalCategoryValues?: (number | string)[];
 };

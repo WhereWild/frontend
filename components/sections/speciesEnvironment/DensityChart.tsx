@@ -19,6 +19,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Colors, Size } from '@/constants/theme';
 import { ThemedText } from '@/components/text/ThemedText';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAdditiveModifierRef } from '@/hooks/useAdditiveModifierRef';
 import { useScrollLock } from '@/context/ScrollLockContext';
 import { formatValue } from './model';
 import {
@@ -63,10 +64,21 @@ type DensityChartProps = {
   baselineColor: string;
   /** Summary values used for min/mean/max markers. */
   summary?: SpeciesEnvironmentSummary | null;
-  /** Current selected drag range, if any. */
-  selection?: DensitySelectionRange | null;
-  /** Called when drag selection changes or clears. */
-  onSelectionChange?: (range: DensitySelectionRange | null) => void;
+  /** Currently selected drag range(s). */
+  selections: DensitySelectionRange[];
+  /** Called when a drag selection changes or clears. `options.additive`
+   * (shift/cmd-drag on the continuous curve, or ctrl/cmd-click on a
+   * discrete bar) adds the range to whatever's already selected instead of
+   * replacing it. Discrete bars use ctrl (a real Pressable click, unaffected
+   * by react-native-web's responder-level ctrl exclusion below); the
+   * continuous drag can't use ctrl at all — react-native-web's
+   * GestureResponder system refuses to start ANY drag gesture while ctrl is
+   * held (see useAdditiveModifierRef's docs), so shift is used there
+   * instead. */
+  onSelectionChange?: (
+    range: DensitySelectionRange | null,
+    options?: { additive?: boolean; discrete?: boolean; sessionId?: number },
+  ) => void;
   pinValue?: number | null;
   pinLoading?: boolean;
   homePinValue?: number | null;
@@ -84,7 +96,7 @@ export function DensityChart({
   fillColor,
   baselineColor,
   summary,
-  selection,
+  selections,
   onSelectionChange,
   pinValue,
   pinLoading,
@@ -102,6 +114,12 @@ export function DensityChart({
   const dragOrigin = React.useRef<number | null>(null);
   const dragValue = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
+  const isAdditive = useAdditiveModifierRef();
+  // Identifies one continuous drag gesture across its many move events plus
+  // its final release — lets the hook recognize repeated calls as "the same
+  // in-progress selection", not a fresh one each frame (see
+  // selectDensityRange's activeDragSessionRef).
+  const dragSessionId = React.useRef(0);
   const rawSamples = React.useMemo(() => buildDensitySamples(curve), [curve]);
   const samples = React.useMemo(() => {
     if (!isDiscrete) return rawSamples;
@@ -154,19 +172,21 @@ export function DensityChart({
 
   const { lockScroll, unlockScroll } = useScrollLock();
 
-  const selectionBounds = React.useMemo(() => {
-    return getSelectionBounds(selection, densityDomain);
-  }, [selection, densityDomain]);
-
-  const selectionAreaPath = React.useMemo(() => {
-    if (!selectionBounds || isDiscrete) return '';
-    return buildSelectionAreaPath(
-      normalized,
-      selectionBounds.left,
-      selectionBounds.left + selectionBounds.width,
-      CHART_HEIGHT,
-    );
-  }, [selectionBounds, isDiscrete, normalized]);
+  const selectionAreaPaths = React.useMemo(() => {
+    if (isDiscrete) return [];
+    return selections
+      .map((selection) => getSelectionBounds(selection, densityDomain))
+      .filter((bounds): bounds is { left: number; width: number } => !!bounds)
+      .map((bounds) =>
+        buildSelectionAreaPath(
+          normalized,
+          bounds.left,
+          bounds.left + bounds.width,
+          CHART_HEIGHT,
+        ),
+      )
+      .filter((path) => path.length > 0);
+  }, [selections, densityDomain, isDiscrete, normalized]);
 
   const getValueForLocation = React.useCallback(
     (x: number) => {
@@ -194,6 +214,7 @@ export function DensityChart({
     (event: GestureResponderEvent) => {
       lockScroll();
       hasDragged.current = false;
+      dragSessionId.current += 1;
       if (isDiscrete) {
         dragOrigin.current = getBarIndexForLocation(
           event.nativeEvent.locationX,
@@ -218,7 +239,10 @@ export function DensityChart({
       const value = getValueForLocation(event.nativeEvent.locationX);
       if (value === null) return;
       dragValue.current = value;
-      onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
+      onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value), {
+        additive: isAdditive.current,
+        sessionId: dragSessionId.current,
+      });
     },
     [isDiscrete, getValueForLocation, onSelectionChange],
   );
@@ -235,13 +259,19 @@ export function DensityChart({
         if (idx !== null && discreteBars?.[idx]) {
           const bar = discreteBars[idx];
           const sample = samples[idx];
-          onSelectionChange?.({
-            start: bar.domainStart,
-            end: bar.domainEnd,
-            ...(sample.rangeStart != null && sample.rangeEnd != null
-              ? { displayStart: sample.rangeStart, displayEnd: sample.rangeEnd }
-              : {}),
-          });
+          onSelectionChange?.(
+            {
+              start: bar.domainStart,
+              end: bar.domainEnd,
+              ...(sample.rangeStart != null && sample.rangeEnd != null
+                ? {
+                    displayStart: sample.rangeStart,
+                    displayEnd: sample.rangeEnd,
+                  }
+                : {}),
+            },
+            { additive: isAdditive.current, discrete: true },
+          );
         }
         return;
       }
@@ -257,7 +287,10 @@ export function DensityChart({
       if (!hasDragged.current || value === null) {
         onSelectionChange?.(null);
       } else {
-        onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
+        onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value), {
+          additive: isAdditive.current,
+          sessionId: dragSessionId.current,
+        });
       }
       dragOrigin.current = null;
       dragValue.current = null;
@@ -292,7 +325,10 @@ export function DensityChart({
     if (!hasDragged.current || value === null) {
       onSelectionChange?.(null);
     } else {
-      onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value));
+      onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value), {
+        additive: isAdditive.current,
+        sessionId: dragSessionId.current,
+      });
     }
     dragOrigin.current = null;
     dragValue.current = null;
@@ -627,14 +663,16 @@ export function DensityChart({
             <>
               {discreteBars.map(({ path }, i) => {
                 const isSelected =
-                  selection != null &&
                   samples[i] != null &&
-                  samples[i].x >= selection.start &&
-                  samples[i].x <= selection.end;
+                  selections.some(
+                    (selection) =>
+                      samples[i].x >= selection.start &&
+                      samples[i].x <= selection.end,
+                  );
                 const fill = isSelected ? lineColor : fillColor;
                 const opacity = isSelected
                   ? 0.8
-                  : selection != null
+                  : selections.length > 0
                     ? 0.2
                     : 0.5;
                 return <Path key={i} d={path} fill={fill} opacity={opacity} />;
@@ -665,9 +703,9 @@ export function DensityChart({
           ) : (
             <>
               <Path d={areaPath} fill={fillColor} opacity={0.3} />
-              {selectionAreaPath ? (
-                <Path d={selectionAreaPath} fill={fillColor} opacity={0.6} />
-              ) : null}
+              {selectionAreaPaths.map((path, index) => (
+                <Path key={index} d={path} fill={fillColor} opacity={0.6} />
+              ))}
             </>
           )}
           {start && end ? (
@@ -775,6 +813,15 @@ export function DensityChart({
           onResponderRelease={handleSelectionEnd}
           onResponderTerminationRequest={shouldAllowSelectionTermination}
           onResponderTerminate={handleSelectionTerminate}
+          // A shift-drag would otherwise start the browser's native
+          // "extend text selection" gesture — blocking mousedown's default
+          // (web-only prop passed through by View; not in its RN type,
+          // hence the cast) means no selection anchor is ever placed here.
+          {...({
+            onMouseDown: (event: { preventDefault?: () => void }) => {
+              event?.preventDefault?.();
+            },
+          } as Record<string, unknown>)}
         />
       </View>
       <View style={styles.chartLabels}>
@@ -924,6 +971,7 @@ const styles = StyleSheet.create({
   },
   chartResponder: {
     ...StyleSheet.absoluteFillObject,
+    userSelect: 'none',
   },
   homePinDotContainer: {
     position: 'absolute',

@@ -231,8 +231,8 @@ const baseState: SpeciesEnvironmentState = {
   densityCurve: null,
   ternaryCompositionDensity: null,
   summary: undefined,
-  selectedDensityRange: null,
-  handleDensitySelectionChange: jest.fn(),
+  selectedDensityRanges: [],
+  selectDensityRange: jest.fn(),
   activeChain: [],
   chainDescription: null,
   removeChainedFilter: jest.fn(),
@@ -901,8 +901,8 @@ describe('SpeciesEnvironmentSection', () => {
     );
   });
 
-  it('forwards polar density selection through handleDensitySelectionChange', () => {
-    const handleDensitySelectionChange = jest.fn();
+  it('forwards polar density selection through selectDensityRange', () => {
+    const selectDensityRange = jest.fn();
     mockUseSpeciesEnvironmentState.mockReturnValue({
       ...baseState,
       selectedVariable: 'aspect_deg',
@@ -911,15 +911,12 @@ describe('SpeciesEnvironmentSection', () => {
       isCategorical: false,
       densityCurve: baseContinuousStats.densityCurve ?? null,
       summary: baseContinuousStats.summary,
-      handleDensitySelectionChange,
+      selectDensityRange,
     });
 
     render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect_deg' />);
 
     fireEvent.press(screen.getByTestId('pick-polar-range'));
-    expect(handleDensitySelectionChange).toHaveBeenCalledWith({
-      start: 0,
-      end: 90,
-    });
+    expect(selectDensityRange).toHaveBeenCalledWith({ start: 0, end: 90 });
   });
 });
