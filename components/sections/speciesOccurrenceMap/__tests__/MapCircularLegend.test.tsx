@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { MapCircularLegend } from '../MapCircularLegend';
 
 // Ring is 56x56 (RING const), center at (28, 28).
@@ -19,22 +19,6 @@ function pointAtDeg(deg: number, r = 20) {
 }
 
 describe('MapCircularLegend range selection', () => {
-  it('shows the selected angle range as text once a selection exists', () => {
-    render(<MapCircularLegend selectedRange={{ min: 310, max: 45 }} />);
-    expect(screen.getByText('310° to 45°')).toBeTruthy();
-  });
-
-  it('shows no range text when nothing is selected', () => {
-    render(<MapCircularLegend />);
-    expect(screen.queryByText(/ to /)).toBeNull();
-  });
-
-  it('shows "Full circle" instead of degrees once the span is ~360°', () => {
-    render(<MapCircularLegend selectedRange={{ min: 1, max: 359 }} />);
-    expect(screen.getByText('Full circle')).toBeTruthy();
-    expect(screen.queryByText(/ to /)).toBeNull();
-  });
-
   it('reports a start/end angle pair in drag order (not sorted), so a slice can wrap through 0°', () => {
     const onRangeChange = jest.fn();
     const { getByTestId } = render(

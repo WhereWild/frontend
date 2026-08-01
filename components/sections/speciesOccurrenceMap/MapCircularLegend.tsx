@@ -12,11 +12,7 @@ import { CIRCULAR_COLORMAPS, donutArcPath } from './variableColors';
 import { ShapeMarker } from './ShapeMarker';
 import type { ShapeKey } from './cbColors';
 import type { LegendRange } from './legendRangeSelection';
-import {
-  useCircularDragSelection,
-  circularRangeSpan,
-  FULL_CIRCLE_SPAN_THRESHOLD,
-} from '@/hooks/useCircularDragSelection';
+import { useCircularDragSelection } from '@/hooks/useCircularDragSelection';
 
 /** Dims everything outside a drag-selected angular slice — the complement
  * (unselected) arc, drawn on top of both the web CSS ring and the native
@@ -249,22 +245,6 @@ export function MapCircularLegend({
           ))}
         </View>
       )}
-      {selectedRange ? (
-        <ThemedText
-          variant='bodyTiny'
-          style={[
-            styles.selectedRange,
-            { color: palette.text.default.tertiary },
-          ]}
-        >
-          {circularRangeSpan({
-            start: selectedRange.min,
-            end: selectedRange.max,
-          }) >= FULL_CIRCLE_SPAN_THRESHOLD
-            ? 'Full circle'
-            : `${Math.round(selectedRange.min)}° to ${Math.round(selectedRange.max)}°`}
-        </ThemedText>
-      ) : null}
     </View>
   );
 }
@@ -320,10 +300,5 @@ const styles = StyleSheet.create({
   },
   nsweLabel: {
     opacity: 0.85,
-  },
-  selectedRange: {
-    textAlign: 'center',
-    fontSize: 9,
-    lineHeight: 11,
   },
 });

@@ -2,30 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { MapVariableLegend } from '../MapVariableLegend';
 
 describe('MapVariableLegend range selection', () => {
-  it('shows the selected range as stacked min/to/max text once a selection exists', () => {
-    render(
-      <MapVariableLegend
-        min={0}
-        max={100}
-        units='°C'
-        selectedRange={{ min: 42, max: 78 }}
-        onRangeChange={jest.fn()}
-      />,
-    );
-    expect(screen.getByText('42')).toBeTruthy();
-    expect(screen.getByText('to')).toBeTruthy();
-    expect(screen.getByText('78')).toBeTruthy();
-  });
-
-  it('shows no range text when nothing is selected', () => {
-    render(<MapVariableLegend min={0} max={100} units='°C' />);
-    expect(screen.queryByText('to')).toBeNull();
-  });
-
   it('reports a sorted min/max range while dragging, regardless of drag direction', () => {
     const onRangeChange = jest.fn();
     const { getByTestId } = render(

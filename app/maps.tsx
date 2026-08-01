@@ -20,10 +20,15 @@ import { useSettings, type UnitSystem } from '@/context/SettingsContext';
 import { StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
+  formatValue,
   isVariableCategorical,
   isVariableCircular,
   normalizeLabel,
 } from '@/components/sections/speciesEnvironment/model';
+import {
+  circularRangeSpan,
+  FULL_CIRCLE_SPAN_THRESHOLD,
+} from '@/hooks/useCircularDragSelection';
 import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
@@ -38,6 +43,11 @@ import {
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
+import {
+  useMapLayerChain,
+  type MapChainExtra,
+} from '@/components/sections/speciesOccurrenceMap/useMapLayerChain';
+import { buildChainDescriptionText } from '@/hooks/useVariableFilterChain';
 
 const MAP_HEIGHT = 520;
 const MAP_MIN_ZOOM = 0;
@@ -111,6 +121,7 @@ const buildTileUrl = ({
   classFilter,
   valueRange,
   unitSystem,
+  chain,
 }: {
   cacheKey: number;
   colormap: string;
@@ -122,6 +133,7 @@ const buildTileUrl = ({
   classFilter: number[] | null;
   valueRange: LegendRange | null;
   unitSystem: UnitSystem | undefined;
+  chain?: MapChainExtra[];
 }) => {
   const effectiveColormap = isCircular ? circularColormap : colormap;
   const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
@@ -137,12 +149,19 @@ const buildTileUrl = ({
   // drags across) values in the current unit system — the backend needs to
   // know that to convert back to the raw/metric units its raster pixels are
   // actually stored in before masking (see main.py's layer_tile route).
+  // unit_system is sent unconditionally (not just when valueRange is set)
+  // since a chained filter can need conversion even when the primary
+  // (categorical) layer has no value range of its own.
   const vrParam = valueRange
-    ? `&value_min=${valueRange.min}&value_max=${valueRange.max}&unit_system=${unitSystem ?? 'metric'}`
+    ? `&value_min=${valueRange.min}&value_max=${valueRange.max}`
     : '';
+  const chainParam =
+    chain && chain.length > 0
+      ? `&chain=${encodeURIComponent(JSON.stringify(chain))}`
+      : '';
   return `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     variable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}${vrParam}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}${vrParam}&unit_system=${unitSystem ?? 'metric'}${chainParam}`;
 };
 
 export default function Maps() {
@@ -223,6 +242,7 @@ export default function Maps() {
     selectedVariableCategory,
     setSelectedVariableCategory,
     filteredVariables,
+    allVariables,
     selectedVariable,
     setSelectedVariable,
     selectedVariableMeta,
@@ -242,6 +262,42 @@ export default function Maps() {
   // responses be cached indefinitely instead of busted on every page load.
   const tileCacheKey = selectedVariableMeta?.version ?? 0;
 
+  // Selection switching on a plain selectedVariable change is owned by
+  // useMapLayerChain below (stash-and-restore instead of always clearing).
+  useEffect(() => {
+    setVisibleNominalCounts(new Map());
+    setPinnedValue(null);
+  }, [selectedVariable, globeViewEnabled]);
+
+  const { chain: layerChain, clearChain: clearLayerChain } = useMapLayerChain({
+    selectedVariable,
+    isCategorical,
+    isCircular,
+    allVariables,
+    selectedClassIds,
+    selectedValueRange,
+    selectedAngleRange,
+    setSelectedClassIds,
+    setSelectedValueRange,
+    setSelectedAngleRange,
+  });
+
+  // The renderer swap (globe <-> flat map) discards the old WebView/iframe
+  // document outright, so any tileClassesRemoved messages it still owed
+  // never get sent — a harder reset than a plain variable switch, so this
+  // clears the whole chain too rather than trying to preserve it.
+  const previousGlobeViewRef = useRef(globeViewEnabled);
+  useEffect(() => {
+    if (previousGlobeViewRef.current === globeViewEnabled) {
+      return;
+    }
+    previousGlobeViewRef.current = globeViewEnabled;
+    setSelectedClassIds([]);
+    setSelectedValueRange(null);
+    setSelectedAngleRange(null);
+    clearLayerChain();
+  }, [globeViewEnabled, clearLayerChain]);
+
   const tileUrl = useMemo(
     () =>
       buildTileUrl({
@@ -259,6 +315,7 @@ export default function Maps() {
             ? selectedAngleRange
             : selectedValueRange,
         unitSystem: units,
+        chain: layerChain.map((entry) => entry.extra),
       }),
     [
       tileCacheKey,
@@ -273,20 +330,9 @@ export default function Maps() {
       selectedAngleRange,
       selectedValueRange,
       units,
+      layerChain,
     ],
   );
-
-  useEffect(() => {
-    // Also reset when the renderer changes (globe <-> flat map): swapping
-    // templates discards the old WebView/iframe document outright, so any
-    // tileClassesRemoved messages it still owed never get sent, and the new
-    // renderer only ever adds to this map from then on.
-    setVisibleNominalCounts(new Map());
-    setPinnedValue(null);
-    setSelectedClassIds([]);
-    setSelectedValueRange(null);
-    setSelectedAngleRange(null);
-  }, [selectedVariable, globeViewEnabled]);
 
   const handlePointValue = useCallback(
     (value: number) => setPinnedValue(value),
@@ -373,6 +419,71 @@ export default function Maps() {
     return map;
   }, [isCategorical, selectedVariableMeta]);
 
+  // Selected-range text used to live baked into MapCircularLegend/
+  // MapVariableLegend themselves — moved up here (above the map pane, same
+  // spot the species page's density charts show "Selected range: ..." via
+  // VariableSelectorHeader's metaText) so it reads as page context rather
+  // than legend chrome.
+  const mapMetaText = useMemo(() => {
+    if (isCircular && selectedAngleRange) {
+      const isFullCircle =
+        circularRangeSpan({
+          start: selectedAngleRange.min,
+          end: selectedAngleRange.max,
+        }) >= FULL_CIRCLE_SPAN_THRESHOLD;
+      return isFullCircle
+        ? 'Selected range: Full circle'
+        : `Selected range: ${Math.round(selectedAngleRange.min)}° to ${Math.round(selectedAngleRange.max)}°`;
+    }
+    if (!isCircular && !isCategorical && selectedValueRange) {
+      const unitsSuffix = selectedVariableMeta?.units
+        ? ` ${selectedVariableMeta.units}`
+        : '';
+      return `Selected range: ${formatValue(selectedValueRange.min, 1)} to ${formatValue(selectedValueRange.max, 1)}${unitsSuffix}`;
+    }
+    return null;
+  }, [
+    isCircular,
+    isCategorical,
+    selectedAngleRange,
+    selectedValueRange,
+    selectedVariableMeta?.units,
+  ]);
+
+  // Read-only summary of any chained filters from layers the user has since
+  // switched away from — same "And filtering ..." copy the species page
+  // shows via chainDescription, built from the same shared formatter.
+  const mapChainDescription = useMemo(
+    () =>
+      buildChainDescriptionText(
+        layerChain,
+        (entry) => entry.layerId,
+        (entry) => entry.isCategorical,
+        (entry) => entry.label,
+        (key) => {
+          const meta = allVariables.find((v) => v.id === key);
+          return meta ? { name: meta.label, units: meta.units } : null;
+        },
+        (entry) => {
+          if (!entry.originalRange) {
+            return '';
+          }
+          if (entry.isCircular) {
+            const isFullCircle =
+              circularRangeSpan({
+                start: entry.originalRange.min,
+                end: entry.originalRange.max,
+              }) >= FULL_CIRCLE_SPAN_THRESHOLD;
+            return isFullCircle
+              ? 'Full circle'
+              : `${Math.round(entry.originalRange.min)}° to ${Math.round(entry.originalRange.max)}°`;
+          }
+          return `${formatValue(entry.originalRange.min, 1)} to ${formatValue(entry.originalRange.max, 1)}`;
+        },
+      ),
+    [layerChain, allVariables],
+  );
+
   return (
     <>
       {/* @ts-ignore — Head is web-only */}
@@ -398,7 +509,8 @@ export default function Maps() {
               selectedVariable={selectedVariable}
               onVariableChange={setSelectedVariable}
               headingText={selectedVariableMeta?.label ?? 'Variable'}
-              metaText={`id: ${selectedVariable}`}
+              metaText={mapMetaText}
+              chainDescription={mapChainDescription}
               forecastOptions={isRecentWeather ? FORECAST_OPTIONS : undefined}
               selectedForecast={selectedForecast}
               onForecastChange={setSelectedForecast}

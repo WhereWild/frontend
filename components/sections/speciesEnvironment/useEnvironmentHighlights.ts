@@ -15,6 +15,14 @@ import {
   DensitySelectionRange,
   joinClassNamesWithAnd,
 } from './model';
+import {
+  clearChainEntries,
+  popRestorable,
+  removeChainEntry,
+  stashOutgoing,
+} from '@/hooks/useVariableFilterChain';
+
+const chainEntryKey = (entry: ChainedVariableFilter) => entry.variableId;
 
 const DENSITY_SLICE_DEBOUNCE_MS = 200;
 type CatalogId = number | string;
@@ -446,68 +454,75 @@ export function useEnvironmentHighlights({
     previousVariableRef.current = selectedVariable;
 
     const outgoingMeta = selectionMetaRef.current;
-    let nextChain = activeChain;
-    if (outgoingMeta && outgoingMeta.variableId === outgoingVariableId) {
-      const entry: ChainedVariableFilter | null = outgoingMeta.isCategorical
-        ? (() => {
-            if (selectedCategoryValues.length === 0) return null;
-            const numericValues = selectedCategoryValues
-              .map(toNumericClassValue)
-              .filter((v): v is number => v !== null);
-            return numericValues.length === 0
-              ? null
-              : {
-                  variableId: outgoingVariableId,
-                  isCategorical: true,
-                  extra: {
+    const outgoingEntry: ChainedVariableFilter | null =
+      outgoingMeta && outgoingMeta.variableId === outgoingVariableId
+        ? outgoingMeta.isCategorical
+          ? (() => {
+              if (selectedCategoryValues.length === 0) return null;
+              const numericValues = selectedCategoryValues
+                .map(toNumericClassValue)
+                .filter((v): v is number => v !== null);
+              return numericValues.length === 0
+                ? null
+                : {
                     variableId: outgoingVariableId,
-                    classValues: numericValues,
-                  },
-                  label: outgoingMeta.label,
-                  originalCategoryValues: selectedCategoryValues,
-                };
-          })()
-        : (() => {
-            if (selectedDensityRanges.length === 0) return null;
-            return {
-              variableId: outgoingVariableId,
-              isCategorical: false,
-              extra:
-                selectedDensityRanges.length === 1
-                  ? {
+                    isCategorical: true,
+                    extra: {
                       variableId: outgoingVariableId,
-                      min: selectedDensityRanges[0].start,
-                      max: selectedDensityRanges[0].end,
-                    }
-                  : {
-                      variableId: outgoingVariableId,
-                      ranges: selectedDensityRanges.map((r) => ({
-                        min: r.start,
-                        max: r.end,
-                      })),
+                      classValues: numericValues,
                     },
-              label: outgoingMeta.label,
-              originalRanges: selectedDensityRanges,
-            };
-          })();
-      if (entry) {
-        nextChain = [
-          ...activeChain.filter((e) => e.variableId !== outgoingVariableId),
-          entry,
-        ];
-      }
-    }
+                    label: outgoingMeta.label,
+                    originalCategoryValues: selectedCategoryValues,
+                  };
+            })()
+          : (() => {
+              if (selectedDensityRanges.length === 0) return null;
+              return {
+                variableId: outgoingVariableId,
+                isCategorical: false,
+                extra:
+                  selectedDensityRanges.length === 1
+                    ? {
+                        variableId: outgoingVariableId,
+                        min: selectedDensityRanges[0].start,
+                        max: selectedDensityRanges[0].end,
+                      }
+                    : {
+                        variableId: outgoingVariableId,
+                        ranges: selectedDensityRanges.map((r) => ({
+                          min: r.start,
+                          max: r.end,
+                        })),
+                      },
+                label: outgoingMeta.label,
+                originalRanges: selectedDensityRanges,
+              };
+            })()
+        : null;
+
+    // Shared switch-to-chain state machine (see hooks/useVariableFilterChain)
+    // — same transitions the maps page's useMapLayerChain drives from a
+    // different selection shape (class ids / value ranges instead of
+    // density ranges / category values).
+    const nextChain = stashOutgoing(
+      activeChain,
+      outgoingVariableId,
+      chainEntryKey,
+      outgoingEntry,
+    );
     selectionMetaRef.current = null;
 
-    const restored = nextChain.find((e) => e.variableId === selectedVariable);
+    const { chain: remainingChain, restored } = popRestorable(
+      nextChain,
+      selectedVariable,
+      chainEntryKey,
+    );
     categoryRequestRef.current += 1;
     setCategorySamplesByValue({});
     setRangeSamplesByKey({});
     setRangeObservations([]);
     if (restored) {
-      setActiveChain(
-        nextChain.filter((e) => e.variableId !== selectedVariable),
-      );
+      setActiveChain(remainingChain);
       selectionMetaRef.current = {
         variableId: selectedVariable,
         isCategorical: restored.isCategorical,
@@ -547,14 +562,11 @@ export function useEnvironmentHighlights({
   ]);
 
   const removeChainedFilter = React.useCallback((variableId: string) => {
-    setActiveChain((prev) => {
-      const next = prev.filter((e) => e.variableId !== variableId);
-      return next.length === prev.length ? prev : next;
-    });
+    setActiveChain((prev) => removeChainEntry(prev, variableId, chainEntryKey));
   }, []);
 
   const clearChain = React.useCallback(() => {
-    setActiveChain((prev) => (prev.length === 0 ? prev : []));
+    setActiveChain((prev) => clearChainEntries(prev));
   }, []);
 
   React.useEffect(() => {

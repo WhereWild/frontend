@@ -203,37 +203,6 @@ export function MapVariableLegend({
           {units}
         </ThemedText>
       ) : null}
-      {selectedRange ? (
-        <View style={styles.selectedRangeStack}>
-          <ThemedText
-            variant='bodyTiny'
-            style={[
-              styles.selectedRange,
-              { color: palette.text.default.tertiary },
-            ]}
-          >
-            {fmt(selectedRange.min)}
-          </ThemedText>
-          <ThemedText
-            variant='bodyTiny'
-            style={[
-              styles.selectedRange,
-              { color: palette.text.default.tertiary },
-            ]}
-          >
-            to
-          </ThemedText>
-          <ThemedText
-            variant='bodyTiny'
-            style={[
-              styles.selectedRange,
-              { color: palette.text.default.tertiary },
-            ]}
-          >
-            {fmt(selectedRange.max)}
-          </ThemedText>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -264,13 +233,5 @@ const styles = StyleSheet.create({
   units: {
     textAlign: 'center',
     opacity: 0.7,
-  },
-  selectedRangeStack: {
-    alignItems: 'center',
-  },
-  selectedRange: {
-    textAlign: 'center',
-    fontSize: 9,
-    lineHeight: 11,
   },
 });
