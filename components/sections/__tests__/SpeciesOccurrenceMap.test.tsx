@@ -210,7 +210,7 @@ describe('SpeciesOccurrenceMap', () => {
         occurrences={[]}
         showMarkers={false}
         preserveMapPosition
-        heatmapTileUrl="https://tiles.example.test/{z}/{x}/{y}.png"
+        heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png'
         isCircular={false}
       />,
     );
@@ -232,7 +232,7 @@ describe('SpeciesOccurrenceMap', () => {
         occurrences={[]}
         showMarkers={false}
         preserveMapPosition
-        heatmapTileUrl="https://tiles.example.test/{z}/{x}/{y}.png"
+        heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png'
         isCircular={true}
       />,
     );

@@ -923,27 +923,68 @@ describe('useSpeciesEnvironmentState', () => {
 
   it('treats a chained slice from another variable as a filter too — unlocking the "vs global" baseline comparison with no location/phenology active', async () => {
     const twoContinuousVariables: EnvironmentVariableOption[] = [
-      { id: 'bio_1', label: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Climate' },
-      { id: 'bio_2', label: 'Annual Rain', units: 'mm', valueType: 'continuous', category: 'Climate' },
+      {
+        id: 'bio_1',
+        label: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+        category: 'Climate',
+      },
+      {
+        id: 'bio_2',
+        label: 'Annual Rain',
+        units: 'mm',
+        valueType: 'continuous',
+        category: 'Climate',
+      },
     ];
     mockFetchEnvironmentVariables.mockResolvedValue([
-      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous' },
-      { id: 'bio_2', name: 'Annual Rain', units: 'mm', valueType: 'continuous' },
+      {
+        id: 'bio_1',
+        name: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+      },
+      {
+        id: 'bio_2',
+        name: 'Annual Rain',
+        units: 'mm',
+        valueType: 'continuous',
+      },
     ]);
-    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId, options) => {
-      const hasChain = Array.isArray(options?.extra) && options.extra.length > 0;
-      if (variableId === 'bio_1') {
-        return { ...continuousStats, variable: 'bio_1' };
-      }
-      return {
-        ...continuousStats,
-        variable: 'bio_2',
-        summary: { count: 5, min: 3, mean: 6, max: 9, stddev: 1, q01: 3, q99: 9 },
-        baselineSummary: hasChain
-          ? { count: 50, min: 0, mean: 10, max: 20, stddev: 3, q01: 1, q99: 19 }
-          : undefined,
-      };
-    });
+    mockFetchSpeciesEnvironment.mockImplementation(
+      async (_taxonId, variableId, options) => {
+        const hasChain =
+          Array.isArray(options?.extra) && options.extra.length > 0;
+        if (variableId === 'bio_1') {
+          return { ...continuousStats, variable: 'bio_1' };
+        }
+        return {
+          ...continuousStats,
+          variable: 'bio_2',
+          summary: {
+            count: 5,
+            min: 3,
+            mean: 6,
+            max: 9,
+            stddev: 1,
+            q01: 3,
+            q99: 9,
+          },
+          baselineSummary: hasChain
+            ? {
+                count: 50,
+                min: 0,
+                mean: 10,
+                max: 20,
+                stddev: 3,
+                q01: 1,
+                q99: 19,
+              }
+            : undefined,
+        };
+      },
+    );
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
@@ -990,26 +1031,50 @@ describe('useSpeciesEnvironmentState', () => {
 
   it('describes a chained categorical filter with its class name and variable label', async () => {
     const bioAndLandcover: EnvironmentVariableOption[] = [
-      { id: 'landcover', label: 'Land Cover', units: null, valueType: 'categorical', category: 'Aardvark Soil' },
-      { id: 'bio_1', label: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Zzz Climate' },
+      {
+        id: 'landcover',
+        label: 'Land Cover',
+        units: null,
+        valueType: 'categorical',
+        category: 'Aardvark Soil',
+      },
+      {
+        id: 'bio_1',
+        label: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+        category: 'Zzz Climate',
+      },
     ];
     mockFetchEnvironmentVariables.mockResolvedValue([
-      { id: 'landcover', name: 'Land Cover', units: null, valueType: 'categorical' },
-      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous' },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        units: null,
+        valueType: 'categorical',
+      },
+      {
+        id: 'bio_1',
+        name: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+      },
     ]);
-    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId) => {
-      if (variableId === 'landcover') {
-        return {
-          ...categoricalStats,
-          variable: 'landcover',
-          categoricalDistribution: [
-            { value: 'class_52', className: 'Forest', count: 1, fraction: 1 },
-          ],
-          categoricalSamples: [],
-        };
-      }
-      return { ...continuousStats, variable: 'bio_1' };
-    });
+    mockFetchSpeciesEnvironment.mockImplementation(
+      async (_taxonId, variableId) => {
+        if (variableId === 'landcover') {
+          return {
+            ...categoricalStats,
+            variable: 'landcover',
+            categoricalDistribution: [
+              { value: 'class_52', className: 'Forest', count: 1, fraction: 1 },
+            ],
+            categoricalSamples: [],
+          };
+        }
+        return { ...continuousStats, variable: 'bio_1' };
+      },
+    );
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
       speciesId: 1,
       variable: 'landcover',
@@ -1052,35 +1117,59 @@ describe('useSpeciesEnvironmentState', () => {
   it('keeps the map filtered to the chained subset when switching from one categorical variable to ANOTHER categorical variable (through the real async stats fetch cycle)', async () => {
     const onHighlightChange = jest.fn();
     const twoCategoricalVariables: EnvironmentVariableOption[] = [
-      { id: 'landcover', label: 'Land Cover', units: null, valueType: 'categorical', category: 'Categorical' },
-      { id: 'soiltype', label: 'Soil Type', units: null, valueType: 'categorical', category: 'Categorical' },
+      {
+        id: 'landcover',
+        label: 'Land Cover',
+        units: null,
+        valueType: 'categorical',
+        category: 'Categorical',
+      },
+      {
+        id: 'soiltype',
+        label: 'Soil Type',
+        units: null,
+        valueType: 'categorical',
+        category: 'Categorical',
+      },
     ];
     mockFetchEnvironmentVariables.mockResolvedValue([
-      { id: 'landcover', name: 'Land Cover', units: null, valueType: 'categorical' },
-      { id: 'soiltype', name: 'Soil Type', units: null, valueType: 'categorical' },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        units: null,
+        valueType: 'categorical',
+      },
+      {
+        id: 'soiltype',
+        name: 'Soil Type',
+        units: null,
+        valueType: 'categorical',
+      },
     ]);
-    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId) => {
-      if (variableId === 'landcover') {
+    mockFetchSpeciesEnvironment.mockImplementation(
+      async (_taxonId, variableId) => {
+        if (variableId === 'landcover') {
+          return {
+            ...categoricalStats,
+            variable: 'landcover',
+            categoricalDistribution: [
+              { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+            ],
+            categoricalSamples: [
+              { value: 'class_52', observationIds: ['A1', 'B2'] },
+            ],
+          };
+        }
         return {
           ...categoricalStats,
-          variable: 'landcover',
+          variable: 'soiltype',
           categoricalDistribution: [
-            { value: 'class_52', className: 'Forest', count: 5, fraction: 1 },
+            { value: 'class_1', className: 'Loam', count: 3, fraction: 1 },
           ],
-          categoricalSamples: [
-            { value: 'class_52', observationIds: ['A1', 'B2'] },
-          ],
+          categoricalSamples: [],
         };
-      }
-      return {
-        ...categoricalStats,
-        variable: 'soiltype',
-        categoricalDistribution: [
-          { value: 'class_1', className: 'Loam', count: 3, fraction: 1 },
-        ],
-        categoricalSamples: [],
-      };
-    });
+      },
+    );
     mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
       speciesId: 1,
       variable: 'landcover',
@@ -1115,7 +1204,9 @@ describe('useSpeciesEnvironmentState', () => {
       result.current.setSelectedVariable('soiltype');
     });
 
-    await waitFor(() => expect(result.current.selectedVariable).toBe('soiltype'));
+    await waitFor(() =>
+      expect(result.current.selectedVariable).toBe('soiltype'),
+    );
     await waitFor(() => expect(result.current.isCategorical).toBe(true));
 
     // The chained landcover=Forest filter should still be driving the map
@@ -1128,39 +1219,86 @@ describe('useSpeciesEnvironmentState', () => {
   it('reproduces the reported flow: slice bio_1, tab to Climate (kg2, inherits filter), then tab to Earth and Soil (landcover) — filter should still hold, not reset to all dots', async () => {
     const onHighlightChange = jest.fn();
     const threeVariables: EnvironmentVariableOption[] = [
-      { id: 'bio_1', label: 'Annual Temperature', units: 'C', valueType: 'continuous', category: 'Bioclim' },
-      { id: 'kg2', label: 'Koppen Climate', units: null, valueType: 'categorical', category: 'Climate' },
-      { id: 'landcover', label: 'Land Cover', units: null, valueType: 'categorical', category: 'Earth and Soil' },
+      {
+        id: 'bio_1',
+        label: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+        category: 'Bioclim',
+      },
+      {
+        id: 'kg2',
+        label: 'Koppen Climate',
+        units: null,
+        valueType: 'categorical',
+        category: 'Climate',
+      },
+      {
+        id: 'landcover',
+        label: 'Land Cover',
+        units: null,
+        valueType: 'categorical',
+        category: 'Earth and Soil',
+      },
     ];
     mockFetchEnvironmentVariables.mockResolvedValue([
-      { id: 'bio_1', name: 'Annual Temperature', units: 'C', valueType: 'continuous' },
-      { id: 'kg2', name: 'Koppen Climate', units: null, valueType: 'categorical' },
-      { id: 'landcover', name: 'Land Cover', units: null, valueType: 'categorical' },
+      {
+        id: 'bio_1',
+        name: 'Annual Temperature',
+        units: 'C',
+        valueType: 'continuous',
+      },
+      {
+        id: 'kg2',
+        name: 'Koppen Climate',
+        units: null,
+        valueType: 'categorical',
+      },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        units: null,
+        valueType: 'categorical',
+      },
     ]);
-    mockFetchSpeciesEnvironment.mockImplementation(async (_taxonId, variableId) => {
-      if (variableId === 'bio_1') return { ...continuousStats, variable: 'bio_1' };
-      if (variableId === 'kg2') {
+    mockFetchSpeciesEnvironment.mockImplementation(
+      async (_taxonId, variableId) => {
+        if (variableId === 'bio_1')
+          return { ...continuousStats, variable: 'bio_1' };
+        if (variableId === 'kg2') {
+          return {
+            ...categoricalStats,
+            variable: 'kg2',
+            categoricalDistribution: [
+              {
+                value: 'class_1',
+                className: 'Tropical',
+                count: 1,
+                fraction: 1,
+              },
+            ],
+            categoricalSamples: [],
+          };
+        }
         return {
           ...categoricalStats,
-          variable: 'kg2',
-          categoricalDistribution: [{ value: 'class_1', className: 'Tropical', count: 1, fraction: 1 }],
+          variable: 'landcover',
+          categoricalDistribution: [
+            { value: 'class_52', className: 'Forest', count: 1, fraction: 1 },
+          ],
           categoricalSamples: [],
         };
-      }
-      return {
-        ...categoricalStats,
-        variable: 'landcover',
-        categoricalDistribution: [{ value: 'class_52', className: 'Forest', count: 1, fraction: 1 }],
-        categoricalSamples: [],
-      };
-    });
+      },
+    );
     mockFetchEnvironmentRangeSlice.mockResolvedValue({
       speciesId: 1,
       variable: 'bio_1',
       range: { min: 2, max: 12 },
       limit: null,
       count: 1,
-      observations: [{ catalogNumber: 42, value: 5, latitude: 0, longitude: 0 }],
+      observations: [
+        { catalogNumber: 42, value: 5, latitude: 0, longitude: 0 },
+      ],
     });
 
     const { result } = renderHook(() =>

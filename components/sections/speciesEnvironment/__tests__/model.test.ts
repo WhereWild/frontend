@@ -19,9 +19,9 @@ describe('speciesEnvironment model helpers', () => {
     expect(joinClassNamesWithAnd(['Forest', 'Grassland'])).toBe(
       'Forest; and Grassland',
     );
-    expect(
-      joinClassNamesWithAnd(['Forest', 'Grassland', 'Wetland']),
-    ).toBe('Forest; Grassland; and Wetland');
+    expect(joinClassNamesWithAnd(['Forest', 'Grassland', 'Wetland'])).toBe(
+      'Forest; Grassland; and Wetland',
+    );
     expect(
       joinClassNamesWithAnd([
         'Continental, dry summer warm',

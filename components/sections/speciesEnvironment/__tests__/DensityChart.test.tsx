@@ -632,7 +632,7 @@ describe('DensityChart', () => {
           lineColor='#00ff00'
           fillColor='#00ff00'
           baselineColor='#000'
-        selections={[]}
+          selections={[]}
           isDiscrete
         />,
       );
@@ -647,7 +647,7 @@ describe('DensityChart', () => {
           lineColor='#00ff00'
           fillColor='#00ff00'
           baselineColor='#000'
-        selections={[]}
+          selections={[]}
           isDiscrete
           onSelectionChange={onSelectionChange}
         />,
@@ -681,7 +681,7 @@ describe('DensityChart', () => {
           lineColor='#00ff00'
           fillColor='#00ff00'
           baselineColor='#000'
-        selections={[]}
+          selections={[]}
           isDiscrete
           onSelectionChange={onSelectionChange}
         />,
@@ -701,7 +701,7 @@ describe('DensityChart', () => {
           lineColor='#00ff00'
           fillColor='#00ff00'
           baselineColor='#000'
-        selections={[]}
+          selections={[]}
           isDiscrete
           onSelectionChange={onSelectionChange}
         />,
@@ -730,7 +730,7 @@ describe('DensityChart', () => {
           lineColor='#00ff00'
           fillColor='#00ff00'
           baselineColor='#000'
-        selections={[]}
+          selections={[]}
           isDiscrete
           summary={{ count: 10, min: 0, mean: 5, max: 10 }}
           pinValue={0.1}
@@ -747,7 +747,7 @@ describe('DensityChart', () => {
           lineColor='#00ff00'
           fillColor='#00ff00'
           baselineColor='#000'
-        selections={[]}
+          selections={[]}
           isDiscrete
           summary={{ count: 10, min: 0, mean: 5, max: 9 }}
           pinValue={5}

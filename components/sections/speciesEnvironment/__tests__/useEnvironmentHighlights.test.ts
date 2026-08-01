@@ -1755,7 +1755,7 @@ describe('useEnvironmentHighlights', () => {
       ]);
     });
 
-it('does not chain a categorical selection whose value has no resolvable numeric class code', async () => {
+    it('does not chain a categorical selection whose value has no resolvable numeric class code', async () => {
       const onHighlightChange = jest.fn();
       mockFetchSpeciesEnvironmentCategorySamples.mockResolvedValue({
         speciesId: 1,
@@ -2070,7 +2070,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       }
     });
 
-    it('does not read a pinned observation value from rangeObservations populated by a DIFFERENT (chained) variable\'s fallback fetch', async () => {
+    it("does not read a pinned observation value from rangeObservations populated by a DIFFERENT (chained) variable's fallback fetch", async () => {
       jest.useRealTimers();
       try {
         const onHighlightChange = jest.fn();
@@ -2116,9 +2116,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
           result.current.selectCategoryValue('class_52');
         });
         await waitFor(() =>
-          expect(
-            mockFetchSpeciesEnvironmentCategorySamples,
-          ).toHaveBeenCalled(),
+          expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
         );
 
         // Switch to bio_1 (numeric) with nothing selected on it — landcover
@@ -2130,9 +2128,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
           stats: variableAStats,
           isCategorical: false,
         });
-        await waitFor(() =>
-          expect(result.current.activeChain).toHaveLength(1),
-        );
+        await waitFor(() => expect(result.current.activeChain).toHaveLength(1));
 
         // Now pin the SAME catalog number the chain fallback already has
         // in rangeObservations (value: 52) — this is the exact collision

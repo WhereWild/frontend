@@ -5,7 +5,6 @@
 import { fetchPointEnvironmentValue } from '@/data/api';
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type {
-  ExtraVariableFilter,
   SpeciesEnvironmentObservation,
   SpeciesEnvironmentStats,
 } from '@/data/types';

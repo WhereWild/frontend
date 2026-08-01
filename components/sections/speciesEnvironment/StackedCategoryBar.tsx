@@ -151,9 +151,6 @@ export function StackedCategoryBar({
     [displayCategories, selectedValueKeys],
   );
 
-  const selectedCategory =
-    selectedCategories.length === 1 ? selectedCategories[0] : null;
-
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
     if (pinnedValue !== null && pinnedValue !== undefined) {
       const pinnedKey = String(pinnedValue);
@@ -452,8 +449,7 @@ export function StackedCategoryBar({
                 {
                   width: `${percent}%`,
                   backgroundColor,
-                  opacity:
-                    selectedValueKeys.size > 0 && !isSelected ? 0.5 : 1,
+                  opacity: selectedValueKeys.size > 0 && !isSelected ? 0.5 : 1,
                   borderWidth: isHighlighted || isHomeHighlighted ? 3 : 0,
                   borderColor: isHighlighted
                     ? highlightOutlineColor

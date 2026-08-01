@@ -513,6 +513,29 @@ const collectCatalogsForRange = (
   return Array.from(new Set(catalogs.map((id) => String(id))));
 };
 
+// min > max means a circular (aspect-style) wraparound arc through 0/360 —
+// mirrors the backend's numeric_range_mask, which ORs two linear checks
+// together for the same case. The PRIMARY slice path never needs this (the
+// state layer already splits a wrapped selection into two sub-requests
+// before calling into the data source either way), but a chained "extra"
+// filter carries its raw min/max straight through — this is what makes an
+// aspect-variable multi-range/wraparound chain resolve correctly offline.
+const collectCatalogsForRangeWithWrap = (
+  indexRows: UploadedOccurrenceIndexRow[],
+  min: number,
+  max: number,
+) => {
+  if (min <= max) {
+    return collectCatalogsForRange(indexRows, min, max);
+  }
+  return Array.from(
+    new Set([
+      ...collectCatalogsForRange(indexRows, min, 360),
+      ...collectCatalogsForRange(indexRows, 0, max),
+    ]),
+  );
+};
+
 const collectCatalogsForCategory = (
   indexRows: UploadedOccurrenceIndexRow[],
   classValue: string | number,
@@ -655,7 +678,7 @@ const collectCatalogsForExtraFilter = (
     const allowed = new Set<string>();
     for (const range of filter.ranges) {
       const converted = convertRange(range.min, range.max);
-      for (const catalog of collectCatalogsForRange(
+      for (const catalog of collectCatalogsForRangeWithWrap(
         rows,
         converted.min,
         converted.max,
@@ -666,7 +689,7 @@ const collectCatalogsForExtraFilter = (
     return allowed;
   }
   const { min, max } = convertRange(filter.min, filter.max);
-  return new Set(collectCatalogsForRange(rows, min, max));
+  return new Set(collectCatalogsForRangeWithWrap(rows, min, max));
 };
 
 const intersectWithExtraFilters = (

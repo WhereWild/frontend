@@ -1006,7 +1006,11 @@ describe('speciesOccurrenceMapHelpers', () => {
       // message (mirrors what computePointStyleUpdates + the consolidated
       // effect in SpeciesOccurrenceMap.tsx would actually send).
       liveMessageExtra: Record<string, unknown>;
-      point: { varValue: number | null; varColor: string | null; varLabel: string | null };
+      point: {
+        varValue: number | null;
+        varColor: string | null;
+        varLabel: string | null;
+      };
       expectedFill: string;
     };
 

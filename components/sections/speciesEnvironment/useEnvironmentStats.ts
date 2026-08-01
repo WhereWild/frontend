@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
-import type { ExtraVariableFilter, SpeciesEnvironmentStats } from '@/data/types';
+import type {
+  ExtraVariableFilter,
+  SpeciesEnvironmentStats,
+} from '@/data/types';
 import React from 'react';
 import { isValidHistogramContract } from './model';
 

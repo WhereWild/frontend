@@ -1382,9 +1382,9 @@ describe('upload local species data source chained extra-variable filters', () =
       { variable: 'bio_1', variableCategory: 'climate', points: [10, 20, 30], density: [0.1, 0.2, 0.1] },
     ],
     occurrences: [
-      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 10, landcover: 52 },
-      { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21, bio_1: 20, landcover: 52 },
-      { catalogNumber: 'obs_3', decimalLatitude: 12, decimalLongitude: 22, bio_1: 30, landcover: 130 },
+      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 10, landcover: 52, aspect_deg: 355 },
+      { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21, bio_1: 20, landcover: 52, aspect_deg: 200 },
+      { catalogNumber: 'obs_3', decimalLatitude: 12, decimalLongitude: 22, bio_1: 30, landcover: 130, aspect_deg: 5 },
     ],
     occurrenceIndex: [],
     summaryStats: [
@@ -1398,6 +1398,17 @@ describe('upload local species data source chained extra-variable filters', () =
         std: 8.16,
         '10th percentile': 10,
         '90th percentile': 30,
+      },
+      {
+        variable: 'aspect_deg',
+        variableCategory: 'climate',
+        count: 3,
+        min: 0,
+        mean: 180,
+        max: 355,
+        std: 100,
+        '10th percentile': 5,
+        '90th percentile': 355,
       },
     ],
     variableMetadata: [],
@@ -1470,6 +1481,54 @@ describe('upload local species data source chained extra-variable filters', () =
     // ranges OR-matches [5,15] and [25,35] — obs_1's bio_1=10 falls in the
     // first range; obs_2's bio_1=20 falls in neither.
     expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_1']);
+  });
+
+  it('intersects a chained wraparound (circular) range filter onto a numeric slice request', async () => {
+    // aspect_deg: obs_1=355, obs_2=200, obs_3=5. A chained min=350/max=10
+    // range means min > max — a wraparound arc through 0/360 (350→360
+    // ∪ 0→10), matching obs_1 (355) and obs_3 (5) but not obs_2 (200).
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'aspect_deg', min: 350, max: 10 }],
+    });
+
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_3']),
+    );
+  });
+
+  it('intersects a chained multi-range (OR) filter with a wraparound sub-range', async () => {
+    // ranges OR-matches a wraparound arc [350,10] (catches obs_1=355,
+    // obs_3=5) with a plain [190,210] arc (catches obs_2=200) — all three
+    // rows should match across the two OR'd ranges.
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [
+        {
+          variableId: 'aspect_deg',
+          ranges: [
+            { min: 350, max: 10 },
+            { min: 190, max: 210 },
+          ],
+        },
+      ],
+    });
+
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_2', 'obs_3']),
+    );
   });
 
   it('returns nothing when a chained filter matches no rows', async () => {
