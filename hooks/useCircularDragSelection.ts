@@ -4,22 +4,52 @@
 
 import React from 'react';
 import type { GestureResponderEvent } from 'react-native';
+import { useAdditiveModifierRef } from './useAdditiveModifierRef';
 
 /** A clockwise arc from start to end (degrees, 0 = north) — start > end means
  * the arc wraps through 0°/360°, e.g. {start: 350, end: 20} is a 30° slice
  * facing roughly north, not an (invalid) negative span. */
 export type CircularDragRange = { start: number; end: number };
 
+/** Pixels of wander (Euclidean distance from the initial touch point, NOT
+ * the resulting angular delta) tolerated before a long-press-to-arm is
+ * cancelled. Angular delta is the wrong unit for this: sensitivity scales
+ * with 1/radius, so near the donut's inner radius a few px of jitter reads
+ * as tens of degrees — a degree-based tolerance was still effectively zero
+ * there. Measuring in the same pixel space the touch itself arrives in
+ * sidesteps that amplification entirely (mirrors DensityChart's px-based
+ * tolerance for the same reason). */
+const LONG_PRESS_MOVEMENT_TOLERANCE_PX = 10;
+
 type UseCircularDragSelectionOptions = {
   /** Center of the circular control, in the same coordinate space as the
    * responder view's locationX/locationY (i.e. relative to that view). */
   center: { cx: number; cy: number };
-  onRangeChange: (range: CircularDragRange | null) => void;
+  /** `options.additive` reflects whether shift/cmd is held, or the press has
+   * been held still long enough to arm as additive (see
+   * useAdditiveModifierRef) — callers that don't care about multi-select can
+   * ignore the second argument. `options.sessionId` identifies this one drag
+   * gesture across its many
+   * move calls plus its final release, so a caller doing additive
+   * multi-select can recognize repeated calls as updates to the SAME
+   * in-progress selection rather than a new one each frame. */
+  onRangeChange: (
+    range: CircularDragRange | null,
+    options?: { additive?: boolean; sessionId?: number; final?: boolean },
+  ) => void;
   /** Below this cumulative drag distance (degrees), a release is treated as
    * a tap-to-clear rather than a real selection. */
   minDragDeg?: number;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  /** Skips the long-press-to-arm gesture entirely and treats EVERY drag as
+   * additive (a tap with no drag still clears, same as always) — the
+   * timing that gesture depends on (native long-press-callout suppression,
+   * touch-jitter magnitude, etc) turned out to vary too much across mobile
+   * browsers/devices to be worth fighting there. Callers pass this based on
+   * their own "is this a touch/mobile context" signal (e.g. a screen-size
+   * breakpoint) — this hook has no opinion on what that signal should be. */
+  forceAdditive?: boolean;
 };
 
 /**
@@ -41,11 +71,17 @@ export function useCircularDragSelection({
   minDragDeg = 3,
   onDragStart,
   onDragEnd,
+  forceAdditive = false,
 }: UseCircularDragSelectionOptions) {
   const dragOrigin = React.useRef<number | null>(null);
   const cumulativeSpan = React.useRef(0);
   const prevAngle = React.useRef<number | null>(null);
   const hasDragged = React.useRef(false);
+  const pressOrigin = React.useRef<{ x: number; y: number } | null>(null);
+  const { isAdditive, beginPress, cancelPressIfUnarmed, endPress } =
+    useAdditiveModifierRef();
+  const dragSessionId = React.useRef(0);
+  const lastRange = React.useRef<CircularDragRange | null>(null);
 
   const touchToDeg = React.useCallback(
     (locationX: number, locationY: number) =>
@@ -60,6 +96,7 @@ export function useCircularDragSelection({
   const handleGrant = React.useCallback(
     (event: GestureResponderEvent) => {
       onDragStart?.();
+      if (!forceAdditive) beginPress();
       const deg = touchToDeg(
         event.nativeEvent.locationX,
         event.nativeEvent.locationY,
@@ -67,9 +104,14 @@ export function useCircularDragSelection({
       dragOrigin.current = deg;
       prevAngle.current = deg;
       cumulativeSpan.current = 0;
+      pressOrigin.current = {
+        x: event.nativeEvent.locationX,
+        y: event.nativeEvent.locationY,
+      };
       hasDragged.current = false;
+      dragSessionId.current += 1;
     },
-    [touchToDeg, onDragStart],
+    [touchToDeg, onDragStart, beginPress, forceAdditive],
   );
 
   const handleMove = React.useCallback(
@@ -78,12 +120,33 @@ export function useCircularDragSelection({
         return;
       }
       hasDragged.current = true;
+      const effectiveAdditive = forceAdditive || isAdditive.current;
+      let movedPastTolerance = true;
+      if (pressOrigin.current) {
+        const dx = event.nativeEvent.locationX - pressOrigin.current.x;
+        const dy = event.nativeEvent.locationY - pressOrigin.current.y;
+        movedPastTolerance =
+          Math.sqrt(dx * dx + dy * dy) > LONG_PRESS_MOVEMENT_TOLERANCE_PX;
+      }
+      if (movedPastTolerance) {
+        cancelPressIfUnarmed();
+      }
       const currentAngle = touchToDeg(
         event.nativeEvent.locationX,
         event.nativeEvent.locationY,
       );
       const delta = ((currentAngle - prevAngle.current + 540) % 360) - 180;
       prevAngle.current = currentAngle;
+      if (!movedPastTolerance && !effectiveAdditive) {
+        // Still just the long-press dwell — nothing has moved enough (and
+        // we're not yet armed as additive) to count as a real gesture.
+        // Emit nothing: the caller treats any non-additive call here as
+        // "replace the whole selection", which would wipe out whatever's
+        // already selected before we even know whether this becomes an
+        // additive drag. (Never true when forceAdditive — every move counts
+        // immediately there.)
+        return;
+      }
       // Capped at a full circle in either direction. 359.9° (not 360°) keeps
       // start !== end so downstream arc math never sees a degenerate
       // zero-span pair — the tiny 0.1° gap this leaves is visually
@@ -97,33 +160,55 @@ export function useCircularDragSelection({
 
       const absSpan = Math.abs(newSpan);
       if (absSpan < minDragDeg) {
-        onRangeChange(null);
+        onRangeChange(null, {
+          additive: effectiveAdditive,
+          sessionId: dragSessionId.current,
+        });
         return;
       }
 
       const anchor = dragOrigin.current;
-      if (newSpan >= 0) {
-        // CW arc: anchor → anchor + span
-        onRangeChange({ start: anchor, end: (anchor + absSpan + 360) % 360 });
-      } else {
-        // CCW arc: represented the same way as a CW arc from arcStart →
-        // anchor, so callers only ever need to handle one direction.
-        onRangeChange({ start: (anchor - absSpan + 360) % 360, end: anchor });
-      }
+      const additiveOptions = {
+        additive: effectiveAdditive,
+        sessionId: dragSessionId.current,
+      };
+      const range: CircularDragRange =
+        newSpan >= 0
+          ? // CW arc: anchor → anchor + span
+            { start: anchor, end: (anchor + absSpan + 360) % 360 }
+          : // CCW arc: represented the same way as a CW arc from arcStart →
+            // anchor, so callers only ever need to handle one direction.
+            { start: (anchor - absSpan + 360) % 360, end: anchor };
+      lastRange.current = range;
+      onRangeChange(range, additiveOptions);
     },
-    [touchToDeg, onRangeChange, minDragDeg],
+    [touchToDeg, onRangeChange, minDragDeg, cancelPressIfUnarmed, forceAdditive],
   );
 
   const handleRelease = React.useCallback(() => {
     onDragEnd?.();
     if (dragOrigin.current != null && !hasDragged.current) {
       onRangeChange(null);
+    } else if (hasDragged.current && lastRange.current) {
+      // Re-emits the drag's own final range once more, marked `final` —
+      // this is the ONLY point range-merging (overlapping/touching/
+      // subsuming ranges collapsing into one) happens, so it doesn't
+      // visually snap ranges together mid-drag, only once the gesture
+      // actually ends.
+      onRangeChange(lastRange.current, {
+        additive: forceAdditive || isAdditive.current,
+        sessionId: dragSessionId.current,
+        final: true,
+      });
     }
     dragOrigin.current = null;
     prevAngle.current = null;
     cumulativeSpan.current = 0;
+    pressOrigin.current = null;
     hasDragged.current = false;
-  }, [onRangeChange, onDragEnd]);
+    lastRange.current = null;
+    endPress();
+  }, [onRangeChange, onDragEnd, endPress, forceAdditive]);
 
   return {
     onStartShouldSetResponder: () => true,

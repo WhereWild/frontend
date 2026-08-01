@@ -262,6 +262,8 @@ export default function Species({
   const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
   const [obsLabelMin, setObsLabelMin] = React.useState<number | null>(null);
   const [obsLabelMax, setObsLabelMax] = React.useState<number | null>(null);
+  const [variableValuesLoading, setVariableValuesLoading] =
+    React.useState(false);
   const [selectedPhenology, setSelectedPhenology] = React.useState<
     string | null
   >(null);
@@ -386,6 +388,17 @@ export default function Species({
       setObsDotMax(null);
       setObsLabelMin(null);
       setObsLabelMax(null);
+      // Not false: classColors/isCircular/gradientStops recompute to the
+      // NEW variable in this exact same render (they're useMemo'd off
+      // selectedVariableMeta, set just above) while observationValues/
+      // dotMin/dotMax are being cleared to null right here — if
+      // variableDataLoading were false for even one render in between, the
+      // gated effect in SpeciesOccurrenceMap.tsx would see "new scale, no
+      // values yet" and ship that mismatched combo immediately. Setting it
+      // true in the SAME call closes the gap completely; the fetch effect
+      // below flips it true again redundantly once it starts, which is
+      // harmless.
+      setVariableValuesLoading(true);
     },
     [],
   );
@@ -393,10 +406,12 @@ export default function Species({
   React.useEffect(() => {
     if (!taxonId || !selectedVariableMeta?.id || !shouldRenderOccurrenceMap) {
       setObservationValues(null);
+      setVariableValuesLoading(false);
       return;
     }
     const variableId = selectedVariableMeta.id;
     let cancelled = false;
+    setVariableValuesLoading(true);
     const url =
       `${BACKEND_BASE}/species/${encodeURIComponent(String(taxonId))}` +
       `/environment/${encodeURIComponent(variableId)}/observation-values` +
@@ -435,10 +450,13 @@ export default function Species({
           );
           setObsLabelMin(typeof data.min === 'number' ? data.min : null);
           setObsLabelMax(typeof data.max === 'number' ? data.max : null);
+          setVariableValuesLoading(false);
         },
       )
       .catch(() => {
-        if (!cancelled) setObservationValues(null);
+        if (cancelled) return;
+        setObservationValues(null);
+        setVariableValuesLoading(false);
       });
     return () => {
       cancelled = true;
@@ -755,6 +773,7 @@ export default function Species({
                   circularShapesEnabled={circularShapesEnabled}
                   dotMin={obsDotMin}
                   dotMax={obsDotMax}
+                  variableDataLoading={variableValuesLoading}
                   varUnits={
                     selectedVariableMeta &&
                     !isVariableCategorical(selectedVariableMeta) &&

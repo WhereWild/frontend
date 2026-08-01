@@ -24,10 +24,14 @@ type NavigationPillItem = {
 export type NavigationPillListProps = {
   pills: NavigationPillItem[];
   selectedKey: string;
+  /** Multiple simultaneously-active pills (e.g. multi-select OR within one
+   * variable) — when given, overrides `selectedKey` for each pill's active
+   * state. `selectedKey` is still used for keyboard focus management. */
+  selectedKeys?: string[];
   highlightedKey?: string;
   homeHighlightedKey?: string;
   homeHighlightOutlineColor?: string;
-  onSelectionChange: (key: string) => void;
+  onSelectionChange: (key: string, options?: { additive?: boolean }) => void;
   direction?: 'horizontal' | 'vertical';
   accessibilityLabel?: string;
   testID?: string;
@@ -44,6 +48,7 @@ type NavigationPillRef = PillRef | null;
 export function NavigationPillList({
   pills,
   selectedKey,
+  selectedKeys,
   highlightedKey,
   homeHighlightedKey,
   homeHighlightOutlineColor,
@@ -111,12 +116,17 @@ export function NavigationPillList({
   }, [isWeb, selectedIndex]);
 
   const handleSelectionChange = useCallback(
-    (key: string) => {
-      if (key !== selectedKey) {
-        onSelectionChange(key);
+    (key: string, options?: { additive?: boolean }) => {
+      // Radio-style single-select callers (no `selectedKeys`) keep the old
+      // behavior: clicking the already-active pill again is a no-op. Multi-
+      // select callers (pass `selectedKeys`) always forward every click —
+      // clicking an already-selected pill (with or without ctrl/cmd) is a
+      // valid "deselect" gesture there, not a redundant repeat click.
+      if (selectedKeys || options?.additive || key !== selectedKey) {
+        onSelectionChange(key, options);
       }
     },
-    [onSelectionChange, selectedKey],
+    [onSelectionChange, selectedKey, selectedKeys],
   );
 
   const focusPill = useCallback(
@@ -198,7 +208,11 @@ export function NavigationPillList({
     >
       {renderedPills.map((pill, index) => {
         const isVisible = currentPillKeys.has(pill.key);
-        const isActive = isVisible && pill.key === selectedKey;
+        const isActive =
+          isVisible &&
+          (selectedKeys
+            ? selectedKeys.includes(pill.key)
+            : pill.key === selectedKey);
         const isHomeHighlightedPill =
           isVisible &&
           pill.key === homeHighlightedKey &&

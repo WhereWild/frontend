@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
   MapLibre GL JS globe-projection counterpart to SpeciesOccurrenceMap.html.
   Speaks the exact same postMessage protocol (pointValue, pin_observation,
   mapBounds, tilesChanged, selected_point, highlight, heatmapUpdate,
-  colormapUpdate, localLocationUpdate, locationPicked, open_external_url) so
+  pointStylesUpdate, localLocationUpdate, locationPicked, open_external_url) so
   SpeciesOccurrenceMap.tsx's message handling works unmodified against either
   renderer. Full parity with SpeciesOccurrenceMap.html: basemap, heatmap
   overlay, click point-query, occurrence markers (colored/shaped, native
@@ -202,7 +202,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function isVariableColorMode() {
-      return IS_CIRCULAR || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN);
+      return IS_CIRCULAR
+        || (DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN)
+        || (CLASS_COLORS != null && Object.keys(CLASS_COLORS).length > 0);
     }
 
     function resolveMarkerColor(pt) {
@@ -718,17 +720,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         }
       }
 
-      console.log(
-        '[markers-debug] SHOW_MARKERS=' + SHOW_MARKERS
-        + ' points.length=' + (Array.isArray(points) ? points.length : 'n/a (' + typeof points + ')')
-        + ' rawSample=' + JSON.stringify((points && points[0]) || null)
-      );
-
       if (SHOW_MARKERS && Array.isArray(points) && points.length) {
         var validPoints = points.filter(function(pt) {
           return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
         });
-        console.log('[markers-debug] validPoints.length=' + validPoints.length + ' sample=' + JSON.stringify(validPoints[0] || null));
 
         OCCURRENCE_POINTS = validPoints;
 
@@ -977,12 +972,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           }
           if (props.varValue != null) {
             postToParent({ type: 'pointValue', value: props.varValue });
-            html += buildMarkerValueHtml({
-              varValue: props.varValue,
-              varColor: props.rawVarColor,
-              varLabel: props.varLabel,
-            });
           }
+          // Always build the value html, not just when varValue is
+          // non-null — buildMarkerValueHtml already renders "No data" for a
+          // genuinely nodata observation (matches Leaflet's
+          // buildObservationValueHtml, called unconditionally there for the
+          // same reason). Guarding this call on varValue != null skipped
+          // that branch entirely, so a nodata marker's popup silently
+          // omitted the "No data" line instead of showing it.
+          html += buildMarkerValueHtml({
+            varValue: props.varValue,
+            varColor: props.rawVarColor,
+            varLabel: props.varLabel,
+          });
           new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
         }
 
@@ -1014,10 +1016,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         updateClusterMode();
 
         } catch (markerError) {
-          console.error('[markers-debug] error while adding occurrence markers:', markerError);
+          console.error('Error while adding occurrence markers:', markerError);
         }
       }
 
+      applyPendingPointStyleUpdates();
       postBounds();
       scheduleRefreshVisibleTileClasses();
     });
@@ -1148,6 +1151,30 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       pendingHeatmapUrl = null;
     }
 
+    // Same race as pendingHeatmapUrl above: a pointStylesUpdate can arrive
+    // (React's iframe-onLoad readiness fires) before MapLibre's own async
+    // 'load' event has populated OCCURRENCE_POINTS. Remember the latest
+    // batch and retry on both receipt and once the map has definitely
+    // finished loading, instead of silently dropping it.
+    var pendingPointStyleUpdates = null;
+    function applyPendingPointStyleUpdates() {
+      if (!pendingPointStyleUpdates || !OCCURRENCE_POINTS.length) return;
+      var pointStyleUpdates = new Map();
+      pendingPointStyleUpdates.forEach(function(entry) {
+        if (entry && entry.catalog) pointStyleUpdates.set(entry.catalog, entry);
+      });
+      OCCURRENCE_POINTS.forEach(function(pt) {
+        var update = pointStyleUpdates.get(pt.popupCatalogValue);
+        if (!update) return;
+        pt.varValue = update.varValue != null ? update.varValue : null;
+        pt.varColor = update.varColor || null;
+        pt.varLabel = update.varLabel || null;
+        pt.varShape = update.varShape || null;
+      });
+      refreshOccurrenceMarkerColors();
+      pendingPointStyleUpdates = null;
+    }
+
     function handleParentMessage(payload) {
       var data = payload;
       if (typeof payload === 'string') {
@@ -1161,6 +1188,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       }
 
       if (data.type === 'heatmapUpdate') {
+        // Tile/legend-only concerns — the marker color SCALE (dotMin/
+        // dotMax/isCircular/classColors/classLabels/gradientStops/
+        // aspectStops) travels with pointStylesUpdate below instead, so it
+        // can never arrive out of sync with the per-point values it's
+        // paired with.
         if (data.heatmapTileUrl != null) {
           pendingHeatmapUrl = data.heatmapTileUrl;
           applyPendingHeatmapUpdate();
@@ -1169,12 +1201,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (data.renderMin !== undefined) RENDER_MIN = data.renderMin;
         if (data.renderMax !== undefined) RENDER_MAX = data.renderMax;
         if (data.varUnits !== undefined) VAR_UNITS = data.varUnits;
-        if (data.dotMin !== undefined) DOT_MIN = data.dotMin;
-        if (data.dotMax !== undefined) DOT_MAX = data.dotMax;
-        if (data.isCircular !== undefined) IS_CIRCULAR = data.isCircular;
-        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) ASPECT_STOPS = data.circularStops;
-        if (data.classColors !== undefined) CLASS_COLORS = data.classColors;
-        if (data.classLabels !== undefined) CLASS_LABELS = data.classLabels;
         if (data.markerOutline !== undefined) MARKER_OUTLINE = data.markerOutline;
         return;
       }
@@ -1183,24 +1209,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         // Recolors/reshapes already-rendered occurrence markers in place —
         // sent whenever the selected variable changes but the underlying
         // occurrences (positions) don't, so switching variables never has
-        // to reload the whole map. Matched by catalog number against the
-        // same OCCURRENCE_POINTS array buildOccurrenceFeature reads from;
-        // setData() on refreshOccurrenceMarkerColors() below picks up the
-        // mutated fields automatically (hasShape/iconKey included).
-        if (Array.isArray(data.points) && OCCURRENCE_POINTS.length) {
-          var pointStyleUpdates = new Map();
-          data.points.forEach(function(entry) {
-            if (entry && entry.catalog) pointStyleUpdates.set(entry.catalog, entry);
-          });
-          OCCURRENCE_POINTS.forEach(function(pt) {
-            var update = pointStyleUpdates.get(pt.popupCatalogValue);
-            if (!update) return;
-            pt.varValue = update.varValue != null ? update.varValue : null;
-            pt.varColor = update.varColor || null;
-            pt.varLabel = update.varLabel || null;
-            pt.varShape = update.varShape || null;
-          });
-          refreshOccurrenceMarkerColors();
+        // to reload the whole map. Carries BOTH the color scale and the
+        // per-point values in one message (see the effect that sends this
+        // in SpeciesOccurrenceMap.tsx for why they're bundled together) —
+        // scale globals are applied first, then per-point values via
+        // applyPendingPointStyleUpdates, so a single repaint never sees a
+        // mismatched combination of the two. Matched by catalog number
+        // against the same OCCURRENCE_POINTS array buildOccurrenceFeature
+        // reads from; setData() on refreshOccurrenceMarkerColors() below
+        // picks up the mutated fields automatically (hasShape/iconKey
+        // included).
+        if (data.dotMin !== undefined) DOT_MIN = data.dotMin;
+        if (data.dotMax !== undefined) DOT_MAX = data.dotMax;
+        if (data.isCircular !== undefined) IS_CIRCULAR = data.isCircular;
+        if (data.classColors !== undefined) CLASS_COLORS = data.classColors;
+        if (data.classLabels !== undefined) CLASS_LABELS = data.classLabels;
+        if (Array.isArray(data.gradientStops) && data.gradientStops.length > 0) GRADIENT_STOPS = data.gradientStops;
+        if (Array.isArray(data.aspectStops) && data.aspectStops.length > 0) ASPECT_STOPS = data.aspectStops;
+        if (Array.isArray(data.points)) {
+          pendingPointStyleUpdates = data.points;
+          applyPendingPointStyleUpdates();
         }
         return;
       }
@@ -1215,17 +1243,6 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         if (Array.isArray(data.points)) {
           replaceOccurrencePoints(data.points);
         }
-        return;
-      }
-
-      if (data.type === 'colormapUpdate') {
-        if (Array.isArray(data.stops)) GRADIENT_STOPS = data.stops;
-        if (Array.isArray(data.circularStops) && data.circularStops.length > 0) ASPECT_STOPS = data.circularStops;
-        // Matches Leaflet: only continuous (gradient) and circular (aspect)
-        // marker colors get live-recolored here — categorical classColors-
-        // driven markers don't, in either renderer, since that's not what a
-        // colormap picker change actually means for those.
-        refreshOccurrenceMarkerColors();
         return;
       }
     }

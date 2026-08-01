@@ -1365,3 +1365,211 @@ describe('upload local species data source variable categories', () => {
     expect(sliceImperial.observations).toHaveLength(1);
   });
 });
+
+describe('upload local species data source chained extra-variable filters', () => {
+  // obs_1: bio_1=10, landcover=52   obs_2: bio_1=20, landcover=52   obs_3: bio_1=30, landcover=130
+  const rawBundle: RawUploadedParquetBundle = {
+    categoricalStats: [
+      { variable: 'landcover', variableCategory: 'land', metric: 'class_52', metricLabel: 'Impervious surfaces', value: 2 },
+      { variable: 'landcover', variableCategory: 'land', metric: 'class_130', metricLabel: 'Grassland', value: 1 },
+      { variable: 'landcover', variableCategory: 'land', metric: 'total_samples', value: 3 },
+    ],
+    categoricalValueLookup: [
+      { variable: 'landcover', variableName: 'Land Cover Classes', variableCategory: 'land', code: 52, metric: 'class_52', label: 'Impervious surfaces' },
+      { variable: 'landcover', variableName: 'Land Cover Classes', variableCategory: 'land', code: 130, metric: 'class_130', label: 'Grassland' },
+    ],
+    densityGraph: [
+      { variable: 'bio_1', variableCategory: 'climate', points: [10, 20, 30], density: [0.1, 0.2, 0.1] },
+    ],
+    occurrences: [
+      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 10, landcover: 52, aspect_deg: 355 },
+      { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21, bio_1: 20, landcover: 52, aspect_deg: 200 },
+      { catalogNumber: 'obs_3', decimalLatitude: 12, decimalLongitude: 22, bio_1: 30, landcover: 130, aspect_deg: 5 },
+    ],
+    occurrenceIndex: [],
+    summaryStats: [
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        count: 3,
+        min: 10,
+        mean: 20,
+        max: 30,
+        std: 8.16,
+        '10th percentile': 10,
+        '90th percentile': 30,
+      },
+      {
+        variable: 'aspect_deg',
+        variableCategory: 'climate',
+        count: 3,
+        min: 0,
+        mean: 180,
+        max: 355,
+        std: 100,
+        '10th percentile': 5,
+        '90th percentile': 355,
+      },
+    ],
+    variableMetadata: [],
+  };
+
+  it('intersects a chained categorical filter onto a numeric slice request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'landcover', classValue: 52 }],
+    });
+
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_2']),
+    );
+  });
+
+  it('intersects a chained numeric range filter onto a categorical samples request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52', {
+      extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
+    });
+
+    expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_2']);
+  });
+
+  it('intersects a chained numeric range filter onto the categorical stats/distribution endpoint', async () => {
+    // Exercises buildScopedCategoricalStats specifically (the stats
+    // endpoint's per-class-value distribution), not the samples endpoint —
+    // this is the code path that recomputed the chain-filter match once PER
+    // CLASS before being fixed (redundant work, only visible as a real
+    // slowdown, not a correctness bug — but a correctness regression here
+    // would mean the fix broke something while removing that redundancy).
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
+      extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
+    });
+
+    // bio_1 15-100 excludes obs_1 (bio_1=10), keeping obs_2 (landcover=52)
+    // and obs_3 (landcover=130) — one of each class, not the unfiltered
+    // 2-vs-1 split across all three rows.
+    expect(stats.summary?.count).toBe(2);
+    const fractions = Object.fromEntries(
+      (stats.categoricalDistribution ?? []).map((entry) => [
+        entry.value,
+        entry.fraction,
+      ]),
+    );
+    expect(fractions).toEqual({ class_52: 0.5, class_130: 0.5 });
+  });
+
+  it('intersects a chained multi-class (OR) filter onto a numeric slice request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'landcover', classValues: [52, 130] }],
+    });
+
+    // classValues=[52,130] matches ALL three rows (52 OR 130), unlike the
+    // single-classValue=52 test above which only matches obs_1/obs_2.
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_2', 'obs_3']),
+    );
+  });
+
+  it('intersects a chained multi-range (OR) filter onto a categorical samples request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52', {
+      extra: [
+        {
+          variableId: 'bio_1',
+          ranges: [
+            { min: 5, max: 15 },
+            { min: 25, max: 35 },
+          ],
+        },
+      ],
+    });
+
+    // Primary landcover=52 matches obs_1 (bio_1=10) and obs_2 (bio_1=20).
+    // ranges OR-matches [5,15] and [25,35] — obs_1's bio_1=10 falls in the
+    // first range; obs_2's bio_1=20 falls in neither.
+    expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_1']);
+  });
+
+  it('intersects a chained wraparound (circular) range filter onto a numeric slice request', async () => {
+    // aspect_deg: obs_1=355, obs_2=200, obs_3=5. A chained min=350/max=10
+    // range means min > max — a wraparound arc through 0/360 (350→360
+    // ∪ 0→10), matching obs_1 (355) and obs_3 (5) but not obs_2 (200).
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'aspect_deg', min: 350, max: 10 }],
+    });
+
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_3']),
+    );
+  });
+
+  it('intersects a chained multi-range (OR) filter with a wraparound sub-range', async () => {
+    // ranges OR-matches a wraparound arc [350,10] (catches obs_1=355,
+    // obs_3=5) with a plain [190,210] arc (catches obs_2=200) — all three
+    // rows should match across the two OR'd ranges.
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [
+        {
+          variableId: 'aspect_deg',
+          ranges: [
+            { min: 350, max: 10 },
+            { min: 190, max: 210 },
+          ],
+        },
+      ],
+    });
+
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_2', 'obs_3']),
+    );
+  });
+
+  it('returns nothing when a chained filter matches no rows', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'landcover', classValue: 999 }],
+    });
+
+    expect(slice.observations).toHaveLength(0);
+  });
+});

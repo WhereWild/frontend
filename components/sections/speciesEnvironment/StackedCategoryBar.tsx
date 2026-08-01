@@ -34,8 +34,8 @@ const CATEGORY_COLORS = [
 type StackedCategoryBarProps = {
   /** Category distribution data for selected variable. */
   categories: SpeciesEnvironmentCategory[];
-  /** Selected category value, if any. */
-  selectedValue: number | string | null;
+  /** Selected category values (multiple = OR'd together within this variable). */
+  selectedValues: (number | string)[];
   /** Raw category value returned for a pinned map location. */
   pinnedValue?: number | string | null;
   /** Human-readable class name returned for a pinned map location. */
@@ -44,8 +44,10 @@ type StackedCategoryBarProps = {
   highlightedValue?: number | string | null;
   /** Point-derived category that is not present in the observed distribution. */
   unobservedHighlightedCategory?: PinnedCategoryBadge | null;
-  /** Called when a category is selected from chart or pills. */
-  onSelect?: (value: number | string) => void;
+  /** Called when a category is selected from chart or pills. `additive` (ctrl/cmd-click
+   * on web, long-press on mobile) toggles the value into/out of the selection instead
+   * of replacing it. */
+  onSelect?: (value: number | string, options?: { additive?: boolean }) => void;
   /** Text color token for category description copy. */
   descriptionColor: string;
   /** Outline color used for the location-derived highlighted category. */
@@ -84,7 +86,7 @@ const getSelectedCategoryDescription = (
 /** Renders a stacked categorical bar and synchronized category pills. */
 export function StackedCategoryBar({
   categories,
-  selectedValue,
+  selectedValues,
   pinnedValue = null,
   pinnedClassName = null,
   highlightedValue = null,
@@ -136,14 +138,17 @@ export function StackedCategoryBar({
     return base;
   }, [validCategories, expanded, hasMore, homeHighlightedValue]);
 
-  const selectedCategory = React.useMemo(
+  const selectedValueKeys = React.useMemo(
+    () => new Set(selectedValues.map((value) => String(value))),
+    [selectedValues],
+  );
+
+  const selectedCategories = React.useMemo(
     () =>
-      selectedValue !== null
-        ? (displayCategories.find(
-            (cat) => String(cat.value) === String(selectedValue),
-          ) ?? null)
-        : null,
-    [displayCategories, selectedValue],
+      displayCategories.filter((cat) =>
+        selectedValueKeys.has(String(cat.value)),
+      ),
+    [displayCategories, selectedValueKeys],
   );
 
   const { resolvedPinnedKey, pinnedOtherLabel } = React.useMemo(() => {
@@ -362,12 +367,12 @@ export function StackedCategoryBar({
   ]);
 
   const handlePillSelectionChange = React.useCallback(
-    (key: string) => {
+    (key: string, options?: { additive?: boolean }) => {
       const value = validCategories.find(
         (cat) => String(cat.value) === key,
       )?.value;
       if (value !== undefined) {
-        onSelect?.(value);
+        onSelect?.(value, options);
       }
     },
     [validCategories, onSelect],
@@ -381,9 +386,16 @@ export function StackedCategoryBar({
     );
   }
 
-  const selectedCategoryDescription = selectedCategory
-    ? getSelectedCategoryDescription(selectedCategory)
-    : null;
+  const selectedCategoryDescription =
+    selectedCategories.length === 1
+      ? getSelectedCategoryDescription(selectedCategories[0])
+      : selectedCategories.length > 1
+        ? `This accounts for ${formatCategoryPercent(
+            selectedCategories.reduce((sum, c) => sum + c.fraction, 0),
+          )} of all observations (${formatValue(
+            selectedCategories.reduce((sum, c) => sum + c.count, 0),
+          )} samples).`
+        : null;
   const effectiveHighlightedValue =
     resolvedPinnedKey ?? (pinnedOtherLabel ? '__other__' : null);
   const descriptionDisplayText = selectedCategoryDescription?.trim().length
@@ -407,18 +419,37 @@ export function StackedCategoryBar({
             !isHighlighted &&
             homeHighlightedValue != null &&
             String(category.value) === String(homeHighlightedValue);
+          const isSelected = selectedValueKeys.has(String(category.value));
 
           return (
             <Pressable
               collapsable={false}
               key={String(category.value)}
               testID={`stacked-segment-${index}`}
-              onPress={() => onSelect?.(category.value)}
+              // Ctrl/Cmd-click (not shift-click) is the additive gesture —
+              // shift-click is a browser-reserved "extend text selection"
+              // gesture that a page can't reliably override (Firefox in
+              // particular keeps extending a selection anchor from prior
+              // clicks regardless of preventDefault/userSelect tricks on the
+              // target), so it fights the browser instead of the user.
+              // Ctrl/Cmd-click has no such built-in browser meaning here.
+              onPress={(event) => {
+                const nativeEvent = event?.nativeEvent as unknown as {
+                  ctrlKey?: boolean;
+                  metaKey?: boolean;
+                };
+                const additive = Boolean(
+                  nativeEvent?.ctrlKey || nativeEvent?.metaKey,
+                );
+                onSelect?.(category.value, { additive });
+              }}
+              onLongPress={() => onSelect?.(category.value, { additive: true })}
               style={[
                 styles.stackedBarSegment,
                 {
                   width: `${percent}%`,
                   backgroundColor,
+                  opacity: selectedValueKeys.size > 0 && !isSelected ? 0.5 : 1,
                   borderWidth: isHighlighted || isHomeHighlighted ? 3 : 0,
                   borderColor: isHighlighted
                     ? highlightOutlineColor
@@ -436,7 +467,10 @@ export function StackedCategoryBar({
 
       <NavigationPillList
         pills={pills}
-        selectedKey={selectedValue !== null ? String(selectedValue) : ''}
+        selectedKey={
+          selectedValues.length === 1 ? String(selectedValues[0]) : ''
+        }
+        selectedKeys={selectedValues.map((value) => String(value))}
         highlightedKey={
           effectiveHighlightedValue !== null
             ? String(effectiveHighlightedValue)
@@ -533,10 +567,12 @@ const styles = StyleSheet.create({
     borderRadius: Size.radius['200'],
     flexDirection: 'row',
     overflow: 'hidden',
+    userSelect: 'none',
   },
   stackedBarSegment: {
     height: '100%',
     minWidth: 4,
+    userSelect: 'none',
   },
   showMoreButton: {
     alignSelf: 'flex-start',

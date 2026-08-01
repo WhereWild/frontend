@@ -10,6 +10,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { buildDensitySamples } from './densityChartUtils';
 import { useScrollLock } from '@/context/ScrollLockContext';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { DensitySelectionRange } from './model';
 import {
   useCircularDragSelection,
@@ -91,10 +92,17 @@ type PolarDensityChartProps = {
   lineColor: string;
   /** Color for guide rings, axis lines, and labels. */
   guideColor: string;
-  /** Current arc selection in degrees, if any. */
-  selection?: DensitySelectionRange | null;
-  /** Called with an arc range (degrees) when the user drags, or null to clear. */
-  onSelectionChange?: (range: DensitySelectionRange | null) => void;
+  /** Currently selected arc(s) in degrees. */
+  selections: DensitySelectionRange[];
+  /** Called with an arc range (degrees) when the user drags, or null to
+   * clear. `options.additive` (shift/cmd-drag — NOT ctrl, which
+   * react-native-web's GestureResponder system blocks from starting any
+   * drag at all; see useAdditiveModifierRef) adds the range to whatever's
+   * already selected instead of replacing it. */
+  onSelectionChange?: (
+    range: DensitySelectionRange | null,
+    options?: { additive?: boolean; sessionId?: number; final?: boolean },
+  ) => void;
   /** Bearing (0–360°) of a pinned observation to highlight. */
   pinValue?: number | null;
   /** Whether the pin value is still loading. */
@@ -115,7 +123,7 @@ export function PolarDensityChart({
   fillColor,
   lineColor,
   guideColor,
-  selection,
+  selections,
   onSelectionChange,
   pinValue,
   pinLoading,
@@ -131,9 +139,16 @@ export function PolarDensityChart({
   React.useEffect(() => {
     if (Platform.OS !== 'web' || !onSelectionChange) return;
 
+    // touch-action:none only suppresses the browser's scroll/pan/zoom
+    // gestures — it does NOT stop a real touchscreen's OWN long-press
+    // gesture (Safari/Chrome's text-selection callout, "Add to Reading
+    // List", image-save sheet, etc), which fires around the same ~500ms
+    // mark as our own long-press-to-arm timer and can steal/cancel the
+    // touch before that timer ever gets to run. -webkit-touch-callout and
+    // user-select are what actually suppress that.
     const styleEl = document.createElement('style');
     styleEl.textContent =
-      '[data-testid="polar-density-chart-responder"] { touch-action: none !important; }';
+      '[data-testid="polar-density-chart-responder"] { touch-action: none !important; -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important; }';
     document.head.appendChild(styleEl);
 
     const onDocPointerDown = (e: PointerEvent) => {
@@ -160,14 +175,21 @@ export function PolarDensityChart({
   }, [onSelectionChange]);
 
   const handleRangeChange = React.useCallback(
-    (range: CircularDragRange | null) => onSelectionChange?.(range),
+    (range: CircularDragRange | null, options?: { additive?: boolean }) =>
+      onSelectionChange?.(range, options),
     [onSelectionChange],
   );
+  // On phones, long-press-to-arm turned out too unreliable across mobile
+  // browsers/devices (native long-press callouts, touch-jitter magnitude,
+  // etc. vary too much) to be worth fighting — every drag is just additive
+  // there instead, with a plain tap (no drag) still clearing the selection.
+  const { breakpoint } = useResponsive();
   const responderHandlers = useCircularDragSelection({
     center: { cx: CX, cy: CY },
     onRangeChange: handleRangeChange,
     onDragStart: lockScroll,
     onDragEnd: unlockScroll,
+    forceAdditive: breakpoint === 'phone',
   });
 
   if (!samples.length) {
@@ -197,13 +219,19 @@ export function PolarDensityChart({
   pathCommands.push('Z');
   const densityPath = pathCommands.join(' ');
 
-  const selectionSpan = selection != null ? circularRangeSpan(selection) : 0;
-  const isFullCircleSelection =
-    selection != null && selectionSpan >= FULL_CIRCLE_SPAN_THRESHOLD;
-  const selectionPath =
-    selection != null && !isFullCircleSelection
-      ? buildSelectionArcPath(selection.start, selection.end)
-      : null;
+  const selectionArcs = selections
+    .map((selection) => {
+      const span = circularRangeSpan(selection);
+      const isFullCircle = span >= FULL_CIRCLE_SPAN_THRESHOLD;
+      return {
+        isFullCircle,
+        path: isFullCircle
+          ? null
+          : buildSelectionArcPath(selection.start, selection.end),
+      };
+    })
+    .filter((arc) => arc.isFullCircle || arc.path);
+  const hasFullCircleSelection = selectionArcs.some((arc) => arc.isFullCircle);
 
   const pinPoint =
     pinValue != null && !pinLoading
@@ -238,6 +266,15 @@ export function PolarDensityChart({
       testID='polar-density-chart-responder'
       style={styles.wrapper}
       {...responderHandlers}
+      // A shift-drag would otherwise start the browser's native "extend
+      // text selection" gesture — blocking mousedown's default (web-only
+      // prop passed through by View; not in its RN type, hence the cast)
+      // means no selection anchor is ever placed here.
+      {...({
+        onMouseDown: (event: { preventDefault?: () => void }) => {
+          event?.preventDefault?.();
+        },
+      } as Record<string, unknown>)}
     >
       <Svg
         width={CHART_SIZE}
@@ -276,12 +313,16 @@ export function PolarDensityChart({
           );
         })}
 
-        {/* Selection arc — or full donut ring when span ≥ 358° */}
-        {selectionPath ? (
-          <Path d={selectionPath} fill={lineColor} opacity={0.35} />
-        ) : isFullCircleSelection ? (
+        {/* Selection arc(s) — or a full donut ring when any span ≥ 358° */}
+        {hasFullCircleSelection ? (
           <Path d={FULL_DONUT_PATH} fill={lineColor} opacity={0.35} />
-        ) : null}
+        ) : (
+          selectionArcs.map((arc, index) =>
+            arc.path ? (
+              <Path key={index} d={arc.path} fill={lineColor} opacity={0.35} />
+            ) : null,
+          )
+        )}
 
         {/* Density fill */}
         <Path d={densityPath} fill={fillColor} opacity={0.35} />

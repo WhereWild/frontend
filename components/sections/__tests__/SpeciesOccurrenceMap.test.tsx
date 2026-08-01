@@ -203,6 +203,52 @@ describe('SpeciesOccurrenceMap', () => {
     });
   });
 
+  it('still pushes the color-scale globals (isCircular etc.) via pointStylesUpdate when there are zero occurrences (e.g. maps.tsx, which has no markers at all)', async () => {
+    Object.defineProperty(Platform, 'OS', { value: 'ios' });
+    const { rerender } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[]}
+        showMarkers={false}
+        preserveMapPosition
+        heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png'
+        isCircular={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading map renderer…')).toBeNull();
+    });
+
+    const webView = screen.getByTestId('mock-webview');
+    fireEvent(webView, 'loadEnd');
+    mockPostMessage.mockClear();
+
+    // Switching to a circular variable with occurrences still empty (as on
+    // maps.tsx, which never has occurrence markers) must still push
+    // isCircular:true — the point-query popup reads it even without any
+    // markers to recolor.
+    rerender(
+      <SpeciesOccurrenceMap
+        occurrences={[]}
+        showMarkers={false}
+        preserveMapPosition
+        heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png'
+        isCircular={true}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        mockPostMessage.mock.calls.some(
+          ([payload]) =>
+            typeof payload === 'string' &&
+            payload.includes('pointStylesUpdate') &&
+            payload.includes('"isCircular":true'),
+        ),
+      ).toBe(true);
+    });
+  });
+
   it('resets mapReady on html changes and waits for next load event', async () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios' });
     const { rerender } = render(

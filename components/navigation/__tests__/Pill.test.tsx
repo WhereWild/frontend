@@ -193,7 +193,7 @@ describe('NavigationPill', () => {
     );
 
     fireEvent.press(screen.getByLabelText('One'));
-    expect(onPress).toHaveBeenCalledWith('one');
+    expect(onPress).toHaveBeenCalledWith('one', { additive: false });
   });
 
   it('calls onPress when active', () => {
@@ -203,7 +203,7 @@ describe('NavigationPill', () => {
     );
 
     fireEvent.press(screen.getByLabelText('One'));
-    expect(onPress).toHaveBeenCalledWith('one');
+    expect(onPress).toHaveBeenCalledWith('one', { additive: false });
   });
 
   it('renders default visuals when idle', () => {

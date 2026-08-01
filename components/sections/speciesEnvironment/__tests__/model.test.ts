@@ -8,10 +8,31 @@ import {
   formatComparisonLabel,
   formatValue,
   isValidHistogramContract,
+  joinClassNamesWithAnd,
   normalizeLabel,
 } from '../model';
 
 describe('speciesEnvironment model helpers', () => {
+  it('joins class names with a trailing "and", using semicolons to avoid colliding with commas inside class names', () => {
+    expect(joinClassNamesWithAnd([])).toBe('');
+    expect(joinClassNamesWithAnd(['Forest'])).toBe('Forest');
+    expect(joinClassNamesWithAnd(['Forest', 'Grassland'])).toBe(
+      'Forest; and Grassland',
+    );
+    expect(joinClassNamesWithAnd(['Forest', 'Grassland', 'Wetland'])).toBe(
+      'Forest; Grassland; and Wetland',
+    );
+    expect(
+      joinClassNamesWithAnd([
+        'Continental, dry summer warm',
+        'Continental, dry summer hot',
+        'Continental, humid warm summer',
+      ]),
+    ).toBe(
+      'Continental, dry summer warm; Continental, dry summer hot; and Continental, humid warm summer',
+    );
+  });
+
   it('normalizes labels from snake_case', () => {
     expect(normalizeLabel('mean_temp_coldest_quarter')).toBe(
       'Mean Temp Coldest Quarter',

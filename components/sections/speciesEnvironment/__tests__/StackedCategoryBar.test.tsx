@@ -69,7 +69,7 @@ describe('StackedCategoryBar', () => {
           { value: 'cat-2', className: 'Category 2', count: 1, fraction: 0.2 },
           { value: 'cat-3', className: 'Category 3', count: 1, fraction: 0.2 },
         ]}
-        selectedValue={null}
+        selectedValues={[]}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -96,7 +96,7 @@ describe('StackedCategoryBar', () => {
           { value: 'forest', className: 'Forest', count: 1, fraction: 0.5 },
           { value: 'grass', className: 'Grassland', count: 1, fraction: 0.5 },
         ]}
-        selectedValue={null}
+        selectedValues={[]}
         highlightedValue='grass'
         onSelect={jest.fn()}
         descriptionColor='#666'
@@ -126,7 +126,7 @@ describe('StackedCategoryBar', () => {
           { value: 'forest', className: 'Forest', count: 1, fraction: 0.5 },
           { value: 'grass', className: 'Grassland', count: 1, fraction: 0.5 },
         ]}
-        selectedValue={null}
+        selectedValues={[]}
         unobservedHighlightedCategory={{
           value: 'urban',
           label: 'Urban',
@@ -159,7 +159,7 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={null}
+        selectedValues={[]}
         unobservedHighlightedCategory={{
           value: 'urban',
           label: 'Urban',
@@ -190,7 +190,7 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={null}
+        selectedValues={[]}
         pinnedValue={62}
         pinnedClassName='Closed deciduous broadleaved forest'
         onSelect={jest.fn()}
@@ -212,7 +212,7 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={[]}
-        selectedValue={null}
+        selectedValues={[]}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -239,7 +239,7 @@ describe('StackedCategoryBar', () => {
             fraction: 0.4,
           },
         ]}
-        selectedValue={'forest'}
+        selectedValues={['forest']}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -263,7 +263,7 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={null}
+        selectedValues={[]}
         onSelect={onSelect}
         descriptionColor='#666'
       />,
@@ -273,7 +273,7 @@ describe('StackedCategoryBar', () => {
     expect(screen.queryByText('Other')).toBeNull();
 
     fireEvent.press(screen.getByTestId('pill-cat-0'));
-    expect(onSelect).toHaveBeenCalledWith('cat-0');
+    expect(onSelect).toHaveBeenCalledWith('cat-0', undefined);
   });
 
   it('shows show-more button for 9 categories and expands on press', () => {
@@ -287,7 +287,7 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={null}
+        selectedValues={[]}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -311,7 +311,7 @@ describe('StackedCategoryBar', () => {
             fraction: Number.NaN,
           },
         ]}
-        selectedValue={'rare'}
+        selectedValues={['rare']}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -333,7 +333,7 @@ describe('StackedCategoryBar', () => {
           },
           { value: 'normal', className: 'Normal', count: 2, fraction: 0.2 },
         ]}
-        selectedValue={'normal'}
+        selectedValues={['normal']}
         onSelect={onSelect}
         descriptionColor='#666'
       />,
@@ -358,7 +358,7 @@ describe('StackedCategoryBar', () => {
             fraction: Number.POSITIVE_INFINITY,
           },
         ]}
-        selectedValue={null}
+        selectedValues={[]}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -380,7 +380,7 @@ describe('StackedCategoryBar', () => {
     render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={null}
+        selectedValues={[]}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -399,7 +399,7 @@ describe('StackedCategoryBar', () => {
     const rendered = render(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={'forest'}
+        selectedValues={['forest']}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,
@@ -411,7 +411,7 @@ describe('StackedCategoryBar', () => {
     rendered.rerender(
       <StackedCategoryBar
         categories={categories}
-        selectedValue={'grass'}
+        selectedValues={['grass']}
         onSelect={jest.fn()}
         descriptionColor='#666'
       />,

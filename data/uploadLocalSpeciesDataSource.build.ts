@@ -8,6 +8,7 @@ import {
 } from '@/data/speciesDataSource';
 import type {
   EnvironmentVariableDefinition,
+  ExtraVariableFilter,
   LocationSearchResult,
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentObservation,
@@ -15,7 +16,10 @@ import type {
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
 } from '@/data/types';
-import { isCategoricalAggregateMetric } from '@/data/uploadLocalSpeciesDataSource.shared';
+import {
+  isCategoricalAggregateMetric,
+  resolveCategoryMetricValue,
+} from '@/data/uploadLocalSpeciesDataSource.shared';
 import { validateUploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource.normalize';
 import {
   applyConv,
@@ -25,6 +29,7 @@ import {
 } from '@/data/unitConversions';
 import type {
   UploadedCategoricalStatsRow,
+  UploadedCategoricalValueLookupRow,
   UploadedDensityGraphPoint,
   UploadedDensityGridRow,
   UploadedOccurrenceIndexRow,
@@ -261,15 +266,20 @@ const buildStatsByVariable = (
     // Ordinal path: class_id-sorted distribution + quantile stats from tall rows.
     const ordinalRows = ordinalByVariable[variable];
     if (ordinalRows) {
-      const ordinalLookupByMetric = categoricalLookupByVariableAndMetric[variable] ?? {};
-      const metricVal = (m: string) => ordinalRows.find((r) => r.metric === m)?.value ?? null;
+      const ordinalLookupByMetric =
+        categoricalLookupByVariableAndMetric[variable] ?? {};
+      const metricVal = (m: string) =>
+        ordinalRows.find((r) => r.metric === m)?.value ?? null;
       const totalSamples = metricVal('total_samples');
       const classRows = ordinalRows
         .filter((r) => r.metric.startsWith('class_'))
         .map((r) => {
           const classId = parseInt(r.metric.slice(6), 10);
           const fraction = r.value;
-          const count = typeof totalSamples === 'number' ? Math.round(totalSamples * fraction) : 0;
+          const count =
+            typeof totalSamples === 'number'
+              ? Math.round(totalSamples * fraction)
+              : 0;
           const lookupEntry = ordinalLookupByMetric[r.metric];
           const legendClass = variableDefinition?.legendClasses?.find(
             (cls) => String(cls.id) === String(classId),
@@ -290,11 +300,15 @@ const buildStatsByVariable = (
       acc[variable] = {
         speciesId,
         variable,
-        variableName: summaryRow?.variableName ?? variableDefinition?.name ?? variable,
+        variableName:
+          summaryRow?.variableName ?? variableDefinition?.name ?? variable,
         units: summaryRow?.units ?? variableDefinition?.units ?? null,
         variableType: 'ordinal',
         summary: {
-          count: typeof totalSamples === 'number' ? Math.round(totalSamples) : (summaryRow?.count ?? 0),
+          count:
+            typeof totalSamples === 'number'
+              ? Math.round(totalSamples)
+              : (summaryRow?.count ?? 0),
           min: null,
           mean: null,
           max: null,
@@ -499,6 +513,29 @@ const collectCatalogsForRange = (
   return Array.from(new Set(catalogs.map((id) => String(id))));
 };
 
+// min > max means a circular (aspect-style) wraparound arc through 0/360 —
+// mirrors the backend's numeric_range_mask, which ORs two linear checks
+// together for the same case. The PRIMARY slice path never needs this (the
+// state layer already splits a wrapped selection into two sub-requests
+// before calling into the data source either way), but a chained "extra"
+// filter carries its raw min/max straight through — this is what makes an
+// aspect-variable multi-range/wraparound chain resolve correctly offline.
+const collectCatalogsForRangeWithWrap = (
+  indexRows: UploadedOccurrenceIndexRow[],
+  min: number,
+  max: number,
+) => {
+  if (min <= max) {
+    return collectCatalogsForRange(indexRows, min, max);
+  }
+  return Array.from(
+    new Set([
+      ...collectCatalogsForRange(indexRows, min, 360),
+      ...collectCatalogsForRange(indexRows, 0, max),
+    ]),
+  );
+};
+
 const collectCatalogsForCategory = (
   indexRows: UploadedOccurrenceIndexRow[],
   classValue: string | number,
@@ -569,8 +606,10 @@ const buildCompositionGroupMembers = (
     if (!definition.compositionGroup || !definition.compositionAxis) {
       return;
     }
-    byGroup[definition.compositionGroup] = byGroup[definition.compositionGroup] ?? {};
-    byGroup[definition.compositionGroup][definition.compositionAxis] = definition.id;
+    byGroup[definition.compositionGroup] =
+      byGroup[definition.compositionGroup] ?? {};
+    byGroup[definition.compositionGroup][definition.compositionAxis] =
+      definition.id;
   });
   const result: Record<string, [string, string, string]> = {};
   Object.entries(byGroup).forEach(([group, axes]) => {
@@ -579,6 +618,104 @@ const buildCompositionGroupMembers = (
     }
   });
   return result;
+};
+
+// Resolves one chained ExtraVariableFilter against this bundle's own index
+// rows/stats for whatever variable IT names (not the primary slice's
+// variable) — mirrors the backend's _parse_extra_variable_filters, but
+// entirely client-side since the upload page's data never leaves the
+// browser. min/max on a range filter are in display units for that
+// filter's own variable, same convention as the primary slice's min/max, so
+// they get the same imperial reverse-conversion treatment. classValue is
+// always the raw numeric class code (matching the backend/map-rendering
+// convention) — occurrenceIndex rows key categorical values by the
+// resolved metric string instead (e.g. "class_52"), so it's translated via
+// resolveCategoryMetricValue before comparing, same as a primary category
+// value would be.
+const collectCatalogsForExtraFilter = (
+  filter: ExtraVariableFilter,
+  indexRowsByVariable: Record<string, UploadedOccurrenceIndexRow[]>,
+  statsByVariable: Record<string, SpeciesEnvironmentStats>,
+  categoryValueLookupByVariable: Record<
+    string,
+    UploadedCategoricalValueLookupRow[]
+  >,
+  units?: string | null,
+): Set<string> => {
+  const rows = indexRowsByVariable[filter.variableId] ?? [];
+  if ('classValue' in filter) {
+    const metricValue = resolveCategoryMetricValue(
+      filter.variableId,
+      filter.classValue,
+      categoryValueLookupByVariable,
+    );
+    return new Set(collectCatalogsForCategory(rows, metricValue));
+  }
+  if ('classValues' in filter) {
+    const allowed = new Set<string>();
+    for (const classValue of filter.classValues) {
+      const metricValue = resolveCategoryMetricValue(
+        filter.variableId,
+        classValue,
+        categoryValueLookupByVariable,
+      );
+      for (const catalog of collectCatalogsForCategory(rows, metricValue)) {
+        allowed.add(catalog);
+      }
+    }
+    return allowed;
+  }
+  const convertRange = (min: number, max: number) => {
+    if (units !== 'imperial') return { min, max };
+    const conv = getMetricToImperial(statsByVariable[filter.variableId]?.units);
+    if (!conv) return { min, max };
+    return {
+      min: reverseConv(min, conv) ?? min,
+      max: reverseConv(max, conv) ?? max,
+    };
+  };
+  if ('ranges' in filter) {
+    const allowed = new Set<string>();
+    for (const range of filter.ranges) {
+      const converted = convertRange(range.min, range.max);
+      for (const catalog of collectCatalogsForRangeWithWrap(
+        rows,
+        converted.min,
+        converted.max,
+      )) {
+        allowed.add(catalog);
+      }
+    }
+    return allowed;
+  }
+  const { min, max } = convertRange(filter.min, filter.max);
+  return new Set(collectCatalogsForRangeWithWrap(rows, min, max));
+};
+
+const intersectWithExtraFilters = (
+  catalogs: string[],
+  extra: ExtraVariableFilter[] | null | undefined,
+  indexRowsByVariable: Record<string, UploadedOccurrenceIndexRow[]>,
+  statsByVariable: Record<string, SpeciesEnvironmentStats>,
+  categoryValueLookupByVariable: Record<
+    string,
+    UploadedCategoricalValueLookupRow[]
+  >,
+  units?: string | null,
+): string[] => {
+  if (!extra || extra.length === 0) {
+    return catalogs;
+  }
+  return extra.reduce<string[]>((acc, filter) => {
+    const allowed = collectCatalogsForExtraFilter(
+      filter,
+      indexRowsByVariable,
+      statsByVariable,
+      categoryValueLookupByVariable,
+      units,
+    );
+    return acc.filter((id) => allowed.has(id));
+  }, catalogs);
 };
 
 const groupIndexRowsByVariable = (rows: UploadedOccurrenceIndexRow[]) => {
@@ -718,12 +855,14 @@ const buildGaussianKde = (
   }
 
   const mean = sortedValues.reduce((s, v) => s + v, 0) / n;
-  const variance = sortedValues.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1);
+  const variance =
+    sortedValues.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1);
   const std = Math.sqrt(variance);
 
-  const h = std < 1e-10
-    ? (Math.abs(sortedValues[0]) * 0.01 || 0.1)
-    : 1.06 * std * Math.pow(n, -0.2);
+  const h =
+    std < 1e-10
+      ? Math.abs(sortedValues[0]) * 0.01 || 0.1
+      : 1.06 * std * Math.pow(n, -0.2);
 
   const step = (maxVal - minVal) / (KDE_N_POINTS - 1);
   const points: number[] = [];
@@ -837,7 +976,11 @@ const ternaryGridPoints = (resolution: number): [number, number, number][] => {
   const points: [number, number, number][] = [];
   for (let i = 0; i <= resolution; i++) {
     for (let j = 0; j <= resolution - i; j++) {
-      points.push([i / resolution, j / resolution, (resolution - i - j) / resolution]);
+      points.push([
+        i / resolution,
+        j / resolution,
+        (resolution - i - j) / resolution,
+      ]);
     }
   }
   return points;
@@ -966,26 +1109,71 @@ const buildScopedCategoricalStats = ({
   locationLookup,
   indexRows,
   compositionColumns,
+  extra,
+  indexRowsByVariable,
+  categoryValueLookupByVariable,
+  statsByVariable,
+  units,
 }: {
   stats: SpeciesEnvironmentStats;
-  locationGid: string;
+  locationGid?: string | null;
   observationsByCatalog: Record<string, UploadedOccurrenceRow>;
   locationLookup: ReturnType<typeof buildLocationLookupMaps>;
   indexRows: UploadedOccurrenceIndexRow[];
   compositionColumns?: [string, string, string];
+  extra?: ExtraVariableFilter[] | null;
+  indexRowsByVariable: Record<string, UploadedOccurrenceIndexRow[]>;
+  categoryValueLookupByVariable: Record<
+    string,
+    UploadedCategoricalValueLookupRow[]
+  >;
+  statsByVariable: Record<string, SpeciesEnvironmentStats>;
+  units?: string | null;
 }): SpeciesEnvironmentStats => {
   const countsByClass = new Map<string, number>();
   let totalCount = 0;
 
+  // Computed ONCE, not per class: intersectWithExtraFilters re-scans the
+  // chained variable's own index rows from scratch on every call, and that
+  // result doesn't depend on which class we're currently counting — calling
+  // it inside the per-class loop below used to redo that full scan once per
+  // distinct class value (K classes = K redundant scans of the SAME chain
+  // filter), which is what actually made switching into a categorical
+  // variable with an active chained slice visibly freeze the local/offline
+  // data source (this recompute runs as synchronous JS on the browser's own
+  // thread, unlike the backend's async, server-side equivalent).
+  const chainAllowedCatalogsForClassCounts =
+    extra && extra.length > 0
+      ? new Set(
+          intersectWithExtraFilters(
+            Object.keys(observationsByCatalog),
+            extra,
+            indexRowsByVariable,
+            statsByVariable,
+            categoryValueLookupByVariable,
+            units,
+          ),
+        )
+      : null;
+
   indexRows
     .filter((row) => row.mode === 'category')
     .forEach((row) => {
-      const scopedObservationIds = filterCatalogIdsByLocation(
-        row.observationIds,
-        observationsByCatalog,
-        locationLookup,
-        locationGid,
-      );
+      let scopedObservationIds = (
+        locationGid
+          ? filterCatalogIdsByLocation(
+              row.observationIds,
+              observationsByCatalog,
+              locationLookup,
+              locationGid,
+            )
+          : row.observationIds
+      ).map((id) => String(id));
+      if (chainAllowedCatalogsForClassCounts) {
+        scopedObservationIds = scopedObservationIds.filter((id) =>
+          chainAllowedCatalogsForClassCounts.has(id),
+        );
+      }
       if (!scopedObservationIds.length) {
         return;
       }
@@ -1037,9 +1225,36 @@ const buildScopedCategoricalStats = ({
   // is refit over the scoped (filtered) samples.
   let ternaryCompositionDensity = stats.ternaryCompositionDensity;
   if (compositionColumns) {
+    // This loop scans all observations independently of the class-count
+    // loop above (it needs raw composition axis values, not class codes),
+    // so the chain filter has to be re-applied here too — restricted to a
+    // Set of allowed catalogs computed once, same intersection the class
+    // counts above already use.
+    const chainAllowedCatalogs =
+      extra && extra.length > 0
+        ? new Set(
+            intersectWithExtraFilters(
+              Object.keys(observationsByCatalog),
+              extra,
+              indexRowsByVariable,
+              statsByVariable,
+              categoryValueLookupByVariable,
+              units,
+            ),
+          )
+        : null;
     const triples: [number, number, number][] = [];
-    Object.values(observationsByCatalog).forEach((row) => {
-      if (!matchesObservationLocation(row.locationGid, locationLookup, locationGid)) {
+    Object.entries(observationsByCatalog).forEach(([catalogNumber, row]) => {
+      if (
+        !matchesObservationLocation(
+          row.locationGid,
+          locationLookup,
+          locationGid,
+        )
+      ) {
+        return;
+      }
+      if (chainAllowedCatalogs && !chainAllowedCatalogs.has(catalogNumber)) {
         return;
       }
       const values = row.compositionValues;
@@ -1047,7 +1262,11 @@ const buildScopedCategoricalStats = ({
       const a = values[compositionColumns[0]];
       const b = values[compositionColumns[1]];
       const c = values[compositionColumns[2]];
-      if (typeof a === 'number' && typeof b === 'number' && typeof c === 'number') {
+      if (
+        typeof a === 'number' &&
+        typeof b === 'number' &&
+        typeof c === 'number'
+      ) {
         triples.push([a, b, c]);
       }
     });
@@ -1063,8 +1282,10 @@ const buildScopedCategoricalStats = ({
           sampleB: grid.sampleB,
           sampleC: grid.sampleC,
           classIds: stats.ternaryCompositionDensity?.classIds ?? null,
-          classBoundaryA: stats.ternaryCompositionDensity?.classBoundaryA ?? null,
-          classBoundaryB: stats.ternaryCompositionDensity?.classBoundaryB ?? null,
+          classBoundaryA:
+            stats.ternaryCompositionDensity?.classBoundaryA ?? null,
+          classBoundaryB:
+            stats.ternaryCompositionDensity?.classBoundaryB ?? null,
         }
       : undefined;
   }
@@ -1098,13 +1319,44 @@ const buildScopedNumericStats = ({
   observationsByCatalog,
   locationLookup,
   indexRows,
+  extra,
+  indexRowsByVariable,
+  categoryValueLookupByVariable,
+  statsByVariable,
+  units,
 }: {
   stats: SpeciesEnvironmentStats;
-  locationGid: string;
+  locationGid?: string | null;
   observationsByCatalog: Record<string, UploadedOccurrenceRow>;
   locationLookup: ReturnType<typeof buildLocationLookupMaps>;
   indexRows: UploadedOccurrenceIndexRow[];
+  extra?: ExtraVariableFilter[] | null;
+  indexRowsByVariable: Record<string, UploadedOccurrenceIndexRow[]>;
+  categoryValueLookupByVariable: Record<
+    string,
+    UploadedCategoricalValueLookupRow[]
+  >;
+  statsByVariable: Record<string, SpeciesEnvironmentStats>;
+  units?: string | null;
 }): SpeciesEnvironmentStats => {
+  // Computed ONCE, not per index row — see buildScopedCategoricalStats's
+  // identical comment above. A discrete/binned numeric variable can have
+  // many 'range' index rows (one per bin), and this result doesn't depend
+  // on which bin is currently being scoped.
+  const chainAllowedCatalogsForNumericScope =
+    extra && extra.length > 0
+      ? new Set(
+          intersectWithExtraFilters(
+            Object.keys(observationsByCatalog),
+            extra,
+            indexRowsByVariable,
+            statsByVariable,
+            categoryValueLookupByVariable,
+            units,
+          ),
+        )
+      : null;
+
   const scopedValues = indexRows
     .filter((row) => row.mode === 'range')
     .flatMap((row) => {
@@ -1112,12 +1364,21 @@ const buildScopedNumericStats = ({
         return [];
       }
 
-      const scopedObservationIds = filterCatalogIdsByLocation(
-        row.observationIds,
-        observationsByCatalog,
-        locationLookup,
-        locationGid,
-      );
+      let scopedObservationIds = (
+        locationGid
+          ? filterCatalogIdsByLocation(
+              row.observationIds,
+              observationsByCatalog,
+              locationLookup,
+              locationGid,
+            )
+          : row.observationIds
+      ).map((id) => String(id));
+      if (chainAllowedCatalogsForNumericScope) {
+        scopedObservationIds = scopedObservationIds.filter((id) =>
+          chainAllowedCatalogsForNumericScope.has(id),
+        );
+      }
       if (!scopedObservationIds.length) {
         return [];
       }
@@ -1185,17 +1446,21 @@ const buildScopedNumericStats = ({
     let maxDens = -Infinity;
     let maxIdx = 0;
     for (let i = 0; i < density.length; i++) {
-      if (density[i] > maxDens) { maxDens = density[i]; maxIdx = i; }
+      if (density[i] > maxDens) {
+        maxDens = density[i];
+        maxIdx = i;
+      }
     }
     kdeMode = points[maxIdx] ?? null;
 
     // H ≈ -∫ f(x) log(f(x)) dx, trapezoidal with uniform step
     const step = isCircular
-      ? (2 * Math.PI) / points.length          // stepRad — density is per-radian
+      ? (2 * Math.PI) / points.length // stepRad — density is per-radian
       : (points[points.length - 1] - points[0]) / (points.length - 1);
     let entropySum = 0;
     for (let i = 0; i < density.length; i++) {
-      if (density[i] > 0) entropySum -= density[i] * Math.log(density[i]) * step;
+      if (density[i] > 0)
+        entropySum -= density[i] * Math.log(density[i]) * step;
     }
     kdeEntropy = isFinite(entropySum) ? entropySum : null;
   }
@@ -1239,6 +1504,11 @@ const buildScopedStats = ({
   locationLookup,
   indexRows,
   compositionGroupMembers,
+  extra,
+  indexRowsByVariable,
+  categoryValueLookupByVariable,
+  statsByVariable,
+  units,
 }: {
   stats: SpeciesEnvironmentStats;
   locationGid?: string | null;
@@ -1246,8 +1516,16 @@ const buildScopedStats = ({
   locationLookup: ReturnType<typeof buildLocationLookupMaps>;
   indexRows: UploadedOccurrenceIndexRow[];
   compositionGroupMembers?: Record<string, [string, string, string]>;
+  extra?: ExtraVariableFilter[] | null;
+  indexRowsByVariable: Record<string, UploadedOccurrenceIndexRow[]>;
+  categoryValueLookupByVariable: Record<
+    string,
+    UploadedCategoricalValueLookupRow[]
+  >;
+  statsByVariable: Record<string, SpeciesEnvironmentStats>;
+  units?: string | null;
 }): SpeciesEnvironmentStats => {
-  if (!locationGid) {
+  if (!locationGid && !(extra && extra.length > 0)) {
     return stats;
   }
 
@@ -1265,6 +1543,11 @@ const buildScopedStats = ({
       locationLookup,
       indexRows,
       compositionColumns: compositionGroupMembers?.[stats.variable],
+      extra,
+      indexRowsByVariable,
+      categoryValueLookupByVariable,
+      statsByVariable,
+      units,
     });
   }
 
@@ -1274,6 +1557,11 @@ const buildScopedStats = ({
     observationsByCatalog,
     locationLookup,
     indexRows,
+    extra,
+    indexRowsByVariable,
+    categoryValueLookupByVariable,
+    statsByVariable,
+    units,
   });
 };
 
@@ -1310,7 +1598,10 @@ const convertSummaryFields = (
     median: pos(summary.median),
     std: scale(summary.std),
     stddev: scale(summary.stddev),
-    variance: summary.variance != null ? (conv.scale * conv.scale * summary.variance) : summary.variance,
+    variance:
+      summary.variance != null
+        ? conv.scale * conv.scale * summary.variance
+        : summary.variance,
     range: scale(summary.range),
     q01: pos(summary.q01),
     q10: pos(summary.q10),
@@ -1322,9 +1613,10 @@ const convertSummaryFields = (
     q10_90_range: scale(summary.q10_90_range),
     mode: typeof summary.mode === 'number' ? pos(summary.mode) : summary.mode,
     // H(aX+b) = H(X) + log|a|; only applies when scale ≠ 1 (circular/discrete entropy is dimensionless)
-    entropy: summary.entropy != null && conv.scale !== 1
-      ? summary.entropy + Math.log(Math.abs(conv.scale))
-      : summary.entropy,
+    entropy:
+      summary.entropy != null && conv.scale !== 1
+        ? summary.entropy + Math.log(Math.abs(conv.scale))
+        : summary.entropy,
     // rbar, circular_mean, circular_std, unique_classes, count: unitless — no conversion
   };
 };
@@ -1340,7 +1632,10 @@ const convertStats = (
     ? convertSummaryFields(stats.baselineSummary, conv)
     : stats.baselineSummary,
   histogram: stats.histogram
-    ? { bins: stats.histogram.bins.map((b) => applyConv(b, conv) ?? b), counts: stats.histogram.counts }
+    ? {
+        bins: stats.histogram.bins.map((b) => applyConv(b, conv) ?? b),
+        counts: stats.histogram.counts,
+      }
     : stats.histogram,
   densityCurve: stats.densityCurve
     ? {
@@ -1361,7 +1656,18 @@ export const buildUploadLocalSpeciesDataSource = ({
   const occurrences = toSpeciesOccurrences(bundle.occurrences);
   const observationsByCatalog = toObservationsByCatalog(bundle.occurrences);
   const indexRowsByVariable = groupIndexRowsByVariable(bundle.occurrenceIndex);
-  const compositionGroupMembers = buildCompositionGroupMembers(bundle.variableDefinitions);
+  const categoryValueLookupByVariable = (
+    bundle.categoricalValueLookup ?? []
+  ).reduce<Record<string, UploadedCategoricalValueLookupRow[]>>((acc, row) => {
+    if (!acc[row.variable]) {
+      acc[row.variable] = [];
+    }
+    acc[row.variable].push(row);
+    return acc;
+  }, {});
+  const compositionGroupMembers = buildCompositionGroupMembers(
+    bundle.variableDefinitions,
+  );
   const locations = bundle.locations ?? [];
   const locationLookup = buildLocationLookupMaps(locations);
 
@@ -1444,6 +1750,11 @@ export const buildUploadLocalSpeciesDataSource = ({
         locationLookup,
         indexRows: indexRowsByVariable[variableId] ?? [],
         compositionGroupMembers,
+        extra: options?.extra,
+        indexRowsByVariable,
+        categoryValueLookupByVariable,
+        statsByVariable,
+        units: options?.units,
       });
 
       if (options?.units !== 'imperial') return scoped;
@@ -1465,7 +1776,14 @@ export const buildUploadLocalSpeciesDataSource = ({
         }
       }
       const catalogs = filterCatalogIdsByLocation(
-        collectCatalogsForRange(indexRows, min, max),
+        intersectWithExtraFilters(
+          collectCatalogsForRange(indexRows, min, max),
+          params.extra,
+          indexRowsByVariable,
+          statsByVariable,
+          categoryValueLookupByVariable,
+          params.units,
+        ),
         observationsByCatalog,
         locationLookup,
         params.location,
@@ -1498,7 +1816,14 @@ export const buildUploadLocalSpeciesDataSource = ({
     ) => {
       const indexRows = indexRowsByVariable[variableId] ?? [];
       const catalogs = filterCatalogIdsByLocation(
-        collectCatalogsForCategory(indexRows, classValue),
+        intersectWithExtraFilters(
+          collectCatalogsForCategory(indexRows, classValue),
+          options?.extra,
+          indexRowsByVariable,
+          statsByVariable,
+          categoryValueLookupByVariable,
+          options?.units,
+        ),
         observationsByCatalog,
         locationLookup,
         options?.location,
@@ -1558,7 +1883,9 @@ export const buildUploadLocalSpeciesDataSource = ({
         catalogNumber,
       );
       const conv =
-        options?.units === 'imperial' ? getMetricToImperial(stats?.units) : null;
+        options?.units === 'imperial'
+          ? getMetricToImperial(stats?.units)
+          : null;
       const value =
         conv && typeof rawValue === 'number'
           ? (applyConv(rawValue, conv) ?? rawValue)

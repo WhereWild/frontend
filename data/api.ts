@@ -37,6 +37,8 @@ import {
   fetchSpeciesEnvironment as fetchSpeciesEnvironmentHelper,
   fetchSpeciesEnvironmentCategorySamples as fetchSpeciesEnvironmentCategorySamplesHelper,
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
+  type CategorySampleOptions,
+  type LocationOptions,
 } from './apiEnvironmentHelpers';
 
 export type UploadFileValue =
@@ -256,7 +258,7 @@ export async function fetchEnvironmentVariables(
 export async function fetchSpeciesEnvironment(
   taxonId: string | number,
   variableId: string,
-  options?: { location?: string | null; units?: string | null },
+  options?: LocationOptions,
 ) {
   return fetchSpeciesEnvironmentHelper(taxonId, variableId, options);
 }
@@ -297,7 +299,7 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   taxonId: string | number,
   variableId: string,
   classValue: string | number,
-  options?: { limit?: number; location?: string | null; units?: string | null },
+  options?: CategorySampleOptions,
 ) {
   return fetchSpeciesEnvironmentCategorySamplesHelper(
     taxonId,

@@ -16,7 +16,11 @@ import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
 import { SummaryItem } from './SummaryItem';
 import type { RankContextOption } from './model';
-import { formatCategoryPercent, formatValue } from './model';
+import {
+  formatCategoryPercent,
+  formatValue,
+  joinClassNamesWithAnd,
+} from './model';
 
 type NominalInsightsProps = {
   showRankContext: boolean;
@@ -51,7 +55,7 @@ type NominalInsightsProps = {
   summaryComparisons?: Record<string, string | null>;
   baselineCategoricalDistribution?: SpeciesEnvironmentCategory[] | null;
   categoricalDistribution: SpeciesEnvironmentCategory[];
-  selectedCategoryValue: number | string | null;
+  selectedCategoryValues: (number | string)[];
   anyFilterActive: boolean;
 };
 
@@ -66,7 +70,7 @@ export function NominalInsights({
   summaryComparisons,
   baselineCategoricalDistribution,
   categoricalDistribution,
-  selectedCategoryValue,
+  selectedCategoryValues,
   anyFilterActive,
 }: NominalInsightsProps) {
   const { breakpoint } = useResponsive();
@@ -107,12 +111,15 @@ export function NominalInsights({
       ? (selectedRankContext ?? rankContextOptions[0].key)
       : '';
 
+  const selectedCategories = categoricalDistribution.filter((c) =>
+    selectedCategoryValues.includes(c.value),
+  );
+  // Only one selected class has a well-defined "rank vs. other species" —
+  // summaryRanks.selected_class is only ever computed for a single selection
+  // (see useSpeciesEnvironmentState), so multi-select falls back to the
+  // combined label/fraction without a rank.
   const selectedCategory =
-    selectedCategoryValue != null
-      ? (categoricalDistribution.find(
-          (c) => c.value === selectedCategoryValue,
-        ) ?? null)
-      : null;
+    selectedCategories.length === 1 ? selectedCategories[0] : null;
 
   const modeCategory = (() => {
     const mode = summary?.mode;
@@ -127,13 +134,16 @@ export function NominalInsights({
     );
   })();
 
-  const thirdSlotCategoryValue =
-    selectedCategory != null ? selectedCategoryValue : summary?.mode;
   const baselineThirdFraction =
-    anyFilterActive && thirdSlotCategoryValue != null
-      ? (baselineCategoricalDistribution?.find(
-          (c) => String(c.value) === String(thirdSlotCategoryValue),
-        )?.fraction ?? null)
+    anyFilterActive && selectedCategories.length > 0
+      ? selectedCategories.reduce(
+          (sum, c) =>
+            sum +
+            (baselineCategoricalDistribution?.find(
+              (b) => String(b.value) === String(c.value),
+            )?.fraction ?? 0),
+          0,
+        )
       : null;
   const thirdSlotComparison =
     baselineThirdFraction != null
@@ -141,11 +151,15 @@ export function NominalInsights({
       : null;
 
   const thirdSlot =
-    selectedCategory != null
+    selectedCategories.length > 0
       ? {
-          label: selectedCategory.className,
-          value: formatCategoryPercent(selectedCategory.fraction),
-          rank: summaryRanks.selected_class,
+          label: joinClassNamesWithAnd(
+            selectedCategories.map((c) => c.className),
+          ),
+          value: formatCategoryPercent(
+            selectedCategories.reduce((sum, c) => sum + c.fraction, 0),
+          ),
+          rank: selectedCategory != null ? summaryRanks.selected_class : null,
         }
       : {
           label: modeCategory?.className ?? 'Mode',

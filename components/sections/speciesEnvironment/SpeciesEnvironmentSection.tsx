@@ -102,17 +102,20 @@ function SpeciesEnvironmentSectionComponent({
     categoricalDistribution: ReturnType<
       typeof useSpeciesEnvironmentState
     >['categoricalDistribution'];
-    selectedCategoryValue: ReturnType<
+    selectedCategoryValues: ReturnType<
       typeof useSpeciesEnvironmentState
-    >['selectedCategoryValue'];
+    >['selectedCategoryValues'];
     densityCurve: ReturnType<typeof useSpeciesEnvironmentState>['densityCurve'];
     ternaryCompositionDensity: ReturnType<
       typeof useSpeciesEnvironmentState
     >['ternaryCompositionDensity'];
     summary: ReturnType<typeof useSpeciesEnvironmentState>['summary'];
-    selectedDensityRange: ReturnType<
+    selectedDensityRanges: ReturnType<
       typeof useSpeciesEnvironmentState
-    >['selectedDensityRange'];
+    >['selectedDensityRanges'];
+    chainDescription: ReturnType<
+      typeof useSpeciesEnvironmentState
+    >['chainDescription'];
     showRankContext: boolean;
     rankContextOptions: ReturnType<
       typeof useSpeciesEnvironmentState
@@ -176,13 +179,14 @@ function SpeciesEnvironmentSectionComponent({
     isCategorical,
     categoricalDistribution,
     baselineCategoricalDistribution,
-    selectedCategoryValue,
-    setSelectedCategoryValue,
+    selectedCategoryValues,
+    selectCategoryValue,
     densityCurve,
     ternaryCompositionDensity,
     summary,
-    selectedDensityRange,
-    handleDensitySelectionChange,
+    selectedDensityRanges,
+    selectDensityRange,
+    chainDescription,
     showRankContext,
     rankContextOptions,
     selectedRankContext,
@@ -293,11 +297,12 @@ function SpeciesEnvironmentSectionComponent({
   const showError = !loading && Boolean(error);
   const showAllObscured = !loading && Boolean(stats?.allObscured);
 
-  const handleCategorySelect = (value: string | number) => {
+  const handleCategorySelect = (
+    value: string | number,
+    options?: { additive?: boolean },
+  ) => {
     React.startTransition(() => {
-      setSelectedCategoryValue((previous) =>
-        previous === value ? null : value,
-      );
+      selectCategoryValue(value, options);
     });
   };
 
@@ -325,11 +330,12 @@ function SpeciesEnvironmentSectionComponent({
         metaText,
         isCategorical,
         categoricalDistribution: cbCategoricalDistribution,
-        selectedCategoryValue,
+        selectedCategoryValues,
         densityCurve,
         ternaryCompositionDensity,
         summary,
-        selectedDensityRange,
+        selectedDensityRanges,
+        chainDescription,
         showRankContext,
         rankContextOptions,
         selectedRankContext,
@@ -355,6 +361,7 @@ function SpeciesEnvironmentSectionComponent({
   const hasDisplayState = Boolean(displayState);
   const displayHeadingText = displayState?.headingText ?? null;
   const displayMetaText = displayState?.metaText ?? null;
+  const displayChainDescription = displayState?.chainDescription ?? null;
   const showCategoricalContent = Boolean(displayState?.isCategorical);
   const isOrdinalVar =
     selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
@@ -379,6 +386,7 @@ function SpeciesEnvironmentSectionComponent({
         onVariableChange={handleVariableChange}
         headingText={displayHeadingText}
         metaText={displayMetaText}
+        chainDescription={displayChainDescription}
       />
 
       <View collapsable={false} style={styles.statusSlot}>
@@ -506,7 +514,7 @@ function SpeciesEnvironmentSectionComponent({
           selectedVariable === 'Aspect (binned)' ? (
             <AspectCompassChart
               categories={displayState?.categoricalDistribution ?? []}
-              selectedValue={displayState?.selectedCategoryValue ?? null}
+              selectedValue={displayState?.selectedCategoryValues?.[0] ?? null}
               highlightedValue={displayState?.pinnedCategoryValue ?? null}
               homeHighlightedValue={
                 displayState?.homePinnedCategoryValue ?? null
@@ -541,7 +549,7 @@ function SpeciesEnvironmentSectionComponent({
                 )}
               <StackedCategoryBar
                 categories={displayState?.categoricalDistribution ?? []}
-                selectedValue={displayState?.selectedCategoryValue ?? null}
+                selectedValues={displayState?.selectedCategoryValues ?? []}
                 pinnedValue={displayState?.pinnedValue ?? null}
                 pinnedClassName={displayState?.pinnedClassName ?? null}
                 highlightedValue={displayState?.pinnedCategoryValue ?? null}
@@ -599,8 +607,8 @@ function SpeciesEnvironmentSectionComponent({
                   categoricalDistribution={
                     displayState?.categoricalDistribution ?? []
                   }
-                  selectedCategoryValue={
-                    displayState?.selectedCategoryValue ?? null
+                  selectedCategoryValues={
+                    displayState?.selectedCategoryValues ?? []
                   }
                   anyFilterActive={anyFilterActive}
                 />
@@ -627,9 +635,9 @@ function SpeciesEnvironmentSectionComponent({
                 fillColor={palette.background.brand.default}
                 lineColor={palette.background.brand.default}
                 guideColor={palette.text.default.secondary}
-                selection={displayState?.selectedDensityRange ?? null}
+                selections={displayState?.selectedDensityRanges ?? []}
                 onSelectionChange={
-                  slicingEnabled ? handleDensitySelectionChange : undefined
+                  slicingEnabled ? selectDensityRange : undefined
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
@@ -671,9 +679,9 @@ function SpeciesEnvironmentSectionComponent({
                 fillColor={palette.background.brand.default}
                 baselineColor={palette.border.neutral.default}
                 summary={displayState?.summary}
-                selection={displayState?.selectedDensityRange ?? null}
+                selections={displayState?.selectedDensityRanges ?? []}
                 onSelectionChange={
-                  slicingEnabled ? handleDensitySelectionChange : undefined
+                  slicingEnabled ? selectDensityRange : undefined
                 }
                 pinValue={numericPinnedValue}
                 pinLoading={pinnedLoading}
