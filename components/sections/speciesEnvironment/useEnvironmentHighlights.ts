@@ -1418,7 +1418,12 @@ export function useEnvironmentHighlights({
     }
     setRangeObservations(merged);
     emitHighlightChange(toCatalogIdsFromObservations(merged));
-  }, [emitHighlightChange, isCategorical, rangeSamplesByKey, selectedDensityRanges]);
+  }, [
+    emitHighlightChange,
+    isCategorical,
+    rangeSamplesByKey,
+    selectedDensityRanges,
+  ]);
 
   // When nothing is selected on the CURRENT variable but the chain isn't
   // empty, the view should still reflect the chained filter(s) on their
