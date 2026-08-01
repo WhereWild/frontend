@@ -40,16 +40,19 @@ export type CategorySampleOptions = {
 
 /** Serializes chained per-variable filters into the `extra` query param the
  * backend's _parse_extra_variable_filters expects — a JSON array of
- * {variable, min, max} or {variable, classValue} entries. */
+ * {variable, min, max}, {variable, classValue}, or {variable, classValues}
+ * entries. */
 function serializeExtraFilters(extra?: ExtraVariableFilter[] | null): string | null {
   if (!extra || extra.length === 0) {
     return null;
   }
   return JSON.stringify(
     extra.map((filter) =>
-      'classValue' in filter
-        ? { variable: filter.variableId, classValue: filter.classValue }
-        : { variable: filter.variableId, min: filter.min, max: filter.max },
+      'classValues' in filter
+        ? { variable: filter.variableId, classValues: filter.classValues }
+        : 'classValue' in filter
+          ? { variable: filter.variableId, classValue: filter.classValue }
+          : { variable: filter.variableId, min: filter.min, max: filter.max },
     ),
   );
 }

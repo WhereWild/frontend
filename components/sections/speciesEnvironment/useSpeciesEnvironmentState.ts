@@ -205,8 +205,8 @@ export function useSpeciesEnvironmentState({
   );
 
   const {
-    selectedCategoryValue,
-    setSelectedCategoryValue,
+    selectedCategoryValues,
+    selectCategoryValue,
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,
@@ -396,10 +396,12 @@ export function useSpeciesEnvironmentState({
         ? (categoricalDistribution.find((c) => c.value === summary.mode)
             ?.fraction ?? null)
         : null;
+    const singleSelectedCategoryValue =
+      selectedCategoryValues.length === 1 ? selectedCategoryValues[0] : null;
     const selectedFraction =
-      selectedCategoryValue != null
+      singleSelectedCategoryValue != null
         ? (categoricalDistribution.find(
-            (c) => c.value === selectedCategoryValue,
+            (c) => c.value === singleSelectedCategoryValue,
           )?.fraction ?? null)
         : null;
     return {
@@ -475,9 +477,9 @@ export function useSpeciesEnvironmentState({
             })
           : null,
       selected_class:
-        selectedCategoryValue != null && selectedFraction != null
+        singleSelectedCategoryValue != null && selectedFraction != null
           ? resolveRankForMetric(
-              `class_${selectedCategoryValue}`,
+              `class_${singleSelectedCategoryValue}`,
               selectedFraction,
               {
                 allowHistogramFallback: false,
@@ -508,7 +510,7 @@ export function useSpeciesEnvironmentState({
     summary?.std,
     summaryRangeValue,
     categoricalDistribution,
-    selectedCategoryValue,
+    selectedCategoryValues,
   ]);
 
   const summaryComparisons = React.useMemo<Record<string, string | null>>(
@@ -650,8 +652,8 @@ export function useSpeciesEnvironmentState({
     isCategorical,
     categoricalDistribution,
     baselineCategoricalDistribution,
-    selectedCategoryValue,
-    setSelectedCategoryValue,
+    selectedCategoryValues,
+    selectCategoryValue,
     densityCurve,
     ternaryCompositionDensity,
     summary,

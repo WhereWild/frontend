@@ -394,10 +394,13 @@ export type EnvironmentVariableDefinition = {
  * slicing a landcover class. min/max (for a continuous/circular range) or
  * classValue (for an exact categorical match) are in DISPLAY units for that
  * filter's OWN variable, same convention as the primary slice's min/max.
+ * classValues ORs together multiple classes of that same variable (e.g.
+ * Forest OR Grassland) — ANDed against everything else same as classValue.
  */
 export type ExtraVariableFilter =
   | { variableId: string; min: number; max: number }
-  | { variableId: string; classValue: number };
+  | { variableId: string; classValue: number }
+  | { variableId: string; classValues: number[] };
 
 /** Query parameters for numeric environment slice requests. */
 export type EnvironmentSliceParams = {

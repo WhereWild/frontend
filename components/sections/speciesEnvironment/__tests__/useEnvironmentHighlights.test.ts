@@ -137,7 +137,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -146,7 +146,7 @@ describe('useEnvironmentHighlights', () => {
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
   });
 
-  it('supports function-updater category selection and preloaded resolution before cache sync', async () => {
+  it('supports category selection and preloaded resolution before cache sync', async () => {
     const onHighlightChange = jest.fn();
 
     const { result } = renderHook(() =>
@@ -160,13 +160,183 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue((previous) =>
-        previous ? null : 'forest',
-      );
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
       expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
+  });
+
+  it('accumulates an additive selection instead of replacing it', async () => {
+    const onHighlightChange = jest.fn();
+    const twoClassStats: SpeciesEnvironmentStats = {
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 'forest', className: 'Forest', count: 5, fraction: 0.5 },
+        { value: 'grass', className: 'Grassland', count: 5, fraction: 0.5 },
+      ],
+      categoricalSamples: [
+        { value: 'forest', observationIds: ['A1', 'B2'] },
+        { value: 'grass', observationIds: ['C3'] },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: twoClassStats,
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.selectCategoryValue('forest');
+    });
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
+    );
+    expect(result.current.selectedCategoryValues).toEqual(['forest']);
+
+    act(() => {
+      result.current.selectCategoryValue('grass', { additive: true });
+    });
+
+    await waitFor(() =>
+      expect(result.current.selectedCategoryValues).toEqual([
+        'forest',
+        'grass',
+      ]),
+    );
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenLastCalledWith(
+        expect.arrayContaining(['A1', 'B2', 'C3']),
+      ),
+    );
+    expect(onHighlightChange.mock.calls.at(-1)?.[0]).toHaveLength(3);
+  });
+
+  it('does not drop a category fetch result when a second concurrent fetch is dispatched while it is still in flight', async () => {
+    // Regression test: resolveCategorySelection used to mint its own
+    // "request id" off the SAME shared generation counter that
+    // resetHighlightState/variable-switch/clear-selection use to invalidate
+    // ALL in-flight requests on a genuine reset. Starting a second key's
+    // fetch (part of the same multi-select) bumped that counter and made
+    // the FIRST key's in-flight fetch look stale by the time it resolved,
+    // silently dropping its result — so a multi-select with 2+ concurrently
+    // resolving classes would never fully settle, and the union-and-emit
+    // effect (which waits for EVERY selected key to settle) would just
+    // never emit. No categoricalSamples preload here, so every selection
+    // goes through the real (mocked) async fetch path instead of the
+    // synchronous preloaded-cache shortcut.
+    const onHighlightChange = jest.fn();
+    const threeClassStats: SpeciesEnvironmentStats = {
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 'a', className: 'A', count: 1, fraction: 0.34 },
+        { value: 'b', className: 'B', count: 1, fraction: 0.33 },
+        { value: 'c', className: 'C', count: 1, fraction: 0.33 },
+      ],
+      categoricalSamples: [],
+    };
+    const deferredA = createDeferred<MockCategoryResponse>();
+    const deferredB = createDeferred<MockCategoryResponse>();
+    const deferredC = createDeferred<MockCategoryResponse>();
+    mockFetchSpeciesEnvironmentCategorySamples
+      .mockImplementationOnce(() => deferredA.promise as never)
+      .mockImplementationOnce(() => deferredB.promise as never)
+      .mockImplementationOnce(() => deferredC.promise as never);
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: threeClassStats,
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.selectCategoryValue('a');
+    });
+    act(() => {
+      result.current.selectCategoryValue('b', { additive: true });
+    });
+    act(() => {
+      result.current.selectCategoryValue('c', { additive: true });
+    });
+
+    await waitFor(() =>
+      expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledTimes(
+        3,
+      ),
+    );
+
+    // Resolve out of order — B and C land while A's fetch (dispatched
+    // FIRST) is still pending, which is exactly what used to invalidate A.
+    await act(async () => {
+      deferredB.resolve({ observations: [{ catalogNumber: 'B1' }] });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      deferredC.resolve({ observations: [{ catalogNumber: 'C1' }] });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      deferredA.resolve({ observations: [{ catalogNumber: 'A1' }] });
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(onHighlightChange).toHaveBeenLastCalledWith(
+        expect.arrayContaining(['A1', 'B1', 'C1']),
+      ),
+    );
+    expect(onHighlightChange.mock.calls.at(-1)?.[0]).toHaveLength(3);
+  });
+
+  it('accumulates two rapid additive selections fired before either re-renders', async () => {
+    // Regression test: two selectCategoryValue calls issued back-to-back
+    // inside the same act() (no re-render between them, mirroring
+    // React.startTransition batching two quick real clicks) must not have
+    // the second call compute its additive toggle against a stale snapshot
+    // of the first call's result.
+    const onHighlightChange = jest.fn();
+    const twoClassStats: SpeciesEnvironmentStats = {
+      ...categoricalStats,
+      categoricalDistribution: [
+        { value: 'forest', className: 'Forest', count: 5, fraction: 0.5 },
+        { value: 'grass', className: 'Grassland', count: 5, fraction: 0.5 },
+      ],
+      categoricalSamples: [
+        { value: 'forest', observationIds: ['A1', 'B2'] },
+        { value: 'grass', observationIds: ['C3'] },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useEnvironmentHighlights({
+        taxonId: 1,
+        selectedVariable: 'landcover',
+        stats: twoClassStats,
+        isCategorical: true,
+        onHighlightChange,
+      }),
+    );
+
+    act(() => {
+      result.current.selectCategoryValue('forest');
+      result.current.selectCategoryValue('grass', { additive: true });
+    });
+
+    await waitFor(() =>
+      expect(result.current.selectedCategoryValues).toEqual([
+        'forest',
+        'grass',
+      ]),
     );
   });
 
@@ -184,7 +354,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -192,11 +362,11 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
-    expect(result.current.selectedCategoryValue).toBeNull();
+    expect(result.current.selectedCategoryValues).toEqual([]);
   });
 
   it('emits empty highlights when categorical fetch is bypassed by missing categorical conditions', async () => {
@@ -213,7 +383,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
@@ -245,7 +415,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -273,7 +443,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
@@ -300,9 +470,18 @@ describe('useEnvironmentHighlights', () => {
       }),
     );
 
+    // A render between the two selections — not batched into the same
+    // act() — so the trigger-resolution effect actually dispatches
+    // forest's fetch before the user switches to desert (resolution is
+    // now purely effect-driven; two selections issued with no commit
+    // between them would mean the effect only ever sees the FINAL state
+    // and forest's own fetch would never dispatch at all, which is correct
+    // for that case but isn't the scenario under test here).
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
-      result.current.setSelectedCategoryValue('desert');
+      result.current.selectCategoryValue('forest');
+    });
+    act(() => {
+      result.current.selectCategoryValue('desert');
     });
 
     await waitFor(() =>
@@ -354,9 +533,18 @@ describe('useEnvironmentHighlights', () => {
       }),
     );
 
+    // A render between the two selections — not batched into the same
+    // act() — so the trigger-resolution effect actually dispatches
+    // forest's fetch before the user switches to desert (resolution is
+    // now purely effect-driven; two selections issued with no commit
+    // between them would mean the effect only ever sees the FINAL state
+    // and forest's own fetch would never dispatch at all, which is correct
+    // for that case but isn't the scenario under test here).
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
-      result.current.setSelectedCategoryValue('desert');
+      result.current.selectCategoryValue('forest');
+    });
+    act(() => {
+      result.current.selectCategoryValue('desert');
     });
 
     await waitFor(() =>
@@ -403,7 +591,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -459,7 +647,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -499,7 +687,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -533,7 +721,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -550,13 +738,16 @@ describe('useEnvironmentHighlights', () => {
     });
 
     act(() => {
-      result.current.setSelectedCategoryValue(null);
+      // Selection is currently ['forest']; a non-additive select of the same
+      // value toggles it off, clearing the selection (equivalent to the old
+      // setSelectedCategoryValue(null) reset).
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() => expect(onHighlightChange).toHaveBeenLastCalledWith([]));
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -583,7 +774,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -608,7 +799,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -616,11 +807,13 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue(null);
+      // Selection is currently ['forest']; a non-additive select of the same
+      // value toggles it off (equivalent to the old explicit-null reset).
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() => expect(onHighlightChange).toHaveBeenCalledWith([]));
-    expect(result.current.selectedCategoryValue).toBeNull();
+    expect(result.current.selectedCategoryValues).toEqual([]);
   });
 
   it('cancels in-flight debounced range slice updates on dependency changes (success and failure)', async () => {
@@ -1306,7 +1499,7 @@ describe('useEnvironmentHighlights', () => {
     );
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     expect(mockFetchSpeciesEnvironmentCategorySamples).not.toHaveBeenCalled();
@@ -1490,7 +1683,7 @@ describe('useEnvironmentHighlights', () => {
         isCategorical: true,
       });
       act(() => {
-        result.current.setSelectedCategoryValue('class_52');
+        result.current.selectCategoryValue('class_52');
       });
       await waitFor(() =>
         expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
@@ -1515,7 +1708,7 @@ describe('useEnvironmentHighlights', () => {
             variableId: 'bio_1',
             min: 10,
             max: 20,
-            extra: [{ variableId: 'landcover', classValue: 52 }],
+            extra: [{ variableId: 'landcover', classValues: [52] }],
           }),
         ),
       );
@@ -1579,7 +1772,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.setSelectedCategoryValue('forest');
+        result.current.selectCategoryValue('forest');
       });
       // 'forest' is served from categoricalStats.categoricalSamples (the
       // preloaded fast path) here, not the network — wait on the highlight
@@ -1594,7 +1787,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
         isCategorical: false,
       });
 
-      expect(result.current.selectedCategoryValue).toBeNull();
+      expect(result.current.selectedCategoryValues).toEqual([]);
       // 'forest' has no numeric class value on this fixture (a plain string,
       // no "class_"/numeric form) — there's nothing valid to send as an
       // `extra` classValue filter, so no chain entry is created at all
@@ -1620,7 +1813,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.setSelectedCategoryValue('class_52');
+        result.current.selectCategoryValue('class_52');
       });
       await waitFor(() =>
         expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
@@ -1635,7 +1828,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       expect(result.current.activeChain).toEqual([
         expect.objectContaining({
           variableId: 'landcover',
-          extra: { variableId: 'landcover', classValue: 52 },
+          extra: { variableId: 'landcover', classValues: [52] },
         }),
       ]);
     });
@@ -1678,7 +1871,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
       });
 
       act(() => {
-        result.current.setSelectedCategoryValue('class_52');
+        result.current.selectCategoryValue('class_52');
       });
       await waitFor(() =>
         expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
@@ -1694,11 +1887,11 @@ it('does not chain a categorical selection whose value has no resolvable numeric
         isCategorical: true,
       });
 
-      expect(result.current.selectedCategoryValue).toBeNull();
+      expect(result.current.selectedCategoryValues).toEqual([]);
       expect(result.current.activeChain).toEqual([
         expect.objectContaining({
           variableId: 'landcover',
-          extra: { variableId: 'landcover', classValue: 52 },
+          extra: { variableId: 'landcover', classValues: [52] },
         }),
       ]);
 
@@ -1916,7 +2109,7 @@ it('does not chain a categorical selection whose value has no resolvable numeric
         });
 
         act(() => {
-          result.current.setSelectedCategoryValue('class_52');
+          result.current.selectCategoryValue('class_52');
         });
         await waitFor(() =>
           expect(

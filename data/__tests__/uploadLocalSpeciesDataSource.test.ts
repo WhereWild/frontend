@@ -1431,6 +1431,25 @@ describe('upload local species data source chained extra-variable filters', () =
     expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_2']);
   });
 
+  it('intersects a chained multi-class (OR) filter onto a numeric slice request', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: 1,
+      variableId: 'bio_1',
+      min: 0,
+      max: 100,
+      extra: [{ variableId: 'landcover', classValues: [52, 130] }],
+    });
+
+    // classValues=[52,130] matches ALL three rows (52 OR 130), unlike the
+    // single-classValue=52 test above which only matches obs_1/obs_2.
+    expect(new Set(slice.observations.map((o) => o.catalogNumber))).toEqual(
+      new Set(['obs_1', 'obs_2', 'obs_3']),
+    );
+  });
+
   it('returns nothing when a chained filter matches no rows', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });

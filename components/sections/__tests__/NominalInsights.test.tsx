@@ -61,7 +61,7 @@ const baseProps = {
   summary: null,
   summaryRanks: baseSummaryRanks,
   categoricalDistribution: [],
-  selectedCategoryValue: null,
+  selectedCategoryValues: [],
   anyFilterActive: false,
 };
 
@@ -136,7 +136,7 @@ describe('NominalInsights', () => {
           {...baseProps}
           summary={{ unique_classes: 5, entropy: 1.2, mode: 1 }}
           categoricalDistribution={[sampleCategory]}
-          selectedCategoryValue={1}
+          selectedCategoryValues={[1]}
         />,
       ),
     ).not.toThrow();
@@ -149,7 +149,7 @@ describe('NominalInsights', () => {
           {...baseProps}
           summary={{ unique_classes: 5, entropy: 1.2, mode: 2 }}
           categoricalDistribution={[sampleCategory]}
-          selectedCategoryValue={99}
+          selectedCategoryValues={[99]}
         />,
       ),
     ).not.toThrow();
@@ -221,7 +221,7 @@ describe('NominalInsights', () => {
           {...baseProps}
           summary={{ mode: 1 }}
           categoricalDistribution={[sampleCategory]}
-          selectedCategoryValue={null}
+          selectedCategoryValues={[]}
         />,
       ),
     ).not.toThrow();
@@ -234,7 +234,7 @@ describe('NominalInsights', () => {
           {...baseProps}
           summary={{ mode: 99 }}
           categoricalDistribution={[sampleCategory]}
-          selectedCategoryValue={null}
+          selectedCategoryValues={[]}
         />,
       ),
     ).not.toThrow();

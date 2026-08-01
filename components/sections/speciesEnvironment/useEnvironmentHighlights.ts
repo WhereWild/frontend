@@ -14,6 +14,7 @@ import {
   CategorySampleState,
   ChainedVariableFilter,
   DensitySelectionRange,
+  joinClassNamesWithAnd,
 } from './model';
 
 const DENSITY_SLICE_DEBOUNCE_MS = 200;
@@ -54,8 +55,9 @@ const isSyntheticPinnedPoint = (catalogNumber: string | number) =>
 
 // A chained filter's classValue must be the raw numeric class code (see
 // ExtraVariableFilter) — the backend's /slice and /class/:value/samples
-// endpoints both key categorical values by that code. selectedCategoryValue
-// here can arrive as a plain number (remote data source) or a resolved
+// endpoints both key categorical values by that code. Each of
+// selectedCategoryValues here can arrive as a plain number (remote data
+// source) or a resolved
 // metric-string key like "class_52" (local upload data source) — strip a
 // "class_" prefix before parsing so both shapes resolve to the same code.
 const toNumericClassValue = (value: number | string): number | null => {
@@ -162,9 +164,23 @@ export function useEnvironmentHighlights({
   slicingEnabled = true,
 }: UseEnvironmentHighlightsParams) {
   const speciesDataSource = useSpeciesDataSource();
-  const [selectedCategoryValue, setSelectedCategoryValueState] = React.useState<
-    number | string | null
-  >(null);
+  const [selectedCategoryValues, setSelectedCategoryValuesState] =
+    React.useState<(number | string)[]>([]);
+  // Authoritative "current" selection, updated eagerly (not just via the
+  // state setter) so a rapid second selectCategoryValue call — e.g. two
+  // ctrl-clicks in quick succession, both scheduled via startTransition
+  // before the first one's re-render commits — computes its additive
+  // toggle against the REAL latest selection instead of a stale snapshot
+  // captured from render scope. Same ref-mirrors-state pattern as
+  // activeChainRef elsewhere in this codebase.
+  const selectedCategoryValuesRef = React.useRef<(number | string)[]>([]);
+  const setSelectedCategoryValues = React.useCallback(
+    (next: (number | string)[]) => {
+      selectedCategoryValuesRef.current = next;
+      setSelectedCategoryValuesState(next);
+    },
+    [],
+  );
   const [categorySamplesByValue, setCategorySamplesByValue] = React.useState<
     Record<string, CategorySampleState>
   >({});
@@ -190,7 +206,7 @@ export function useEnvironmentHighlights({
     [],
   );
   // Tracks which variable + mode the CURRENT selectedDensityRange/
-  // selectedCategoryValue belongs to, plus its already-resolved display
+  // selectedCategoryValues belongs to, plus its already-resolved display
   // label — set at the moment a selection is made (when `stats` reliably
   // still matches that variable), not derived at variable-switch time
   // (when `stats`/isCategorical may have already flipped to the new
@@ -253,7 +269,9 @@ export function useEnvironmentHighlights({
 
   const resetHighlightState = React.useCallback(() => {
     categoryRequestRef.current += 1;
-    setSelectedCategoryValueState(null);
+    if (selectedCategoryValuesRef.current.length !== 0) {
+      setSelectedCategoryValues([]);
+    }
     setSelectedDensityRange(null);
     setRangeObservations([]);
     setCategorySamplesByValue({});
@@ -325,23 +343,32 @@ export function useEnvironmentHighlights({
     previousVariableRef.current = selectedVariable;
 
     const outgoingMeta = selectionMetaRef.current;
+    // eslint-disable-next-line no-console
+    console.log('[MULTISELECT DEBUG] variable-switch chain effect', {
+      outgoingVariableId,
+      incomingVariableId: selectedVariable,
+      outgoingMeta,
+      selectedCategoryValues,
+      selectedCategoryValuesRef: selectedCategoryValuesRef.current,
+    });
     let nextChain = activeChain;
     if (outgoingMeta && outgoingMeta.variableId === outgoingVariableId) {
       const entry: ChainedVariableFilter | null = outgoingMeta.isCategorical
-        ? selectedCategoryValue === null
-          ? null
-          : (() => {
-              const numericValue = toNumericClassValue(selectedCategoryValue);
-              return numericValue === null
-                ? null
-                : {
-                    variableId: outgoingVariableId,
-                    isCategorical: true,
-                    extra: { variableId: outgoingVariableId, classValue: numericValue },
-                    label: outgoingMeta.label,
-                    originalCategoryValue: selectedCategoryValue,
-                  };
-            })()
+        ? (() => {
+            if (selectedCategoryValues.length === 0) return null;
+            const numericValues = selectedCategoryValues
+              .map(toNumericClassValue)
+              .filter((v): v is number => v !== null);
+            return numericValues.length === 0
+              ? null
+              : {
+                  variableId: outgoingVariableId,
+                  isCategorical: true,
+                  extra: { variableId: outgoingVariableId, classValues: numericValues },
+                  label: outgoingMeta.label,
+                  originalCategoryValues: selectedCategoryValues,
+                };
+          })()
         : selectedDensityRange === null
           ? null
           : {
@@ -378,19 +405,19 @@ export function useEnvironmentHighlights({
         label: restored.label,
       };
       if (restored.isCategorical) {
-        setSelectedCategoryValueState(restored.originalCategoryValue ?? null);
+        setSelectedCategoryValues(restored.originalCategoryValues ?? []);
         setSelectedDensityRange(null);
       } else {
         setSelectedDensityRange(restored.originalRange ?? null);
-        setSelectedCategoryValueState(null);
+        setSelectedCategoryValues([]);
       }
     } else {
       setActiveChain(nextChain);
-      setSelectedCategoryValueState(null);
+      setSelectedCategoryValues([]);
       setSelectedDensityRange(null);
     }
     // The slice/category-fetch effects below react to the resulting
-    // selectedDensityRange/selectedCategoryValue/activeChain changes and
+    // selectedDensityRange/selectedCategoryValues/activeChain changes and
     // will emit the correct (non-empty) highlight set once they resolve —
     // but that's an async fetch, same as the earlier marker-color flicker.
     // Clearing to [] here unconditionally means the map shows every dot
@@ -402,7 +429,7 @@ export function useEnvironmentHighlights({
     if (nextChain.length === 0 && !restored) {
       emitHighlightChange([]);
     }
-  }, [selectedVariable, activeChain, emitHighlightChange, selectedCategoryValue, selectedDensityRange]);
+  }, [selectedVariable, activeChain, emitHighlightChange, selectedCategoryValues, selectedDensityRange]);
 
   const removeChainedFilter = React.useCallback((variableId: string) => {
     setActiveChain((prev) => {
@@ -627,6 +654,13 @@ export function useEnvironmentHighlights({
     });
   }, [stats?.categoricalSamples, selectedVariable, locationGid]);
 
+  // Resolves ONE category key into categorySamplesByValue's cache — it
+  // never emits a highlight itself. With multi-select, several keys can be
+  // resolving independently/at different speeds; if each one emitted its
+  // own result the map would flicker through partial unions as each
+  // request landed. A separate effect below watches
+  // categorySamplesByValue + selectedCategoryValues and emits the UNION
+  // once every currently-selected key has settled.
   const resolveCategorySelection = React.useCallback(
     (nextKey: string) => {
       // Neither the per-value cache nor the preloaded stats.categoricalSamples
@@ -636,7 +670,6 @@ export function useEnvironmentHighlights({
       const hasActiveChain = activeChain.length > 0;
       const cached = hasActiveChain ? undefined : categorySamplesByValue[nextKey];
       if (cached?.loaded && !cached.error) {
-        emitHighlightChange(toCatalogIdsFromObservations(cached.observations));
         return;
       }
 
@@ -655,18 +688,30 @@ export function useEnvironmentHighlights({
               error: null,
             },
           }));
-          emitHighlightChange(preloadedIds);
           return;
         }
       }
 
       if (!isCategorical || !taxonId || !selectedVariable || !slicingEnabled) {
-        emitHighlightChange([]);
+        setCategorySamplesByValue((prev) => ({
+          ...prev,
+          [nextKey]: { observations: [], loading: false, loaded: true, error: null },
+        }));
         return;
       }
 
-      const requestId = categoryRequestRef.current + 1;
-      categoryRequestRef.current = requestId;
+      // Reads (never bumps) the shared generation counter — categoryRequestRef
+      // is also used elsewhere as a genuine "everything in flight is now
+      // stale" reset signal (resetHighlightState, variable switches, clearing
+      // the selection). Bumping it here too, per individual key, used to mean
+      // resolving key B while key A's fetch was still in flight made A's own
+      // response look stale and get silently dropped — exactly the bug where
+      // a multi-select never finished resolving every selected class (worse
+      // the more classes selected at once, e.g. ordinal variables with many
+      // classes). Capturing the CURRENT generation instead of minting a new
+      // one means concurrent per-key fetches no longer invalidate each other,
+      // and are still correctly invalidated together on a genuine reset.
+      const requestId = categoryRequestRef.current;
       setCategorySamplesByValue((prev) => ({
         ...prev,
         [nextKey]: {
@@ -703,7 +748,6 @@ export function useEnvironmentHighlights({
               error: null,
             },
           }));
-          emitHighlightChange(toCatalogIdsFromObservations(observations));
         } catch (err) {
           if (categoryRequestRef.current !== requestId) {
             return;
@@ -721,14 +765,12 @@ export function useEnvironmentHighlights({
               error: errorMessage,
             },
           }));
-          emitHighlightChange([]);
         }
       })();
     },
     [
       activeChain,
       categorySamplesByValue,
-      emitHighlightChange,
       isCategorical,
       locationGid,
       selectedVariable,
@@ -740,92 +782,148 @@ export function useEnvironmentHighlights({
     ],
   );
 
-  const setSelectedCategoryValue = React.useCallback(
-    (nextValueOrUpdater: React.SetStateAction<number | string | null>) => {
-      const nextValue =
-        typeof nextValueOrUpdater === 'function'
-          ? (
-              nextValueOrUpdater as (
-                previous: number | string | null,
-              ) => number | string | null
-            )(selectedCategoryValue)
-          : nextValueOrUpdater;
-      const currentKey =
-        selectedCategoryValue !== null ? String(selectedCategoryValue) : null;
-      const nextKey = nextValue !== null ? String(nextValue) : null;
+  // Clicking a value that's already selected always just removes it —
+  // whether the click was additive (ctrl/cmd) or not, and regardless of how
+  // many other values are currently selected — since replacing a multi-
+  // select down to just the clicked value on a plain click would silently
+  // discard the rest of the selection with no way to tell it was intended.
+  // Clicking a NOT-yet-selected value adds it when additive (ctrl/cmd), or
+  // — only when there's zero or one value currently selected — replaces the
+  // selection with just it (plain click starting fresh, or swapping a
+  // single selection for another). A plain click on an unselected value
+  // while a MULTI-selection is already active does nothing at all: without
+  // ctrl/cmd held there's no way to tell "start fresh" apart from "add to
+  // this", so it's treated as a no-op rather than silently discarding the
+  // rest of the selection.
+  const selectCategoryValue = React.useCallback(
+    (value: number | string, options?: { additive?: boolean }) => {
+      const key = String(value);
+      const additive = options?.additive ?? false;
+      const current = selectedCategoryValuesRef.current;
+      const alreadySelected = current.some((v) => String(v) === key);
+      if (!alreadySelected && !additive && current.length > 1) {
+        return;
+      }
+      const nextValues = alreadySelected
+        ? current.filter((v) => String(v) !== key)
+        : additive
+          ? [...current, value]
+          : [value];
 
-      if (!nextKey || nextKey === currentKey) {
+      // eslint-disable-next-line no-console
+      console.log('[MULTISELECT DEBUG] selectCategoryValue', {
+        value,
+        additive,
+        current,
+        nextValues,
+      });
+
+      if (nextValues.length === 0) {
         categoryRequestRef.current += 1;
-        setSelectedCategoryValueState(null);
+        setSelectedCategoryValues([]);
         selectionMetaRef.current = null;
         emitHighlightChange([]);
         return;
       }
 
-      setSelectedCategoryValueState(nextValue);
+      setSelectedCategoryValues(nextValues);
       // Resolved now, while `stats` still reliably matches selectedVariable
       // — see selectionMetaRef's own comment for why this can't wait until
       // the variable-switch effect runs.
-      const label =
-        stats?.categoricalDistribution?.find(
-          (category) => String(category.value) === nextKey,
-        )?.className ?? nextKey;
+      const label = joinClassNamesWithAnd(
+        nextValues.map(
+          (v) =>
+            stats?.categoricalDistribution?.find(
+              (category) => String(category.value) === String(v),
+            )?.className ?? String(v),
+        ),
+      );
       selectionMetaRef.current = {
         variableId: selectedVariable,
         isCategorical: true,
         label,
       };
-      if (!stats) {
-        return;
-      }
-      resolveCategorySelection(nextKey);
+      // Resolution itself is left entirely to the reactive effect below
+      // (which watches selectedCategoryValues + categorySamplesByValue) —
+      // it already guards on state?.loading/state?.loaded correctly.
+      // Calling resolveCategorySelection directly here too, for every
+      // value in nextValues on EVERY call, used to re-trigger a duplicate
+      // fetch for values that were already loaded/in-flight from a prior
+      // call (its own cache guard only checked `loaded`, not `loading`) —
+      // harmless in effect but wasteful, and needlessly re-triggers a
+      // network request each time another value is added to the selection.
     },
-    [
-      emitHighlightChange,
-      resolveCategorySelection,
-      selectedCategoryValue,
-      selectedVariable,
-      stats,
-    ],
+    [emitHighlightChange, selectedVariable, stats],
   );
 
+  // Emits the UNION of every currently-selected key's resolved
+  // observations — but only once ALL of them have settled (loaded, not
+  // loading, no error), so a multi-select never flashes a partial union as
+  // each key's fetch lands at a different time.
   React.useEffect(() => {
     if (
       !isCategorical ||
       !onHighlightChange ||
-      selectedCategoryValue === null
+      selectedCategoryValues.length === 0
     ) {
       return;
     }
-    const key = String(selectedCategoryValue);
-    const state = categorySamplesByValue[key];
-    if (!state?.loaded || state.loading || state.error) {
+    const keys = selectedCategoryValues.map((v) => String(v));
+    const states = keys.map((key) => categorySamplesByValue[key]);
+    // eslint-disable-next-line no-console
+    console.log('[MULTISELECT DEBUG] union-and-emit effect check', {
+      selectedCategoryValues,
+      keys,
+      states: states.map((s) => ({
+        loaded: s?.loaded,
+        loading: s?.loading,
+        error: s?.error,
+        obsCount: s?.observations?.length,
+      })),
+    });
+    if (states.some((state) => !state?.loaded || state.loading || state.error)) {
       return;
     }
-    emitHighlightChange(toCatalogIdsFromObservations(state.observations));
+    const seen = new Set<CatalogId>();
+    const merged: SpeciesEnvironmentObservation[] = [];
+    for (const state of states) {
+      for (const obs of state?.observations ?? []) {
+        if (!seen.has(obs.catalogNumber)) {
+          seen.add(obs.catalogNumber);
+          merged.push(obs);
+        }
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.log('[MULTISELECT DEBUG] union-and-emit EMITTING', {
+      mergedCount: merged.length,
+    });
+    emitHighlightChange(toCatalogIdsFromObservations(merged));
   }, [
     categorySamplesByValue,
     emitHighlightChange,
     isCategorical,
     onHighlightChange,
-    selectedCategoryValue,
+    selectedCategoryValues,
   ]);
 
   React.useEffect(() => {
-    if (!isCategorical || !stats || selectedCategoryValue === null) {
+    if (!isCategorical || !stats || selectedCategoryValues.length === 0) {
       return;
     }
-    const key = String(selectedCategoryValue);
-    const state = categorySamplesByValue[key];
-    if (state?.loading || state?.loaded) {
-      return;
+    for (const value of selectedCategoryValues) {
+      const key = String(value);
+      const state = categorySamplesByValue[key];
+      if (state?.loading || state?.loaded) {
+        continue;
+      }
+      resolveCategorySelection(key);
     }
-    resolveCategorySelection(key);
   }, [
     categorySamplesByValue,
     isCategorical,
     resolveCategorySelection,
-    selectedCategoryValue,
+    selectedCategoryValues,
     stats,
   ]);
 
@@ -954,7 +1052,7 @@ export function useEnvironmentHighlights({
   // effect. Treats the first chain entry as the "primary" request (as it
   // would have been before it was stashed) and the rest as `extra`.
   React.useEffect(() => {
-    if (selectedDensityRange || selectedCategoryValue !== null) {
+    if (selectedDensityRange || selectedCategoryValues.length > 0) {
       // The effects above already cover "there's a live selection".
       return;
     }
@@ -967,6 +1065,35 @@ export function useEnvironmentHighlights({
     void (async () => {
       try {
         if (primary.isCategorical) {
+          if ('classValues' in primary.extra) {
+            const responses = await Promise.all(
+              primary.extra.classValues.map((classValue) =>
+                speciesDataSource.fetchSpeciesEnvironmentCategorySamples(
+                  taxonId,
+                  primary.variableId,
+                  classValue,
+                  { location: locationGid ?? undefined, units, extra },
+                ),
+              ),
+            );
+            if (cancelled) {
+              return;
+            }
+            const seenClass = new Set<number | string>();
+            const merged: SpeciesEnvironmentObservation[] = [];
+            for (const response of responses) {
+              for (const obs of response.observations ?? []) {
+                const id = obs.catalogNumber;
+                if (id !== null && id !== undefined && !seenClass.has(id)) {
+                  seenClass.add(id);
+                  merged.push(obs);
+                }
+              }
+            }
+            setRangeObservations(merged);
+            emitHighlightChange(toCatalogIdsFromObservations(merged));
+            return;
+          }
           if (!('classValue' in primary.extra)) {
             return;
           }
@@ -1043,7 +1170,7 @@ export function useEnvironmentHighlights({
     activeChain,
     selectedVariable,
     selectedDensityRange,
-    selectedCategoryValue,
+    selectedCategoryValues,
     taxonId,
     locationGid,
     phenology,
@@ -1056,8 +1183,8 @@ export function useEnvironmentHighlights({
   ]);
 
   return {
-    selectedCategoryValue,
-    setSelectedCategoryValue,
+    selectedCategoryValues,
+    selectCategoryValue,
     selectedDensityRange,
     handleDensitySelectionChange,
     rangeObservations,

@@ -35,7 +35,7 @@ export type NavigationPillProps = {
   label: string;
   isActive: boolean;
   isHighlighted?: boolean;
-  onPress: (id: string) => void;
+  onPress: (id: string, options?: { additive?: boolean }) => void;
   onKeyDown?: (event: {
     nativeEvent?: { key?: string };
     preventDefault?: () => void;
@@ -147,7 +147,17 @@ export const NavigationPill = forwardRef<PressableRef, NavigationPillProps>(
         onFocus={onFocus}
         focusable={focusable}
         testID={testID}
-        onPress={() => onPress(id)}
+        onPress={(event) => {
+          const nativeEvent = event?.nativeEvent as unknown as {
+            ctrlKey?: boolean;
+            metaKey?: boolean;
+          };
+          const additive = Boolean(
+            nativeEvent?.ctrlKey || nativeEvent?.metaKey,
+          );
+          onPress(id, { additive });
+        }}
+        onLongPress={() => onPress(id, { additive: true })}
         onPressIn={() => setIsPressed(true)}
         onPressOut={() => setIsPressed(false)}
         onHoverIn={() => setIsHovered(true)}

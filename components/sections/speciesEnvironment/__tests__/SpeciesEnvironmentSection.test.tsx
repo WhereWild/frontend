@@ -226,8 +226,8 @@ const baseState: SpeciesEnvironmentState = {
   isCategorical: false,
   categoricalDistribution: [],
   baselineCategoricalDistribution: null,
-  selectedCategoryValue: null,
-  setSelectedCategoryValue: jest.fn(),
+  selectedCategoryValues: [],
+  selectCategoryValue: jest.fn(),
   densityCurve: null,
   ternaryCompositionDensity: null,
   summary: undefined,
@@ -430,7 +430,7 @@ describe('SpeciesEnvironmentSection', () => {
   });
 
   it('renders categorical branch and forwards category selection intent', () => {
-    const setSelectedCategoryValue = jest.fn();
+    const selectCategoryValue = jest.fn();
     mockUseSpeciesEnvironmentState.mockImplementation(() => ({
       ...baseState,
       stats: baseCategoricalStats,
@@ -438,8 +438,8 @@ describe('SpeciesEnvironmentSection', () => {
       categoricalDistribution:
         baseCategoricalStats.categoricalDistribution ?? [],
       summary: baseCategoricalStats.summary,
-      selectedCategoryValue: null,
-      setSelectedCategoryValue,
+      selectedCategoryValues: [],
+      selectCategoryValue,
     }));
 
     render(<SpeciesEnvironmentSection taxonId={1} />);
@@ -448,14 +448,7 @@ describe('SpeciesEnvironmentSection', () => {
     expect(screen.queryByText('continuous-view')).toBeNull();
 
     fireEvent.press(screen.getByTestId('pick-categorical'));
-    expect(setSelectedCategoryValue).toHaveBeenCalledWith(expect.any(Function));
-
-    const updater = setSelectedCategoryValue.mock.calls[0][0] as (
-      previous: string | number | null,
-    ) => string | number | null;
-    expect(updater('a')).toBeNull();
-    expect(updater('b')).toBe('a');
-    expect(updater(null)).toBe('a');
+    expect(selectCategoryValue).toHaveBeenCalledWith('a', undefined);
   });
 
   it('renders continuous branch and forwards rank-context selection', () => {
@@ -870,7 +863,7 @@ describe('SpeciesEnvironmentSection', () => {
   });
 
   it('forwards aspect category selection through handleCategorySelect', () => {
-    const setSelectedCategoryValue = jest.fn();
+    const selectCategoryValue = jest.fn();
     mockUseSpeciesEnvironmentState.mockReturnValue({
       ...baseState,
       selectedVariable: 'aspect',
@@ -879,13 +872,13 @@ describe('SpeciesEnvironmentSection', () => {
       categoricalDistribution:
         baseCategoricalStats.categoricalDistribution ?? [],
       summary: baseCategoricalStats.summary,
-      setSelectedCategoryValue,
+      selectCategoryValue,
     });
 
     render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect' />);
 
     fireEvent.press(screen.getByTestId('pick-aspect'));
-    expect(setSelectedCategoryValue).toHaveBeenCalledWith(expect.any(Function));
+    expect(selectCategoryValue).toHaveBeenCalledWith('N', undefined);
   });
 
   it('forwards pinnedValue and pinnedLoading to PolarDensityChart', () => {

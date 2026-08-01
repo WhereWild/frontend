@@ -614,6 +614,20 @@ const collectCatalogsForExtraFilter = (
     );
     return new Set(collectCatalogsForCategory(rows, metricValue));
   }
+  if ('classValues' in filter) {
+    const allowed = new Set<string>();
+    for (const classValue of filter.classValues) {
+      const metricValue = resolveCategoryMetricValue(
+        filter.variableId,
+        classValue,
+        categoryValueLookupByVariable,
+      );
+      for (const catalog of collectCatalogsForCategory(rows, metricValue)) {
+        allowed.add(catalog);
+      }
+    }
+    return allowed;
+  }
   let { min, max } = filter;
   if (units === 'imperial') {
     const conv = getMetricToImperial(statsByVariable[filter.variableId]?.units);

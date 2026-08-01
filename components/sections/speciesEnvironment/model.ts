@@ -85,7 +85,8 @@ export type ChainedVariableFilter = {
   label: string;
   /** Original selection, kept so switching back to this variable can restore it as the live selection instead of just leaving it chained. */
   originalRange?: DensitySelectionRange;
-  originalCategoryValue?: number | string;
+  /** One or more selected classes (multi-select OR within this one variable, e.g. Forest + Grassland). */
+  originalCategoryValues?: (number | string)[];
 };
 
 /** Fallback variable list used when remote catalog is unavailable. */
@@ -192,6 +193,18 @@ export const formatValue = (value: number | null | undefined, digits = 0) => {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
+};
+
+/** Joins class names as a natural-language list ("A", "A; and B", "A; B; and
+ * C") — always semicolon-separated (even for exactly two items, for
+ * consistency) rather than comma-separated, since class names (e.g.
+ * Köppen-Geiger classes like "Continental, dry summer warm") routinely
+ * contain commas of their own. */
+export const joinClassNamesWithAnd = (names: string[]): string => {
+  if (names.length <= 1) {
+    return names.join('');
+  }
+  return `${names.slice(0, -1).join('; ')}; and ${names[names.length - 1]}`;
 };
 
 /** Formats a category fraction for display as a rounded percentage. */

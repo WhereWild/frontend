@@ -267,7 +267,7 @@ describe('useSpeciesEnvironmentState', () => {
     expect(result.current.isCategorical).toBe(true);
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -739,7 +739,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.isCategorical).toBe(true));
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -1031,7 +1031,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.stats).toBeTruthy());
 
     act(() => {
-      result.current.setSelectedCategoryValue('class_52');
+      result.current.selectCategoryValue('class_52');
     });
     await waitFor(() =>
       expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
@@ -1105,7 +1105,7 @@ describe('useSpeciesEnvironmentState', () => {
     expect(result.current.isCategorical).toBe(true);
 
     act(() => {
-      result.current.setSelectedCategoryValue('class_52');
+      result.current.selectCategoryValue('class_52');
     });
     await waitFor(() =>
       expect(onHighlightChange).toHaveBeenCalledWith(['A1', 'B2']),
@@ -1232,7 +1232,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.isCategorical).toBe(true));
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
@@ -1263,7 +1263,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.isCategorical).toBe(true));
 
     act(() => {
-      result.current.setSelectedCategoryValue('forest');
+      result.current.selectCategoryValue('forest');
     });
 
     await waitFor(() =>
