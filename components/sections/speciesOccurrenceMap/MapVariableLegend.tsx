@@ -9,21 +9,27 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Rect, Stop } from 'react-native-svg';
 import { ThemedText } from '@/components/text/ThemedText';
 import { COLORMAPS } from './variableColors';
-import { useLegendRangeDrag, type LegendRange } from './legendRangeSelection';
+import type { LegendRange } from './legendRangeSelection';
+import { useLinearLegendDragSelection } from './useLinearLegendDragSelection';
 
 const BAR_WIDTH = 12;
 const DEFAULT_SVG_STOPS = COLORMAPS.viridis.barSvgStops;
-/** Dims everything outside a drag-selected sub-range, so the selected slice
- * of the gradient reads as "still active" against the rest. */
+/** Dims everything outside the union of the drag-selected sub-ranges, so
+ * the selected slices of the gradient read as "still active" against the
+ * rest. */
 const DIM_OVERLAY_FILL = '#00000066';
+
+/** [0,1] fraction pair (0 = max/top of the bar) bounding one selected band. */
+type SelectionBand = { top: number; bottom: number };
 
 type GradientBarProps = {
   width?: number;
   height: number;
   stops: { offset: string; color: string }[];
   pinFraction?: number | null;
-  /** [0,1] fractions (0 = max/top) bounding the drag-selected sub-range. */
-  selectionFractions?: { top: number; bottom: number } | null;
+  /** Sorted ascending by `top` — non-overlapping, since callers merge
+   * overlapping ranges before this point (see rangeMerge's mergeRanges). */
+  selectionBands?: SelectionBand[] | null;
 };
 
 function GradientBar({
@@ -31,15 +37,27 @@ function GradientBar({
   height,
   stops,
   pinFraction,
-  selectionFractions,
+  selectionBands,
 }: GradientBarProps) {
   const pinY = pinFraction != null ? Math.round(pinFraction * height) : null;
-  const selTopY = selectionFractions
-    ? Math.round(selectionFractions.top * height)
-    : null;
-  const selBottomY = selectionFractions
-    ? Math.round(selectionFractions.bottom * height)
-    : null;
+  // Dim rects fill the gaps between selected bands — before the first,
+  // between consecutive ones, and after the last — rather than one top/
+  // bottom pair, so any number of disjoint selections dims correctly.
+  const dimRects: { y: number; h: number }[] = [];
+  if (selectionBands && selectionBands.length > 0) {
+    let cursor = 0;
+    for (const band of selectionBands) {
+      const bandTop = Math.round(band.top * height);
+      const bandBottom = Math.round(band.bottom * height);
+      if (bandTop > cursor) {
+        dimRects.push({ y: cursor, h: bandTop - cursor });
+      }
+      cursor = Math.max(cursor, bandBottom);
+    }
+    if (cursor < height) {
+      dimRects.push({ y: cursor, h: height - cursor });
+    }
+  }
   return (
     <Svg width={width} height={height}>
       <Defs>
@@ -57,27 +75,18 @@ function GradientBar({
         fill='url(#grad)'
         rx={4}
       />
-      {selTopY != null && selBottomY != null && (
-        <>
-          {selTopY > 0 && (
+      {dimRects.map(
+        (rect, i) =>
+          rect.h > 0 && (
             <Rect
+              key={i}
               x={0}
-              y={0}
+              y={rect.y}
               width={width}
-              height={selTopY}
+              height={rect.h}
               fill={DIM_OVERLAY_FILL}
             />
-          )}
-          {selBottomY < height && (
-            <Rect
-              x={0}
-              y={selBottomY}
-              width={width}
-              height={height - selBottomY}
-              fill={DIM_OVERLAY_FILL}
-            />
-          )}
-        </>
+          ),
       )}
       {pinY != null && (
         <Line
@@ -100,9 +109,19 @@ type MapVariableLegendProps = {
   units?: string | null;
   pinnedValue?: number | null;
   barSvgStops?: { offset: string; color: string }[];
-  /** Drag-selected value range, filtering which pixels render on the map. */
-  selectedRange?: LegendRange | null;
-  onRangeChange?: (range: LegendRange | null) => void;
+  /** Drag-selected value ranges, filtering which pixels render on the map —
+   * multiple disjoint ranges can be active at once (shift/cmd-drag, or a
+   * ~500ms long-press-to-arm, adds a range instead of replacing the
+   * selection; see useLinearLegendDragSelection). */
+  selectedRanges?: LegendRange[];
+  onRangeChange?: (
+    range: LegendRange | null,
+    options?: { additive?: boolean; sessionId?: number; final?: boolean },
+  ) => void;
+  /** Forces every drag to be additive with no long-press wait — see
+   * useLinearLegendDragSelection's own doc comment on why (mobile
+   * touchscreen long-press-to-arm reliability). */
+  forceAdditive?: boolean;
 };
 
 function fmt(v: number): string {
@@ -117,8 +136,9 @@ export function MapVariableLegend({
   units,
   pinnedValue,
   barSvgStops,
-  selectedRange,
+  selectedRanges,
   onRangeChange,
+  forceAdditive = false,
 }: MapVariableLegendProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -144,25 +164,34 @@ export function MapVariableLegend({
     [barHeight, min, max],
   );
 
-  const responderHandlers = useLegendRangeDrag(
-    locationToValue,
-    (start, end) =>
-      onRangeChange?.({ min: Math.min(start, end), max: Math.max(start, end) }),
-    () => onRangeChange?.(null),
+  const handleRangeChange = React.useCallback(
+    (
+      range: { start: number; end: number } | null,
+      options?: { additive?: boolean; sessionId?: number; final?: boolean },
+    ) => {
+      onRangeChange?.(
+        range ? { min: range.start, max: range.end } : null,
+        options,
+      );
+    },
+    [onRangeChange],
   );
 
-  const selectionFractions =
-    selectedRange && max > min
-      ? {
-          top: Math.max(
-            0,
-            Math.min(1, (max - selectedRange.max) / (max - min)),
-          ),
-          bottom: Math.max(
-            0,
-            Math.min(1, (max - selectedRange.min) / (max - min)),
-          ),
-        }
+  const responderHandlers = useLinearLegendDragSelection({
+    locationToValue,
+    onRangeChange: handleRangeChange,
+    webTestID: 'map-variable-legend-bar',
+    forceAdditive,
+  });
+
+  const selectionBands: SelectionBand[] | null =
+    selectedRanges && selectedRanges.length > 0 && max > min
+      ? selectedRanges
+          .map((range) => ({
+            top: Math.max(0, Math.min(1, (max - range.max) / (max - min))),
+            bottom: Math.max(0, Math.min(1, (max - range.min) / (max - min))),
+          }))
+          .sort((a, b) => a.top - b.top)
       : null;
 
   return (
@@ -190,7 +219,7 @@ export function MapVariableLegend({
               height={barHeight}
               stops={activeStops}
               pinFraction={pinFraction}
-              selectionFractions={selectionFractions}
+              selectionBands={selectionBands}
             />
           )}
         </View>

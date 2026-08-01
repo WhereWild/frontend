@@ -23,6 +23,7 @@ import {
   formatValue,
   isVariableCategorical,
   isVariableCircular,
+  joinClassNamesWithAnd,
   normalizeLabel,
 } from '@/components/sections/speciesEnvironment/model';
 import {
@@ -48,6 +49,7 @@ import {
   type MapChainExtra,
 } from '@/components/sections/speciesOccurrenceMap/useMapLayerChain';
 import { buildChainDescriptionText } from '@/hooks/useVariableFilterChain';
+import { useRangeSelectionAccumulator } from '@/hooks/useRangeSelectionAccumulator';
 
 const MAP_HEIGHT = 520;
 const MAP_MIN_ZOOM = 0;
@@ -119,7 +121,7 @@ const buildTileUrl = ({
   forecastH,
   variable,
   classFilter,
-  valueRange,
+  valueRanges,
   unitSystem,
   chain,
 }: {
@@ -131,7 +133,7 @@ const buildTileUrl = ({
   forecastH: number;
   variable: string;
   classFilter: number[] | null;
-  valueRange: LegendRange | null;
+  valueRanges: LegendRange[] | null;
   unitSystem: UnitSystem | undefined;
   chain?: MapChainExtra[];
 }) => {
@@ -145,16 +147,21 @@ const buildTileUrl = ({
     classFilter && classFilter.length > 0
       ? classFilter.map((id) => `&class_filter=${id}`).join('')
       : '';
-  // value_min/value_max come from the legend, which displays (and the user
-  // drags across) values in the current unit system — the backend needs to
-  // know that to convert back to the raw/metric units its raster pixels are
+  // value_ranges come from the legend, which displays (and the user drags
+  // across) values in the current unit system — the backend needs to know
+  // that to convert back to the raw/metric units its raster pixels are
   // actually stored in before masking (see main.py's layer_tile route).
-  // unit_system is sent unconditionally (not just when valueRange is set)
-  // since a chained filter can need conversion even when the primary
-  // (categorical) layer has no value range of its own.
-  const vrParam = valueRange
-    ? `&value_min=${valueRange.min}&value_max=${valueRange.max}`
-    : '';
+  // A single layer's own filter can itself be multiple disjoint ranges
+  // (OR'd) — [min,max] pairs, not just one. unit_system is sent
+  // unconditionally (not just when valueRanges is set) since a chained
+  // filter can need conversion even when the primary (categorical) layer
+  // has no value range of its own.
+  const vrParam =
+    valueRanges && valueRanges.length > 0
+      ? `&value_ranges=${encodeURIComponent(
+          JSON.stringify(valueRanges.map((r) => [r.min, r.max])),
+        )}`
+      : '';
   const chainParam =
     chain && chain.length > 0
       ? `&chain=${encodeURIComponent(JSON.stringify(chain))}`
@@ -201,16 +208,62 @@ export default function Maps() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   }, []);
-  // Drag-selected value range on MapVariableLegend's gradient bar (numeric
-  // variables) — filters which pixels render, same idea as classFilter but
-  // for a continuous range instead of a discrete class.
-  const [selectedValueRange, setSelectedValueRange] =
-    useState<LegendRange | null>(null);
+  // Drag-selected value range(s) on MapVariableLegend's gradient bar
+  // (numeric variables) — filters which pixels render, same idea as
+  // classFilter but for a continuous range instead of a discrete class.
+  // Multiple disjoint ranges can be selected at once (shift/cmd-drag or a
+  // ~500ms long-press-to-arm adds a range instead of replacing the
+  // selection — see useLinearLegendDragSelection/useRangeSelectionAccumulator).
+  const valueRangeSelection = useRangeSelectionAccumulator();
+  const selectedValueRanges: LegendRange[] = valueRangeSelection.ranges.map(
+    (r) => ({ min: r.start, max: r.end }),
+  );
+  const handleValueRangeChange = useCallback(
+    (
+      range: LegendRange | null,
+      options?: { additive?: boolean; sessionId?: number; final?: boolean },
+    ) =>
+      valueRangeSelection.applyRangeChange(
+        range ? { start: range.min, end: range.max } : null,
+        options,
+      ),
+    [valueRangeSelection],
+  );
+  const setSelectedValueRanges = useCallback(
+    (ranges: LegendRange[]) =>
+      valueRangeSelection.setAll(
+        ranges.map((r) => ({ start: r.min, end: r.max })),
+      ),
+    [valueRangeSelection],
+  );
+
   // Same for MapCircularLegend's ring (circular variables) — min/max here
   // are a clockwise start/end angle, not a sorted range; see LegendRange's
   // doc comment on MapCircularLegendProps for the wraparound convention.
-  const [selectedAngleRange, setSelectedAngleRange] =
-    useState<LegendRange | null>(null);
+  // mergeRanges (used internally by the accumulator) already handles this
+  // wraparound case, same as the species page's circular density chart.
+  const angleRangeSelection = useRangeSelectionAccumulator();
+  const selectedAngleRanges: LegendRange[] = angleRangeSelection.ranges.map(
+    (r) => ({ min: r.start, max: r.end }),
+  );
+  const handleAngleRangeChange = useCallback(
+    (
+      range: LegendRange | null,
+      options?: { additive?: boolean; sessionId?: number; final?: boolean },
+    ) =>
+      angleRangeSelection.applyRangeChange(
+        range ? { start: range.min, end: range.max } : null,
+        options,
+      ),
+    [angleRangeSelection],
+  );
+  const setSelectedAngleRanges = useCallback(
+    (ranges: LegendRange[]) =>
+      angleRangeSelection.setAll(
+        ranges.map((r) => ({ start: r.min, end: r.max })),
+      ),
+    [angleRangeSelection],
+  );
   // Fullscreens the map + its legend/colormap-picker overlays together —
   // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
   const mapContainerRef = useRef<View | null>(null);
@@ -275,11 +328,11 @@ export default function Maps() {
     isCircular,
     allVariables,
     selectedClassIds,
-    selectedValueRange,
-    selectedAngleRange,
+    selectedValueRanges,
+    selectedAngleRanges,
     setSelectedClassIds,
-    setSelectedValueRange,
-    setSelectedAngleRange,
+    setSelectedValueRanges,
+    setSelectedAngleRanges,
   });
 
   // The renderer swap (globe <-> flat map) discards the old WebView/iframe
@@ -293,10 +346,15 @@ export default function Maps() {
     }
     previousGlobeViewRef.current = globeViewEnabled;
     setSelectedClassIds([]);
-    setSelectedValueRange(null);
-    setSelectedAngleRange(null);
+    valueRangeSelection.clear();
+    angleRangeSelection.clear();
     clearLayerChain();
-  }, [globeViewEnabled, clearLayerChain]);
+  }, [
+    globeViewEnabled,
+    clearLayerChain,
+    valueRangeSelection.clear,
+    angleRangeSelection.clear,
+  ]);
 
   const tileUrl = useMemo(
     () =>
@@ -309,11 +367,11 @@ export default function Maps() {
         forecastH,
         variable: selectedVariable,
         classFilter: isCategorical ? selectedClassIds : null,
-        valueRange: isCategorical
+        valueRanges: isCategorical
           ? null
           : isCircular
-            ? selectedAngleRange
-            : selectedValueRange,
+            ? selectedAngleRanges
+            : selectedValueRanges,
         unitSystem: units,
         chain: layerChain.map((entry) => entry.extra),
       }),
@@ -327,8 +385,8 @@ export default function Maps() {
       selectedVariable,
       isCategorical,
       selectedClassIds,
-      selectedAngleRange,
-      selectedValueRange,
+      selectedAngleRanges,
+      selectedValueRanges,
       units,
       layerChain,
     ],
@@ -425,28 +483,37 @@ export default function Maps() {
   // VariableSelectorHeader's metaText) so it reads as page context rather
   // than legend chrome.
   const mapMetaText = useMemo(() => {
-    if (isCircular && selectedAngleRange) {
-      const isFullCircle =
-        circularRangeSpan({
-          start: selectedAngleRange.min,
-          end: selectedAngleRange.max,
-        }) >= FULL_CIRCLE_SPAN_THRESHOLD;
-      return isFullCircle
-        ? 'Selected range: Full circle'
-        : `Selected range: ${Math.round(selectedAngleRange.min)}° to ${Math.round(selectedAngleRange.max)}°`;
+    if (isCircular && selectedAngleRanges.length > 0) {
+      const rangeLabel = joinClassNamesWithAnd(
+        selectedAngleRanges.map((range) => {
+          const isFullCircle =
+            circularRangeSpan({ start: range.min, end: range.max }) >=
+            FULL_CIRCLE_SPAN_THRESHOLD;
+          return isFullCircle
+            ? 'Full circle'
+            : `${Math.round(range.min)}° to ${Math.round(range.max)}°`;
+        }),
+      );
+      return `Selected range: ${rangeLabel}`;
     }
-    if (!isCircular && !isCategorical && selectedValueRange) {
+    if (!isCircular && !isCategorical && selectedValueRanges.length > 0) {
       const unitsSuffix = selectedVariableMeta?.units
         ? ` ${selectedVariableMeta.units}`
         : '';
-      return `Selected range: ${formatValue(selectedValueRange.min, 1)} to ${formatValue(selectedValueRange.max, 1)}${unitsSuffix}`;
+      const rangeLabel = joinClassNamesWithAnd(
+        selectedValueRanges.map(
+          (range) =>
+            `${formatValue(range.min, 1)} to ${formatValue(range.max, 1)}`,
+        ),
+      );
+      return `Selected range: ${rangeLabel}${unitsSuffix}`;
     }
     return null;
   }, [
     isCircular,
     isCategorical,
-    selectedAngleRange,
-    selectedValueRange,
+    selectedAngleRanges,
+    selectedValueRanges,
     selectedVariableMeta?.units,
   ]);
 
@@ -465,20 +532,31 @@ export default function Maps() {
           return meta ? { name: meta.label, units: meta.units } : null;
         },
         (entry) => {
-          if (!entry.originalRange) {
+          const ranges = entry.originalRanges ?? [];
+          if (ranges.length === 0) {
             return '';
           }
           if (entry.isCircular) {
-            const isFullCircle =
-              circularRangeSpan({
-                start: entry.originalRange.min,
-                end: entry.originalRange.max,
-              }) >= FULL_CIRCLE_SPAN_THRESHOLD;
-            return isFullCircle
-              ? 'Full circle'
-              : `${Math.round(entry.originalRange.min)}° to ${Math.round(entry.originalRange.max)}°`;
+            // No "°" embedded per number here — the catalog's own units
+            // string ("°" for circular variables) is appended once at the
+            // end by buildChainDescriptionText, same as any other unit.
+            return joinClassNamesWithAnd(
+              ranges.map((range) => {
+                const isFullCircle =
+                  circularRangeSpan({ start: range.min, end: range.max }) >=
+                  FULL_CIRCLE_SPAN_THRESHOLD;
+                return isFullCircle
+                  ? 'Full circle'
+                  : `${Math.round(range.min)} to ${Math.round(range.max)}`;
+              }),
+            );
           }
-          return `${formatValue(entry.originalRange.min, 1)} to ${formatValue(entry.originalRange.max, 1)}`;
+          return joinClassNamesWithAnd(
+            ranges.map(
+              (range) =>
+                `${formatValue(range.min, 1)} to ${formatValue(range.max, 1)}`,
+            ),
+          );
         },
       ),
     [layerChain, allVariables],
@@ -577,8 +655,9 @@ export default function Maps() {
                       CIRCULAR_COLORMAPS[selectedCircularColormap]
                         .arcSegmentColors
                     }
-                    selectedRange={selectedAngleRange}
-                    onRangeChange={setSelectedAngleRange}
+                    selectedRanges={selectedAngleRanges}
+                    onRangeChange={handleAngleRangeChange}
+                    forceAdditive={responsive.breakpoint === 'phone'}
                   />
                   <MapCircularColormapPicker
                     selected={selectedCircularColormap}
@@ -621,8 +700,9 @@ export default function Maps() {
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedValue}
                       barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
-                      selectedRange={selectedValueRange}
-                      onRangeChange={setSelectedValueRange}
+                      selectedRanges={selectedValueRanges}
+                      onRangeChange={handleValueRangeChange}
+                      forceAdditive={responsive.breakpoint === 'phone'}
                     />
                     <MapColormapPicker
                       selected={selectedColormap}

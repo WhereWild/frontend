@@ -81,6 +81,7 @@ export function MapCategoricalLegend({
     // The inner Pressable shrinks to content but never exceeds this height.
     <View style={styles.boundingBox} pointerEvents='box-none'>
       <Pressable
+        testID='map-categorical-legend'
         collapsable={false}
         style={[
           styles.overlay,
@@ -158,7 +159,27 @@ export function MapCategoricalLegend({
                 </ThemedText>
               </>
             );
-            return !isPhone && onClassClick ? (
+            // A row's own Pressable claims the touch before it can bubble to
+            // the outer legend's collapse-toggle Pressable — on phone, a
+            // plain tap needs to still collapse the legend (most of the
+            // legend's area IS row content, so if rows swallowed a plain
+            // tap and did nothing with it, the legend would become nearly
+            // impossible to collapse), so a row's onPress there re-invokes
+            // the same toggle instead of leaving it unhandled, and class
+            // selection instead requires a deliberate long-press. Desktop
+            // keeps the original immediate tap-to-select (no press-and-hold
+            // needed there, no competing collapse gesture on the same tap).
+            return onClassClick && isPhone ? (
+              <Pressable
+                key={clsId}
+                style={styles.row}
+                onPress={toggle}
+                onLongPress={() => onClassClick(clsId)}
+                hitSlop={4}
+              >
+                {rowContent}
+              </Pressable>
+            ) : onClassClick ? (
               <Pressable
                 key={clsId}
                 style={styles.row}

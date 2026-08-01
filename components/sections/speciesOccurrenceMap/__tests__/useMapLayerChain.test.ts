@@ -39,10 +39,12 @@ function useHarness(initialVariable: string) {
   const [selectedVariable, setSelectedVariable] =
     React.useState(initialVariable);
   const [selectedClassIds, setSelectedClassIds] = React.useState<number[]>([]);
-  const [selectedValueRange, setSelectedValueRange] =
-    React.useState<LegendRange | null>(null);
-  const [selectedAngleRange, setSelectedAngleRange] =
-    React.useState<LegendRange | null>(null);
+  const [selectedValueRanges, setSelectedValueRanges] = React.useState<
+    LegendRange[]
+  >([]);
+  const [selectedAngleRanges, setSelectedAngleRanges] = React.useState<
+    LegendRange[]
+  >([]);
 
   const chainState = useMapLayerChain({
     selectedVariable,
@@ -50,11 +52,11 @@ function useHarness(initialVariable: string) {
     isCircular: isCircularId(selectedVariable),
     allVariables: ALL_VARIABLES,
     selectedClassIds,
-    selectedValueRange,
-    selectedAngleRange,
+    selectedValueRanges,
+    selectedAngleRanges,
     setSelectedClassIds,
-    setSelectedValueRange,
-    setSelectedAngleRange,
+    setSelectedValueRanges,
+    setSelectedAngleRanges,
   });
 
   return {
@@ -62,10 +64,10 @@ function useHarness(initialVariable: string) {
     setSelectedVariable,
     selectedClassIds,
     setSelectedClassIds,
-    selectedValueRange,
-    setSelectedValueRange,
-    selectedAngleRange,
-    setSelectedAngleRange,
+    selectedValueRanges,
+    setSelectedValueRanges,
+    selectedAngleRanges,
+    setSelectedAngleRanges,
     ...chainState,
   };
 }
@@ -115,10 +117,10 @@ describe('useMapLayerChain', () => {
     expect(result.current.selectedClassIds).toEqual([10, 20]);
   });
 
-  it('stashes and restores a continuous value range', () => {
+  it('stashes and restores a continuous value range (single range)', () => {
     const { result } = renderHook(() => useHarness('bio1'));
     act(() => {
-      result.current.setSelectedValueRange({ min: 1, max: 5 });
+      result.current.setSelectedValueRanges([{ min: 1, max: 5 }]);
     });
     act(() => {
       result.current.setSelectedVariable('landcover');
@@ -128,22 +130,54 @@ describe('useMapLayerChain', () => {
         layerId: 'bio1',
         isCategorical: false,
         isCircular: false,
-        extra: { value_min: 1, value_max: 5 },
+        extra: { value_ranges: [[1, 5]] },
       },
     ]);
-    expect(result.current.selectedValueRange).toBeNull();
+    expect(result.current.selectedValueRanges).toEqual([]);
 
     act(() => {
       result.current.setSelectedVariable('bio1');
     });
     expect(result.current.chain).toEqual([]);
-    expect(result.current.selectedValueRange).toEqual({ min: 1, max: 5 });
+    expect(result.current.selectedValueRanges).toEqual([{ min: 1, max: 5 }]);
+  });
+
+  it('stashes and restores multiple disjoint continuous value ranges', () => {
+    const { result } = renderHook(() => useHarness('bio1'));
+    act(() => {
+      result.current.setSelectedValueRanges([
+        { min: 1, max: 5 },
+        { min: 10, max: 20 },
+      ]);
+    });
+    act(() => {
+      result.current.setSelectedVariable('landcover');
+    });
+    expect(result.current.chain).toMatchObject([
+      {
+        layerId: 'bio1',
+        extra: {
+          value_ranges: [
+            [1, 5],
+            [10, 20],
+          ],
+        },
+      },
+    ]);
+
+    act(() => {
+      result.current.setSelectedVariable('bio1');
+    });
+    expect(result.current.selectedValueRanges).toEqual([
+      { min: 1, max: 5 },
+      { min: 10, max: 20 },
+    ]);
   });
 
   it('stashes and restores a circular angle range', () => {
     const { result } = renderHook(() => useHarness('aspect'));
     act(() => {
-      result.current.setSelectedAngleRange({ min: 310, max: 45 });
+      result.current.setSelectedAngleRanges([{ min: 310, max: 45 }]);
     });
     act(() => {
       result.current.setSelectedVariable('bio1');
@@ -152,7 +186,7 @@ describe('useMapLayerChain', () => {
       {
         layerId: 'aspect',
         isCircular: true,
-        extra: { value_min: 310, value_max: 45 },
+        extra: { value_ranges: [[310, 45]] },
       },
     ]);
 
@@ -160,7 +194,7 @@ describe('useMapLayerChain', () => {
       result.current.setSelectedVariable('aspect');
     });
     expect(result.current.chain).toEqual([]);
-    expect(result.current.selectedAngleRange).toEqual({ min: 310, max: 45 });
+    expect(result.current.selectedAngleRanges).toEqual([{ min: 310, max: 45 }]);
   });
 
   it('keeps multiple chained layers when switching through several', () => {
@@ -172,7 +206,7 @@ describe('useMapLayerChain', () => {
       result.current.setSelectedVariable('bio1');
     });
     act(() => {
-      result.current.setSelectedValueRange({ min: 1, max: 5 });
+      result.current.setSelectedValueRanges([{ min: 1, max: 5 }]);
     });
     act(() => {
       result.current.setSelectedVariable('aspect');
@@ -193,7 +227,7 @@ describe('useMapLayerChain', () => {
       result.current.setSelectedVariable('bio1');
     });
     act(() => {
-      result.current.setSelectedValueRange({ min: 1, max: 5 });
+      result.current.setSelectedValueRanges([{ min: 1, max: 5 }]);
     });
     act(() => {
       result.current.setSelectedVariable('aspect');

@@ -14,12 +14,13 @@ import {
 import type { LegendRange } from './legendRangeSelection';
 
 /** Backend-wire shape for one chained layer filter — matches the `chain`
- * query param util/tiles.py's render_layer_tile_bytes expects. */
+ * query param util/tiles.py's render_layer_tile_bytes expects. A layer's
+ * own filter can itself be multiple disjoint ranges (OR'd) — value_ranges
+ * is a list of [min, max] pairs, not a single pair. */
 export type MapChainExtra = {
   layer_id: string;
   class_filter?: number[];
-  value_min?: number;
-  value_max?: number;
+  value_ranges?: [number, number][];
 };
 
 /** A slice/selection that was active on a layer the user has since switched
@@ -35,13 +36,16 @@ export type ChainedLayerFilter = {
   label: string;
   extra: MapChainExtra;
   originalClassIds?: number[];
-  /** Numeric range (continuous) or angle range (circular) — which one
-   * depends on isCircular, same as the live selectedValueRange/
-   * selectedAngleRange split in app/maps.tsx. */
-  originalRange?: LegendRange | null;
+  /** Numeric ranges (continuous) or angle ranges (circular) — which one
+   * depends on isCircular, same as the live selectedValueRanges/
+   * selectedAngleRanges split in app/maps.tsx. */
+  originalRanges?: LegendRange[];
 };
 
 const chainEntryKey = (entry: ChainedLayerFilter) => entry.layerId;
+
+const toValueRanges = (ranges: LegendRange[]): [number, number][] =>
+  ranges.map((r) => [r.min, r.max]);
 
 type UseMapLayerChainParams = {
   selectedVariable: string;
@@ -49,11 +53,13 @@ type UseMapLayerChainParams = {
   isCircular: boolean;
   allVariables: EnvironmentVariableOption[];
   selectedClassIds: number[];
-  selectedValueRange: LegendRange | null;
-  selectedAngleRange: LegendRange | null;
+  selectedValueRanges: LegendRange[];
+  selectedAngleRanges: LegendRange[];
   setSelectedClassIds: (ids: number[]) => void;
-  setSelectedValueRange: (range: LegendRange | null) => void;
-  setSelectedAngleRange: (range: LegendRange | null) => void;
+  /** Replaces the whole value-range selection at once — e.g. the
+   * accumulator hook's `setAll`, not its additive `applyRangeChange`. */
+  setSelectedValueRanges: (ranges: LegendRange[]) => void;
+  setSelectedAngleRanges: (ranges: LegendRange[]) => void;
 };
 
 const resolveCategoryLabel = (
@@ -92,11 +98,11 @@ export function useMapLayerChain({
   isCircular,
   allVariables,
   selectedClassIds,
-  selectedValueRange,
-  selectedAngleRange,
+  selectedValueRanges,
+  selectedAngleRanges,
   setSelectedClassIds,
-  setSelectedValueRange,
-  setSelectedAngleRange,
+  setSelectedValueRanges,
+  setSelectedAngleRanges,
 }: UseMapLayerChainParams) {
   const [chain, setChain] = React.useState<ChainedLayerFilter[]>([]);
 
@@ -141,7 +147,7 @@ export function useMapLayerChain({
             originalClassIds: selectedClassIds,
           }
       : outgoing.isCircular
-        ? selectedAngleRange == null
+        ? selectedAngleRanges.length === 0
           ? null
           : {
               layerId: outgoing.variable,
@@ -150,12 +156,11 @@ export function useMapLayerChain({
               label: '',
               extra: {
                 layer_id: outgoing.variable,
-                value_min: selectedAngleRange.min,
-                value_max: selectedAngleRange.max,
+                value_ranges: toValueRanges(selectedAngleRanges),
               },
-              originalRange: selectedAngleRange,
+              originalRanges: selectedAngleRanges,
             }
-        : selectedValueRange == null
+        : selectedValueRanges.length === 0
           ? null
           : {
               layerId: outgoing.variable,
@@ -164,10 +169,9 @@ export function useMapLayerChain({
               label: '',
               extra: {
                 layer_id: outgoing.variable,
-                value_min: selectedValueRange.min,
-                value_max: selectedValueRange.max,
+                value_ranges: toValueRanges(selectedValueRanges),
               },
-              originalRange: selectedValueRange,
+              originalRanges: selectedValueRanges,
             };
 
     const nextChain = stashOutgoing(
@@ -187,21 +191,21 @@ export function useMapLayerChain({
       setSelectedClassIds(
         restored.isCategorical ? (restored.originalClassIds ?? []) : [],
       );
-      setSelectedValueRange(
+      setSelectedValueRanges(
         !restored.isCategorical && !restored.isCircular
-          ? (restored.originalRange ?? null)
-          : null,
+          ? (restored.originalRanges ?? [])
+          : [],
       );
-      setSelectedAngleRange(
+      setSelectedAngleRanges(
         !restored.isCategorical && restored.isCircular
-          ? (restored.originalRange ?? null)
-          : null,
+          ? (restored.originalRanges ?? [])
+          : [],
       );
     } else {
       setChain(nextChain);
       setSelectedClassIds([]);
-      setSelectedValueRange(null);
-      setSelectedAngleRange(null);
+      setSelectedValueRanges([]);
+      setSelectedAngleRanges([]);
     }
   }, [
     selectedVariable,
@@ -209,12 +213,12 @@ export function useMapLayerChain({
     isCircular,
     allVariables,
     selectedClassIds,
-    selectedValueRange,
-    selectedAngleRange,
+    selectedValueRanges,
+    selectedAngleRanges,
     chain,
     setSelectedClassIds,
-    setSelectedValueRange,
-    setSelectedAngleRange,
+    setSelectedValueRanges,
+    setSelectedAngleRanges,
   ]);
 
   const removeChainedFilter = React.useCallback((layerId: string) => {
