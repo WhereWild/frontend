@@ -2,30 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
+import { Rect } from 'react-native-svg';
 import { MapVariableLegend } from '../MapVariableLegend';
 
 describe('MapVariableLegend range selection', () => {
-  it('shows the selected range as stacked min/to/max text once a selection exists', () => {
-    render(
-      <MapVariableLegend
-        min={0}
-        max={100}
-        units='°C'
-        selectedRange={{ min: 42, max: 78 }}
-        onRangeChange={jest.fn()}
-      />,
-    );
-    expect(screen.getByText('42')).toBeTruthy();
-    expect(screen.getByText('to')).toBeTruthy();
-    expect(screen.getByText('78')).toBeTruthy();
-  });
-
-  it('shows no range text when nothing is selected', () => {
-    render(<MapVariableLegend min={0} max={100} units='°C' />);
-    expect(screen.queryByText('to')).toBeNull();
-  });
-
   it('reports a sorted min/max range while dragging, regardless of drag direction', () => {
     const onRangeChange = jest.fn();
     const { getByTestId } = render(
@@ -47,7 +28,8 @@ describe('MapVariableLegend range selection', () => {
       nativeEvent: { locationX: 0, locationY: 20 },
     });
 
-    expect(onRangeChange).toHaveBeenLastCalledWith({ min: 20, max: 80 });
+    const lastCall = onRangeChange.mock.calls.at(-1);
+    expect(lastCall?.[0]).toEqual({ min: 20, max: 80 });
   });
 
   it('keeps a real drag on a narrow-domain variable (e.g. snowfall, 0-1 range) instead of wiping it on release', () => {
@@ -91,7 +73,7 @@ describe('MapVariableLegend range selection', () => {
       <MapVariableLegend
         min={0}
         max={100}
-        selectedRange={{ min: 10, max: 90 }}
+        selectedRanges={[{ min: 10, max: 90 }]}
         onRangeChange={onRangeChange}
       />,
     );
@@ -108,12 +90,61 @@ describe('MapVariableLegend range selection', () => {
       nativeEvent: { locationX: 0, locationY: 50 },
     });
 
-    expect(onRangeChange).toHaveBeenCalledWith(null);
+    expect(onRangeChange.mock.calls.at(-1)?.[0]).toBeNull();
   });
 
   it('does not attach responder handlers when onRangeChange is not provided', () => {
     const { getByTestId } = render(<MapVariableLegend min={0} max={100} />);
     const bar = getByTestId('map-variable-legend-bar');
     expect(bar.props.onResponderGrant).toBeUndefined();
+  });
+
+  it('forwards additive/sessionId/final options through to onRangeChange (long-press-arm)', () => {
+    jest.useFakeTimers();
+    const onRangeChange = jest.fn();
+    const { getByTestId } = render(
+      <MapVariableLegend min={0} max={100} onRangeChange={onRangeChange} />,
+    );
+    fireEvent(getByTestId('map-variable-legend-bar-row'), 'layout', {
+      nativeEvent: { layout: { height: 100 } },
+    });
+    const bar = getByTestId('map-variable-legend-bar');
+
+    fireEvent(bar, 'responderGrant', {
+      nativeEvent: { locationX: 0, locationY: 50 },
+    });
+    jest.advanceTimersByTime(500);
+    fireEvent(bar, 'responderMove', {
+      nativeEvent: { locationX: 0, locationY: 20 },
+    });
+    fireEvent(bar, 'responderRelease', {
+      nativeEvent: { locationX: 0, locationY: 20 },
+    });
+
+    const finalCall = onRangeChange.mock.calls.at(-1);
+    expect(finalCall?.[1]).toMatchObject({ additive: true, final: true });
+    jest.useRealTimers();
+  });
+
+  it('renders a dim gap between two disjoint selected ranges (not one blended band)', () => {
+    const { getByTestId, UNSAFE_getAllByType } = render(
+      <MapVariableLegend
+        min={0}
+        max={100}
+        selectedRanges={[
+          { min: 10, max: 20 },
+          { min: 70, max: 90 },
+        ]}
+      />,
+    );
+    fireEvent(getByTestId('map-variable-legend-bar-row'), 'layout', {
+      nativeEvent: { layout: { height: 100 } },
+    });
+    // Two disjoint bands leave 3 dim rects (above, between, below) instead
+    // of one — a regression check that the gap between them isn't dimmed
+    // away as if it were a single [10,90] selection.
+    const rects = UNSAFE_getAllByType(Rect);
+    // 1 gradient rect + N dim rects.
+    expect(rects.length).toBeGreaterThanOrEqual(4);
   });
 });

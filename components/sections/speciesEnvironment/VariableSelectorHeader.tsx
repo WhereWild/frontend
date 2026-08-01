@@ -351,11 +351,17 @@ export function VariableSelectorHeader({
           <ThemedText variant='heading'>{headingText}</ThemedText>
         ) : null}
 
-        {metaText ? (
-          <ThemedText variant='bodySmall' style={styles.metaText}>
-            {metaText}
-          </ThemedText>
-        ) : null}
+        {/* Always mounted (space reserved via opacity, not conditional
+            unmount) — on the maps page metaText flips from null to real text
+            mid-drag as soon as a selection starts, and unmounting/mounting
+            this line shifted the map pane under the user's finger/cursor,
+            interfering with the drag itself. */}
+        <ThemedText
+          variant='bodySmall'
+          style={[styles.metaText, !metaText && styles.metaTextHidden]}
+        >
+          {metaText || ' '}
+        </ThemedText>
 
         {chainDescription ? (
           <ThemedText variant='bodySmall' style={styles.metaText}>
@@ -393,5 +399,8 @@ const styles = StyleSheet.create({
   metaText: {
     flexShrink: 1,
     flexWrap: 'wrap',
+  },
+  metaTextHidden: {
+    opacity: 0,
   },
 });

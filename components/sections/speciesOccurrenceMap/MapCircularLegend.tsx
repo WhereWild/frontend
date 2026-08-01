@@ -12,11 +12,9 @@ import { CIRCULAR_COLORMAPS, donutArcPath } from './variableColors';
 import { ShapeMarker } from './ShapeMarker';
 import type { ShapeKey } from './cbColors';
 import type { LegendRange } from './legendRangeSelection';
-import {
-  useCircularDragSelection,
-  circularRangeSpan,
-  FULL_CIRCLE_SPAN_THRESHOLD,
-} from '@/hooks/useCircularDragSelection';
+import { useCircularDragSelection } from '@/hooks/useCircularDragSelection';
+import { mergeRanges } from '@/hooks/rangeMerge';
+import { useScrollLock } from '@/context/ScrollLockContext';
 
 /** Dims everything outside a drag-selected angular slice — the complement
  * (unselected) arc, drawn on top of both the web CSS ring and the native
@@ -35,6 +33,50 @@ const NSWE_ENTRIES: { dir: string; shape: ShapeKey }[] = [
   { dir: 'S', shape: 'triangle-down' },
   { dir: 'W', shape: 'diamond' },
 ];
+
+/** Gaps (in plain, non-wrapping start<=end form) between `sorted` segments
+ * within [domainStart, domainEnd] — before the first, between consecutive
+ * ones, and after the last. */
+function computeLinearGaps(
+  sorted: { start: number; end: number }[],
+  domainStart: number,
+  domainEnd: number,
+): { start: number; end: number }[] {
+  const gaps: { start: number; end: number }[] = [];
+  let cursor = domainStart;
+  for (const seg of sorted) {
+    if (seg.start > cursor) {
+      gaps.push({ start: cursor, end: seg.start });
+    }
+    cursor = Math.max(cursor, seg.end);
+  }
+  if (cursor < domainEnd) {
+    gaps.push({ start: cursor, end: domainEnd });
+  }
+  return gaps;
+}
+
+/** The dim (unselected) arcs left over once every selected arc in
+ * `mergedArcs` (already merged via rangeMerge's mergeRanges — at most one
+ * entry can be a wraparound arc, i.e. start > end) is accounted for.
+ *
+ * A wraparound arc's own complement is exactly the plain span from its end
+ * to its start — any other (non-wrapping) merged arcs must fall inside
+ * that span, since mergeRanges guarantees no overlap — so gaps are computed
+ * against that narrower domain instead of the full 0–360 when one exists.
+ */
+function computeDimArcs(
+  mergedArcs: { start: number; end: number }[],
+): { start: number; end: number }[] {
+  const wrapping = mergedArcs.find((r) => r.start > r.end);
+  const nonWrapping = mergedArcs
+    .filter((r) => r.start <= r.end)
+    .sort((a, b) => a.start - b.start);
+  if (wrapping) {
+    return computeLinearGaps(nonWrapping, wrapping.end, wrapping.start);
+  }
+  return computeLinearGaps(nonWrapping, 0, 360);
+}
 
 type AspectRingSvgProps = {
   size: number;
@@ -93,11 +135,22 @@ type MapCircularLegendProps = {
   shapesEnabled?: boolean;
   markerOutlineEnabled?: boolean;
   nsweColors?: [string, string, string, string];
-  /** Drag-selected angular slice (degrees, clockwise from min to max — if
+  /** Drag-selected angular slices (degrees, clockwise from min to max — if
    * min > max the slice wraps through 0°, e.g. min:350, max:20 is a 30°
-   * slice facing roughly north), filtering which pixels render on the map. */
-  selectedRange?: LegendRange | null;
-  onRangeChange?: (range: LegendRange | null) => void;
+   * slice facing roughly north), filtering which pixels render on the map —
+   * multiple disjoint slices can be active at once (shift/cmd-drag, a
+   * ~500ms long-press-to-arm, or every drag on phone — see
+   * useCircularDragSelection's forceAdditive — adds a slice instead of
+   * replacing the selection). */
+  selectedRanges?: LegendRange[];
+  onRangeChange?: (
+    range: LegendRange | null,
+    options?: { additive?: boolean; sessionId?: number; final?: boolean },
+  ) => void;
+  /** Forces every drag to be additive with no long-press wait — see
+   * useCircularDragSelection's own doc comment on why (mobile touchscreen
+   * long-press-to-arm reliability). */
+  forceAdditive?: boolean;
 };
 
 const DEFAULT_CONIC_CSS = CIRCULAR_COLORMAPS['twilight_90'].conicCss;
@@ -111,8 +164,9 @@ export function MapCircularLegend({
   shapesEnabled = false,
   markerOutlineEnabled = false,
   nsweColors,
-  selectedRange,
+  selectedRanges,
   onRangeChange,
+  forceAdditive = false,
 }: MapCircularLegendProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -120,34 +174,82 @@ export function MapCircularLegend({
   const bg = palette.background.default.secondary;
 
   const activeArcColors = arcSegmentColors ?? DEFAULT_ARC_SEGMENT_COLORS;
+  const { lockScroll, unlockScroll } = useScrollLock();
 
   // Same wraparound-aware cumulative-delta drag algorithm PolarDensityChart
   // (species page) uses for its arc selection — see useCircularDragSelection
   // for why a naive "angle at start vs. angle now" comparison can't tell
-  // drag direction or handle wraparound correctly.
+  // drag direction or handle wraparound correctly. additive/final are now
+  // forwarded (previously dropped) so the caller can accumulate multiple
+  // disjoint slices instead of always replacing the selection.
   const handleCircularRangeChange = React.useCallback(
-    (range: { start: number; end: number } | null) => {
-      onRangeChange?.(range ? { min: range.start, max: range.end } : null);
+    (
+      range: { start: number; end: number } | null,
+      options?: { additive?: boolean; sessionId?: number; final?: boolean },
+    ) => {
+      onRangeChange?.(
+        range ? { min: range.start, max: range.end } : null,
+        options,
+      );
     },
     [onRangeChange],
   );
   const responderHandlers = useCircularDragSelection({
     center: { cx: RING / 2, cy: RING / 2 },
     onRangeChange: handleCircularRangeChange,
+    onDragStart: lockScroll,
+    onDragEnd: unlockScroll,
+    forceAdditive,
   });
 
-  // The complement (unselected) slice — swapping min/max and wrapping if
-  // needed always yields "the rest of the circle," regardless of whether
-  // the selection itself wraps through 0°.
-  const dimArc = selectedRange
-    ? {
-        start: selectedRange.max,
-        end:
-          selectedRange.min >= selectedRange.max
-            ? selectedRange.min
-            : selectedRange.min + 360,
+  // lockScroll/unlockScroll above only stops the *page's* ScrollView from
+  // scrolling — it doesn't stop the browser's own native touch-scroll
+  // gesture on this element from moving the page first. touch-action:none
+  // suppresses that scroll/pan/zoom gesture; -webkit-touch-callout/
+  // user-select separately suppress the touchscreen's own long-press
+  // callout (text-selection menu, "Add to Reading List", etc), which can
+  // otherwise steal/cancel the touch around the same ~500ms mark as our own
+  // long-press-to-arm timer. Same fix as PolarDensityChart's own copy of
+  // this effect (species page, same underlying useCircularDragSelection).
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || !onRangeChange) return;
+    const selector = '[data-testid="map-circular-legend-responder"]';
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `${selector} { touch-action: none !important; -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important; }`;
+    document.head.appendChild(styleEl);
+
+    const onDocPointerDown = (e: PointerEvent) => {
+      const responder = document.querySelector(selector);
+      if (
+        responder &&
+        (e.target === responder || responder.contains(e.target as Node))
+      ) {
+        responder.setPointerCapture(e.pointerId);
       }
-    : null;
+    };
+    document.addEventListener('pointerdown', onDocPointerDown, {
+      capture: true,
+    });
+
+    return () => {
+      styleEl.remove();
+      document.removeEventListener('pointerdown', onDocPointerDown, {
+        capture: true,
+      });
+    };
+  }, [onRangeChange]);
+
+  // The dim (unselected) arcs — the complement of the union of every
+  // selected slice, so any number of disjoint selections dims correctly
+  // (not just one contiguous complement arc).
+  const dimArcs =
+    selectedRanges && selectedRanges.length > 0
+      ? computeDimArcs(
+          mergeRanges(
+            selectedRanges.map((r) => ({ start: r.min, end: r.max })),
+          ),
+        )
+      : [];
 
   return (
     <View style={[styles.overlay, { backgroundColor: bg }]}>
@@ -198,23 +300,26 @@ export function MapCircularLegend({
               pinnedValue={pinnedValue}
             />
           )}
-          {dimArc && (
+          {dimArcs.length > 0 && (
             <Svg
               width={RING}
               height={RING}
               style={StyleSheet.absoluteFillObject}
             >
-              <Path
-                d={donutArcPath(
-                  RING / 2,
-                  RING / 2,
-                  OUTER_R,
-                  INNER_R,
-                  dimArc.start,
-                  dimArc.end,
-                )}
-                fill={DIM_OVERLAY_FILL}
-              />
+              {dimArcs.map((arc, i) => (
+                <Path
+                  key={i}
+                  d={donutArcPath(
+                    RING / 2,
+                    RING / 2,
+                    OUTER_R,
+                    INNER_R,
+                    arc.start,
+                    arc.end,
+                  )}
+                  fill={DIM_OVERLAY_FILL}
+                />
+              ))}
             </Svg>
           )}
           {onRangeChange && (
@@ -249,22 +354,6 @@ export function MapCircularLegend({
           ))}
         </View>
       )}
-      {selectedRange ? (
-        <ThemedText
-          variant='bodyTiny'
-          style={[
-            styles.selectedRange,
-            { color: palette.text.default.tertiary },
-          ]}
-        >
-          {circularRangeSpan({
-            start: selectedRange.min,
-            end: selectedRange.max,
-          }) >= FULL_CIRCLE_SPAN_THRESHOLD
-            ? 'Full circle'
-            : `${Math.round(selectedRange.min)}° to ${Math.round(selectedRange.max)}°`}
-        </ThemedText>
-      ) : null}
     </View>
   );
 }
@@ -320,10 +409,5 @@ const styles = StyleSheet.create({
   },
   nsweLabel: {
     opacity: 0.85,
-  },
-  selectedRange: {
-    textAlign: 'center',
-    fontSize: 9,
-    lineHeight: 11,
   },
 });

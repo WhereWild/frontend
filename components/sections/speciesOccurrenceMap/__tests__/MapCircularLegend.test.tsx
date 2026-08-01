@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
+import { Path } from 'react-native-svg';
 import { MapCircularLegend } from '../MapCircularLegend';
 
 // Ring is 56x56 (RING const), center at (28, 28).
@@ -19,22 +20,6 @@ function pointAtDeg(deg: number, r = 20) {
 }
 
 describe('MapCircularLegend range selection', () => {
-  it('shows the selected angle range as text once a selection exists', () => {
-    render(<MapCircularLegend selectedRange={{ min: 310, max: 45 }} />);
-    expect(screen.getByText('310° to 45°')).toBeTruthy();
-  });
-
-  it('shows no range text when nothing is selected', () => {
-    render(<MapCircularLegend />);
-    expect(screen.queryByText(/ to /)).toBeNull();
-  });
-
-  it('shows "Full circle" instead of degrees once the span is ~360°', () => {
-    render(<MapCircularLegend selectedRange={{ min: 1, max: 359 }} />);
-    expect(screen.getByText('Full circle')).toBeTruthy();
-    expect(screen.queryByText(/ to /)).toBeNull();
-  });
-
   it('reports a start/end angle pair in drag order (not sorted), so a slice can wrap through 0°', () => {
     const onRangeChange = jest.fn();
     const { getByTestId } = render(
@@ -51,7 +36,8 @@ describe('MapCircularLegend range selection', () => {
       nativeEvent: { locationX: CENTER + 20, locationY: CENTER },
     });
 
-    expect(onRangeChange).toHaveBeenLastCalledWith({ min: 0, max: 90 });
+    const lastCall = onRangeChange.mock.calls.at(-1);
+    expect(lastCall?.[0]).toEqual({ min: 0, max: 90 });
   });
 
   it('preserves a wrapping start > end angle pair (drag from east back through north)', () => {
@@ -91,7 +77,7 @@ describe('MapCircularLegend range selection', () => {
       fireEvent(responder, 'responderMove', { nativeEvent: pointAtDeg(deg) });
     }
 
-    expect(onRangeChange).toHaveBeenLastCalledWith({ min: 0, max: 200 });
+    expect(onRangeChange.mock.calls.at(-1)?.[0]).toEqual({ min: 0, max: 200 });
   });
 
   it('distinguishes a short backward drag from a long forward drag that would end at the same angle', () => {
@@ -112,14 +98,17 @@ describe('MapCircularLegend range selection', () => {
 
     // Short 90° CCW arc, represented as 210 -> 300 clockwise — NOT
     // {min: 300, max: 210}, which would mean the long 270° forward arc.
-    expect(onRangeChange).toHaveBeenLastCalledWith({ min: 210, max: 300 });
+    expect(onRangeChange.mock.calls.at(-1)?.[0]).toEqual({
+      min: 210,
+      max: 300,
+    });
   });
 
   it('clears the selection on a tap without any drag movement', () => {
     const onRangeChange = jest.fn();
     const { getByTestId } = render(
       <MapCircularLegend
-        selectedRange={{ min: 0, max: 90 }}
+        selectedRanges={[{ min: 0, max: 90 }]}
         onRangeChange={onRangeChange}
       />,
     );
@@ -132,11 +121,48 @@ describe('MapCircularLegend range selection', () => {
       nativeEvent: { locationX: CENTER, locationY: CENTER - 20 },
     });
 
-    expect(onRangeChange).toHaveBeenCalledWith(null);
+    expect(onRangeChange.mock.calls.at(-1)?.[0]).toBeNull();
   });
 
   it('does not render a responder overlay when onRangeChange is not provided', () => {
     const { queryByTestId } = render(<MapCircularLegend />);
     expect(queryByTestId('map-circular-legend-responder')).toBeNull();
+  });
+
+  it('forwards additive/final options through to onRangeChange when forceAdditive is set', () => {
+    const onRangeChange = jest.fn();
+    const { getByTestId } = render(
+      <MapCircularLegend onRangeChange={onRangeChange} forceAdditive />,
+    );
+    const responder = getByTestId('map-circular-legend-responder');
+
+    fireEvent(responder, 'responderGrant', {
+      nativeEvent: { locationX: CENTER, locationY: CENTER - 20 },
+    });
+    fireEvent(responder, 'responderMove', {
+      nativeEvent: { locationX: CENTER + 20, locationY: CENTER },
+    });
+    fireEvent(responder, 'responderRelease', {
+      nativeEvent: { locationX: CENTER + 20, locationY: CENTER },
+    });
+
+    const finalCall = onRangeChange.mock.calls.at(-1);
+    expect(finalCall?.[1]).toMatchObject({ additive: true, final: true });
+  });
+
+  it('renders one dim gap per disjoint selected slice, not one merged blob', () => {
+    const { UNSAFE_getAllByType } = render(
+      <MapCircularLegend
+        selectedRanges={[
+          { min: 0, max: 30 },
+          { min: 90, max: 120 },
+        ]}
+      />,
+    );
+    const paths = UNSAFE_getAllByType(Path);
+    // Two disjoint 30° slices out of 360° leave 2 gaps (between them, and
+    // wrapping from the end of the second back to the start of the first) —
+    // a regression check against collapsing into a single [30,90] dim arc.
+    expect(paths.length).toBeGreaterThanOrEqual(2);
   });
 });
