@@ -24,7 +24,7 @@ type UseCircularDragSelectionOptions = {
    * in-progress selection rather than a new one each frame. */
   onRangeChange: (
     range: CircularDragRange | null,
-    options?: { additive?: boolean; sessionId?: number },
+    options?: { additive?: boolean; sessionId?: number; final?: boolean },
   ) => void;
   /** Below this cumulative drag distance (degrees), a release is treated as
    * a tap-to-clear rather than a real selection. */
@@ -59,6 +59,7 @@ export function useCircularDragSelection({
   const hasDragged = React.useRef(false);
   const isAdditive = useAdditiveModifierRef();
   const dragSessionId = React.useRef(0);
+  const lastRange = React.useRef<CircularDragRange | null>(null);
 
   const touchToDeg = React.useCallback(
     (locationX: number, locationY: number) =>
@@ -123,20 +124,15 @@ export function useCircularDragSelection({
         additive: isAdditive.current,
         sessionId: dragSessionId.current,
       };
-      if (newSpan >= 0) {
-        // CW arc: anchor → anchor + span
-        onRangeChange(
-          { start: anchor, end: (anchor + absSpan + 360) % 360 },
-          additiveOptions,
-        );
-      } else {
-        // CCW arc: represented the same way as a CW arc from arcStart →
-        // anchor, so callers only ever need to handle one direction.
-        onRangeChange(
-          { start: (anchor - absSpan + 360) % 360, end: anchor },
-          additiveOptions,
-        );
-      }
+      const range: CircularDragRange =
+        newSpan >= 0
+          ? // CW arc: anchor → anchor + span
+            { start: anchor, end: (anchor + absSpan + 360) % 360 }
+          : // CCW arc: represented the same way as a CW arc from arcStart →
+            // anchor, so callers only ever need to handle one direction.
+            { start: (anchor - absSpan + 360) % 360, end: anchor };
+      lastRange.current = range;
+      onRangeChange(range, additiveOptions);
     },
     [touchToDeg, onRangeChange, minDragDeg],
   );
@@ -145,11 +141,23 @@ export function useCircularDragSelection({
     onDragEnd?.();
     if (dragOrigin.current != null && !hasDragged.current) {
       onRangeChange(null);
+    } else if (hasDragged.current && lastRange.current) {
+      // Re-emits the drag's own final range once more, marked `final` —
+      // this is the ONLY point range-merging (overlapping/touching/
+      // subsuming ranges collapsing into one) happens, so it doesn't
+      // visually snap ranges together mid-drag, only once the gesture
+      // actually ends.
+      onRangeChange(lastRange.current, {
+        additive: isAdditive.current,
+        sessionId: dragSessionId.current,
+        final: true,
+      });
     }
     dragOrigin.current = null;
     prevAngle.current = null;
     cumulativeSpan.current = 0;
     hasDragged.current = false;
+    lastRange.current = null;
   }, [onRangeChange, onDragEnd]);
 
   return {

@@ -100,7 +100,7 @@ type PolarDensityChartProps = {
    * already selected instead of replacing it. */
   onSelectionChange?: (
     range: DensitySelectionRange | null,
-    options?: { additive?: boolean; sessionId?: number },
+    options?: { additive?: boolean; sessionId?: number; final?: boolean },
   ) => void;
   /** Bearing (0–360°) of a pinned observation to highlight. */
   pinValue?: number | null;

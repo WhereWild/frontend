@@ -77,7 +77,12 @@ type DensityChartProps = {
    * instead. */
   onSelectionChange?: (
     range: DensitySelectionRange | null,
-    options?: { additive?: boolean; discrete?: boolean; sessionId?: number },
+    options?: {
+      additive?: boolean;
+      discrete?: boolean;
+      sessionId?: number;
+      final?: boolean;
+    },
   ) => void;
   pinValue?: number | null;
   pinLoading?: boolean;
@@ -290,6 +295,7 @@ export function DensityChart({
         onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value), {
           additive: isAdditive.current,
           sessionId: dragSessionId.current,
+          final: true,
         });
       }
       dragOrigin.current = null;
@@ -328,6 +334,7 @@ export function DensityChart({
       onSelectionChange?.(toSortedSelectionRange(dragOrigin.current, value), {
         additive: isAdditive.current,
         sessionId: dragSessionId.current,
+        final: true,
       });
     }
     dragOrigin.current = null;
