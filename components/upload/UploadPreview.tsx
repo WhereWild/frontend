@@ -37,6 +37,7 @@ import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
 import { applyConv, getMetricToImperial } from '@/data/unitConversions';
+import { encodePolygonsParam, isPointInPolygon } from '@/utils/geoPolygon';
 
 type UploadPreviewProps = {
   highlightedCatalogs: (number | string)[];
@@ -57,11 +58,13 @@ function UploadSpeciesPreviewSection({
   pinnedObservation,
   onVariableMetaChange,
   onLocationChange,
+  polygon,
 }: {
   onHighlightChange: (catalogNumbers: (number | string)[]) => void;
   pinnedObservation: PinnedObservation | null;
   onVariableMetaChange: (meta: EnvironmentVariableOption | null) => void;
   onLocationChange: (gid: string | null) => void;
+  polygon: string | null;
 }) {
   const settings = useOptionalSettings();
   const units = settings?.units;
@@ -111,6 +114,7 @@ function UploadSpeciesPreviewSection({
         onVariableMetaChange={onVariableMetaChange}
         units={units}
         locationGid={finalLocationGid}
+        polygon={polygon}
       />
     </View>
   );
@@ -137,12 +141,17 @@ export function UploadPreview({
   // Fullscreens the map + its legend/colormap-picker overlays together —
   // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
   const mapContainerRef = React.useRef<View | null>(null);
-  const [mapOccurrences, setMapOccurrences] = React.useState(() =>
-    uploadedBundle.occurrences.map((row) => ({
-      catalogNumber: row.catalogNumber,
-      latitude: row.latitude,
-      longitude: row.longitude,
-    })),
+  // The location-filtered fetch result — NOT further restricted by a drawn
+  // polygon region (that filter is applied client-side below, same as
+  // _species.tsx, so it can be toggled off instantly while a new region is
+  // being drawn without a re-fetch).
+  const [fetchedMapOccurrences, setFetchedMapOccurrences] = React.useState(
+    () =>
+      uploadedBundle.occurrences.map((row) => ({
+        catalogNumber: row.catalogNumber,
+        latitude: row.latitude,
+        longitude: row.longitude,
+      })),
   );
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
@@ -152,6 +161,72 @@ export function UploadPreview({
   const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
     null,
   );
+
+  // Hand-drawn region filter — client-side only, against whatever's already
+  // been fetched. Mirrors _species.tsx's identical setup: the draw/cancel/
+  // erase/upload buttons live inside the map itself (SpeciesOccurrenceMap.
+  // html's DrawPolygonControl/EraserControl/UploadPolygonControl); this side
+  // only ever hears the end result via onPolygonDrawn/onPolygonCleared.
+  // Each entry is one region's ring vertices as [latitude, longitude]
+  // pairs; multiple regions filter as a union (a point counts if it's
+  // inside ANY of them); null when none are active.
+  const [drawnPolygons, setDrawnPolygons] = React.useState<
+    [number, number][][] | null
+  >(null);
+  const handlePolygonDrawn = React.useCallback(
+    (polygons: [number, number][][]) => setDrawnPolygons(polygons),
+    [],
+  );
+  const handlePolygonCleared = React.useCallback(
+    () => setDrawnPolygons(null),
+    [],
+  );
+
+  // While a new region is actively being drawn, show the unfiltered set on
+  // the map instead of the polygon-filtered one — otherwise, once one
+  // region already filters the map down, there'd be no way to see (or draw
+  // around) the other, currently-hidden observations. Only affects what the
+  // MAP renders, not the stats section below it.
+  const [isDrawingRegion, setIsDrawingRegion] = React.useState(false);
+  const handlePolygonDrawStart = React.useCallback(
+    () => setIsDrawingRegion(true),
+    [],
+  );
+  const handlePolygonDrawEnd = React.useCallback(
+    () => setIsDrawingRegion(false),
+    [],
+  );
+
+  const polygonFilteredOccurrences = React.useMemo(() => {
+    const activePolygons = drawnPolygons?.filter((ring) => ring.length >= 3);
+    if (!activePolygons || activePolygons.length === 0) {
+      return fetchedMapOccurrences;
+    }
+    return fetchedMapOccurrences.filter((occ) =>
+      activePolygons.some((ring) =>
+        isPointInPolygon(occ.latitude, occ.longitude, ring),
+      ),
+    );
+  }, [fetchedMapOccurrences, drawnPolygons]);
+  const occurrencesForMap = isDrawingRegion
+    ? fetchedMapOccurrences
+    : polygonFilteredOccurrences;
+
+  // Same drawnPolygons the map/stats-input filters by client-side, encoded
+  // for the backend's `polygon` query param — lets the density graphs/
+  // histograms in SpeciesEnvironmentSection (backed by the remote data
+  // source when online) reflect the drawn region too. The offline data
+  // source decodes and applies this same string itself (see
+  // uploadLocalSpeciesDataSource.build.ts), so this one encoding covers
+  // both online and offline without UploadPreview needing to know which is
+  // active.
+  const encodedRegionPolygon = React.useMemo(() => {
+    const activePolygons = drawnPolygons?.filter((ring) => ring.length >= 3);
+    if (!activePolygons || activePolygons.length === 0) {
+      return null;
+    }
+    return encodePolygonsParam(activePolygons);
+  }, [drawnPolygons]);
 
   const selectedMapPoint = React.useMemo(
     () =>
@@ -164,6 +239,7 @@ export function UploadPreview({
   React.useEffect(() => {
     setPinnedObservation(null);
     setFinalLocationGid(null);
+    setDrawnPolygons(null);
   }, [uploadedBundle, uploadedDataSource]);
 
   React.useEffect(() => {
@@ -174,7 +250,7 @@ export function UploadPreview({
       })
       .then((result) => {
         if (!cancelled) {
-          setMapOccurrences(
+          setFetchedMapOccurrences(
             result.occurrences.map((occ) => ({
               catalogNumber: occ.catalogNumber,
               latitude: occ.latitude,
@@ -434,12 +510,14 @@ export function UploadPreview({
         pinnedObservation={pinnedObservation}
         onVariableMetaChange={setSelectedVariableMeta}
         onLocationChange={setFinalLocationGid}
+        polygon={encodedRegionPolygon}
       />
       {uploadedBundle.occurrences.length > 0 ? (
         <View ref={mapContainerRef} style={styles.mapContainer}>
           <SpeciesOccurrenceMap
             preserveMapPosition
-            occurrences={mapOccurrences}
+            occurrences={occurrencesForMap}
+            refitOnOccurrencesChange={fetchedMapOccurrences}
             loading={false}
             error={null}
             highlightedCatalogs={highlightedCatalogs}
@@ -457,6 +535,10 @@ export function UploadPreview({
             onPointValue={setPinnedPointValue}
             pointQueryUrl={pointQueryUrl}
             disableObservationQuery={true}
+            onPolygonDrawn={handlePolygonDrawn}
+            onPolygonCleared={handlePolygonCleared}
+            onPolygonDrawStart={handlePolygonDrawStart}
+            onPolygonDrawEnd={handlePolygonDrawEnd}
             varUnits={
               !isCategorical && !isCircular
                 ? (selectedVariableMeta?.units ?? null)

@@ -7,6 +7,7 @@ import {
   normalizeRawUploadedParquetBundle,
   type RawUploadedParquetBundle,
 } from '@/data/uploadLocalSpeciesDataSource';
+import { encodePolygonsParam } from '@/utils/geoPolygon';
 
 describe('upload local species data source variable categories', () => {
   it('builds variable definitions with categories from variableCategory columns and variable_metadata', async () => {
@@ -1186,6 +1187,197 @@ describe('upload local species data source variable categories', () => {
         count: 1,
       }),
     ]);
+  });
+
+  it('rebuilds environment stats and samples scoped to a drawn polygon region (offline equivalent of the backend `polygon` filter)', async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [
+        {
+          variable: 'landcover',
+          variableCategory: 'land',
+          metric: 'class_52',
+          metricLabel: 'Impervious surfaces',
+          value: 0.5,
+        },
+        {
+          variable: 'landcover',
+          variableCategory: 'land',
+          metric: 'class_130',
+          metricLabel: 'Grassland',
+          value: 0.5,
+        },
+        {
+          variable: 'landcover',
+          variableCategory: 'land',
+          metric: 'total_samples',
+          value: 2,
+        },
+      ],
+      categoricalValueLookup: [
+        {
+          variable: 'landcover',
+          variableName: 'Land Cover Classes',
+          variableCategory: 'land',
+          code: 52,
+          metric: 'class_52',
+          label: 'Impervious surfaces',
+          description: 'Built surfaces and paved ground.',
+        },
+        {
+          variable: 'landcover',
+          variableName: 'Land Cover Classes',
+          variableCategory: 'land',
+          code: 130,
+          metric: 'class_130',
+          label: 'Grassland',
+          description: 'Open herbaceous cover.',
+        },
+      ],
+      densityGraph: [
+        {
+          variable: 'bio_1',
+          variableCategory: 'climate',
+          points: [2.1, 3.1],
+          density: [0.5, 0.5],
+        },
+      ],
+      occurrences: [
+        {
+          catalogNumber: 'obs_inside',
+          decimalLatitude: 5,
+          decimalLongitude: 5,
+          bio_1: 2.1,
+          landcover: 52,
+        },
+        {
+          catalogNumber: 'obs_outside',
+          decimalLatitude: 50,
+          decimalLongitude: 50,
+          bio_1: 3.1,
+          landcover: 130,
+        },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          variableCategory: 'climate',
+          count: 2,
+          min: 2.1,
+          mean: 2.6,
+          max: 3.1,
+          std: 0.5,
+          '10th percentile': 2.1,
+          '90th percentile': 3.1,
+        },
+      ],
+      variableMetadata: [],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const square: [number, number][] = [
+      [0, 0],
+      [0, 10],
+      [10, 10],
+      [10, 0],
+    ];
+    const polygon = encodePolygonsParam([square]);
+
+    const globalStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+    const scopedStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { polygon });
+
+    expect(globalStats.summary).toEqual(expect.objectContaining({ count: 2 }));
+    expect(scopedStats.summary).toEqual(
+      expect.objectContaining({ count: 1, min: 2.1, mean: 2.1, max: 2.1 }),
+    );
+
+    const scopedLandcoverStats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
+      polygon,
+    });
+    expect(scopedLandcoverStats.categoricalDistribution).toEqual([
+      expect.objectContaining({ value: 'class_52', count: 1 }),
+    ]);
+
+    const slice = await dataSource.fetchEnvironmentRangeSlice({
+      taxonId: '1',
+      variableId: 'bio_1',
+      min: 0,
+      max: 10,
+      polygon,
+    });
+    expect(slice.observations).toEqual([
+      expect.objectContaining({ catalogNumber: 'obs_inside' }),
+    ]);
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(
+      1,
+      'landcover',
+      'class_52',
+      { polygon },
+    );
+    expect(sample.observations).toEqual([
+      expect.objectContaining({ catalogNumber: 'obs_inside' }),
+    ]);
+  });
+
+  it('unions multiple drawn polygon regions instead of intersecting them', async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [],
+      densityGraph: [
+        {
+          variable: 'bio_1',
+          variableCategory: 'climate',
+          points: [2.1, 3.1],
+          density: [0.5, 0.5],
+        },
+      ],
+      occurrences: [
+        { catalogNumber: 'obs_a', decimalLatitude: 5, decimalLongitude: 5, bio_1: 2.1 },
+        { catalogNumber: 'obs_b', decimalLatitude: 25, decimalLongitude: 25, bio_1: 3.1 },
+        { catalogNumber: 'obs_c', decimalLatitude: 50, decimalLongitude: 50, bio_1: 4.1 },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          variableCategory: 'climate',
+          count: 3,
+          min: 2.1,
+          mean: 3.1,
+          max: 4.1,
+          std: 1,
+          '10th percentile': 2.1,
+          '90th percentile': 4.1,
+        },
+      ],
+      variableMetadata: [],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+
+    const squareA: [number, number][] = [
+      [0, 0],
+      [0, 10],
+      [10, 10],
+      [10, 0],
+    ];
+    const squareB: [number, number][] = [
+      [20, 20],
+      [20, 30],
+      [30, 30],
+      [30, 20],
+    ];
+    const polygon = encodePolygonsParam([squareA, squareB]);
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { polygon });
+    // obs_a (in squareA) and obs_b (in squareB) both count; obs_c (in
+    // neither) is excluded — proves this is a union, not an intersection.
+    expect(stats.summary).toEqual(
+      expect.objectContaining({ count: 2, min: 2.1, max: 3.1 }),
+    );
   });
 
   it('keeps duplicate parent names on the selected gid branch when fetching local children', async () => {

@@ -27,6 +27,7 @@ import {
   reverseConv,
   type LinearConversion,
 } from '@/data/unitConversions';
+import { decodePolygonsParam, isPointInPolygon } from '@/utils/geoPolygon';
 import type {
   UploadedCategoricalStatsRow,
   UploadedCategoricalValueLookupRow,
@@ -775,6 +776,41 @@ const filterCatalogIdsByLocation = (
   });
 };
 
+// Mirrors filterCatalogIdsByLocation, but for a drawn/uploaded map region
+// (see decodePolygonsParam) instead of a GADM gid — this is the offline
+// data source's equivalent of wherewild/util/stats.py::apply_polygon_filter,
+// reproduced in-browser since there's no backend to send the `polygon`
+// query param to. Multiple regions filter as a union (inside ANY of them),
+// same semantics as the map's own client-side isPointInPolygon filter.
+const matchesObservationPolygon = (
+  row: UploadedOccurrenceRow | undefined,
+  polygons: readonly (readonly (readonly [number, number])[])[] | null,
+) => {
+  if (!polygons || polygons.length === 0) {
+    return true;
+  }
+  if (!row) {
+    return false;
+  }
+  return polygons.some((ring) =>
+    isPointInPolygon(row.latitude, row.longitude, ring),
+  );
+};
+
+const filterCatalogIdsByPolygon = <T extends number | string>(
+  catalogIds: T[],
+  observationsByCatalog: Record<string, UploadedOccurrenceRow>,
+  polygons: readonly (readonly (readonly [number, number])[])[] | null,
+): T[] => {
+  if (!polygons || polygons.length === 0) {
+    return catalogIds;
+  }
+
+  return catalogIds.filter((id) =>
+    matchesObservationPolygon(observationsByCatalog[String(id)], polygons),
+  );
+};
+
 const toSortedNumericValues = (values: number[]) =>
   values.slice().sort((left, right) => left - right);
 
@@ -1114,6 +1150,7 @@ const buildScopedCategoricalStats = ({
   categoryValueLookupByVariable,
   statsByVariable,
   units,
+  polygons,
 }: {
   stats: SpeciesEnvironmentStats;
   locationGid?: string | null;
@@ -1129,6 +1166,7 @@ const buildScopedCategoricalStats = ({
   >;
   statsByVariable: Record<string, SpeciesEnvironmentStats>;
   units?: string | null;
+  polygons?: [number, number][][] | null;
 }): SpeciesEnvironmentStats => {
   const countsByClass = new Map<string, number>();
   let totalCount = 0;
@@ -1169,6 +1207,11 @@ const buildScopedCategoricalStats = ({
             )
           : row.observationIds
       ).map((id) => String(id));
+      scopedObservationIds = filterCatalogIdsByPolygon(
+        scopedObservationIds,
+        observationsByCatalog,
+        polygons ?? null,
+      );
       if (chainAllowedCatalogsForClassCounts) {
         scopedObservationIds = scopedObservationIds.filter((id) =>
           chainAllowedCatalogsForClassCounts.has(id),
@@ -1254,6 +1297,9 @@ const buildScopedCategoricalStats = ({
       ) {
         return;
       }
+      if (!matchesObservationPolygon(row, polygons ?? null)) {
+        return;
+      }
       if (chainAllowedCatalogs && !chainAllowedCatalogs.has(catalogNumber)) {
         return;
       }
@@ -1324,6 +1370,7 @@ const buildScopedNumericStats = ({
   categoryValueLookupByVariable,
   statsByVariable,
   units,
+  polygons,
 }: {
   stats: SpeciesEnvironmentStats;
   locationGid?: string | null;
@@ -1338,6 +1385,7 @@ const buildScopedNumericStats = ({
   >;
   statsByVariable: Record<string, SpeciesEnvironmentStats>;
   units?: string | null;
+  polygons?: [number, number][][] | null;
 }): SpeciesEnvironmentStats => {
   // Computed ONCE, not per index row — see buildScopedCategoricalStats's
   // identical comment above. A discrete/binned numeric variable can have
@@ -1374,6 +1422,11 @@ const buildScopedNumericStats = ({
             )
           : row.observationIds
       ).map((id) => String(id));
+      scopedObservationIds = filterCatalogIdsByPolygon(
+        scopedObservationIds,
+        observationsByCatalog,
+        polygons ?? null,
+      );
       if (chainAllowedCatalogsForNumericScope) {
         scopedObservationIds = scopedObservationIds.filter((id) =>
           chainAllowedCatalogsForNumericScope.has(id),
@@ -1509,6 +1562,7 @@ const buildScopedStats = ({
   categoryValueLookupByVariable,
   statsByVariable,
   units,
+  polygons,
 }: {
   stats: SpeciesEnvironmentStats;
   locationGid?: string | null;
@@ -1524,8 +1578,13 @@ const buildScopedStats = ({
   >;
   statsByVariable: Record<string, SpeciesEnvironmentStats>;
   units?: string | null;
+  polygons?: [number, number][][] | null;
 }): SpeciesEnvironmentStats => {
-  if (!locationGid && !(extra && extra.length > 0)) {
+  if (
+    !locationGid &&
+    !(extra && extra.length > 0) &&
+    !(polygons && polygons.length > 0)
+  ) {
     return stats;
   }
 
@@ -1548,6 +1607,7 @@ const buildScopedStats = ({
       categoryValueLookupByVariable,
       statsByVariable,
       units,
+      polygons,
     });
   }
 
@@ -1562,6 +1622,7 @@ const buildScopedStats = ({
     categoryValueLookupByVariable,
     statsByVariable,
     units,
+    polygons,
   });
 };
 
@@ -1755,6 +1816,7 @@ export const buildUploadLocalSpeciesDataSource = ({
         categoryValueLookupByVariable,
         statsByVariable,
         units: options?.units,
+        polygons: decodePolygonsParam(options?.polygon),
       });
 
       if (options?.units !== 'imperial') return scoped;
@@ -1775,18 +1837,22 @@ export const buildUploadLocalSpeciesDataSource = ({
           max = reverseConv(max, conv) ?? max;
         }
       }
-      const catalogs = filterCatalogIdsByLocation(
-        intersectWithExtraFilters(
-          collectCatalogsForRange(indexRows, min, max),
-          params.extra,
-          indexRowsByVariable,
-          statsByVariable,
-          categoryValueLookupByVariable,
-          params.units,
+      const catalogs = filterCatalogIdsByPolygon(
+        filterCatalogIdsByLocation(
+          intersectWithExtraFilters(
+            collectCatalogsForRange(indexRows, min, max),
+            params.extra,
+            indexRowsByVariable,
+            statsByVariable,
+            categoryValueLookupByVariable,
+            params.units,
+          ),
+          observationsByCatalog,
+          locationLookup,
+          params.location,
         ),
         observationsByCatalog,
-        locationLookup,
-        params.location,
+        decodePolygonsParam(params.polygon),
       );
       const observations = pickOccurrenceObservations(
         catalogs,
@@ -1815,18 +1881,22 @@ export const buildUploadLocalSpeciesDataSource = ({
       options,
     ) => {
       const indexRows = indexRowsByVariable[variableId] ?? [];
-      const catalogs = filterCatalogIdsByLocation(
-        intersectWithExtraFilters(
-          collectCatalogsForCategory(indexRows, classValue),
-          options?.extra,
-          indexRowsByVariable,
-          statsByVariable,
-          categoryValueLookupByVariable,
-          options?.units,
+      const catalogs = filterCatalogIdsByPolygon(
+        filterCatalogIdsByLocation(
+          intersectWithExtraFilters(
+            collectCatalogsForCategory(indexRows, classValue),
+            options?.extra,
+            indexRowsByVariable,
+            statsByVariable,
+            categoryValueLookupByVariable,
+            options?.units,
+          ),
+          observationsByCatalog,
+          locationLookup,
+          options?.location,
         ),
         observationsByCatalog,
-        locationLookup,
-        options?.location,
+        decodePolygonsParam(options?.polygon),
       );
       const observations = pickOccurrenceObservations(
         catalogs,
