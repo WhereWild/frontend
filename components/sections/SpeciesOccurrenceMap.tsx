@@ -22,6 +22,7 @@ import {
   buildGlobeHtml,
   buildLeafletHtml,
   getBackgroundTileUrl,
+  getElevationTerrainTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   loadFallbackMapTemplate,
@@ -595,6 +596,12 @@ export function SpeciesOccurrenceMap({
     () => (useLabelsOverlay ? getLabelsOverlayTileUrl() : null),
     [useLabelsOverlay],
   );
+  // Terrain is a MapLibre-only (globe) feature — always the same global DEM,
+  // so no memo dependency beyond globeView itself.
+  const terrainTileUrl = React.useMemo(
+    () => (globeView ? getElevationTerrainTileUrl() : null),
+    [globeView],
+  );
 
   // When preserveMapPosition is true, the html memo is built once with initial
   // values for the "live" props. Subsequent changes are sent via postMessage so
@@ -791,6 +798,7 @@ export function SpeciesOccurrenceMap({
       initialLocalLon.current,
       mode,
       enableOfflineFallback,
+      terrainTileUrl,
     );
   }, [
     allowPinObservations,
@@ -829,6 +837,7 @@ export function SpeciesOccurrenceMap({
     mode,
     enableOfflineFallback,
     globeView,
+    terrainTileUrl,
   ]);
 
   React.useEffect(() => {

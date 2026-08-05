@@ -5,6 +5,8 @@
 import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
+import { BACKEND_BASE } from '@/data/apiShared';
+
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
 export const LOCATE_MESSAGE_TYPE = 'locate';
@@ -128,6 +130,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
   labelsOverlayUrl: '__LABELS_OVERLAY_URL_JSON__',
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
+  terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
   initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
@@ -300,6 +303,13 @@ export const getLinesOverlayTileUrl = () =>
   MAP_TILE_API_KEY
     ? `${MAP_LINES_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
     : MAP_LINES_TILE_URL_TEMPLATE;
+
+// Terrarium-encoded raster-dem tiles for the globe view's setTerrain()/
+// hillshade — no API key, unlike the Stadia Maps helpers above, since this
+// is our own backend endpoint (see wherewild/main.py's
+// elevation_terrain_tile / util/tiles.py's render_elevation_terrain_rgb_tile_bytes).
+export const getElevationTerrainTileUrl = () =>
+  `${BACKEND_BASE}/api/layers/elevation/terrain-tiles/{z}/{x}/{y}.png`;
 
 export const getBackgroundTileUrl = () =>
   MAP_TILE_API_KEY
@@ -1249,6 +1259,7 @@ const fillMapTemplatePlaceholders = (
   initialLocalLon?: number | null,
   tileMode?: MapTileMode,
   enableOfflineFallback?: boolean,
+  terrainTileUrl?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1437,6 +1448,9 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.enableOfflineFallback)
     .join(enableOfflineFallback ? 'true' : 'false');
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.terrainTileUrl)
+    .join(terrainTileUrl ? JSON.stringify(terrainTileUrl) : 'null');
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.leafletResizeObserverScript)
     .join(LEAFLET_RESIZE_OBSERVER_SCRIPT);
   html = html
@@ -1503,6 +1517,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     initialLocalLon,
     tileMode,
     enableOfflineFallback,
+    terrainTileUrl,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1545,6 +1560,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     initialLocalLon,
     tileMode,
     enableOfflineFallback,
+    terrainTileUrl,
   );
 };
 

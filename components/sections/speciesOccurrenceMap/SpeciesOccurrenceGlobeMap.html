@@ -68,6 +68,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
     const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
     const LINES_OVERLAY_URL = __LINES_OVERLAY_URL_JSON__;
+    const TERRAIN_TILE_URL = __TERRAIN_TILE_URL_JSON__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
     const INITIAL_LAT = __INITIAL_LAT__;
@@ -683,15 +684,26 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           },
           HEATMAP_TILE_URL ? { heatmap: { type: 'raster', tiles: ['heatmap://' + HEATMAP_TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
           LINES_OVERLAY_URL ? { lines: { type: 'raster', tiles: [LINES_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
-          LABELS_OVERLAY_URL ? { labels: { type: 'raster', tiles: [LABELS_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {}
+          LABELS_OVERLAY_URL ? { labels: { type: 'raster', tiles: [LABELS_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
+          // encoding: 'terrarium' matches util/tiles.py's _encode_terrain_rgb
+          // — MapLibre decodes elevation from these RGB tiles on the GPU for
+          // setTerrain()/hillshade below, distinct from the (also-elevation-
+          // sourced) colorized 'elevation' catalog layer used for display.
+          TERRAIN_TILE_URL ? { 'terrain-dem': { type: 'raster-dem', tiles: [TERRAIN_TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM, encoding: 'terrarium' } } : {}
         ),
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#000' } },
           { id: 'basemap-layer', type: 'raster', source: 'basemap' },
         ]
+          // Shades the basemap using the same DEM setTerrain() uses for the
+          // 3D mesh, so relief reads clearly even head-on where the globe's
+          // own displacement is least visible. Sits above the basemap but
+          // below every data overlay.
+          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 } }] : [])
           .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY } }] : [])
           .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
           .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 } }] : []),
+        terrain: TERRAIN_TILE_URL ? { source: 'terrain-dem', exaggeration: 1.5 } : undefined,
       },
       center: [INITIAL_LON || 0, INITIAL_LAT || 20],
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
