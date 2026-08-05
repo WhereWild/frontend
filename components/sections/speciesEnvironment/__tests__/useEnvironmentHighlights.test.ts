@@ -1089,9 +1089,12 @@ describe('useEnvironmentHighlights', () => {
       await waitFor(() => {
         expect(
           localDataSource.fetchObservationEnvironmentValue,
-        ).toHaveBeenCalledWith(1, 'PIN-1', 'landcover', {
+        ).toHaveBeenCalledWith('1', 'PIN-1', 'landcover', {
           location: undefined,
           units: undefined,
+          phenology: undefined,
+          startTs: undefined,
+          endTs: undefined,
         });
         expect(result.current.pinnedValue).toBe('forest');
         expect(result.current.pinnedLoading).toBe(false);
@@ -1899,7 +1902,7 @@ describe('useEnvironmentHighlights', () => {
 
       await waitFor(() =>
         expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
-          1,
+          '1',
           'landcover',
           52,
           expect.objectContaining({ extra: [] }),

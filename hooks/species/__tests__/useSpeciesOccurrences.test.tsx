@@ -36,7 +36,7 @@ describe('useSpeciesOccurrences', () => {
       expect(result.current.error).toBeNull();
     });
 
-    expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(12, { location: 'state-ut' });
+    expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('12', { location: 'state-ut' });
   });
 
   it('surfaces friendly fallback error for non-Error failures', async () => {

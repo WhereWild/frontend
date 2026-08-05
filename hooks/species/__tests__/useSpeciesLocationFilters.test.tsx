@@ -96,7 +96,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     expect(mockFetchSpeciesLocations).toHaveBeenCalledWith(
-      13579,
+      '13579',
       'country',
       undefined,
       500,

@@ -470,13 +470,13 @@ describe('Species screen', () => {
     render(<SpeciesScreen data={createData()} />);
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('13579', {
         location: undefined,
       });
     });
 
     expect(mockFetchSpeciesLocations).toHaveBeenCalledWith(
-      13579,
+      '13579',
       'country',
       undefined,
       LOCATION_SEARCH_LIMIT,
@@ -638,7 +638,7 @@ describe('Species screen', () => {
     fireEvent.press(screen.getByTestId('select-Country-option-country-us'));
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('13579', {
         location: 'country-us',
       });
     });
@@ -650,7 +650,7 @@ describe('Species screen', () => {
     fireEvent.press(screen.getByTestId('select-State-option-state-ut'));
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('13579', {
         location: 'state-ut',
       });
     });

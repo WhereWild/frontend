@@ -581,8 +581,10 @@ describe('WebPageHeader', () => {
     });
 
     const result = await screen.findByTestId('search-result-12');
-    expect(screen.queryByTestId('search-result-invalid')).toBeNull();
-    expect(screen.getAllByTestId(/search-result-/)).toHaveLength(1);
+    // A non-numeric alphanumeric taxon id is a valid opaque COL XR id and is
+    // no longer rejected, so both results render.
+    expect(screen.getByTestId('search-result-invalid')).toBeTruthy();
+    expect(screen.getAllByTestId(/search-result-/)).toHaveLength(2);
     fireEvent.press(result);
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/species/[...identifier]',

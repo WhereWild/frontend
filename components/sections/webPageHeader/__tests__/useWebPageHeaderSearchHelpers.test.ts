@@ -195,11 +195,30 @@ describe('taxaQuerySearchHelpers', () => {
     });
   });
 
-  it('returns null for results with an invalid taxon id', () => {
+  it('passes through alphanumeric (non-numeric) taxon ids as opaque strings', () => {
     expect(
       mapTaxaQueryResultToSummary(
         {
           taxon_id: 'not-a-number',
+          scientific_name: 'Canis lupus',
+          common_name: 'Gray wolf',
+          common_names: ['Gray wolf'],
+          _raw: {},
+        } as any,
+        createPayload(),
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        taxonId: 'not-a-number',
+      }),
+    );
+  });
+
+  it('returns null for results with a missing taxon id', () => {
+    expect(
+      mapTaxaQueryResultToSummary(
+        {
+          taxon_id: null,
           scientific_name: 'Canis lupus',
           common_name: 'Gray wolf',
           common_names: ['Gray wolf'],

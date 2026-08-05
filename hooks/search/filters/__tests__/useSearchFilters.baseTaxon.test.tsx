@@ -664,7 +664,11 @@ describe('useSearchFilters (base taxon)', () => {
     });
   });
 
-  it('submitting a numeric base taxon query sets ancestor id without lookup', async () => {
+  it('submitting a base taxon query resolves the ancestor id via search', async () => {
+    mockFetchTaxaQuery.mockResolvedValueOnce(
+      createTaxaQueryResponse([createSpecies({ taxon_id: '321' })]),
+    );
+
     const { result } = renderHook(() => useSearchFilters());
 
     await waitFor(() => {
@@ -676,10 +680,11 @@ describe('useSearchFilters (base taxon)', () => {
     });
 
     expect(result.current.filterParams.withinTaxonId).toBe('321');
-    expect(mockFetchTaxaQuery).not.toHaveBeenCalledWith({
+    expect(mockFetchTaxaQuery).toHaveBeenCalledWith({
       q: '321',
       limit: 1,
       offset: 0,
+      minSamples: 0,
     });
   });
 

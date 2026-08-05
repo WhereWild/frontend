@@ -92,7 +92,7 @@ describe('data/api common name normalization', () => {
     ]);
   });
 
-  it('falls back to null taxon_id when non-numeric string is returned', async () => {
+  it('passes through non-numeric taxon_id strings as opaque IDs', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -113,7 +113,7 @@ describe('data/api common name normalization', () => {
 
     expect(rows).toEqual([
       expect.objectContaining({
-        taxon_id: null,
+        taxon_id: 'not-a-number',
       }),
     ]);
   });
@@ -718,7 +718,24 @@ describe('data/api common name normalization', () => {
     );
   });
 
-  it('throws when slug-scoped ranking options omit the resolved ancestor id', async () => {
+  it('falls back to the request taxon id when the response omits ancestor_taxon_id', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        rank: 'SPECIES',
+        options: [],
+      }),
+    });
+
+    const result = await fetchRelativeRankingOptions({
+      taxonId: 'quercus',
+      rank: 'SPECIES',
+    });
+
+    expect(result.ancestorTaxonId).toBe('quercus');
+  });
+
+  it('throws when neither the response nor the request provide an ancestor id', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -728,7 +745,7 @@ describe('data/api common name normalization', () => {
     });
 
     await expect(
-      fetchRelativeRankingOptions({ taxonId: 'quercus', rank: 'SPECIES' }),
+      fetchRelativeRankingOptions({ taxonId: '', rank: 'SPECIES' }),
     ).rejects.toThrow(
       'Failed to fetch ranking options: missing ancestor_taxon_id in response',
     );
@@ -1037,7 +1054,7 @@ describe('data/api common name normalization', () => {
         emptyReason: 'ranking_ineligible',
         scope: expect.objectContaining({
           withinTaxon: 'quercus',
-          withinTaxonId: null,
+          withinTaxonId: 'quercus',
         }),
       }),
     );
