@@ -703,7 +703,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY } }] : [])
           .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
           .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 } }] : []),
-        terrain: TERRAIN_TILE_URL ? { source: 'terrain-dem', exaggeration: 1.5 } : undefined,
+        // 1.0 — true-scale elevation, not exaggerated. At full-globe zoom
+        // this reads as nearly flat (real relief is ~0.1% of Earth's
+        // radius), but it becomes accurate once zoomed in close, which
+        // matters more here than a dramatic globe-scale bulge.
+        terrain: TERRAIN_TILE_URL ? { source: 'terrain-dem', exaggeration: 1.0 } : undefined,
       },
       center: [INITIAL_LON || 0, INITIAL_LAT || 20],
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
