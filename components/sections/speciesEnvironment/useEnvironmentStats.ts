@@ -166,6 +166,7 @@ export function useEnvironmentStats({
   }, [
     chainSignal,
     endTimestamp,
+    extraRef,
     hasStatsForSelection,
     locationGid,
     phenology,

@@ -331,7 +331,11 @@ export function useEnvironmentHighlights({
     setActiveChain((prev) => (prev.length === 0 ? prev : []));
     selectionMetaRef.current = null;
     emitHighlightChange([]);
-  }, [emitHighlightChange]);
+  }, [
+    emitHighlightChange,
+    setSelectedCategoryValues,
+    setSelectedDensityRanges,
+  ]);
 
   const resetPinnedState = React.useCallback(() => {
     const pinnedState = pinnedStateRef.current;
@@ -497,6 +501,8 @@ export function useEnvironmentHighlights({
     emitHighlightChange,
     selectedCategoryValues,
     selectedDensityRanges,
+    setSelectedCategoryValues,
+    setSelectedDensityRanges,
   ]);
 
   const removeChainedFilter = React.useCallback((variableId: string) => {
@@ -921,7 +927,7 @@ export function useEnvironmentHighlights({
       // harmless in effect but wasteful, and needlessly re-triggers a
       // network request each time another value is added to the selection.
     },
-    [emitHighlightChange, selectedVariable, stats],
+    [emitHighlightChange, selectedVariable, stats, setSelectedCategoryValues],
   );
 
   // Emits the UNION of every currently-selected key's resolved
@@ -1149,7 +1155,7 @@ export function useEnvironmentHighlights({
         label: joinClassNamesWithAnd(nextRanges.map(formatDensityRangeLabel)),
       };
     },
-    [emitHighlightChange, selectedVariable],
+    [emitHighlightChange, selectedVariable, setSelectedDensityRanges],
   );
 
   // Resolves ONE range's observations into rangeSamplesByKey's cache — never

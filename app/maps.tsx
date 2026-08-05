@@ -349,6 +349,11 @@ export default function Maps() {
     valueRangeSelection.clear();
     angleRangeSelection.clear();
     clearLayerChain();
+    // valueRangeSelection/angleRangeSelection are fresh object literals every
+    // render (only their .clear method, listed below, is memoized) —
+    // depending on the whole objects would rerun this reset on every
+    // range-selection change instead of only on a real renderer swap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     globeViewEnabled,
     clearLayerChain,

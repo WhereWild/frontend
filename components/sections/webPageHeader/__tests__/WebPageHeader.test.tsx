@@ -1434,7 +1434,11 @@ describe('WebPageHeader', () => {
         scientific_name: 'Vulpes vulpes',
         common_name: 'Red Fox',
       },
-      { taxon_id: '12', scientific_name: 'Canis latrans', common_name: 'Coyote' },
+      {
+        taxon_id: '12',
+        scientific_name: 'Canis latrans',
+        common_name: 'Coyote',
+      },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1611,7 +1615,11 @@ describe('WebPageHeader', () => {
   it('closes the preview on escape without clearing the query and reopens on query change', async () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
-      { taxon_id: '61', scientific_name: 'Canis latrans', common_name: 'Coyote' },
+      {
+        taxon_id: '61',
+        scientific_name: 'Canis latrans',
+        common_name: 'Coyote',
+      },
       {
         taxon_id: '62',
         scientific_name: 'Canis lupus',

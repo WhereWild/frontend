@@ -280,7 +280,13 @@ export function DensityChart({
         sessionId: dragSessionId.current,
       });
     },
-    [isDiscrete, getValueForLocation, onSelectionChange, cancelPressIfUnarmed],
+    [
+      isDiscrete,
+      getValueForLocation,
+      onSelectionChange,
+      cancelPressIfUnarmed,
+      isAdditive,
+    ],
   );
 
   const handleSelectionEnd = React.useCallback(
@@ -346,6 +352,7 @@ export function DensityChart({
       getValueForLocation,
       onSelectionChange,
       endPress,
+      isAdditive,
     ],
   );
 
@@ -379,7 +386,7 @@ export function DensityChart({
     hasDragged.current = false;
     endPress();
     if (Platform.OS === 'web') setResponderKey((k) => k + 1);
-  }, [unlockScroll, isDiscrete, onSelectionChange, endPress]);
+  }, [unlockScroll, isDiscrete, onSelectionChange, endPress, isAdditive]);
 
   // On web, prevent pointercancel from terminating drags mid-gesture.
   // Sets touch-action:none and explicitly calls setPointerCapture on each pointerdown
