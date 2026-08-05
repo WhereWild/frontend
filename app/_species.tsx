@@ -22,6 +22,7 @@ import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapC
 import {
   toggleFullscreenElement,
   resolveObservationVarFields,
+  isPointInPolygon,
 } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import type { ObservationVarFieldsInputs } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
@@ -383,7 +384,7 @@ export default function Species({
       };
     }, [highlightedOccurrenceLookup, taxonId]);
 
-  const occurrences = React.useMemo(() => {
+  const occurrencesBeforeRegionFilter = React.useMemo(() => {
     if (!highlightedSyntheticOccurrence) {
       return fetchedOccurrences;
     }
@@ -396,6 +397,58 @@ export default function Species({
       ? fetchedOccurrences
       : [...fetchedOccurrences, highlightedSyntheticOccurrence];
   }, [fetchedOccurrences, highlightedSyntheticOccurrence]);
+
+  // Hand-drawn region filter — client-side only, against whatever's
+  // already been fetched. The draw/cancel/erase buttons themselves live
+  // inside the map (SpeciesOccurrenceMap.html's DrawPolygonControl/
+  // EraserControl); this side only ever hears the end result via
+  // onPolygonDrawn/onPolygonCleared. Each entry is one region's ring
+  // vertices as [latitude, longitude] pairs; multiple regions filter as a
+  // union (a point counts if it's inside ANY of them); null when none are
+  // active.
+  const [drawnPolygons, setDrawnPolygons] = React.useState<
+    [number, number][][] | null
+  >(null);
+  const handlePolygonDrawn = React.useCallback(
+    (polygons: [number, number][][]) => setDrawnPolygons(polygons),
+    [],
+  );
+  const handlePolygonCleared = React.useCallback(
+    () => setDrawnPolygons(null),
+    [],
+  );
+
+  const occurrences = React.useMemo(() => {
+    const activePolygons = drawnPolygons?.filter((ring) => ring.length >= 3);
+    if (!activePolygons || activePolygons.length === 0) {
+      return occurrencesBeforeRegionFilter;
+    }
+    return occurrencesBeforeRegionFilter.filter((occ) =>
+      activePolygons.some((ring) =>
+        isPointInPolygon(occ.latitude, occ.longitude, ring),
+      ),
+    );
+  }, [occurrencesBeforeRegionFilter, drawnPolygons]);
+
+  // While a new region is actively being drawn, show the unfiltered set on
+  // the map instead of `occurrences` — otherwise, once one region already
+  // filters the map down, there'd be no way to see (or draw around) the
+  // other, currently-hidden observations. Bracketed by the map's own
+  // in-iframe DrawPolygonControl via onPolygonDrawStart/onPolygonDrawEnd;
+  // only affects what the MAP renders, not the gallery/stats below it,
+  // which keep using the real (filtered) `occurrences`.
+  const [isDrawingRegion, setIsDrawingRegion] = React.useState(false);
+  const handlePolygonDrawStart = React.useCallback(
+    () => setIsDrawingRegion(true),
+    [],
+  );
+  const handlePolygonDrawEnd = React.useCallback(
+    () => setIsDrawingRegion(false),
+    [],
+  );
+  const mapOccurrences = isDrawingRegion
+    ? occurrencesBeforeRegionFilter
+    : occurrences;
 
   React.useEffect(() => {
     if (phenologyNoData && selectedPhenology) {
@@ -1090,7 +1143,8 @@ export default function Species({
                       mapContainerRef.current as unknown as Element | null,
                     )
                   }
-                  occurrences={occurrences}
+                  occurrences={mapOccurrences}
+                  refitOnOccurrencesChange={occurrencesBeforeRegionFilter}
                   loading={occurrenceLoading}
                   error={occurrenceError}
                   highlightedCatalogs={highlightedCatalogs}
@@ -1149,6 +1203,10 @@ export default function Species({
                       ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
                       : null
                   }
+                  onPolygonDrawn={handlePolygonDrawn}
+                  onPolygonCleared={handlePolygonCleared}
+                  onPolygonDrawStart={handlePolygonDrawStart}
+                  onPolygonDrawEnd={handlePolygonDrawEnd}
                 />
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&

@@ -45,9 +45,13 @@ import {
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
   POINT_STYLES_UPDATE_MESSAGE_TYPE,
   POINTS_UPDATE_MESSAGE_TYPE,
+  POLYGON_CLEARED_MESSAGE_TYPE,
+  POLYGON_DRAW_START_MESSAGE_TYPE,
+  POLYGON_DRAW_END_MESSAGE_TYPE,
   computePointStyleUpdates,
   preparePointsForMapHtml,
   toggleFullscreenElement,
+  isPolygonDrawnMessage,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -131,6 +135,16 @@ function isPointValueMessage(msg: unknown): msg is PointValueMessage {
 
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
+  // Identity-compared only, never read — lets a caller that swaps
+  // `occurrences` for reasons OTHER than a genuine new fetch (e.g.
+  // _species.tsx temporarily showing the unfiltered set while a region is
+  // being drawn/erased, see onPolygonDrawStart/onPolygonDrawEnd) say so:
+  // the map only refits the viewport to the new marker set when THIS
+  // value's identity also changed since the last refit, not on every
+  // `occurrences` change. Omit entirely to keep the old "always refit on
+  // occurrences change" behavior (e.g. maps.tsx/UploadPreview.tsx, which
+  // don't do this kind of same-data-different-view swapping).
+  refitOnOccurrencesChange?: unknown;
   loading?: boolean;
   error?: string | null;
   height?: DimensionValue;
@@ -185,6 +199,22 @@ type SpeciesOccurrenceMapProps = {
   onLocationPicked?: (lat: number, lon: number) => void;
   localLat?: number | null;
   localLon?: number | null;
+  // Region-drawing (leaflet-geoman-free on Leaflet; not yet supported on
+  // the globe renderer) is driven by an in-map icon control, not a prop —
+  // the map owns its own idle/drawing button state and an internal stack
+  // of drawn regions. onPolygonDrawn/onPolygonCleared report the current
+  // result (onPolygonDrawn always carries the FULL current set of
+  // regions, not just what was newly added; onPolygonCleared fires once
+  // the stack empties back out). onPolygonDrawStart/onPolygonDrawEnd
+  // bracket just the act of drawing itself — a caller that filters
+  // `occurrences` by the drawn region(s) can use these to temporarily pass
+  // the unfiltered set instead while a new region is being drawn, so
+  // points hidden by an already-active region are visible again for
+  // exactly as long as it takes to draw around them.
+  onPolygonDrawn?: (polygons: [number, number][][]) => void;
+  onPolygonCleared?: () => void;
+  onPolygonDrawStart?: () => void;
+  onPolygonDrawEnd?: () => void;
   // Natural Earth offline background layer (land/water/roads/places, shown
   // only when tiles fail to load) — real weight (embedded data + LOD +
   // label-declutter recomputed on every pan/zoom), so it must stay opt-in
@@ -206,6 +236,7 @@ type SpeciesOccurrenceMapProps = {
 
 export function SpeciesOccurrenceMap({
   occurrences,
+  refitOnOccurrencesChange,
   loading = false,
   error = null,
   height,
@@ -250,6 +281,10 @@ export function SpeciesOccurrenceMap({
   onLocationPicked,
   localLat = null,
   localLon = null,
+  onPolygonDrawn,
+  onPolygonCleared,
+  onPolygonDrawStart,
+  onPolygonDrawEnd,
   enableOfflineFallback = false,
   onFullscreenToggle,
 }: SpeciesOccurrenceMapProps) {
@@ -384,6 +419,41 @@ export function SpeciesOccurrenceMap({
       ) {
         const m = msg as { lat: number; lon: number };
         onLocationPicked?.(m.lat, m.lon);
+        return;
+      }
+
+      if (isPolygonDrawnMessage(msg)) {
+        onPolygonDrawn?.(msg.polygons);
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === POLYGON_CLEARED_MESSAGE_TYPE
+      ) {
+        onPolygonCleared?.();
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === POLYGON_DRAW_START_MESSAGE_TYPE
+      ) {
+        onPolygonDrawStart?.();
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === POLYGON_DRAW_END_MESSAGE_TYPE
+      ) {
+        onPolygonDrawEnd?.();
       }
     },
     [
@@ -394,6 +464,10 @@ export function SpeciesOccurrenceMap({
       onMapBounds,
       openExternalUrl,
       onLocationPicked,
+      onPolygonDrawn,
+      onPolygonCleared,
+      onPolygonDrawStart,
+      onPolygonDrawEnd,
     ],
   );
 
@@ -578,6 +652,11 @@ export function SpeciesOccurrenceMap({
   // the same occurrences), the map needs a real marker-set swap + refit,
   // not just a recolor.
   const lastSyncedOccurrences = React.useRef(occurrences);
+  // The refitOnOccurrencesChange identity as of the last time the map was
+  // actually told to refit — see that prop's doc comment. Also frozen at
+  // the live value on mount for the same reason as lastSyncedOccurrences:
+  // the initial html build already reflects whatever's current.
+  const lastRefitKey = React.useRef(refitOnOccurrencesChange);
 
   // The refs above are meant to capture "whatever was true when the current
   // WebView/iframe document was built," not "whatever was true on this
@@ -916,13 +995,20 @@ export function SpeciesOccurrenceMap({
   // of points — e.g. a location/phenology filter refetching from the
   // backend, or the upload page's offline client-side filter), as opposed
   // to the pointStylesUpdate effect above, which fires when the same
-  // occurrences just need new colors. Unlike that one, this rebuilds the
-  // marker layer and refits the viewport to the new results, since holding
-  // position wouldn't make sense for a genuinely different dataset.
+  // occurrences just need new colors. Rebuilds the marker layer either
+  // way; refits the viewport to the new results UNLESS refitOnOccurrences
+  // Change says this particular swap isn't a "new dataset" (see that
+  // prop's doc comment) — holding position wouldn't make sense for a
+  // genuinely different dataset, but would for e.g. a region-filter toggle
+  // over the same underlying data.
   React.useEffect(() => {
     if (!preserveMapPosition || !mapReady) return;
     if (occurrences === lastSyncedOccurrences.current) return;
     lastSyncedOccurrences.current = occurrences;
+    const shouldRefit =
+      refitOnOccurrencesChange === undefined ||
+      refitOnOccurrencesChange !== lastRefitKey.current;
+    lastRefitKey.current = refitOnOccurrencesChange;
     const newPoints = preparePointsForMapHtml(
       occurrences,
       observationValues,
@@ -931,7 +1017,11 @@ export function SpeciesOccurrenceMap({
       classShapes,
       circularShapesEnabled,
     );
-    const msg = { type: POINTS_UPDATE_MESSAGE_TYPE, points: newPoints };
+    const msg = {
+      type: POINTS_UPDATE_MESSAGE_TYPE,
+      points: newPoints,
+      preserveViewport: !shouldRefit,
+    };
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage(msg, '*');
     } else {
@@ -941,6 +1031,7 @@ export function SpeciesOccurrenceMap({
     preserveMapPosition,
     mapReady,
     occurrences,
+    refitOnOccurrencesChange,
     observationValues,
     classColors,
     classLabels,
@@ -1043,6 +1134,51 @@ export function SpeciesOccurrenceMap({
       if (
         frameWindow &&
         source === frameWindow &&
+        isPolygonDrawnMessage(data)
+      ) {
+        onPolygonDrawn?.(data.polygons);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === POLYGON_CLEARED_MESSAGE_TYPE
+      ) {
+        onPolygonCleared?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === POLYGON_DRAW_START_MESSAGE_TYPE
+      ) {
+        onPolygonDrawStart?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === POLYGON_DRAW_END_MESSAGE_TYPE
+      ) {
+        onPolygonDrawEnd?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
         data &&
         typeof data === 'object' &&
         'type' in data &&
@@ -1083,6 +1219,10 @@ export function SpeciesOccurrenceMap({
     onPointValue,
     openExternalUrl,
     onLocationPicked,
+    onPolygonDrawn,
+    onPolygonCleared,
+    onPolygonDrawStart,
+    onPolygonDrawEnd,
     settings,
     onFullscreenToggle,
   ]);

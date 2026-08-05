@@ -18,6 +18,17 @@ export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
 export const POINTS_UPDATE_MESSAGE_TYPE = 'pointsUpdate';
+// Region drawing is driven entirely by an in-map icon control (see
+// SpeciesOccurrenceMap.html's DrawPolygonControl), not a prop — all four of
+// these are outbound-only (iframe -> parent), there's no matching "start
+// drawing" message sent the other way. polygonDrawStart/polygonDrawEnd
+// bracket just the act of drawing itself (start of a fresh shape through
+// either finishing or cancelling it) — see onPolygonDrawStart/
+// onPolygonDrawEnd's doc comment on why a caller would want these.
+export const POLYGON_DRAWN_MESSAGE_TYPE = 'polygonDrawn';
+export const POLYGON_CLEARED_MESSAGE_TYPE = 'polygonCleared';
+export const POLYGON_DRAW_START_MESSAGE_TYPE = 'polygonDrawStart';
+export const POLYGON_DRAW_END_MESSAGE_TYPE = 'polygonDrawEnd';
 
 type FullscreenCapableElement = Element & {
   webkitRequestFullscreen?: () => void;
@@ -155,11 +166,23 @@ export type OpenExternalUrlMessage = {
   url: string;
 };
 
+export type PolygonDrawnMessage = {
+  type: typeof POLYGON_DRAWN_MESSAGE_TYPE;
+  /**
+   * Every currently-drawn region (multiple regions filter as a union — a
+   * point counts if it's inside ANY of them), each as [latitude, longitude]
+   * ring vertices, open (no repeated closing point). Always the full
+   * current set, not just whatever was newly added or removed.
+   */
+  polygons: [number, number][][];
+};
+
 export type MapInboundMessage =
   | HighlightMessage
   | PinObservationMessage
   | SelectedPointMessage
-  | OpenExternalUrlMessage;
+  | OpenExternalUrlMessage
+  | PolygonDrawnMessage;
 
 export const isPinObservationMessage = (
   msg: unknown,
@@ -180,6 +203,27 @@ export const isOpenExternalUrlMessage = (
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
   return m.type === OPEN_EXTERNAL_URL_MESSAGE_TYPE && typeof m.url === 'string';
+};
+
+const isLatLonPoint = (pt: unknown): pt is [number, number] =>
+  Array.isArray(pt) &&
+  pt.length === 2 &&
+  typeof pt[0] === 'number' &&
+  typeof pt[1] === 'number';
+
+export const isPolygonDrawnMessage = (
+  msg: unknown,
+): msg is PolygonDrawnMessage => {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    m.type === POLYGON_DRAWN_MESSAGE_TYPE &&
+    Array.isArray(m.polygons) &&
+    m.polygons.every(
+      (ring): ring is [number, number][] =>
+        Array.isArray(ring) && ring.every(isLatLonPoint),
+    )
+  );
 };
 
 export const isPinObservationEventFromFrame = (
@@ -320,6 +364,32 @@ const computePointVarFields = (
         ? aspectToCardinalShape(varValue)
         : null;
   return { varValue, varColor, varLabel, varShape };
+};
+
+// Even-odd ray-casting point-in-polygon test for a user-drawn region filter
+// (see SpeciesOccurrenceMap.html's polygonDrawn message) — client-side only,
+// against whatever occurrences are already fetched. Treats latitude/
+// longitude as plain y/x, which breaks down for a polygon that crosses the
+// antimeridian (±180°); not handled here since the draw tool itself has no
+// way to express that today.
+export const isPointInPolygon = (
+  lat: number,
+  lon: number,
+  polygon: readonly (readonly [number, number])[],
+): boolean => {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [latI, lonI] = polygon[i];
+    const [latJ, lonJ] = polygon[j];
+    const crossesRay = latI > lat !== latJ > lat;
+    if (
+      crossesRay &&
+      lon < ((lonJ - lonI) * (lat - latI)) / (latJ - latI) + lonI
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
 };
 
 // Ports of SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html's
