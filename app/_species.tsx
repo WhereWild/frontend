@@ -763,8 +763,9 @@ export default function Species({
   }, [selectedVariableMeta]);
 
   const visibleCategoricalClasses = React.useMemo(() => {
-    if (!isVariableCategorical(selectedVariableMeta) || !observationValues)
+    if (!isVariableCategorical(selectedVariableMeta) || !observationValues) {
       return null;
+    }
     const isLandcover = selectedVariableMeta?.id === 'landcover';
     const counts = new Map<string, number>();
     for (const occ of occurrences) {

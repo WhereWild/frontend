@@ -597,7 +597,12 @@ export function SpeciesOccurrenceMap({
     [useLabelsOverlay],
   );
   // Terrain is a MapLibre-only (globe) feature — always the same global DEM,
-  // so no memo dependency beyond globeView itself.
+  // so no memo dependency beyond globeView itself. Whether it's actually
+  // rendered is a runtime toggle inside the globe template itself (a
+  // mountain-icon control next to the other map controls) rather than a
+  // prop, since MapLibre logs "terrain is not fully supported on vertical
+  // perspective projection" — flipping terrain on/off can be a real perf
+  // lever on some devices, so users get a switch instead of us guessing.
   const terrainTileUrl = React.useMemo(
     () => (globeView ? getElevationTerrainTileUrl() : null),
     [globeView],

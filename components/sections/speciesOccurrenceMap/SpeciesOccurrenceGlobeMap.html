@@ -774,6 +774,227 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       onRemove: function() {},
     });
 
+    // 3D terrain relief is a real perf lever on some devices/projections —
+    // MapLibre itself logs "terrain is not fully supported on vertical
+    // perspective projection" when it's active here. Rather than guess at a
+    // fixed on/off default, expose a toggle so a user who sees jank on the
+    // globe can switch it off without losing anything else. Purely local to
+    // this map instance — no round-trip to the parent needed, since terrain/
+    // hillshade are toggled live via setTerrain/setLayoutProperty on the
+    // sources already declared in mapOptions.style above.
+    if (TERRAIN_TILE_URL) {
+      var terrainEnabled = true;
+      var applyTerrainState = function() {
+        map.setTerrain(terrainEnabled ? { source: 'terrain-dem', exaggeration: 1.0 } : null);
+        if (map.getLayer('hillshade-layer')) {
+          map.setLayoutProperty('hillshade-layer', 'visibility', terrainEnabled ? 'visible' : 'none');
+        }
+      };
+      map.addControl({
+        onAdd: function() {
+          var container = document.createElement('div');
+          container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+          var updateButton = function() {
+            btn.title = terrainEnabled ? 'Hide 3D terrain relief' : 'Show 3D terrain relief';
+            btn.style.color = terrainEnabled ? palette.linkColor : '';
+          };
+          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 14L5 4l3 6 3-8 4 8z"/></svg>';
+          updateButton();
+          btn.addEventListener('click', function() {
+            terrainEnabled = !terrainEnabled;
+            applyTerrainState();
+            updateButton();
+          });
+          container.appendChild(btn);
+          return container;
+        },
+        onRemove: function() {},
+      });
+    }
+
+    // Region-filter regions (see SpeciesOccurrenceMap.html for the
+    // hand-drawn version) — globe/MapLibre only supports uploading a
+    // GeoJSON region for now, not clicking one out point by point (no
+    // drawing-toolbar plugin wired up here yet). Each uploaded file's
+    // polygons become one group, matching Leaflet's grouping, so the
+    // eraser control removes a whole upload at a time. The `polygonDrawn`/
+    // `polygonCleared` messages posted below are the exact same contract
+    // SpeciesOccurrenceMap.html uses — SpeciesOccurrenceMap.tsx and
+    // everything upstream of it (region filtering, the backend `polygon`
+    // query param) doesn't know or care which renderer sent them.
+    var drawnPolygonGroups = [];
+
+    function allDrawnPolygonPoints() {
+      var allRings = [];
+      drawnPolygonGroups.forEach(function(group) {
+        group.forEach(function(ring) { allRings.push(ring); });
+      });
+      return allRings;
+    }
+
+    function rebuildDrawnPolygonsSource() {
+      var source = map.getSource('drawn-polygons');
+      if (!source) return;
+      var features = [];
+      drawnPolygonGroups.forEach(function(group) {
+        group.forEach(function(ring) {
+          features.push({
+            type: 'Feature',
+            properties: {},
+            // GeoJSON is [lon, lat] and needs the ring closed (first point
+            // repeated at the end); ring here is [lat, lon] pairs, open —
+            // same convention used everywhere else in this file's message
+            // contract (see allDrawnPolygonPoints).
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                ring.map(function(pt) { return [pt[1], pt[0]]; }).concat([[ring[0][1], ring[0][0]]]),
+              ],
+            },
+          });
+        });
+      });
+      source.setData({ type: 'FeatureCollection', features: features });
+    }
+
+    var eraserControlInstance = null;
+    function updateEraserControlVisibility() {
+      var shouldShow = drawnPolygonGroups.length > 0;
+      var isShown = eraserControlInstance != null;
+      if (shouldShow && !isShown) {
+        eraserControlInstance = {
+          onAdd: function() {
+            var container = document.createElement('div');
+            container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+            btn.title = 'Erase most recently uploaded region';
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M10.5 1.5l4 4-7 7h-4v-4z"/><path d="M3.5 12.5h9"/></svg>';
+            btn.addEventListener('click', function() {
+              drawnPolygonGroups.pop();
+              rebuildDrawnPolygonsSource();
+              updateEraserControlVisibility();
+              if (drawnPolygonGroups.length > 0) {
+                postToParent({ type: 'polygonDrawn', polygons: allDrawnPolygonPoints() });
+              } else {
+                postToParent({ type: 'polygonCleared' });
+              }
+            });
+            container.appendChild(btn);
+            return container;
+          },
+          onRemove: function() {},
+        };
+        map.addControl(eraserControlInstance);
+      } else if (!shouldShow && isShown) {
+        map.removeControl(eraserControlInstance);
+        eraserControlInstance = null;
+      }
+    }
+
+    // Mirrors SpeciesOccurrenceMap.html's extractPolygonRingsFromGeoJson —
+    // kept as a hand-duplicated copy rather than shared, same as everything
+    // else between these two standalone HTML documents (see
+    // LEAFLET_RESIZE_OBSERVER_SCRIPT's doc comment in
+    // speciesOccurrenceMapHelpers.ts for why the Leaflet/Leaflet-offline
+    // pair shares snippets via placeholder but Leaflet/Globe don't — the
+    // two renderers' surrounding code has nothing else in common to hang a
+    // shared snippet off of).
+    function extractPolygonRingsFromGeoJson(geojson) {
+      var rings = [];
+      function fromGeometry(geometry) {
+        if (!geometry) return;
+        if (geometry.type === 'Polygon') {
+          var outer = geometry.coordinates && geometry.coordinates[0];
+          if (outer && outer.length >= 3) {
+            rings.push(outer.map(function(c) { return [c[1], c[0]]; }));
+          }
+        } else if (geometry.type === 'MultiPolygon') {
+          (geometry.coordinates || []).forEach(function(poly) {
+            var outer = poly && poly[0];
+            if (outer && outer.length >= 3) {
+              rings.push(outer.map(function(c) { return [c[1], c[0]]; }));
+            }
+          });
+        } else if (geometry.type === 'GeometryCollection') {
+          (geometry.geometries || []).forEach(fromGeometry);
+        }
+      }
+      if (!geojson) return rings;
+      if (geojson.type === 'FeatureCollection') {
+        (geojson.features || []).forEach(function(f) { fromGeometry(f && f.geometry); });
+      } else if (geojson.type === 'Feature') {
+        fromGeometry(geojson.geometry);
+      } else {
+        fromGeometry(geojson);
+      }
+      return rings;
+    }
+
+    function showUploadPolygonError(message) {
+      new maplibregl.Popup({ closeButton: true })
+        .setLngLat(map.getCenter())
+        .setHTML('<span style="font-size:12px">' + message + '</span>')
+        .addTo(map);
+    }
+
+    function handleUploadedGeoJsonFile(file) {
+      var reader = new FileReader();
+      reader.onload = function() {
+        var rings;
+        try {
+          rings = extractPolygonRingsFromGeoJson(JSON.parse(String(reader.result)));
+        } catch (err) {
+          showUploadPolygonError('Could not read that file as GeoJSON.');
+          return;
+        }
+        if (!rings.length) {
+          showUploadPolygonError('No polygon regions found in that file.');
+          return;
+        }
+        drawnPolygonGroups.push(rings);
+        rebuildDrawnPolygonsSource();
+        updateEraserControlVisibility();
+        postToParent({ type: 'polygonDrawn', polygons: allDrawnPolygonPoints() });
+      };
+      reader.onerror = function() {
+        showUploadPolygonError('Could not read that file.');
+      };
+      reader.readAsText(file);
+    }
+
+    map.addControl({
+      onAdd: function() {
+        var container = document.createElement('div');
+        container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+        btn.title = 'Upload a GeoJSON region';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10.5V2.5"/><path d="M4.5 6L8 2.5L11.5 6"/><path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>';
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.geojson,.json,application/geo+json,application/json';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        fileInput.addEventListener('change', function(event) {
+          var file = event.target.files && event.target.files[0];
+          fileInput.value = '';
+          if (file) handleUploadedGeoJsonFile(file);
+        });
+        btn.addEventListener('click', function() {
+          fileInput.click();
+        });
+        container.appendChild(btn);
+        return container;
+      },
+      onRemove: function() {},
+    });
+
     // Theme MapLibre's built-in controls (zoom/compass/geolocate/fullscreen,
     // attribution) to match the app's actual light/dark palette — mirrors
     // SpeciesOccurrenceMap.html's injectThemeCss(), adapted to MapLibre's
@@ -994,6 +1215,34 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             'circle-color': 'transparent',
             'circle-stroke-color': palette.selectedPointStroke,
             'circle-stroke-width': 2,
+          },
+        });
+
+        // Uploaded region filter(s) — see extractPolygonRingsFromGeoJson/
+        // rebuildDrawnPolygonsSource above. Rendered as a normal fill+line
+        // layer; MapLibre's globe projection curves this along the sphere
+        // automatically like every other vector layer, no special handling
+        // needed here for the 3D case.
+        map.addSource('drawn-polygons', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        map.addLayer({
+          id: 'drawn-polygons-fill-layer',
+          type: 'fill',
+          source: 'drawn-polygons',
+          paint: {
+            'fill-color': palette.markerFill,
+            'fill-opacity': 0.12,
+          },
+        });
+        map.addLayer({
+          id: 'drawn-polygons-line-layer',
+          type: 'line',
+          source: 'drawn-polygons',
+          paint: {
+            'line-color': palette.markerFill,
+            'line-width': 2,
           },
         });
 
