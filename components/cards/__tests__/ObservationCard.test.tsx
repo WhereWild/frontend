@@ -126,10 +126,10 @@ describe('ObservationCard', () => {
     expect(screen.queryByText('No data')).toBeNull();
   });
 
-  it('shows a "No media" fallback when no attribution or license is provided', () => {
+  it('shows a "No media" fallback when no attribution or license is provided, matching the credit row\'s two-line height so cards without media still line up with ones that have it', () => {
     render(<ObservationCard catalogNumber='123456' />);
 
-    expect(screen.queryByTestId('observation-card-credit')).toBeNull();
+    expect(screen.getByTestId('observation-card-credit')).toBeTruthy();
     expect(screen.getByText('No media')).toBeTruthy();
   });
 

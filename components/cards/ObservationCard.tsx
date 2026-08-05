@@ -139,7 +139,8 @@ export function ObservationCard({
           </View>
         ) : (
           <ThemedText
-            variant='bodyTiny'
+            variant='bodySmall'
+            numberOfLines={1}
             style={{ color: palette.text.disabled.default }}
           >
             No data
@@ -182,12 +183,21 @@ export function ObservationCard({
             )}
           </View>
         ) : (
-          <ThemedText
-            variant='bodyTiny'
-            style={{ color: palette.text.disabled.default }}
-          >
-            No media
-          </ThemedText>
+          <View style={styles.creditRow} testID='observation-card-credit'>
+            <ThemedText
+              variant='bodySmall'
+              numberOfLines={1}
+              style={{ color: palette.text.disabled.default }}
+            >
+              No media
+            </ThemedText>
+            <ThemedText
+              variant='bodySmall'
+              style={{ color: palette.text.default.tertiary }}
+            >
+              {' '}
+            </ThemedText>
+          </View>
         )}
       </View>
     </View>

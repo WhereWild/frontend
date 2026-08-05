@@ -19,7 +19,8 @@
     "audit:fabric": "node ./scripts/audit-fabric-risks.mjs",
     "sync-theme": "node ./scripts/sync-theme.cjs",
     "sync-theme:offline": "node ./scripts/sync-theme.cjs --skip-rest-api",
-    "sync-theme:rest": "node ./scripts/sync-theme.cjs --rest-api"
+    "sync-theme:rest": "node ./scripts/sync-theme.cjs --rest-api",
+    "regenerate:offline-maps": "node ./scripts/regenerate-offline-map-templates.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/domine": "^0.4.2",
