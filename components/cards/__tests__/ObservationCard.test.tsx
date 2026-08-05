@@ -133,7 +133,7 @@ describe('ObservationCard', () => {
     expect(screen.getByText('No media')).toBeTruthy();
   });
 
-  it('renders attribution and license as separate text, joined by a separator', () => {
+  it('renders attribution and license on their own separate lines, not joined by a separator', () => {
     render(
       <ObservationCard
         catalogNumber='123456'
@@ -144,14 +144,14 @@ describe('ObservationCard', () => {
 
     expect(screen.getByText('© Jane Doe')).toBeTruthy();
     expect(screen.getByText('CC BY-NC 4.0')).toBeTruthy();
-    expect(screen.getByText(' · ')).toBeTruthy();
+    expect(screen.queryByText(/·/)).toBeNull();
   });
 
   it('renders only the attribution when license is missing', () => {
     render(<ObservationCard catalogNumber='123456' attribution='© Jane Doe' />);
 
     expect(screen.getByText('© Jane Doe')).toBeTruthy();
-    expect(screen.queryByText(' · ')).toBeNull();
+    expect(screen.queryByText(/·/)).toBeNull();
   });
 
   it('renders the license as plain text when no license URL is provided', () => {

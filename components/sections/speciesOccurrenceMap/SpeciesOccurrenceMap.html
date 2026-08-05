@@ -1290,22 +1290,35 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       return '';
     }
 
-    // No per-row media/license data exists in occurrences.parquet yet —
-    // shows the same "No data" fallback style used for a missing variable
-    // value. Swap this for a real <img> (object-fit:cover;
-    // object-position:center) + attribution/license line once that data
-    // lands.
-    function buildObservationMediaHtml() {
-      return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+    // mediaAttribution/mediaLicense arrive pre-escaped from
+    // preparePointsForMapHtml (popupMediaAttribution/popupMediaLicense) —
+    // same pattern as popupCatalogLabel — so this only concatenates.
+    function buildObservationMediaHtml(mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl) {
+      if (!mediaUrl) {
+        return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+      }
+      var img = '<img src="' + mediaUrl + '" alt="" loading="lazy" style="display:block;width:100%;max-width:200px;height:120px;object-fit:cover;object-position:center;border-radius:4px;margin-top:6px" />';
+      // Attribution and license always render on their own line each (never
+      // joined inline) — a shared wrapping line breaks at a different point
+      // depending on content length, which reads as inconsistent spacing
+      // between popups.
+      var attributionLine = '<div style="margin-top:4px;font-size:10px;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (mediaAttribution || '&nbsp;') + '</div>';
+      var licenseInner = mediaLicense
+        ? (mediaLicenseUrl
+            ? '<a href="' + mediaLicenseUrl + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">' + mediaLicense + '</a>'
+            : mediaLicense)
+        : '&nbsp;';
+      var licenseLine = '<div style="margin-top:2px;font-size:10px;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + licenseInner + '</div>';
+      return img + attributionLine + licenseLine;
     }
 
-    function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape) {
+    function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape, mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl) {
       var inatHtml = catalogLabel
         ? (LINK_OBSERVATIONS && catalogHref
             ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
             : '<span>Observation #' + catalogLabel + '</span>')
         : '';
-      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel, varShape) + buildObservationMediaHtml();
+      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel, varShape) + buildObservationMediaHtml(mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl);
     }
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
@@ -1592,6 +1605,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         }
 
         hideClusterMarker(matchingEntry);
+        hidePlainMarker(matchingEntry);
 
         var baseColor = markerBaseColors.get(matchingEntry.key);
         var pinnedObsStyle = Object.assign(
@@ -1605,7 +1619,8 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           : L.circleMarker([latitude, alignedLongitude], pinnedObsStyle);
         var selectedPopupContent = buildObservationPopupContent(
           matchingEntry.catalogHref, matchingEntry.catalogLabel,
-          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel, matchingEntry.varShape
+          matchingEntry.varValue, matchingEntry.varColor, matchingEntry.varLabel, matchingEntry.varShape,
+          matchingEntry.popupMediaUrl, matchingEntry.popupMediaAttribution, matchingEntry.popupMediaLicense, matchingEntry.popupMediaLicenseUrl
         );
         selectedCatalogDirectMarker.bindPopup(selectedPopupContent || matchingEntry.popupHtml || '', { autoPan: false });
         bindObservationMarkerEvents(
@@ -1623,7 +1638,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
                 ? '<a href="https://www.inaturalist.org/observations/' + matchingEntry.catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + matchingEntry.catalogLabel + '</a>'
                 : '<span>Observation #' + matchingEntry.catalogLabel + '</span>')
             : '';
-          fetchAndShowPointValue(selectedCatalogDirectMarker, selInatHtml, latitude, matchingEntry.longitude);
+          fetchAndShowPointValue(selectedCatalogDirectMarker, selInatHtml, latitude, matchingEntry.longitude, matchingEntry.popupMediaUrl, matchingEntry.popupMediaAttribution, matchingEntry.popupMediaLicense, matchingEntry.popupMediaLicenseUrl);
         }
         refreshVisibleMarkerPresentation();
         return;
@@ -1702,6 +1717,27 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       entry.clusterMarkerHidden = false;
     }
 
+    // Counterpart to hideClusterMarker/restoreClusterMarker for the plain
+    // (non-clustered, below MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS) marker
+    // case — those markers are added straight to the map, not into
+    // clusterGroup, so selecting one needs its own hide/restore pair rather
+    // than sitting a second highlight marker directly on top of it.
+    // map.addLayer/removeLayer are idempotent no-ops when already in that
+    // state, so no separate "hidden" flag is needed here.
+    function hidePlainMarker(entry) {
+      if (!entry || !entry.plainMarker) {
+        return;
+      }
+      map.removeLayer(entry.plainMarker);
+    }
+
+    function restorePlainMarker(entry) {
+      if (!entry || !entry.plainMarker) {
+        return;
+      }
+      map.addLayer(entry.plainMarker);
+    }
+
     function restorePreviouslySelectedMarker() {
       if (selectedCatalogKey == null) {
         return;
@@ -1710,6 +1746,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       const previousEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
       if (previousEntry) {
         restoreClusterMarker(previousEntry);
+        restorePlainMarker(previousEntry);
       }
     }
 
@@ -1728,17 +1765,17 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       visibleMarkerLayer = useVisibilityManagedClustering ? L.layerGroup() : null;
       showingVisibleIndividualMarkers = !useVisibilityManagedClustering;
 
-      function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude) {
+      function buildObservationPopup(catalogNumber, catalogHref, catalogLabel, latitude, longitude, mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl) {
         if (!catalogLabel) {
           return '';
         }
         var inatHtml = (LINK_OBSERVATIONS && catalogHref)
           ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
           : '<span>Observation #' + catalogLabel + '</span>';
-        return inatHtml + buildObservationMediaHtml();
+        return inatHtml + buildObservationMediaHtml(mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl);
       }
 
-      function fetchAndShowPointValue(marker, inatHtml, latitude, longitude) {
+      function fetchAndShowPointValue(marker, inatHtml, latitude, longitude, mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl) {
         var loadingHtml = (inatHtml ? inatHtml + '<br>' : '') + '<span style="opacity:0.6;font-size:11px">Loading…</span>';
         var popup = marker.getPopup();
         if (!popup) {
@@ -1794,7 +1831,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             } else {
               valueHtml = '<span style="opacity:0.6;font-size:11px">No data</span>';
             }
-            marker.getPopup().setContent((inatHtml || '') + valueHtml + buildObservationMediaHtml());
+            marker.getPopup().setContent((inatHtml || '') + valueHtml + buildObservationMediaHtml(mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl));
           })
           .catch(function() {
             if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Offline</span>');
@@ -1819,7 +1856,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           }
           if (varData.varValue != null) {
             postToParent({ type: 'pointValue', value: varData.varValue });
-            var content = buildObservationPopupContent(catalogHref, catalogLabel, varData.varValue, varData.varColor, varData.varLabel, varData.varShape);
+            var content = buildObservationPopupContent(catalogHref, catalogLabel, varData.varValue, varData.varColor, varData.varLabel, varData.varShape, varData.popupMediaUrl, varData.popupMediaAttribution, varData.popupMediaLicense, varData.popupMediaLicenseUrl);
             var popup = marker.getPopup();
             if (!popup) {
               marker.bindPopup(content);
@@ -1829,7 +1866,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             }
             if (!marker.isPopupOpen()) marker.openPopup();
           } else if (isVariableColorMode()) {
-            var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' + buildObservationMediaHtml();
+            var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' + buildObservationMediaHtml(varData.popupMediaUrl, varData.popupMediaAttribution, varData.popupMediaLicense, varData.popupMediaLicenseUrl);
             var popup = marker.getPopup();
             if (!popup) {
               marker.bindPopup(content);
@@ -1839,7 +1876,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             }
             if (!marker.isPopupOpen()) marker.openPopup();
           } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
-            fetchAndShowPointValue(marker, inatHtml, latitude, longitude);
+            fetchAndShowPointValue(marker, inatHtml, latitude, longitude, varData.popupMediaUrl, varData.popupMediaAttribution, varData.popupMediaLicense, varData.popupMediaLicenseUrl);
           }
         });
       }
@@ -2036,6 +2073,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           pt.popupCatalogLabel,
           latitude,
           canonicalLongitude,
+          pt.popupMediaUrl,
+          pt.popupMediaAttribution,
+          pt.popupMediaLicense,
+          pt.popupMediaLicenseUrl,
         );
 
         if (useVisibilityManagedClustering && clusterGroup) {
@@ -2057,6 +2098,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             clusterMarker,
             clusterMarkerHidden: false,
             directMarker: null,
+            plainMarker: null,
             catalogValue: pt.popupCatalogValue ?? '',
             catalogHref: pt.popupCatalogHref ?? '',
             catalogLabel: pt.popupCatalogLabel ?? '',
@@ -2064,6 +2106,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             varColor: pt.varColor ?? null,
             varLabel: pt.varLabel ?? null,
             varShape: pt.varShape ?? null,
+            popupMediaUrl: pt.popupMediaUrl ?? null,
+            popupMediaAttribution: pt.popupMediaAttribution ?? null,
+            popupMediaLicense: pt.popupMediaLicense ?? null,
+            popupMediaLicenseUrl: pt.popupMediaLicenseUrl ?? null,
           };
 
           clusterGroup.addLayer(clusterMarker);
@@ -2097,9 +2143,44 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             longitude: canonicalLongitude,
             alignedLongitude: initialLongitude,
           });
+
+          // Below the clustering threshold, markers never go through the
+          // clusterGroup path above — without a markerEntries entry here,
+          // applySelectedPoint's lookup (used by e.g. selecting an
+          // observation from the below-map gallery) always misses and
+          // silently falls through to the plain "click on empty map"
+          // highlight-only branch, which draws the selected-point ring but
+          // never opens a popup. Shared by reference with markers.set below
+          // (like the clustered branch's markerEntry) so a live variable
+          // switch's rebuildOccurrenceMarkersImpl updates the same object
+          // instead of leaving this copy's varValue/varColor/varLabel stale.
+          const plainMarkerEntry = {
+            key: markerKey,
+            latitude,
+            longitude: canonicalLongitude,
+            alignedLongitude: initialLongitude,
+            popupHtml,
+            clusterMarker: null,
+            clusterMarkerHidden: false,
+            directMarker: null,
+            plainMarker: marker,
+            catalogValue: pt.popupCatalogValue ?? '',
+            catalogHref: pt.popupCatalogHref ?? '',
+            catalogLabel: pt.popupCatalogLabel ?? '',
+            varValue: pt.varValue ?? null,
+            varColor: pt.varColor ?? null,
+            varLabel: pt.varLabel ?? null,
+            varShape: pt.varShape ?? null,
+            popupMediaUrl: pt.popupMediaUrl ?? null,
+            popupMediaAttribution: pt.popupMediaAttribution ?? null,
+            popupMediaLicense: pt.popupMediaLicense ?? null,
+            popupMediaLicenseUrl: pt.popupMediaLicenseUrl ?? null,
+          };
+          markerEntries.push(plainMarkerEntry);
           markers.set(markerKey, {
             varValue: pt.varValue ?? null,
             pt: pt,
+            markerEntry: plainMarkerEntry,
             setStyle(style) { applyStyleToMarker(marker, style, pt.varShape ?? null); },
           });
         }

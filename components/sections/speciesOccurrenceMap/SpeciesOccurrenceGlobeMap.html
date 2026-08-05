@@ -247,6 +247,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           markerColor: displayColor,
           markerStroke: displayStroke,
           isNodata: isNodata,
+          mediaUrl: pt.popupMediaUrl || '',
+          mediaAttribution: pt.popupMediaAttribution || '',
+          mediaLicense: pt.popupMediaLicense || '',
+          mediaLicenseUrl: pt.popupMediaLicenseUrl || '',
         },
       };
     }
@@ -272,13 +276,100 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return formatPointValueHtml(pt.varValue, VAR_UNITS);
     }
 
-    // No per-row media/license data exists in occurrences.parquet yet —
-    // shows the same "No data" fallback style used for a missing variable
-    // value. Swap this for a real <img> (object-fit:cover;
-    // object-position:center) + attribution/license line once that data
-    // lands. Mirrors Leaflet's buildObservationMediaHtml.
-    function buildObservationMediaHtml() {
-      return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+    // Mirrors Leaflet's buildObservationMediaHtml — mediaAttribution/
+    // mediaLicense arrive pre-escaped from preparePointsForMapHtml.
+    function buildObservationMediaHtml(mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl) {
+      if (!mediaUrl) {
+        return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+      }
+      var img = '<img src="' + mediaUrl + '" alt="" loading="lazy" style="display:block;width:100%;max-width:200px;height:120px;object-fit:cover;object-position:center;border-radius:4px;margin-top:6px" />';
+      // Attribution and license always render on their own line each (never
+      // joined inline) — a shared wrapping line breaks at a different point
+      // depending on content length, which reads as inconsistent spacing
+      // between popups.
+      var attributionLine = '<div style="margin-top:4px;font-size:10px;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (mediaAttribution || '&nbsp;') + '</div>';
+      var licenseInner = mediaLicense
+        ? (mediaLicenseUrl
+            ? '<a href="' + mediaLicenseUrl + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">' + mediaLicense + '</a>'
+            : mediaLicense)
+        : '&nbsp;';
+      var licenseLine = '<div style="margin-top:2px;font-size:10px;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + licenseInner + '</div>';
+      return img + attributionLine + licenseLine;
+    }
+
+    // Top-level (not inside map.on('load', ...)) since handleParentMessage
+    // (below) can receive SELECTED_POINT_MESSAGE_TYPE at any time — reads
+    // map/OCCURRENCE_POINTS defensively, matching refreshOccurrenceMarkerColors.
+    var selectedPointPopup = null;
+
+    function clearSelectedPoint() {
+      var source = map.getSource('selected-point');
+      if (source) {
+        source.setData({ type: 'FeatureCollection', features: [] });
+      }
+      if (selectedPointPopup) {
+        selectedPointPopup.remove();
+        selectedPointPopup = null;
+      }
+    }
+
+    function applySelectedPoint(point) {
+      clearSelectedPoint();
+      if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
+        return;
+      }
+
+      var source = map.getSource('selected-point');
+      if (source) {
+        source.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [point.longitude, point.latitude] },
+            properties: {},
+          }],
+        });
+      }
+
+      // Mirrors Leaflet's matchingEntry lookup: prefer an exact catalog
+      // match (known when selecting from the observation gallery) over
+      // lat/lon proximity, which is the only option for the map-click
+      // "point:" flow (no catalogNumber).
+      var matchingPt = point.catalogNumber
+        ? OCCURRENCE_POINTS.find(function(pt) { return pt.popupCatalogValue === point.catalogNumber; })
+        : null;
+      if (!matchingPt) {
+        matchingPt = OCCURRENCE_POINTS.find(function(pt) {
+          return Math.abs(pt.latitude - point.latitude) < 1e-6 && Math.abs(pt.longitude - point.longitude) < 1e-6;
+        });
+      }
+      if (!matchingPt) {
+        return;
+      }
+
+      var html = '';
+      if (LINK_OBSERVATIONS && matchingPt.popupCatalogHref && matchingPt.popupCatalogLabel) {
+        html += '<a href="https://www.inaturalist.org/observations/' + matchingPt.popupCatalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + matchingPt.popupCatalogLabel + '</a>';
+      } else if (matchingPt.popupCatalogLabel) {
+        html += '<span>Observation #' + matchingPt.popupCatalogLabel + '</span>';
+      }
+      html += buildMarkerValueHtml({
+        varValue: matchingPt.varValue,
+        varColor: matchingPt.varColor,
+        varLabel: matchingPt.varLabel,
+      });
+      if (matchingPt.popupCatalogLabel) {
+        html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
+      }
+      // focusAfterOpen defaults to true — calling .focus() on the popup DOM
+      // node makes the browser natively scroll/snap the page to bring it
+      // into view, which reads as the whole screen jumping. Not needed
+      // here (this popup opens from a script-driven selection, not direct
+      // keyboard interaction), so disable it.
+      selectedPointPopup = new maplibregl.Popup({ closeButton: true, focusAfterOpen: false })
+        .setLngLat([point.longitude, point.latitude])
+        .setHTML(html || '&nbsp;')
+        .addTo(map);
     }
 
     function buildOccurrenceFeatureCollection(pointList) {
@@ -856,6 +947,27 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         OCCURRENCE_LAYER_IDS = OCCURRENCE_LAYERS.map(function(l) { return l.id; });
         ALL_MARKER_LAYER_IDS = OCCURRENCE_LAYER_IDS.concat(useClustering ? [CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID] : []);
 
+        // Highlight ring for a point selected via SELECTED_POINT_MESSAGE_TYPE
+        // (e.g. clicking an observation in the below-map gallery) — mirrors
+        // Leaflet's dashed selected-point marker. MapLibre circle layers
+        // have no dash-pattern paint property, so this is a plain stroke
+        // ring instead of a dashed one; visually distinct is what matters.
+        map.addSource('selected-point', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        map.addLayer({
+          id: 'selected-point-layer',
+          type: 'circle',
+          source: 'selected-point',
+          paint: {
+            'circle-radius': 7,
+            'circle-color': 'transparent',
+            'circle-stroke-color': palette.selectedPointStroke,
+            'circle-stroke-width': 2,
+          },
+        });
+
         var INDIVIDUAL_MODE_LAYER_IDS = ['occurrences-layer', 'occurrences-shapes-layer'];
         var CLUSTERED_MODE_LAYER_IDS = ['occurrences-clustered-layer', 'occurrences-clustered-shapes-layer', CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID];
 
@@ -995,7 +1107,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             varLabel: props.varLabel,
           });
           if (props.catalogLabel) {
-            html += buildObservationMediaHtml();
+            html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
           }
           new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
         }
@@ -1196,6 +1308,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       if (data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs);
+        return;
+      }
+
+      if (data.type === SELECTED_POINT_MESSAGE_TYPE) {
+        applySelectedPoint(data.point || null);
         return;
       }
 

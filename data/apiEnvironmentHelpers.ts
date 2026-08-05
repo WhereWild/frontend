@@ -248,6 +248,20 @@ export async function fetchSpeciesOccurrences(
           null,
         latitude: toFiniteNumber(source.latitude),
         longitude: toFiniteNumber(source.longitude),
+        mediaUrl:
+          typeof source.media_url === 'string' ? source.media_url : null,
+        mediaAttribution:
+          typeof source.media_attribution === 'string'
+            ? source.media_attribution
+            : null,
+        mediaLicense:
+          typeof source.media_license === 'string'
+            ? source.media_license
+            : null,
+        mediaLicenseUrl:
+          typeof source.media_license_url === 'string'
+            ? source.media_license_url
+            : null,
       };
     })
     .filter(
@@ -257,6 +271,10 @@ export async function fetchSpeciesOccurrences(
         catalogNumber: string | number;
         latitude: number;
         longitude: number;
+        mediaUrl: string | null;
+        mediaAttribution: string | null;
+        mediaLicense: string | null;
+        mediaLicenseUrl: string | null;
       } =>
         typeof entry.latitude === 'number' &&
         typeof entry.longitude === 'number',
@@ -265,6 +283,10 @@ export async function fetchSpeciesOccurrences(
       catalogNumber: entry.catalogNumber ?? '',
       latitude: entry.latitude,
       longitude: entry.longitude,
+      mediaUrl: entry.mediaUrl,
+      mediaAttribution: entry.mediaAttribution,
+      mediaLicense: entry.mediaLicense,
+      mediaLicenseUrl: entry.mediaLicenseUrl,
     }));
   const phenologyCounts =
     payload.phenology_counts && typeof payload.phenology_counts === 'object'

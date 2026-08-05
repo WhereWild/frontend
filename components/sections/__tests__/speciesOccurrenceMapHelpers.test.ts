@@ -33,6 +33,7 @@ import {
   isPinObservationMessage,
   loadFallbackMapTemplate,
   loadMapTemplate,
+  preparePointsForMapHtml,
   MAP_TILE_ATTRIBUTION,
   MAP_TILE_MAX_ZOOM,
   MAP_TILE_URL_TEMPLATE_DARK,
@@ -1273,6 +1274,58 @@ describe('speciesOccurrenceMapHelpers', () => {
     });
   });
 
+  it('opens a popup and hides the original marker for a matching plain (non-clustered) observation when selected, restoring it when cleared', () => {
+    // Regression test: below MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS, markers
+    // are added directly to the map (not via clusterGroup) — this used to
+    // never get registered in markerEntries, so selecting one (e.g. from
+    // the below-map observation gallery) drew the highlight ring but never
+    // opened a popup.
+    const templatePath = path.join(
+      __dirname,
+      '..',
+      'speciesOccurrenceMap',
+      'SpeciesOccurrenceMap.html',
+    );
+    const rawTemplate = readTemplateCached(templatePath);
+    const html = buildLeafletHtml(
+      rawTemplate,
+      [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+      markerPalette,
+      getMapTileUrlTemplate('light'),
+    );
+    const harness = createLeafletHarness();
+
+    vm.runInNewContext(extractInlineScript(html), harness.context);
+
+    expect(harness.createdMarkers).toHaveLength(1);
+    const originalMarker = harness.createdMarkers[0];
+    const map = (harness.context.L.map as jest.Mock).mock.results[0]?.value;
+
+    harness.windowListeners.get('message')?.({
+      data: toSelectedPointMessagePayload({
+        latitude: 10,
+        longitude: 20,
+        catalogNumber: '101',
+      }),
+    });
+
+    expect(harness.createdMarkers).toHaveLength(2);
+    expect(map.removeLayer).toHaveBeenCalledWith(originalMarker);
+
+    const selectedMarker = harness.createdMarkers[1];
+    expect(selectedMarker.bindPopup).toHaveBeenCalled();
+    const popupContent = selectedMarker.bindPopup.mock.calls[0]?.[0];
+    expect(popupContent).toEqual(expect.any(String));
+    expect(popupContent.length).toBeGreaterThan(0);
+    expect(selectedMarker.openPopup).toHaveBeenCalled();
+
+    harness.windowListeners.get('message')?.({
+      data: toSelectedPointMessagePayload(null),
+    });
+
+    expect(map.addLayer).toHaveBeenCalledWith(originalMarker);
+  });
+
   it('aborts heatmap tile fetches when Leaflet unloads the tile', async () => {
     // Skipping the ~26MB offline/fallback template variants here — this
     // suite used to take 70s+ per run testing the same map-html logic three
@@ -1881,6 +1934,34 @@ describe('speciesOccurrenceMapHelpers', () => {
       harness.tileLayerEventHandlers.get('load')?.();
       expect(harness.map.hasLayer(layer)).toBe(true);
       expect(pane.style.display).toBe('');
+    });
+  });
+
+  describe('preparePointsForMapHtml media fields', () => {
+    it('exposes escaped popup media fields when present', () => {
+      const [result] = preparePointsForMapHtml([
+        {
+          catalogNumber: 'obs1',
+          mediaUrl: 'https://example.com/1.jpg',
+          mediaAttribution: 'Jane <Doe>',
+          mediaLicense: 'CC BY-NC 4.0',
+          mediaLicenseUrl: 'https://creativecommons.org/licenses/by-nc/4.0/',
+        },
+      ]);
+      expect(result.popupMediaUrl).toBe('https://example.com/1.jpg');
+      expect(result.popupMediaAttribution).toBe('Jane &lt;Doe&gt;');
+      expect(result.popupMediaLicense).toBe('CC BY-NC 4.0');
+      expect(result.popupMediaLicenseUrl).toBe(
+        'https://creativecommons.org/licenses/by-nc/4.0/',
+      );
+    });
+
+    it('nulls out popup media fields when absent', () => {
+      const [result] = preparePointsForMapHtml([{ catalogNumber: 'obs1' }]);
+      expect(result.popupMediaUrl).toBeNull();
+      expect(result.popupMediaAttribution).toBeNull();
+      expect(result.popupMediaLicense).toBeNull();
+      expect(result.popupMediaLicenseUrl).toBeNull();
     });
   });
 });

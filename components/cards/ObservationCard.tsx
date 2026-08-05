@@ -147,26 +147,18 @@ export function ObservationCard({
         )}
         {attribution || license ? (
           <View style={styles.creditRow} testID='observation-card-credit'>
-            {attribution ? (
-              <ThemedText
-                variant='bodySmall'
-                style={{ color: palette.text.default.tertiary }}
-              >
-                {attribution}
-              </ThemedText>
-            ) : null}
-            {attribution && license ? (
-              <ThemedText
-                variant='bodySmall'
-                style={{ color: palette.text.default.tertiary }}
-              >
-                {' · '}
-              </ThemedText>
-            ) : null}
+            <ThemedText
+              variant='bodySmall'
+              numberOfLines={1}
+              style={{ color: palette.text.default.tertiary }}
+            >
+              {attribution || ' '}
+            </ThemedText>
             {license ? (
               licenseUrl ? (
                 <ThemedText
                   variant='bodySmallLink'
+                  numberOfLines={1}
                   onPress={() => Linking.openURL(licenseUrl)}
                 >
                   {license}
@@ -174,12 +166,20 @@ export function ObservationCard({
               ) : (
                 <ThemedText
                   variant='bodySmall'
+                  numberOfLines={1}
                   style={{ color: palette.text.default.tertiary }}
                 >
                   {license}
                 </ThemedText>
               )
-            ) : null}
+            ) : (
+              <ThemedText
+                variant='bodySmall'
+                style={{ color: palette.text.default.tertiary }}
+              >
+                {' '}
+              </ThemedText>
+            )}
           </View>
         ) : (
           <ThemedText
@@ -248,8 +248,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   creditRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
+    flexDirection: 'column',
   },
 });
