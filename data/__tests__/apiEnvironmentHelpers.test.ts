@@ -29,7 +29,7 @@ describe('chained extra-variable filters (extra query param)', () => {
 
   it('omits the extra param from a slice request when no chained filters are given', async () => {
     await fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio1',
       min: 0,
       max: 30,
@@ -39,7 +39,7 @@ describe('chained extra-variable filters (extra query param)', () => {
 
   it('serializes a chained categorical filter onto a numeric slice request', async () => {
     await fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio1',
       min: 0,
       max: 30,
@@ -61,7 +61,7 @@ describe('chained extra-variable filters (extra query param)', () => {
 
   it('serializes a chained multi-class (OR) filter onto a numeric slice request', async () => {
     await fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio1',
       min: 0,
       max: 30,
@@ -74,7 +74,7 @@ describe('chained extra-variable filters (extra query param)', () => {
 
   it('serializes a chained multi-range (OR) filter onto a numeric slice request', async () => {
     await fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'kg2',
       min: 0,
       max: 30,
@@ -103,7 +103,7 @@ describe('chained extra-variable filters (extra query param)', () => {
 
   it('serializes multiple chained filters in order', async () => {
     await fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio1',
       min: 0,
       max: 30,

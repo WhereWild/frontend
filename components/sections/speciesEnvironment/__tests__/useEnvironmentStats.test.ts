@@ -38,7 +38,7 @@ describe('useEnvironmentStats', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentStats({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'bio_1',
       }),
     );
@@ -53,7 +53,7 @@ describe('useEnvironmentStats', () => {
   it('returns null stats/error and does not fetch when selected variable is empty', async () => {
     const { result } = renderHook(() =>
       useEnvironmentStats({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: '',
       }),
     );
@@ -73,7 +73,7 @@ describe('useEnvironmentStats', () => {
 
     const { unmount } = renderHook(() =>
       useEnvironmentStats({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'bio_1',
       }),
     );

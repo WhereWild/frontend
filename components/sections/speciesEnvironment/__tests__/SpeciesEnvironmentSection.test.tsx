@@ -341,7 +341,7 @@ describe('SpeciesEnvironmentSection', () => {
   });
 
   it('renders the section subheading above the variable selector', () => {
-    render(<SpeciesEnvironmentSection taxonId={1} />);
+    render(<SpeciesEnvironmentSection taxonId='1' />);
     expect(screen.getByText('Species Environment')).toBeTruthy();
   });
 
@@ -353,7 +353,7 @@ describe('SpeciesEnvironmentSection', () => {
       isVariableCategorical: true,
     });
 
-    const { toJSON } = render(<SpeciesEnvironmentSection taxonId={1} />);
+    const { toJSON } = render(<SpeciesEnvironmentSection taxonId='1' />);
     const loadingText = screen.getByText('Loading environment data…');
     expect(loadingText).toBeTruthy();
     expect(treeContainsMinHeight(toJSON(), 200)).toBe(true);
@@ -367,7 +367,7 @@ describe('SpeciesEnvironmentSection', () => {
       error: 'Should not render while loading',
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} />);
+    render(<SpeciesEnvironmentSection taxonId='1' />);
     expect(screen.queryByText('Should not render while loading')).toBeNull();
   });
 
@@ -378,7 +378,7 @@ describe('SpeciesEnvironmentSection', () => {
       error: 'Something failed',
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} />);
+    render(<SpeciesEnvironmentSection taxonId='1' />);
     expect(screen.getByText('Something failed')).toBeTruthy();
   });
 
@@ -397,7 +397,7 @@ describe('SpeciesEnvironmentSection', () => {
       metaText: '(Based on 10 observations)',
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} />);
+    render(<SpeciesEnvironmentSection taxonId='1' />);
 
     expect(
       screen.getByText(
@@ -420,7 +420,7 @@ describe('SpeciesEnvironmentSection', () => {
       summary: baseContinuousStats.summary,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} locationGid='USA.5_1' />);
+    render(<SpeciesEnvironmentSection taxonId='1' locationGid='USA.5_1' />);
 
     expect(
       screen.getByText(
@@ -442,7 +442,7 @@ describe('SpeciesEnvironmentSection', () => {
       selectCategoryValue,
     }));
 
-    render(<SpeciesEnvironmentSection taxonId={1} />);
+    render(<SpeciesEnvironmentSection taxonId='1' />);
     expect(screen.getByText('categorical-view')).toBeTruthy();
     expect(screen.queryByText('density-view')).toBeNull();
     expect(screen.queryByText('continuous-view')).toBeNull();
@@ -462,7 +462,7 @@ describe('SpeciesEnvironmentSection', () => {
       setSelectedRankContext,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} />);
+    render(<SpeciesEnvironmentSection taxonId='1' />);
     expect(screen.queryByText('categorical-view')).toBeNull();
     expect(screen.getByText('density-view')).toBeTruthy();
     expect(screen.getByText('continuous-view')).toBeTruthy();
@@ -494,13 +494,13 @@ describe('SpeciesEnvironmentSection', () => {
     });
 
     const { rerender } = render(
-      <SpeciesEnvironmentSection taxonId={1} variableId='bio_1' />,
+      <SpeciesEnvironmentSection taxonId='1' variableId='bio_1' />,
     );
     expect(screen.getByText('density-view')).toBeTruthy();
     expect(screen.getByText('continuous-view')).toBeTruthy();
 
     phase = 'loading';
-    rerender(<SpeciesEnvironmentSection taxonId={1} variableId='bio_2' />);
+    rerender(<SpeciesEnvironmentSection taxonId='1' variableId='bio_2' />);
 
     expect(screen.getByText('density-view')).toBeTruthy();
     expect(screen.getByText('continuous-view')).toBeTruthy();
@@ -541,7 +541,7 @@ describe('SpeciesEnvironmentSection', () => {
       };
     });
 
-    const rendered = render(<SpeciesEnvironmentSection taxonId={1} />);
+    const rendered = render(<SpeciesEnvironmentSection taxonId='1' />);
 
     expect(
       findHostNodesByTestId(
@@ -582,7 +582,7 @@ describe('SpeciesEnvironmentSection', () => {
 
     phase = 'loading';
     rendered.rerender(
-      <SpeciesEnvironmentSection taxonId={1} variableId='bio_2' />,
+      <SpeciesEnvironmentSection taxonId='1' variableId='bio_2' />,
     );
 
     expect(
@@ -624,7 +624,7 @@ describe('SpeciesEnvironmentSection', () => {
 
     phase = 'categorical';
     rendered.rerender(
-      <SpeciesEnvironmentSection taxonId={1} variableId='landcover' />,
+      <SpeciesEnvironmentSection taxonId='1' variableId='landcover' />,
     );
 
     expect(
@@ -691,13 +691,13 @@ describe('SpeciesEnvironmentSection', () => {
     });
 
     const { rerender } = render(
-      <SpeciesEnvironmentSection taxonId={1} variableId='bio_1' />,
+      <SpeciesEnvironmentSection taxonId='1' variableId='bio_1' />,
     );
     expect(screen.getByText('density-view')).toBeTruthy();
     expect(screen.getByText('(Based on 10 observations)')).toBeTruthy();
 
     phase = 'error';
-    rerender(<SpeciesEnvironmentSection taxonId={1} variableId='bio_2' />);
+    rerender(<SpeciesEnvironmentSection taxonId='1' variableId='bio_2' />);
 
     expect(screen.getByText('Failed to load environment stats')).toBeTruthy();
     expect(screen.queryByText('density-view')).toBeNull();
@@ -719,7 +719,7 @@ describe('SpeciesEnvironmentSection', () => {
 
     render(
       <SpeciesEnvironmentSection
-        taxonId={2}
+        taxonId='2'
         variableId='bio_1'
         variables={variables}
         locationGid='USA.1_1'
@@ -729,7 +729,7 @@ describe('SpeciesEnvironmentSection', () => {
 
     expect(mockUseSpeciesEnvironmentState).toHaveBeenCalledWith(
       expect.objectContaining({
-        taxonId: 2,
+        taxonId: '2',
         variableId: 'bio_1',
         variables,
         locationGid: 'USA.1_1',
@@ -749,7 +749,7 @@ describe('SpeciesEnvironmentSection', () => {
       summary: baseCategoricalStats.summary,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='aspect' />);
 
     expect(screen.getByText('aspect-compass-view')).toBeTruthy();
     expect(screen.queryByText('categorical-view')).toBeNull();
@@ -767,7 +767,7 @@ describe('SpeciesEnvironmentSection', () => {
       pinnedCategoryValue: 'N',
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='aspect' />);
 
     expect(screen.getByText('highlighted-aspect-N')).toBeTruthy();
   });
@@ -783,7 +783,7 @@ describe('SpeciesEnvironmentSection', () => {
       summary: baseCategoricalStats.summary,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='landcover' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='landcover' />);
 
     expect(screen.getByText('categorical-view')).toBeTruthy();
     expect(screen.queryByText('aspect-compass-view')).toBeNull();
@@ -801,7 +801,7 @@ describe('SpeciesEnvironmentSection', () => {
       pinnedCategoryValue: 'a',
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='landcover' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='landcover' />);
 
     expect(screen.getByText('highlighted-a')).toBeTruthy();
   });
@@ -819,7 +819,7 @@ describe('SpeciesEnvironmentSection', () => {
       pinnedClassName: 'Closed deciduous broadleaved forest',
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='landcover' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='landcover' />);
 
     expect(screen.getByText('pinned-62')).toBeTruthy();
     expect(
@@ -838,7 +838,7 @@ describe('SpeciesEnvironmentSection', () => {
       summary: baseContinuousStats.summary,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect_deg' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='aspect_deg' />);
 
     expect(screen.getByText('polar-density-view')).toBeTruthy();
     expect(screen.queryByText('density-view')).toBeNull();
@@ -855,7 +855,7 @@ describe('SpeciesEnvironmentSection', () => {
       summary: baseContinuousStats.summary,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='bio_1' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='bio_1' />);
 
     expect(screen.getByText('density-view')).toBeTruthy();
     expect(screen.getByText('continuous-view')).toBeTruthy();
@@ -875,7 +875,7 @@ describe('SpeciesEnvironmentSection', () => {
       selectCategoryValue,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='aspect' />);
 
     fireEvent.press(screen.getByTestId('pick-aspect'));
     expect(selectCategoryValue).toHaveBeenCalledWith('N', undefined);
@@ -894,7 +894,7 @@ describe('SpeciesEnvironmentSection', () => {
       pinnedLoading: false,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect_deg' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='aspect_deg' />);
 
     expect(mockPolarDensityChart).toHaveBeenCalledWith(
       expect.objectContaining({ pinValue: 135, pinLoading: false }),
@@ -914,7 +914,7 @@ describe('SpeciesEnvironmentSection', () => {
       selectDensityRange,
     });
 
-    render(<SpeciesEnvironmentSection taxonId={1} variableId='aspect_deg' />);
+    render(<SpeciesEnvironmentSection taxonId='1' variableId='aspect_deg' />);
 
     fireEvent.press(screen.getByTestId('pick-polar-range'));
     expect(selectDensityRange).toHaveBeenCalledWith({ start: 0, end: 90 });

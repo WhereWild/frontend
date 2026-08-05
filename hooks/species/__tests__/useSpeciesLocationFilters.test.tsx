@@ -26,7 +26,7 @@ function HookHarnessInner({
   locationSearchLimit = 500,
   refHandle,
 }: {
-  taxonId?: number;
+  taxonId?: string;
   locationSearchLimit?: number;
   refHandle: React.ForwardedRef<ReturnType<typeof useSpeciesLocationFilters>>;
 }) {
@@ -42,7 +42,7 @@ function HookHarnessInner({
 const HookHarness = React.forwardRef<
   ReturnType<typeof useSpeciesLocationFilters>,
   {
-    taxonId?: number;
+    taxonId?: string;
     locationSearchLimit?: number;
     dataSource?: SpeciesDataSource;
   }
@@ -87,7 +87,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions).toEqual([
@@ -153,7 +153,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions).toEqual([
@@ -220,7 +220,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions.length).toBe(1);
@@ -272,9 +272,9 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    const rendered = render(<HookHarness ref={ref} taxonId={1} />);
+    const rendered = render(<HookHarness ref={ref} taxonId='1' />);
 
-    rendered.rerender(<HookHarness ref={ref} taxonId={2} />);
+    rendered.rerender(<HookHarness ref={ref} taxonId='2' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions).toEqual([
@@ -311,7 +311,7 @@ describe('useSpeciesLocationFilters', () => {
 
     const firstRef =
       React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    const firstRender = render(<HookHarness ref={firstRef} taxonId={13579} />);
+    const firstRender = render(<HookHarness ref={firstRef} taxonId='13579' />);
 
     await waitFor(() => {
       expect(mockFetchSpeciesLocations).toHaveBeenCalledTimes(1);
@@ -322,7 +322,7 @@ describe('useSpeciesLocationFilters', () => {
 
     const secondRef =
       React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={secondRef} taxonId={13579} />);
+    render(<HookHarness ref={secondRef} taxonId='13579' />);
 
     await waitFor(() => {
       expect(secondRef.current?.countryLoading).toBe(true);
@@ -377,7 +377,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions).toEqual([
@@ -448,7 +448,7 @@ describe('useSpeciesLocationFilters', () => {
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     const rendered = render(
-      <HookHarness ref={ref} taxonId={13579} locationSearchLimit={1} />,
+      <HookHarness ref={ref} taxonId='13579' locationSearchLimit={1} />,
     );
 
     await waitFor(() => {
@@ -468,7 +468,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     rendered.rerender(
-      <HookHarness ref={ref} taxonId={13579} locationSearchLimit={2} />,
+      <HookHarness ref={ref} taxonId='13579' locationSearchLimit={2} />,
     );
 
     await waitFor(() => {
@@ -515,7 +515,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions).toEqual([
@@ -588,7 +588,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions.length).toBe(1);
@@ -638,7 +638,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions.length).toBe(1);
@@ -672,7 +672,7 @@ describe('useSpeciesLocationFilters', () => {
     });
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions.length).toBe(1);
@@ -726,7 +726,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions.length).toBe(1);
@@ -798,7 +798,7 @@ describe('useSpeciesLocationFilters', () => {
     );
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
-    render(<HookHarness ref={ref} taxonId={13579} />);
+    render(<HookHarness ref={ref} taxonId='13579' />);
 
     await waitFor(() => {
       expect(ref.current?.countryOptions).toEqual([
@@ -888,7 +888,7 @@ describe('useSpeciesLocationFilters', () => {
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(
-      <HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />,
+      <HookHarness ref={ref} taxonId='13579' dataSource={localDataSource} />,
     );
 
     await waitFor(() => {
@@ -966,7 +966,7 @@ describe('useSpeciesLocationFilters', () => {
 
     const ref = React.createRef<ReturnType<typeof useSpeciesLocationFilters>>();
     render(
-      <HookHarness ref={ref} taxonId={13579} dataSource={localDataSource} />,
+      <HookHarness ref={ref} taxonId='13579' dataSource={localDataSource} />,
     );
 
     await waitFor(() => {

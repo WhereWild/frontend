@@ -35,7 +35,7 @@ describe('useHomeDashboardState', () => {
       recommendations: {
         items: [
           {
-            taxonId: 101,
+            taxonId: '101',
             commonName: 'Plant One',
             commonNames: ['Plant One'],
             scientificName: 'Plantus one',
@@ -81,7 +81,7 @@ describe('useHomeDashboardState', () => {
       recommendations: {
         items: [
           {
-            taxonId: 101,
+            taxonId: '101',
             commonName: 'Hydrated First',
             commonNames: ['Hydrated First'],
             scientificName: 'Hydratus firstus',
@@ -116,7 +116,7 @@ describe('useHomeDashboardState', () => {
       recommendations: {
         items: [
           {
-            taxonId: 101,
+            taxonId: '101',
             commonName: 'Plant One',
             commonNames: ['Plant One'],
             scientificName: 'Plantus one',
@@ -125,7 +125,7 @@ describe('useHomeDashboardState', () => {
             taxonGroup: 'plants',
           },
           {
-            taxonId: 202,
+            taxonId: '202',
             commonName: 'Bird Two',
             commonNames: ['Bird Two'],
             scientificName: 'Birdus two',
@@ -145,7 +145,7 @@ describe('useHomeDashboardState', () => {
       recommendations: {
         items: [
           {
-            taxonId: 303,
+            taxonId: '303',
             commonName: 'Plant Three',
             commonNames: ['Plant Three'],
             scientificName: 'Plantus three',
@@ -154,7 +154,7 @@ describe('useHomeDashboardState', () => {
             taxonGroup: 'plants',
           },
           {
-            taxonId: 404,
+            taxonId: '404',
             commonName: 'Bird Four',
             commonNames: ['Bird Four'],
             scientificName: 'Birdus four',
@@ -572,7 +572,7 @@ describe('useHomeDashboardState', () => {
       recommendations: {
         items: [
           {
-            taxonId: 101,
+            taxonId: '101',
             commonName: 'Plant One',
             commonNames: ['Plant One'],
             scientificName: 'Plantus one',
@@ -581,7 +581,7 @@ describe('useHomeDashboardState', () => {
             taxonGroup: 'plants',
           },
           {
-            taxonId: 202,
+            taxonId: '202',
             commonName: 'Bird Two',
             commonNames: ['Bird Two'],
             scientificName: 'Birdus two',
@@ -632,7 +632,7 @@ describe('useHomeDashboardState', () => {
       recommendations: {
         items: [
           {
-            taxonId: 101,
+            taxonId: '101',
             commonName: 'Plant One',
             commonNames: ['Plant One'],
             scientificName: 'Plantus one',

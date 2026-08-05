@@ -957,7 +957,7 @@ describe('upload local species data source variable categories', () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
     const slice = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 2,
       max: 3,
@@ -1034,7 +1034,7 @@ describe('upload local species data source variable categories', () => {
     });
     await expect(
       dataSource.fetchEnvironmentRangeSlice({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         min: 2,
         max: 3,
@@ -1356,7 +1356,7 @@ describe('upload local species data source variable categories', () => {
     expect(metricStats.units).toBe('°C');
 
     const sliceImperial = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 68,
       max: 68,
@@ -1419,7 +1419,7 @@ describe('upload local species data source chained extra-variable filters', () =
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 0,
       max: 100,
@@ -1474,7 +1474,7 @@ describe('upload local species data source chained extra-variable filters', () =
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 0,
       max: 100,
@@ -1518,7 +1518,7 @@ describe('upload local species data source chained extra-variable filters', () =
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 0,
       max: 100,
@@ -1538,7 +1538,7 @@ describe('upload local species data source chained extra-variable filters', () =
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 0,
       max: 100,
@@ -1563,7 +1563,7 @@ describe('upload local species data source chained extra-variable filters', () =
     const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'bio_1',
       min: 0,
       max: 100,

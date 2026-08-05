@@ -386,14 +386,14 @@ const setWindowSearchRouteParams = (params: SearchRouteParams) => {
 
 const mockSpeciesResults = [
   {
-    taxonId: 1,
+    taxonId: '1',
     commonName: 'Test Species 1',
     scientificName: 'Testus speciesone',
     description: '12.5 | Rank 1 of 10 | Percentile 95%',
     imageSource: { uri: 'test1' },
   },
   {
-    taxonId: 2,
+    taxonId: '2',
     commonName: 'Test Species 2',
     scientificName: 'Testus speciestwo',
     description: '8.25 | Rank 2 of 10 | Percentile 90%',
@@ -588,7 +588,7 @@ describe('Search screen', () => {
     mockFiltersResult.filterParams = {
       ...mockFilterParams,
       location: 'USA.45.1_1',
-      withinTaxonId: 77,
+      withinTaxonId: '77',
       descendantRank: 'species',
       includeSpeciesLike: false,
       sortVariable: 'bio_1',
@@ -621,7 +621,7 @@ describe('Search screen', () => {
         countyOptions: [{ label: 'Baker County', value: 'USA.45.1_1' }],
       },
       taxon: {
-        ancestorTaxonId: 77,
+        ancestorTaxonId: '77',
         baseTaxonQuery: 'Blue oak',
       },
       ranking: {
@@ -658,7 +658,7 @@ describe('Search screen', () => {
           countyValue: 'USA.45.1_1',
         }),
         taxon: expect.objectContaining({
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: 'Blue oak',
         }),
         ranking: expect.objectContaining({
@@ -812,7 +812,7 @@ describe('Search screen', () => {
 
     mockFiltersResult.filterParams = {
       ...mockFilterParams,
-      withinTaxonId: 77,
+      withinTaxonId: '77',
       sortVariable: 'bio_1',
       sortMetric: 'median',
       sortOrder: 'desc',
@@ -848,7 +848,7 @@ describe('Search screen', () => {
     mockHistoryReplaceState.mockClear();
     mockFiltersResult.filterParams = {
       ...mockFilterParams,
-      withinTaxonId: 77,
+      withinTaxonId: '77',
       sortVariable: 'bio_1',
       sortMetric: 'median',
     };
@@ -914,7 +914,7 @@ describe('Search screen', () => {
         stateValue: 'USA.45_1',
         countyValue: 'USA.45.1_1',
       },
-      taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+      taxon: { ancestorTaxonId: '77', baseTaxonQuery: '77' },
       ranking: {
         rankValue: 'genus',
         includeSubspecies: true,
@@ -966,7 +966,7 @@ describe('Search screen', () => {
           stateValue: 'USA.45_1',
           countyValue: 'USA.45.1_1',
         },
-        taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+        taxon: { ancestorTaxonId: '77', baseTaxonQuery: '77' },
         ranking: {
           rankValue: 'genus',
           includeSubspecies: true,

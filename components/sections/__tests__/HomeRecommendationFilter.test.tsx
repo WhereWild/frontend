@@ -43,7 +43,7 @@ describe('HomeRecommendationFilter', () => {
       <HomeRecommendationFilter
         allRecommendations={[
           {
-            taxonId: 1,
+            taxonId: '1',
             commonName: 'Mystery Species',
             commonNames: ['Mystery Species'],
             scientificName: 'Mysterius species',
@@ -51,7 +51,7 @@ describe('HomeRecommendationFilter', () => {
             taxonGroup: 'mollusks',
           },
           {
-            taxonId: 2,
+            taxonId: '2',
             commonName: 'Plant Species',
             commonNames: ['Plant Species'],
             scientificName: 'Plantus species',
@@ -78,7 +78,7 @@ describe('HomeRecommendationFilter', () => {
       <HomeRecommendationFilter
         allRecommendations={[
           {
-            taxonId: 1,
+            taxonId: '1',
             commonName: 'Mystery Species',
             commonNames: ['Mystery Species'],
             scientificName: 'Mysterius species',
@@ -104,7 +104,7 @@ describe('HomeRecommendationFilter', () => {
       <HomeRecommendationFilter
         allRecommendations={[
           {
-            taxonId: 1,
+            taxonId: '1',
             commonName: 'Mystery Species',
             commonNames: ['Mystery Species'],
             scientificName: 'Mysterius species',
@@ -130,7 +130,7 @@ describe('HomeRecommendationFilter', () => {
       <HomeRecommendationFilter
         allRecommendations={[
           {
-            taxonId: 1,
+            taxonId: '1',
             commonName: 'Unknown A',
             commonNames: ['Unknown A'],
             scientificName: 'Unknowna species',
@@ -138,7 +138,7 @@ describe('HomeRecommendationFilter', () => {
             taxonGroup: 'mollusks',
           },
           {
-            taxonId: 2,
+            taxonId: '2',
             commonName: 'Unknown B',
             commonNames: ['Unknown B'],
             scientificName: 'Unknownb species',
@@ -146,7 +146,7 @@ describe('HomeRecommendationFilter', () => {
             taxonGroup: 'mollusks',
           },
           {
-            taxonId: 3,
+            taxonId: '3',
             commonName: 'No Group',
             commonNames: ['No Group'],
             scientificName: 'Nogroup species',
@@ -154,7 +154,7 @@ describe('HomeRecommendationFilter', () => {
             taxonGroup: null,
           },
           {
-            taxonId: 4,
+            taxonId: '4',
             commonName: 'Known Group',
             commonNames: ['Known Group'],
             scientificName: 'Known species',

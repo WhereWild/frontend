@@ -186,7 +186,7 @@ describe('SpeciesCard', () => {
   });
 
   const baseProps = {
-    taxonId: 555,
+    taxonId: '555',
     commonName: 'Common Name',
     scientificName: 'Binomial nomenclature',
     description: 'Description',
@@ -299,7 +299,7 @@ describe('SpeciesCard', () => {
     render(
       <SpeciesCard
         {...baseProps}
-        taxonId={undefined as unknown as number}
+        taxonId={undefined as unknown as string}
         scientificName=''
         onPress={handlePress}
         testID='species-card'
@@ -584,7 +584,7 @@ describe('SpeciesCard', () => {
     render(
       <SpeciesCard
         {...baseProps}
-        taxonId={undefined as unknown as number}
+        taxonId={undefined as unknown as string}
         commonName=''
         scientificName=''
         testID='species-card'

@@ -220,7 +220,7 @@ describe('WebPageHeader', () => {
     });
     mockFetchTextResults.mockResolvedValue([]);
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -503,7 +503,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 91,
+        taxon_id: '91',
         scientific_name: 'Canis lupus',
         common_name: 'Gray Wolf',
         common_names: ['Gray Wolf', 'Wolf'],
@@ -515,7 +515,7 @@ describe('WebPageHeader', () => {
       <WebPageHeader
         filterParams={{
           location: null,
-          withinTaxonId: 212,
+          withinTaxonId: '212',
           descendantRank: 'species',
           includeSpeciesLike: null,
           sortVariable: null,
@@ -557,7 +557,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 12,
+        taxon_id: '12',
         scientific_name: 'Canis lupus',
         common_name: 'Gray Wolf',
       },
@@ -595,7 +595,7 @@ describe('WebPageHeader', () => {
   it('renders thumbnails for ranking results when image_url is provided', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -603,7 +603,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 12,
+          taxonId: '12',
           scientificName: 'Canis lupus',
           commonName: 'Gray Wolf',
           image_url: 'https://example.com/wolf.png',
@@ -619,7 +619,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -644,7 +644,7 @@ describe('WebPageHeader', () => {
   it('normalizes ranked names and includes ranked value in card description', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -652,7 +652,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 77,
+          taxonId: '77',
           scientificName: 'Canis_lupus',
           commonName: 'Gray_wolf',
           value: 12.5,
@@ -667,7 +667,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -691,7 +691,7 @@ describe('WebPageHeader', () => {
   it('scales fractional ranked percentile values to percentage display', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -699,7 +699,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 78,
+          taxonId: '78',
           scientificName: 'Vulpes vulpes',
           commonName: 'Red fox',
           value: 7,
@@ -715,7 +715,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -740,7 +740,7 @@ describe('WebPageHeader', () => {
     mockFetchRelativeRankings.mockClear();
     mockFetchTaxaQuery.mockClear();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 0,
+      ancestorTaxonId: '0',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -748,7 +748,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 501,
+          taxonId: '501',
           scientificName: 'Quercus alba',
           commonName: 'White Oak',
           value: 15.2,
@@ -799,7 +799,7 @@ describe('WebPageHeader', () => {
     mockFetchRelativeRankings.mockClear();
     mockFetchTaxaQuery.mockClear();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 2519,
+      ancestorTaxonId: '2519',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'median',
@@ -810,7 +810,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 701,
+          taxonId: '701',
           scientificName: 'Felis catus',
           commonName: 'Cat',
           value: 3.2,
@@ -827,7 +827,7 @@ describe('WebPageHeader', () => {
     const { rerender } = render(
       <WebPageHeader
         filterParams={createFilterParams({
-          withinTaxonId: 2519,
+          withinTaxonId: '2519',
           sortMetric: 'median',
           includeSpeciesLike: true,
         })}
@@ -849,7 +849,7 @@ describe('WebPageHeader', () => {
       rerender(
         <WebPageHeader
           filterParams={createFilterParams({
-            withinTaxonId: 2519,
+            withinTaxonId: '2519',
             sortMetric: 'median',
             includeSpeciesLike: true,
           })}
@@ -929,7 +929,7 @@ describe('WebPageHeader', () => {
         toTaxaQueryTextResponse(
           [
             {
-              taxon_id: 90,
+              taxon_id: '90',
               scientific_name: 'Old cactus',
               common_name: 'Old cactus',
             },
@@ -941,7 +941,7 @@ describe('WebPageHeader', () => {
         toTaxaQueryTextResponse(
           [
             {
-              taxon_id: 91,
+              taxon_id: '91',
               scientific_name: 'Older cactus',
               common_name: 'Older cactus',
             },
@@ -953,7 +953,7 @@ describe('WebPageHeader', () => {
         toTaxaQueryTextResponse(
           [
             {
-              taxon_id: 92,
+              taxon_id: '92',
               scientific_name: 'Carnegiea gigantea',
               common_name: 'Saguaro',
             },
@@ -975,14 +975,14 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValueOnce([
       {
-        taxon_id: 201,
+        taxon_id: '201',
         scientific_name: 'Carnegiea gigantea',
         common_name: 'Saguaro',
       },
     ] as any);
     mockFetchTextResults.mockResolvedValueOnce([
       {
-        taxon_id: 202,
+        taxon_id: '202',
         scientific_name: 'Opuntia ficus-indica',
         common_name: 'Prickly Pear',
       },
@@ -1028,7 +1028,7 @@ describe('WebPageHeader', () => {
 
     mockFetchTextResults.mockResolvedValueOnce([
       {
-        taxon_id: 301,
+        taxon_id: '301',
         scientific_name: 'Carnegiea gigantea',
         common_name: 'Saguaro',
       },
@@ -1079,7 +1079,7 @@ describe('WebPageHeader', () => {
     await act(async () => {
       resolveCact?.([
         {
-          taxon_id: 302,
+          taxon_id: '302',
           scientific_name: 'Older cactus',
           common_name: 'Older cactus',
         },
@@ -1096,7 +1096,7 @@ describe('WebPageHeader', () => {
   it('renders ranking thumbnails when image_source is provided directly', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -1104,7 +1104,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 45,
+          taxonId: '45',
           scientificName: 'Canis latrans',
           commonName: 'Coyote',
           image_source: 'https://example.com/coyote.png',
@@ -1120,7 +1120,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -1144,7 +1144,7 @@ describe('WebPageHeader', () => {
   it('renders thumbnails for ranking results when only image_file is provided', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -1152,7 +1152,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 44,
+          taxonId: '44',
           scientificName: 'Vulpes vulpes',
           commonName: 'Red Fox',
           image_file: 'images/mammals/red fox.png',
@@ -1168,7 +1168,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -1192,7 +1192,7 @@ describe('WebPageHeader', () => {
   it('filters out ranking entries with invalid taxon ids', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -1215,7 +1215,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -1235,7 +1235,7 @@ describe('WebPageHeader', () => {
   it('does not render image source when ranking image fields are blank strings', async () => {
     jest.useFakeTimers();
     mockFetchRelativeRankings.mockResolvedValue({
-      ancestorTaxonId: 212,
+      ancestorTaxonId: '212',
       rank: 'SPECIES',
       variable: 'bio_1',
       metric: 'mean',
@@ -1243,7 +1243,7 @@ describe('WebPageHeader', () => {
       limit: 10,
       entries: [
         {
-          taxonId: 46,
+          taxonId: '46',
           scientificName: 'Urocyon cinereoargenteus',
           commonName: 'Gray Fox',
           image_source: '   ',
@@ -1261,7 +1261,7 @@ describe('WebPageHeader', () => {
 
     render(
       <WebPageHeader
-        filterParams={createFilterParams({ withinTaxonId: 212 })}
+        filterParams={createFilterParams({ withinTaxonId: '212' })}
       />,
     );
     setupSearchVisibility();
@@ -1287,7 +1287,7 @@ describe('WebPageHeader', () => {
     render(
       <WebPageHeader
         filterParams={createFilterParams({
-          withinTaxonId: 2519,
+          withinTaxonId: '2519',
           includeSpeciesLike: true,
         })}
       />,
@@ -1309,7 +1309,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 312,
+        taxon_id: '312',
         scientific_name: 'Puma concolor',
         common_name: 'Mountain Lion',
       },
@@ -1402,7 +1402,7 @@ describe('WebPageHeader', () => {
   it('suppresses navigation when scientific name normalizes to empty', async () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
-      { taxon_id: 7, scientific_name: '   ', common_name: 'Silent Owl' },
+      { taxon_id: '7', scientific_name: '   ', common_name: 'Silent Owl' },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1428,11 +1428,11 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 11,
+        taxon_id: '11',
         scientific_name: 'Vulpes vulpes',
         common_name: 'Red Fox',
       },
-      { taxon_id: 12, scientific_name: 'Canis latrans', common_name: 'Coyote' },
+      { taxon_id: '12', scientific_name: 'Canis latrans', common_name: 'Coyote' },
     ] as any);
 
     render(<WebPageHeader />);
@@ -1480,12 +1480,12 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 21,
+        taxon_id: '21',
         scientific_name: 'Buteo jamaicensis',
         common_name: 'Red-tailed Hawk',
       },
       {
-        taxon_id: 22,
+        taxon_id: '22',
         scientific_name: 'Strix varia',
         common_name: 'Barred Owl',
       },
@@ -1528,9 +1528,9 @@ describe('WebPageHeader', () => {
   it('moves the preview highlight up from an active result and wraps to the previous item', async () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
-      { taxon_id: 31, scientific_name: 'Lynx rufus', common_name: 'Bobcat' },
+      { taxon_id: '31', scientific_name: 'Lynx rufus', common_name: 'Bobcat' },
       {
-        taxon_id: 32,
+        taxon_id: '32',
         scientific_name: 'Puma concolor',
         common_name: 'Mountain Lion',
       },
@@ -1579,7 +1579,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 41,
+        taxon_id: '41',
         scientific_name: 'Canis lupus',
         common_name: 'Gray Wolf',
       },
@@ -1609,9 +1609,9 @@ describe('WebPageHeader', () => {
   it('closes the preview on escape without clearing the query and reopens on query change', async () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
-      { taxon_id: 61, scientific_name: 'Canis latrans', common_name: 'Coyote' },
+      { taxon_id: '61', scientific_name: 'Canis latrans', common_name: 'Coyote' },
       {
-        taxon_id: 62,
+        taxon_id: '62',
         scientific_name: 'Canis lupus',
         common_name: 'Gray Wolf',
       },
@@ -1655,12 +1655,12 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 51,
+        taxon_id: '51',
         scientific_name: 'Vulpes vulpes',
         common_name: 'Red Fox',
       },
       {
-        taxon_id: 52,
+        taxon_id: '52',
         scientific_name: 'Urocyon cinereoargenteus',
         common_name: 'Gray Fox',
       },
@@ -1716,7 +1716,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 99,
+        taxon_id: '99',
         scientific_name: 'Vulpes vulpes',
         common_name: 'Red Fox',
       },
@@ -1741,7 +1741,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 123,
+        taxon_id: '123',
         scientific_name: 'Buteo jamaicensis',
         common_name: 'Red-tailed Hawk',
       },
@@ -1798,7 +1798,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 55,
+        taxon_id: '55',
         scientific_name: 'Strix aluco',
         common_name: 'Tawny Owl',
       },
@@ -1833,7 +1833,7 @@ describe('WebPageHeader', () => {
   it('clears previous blur-grace timer when blur happens repeatedly', async () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
-      { taxon_id: 56, scientific_name: 'Tyto alba', common_name: 'Barn Owl' },
+      { taxon_id: '56', scientific_name: 'Tyto alba', common_name: 'Barn Owl' },
     ] as any);
 
     const { unmount } = render(<WebPageHeader />);
@@ -1867,7 +1867,7 @@ describe('WebPageHeader', () => {
     jest.useFakeTimers();
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 57,
+        taxon_id: '57',
         scientific_name: 'Athene cunicularia',
         common_name: 'Burrowing Owl',
       },
@@ -1918,7 +1918,7 @@ describe('WebPageHeader', () => {
     } as ReturnType<typeof useResponsive>);
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 77,
+        taxon_id: '77',
         scientific_name: 'Bubo bubo',
         common_name: 'Eurasian Eagle-Owl',
       },
@@ -1959,7 +1959,7 @@ describe('WebPageHeader', () => {
     } as ReturnType<typeof useResponsive>);
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 88,
+        taxon_id: '88',
         scientific_name: 'Strix nebulosa',
         common_name: 'Great Gray Owl',
       },
@@ -2013,7 +2013,7 @@ describe('WebPageHeader', () => {
     } as ReturnType<typeof useResponsive>);
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 91,
+        taxon_id: '91',
         scientific_name: 'Asio otus',
         common_name: 'Long-eared Owl',
       },
@@ -2064,7 +2064,7 @@ describe('WebPageHeader', () => {
     } as ReturnType<typeof useResponsive>);
     mockFetchTextResults.mockResolvedValue([
       {
-        taxon_id: 301,
+        taxon_id: '301',
         scientific_name: 'Bubo scandiacus',
         common_name: 'Snowy Owl',
       },

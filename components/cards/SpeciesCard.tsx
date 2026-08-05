@@ -164,7 +164,8 @@ export function SpeciesCard({
   const scientificSegment = trimmedScientificName
     ? toKebabCase(trimmedScientificName)
     : '';
-  const hasValidTaxonId = typeof taxonId === 'string' && taxonId.trim().length > 0;
+  const hasValidTaxonId =
+    typeof taxonId === 'string' && taxonId.trim().length > 0;
   const hasValidScientificName = Boolean(trimmedScientificName);
   const hasValidSegment = Boolean(scientificSegment);
   const isPressOnly = interactionMode === 'press-only';

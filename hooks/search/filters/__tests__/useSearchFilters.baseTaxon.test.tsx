@@ -38,7 +38,7 @@ const BASE_TAXON_BLUR_GRACE_MS = 140;
 const createSpecies = (
   overrides: Partial<SpeciesApiNormalized> = {},
 ): SpeciesApiNormalized => ({
-  taxon_id: 100,
+  taxon_id: '100',
   scientific_name: 'Canis lupus',
   common_name: 'Gray wolf',
   common_names: ['Gray wolf'],
@@ -81,7 +81,7 @@ const flushMicrotasks = async () => {
 
 const waitForRankingEffectsToSettle = async (
   result: { current: ReturnType<typeof useSearchFilters> },
-  taxonId: number,
+  taxonId: string,
   rank = 'SPECIES',
 ) => {
   await act(async () => {
@@ -112,12 +112,12 @@ describe('useSearchFilters (base taxon)', () => {
     mockFetchLocationsByHierarchy.mockResolvedValue([]);
     mockFetchEnvironmentVariables.mockResolvedValue([]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 0,
+      ancestorTaxonId: '0',
       rank: 'SPECIES',
       options: [],
     });
     mockFetchSpeciesByTaxonId.mockResolvedValue({
-      taxon_id: 100,
+      taxon_id: '100',
       scientific_name: 'Canis lupus',
       common_name: 'Gray wolf',
       common_names: ['Gray wolf'],
@@ -146,21 +146,21 @@ describe('useSearchFilters (base taxon)', () => {
     const { result } = renderHook(() =>
       useSearchFilters({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: '77',
         },
       }),
     );
 
     await waitFor(() => {
-      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(77);
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('77');
     });
 
-    await waitForRankingEffectsToSettle(result, 77);
+    await waitForRankingEffectsToSettle(result, '77');
 
     await waitFor(() => {
       expect(result.current.baseTaxonQuery).toBe('Gray wolf');
-      expect(result.current.filterParams.withinTaxonId).toBe(77);
+      expect(result.current.filterParams.withinTaxonId).toBe('77');
     });
   });
 
@@ -168,7 +168,7 @@ describe('useSearchFilters (base taxon)', () => {
     const { result } = renderHook(() =>
       useSearchFilters({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: 'Gray wolf',
         },
       }),
@@ -178,7 +178,7 @@ describe('useSearchFilters (base taxon)', () => {
       expect(mockFetchEnvironmentVariables).toHaveBeenCalled();
     });
 
-    await waitForRankingEffectsToSettle(result, 77);
+    await waitForRankingEffectsToSettle(result, '77');
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
     expect(result.current.baseTaxonQuery).toBe('Gray wolf');
@@ -186,7 +186,7 @@ describe('useSearchFilters (base taxon)', () => {
 
   it('falls back to scientific name when species detail has no common name', async () => {
     mockFetchSpeciesByTaxonId.mockResolvedValueOnce({
-      taxon_id: 77,
+      taxon_id: '77',
       scientific_name: 'Canis lupus',
       common_name: '',
       common_names: [],
@@ -198,7 +198,7 @@ describe('useSearchFilters (base taxon)', () => {
     const { result } = renderHook(() =>
       useSearchFilters({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: '77',
         },
       }),
@@ -208,7 +208,7 @@ describe('useSearchFilters (base taxon)', () => {
       expect(result.current.baseTaxonQuery).toBe('Canis lupus');
     });
 
-    await waitForRankingEffectsToSettle(result, 77);
+    await waitForRankingEffectsToSettle(result, '77');
   });
 
   it('keeps the raw numeric taxon query when detail hydration fails', async () => {
@@ -217,20 +217,20 @@ describe('useSearchFilters (base taxon)', () => {
     const { result } = renderHook(() =>
       useSearchFilters({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: '77',
         },
       }),
     );
 
     await waitFor(() => {
-      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(77);
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('77');
     });
 
-    await waitForRankingEffectsToSettle(result, 77);
+    await waitForRankingEffectsToSettle(result, '77');
 
     expect(result.current.baseTaxonQuery).toBe('77');
-    expect(result.current.filterParams.withinTaxonId).toBe(77);
+    expect(result.current.filterParams.withinTaxonId).toBe('77');
   });
 
   it('hydrates state from route payloads after mount', async () => {
@@ -243,7 +243,7 @@ describe('useSearchFilters (base taxon)', () => {
     act(() => {
       result.current.onHydrateRouteState({
         location: { countyValue: 'USA.45.1_1' },
-        taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+        taxon: { ancestorTaxonId: '77', baseTaxonQuery: '77' },
         ranking: {
           rankValue: 'genus',
           includeSubspecies: false,
@@ -268,10 +268,10 @@ describe('useSearchFilters (base taxon)', () => {
     expect(result.current.minimumSamples).toBe(25);
 
     await waitFor(() => {
-      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(77);
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('77');
     });
 
-    await waitForRankingEffectsToSettle(result, 77, 'GENUS');
+    await waitForRankingEffectsToSettle(result, '77', 'GENUS');
   });
 
   it('reopens base taxon suggestions when field regains focus with existing query', async () => {
@@ -335,7 +335,7 @@ describe('useSearchFilters (base taxon)', () => {
         offset: 0,
         minSamples: 0,
       });
-      expect(result.current.baseTaxonSuggestions[0]?.taxonId).toBe(100);
+      expect(result.current.baseTaxonSuggestions[0]?.taxonId).toBe('100');
     });
 
     jest.useRealTimers();
@@ -368,14 +368,14 @@ describe('useSearchFilters (base taxon)', () => {
 
     act(() => {
       resolveRequest?.([
-        createSpecies({ taxon_id: 200, common_name: 'Coyote' }),
+        createSpecies({ taxon_id: '200', common_name: 'Coyote' }),
       ]);
     });
     await flushMicrotasks();
 
     await waitFor(() => {
       expect(result.current.baseTaxonSuggestionsLoading).toBe(false);
-      expect(result.current.baseTaxonSuggestions[0]?.taxonId).toBe(200);
+      expect(result.current.baseTaxonSuggestions[0]?.taxonId).toBe('200');
     });
 
     jest.useRealTimers();
@@ -472,7 +472,7 @@ describe('useSearchFilters (base taxon)', () => {
 
   it('submitting a base taxon query resolves ancestor taxon id in filter params', async () => {
     mockFetchTaxaQuery.mockResolvedValue(
-      createTaxaQueryResponse([createSpecies({ taxon_id: 4242 })]),
+      createTaxaQueryResponse([createSpecies({ taxon_id: '4242' })]),
     );
 
     const { result } = renderHook(() => useSearchFilters());
@@ -492,7 +492,7 @@ describe('useSearchFilters (base taxon)', () => {
         offset: 0,
         minSamples: 0,
       });
-      expect(result.current.filterParams.withinTaxonId).toBe(4242);
+      expect(result.current.filterParams.withinTaxonId).toBe('4242');
     });
 
     act(() => {
@@ -502,7 +502,7 @@ describe('useSearchFilters (base taxon)', () => {
     await waitFor(() => {
       expect(mockFetchRelativeRankingOptions).toHaveBeenCalledWith(
         {
-          taxonId: 4242,
+          taxonId: '4242',
           rank: 'SPECIES',
         },
         expect.objectContaining({ signal: expect.any(Object) }),
@@ -526,7 +526,7 @@ describe('useSearchFilters (base taxon)', () => {
 
     await act(async () => {
       result.current.onBaseTaxonSelect({
-        taxonId: 222,
+        taxonId: '222',
         commonName: 'Gray wolf',
         commonNames: ['Gray wolf'],
         scientificName: 'Canis lupus',
@@ -536,7 +536,7 @@ describe('useSearchFilters (base taxon)', () => {
     });
 
     expect(result.current.baseTaxonQuery).toBe('Gray wolf');
-    expect(result.current.filterParams.withinTaxonId).toBe(222);
+    expect(result.current.filterParams.withinTaxonId).toBe('222');
     expect(result.current.baseTaxonSuggestionsVisible).toBe(false);
 
     act(() => {
@@ -546,7 +546,7 @@ describe('useSearchFilters (base taxon)', () => {
     await waitFor(() => {
       expect(mockFetchRelativeRankingOptions).toHaveBeenCalledWith(
         {
-          taxonId: 222,
+          taxonId: '222',
           rank: 'SPECIES',
         },
         expect.objectContaining({ signal: expect.any(Object) }),
@@ -559,7 +559,7 @@ describe('useSearchFilters (base taxon)', () => {
     jest.useFakeTimers();
     mockFetchTaxaQuery.mockResolvedValue(
       createTaxaQueryResponse([
-        createSpecies({ taxon_id: 222, common_name: 'Gray wolf' }),
+        createSpecies({ taxon_id: '222', common_name: 'Gray wolf' }),
       ]),
     );
 
@@ -588,7 +588,7 @@ describe('useSearchFilters (base taxon)', () => {
 
     act(() => {
       result.current.onBaseTaxonSelect({
-        taxonId: 222,
+        taxonId: '222',
         commonName: 'Gray wolf',
         commonNames: ['Gray wolf'],
         scientificName: 'Canis lupus',
@@ -607,7 +607,7 @@ describe('useSearchFilters (base taxon)', () => {
     await waitFor(() => {
       expect(mockFetchRelativeRankingOptions).toHaveBeenCalledWith(
         {
-          taxonId: 222,
+          taxonId: '222',
           rank: 'SPECIES',
         },
         expect.objectContaining({ signal: expect.any(Object) }),
@@ -620,7 +620,7 @@ describe('useSearchFilters (base taxon)', () => {
 
   it('normalizes scientific-name selection and nullable filter params', async () => {
     mockFetchRelativeRankingOptions.mockResolvedValueOnce({
-      ancestorTaxonId: 333,
+      ancestorTaxonId: '333',
       rank: 'SPECIES',
       options: [{ variable: 'bio_12', metric: 'max', label: 'max', column: 'max', count: 1 }],
     });
@@ -637,7 +637,7 @@ describe('useSearchFilters (base taxon)', () => {
 
     await act(async () => {
       result.current.onBaseTaxonSelect({
-        taxonId: 333,
+        taxonId: '333',
         commonName: '',
         commonNames: [],
         scientificName: 'Canis lupus',
@@ -675,7 +675,7 @@ describe('useSearchFilters (base taxon)', () => {
       await result.current.onBaseTaxonSubmit('321');
     });
 
-    expect(result.current.filterParams.withinTaxonId).toBe(321);
+    expect(result.current.filterParams.withinTaxonId).toBe('321');
     expect(mockFetchTaxaQuery).not.toHaveBeenCalledWith({
       q: '321',
       limit: 1,
@@ -687,7 +687,7 @@ describe('useSearchFilters (base taxon)', () => {
     const { result } = renderHook(() =>
       useSearchFilters({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: 'Oak',
         },
       }),
@@ -700,13 +700,13 @@ describe('useSearchFilters (base taxon)', () => {
     act(() => {
       result.current.onHydrateRouteState({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: '77',
         },
       });
     });
 
-    await waitForRankingEffectsToSettle(result, 77);
+    await waitForRankingEffectsToSettle(result, '77');
 
     expect(result.current.baseTaxonQuery).toBe('Oak');
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalledWith(77);
@@ -733,7 +733,7 @@ describe('useSearchFilters (base taxon)', () => {
 
   it('submitting a non-integer numeric query falls back to species lookup', async () => {
     mockFetchTaxaQuery.mockResolvedValueOnce(
-      createTaxaQueryResponse([createSpecies({ taxon_id: 654 })]),
+      createTaxaQueryResponse([createSpecies({ taxon_id: '654' })]),
     );
 
     const { result } = renderHook(() => useSearchFilters());
@@ -752,7 +752,7 @@ describe('useSearchFilters (base taxon)', () => {
       offset: 0,
       minSamples: 0,
     });
-    expect(result.current.filterParams.withinTaxonId).toBe(654);
+    expect(result.current.filterParams.withinTaxonId).toBe('654');
   });
 
   it('clears ancestor taxon id when submit lookup fails', async () => {
@@ -801,21 +801,21 @@ describe('useSearchFilters (base taxon)', () => {
     });
 
     await act(async () => {
-      resolveSecond?.([createSpecies({ taxon_id: 202 })]);
+      resolveSecond?.([createSpecies({ taxon_id: '202' })]);
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(result.current.filterParams.withinTaxonId).toBe(202);
+      expect(result.current.filterParams.withinTaxonId).toBe('202');
     });
 
     await act(async () => {
-      resolveFirst?.([createSpecies({ taxon_id: 101 })]);
+      resolveFirst?.([createSpecies({ taxon_id: '101' })]);
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(result.current.filterParams.withinTaxonId).toBe(202);
+      expect(result.current.filterParams.withinTaxonId).toBe('202');
     });
   });
 
@@ -849,12 +849,12 @@ describe('useSearchFilters (base taxon)', () => {
     });
 
     await act(async () => {
-      resolveSecond?.([createSpecies({ taxon_id: 303 })]);
+      resolveSecond?.([createSpecies({ taxon_id: '303' })]);
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(result.current.filterParams.withinTaxonId).toBe(303);
+      expect(result.current.filterParams.withinTaxonId).toBe('303');
     });
 
     await act(async () => {
@@ -863,7 +863,7 @@ describe('useSearchFilters (base taxon)', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.filterParams.withinTaxonId).toBe(303);
+      expect(result.current.filterParams.withinTaxonId).toBe('303');
     });
   });
 
@@ -893,7 +893,7 @@ describe('useSearchFilters (base taxon)', () => {
 
     await act(async () => {
       resolveSubmit?.([
-        createSpecies({ taxon_id: 404, common_name: 'Late canis' }),
+        createSpecies({ taxon_id: '404', common_name: 'Late canis' }),
       ]);
       await Promise.resolve();
     });
@@ -927,7 +927,7 @@ describe('useSearchFilters (base taxon)', () => {
     act(() => {
       result.current.onHydrateRouteState({
         taxon: {
-          ancestorTaxonId: 77,
+          ancestorTaxonId: '77',
           baseTaxonQuery: '77',
         },
       });
@@ -935,13 +935,13 @@ describe('useSearchFilters (base taxon)', () => {
 
     await act(async () => {
       resolveSubmit?.([
-        createSpecies({ taxon_id: 505, common_name: 'Late canis' }),
+        createSpecies({ taxon_id: '505', common_name: 'Late canis' }),
       ]);
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(result.current.filterParams.withinTaxonId).toBe(77);
+      expect(result.current.filterParams.withinTaxonId).toBe('77');
       expect(result.current.baseTaxonQuery).not.toBe('Late canis');
     });
   });
@@ -1116,7 +1116,7 @@ describe('useSearchFilters (base taxon)', () => {
 
     await act(async () => {
       resolveFirst?.([
-        createSpecies({ taxon_id: 10, common_name: 'Wolf stale' }),
+        createSpecies({ taxon_id: '10', common_name: 'Wolf stale' }),
       ]);
       await Promise.resolve();
     });
@@ -1163,7 +1163,7 @@ describe('useSearchFilters (base taxon)', () => {
 
     await act(async () => {
       resolveRequest?.([
-        createSpecies({ taxon_id: 88, common_name: 'Late wolf' }),
+        createSpecies({ taxon_id: '88', common_name: 'Late wolf' }),
       ]);
       await Promise.resolve();
     });

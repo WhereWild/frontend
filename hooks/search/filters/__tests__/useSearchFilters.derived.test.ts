@@ -27,12 +27,12 @@ describe('useSearchFilters.derived', () => {
   it('emits ancestor taxon scope through withinTaxonId', () => {
     const filterParams = toSearchFilterParams(
       createState({
-        ancestorTaxonId: 2519,
+        ancestorTaxonId: '2519',
         rankValue: '',
       }),
     );
 
-    expect(filterParams.withinTaxonId).toBe(2519);
+    expect(filterParams.withinTaxonId).toBe('2519');
     expect('withinTaxon' in filterParams).toBe(false);
   });
 
@@ -66,7 +66,7 @@ describe('useSearchFilters.derived', () => {
   it('preserves complete sort selections in filter params when scoped ranking is complete', () => {
     const filterParams = toSearchFilterParams(
       createState({
-        ancestorTaxonId: 2519,
+        ancestorTaxonId: '2519',
         rankValue: 'species',
         sortVariableValue: 'bio_1',
         sortMetricValue: 'median',
@@ -91,7 +91,7 @@ describe('useSearchFilters.derived', () => {
   it('treats scoped descending sort order as an active filter', () => {
     const hasActiveFilters = getHasActiveSearchFilters(
       createState({
-        ancestorTaxonId: 2519,
+        ancestorTaxonId: '2519',
         rankValue: 'species',
         sortVariableValue: 'bio_1',
         sortMetricValue: 'median',

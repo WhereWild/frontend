@@ -53,7 +53,7 @@ describe('taxaQuerySearchCache', () => {
     expect(
       buildTaxaQueryCacheKey({
         q: ' wolf ',
-        withinTaxonId: 77,
+        withinTaxonId: '77',
         descendantRank: 'species',
         limit: 10,
         offset: 0,

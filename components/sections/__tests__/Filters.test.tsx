@@ -342,7 +342,7 @@ describe('Filters', () => {
     });
 
     const suggestion: SpeciesSummary = {
-      taxonId: 1,
+      taxonId: '1',
       commonName: 'Gray wolf',
       commonNames: ['Gray wolf'],
       scientificName: 'Canis lupus',

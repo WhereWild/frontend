@@ -43,7 +43,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 1,
+            taxon_id: '1',
             scientific_name: 'Canis lupus',
             common_names: ['Wolf', 'Gray Wolf'],
           },
@@ -58,7 +58,7 @@ describe('data/api common name normalization', () => {
     );
     expect(rows).toEqual([
       expect.objectContaining({
-        taxon_id: 1,
+        taxon_id: '1',
         scientific_name: 'Canis lupus',
         common_name: 'Wolf',
         common_names: ['Wolf', 'Gray Wolf'],
@@ -87,7 +87,7 @@ describe('data/api common name normalization', () => {
 
     expect(rows).toEqual([
       expect.objectContaining({
-        taxon_id: 7,
+        taxon_id: '7',
       }),
     ]);
   });
@@ -122,7 +122,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        taxon_id: 2,
+        taxon_id: '2',
         scientific_name: 'Puma concolor',
         common_names: ['Cougar', 'Mountain Lion'],
       }),
@@ -133,7 +133,7 @@ describe('data/api common name normalization', () => {
     expect(global.fetch).toHaveBeenCalledWith(`${BACKEND_BASE}/api/species/2`);
     expect(row).toEqual(
       expect.objectContaining({
-        taxon_id: 2,
+        taxon_id: '2',
         scientific_name: 'Puma concolor',
         common_name: 'Cougar',
         common_names: ['Cougar', 'Mountain Lion'],
@@ -145,7 +145,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        taxon_id: 2,
+        taxon_id: '2',
         scientific_name: 'Puma concolor',
         common_names: ['Cougar'],
       }),
@@ -162,7 +162,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        taxon_id: 2,
+        taxon_id: '2',
         all_obscured: true,
       }),
     });
@@ -172,7 +172,7 @@ describe('data/api common name normalization', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       `${BACKEND_BASE}/api/species/2/obscured`,
     );
-    expect(response).toEqual({ taxon_id: 2, all_obscured: true });
+    expect(response).toEqual({ taxon_id: '2', all_obscured: true });
   });
 
   it('falls back to the requested taxon id and false obscured status when payload fields are missing', async () => {
@@ -183,7 +183,7 @@ describe('data/api common name normalization', () => {
 
     const response = await fetchSpeciesObscured('27');
 
-    expect(response).toEqual({ taxon_id: 27, all_obscured: false });
+    expect(response).toEqual({ taxon_id: '27', all_obscured: false });
   });
 
   it('parses categorical point lookup responses from class_value fields', async () => {
@@ -248,7 +248,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 4,
+            taxon_id: '4',
             scientific_name: 'Aquila chrysaetos',
             commonNames: ['Golden Eagle', 'Eagle'],
           },
@@ -260,7 +260,7 @@ describe('data/api common name normalization', () => {
 
     expect(rows).toEqual([
       expect.objectContaining({
-        taxon_id: 4,
+        taxon_id: '4',
         scientific_name: 'Aquila chrysaetos',
         common_name: 'Golden Eagle',
         common_names: ['Golden Eagle', 'Eagle'],
@@ -277,7 +277,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 8,
+            taxon_id: '8',
             scientific_name: 'Canis lupus',
             common_name: '  Gray Wolf  ',
             common_names: ['Gray Wolf', 'Wolf'],
@@ -290,7 +290,7 @@ describe('data/api common name normalization', () => {
 
     expect(rows).toEqual([
       expect.objectContaining({
-        taxon_id: 8,
+        taxon_id: '8',
         common_name: 'Gray Wolf',
         common_names: ['Gray Wolf', 'Wolf'],
       }),
@@ -306,7 +306,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 3,
+            taxon_id: '3',
             scientific_name: 'Taxus fallbackus',
             common_names: [null, '   '],
           },
@@ -333,7 +333,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 5,
+            taxon_id: '5',
             scientific_name: 'Strix varia',
             common_name: 'Barred Owl',
             image_file: '../images/owl photo#1.png',
@@ -360,7 +360,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 8,
+            taxon_id: '8',
             scientific_name: 'Pica hudsonia',
             common_name: 'Black-billed Magpie',
             image_source: 'https://cdn.example.com/magpie.png',
@@ -382,7 +382,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        taxon_id: 6,
+        taxon_id: '6',
         scientific_name: 'Vulpes vulpes',
         common_name: 'Red Fox',
         image_file_name: 'images\\nested\\fox image.png',
@@ -424,7 +424,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 9,
+            taxon_id: '9',
             scientific_name: 'Canis_lupus',
             common_name: 'Gray Wolf',
             common_names: ['Gray Wolf', 'Wolf'],
@@ -446,7 +446,7 @@ describe('data/api common name normalization', () => {
 
     const response = await fetchTaxaQuery({
       q: 'wolf',
-      withinTaxonId: 5,
+      withinTaxonId: '5',
       descendantRank: 'species',
       sortVariable: 'bio_1',
       sortMetric: 'mean',
@@ -470,7 +470,7 @@ describe('data/api common name normalization', () => {
         emptyReason: null,
         scope: expect.objectContaining({
           withinTaxon: '5',
-          withinTaxonId: 5,
+          withinTaxonId: '5',
         }),
         sort: expect.objectContaining({
           variable: 'bio_1',
@@ -480,7 +480,7 @@ describe('data/api common name normalization', () => {
         }),
         results: [
           expect.objectContaining({
-            taxon_id: 9,
+            taxon_id: '9',
             common_name: 'Gray Wolf',
             common_names: ['Gray Wolf', 'Wolf'],
             match_score: 0.91,
@@ -567,7 +567,7 @@ describe('data/api common name normalization', () => {
     await fetchTaxaQuery({
       q: 'oak',
       withinTaxon: 'quercus',
-      withinTaxonId: 2519,
+      withinTaxonId: '2519',
       descendantRank: 'species',
       limit: 10,
       offset: 0,
@@ -585,7 +585,7 @@ describe('data/api common name normalization', () => {
         query: 'bird',
         scope: {
           within_taxon: 'Aves',
-          within_taxon_id: 212,
+          within_taxon_id: '212',
           descendant_rank: 'SPECIES',
           location: null,
           min_samples: 0,
@@ -616,7 +616,7 @@ describe('data/api common name normalization', () => {
     expect(response.scope).toEqual(
       expect.objectContaining({
         withinTaxon: 'Aves',
-        withinTaxonId: 212,
+        withinTaxonId: '212',
       }),
     );
   });
@@ -625,7 +625,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        ancestor_taxon_id: 77,
+        ancestor_taxon_id: '77',
         rank: 'SPECIES',
         options: [
           {
@@ -640,9 +640,9 @@ describe('data/api common name normalization', () => {
     });
 
     await expect(
-      fetchRelativeRankingOptions({ taxonId: 77, rank: 'species' }),
+      fetchRelativeRankingOptions({ taxonId: '77', rank: 'species' }),
     ).resolves.toEqual({
-      ancestorTaxonId: 77,
+      ancestorTaxonId: '77',
       rank: 'SPECIES',
       options: [
         {
@@ -665,7 +665,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        ancestor_taxon_id: 2519,
+        ancestor_taxon_id: '2519',
         rank: 'SPECIES',
         options: [
           {
@@ -685,7 +685,7 @@ describe('data/api common name normalization', () => {
         { signal: controller.signal },
       ),
     ).resolves.toEqual({
-      ancestorTaxonId: 2519,
+      ancestorTaxonId: '2519',
       rank: 'SPECIES',
       options: [
         {
@@ -712,7 +712,7 @@ describe('data/api common name normalization', () => {
     });
 
     await expect(
-      fetchRelativeRankingOptions({ taxonId: 77, rank: 'SPECIES' }),
+      fetchRelativeRankingOptions({ taxonId: '77', rank: 'SPECIES' }),
     ).rejects.toThrow(
       'Failed to fetch ranking options: 503 backend unavailable',
     );
@@ -760,7 +760,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 11,
+            taxon_id: '11',
             scientific_name: 'Canis lupus',
             common_name: 'Gray Wolf',
             common_names: ['Gray Wolf', 'Wolf'],
@@ -782,7 +782,7 @@ describe('data/api common name normalization', () => {
     );
     expect(response.results).toEqual([
       expect.objectContaining({
-        taxon_id: 11,
+        taxon_id: '11',
         common_name: 'Gray Wolf',
       }),
     ]);
@@ -855,7 +855,7 @@ describe('data/api common name normalization', () => {
         offset: 0,
         results: [
           {
-            taxon_id: 12,
+            taxon_id: '12',
             scientific_name: 'Canis lupus',
             common_name: 'Gray Wolf',
             common_names: ['Gray Wolf', 'Wolf'],
@@ -877,7 +877,7 @@ describe('data/api common name normalization', () => {
     );
     expect(response.results).toEqual([
       expect.objectContaining({
-        taxon_id: 12,
+        taxon_id: '12',
         sample_count: 7,
       }),
     ]);
@@ -1091,7 +1091,7 @@ describe('data/api common name normalization', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => ({
-        taxon_id: 10,
+        taxon_id: '10',
         scientific_name: 'Lynx canadensis',
         common_name: 'Canada Lynx',
         description: 'Summary: Medium-sized wild cat.',
@@ -1172,7 +1172,7 @@ describe('data/api common name normalization', () => {
     );
     expect(rows).toEqual([
       expect.objectContaining({
-        taxon_id: 11,
+        taxon_id: '11',
         common_name: 'Colorado Pinyon',
         common_names: ['Colorado Pinyon'],
         taxon_group: 'plants',

@@ -21,19 +21,19 @@ describe('useSearchFilters.helpers', () => {
   });
 
   it('returns a metric hint when taxon and variable are set but metric is missing', () => {
-    expect(toRankingFilterHint(42, 'species', 'bio_1', '')).toBe(
+    expect(toRankingFilterHint('42', 'species', 'bio_1', '')).toBe(
       'Choose a Sorting metric to apply ranking-based filters.',
     );
   });
 
   it('returns a rank hint when taxon is selected without a rank', () => {
-    expect(toRankingFilterHint(42, '', '', '')).toBe(
+    expect(toRankingFilterHint('42', '', '', '')).toBe(
       'Selecting a Scope taxon already limits search results to its descendant taxa. Choose a Rank to start ranking within that scope.',
     );
   });
 
   it('returns a variable hint when taxon and rank are selected without a sort variable', () => {
-    expect(toRankingFilterHint(42, 'species', '', '')).toBe(
+    expect(toRankingFilterHint('42', 'species', '', '')).toBe(
       'Choose a Sort variable to apply ranking-based filters.',
     );
   });
@@ -45,7 +45,7 @@ describe('useSearchFilters.helpers', () => {
   });
 
   it('returns null when the ranking filter set is complete', () => {
-    expect(toRankingFilterHint(42, 'species', 'bio_1', 'median')).toBeNull();
+    expect(toRankingFilterHint('42', 'species', 'bio_1', 'median')).toBeNull();
   });
 
   it('derives the most specific location gid', () => {
@@ -64,7 +64,7 @@ describe('useSearchFilters.helpers', () => {
 
   it('resolves an ancestor taxon id from search results', async () => {
     mockFetchTaxaQuery.mockResolvedValueOnce({
-      results: [{ taxon_id: 88 }],
+      results: [{ taxon_id: '88' }],
     } as any);
 
     await expect(resolveAncestorTaxonId('canis')).resolves.toBe(88);

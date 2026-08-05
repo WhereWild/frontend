@@ -128,7 +128,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: statsWithMalformed,
         isCategorical: true,
@@ -151,7 +151,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: categoricalStats,
         isCategorical: true,
@@ -184,7 +184,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: twoClassStats,
         isCategorical: true,
@@ -251,7 +251,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: threeClassStats,
         isCategorical: true,
@@ -319,7 +319,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: twoClassStats,
         isCategorical: true,
@@ -345,7 +345,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: categoricalStats,
         isCategorical: true,
@@ -405,7 +405,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: categoricalStats,
         isCategorical: true,
@@ -433,7 +433,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: { ...categoricalStats, categoricalSamples: [] },
         isCategorical: false,
@@ -461,7 +461,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: { ...categoricalStats, categoricalSamples: [] },
         isCategorical: true,
@@ -524,7 +524,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: { ...categoricalStats, categoricalSamples: [] },
         isCategorical: true,
@@ -582,7 +582,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: { ...categoricalStats, categoricalSamples: [] },
         isCategorical: true,
@@ -637,7 +637,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: { ...categoricalStats, categoricalSamples: [] },
         isCategorical: true,
@@ -675,7 +675,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: {
           ...categoricalStats,
@@ -709,7 +709,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ stats }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: 'landcover',
           stats,
           isCategorical: true,
@@ -764,7 +764,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: { ...categoricalStats, categoricalSamples: [] },
         isCategorical: true,
@@ -790,7 +790,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'landcover',
         stats: categoricalStats,
         isCategorical: true,
@@ -831,7 +831,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ variable }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: variable,
           stats: continuousStats,
           isCategorical: false,
@@ -904,7 +904,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ variable }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: variable,
           stats: continuousStats,
           isCategorical: false,
@@ -971,7 +971,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'bio_1',
         stats: continuousStats,
         isCategorical: false,
@@ -1015,7 +1015,7 @@ describe('useEnvironmentHighlights', () => {
 
       const { result } = renderHook(() =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: 'bio_1',
           stats: continuousStats,
           isCategorical: false,
@@ -1027,7 +1027,7 @@ describe('useEnvironmentHighlights', () => {
         40.2,
         -105.1,
         'bio_1',
-        { units: undefined, taxonId: 1, catalogNumber: 'PIN-1' },
+        { units: undefined, taxonId: '1', catalogNumber: 'PIN-1' },
       );
 
       await waitFor(() => {
@@ -1073,7 +1073,7 @@ describe('useEnvironmentHighlights', () => {
       const { result } = renderHook(
         () =>
           useEnvironmentHighlights({
-            taxonId: 1,
+            taxonId: '1',
             selectedVariable: 'landcover',
             stats: categoricalStats,
             isCategorical: true,
@@ -1141,7 +1141,7 @@ describe('useEnvironmentHighlights', () => {
       const { result } = renderHook(
         () =>
           useEnvironmentHighlights({
-            taxonId: 1,
+            taxonId: '1',
             selectedVariable: 'bio_1',
             stats: continuousStats,
             isCategorical: false,
@@ -1195,7 +1195,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ pinnedObservation }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: 'bio_1',
           stats: continuousStats,
           isCategorical: false,
@@ -1248,7 +1248,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ pinnedObservation }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: 'bio_1',
           stats: continuousStats,
           isCategorical: false,
@@ -1289,7 +1289,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ pinnedObservation }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: 'bio_1',
           stats: continuousStats,
           isCategorical: false,
@@ -1342,7 +1342,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'aspect_deg',
         stats: continuousStats,
         isCategorical: false,
@@ -1390,7 +1390,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'aspect_deg',
         stats: continuousStats,
         isCategorical: false,
@@ -1449,7 +1449,7 @@ describe('useEnvironmentHighlights', () => {
 
     const { result } = renderHook(() =>
       useEnvironmentHighlights({
-        taxonId: 1,
+        taxonId: '1',
         selectedVariable: 'aspect_deg',
         stats: continuousStats,
         isCategorical: false,
@@ -1486,7 +1486,7 @@ describe('useEnvironmentHighlights', () => {
     >(
       ({ stats }) =>
         useEnvironmentHighlights({
-          taxonId: 1,
+          taxonId: '1',
           selectedVariable: 'landcover',
           stats,
           isCategorical: true,
@@ -1545,7 +1545,7 @@ describe('useEnvironmentHighlights', () => {
       renderHook<EnvironmentHighlightsHookResult, ChainTestProps>(
         ({ variable, stats, isCategorical, locationGid, pinnedObservation }) =>
           useEnvironmentHighlights({
-            taxonId: 1,
+            taxonId: '1',
             selectedVariable: variable,
             stats,
             isCategorical,

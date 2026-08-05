@@ -150,14 +150,15 @@ const toArray = (value: string | string[] | undefined): string[] => {
 };
 
 // COL XR taxon IDs are opaque alphanumeric strings (e.g. "6SRLS"), not
-// necessarily numeric — only reject empty/whitespace-only segments so slugs
-// like "opuntia-fragilis" further down the path aren't mistaken for the ID.
+// necessarily numeric — so a digits-only check would wrongly reject them.
+// Still requiring alphanumeric-only (no spaces/hyphens) keeps slug segments
+// like "opuntia-fragilis" from being mistaken for the ID.
 const toTaxonIdSegment = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  return /^[A-Za-z0-9]+$/.test(trimmed) ? trimmed : undefined;
 };
 
 // Resolves the actual taxon ID to request (preferring path segments over query strings).

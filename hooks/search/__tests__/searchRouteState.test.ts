@@ -85,7 +85,7 @@ describe('searchRouteState', () => {
   it('preserves species includeSpeciesLike=false routes by serializing species explicitly', () => {
     expect(
       toSearchRouteParams('wolf', {
-        withinTaxonId: 77,
+        withinTaxonId: '77',
         descendantRank: 'species',
         includeSpeciesLike: false,
         sortVariable: null,
@@ -106,7 +106,7 @@ describe('searchRouteState', () => {
   it('serializes species rank routes even when includeSpeciesLike remains enabled', () => {
     expect(
       toSearchRouteParams('wolf', {
-        withinTaxonId: 77,
+        withinTaxonId: '77',
         descendantRank: 'species',
         includeSpeciesLike: true,
         sortVariable: null,
@@ -126,7 +126,7 @@ describe('searchRouteState', () => {
   it('keeps species rank in the route when ranking sort params are present', () => {
     expect(
       toSearchRouteParams('mistletoe', {
-        withinTaxonId: 2519,
+        withinTaxonId: '2519',
         descendantRank: 'species',
         includeSpeciesLike: true,
         sortVariable: 'bio_1',

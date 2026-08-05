@@ -18,7 +18,7 @@ describe('resolveHeaderConfigForRoute', () => {
       showSearchResultsDropdown: false,
       searchQuery: 'canis',
       filterParams: {
-        withinTaxonId: 5219142,
+        withinTaxonId: '5219142',
         descendantRank: 'species',
       },
     });
@@ -30,7 +30,7 @@ describe('resolveHeaderConfigForRoute', () => {
     expect(resolved.onResetFilterPress).toBe(onResetFilterPress);
     expect(resolved.showSearchResultsDropdown).toBe(false);
     expect(resolved.searchQuery).toBe('canis');
-    expect(resolved.filterParams?.withinTaxonId).toBe(5219142);
+    expect(resolved.filterParams?.withinTaxonId).toBe('5219142');
   });
 
   it('strips search-only controls on non-search routes', () => {
@@ -42,7 +42,7 @@ describe('resolveHeaderConfigForRoute', () => {
       onResetFilterPress: jest.fn(),
       showSearchResultsDropdown: false,
       searchQuery: 'fox',
-      filterParams: { withinTaxonId: 212 },
+      filterParams: { withinTaxonId: '212' },
     });
 
     expect(resolved.showFilterButton).toBe(false);

@@ -44,7 +44,7 @@ jest.mock('../../cards/SpeciesCard', () => {
 
 const recommendations = [
   {
-    taxonId: 1,
+    taxonId: '1',
     commonName: 'Plant One',
     commonNames: ['Plant One'],
     scientificName: 'Plantus one',
@@ -52,7 +52,7 @@ const recommendations = [
     taxonGroup: 'plants',
   },
   {
-    taxonId: 2,
+    taxonId: '2',
     commonName: 'Bird Two',
     commonNames: ['Bird Two'],
     scientificName: 'Birdus two',
@@ -60,7 +60,7 @@ const recommendations = [
     taxonGroup: 'birds',
   },
   {
-    taxonId: 3,
+    taxonId: '3',
     commonName: 'Fungus Three',
     commonNames: ['Fungus Three'],
     scientificName: 'Fungus three',

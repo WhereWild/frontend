@@ -297,7 +297,7 @@ afterEach(() => {
 const createData = (
   overrides: Partial<SpeciesScreenData> = {},
 ): SpeciesScreenData => ({
-  taxonId: 13579,
+  taxonId: '13579',
   commonName: 'Test Cactus',
   scientificName: 'Testus cactus',
   overview: {
@@ -306,7 +306,7 @@ const createData = (
   },
   nearbySpecies: [
     {
-      taxonId: 24680,
+      taxonId: '24680',
       commonName: 'Neighbor',
       commonNames: ['Neighbor'],
       scientificName: 'Neighborius plantus',
@@ -565,7 +565,7 @@ describe('Species screen', () => {
   });
 
   it('hides observation map section when taxonId is not provided', async () => {
-    render(<SpeciesScreen data={createData({ taxonId: 0 })} />);
+    render(<SpeciesScreen data={createData({ taxonId: '' })} />);
 
     expect(screen.queryByText('Observation Map')).toBeNull();
 
