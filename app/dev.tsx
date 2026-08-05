@@ -18,6 +18,7 @@ import {
   NavigationPillList,
   NearbySpeciesCarousel,
   NumberSpinner,
+  ObservationCard,
   PageScrollContainer,
   RadioGroup,
   SearchInput,
@@ -38,8 +39,9 @@ import { TimeEasingMatrixSection } from '@/components/sections/TimeEasingMatrixS
 import { DateRangeSlider } from '@/components/inputs/DateRangeSlider';
 import type { MonthYear } from '@/components/inputs/DateRangeSlider';
 import Head from 'expo-router/head';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { Asset } from 'expo-asset';
 import {
   ASPECT_CONIC_CSS,
   ASPECT_NATIVE_COLOR,
@@ -151,6 +153,10 @@ export default function About() {
   const [filterNumResults, setFilterNumResults] = useState(10);
   const [filterMinSamples, setFilterMinSamples] = useState(1);
   const speciesSample = mountainBallCactusData;
+  const observationCardImageUri = useMemo(
+    () => Asset.fromModule(SPECIES_CARD_IMAGE).uri,
+    [],
+  );
   const radioOptions = [
     { label: 'Label', description: 'Description', value: 'checked' },
     { label: 'Label', description: 'Description', value: 'unchecked' },
@@ -575,12 +581,43 @@ export default function About() {
                 Mini (search results)
               </ThemedText>
               <SpeciesCard
-                taxonId={12345}
+                taxonId='12345'
                 commonName='Common Name'
                 scientificName='Binomial nomenclature'
                 imageSource={SPECIES_CARD_IMAGE}
                 size='compact'
               />
+            </View>
+
+            <View>
+              <ThemedText variant='heading'>Observation Card</ThemedText>
+              <ThemedText variant='body'>
+                No media data is captured yet, so the blank-image fallback is
+                the expected default — the &quot;with image&quot; variant just
+                proves the image-present layout ahead of that data existing.
+              </ThemedText>
+              <View style={styles.row}>
+                <ObservationCard
+                  catalogNumber='123456'
+                  varLabel='12.3°C'
+                  varColor={Colors.light.icon.brand.default}
+                />
+                <ObservationCard catalogNumber='234567' />
+                <ObservationCard
+                  catalogNumber='345678'
+                  varLabel='9.1°C'
+                  varColor={Colors.light.icon.brand.default}
+                  imageUrl={observationCardImageUri}
+                  attribution='© Jane Doe'
+                  license='CC BY-NC 4.0'
+                  licenseUrl='https://creativecommons.org/licenses/by-nc/4.0/'
+                />
+                <ObservationCard
+                  catalogNumber='456789'
+                  varLabel='9.8°C'
+                  size='compact'
+                />
+              </View>
             </View>
 
             <View>

@@ -17,15 +17,19 @@ export { asRecord, toOptionalString };
 
 /**
  * Parses a taxon identifier from unknown input.
+ *
+ * Taxon IDs are opaque strings (COL XR taxon keys, e.g. "6SRLS") — not
+ * necessarily numeric — so this only validates presence, it never coerces
+ * through Number(). A previous numeric-only version silently dropped every
+ * alphanumeric ID.
  */
-export const parseNumericTaxonId = (value: unknown): number | null => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
+export const parseTaxonId = (value: unknown): string | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
   }
 
   if (typeof value === 'string' && value.trim().length > 0) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
+    return value.trim();
   }
 
   return null;

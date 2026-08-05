@@ -19,7 +19,18 @@ import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
-import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import {
+  toggleFullscreenElement,
+  resolveObservationVarFields,
+} from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import type { ObservationVarFieldsInputs } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
+import type { ObservationGalleryPoint } from '@/components/sections/SpeciesObservationGallery';
+import {
+  DEFAULT_IMAGE_SIZE as OBSERVATION_CARD_WIDTH,
+  COMPACT_IMAGE_SIZE as OBSERVATION_CARD_COMPACT_WIDTH,
+  type ObservationCardSize,
+} from '@/components/cards/ObservationCard';
 import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
@@ -87,6 +98,8 @@ export type SpeciesScreenData = Pick<
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
+const GALLERY_ROWS = 3;
+const GALLERY_CARD_GAP = Size.space['300'];
 
 type ResponsiveState = ReturnType<typeof useResponsive>;
 type SpeciesMapBreakpoint = ResponsiveState['breakpoint'];
@@ -214,7 +227,8 @@ export default function Species({
     markerOutlineEnabled,
   } = useSettings();
   const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
-  const { height: viewportHeight } = useWindowDimensions();
+  const { height: viewportHeight, width: viewportWidth } =
+    useWindowDimensions();
   const observationMapHeight = React.useMemo(() => {
     return calculateObservationMapHeight({
       breakpoint: responsive.breakpoint,
@@ -565,6 +579,131 @@ export default function Species({
     }) as [string, string, string, string];
   }, [selectedCircularColormap]);
 
+  // A slice (a histogram-bucket highlight from the environment chart) is a
+  // more specific signal than "in view" — when one is active, show exactly
+  // what's sliced instead of whatever the map viewport happens to contain.
+  const gallerySourceCatalogs = React.useMemo(() => {
+    if (highlightedCatalogs.length > 0) {
+      return highlightedCatalogs.map((catalog) => String(catalog));
+    }
+    return occurrences
+      .filter((occ) => {
+        if (!mapBounds) return true;
+        return !(
+          occ.latitude < mapBounds.south ||
+          occ.latitude > mapBounds.north ||
+          occ.longitude < mapBounds.west ||
+          occ.longitude > mapBounds.east
+        );
+      })
+      .map((occ) => String(occ.catalogNumber));
+  }, [occurrences, highlightedCatalogs, mapBounds]);
+
+  // responsive.contentWidth is a fixed 75rem cap shared by every breakpoint
+  // (see wdsResponsiveTokens) — not the actual on-screen width, which on
+  // phone is the real device width. Use whichever is smaller so the column
+  // math reflects what's actually visible, not the desktop-sized cap.
+  const galleryAvailableWidth = Math.min(
+    responsive.contentWidth,
+    viewportWidth - responsive.marginHorizontal * 2,
+  );
+  const galleryCardSize: ObservationCardSize =
+    responsive.breakpoint === 'phone' ? 'compact' : 'default';
+  const galleryCardWidth =
+    galleryCardSize === 'compact'
+      ? OBSERVATION_CARD_COMPACT_WIDTH
+      : OBSERVATION_CARD_WIDTH;
+  // How many cards fit per row at the current width, times 3 rows — the
+  // gallery always shows exactly 3 rows' worth per page, however many cards
+  // that ends up being for the viewport.
+  const galleryColumns = Math.max(
+    1,
+    Math.floor(
+      (galleryAvailableWidth + GALLERY_CARD_GAP) /
+        (galleryCardWidth + GALLERY_CARD_GAP),
+    ),
+  );
+  const galleryPageSize = galleryColumns * GALLERY_ROWS;
+
+  const [galleryPage, setGalleryPage] = React.useState(0);
+
+  React.useEffect(() => {
+    setGalleryPage(0);
+  }, [gallerySourceCatalogs]);
+
+  const occurrenceByCatalog = React.useMemo(
+    () =>
+      new Map(
+        occurrences.map((occ) => [String(occ.catalogNumber), occ] as const),
+      ),
+    [occurrences],
+  );
+
+  const handleGalleryCardPress = React.useCallback(
+    (catalogNumber: string) => {
+      const occ = occurrenceByCatalog.get(catalogNumber);
+      if (!occ) return;
+      handlePinObservation(catalogNumber, occ.latitude, occ.longitude);
+    },
+    [occurrenceByCatalog, handlePinObservation],
+  );
+
+  const galleryPoints = React.useMemo<ObservationGalleryPoint[]>(() => {
+    const isCategorical = isVariableCategorical(selectedVariableMeta);
+    const isCircular = isVariableCircular(selectedVariableMeta);
+    const inputs: ObservationVarFieldsInputs = {
+      observationValues,
+      classColors,
+      classLabels,
+      isCircular,
+      dotMin: obsDotMin,
+      dotMax: obsDotMax,
+      gradientStops:
+        selectedVariableMeta && !isCategorical && !isCircular
+          ? COLORMAPS[selectedColormap].stops
+          : null,
+      aspectStops:
+        selectedVariableMeta && isCircular
+          ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+          : null,
+      varUnits:
+        selectedVariableMeta && !isCategorical && !isCircular
+          ? (selectedVariableMeta.units ?? null)
+          : null,
+    };
+
+    const start = galleryPage * galleryPageSize;
+    return gallerySourceCatalogs
+      .slice(start, start + galleryPageSize)
+      .map((catalogNumber) => {
+        const { varValue, varColor, varLabel } = resolveObservationVarFields(
+          catalogNumber,
+          inputs,
+        );
+        return {
+          catalogNumber,
+          catalogAutoGenerated:
+            occurrenceByCatalog.get(catalogNumber)?.catalogAutoGenerated,
+          varValue,
+          varColor,
+          varLabel,
+        };
+      });
+  }, [
+    gallerySourceCatalogs,
+    galleryPage,
+    galleryPageSize,
+    occurrenceByCatalog,
+    selectedVariableMeta,
+    observationValues,
+    classColors,
+    classLabels,
+    obsDotMin,
+    obsDotMax,
+    selectedColormap,
+    selectedCircularColormap,
+  ]);
+
   const speciesPath = React.useMemo(() => {
     if (Platform.OS === 'web' && pathname.startsWith('/species/')) {
       return pathname;
@@ -592,7 +731,11 @@ export default function Species({
   const selectedMapPoint = React.useMemo(
     () =>
       pinnedObservation != null
-        ? { lat: pinnedObservation.lat, lon: pinnedObservation.lon }
+        ? {
+            lat: pinnedObservation.lat,
+            lon: pinnedObservation.lon,
+            catalogNumber: pinnedObservation.catalogNumber,
+          }
         : null,
     [pinnedObservation],
   );
@@ -864,6 +1007,21 @@ export default function Species({
               </MapScrollLockWrapper>
             )}
           </View>
+
+          {shouldRenderOccurrenceMap && (
+            <SectionShell responsive={responsive}>
+              <SpeciesObservationGallery
+                points={galleryPoints}
+                loading={occurrenceLoading}
+                onCardPress={handleGalleryCardPress}
+                cardSize={galleryCardSize}
+                page={galleryPage}
+                onPageChange={setGalleryPage}
+                pageSize={galleryPageSize}
+                totalCount={gallerySourceCatalogs.length}
+              />
+            </SectionShell>
+          )}
         </PageScrollContainer>
       </PageSurface>
     </>

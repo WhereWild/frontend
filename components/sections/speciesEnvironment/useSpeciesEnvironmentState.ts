@@ -37,7 +37,7 @@ const SPECIES_CATEGORY_REMAP: Record<string, string> = {
 /** Inputs for orchestrating full SpeciesEnvironmentSection state. */
 type UseSpeciesEnvironmentStateParams = {
   /** Taxon ID for all environment/statistics queries. */
-  taxonId?: number;
+  taxonId?: string;
   /** Initial variable id requested by parent component. */
   variableId: string;
   /** Optional external variable definitions. */

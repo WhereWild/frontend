@@ -121,7 +121,7 @@ export const resolveParentLookup = ({
 };
 
 export const buildLocationCacheKey = (
-  taxonId: number,
+  taxonId: string,
   level: LocationLevel,
   parentCacheIdentity: string,
   locationSearchLimit: number,

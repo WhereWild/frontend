@@ -13,7 +13,7 @@ import { isValidHistogramContract } from './model';
 /** Inputs for loading environment stats for one variable. */
 type UseEnvironmentStatsParams = {
   /** Taxon ID used for environment stats endpoint calls. */
-  taxonId?: number;
+  taxonId?: string;
   /** Active variable id to load. */
   selectedVariable: string;
   /** Optional location filter gid. */

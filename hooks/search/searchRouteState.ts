@@ -363,9 +363,11 @@ export const toInitialSearchFilterState = (
   const location = toLocationInitialState(
     toSingleRouteParamValue(params.location),
   );
-  const withinTaxonId = toNumberParam(
-    toSingleRouteParamValue(params.withinTaxonId),
-  );
+  const withinTaxonIdRaw = toSingleRouteParamValue(params.withinTaxonId);
+  const withinTaxonId =
+    typeof withinTaxonIdRaw === 'string' && withinTaxonIdRaw.trim().length > 0
+      ? withinTaxonIdRaw.trim()
+      : undefined;
   const rawDescendantRank = toSingleRouteParamValue(params.descendantRank);
   const includeSpeciesLike = toSingleRouteParamValue(params.includeSpeciesLike);
   const descendantRank =

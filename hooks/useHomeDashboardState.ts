@@ -102,17 +102,26 @@ const normalizeActiveGroup = (
   return availableGroups.has(group) ? group : 'all';
 };
 
+// Returns null (dropping the item) rather than defaulting to a placeholder
+// taxonId — a species with no resolvable ID has nothing valid to link to,
+// and a fallback like 0 would silently produce a card that "works" (routes
+// somewhere) but points at the wrong species.
 const mapSpeciesWithModelToSummary = (
   item: SpeciesApiNormalized,
-): SpeciesSummary => ({
-  taxonId: item.taxon_id ?? 0,
-  commonName: item.common_name?.trim() || item.scientific_name,
-  commonNames: item.common_names ?? [],
-  scientificName: item.scientific_name?.trim() || '',
-  description: '',
-  imageSource: item.image_source ? { uri: item.image_source } : undefined,
-  taxonGroup: item.taxon_group ?? null,
-});
+): SpeciesSummary | null => {
+  if (!item.taxon_id) {
+    return null;
+  }
+  return {
+    taxonId: item.taxon_id,
+    commonName: item.common_name?.trim() || item.scientific_name,
+    commonNames: item.common_names ?? [],
+    scientificName: item.scientific_name?.trim() || '',
+    description: '',
+    imageSource: item.image_source ? { uri: item.image_source } : undefined,
+    taxonGroup: item.taxon_group ?? null,
+  };
+};
 
 const rankRecommendationsForViewport = (
   species: SpeciesSummary[],
@@ -125,7 +134,7 @@ const rankRecommendationsForViewport = (
   });
   const scored = sorted.map((item) => withScoreReason(item, reasons));
 
-  const pinnedIds = new Set<number>();
+  const pinnedIds = new Set<string>();
   const pinned = HOMEPAGE_GROUP_ORDER.flatMap((group) => {
     const representative = scored.find((item) => item.taxonGroup === group);
     if (!representative) {
@@ -271,7 +280,9 @@ export function useHomeDashboardState(
           return;
         }
 
-        const mappedItems = items.map(mapSpeciesWithModelToSummary);
+        const mappedItems = items
+          .map(mapSpeciesWithModelToSummary)
+          .filter((item): item is SpeciesSummary => item !== null);
         const latestBounds = latestBoundsRef.current;
 
         if (!latestBounds) {

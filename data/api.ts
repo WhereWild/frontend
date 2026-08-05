@@ -231,14 +231,17 @@ export async function fetchSpeciesByTaxonId(
  */
 export async function fetchSpeciesObscured(
   taxonId: string | number,
-): Promise<{ taxon_id: number; all_obscured: boolean }> {
+): Promise<{ taxon_id: string; all_obscured: boolean }> {
   const encoded = encodeURIComponent(String(taxonId));
   const item = (await fetchJsonOrThrow(
     `${BACKEND_BASE}/api/species/${encoded}/obscured`,
     `Failed to fetch obscured status for species ${taxonId}`,
   )) as Record<string, unknown>;
   return {
-    taxon_id: typeof item.taxon_id === 'number' ? item.taxon_id : Number(taxonId),
+    taxon_id:
+      typeof item.taxon_id === 'string' || typeof item.taxon_id === 'number'
+        ? String(item.taxon_id)
+        : String(taxonId),
     all_obscured: item.all_obscured === true,
   };
 }

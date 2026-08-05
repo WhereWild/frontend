@@ -7,7 +7,7 @@ import {
   asRecord,
   BACKEND_BASE,
   fetchJsonOrThrow,
-  parseNumericTaxonId,
+  parseTaxonId,
   toRequiredNumber,
   toRequiredString,
 } from './apiShared';
@@ -15,7 +15,7 @@ import {
 
 /** Query params for ranking options requests. */
 export type RelativeRankingOptionsParams = {
-  taxonId: number | string;
+  taxonId: string;
   rank: string;
 };
 
@@ -62,8 +62,8 @@ export async function fetchRelativeRankingOptions(
     : [];
 
   const ancestorTaxonId =
-    parseNumericTaxonId(payload.ancestor_taxon_id ?? payload.ancestorTaxonId) ??
-    parseNumericTaxonId(taxonId);
+    parseTaxonId(payload.ancestor_taxon_id ?? payload.ancestorTaxonId) ??
+    parseTaxonId(taxonId);
   if (ancestorTaxonId == null) {
     throw new Error(
       'Failed to fetch ranking options: missing ancestor_taxon_id in response',

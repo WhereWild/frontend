@@ -8,7 +8,7 @@ import {
   asRecord,
   BACKEND_BASE,
   fetchJsonOrThrow,
-  parseNumericTaxonId,
+  parseTaxonId,
   toOptionalString,
   toRequiredNumber,
 } from './apiShared';
@@ -69,7 +69,7 @@ const normalizeTaxaQueryResult = (entry: unknown): TaxaQueryResult => {
 export type TaxaQueryParams = {
   q?: string | null;
   withinTaxon?: string | number | null;
-  withinTaxonId?: number | null;
+  withinTaxonId?: string | null;
   descendantRank?: string | null;
   sortVariable?: string | null;
   sortMetric?: string | null;
@@ -211,7 +211,7 @@ export async function fetchTaxaQuery(
           scope.within_taxon_id ??
           scope.withinTaxonId,
       ),
-      withinTaxonId: parseNumericTaxonId(
+      withinTaxonId: parseTaxonId(
         scope.within_taxon_id ??
           scope.withinTaxonId ??
           scope.within_taxon ??

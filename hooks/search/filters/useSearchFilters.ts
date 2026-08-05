@@ -23,7 +23,7 @@ import type {
   UseSearchFiltersResult,
 } from './useSearchFilters.types';
 
-const baseTaxonLabelCache = new Map<number, string>();
+const baseTaxonLabelCache = new Map<string, string>();
 
 const areOptionsEqual = (
   left: { label: string; value: string }[] = [],

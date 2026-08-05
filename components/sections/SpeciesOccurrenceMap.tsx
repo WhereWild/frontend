@@ -147,7 +147,7 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
-  selectedPoint?: { lat: number; lon: number } | null;
+  selectedPoint?: { lat: number; lon: number; catalogNumber?: string } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   // A full snapshot of currently-visible nominal classes, not an
   // incremental delta — see TileClassesMessage's doc comment.
@@ -764,7 +764,11 @@ export function SpeciesOccurrenceMap({
     () =>
       toSelectedPointMessagePayload(
         selectedPoint
-          ? { latitude: selectedPoint.lat, longitude: selectedPoint.lon }
+          ? {
+              latitude: selectedPoint.lat,
+              longitude: selectedPoint.lon,
+              catalogNumber: selectedPoint.catalogNumber,
+            }
           : null,
       ),
     [selectedPoint],

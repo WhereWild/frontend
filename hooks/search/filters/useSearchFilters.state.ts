@@ -19,7 +19,7 @@ export type SearchFilterLocationInitialState = {
 };
 
 export type SearchFilterTaxonInitialState = {
-  ancestorTaxonId?: number | null;
+  ancestorTaxonId?: string | null;
   baseTaxonQuery?: string;
 };
 
@@ -96,7 +96,7 @@ export type SearchFiltersState = {
   countryLoading: boolean;
   stateLoading: boolean;
   countyLoading: boolean;
-  ancestorTaxonId: number | null;
+  ancestorTaxonId: string | null;
   baseTaxonQuery: string;
   baseTaxonFocused: boolean;
   baseTaxonSuggestions: SpeciesSummary[];
@@ -143,8 +143,8 @@ export type SearchFiltersAction =
   | { type: 'set-base-taxon-suggestions'; suggestions: SpeciesSummary[] }
   | { type: 'set-base-taxon-suggestions-loading'; value: boolean }
   | { type: 'set-base-taxon-suggestions-visible'; value: boolean }
-  | { type: 'submit-base-taxon-result'; ancestorTaxonId: number | null }
-  | { type: 'select-base-taxon'; query: string; ancestorTaxonId: number }
+  | { type: 'submit-base-taxon-result'; ancestorTaxonId: string | null }
+  | { type: 'select-base-taxon'; query: string; ancestorTaxonId: string }
   | {
       type: 'hydrate-route-state';
       initialState?: UseSearchFiltersInitialState;
@@ -390,9 +390,8 @@ export const searchFiltersReducer = (
         }
 
         const currentBaseTaxonLabel = state.baseTaxonQuery.trim();
-        const currentRawTaxonId =
-          state.ancestorTaxonId != null ? String(state.ancestorTaxonId) : '';
-        const nextRawTaxonId = String(normalizedState.ancestorTaxonId);
+        const currentRawTaxonId = state.ancestorTaxonId ?? '';
+        const nextRawTaxonId = normalizedState.ancestorTaxonId ?? '';
 
         if (
           state.ancestorTaxonId === normalizedState.ancestorTaxonId &&

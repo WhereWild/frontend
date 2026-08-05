@@ -80,7 +80,7 @@ function UploadSpeciesPreviewSection({
     onStateChange,
     onCountyChange,
   } = useSpeciesLocationFilters({
-    taxonId: UPLOAD_PREVIEW_TAXON_ID,
+    taxonId: String(UPLOAD_PREVIEW_TAXON_ID),
     locationSearchLimit: 500,
   });
 
@@ -105,7 +105,7 @@ function UploadSpeciesPreviewSection({
         onCountyChange={onCountyChange}
       />
       <SpeciesEnvironmentSection
-        taxonId={UPLOAD_PREVIEW_TAXON_ID}
+        taxonId={String(UPLOAD_PREVIEW_TAXON_ID)}
         onHighlightChange={onHighlightChange}
         pinnedObservation={pinnedObservation}
         onVariableMetaChange={onVariableMetaChange}

@@ -84,7 +84,7 @@ export const deriveLocationGid = (
 ) => countyValue || stateValue || countryValue || null;
 
 export const toRankingFilterHint = (
-  ancestorTaxonId: number | null,
+  ancestorTaxonId: string | null,
   rankValue: string,
   sortVariableValue: string,
   sortMetricValue: string,
@@ -119,15 +119,10 @@ export const taxaQueryResultToSummary = (
 
 export const resolveAncestorTaxonId = async (
   query: string,
-): Promise<number | null> => {
+): Promise<string | null> => {
   const trimmed = query.trim();
   if (!trimmed.length) {
     return null;
-  }
-
-  const asNumber = Number(trimmed);
-  if (Number.isInteger(asNumber) && asNumber > 0) {
-    return asNumber;
   }
 
   const response = await fetchTaxaQuery({
@@ -137,7 +132,5 @@ export const resolveAncestorTaxonId = async (
     minSamples: 0,
   });
   const top = response.results[0];
-  const resolved =
-    typeof top?.taxon_id === 'number' ? top.taxon_id : Number(top?.taxon_id);
-  return Number.isFinite(resolved) ? resolved : null;
+  return top?.taxon_id || null;
 };

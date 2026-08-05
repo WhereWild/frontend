@@ -272,6 +272,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       return formatPointValueHtml(pt.varValue, VAR_UNITS);
     }
 
+    // No per-row media/license data exists in occurrences.parquet yet —
+    // shows the same "No data" fallback style used for a missing variable
+    // value. Swap this for a real <img> (object-fit:cover;
+    // object-position:center) + attribution/license line once that data
+    // lands. Mirrors Leaflet's buildObservationMediaHtml.
+    function buildObservationMediaHtml() {
+      return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+    }
+
     function buildOccurrenceFeatureCollection(pointList) {
       return {
         type: 'FeatureCollection',
@@ -985,6 +994,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             varColor: props.rawVarColor,
             varLabel: props.varLabel,
           });
+          if (props.catalogLabel) {
+            html += buildObservationMediaHtml();
+          }
           new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
         }
 

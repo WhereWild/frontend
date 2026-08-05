@@ -5,7 +5,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export type SpeciesIdentifiers = {
-  taxonId: number;
+  taxonId: string;
   scientificName: string;
   commonName: string;
   commonNames: string[];
@@ -235,7 +235,7 @@ export type LocationDetail = LocationSearchResult & {
 };
 
 export type SpeciesApiNormalized = {
-  taxon_id: number | null;
+  taxon_id: string | null;
   scientific_name: string;
   common_name: string;
   common_names: string[];
@@ -408,7 +408,7 @@ export type ExtraVariableFilter =
 
 /** Query parameters for numeric environment slice requests. */
 export type EnvironmentSliceParams = {
-  taxonId: number | string;
+  taxonId: string;
   variableId: string;
   min: number;
   max: number;
@@ -423,7 +423,7 @@ export type EnvironmentSliceParams = {
 };
 
 export type RelativeRankingEntry = {
-  taxonId: number | string;
+  taxonId: string;
   scientificName?: string | null;
   commonName?: string | null;
   image_url?: string | null;
@@ -446,7 +446,7 @@ export type RelativeRankingOption = {
 };
 
 export type RelativeRankingResponse = {
-  ancestorTaxonId: number;
+  ancestorTaxonId: string;
   rank: string;
   variable: string;
   units?: string | null;
@@ -461,7 +461,7 @@ export type RelativeRankingResponse = {
 };
 
 export type RelativeRankingOptionsResponse = {
-  ancestorTaxonId: number;
+  ancestorTaxonId: string;
   rank: string;
   options: RelativeRankingOption[];
 };
@@ -483,7 +483,7 @@ export type TaxaQueryResponse = {
   query?: string | null;
   scope: {
     withinTaxon?: string | null;
-    withinTaxonId?: number | null;
+    withinTaxonId?: string | null;
     descendantRank?: string | null;
     location?: string | null;
     minSamples?: number | null;

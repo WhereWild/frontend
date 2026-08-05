@@ -149,7 +149,7 @@ const resolvePinnedCategoryQueryValue = ({
 /** Inputs for managing observation highlights from environment interactions. */
 type UseEnvironmentHighlightsParams = {
   /** Taxon ID used for slice/category sample requests. */
-  taxonId?: number;
+  taxonId?: string;
   /** Active variable id for highlight queries. */
   selectedVariable: string;
   /** Loaded environment stats for current species/variable. */

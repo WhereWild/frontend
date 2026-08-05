@@ -142,7 +142,12 @@ export type PinObservationMessage = {
 
 export type SelectedPointMessage = {
   type: typeof SELECTED_POINT_MESSAGE_TYPE;
-  point: { latitude: number; longitude: number } | null;
+  point: {
+    latitude: number;
+    longitude: number;
+    /** When known (e.g. selecting from the observation gallery), matches the marker by identity instead of by lat/lon proximity — immune to duplicate coordinates or float precision. */
+    catalogNumber?: string;
+  } | null;
 };
 
 export type OpenExternalUrlMessage = {
@@ -224,7 +229,11 @@ export const toHighlightMessagePayload = (
 });
 
 export const toSelectedPointMessagePayload = (
-  point: { latitude: number; longitude: number } | null,
+  point: {
+    latitude: number;
+    longitude: number;
+    catalogNumber?: string;
+  } | null,
 ): SelectedPointMessage => ({
   type: SELECTED_POINT_MESSAGE_TYPE,
   point,
@@ -311,6 +320,114 @@ const computePointVarFields = (
         ? aspectToCardinalShape(varValue)
         : null;
   return { varValue, varColor, varLabel, varShape };
+};
+
+// Ports of SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html's
+// gradientColor/aspectColor/safeT — the continuous/circular dot-color math
+// only ever lived inside the WebView's JS. Anything outside the map (e.g.
+// the below-map observation gallery) that needs to render the exact same
+// dot color a point gets on the map/popup must go through these, not
+// reimplement the interpolation.
+export const interpolateGradientStops = (
+  t: number,
+  stops: readonly (readonly [number, number, number])[],
+): string => {
+  const n = stops.length - 1;
+  const i = Math.min(Math.floor(t * n), n - 1);
+  const f = t * n - i;
+  const c0 = stops[i];
+  const c1 = stops[i + 1];
+  return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
+};
+
+export const interpolateAspectStops = (
+  deg: number,
+  stops: readonly (readonly [number, number, number])[],
+): string => {
+  const n = stops.length;
+  const t = (((deg % 360) + 360) % 360) / 360;
+  const fi = t * n;
+  const i = Math.floor(fi) % n;
+  const f = fi - Math.floor(fi);
+  const c0 = stops[i];
+  const c1 = stops[(i + 1) % n];
+  return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
+};
+
+export const safeGradientT = (val: number, lo: number, hi: number): number =>
+  lo < hi ? Math.max(0, Math.min(1, (val - lo) / (hi - lo))) : 0;
+
+export type ObservationVarFields = {
+  varValue: number | null;
+  varColor: string | null;
+  varLabel: string | null;
+};
+
+export type ObservationVarFieldsInputs = {
+  observationValues: Map<string, number> | null;
+  classColors: Map<string, string> | null;
+  classLabels: Map<string, string> | null;
+  isCircular: boolean;
+  dotMin: number | null;
+  dotMax: number | null;
+  gradientStops: readonly (readonly [number, number, number])[] | null;
+  aspectStops: readonly (readonly [number, number, number])[] | null;
+  varUnits: string | null;
+};
+
+// Non-map counterpart to computePointVarFields above — used by the below-map
+// observation gallery, which renders outside the WebView and so can't fall
+// back on buildObservationValueHtml's gradientColor/aspectColor for
+// continuous/circular variables the way the map popups do. Formatting
+// (decimal places, degree symbol, units placement) intentionally mirrors
+// buildObservationValueHtml exactly so gallery cards read the same as the
+// popup for the same point.
+export const resolveObservationVarFields = (
+  catalog: string,
+  inputs: ObservationVarFieldsInputs,
+): ObservationVarFields => {
+  const varValue = inputs.observationValues?.get(catalog) ?? null;
+  if (varValue == null) {
+    return { varValue: null, varColor: null, varLabel: null };
+  }
+
+  if (inputs.classColors) {
+    const classKey = String(Math.round(varValue));
+    return {
+      varValue,
+      varColor: inputs.classColors.get(classKey) ?? null,
+      varLabel: inputs.classLabels?.get(classKey) ?? null,
+    };
+  }
+
+  if (inputs.isCircular) {
+    const fmt = varValue.toLocaleString(undefined, {
+      maximumFractionDigits: 1,
+    });
+    return {
+      varValue,
+      varColor: inputs.aspectStops
+        ? interpolateAspectStops(varValue, inputs.aspectStops)
+        : null,
+      varLabel: `${fmt}°`,
+    };
+  }
+
+  if (inputs.dotMin != null && inputs.dotMax != null && inputs.gradientStops) {
+    const t = safeGradientT(varValue, inputs.dotMin, inputs.dotMax);
+    const units = inputs.varUnits ? ` ${inputs.varUnits}` : '';
+    const fmt =
+      Math.abs(varValue) >= 1000
+        ? varValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : varValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return {
+      varValue,
+      varColor: interpolateGradientStops(t, inputs.gradientStops),
+      varLabel: `${fmt}${units}`,
+    };
+  }
+
+  return { varValue, varColor: null, varLabel: null };
 };
 
 export const preparePointsForMapHtml = (

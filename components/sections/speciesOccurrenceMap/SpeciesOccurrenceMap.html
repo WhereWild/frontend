@@ -1290,13 +1290,22 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       return '';
     }
 
+    // No per-row media/license data exists in occurrences.parquet yet —
+    // shows the same "No data" fallback style used for a missing variable
+    // value. Swap this for a real <img> (object-fit:cover;
+    // object-position:center) + attribution/license line once that data
+    // lands.
+    function buildObservationMediaHtml() {
+      return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+    }
+
     function buildObservationPopupContent(catalogHref, catalogLabel, varValue, varColor, varLabel, varShape) {
       var inatHtml = catalogLabel
         ? (LINK_OBSERVATIONS && catalogHref
             ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
             : '<span>Observation #' + catalogLabel + '</span>')
         : '';
-      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel, varShape);
+      return inatHtml + buildObservationValueHtml(varValue, varColor, varLabel, varShape) + buildObservationMediaHtml();
     }
 
     function sendPinMessage(catalogNumber, latitude, longitude) {
@@ -1558,8 +1567,17 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       }
 
       const alignedLongitude = alignLongitudeToView(longitude, map.getCenter().lng);
+      // Prefer an exact catalog match (e.g. selecting from the observation
+      // gallery, which knows the catalogNumber) over lat/lon proximity —
+      // immune to duplicate coordinates and float precision, and the only
+      // option that works when the map's coordinate hasn't been recomputed
+      // (e.g. alignedLongitude) to match exactly. Falls back to lat/lon for
+      // the map-click "point:" flow, which has no catalogNumber.
       const matchingEntry = markerEntries
-        ? markerEntries.find(function(e) {
+        ? (point.catalogNumber
+            ? markerEntries.find(function(e) { return e.key === point.catalogNumber; })
+            : null) ||
+          markerEntries.find(function(e) {
             return Math.abs(e.latitude - latitude) < 1e-6 &&
                    Math.abs(e.longitude - longitude) < 1e-6;
           })
@@ -1714,10 +1732,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         if (!catalogLabel) {
           return '';
         }
-        if (LINK_OBSERVATIONS && catalogHref) {
-          return '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>';
-        }
-        return '<span>Observation #' + catalogLabel + '</span>';
+        var inatHtml = (LINK_OBSERVATIONS && catalogHref)
+          ? '<a href="https://www.inaturalist.org/observations/' + catalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + catalogLabel + '</a>'
+          : '<span>Observation #' + catalogLabel + '</span>';
+        return inatHtml + buildObservationMediaHtml();
       }
 
       function fetchAndShowPointValue(marker, inatHtml, latitude, longitude) {
@@ -1776,7 +1794,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             } else {
               valueHtml = '<span style="opacity:0.6;font-size:11px">No data</span>';
             }
-            marker.getPopup().setContent((inatHtml || '') + valueHtml);
+            marker.getPopup().setContent((inatHtml || '') + valueHtml + buildObservationMediaHtml());
           })
           .catch(function() {
             if (marker.isPopupOpen()) marker.getPopup().setContent((inatHtml || '') + '<span style="opacity:0.6;font-size:11px">Offline</span>');
@@ -1811,7 +1829,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             }
             if (!marker.isPopupOpen()) marker.openPopup();
           } else if (isVariableColorMode()) {
-            var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>';
+            var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' + buildObservationMediaHtml();
             var popup = marker.getPopup();
             if (!popup) {
               marker.bindPopup(content);

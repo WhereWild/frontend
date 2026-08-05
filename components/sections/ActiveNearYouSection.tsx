@@ -104,7 +104,7 @@ export function ActiveNearYouSection({
           <SpeciesCard
             loading
             loadingPatternSeed={item.index}
-            taxonId={0}
+            taxonId=''
             commonName=''
             scientificName=''
             interactionMode='press-only'

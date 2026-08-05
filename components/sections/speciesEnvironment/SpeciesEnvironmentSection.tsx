@@ -42,7 +42,7 @@ const SLICEABLE_RANKS = new Set([
 /** Props for rendering the species environment analytics section. */
 export type SpeciesEnvironmentSectionProps = {
   /** Taxon ID used to fetch environment statistics. */
-  taxonId?: number;
+  taxonId?: string;
   /** Taxon rank string as returned by the backend (e.g. 'SPECIES', 'GENUS'). */
   taxonRank?: string | null;
   /** True when the taxon exceeds the observation threshold — disables slicing and filtering. */

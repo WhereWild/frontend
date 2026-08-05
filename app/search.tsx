@@ -44,7 +44,7 @@ const RESULTS_COLUMN_MIN_WIDTH = 300;
 const FILTER_SLIDE_OFFSET = FILTERS_COLUMN_MAX_WIDTH;
 
 type PersistedSearchFiltersStateInput = {
-  ancestorTaxonId: number | null;
+  ancestorTaxonId: string | null;
   baseTaxonQuery: string;
   countryOptions: SelectOption[];
   countryValue: string;
@@ -386,7 +386,7 @@ export default function Search() {
           <SpeciesCard
             loading
             loadingPatternSeed={index}
-            taxonId={0}
+            taxonId=''
             commonName=''
             scientificName=''
             interactionMode='press-only'

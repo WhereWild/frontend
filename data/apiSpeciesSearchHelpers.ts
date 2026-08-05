@@ -8,7 +8,7 @@ import {
   BACKEND_BASE,
   asRecord,
   fetchJsonOrThrow,
-  parseNumericTaxonId,
+  parseTaxonId,
 } from './apiShared';
 
 /**
@@ -18,7 +18,7 @@ import {
  */
 export function normalizeToJsonShape(item: unknown): SpeciesApiNormalized {
   const source = asRecord(item);
-  const normalizedTaxonId = parseNumericTaxonId(source.taxon_id);
+  const normalizedTaxonId = parseTaxonId(source.taxon_id);
   const directImageSource =
     (typeof source.image_source === 'string' ? source.image_source : null) ??
     (typeof source.imageSource === 'string' ? source.imageSource : null);
