@@ -26,6 +26,8 @@ export type LocationOptions = {
   startTs?: number | null;
   endTs?: number | null;
   extra?: ExtraVariableFilter[] | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — matches the backend's `polygon` query param. */
+  polygon?: string | null;
 };
 
 export type CategorySampleOptions = {
@@ -36,6 +38,8 @@ export type CategorySampleOptions = {
   startTs?: number | null;
   endTs?: number | null;
   extra?: ExtraVariableFilter[] | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — matches the backend's `polygon` query param. */
+  polygon?: string | null;
 };
 
 /** Serializes chained per-variable filters into the `extra` query param the
@@ -87,6 +91,9 @@ export async function fetchSpeciesEnvironment(
   if (options?.endTs != null) {
     params.set('end_ts', String(options.endTs));
   }
+  if (options?.polygon) {
+    params.set('polygon', options.polygon);
+  }
   const serializedStatsExtra = serializeExtraFilters(options?.extra);
   if (serializedStatsExtra) {
     params.set('extra', serializedStatsExtra);
@@ -118,6 +125,7 @@ export async function fetchEnvironmentRangeSlice(
     startTs,
     endTs,
     extra,
+    polygon,
   } = params;
   const encodedId = encodeURIComponent(String(taxonId));
   const encodedVariable = encodeURIComponent(variableId);
@@ -142,6 +150,9 @@ export async function fetchEnvironmentRangeSlice(
   }
   if (endTs != null) {
     query.set('end_ts', String(endTs));
+  }
+  if (polygon) {
+    query.set('polygon', polygon);
   }
   const serializedExtra = serializeExtraFilters(extra);
   if (serializedExtra) {
@@ -191,6 +202,9 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   }
   if (options?.endTs != null) {
     query.set('end_ts', String(options.endTs));
+  }
+  if (options?.polygon) {
+    query.set('polygon', options.polygon);
   }
   const serializedExtra = serializeExtraFilters(options?.extra);
   if (serializedExtra) {

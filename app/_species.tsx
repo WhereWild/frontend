@@ -23,6 +23,7 @@ import {
   toggleFullscreenElement,
   resolveObservationVarFields,
   isPointInPolygon,
+  encodePolygonsParam,
 } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import type { ObservationVarFieldsInputs } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
@@ -429,6 +430,23 @@ export default function Species({
       ),
     );
   }, [occurrencesBeforeRegionFilter, drawnPolygons]);
+
+  // Same drawnPolygons a drawn region filters the map/gallery by
+  // client-side (see `occurrences` above), encoded for the backend's
+  // `polygon` query param — this is what lets the density graphs/
+  // histograms in SpeciesEnvironmentSection reflect the drawn region too,
+  // the one thing the client-side filter above can't reach on its own.
+  // Deliberately NOT gated on isDrawingRegion: while a new shape is being
+  // drawn, the already-committed region set here hasn't changed, so the
+  // stats should keep reflecting it the whole time, same as `occurrences`
+  // does for the gallery.
+  const encodedRegionPolygon = React.useMemo(() => {
+    const activePolygons = drawnPolygons?.filter((ring) => ring.length >= 3);
+    if (!activePolygons || activePolygons.length === 0) {
+      return null;
+    }
+    return encodePolygonsParam(activePolygons);
+  }, [drawnPolygons]);
 
   // While a new region is actively being drawn, show the unfiltered set on
   // the map instead of `occurrences` — otherwise, once one region already
@@ -1091,6 +1109,7 @@ export default function Species({
                   phenology={selectedPhenology}
                   startTimestamp={startTimestamp}
                   endTimestamp={endTimestamp}
+                  polygon={encodedRegionPolygon}
                   units={units}
                   pinnedObservation={pinnedObservation}
                 />

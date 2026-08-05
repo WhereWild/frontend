@@ -62,6 +62,8 @@ export type SpeciesEnvironmentSectionProps = {
   /** Optional timestamp range filter (Unix seconds). */
   startTimestamp?: number | null;
   endTimestamp?: number | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — a drawn/uploaded map region, unioned server-side. */
+  polygon?: string | null;
   units?: 'metric' | 'imperial' | undefined;
   pinnedObservation?: {
     catalogNumber: string;
@@ -83,6 +85,7 @@ function SpeciesEnvironmentSectionComponent({
   phenology,
   startTimestamp,
   endTimestamp,
+  polygon,
   units,
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
@@ -149,7 +152,7 @@ function SpeciesEnvironmentSectionComponent({
     >['homeUnobservedCategory'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
-  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${startTimestamp ?? ''}|${endTimestamp ?? ''}|${units ?? ''}`;
+  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${startTimestamp ?? ''}|${endTimestamp ?? ''}|${polygon ?? ''}|${units ?? ''}`;
 
   if (stableContentScopeRef.current !== stableContentScope) {
     stableContentScopeRef.current = stableContentScope;
@@ -213,6 +216,7 @@ function SpeciesEnvironmentSectionComponent({
     phenology,
     startTimestamp,
     endTimestamp,
+    polygon,
     units,
     pinnedObservation,
     slicingEnabled,

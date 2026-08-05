@@ -163,6 +163,8 @@ type UseEnvironmentHighlightsParams = {
   /** Optional timestamp range filter (Unix seconds). */
   startTimestamp?: number | null;
   endTimestamp?: number | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — a drawn/uploaded map region, unioned server-side. */
+  polygon?: string | null;
   /** Unit system forwarded to backend highlight endpoints. */
   units?: 'metric' | 'imperial' | undefined;
   /** Callback receiving highlighted catalog numbers. */
@@ -187,6 +189,7 @@ export function useEnvironmentHighlights({
   phenology,
   startTimestamp,
   endTimestamp,
+  polygon,
   units,
   onHighlightChange,
   pinnedObservation,
@@ -374,6 +377,7 @@ export function useEnvironmentHighlights({
     endTimestamp,
     locationGid,
     phenology,
+    polygon,
     resetHighlightState,
     startTimestamp,
     taxonId,
@@ -520,6 +524,7 @@ export function useEnvironmentHighlights({
     endTimestamp,
     locationGid,
     phenology,
+    polygon,
     resetPinnedState,
     selectedVariable,
     startTimestamp,
@@ -641,6 +646,7 @@ export function useEnvironmentHighlights({
                   phenology: phenology ?? undefined,
                   startTs: startTimestamp ?? undefined,
                   endTs: endTimestamp ?? undefined,
+                  polygon: polygon ?? undefined,
                 },
               );
             if (pinnedRequestRef.current !== requestId) {
@@ -678,6 +684,7 @@ export function useEnvironmentHighlights({
     isCategorical,
     phenology,
     pinnedObservation,
+    polygon,
     resetPinnedState,
     selectedDensityRanges,
     selectedVariable,
@@ -814,6 +821,7 @@ export function useEnvironmentHighlights({
               {
                 location: locationGid ?? undefined,
                 units,
+                polygon: polygon ?? undefined,
                 extra: activeChain.map((f) => f.extra),
               },
             );
@@ -855,6 +863,7 @@ export function useEnvironmentHighlights({
       categorySamplesByValue,
       isCategorical,
       locationGid,
+      polygon,
       selectedVariable,
       stats?.categoricalSamples,
       speciesDataSource,
@@ -1216,6 +1225,7 @@ export function useEnvironmentHighlights({
                 phenology: phenology ?? undefined,
                 startTs: startTimestamp ?? undefined,
                 endTs: endTimestamp ?? undefined,
+                polygon: polygon ?? undefined,
                 extra: activeChain.map((f) => f.extra),
               }),
             ),
@@ -1263,6 +1273,7 @@ export function useEnvironmentHighlights({
       locationGid,
       phenology,
       endTimestamp,
+      polygon,
       selectedVariable,
       slicingEnabled,
       speciesDataSource,
@@ -1409,7 +1420,12 @@ export function useEnvironmentHighlights({
                   taxonId,
                   primary.variableId,
                   classValue,
-                  { location: locationGid ?? undefined, units, extra },
+                  {
+                    location: locationGid ?? undefined,
+                    units,
+                    polygon: polygon ?? undefined,
+                    extra,
+                  },
                 ),
               ),
             );
@@ -1439,7 +1455,12 @@ export function useEnvironmentHighlights({
               taxonId,
               primary.variableId,
               primary.extra.classValue,
-              { location: locationGid ?? undefined, units, extra },
+              {
+                location: locationGid ?? undefined,
+                units,
+                polygon: polygon ?? undefined,
+                extra,
+              },
             );
           if (cancelled) {
             return;
@@ -1470,6 +1491,7 @@ export function useEnvironmentHighlights({
                   phenology: phenology ?? undefined,
                   startTs: startTimestamp ?? undefined,
                   endTs: endTimestamp ?? undefined,
+                  polygon: polygon ?? undefined,
                   extra,
                 }),
               );
@@ -1516,6 +1538,7 @@ export function useEnvironmentHighlights({
               phenology: phenology ?? undefined,
               startTs: startTimestamp ?? undefined,
               endTs: endTimestamp ?? undefined,
+              polygon: polygon ?? undefined,
               extra,
             }),
           ),
@@ -1557,6 +1580,7 @@ export function useEnvironmentHighlights({
     phenology,
     startTimestamp,
     endTimestamp,
+    polygon,
     units,
     slicingEnabled,
     speciesDataSource,

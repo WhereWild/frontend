@@ -443,6 +443,8 @@ export type EnvironmentSliceParams = {
   endTs?: number | null;
   /** Additional variable filters ANDed onto this slice — see chained-slice support. */
   extra?: ExtraVariableFilter[] | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — matches the backend's `polygon` query param. */
+  polygon?: string | null;
 };
 
 export type RelativeRankingEntry = {

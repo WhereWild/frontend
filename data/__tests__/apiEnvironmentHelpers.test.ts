@@ -4,6 +4,7 @@
 
 import {
   fetchEnvironmentRangeSlice,
+  fetchSpeciesEnvironment,
   fetchSpeciesEnvironmentCategorySamples,
 } from '../apiEnvironmentHelpers';
 
@@ -118,5 +119,58 @@ describe('chained extra-variable filters (extra query param)', () => {
       { variable: 'kg2', classValue: 1 },
       { variable: 'elevation', min: 500, max: 1500 },
     ]);
+  });
+});
+
+describe('polygon region filter query param', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  const calledUrl = () => (global.fetch as jest.Mock).mock.calls[0][0] as string;
+  const ENCODED = '_p~iF~ps|U_ulLnnqC';
+
+  it('omits polygon from an environment-stats request when not given', async () => {
+    await fetchSpeciesEnvironment('1', 'bio1');
+    expect(calledUrl()).not.toContain('polygon=');
+  });
+
+  it('includes polygon on an environment-stats request', async () => {
+    await fetchSpeciesEnvironment('1', 'bio1', { polygon: ENCODED });
+    const url = new URL(calledUrl());
+    expect(url.searchParams.get('polygon')).toBe(ENCODED);
+  });
+
+  it('includes polygon on a slice request', async () => {
+    await fetchEnvironmentRangeSlice({
+      taxonId: '1',
+      variableId: 'bio1',
+      min: 0,
+      max: 30,
+      polygon: ENCODED,
+    });
+    const url = new URL(calledUrl());
+    expect(url.searchParams.get('polygon')).toBe(ENCODED);
+  });
+
+  it('includes polygon on a category-samples request', async () => {
+    await fetchSpeciesEnvironmentCategorySamples(1, 'kg2', 1, {
+      polygon: ENCODED,
+    });
+    const url = new URL(calledUrl());
+    expect(url.searchParams.get('polygon')).toBe(ENCODED);
   });
 });
