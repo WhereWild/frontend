@@ -35,6 +35,7 @@ jest.mock('@/data/api', () => ({
   fetchEnvironmentRangeSlice: jest.fn(),
   fetchSpeciesEnvironmentCategorySamples: jest.fn(),
   fetchDataSources: jest.fn(() => Promise.resolve({})),
+  fetchOccurrenceLookup: jest.fn(() => Promise.resolve(null)),
 }));
 
 const mockedApiModule = jest.requireMock('@/data/api') as {
@@ -42,11 +43,15 @@ const mockedApiModule = jest.requireMock('@/data/api') as {
   fetchSpeciesEnvironment: jest.Mock;
   fetchEnvironmentRangeSlice: jest.Mock;
   fetchSpeciesEnvironmentCategorySamples: jest.Mock;
+  fetchOccurrenceLookup: jest.Mock;
 };
+
+let mockSearchParams: Record<string, string | undefined> = {};
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/',
+  useLocalSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/components/inputs/SelectField', () => {
@@ -257,6 +262,7 @@ afterEach(() => {
   jest.clearAllMocks();
   restorePlatformOS();
   mockPush.mockClear();
+  mockSearchParams = {};
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
   mockFetchSpeciesOccurrences.mockResolvedValue({
@@ -265,6 +271,7 @@ afterEach(() => {
     maxTimestamp: null,
     phenologyCounts: null,
   });
+  mockedApiModule.fetchOccurrenceLookup.mockResolvedValue(null);
   mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
   mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
   mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
@@ -351,6 +358,7 @@ describe('Species screen', () => {
       fontScale: 1,
     });
     mockUseColorScheme.mockReturnValue('dark');
+    mockSearchParams = {};
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue({
       occurrences: [],
@@ -358,6 +366,7 @@ describe('Species screen', () => {
       maxTimestamp: null,
       phenologyCounts: null,
     });
+    mockedApiModule.fetchOccurrenceLookup.mockResolvedValue(null);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
     mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
     mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({

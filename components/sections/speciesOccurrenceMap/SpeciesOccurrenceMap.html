@@ -1219,6 +1219,13 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
 
     let selectedCatalogKey = null;
     let selectedCatalogDirectMarker = null;
+    // Mirrors whatever point React last told us to select via
+    // SELECTED_POINT_MESSAGE_TYPE (null when nothing's selected) — kept
+    // independent of selectedCatalogKey/selectedCatalogDirectMarker (which
+    // get torn down and rebuilt whenever occurrences itself changes) so
+    // replaceOccurrenceMarkersImpl can reapply the selection after a
+    // rebuild instead of just dropping it.
+    let lastAppliedSelectedPoint = null;
     let refreshVisibleMarkerPresentationImpl = null;
     let rebuildOccurrenceMarkersImpl = null;
     let replaceOccurrenceMarkersImpl = null;
@@ -1551,6 +1558,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     }
 
     function applySelectedPoint(point) {
+      lastAppliedSelectedPoint = point || null;
       if (selectedCatalogDirectMarker) {
         map.removeLayer(selectedCatalogDirectMarker);
         selectedCatalogDirectMarker = null;
@@ -2218,6 +2226,15 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           baseStyleForPoint(entry.pt, update.catalog);
           entry.setStyle(effectiveStyleForCatalog(update.catalog));
         });
+        // selectedCatalogDirectMarker (the pinned/highlighted-ring marker
+        // built by applySelectedPoint) is a standalone marker, not tracked
+        // in markers — the recolor loop above never touches it, so without
+        // this a pinned point's dot color and popup value stayed frozen at
+        // whatever they were when it was first selected, even after
+        // switching variables. matchingEntry is looked up fresh from
+        // markerEntries each call, which the loop above already updated in
+        // place (same object references), so this picks up the new value.
+        applySelectedPoint(lastAppliedSelectedPoint);
       };
 
       // Called from handleHighlightMessage's 'pointsUpdate' handler when
@@ -2254,6 +2271,15 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           map.setView([0, 0], BASE_MIN_ZOOM);
         }
         refreshVisibleMarkerPresentation();
+        // Reapply whatever point React last told us to select — rebuilding
+        // the marker set (above) unconditionally drops the selection, but
+        // occurrences can legitimately change (e.g. a location/phenology
+        // filter refetch, or the not-ingested deep-link flow's occurrences
+        // array settling from a synthetic single point to the full fetched
+        // set) without React itself re-sending SELECTED_POINT_MESSAGE_TYPE,
+        // since from its perspective the selected point never changed.
+        // No-op when nothing was selected (lastAppliedSelectedPoint is null).
+        applySelectedPoint(lastAppliedSelectedPoint);
       };
 
       const observedBounds = buildOccurrenceMarkers(points);
@@ -2378,8 +2404,6 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           .catch(function() {
             if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Offline</span>');
           });
-        return;
-      }
 
       if (!ALLOW_PIN_OBSERVATIONS) {
         map.closePopup();

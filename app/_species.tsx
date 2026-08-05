@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { usePathname } from 'expo-router';
+import { usePathname, useLocalSearchParams } from 'expo-router';
 import {
   PageScrollContainer,
   SpeciesPageTitle,
@@ -45,10 +45,18 @@ import {
   isVariableCircular,
 } from '@/components/sections/speciesEnvironment/model';
 import { useScrollLock } from '@/context/ScrollLockContext';
-import { BACKEND_BASE, parseFilenameFromContentDisposition } from '@/data/api';
+import {
+  BACKEND_BASE,
+  fetchOccurrenceLookup,
+  parseFilenameFromContentDisposition,
+} from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import type {
+  SpeciesPageData,
+  SpeciesOccurrence,
+  OccurrenceLookup,
+} from '@/data/types';
 import {
   deliverProcessedZip,
   getProcessedZipDeliveryStatusMessage,
@@ -210,6 +218,7 @@ export default function Species({
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const pathname = usePathname();
+  const searchParams = useLocalSearchParams<{ highlightObservation?: string }>();
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -268,10 +277,8 @@ export default function Species({
     null,
   );
   const [mapBounds, setMapBounds] = React.useState<MapBounds | null>(null);
-  const [observationValues, setObservationValues] = React.useState<Map<
-    string,
-    number
-  > | null>(null);
+  const [fetchedObservationValues, setFetchedObservationValues] =
+    React.useState<Map<string, number> | null>(null);
   const [obsDotMin, setObsDotMin] = React.useState<number | null>(null);
   const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
   const [obsLabelMin, setObsLabelMin] = React.useState<number | null>(null);
@@ -304,7 +311,7 @@ export default function Species({
   });
 
   const {
-    occurrences,
+    occurrences: fetchedOccurrences,
     loading: occurrenceLoading,
     error: occurrenceError,
     phenologyCounts,
@@ -317,6 +324,77 @@ export default function Species({
     endTimestamp,
   });
 
+  // highlightObservation: deep-linked from /occurrence/{id} (see
+  // app/occurrence/[id].tsx) — resolves the observation via the same
+  // endpoint that redirect used, and when it's not part of this taxon's
+  // normal occurrence set (not yet ingested by GBIF), injects it as a
+  // synthetic occurrence below so the existing map/gallery/popup pipeline
+  // renders it exactly like any other point, with no separate rendering path.
+  const highlightObservationId = React.useMemo(() => {
+    const raw = searchParams.highlightObservation;
+    return typeof raw === 'string' ? raw.trim() : '';
+  }, [searchParams.highlightObservation]);
+
+  const [highlightedOccurrenceLookup, setHighlightedOccurrenceLookup] =
+    React.useState<OccurrenceLookup | null>(null);
+
+  React.useEffect(() => {
+    setHighlightedOccurrenceLookup(null);
+    if (!highlightObservationId) {
+      return;
+    }
+    let cancelled = false;
+    fetchOccurrenceLookup(highlightObservationId)
+      .then((result) => {
+        if (!cancelled) setHighlightedOccurrenceLookup(result);
+      })
+      .catch(() => {
+        if (!cancelled) setHighlightedOccurrenceLookup(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [highlightObservationId]);
+
+  // Only injected when NOT ingested — an already-ingested highlighted
+  // observation is already part of fetchedOccurrences, so adding it again
+  // here would just duplicate it.
+  const highlightedSyntheticOccurrence =
+    React.useMemo<SpeciesOccurrence | null>(() => {
+      if (
+        !highlightedOccurrenceLookup ||
+        highlightedOccurrenceLookup.ingested ||
+        highlightedOccurrenceLookup.latitude == null ||
+        highlightedOccurrenceLookup.longitude == null ||
+        highlightedOccurrenceLookup.taxonId !== taxonId
+      ) {
+        return null;
+      }
+      return {
+        catalogNumber: highlightedOccurrenceLookup.catalogNumber,
+        latitude: highlightedOccurrenceLookup.latitude,
+        longitude: highlightedOccurrenceLookup.longitude,
+        mediaUrl: highlightedOccurrenceLookup.mediaUrl,
+        mediaAttribution: highlightedOccurrenceLookup.mediaAttribution,
+        mediaLicense: highlightedOccurrenceLookup.mediaLicense,
+        mediaLicenseUrl: highlightedOccurrenceLookup.mediaLicenseUrl,
+      };
+    }, [highlightedOccurrenceLookup, taxonId]);
+
+  const occurrences = React.useMemo(() => {
+    if (!highlightedSyntheticOccurrence) {
+      return fetchedOccurrences;
+    }
+    const alreadyPresent = fetchedOccurrences.some(
+      (occ) =>
+        String(occ.catalogNumber) ===
+        highlightedSyntheticOccurrence.catalogNumber,
+    );
+    return alreadyPresent
+      ? fetchedOccurrences
+      : [...fetchedOccurrences, highlightedSyntheticOccurrence];
+  }, [fetchedOccurrences, highlightedSyntheticOccurrence]);
+
   React.useEffect(() => {
     if (phenologyNoData && selectedPhenology) {
       setSelectedPhenology(null);
@@ -328,8 +406,18 @@ export default function Species({
   }, [finalLocationGid, taxonId]);
 
   React.useEffect(() => {
-    setPinnedObservation(null);
-  }, [finalLocationGid, taxonId]);
+    // Don't clear a pin that matches the active highlightObservation deep
+    // link — finalLocationGid can still settle (undefined -> resolved) a
+    // tick after the auto-pin effect below fires, which used to wipe the
+    // pin/popup right back out moments after it appeared.
+    setPinnedObservation((prev) => {
+      const preserved =
+        prev &&
+        highlightObservationId &&
+        String(prev.catalogNumber) === highlightObservationId;
+      return preserved ? prev : null;
+    });
+  }, [finalLocationGid, taxonId, highlightObservationId]);
 
   const [isDownloading, setIsDownloading] = React.useState(false);
 
@@ -397,7 +485,7 @@ export default function Species({
     (meta: EnvironmentVariableOption | null) => {
       setSelectedVariableMeta(meta);
       setPinnedPointValue(null);
-      setObservationValues(null);
+      setFetchedObservationValues(null);
       setObsDotMin(null);
       setObsDotMax(null);
       setObsLabelMin(null);
@@ -419,7 +507,7 @@ export default function Species({
 
   React.useEffect(() => {
     if (!taxonId || !selectedVariableMeta?.id || !shouldRenderOccurrenceMap) {
-      setObservationValues(null);
+      setFetchedObservationValues(null);
       setVariableValuesLoading(false);
       return;
     }
@@ -447,7 +535,7 @@ export default function Species({
               map.set(String(obs.catalogNumber), obs.value);
             }
           }
-          setObservationValues(map);
+          setFetchedObservationValues(map);
           setObsDotMin(
             typeof data.q01 === 'number'
               ? data.q01
@@ -469,13 +557,96 @@ export default function Species({
       )
       .catch(() => {
         if (cancelled) return;
-        setObservationValues(null);
+        setFetchedObservationValues(null);
         setVariableValuesLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [taxonId, selectedVariableMeta, units, shouldRenderOccurrenceMap]);
+
+  // fetchedObservationValues (above) only covers this taxon's normal
+  // ingested occurrences — a not-ingested highlighted observation
+  // (highlightedSyntheticOccurrence) never has an entry there, which is
+  // why its map dot/popup showed as nodata. Look its value up individually
+  // via the same /gis/point endpoint the empty-map click-to-query flow
+  // uses, passing event_ts when we have one (from the iNat fallback
+  // lookup's observation timestamp) so a temporal variable resolves to the
+  // value AT THE TIME the observation was made, not the current live
+  // window — matching how an ingested observation's value is already
+  // historically correct. event_ts is a harmless no-op for non-temporal
+  // variables (main.py only consults it when a matching temporal layer
+  // exists for the requested variable id), so this doesn't need its own
+  // "is this a temporal variable" check on the frontend.
+  const [highlightedPointValue, setHighlightedPointValue] = React.useState<
+    number | null
+  >(null);
+
+  React.useEffect(() => {
+    setHighlightedPointValue(null);
+    if (
+      !highlightedSyntheticOccurrence ||
+      !selectedVariableMeta?.id ||
+      highlightedSyntheticOccurrence.latitude == null ||
+      highlightedSyntheticOccurrence.longitude == null
+    ) {
+      return;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({
+      lat: String(highlightedSyntheticOccurrence.latitude),
+      lon: String(highlightedSyntheticOccurrence.longitude),
+      variable: selectedVariableMeta.id,
+    });
+    if (units) {
+      params.set('unit_system', units);
+    }
+    if (highlightedOccurrenceLookup?.eventTimestamp != null) {
+      params.set('event_ts', String(highlightedOccurrenceLookup.eventTimestamp));
+    }
+    fetch(`${BACKEND_BASE}/gis/point?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data: { value?: number | null }) => {
+        if (!cancelled && typeof data.value === 'number') {
+          setHighlightedPointValue(data.value);
+          // Also drives the legend bar's pinned-value marker
+          // (MapVariableLegend/MapCircularLegend) — otherwise it only
+          // updates on an explicit marker click (via the map's own
+          // event_ts-unaware point-query flow), leaving it blank/stale
+          // right after auto-selecting a not-ingested observation on load.
+          setPinnedPointValue(data.value);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHighlightedPointValue(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    highlightedSyntheticOccurrence,
+    selectedVariableMeta,
+    units,
+    highlightedOccurrenceLookup,
+  ]);
+
+  const observationValues = React.useMemo(() => {
+    if (!highlightedSyntheticOccurrence || highlightedPointValue == null) {
+      return fetchedObservationValues;
+    }
+    const merged = new Map(fetchedObservationValues ?? []);
+    merged.set(
+      String(highlightedSyntheticOccurrence.catalogNumber),
+      highlightedPointValue,
+    );
+    return merged;
+  }, [
+    fetchedObservationValues,
+    highlightedSyntheticOccurrence,
+    highlightedPointValue,
+  ]);
 
   const classShapes = React.useMemo(() => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -647,6 +818,38 @@ export default function Species({
     },
     [occurrenceByCatalog, handlePinObservation],
   );
+
+  // Auto-pin the deep-linked observation once it's available in
+  // occurrenceByCatalog — true immediately for an ingested observation
+  // (already part of fetchedOccurrences) and once the live lookup resolves
+  // for a not-ingested one (highlightedSyntheticOccurrence above). Mirrors
+  // handleGalleryCardPress exactly, just triggered on load instead of a
+  // click. Guarded by a ref (not state) so it fires once per id and never
+  // re-fires just because occurrenceByCatalog gets a new identity.
+  //
+  // Deliberately does NOT reset the ref when highlightObservationId goes
+  // falsy — useLocalSearchParams can report the query param as briefly
+  // absent then present again while the route settles (seen on web), and
+  // resetting here let this effect re-run handlePinObservation a second
+  // time for the same id — which TOGGLES, so the second call silently
+  // un-pinned the observation moments after the first call pinned it. The
+  // ref now only ever moves forward to a new (different) id.
+  const autoPinnedObservationRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!highlightObservationId) {
+      return;
+    }
+    if (autoPinnedObservationRef.current === highlightObservationId) {
+      return;
+    }
+    const occ = occurrenceByCatalog.get(highlightObservationId);
+    if (!occ) {
+      return;
+    }
+    autoPinnedObservationRef.current = highlightObservationId;
+    handlePinObservation(highlightObservationId, occ.latitude, occ.longitude);
+  }, [highlightObservationId, occurrenceByCatalog, handlePinObservation]);
 
   const galleryPoints = React.useMemo<ObservationGalleryPoint[]>(() => {
     const isCategorical = isVariableCategorical(selectedVariableMeta);

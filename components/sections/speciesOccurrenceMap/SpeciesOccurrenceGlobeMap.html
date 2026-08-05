@@ -301,6 +301,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // (below) can receive SELECTED_POINT_MESSAGE_TYPE at any time — reads
     // map/OCCURRENCE_POINTS defensively, matching refreshOccurrenceMarkerColors.
     var selectedPointPopup = null;
+    // Mirrors whatever point React last told us to select — kept
+    // independent of selectedPointPopup (which gets torn down and rebuilt
+    // on every reapply) so applyPendingPointStyleUpdates can refresh the
+    // popup's baked-in HTML after a variable switch instead of leaving it
+    // frozen at the value/color it had when first selected.
+    var lastAppliedSelectedPoint = null;
 
     function clearSelectedPoint() {
       var source = map.getSource('selected-point');
@@ -314,6 +320,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     function applySelectedPoint(point) {
+      lastAppliedSelectedPoint = point || null;
       clearSelectedPoint();
       if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
         return;
@@ -1296,6 +1303,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         pt.varShape = update.varShape || null;
       });
       refreshOccurrenceMarkerColors();
+      // The dot color refreshes for free via setData above (OCCURRENCE_POINTS
+      // was just mutated in place), but a selected point's popup HTML was
+      // baked once when applySelectedPoint first ran — reapply so its value/
+      // color reflect the new variable too, matching Leaflet's equivalent fix.
+      applySelectedPoint(lastAppliedSelectedPoint);
       pendingPointStyleUpdates = null;
     }
 

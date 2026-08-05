@@ -40,6 +40,10 @@ import {
   type CategorySampleOptions,
   type LocationOptions,
 } from './apiEnvironmentHelpers';
+import {
+  fetchOccurrenceLookup as fetchOccurrenceLookupHelper,
+  type FetchOccurrenceLookupOptions,
+} from './apiOccurrenceHelpers';
 
 export type UploadFileValue =
   | File
@@ -144,6 +148,17 @@ export async function fetchLocationByGid(
   options?: { signal?: AbortSignal },
 ) {
   return fetchLocationByGidHelper(gid, options);
+}
+
+/**
+ * Resolves an iNaturalist observation id to its taxon + location — powers
+ * the /occurrence/{id} deep-link route.
+ */
+export async function fetchOccurrenceLookup(
+  catalogNumber: string,
+  options?: FetchOccurrenceLookupOptions,
+) {
+  return fetchOccurrenceLookupHelper(catalogNumber, options);
 }
 
 /** Shared filter parameters forwarded to the unified taxa query endpoint. */

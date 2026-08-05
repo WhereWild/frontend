@@ -213,6 +213,25 @@ export type SpeciesOccurrence = {
   mediaLicenseUrl?: string | null;
 };
 
+/** Result of GET /occurrence/{catalogNumber} — resolves an inat observation id to its taxon. */
+export type OccurrenceLookup = {
+  catalogNumber: string;
+  taxonId: string;
+  scientificName: string;
+  commonName: string | null;
+  slug: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** False when resolved live via iNaturalist (not yet ingested by GBIF) rather than our own dataset. */
+  ingested: boolean;
+  /** Only present when ingested is false — the frontend already has these from the taxon's normal occurrences fetch otherwise. */
+  eventTimestamp?: number | null;
+  mediaUrl?: string | null;
+  mediaAttribution?: string | null;
+  mediaLicense?: string | null;
+  mediaLicenseUrl?: string | null;
+};
+
 export type SpeciesOccurrencesResult = {
   occurrences: SpeciesOccurrence[];
   minTimestamp: number | null;
