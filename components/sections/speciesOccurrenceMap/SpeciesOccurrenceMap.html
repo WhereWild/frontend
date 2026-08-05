@@ -1226,6 +1226,12 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // replaceOccurrenceMarkersImpl can reapply the selection after a
     // rebuild instead of just dropping it.
     let lastAppliedSelectedPoint = null;
+    // The ad-hoc popup opened by map.on('click') below for a background
+    // (non-observation) point — tracked so a variable switch can refresh
+    // its content in place via refreshBackgroundPointPopup, the same way
+    // lastAppliedSelectedPoint lets applySelectedPoint re-run for the
+    // observation-pin case.
+    let lastBackgroundPopup = null;
     let refreshVisibleMarkerPresentationImpl = null;
     let rebuildOccurrenceMarkersImpl = null;
     let replaceOccurrenceMarkersImpl = null;
@@ -2235,6 +2241,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         // markerEntries each call, which the loop above already updated in
         // place (same object references), so this picks up the new value.
         applySelectedPoint(lastAppliedSelectedPoint);
+        refreshBackgroundPointPopup();
       };
 
       // Called from handleHighlightMessage's 'pointsUpdate' handler when
@@ -2280,6 +2287,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         // since from its perspective the selected point never changed.
         // No-op when nothing was selected (lastAppliedSelectedPoint is null).
         applySelectedPoint(lastAppliedSelectedPoint);
+        refreshBackgroundPointPopup();
       };
 
       const observedBounds = buildOccurrenceMarkers(points);
@@ -2309,6 +2317,85 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     function postMapBounds() {
       var b = map.getBounds();
       postToParent({ type: 'mapBounds', north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() });
+    }
+
+    // Fetches POINT_QUERY_URL for a background (non-observation) click and
+    // renders the result into an already-open popup. Split out of
+    // map.on('click') below so refreshBackgroundPointPopup can re-run the
+    // exact same rendering after a variable switch, instead of duplicating
+    // this logic.
+    function fetchBackgroundPointPopup(popup, latitude, longitude) {
+      fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function(data) {
+          if (!popup.isOpen()) return;
+          if (data.value == null) {
+            popup.setContent('<span style="opacity:0.6;font-size:11px">No data</span>');
+            return;
+          }
+          var numVal = Number(data.value);
+          if (isFinite(numVal)) {
+            postToParent({ type: 'pointValue', value: numVal });
+          }
+          var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
+          var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
+          var isNumeric = colorMin != null && colorMax != null && colorMax >= colorMin;
+          if (data.class_name || data.class_color) {
+            var classKey = data.value != null ? String(Math.round(Number(data.value))) : null;
+            var resolvedClassColor = (CLASS_COLORS && classKey && CLASS_COLORS[classKey]) || data.class_color || null;
+            var resolvedClassShape = (CLASS_SHAPES && classKey && CLASS_SHAPES[classKey]) || null;
+            var dot = resolvedClassColor ? shapeToPopupSvg(resolvedClassShape, resolvedClassColor) : '';
+            var label = data.class_name || String(numVal);
+            popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+          } else if (IS_CIRCULAR) {
+            if (CIRCULAR_SHAPES_ENABLED) {
+              var cardinal = aspectToCardinal(numVal);
+              var shape = CARDINAL_SHAPES[cardinal];
+              var dot = shapeToPopupSvg(shape, palette.markerFill);
+              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0 (' + cardinal + ')</span></div>');
+            } else {
+              var color = aspectColor(numVal);
+              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+              var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
+              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0</span></div>');
+            }
+          } else if (isNumeric) {
+            var t = safeT(numVal, colorMin, colorMax);
+            var color = gradientColor(t);
+            var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
+            var units = data.units ? ' ' + data.units : '';
+            var fmt = Math.abs(numVal) >= 1000
+              ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0})
+              : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
+            popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
+          } else {
+            var classKey2 = data.value != null ? String(Math.round(Number(data.value))) : null;
+            var resolvedClassColor2 = (CLASS_COLORS && classKey2 && CLASS_COLORS[classKey2]) || data.class_color || null;
+            var resolvedClassShape2 = (CLASS_SHAPES && classKey2 && CLASS_SHAPES[classKey2]) || null;
+            var dot = resolvedClassColor2 ? shapeToPopupSvg(resolvedClassShape2, resolvedClassColor2) : '';
+            var units = data.units ? ' ' + data.units : '';
+            var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;
+            popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+          }
+        })
+        .catch(function() {
+          if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Offline</span>');
+        });
+    }
+
+    // Re-fetches and re-renders the currently open background-point popup
+    // (if any) at its existing position — called alongside
+    // applySelectedPoint(lastAppliedSelectedPoint) whenever the selected
+    // variable changes or occurrences are rebuilt, so a background pin's
+    // value/color stays live the same way an observation pin's does.
+    // No-op if no background popup is open (e.g. an observation marker's
+    // popup is showing instead, or nothing is selected).
+    function refreshBackgroundPointPopup() {
+      if (!lastBackgroundPopup || !lastBackgroundPopup.isOpen() || !POINT_QUERY_URL) return;
+      var latlng = lastBackgroundPopup.getLatLng();
+      if (!latlng) return;
+      fetchBackgroundPointPopup(lastBackgroundPopup, latlng.lat, latlng.lng);
     }
 
     map.on('click', function(event) {
@@ -2347,63 +2434,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
         }
         var popup = L.popup().setLatLng(event.latlng).setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>').openOn(map);
-        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
-          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
-          .then(function(data) {
-            if (!popup.isOpen()) return;
-            if (data.value == null) {
-              popup.setContent('<span style="opacity:0.6;font-size:11px">No data</span>');
-              return;
-            }
-            var numVal = Number(data.value);
-            if (isFinite(numVal)) {
-              postToParent({ type: 'pointValue', value: numVal });
-            }
-            var colorMin = DOT_MIN != null ? DOT_MIN : RENDER_MIN;
-            var colorMax = DOT_MAX != null ? DOT_MAX : RENDER_MAX;
-            var isNumeric = colorMin != null && colorMax != null && colorMax >= colorMin;
-            if (data.class_name || data.class_color) {
-              var classKey = data.value != null ? String(Math.round(Number(data.value))) : null;
-              var resolvedClassColor = (CLASS_COLORS && classKey && CLASS_COLORS[classKey]) || data.class_color || null;
-              var resolvedClassShape = (CLASS_SHAPES && classKey && CLASS_SHAPES[classKey]) || null;
-              var dot = resolvedClassColor ? shapeToPopupSvg(resolvedClassShape, resolvedClassColor) : '';
-              var label = data.class_name || String(numVal);
-              popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
-            } else if (IS_CIRCULAR) {
-              if (CIRCULAR_SHAPES_ENABLED) {
-                var cardinal = aspectToCardinal(numVal);
-                var shape = CARDINAL_SHAPES[cardinal];
-                var dot = shapeToPopupSvg(shape, palette.markerFill);
-                var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
-                popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0 (' + cardinal + ')</span></div>');
-              } else {
-                var color = aspectColor(numVal);
-                var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-                var fmt = numVal.toLocaleString(undefined, {maximumFractionDigits: 1});
-                popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + '\u00b0</span></div>');
-              }
-            } else if (isNumeric) {
-              var t = safeT(numVal, colorMin, colorMax);
-              var color = gradientColor(t);
-              var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px;flex-shrink:0"></span>';
-              var units = data.units ? ' ' + data.units : '';
-              var fmt = Math.abs(numVal) >= 1000
-                ? numVal.toLocaleString(undefined, {maximumFractionDigits: 0})
-                : numVal.toLocaleString(undefined, {maximumFractionDigits: 2});
-              popup.setContent('<div style="display:flex;align-items:center;font-size:12px">' + dot + '<span>' + fmt + units + '</span></div>');
-            } else {
-              var classKey2 = data.value != null ? String(Math.round(Number(data.value))) : null;
-              var resolvedClassColor2 = (CLASS_COLORS && classKey2 && CLASS_COLORS[classKey2]) || data.class_color || null;
-              var resolvedClassShape2 = (CLASS_SHAPES && classKey2 && CLASS_SHAPES[classKey2]) || null;
-              var dot = resolvedClassColor2 ? shapeToPopupSvg(resolvedClassShape2, resolvedClassColor2) : '';
-              var units = data.units ? ' ' + data.units : '';
-              var label = data.class_name || numVal.toLocaleString(undefined, {maximumFractionDigits: 2}) + units;
-              popup.setContent('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
-            }
-          })
-          .catch(function() {
-            if (popup.isOpen()) popup.setContent('<span style="opacity:0.6;font-size:11px">Offline</span>');
-          });
+        lastBackgroundPopup = popup;
+        fetchBackgroundPointPopup(popup, latitude, longitude);
+        return;
+      }
 
       if (!ALLOW_PIN_OBSERVATIONS) {
         map.closePopup();

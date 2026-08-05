@@ -307,6 +307,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // popup's baked-in HTML after a variable switch instead of leaving it
     // frozen at the value/color it had when first selected.
     var lastAppliedSelectedPoint = null;
+    // The ad-hoc popup opened by map.on('click') below for a background
+    // (non-observation) point — tracked so a variable switch can refresh
+    // its content in place via refreshBackgroundPointPopup, the same way
+    // lastAppliedSelectedPoint lets applySelectedPoint re-run for the
+    // observation-pin case.
+    var lastBackgroundPopup = null;
 
     function clearSelectedPoint() {
       var source = map.getSource('selected-point');
@@ -1156,6 +1162,55 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       scheduleRefreshVisibleTileClasses();
     });
 
+    // Fetches POINT_QUERY_URL for a background (non-observation) click and
+    // renders the result into an already-open popup. Split out of
+    // map.on('click') below so refreshBackgroundPointPopup can re-run the
+    // exact same rendering after a variable switch, instead of duplicating
+    // this logic.
+    function fetchBackgroundPointPopup(popup, latitude, longitude) {
+      fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function(data) {
+          if (!popup.isOpen()) return;
+          if (data.value == null) {
+            popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
+            return;
+          }
+          var numVal = Number(data.value);
+          if (isFinite(numVal)) {
+            postToParent({ type: 'pointValue', value: numVal });
+            if (data.class_name || data.class_color) {
+              var classKey = String(Math.round(numVal));
+              var resolvedClassColor = (CLASS_COLORS && CLASS_COLORS[classKey]) || data.class_color || null;
+              var dot = resolvedClassColor
+                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>'
+                : '';
+              var label = data.class_name || String(numVal);
+              popup.setHTML('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            } else {
+              popup.setHTML(formatPointValueHtml(numVal, data.units || VAR_UNITS));
+            }
+          }
+        })
+        .catch(function() {
+          if (popup.isOpen()) popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
+        });
+    }
+
+    // Re-fetches and re-renders the currently open background-point popup
+    // (if any) at its existing position — called alongside
+    // applySelectedPoint(lastAppliedSelectedPoint) whenever the selected
+    // variable changes, so a background pin's value/color stays live the
+    // same way an observation pin's does. No-op if no background popup is
+    // open (e.g. an observation marker's popup is showing instead, or
+    // nothing is selected).
+    function refreshBackgroundPointPopup() {
+      if (!lastBackgroundPopup || !lastBackgroundPopup.isOpen() || !POINT_QUERY_URL) return;
+      var lngLat = lastBackgroundPopup.getLngLat();
+      if (!lngLat) return;
+      fetchBackgroundPointPopup(lastBackgroundPopup, lngLat.lat, lngLat.lng);
+    }
+
     map.on('click', function(event) {
       if (event.defaultPrevented) return;
       // event.defaultPrevented alone isn't reliable here — query directly
@@ -1194,33 +1249,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           .setLngLat(event.lngLat)
           .setHTML('<span style="opacity:0.6;font-size:11px">Loading…</span>')
           .addTo(map);
-        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
-          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
-          .then(function(data) {
-            if (!popup.isOpen()) return;
-            if (data.value == null) {
-              popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
-              return;
-            }
-            var numVal = Number(data.value);
-            if (isFinite(numVal)) {
-              postToParent({ type: 'pointValue', value: numVal });
-              if (data.class_name || data.class_color) {
-                var classKey = String(Math.round(numVal));
-                var resolvedClassColor = (CLASS_COLORS && CLASS_COLORS[classKey]) || data.class_color || null;
-                var dot = resolvedClassColor
-                  ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>'
-                  : '';
-                var label = data.class_name || String(numVal);
-                popup.setHTML('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
-              } else {
-                popup.setHTML(formatPointValueHtml(numVal, data.units || VAR_UNITS));
-              }
-            }
-          })
-          .catch(function() {
-            if (popup.isOpen()) popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
-          });
+        lastBackgroundPopup = popup;
+        fetchBackgroundPointPopup(popup, latitude, longitude);
         return;
       }
 
@@ -1308,6 +1338,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       // baked once when applySelectedPoint first ran — reapply so its value/
       // color reflect the new variable too, matching Leaflet's equivalent fix.
       applySelectedPoint(lastAppliedSelectedPoint);
+      refreshBackgroundPointPopup();
       pendingPointStyleUpdates = null;
     }
 
