@@ -5,21 +5,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
-
-// The offline/fallback map templates are ~26MB each (they vendor a full
-// offline tileset inline) and several tests re-read the same path — caching
-// by path avoids re-reading tens of megabytes off disk repeatedly for
-// content that never changes within a test run.
-const templateFileCache = new Map<string, string>();
-const readTemplateCached = (templatePath: string): string => {
-  const cached = templateFileCache.get(templatePath);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const content = fs.readFileSync(templatePath, 'utf8');
-  templateFileCache.set(templatePath, content);
-  return content;
-};
 import { Asset } from 'expo-asset';
 import {
   buildGlobeHtml,
@@ -47,6 +32,21 @@ import {
   toHighlightMessagePayload,
   toSelectedPointMessagePayload,
 } from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+
+// The offline/fallback map templates are ~26MB each (they vendor a full
+// offline tileset inline) and several tests re-read the same path — caching
+// by path avoids re-reading tens of megabytes off disk repeatedly for
+// content that never changes within a test run.
+const templateFileCache = new Map<string, string>();
+const readTemplateCached = (templatePath: string): string => {
+  const cached = templateFileCache.get(templatePath);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const content = fs.readFileSync(templatePath, 'utf8');
+  templateFileCache.set(templatePath, content);
+  return content;
+};
 
 jest.mock('expo-constants', () => ({
   __esModule: true,

@@ -25,8 +25,9 @@ const mockUseLocalSearchParams = useLocalSearchParams as jest.MockedFunction<
   typeof useLocalSearchParams
 >;
 const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
-const mockFetchOccurrenceLookup =
-  fetchOccurrenceLookup as jest.MockedFunction<typeof fetchOccurrenceLookup>;
+const mockFetchOccurrenceLookup = fetchOccurrenceLookup as jest.MockedFunction<
+  typeof fetchOccurrenceLookup
+>;
 
 const createRouterMock = () =>
   ({

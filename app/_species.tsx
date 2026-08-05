@@ -218,7 +218,9 @@ export default function Species({
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const pathname = usePathname();
-  const searchParams = useLocalSearchParams<{ highlightObservation?: string }>();
+  const searchParams = useLocalSearchParams<{
+    highlightObservation?: string;
+  }>();
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -602,7 +604,10 @@ export default function Species({
       params.set('unit_system', units);
     }
     if (highlightedOccurrenceLookup?.eventTimestamp != null) {
-      params.set('event_ts', String(highlightedOccurrenceLookup.eventTimestamp));
+      params.set(
+        'event_ts',
+        String(highlightedOccurrenceLookup.eventTimestamp),
+      );
     }
     fetch(`${BACKEND_BASE}/gis/point?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
