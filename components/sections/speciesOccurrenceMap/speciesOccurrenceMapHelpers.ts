@@ -16,6 +16,7 @@ export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
 export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
 export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
+export const TOGGLE_TERRAIN_MESSAGE_TYPE = 'toggleTerrain';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
@@ -131,6 +132,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   labelsOverlayUrl: '__LABELS_OVERLAY_URL_JSON__',
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
   terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
+  terrainEnabled: '__TERRAIN_ENABLED__',
+  initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
   initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
@@ -1246,6 +1249,8 @@ const fillMapTemplatePlaceholders = (
   tileMode?: MapTileMode,
   enableOfflineFallback?: boolean,
   terrainTileUrl?: string | null,
+  terrainEnabled?: boolean,
+  initialDrawnPolygons?: [number, number][][] | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1437,6 +1442,16 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.terrainTileUrl)
     .join(terrainTileUrl ? JSON.stringify(terrainTileUrl) : 'null');
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.terrainEnabled)
+    .join(terrainEnabled ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialDrawnPolygons)
+    .join(
+      initialDrawnPolygons && initialDrawnPolygons.length > 0
+        ? JSON.stringify(initialDrawnPolygons)
+        : 'null',
+    );
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.leafletResizeObserverScript)
     .join(LEAFLET_RESIZE_OBSERVER_SCRIPT);
   html = html
@@ -1504,6 +1519,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     tileMode,
     enableOfflineFallback,
     terrainTileUrl,
+    terrainEnabled,
+    initialDrawnPolygons,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1547,6 +1564,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     tileMode,
     enableOfflineFallback,
     terrainTileUrl,
+    terrainEnabled,
+    initialDrawnPolygons,
   );
 };
 

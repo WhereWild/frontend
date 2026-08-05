@@ -148,6 +148,8 @@ describe('Settings screen', () => {
       setMarkerOutlineEnabled: jest.fn(),
       globeViewEnabled: false,
       setGlobeViewEnabled: jest.fn(),
+      terrainEnabled: false,
+      setTerrainEnabled: jest.fn(),
       localLat: null,
       setLocalLat: jest.fn(),
       localLon: null,

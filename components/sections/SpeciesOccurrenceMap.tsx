@@ -42,6 +42,7 @@ import {
   LOCATION_PICKED_MESSAGE_TYPE,
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
+  TOGGLE_TERRAIN_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
   POINT_STYLES_UPDATE_MESSAGE_TYPE,
@@ -216,6 +217,12 @@ type SpeciesOccurrenceMapProps = {
   onPolygonCleared?: () => void;
   onPolygonDrawStart?: () => void;
   onPolygonDrawEnd?: () => void;
+  // Whatever region(s) are already active (from a prior onPolygonDrawn)
+  // when this map (re)builds — read once at build time (like occurrences,
+  // heatmapTileUrl, etc. above) so switching between the Leaflet and globe
+  // renderers reseeds the new one's drawn-region overlay instead of only
+  // carrying the filter's effect over and dropping its visual.
+  initialDrawnPolygons?: [number, number][][] | null;
   // Natural Earth offline background layer (land/water/roads/places, shown
   // only when tiles fail to load) — real weight (embedded data + LOD +
   // label-declutter recomputed on every pan/zoom), so it must stay opt-in
@@ -286,6 +293,7 @@ export function SpeciesOccurrenceMap({
   onPolygonCleared,
   onPolygonDrawStart,
   onPolygonDrawEnd,
+  initialDrawnPolygons,
   enableOfflineFallback = false,
   onFullscreenToggle,
 }: SpeciesOccurrenceMapProps) {
@@ -656,6 +664,19 @@ export function SpeciesOccurrenceMap({
     variableDataLoading ? null : observationValues,
   );
   const initialCircularShapesEnabled = React.useRef(circularShapesEnabled);
+  // Same freeze-at-build-time treatment as the refs above: the terrain
+  // toggle button (inside the globe template) applies itself instantly and
+  // locally, then only tells settings.terrainEnabled about it for next
+  // time — if the live setting were used directly here instead, clicking
+  // the toggle would also change this html memo's inputs and force a full
+  // iframe rebuild right after the map already updated itself, undoing the
+  // whole point of preserveMapPosition.
+  const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
+  // Same reasoning as initialTerrainEnabled above, for drawn regions:
+  // drawing/erasing while staying on the SAME renderer already updates
+  // that renderer's own DOM directly (no round trip needed) — only a
+  // renderer switch (mapTemplate changing) should reseed from this.
+  const initialDrawnPolygonsRef = React.useRef(initialDrawnPolygons ?? null);
   // Tracks the last occurrences reference actually pushed to the map via
   // pointsUpdate (see below) — deliberately separate from initialOccurrences
   // above, which must stay frozen for the html memo's sake. When a location/
@@ -709,6 +730,8 @@ export function SpeciesOccurrenceMap({
       ? null
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
+    initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
+    initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 
   // When preserving map position, freeze live props to their initial values so
@@ -758,6 +781,12 @@ export function SpeciesOccurrenceMap({
   const memoCircularShapesEnabled = preserveMapPosition
     ? initialCircularShapesEnabled.current
     : circularShapesEnabled;
+  const memoTerrainEnabled = preserveMapPosition
+    ? initialTerrainEnabled.current
+    : (settings?.terrainEnabled ?? false);
+  const memoInitialDrawnPolygons = preserveMapPosition
+    ? initialDrawnPolygonsRef.current
+    : (initialDrawnPolygons ?? null);
 
   const html = React.useMemo(() => {
     if (!mapTemplate) {
@@ -804,6 +833,8 @@ export function SpeciesOccurrenceMap({
       mode,
       enableOfflineFallback,
       terrainTileUrl,
+      memoTerrainEnabled,
+      memoInitialDrawnPolygons,
     );
   }, [
     allowPinObservations,
@@ -843,6 +874,8 @@ export function SpeciesOccurrenceMap({
     enableOfflineFallback,
     globeView,
     terrainTileUrl,
+    memoTerrainEnabled,
+    memoInitialDrawnPolygons,
   ]);
 
   React.useEffect(() => {
@@ -1199,6 +1232,24 @@ export function SpeciesOccurrenceMap({
         data.type === TOGGLE_GLOBE_VIEW_MESSAGE_TYPE
       ) {
         settings?.setGlobeViewEnabled(!settings.globeViewEnabled);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_TERRAIN_MESSAGE_TYPE
+      ) {
+        // The map already applied the toggle live and locally (see the
+        // mountain-icon control in SpeciesOccurrenceGlobeMap.html) — this
+        // only persists the choice to settings.terrainEnabled, the same
+        // AsyncStorage-backed pattern as globeViewEnabled, so a later
+        // reload starts with whatever the user last picked instead of
+        // always defaulting on.
+        settings?.setTerrainEnabled(!settings.terrainEnabled);
         return;
       }
 

@@ -1092,6 +1092,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // fetched directly as GeoJSON from Natural Earth's own repo.
     const TILE_MAX_ZOOM = __TILE_MAX_ZOOM__;
     const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
+    // Whatever region(s) were already drawn/uploaded when this map was
+    // (re)built — e.g. switching here from the globe after drawing/
+    // uploading a region there. Rings are [latitude, longitude] pairs,
+    // same convention as drawnPolygonLayers/allDrawnPolygonPoints below.
+    // Seeded onto drawnPolygonLayers once it exists, so the filter that
+    // was already active keeps its visual too instead of only its effect
+    // surviving the renderer switch.
+    const INITIAL_DRAWN_POLYGONS = __INITIAL_DRAWN_POLYGONS_JSON__;
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
     const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
@@ -2082,6 +2090,23 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         drawPolygonButtonSetState('idle');
       }
     });
+
+    if (INITIAL_DRAWN_POLYGONS && INITIAL_DRAWN_POLYGONS.length > 0) {
+      // One group per ring (not all lumped into one) so the eraser control
+      // can remove them one at a time, matching hand-drawn shapes — the
+      // grouping a file upload would have had doesn't survive the round
+      // trip through React's flat polygon list, so this is the closest
+      // equivalent.
+      INITIAL_DRAWN_POLYGONS.forEach(function(ring) {
+        var layer = L.polygon(ring, {
+          color: palette.markerFill,
+          fillColor: palette.markerFill,
+          fillOpacity: 0.12,
+        }).addTo(map);
+        drawnPolygonLayers.push([layer]);
+      });
+      updateEraserControlVisibility();
+    }
 
     function handleHighlightMessage(payload) {
       let data = payload;

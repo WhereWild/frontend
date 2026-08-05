@@ -61,6 +61,8 @@ type SettingsContextType = {
   setMarkerOutlineEnabled: (v: boolean) => void;
   globeViewEnabled: boolean;
   setGlobeViewEnabled: (v: boolean) => void;
+  terrainEnabled: boolean;
+  setTerrainEnabled: (v: boolean) => void;
   localLat: number | null;
   setLocalLat: (v: number | null) => void;
   localLon: number | null;
@@ -114,6 +116,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.globeViewEnabled',
     false,
   );
+  const [terrainEnabled, setTerrainEnabled] = useAsyncStorageState<boolean>(
+    'settings.terrainEnabled',
+    false,
+  );
   const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
     'settings.localLat',
     null,
@@ -146,6 +152,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setMarkerOutlineEnabled,
         globeViewEnabled,
         setGlobeViewEnabled,
+        terrainEnabled,
+        setTerrainEnabled,
         localLat,
         setLocalLat,
         localLon,

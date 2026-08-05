@@ -1227,6 +1227,7 @@ export default function Species({
                   onPolygonCleared={handlePolygonCleared}
                   onPolygonDrawStart={handlePolygonDrawStart}
                   onPolygonDrawEnd={handlePolygonDrawEnd}
+                  initialDrawnPolygons={drawnPolygons}
                 />
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&

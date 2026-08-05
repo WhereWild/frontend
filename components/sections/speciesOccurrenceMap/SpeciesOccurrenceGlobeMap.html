@@ -69,6 +69,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
     const LINES_OVERLAY_URL = __LINES_OVERLAY_URL_JSON__;
     const TERRAIN_TILE_URL = __TERRAIN_TILE_URL_JSON__;
+    // Persisted like the globe-vs-2D preference (see settings.terrainEnabled)
+    // — read once at load so a reload/return visit starts wherever the user
+    // last left the toggle, rather than always defaulting on.
+    const TERRAIN_ENABLED_INITIAL = __TERRAIN_ENABLED__;
+    // Whatever region(s) were already drawn/uploaded when this map was
+    // (re)built — e.g. switching here from Leaflet after drawing a region
+    // there. Rings are [latitude, longitude] pairs, same convention as
+    // allDrawnPolygonPoints/drawnPolygonGroups below. Seeded onto the same
+    // drawn-polygons source those use, once it exists (see map.on('load')),
+    // so the filter that was already active keeps its visual too instead of
+    // only its effect surviving the renderer switch.
+    const INITIAL_DRAWN_POLYGONS = __INITIAL_DRAWN_POLYGONS_JSON__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
     const INITIAL_LAT = __INITIAL_LAT__;
@@ -699,7 +711,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           // 3D mesh, so relief reads clearly even head-on where the globe's
           // own displacement is least visible. Sits above the basemap but
           // below every data overlay.
-          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 } }] : [])
+          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 }, layout: { visibility: TERRAIN_ENABLED_INITIAL ? 'visible' : 'none' } }] : [])
           .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY } }] : [])
           .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
           .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 } }] : []),
@@ -707,7 +719,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         // this reads as nearly flat (real relief is ~0.1% of Earth's
         // radius), but it becomes accurate once zoomed in close, which
         // matters more here than a dramatic globe-scale bulge.
-        terrain: TERRAIN_TILE_URL ? { source: 'terrain-dem', exaggeration: 1.0 } : undefined,
+        terrain: (TERRAIN_TILE_URL && TERRAIN_ENABLED_INITIAL) ? { source: 'terrain-dem', exaggeration: 1.0 } : undefined,
       },
       center: [INITIAL_LON || 0, INITIAL_LAT || 20],
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
@@ -778,12 +790,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // MapLibre itself logs "terrain is not fully supported on vertical
     // perspective projection" when it's active here. Rather than guess at a
     // fixed on/off default, expose a toggle so a user who sees jank on the
-    // globe can switch it off without losing anything else. Purely local to
-    // this map instance — no round-trip to the parent needed, since terrain/
-    // hillshade are toggled live via setTerrain/setLayoutProperty on the
-    // sources already declared in mapOptions.style above.
+    // globe can switch it off without losing anything else. The live toggle
+    // (setTerrain/setLayoutProperty) is applied immediately and entirely
+    // locally — no round-trip needed for that. The postToParent call below
+    // is separate: it's only so SpeciesOccurrenceMap persists the new value
+    // to settings.terrainEnabled (same AsyncStorage-backed pattern as the
+    // globe/2D preference), so the choice sticks across reloads. It doesn't
+    // affect the currently-open map, which already updated itself.
     if (TERRAIN_TILE_URL) {
-      var terrainEnabled = true;
+      var terrainEnabled = !!TERRAIN_ENABLED_INITIAL;
       var applyTerrainState = function() {
         map.setTerrain(terrainEnabled ? { source: 'terrain-dem', exaggeration: 1.0 } : null);
         if (map.getLayer('hillshade-layer')) {
@@ -807,6 +822,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             terrainEnabled = !terrainEnabled;
             applyTerrainState();
             updateButton();
+            postToParent({ type: 'toggleTerrain' });
           });
           container.appendChild(btn);
           return container;
@@ -1245,6 +1261,17 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             'line-width': 2,
           },
         });
+
+        if (INITIAL_DRAWN_POLYGONS && INITIAL_DRAWN_POLYGONS.length > 0) {
+          // One group per ring (not all lumped into one) so the eraser
+          // control can remove them one at a time, matching hand-drawn
+          // shapes on Leaflet — the grouping a file upload would have had
+          // doesn't survive the round trip through React's flat polygon
+          // list, so this is the closest equivalent.
+          drawnPolygonGroups = INITIAL_DRAWN_POLYGONS.map(function(ring) { return [ring]; });
+          rebuildDrawnPolygonsSource();
+          updateEraserControlVisibility();
+        }
 
         var INDIVIDUAL_MODE_LAYER_IDS = ['occurrences-layer', 'occurrences-shapes-layer'];
         var CLUSTERED_MODE_LAYER_IDS = ['occurrences-clustered-layer', 'occurrences-clustered-shapes-layer', CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID];

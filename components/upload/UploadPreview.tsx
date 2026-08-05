@@ -539,6 +539,7 @@ export function UploadPreview({
             onPolygonCleared={handlePolygonCleared}
             onPolygonDrawStart={handlePolygonDrawStart}
             onPolygonDrawEnd={handlePolygonDrawEnd}
+            initialDrawnPolygons={drawnPolygons}
             varUnits={
               !isCategorical && !isCircular
                 ? (selectedVariableMeta?.units ?? null)
