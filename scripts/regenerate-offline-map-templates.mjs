@@ -60,13 +60,40 @@ function replaceOnce(content, anchor, replacement, label) {
         `more than once — needs a more specific anchor string.`,
     );
   }
-  return content.slice(0, first) + replacement + content.slice(first + anchor.length);
+  return (
+    content.slice(0, first) + replacement + content.slice(first + anchor.length)
+  );
+}
+
+// Satellite/variable-as-basemap tiles are both network-fetched, same as the
+// basemap tiles this whole offline fallback exists to work around — the
+// toggle control that offers them doesn't belong in an offline template
+// (its own guard, `if (SATELLITE_TILE_URL)`, is what determines whether the
+// control even renders at all), so this neutralizes both consts to values
+// that keep that guard false and the rest of tileUrlForBasemapMode's logic
+// falling through to TILE_URL, rather than trying to surgically strip the
+// toggle's code (which is now woven through several places in the file).
+function neutralizeBasemapModeToggle(content) {
+  content = replaceOnce(
+    content,
+    'const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;',
+    'const SATELLITE_TILE_URL = null; // disabled in the offline fallback — see neutralizeBasemapModeToggle',
+    'satellite tile url (offline neutralization)',
+  );
+  content = replaceOnce(
+    content,
+    'const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;',
+    "const BASEMAP_MODE_INITIAL = 'standard'; // disabled in the offline fallback — see neutralizeBasemapModeToggle",
+    'basemap mode initial (offline neutralization)',
+  );
+  return content;
 }
 
 function buildLeafletOffline() {
   const mainPath = path.join(mapDir, 'SpeciesOccurrenceMap.html');
   const outPath = path.join(mapDir, 'SpeciesOccurrenceMapOffline.html');
   let content = readFileSync(mainPath, 'utf8');
+  content = neutralizeBasemapModeToggle(content);
 
   // The main template still carries the doc comment describing this data
   // (left behind whenever the offline variant was first forked out) but
@@ -75,15 +102,15 @@ function buildLeafletOffline() {
   // in without duplicating the comment.
   const dataAnchor = [
     '    // Coarse (110m) country outlines, bundled inline so a low-context',
-    '    // background is available even when the real basemap tiles can\'t be',
+    "    // background is available even when the real basemap tiles can't be",
     '    // reached (e.g. offline). Public domain (Natural Earth), via the ISC-',
     '    // licensed world-atlas npm package, pre-converted from TopoJSON.',
     '    // Country + state/province outlines (50m Natural Earth resolution),',
     '    // bundled inline so a low-context background is available even when',
-    '    // the real basemap tiles can\'t be reached (e.g. offline). Public',
+    "    // the real basemap tiles can't be reached (e.g. offline). Public",
     '    // domain (Natural Earth); countries pre-converted from the ISC-',
-    '    // licensed world-atlas npm package\'s TopoJSON, admin-1 boundaries',
-    '    // fetched directly as GeoJSON from Natural Earth\'s own repo.',
+    "    // licensed world-atlas npm package's TopoJSON, admin-1 boundaries",
+    "    // fetched directly as GeoJSON from Natural Earth's own repo.",
   ].join('\n');
   content = replaceOnce(
     content,
@@ -108,6 +135,7 @@ function buildGlobeOffline() {
   const mainPath = path.join(mapDir, 'SpeciesOccurrenceGlobeMap.html');
   const outPath = path.join(mapDir, 'SpeciesOccurrenceGlobeMapOffline.html');
   let content = readFileSync(mainPath, 'utf8');
+  content = neutralizeBasemapModeToggle(content);
 
   // Data + protocol/palette + place-labels builder all slot in together,
   // right before mapOptions is built (same relative position they had in
@@ -142,15 +170,16 @@ function buildGlobeOffline() {
 
   // layers: [...] .concat() chain — insert the two offline layers right
   // after the hillshade concat, before the heatmap one (same relative
-  // position as the original hand-forked file).
+  // position as the original hand-forked file). Anchored on just the
+  // hillshade line itself (not also requiring the heatmap concat to
+  // immediately follow it) so comment lines added between them don't break
+  // this anchor.
   const layersAnchor =
-    "          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 }, layout: { visibility: TERRAIN_ENABLED_INITIAL ? 'visible' : 'none' } }] : [])\n          .concat(HEATMAP_TILE_URL";
+    "          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 }, layout: { visibility: TERRAIN_ENABLED_INITIAL ? 'visible' : 'none' } }] : [])";
   content = replaceOnce(
     content,
     layersAnchor,
-    "          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 }, layout: { visibility: TERRAIN_ENABLED_INITIAL ? 'visible' : 'none' } }] : [])\n" +
-      readPartial('globeOfflineLayersFragment.partial.js') +
-      '\n          .concat(HEATMAP_TILE_URL',
+    layersAnchor + '\n' + readPartial('globeOfflineLayersFragment.partial.js'),
     'globe offline layers fragment',
   );
 
@@ -171,7 +200,9 @@ function buildGlobeOffline() {
   content = replaceOnce(
     content,
     sendPinMessageAnchor,
-    sendPinMessageAnchor + '\n\n' + readPartial('globeOfflineEvaluateFallback.partial.js'),
+    sendPinMessageAnchor +
+      '\n\n' +
+      readPartial('globeOfflineEvaluateFallback.partial.js'),
     'globe offline evaluateOfflineFallback block',
   );
 

@@ -610,7 +610,7 @@ export default function Maps() {
                 minZoom={MAP_MIN_ZOOM}
                 showMarkers={false}
                 useLabelsOverlay
-                enableSatelliteBasemap={false}
+                enableBasemapModeToggle={false}
                 preserveMapPosition
                 onFullscreenToggle={() =>
                   toggleFullscreenElement(

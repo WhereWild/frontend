@@ -14,7 +14,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useOptionalSettings } from '@/context/SettingsContext';
+import { isBasemapMode, useOptionalSettings } from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
@@ -44,7 +44,7 @@ import {
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
   TOGGLE_TERRAIN_MESSAGE_TYPE,
-  TOGGLE_SATELLITE_MESSAGE_TYPE,
+  TOGGLE_BASEMAP_MODE_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
   POINT_STYLES_UPDATE_MESSAGE_TYPE,
@@ -198,11 +198,12 @@ type SpeciesOccurrenceMapProps = {
   gradientStops?: [number, number, number][] | null;
   aspectStops?: [number, number, number][] | null;
   useLabelsOverlay?: boolean;
-  // Defaults on — set false to omit the satellite-basemap toggle control
-  // entirely (e.g. maps.tsx, whose heatmap/labels overlays are tuned
-  // against the light basemap's contrast and where a much higher-traffic
-  // page multiplies the ArcGIS tile cost of leaving it available).
-  enableSatelliteBasemap?: boolean;
+  // Defaults on — set false to omit the basemap-mode toggle control (which
+  // cycles standard/satellite/variable-as-basemap) entirely (e.g. maps.tsx,
+  // whose heatmap/labels overlays are tuned against the light basemap's
+  // contrast and where a much higher-traffic page multiplies the ArcGIS
+  // tile cost of leaving satellite available).
+  enableBasemapModeToggle?: boolean;
   preserveMapPosition?: boolean;
   locationPickerMode?: boolean;
   onLocationPicked?: (lat: number, lon: number) => void;
@@ -291,7 +292,7 @@ export function SpeciesOccurrenceMap({
   gradientStops = null,
   aspectStops = null,
   useLabelsOverlay = false,
-  enableSatelliteBasemap = true,
+  enableBasemapModeToggle = true,
   preserveMapPosition = false,
   locationPickerMode = false,
   onLocationPicked,
@@ -625,10 +626,10 @@ export function SpeciesOccurrenceMap({
   );
   // Satellite basemap works on both renderers (unlike terrain, which is
   // MapLibre-only) — same backend proxy URL regardless of render, gated
-  // only by the enableSatelliteBasemap prop (see its doc comment).
+  // only by the enableBasemapModeToggle prop (see its doc comment).
   const satelliteTileUrl = React.useMemo(
-    () => (enableSatelliteBasemap ? getSatelliteTileUrlTemplate() : null),
-    [enableSatelliteBasemap],
+    () => (enableBasemapModeToggle ? getSatelliteTileUrlTemplate() : null),
+    [enableBasemapModeToggle],
   );
 
   // When preserveMapPosition is true, the html memo is built once with initial
@@ -687,10 +688,8 @@ export function SpeciesOccurrenceMap({
   // iframe rebuild right after the map already updated itself, undoing the
   // whole point of preserveMapPosition.
   const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
-  // Same freeze-at-build-time treatment, for the satellite basemap toggle.
-  const initialSatelliteEnabled = React.useRef(
-    settings?.satelliteBasemapEnabled ?? false,
-  );
+  // Same freeze-at-build-time treatment, for the basemap mode toggle.
+  const initialBasemapMode = React.useRef(settings?.basemapMode ?? 'standard');
   // Same reasoning as initialTerrainEnabled above, for drawn regions:
   // drawing/erasing while staying on the SAME renderer already updates
   // that renderer's own DOM directly (no round trip needed) — only a
@@ -750,8 +749,7 @@ export function SpeciesOccurrenceMap({
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
-    initialSatelliteEnabled.current =
-      settings?.satelliteBasemapEnabled ?? false;
+    initialBasemapMode.current = settings?.basemapMode ?? 'standard';
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 
@@ -805,9 +803,9 @@ export function SpeciesOccurrenceMap({
   const memoTerrainEnabled = preserveMapPosition
     ? initialTerrainEnabled.current
     : (settings?.terrainEnabled ?? false);
-  const memoSatelliteEnabled = preserveMapPosition
-    ? initialSatelliteEnabled.current
-    : (settings?.satelliteBasemapEnabled ?? false);
+  const memoBasemapMode = preserveMapPosition
+    ? initialBasemapMode.current
+    : (settings?.basemapMode ?? 'standard');
   const memoInitialDrawnPolygons = preserveMapPosition
     ? initialDrawnPolygonsRef.current
     : (initialDrawnPolygons ?? null);
@@ -859,7 +857,7 @@ export function SpeciesOccurrenceMap({
       terrainTileUrl,
       memoTerrainEnabled,
       memoInitialDrawnPolygons,
-      memoSatelliteEnabled,
+      memoBasemapMode,
       satelliteTileUrl,
     );
   }, [
@@ -902,7 +900,7 @@ export function SpeciesOccurrenceMap({
     terrainTileUrl,
     memoTerrainEnabled,
     memoInitialDrawnPolygons,
-    memoSatelliteEnabled,
+    memoBasemapMode,
     satelliteTileUrl,
   ]);
 
@@ -1287,14 +1285,19 @@ export function SpeciesOccurrenceMap({
         data &&
         typeof data === 'object' &&
         'type' in data &&
-        data.type === TOGGLE_SATELLITE_MESSAGE_TYPE
+        data.type === TOGGLE_BASEMAP_MODE_MESSAGE_TYPE &&
+        'mode' in data &&
+        typeof (data as { mode?: unknown }).mode === 'string' &&
+        isBasemapMode((data as { mode: string }).mode)
       ) {
         // Same split as TOGGLE_TERRAIN_MESSAGE_TYPE above: the map already
-        // swapped its basemap tiles live and locally (see the layers-icon
-        // control in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html)
-        // — this only persists the choice to settings.satelliteBasemapEnabled
-        // so a later reload starts with whatever was last picked.
-        settings?.setSatelliteBasemapEnabled(!settings.satelliteBasemapEnabled);
+        // cycled its basemap tiles live and locally (see the toggle control
+        // in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html) —
+        // this only persists the choice to settings.basemapMode so a later
+        // reload starts with whatever was last picked.
+        settings?.setBasemapMode(
+          (data as { mode: 'standard' | 'satellite' | 'variable' }).mode,
+        );
         return;
       }
 

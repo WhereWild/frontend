@@ -813,6 +813,32 @@ export default function Species({
     (shapesEnabled || cbMode === 'achromatopsia') &&
     isVariableCircular(selectedVariableMeta);
 
+  // This map never had a raster overlay for the selected variable at all —
+  // only the occurrence markers themselves were colored by it. That's also
+  // why the globe/Leaflet templates' "variable" basemap-mode toggle looked
+  // like a no-op 2-way toggle in practice: with heatmapTileUrl always null,
+  // it had nothing to fall back to but the standard tiles. Mirrors
+  // maps.tsx's tileUrl builder — /api/variables/... (not /api/layers/...)
+  // since it's resolution-tolerant of either an old variable_id or a real
+  // layer_id (_resolve_variable_id on the backend), same as selectedVariableMeta.id
+  // already gets used for elsewhere (pointQueryUrl, classShapes lookups).
+  const heatmapTileUrl = React.useMemo(() => {
+    if (!selectedVariableMeta?.id) return null;
+    const isCircular = isVariableCircular(selectedVariableMeta);
+    const colormap = isCircular ? selectedCircularColormap : selectedColormap;
+    const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
+    return (
+      `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
+      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}`
+    );
+  }, [
+    selectedVariableMeta,
+    selectedColormap,
+    selectedCircularColormap,
+    cbMode,
+    units,
+  ]);
+
   const nsweColors = React.useMemo((): [string, string, string, string] => {
     const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
     const n = stops.length;
@@ -935,6 +961,8 @@ export default function Species({
       observationValues,
       classColors,
       classLabels,
+      classShapes,
+      circularShapesEnabled,
       isCircular,
       dotMin: obsDotMin,
       dotMax: obsDotMax,
@@ -956,10 +984,8 @@ export default function Species({
     return gallerySourceCatalogs
       .slice(start, start + galleryPageSize)
       .map((catalogNumber) => {
-        const { varValue, varColor, varLabel } = resolveObservationVarFields(
-          catalogNumber,
-          inputs,
-        );
+        const { varValue, varColor, varLabel, varShape } =
+          resolveObservationVarFields(catalogNumber, inputs);
         const occ = occurrenceByCatalog.get(catalogNumber);
         return {
           catalogNumber,
@@ -967,6 +993,7 @@ export default function Species({
           varValue,
           varColor,
           varLabel,
+          varShape,
           imageUrl: occ?.mediaUrl,
           license: occ?.mediaLicense,
           licenseUrl: occ?.mediaLicenseUrl,
@@ -982,6 +1009,8 @@ export default function Species({
     observationValues,
     classColors,
     classLabels,
+    classShapes,
+    circularShapesEnabled,
     obsDotMin,
     obsDotMax,
     selectedColormap,
@@ -1179,6 +1208,7 @@ export default function Species({
                       ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}&unit_system=${encodeURIComponent(units ?? '')}`
                       : null
                   }
+                  heatmapTileUrl={heatmapTileUrl}
                   renderMin={
                     selectedVariableMeta &&
                     !isVariableCategorical(selectedVariableMeta) &&

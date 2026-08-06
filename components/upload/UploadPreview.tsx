@@ -349,6 +349,29 @@ export function UploadPreview({
   const circularShapesEnabled =
     (shapesEnabled || cbMode === 'achromatopsia') &&
     isVariableCircular(selectedVariableMeta);
+
+  // Same fix as _species.tsx's heatmapTileUrl — this map never had a
+  // raster overlay for the selected variable at all, only the occurrence
+  // markers themselves were colored by it, which meant the basemap-mode
+  // toggle's 'variable' mode had nothing to show here either. Mirrors
+  // maps.tsx's tileUrl builder.
+  const heatmapTileUrl = React.useMemo(() => {
+    if (!selectedVariableMeta?.id) return null;
+    const isCircular = isVariableCircular(selectedVariableMeta);
+    const colormap = isCircular ? selectedCircularColormap : selectedColormap;
+    const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
+    return (
+      `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
+      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}`
+    );
+  }, [
+    selectedVariableMeta,
+    selectedColormap,
+    selectedCircularColormap,
+    cbMode,
+    units,
+  ]);
+
   const nsweColors = React.useMemo((): [string, string, string, string] => {
     const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
     const n = stops.length;
@@ -533,6 +556,7 @@ export function UploadPreview({
             onMapBounds={setMapBounds}
             onPointValue={setPinnedPointValue}
             pointQueryUrl={pointQueryUrl}
+            heatmapTileUrl={heatmapTileUrl}
             disableObservationQuery={true}
             onPolygonDrawn={handlePolygonDrawn}
             onPolygonCleared={handlePolygonCleared}

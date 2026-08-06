@@ -29,13 +29,26 @@ export function isColormapId(value: string): value is ColormapId {
   return (COLORMAP_ORDER as string[]).includes(value);
 }
 
-export function isCircularColormapId(value: string): value is CircularColormapId {
+export function isCircularColormapId(
+  value: string,
+): value is CircularColormapId {
   return (CIRCULAR_COLORMAP_ORDER as string[]).includes(value);
 }
 
 const CB_MODES: CbMode[] = ['colorblind', 'achromatopsia'];
 export function isCbMode(value: string): value is CbMode {
   return (CB_MODES as string[]).includes(value);
+}
+
+// 'satellite' = Esri World Imagery in place of the standard basemap;
+// 'variable' = the currently-selected GIS variable's own tiles at full
+// opacity in place of the basemap, instead of the translucent overlay it's
+// normally shown as — see SpeciesOccurrenceGlobeMap.html/
+// SpeciesOccurrenceMap.html's basemap-mode toggle control.
+export type BasemapMode = 'standard' | 'satellite' | 'variable';
+const BASEMAP_MODES: BasemapMode[] = ['standard', 'satellite', 'variable'];
+export function isBasemapMode(value: string): value is BasemapMode {
+  return (BASEMAP_MODES as string[]).includes(value);
 }
 
 export type { CbMode };
@@ -63,8 +76,8 @@ type SettingsContextType = {
   setGlobeViewEnabled: (v: boolean) => void;
   terrainEnabled: boolean;
   setTerrainEnabled: (v: boolean) => void;
-  satelliteBasemapEnabled: boolean;
-  setSatelliteBasemapEnabled: (v: boolean) => void;
+  basemapMode: BasemapMode;
+  setBasemapMode: (v: BasemapMode) => void;
   localLat: number | null;
   setLocalLat: (v: number | null) => void;
   localLon: number | null;
@@ -97,10 +110,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.colormap',
     DEFAULT_COLORMAP,
   );
-  const [circularColormap, setCircularColormap] = useAsyncStorageState<CircularColormapId>(
-    'settings.circularColormap',
-    DEFAULT_CIRCULAR_COLORMAP,
-  );
+  const [circularColormap, setCircularColormap] =
+    useAsyncStorageState<CircularColormapId>(
+      'settings.circularColormap',
+      DEFAULT_CIRCULAR_COLORMAP,
+    );
   const [cbMode, setCbModeRaw] = useAsyncStorageState<CbMode | null>(
     'settings.cbMode',
     null,
@@ -110,10 +124,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.shapesEnabled',
     false,
   );
-  const [markerOutlineEnabled, setMarkerOutlineEnabled] = useAsyncStorageState<boolean>(
-    'settings.markerOutlineEnabled',
-    false,
-  );
+  const [markerOutlineEnabled, setMarkerOutlineEnabled] =
+    useAsyncStorageState<boolean>('settings.markerOutlineEnabled', false);
   const [globeViewEnabled, setGlobeViewEnabled] = useAsyncStorageState<boolean>(
     'settings.globeViewEnabled',
     false,
@@ -122,8 +134,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.terrainEnabled',
     false,
   );
-  const [satelliteBasemapEnabled, setSatelliteBasemapEnabled] =
-    useAsyncStorageState<boolean>('settings.satelliteBasemapEnabled', false);
+  const [basemapMode, setBasemapMode] = useAsyncStorageState<BasemapMode>(
+    'settings.basemapMode',
+    'standard',
+  );
   const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
     'settings.localLat',
     null,
@@ -158,8 +172,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setGlobeViewEnabled,
         terrainEnabled,
         setTerrainEnabled,
-        satelliteBasemapEnabled,
-        setSatelliteBasemapEnabled,
+        basemapMode,
+        setBasemapMode,
         localLat,
         setLocalLat,
         localLon,

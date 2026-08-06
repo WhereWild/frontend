@@ -6,6 +6,7 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
 import { BACKEND_BASE } from '@/data/apiShared';
+import type { BasemapMode } from '@/context/SettingsContext';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
@@ -17,7 +18,11 @@ export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
 export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
 export const TOGGLE_TERRAIN_MESSAGE_TYPE = 'toggleTerrain';
-export const TOGGLE_SATELLITE_MESSAGE_TYPE = 'toggleSatellite';
+// Payload carries { mode: BasemapMode } — a 3-way cycle (standard ->
+// satellite -> variable -> standard), not a boolean toggle, since it now
+// covers showing the currently-selected GIS variable's own tiles at full
+// opacity in place of the basemap too, not just satellite imagery.
+export const TOGGLE_BASEMAP_MODE_MESSAGE_TYPE = 'toggleBasemapMode';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
@@ -135,7 +140,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
   terrainEnabled: '__TERRAIN_ENABLED__',
   satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
-  satelliteEnabled: '__SATELLITE_ENABLED__',
+  basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
   initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
@@ -441,12 +446,19 @@ export type ObservationVarFields = {
   varValue: number | null;
   varColor: string | null;
   varLabel: string | null;
+  varShape: string | null;
 };
 
 export type ObservationVarFieldsInputs = {
   observationValues: Map<string, number> | null;
   classColors: Map<string, string> | null;
   classLabels: Map<string, string> | null;
+  // Same shapes-mode inputs computePointVarFields (the map's own version of
+  // this function) takes — omitted here previously, which meant shapes mode
+  // never had any effect on the below-map gallery even though it worked on
+  // the map itself.
+  classShapes?: Map<string, string> | null;
+  circularShapesEnabled?: boolean;
   isCircular: boolean;
   dotMin: number | null;
   dotMax: number | null;
@@ -468,15 +480,26 @@ export const resolveObservationVarFields = (
 ): ObservationVarFields => {
   const varValue = inputs.observationValues?.get(catalog) ?? null;
   if (varValue == null) {
-    return { varValue: null, varColor: null, varLabel: null };
+    return { varValue: null, varColor: null, varLabel: null, varShape: null };
   }
+  const classKey = String(Math.round(varValue));
+  // Same precedence as computePointVarFields: an explicit per-class shape
+  // wins; otherwise fall back to the circular (aspect) cardinal-direction
+  // shape when that mode is on. Independent of classColors/isCircular below
+  // — a nominal variable with shapes but no class-color legend, or a
+  // continuous variable in circular-shapes mode, should still get a shape.
+  const varShape = inputs.classShapes
+    ? (inputs.classShapes.get(classKey) ?? null)
+    : inputs.circularShapesEnabled
+      ? aspectToCardinalShape(varValue)
+      : null;
 
   if (inputs.classColors) {
-    const classKey = String(Math.round(varValue));
     return {
       varValue,
       varColor: inputs.classColors.get(classKey) ?? null,
       varLabel: inputs.classLabels?.get(classKey) ?? null,
+      varShape,
     };
   }
 
@@ -490,6 +513,7 @@ export const resolveObservationVarFields = (
         ? interpolateAspectStops(varValue, inputs.aspectStops)
         : null,
       varLabel: `${fmt}°`,
+      varShape,
     };
   }
 
@@ -504,10 +528,11 @@ export const resolveObservationVarFields = (
       varValue,
       varColor: interpolateGradientStops(t, inputs.gradientStops),
       varLabel: `${fmt}${units}`,
+      varShape,
     };
   }
 
-  return { varValue, varColor: null, varLabel: null };
+  return { varValue, varColor: null, varLabel: null, varShape };
 };
 
 export const preparePointsForMapHtml = (
@@ -1262,7 +1287,7 @@ const fillMapTemplatePlaceholders = (
   terrainTileUrl?: string | null,
   terrainEnabled?: boolean,
   initialDrawnPolygons?: [number, number][][] | null,
-  satelliteEnabled?: boolean,
+  basemapMode?: BasemapMode,
   satelliteTileUrl?: string | null,
 ) => {
   let html = mapTemplate;
@@ -1465,8 +1490,8 @@ const fillMapTemplatePlaceholders = (
         : 'null',
     );
   html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteEnabled)
-    .join(satelliteEnabled ? 'true' : 'false');
+    .split(MAP_TEMPLATE_PLACEHOLDERS.basemapModeInitial)
+    .join(JSON.stringify(basemapMode || 'standard'));
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteTileUrl)
     .join(satelliteTileUrl ? JSON.stringify(satelliteTileUrl) : 'null');
@@ -1540,7 +1565,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     terrainTileUrl,
     terrainEnabled,
     initialDrawnPolygons,
-    satelliteEnabled,
+    basemapMode,
     satelliteTileUrl,
   ] = args;
   return fillMapTemplatePlaceholders(
@@ -1587,7 +1612,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     terrainTileUrl,
     terrainEnabled,
     initialDrawnPolygons,
-    satelliteEnabled,
+    basemapMode,
     satelliteTileUrl,
   );
 };

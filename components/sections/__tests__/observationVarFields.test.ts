@@ -87,7 +87,12 @@ describe('resolveObservationVarFields', () => {
       ...baseInputs,
       observationValues: new Map(),
     });
-    expect(result).toEqual({ varValue: null, varColor: null, varLabel: null });
+    expect(result).toEqual({
+      varValue: null,
+      varColor: null,
+      varLabel: null,
+      varShape: null,
+    });
   });
 
   it('resolves categorical color/label from classColors/classLabels, matching the map popup class-key rounding', () => {
@@ -101,7 +106,44 @@ describe('resolveObservationVarFields', () => {
       varValue: 2.4,
       varColor: '#abcdef',
       varLabel: 'Loam',
+      varShape: null,
     });
+  });
+
+  it('resolves a per-class shape from classShapes when shapes mode is on for a nominal variable', () => {
+    const result = resolveObservationVarFields('123', {
+      ...baseInputs,
+      observationValues: new Map([['123', 2.4]]),
+      classColors: new Map([['2', '#abcdef']]),
+      classLabels: new Map([['2', 'Loam']]),
+      classShapes: new Map([['2', 'triangle']]),
+    });
+    expect(result.varShape).toBe('triangle');
+  });
+
+  it('falls back to the circular cardinal-direction shape when circularShapesEnabled is set and there is no classShapes entry', () => {
+    const aspectStops: [number, number, number][] = [
+      [255, 0, 0],
+      [0, 255, 0],
+    ];
+    const result = resolveObservationVarFields('123', {
+      ...baseInputs,
+      observationValues: new Map([['123', 90]]),
+      isCircular: true,
+      aspectStops,
+      circularShapesEnabled: true,
+    });
+    // 90deg falls in the "E" quadrant of aspectToCardinalShape's N/E/S/W table.
+    expect(result.varShape).toBe('arrow');
+  });
+
+  it('returns a null shape when neither classShapes nor circularShapesEnabled apply', () => {
+    const result = resolveObservationVarFields('123', {
+      ...baseInputs,
+      observationValues: new Map([['123', 2.4]]),
+      classColors: new Map([['2', '#abcdef']]),
+    });
+    expect(result.varShape).toBeNull();
   });
 
   it('resolves a circular value using aspectStops and formats it with a degree symbol', () => {

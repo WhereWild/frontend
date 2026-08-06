@@ -126,6 +126,47 @@ describe('ObservationCard', () => {
     expect(screen.queryByText('No data')).toBeNull();
   });
 
+  it('renders a plain color dot when varShape is not provided', () => {
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        varLabel='Loam'
+        varColor='#abcdef'
+      />,
+    );
+
+    expect(screen.getByTestId('observation-card-dot')).toBeTruthy();
+    expect(screen.queryByTestId('observation-card-shape')).toBeNull();
+  });
+
+  it('renders the matching shape marker instead of a dot when varShape is a recognized shape (shapes mode on for a nominal variable)', () => {
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        varLabel='Loam'
+        varColor='#abcdef'
+        varShape='triangle'
+      />,
+    );
+
+    expect(screen.getByTestId('observation-card-shape')).toBeTruthy();
+    expect(screen.queryByTestId('observation-card-dot')).toBeNull();
+  });
+
+  it('falls back to a plain dot for an unrecognized shape value instead of crashing', () => {
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        varLabel='Loam'
+        varColor='#abcdef'
+        varShape='not-a-real-shape'
+      />,
+    );
+
+    expect(screen.getByTestId('observation-card-dot')).toBeTruthy();
+    expect(screen.queryByTestId('observation-card-shape')).toBeNull();
+  });
+
   it('shows a "No media" fallback when no attribution or license is provided, matching the credit row\'s two-line height so cards without media still line up with ones that have it', () => {
     render(<ObservationCard catalogNumber='123456' />);
 

@@ -1085,10 +1085,11 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
     // z/y/x tile path, since the backend handles that reversal.
     const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;
-    // Same persisted-preference pattern as SpeciesOccurrenceGlobeMap.html's
-    // TERRAIN_ENABLED_INITIAL — read once at load so a reload/return visit
-    // starts wherever the user last left the toggle.
-    const SATELLITE_ENABLED_INITIAL = __SATELLITE_ENABLED__;
+    // 'standard' | 'satellite' | 'variable' — same persisted-preference
+    // pattern as SpeciesOccurrenceGlobeMap.html's TERRAIN_ENABLED_INITIAL,
+    // read once at load so a reload/return visit starts wherever the user
+    // last left the toggle.
+    const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
     // Coarse (110m) country outlines, bundled inline so a low-context
     // background is available even when the real basemap tiles can't be
     // reached (e.g. offline). Public domain (Natural Earth), via the ISC-
@@ -1265,7 +1266,21 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       map.getPane('labelsPane').style.zIndex = 650;
     }
 
-    const tileLayer = L.tileLayer((SATELLITE_TILE_URL && SATELLITE_ENABLED_INITIAL) ? SATELLITE_TILE_URL : TILE_URL, {
+    // Tracks whatever the currently-selected GIS variable's tile URL is —
+    // starts at HEATMAP_TILE_URL but updates live via the 'heatmapUpdate'
+    // message below (see currentHeatmapTileUrl assignment there). Used only
+    // to decide whether 'variable' basemap mode is reachable in the toggle
+    // cycle at all (see nextBasemapMode below) — not for the basemap tile
+    // itself, which 'variable' mode never changes (see tileUrlForBasemapMode).
+    var currentHeatmapTileUrl = HEATMAP_TILE_URL;
+    // 'variable' mode does NOT change which raster is the basemap — it's
+    // the same standard tiles as 'standard', just with the heatmap overlay
+    // (heatmapLayer, below) switched on on top of it, exactly matching
+    // maps.tsx's look. Only 'satellite' ever changes the basemap tile itself.
+    function tileUrlForBasemapMode(mode) {
+      return (mode === 'satellite' && SATELLITE_TILE_URL) ? SATELLITE_TILE_URL : TILE_URL;
+    }
+    const tileLayer = L.tileLayer(tileUrlForBasemapMode(BASEMAP_MODE_INITIAL), {
       attribution: TILE_ATTRIBUTION,
       maxZoom: TILE_MAX_ZOOM,
       referrerPolicy: TILE_REFERRER_POLICY,
@@ -1378,37 +1393,71 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       map.addControl(new GlobeToggleControl());
     }
 
-    // Satellite basemap toggle — mirrors SpeciesOccurrenceGlobeMap.html's
-    // equivalent control: applies live via tileLayer.setUrl() and only
-    // persists the choice to settings.satelliteBasemapEnabled via
-    // postToParent, for next time. Web-only like the fullscreen/globe
-    // controls above — there's no native onMessage handling for any of
-    // these persisted-preference toggles (see handleNativeMapMessage in
-    // SpeciesOccurrenceMap.tsx), so showing this on native would let the
-    // live tile swap work but silently fail to persist across reloads.
+    // Basemap mode toggle — 3 distinct looks, cycling standard -> satellite
+    // -> variable -> standard: (1) standard Stadia tiles only, (2) Esri
+    // satellite tiles only, (3) the exact same setup as maps.tsx — standard
+    // Stadia tiles with the currently-selected GIS variable's translucent
+    // heatmap overlay on top. Applies live via tileLayer.setUrl() +
+    // heatmapLayer add/remove, and only persists the choice to
+    // settings.basemapMode via postToParent, for next time. Web-only like
+    // the fullscreen/globe controls above — there's no native onMessage
+    // handling for any of these persisted-preference toggles (see
+    // handleNativeMapMessage in SpeciesOccurrenceMap.tsx), so showing this
+    // on native would let the live tile swap work but silently fail to
+    // persist across reloads.
     if (!window.ReactNativeWebView && SATELLITE_TILE_URL) {
-      var satelliteEnabled = !!SATELLITE_ENABLED_INITIAL;
-      var SatelliteToggleControl = L.Control.extend({
+      var currentBasemapMode = (BASEMAP_MODE_INITIAL === 'variable' && !currentHeatmapTileUrl)
+        ? 'standard'
+        : (BASEMAP_MODE_INITIAL || 'standard');
+      // One fixed icon for all 3 states (a per-mode icon looked ambiguous)
+      // — only the tooltip text and the highlight color change, same as
+      // every other toggle control here.
+      var BASEMAP_MODE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5L14.5 5 8 8.5 1.5 5z"/><path d="M1.5 8L8 11.5 14.5 8"/><path d="M1.5 11L8 14.5 14.5 11"/></svg>';
+      var BASEMAP_MODE_TITLES = {
+        standard: 'Switch to satellite basemap',
+        satellite: 'Switch to variable overlay',
+        variable: 'Switch to standard basemap',
+      };
+      function applyBasemapMode(mode) {
+        tileLayer.setUrl(tileUrlForBasemapMode(mode));
+        // Overlay is ONLY visible in 'variable' mode — showing it whenever
+        // a variable happens to be selected regardless of mode (including
+        // on top of satellite) is exactly the bug this guards against.
+        if (heatmapLayer) {
+          if (mode === 'variable' && !map.hasLayer(heatmapLayer)) {
+            heatmapLayer.addTo(map);
+          } else if (mode !== 'variable' && map.hasLayer(heatmapLayer)) {
+            map.removeLayer(heatmapLayer);
+          }
+        }
+      }
+      function nextBasemapMode(mode) {
+        if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
+        if (mode === 'satellite') return currentHeatmapTileUrl ? 'variable' : 'standard';
+        return 'standard';
+      }
+      applyBasemapMode(currentBasemapMode);
+      var BasemapModeToggleControl = L.Control.extend({
         options: { position: 'topright' },
         onAdd: function() {
           var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
           var updateButton = function() {
-            btn.title = satelliteEnabled ? 'Switch to standard basemap' : 'Switch to satellite basemap';
-            btn.style.color = satelliteEnabled ? palette.linkColor : '';
+            btn.title = BASEMAP_MODE_TITLES[currentBasemapMode] || BASEMAP_MODE_TITLES.standard;
+            btn.style.color = currentBasemapMode === 'standard' ? '' : palette.linkColor;
           };
-          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5L14.5 5 8 8.5 1.5 5z"/><path d="M1.5 8L8 11.5 14.5 8"/><path d="M1.5 11L8 14.5 14.5 11"/></svg>';
+          btn.innerHTML = BASEMAP_MODE_ICON;
           updateButton();
           L.DomEvent.disableClickPropagation(btn);
           L.DomEvent.on(btn, 'click', function() {
-            satelliteEnabled = !satelliteEnabled;
-            tileLayer.setUrl(satelliteEnabled ? SATELLITE_TILE_URL : TILE_URL);
+            currentBasemapMode = nextBasemapMode(currentBasemapMode);
+            applyBasemapMode(currentBasemapMode);
             updateButton();
-            postToParent({ type: 'toggleSatellite' });
+            postToParent({ type: 'toggleBasemapMode', mode: currentBasemapMode });
           });
           return btn;
         },
       });
-      map.addControl(new SatelliteToggleControl());
+      map.addControl(new BasemapModeToggleControl());
     }
 
     // Pencil is a 2-state toggle (idle -> drawing -> idle) that never
@@ -2186,8 +2235,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         // aspectStops) travels with pointStylesUpdate below instead, so it
         // can never arrive out of sync with the per-point values it's
         // paired with.
-        if (data.heatmapTileUrl != null && heatmapLayer) {
-          heatmapLayer.setUrl(data.heatmapTileUrl);
+        if (data.heatmapTileUrl != null) {
+          // Tracked so nextBasemapMode knows 'variable' mode has real
+          // content to show, even if no variable was selected at page
+          // load — the basemap tile itself never depends on this (see
+          // tileUrlForBasemapMode), only whether the toggle can reach
+          // 'variable' at all.
+          currentHeatmapTileUrl = data.heatmapTileUrl;
+          if (heatmapLayer) { heatmapLayer.setUrl(data.heatmapTileUrl); }
         }
         if (data.pointQueryUrl !== undefined) { POINT_QUERY_URL = data.pointQueryUrl; }
         if (data.renderMin !== undefined) { RENDER_MIN = data.renderMin; }
