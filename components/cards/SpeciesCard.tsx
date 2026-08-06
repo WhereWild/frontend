@@ -353,10 +353,10 @@ export function SpeciesCard({
             numberOfLines={1}
             accessibilityRole='header'
           >
-            {commonName}
+            {scientificName}
           </ThemedText>
           <ThemedText variant='bodySmallEmphasis' numberOfLines={1}>
-            {scientificName}
+            {commonName}
           </ThemedText>
         </View>
 
@@ -385,7 +385,7 @@ export function SpeciesCard({
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         accessibilityRole='button'
-        accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+        accessibilityLabel={`${scientificName}. ${commonName}. ${description}`}
         testID={testID}
         style={pressableStyle}
       >
@@ -407,7 +407,7 @@ export function SpeciesCard({
       hrefPath={hrefPath}
       navigateAfterPress={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+      accessibilityLabel={`${scientificName}. ${commonName}. ${description}`}
       testID={testID}
       style={pressableStyle}
     >
