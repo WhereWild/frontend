@@ -18,6 +18,7 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useSettings } from '@/context/SettingsContext';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { WebMetadata } from '@/utils/webMetadata';
 
 const MAP_HEIGHT = 480;
@@ -34,6 +35,7 @@ export default function HomeRegion() {
   const palette = Colors[mode];
 
   const { localLat, setLocalLat, localLon, setLocalLon } = useSettings();
+  const isOnline = useIsOnline();
 
   const handleLocationPicked = useCallback(
     (lat: number, lon: number) => {
@@ -100,6 +102,7 @@ export default function HomeRegion() {
               height={MAP_HEIGHT}
               showMarkers={false}
               locationPickerMode
+              enableOfflineFallback={!isOnline}
               localLat={localLat}
               localLon={localLon}
               onLocationPicked={handleLocationPicked}

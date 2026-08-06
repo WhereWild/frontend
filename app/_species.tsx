@@ -80,6 +80,7 @@ import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservat
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
 import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
@@ -239,6 +240,7 @@ export default function Species({
     shapesEnabled,
     markerOutlineEnabled,
   } = useSettings();
+  const isOnline = useIsOnline();
   const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
   const { height: viewportHeight, width: viewportWidth } =
     useWindowDimensions();
@@ -1209,6 +1211,7 @@ export default function Species({
                       : null
                   }
                   heatmapTileUrl={heatmapTileUrl}
+                  enableOfflineFallback={!isOnline}
                   renderMin={
                     selectedVariableMeta &&
                     !isVariableCategorical(selectedVariableMeta) &&
