@@ -78,10 +78,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // wherewild/main.py's satellite_tile) so the ArcGIS API key never
     // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
     // z/y/x tile path, since the backend handles that reversal.
-    const SATELLITE_TILE_URL = null; // disabled in the offline fallback — see neutralizeBasemapModeToggle
+    const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;
     // 'standard' | 'satellite' | 'variable' — same persisted-preference
     // pattern as TERRAIN_ENABLED_INITIAL.
-    const BASEMAP_MODE_INITIAL = 'standard'; // disabled in the offline fallback — see neutralizeBasemapModeToggle
+    const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
     // Tracks whatever the currently-selected GIS variable's tile URL is —
     // starts at HEATMAP_TILE_URL but updates live via applyPendingHeatmapUpdate
     // below, so 'variable' basemap mode always reflects the live selection
@@ -948,18 +948,26 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         ),
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#000' } },
-          { id: 'basemap-layer', type: 'raster', source: 'basemap' },
         ]
+          // The offline vector fallback sits directly above the black
+          // background but BELOW the real basemap raster layer — so any
+          // successfully loaded tile (including ones the service worker
+          // serves from cache while offline — see cachedTileResponse in
+          // public/sw.js) paints over it, and it only shows through where no
+          // tile, cached or fresh, is actually available. This only matters
+          // in the offline-capable template (ENABLE_OFFLINE_FALLBACK is
+          // always false here otherwise, making this a no-op).
+          .concat(ENABLE_OFFLINE_FALLBACK ? [{ id: 'offlineFallback-layer', type: 'raster', source: 'offlineFallback', layout: { visibility: 'visible' } }] : [])
+          .concat([{ id: 'basemap-layer', type: 'raster', source: 'basemap' }])
           // Shades the basemap using the same DEM setTerrain() uses for the
           // 3D mesh, so relief reads clearly even head-on where the globe's
           // own displacement is least visible. Sits above the basemap but
           // below every data overlay.
           .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 }, layout: { visibility: TERRAIN_ENABLED_INITIAL ? 'visible' : 'none' } }] : [])
-          // Sits directly above the real basemap so it visually replaces it
-          // while shown; shown-by-default until a clean tile load says
-          // otherwise, matching the Leaflet fallback's default (see
-          // evaluateOfflineFallback below).
-          .concat(ENABLE_OFFLINE_FALLBACK ? [{ id: 'offlineFallback-layer', type: 'raster', source: 'offlineFallback', layout: { visibility: 'visible' } }] : [])
+          // offlineFallback-layer itself is added directly in the main
+          // template's base layers array (see SpeciesOccurrenceGlobeMap.html)
+          // so it can sit below basemap-layer — a plain .concat() here would
+          // only ever be able to append after it.
           // Place-name labels: MapLibre's own symbol collision system does
           // the decluttering (viewport culling + priority-based overlap
           // avoidance, globe-occlusion-aware) that the Leaflet fallback has
@@ -1429,9 +1437,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     if (ENABLE_OFFLINE_FALLBACK) {
       var basemapTileErrorsThisCycle = 0;
       var basemapTilesConfirmedLoaded = false;
+      var shouldShowFallback = false;
       function evaluateOfflineFallback() {
         var isOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
-        var shouldShowFallback = !isOnline || !basemapTilesConfirmedLoaded;
+        shouldShowFallback = !isOnline || !basemapTilesConfirmedLoaded;
         if (map.getLayer('offlineFallback-layer')) {
           map.setLayoutProperty('offlineFallback-layer', 'visibility', shouldShowFallback ? 'visible' : 'none');
         }
@@ -1457,6 +1466,54 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       if (typeof window !== 'undefined') {
         window.addEventListener('online', evaluateOfflineFallback);
         window.addEventListener('offline', evaluateOfflineFallback);
+      }
+
+      // Testing/debug toggle for the SW's tile cache fallback (see
+      // public/sw.js's cachedTileResponse) — shown whenever this offline-
+      // capable template is loaded at all (independent of shouldShowFallback,
+      // which only tracks the Natural Earth vector background specifically),
+      // so it's available for verifying whether tiles you already browsed
+      // while online are actually being served from cache now vs. genuinely
+      // failing. Disabling it here does not affect real end users; it only
+      // flips a same-origin in-memory flag the SW checks before falling back
+      // to cache on a failed fetch — toggling it back on (or reloading)
+      // restores normal behavior. Injected (via sendPinMessageAnchor, see
+      // regenerate-offline-map-templates.mjs) after all of the template's
+      // other addControl calls, so this naturally lands last in the
+      // top-right stack without needing to defer it.
+      var cacheFallbackDisabled = false;
+      var CACHE_TOGGLE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="8" cy="3.5" rx="5.5" ry="2"/><path d="M2.5 3.5v9c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2v-9"/><path d="M2.5 8c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2"/></svg>';
+      function setCacheFallbackDisabled(disabled) {
+        cacheFallbackDisabled = disabled;
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'setTileCacheFallbackDisabled', disabled: disabled });
+        }
+      }
+      if (!window.ReactNativeWebView) {
+        map.addControl({
+          onAdd: function() {
+            var container = document.createElement('div');
+            container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+            var updateButton = function() {
+              btn.title = cacheFallbackDisabled
+                ? 'Offline tile cache disabled for testing — click to re-enable'
+                : 'Offline tile cache enabled — click to disable for testing';
+              btn.style.color = cacheFallbackDisabled ? palette.linkColor : '';
+            };
+            btn.innerHTML = CACHE_TOGGLE_ICON;
+            updateButton();
+            btn.addEventListener('click', function() {
+              setCacheFallbackDisabled(!cacheFallbackDisabled);
+              updateButton();
+            });
+            container.appendChild(btn);
+            return container;
+          },
+          onRemove: function() {},
+        });
       }
     }
 

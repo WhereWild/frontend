@@ -1658,14 +1658,16 @@ export const loadMapTemplate = async (): Promise<string | null> => {
 };
 
 // Same problem, same fix, as loadGlobeMapTemplateOffline below: the offline
-// Natural Earth basemap + place-label data adds ~26MB to this template, and
+// Natural Earth basemap + place-label data adds real weight to this
+// template (trimmed to ~9MB this session, from an original ~26MB — dropped
+// railroads/minor roads, density-pruned places, simplified geometry), and
 // every variable switch re-runs fillMapTemplatePlaceholders' ~40
-// .split()/.join() passes over the whole string — a measured ~300ms+ per
-// switch, independent of zoom, entirely from that one template being this
-// big. enableOfflineFallback is only true when the caller has detected an
-// unreachable backend (see useIsOnline), so keep that weight out of every
-// Leaflet map load that doesn't actually need it by splitting it into its
-// own asset.
+// .split()/.join() passes over the whole string, so keeping it a separate
+// asset avoids paying that string-copy cost on every online map instance
+// that has opted out via enableOfflineFallback={false} — the default
+// (true) loads this unconditionally, since loadHtmlAsset does a real
+// fetch() at runtime and the offline template needs to have actually
+// succeeded once *before* a visitor goes offline, not after.
 export const loadMapTemplateOffline = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceMapOffline.html'));
 };
@@ -1674,13 +1676,12 @@ export const loadGlobeMapTemplate = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMap.html'));
 };
 
-// The offline vector basemap + place-label data adds ~25MB to the globe
-// template — every extra .split()/.join() pass in fillMapTemplatePlaceholders
-// copies that whole string, which is enough to visibly stall the globe on
-// every load. enableOfflineFallback is only true when the caller has
-// detected an unreachable backend (see useIsOnline), so keep that weight out
-// of every globe load that doesn't actually need it by splitting it into its
-// own asset, loaded only when actually needed.
+// The offline vector basemap + place-label data adds real weight to the
+// globe template too (same trim this session brought it down from ~25MB to
+// ~9MB) — kept as a separate asset for the same reason as
+// loadMapTemplateOffline above: cheap to skip for an instance that's opted
+// out via enableOfflineFallback={false}, and the default (true) loads it
+// unconditionally so it's actually cached before a visitor goes offline.
 export const loadGlobeMapTemplateOffline = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMapOffline.html'));
 };

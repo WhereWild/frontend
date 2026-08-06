@@ -65,35 +65,10 @@ function replaceOnce(content, anchor, replacement, label) {
   );
 }
 
-// Satellite/variable-as-basemap tiles are both network-fetched, same as the
-// basemap tiles this whole offline fallback exists to work around — the
-// toggle control that offers them doesn't belong in an offline template
-// (its own guard, `if (SATELLITE_TILE_URL)`, is what determines whether the
-// control even renders at all), so this neutralizes both consts to values
-// that keep that guard false and the rest of tileUrlForBasemapMode's logic
-// falling through to TILE_URL, rather than trying to surgically strip the
-// toggle's code (which is now woven through several places in the file).
-function neutralizeBasemapModeToggle(content) {
-  content = replaceOnce(
-    content,
-    'const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;',
-    'const SATELLITE_TILE_URL = null; // disabled in the offline fallback — see neutralizeBasemapModeToggle',
-    'satellite tile url (offline neutralization)',
-  );
-  content = replaceOnce(
-    content,
-    'const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;',
-    "const BASEMAP_MODE_INITIAL = 'standard'; // disabled in the offline fallback — see neutralizeBasemapModeToggle",
-    'basemap mode initial (offline neutralization)',
-  );
-  return content;
-}
-
 function buildLeafletOffline() {
   const mainPath = path.join(mapDir, 'SpeciesOccurrenceMap.html');
   const outPath = path.join(mapDir, 'SpeciesOccurrenceMapOffline.html');
   let content = readFileSync(mainPath, 'utf8');
-  content = neutralizeBasemapModeToggle(content);
 
   // The main template still carries the doc comment describing this data
   // (left behind whenever the offline variant was first forked out) but
@@ -135,7 +110,6 @@ function buildGlobeOffline() {
   const mainPath = path.join(mapDir, 'SpeciesOccurrenceGlobeMap.html');
   const outPath = path.join(mapDir, 'SpeciesOccurrenceGlobeMapOffline.html');
   let content = readFileSync(mainPath, 'utf8');
-  content = neutralizeBasemapModeToggle(content);
 
   // Data + protocol/palette + place-labels builder all slot in together,
   // right before mapOptions is built (same relative position they had in

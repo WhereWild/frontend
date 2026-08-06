@@ -730,8 +730,17 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         ),
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#000' } },
-          { id: 'basemap-layer', type: 'raster', source: 'basemap' },
         ]
+          // The offline vector fallback sits directly above the black
+          // background but BELOW the real basemap raster layer — so any
+          // successfully loaded tile (including ones the service worker
+          // serves from cache while offline — see cachedTileResponse in
+          // public/sw.js) paints over it, and it only shows through where no
+          // tile, cached or fresh, is actually available. This only matters
+          // in the offline-capable template (ENABLE_OFFLINE_FALLBACK is
+          // always false here otherwise, making this a no-op).
+          .concat(ENABLE_OFFLINE_FALLBACK ? [{ id: 'offlineFallback-layer', type: 'raster', source: 'offlineFallback', layout: { visibility: 'visible' } }] : [])
+          .concat([{ id: 'basemap-layer', type: 'raster', source: 'basemap' }])
           // Shades the basemap using the same DEM setTerrain() uses for the
           // 3D mesh, so relief reads clearly even head-on where the globe's
           // own displacement is least visible. Sits above the basemap but

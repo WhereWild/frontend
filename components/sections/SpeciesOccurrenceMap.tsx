@@ -232,10 +232,17 @@ type SpeciesOccurrenceMapProps = {
   // carrying the filter's effect over and dropping its visual.
   initialDrawnPolygons?: [number, number][][] | null;
   // Natural Earth offline background layer (land/water/roads/places, shown
-  // only when tiles fail to load) — real weight (embedded data + LOD +
-  // label-declutter recomputed on every pan/zoom), so it must stay opt-in
-  // rather than run on every map instance across the app. Callers should
-  // pass `!useIsOnline()` so it's only loaded when actually needed.
+  // only when tiles fail to load). Defaults to true: the offline-capable
+  // template is now ~9MB (down from ~26MB after this dataset was trimmed —
+  // dropped railroads/minor roads, density-pruned places, simplified
+  // geometry), a small enough cost to always load eagerly rather than
+  // gating it on useIsOnline(). Loading it unconditionally also sidesteps a
+  // real gap that gating had: loadHtmlAsset does a genuine fetch() at
+  // runtime, so a caller that only requested the offline template once
+  // already offline would find nothing had ever been cached for it —
+  // "works if you happened to browse it first" isn't good enough for a
+  // visitor who goes straight to airplane mode. Set false to opt back into
+  // the old online-only behavior for a specific instance.
   enableOfflineFallback?: boolean;
   // Called (web only) when the in-map fullscreen button is toggled, instead
   // of this component handling it internally. Fullscreening only ever
@@ -303,7 +310,7 @@ export function SpeciesOccurrenceMap({
   onPolygonDrawStart,
   onPolygonDrawEnd,
   initialDrawnPolygons,
-  enableOfflineFallback = false,
+  enableOfflineFallback = true,
   onFullscreenToggle,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
@@ -688,8 +695,21 @@ export function SpeciesOccurrenceMap({
   // iframe rebuild right after the map already updated itself, undoing the
   // whole point of preserveMapPosition.
   const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
-  // Same freeze-at-build-time treatment, for the basemap mode toggle.
-  const initialBasemapMode = React.useRef(settings?.basemapMode ?? 'standard');
+  // Same freeze-at-build-time treatment, for the basemap mode toggle. When
+  // the toggle itself is disabled (enableBasemapModeToggle=false, e.g.
+  // maps.tsx), the template must NOT be driven by the shared/global
+  // settings.basemapMode — that setting can be left on 'standard'/'satellite'
+  // from a different page (e.g. the species page), and with no toggle button
+  // rendered here there'd be no way to ever switch it back, permanently
+  // hiding this map's heatmap overlay. 'variable' is the mode that shows the
+  // heatmap without changing the basemap tile itself (see
+  // tileUrlForBasemapMode in the map templates), matching this prop's
+  // pre-toggle behavior of always showing the overlay whenever a
+  // heatmapTileUrl is provided.
+  const effectiveBasemapMode = enableBasemapModeToggle
+    ? (settings?.basemapMode ?? 'standard')
+    : 'variable';
+  const initialBasemapMode = React.useRef(effectiveBasemapMode);
   // Same reasoning as initialTerrainEnabled above, for drawn regions:
   // drawing/erasing while staying on the SAME renderer already updates
   // that renderer's own DOM directly (no round trip needed) — only a
@@ -749,7 +769,7 @@ export function SpeciesOccurrenceMap({
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
-    initialBasemapMode.current = settings?.basemapMode ?? 'standard';
+    initialBasemapMode.current = effectiveBasemapMode;
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 
@@ -805,7 +825,7 @@ export function SpeciesOccurrenceMap({
     : (settings?.terrainEnabled ?? false);
   const memoBasemapMode = preserveMapPosition
     ? initialBasemapMode.current
-    : (settings?.basemapMode ?? 'standard');
+    : effectiveBasemapMode;
   const memoInitialDrawnPolygons = preserveMapPosition
     ? initialDrawnPolygonsRef.current
     : (initialDrawnPolygons ?? null);

@@ -1,8 +1,7 @@
-          // Sits directly above the real basemap so it visually replaces it
-          // while shown; shown-by-default until a clean tile load says
-          // otherwise, matching the Leaflet fallback's default (see
-          // evaluateOfflineFallback below).
-          .concat(ENABLE_OFFLINE_FALLBACK ? [{ id: 'offlineFallback-layer', type: 'raster', source: 'offlineFallback', layout: { visibility: 'visible' } }] : [])
+          // offlineFallback-layer itself is added directly in the main
+          // template's base layers array (see SpeciesOccurrenceGlobeMap.html)
+          // so it can sit below basemap-layer — a plain .concat() here would
+          // only ever be able to append after it.
           // Place-name labels: MapLibre's own symbol collision system does
           // the decluttering (viewport culling + priority-based overlap
           // avoidance, globe-occlusion-aware) that the Leaflet fallback has

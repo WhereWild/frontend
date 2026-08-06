@@ -17,7 +17,6 @@ import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings, type UnitSystem } from '@/context/SettingsContext';
-import { useIsOnline } from '@/hooks/useIsOnline';
 import { StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
@@ -184,7 +183,6 @@ export default function Maps() {
     markerOutlineEnabled: markerOutlineEnabledSetting,
     globeViewEnabled,
   } = useSettings();
-  const isOnline = useIsOnline();
   const markerOutlineEnabled =
     markerOutlineEnabledSetting || cbMode === 'achromatopsia';
 
@@ -613,7 +611,6 @@ export default function Maps() {
                 showMarkers={false}
                 useLabelsOverlay
                 enableBasemapModeToggle={false}
-                enableOfflineFallback={!isOnline}
                 preserveMapPosition
                 onFullscreenToggle={() =>
                   toggleFullscreenElement(

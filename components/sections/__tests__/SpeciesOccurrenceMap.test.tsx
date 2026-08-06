@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
+import fs from 'fs';
+import path from 'path';
 import {
   cleanup,
   fireEvent,
@@ -13,6 +15,11 @@ import {
 import { Linking, Platform } from 'react-native';
 import { SpeciesOccurrenceMap } from '../SpeciesOccurrenceMap';
 import * as speciesOccurrenceMapHelpers from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+
+const realLeafletTemplate = fs.readFileSync(
+  path.join(__dirname, '../speciesOccurrenceMap/SpeciesOccurrenceMap.html'),
+  'utf8',
+);
 
 const mockPostMessage = jest.fn();
 
@@ -325,6 +332,47 @@ describe('SpeciesOccurrenceMap', () => {
     // toggle's ThemedText label) read `window` at cleanup time, not mount
     // time, so tearing down after `originalWindow` is restored in afterEach
     // would throw.
+    unmount();
+  });
+
+  it('always shows the heatmap overlay when the basemap mode toggle is disabled, regardless of the shared basemapMode setting', async () => {
+    // Regression test: maps.tsx passes enableBasemapModeToggle={false} and
+    // relies on its heatmap tiles always being visible — it has no toggle UI
+    // to ever set the shared/global settings.basemapMode to 'variable'
+    // itself, so this map must not be gated by whatever that setting was
+    // last left at (e.g. 'standard', from browsing the species page).
+    Object.defineProperty(Platform, 'OS', { value: 'web' });
+    global.window = {
+      ...originalWindow,
+      innerWidth: 1440,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    } as unknown as Window & typeof globalThis;
+    loadMapTemplateSpy.mockResolvedValue(realLeafletTemplate);
+
+    const { UNSAFE_getByProps, unmount } = render(
+      <SpeciesOccurrenceMap
+        occurrences={[]}
+        showMarkers={false}
+        heatmapTileUrl='https://tiles.example.test/{z}/{x}/{y}.png'
+        enableBasemapModeToggle={false}
+        // Pins this test to the mocked loadMapTemplate (online) path — this
+        // test is about basemapMode placeholder substitution, which is
+        // identical between the online/offline templates, not about
+        // enableOfflineFallback (which now defaults to true).
+        enableOfflineFallback={false}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading map renderer…')).toBeNull();
+    });
+
+    const iframe = UNSAFE_getByProps({ title: 'Observation map' });
+    expect(iframe.props.srcDoc).toContain(
+      'const BASEMAP_MODE_INITIAL = "variable";',
+    );
+
     unmount();
   });
 
