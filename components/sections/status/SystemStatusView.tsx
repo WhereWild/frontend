@@ -38,6 +38,8 @@ export type ServerStatusData = {
   ram_total_mb: number;
   disk_used_gb: number;
   disk_total_gb: number;
+  disk2_used_gb?: number | null;
+  disk2_total_gb?: number | null;
 };
 
 export type SystemStatusData = {
@@ -375,6 +377,14 @@ function ServerCard({ data }: { data: ServerStatusData }) {
         total={data.disk_total_gb}
         unit='GB'
       />
+      {data.disk2_total_gb != null && data.disk2_used_gb != null && (
+        <ResourceBar
+          label='Disk 2'
+          used={data.disk2_used_gb}
+          total={data.disk2_total_gb}
+          unit='GB'
+        />
+      )}
     </StatusCard>
   );
 }
