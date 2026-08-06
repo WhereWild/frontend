@@ -750,7 +750,8 @@ export function SpeciesOccurrenceMap({
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
-    initialSatelliteEnabled.current = settings?.satelliteBasemapEnabled ?? false;
+    initialSatelliteEnabled.current =
+      settings?.satelliteBasemapEnabled ?? false;
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 

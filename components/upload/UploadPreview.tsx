@@ -145,13 +145,12 @@ export function UploadPreview({
   // polygon region (that filter is applied client-side below, same as
   // _species.tsx, so it can be toggled off instantly while a new region is
   // being drawn without a re-fetch).
-  const [fetchedMapOccurrences, setFetchedMapOccurrences] = React.useState(
-    () =>
-      uploadedBundle.occurrences.map((row) => ({
-        catalogNumber: row.catalogNumber,
-        latitude: row.latitude,
-        longitude: row.longitude,
-      })),
+  const [fetchedMapOccurrences, setFetchedMapOccurrences] = React.useState(() =>
+    uploadedBundle.occurrences.map((row) => ({
+      catalogNumber: row.catalogNumber,
+      latitude: row.latitude,
+      longitude: row.longitude,
+    })),
   );
   const [pinnedObservation, setPinnedObservation] =
     React.useState<PinnedObservation | null>(null);
