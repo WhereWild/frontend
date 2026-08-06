@@ -234,8 +234,8 @@ type SpeciesOccurrenceMapProps = {
   // Natural Earth offline background layer (land/water/roads/places, shown
   // only when tiles fail to load) — real weight (embedded data + LOD +
   // label-declutter recomputed on every pan/zoom), so it must stay opt-in
-  // rather than run on every map instance across the app. Only the custom
-  // upload page (which genuinely needs to work offline) should enable it.
+  // rather than run on every map instance across the app. Callers should
+  // pass `!useIsOnline()` so it's only loaded when actually needed.
   enableOfflineFallback?: boolean;
   // Called (web only) when the in-map fullscreen button is toggled, instead
   // of this component handling it internally. Fullscreening only ever

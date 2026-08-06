@@ -1662,9 +1662,10 @@ export const loadMapTemplate = async (): Promise<string | null> => {
 // every variable switch re-runs fillMapTemplatePlaceholders' ~40
 // .split()/.join() passes over the whole string — a measured ~300ms+ per
 // switch, independent of zoom, entirely from that one template being this
-// big. enableOfflineFallback is only ever true on the upload page, so keep
-// that weight out of every other Leaflet map (species pages, maps page) by
-// splitting it into its own asset.
+// big. enableOfflineFallback is only true when the caller has detected an
+// unreachable backend (see useIsOnline), so keep that weight out of every
+// Leaflet map load that doesn't actually need it by splitting it into its
+// own asset.
 export const loadMapTemplateOffline = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceMapOffline.html'));
 };
@@ -1676,9 +1677,10 @@ export const loadGlobeMapTemplate = async (): Promise<string | null> => {
 // The offline vector basemap + place-label data adds ~25MB to the globe
 // template — every extra .split()/.join() pass in fillMapTemplatePlaceholders
 // copies that whole string, which is enough to visibly stall the globe on
-// every load. Since enableOfflineFallback is only ever true on the upload
-// page, keep that weight out of the template every other globe view loads by
-// splitting it into its own asset, loaded only when actually needed.
+// every load. enableOfflineFallback is only true when the caller has
+// detected an unreachable backend (see useIsOnline), so keep that weight out
+// of every globe load that doesn't actually need it by splitting it into its
+// own asset, loaded only when actually needed.
 export const loadGlobeMapTemplateOffline = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMapOffline.html'));
 };
