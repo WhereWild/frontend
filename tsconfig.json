@@ -15,5 +15,11 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "components/sections/speciesOccurrenceMap/offlineFallbackPartials/**"
   ]
 }
