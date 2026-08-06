@@ -150,6 +150,8 @@ describe('Settings screen', () => {
       setGlobeViewEnabled: jest.fn(),
       terrainEnabled: false,
       setTerrainEnabled: jest.fn(),
+      satelliteBasemapEnabled: false,
+      setSatelliteBasemapEnabled: jest.fn(),
       localLat: null,
       setLocalLat: jest.fn(),
       localLon: null,

@@ -25,6 +25,7 @@ import {
   getElevationTerrainTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
+  getSatelliteTileUrlTemplate,
   loadFallbackMapTemplate,
   loadGlobeMapTemplate,
   loadGlobeMapTemplateOffline,
@@ -43,6 +44,7 @@ import {
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
   TOGGLE_TERRAIN_MESSAGE_TYPE,
+  TOGGLE_SATELLITE_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
   POINT_STYLES_UPDATE_MESSAGE_TYPE,
@@ -615,6 +617,10 @@ export function SpeciesOccurrenceMap({
     () => (globeView ? getElevationTerrainTileUrl() : null),
     [globeView],
   );
+  // Satellite basemap works on both renderers (unlike terrain, which is
+  // MapLibre-only) — always the same backend proxy URL, no per-render
+  // dependency needed.
+  const satelliteTileUrl = React.useMemo(() => getSatelliteTileUrlTemplate(), []);
 
   // When preserveMapPosition is true, the html memo is built once with initial
   // values for the "live" props. Subsequent changes are sent via postMessage so
@@ -672,6 +678,10 @@ export function SpeciesOccurrenceMap({
   // iframe rebuild right after the map already updated itself, undoing the
   // whole point of preserveMapPosition.
   const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
+  // Same freeze-at-build-time treatment, for the satellite basemap toggle.
+  const initialSatelliteEnabled = React.useRef(
+    settings?.satelliteBasemapEnabled ?? false,
+  );
   // Same reasoning as initialTerrainEnabled above, for drawn regions:
   // drawing/erasing while staying on the SAME renderer already updates
   // that renderer's own DOM directly (no round trip needed) — only a
@@ -731,6 +741,7 @@ export function SpeciesOccurrenceMap({
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
+    initialSatelliteEnabled.current = settings?.satelliteBasemapEnabled ?? false;
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 
@@ -784,6 +795,9 @@ export function SpeciesOccurrenceMap({
   const memoTerrainEnabled = preserveMapPosition
     ? initialTerrainEnabled.current
     : (settings?.terrainEnabled ?? false);
+  const memoSatelliteEnabled = preserveMapPosition
+    ? initialSatelliteEnabled.current
+    : (settings?.satelliteBasemapEnabled ?? false);
   const memoInitialDrawnPolygons = preserveMapPosition
     ? initialDrawnPolygonsRef.current
     : (initialDrawnPolygons ?? null);
@@ -835,6 +849,8 @@ export function SpeciesOccurrenceMap({
       terrainTileUrl,
       memoTerrainEnabled,
       memoInitialDrawnPolygons,
+      memoSatelliteEnabled,
+      satelliteTileUrl,
     );
   }, [
     allowPinObservations,
@@ -876,6 +892,8 @@ export function SpeciesOccurrenceMap({
     terrainTileUrl,
     memoTerrainEnabled,
     memoInitialDrawnPolygons,
+    memoSatelliteEnabled,
+    satelliteTileUrl,
   ]);
 
   React.useEffect(() => {
@@ -1250,6 +1268,23 @@ export function SpeciesOccurrenceMap({
         // reload starts with whatever the user last picked instead of
         // always defaulting on.
         settings?.setTerrainEnabled(!settings.terrainEnabled);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_SATELLITE_MESSAGE_TYPE
+      ) {
+        // Same split as TOGGLE_TERRAIN_MESSAGE_TYPE above: the map already
+        // swapped its basemap tiles live and locally (see the layers-icon
+        // control in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html)
+        // — this only persists the choice to settings.satelliteBasemapEnabled
+        // so a later reload starts with whatever was last picked.
+        settings?.setSatelliteBasemapEnabled(!settings.satelliteBasemapEnabled);
         return;
       }
 

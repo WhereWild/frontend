@@ -45,6 +45,7 @@ describe('SettingsContext', () => {
         case 'settings.markerOutlineEnabled':
         case 'settings.globeViewEnabled':
         case 'settings.terrainEnabled':
+        case 'settings.satelliteBasemapEnabled':
         case 'settings.localLat':
         case 'settings.localLon':
           return [undefined, jest.fn()] as const;

@@ -17,6 +17,7 @@ export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
 export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
 export const TOGGLE_TERRAIN_MESSAGE_TYPE = 'toggleTerrain';
+export const TOGGLE_SATELLITE_MESSAGE_TYPE = 'toggleSatellite';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
@@ -133,6 +134,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
   terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
   terrainEnabled: '__TERRAIN_ENABLED__',
+  satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
+  satelliteEnabled: '__SATELLITE_ENABLED__',
   initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
@@ -313,6 +316,14 @@ export const getLinesOverlayTileUrl = () =>
 // elevation_terrain_tile / util/tiles.py's render_elevation_terrain_rgb_tile_bytes).
 export const getElevationTerrainTileUrl = () =>
   `${BACKEND_BASE}/api/layers/elevation/terrain-tiles/{z}/{x}/{y}.png`;
+
+// Esri World Imagery satellite basemap, proxied through our own backend —
+// same reasoning as getElevationTerrainTileUrl above: the real ArcGIS API
+// key lives only in the backend's env (WW_ARCGIS_API_KEY), never shipped to
+// the client, so this URL needs no key of its own (see wherewild/main.py's
+// satellite_tile / _fetch_satellite_tile_bytes).
+export const getSatelliteTileUrlTemplate = () =>
+  `${BACKEND_BASE}/api/tiles/satellite/{z}/{x}/{y}.jpg`;
 
 export const getBackgroundTileUrl = () =>
   MAP_TILE_API_KEY
@@ -1251,6 +1262,8 @@ const fillMapTemplatePlaceholders = (
   terrainTileUrl?: string | null,
   terrainEnabled?: boolean,
   initialDrawnPolygons?: [number, number][][] | null,
+  satelliteEnabled?: boolean,
+  satelliteTileUrl?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1452,6 +1465,12 @@ const fillMapTemplatePlaceholders = (
         : 'null',
     );
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteEnabled)
+    .join(satelliteEnabled ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteTileUrl)
+    .join(satelliteTileUrl ? JSON.stringify(satelliteTileUrl) : 'null');
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.leafletResizeObserverScript)
     .join(LEAFLET_RESIZE_OBSERVER_SCRIPT);
   html = html
@@ -1521,6 +1540,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     terrainTileUrl,
     terrainEnabled,
     initialDrawnPolygons,
+    satelliteEnabled,
+    satelliteTileUrl,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1566,6 +1587,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     terrainTileUrl,
     terrainEnabled,
     initialDrawnPolygons,
+    satelliteEnabled,
+    satelliteTileUrl,
   );
 };
 

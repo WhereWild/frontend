@@ -73,6 +73,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // — read once at load so a reload/return visit starts wherever the user
     // last left the toggle, rather than always defaulting on.
     const TERRAIN_ENABLED_INITIAL = __TERRAIN_ENABLED__;
+    // Esri World Imagery, proxied through our own backend (see
+    // wherewild/main.py's satellite_tile) so the ArcGIS API key never
+    // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
+    // z/y/x tile path, since the backend handles that reversal.
+    const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;
+    // Same persisted-preference pattern as TERRAIN_ENABLED_INITIAL.
+    const SATELLITE_ENABLED_INITIAL = __SATELLITE_ENABLED__;
     // Whatever region(s) were already drawn/uploaded when this map was
     // (re)built — e.g. switching here from Leaflet after drawing a region
     // there. Rings are [latitude, longitude] pairs, same convention as
@@ -692,7 +699,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: Object.assign(
           {
-            basemap: { type: 'raster', tiles: [TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM },
+            basemap: { type: 'raster', tiles: [(SATELLITE_TILE_URL && SATELLITE_ENABLED_INITIAL) ? SATELLITE_TILE_URL : TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM },
           },
           HEATMAP_TILE_URL ? { heatmap: { type: 'raster', tiles: ['heatmap://' + HEATMAP_TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
           LINES_OVERLAY_URL ? { lines: { type: 'raster', tiles: [LINES_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
@@ -823,6 +830,46 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             applyTerrainState();
             updateButton();
             postToParent({ type: 'toggleTerrain' });
+          });
+          container.appendChild(btn);
+          return container;
+        },
+        onRemove: function() {},
+      });
+    }
+
+    // Satellite basemap toggle — same live-locally / persist-via-postMessage
+    // split as the terrain toggle above, but swaps the 'basemap' raster
+    // source's tiles in place (RasterTileSource#setTiles) rather than
+    // adding/removing a layer, so panes/overlays layered on top (heatmap,
+    // lines, labels, markers) are untouched. Guarded the same way
+    // TERRAIN_TILE_URL guards the terrain control above.
+    if (SATELLITE_TILE_URL) {
+      var satelliteEnabled = !!SATELLITE_ENABLED_INITIAL;
+      var applySatelliteState = function() {
+        var source = map.getSource('basemap');
+        if (source && typeof source.setTiles === 'function') {
+          source.setTiles([satelliteEnabled ? SATELLITE_TILE_URL : TILE_URL]);
+        }
+      };
+      map.addControl({
+        onAdd: function() {
+          var container = document.createElement('div');
+          container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+          var updateButton = function() {
+            btn.title = satelliteEnabled ? 'Switch to standard basemap' : 'Switch to satellite basemap';
+            btn.style.color = satelliteEnabled ? palette.linkColor : '';
+          };
+          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5L14.5 5 8 8.5 1.5 5z"/><path d="M1.5 8L8 11.5 14.5 8"/><path d="M1.5 11L8 14.5 14.5 11"/></svg>';
+          updateButton();
+          btn.addEventListener('click', function() {
+            satelliteEnabled = !satelliteEnabled;
+            applySatelliteState();
+            updateButton();
+            postToParent({ type: 'toggleSatellite' });
           });
           container.appendChild(btn);
           return container;

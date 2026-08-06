@@ -63,6 +63,8 @@ type SettingsContextType = {
   setGlobeViewEnabled: (v: boolean) => void;
   terrainEnabled: boolean;
   setTerrainEnabled: (v: boolean) => void;
+  satelliteBasemapEnabled: boolean;
+  setSatelliteBasemapEnabled: (v: boolean) => void;
   localLat: number | null;
   setLocalLat: (v: number | null) => void;
   localLon: number | null;
@@ -120,6 +122,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.terrainEnabled',
     false,
   );
+  const [satelliteBasemapEnabled, setSatelliteBasemapEnabled] =
+    useAsyncStorageState<boolean>('settings.satelliteBasemapEnabled', false);
   const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
     'settings.localLat',
     null,
@@ -154,6 +158,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setGlobeViewEnabled,
         terrainEnabled,
         setTerrainEnabled,
+        satelliteBasemapEnabled,
+        setSatelliteBasemapEnabled,
         localLat,
         setLocalLat,
         localLon,
