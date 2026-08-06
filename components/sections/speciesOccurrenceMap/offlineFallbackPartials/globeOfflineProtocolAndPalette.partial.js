@@ -61,9 +61,6 @@
         { data: CANVAS_ROADS, kind: 'stroke', style: function() {
           return { strokeStyle: OFFLINE_FALLBACK_PALETTE.road, lineWidth: 0.75 };
         } },
-        { data: CANVAS_RAILROADS, kind: 'stroke', style: function() {
-          return { strokeStyle: OFFLINE_FALLBACK_PALETTE.rail, lineWidth: 0.75, dash: [3, 3] };
-        } },
       ];
 
       // Same tile math as NaturalEarthCanvasLayer.createTile: coordinates are
