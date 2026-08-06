@@ -1896,6 +1896,17 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         return false;
       }
 
+      // Ctrl/Cmd/middle/Shift-click all signal "open in a background tab" —
+      // the anchor already has target="_blank" and a real href, so letting
+      // the browser handle those natively (instead of preventDefault + our
+      // own postToParent -> Linking.openURL bridge) means no new window/tab
+      // ever takes focus away from this document, which is what was
+      // kicking the parent page out of fullscreen on every link click even
+      // when the click was only ever meant to open in the background.
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1) {
+        return false;
+      }
+
       event.preventDefault?.();
       sendOpenExternalUrlMessage(url);
       return true;
