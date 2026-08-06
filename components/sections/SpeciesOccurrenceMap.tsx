@@ -198,6 +198,11 @@ type SpeciesOccurrenceMapProps = {
   gradientStops?: [number, number, number][] | null;
   aspectStops?: [number, number, number][] | null;
   useLabelsOverlay?: boolean;
+  // Defaults on — set false to omit the satellite-basemap toggle control
+  // entirely (e.g. maps.tsx, whose heatmap/labels overlays are tuned
+  // against the light basemap's contrast and where a much higher-traffic
+  // page multiplies the ArcGIS tile cost of leaving it available).
+  enableSatelliteBasemap?: boolean;
   preserveMapPosition?: boolean;
   locationPickerMode?: boolean;
   onLocationPicked?: (lat: number, lon: number) => void;
@@ -286,6 +291,7 @@ export function SpeciesOccurrenceMap({
   gradientStops = null,
   aspectStops = null,
   useLabelsOverlay = false,
+  enableSatelliteBasemap = true,
   preserveMapPosition = false,
   locationPickerMode = false,
   onLocationPicked,
@@ -618,9 +624,12 @@ export function SpeciesOccurrenceMap({
     [globeView],
   );
   // Satellite basemap works on both renderers (unlike terrain, which is
-  // MapLibre-only) — always the same backend proxy URL, no per-render
-  // dependency needed.
-  const satelliteTileUrl = React.useMemo(() => getSatelliteTileUrlTemplate(), []);
+  // MapLibre-only) — same backend proxy URL regardless of render, gated
+  // only by the enableSatelliteBasemap prop (see its doc comment).
+  const satelliteTileUrl = React.useMemo(
+    () => (enableSatelliteBasemap ? getSatelliteTileUrlTemplate() : null),
+    [enableSatelliteBasemap],
+  );
 
   // When preserveMapPosition is true, the html memo is built once with initial
   // values for the "live" props. Subsequent changes are sent via postMessage so
