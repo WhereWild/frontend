@@ -335,6 +335,9 @@
       { data: CANVAS_ROADS, kind: 'stroke', style: function() {
         return { strokeStyle: FALLBACK_PALETTE.road, lineWidth: 0.75 };
       } },
+      { data: CANVAS_RAILROADS, kind: 'stroke', style: function() {
+        return { strokeStyle: FALLBACK_PALETTE.rail, lineWidth: 0.75, dash: [3, 3] };
+      } },
     ];
 
     var NaturalEarthCanvasLayer = L.GridLayer.extend({
