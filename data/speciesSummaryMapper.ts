@@ -22,8 +22,8 @@ export const mapSpeciesApiNormalizedToSummary = (
   entry: SpeciesApiNormalized,
   options: MapSpeciesSummaryOptions = {},
 ): SpeciesSummary | null => {
-  const rawId = typeof entry.taxon_id === 'number' ? entry.taxon_id : Number(entry.taxon_id);
-  if (!Number.isFinite(rawId)) {
+  const rawId = entry.taxon_id;
+  if (!rawId) {
     return null;
   }
 

@@ -47,7 +47,7 @@ export function useSearchFiltersEffects({
 }: UseSearchFiltersEffectsParams) {
   const latestAncestorTaxonIdRef = React.useRef(state.ancestorTaxonId);
   latestAncestorTaxonIdRef.current = state.ancestorTaxonId;
-  const prevAncestorTaxonIdRef = React.useRef<number | null | undefined>(
+  const prevAncestorTaxonIdRef = React.useRef<string | null | undefined>(
     undefined,
   );
   const latestRankingSortOptionsRef = React.useRef(state.rankingSortOptions);
@@ -77,9 +77,8 @@ export function useSearchFiltersEffects({
     let cancelled = false;
     dispatch({ type: 'set-country-loading', value: true });
 
-    const hasTaxonId =
-      state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId);
-    const prevWasValid = prevId != null && Number.isFinite(prevId);
+    const hasTaxonId = state.ancestorTaxonId != null;
+    const prevWasValid = prevId != null;
     const taxonIdChanged = prevWasValid && prevId !== state.ancestorTaxonId;
 
     if (hasTaxonId && taxonIdChanged) {
@@ -128,7 +127,7 @@ export function useSearchFiltersEffects({
     dispatch({ type: 'set-state-loading', value: true });
 
     const stateLoadFn =
-      state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId)
+      state.ancestorTaxonId != null
         ? fetchTaxonHierarchyOptions(
             state.ancestorTaxonId,
             'state',
@@ -180,7 +179,7 @@ export function useSearchFiltersEffects({
     dispatch({ type: 'set-county-loading', value: true });
 
     const countyLoadFn =
-      state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId)
+      state.ancestorTaxonId != null
         ? fetchTaxonHierarchyOptions(
             state.ancestorTaxonId,
             'county',
@@ -293,8 +292,7 @@ export function useSearchFiltersEffects({
         });
 
         const hasValidAncestorTaxonId =
-          latestAncestorTaxonIdRef.current != null &&
-          Number.isFinite(latestAncestorTaxonIdRef.current);
+          latestAncestorTaxonIdRef.current != null;
 
         if (!hasValidAncestorTaxonId) {
           dispatch({ type: 'set-sort-variable-options', options });
@@ -336,8 +334,7 @@ export function useSearchFiltersEffects({
           dispatch({ type: 'set-sort-variable-definitions', definitions: [] });
 
           const hasValidAncestorTaxonId =
-            latestAncestorTaxonIdRef.current != null &&
-            Number.isFinite(latestAncestorTaxonIdRef.current);
+            latestAncestorTaxonIdRef.current != null;
 
           if (!hasValidAncestorTaxonId) {
             dispatch({ type: 'set-sort-variable-options', options: [] });
@@ -356,8 +353,7 @@ export function useSearchFiltersEffects({
     };
   }, [dispatch]);
 
-  const hasValidAncestorTaxonId =
-    state.ancestorTaxonId != null && Number.isFinite(state.ancestorTaxonId);
+  const hasValidAncestorTaxonId = state.ancestorTaxonId != null;
 
   React.useLayoutEffect(() => {
     if (hasValidAncestorTaxonId) {
@@ -396,11 +392,7 @@ export function useSearchFiltersEffects({
   ]);
 
   React.useEffect(() => {
-    if (
-      !state.ancestorTaxonId ||
-      !Number.isFinite(state.ancestorTaxonId) ||
-      !state.rankValue
-    ) {
+    if (!state.ancestorTaxonId || !state.rankValue) {
       return;
     }
 

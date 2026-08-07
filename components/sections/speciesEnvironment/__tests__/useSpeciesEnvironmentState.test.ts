@@ -175,7 +175,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: [variableOptions[0]],
       }),
@@ -208,7 +208,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
       }),
     );
@@ -230,7 +230,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         onHighlightChange,
         variables: continuousVariableOptions,
@@ -256,7 +256,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'landcover',
         onHighlightChange,
         variables: categoricalVariableOptions,
@@ -309,7 +309,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: { catalogNumber: 'PIN-1', lat: 40.2, lon: -105.1 },
     });
@@ -349,7 +349,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: {
         catalogNumber: 'PIN-POINT',
@@ -398,7 +398,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: {
         catalogNumber: 'PIN-POINT',
@@ -453,7 +453,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: {
         catalogNumber: 'PIN-LABEL',
@@ -497,7 +497,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: {
         catalogNumber: 'PIN-LABEL-OOD',
@@ -545,7 +545,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: {
         catalogNumber: 'PIN-PRECEDENCE',
@@ -597,7 +597,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     const { result } = await renderSpeciesEnvironmentStateHook({
-      taxonId: 1,
+      taxonId: '1',
       variableId: 'landcover',
       pinnedObservation: {
         catalogNumber: 'PIN-REAL-PAYLOAD',
@@ -610,7 +610,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.pinnedLoading).toBe(false));
     await waitFor(() =>
       expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
-        1,
+        '1',
         'landcover',
         62,
         expect.objectContaining({ location: undefined, units: undefined }),
@@ -631,7 +631,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         locationGid: 'USA.1_1',
         variables: continuousVariableOptions,
@@ -651,7 +651,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: continuousVariableOptions,
       }),
@@ -672,7 +672,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: continuousVariableOptions,
       }),
@@ -693,7 +693,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         onHighlightChange,
         variables: continuousVariableOptions,
@@ -729,7 +729,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'landcover',
         onHighlightChange,
         variables: categoricalVariableOptions,
@@ -768,7 +768,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: '',
         variables: [
           {
@@ -802,7 +802,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: [
           {
@@ -838,7 +838,7 @@ describe('useSpeciesEnvironmentState', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesEnvironment).toHaveBeenCalledWith(1, 'bio_12', {
+      expect(mockFetchSpeciesEnvironment).toHaveBeenCalledWith('1', 'bio_12', {
         location: undefined,
         units: undefined,
         phenology: undefined,
@@ -868,7 +868,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: continuousVariableOptions,
       }),
@@ -907,7 +907,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         locationGid: 'USA.1_1',
         variables: continuousVariableOptions,
@@ -988,7 +988,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: twoContinuousVariables,
       }),
@@ -1011,7 +1011,7 @@ describe('useSpeciesEnvironmentState', () => {
     await waitFor(() => expect(result.current.selectedVariable).toBe('bio_2'));
     await waitFor(() =>
       expect(mockFetchSpeciesEnvironment).toHaveBeenCalledWith(
-        1,
+        '1',
         'bio_2',
         expect.objectContaining({
           extra: [{ variableId: 'bio_1', min: 2, max: 12 }],
@@ -1087,7 +1087,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'landcover',
         variables: bioAndLandcover,
       }),
@@ -1183,7 +1183,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'landcover',
         onHighlightChange,
         variables: twoCategoricalVariables,
@@ -1303,7 +1303,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         onHighlightChange,
         variables: threeVariables,
@@ -1359,7 +1359,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'landcover',
         locationGid: 'USA.1_1',
         onHighlightChange,
@@ -1377,7 +1377,7 @@ describe('useSpeciesEnvironmentState', () => {
       expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalled(),
     );
     expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
-      1,
+      '1',
       'landcover',
       'forest',
       { location: 'USA.1_1', units: undefined, extra: [] },
@@ -1391,7 +1391,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'landcover',
         onHighlightChange,
         variables: categoricalVariableOptions,
@@ -1417,7 +1417,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         onHighlightChange,
         variables: continuousVariableOptions,
@@ -1452,7 +1452,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: continuousVariableOptions,
       }),
@@ -1493,7 +1493,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'aspect_deg',
         variables: [
           {
@@ -1542,7 +1542,7 @@ describe('useSpeciesEnvironmentState', () => {
     const { result, rerender } = renderHook(
       ({ variables }: { variables: EnvironmentVariableOption[] }) =>
         useSpeciesEnvironmentState({
-          taxonId: 1,
+          taxonId: '1',
           variableId: 'bio_1',
           variables,
         }),
@@ -1596,7 +1596,7 @@ describe('useSpeciesEnvironmentState', () => {
 
     const { result } = renderHook(() =>
       useSpeciesEnvironmentState({
-        taxonId: 1,
+        taxonId: '1',
         variableId: 'bio_1',
         variables: continuousVariableOptions,
       }),

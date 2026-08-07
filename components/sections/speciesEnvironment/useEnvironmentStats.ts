@@ -13,7 +13,7 @@ import { isValidHistogramContract } from './model';
 /** Inputs for loading environment stats for one variable. */
 type UseEnvironmentStatsParams = {
   /** Taxon ID used for environment stats endpoint calls. */
-  taxonId?: number;
+  taxonId?: string;
   /** Active variable id to load. */
   selectedVariable: string;
   /** Optional location filter gid. */
@@ -23,6 +23,8 @@ type UseEnvironmentStatsParams = {
   /** Optional timestamp range filter (Unix seconds). */
   startTimestamp?: number | null;
   endTimestamp?: number | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — a drawn/uploaded map region, unioned server-side. */
+  polygon?: string | null;
 
   units?: 'metric' | 'imperial' | undefined;
   /**
@@ -47,6 +49,7 @@ export function useEnvironmentStats({
   phenology,
   startTimestamp,
   endTimestamp,
+  polygon,
   units,
   extraRef,
   chainSignal,
@@ -71,6 +74,7 @@ export function useEnvironmentStats({
     phenology,
     startTimestamp,
     endTimestamp,
+    polygon,
     units,
     chainSignal,
   ]);
@@ -94,6 +98,7 @@ export function useEnvironmentStats({
           Boolean(phenology) ||
           startTimestamp != null ||
           endTimestamp != null ||
+          Boolean(polygon) ||
           extra.some((f) => f.variableId !== selectedVariable);
 
         const [filteredResponse, globalResponse] = await Promise.all([
@@ -103,6 +108,7 @@ export function useEnvironmentStats({
             phenology,
             startTs: startTimestamp,
             endTs: endTimestamp,
+            polygon,
             extra,
           }),
           filterActive
@@ -166,9 +172,11 @@ export function useEnvironmentStats({
   }, [
     chainSignal,
     endTimestamp,
+    extraRef,
     hasStatsForSelection,
     locationGid,
     phenology,
+    polygon,
     selectedVariable,
     speciesDataSource,
     startTimestamp,

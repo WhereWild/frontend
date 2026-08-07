@@ -5,6 +5,9 @@
 import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
+import { BACKEND_BASE } from '@/data/apiShared';
+import type { BasemapMode } from '@/context/SettingsContext';
+
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
 export const LOCATE_MESSAGE_TYPE = 'locate';
@@ -14,10 +17,27 @@ export const OPEN_EXTERNAL_URL_MESSAGE_TYPE = 'open_external_url';
 export const LOCATION_PICKED_MESSAGE_TYPE = 'locationPicked';
 export const LOCAL_LOCATION_UPDATE_MESSAGE_TYPE = 'localLocationUpdate';
 export const TOGGLE_GLOBE_VIEW_MESSAGE_TYPE = 'toggleGlobeView';
+export const TOGGLE_TERRAIN_MESSAGE_TYPE = 'toggleTerrain';
+// Payload carries { mode: BasemapMode } — a 3-way cycle (standard ->
+// satellite -> variable -> standard), not a boolean toggle, since it now
+// covers showing the currently-selected GIS variable's own tiles at full
+// opacity in place of the basemap too, not just satellite imagery.
+export const TOGGLE_BASEMAP_MODE_MESSAGE_TYPE = 'toggleBasemapMode';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
 export const POINTS_UPDATE_MESSAGE_TYPE = 'pointsUpdate';
+// Region drawing is driven entirely by an in-map icon control (see
+// SpeciesOccurrenceMap.html's DrawPolygonControl), not a prop — all four of
+// these are outbound-only (iframe -> parent), there's no matching "start
+// drawing" message sent the other way. polygonDrawStart/polygonDrawEnd
+// bracket just the act of drawing itself (start of a fresh shape through
+// either finishing or cancelling it) — see onPolygonDrawStart/
+// onPolygonDrawEnd's doc comment on why a caller would want these.
+export const POLYGON_DRAWN_MESSAGE_TYPE = 'polygonDrawn';
+export const POLYGON_CLEARED_MESSAGE_TYPE = 'polygonCleared';
+export const POLYGON_DRAW_START_MESSAGE_TYPE = 'polygonDrawStart';
+export const POLYGON_DRAW_END_MESSAGE_TYPE = 'polygonDrawEnd';
 
 type FullscreenCapableElement = Element & {
   webkitRequestFullscreen?: () => void;
@@ -66,7 +86,7 @@ export const MAP_BACKGROUND_TILE_URL_TEMPLATE =
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
-export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 20000;
+export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 10000;
 
 export type MapTileMode = 'light' | 'dark';
 
@@ -117,6 +137,12 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   circularShapesEnabled: '__CIRCULAR_SHAPES_ENABLED__',
   labelsOverlayUrl: '__LABELS_OVERLAY_URL_JSON__',
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
+  terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
+  terrainEnabled: '__TERRAIN_ENABLED__',
+  satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
+  variableModeBackgroundTileUrl: '__VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__',
+  basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
+  initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
   initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
@@ -142,7 +168,12 @@ export type PinObservationMessage = {
 
 export type SelectedPointMessage = {
   type: typeof SELECTED_POINT_MESSAGE_TYPE;
-  point: { latitude: number; longitude: number } | null;
+  point: {
+    latitude: number;
+    longitude: number;
+    /** When known (e.g. selecting from the observation gallery), matches the marker by identity instead of by lat/lon proximity — immune to duplicate coordinates or float precision. */
+    catalogNumber?: string;
+  } | null;
 };
 
 export type OpenExternalUrlMessage = {
@@ -150,11 +181,23 @@ export type OpenExternalUrlMessage = {
   url: string;
 };
 
+export type PolygonDrawnMessage = {
+  type: typeof POLYGON_DRAWN_MESSAGE_TYPE;
+  /**
+   * Every currently-drawn region (multiple regions filter as a union — a
+   * point counts if it's inside ANY of them), each as [latitude, longitude]
+   * ring vertices, open (no repeated closing point). Always the full
+   * current set, not just whatever was newly added or removed.
+   */
+  polygons: [number, number][][];
+};
+
 export type MapInboundMessage =
   | HighlightMessage
   | PinObservationMessage
   | SelectedPointMessage
-  | OpenExternalUrlMessage;
+  | OpenExternalUrlMessage
+  | PolygonDrawnMessage;
 
 export const isPinObservationMessage = (
   msg: unknown,
@@ -175,6 +218,27 @@ export const isOpenExternalUrlMessage = (
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
   return m.type === OPEN_EXTERNAL_URL_MESSAGE_TYPE && typeof m.url === 'string';
+};
+
+const isLatLonPoint = (pt: unknown): pt is [number, number] =>
+  Array.isArray(pt) &&
+  pt.length === 2 &&
+  typeof pt[0] === 'number' &&
+  typeof pt[1] === 'number';
+
+export const isPolygonDrawnMessage = (
+  msg: unknown,
+): msg is PolygonDrawnMessage => {
+  if (!msg || typeof msg !== 'object') return false;
+  const m = msg as Record<string, unknown>;
+  return (
+    m.type === POLYGON_DRAWN_MESSAGE_TYPE &&
+    Array.isArray(m.polygons) &&
+    m.polygons.every(
+      (ring): ring is [number, number][] =>
+        Array.isArray(ring) && ring.every(isLatLonPoint),
+    )
+  );
 };
 
 export const isPinObservationEventFromFrame = (
@@ -224,7 +288,11 @@ export const toHighlightMessagePayload = (
 });
 
 export const toSelectedPointMessagePayload = (
-  point: { latitude: number; longitude: number } | null,
+  point: {
+    latitude: number;
+    longitude: number;
+    catalogNumber?: string;
+  } | null,
 ): SelectedPointMessage => ({
   type: SELECTED_POINT_MESSAGE_TYPE,
   point,
@@ -247,6 +315,21 @@ export const getLinesOverlayTileUrl = () =>
   MAP_TILE_API_KEY
     ? `${MAP_LINES_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
     : MAP_LINES_TILE_URL_TEMPLATE;
+
+// Terrarium-encoded raster-dem tiles for the globe view's setTerrain()/
+// hillshade — no API key, unlike the Stadia Maps helpers above, since this
+// is our own backend endpoint (see wherewild/main.py's
+// elevation_terrain_tile / util/tiles.py's render_elevation_terrain_rgb_tile_bytes).
+export const getElevationTerrainTileUrl = () =>
+  `${BACKEND_BASE}/api/layers/elevation/terrain-tiles/{z}/{x}/{y}.png`;
+
+// Esri World Imagery satellite basemap, proxied through our own backend —
+// same reasoning as getElevationTerrainTileUrl above: the real ArcGIS API
+// key lives only in the backend's env (WW_ARCGIS_API_KEY), never shipped to
+// the client, so this URL needs no key of its own (see wherewild/main.py's
+// satellite_tile / _fetch_satellite_tile_bytes).
+export const getSatelliteTileUrlTemplate = () =>
+  `${BACKEND_BASE}/api/tiles/satellite/{z}/{x}/{y}.jpg`;
 
 export const getBackgroundTileUrl = () =>
   MAP_TILE_API_KEY
@@ -313,6 +396,146 @@ const computePointVarFields = (
   return { varValue, varColor, varLabel, varShape };
 };
 
+// Region-filter geometry (isPointInPolygon, polyline encode/decode) lives
+// in utils/geoPolygon.ts, not here — the offline custom-upload data source
+// (data/uploadLocalSpeciesDataSource.build.ts) needs the exact same logic
+// but can't import from components/, so it's kept in a neutral shared
+// location and just re-exported here for existing call sites (the map
+// itself, _species.tsx) that already import it from this module.
+export {
+  isPointInPolygon,
+  encodePolyline,
+  encodePolygonsParam,
+} from '@/utils/geoPolygon';
+
+// Ports of SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html's
+// gradientColor/aspectColor/safeT — the continuous/circular dot-color math
+// only ever lived inside the WebView's JS. Anything outside the map (e.g.
+// the below-map observation gallery) that needs to render the exact same
+// dot color a point gets on the map/popup must go through these, not
+// reimplement the interpolation.
+export const interpolateGradientStops = (
+  t: number,
+  stops: readonly (readonly [number, number, number])[],
+): string => {
+  const n = stops.length - 1;
+  const i = Math.min(Math.floor(t * n), n - 1);
+  const f = t * n - i;
+  const c0 = stops[i];
+  const c1 = stops[i + 1];
+  return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
+};
+
+export const interpolateAspectStops = (
+  deg: number,
+  stops: readonly (readonly [number, number, number])[],
+): string => {
+  const n = stops.length;
+  const t = (((deg % 360) + 360) % 360) / 360;
+  const fi = t * n;
+  const i = Math.floor(fi) % n;
+  const f = fi - Math.floor(fi);
+  const c0 = stops[i];
+  const c1 = stops[(i + 1) % n];
+  return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
+};
+
+export const safeGradientT = (val: number, lo: number, hi: number): number =>
+  lo < hi ? Math.max(0, Math.min(1, (val - lo) / (hi - lo))) : 0;
+
+export type ObservationVarFields = {
+  varValue: number | null;
+  varColor: string | null;
+  varLabel: string | null;
+  varShape: string | null;
+};
+
+export type ObservationVarFieldsInputs = {
+  observationValues: Map<string, number> | null;
+  classColors: Map<string, string> | null;
+  classLabels: Map<string, string> | null;
+  // Same shapes-mode inputs computePointVarFields (the map's own version of
+  // this function) takes — omitted here previously, which meant shapes mode
+  // never had any effect on the below-map gallery even though it worked on
+  // the map itself.
+  classShapes?: Map<string, string> | null;
+  circularShapesEnabled?: boolean;
+  isCircular: boolean;
+  dotMin: number | null;
+  dotMax: number | null;
+  gradientStops: readonly (readonly [number, number, number])[] | null;
+  aspectStops: readonly (readonly [number, number, number])[] | null;
+  varUnits: string | null;
+};
+
+// Non-map counterpart to computePointVarFields above — used by the below-map
+// observation gallery, which renders outside the WebView and so can't fall
+// back on buildObservationValueHtml's gradientColor/aspectColor for
+// continuous/circular variables the way the map popups do. Formatting
+// (decimal places, degree symbol, units placement) intentionally mirrors
+// buildObservationValueHtml exactly so gallery cards read the same as the
+// popup for the same point.
+export const resolveObservationVarFields = (
+  catalog: string,
+  inputs: ObservationVarFieldsInputs,
+): ObservationVarFields => {
+  const varValue = inputs.observationValues?.get(catalog) ?? null;
+  if (varValue == null) {
+    return { varValue: null, varColor: null, varLabel: null, varShape: null };
+  }
+  const classKey = String(Math.round(varValue));
+  // Same precedence as computePointVarFields: an explicit per-class shape
+  // wins; otherwise fall back to the circular (aspect) cardinal-direction
+  // shape when that mode is on. Independent of classColors/isCircular below
+  // — a nominal variable with shapes but no class-color legend, or a
+  // continuous variable in circular-shapes mode, should still get a shape.
+  const varShape = inputs.classShapes
+    ? (inputs.classShapes.get(classKey) ?? null)
+    : inputs.circularShapesEnabled
+      ? aspectToCardinalShape(varValue)
+      : null;
+
+  if (inputs.classColors) {
+    return {
+      varValue,
+      varColor: inputs.classColors.get(classKey) ?? null,
+      varLabel: inputs.classLabels?.get(classKey) ?? null,
+      varShape,
+    };
+  }
+
+  if (inputs.isCircular) {
+    const fmt = varValue.toLocaleString(undefined, {
+      maximumFractionDigits: 1,
+    });
+    return {
+      varValue,
+      varColor: inputs.aspectStops
+        ? interpolateAspectStops(varValue, inputs.aspectStops)
+        : null,
+      varLabel: `${fmt}°`,
+      varShape,
+    };
+  }
+
+  if (inputs.dotMin != null && inputs.dotMax != null && inputs.gradientStops) {
+    const t = safeGradientT(varValue, inputs.dotMin, inputs.dotMax);
+    const units = inputs.varUnits ? ` ${inputs.varUnits}` : '';
+    const fmt =
+      Math.abs(varValue) >= 1000
+        ? varValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : varValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return {
+      varValue,
+      varColor: interpolateGradientStops(t, inputs.gradientStops),
+      varLabel: `${fmt}${units}`,
+      varShape,
+    };
+  }
+
+  return { varValue, varColor: null, varLabel: null, varShape };
+};
+
 export const preparePointsForMapHtml = (
   points: Record<string, unknown>[],
   observationValues?: Map<string, number> | null,
@@ -337,11 +560,35 @@ export const preparePointsForMapHtml = (
     );
 
     const autoGenerated = Boolean(point.catalogAutoGenerated);
+    const mediaUrl =
+      typeof point.mediaUrl === 'string' && point.mediaUrl
+        ? point.mediaUrl
+        : null;
+    const mediaAttribution =
+      typeof point.mediaAttribution === 'string' && point.mediaAttribution
+        ? point.mediaAttribution
+        : null;
+    const mediaLicense =
+      typeof point.mediaLicense === 'string' && point.mediaLicense
+        ? point.mediaLicense
+        : null;
+    const mediaLicenseUrl =
+      typeof point.mediaLicenseUrl === 'string' && point.mediaLicenseUrl
+        ? point.mediaLicenseUrl
+        : null;
     return {
       ...point,
       popupCatalogValue: catalog,
       popupCatalogHref: autoGenerated ? '' : encodeURIComponent(catalog),
       popupCatalogLabel: autoGenerated ? '' : escapeHtml(catalog),
+      popupMediaUrl: mediaUrl ? escapeHtml(mediaUrl) : null,
+      popupMediaAttribution: mediaAttribution
+        ? escapeHtml(mediaAttribution)
+        : null,
+      popupMediaLicense: mediaLicense ? escapeHtml(mediaLicense) : null,
+      popupMediaLicenseUrl: mediaLicenseUrl
+        ? escapeHtml(mediaLicenseUrl)
+        : null,
       varValue,
       varColor,
       varLabel,
@@ -1038,6 +1285,12 @@ const fillMapTemplatePlaceholders = (
   initialLocalLon?: number | null,
   tileMode?: MapTileMode,
   enableOfflineFallback?: boolean,
+  terrainTileUrl?: string | null,
+  terrainEnabled?: boolean,
+  initialDrawnPolygons?: [number, number][][] | null,
+  basemapMode?: BasemapMode,
+  satelliteTileUrl?: string | null,
+  variableModeBackgroundTileUrl?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1226,6 +1479,32 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.enableOfflineFallback)
     .join(enableOfflineFallback ? 'true' : 'false');
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.terrainTileUrl)
+    .join(terrainTileUrl ? JSON.stringify(terrainTileUrl) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.terrainEnabled)
+    .join(terrainEnabled ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.initialDrawnPolygons)
+    .join(
+      initialDrawnPolygons && initialDrawnPolygons.length > 0
+        ? JSON.stringify(initialDrawnPolygons)
+        : 'null',
+    );
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.basemapModeInitial)
+    .join(JSON.stringify(basemapMode || 'standard'));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteTileUrl)
+    .join(satelliteTileUrl ? JSON.stringify(satelliteTileUrl) : 'null');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.variableModeBackgroundTileUrl)
+    .join(
+      variableModeBackgroundTileUrl
+        ? JSON.stringify(variableModeBackgroundTileUrl)
+        : 'null',
+    );
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.leafletResizeObserverScript)
     .join(LEAFLET_RESIZE_OBSERVER_SCRIPT);
   html = html
@@ -1292,6 +1571,12 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     initialLocalLon,
     tileMode,
     enableOfflineFallback,
+    terrainTileUrl,
+    terrainEnabled,
+    initialDrawnPolygons,
+    basemapMode,
+    satelliteTileUrl,
+    variableModeBackgroundTileUrl,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1334,6 +1619,14 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     initialLocalLon,
     tileMode,
     enableOfflineFallback,
+    terrainTileUrl,
+    terrainEnabled,
+    initialDrawnPolygons,
+    basemapMode,
+    satelliteTileUrl,
+    variableModeBackgroundTileUrl
+      ? stripRetinaPlaceholder(variableModeBackgroundTileUrl)
+      : variableModeBackgroundTileUrl,
   );
 };
 
@@ -1378,13 +1671,16 @@ export const loadMapTemplate = async (): Promise<string | null> => {
 };
 
 // Same problem, same fix, as loadGlobeMapTemplateOffline below: the offline
-// Natural Earth basemap + place-label data adds ~26MB to this template, and
+// Natural Earth basemap + place-label data adds real weight to this
+// template (trimmed to ~9MB this session, from an original ~26MB — dropped
+// railroads/minor roads, density-pruned places, simplified geometry), and
 // every variable switch re-runs fillMapTemplatePlaceholders' ~40
-// .split()/.join() passes over the whole string — a measured ~300ms+ per
-// switch, independent of zoom, entirely from that one template being this
-// big. enableOfflineFallback is only ever true on the upload page, so keep
-// that weight out of every other Leaflet map (species pages, maps page) by
-// splitting it into its own asset.
+// .split()/.join() passes over the whole string, so keeping it a separate
+// asset avoids paying that string-copy cost on every online map instance
+// that has opted out via enableOfflineFallback={false} — the default
+// (true) loads this unconditionally, since loadHtmlAsset does a real
+// fetch() at runtime and the offline template needs to have actually
+// succeeded once *before* a visitor goes offline, not after.
 export const loadMapTemplateOffline = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceMapOffline.html'));
 };
@@ -1393,12 +1689,12 @@ export const loadGlobeMapTemplate = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMap.html'));
 };
 
-// The offline vector basemap + place-label data adds ~25MB to the globe
-// template — every extra .split()/.join() pass in fillMapTemplatePlaceholders
-// copies that whole string, which is enough to visibly stall the globe on
-// every load. Since enableOfflineFallback is only ever true on the upload
-// page, keep that weight out of the template every other globe view loads by
-// splitting it into its own asset, loaded only when actually needed.
+// The offline vector basemap + place-label data adds real weight to the
+// globe template too (same trim this session brought it down from ~25MB to
+// ~9MB) — kept as a separate asset for the same reason as
+// loadMapTemplateOffline above: cheap to skip for an instance that's opted
+// out via enableOfflineFallback={false}, and the default (true) loads it
+// unconditionally so it's actually cached before a visitor goes offline.
 export const loadGlobeMapTemplateOffline = async (): Promise<string | null> => {
   return loadHtmlAsset(require('./SpeciesOccurrenceGlobeMapOffline.html'));
 };

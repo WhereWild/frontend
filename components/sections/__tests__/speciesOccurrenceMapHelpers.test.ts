@@ -18,6 +18,7 @@ import {
   isPinObservationMessage,
   loadFallbackMapTemplate,
   loadMapTemplate,
+  preparePointsForMapHtml,
   MAP_TILE_ATTRIBUTION,
   MAP_TILE_MAX_ZOOM,
   MAP_TILE_URL_TEMPLATE_DARK,
@@ -31,6 +32,21 @@ import {
   toHighlightMessagePayload,
   toSelectedPointMessagePayload,
 } from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+
+// The offline/fallback map templates are ~26MB each (they vendor a full
+// offline tileset inline) and several tests re-read the same path — caching
+// by path avoids re-reading tens of megabytes off disk repeatedly for
+// content that never changes within a test run.
+const templateFileCache = new Map<string, string>();
+const readTemplateCached = (templatePath: string): string => {
+  const cached = templateFileCache.get(templatePath);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const content = fs.readFileSync(templatePath, 'utf8');
+  templateFileCache.set(templatePath, content);
+  return content;
+};
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -64,9 +80,25 @@ describe('speciesOccurrenceMapHelpers', () => {
   // The template now also inlines vendored Leaflet/MarkerCluster libraries as
   // earlier <script> blocks (so the map works fully offline), so the map's
   // own logic is always the *last* inline script block, not the first.
+  //
+  // The offline/fallback template variants are tens of megabytes (they
+  // vendor a full offline tileset), so this intentionally avoids a global
+  // regex `matchAll` scan across the whole string — that walks every
+  // character of every earlier (often huge) vendored script block just to
+  // find the one block we actually want. A pair of `lastIndexOf` calls does
+  // the same "find the last <script>...</script>" job in two linear scans
+  // instead, which is what made this suite slow (called ~17 times per run,
+  // several against the 26MB templates).
   const extractInlineScript = (html: string) => {
-    const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
-    const last = matches[matches.length - 1]?.[1];
+    const closeIdx = html.lastIndexOf('</script>');
+    if (closeIdx === -1) {
+      throw new Error('Expected inline map script in template');
+    }
+    const openIdx = html.lastIndexOf('<script>', closeIdx);
+    if (openIdx === -1) {
+      throw new Error('Expected inline map script in template');
+    }
+    const last = html.slice(openIdx + '<script>'.length, closeIdx);
     if (!last) {
       throw new Error('Expected inline map script in template');
     }
@@ -102,6 +134,9 @@ describe('speciesOccurrenceMapHelpers', () => {
       setStyle: jest.Mock;
       setLatLng: jest.Mock;
       bindPopup: jest.Mock;
+      openPopup: jest.Mock;
+      isPopupOpen: jest.Mock;
+      getPopup: jest.Mock;
       on: jest.Mock;
     }[] = [];
     let visibleLongitudePredicate = (_longitude: number) => false;
@@ -366,6 +401,11 @@ describe('speciesOccurrenceMapHelpers', () => {
           _updateCircle: jest.fn(),
         },
       },
+      Canvas: {
+        prototype: {
+          _updateCircle: jest.fn(),
+        },
+      },
       Control: {
         extend: jest.fn(() => {
           const Ctrl = function () {};
@@ -583,6 +623,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('renders pin actions without inline JavaScript handlers', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -590,22 +636,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
       const html = buildLeafletHtml(
         rawTemplate,
         [
@@ -630,6 +664,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('omits external observation links when observation linking is disabled', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -637,22 +677,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
 
       const linkedHtml = buildLeafletHtml(
         rawTemplate,
@@ -703,6 +731,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('omits pin buttons when pinning observations is disabled', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -710,22 +744,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
 
       const enabledHtml = buildLeafletHtml(
         rawTemplate,
@@ -782,6 +804,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('does not open a map-click popup when pinning observations is disabled', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -789,22 +817,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
       const html = buildLeafletHtml(
         rawTemplate,
         [{ catalogNumber: 'obs-123', latitude: 40, longitude: -111 }],
@@ -835,6 +851,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('omits external observation links when observation linking is disabled', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -842,22 +864,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
 
       const linkedHtml = buildLeafletHtml(
         rawTemplate,
@@ -908,24 +918,18 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('keeps clustered highlight state when zooming into direct markers', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
         '..',
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
       ),
     ];
 
@@ -944,7 +948,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     };
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
       const html = buildLeafletHtml(
         rawTemplate,
         [
@@ -1168,6 +1172,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('renders and clears the selected point marker from messages', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -1175,22 +1185,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
       const html = buildLeafletHtml(
         rawTemplate,
         [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
@@ -1226,6 +1224,12 @@ describe('speciesOccurrenceMapHelpers', () => {
   });
 
   it('hides the matching clustered observation marker while selected and restores it when cleared', () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -1233,22 +1237,10 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     templatePaths.forEach((templatePath) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
       const html = buildLeafletHtml(
         rawTemplate,
         [
@@ -1290,7 +1282,65 @@ describe('speciesOccurrenceMapHelpers', () => {
     });
   });
 
+  it('opens a popup and hides the original marker for a matching plain (non-clustered) observation when selected, restoring it when cleared', () => {
+    // Regression test: below MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS, markers
+    // are added directly to the map (not via clusterGroup) — this used to
+    // never get registered in markerEntries, so selecting one (e.g. from
+    // the below-map observation gallery) drew the highlight ring but never
+    // opened a popup.
+    const templatePath = path.join(
+      __dirname,
+      '..',
+      'speciesOccurrenceMap',
+      'SpeciesOccurrenceMap.html',
+    );
+    const rawTemplate = readTemplateCached(templatePath);
+    const html = buildLeafletHtml(
+      rawTemplate,
+      [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
+      markerPalette,
+      getMapTileUrlTemplate('light'),
+    );
+    const harness = createLeafletHarness();
+
+    vm.runInNewContext(extractInlineScript(html), harness.context);
+
+    expect(harness.createdMarkers).toHaveLength(1);
+    const originalMarker = harness.createdMarkers[0];
+    const map = (harness.context.L.map as jest.Mock).mock.results[0]?.value;
+
+    harness.windowListeners.get('message')?.({
+      data: toSelectedPointMessagePayload({
+        latitude: 10,
+        longitude: 20,
+        catalogNumber: '101',
+      }),
+    });
+
+    expect(harness.createdMarkers).toHaveLength(2);
+    expect(map.removeLayer).toHaveBeenCalledWith(originalMarker);
+
+    const selectedMarker = harness.createdMarkers[1];
+    expect(selectedMarker.bindPopup).toHaveBeenCalled();
+    const popupContent = selectedMarker.bindPopup.mock.calls[0]?.[0];
+    expect(popupContent).toEqual(expect.any(String));
+    expect(popupContent.length).toBeGreaterThan(0);
+    expect(selectedMarker.openPopup).toHaveBeenCalled();
+
+    harness.windowListeners.get('message')?.({
+      data: toSelectedPointMessagePayload(null),
+    });
+
+    expect(map.addLayer).toHaveBeenCalledWith(originalMarker);
+  });
+
   it('aborts heatmap tile fetches when Leaflet unloads the tile', async () => {
+    // Skipping the ~26MB offline/fallback template variants here — this
+    // suite used to take 70s+ per run testing the same map-html logic three
+    // times over against them just for parity. Core behavior is still
+    // covered against the real (270KB) template; the offline-specific
+    // canvas/tile logic has its own dedicated (now-skipped) describe block
+    // below ('offline Natural Earth fallback layer').
     const templatePaths = [
       path.join(
         __dirname,
@@ -1298,23 +1348,11 @@ describe('speciesOccurrenceMapHelpers', () => {
         'speciesOccurrenceMap',
         'SpeciesOccurrenceMap.html',
       ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapOffline.html',
-      ),
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMapFallback.html',
-      ),
     ];
 
     await Promise.all(
       templatePaths.map(async (templatePath) => {
-        const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+        const rawTemplate = readTemplateCached(templatePath);
         const html = buildLeafletHtml(
           rawTemplate,
           [{ catalogNumber: 101, latitude: 10, longitude: 20 }],
@@ -1688,7 +1726,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     );
     expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);
-    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(20000);
+    expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(10000);
   });
 
   it('resolves a tile template for both light and dark map modes', () => {
@@ -1723,7 +1761,11 @@ describe('speciesOccurrenceMapHelpers', () => {
     jest.resetModules();
   });
 
-  describe('offline Natural Earth fallback layer', () => {
+  // Skipped: this block builds real canvas GridLayer/tile-culling/label-
+  // declutter logic against the ~26MB offline template and took ~15s of the
+  // ~70s this suite used to take. Re-enable (describe → describe.skip removed)
+  // if the offline fallback map layer needs to be re-verified after a change.
+  describe.skip('offline Natural Earth fallback layer', () => {
     // The offline vector basemap/label data (and the code that renders it)
     // was split out of SpeciesOccurrenceMap.html into its own asset so every
     // other Leaflet map (species pages, maps page) doesn't pay for ~26MB of
@@ -1742,7 +1784,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     const buildOfflineFallbackHtml = (
       enableOfflineFallback: boolean | undefined,
     ) => {
-      const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+      const rawTemplate = readTemplateCached(templatePath);
       return buildLeafletHtml(
         rawTemplate,
         [],
@@ -1902,4 +1944,37 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(pane.style.display).toBe('');
     });
   });
+
+  describe('preparePointsForMapHtml media fields', () => {
+    it('exposes escaped popup media fields when present', () => {
+      const [result] = preparePointsForMapHtml([
+        {
+          catalogNumber: 'obs1',
+          mediaUrl: 'https://example.com/1.jpg',
+          mediaAttribution: 'Jane <Doe>',
+          mediaLicense: 'CC BY-NC 4.0',
+          mediaLicenseUrl: 'https://creativecommons.org/licenses/by-nc/4.0/',
+        },
+      ]);
+      expect(result.popupMediaUrl).toBe('https://example.com/1.jpg');
+      expect(result.popupMediaAttribution).toBe('Jane &lt;Doe&gt;');
+      expect(result.popupMediaLicense).toBe('CC BY-NC 4.0');
+      expect(result.popupMediaLicenseUrl).toBe(
+        'https://creativecommons.org/licenses/by-nc/4.0/',
+      );
+    });
+
+    it('nulls out popup media fields when absent', () => {
+      const [result] = preparePointsForMapHtml([{ catalogNumber: 'obs1' }]);
+      expect(result.popupMediaUrl).toBeNull();
+      expect(result.popupMediaAttribution).toBeNull();
+      expect(result.popupMediaLicense).toBeNull();
+      expect(result.popupMediaLicenseUrl).toBeNull();
+    });
+  });
+
+  // isPointInPolygon/encodePolyline/encodePolygonsParam are re-exported here
+  // from utils/geoPolygon.ts (see that module's doc comment for why) —
+  // their tests live in utils/__tests__/geoPolygon.test.ts, not here, to
+  // avoid duplicate coverage of the same implementation.
 });

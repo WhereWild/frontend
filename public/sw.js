@@ -10,40 +10,12 @@ const OFFLINE_ROUTES = ['/', '/upload', '/about', '/help', '/settings', '/acknow
 // Routes that must never be served from cache.
 const NETWORK_ONLY_PREFIXES = ['/api/', '/search', '/maps', '/map', '/species/', '/status', '/dev'];
 
-// Content-hashed static assets served cache-first forever.
+// Content-hashed static assets served cache-first forever. This is also
+// what makes the offline-capable map template (loaded via a real fetch()
+// from the top-level page — see loadHtmlAsset in
+// speciesOccurrenceMapHelpers.ts) actually available once genuinely
+// offline: it's served under this same /assets/ prefix.
 const CACHE_FIRST_PREFIXES = ['/_expo/static/', '/assets/'];
-
-// Basemap tile hosts cached client-side (cache-first). Stadia's terms cap
-// client-side tile caching at 7 days, so the cache bucket rotates weekly —
-// looking up a request always targets the current bucket, which structurally
-// prevents ever serving an entry older than the cap (see stadiaCacheName()).
-const TILE_CACHE_HOSTS = new Set(['tiles.stadiamaps.com']);
-const TILE_CACHE_PREFIX = 'stadia-tiles-';
-const TILE_CACHE_BUCKET_MS = 7 * 24 * 60 * 60 * 1000;
-
-function stadiaCacheName() {
-  return `${TILE_CACHE_PREFIX}${Math.floor(Date.now() / TILE_CACHE_BUCKET_MS)}`;
-}
-
-async function cachedTileResponse(request) {
-  const cache = await caches.open(stadiaCacheName());
-  // Network-first, cache as a write-through side effect only — never served
-  // as a fallback on failure. This keeps offline behavior deterministic (a
-  // blocked/failed fetch always means "no tile", never a stale cached one)
-  // without depending on navigator.onLine, which doesn't reliably reflect
-  // DevTools' offline network emulation inside a service worker's scope.
-  // `cache: 'no-store'` forces every request to actually hit the network —
-  // otherwise a plain fetch() can silently resolve from the browser's own
-  // HTTP cache (separate from the Cache Storage above) with zero network
-  // attempt, which is indistinguishable from "online" even when offline.
-  const response = await fetch(request, { cache: 'no-store' });
-  // Cross-origin tile <img> loads are typically opaque (status 0, unreadable
-  // body) — they're still cacheable as opaque responses, just not inspectable.
-  if (response.ok || response.type === 'opaque') {
-    cache.put(request, response.clone());
-  }
-  return response;
-}
 
 self.addEventListener('install', (event) => {
   // Pre-cache the offline-capable route shells.
@@ -60,11 +32,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter(
-              (key) =>
-                (key.startsWith('wherewild-') && key !== CACHE_NAME) ||
-                (key.startsWith(TILE_CACHE_PREFIX) && key !== stadiaCacheName()),
-            )
+            .filter((key) => key.startsWith('wherewild-') && key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
         ),
       )
@@ -80,16 +48,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Basemap tiles: network-first across origins, capped to a rolling weekly
-  // cache bucket (see cachedTileResponse — cache is write-through only, never
-  // a fallback), so offline always means "no tile" rather than depending on
-  // whatever tiles happen to already be cached from earlier browsing.
-  if (TILE_CACHE_HOSTS.has(url.hostname)) {
-    event.respondWith(cachedTileResponse(request));
-    return;
-  }
-
-  // Different origin — let the browser handle it.
+  // Different origin — let the browser handle it. Map tiles (basemap,
+  // satellite, terrain, GIS variable overlays) are all requested from
+  // JS running inside the map's srcdoc iframe, not this top-level page —
+  // srcdoc iframes are not reliably controlled by a service worker in any
+  // current browser (fetches issued from inside one bypass the SW's fetch
+  // handler entirely, regardless of how it's written — see
+  // https://github.com/w3c/ServiceWorker/issues/1390), so there is
+  // deliberately no tile-specific caching logic here. Whatever caching
+  // those get is the browser's own native HTTP cache, governed by the tile
+  // responses' own Cache-Control headers, not this file.
   if (url.origin !== self.location.origin) return;
 
   const { pathname } = url;

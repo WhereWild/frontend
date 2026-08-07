@@ -21,19 +21,19 @@ describe('useSearchFilters.helpers', () => {
   });
 
   it('returns a metric hint when taxon and variable are set but metric is missing', () => {
-    expect(toRankingFilterHint(42, 'species', 'bio_1', '')).toBe(
+    expect(toRankingFilterHint('42', 'species', 'bio_1', '')).toBe(
       'Choose a Sorting metric to apply ranking-based filters.',
     );
   });
 
   it('returns a rank hint when taxon is selected without a rank', () => {
-    expect(toRankingFilterHint(42, '', '', '')).toBe(
+    expect(toRankingFilterHint('42', '', '', '')).toBe(
       'Selecting a Scope taxon already limits search results to its descendant taxa. Choose a Rank to start ranking within that scope.',
     );
   });
 
   it('returns a variable hint when taxon and rank are selected without a sort variable', () => {
-    expect(toRankingFilterHint(42, 'species', '', '')).toBe(
+    expect(toRankingFilterHint('42', 'species', '', '')).toBe(
       'Choose a Sort variable to apply ranking-based filters.',
     );
   });
@@ -45,7 +45,7 @@ describe('useSearchFilters.helpers', () => {
   });
 
   it('returns null when the ranking filter set is complete', () => {
-    expect(toRankingFilterHint(42, 'species', 'bio_1', 'median')).toBeNull();
+    expect(toRankingFilterHint('42', 'species', 'bio_1', 'median')).toBeNull();
   });
 
   it('derives the most specific location gid', () => {
@@ -57,17 +57,26 @@ describe('useSearchFilters.helpers', () => {
     expect(deriveLocationGid('', '', '')).toBeNull();
   });
 
-  it('returns a numeric query directly when resolving an ancestor taxon id', async () => {
-    await expect(resolveAncestorTaxonId('77')).resolves.toBe(77);
-    expect(mockFetchTaxaQuery).not.toHaveBeenCalled();
+  it('always resolves via the search API, even for numeric-looking queries', async () => {
+    mockFetchTaxaQuery.mockResolvedValueOnce({
+      results: [{ taxon_id: '77' }],
+    } as any);
+
+    await expect(resolveAncestorTaxonId('77')).resolves.toBe('77');
+    expect(mockFetchTaxaQuery).toHaveBeenCalledWith({
+      q: '77',
+      limit: 1,
+      offset: 0,
+      minSamples: 0,
+    });
   });
 
   it('resolves an ancestor taxon id from search results', async () => {
     mockFetchTaxaQuery.mockResolvedValueOnce({
-      results: [{ taxon_id: 88 }],
+      results: [{ taxon_id: '88' }],
     } as any);
 
-    await expect(resolveAncestorTaxonId('canis')).resolves.toBe(88);
+    await expect(resolveAncestorTaxonId('canis')).resolves.toBe('88');
     expect(mockFetchTaxaQuery).toHaveBeenCalledWith({
       q: 'canis',
       limit: 1,
@@ -76,9 +85,17 @@ describe('useSearchFilters.helpers', () => {
     });
   });
 
-  it('returns null when ancestor taxon search has no numeric top result', async () => {
+  it('resolves an alphanumeric (non-numeric) ancestor taxon id from search results', async () => {
     mockFetchTaxaQuery.mockResolvedValueOnce({
-      results: [{ taxon_id: 'not-a-number' }],
+      results: [{ taxon_id: '6SRLS' }],
+    } as any);
+
+    await expect(resolveAncestorTaxonId('opuntia')).resolves.toBe('6SRLS');
+  });
+
+  it('returns null when ancestor taxon search has no results', async () => {
+    mockFetchTaxaQuery.mockResolvedValueOnce({
+      results: [],
     } as any);
 
     await expect(resolveAncestorTaxonId('canis')).resolves.toBeNull();

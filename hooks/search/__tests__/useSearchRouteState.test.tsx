@@ -31,7 +31,7 @@ const oakRouteParams: SearchRouteParams = {
 
 const japaneseFilters: SearchTaxaQueryFilters = {
   location: null,
-  withinTaxonId: 2877951,
+  withinTaxonId: '2877951',
   descendantRank: 'species',
   includeSpeciesLike: true,
   sortVariable: 'bio_12',
@@ -303,7 +303,7 @@ describe('useSearchRouteSync', () => {
     };
     const syncedFilters: SearchTaxaQueryFilters = {
       ...oakFilters,
-      withinTaxonId: 5219142,
+      withinTaxonId: '5219142',
       descendantRank: 'species',
       sortVariable: 'bio_1',
       sortMetric: 'median',

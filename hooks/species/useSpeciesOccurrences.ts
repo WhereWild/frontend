@@ -7,7 +7,7 @@ import type { SpeciesOccurrence } from '@/data/types';
 import React from 'react';
 
 type UseSpeciesOccurrencesParams = {
-  taxonId?: number;
+  taxonId?: string;
   locationGid?: string | null;
   phenology?: string | null;
   startTimestamp?: number | null;

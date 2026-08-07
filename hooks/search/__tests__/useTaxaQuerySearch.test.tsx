@@ -43,7 +43,7 @@ const mockWriteCachedTaxaQuery = jest.mocked(writeCachedTaxaQuery);
 describe('useTaxaQuerySearch', () => {
   const rankedDescendantFilters: SearchTaxaQueryFilters = {
     location: null,
-    withinTaxonId: 9703,
+    withinTaxonId: '9703',
     descendantRank: 'genus',
     includeSpeciesLike: null,
     sortVariable: 'bio_1',
@@ -63,7 +63,7 @@ describe('useTaxaQuerySearch', () => {
       query: null,
       scope: {
         withinTaxon: '9703',
-        withinTaxonId: 9703,
+        withinTaxonId: '9703',
         descendantRank: 'GENUS',
         location: null,
         minSamples: 0,
@@ -96,7 +96,7 @@ describe('useTaxaQuerySearch', () => {
       expect(mockFetchTaxaQuery).toHaveBeenCalledWith(
         expect.objectContaining({
           q: '',
-          withinTaxonId: 9703,
+          withinTaxonId: '9703',
           descendantRank: 'genus',
           sortVariable: 'bio_1',
           sortMetric: 'median',

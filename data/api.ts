@@ -40,6 +40,10 @@ import {
   type CategorySampleOptions,
   type LocationOptions,
 } from './apiEnvironmentHelpers';
+import {
+  fetchOccurrenceLookup as fetchOccurrenceLookupHelper,
+  type FetchOccurrenceLookupOptions,
+} from './apiOccurrenceHelpers';
 
 export type UploadFileValue =
   | File
@@ -146,6 +150,17 @@ export async function fetchLocationByGid(
   return fetchLocationByGidHelper(gid, options);
 }
 
+/**
+ * Resolves an iNaturalist observation id to its taxon + location — powers
+ * the /occurrence/{id} deep-link route.
+ */
+export async function fetchOccurrenceLookup(
+  catalogNumber: string,
+  options?: FetchOccurrenceLookupOptions,
+) {
+  return fetchOccurrenceLookupHelper(catalogNumber, options);
+}
+
 /** Shared filter parameters forwarded to the unified taxa query endpoint. */
 export type { SearchTaxaQueryFilters };
 export type { TaxaQueryParams };
@@ -231,14 +246,17 @@ export async function fetchSpeciesByTaxonId(
  */
 export async function fetchSpeciesObscured(
   taxonId: string | number,
-): Promise<{ taxon_id: number; all_obscured: boolean }> {
+): Promise<{ taxon_id: string; all_obscured: boolean }> {
   const encoded = encodeURIComponent(String(taxonId));
   const item = (await fetchJsonOrThrow(
     `${BACKEND_BASE}/api/species/${encoded}/obscured`,
     `Failed to fetch obscured status for species ${taxonId}`,
   )) as Record<string, unknown>;
   return {
-    taxon_id: typeof item.taxon_id === 'number' ? item.taxon_id : Number(taxonId),
+    taxon_id:
+      typeof item.taxon_id === 'string' || typeof item.taxon_id === 'number'
+        ? String(item.taxon_id)
+        : String(taxonId),
     all_obscured: item.all_obscured === true,
   };
 }

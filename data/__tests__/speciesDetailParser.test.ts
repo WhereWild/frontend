@@ -6,7 +6,7 @@ import { parseSpeciesApiDetail } from '../speciesDetailParser';
 import type { SpeciesApiNormalized } from '../types';
 
 const baseNormalized: SpeciesApiNormalized = {
-  taxon_id: 99,
+  taxon_id: '99',
   scientific_name: 'Lynx canadensis',
   common_name: 'Canada Lynx',
   common_names: ['Canada Lynx'],

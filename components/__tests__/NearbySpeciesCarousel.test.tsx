@@ -19,7 +19,7 @@ const mockUseColorScheme = useColorScheme as jest.MockedFunction<
 
 const SAMPLE_SPECIES = [
   {
-    taxonId: 185699,
+    taxonId: '185699',
     commonName: 'Utah Juniper',
     commonNames: ['Utah Juniper'],
     scientificName: 'Juniperus osteosperma',
@@ -27,7 +27,7 @@ const SAMPLE_SPECIES = [
       'Evergreen shrub or small tree adapted to high desert plateaus.',
   },
   {
-    taxonId: 185700,
+    taxonId: '185700',
     commonName: 'Sagebrush',
     commonNames: ['Sagebrush'],
     scientificName: 'Artemisia tridentata',

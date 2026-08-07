@@ -14,7 +14,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useOptionalSettings } from '@/context/SettingsContext';
+import { isBasemapMode, useOptionalSettings } from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
@@ -22,8 +22,10 @@ import {
   buildGlobeHtml,
   buildLeafletHtml,
   getBackgroundTileUrl,
+  getElevationTerrainTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
+  getSatelliteTileUrlTemplate,
   loadFallbackMapTemplate,
   loadGlobeMapTemplate,
   loadGlobeMapTemplateOffline,
@@ -41,13 +43,19 @@ import {
   LOCATION_PICKED_MESSAGE_TYPE,
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
+  TOGGLE_TERRAIN_MESSAGE_TYPE,
+  TOGGLE_BASEMAP_MODE_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
   POINT_STYLES_UPDATE_MESSAGE_TYPE,
   POINTS_UPDATE_MESSAGE_TYPE,
+  POLYGON_CLEARED_MESSAGE_TYPE,
+  POLYGON_DRAW_START_MESSAGE_TYPE,
+  POLYGON_DRAW_END_MESSAGE_TYPE,
   computePointStyleUpdates,
   preparePointsForMapHtml,
   toggleFullscreenElement,
+  isPolygonDrawnMessage,
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
@@ -131,6 +139,16 @@ function isPointValueMessage(msg: unknown): msg is PointValueMessage {
 
 type SpeciesOccurrenceMapProps = {
   occurrences: SpeciesOccurrence[];
+  // Identity-compared only, never read — lets a caller that swaps
+  // `occurrences` for reasons OTHER than a genuine new fetch (e.g.
+  // _species.tsx temporarily showing the unfiltered set while a region is
+  // being drawn/erased, see onPolygonDrawStart/onPolygonDrawEnd) say so:
+  // the map only refits the viewport to the new marker set when THIS
+  // value's identity also changed since the last refit, not on every
+  // `occurrences` change. Omit entirely to keep the old "always refit on
+  // occurrences change" behavior (e.g. maps.tsx/UploadPreview.tsx, which
+  // don't do this kind of same-data-different-view swapping).
+  refitOnOccurrencesChange?: unknown;
   loading?: boolean;
   error?: string | null;
   height?: DimensionValue;
@@ -147,7 +165,7 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
-  selectedPoint?: { lat: number; lon: number } | null;
+  selectedPoint?: { lat: number; lon: number; catalogNumber?: string } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   // A full snapshot of currently-visible nominal classes, not an
   // incremental delta — see TileClassesMessage's doc comment.
@@ -180,16 +198,51 @@ type SpeciesOccurrenceMapProps = {
   gradientStops?: [number, number, number][] | null;
   aspectStops?: [number, number, number][] | null;
   useLabelsOverlay?: boolean;
+  // Defaults on — set false to omit the basemap-mode toggle control (which
+  // cycles standard/satellite/variable-as-basemap) entirely (e.g. maps.tsx,
+  // whose heatmap/labels overlays are tuned against the light basemap's
+  // contrast and where a much higher-traffic page multiplies the ArcGIS
+  // tile cost of leaving satellite available).
+  enableBasemapModeToggle?: boolean;
   preserveMapPosition?: boolean;
   locationPickerMode?: boolean;
   onLocationPicked?: (lat: number, lon: number) => void;
   localLat?: number | null;
   localLon?: number | null;
+  // Region-drawing (leaflet-geoman-free on Leaflet; not yet supported on
+  // the globe renderer) is driven by an in-map icon control, not a prop —
+  // the map owns its own idle/drawing button state and an internal stack
+  // of drawn regions. onPolygonDrawn/onPolygonCleared report the current
+  // result (onPolygonDrawn always carries the FULL current set of
+  // regions, not just what was newly added; onPolygonCleared fires once
+  // the stack empties back out). onPolygonDrawStart/onPolygonDrawEnd
+  // bracket just the act of drawing itself — a caller that filters
+  // `occurrences` by the drawn region(s) can use these to temporarily pass
+  // the unfiltered set instead while a new region is being drawn, so
+  // points hidden by an already-active region are visible again for
+  // exactly as long as it takes to draw around them.
+  onPolygonDrawn?: (polygons: [number, number][][]) => void;
+  onPolygonCleared?: () => void;
+  onPolygonDrawStart?: () => void;
+  onPolygonDrawEnd?: () => void;
+  // Whatever region(s) are already active (from a prior onPolygonDrawn)
+  // when this map (re)builds — read once at build time (like occurrences,
+  // heatmapTileUrl, etc. above) so switching between the Leaflet and globe
+  // renderers reseeds the new one's drawn-region overlay instead of only
+  // carrying the filter's effect over and dropping its visual.
+  initialDrawnPolygons?: [number, number][][] | null;
   // Natural Earth offline background layer (land/water/roads/places, shown
-  // only when tiles fail to load) — real weight (embedded data + LOD +
-  // label-declutter recomputed on every pan/zoom), so it must stay opt-in
-  // rather than run on every map instance across the app. Only the custom
-  // upload page (which genuinely needs to work offline) should enable it.
+  // only when tiles fail to load). Defaults to true: the offline-capable
+  // template is now ~9MB (down from ~26MB after this dataset was trimmed —
+  // dropped railroads/minor roads, density-pruned places, simplified
+  // geometry), a small enough cost to always load eagerly rather than
+  // gating it on useIsOnline(). Loading it unconditionally also sidesteps a
+  // real gap that gating had: loadHtmlAsset does a genuine fetch() at
+  // runtime, so a caller that only requested the offline template once
+  // already offline would find nothing had ever been cached for it —
+  // "works if you happened to browse it first" isn't good enough for a
+  // visitor who goes straight to airplane mode. Set false to opt back into
+  // the old online-only behavior for a specific instance.
   enableOfflineFallback?: boolean;
   // Called (web only) when the in-map fullscreen button is toggled, instead
   // of this component handling it internally. Fullscreening only ever
@@ -206,12 +259,13 @@ type SpeciesOccurrenceMapProps = {
 
 export function SpeciesOccurrenceMap({
   occurrences,
+  refitOnOccurrencesChange,
   loading = false,
   error = null,
   height,
   highlightedCatalogs = [],
   heatmapTileUrl = null,
-  heatmapOpacity = 0.6,
+  heatmapOpacity = 0.85,
   minZoom = 0,
   maxZoom = null,
   initialLat = null,
@@ -245,12 +299,18 @@ export function SpeciesOccurrenceMap({
   gradientStops = null,
   aspectStops = null,
   useLabelsOverlay = false,
+  enableBasemapModeToggle = true,
   preserveMapPosition = false,
   locationPickerMode = false,
   onLocationPicked,
   localLat = null,
   localLon = null,
-  enableOfflineFallback = false,
+  onPolygonDrawn,
+  onPolygonCleared,
+  onPolygonDrawStart,
+  onPolygonDrawEnd,
+  initialDrawnPolygons,
+  enableOfflineFallback = true,
   onFullscreenToggle,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
@@ -384,6 +444,41 @@ export function SpeciesOccurrenceMap({
       ) {
         const m = msg as { lat: number; lon: number };
         onLocationPicked?.(m.lat, m.lon);
+        return;
+      }
+
+      if (isPolygonDrawnMessage(msg)) {
+        onPolygonDrawn?.(msg.polygons);
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === POLYGON_CLEARED_MESSAGE_TYPE
+      ) {
+        onPolygonCleared?.();
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === POLYGON_DRAW_START_MESSAGE_TYPE
+      ) {
+        onPolygonDrawStart?.();
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === POLYGON_DRAW_END_MESSAGE_TYPE
+      ) {
+        onPolygonDrawEnd?.();
       }
     },
     [
@@ -394,6 +489,10 @@ export function SpeciesOccurrenceMap({
       onMapBounds,
       openExternalUrl,
       onLocationPicked,
+      onPolygonDrawn,
+      onPolygonCleared,
+      onPolygonDrawStart,
+      onPolygonDrawEnd,
     ],
   );
 
@@ -517,9 +616,44 @@ export function SpeciesOccurrenceMap({
       useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
     [mode, useLabelsOverlay],
   );
+  // Pages with the 3-way basemap toggle (see enableBasemapModeToggle) also
+  // want a labels overlay — but only shown in 'satellite'/'variable' modes
+  // (see the in-template tileUrlForBasemapMode/applyBasemapMode), not
+  // 'standard', which already has labels baked into tileUrlTemplate's own
+  // style. useLabelsOverlay's simpler always-on case (maps.tsx, no toggle)
+  // stays independent of that.
   const labelsOverlayTileUrl = React.useMemo(
-    () => (useLabelsOverlay ? getLabelsOverlayTileUrl() : null),
-    [useLabelsOverlay],
+    () =>
+      useLabelsOverlay || enableBasemapModeToggle
+        ? getLabelsOverlayTileUrl()
+        : null,
+    [useLabelsOverlay, enableBasemapModeToggle],
+  );
+  // 'variable' basemap mode's basemap tile — the same simpler background +
+  // labels-overlay combo maps.tsx always uses (see getBackgroundTileUrl),
+  // rather than the normal full-detail tileUrlTemplate used for 'standard'
+  // mode. Only relevant on pages with the 3-way toggle at all.
+  const variableModeBackgroundTileUrl = React.useMemo(
+    () => (enableBasemapModeToggle ? getBackgroundTileUrl() : null),
+    [enableBasemapModeToggle],
+  );
+  // Terrain is a MapLibre-only (globe) feature — always the same global DEM,
+  // so no memo dependency beyond globeView itself. Whether it's actually
+  // rendered is a runtime toggle inside the globe template itself (a
+  // mountain-icon control next to the other map controls) rather than a
+  // prop, since MapLibre logs "terrain is not fully supported on vertical
+  // perspective projection" — flipping terrain on/off can be a real perf
+  // lever on some devices, so users get a switch instead of us guessing.
+  const terrainTileUrl = React.useMemo(
+    () => (globeView ? getElevationTerrainTileUrl() : null),
+    [globeView],
+  );
+  // Satellite basemap works on both renderers (unlike terrain, which is
+  // MapLibre-only) — same backend proxy URL regardless of render, gated
+  // only by the enableBasemapModeToggle prop (see its doc comment).
+  const satelliteTileUrl = React.useMemo(
+    () => (enableBasemapModeToggle ? getSatelliteTileUrlTemplate() : null),
+    [enableBasemapModeToggle],
   );
 
   // When preserveMapPosition is true, the html memo is built once with initial
@@ -570,6 +704,34 @@ export function SpeciesOccurrenceMap({
     variableDataLoading ? null : observationValues,
   );
   const initialCircularShapesEnabled = React.useRef(circularShapesEnabled);
+  // Same freeze-at-build-time treatment as the refs above: the terrain
+  // toggle button (inside the globe template) applies itself instantly and
+  // locally, then only tells settings.terrainEnabled about it for next
+  // time — if the live setting were used directly here instead, clicking
+  // the toggle would also change this html memo's inputs and force a full
+  // iframe rebuild right after the map already updated itself, undoing the
+  // whole point of preserveMapPosition.
+  const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
+  // Same freeze-at-build-time treatment, for the basemap mode toggle. When
+  // the toggle itself is disabled (enableBasemapModeToggle=false, e.g.
+  // maps.tsx), the template must NOT be driven by the shared/global
+  // settings.basemapMode — that setting can be left on 'standard'/'satellite'
+  // from a different page (e.g. the species page), and with no toggle button
+  // rendered here there'd be no way to ever switch it back, permanently
+  // hiding this map's heatmap overlay. 'variable' is the mode that shows the
+  // heatmap without changing the basemap tile itself (see
+  // tileUrlForBasemapMode in the map templates), matching this prop's
+  // pre-toggle behavior of always showing the overlay whenever a
+  // heatmapTileUrl is provided.
+  const effectiveBasemapMode = enableBasemapModeToggle
+    ? (settings?.basemapMode ?? 'standard')
+    : 'variable';
+  const initialBasemapMode = React.useRef(effectiveBasemapMode);
+  // Same reasoning as initialTerrainEnabled above, for drawn regions:
+  // drawing/erasing while staying on the SAME renderer already updates
+  // that renderer's own DOM directly (no round trip needed) — only a
+  // renderer switch (mapTemplate changing) should reseed from this.
+  const initialDrawnPolygonsRef = React.useRef(initialDrawnPolygons ?? null);
   // Tracks the last occurrences reference actually pushed to the map via
   // pointsUpdate (see below) — deliberately separate from initialOccurrences
   // above, which must stay frozen for the html memo's sake. When a location/
@@ -578,6 +740,11 @@ export function SpeciesOccurrenceMap({
   // the same occurrences), the map needs a real marker-set swap + refit,
   // not just a recolor.
   const lastSyncedOccurrences = React.useRef(occurrences);
+  // The refitOnOccurrencesChange identity as of the last time the map was
+  // actually told to refit — see that prop's doc comment. Also frozen at
+  // the live value on mount for the same reason as lastSyncedOccurrences:
+  // the initial html build already reflects whatever's current.
+  const lastRefitKey = React.useRef(refitOnOccurrencesChange);
 
   // The refs above are meant to capture "whatever was true when the current
   // WebView/iframe document was built," not "whatever was true on this
@@ -618,6 +785,9 @@ export function SpeciesOccurrenceMap({
       ? null
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
+    initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
+    initialBasemapMode.current = effectiveBasemapMode;
+    initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 
   // When preserving map position, freeze live props to their initial values so
@@ -667,6 +837,15 @@ export function SpeciesOccurrenceMap({
   const memoCircularShapesEnabled = preserveMapPosition
     ? initialCircularShapesEnabled.current
     : circularShapesEnabled;
+  const memoTerrainEnabled = preserveMapPosition
+    ? initialTerrainEnabled.current
+    : (settings?.terrainEnabled ?? false);
+  const memoBasemapMode = preserveMapPosition
+    ? initialBasemapMode.current
+    : effectiveBasemapMode;
+  const memoInitialDrawnPolygons = preserveMapPosition
+    ? initialDrawnPolygonsRef.current
+    : (initialDrawnPolygons ?? null);
 
   const html = React.useMemo(() => {
     if (!mapTemplate) {
@@ -712,6 +891,12 @@ export function SpeciesOccurrenceMap({
       initialLocalLon.current,
       mode,
       enableOfflineFallback,
+      terrainTileUrl,
+      memoTerrainEnabled,
+      memoInitialDrawnPolygons,
+      memoBasemapMode,
+      satelliteTileUrl,
+      variableModeBackgroundTileUrl,
     );
   }, [
     allowPinObservations,
@@ -750,6 +935,12 @@ export function SpeciesOccurrenceMap({
     mode,
     enableOfflineFallback,
     globeView,
+    terrainTileUrl,
+    memoTerrainEnabled,
+    memoInitialDrawnPolygons,
+    memoBasemapMode,
+    satelliteTileUrl,
+    variableModeBackgroundTileUrl,
   ]);
 
   React.useEffect(() => {
@@ -764,7 +955,11 @@ export function SpeciesOccurrenceMap({
     () =>
       toSelectedPointMessagePayload(
         selectedPoint
-          ? { latitude: selectedPoint.lat, longitude: selectedPoint.lon }
+          ? {
+              latitude: selectedPoint.lat,
+              longitude: selectedPoint.lon,
+              catalogNumber: selectedPoint.catalogNumber,
+            }
           : null,
       ),
     [selectedPoint],
@@ -912,13 +1107,20 @@ export function SpeciesOccurrenceMap({
   // of points — e.g. a location/phenology filter refetching from the
   // backend, or the upload page's offline client-side filter), as opposed
   // to the pointStylesUpdate effect above, which fires when the same
-  // occurrences just need new colors. Unlike that one, this rebuilds the
-  // marker layer and refits the viewport to the new results, since holding
-  // position wouldn't make sense for a genuinely different dataset.
+  // occurrences just need new colors. Rebuilds the marker layer either
+  // way; refits the viewport to the new results UNLESS refitOnOccurrences
+  // Change says this particular swap isn't a "new dataset" (see that
+  // prop's doc comment) — holding position wouldn't make sense for a
+  // genuinely different dataset, but would for e.g. a region-filter toggle
+  // over the same underlying data.
   React.useEffect(() => {
     if (!preserveMapPosition || !mapReady) return;
     if (occurrences === lastSyncedOccurrences.current) return;
     lastSyncedOccurrences.current = occurrences;
+    const shouldRefit =
+      refitOnOccurrencesChange === undefined ||
+      refitOnOccurrencesChange !== lastRefitKey.current;
+    lastRefitKey.current = refitOnOccurrencesChange;
     const newPoints = preparePointsForMapHtml(
       occurrences,
       observationValues,
@@ -927,7 +1129,11 @@ export function SpeciesOccurrenceMap({
       classShapes,
       circularShapesEnabled,
     );
-    const msg = { type: POINTS_UPDATE_MESSAGE_TYPE, points: newPoints };
+    const msg = {
+      type: POINTS_UPDATE_MESSAGE_TYPE,
+      points: newPoints,
+      preserveViewport: !shouldRefit,
+    };
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage(msg, '*');
     } else {
@@ -937,6 +1143,7 @@ export function SpeciesOccurrenceMap({
     preserveMapPosition,
     mapReady,
     occurrences,
+    refitOnOccurrencesChange,
     observationValues,
     classColors,
     classLabels,
@@ -1039,12 +1246,97 @@ export function SpeciesOccurrenceMap({
       if (
         frameWindow &&
         source === frameWindow &&
+        isPolygonDrawnMessage(data)
+      ) {
+        onPolygonDrawn?.(data.polygons);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === POLYGON_CLEARED_MESSAGE_TYPE
+      ) {
+        onPolygonCleared?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === POLYGON_DRAW_START_MESSAGE_TYPE
+      ) {
+        onPolygonDrawStart?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === POLYGON_DRAW_END_MESSAGE_TYPE
+      ) {
+        onPolygonDrawEnd?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
         data &&
         typeof data === 'object' &&
         'type' in data &&
         data.type === TOGGLE_GLOBE_VIEW_MESSAGE_TYPE
       ) {
         settings?.setGlobeViewEnabled(!settings.globeViewEnabled);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_TERRAIN_MESSAGE_TYPE
+      ) {
+        // The map already applied the toggle live and locally (see the
+        // mountain-icon control in SpeciesOccurrenceGlobeMap.html) — this
+        // only persists the choice to settings.terrainEnabled, the same
+        // AsyncStorage-backed pattern as globeViewEnabled, so a later
+        // reload starts with whatever the user last picked instead of
+        // always defaulting on.
+        settings?.setTerrainEnabled(!settings.terrainEnabled);
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_BASEMAP_MODE_MESSAGE_TYPE &&
+        'mode' in data &&
+        typeof (data as { mode?: unknown }).mode === 'string' &&
+        isBasemapMode((data as { mode: string }).mode)
+      ) {
+        // Same split as TOGGLE_TERRAIN_MESSAGE_TYPE above: the map already
+        // cycled its basemap tiles live and locally (see the toggle control
+        // in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html) —
+        // this only persists the choice to settings.basemapMode so a later
+        // reload starts with whatever was last picked.
+        settings?.setBasemapMode(
+          (data as { mode: 'standard' | 'satellite' | 'variable' }).mode,
+        );
         return;
       }
 
@@ -1079,6 +1371,10 @@ export function SpeciesOccurrenceMap({
     onPointValue,
     openExternalUrl,
     onLocationPicked,
+    onPolygonDrawn,
+    onPolygonCleared,
+    onPolygonDrawStart,
+    onPolygonDrawEnd,
     settings,
     onFullscreenToggle,
   ]);

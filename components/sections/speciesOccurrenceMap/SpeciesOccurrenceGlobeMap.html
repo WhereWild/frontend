@@ -64,10 +64,54 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const TILE_URL = __TILE_URL_JSON__;
     const TILE_MAX_ZOOM = __TILE_MAX_ZOOM__;
     const MAP_TILE_MODE = __MAP_TILE_MODE_JSON__;
+    const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
     const LABELS_OVERLAY_URL = __LABELS_OVERLAY_URL_JSON__;
     const LINES_OVERLAY_URL = __LINES_OVERLAY_URL_JSON__;
+    const TERRAIN_TILE_URL = __TERRAIN_TILE_URL_JSON__;
+    // Persisted like the globe-vs-2D preference (see settings.terrainEnabled)
+    // — read once at load so a reload/return visit starts wherever the user
+    // last left the toggle, rather than always defaulting on.
+    const TERRAIN_ENABLED_INITIAL = __TERRAIN_ENABLED__;
+    // Esri World Imagery, proxied through our own backend (see
+    // wherewild/main.py's satellite_tile) so the ArcGIS API key never
+    // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
+    // z/y/x tile path, since the backend handles that reversal.
+    const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;
+    // 'variable' basemap mode's basemap tile — the same simpler background
+    // maps.tsx always uses (paired with LABELS_OVERLAY_URL below), rather
+    // than the full-detail TILE_URL used for 'standard' mode.
+    const VARIABLE_MODE_BACKGROUND_TILE_URL = __VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__;
+    // 'standard' | 'satellite' | 'variable' — same persisted-preference
+    // pattern as TERRAIN_ENABLED_INITIAL.
+    const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
+    // Tracks whatever the currently-selected GIS variable's tile URL is —
+    // starts at HEATMAP_TILE_URL but updates live via applyPendingHeatmapUpdate
+    // below, so 'variable' basemap mode always reflects the live selection
+    // rather than whatever was true at page load.
+    var currentHeatmapTileUrl = HEATMAP_TILE_URL;
+    var INITIAL_BASEMAP_MODE = (BASEMAP_MODE_INITIAL === 'variable' && !currentHeatmapTileUrl)
+      ? 'standard'
+      : (BASEMAP_MODE_INITIAL || 'standard');
+    // 'satellite' swaps in the satellite tile; 'variable' swaps in the
+    // simpler background tile (same one maps.tsx always uses, paired with
+    // the labels overlay — see the labels-layer visibility logic below),
+    // plus the heatmap overlay on top; 'standard' is the plain full-detail
+    // tile.
+    function tileUrlForBasemapMode(mode) {
+      if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
+      if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
+      return TILE_URL;
+    }
+    // Whatever region(s) were already drawn/uploaded when this map was
+    // (re)built — e.g. switching here from Leaflet after drawing a region
+    // there. Rings are [latitude, longitude] pairs, same convention as
+    // allDrawnPolygonPoints/drawnPolygonGroups below. Seeded onto the same
+    // drawn-polygons source those use, once it exists (see map.on('load')),
+    // so the filter that was already active keeps its visual too instead of
+    // only its effect surviving the renderer switch.
+    const INITIAL_DRAWN_POLYGONS = __INITIAL_DRAWN_POLYGONS_JSON__;
     const CUSTOM_MIN_ZOOM = __MIN_ZOOM__;
     const CUSTOM_MAX_ZOOM = __MAX_ZOOM__;
     const INITIAL_LAT = __INITIAL_LAT__;
@@ -247,6 +291,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           markerColor: displayColor,
           markerStroke: displayStroke,
           isNodata: isNodata,
+          mediaUrl: pt.popupMediaUrl || '',
+          mediaAttribution: pt.popupMediaAttribution || '',
+          mediaLicense: pt.popupMediaLicense || '',
+          mediaLicenseUrl: pt.popupMediaLicenseUrl || '',
         },
       };
     }
@@ -270,6 +318,115 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
       }
       return formatPointValueHtml(pt.varValue, VAR_UNITS);
+    }
+
+    // Mirrors Leaflet's buildObservationMediaHtml — mediaAttribution/
+    // mediaLicense arrive pre-escaped from preparePointsForMapHtml.
+    function buildObservationMediaHtml(mediaUrl, mediaAttribution, mediaLicense, mediaLicenseUrl) {
+      if (!mediaUrl) {
+        return '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No media</span></div>';
+      }
+      var img = '<img src="' + mediaUrl + '" alt="" loading="lazy" style="display:block;width:100%;max-width:200px;height:120px;object-fit:cover;object-position:center;border-radius:4px;margin-top:6px" />';
+      // Attribution and license always render on their own line each (never
+      // joined inline) — a shared wrapping line breaks at a different point
+      // depending on content length, which reads as inconsistent spacing
+      // between popups.
+      var attributionLine = '<div style="margin-top:4px;font-size:10px;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (mediaAttribution || '&nbsp;') + '</div>';
+      var licenseInner = mediaLicense
+        ? (mediaLicenseUrl
+            ? '<a href="' + mediaLicenseUrl + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">' + mediaLicense + '</a>'
+            : mediaLicense)
+        : '&nbsp;';
+      var licenseLine = '<div style="margin-top:2px;font-size:10px;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + licenseInner + '</div>';
+      return img + attributionLine + licenseLine;
+    }
+
+    // Top-level (not inside map.on('load', ...)) since handleParentMessage
+    // (below) can receive SELECTED_POINT_MESSAGE_TYPE at any time — reads
+    // map/OCCURRENCE_POINTS defensively, matching refreshOccurrenceMarkerColors.
+    var selectedPointPopup = null;
+    // Mirrors whatever point React last told us to select — kept
+    // independent of selectedPointPopup (which gets torn down and rebuilt
+    // on every reapply) so applyPendingPointStyleUpdates can refresh the
+    // popup's baked-in HTML after a variable switch instead of leaving it
+    // frozen at the value/color it had when first selected.
+    var lastAppliedSelectedPoint = null;
+    // The ad-hoc popup opened by map.on('click') below for a background
+    // (non-observation) point — tracked so a variable switch can refresh
+    // its content in place via refreshBackgroundPointPopup, the same way
+    // lastAppliedSelectedPoint lets applySelectedPoint re-run for the
+    // observation-pin case.
+    var lastBackgroundPopup = null;
+
+    function clearSelectedPoint() {
+      var source = map.getSource('selected-point');
+      if (source) {
+        source.setData({ type: 'FeatureCollection', features: [] });
+      }
+      if (selectedPointPopup) {
+        selectedPointPopup.remove();
+        selectedPointPopup = null;
+      }
+    }
+
+    function applySelectedPoint(point) {
+      lastAppliedSelectedPoint = point || null;
+      clearSelectedPoint();
+      if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
+        return;
+      }
+
+      var source = map.getSource('selected-point');
+      if (source) {
+        source.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [point.longitude, point.latitude] },
+            properties: {},
+          }],
+        });
+      }
+
+      // Mirrors Leaflet's matchingEntry lookup: prefer an exact catalog
+      // match (known when selecting from the observation gallery) over
+      // lat/lon proximity, which is the only option for the map-click
+      // "point:" flow (no catalogNumber).
+      var matchingPt = point.catalogNumber
+        ? OCCURRENCE_POINTS.find(function(pt) { return pt.popupCatalogValue === point.catalogNumber; })
+        : null;
+      if (!matchingPt) {
+        matchingPt = OCCURRENCE_POINTS.find(function(pt) {
+          return Math.abs(pt.latitude - point.latitude) < 1e-6 && Math.abs(pt.longitude - point.longitude) < 1e-6;
+        });
+      }
+      if (!matchingPt) {
+        return;
+      }
+
+      var html = '';
+      if (LINK_OBSERVATIONS && matchingPt.popupCatalogHref && matchingPt.popupCatalogLabel) {
+        html += '<a href="https://www.inaturalist.org/observations/' + matchingPt.popupCatalogHref + '" target="_blank" rel="noopener noreferrer" data-open-external-url="true">Observation #' + matchingPt.popupCatalogLabel + '</a>';
+      } else if (matchingPt.popupCatalogLabel) {
+        html += '<span>Observation #' + matchingPt.popupCatalogLabel + '</span>';
+      }
+      html += buildMarkerValueHtml({
+        varValue: matchingPt.varValue,
+        varColor: matchingPt.varColor,
+        varLabel: matchingPt.varLabel,
+      });
+      if (matchingPt.popupCatalogLabel) {
+        html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
+      }
+      // focusAfterOpen defaults to true — calling .focus() on the popup DOM
+      // node makes the browser natively scroll/snap the page to bring it
+      // into view, which reads as the whole screen jumping. Not needed
+      // here (this popup opens from a script-driven selection, not direct
+      // keyboard interaction), so disable it.
+      selectedPointPopup = new maplibregl.Popup({ closeButton: true, focusAfterOpen: false })
+        .setLngLat([point.longitude, point.latitude])
+        .setHTML(html || '&nbsp;')
+        .addTo(map);
     }
 
     function buildOccurrenceFeatureCollection(pointList) {
@@ -566,23 +723,67 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: Object.assign(
           {
-            basemap: { type: 'raster', tiles: [TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM },
+            basemap: { type: 'raster', tiles: [tileUrlForBasemapMode(INITIAL_BASEMAP_MODE)], tileSize: 256, maxzoom: TILE_MAX_ZOOM },
           },
           HEATMAP_TILE_URL ? { heatmap: { type: 'raster', tiles: ['heatmap://' + HEATMAP_TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
           LINES_OVERLAY_URL ? { lines: { type: 'raster', tiles: [LINES_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
-          LABELS_OVERLAY_URL ? { labels: { type: 'raster', tiles: [LABELS_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {}
+          LABELS_OVERLAY_URL ? { labels: { type: 'raster', tiles: [LABELS_OVERLAY_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM } } : {},
+          // encoding: 'terrarium' matches util/tiles.py's _encode_terrain_rgb
+          // — MapLibre decodes elevation from these RGB tiles on the GPU for
+          // setTerrain()/hillshade below, distinct from the (also-elevation-
+          // sourced) colorized 'elevation' catalog layer used for display.
+          TERRAIN_TILE_URL ? { 'terrain-dem': { type: 'raster-dem', tiles: [TERRAIN_TILE_URL], tileSize: 256, maxzoom: TILE_MAX_ZOOM, encoding: 'terrarium' } } : {}
         ),
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#000' } },
-          { id: 'basemap-layer', type: 'raster', source: 'basemap' },
         ]
-          .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY } }] : [])
+          // The offline vector fallback sits directly above the black
+          // background but BELOW the real basemap raster layer — so any
+          // successfully loaded tile (including ones the service worker
+          // serves from cache while offline — see cachedTileResponse in
+          // public/sw.js) paints over it, and it only shows through where no
+          // tile, cached or fresh, is actually available. This only matters
+          // in the offline-capable template (ENABLE_OFFLINE_FALLBACK is
+          // always false here otherwise, making this a no-op).
+          .concat(ENABLE_OFFLINE_FALLBACK ? [{ id: 'offlineFallback-layer', type: 'raster', source: 'offlineFallback', layout: { visibility: 'visible' } }] : [])
+          .concat([{ id: 'basemap-layer', type: 'raster', source: 'basemap' }])
+          // Shades the basemap using the same DEM setTerrain() uses for the
+          // 3D mesh, so relief reads clearly even head-on where the globe's
+          // own displacement is least visible. Sits above the basemap but
+          // below every data overlay.
+          .concat(TERRAIN_TILE_URL ? [{ id: 'hillshade-layer', type: 'hillshade', source: 'terrain-dem', paint: { 'hillshade-exaggeration': 0.3 }, layout: { visibility: TERRAIN_ENABLED_INITIAL ? 'visible' : 'none' } }] : [])
+          // Only visible in 'variable' basemap mode — showing it by
+          // default whenever a variable happens to be selected (regardless
+          // of mode, including on top of satellite) is exactly the bug
+          // this guards against.
+          .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY }, layout: { visibility: INITIAL_BASEMAP_MODE === 'variable' ? 'visible' : 'none' } }] : [])
           .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
-          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 } }] : []),
+          // On pages with the 3-way basemap toggle (SATELLITE_TILE_URL
+          // truthy), labels only show in 'satellite'/'variable' modes, not
+          // 'standard' (which already has labels baked into its own tile
+          // style). Pages without the toggle (maps.tsx) have no 'standard'
+          // mode to speak of, so labels just stay on always.
+          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 }, layout: { visibility: (SATELLITE_TILE_URL && INITIAL_BASEMAP_MODE === 'standard') ? 'none' : 'visible' } }] : []),
+        // 1.0 — true-scale elevation, not exaggerated. At full-globe zoom
+        // this reads as nearly flat (real relief is ~0.1% of Earth's
+        // radius), but it becomes accurate once zoomed in close, which
+        // matters more here than a dramatic globe-scale bulge.
+        terrain: (TERRAIN_TILE_URL && TERRAIN_ENABLED_INITIAL) ? { source: 'terrain-dem', exaggeration: 1.0 } : undefined,
       },
       center: [INITIAL_LON || 0, INITIAL_LAT || 20],
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
       minZoom: CUSTOM_MIN_ZOOM,
+      maxPitch: 90,
+      // MapLibre's own in-memory tile cache otherwise keeps a previously-
+      // seen tile around (across zoom/pan changes, not just the current
+      // frame) and reuses it as an overzoom placeholder rather than
+      // treating the view as needing a fresh fetch — see
+      // evaluateOfflineFallback's basemap-layer visibility handling below,
+      // which handles the closely related "still rendering something for
+      // the current frame while loading/failing" case; this handles the
+      // "don't keep retired tiles around at all" case, at the cost of
+      // re-fetching a tile if you pan back to a view you've already seen.
+      maxTileCacheSize: 0,
       // Default attribution control sits bottom-right, directly under the
       // colormap-picker overlay the consuming page renders there — added
       // manually below at bottom-left instead so the two never collide.
@@ -638,6 +839,295 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 3.5L5.5 2l5 1.5L15 2v10.5l-4.5 1.5-5-1.5L1 14z"/><path d="M5.5 2v10.5"/><path d="M10.5 3.5v10.5"/></svg>';
         btn.addEventListener('click', function() {
           postToParent({ type: 'toggleGlobeView' });
+        });
+        container.appendChild(btn);
+        return container;
+      },
+      onRemove: function() {},
+    });
+
+    // 3D terrain relief is a real perf lever on some devices/projections —
+    // MapLibre itself logs "terrain is not fully supported on vertical
+    // perspective projection" when it's active here. Rather than guess at a
+    // fixed on/off default, expose a toggle so a user who sees jank on the
+    // globe can switch it off without losing anything else. The live toggle
+    // (setTerrain/setLayoutProperty) is applied immediately and entirely
+    // locally — no round-trip needed for that. The postToParent call below
+    // is separate: it's only so SpeciesOccurrenceMap persists the new value
+    // to settings.terrainEnabled (same AsyncStorage-backed pattern as the
+    // globe/2D preference), so the choice sticks across reloads. It doesn't
+    // affect the currently-open map, which already updated itself.
+    if (TERRAIN_TILE_URL) {
+      var terrainEnabled = !!TERRAIN_ENABLED_INITIAL;
+      var applyTerrainState = function() {
+        map.setTerrain(terrainEnabled ? { source: 'terrain-dem', exaggeration: 1.0 } : null);
+        if (map.getLayer('hillshade-layer')) {
+          map.setLayoutProperty('hillshade-layer', 'visibility', terrainEnabled ? 'visible' : 'none');
+        }
+      };
+      map.addControl({
+        onAdd: function() {
+          var container = document.createElement('div');
+          container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+          var updateButton = function() {
+            btn.title = terrainEnabled ? 'Hide 3D terrain relief' : 'Show 3D terrain relief';
+            btn.style.color = terrainEnabled ? palette.linkColor : '';
+          };
+          btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 14L5 4l3 6 3-8 4 8z"/></svg>';
+          updateButton();
+          btn.addEventListener('click', function() {
+            terrainEnabled = !terrainEnabled;
+            applyTerrainState();
+            updateButton();
+            postToParent({ type: 'toggleTerrain' });
+          });
+          container.appendChild(btn);
+          return container;
+        },
+        onRemove: function() {},
+      });
+    }
+
+    // Basemap mode toggle — 3 distinct looks, cycling standard -> satellite
+    // -> variable -> standard: (1) standard Stadia tiles only, (2) Esri
+    // satellite tiles only, (3) the exact same setup as maps.tsx — standard
+    // Stadia tiles with the currently-selected GIS variable's translucent
+    // heatmap overlay on top. The overlay is ONLY visible in mode 3; modes
+    // 1/2 explicitly hide it even if a variable happens to be selected, so
+    // it never shows up uninvited on top of satellite. Same live-locally /
+    // persist-via-postMessage split as the terrain toggle above. Guarded
+    // the same way TERRAIN_TILE_URL guards the terrain control above.
+    if (SATELLITE_TILE_URL) {
+      var currentBasemapMode = INITIAL_BASEMAP_MODE;
+      // One fixed icon for all 3 states (a per-mode icon looked ambiguous —
+      // the 'standard' glyph was identical to the neighboring "switch to 2D
+      // view" button's icon) — only the tooltip text and the highlight
+      // color change, same as every other toggle control here.
+      var BASEMAP_MODE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5L14.5 5 8 8.5 1.5 5z"/><path d="M1.5 8L8 11.5 14.5 8"/><path d="M1.5 11L8 14.5 14.5 11"/></svg>';
+      var BASEMAP_MODE_TITLES = {
+        standard: 'Switch to satellite basemap',
+        satellite: 'Switch to variable overlay',
+        variable: 'Switch to standard basemap',
+      };
+      var applyBasemapMode = function(mode) {
+        var source = map.getSource('basemap');
+        if (source && typeof source.setTiles === 'function') {
+          source.setTiles([tileUrlForBasemapMode(mode)]);
+        }
+        if (map.getLayer('heatmap-layer')) {
+          map.setLayoutProperty('heatmap-layer', 'visibility', mode === 'variable' ? 'visible' : 'none');
+        }
+        if (map.getLayer('labels-layer')) {
+          map.setLayoutProperty('labels-layer', 'visibility', mode === 'standard' ? 'none' : 'visible');
+        }
+      };
+      var nextBasemapMode = function(mode) {
+        if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
+        if (mode === 'satellite') return currentHeatmapTileUrl ? 'variable' : 'standard';
+        return 'standard';
+      };
+      map.addControl({
+        onAdd: function() {
+          var container = document.createElement('div');
+          container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+          var updateButton = function() {
+            btn.title = BASEMAP_MODE_TITLES[currentBasemapMode] || BASEMAP_MODE_TITLES.standard;
+            btn.style.color = currentBasemapMode === 'standard' ? '' : palette.linkColor;
+          };
+          btn.innerHTML = BASEMAP_MODE_ICON;
+          updateButton();
+          btn.addEventListener('click', function() {
+            currentBasemapMode = nextBasemapMode(currentBasemapMode);
+            applyBasemapMode(currentBasemapMode);
+            updateButton();
+            postToParent({ type: 'toggleBasemapMode', mode: currentBasemapMode });
+          });
+          container.appendChild(btn);
+          return container;
+        },
+        onRemove: function() {},
+      });
+    }
+
+    // Region-filter regions (see SpeciesOccurrenceMap.html for the
+    // hand-drawn version) — globe/MapLibre only supports uploading a
+    // GeoJSON region for now, not clicking one out point by point (no
+    // drawing-toolbar plugin wired up here yet). Each uploaded file's
+    // polygons become one group, matching Leaflet's grouping, so the
+    // eraser control removes a whole upload at a time. The `polygonDrawn`/
+    // `polygonCleared` messages posted below are the exact same contract
+    // SpeciesOccurrenceMap.html uses — SpeciesOccurrenceMap.tsx and
+    // everything upstream of it (region filtering, the backend `polygon`
+    // query param) doesn't know or care which renderer sent them.
+    var drawnPolygonGroups = [];
+
+    function allDrawnPolygonPoints() {
+      var allRings = [];
+      drawnPolygonGroups.forEach(function(group) {
+        group.forEach(function(ring) { allRings.push(ring); });
+      });
+      return allRings;
+    }
+
+    function rebuildDrawnPolygonsSource() {
+      var source = map.getSource('drawn-polygons');
+      if (!source) return;
+      var features = [];
+      drawnPolygonGroups.forEach(function(group) {
+        group.forEach(function(ring) {
+          features.push({
+            type: 'Feature',
+            properties: {},
+            // GeoJSON is [lon, lat] and needs the ring closed (first point
+            // repeated at the end); ring here is [lat, lon] pairs, open —
+            // same convention used everywhere else in this file's message
+            // contract (see allDrawnPolygonPoints).
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                ring.map(function(pt) { return [pt[1], pt[0]]; }).concat([[ring[0][1], ring[0][0]]]),
+              ],
+            },
+          });
+        });
+      });
+      source.setData({ type: 'FeatureCollection', features: features });
+    }
+
+    var eraserControlInstance = null;
+    function updateEraserControlVisibility() {
+      var shouldShow = drawnPolygonGroups.length > 0;
+      var isShown = eraserControlInstance != null;
+      if (shouldShow && !isShown) {
+        eraserControlInstance = {
+          onAdd: function() {
+            var container = document.createElement('div');
+            container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+            btn.title = 'Erase most recently uploaded region';
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M10.5 1.5l4 4-7 7h-4v-4z"/><path d="M3.5 12.5h9"/></svg>';
+            btn.addEventListener('click', function() {
+              drawnPolygonGroups.pop();
+              rebuildDrawnPolygonsSource();
+              updateEraserControlVisibility();
+              if (drawnPolygonGroups.length > 0) {
+                postToParent({ type: 'polygonDrawn', polygons: allDrawnPolygonPoints() });
+              } else {
+                postToParent({ type: 'polygonCleared' });
+              }
+            });
+            container.appendChild(btn);
+            return container;
+          },
+          onRemove: function() {},
+        };
+        map.addControl(eraserControlInstance);
+      } else if (!shouldShow && isShown) {
+        map.removeControl(eraserControlInstance);
+        eraserControlInstance = null;
+      }
+    }
+
+    // Mirrors SpeciesOccurrenceMap.html's extractPolygonRingsFromGeoJson —
+    // kept as a hand-duplicated copy rather than shared, same as everything
+    // else between these two standalone HTML documents (see
+    // LEAFLET_RESIZE_OBSERVER_SCRIPT's doc comment in
+    // speciesOccurrenceMapHelpers.ts for why the Leaflet/Leaflet-offline
+    // pair shares snippets via placeholder but Leaflet/Globe don't — the
+    // two renderers' surrounding code has nothing else in common to hang a
+    // shared snippet off of).
+    function extractPolygonRingsFromGeoJson(geojson) {
+      var rings = [];
+      function fromGeometry(geometry) {
+        if (!geometry) return;
+        if (geometry.type === 'Polygon') {
+          var outer = geometry.coordinates && geometry.coordinates[0];
+          if (outer && outer.length >= 3) {
+            rings.push(outer.map(function(c) { return [c[1], c[0]]; }));
+          }
+        } else if (geometry.type === 'MultiPolygon') {
+          (geometry.coordinates || []).forEach(function(poly) {
+            var outer = poly && poly[0];
+            if (outer && outer.length >= 3) {
+              rings.push(outer.map(function(c) { return [c[1], c[0]]; }));
+            }
+          });
+        } else if (geometry.type === 'GeometryCollection') {
+          (geometry.geometries || []).forEach(fromGeometry);
+        }
+      }
+      if (!geojson) return rings;
+      if (geojson.type === 'FeatureCollection') {
+        (geojson.features || []).forEach(function(f) { fromGeometry(f && f.geometry); });
+      } else if (geojson.type === 'Feature') {
+        fromGeometry(geojson.geometry);
+      } else {
+        fromGeometry(geojson);
+      }
+      return rings;
+    }
+
+    function showUploadPolygonError(message) {
+      new maplibregl.Popup({ closeButton: true })
+        .setLngLat(map.getCenter())
+        .setHTML('<span style="font-size:12px">' + message + '</span>')
+        .addTo(map);
+    }
+
+    function handleUploadedGeoJsonFile(file) {
+      var reader = new FileReader();
+      reader.onload = function() {
+        var rings;
+        try {
+          rings = extractPolygonRingsFromGeoJson(JSON.parse(String(reader.result)));
+        } catch (err) {
+          showUploadPolygonError('Could not read that file as GeoJSON.');
+          return;
+        }
+        if (!rings.length) {
+          showUploadPolygonError('No polygon regions found in that file.');
+          return;
+        }
+        drawnPolygonGroups.push(rings);
+        rebuildDrawnPolygonsSource();
+        updateEraserControlVisibility();
+        postToParent({ type: 'polygonDrawn', polygons: allDrawnPolygonPoints() });
+      };
+      reader.onerror = function() {
+        showUploadPolygonError('Could not read that file.');
+      };
+      reader.readAsText(file);
+    }
+
+    map.addControl({
+      onAdd: function() {
+        var container = document.createElement('div');
+        container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+        btn.title = 'Upload a GeoJSON region';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10.5V2.5"/><path d="M4.5 6L8 2.5L11.5 6"/><path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></svg>';
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.geojson,.json,application/geo+json,application/json';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        fileInput.addEventListener('change', function(event) {
+          var file = event.target.files && event.target.files[0];
+          fileInput.value = '';
+          if (file) handleUploadedGeoJsonFile(file);
+        });
+        btn.addEventListener('click', function() {
+          fileInput.click();
         });
         container.appendChild(btn);
         return container;
@@ -847,6 +1337,66 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         OCCURRENCE_LAYER_IDS = OCCURRENCE_LAYERS.map(function(l) { return l.id; });
         ALL_MARKER_LAYER_IDS = OCCURRENCE_LAYER_IDS.concat(useClustering ? [CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID] : []);
 
+        // Highlight ring for a point selected via SELECTED_POINT_MESSAGE_TYPE
+        // (e.g. clicking an observation in the below-map gallery) — mirrors
+        // Leaflet's dashed selected-point marker. MapLibre circle layers
+        // have no dash-pattern paint property, so this is a plain stroke
+        // ring instead of a dashed one; visually distinct is what matters.
+        map.addSource('selected-point', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        map.addLayer({
+          id: 'selected-point-layer',
+          type: 'circle',
+          source: 'selected-point',
+          paint: {
+            'circle-radius': 7,
+            'circle-color': 'transparent',
+            'circle-stroke-color': palette.selectedPointStroke,
+            'circle-stroke-width': 2,
+          },
+        });
+
+        // Uploaded region filter(s) — see extractPolygonRingsFromGeoJson/
+        // rebuildDrawnPolygonsSource above. Rendered as a normal fill+line
+        // layer; MapLibre's globe projection curves this along the sphere
+        // automatically like every other vector layer, no special handling
+        // needed here for the 3D case.
+        map.addSource('drawn-polygons', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        map.addLayer({
+          id: 'drawn-polygons-fill-layer',
+          type: 'fill',
+          source: 'drawn-polygons',
+          paint: {
+            'fill-color': palette.markerFill,
+            'fill-opacity': 0.12,
+          },
+        });
+        map.addLayer({
+          id: 'drawn-polygons-line-layer',
+          type: 'line',
+          source: 'drawn-polygons',
+          paint: {
+            'line-color': palette.markerFill,
+            'line-width': 2,
+          },
+        });
+
+        if (INITIAL_DRAWN_POLYGONS && INITIAL_DRAWN_POLYGONS.length > 0) {
+          // One group per ring (not all lumped into one) so the eraser
+          // control can remove them one at a time, matching hand-drawn
+          // shapes on Leaflet — the grouping a file upload would have had
+          // doesn't survive the round trip through React's flat polygon
+          // list, so this is the closest equivalent.
+          drawnPolygonGroups = INITIAL_DRAWN_POLYGONS.map(function(ring) { return [ring]; });
+          rebuildDrawnPolygonsSource();
+          updateEraserControlVisibility();
+        }
+
         var INDIVIDUAL_MODE_LAYER_IDS = ['occurrences-layer', 'occurrences-shapes-layer'];
         var CLUSTERED_MODE_LAYER_IDS = ['occurrences-clustered-layer', 'occurrences-clustered-shapes-layer', CLUSTER_LAYER_ID, CLUSTER_COUNT_LAYER_ID];
 
@@ -985,6 +1535,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             varColor: props.rawVarColor,
             varLabel: props.varLabel,
           });
+          if (props.catalogLabel) {
+            html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
+          }
           new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
         }
 
@@ -1025,6 +1578,55 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       scheduleRefreshVisibleTileClasses();
     });
 
+    // Fetches POINT_QUERY_URL for a background (non-observation) click and
+    // renders the result into an already-open popup. Split out of
+    // map.on('click') below so refreshBackgroundPointPopup can re-run the
+    // exact same rendering after a variable switch, instead of duplicating
+    // this logic.
+    function fetchBackgroundPointPopup(popup, latitude, longitude) {
+      fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function(data) {
+          if (!popup.isOpen()) return;
+          if (data.value == null) {
+            popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
+            return;
+          }
+          var numVal = Number(data.value);
+          if (isFinite(numVal)) {
+            postToParent({ type: 'pointValue', value: numVal });
+            if (data.class_name || data.class_color) {
+              var classKey = String(Math.round(numVal));
+              var resolvedClassColor = (CLASS_COLORS && CLASS_COLORS[classKey]) || data.class_color || null;
+              var dot = resolvedClassColor
+                ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>'
+                : '';
+              var label = data.class_name || String(numVal);
+              popup.setHTML('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
+            } else {
+              popup.setHTML(formatPointValueHtml(numVal, data.units || VAR_UNITS));
+            }
+          }
+        })
+        .catch(function() {
+          if (popup.isOpen()) popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
+        });
+    }
+
+    // Re-fetches and re-renders the currently open background-point popup
+    // (if any) at its existing position — called alongside
+    // applySelectedPoint(lastAppliedSelectedPoint) whenever the selected
+    // variable changes, so a background pin's value/color stays live the
+    // same way an observation pin's does. No-op if no background popup is
+    // open (e.g. an observation marker's popup is showing instead, or
+    // nothing is selected).
+    function refreshBackgroundPointPopup() {
+      if (!lastBackgroundPopup || !lastBackgroundPopup.isOpen() || !POINT_QUERY_URL) return;
+      var lngLat = lastBackgroundPopup.getLngLat();
+      if (!lngLat) return;
+      fetchBackgroundPointPopup(lastBackgroundPopup, lngLat.lat, lngLat.lng);
+    }
+
     map.on('click', function(event) {
       if (event.defaultPrevented) return;
       // event.defaultPrevented alone isn't reliable here — query directly
@@ -1063,33 +1665,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           .setLngLat(event.lngLat)
           .setHTML('<span style="opacity:0.6;font-size:11px">Loading…</span>')
           .addTo(map);
-        fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
-          .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
-          .then(function(data) {
-            if (!popup.isOpen()) return;
-            if (data.value == null) {
-              popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
-              return;
-            }
-            var numVal = Number(data.value);
-            if (isFinite(numVal)) {
-              postToParent({ type: 'pointValue', value: numVal });
-              if (data.class_name || data.class_color) {
-                var classKey = String(Math.round(numVal));
-                var resolvedClassColor = (CLASS_COLORS && CLASS_COLORS[classKey]) || data.class_color || null;
-                var dot = resolvedClassColor
-                  ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + resolvedClassColor + ';margin-right:5px;flex-shrink:0"></span>'
-                  : '';
-                var label = data.class_name || String(numVal);
-                popup.setHTML('<div style="display:flex;align-items:center;font-size:12px;max-width:180px">' + dot + '<span>' + label + '</span></div>');
-              } else {
-                popup.setHTML(formatPointValueHtml(numVal, data.units || VAR_UNITS));
-              }
-            }
-          })
-          .catch(function() {
-            if (popup.isOpen()) popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
-          });
+        lastBackgroundPopup = popup;
+        fetchBackgroundPointPopup(popup, latitude, longitude);
         return;
       }
 
@@ -1105,6 +1682,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       if (!externalLink) return;
       var url = externalLink.getAttribute('href');
       if (!url) return;
+      // Ctrl/Cmd/middle/Shift-click all signal "open in a background tab" —
+      // the anchor already has target="_blank" and a real href, so letting
+      // the browser handle those natively (instead of preventDefault + our
+      // own postToParent -> Linking.openURL bridge) means no new window/tab
+      // ever takes focus away from this document, which is what was
+      // kicking the parent page out of fullscreen on every link click even
+      // when the click was only ever meant to open in the background.
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1) return;
       event.preventDefault();
       postToParent({ type: OPEN_EXTERNAL_URL_MESSAGE_TYPE, url: url });
     });
@@ -1143,8 +1728,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     var pendingHeatmapUrl = null;
     function applyPendingHeatmapUpdate() {
       if (pendingHeatmapUrl == null) return;
+      // Tracked independent of whether the 'heatmap' overlay source below
+      // exists yet (it only ever gets created when HEATMAP_TILE_URL was
+      // already truthy at page load) — the basemap-mode toggle's
+      // nextBasemapMode uses this to decide whether 'variable' mode is
+      // reachable at all, regardless of that.
+      currentHeatmapTileUrl = pendingHeatmapUrl;
       var source = map.getSource('heatmap');
-      if (!source) return;
+      if (!source) { pendingHeatmapUrl = null; return; }
       resetTileClassTracking();
       source.setTiles(['heatmap://' + pendingHeatmapUrl]);
       scheduleRefreshVisibleTileClasses();
@@ -1172,6 +1763,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         pt.varShape = update.varShape || null;
       });
       refreshOccurrenceMarkerColors();
+      // The dot color refreshes for free via setData above (OCCURRENCE_POINTS
+      // was just mutated in place), but a selected point's popup HTML was
+      // baked once when applySelectedPoint first ran — reapply so its value/
+      // color reflect the new variable too, matching Leaflet's equivalent fix.
+      applySelectedPoint(lastAppliedSelectedPoint);
+      refreshBackgroundPointPopup();
       pendingPointStyleUpdates = null;
     }
 
@@ -1184,6 +1781,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
       if (data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs);
+        return;
+      }
+
+      if (data.type === SELECTED_POINT_MESSAGE_TYPE) {
+        applySelectedPoint(data.point || null);
         return;
       }
 

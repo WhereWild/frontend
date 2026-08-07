@@ -36,7 +36,7 @@ type LoadingWidthPattern = {
 };
 
 export type SpeciesCardProps = {
-  taxonId: number;
+  taxonId: string;
   commonName: string;
   scientificName: string;
   description?: string;
@@ -164,7 +164,8 @@ export function SpeciesCard({
   const scientificSegment = trimmedScientificName
     ? toKebabCase(trimmedScientificName)
     : '';
-  const hasValidTaxonId = typeof taxonId === 'number';
+  const hasValidTaxonId =
+    typeof taxonId === 'string' && taxonId.trim().length > 0;
   const hasValidScientificName = Boolean(trimmedScientificName);
   const hasValidSegment = Boolean(scientificSegment);
   const isPressOnly = interactionMode === 'press-only';
@@ -173,7 +174,7 @@ export function SpeciesCard({
     shouldProvideRouteHref && hasValidTaxonId && hasValidSegment
       ? {
           pathname: '/species/[...identifier]',
-          params: { identifier: [taxonId.toString(), scientificSegment] },
+          params: { identifier: [taxonId, scientificSegment] },
         }
       : undefined
   ) as Href | undefined;
@@ -188,7 +189,7 @@ export function SpeciesCard({
       return;
     }
 
-    if (typeof taxonId !== 'number') {
+    if (!hasValidTaxonId) {
       console.error('SpeciesCard requires a taxonId to navigate');
       return;
     }
@@ -352,10 +353,10 @@ export function SpeciesCard({
             numberOfLines={1}
             accessibilityRole='header'
           >
-            {commonName}
+            {scientificName}
           </ThemedText>
           <ThemedText variant='bodySmallEmphasis' numberOfLines={1}>
-            {scientificName}
+            {commonName}
           </ThemedText>
         </View>
 
@@ -384,7 +385,7 @@ export function SpeciesCard({
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         accessibilityRole='button'
-        accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+        accessibilityLabel={`${scientificName}. ${commonName}. ${description}`}
         testID={testID}
         style={pressableStyle}
       >
@@ -406,7 +407,7 @@ export function SpeciesCard({
       hrefPath={hrefPath}
       navigateAfterPress={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${commonName}. ${scientificName}. ${description}`}
+      accessibilityLabel={`${scientificName}. ${commonName}. ${description}`}
       testID={testID}
       style={pressableStyle}
     >

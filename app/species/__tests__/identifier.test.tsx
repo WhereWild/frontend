@@ -25,7 +25,7 @@ jest.mock('@/data/api', () => ({
   fetchSpeciesByTaxonId: jest.fn(),
   fetchSpeciesObscured: jest
     .fn()
-    .mockResolvedValue({ taxon_id: 0, all_obscured: false }),
+    .mockResolvedValue({ taxon_id: '0', all_obscured: false }),
 }));
 
 jest.mock('@/context/SettingsContext', () => ({
@@ -86,7 +86,7 @@ describe('SpeciesBasicsPage', () => {
     mockUseRouter.mockReturnValue(createRouterMock());
     mockUsePathname.mockReturnValue('/');
     mockFetchSpeciesObscured.mockResolvedValue({
-      taxon_id: 0,
+      taxon_id: '0',
       all_obscured: false,
     });
   });
@@ -145,7 +145,7 @@ describe('SpeciesBasicsPage', () => {
       description: 'Large white owl adapted to Arctic climates.',
     } as any);
     mockFetchSpeciesObscured.mockResolvedValue({
-      taxon_id: Number(SAMPLE_TAXON_ID),
+      taxon_id: SAMPLE_TAXON_ID,
       all_obscured: true,
     });
 
@@ -170,7 +170,7 @@ describe('SpeciesBasicsPage', () => {
     );
     mockFetchSpeciesObscured
       .mockResolvedValueOnce({
-        taxon_id: Number(firstIdentifier),
+        taxon_id: firstIdentifier,
         all_obscured: true,
       })
       .mockRejectedValueOnce(new Error('Obscured lookup failed'));
@@ -276,7 +276,7 @@ describe('SpeciesBasicsPage', () => {
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
       (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
-      Number(SAMPLE_TAXON_ID),
+      SAMPLE_TAXON_ID,
     );
 
     expect(result.overview.imageSource).toEqual({
@@ -296,7 +296,7 @@ describe('SpeciesBasicsPage', () => {
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
       (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
-      Number(SAMPLE_TAXON_ID),
+      SAMPLE_TAXON_ID,
     );
 
     expect(result.overview.imageSource).toBe(providedSource);
@@ -316,7 +316,7 @@ describe('SpeciesBasicsPage', () => {
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
       (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
-      Number(SAMPLE_TAXON_ID),
+      SAMPLE_TAXON_ID,
     );
 
     expect(result.heatmap.liveAvailable).toBe(true);
@@ -341,7 +341,7 @@ describe('SpeciesBasicsPage', () => {
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
       (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
-      Number(SAMPLE_TAXON_ID),
+      SAMPLE_TAXON_ID,
     );
 
     expect(result.heatmap.liveModelId).toBe('auto_gbt');
@@ -371,7 +371,7 @@ describe('SpeciesBasicsPage', () => {
 
     const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
       (await mockFetchSpeciesByTaxonId(SAMPLE_TAXON_ID)) as any,
-      Number(SAMPLE_TAXON_ID),
+      SAMPLE_TAXON_ID,
     );
 
     expect(result.overview.imageSource).toBe(
@@ -466,7 +466,7 @@ describe('SpeciesBasicsPage', () => {
     });
   });
 
-  it('logs an error and renders fallback data when the identifier is non-numeric', async () => {
+  it('logs an error and renders fallback data when the identifier is invalid', async () => {
     const consoleSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -481,16 +481,37 @@ describe('SpeciesBasicsPage', () => {
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(
-      'Missing numeric taxon ID in route segments.',
+      'Missing taxon ID in route segments.',
     );
 
     consoleSpy.mockRestore();
   });
 
+  it('accepts alphanumeric (non-numeric) taxon IDs from path segments', async () => {
+    mockUseLocalSearchParams.mockReturnValue({
+      identifier: ['6SRLS', 'opuntia-fragilis'],
+    });
+    mockFetchSpeciesByTaxonId.mockResolvedValue({
+      common_name: 'Brittle Prickly-pear',
+      scientific_name: 'Opuntia fragilis',
+      description: 'A cold-hardy prickly pear.',
+    } as any);
+
+    render(<SpeciesBasicsPage />);
+    await act(async () => {
+      await flushMicrotasksQueue();
+    });
+
+    expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('6SRLS', {
+      units: 'metric',
+    });
+    expect(mockFetchSpeciesObscured).toHaveBeenCalledWith('6SRLS');
+  });
+
   describe('__SPECIES_BASICS_TESTING__ helpers', () => {
     it('builds SpeciesPageData with payload overrides', () => {
       const payload = {
-        taxon_id: 24680,
+        taxon_id: '24680',
         common_name: 'Prairie Smoke',
         common_names: ['Prairie Smoke', "Old Man's Whiskers"],
         scientific_name: 'Geum triflorum',
@@ -507,9 +528,9 @@ describe('SpeciesBasicsPage', () => {
 
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
         payload,
-        13579,
+        '13579',
       );
-      expect(result.taxonId).toBe(24680);
+      expect(result.taxonId).toBe('24680');
       expect(result.commonName).toBe('Prairie Smoke');
       expect(result.commonNames).toEqual([
         'Prairie Smoke',
@@ -525,14 +546,14 @@ describe('SpeciesBasicsPage', () => {
 
     it('uses first common_names entry when common_name is missing', () => {
       const payload = {
-        taxon_id: 24680,
+        taxon_id: '24680',
         common_names: ['Northern Wolf', 'Gray Wolf'],
         scientific_name: 'Canis lupus',
       } as any;
 
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
         payload,
-        13579,
+        '13579',
       );
       expect(result.commonName).toBe('Northern Wolf');
       expect(result.commonNames).toEqual(['Northern Wolf', 'Gray Wolf']);
@@ -540,7 +561,7 @@ describe('SpeciesBasicsPage', () => {
 
     it('trims common_name before assigning resolved commonName', () => {
       const payload = {
-        taxon_id: 24680,
+        taxon_id: '24680',
         common_name: '  Cougar  ',
         common_names: ['Mountain Lion'],
         scientific_name: 'Puma concolor',
@@ -548,7 +569,7 @@ describe('SpeciesBasicsPage', () => {
 
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
         payload,
-        13579,
+        '13579',
       );
       expect(result.commonName).toBe('Cougar');
       expect(result.commonNames).toEqual(['Cougar', 'Mountain Lion']);
@@ -556,7 +577,7 @@ describe('SpeciesBasicsPage', () => {
 
     it('filters and trims dirty common_names values before fallback selection', () => {
       const payload = {
-        taxon_id: 24680,
+        taxon_id: '24680',
         common_name: '   ',
         common_names: [null, '  Wolf  ', '', '   ', 'Gray Wolf'],
         scientific_name: 'Canis lupus',
@@ -564,17 +585,17 @@ describe('SpeciesBasicsPage', () => {
 
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
         payload,
-        13579,
+        '13579',
       );
       expect(result.commonName).toBe('Wolf');
       expect(result.commonNames).toEqual(['Wolf', 'Gray Wolf']);
     });
 
     it('uses the requested taxon id when payload lacks taxon data', () => {
-      const fallbackTaxonId = 97531;
+      const fallbackTaxonId = '97531';
       const result = __SPECIES_BASICS_TESTING__.buildSpeciesPageData(
         {},
-        fallbackTaxonId as any,
+        fallbackTaxonId,
       );
       expect(result.taxonId).toBe(fallbackTaxonId);
       expect(result.commonName).toBe(mountainBallCactusData.commonName);
@@ -596,7 +617,7 @@ describe('SpeciesBasicsPage', () => {
         __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
 
       expect(fetchIdentifier).toBe('9876');
-      expect(requestedTaxonId).toBe(9876);
+      expect(requestedTaxonId).toBe('9876');
     });
 
     it('returns undefined when taxon identifiers are unavailable', () => {
@@ -623,7 +644,7 @@ describe('SpeciesBasicsPage', () => {
       expect(requestedTaxonId).toBeUndefined();
     });
 
-    it('trims whitespace before validating numeric identifier segments', () => {
+    it('trims whitespace before validating alphanumeric identifier segments', () => {
       const params = {
         identifier: ['   654321   ', 'trailing-slug'],
       };
@@ -632,7 +653,19 @@ describe('SpeciesBasicsPage', () => {
         __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
 
       expect(fetchIdentifier).toBe('654321');
-      expect(requestedTaxonId).toBe(654321);
+      expect(requestedTaxonId).toBe('654321');
+    });
+
+    it('accepts alphanumeric taxon ID segments that are not purely numeric', () => {
+      const params = {
+        identifier: ['6SRLS', 'opuntia-fragilis'],
+      };
+
+      const { fetchIdentifier, requestedTaxonId } =
+        __SPECIES_BASICS_TESTING__.getIdentifierFromParams(params);
+
+      expect(fetchIdentifier).toBe('6SRLS');
+      expect(requestedTaxonId).toBe('6SRLS');
     });
   });
 });

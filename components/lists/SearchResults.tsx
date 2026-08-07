@@ -421,7 +421,7 @@ export function SearchResults({
           key={`loading-${index}`}
           loading
           loadingPatternSeed={index}
-          taxonId={0}
+          taxonId=''
           commonName=''
           scientificName=''
           interactionMode='press-only'

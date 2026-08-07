@@ -28,7 +28,7 @@ const isPresent = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
 type SpeciesBasics = {
-  taxon_id?: number | null;
+  taxon_id?: string | null;
   common_name?: string;
   common_names?: (string | null)[];
   scientific_name?: string;
@@ -77,7 +77,7 @@ const normalizeImageSource = (
 // the API only returns partial fields (overview text, hero image, etc.).
 const buildSpeciesPageData = (
   payload: SpeciesBasics,
-  requestedTaxonId?: number,
+  requestedTaxonId?: string,
 ): SpeciesPageData => {
   const fallback = mountainBallCactusData;
   const normalizedCommonName =
@@ -90,9 +90,9 @@ const buildSpeciesPageData = (
   // When backend responses include full sections (overview cards, nearby species, heat map snapshots, etc.),
   // replace the fallback spreads below with those payload fields so SpeciesPage renders purely dynamic data.
   const resolvedTaxonId =
-    payload.taxon_id ?? requestedTaxonId ?? fallback.taxonId;
+    payload.taxon_id || requestedTaxonId || fallback.taxonId;
   const liveHeatmapAvailable =
-    payload.heatmap?.available === true && resolvedTaxonId > 0;
+    payload.heatmap?.available === true && Boolean(resolvedTaxonId);
   const resolvedModelId =
     typeof payload.heatmap?.resolved_model_id === 'string' &&
     payload.heatmap.resolved_model_id.trim().length > 0
@@ -149,24 +149,27 @@ const toArray = (value: string | string[] | undefined): string[] => {
   return [];
 };
 
-// Pads out numeric validation so we never pass slugs or text to the backend fetch.
-const toNumericTaxonId = (value: string | undefined): string | undefined => {
+// COL XR taxon IDs are opaque alphanumeric strings (e.g. "6SRLS"), not
+// necessarily numeric — so a digits-only check would wrongly reject them.
+// Still requiring alphanumeric-only (no spaces/hyphens) keeps slug segments
+// like "opuntia-fragilis" from being mistaken for the ID.
+const toTaxonIdSegment = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
   const trimmed = value.trim();
-  return /^\d+$/.test(trimmed) ? trimmed : undefined;
+  return /^[A-Za-z0-9]+$/.test(trimmed) ? trimmed : undefined;
 };
 
 // Resolves the actual taxon ID to request (preferring path segments over query strings).
 const getIdentifierFromParams = (params: SpeciesRouteParams) => {
   const fetchIdentifier = toArray(params.identifier)
-    .map(toNumericTaxonId)
+    .map(toTaxonIdSegment)
     .find(Boolean);
 
   return {
     fetchIdentifier,
-    requestedTaxonId: fetchIdentifier ? Number(fetchIdentifier) : undefined,
+    requestedTaxonId: fetchIdentifier,
   };
 };
 
@@ -183,7 +186,7 @@ const useSpeciesBasicsData = (
     (async () => {
       if (!fetchIdentifier) {
         setLoading(false);
-        console.error('Missing numeric taxon ID in route segments.');
+        console.error('Missing taxon ID in route segments.');
         return;
       }
 

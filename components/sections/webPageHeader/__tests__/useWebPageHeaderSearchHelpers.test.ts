@@ -46,7 +46,7 @@ describe('taxaQuerySearchHelpers', () => {
     ).toBe(true);
     expect(
       hasValidQueryParams({
-        withinTaxonId: 77,
+        withinTaxonId: '77',
         descendantRank: 'genus',
         sortVariable: 'bio_1',
         sortMetric: 'median',
@@ -54,13 +54,13 @@ describe('taxaQuerySearchHelpers', () => {
     ).toBe(true);
     expect(
       hasValidQueryParams({
-        withinTaxonId: 77,
+        withinTaxonId: '77',
         sortVariable: 'bio_1',
         sortMetric: 'median',
       }),
     ).toBe(false);
     expect(
-      hasValidQueryParams({ withinTaxonId: 77, sortVariable: 'bio_1' }),
+      hasValidQueryParams({ withinTaxonId: '77', sortVariable: 'bio_1' }),
     ).toBe(false);
   });
 
@@ -99,7 +99,7 @@ describe('taxaQuerySearchHelpers', () => {
   it('maps ranked taxa query results into summaries with normalized units, image fallback, and percentages', () => {
     const summary = mapTaxaQueryResultToSummary(
       {
-        taxon_id: 42,
+        taxon_id: '42',
         scientific_name: 'Canis_lupus',
         common_name: 'Gray_wolf',
         common_names: ['Gray wolf'],
@@ -126,7 +126,7 @@ describe('taxaQuerySearchHelpers', () => {
     );
 
     expect(summary).toEqual({
-      taxonId: 42,
+      taxonId: '42',
       commonName: 'Gray wolf',
       commonNames: ['Gray wolf'],
       scientificName: 'Canis lupus',
@@ -140,7 +140,7 @@ describe('taxaQuerySearchHelpers', () => {
   it('maps text results with appended sample counts when an explicit minimum sample filter is active', () => {
     const summary = mapTaxaQueryResultToSummary(
       {
-        taxon_id: 7,
+        taxon_id: '7',
         scientific_name: 'Felis_catus',
         common_name: '',
         common_names: [],
@@ -153,7 +153,7 @@ describe('taxaQuerySearchHelpers', () => {
     );
 
     expect(summary).toEqual({
-      taxonId: 7,
+      taxonId: '7',
       commonName: 'Felis catus',
       commonNames: ['Felis catus'],
       scientificName: 'Felis catus',
@@ -165,7 +165,7 @@ describe('taxaQuerySearchHelpers', () => {
   it('returns a fallback ranked description and null image when the result lacks optional data', () => {
     const summary = mapTaxaQueryResultToSummary(
       {
-        taxon_id: 55,
+        taxon_id: '55',
         scientific_name: '',
         common_name: '',
         common_names: [],
@@ -186,7 +186,7 @@ describe('taxaQuerySearchHelpers', () => {
     );
 
     expect(summary).toEqual({
-      taxonId: 55,
+      taxonId: '55',
       commonName: 'Taxon #55',
       commonNames: ['Taxon #55'],
       scientificName: 'Taxon #55',
@@ -195,11 +195,30 @@ describe('taxaQuerySearchHelpers', () => {
     });
   });
 
-  it('returns null for results with an invalid taxon id', () => {
+  it('passes through alphanumeric (non-numeric) taxon ids as opaque strings', () => {
     expect(
       mapTaxaQueryResultToSummary(
         {
           taxon_id: 'not-a-number',
+          scientific_name: 'Canis lupus',
+          common_name: 'Gray wolf',
+          common_names: ['Gray wolf'],
+          _raw: {},
+        } as any,
+        createPayload(),
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        taxonId: 'not-a-number',
+      }),
+    );
+  });
+
+  it('returns null for results with a missing taxon id', () => {
+    expect(
+      mapTaxaQueryResultToSummary(
+        {
+          taxon_id: null,
           scientific_name: 'Canis lupus',
           common_name: 'Gray wolf',
           common_names: ['Gray wolf'],

@@ -251,7 +251,7 @@ const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
   recommendations: {
     items: [
       {
-        taxonId: 101,
+        taxonId: '101',
         commonName: 'Desert Bloom',
         commonNames: ['Desert Bloom'],
         scientificName: 'Bloomus deserti',
@@ -260,7 +260,7 @@ const createData = (overrides: Partial<HomePageData> = {}): HomePageData => ({
         taxonGroup: 'plants',
       },
       {
-        taxonId: 202,
+        taxonId: '202',
         commonName: 'Alpine Falcon',
         commonNames: ['Alpine Falcon'],
         scientificName: 'Falco alpinus',

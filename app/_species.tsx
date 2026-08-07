@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { usePathname } from 'expo-router';
+import { usePathname, useLocalSearchParams } from 'expo-router';
 import {
   PageScrollContainer,
   SpeciesPageTitle,
@@ -19,7 +19,20 @@ import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
-import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import {
+  toggleFullscreenElement,
+  resolveObservationVarFields,
+  isPointInPolygon,
+  encodePolygonsParam,
+} from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import type { ObservationVarFieldsInputs } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
+import type { ObservationGalleryPoint } from '@/components/sections/SpeciesObservationGallery';
+import {
+  DEFAULT_IMAGE_SIZE as OBSERVATION_CARD_WIDTH,
+  COMPACT_IMAGE_SIZE as OBSERVATION_CARD_COMPACT_WIDTH,
+  type ObservationCardSize,
+} from '@/components/cards/ObservationCard';
 import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
@@ -34,10 +47,18 @@ import {
   isVariableCircular,
 } from '@/components/sections/speciesEnvironment/model';
 import { useScrollLock } from '@/context/ScrollLockContext';
-import { BACKEND_BASE, parseFilenameFromContentDisposition } from '@/data/api';
+import {
+  BACKEND_BASE,
+  fetchOccurrenceLookup,
+  parseFilenameFromContentDisposition,
+} from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { mountainBallCactusData } from '@/data/speciesSample';
-import type { SpeciesPageData } from '@/data/types';
+import type {
+  SpeciesPageData,
+  SpeciesOccurrence,
+  OccurrenceLookup,
+} from '@/data/types';
 import {
   deliverProcessedZip,
   getProcessedZipDeliveryStatusMessage,
@@ -87,6 +108,8 @@ export type SpeciesScreenData = Pick<
 >;
 
 export const LOCATION_SEARCH_LIMIT = 500;
+const GALLERY_ROWS = 3;
+const GALLERY_CARD_GAP = Size.space['300'];
 
 type ResponsiveState = ReturnType<typeof useResponsive>;
 type SpeciesMapBreakpoint = ResponsiveState['breakpoint'];
@@ -197,6 +220,9 @@ export default function Species({
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const pathname = usePathname();
+  const searchParams = useLocalSearchParams<{
+    highlightObservation?: string;
+  }>();
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -214,7 +240,8 @@ export default function Species({
     markerOutlineEnabled,
   } = useSettings();
   const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
-  const { height: viewportHeight } = useWindowDimensions();
+  const { height: viewportHeight, width: viewportWidth } =
+    useWindowDimensions();
   const observationMapHeight = React.useMemo(() => {
     return calculateObservationMapHeight({
       breakpoint: responsive.breakpoint,
@@ -254,10 +281,8 @@ export default function Species({
     null,
   );
   const [mapBounds, setMapBounds] = React.useState<MapBounds | null>(null);
-  const [observationValues, setObservationValues] = React.useState<Map<
-    string,
-    number
-  > | null>(null);
+  const [fetchedObservationValues, setFetchedObservationValues] =
+    React.useState<Map<string, number> | null>(null);
   const [obsDotMin, setObsDotMin] = React.useState<number | null>(null);
   const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
   const [obsLabelMin, setObsLabelMin] = React.useState<number | null>(null);
@@ -290,7 +315,7 @@ export default function Species({
   });
 
   const {
-    occurrences,
+    occurrences: fetchedOccurrences,
     loading: occurrenceLoading,
     error: occurrenceError,
     phenologyCounts,
@@ -303,6 +328,146 @@ export default function Species({
     endTimestamp,
   });
 
+  // highlightObservation: deep-linked from /occurrence/{id} (see
+  // app/occurrence/[id].tsx) — resolves the observation via the same
+  // endpoint that redirect used, and when it's not part of this taxon's
+  // normal occurrence set (not yet ingested by GBIF), injects it as a
+  // synthetic occurrence below so the existing map/gallery/popup pipeline
+  // renders it exactly like any other point, with no separate rendering path.
+  const highlightObservationId = React.useMemo(() => {
+    const raw = searchParams.highlightObservation;
+    return typeof raw === 'string' ? raw.trim() : '';
+  }, [searchParams.highlightObservation]);
+
+  const [highlightedOccurrenceLookup, setHighlightedOccurrenceLookup] =
+    React.useState<OccurrenceLookup | null>(null);
+
+  React.useEffect(() => {
+    setHighlightedOccurrenceLookup(null);
+    if (!highlightObservationId) {
+      return;
+    }
+    let cancelled = false;
+    fetchOccurrenceLookup(highlightObservationId)
+      .then((result) => {
+        if (!cancelled) setHighlightedOccurrenceLookup(result);
+      })
+      .catch(() => {
+        if (!cancelled) setHighlightedOccurrenceLookup(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [highlightObservationId]);
+
+  // Only injected when NOT ingested — an already-ingested highlighted
+  // observation is already part of fetchedOccurrences, so adding it again
+  // here would just duplicate it.
+  const highlightedSyntheticOccurrence =
+    React.useMemo<SpeciesOccurrence | null>(() => {
+      if (
+        !highlightedOccurrenceLookup ||
+        highlightedOccurrenceLookup.ingested ||
+        highlightedOccurrenceLookup.latitude == null ||
+        highlightedOccurrenceLookup.longitude == null ||
+        highlightedOccurrenceLookup.taxonId !== taxonId
+      ) {
+        return null;
+      }
+      return {
+        catalogNumber: highlightedOccurrenceLookup.catalogNumber,
+        latitude: highlightedOccurrenceLookup.latitude,
+        longitude: highlightedOccurrenceLookup.longitude,
+        mediaUrl: highlightedOccurrenceLookup.mediaUrl,
+        mediaAttribution: highlightedOccurrenceLookup.mediaAttribution,
+        mediaLicense: highlightedOccurrenceLookup.mediaLicense,
+        mediaLicenseUrl: highlightedOccurrenceLookup.mediaLicenseUrl,
+      };
+    }, [highlightedOccurrenceLookup, taxonId]);
+
+  const occurrencesBeforeRegionFilter = React.useMemo(() => {
+    if (!highlightedSyntheticOccurrence) {
+      return fetchedOccurrences;
+    }
+    const alreadyPresent = fetchedOccurrences.some(
+      (occ) =>
+        String(occ.catalogNumber) ===
+        highlightedSyntheticOccurrence.catalogNumber,
+    );
+    return alreadyPresent
+      ? fetchedOccurrences
+      : [...fetchedOccurrences, highlightedSyntheticOccurrence];
+  }, [fetchedOccurrences, highlightedSyntheticOccurrence]);
+
+  // Hand-drawn region filter — client-side only, against whatever's
+  // already been fetched. The draw/cancel/erase buttons themselves live
+  // inside the map (SpeciesOccurrenceMap.html's DrawPolygonControl/
+  // EraserControl); this side only ever hears the end result via
+  // onPolygonDrawn/onPolygonCleared. Each entry is one region's ring
+  // vertices as [latitude, longitude] pairs; multiple regions filter as a
+  // union (a point counts if it's inside ANY of them); null when none are
+  // active.
+  const [drawnPolygons, setDrawnPolygons] = React.useState<
+    [number, number][][] | null
+  >(null);
+  const handlePolygonDrawn = React.useCallback(
+    (polygons: [number, number][][]) => setDrawnPolygons(polygons),
+    [],
+  );
+  const handlePolygonCleared = React.useCallback(
+    () => setDrawnPolygons(null),
+    [],
+  );
+
+  const occurrences = React.useMemo(() => {
+    const activePolygons = drawnPolygons?.filter((ring) => ring.length >= 3);
+    if (!activePolygons || activePolygons.length === 0) {
+      return occurrencesBeforeRegionFilter;
+    }
+    return occurrencesBeforeRegionFilter.filter((occ) =>
+      activePolygons.some((ring) =>
+        isPointInPolygon(occ.latitude, occ.longitude, ring),
+      ),
+    );
+  }, [occurrencesBeforeRegionFilter, drawnPolygons]);
+
+  // Same drawnPolygons a drawn region filters the map/gallery by
+  // client-side (see `occurrences` above), encoded for the backend's
+  // `polygon` query param — this is what lets the density graphs/
+  // histograms in SpeciesEnvironmentSection reflect the drawn region too,
+  // the one thing the client-side filter above can't reach on its own.
+  // Deliberately NOT gated on isDrawingRegion: while a new shape is being
+  // drawn, the already-committed region set here hasn't changed, so the
+  // stats should keep reflecting it the whole time, same as `occurrences`
+  // does for the gallery.
+  const encodedRegionPolygon = React.useMemo(() => {
+    const activePolygons = drawnPolygons?.filter((ring) => ring.length >= 3);
+    if (!activePolygons || activePolygons.length === 0) {
+      return null;
+    }
+    return encodePolygonsParam(activePolygons);
+  }, [drawnPolygons]);
+
+  // While a new region is actively being drawn, show the unfiltered set on
+  // the map instead of `occurrences` — otherwise, once one region already
+  // filters the map down, there'd be no way to see (or draw around) the
+  // other, currently-hidden observations. Bracketed by the map's own
+  // in-iframe DrawPolygonControl via onPolygonDrawStart/onPolygonDrawEnd;
+  // only affects what the MAP renders, not the gallery/stats below it,
+  // which keep using the real (filtered) `occurrences`.
+  const [isDrawingRegion, setIsDrawingRegion] = React.useState(false);
+  const handlePolygonDrawStart = React.useCallback(
+    () => setIsDrawingRegion(true),
+    [],
+  );
+  const handlePolygonDrawEnd = React.useCallback(
+    () => setIsDrawingRegion(false),
+    [],
+  );
+  const mapOccurrences = isDrawingRegion
+    ? occurrencesBeforeRegionFilter
+    : occurrences;
+
   React.useEffect(() => {
     if (phenologyNoData && selectedPhenology) {
       setSelectedPhenology(null);
@@ -314,8 +479,18 @@ export default function Species({
   }, [finalLocationGid, taxonId]);
 
   React.useEffect(() => {
-    setPinnedObservation(null);
-  }, [finalLocationGid, taxonId]);
+    // Don't clear a pin that matches the active highlightObservation deep
+    // link — finalLocationGid can still settle (undefined -> resolved) a
+    // tick after the auto-pin effect below fires, which used to wipe the
+    // pin/popup right back out moments after it appeared.
+    setPinnedObservation((prev) => {
+      const preserved =
+        prev &&
+        highlightObservationId &&
+        String(prev.catalogNumber) === highlightObservationId;
+      return preserved ? prev : null;
+    });
+  }, [finalLocationGid, taxonId, highlightObservationId]);
 
   const [isDownloading, setIsDownloading] = React.useState(false);
 
@@ -383,7 +558,7 @@ export default function Species({
     (meta: EnvironmentVariableOption | null) => {
       setSelectedVariableMeta(meta);
       setPinnedPointValue(null);
-      setObservationValues(null);
+      setFetchedObservationValues(null);
       setObsDotMin(null);
       setObsDotMax(null);
       setObsLabelMin(null);
@@ -405,7 +580,7 @@ export default function Species({
 
   React.useEffect(() => {
     if (!taxonId || !selectedVariableMeta?.id || !shouldRenderOccurrenceMap) {
-      setObservationValues(null);
+      setFetchedObservationValues(null);
       setVariableValuesLoading(false);
       return;
     }
@@ -433,7 +608,7 @@ export default function Species({
               map.set(String(obs.catalogNumber), obs.value);
             }
           }
-          setObservationValues(map);
+          setFetchedObservationValues(map);
           setObsDotMin(
             typeof data.q01 === 'number'
               ? data.q01
@@ -455,13 +630,99 @@ export default function Species({
       )
       .catch(() => {
         if (cancelled) return;
-        setObservationValues(null);
+        setFetchedObservationValues(null);
         setVariableValuesLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [taxonId, selectedVariableMeta, units, shouldRenderOccurrenceMap]);
+
+  // fetchedObservationValues (above) only covers this taxon's normal
+  // ingested occurrences — a not-ingested highlighted observation
+  // (highlightedSyntheticOccurrence) never has an entry there, which is
+  // why its map dot/popup showed as nodata. Look its value up individually
+  // via the same /gis/point endpoint the empty-map click-to-query flow
+  // uses, passing event_ts when we have one (from the iNat fallback
+  // lookup's observation timestamp) so a temporal variable resolves to the
+  // value AT THE TIME the observation was made, not the current live
+  // window — matching how an ingested observation's value is already
+  // historically correct. event_ts is a harmless no-op for non-temporal
+  // variables (main.py only consults it when a matching temporal layer
+  // exists for the requested variable id), so this doesn't need its own
+  // "is this a temporal variable" check on the frontend.
+  const [highlightedPointValue, setHighlightedPointValue] = React.useState<
+    number | null
+  >(null);
+
+  React.useEffect(() => {
+    setHighlightedPointValue(null);
+    if (
+      !highlightedSyntheticOccurrence ||
+      !selectedVariableMeta?.id ||
+      highlightedSyntheticOccurrence.latitude == null ||
+      highlightedSyntheticOccurrence.longitude == null
+    ) {
+      return;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({
+      lat: String(highlightedSyntheticOccurrence.latitude),
+      lon: String(highlightedSyntheticOccurrence.longitude),
+      variable: selectedVariableMeta.id,
+    });
+    if (units) {
+      params.set('unit_system', units);
+    }
+    if (highlightedOccurrenceLookup?.eventTimestamp != null) {
+      params.set(
+        'event_ts',
+        String(highlightedOccurrenceLookup.eventTimestamp),
+      );
+    }
+    fetch(`${BACKEND_BASE}/gis/point?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data: { value?: number | null }) => {
+        if (!cancelled && typeof data.value === 'number') {
+          setHighlightedPointValue(data.value);
+          // Also drives the legend bar's pinned-value marker
+          // (MapVariableLegend/MapCircularLegend) — otherwise it only
+          // updates on an explicit marker click (via the map's own
+          // event_ts-unaware point-query flow), leaving it blank/stale
+          // right after auto-selecting a not-ingested observation on load.
+          setPinnedPointValue(data.value);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHighlightedPointValue(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    highlightedSyntheticOccurrence,
+    selectedVariableMeta,
+    units,
+    highlightedOccurrenceLookup,
+  ]);
+
+  const observationValues = React.useMemo(() => {
+    if (!highlightedSyntheticOccurrence || highlightedPointValue == null) {
+      return fetchedObservationValues;
+    }
+    const merged = new Map(fetchedObservationValues ?? []);
+    merged.set(
+      String(highlightedSyntheticOccurrence.catalogNumber),
+      highlightedPointValue,
+    );
+    return merged;
+  }, [
+    fetchedObservationValues,
+    highlightedSyntheticOccurrence,
+    highlightedPointValue,
+  ]);
 
   const classShapes = React.useMemo(() => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -502,8 +763,9 @@ export default function Species({
   }, [selectedVariableMeta]);
 
   const visibleCategoricalClasses = React.useMemo(() => {
-    if (!isVariableCategorical(selectedVariableMeta) || !observationValues)
+    if (!isVariableCategorical(selectedVariableMeta) || !observationValues) {
       return null;
+    }
     const isLandcover = selectedVariableMeta?.id === 'landcover';
     const counts = new Map<string, number>();
     for (const occ of occurrences) {
@@ -551,6 +813,32 @@ export default function Species({
     (shapesEnabled || cbMode === 'achromatopsia') &&
     isVariableCircular(selectedVariableMeta);
 
+  // This map never had a raster overlay for the selected variable at all —
+  // only the occurrence markers themselves were colored by it. That's also
+  // why the globe/Leaflet templates' "variable" basemap-mode toggle looked
+  // like a no-op 2-way toggle in practice: with heatmapTileUrl always null,
+  // it had nothing to fall back to but the standard tiles. Mirrors
+  // maps.tsx's tileUrl builder — /api/variables/... (not /api/layers/...)
+  // since it's resolution-tolerant of either an old variable_id or a real
+  // layer_id (_resolve_variable_id on the backend), same as selectedVariableMeta.id
+  // already gets used for elsewhere (pointQueryUrl, classShapes lookups).
+  const heatmapTileUrl = React.useMemo(() => {
+    if (!selectedVariableMeta?.id) return null;
+    const isCircular = isVariableCircular(selectedVariableMeta);
+    const colormap = isCircular ? selectedCircularColormap : selectedColormap;
+    const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
+    return (
+      `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
+      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}`
+    );
+  }, [
+    selectedVariableMeta,
+    selectedColormap,
+    selectedCircularColormap,
+    cbMode,
+    units,
+  ]);
+
   const nsweColors = React.useMemo((): [string, string, string, string] => {
     const stops = CIRCULAR_COLORMAPS[selectedCircularColormap].stops;
     const n = stops.length;
@@ -564,6 +852,170 @@ export default function Species({
       return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
     }) as [string, string, string, string];
   }, [selectedCircularColormap]);
+
+  // A slice (a histogram-bucket highlight from the environment chart) is a
+  // more specific signal than "in view" — when one is active, show exactly
+  // what's sliced instead of whatever the map viewport happens to contain.
+  const gallerySourceCatalogs = React.useMemo(() => {
+    if (highlightedCatalogs.length > 0) {
+      return highlightedCatalogs.map((catalog) => String(catalog));
+    }
+    return occurrences
+      .filter((occ) => {
+        if (!mapBounds) return true;
+        return !(
+          occ.latitude < mapBounds.south ||
+          occ.latitude > mapBounds.north ||
+          occ.longitude < mapBounds.west ||
+          occ.longitude > mapBounds.east
+        );
+      })
+      .map((occ) => String(occ.catalogNumber));
+  }, [occurrences, highlightedCatalogs, mapBounds]);
+
+  // responsive.contentWidth is a fixed 75rem cap shared by every breakpoint
+  // (see wdsResponsiveTokens) — not the actual on-screen width, which on
+  // phone is the real device width. Use whichever is smaller so the column
+  // math reflects what's actually visible, not the desktop-sized cap.
+  const galleryAvailableWidth = Math.min(
+    responsive.contentWidth,
+    viewportWidth - responsive.marginHorizontal * 2,
+  );
+  const galleryCardSize: ObservationCardSize =
+    responsive.breakpoint === 'phone' ? 'compact' : 'default';
+  const galleryCardWidth =
+    galleryCardSize === 'compact'
+      ? OBSERVATION_CARD_COMPACT_WIDTH
+      : OBSERVATION_CARD_WIDTH;
+  // How many cards fit per row at the current width, times 3 rows — the
+  // gallery always shows exactly 3 rows' worth per page, however many cards
+  // that ends up being for the viewport.
+  const galleryColumns = Math.max(
+    1,
+    Math.floor(
+      (galleryAvailableWidth + GALLERY_CARD_GAP) /
+        (galleryCardWidth + GALLERY_CARD_GAP),
+    ),
+  );
+  const galleryPageSize = galleryColumns * GALLERY_ROWS;
+
+  const [galleryPage, setGalleryPage] = React.useState(0);
+
+  React.useEffect(() => {
+    setGalleryPage(0);
+  }, [gallerySourceCatalogs]);
+
+  const occurrenceByCatalog = React.useMemo(
+    () =>
+      new Map(
+        occurrences.map((occ) => [String(occ.catalogNumber), occ] as const),
+      ),
+    [occurrences],
+  );
+
+  const handleGalleryCardPress = React.useCallback(
+    (catalogNumber: string) => {
+      const occ = occurrenceByCatalog.get(catalogNumber);
+      if (!occ) return;
+      handlePinObservation(catalogNumber, occ.latitude, occ.longitude);
+    },
+    [occurrenceByCatalog, handlePinObservation],
+  );
+
+  // Auto-pin the deep-linked observation once it's available in
+  // occurrenceByCatalog — true immediately for an ingested observation
+  // (already part of fetchedOccurrences) and once the live lookup resolves
+  // for a not-ingested one (highlightedSyntheticOccurrence above). Mirrors
+  // handleGalleryCardPress exactly, just triggered on load instead of a
+  // click. Guarded by a ref (not state) so it fires once per id and never
+  // re-fires just because occurrenceByCatalog gets a new identity.
+  //
+  // Deliberately does NOT reset the ref when highlightObservationId goes
+  // falsy — useLocalSearchParams can report the query param as briefly
+  // absent then present again while the route settles (seen on web), and
+  // resetting here let this effect re-run handlePinObservation a second
+  // time for the same id — which TOGGLES, so the second call silently
+  // un-pinned the observation moments after the first call pinned it. The
+  // ref now only ever moves forward to a new (different) id.
+  const autoPinnedObservationRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!highlightObservationId) {
+      return;
+    }
+    if (autoPinnedObservationRef.current === highlightObservationId) {
+      return;
+    }
+    const occ = occurrenceByCatalog.get(highlightObservationId);
+    if (!occ) {
+      return;
+    }
+    autoPinnedObservationRef.current = highlightObservationId;
+    handlePinObservation(highlightObservationId, occ.latitude, occ.longitude);
+  }, [highlightObservationId, occurrenceByCatalog, handlePinObservation]);
+
+  const galleryPoints = React.useMemo<ObservationGalleryPoint[]>(() => {
+    const isCategorical = isVariableCategorical(selectedVariableMeta);
+    const isCircular = isVariableCircular(selectedVariableMeta);
+    const inputs: ObservationVarFieldsInputs = {
+      observationValues,
+      classColors,
+      classLabels,
+      classShapes,
+      circularShapesEnabled,
+      isCircular,
+      dotMin: obsDotMin,
+      dotMax: obsDotMax,
+      gradientStops:
+        selectedVariableMeta && !isCategorical && !isCircular
+          ? COLORMAPS[selectedColormap].stops
+          : null,
+      aspectStops:
+        selectedVariableMeta && isCircular
+          ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+          : null,
+      varUnits:
+        selectedVariableMeta && !isCategorical && !isCircular
+          ? (selectedVariableMeta.units ?? null)
+          : null,
+    };
+
+    const start = galleryPage * galleryPageSize;
+    return gallerySourceCatalogs
+      .slice(start, start + galleryPageSize)
+      .map((catalogNumber) => {
+        const { varValue, varColor, varLabel, varShape } =
+          resolveObservationVarFields(catalogNumber, inputs);
+        const occ = occurrenceByCatalog.get(catalogNumber);
+        return {
+          catalogNumber,
+          catalogAutoGenerated: occ?.catalogAutoGenerated,
+          varValue,
+          varColor,
+          varLabel,
+          varShape,
+          imageUrl: occ?.mediaUrl,
+          license: occ?.mediaLicense,
+          licenseUrl: occ?.mediaLicenseUrl,
+          attribution: occ?.mediaAttribution,
+        };
+      });
+  }, [
+    gallerySourceCatalogs,
+    galleryPage,
+    galleryPageSize,
+    occurrenceByCatalog,
+    selectedVariableMeta,
+    observationValues,
+    classColors,
+    classLabels,
+    classShapes,
+    circularShapesEnabled,
+    obsDotMin,
+    obsDotMax,
+    selectedColormap,
+    selectedCircularColormap,
+  ]);
 
   const speciesPath = React.useMemo(() => {
     if (Platform.OS === 'web' && pathname.startsWith('/species/')) {
@@ -592,7 +1044,11 @@ export default function Species({
   const selectedMapPoint = React.useMemo(
     () =>
       pinnedObservation != null
-        ? { lat: pinnedObservation.lat, lon: pinnedObservation.lon }
+        ? {
+            lat: pinnedObservation.lat,
+            lon: pinnedObservation.lon,
+            catalogNumber: pinnedObservation.catalogNumber,
+          }
         : null,
     [pinnedObservation],
   );
@@ -683,6 +1139,7 @@ export default function Species({
                   phenology={selectedPhenology}
                   startTimestamp={startTimestamp}
                   endTimestamp={endTimestamp}
+                  polygon={encodedRegionPolygon}
                   units={units}
                   pinnedObservation={pinnedObservation}
                 />
@@ -735,7 +1192,8 @@ export default function Species({
                       mapContainerRef.current as unknown as Element | null,
                     )
                   }
-                  occurrences={occurrences}
+                  occurrences={mapOccurrences}
+                  refitOnOccurrencesChange={occurrencesBeforeRegionFilter}
                   loading={occurrenceLoading}
                   error={occurrenceError}
                   highlightedCatalogs={highlightedCatalogs}
@@ -750,6 +1208,7 @@ export default function Species({
                       ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}&unit_system=${encodeURIComponent(units ?? '')}`
                       : null
                   }
+                  heatmapTileUrl={heatmapTileUrl}
                   renderMin={
                     selectedVariableMeta &&
                     !isVariableCategorical(selectedVariableMeta) &&
@@ -794,6 +1253,11 @@ export default function Species({
                       ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
                       : null
                   }
+                  onPolygonDrawn={handlePolygonDrawn}
+                  onPolygonCleared={handlePolygonCleared}
+                  onPolygonDrawStart={handlePolygonDrawStart}
+                  onPolygonDrawEnd={handlePolygonDrawEnd}
+                  initialDrawnPolygons={drawnPolygons}
                 />
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&
@@ -864,6 +1328,21 @@ export default function Species({
               </MapScrollLockWrapper>
             )}
           </View>
+
+          {shouldRenderOccurrenceMap && (
+            <SectionShell responsive={responsive}>
+              <SpeciesObservationGallery
+                points={galleryPoints}
+                loading={occurrenceLoading}
+                onCardPress={handleGalleryCardPress}
+                cardSize={galleryCardSize}
+                page={galleryPage}
+                onPageChange={setGalleryPage}
+                pageSize={galleryPageSize}
+                totalCount={gallerySourceCatalogs.length}
+              />
+            </SectionShell>
+          )}
         </PageScrollContainer>
       </PageSurface>
     </>

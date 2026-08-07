@@ -79,6 +79,12 @@ export type { RadioGroupOption, RadioGroupProps } from './inputs/RadioGroup';
 export { SpeciesCard } from './cards/SpeciesCard';
 export type { SpeciesCardProps } from './cards/SpeciesCard';
 
+export { ObservationCard } from './cards/ObservationCard';
+export type {
+  ObservationCardProps,
+  ObservationCardSize,
+} from './cards/ObservationCard';
+
 export { ThemedText } from './text/ThemedText';
 
 export { PageSurface } from './PageSurface';
@@ -102,6 +108,9 @@ export type { NavigationBarProps } from './sections/navigationBar/NavigationBar'
 
 export { SpeciesLocationFilters } from './sections/SpeciesLocationFilters';
 export { SpeciesObservationFilters } from './sections/SpeciesObservationFilters';
+
+export { SearchFilterPredicates } from './sections/SearchFilterPredicates';
+export type { SearchFilterPredicatesProps } from './sections/SearchFilterPredicates';
 
 export { SpeciesTimestampFilters } from './sections/SpeciesTimestampFilters';
 export type { SpeciesTimestampFiltersProps } from './sections/SpeciesTimestampFilters';

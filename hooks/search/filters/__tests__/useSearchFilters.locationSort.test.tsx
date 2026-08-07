@@ -41,7 +41,7 @@ const mockFetchSpeciesByTaxonId = jest.mocked(fetchSpeciesByTaxonId);
 const mockFetchTaxaQuery = jest.mocked(fetchTaxaQuery);
 
 const createSelectedSpecies = (
-  taxonId: number,
+  taxonId: string,
   commonName = 'Gray wolf',
   scientificName = 'Canis lupus',
 ) => ({
@@ -124,13 +124,13 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchLocationsByHierarchy.mockResolvedValue([]);
     mockFetchEnvironmentVariables.mockResolvedValue([]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 0,
+      ancestorTaxonId: '0',
       rank: 'SPECIES',
       options: [],
     });
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesByTaxonId.mockResolvedValue({
-      taxon_id: 77,
+      taxon_id: '77',
       scientific_name: 'Canis lupus',
       common_name: 'Gray wolf',
       common_names: ['Gray wolf'],
@@ -409,7 +409,7 @@ describe('useSearchFilters (location and sort)', () => {
       result.current.onCountryChange('USA');
       result.current.onStateChange('USA.45_1');
       result.current.onCountyChange('USA.45.1_1');
-      result.current.onBaseTaxonSelect(createSelectedSpecies(555));
+      result.current.onBaseTaxonSelect(createSelectedSpecies('555'));
       result.current.onRankChange('genus');
       result.current.onIncludeSubspeciesChange(false);
       result.current.onSortVariableChange('bio_1');
@@ -457,7 +457,7 @@ describe('useSearchFilters (location and sort)', () => {
       { id: 'bio_12', name: 'Precipitation' },
     ]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 77,
+      ancestorTaxonId: '77',
       rank: 'SPECIES',
       options: [
         {
@@ -486,7 +486,7 @@ describe('useSearchFilters (location and sort)', () => {
       ]);
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(77));
+    await selectBaseTaxon(result, createSelectedSpecies('77'));
 
     await waitFor(() => {
       expect(result.current.sortVariableOptions).toEqual([
@@ -504,7 +504,7 @@ describe('useSearchFilters (location and sort)', () => {
       { id: 'bio_1', name: 'Annual Mean Temperature' },
     ]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 77,
+      ancestorTaxonId: '77',
       rank: 'SPECIES',
       options: [
         {
@@ -537,7 +537,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(mockFetchEnvironmentVariables).toHaveBeenCalled();
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(77));
+    await selectBaseTaxon(result, createSelectedSpecies('77'));
 
     await waitFor(() => {
       expect(result.current.sortVariableOptions).toEqual([
@@ -552,7 +552,7 @@ describe('useSearchFilters (location and sort)', () => {
   it('hydrates filter params from initial state', async () => {
     const { result } = await renderSearchFilters({
       location: { countyValue: 'USA.45.1_1' },
-      taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+      taxon: { ancestorTaxonId: '77', baseTaxonQuery: '77' },
       ranking: {
         rankValue: 'genus',
         includeSubspecies: false,
@@ -575,14 +575,14 @@ describe('useSearchFilters (location and sort)', () => {
     });
 
     await waitFor(() => {
-      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith(77);
+      expect(mockFetchSpeciesByTaxonId).toHaveBeenCalledWith('77');
     });
 
     expect(result.current.countyValue).toBe('USA.45.1_1');
     expect(result.current.baseTaxonQuery).toBe('Gray wolf');
     expect(result.current.filterParams).toEqual({
       location: 'USA.45.1_1',
-      withinTaxonId: 77,
+      withinTaxonId: '77',
       descendantRank: 'genus',
       includeSpeciesLike: null,
       sortVariable: null,
@@ -593,6 +593,7 @@ describe('useSearchFilters (location and sort)', () => {
       minSamples: 25,
       limit: 20,
       listOffset: null,
+      filters: [],
     });
   });
 
@@ -605,7 +606,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       first.result.current.onBaseTaxonSelect(
-        createSelectedSpecies(77, 'Gray wolf', 'Canis lupus'),
+        createSelectedSpecies('77', 'Gray wolf', 'Canis lupus'),
       );
       await Promise.resolve();
     });
@@ -614,7 +615,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchSpeciesByTaxonId.mockClear();
 
     const { result } = await renderSearchFilters({
-      taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+      taxon: { ancestorTaxonId: '77', baseTaxonQuery: '77' },
     });
 
     expect(result.current.baseTaxonQuery).toBe('Gray wolf');
@@ -623,7 +624,7 @@ describe('useSearchFilters (location and sort)', () => {
 
   it('caches an existing human-readable base taxon query for route revisits', async () => {
     const first = await renderSearchFilters({
-      taxon: { ancestorTaxonId: 77, baseTaxonQuery: 'oak' },
+      taxon: { ancestorTaxonId: '77', baseTaxonQuery: 'oak' },
     });
 
     await act(async () => {
@@ -634,7 +635,7 @@ describe('useSearchFilters (location and sort)', () => {
     mockFetchSpeciesByTaxonId.mockClear();
 
     const { result } = await renderSearchFilters({
-      taxon: { ancestorTaxonId: 77, baseTaxonQuery: '77' },
+      taxon: { ancestorTaxonId: '77', baseTaxonQuery: '77' },
     });
 
     expect(result.current.baseTaxonQuery).toBe('oak');
@@ -754,11 +755,11 @@ describe('useSearchFilters (location and sort)', () => {
     });
 
     await act(async () => {
-      result.current.onBaseTaxonSelect(createSelectedSpecies(77));
+      result.current.onBaseTaxonSelect(createSelectedSpecies('77'));
       await Promise.resolve();
     });
 
-    expect(result.current.filterParams.withinTaxonId).toBe(77);
+    expect(result.current.filterParams.withinTaxonId).toBe('77');
     expect(result.current.filterParams.descendantRank).toBeNull();
     expect(mockFetchRelativeRankingOptions).not.toHaveBeenCalled();
     expect(result.current.sortVariableOptions).toEqual([
@@ -809,7 +810,7 @@ describe('useSearchFilters (location and sort)', () => {
         }),
     );
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 77,
+      ancestorTaxonId: '77',
       rank: 'SPECIES',
       options: [
         {
@@ -824,7 +825,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     const { result } = await renderSearchFilters();
 
-    await selectBaseTaxon(result, createSelectedSpecies(77));
+    await selectBaseTaxon(result, createSelectedSpecies('77'));
 
     await waitFor(() => {
       expect(result.current.sortVariableOptions).toEqual([
@@ -863,7 +864,7 @@ describe('useSearchFilters (location and sort)', () => {
       ]);
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(88));
+    await selectBaseTaxon(result, createSelectedSpecies('88'));
 
     await waitFor(() => {
       expect(result.current.sortVariableLoading).toBe(false);
@@ -879,7 +880,7 @@ describe('useSearchFilters (location and sort)', () => {
       { id: 'bio_12', name: 'Precipitation' },
     ]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 120,
+      ancestorTaxonId: '120',
       rank: 'SPECIES',
       options: [
         {
@@ -901,7 +902,7 @@ describe('useSearchFilters (location and sort)', () => {
       ]);
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(120));
+    await selectBaseTaxon(result, createSelectedSpecies('120'));
 
     await waitFor(() => {
       expect(result.current.sortVariableOptions).toEqual([]);
@@ -919,7 +920,7 @@ describe('useSearchFilters (location and sort)', () => {
       { id: 'bio_12', name: 'Precipitation' },
     ]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 90,
+      ancestorTaxonId: '90',
       rank: 'SPECIES',
       options: [
         {
@@ -944,7 +945,7 @@ describe('useSearchFilters (location and sort)', () => {
     await act(async () => {
       result.current.onRankChange('species');
       result.current.onSortVariableChange('bio_1');
-      result.current.onBaseTaxonSelect(createSelectedSpecies(90));
+      result.current.onBaseTaxonSelect(createSelectedSpecies('90'));
       await Promise.resolve();
     });
 
@@ -962,7 +963,7 @@ describe('useSearchFilters (location and sort)', () => {
       { id: 'bio_12', name: 'Precipitation' },
     ]);
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 90,
+      ancestorTaxonId: '90',
       rank: 'SPECIES',
       options: [
         {
@@ -984,7 +985,7 @@ describe('useSearchFilters (location and sort)', () => {
       ]);
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(90));
+    await selectBaseTaxon(result, createSelectedSpecies('90'));
 
     await waitFor(() => {
       expect(result.current.sortVariableOptions).toEqual([
@@ -1009,7 +1010,7 @@ describe('useSearchFilters (location and sort)', () => {
 
   it('keeps default ranking metric options until a ranking variable is chosen', async () => {
     mockFetchRelativeRankingOptions.mockResolvedValue({
-      ancestorTaxonId: 77,
+      ancestorTaxonId: '77',
       rank: 'SPECIES',
       options: [
         {
@@ -1028,7 +1029,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(mockFetchEnvironmentVariables).toHaveBeenCalled();
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(77));
+    await selectBaseTaxon(result, createSelectedSpecies('77'));
 
     await waitFor(() => {
       expect(result.current.sortMetricOptions).toEqual([
@@ -1044,7 +1045,7 @@ describe('useSearchFilters (location and sort)', () => {
     let resolveSecond: ((value: any) => void) | null = null;
 
     mockFetchRelativeRankingOptions.mockImplementation(({ taxonId }) => {
-      if (taxonId === 1) {
+      if (taxonId === '1') {
         return new Promise((resolve) => {
           resolveFirst = resolve;
         }) as any;
@@ -1064,17 +1065,17 @@ describe('useSearchFilters (location and sort)', () => {
     await act(async () => {
       result.current.onRankChange('species');
       result.current.onBaseTaxonSelect(
-        createSelectedSpecies(1, 'First', 'First species'),
+        createSelectedSpecies('1', 'First', 'First species'),
       );
       result.current.onBaseTaxonSelect(
-        createSelectedSpecies(2, 'Second', 'Second species'),
+        createSelectedSpecies('2', 'Second', 'Second species'),
       );
       await Promise.resolve();
     });
 
     act(() => {
       resolveFirst?.({
-        ancestorTaxonId: 1,
+        ancestorTaxonId: '1',
         rank: 'SPECIES',
         options: [
           {
@@ -1096,7 +1097,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     act(() => {
       resolveSecond?.({
-        ancestorTaxonId: 2,
+        ancestorTaxonId: '2',
         rank: 'SPECIES',
         options: [
           {
@@ -1258,7 +1259,7 @@ describe('useSearchFilters (location and sort)', () => {
     ]);
 
     mockFetchRelativeRankingOptions.mockImplementation(({ taxonId }) => {
-      if (taxonId === 700) {
+      if (taxonId === '700') {
         return new Promise((resolve) => {
           resolveFirst = resolve;
         }) as any;
@@ -1277,13 +1278,13 @@ describe('useSearchFilters (location and sort)', () => {
 
     await selectBaseTaxon(
       result,
-      createSelectedSpecies(700, 'First', 'First species'),
+      createSelectedSpecies('700', 'First', 'First species'),
     );
 
     await waitFor(() => {
       expect(mockFetchRelativeRankingOptions).toHaveBeenCalledWith(
         {
-          taxonId: 700,
+          taxonId: '700',
           rank: 'SPECIES',
         },
         expect.objectContaining({ signal: expect.any(Object) }),
@@ -1292,13 +1293,13 @@ describe('useSearchFilters (location and sort)', () => {
 
     await selectBaseTaxon(
       result,
-      createSelectedSpecies(701, 'Second', 'Second species'),
+      createSelectedSpecies('701', 'Second', 'Second species'),
     );
 
     await waitFor(() => {
       expect(mockFetchRelativeRankingOptions).toHaveBeenCalledWith(
         {
-          taxonId: 701,
+          taxonId: '701',
           rank: 'SPECIES',
         },
         expect.objectContaining({ signal: expect.any(Object) }),
@@ -1307,7 +1308,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       resolveFirst?.({
-        ancestorTaxonId: 700,
+        ancestorTaxonId: '700',
         rank: 'SPECIES',
         options: [
           {
@@ -1328,7 +1329,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       resolveSecond?.({
-        ancestorTaxonId: 701,
+        ancestorTaxonId: '701',
         rank: 'SPECIES',
         options: [
           {
@@ -1364,7 +1365,7 @@ describe('useSearchFilters (location and sort)', () => {
       ]);
     });
 
-    await selectBaseTaxon(result, createSelectedSpecies(88));
+    await selectBaseTaxon(result, createSelectedSpecies('88'));
 
     await waitFor(() => {
       expect(result.current.sortVariableLoading).toBe(false);
@@ -1382,7 +1383,7 @@ describe('useSearchFilters (location and sort)', () => {
       { id: 'bio_12', name: 'Annual Precipitation' },
     ]);
     mockFetchSpeciesLocations.mockImplementationOnce((taxonId, level) => {
-      if (taxonId === 3996518 && level === 'country') {
+      if (taxonId === '3996518' && level === 'country') {
         return new Promise<any[]>((resolve) => {
           resolveCountryLocations = resolve;
         });
@@ -1409,7 +1410,7 @@ describe('useSearchFilters (location and sort)', () => {
     await act(async () => {
       result.current.onHydrateRouteState({
         taxon: {
-          ancestorTaxonId: 3996518,
+          ancestorTaxonId: '3996518',
           baseTaxonQuery: '3996518',
         },
         ranking: {
@@ -1456,7 +1457,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       result.current.onRankChange('species');
-      result.current.onBaseTaxonSelect(createSelectedSpecies(77));
+      result.current.onBaseTaxonSelect(createSelectedSpecies('77'));
       await Promise.resolve();
     });
 
@@ -1621,7 +1622,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       result.current.onRankChange('species');
-      result.current.onBaseTaxonSelect(createSelectedSpecies(77));
+      result.current.onBaseTaxonSelect(createSelectedSpecies('77'));
       await Promise.resolve();
     });
 
@@ -1639,7 +1640,7 @@ describe('useSearchFilters (location and sort)', () => {
     expect(result.current.countryOptions).toEqual([
       { label: 'Ethiopia', value: 'ETH' },
     ]);
-    expect(result.current.filterParams.withinTaxonId).toBe(77);
+    expect(result.current.filterParams.withinTaxonId).toBe('77');
     expect(result.current.rankValue).toBe('species');
     expect(result.current.numberOfResults).toBe(25);
     expect(result.current.minimumSamples).toBe(3);
@@ -1662,7 +1663,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       result.current.onRankChange('species');
-      result.current.onBaseTaxonSelect(createSelectedSpecies(444));
+      result.current.onBaseTaxonSelect(createSelectedSpecies('444'));
       await Promise.resolve();
     });
 
@@ -1670,7 +1671,7 @@ describe('useSearchFilters (location and sort)', () => {
       expect(result.current.sortVariableLoading).toBe(true);
       expect(mockFetchRelativeRankingOptions).toHaveBeenCalledWith(
         {
-          taxonId: 444,
+          taxonId: '444',
           rank: 'SPECIES',
         },
         expect.objectContaining({ signal: expect.any(Object) }),
@@ -1688,7 +1689,7 @@ describe('useSearchFilters (location and sort)', () => {
 
     await act(async () => {
       resolveRequest?.({
-        ancestorTaxonId: 444,
+        ancestorTaxonId: '444',
         rank: 'SPECIES',
         options: [
           {

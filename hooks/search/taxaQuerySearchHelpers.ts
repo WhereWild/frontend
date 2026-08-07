@@ -27,8 +27,8 @@ export const hasValidQueryParams = (
 
   return (
     hasSortFields &&
-    ((typeof withinTaxonId === 'number' &&
-      Number.isFinite(withinTaxonId) &&
+    ((typeof withinTaxonId === 'string' &&
+      withinTaxonId.trim().length > 0 &&
       hasScopedRank) ||
       hasQuery)
   );
@@ -223,11 +223,8 @@ export const mapTaxaQueryResultToSummary = (
   payload: TaxaQueryResponse,
   hasMinimumSamplesFilter = false,
 ): SpeciesSummary | null => {
-  const taxonId =
-    typeof entry.taxon_id === 'number'
-      ? entry.taxon_id
-      : Number(entry.taxon_id);
-  if (!Number.isFinite(taxonId)) {
+  const taxonId = entry.taxon_id;
+  if (!taxonId) {
     return null;
   }
 

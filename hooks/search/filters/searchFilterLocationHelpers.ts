@@ -134,7 +134,7 @@ export const fetchCountryHierarchyOptions = async (): Promise<
  * the given taxon has observations, ordered by observation count descending.
  */
 export const fetchTaxonHierarchyOptions = async (
-  taxonId: number,
+  taxonId: string,
   level: 'country' | 'state' | 'county',
   parentGid?: string,
 ): Promise<SelectOption[]> => {

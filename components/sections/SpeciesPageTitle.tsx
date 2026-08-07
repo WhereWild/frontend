@@ -62,8 +62,8 @@ export function SpeciesPageTitle({
       <View style={[styles.content, { maxWidth: responsive.contentWidth }]}>
         <View style={styles.titleRow}>
           <View style={styles.nameColumn}>
-            <ThemedText variant='titlePage'>{commonName}</ThemedText>
-            <ThemedText variant='bodyEmphasis'>{scientificName}</ThemedText>
+            <ThemedText variant='titlePage'>{scientificName}</ThemedText>
+            <ThemedText variant='bodyEmphasis'>{commonName}</ThemedText>
           </View>
           <View style={styles.downloadRow}>
             {isDownloading && (

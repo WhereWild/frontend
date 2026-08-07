@@ -28,6 +28,8 @@ type EnvironmentRequestOptions = {
   startTs?: number | null;
   endTs?: number | null;
   extra?: ExtraVariableFilter[] | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — only honored by the stats endpoints (environment/slice/class-samples), not fetchSpeciesOccurrences. */
+  polygon?: string | null;
 };
 
 type CategorySampleOptions = EnvironmentRequestOptions & {

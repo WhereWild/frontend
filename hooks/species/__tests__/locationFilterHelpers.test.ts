@@ -121,7 +121,7 @@ describe('locationFilterHelpers', () => {
   });
 
   it('builds stable cache keys', () => {
-    expect(buildLocationCacheKey(10, 'county', 'gid:state-ut', 500)).toBe(
+    expect(buildLocationCacheKey('10', 'county', 'gid:state-ut', 500)).toBe(
       '10::county::gid:state-ut::limit:500',
     );
   });

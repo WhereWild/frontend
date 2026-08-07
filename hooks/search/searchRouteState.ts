@@ -5,6 +5,7 @@
 import type { SearchTaxaQueryFilters } from '@/data/api';
 import type { UseSearchFiltersInitialState } from '@/hooks/search/filters/useSearchFilters';
 import { DEFAULT_QUANTITY } from '@/hooks/search/filters/useSearchFilters.helpers';
+import { toFilterPredicatesFromRouteValue } from '@/hooks/search/filters/useSearchFilters.derived';
 
 export type SearchRouteParams = {
   query?: string | string[];
@@ -20,6 +21,8 @@ export type SearchRouteParams = {
   minRbar?: string | string[];
   minSamples?: string | string[];
   limit?: string | string[];
+  /** Chained stat filters, comma-joined "variable:metric:op:value[:count]" entries. */
+  filters?: string | string[];
 };
 
 type SearchHistoryState = {
@@ -42,6 +45,7 @@ const SEARCH_ROUTE_PARAM_KEYS = [
   'minRbar',
   'minSamples',
   'limit',
+  'filters',
 ] as const;
 
 export const toSingleRouteParamValue = (value?: string | string[]) => {
@@ -82,6 +86,7 @@ export const pickSearchRouteParams = (
   minRbar: params.minRbar,
   minSamples: params.minSamples,
   limit: params.limit,
+  filters: params.filters,
 });
 
 export const toCurrentSearchRouteParams = (params: SearchRouteParams) => {
@@ -188,6 +193,10 @@ export const toSearchRouteParams = (
     filterParams.limit !== DEFAULT_QUANTITY.numberOfResults
   ) {
     routeParams.limit = String(filterParams.limit);
+  }
+
+  if (filterParams.filters && filterParams.filters.length > 0) {
+    routeParams.filters = filterParams.filters.join(',');
   }
 
   return routeParams;
@@ -354,9 +363,11 @@ export const toInitialSearchFilterState = (
   const location = toLocationInitialState(
     toSingleRouteParamValue(params.location),
   );
-  const withinTaxonId = toNumberParam(
-    toSingleRouteParamValue(params.withinTaxonId),
-  );
+  const withinTaxonIdRaw = toSingleRouteParamValue(params.withinTaxonId);
+  const withinTaxonId =
+    typeof withinTaxonIdRaw === 'string' && withinTaxonIdRaw.trim().length > 0
+      ? withinTaxonIdRaw.trim()
+      : undefined;
   const rawDescendantRank = toSingleRouteParamValue(params.descendantRank);
   const includeSpeciesLike = toSingleRouteParamValue(params.includeSpeciesLike);
   const descendantRank =
@@ -373,6 +384,9 @@ export const toInitialSearchFilterState = (
   const minRbarRaw = toNumberParam(toSingleRouteParamValue(params.minRbar));
   const minSamples = toNumberParam(toSingleRouteParamValue(params.minSamples));
   const limit = toNumberParam(toSingleRouteParamValue(params.limit));
+  const predicates = toFilterPredicatesFromRouteValue(
+    toSingleRouteParamValue(params.filters),
+  );
 
   return {
     location,
@@ -390,6 +404,7 @@ export const toInitialSearchFilterState = (
       sortReference: sortReferenceRaw,
       listOffset: listOffsetRaw,
       minRbar: minRbarRaw,
+      predicates,
     },
     quantity: {
       minimumSamples: minSamples,

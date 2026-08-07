@@ -35,6 +35,7 @@ jest.mock('@/data/api', () => ({
   fetchEnvironmentRangeSlice: jest.fn(),
   fetchSpeciesEnvironmentCategorySamples: jest.fn(),
   fetchDataSources: jest.fn(() => Promise.resolve({})),
+  fetchOccurrenceLookup: jest.fn(() => Promise.resolve(null)),
 }));
 
 const mockedApiModule = jest.requireMock('@/data/api') as {
@@ -42,11 +43,15 @@ const mockedApiModule = jest.requireMock('@/data/api') as {
   fetchSpeciesEnvironment: jest.Mock;
   fetchEnvironmentRangeSlice: jest.Mock;
   fetchSpeciesEnvironmentCategorySamples: jest.Mock;
+  fetchOccurrenceLookup: jest.Mock;
 };
+
+let mockSearchParams: Record<string, string | undefined> = {};
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/',
+  useLocalSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/components/inputs/SelectField', () => {
@@ -257,6 +262,7 @@ afterEach(() => {
   jest.clearAllMocks();
   restorePlatformOS();
   mockPush.mockClear();
+  mockSearchParams = {};
   mockUseColorScheme.mockReturnValue('dark');
   mockFetchSpeciesLocations.mockResolvedValue([]);
   mockFetchSpeciesOccurrences.mockResolvedValue({
@@ -265,6 +271,7 @@ afterEach(() => {
     maxTimestamp: null,
     phenologyCounts: null,
   });
+  mockedApiModule.fetchOccurrenceLookup.mockResolvedValue(null);
   mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
   mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
   mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
@@ -297,7 +304,7 @@ afterEach(() => {
 const createData = (
   overrides: Partial<SpeciesScreenData> = {},
 ): SpeciesScreenData => ({
-  taxonId: 13579,
+  taxonId: '13579',
   commonName: 'Test Cactus',
   scientificName: 'Testus cactus',
   overview: {
@@ -306,7 +313,7 @@ const createData = (
   },
   nearbySpecies: [
     {
-      taxonId: 24680,
+      taxonId: '24680',
       commonName: 'Neighbor',
       commonNames: ['Neighbor'],
       scientificName: 'Neighborius plantus',
@@ -351,6 +358,7 @@ describe('Species screen', () => {
       fontScale: 1,
     });
     mockUseColorScheme.mockReturnValue('dark');
+    mockSearchParams = {};
     mockFetchSpeciesLocations.mockResolvedValue([]);
     mockFetchSpeciesOccurrences.mockResolvedValue({
       occurrences: [],
@@ -358,6 +366,7 @@ describe('Species screen', () => {
       maxTimestamp: null,
       phenologyCounts: null,
     });
+    mockedApiModule.fetchOccurrenceLookup.mockResolvedValue(null);
     mockedApiModule.fetchEnvironmentVariables.mockResolvedValue([]);
     mockedApiModule.fetchSpeciesEnvironment.mockResolvedValue(null);
     mockedApiModule.fetchEnvironmentRangeSlice.mockResolvedValue({
@@ -470,13 +479,13 @@ describe('Species screen', () => {
     render(<SpeciesScreen data={createData()} />);
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('13579', {
         location: undefined,
       });
     });
 
     expect(mockFetchSpeciesLocations).toHaveBeenCalledWith(
-      13579,
+      '13579',
       'country',
       undefined,
       LOCATION_SEARCH_LIMIT,
@@ -565,7 +574,7 @@ describe('Species screen', () => {
   });
 
   it('hides observation map section when taxonId is not provided', async () => {
-    render(<SpeciesScreen data={createData({ taxonId: 0 })} />);
+    render(<SpeciesScreen data={createData({ taxonId: '' })} />);
 
     expect(screen.queryByText('Observation Map')).toBeNull();
 
@@ -638,7 +647,7 @@ describe('Species screen', () => {
     fireEvent.press(screen.getByTestId('select-Country-option-country-us'));
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('13579', {
         location: 'country-us',
       });
     });
@@ -650,7 +659,7 @@ describe('Species screen', () => {
     fireEvent.press(screen.getByTestId('select-State-option-state-ut'));
 
     await waitFor(() => {
-      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(13579, {
+      expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('13579', {
         location: 'state-ut',
       });
     });

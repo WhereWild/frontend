@@ -42,7 +42,7 @@ const SLICEABLE_RANKS = new Set([
 /** Props for rendering the species environment analytics section. */
 export type SpeciesEnvironmentSectionProps = {
   /** Taxon ID used to fetch environment statistics. */
-  taxonId?: number;
+  taxonId?: string;
   /** Taxon rank string as returned by the backend (e.g. 'SPECIES', 'GENUS'). */
   taxonRank?: string | null;
   /** True when the taxon exceeds the observation threshold — disables slicing and filtering. */
@@ -62,6 +62,8 @@ export type SpeciesEnvironmentSectionProps = {
   /** Optional timestamp range filter (Unix seconds). */
   startTimestamp?: number | null;
   endTimestamp?: number | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — a drawn/uploaded map region, unioned server-side. */
+  polygon?: string | null;
   units?: 'metric' | 'imperial' | undefined;
   pinnedObservation?: {
     catalogNumber: string;
@@ -83,6 +85,7 @@ function SpeciesEnvironmentSectionComponent({
   phenology,
   startTimestamp,
   endTimestamp,
+  polygon,
   units,
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
@@ -149,7 +152,7 @@ function SpeciesEnvironmentSectionComponent({
     >['homeUnobservedCategory'];
   } | null>(null);
   const stableContentScopeRef = React.useRef('');
-  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${startTimestamp ?? ''}|${endTimestamp ?? ''}|${units ?? ''}`;
+  const stableContentScope = `${taxonId ?? ''}|${locationGid ?? ''}|${phenology ?? ''}|${startTimestamp ?? ''}|${endTimestamp ?? ''}|${polygon ?? ''}|${units ?? ''}`;
 
   if (stableContentScopeRef.current !== stableContentScope) {
     stableContentScopeRef.current = stableContentScope;
@@ -213,6 +216,7 @@ function SpeciesEnvironmentSectionComponent({
     phenology,
     startTimestamp,
     endTimestamp,
+    polygon,
     units,
     pinnedObservation,
     slicingEnabled,

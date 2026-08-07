@@ -37,7 +37,7 @@ const SPECIES_CATEGORY_REMAP: Record<string, string> = {
 /** Inputs for orchestrating full SpeciesEnvironmentSection state. */
 type UseSpeciesEnvironmentStateParams = {
   /** Taxon ID for all environment/statistics queries. */
-  taxonId?: number;
+  taxonId?: string;
   /** Initial variable id requested by parent component. */
   variableId: string;
   /** Optional external variable definitions. */
@@ -51,6 +51,8 @@ type UseSpeciesEnvironmentStateParams = {
   /** Optional timestamp range filter (Unix seconds). */
   startTimestamp?: number | null;
   endTimestamp?: number | null;
+  /** Encoded polyline region filter (see encodePolygonsParam) — a drawn/uploaded map region, unioned server-side. */
+  polygon?: string | null;
   units?: 'metric' | 'imperial' | undefined;
   pinnedObservation?: {
     catalogNumber: string;
@@ -127,6 +129,7 @@ export function useSpeciesEnvironmentState({
   phenology,
   startTimestamp,
   endTimestamp,
+  polygon,
   units,
   pinnedObservation,
   slicingEnabled = true,
@@ -173,6 +176,7 @@ export function useSpeciesEnvironmentState({
     Boolean(phenology) ||
     startTimestamp != null ||
     endTimestamp != null ||
+    Boolean(polygon) ||
     activeChainRef.current.some((f) => f.variableId !== selectedVariable);
   const { stats, error, loading } = useEnvironmentStats({
     taxonId,
@@ -181,6 +185,7 @@ export function useSpeciesEnvironmentState({
     phenology,
     startTimestamp,
     endTimestamp,
+    polygon,
     units,
     extraRef: activeChainRef,
     chainSignal,
@@ -230,6 +235,7 @@ export function useSpeciesEnvironmentState({
     phenology,
     startTimestamp,
     endTimestamp,
+    polygon,
     onHighlightChange,
     units,
     pinnedObservation,

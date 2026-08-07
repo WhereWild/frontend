@@ -16,7 +16,7 @@ import {
 } from './locationFilterHelpers';
 
 type UseSpeciesLocationFiltersParams = {
-  taxonId?: number;
+  taxonId?: string;
   locationSearchLimit: number;
 };
 

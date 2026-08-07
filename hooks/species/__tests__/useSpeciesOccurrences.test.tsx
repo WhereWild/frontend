@@ -27,7 +27,7 @@ describe('useSpeciesOccurrences', () => {
     });
 
     const { result } = renderHook(() =>
-      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut' }),
+      useSpeciesOccurrences({ taxonId: '12', locationGid: 'state-ut' }),
     );
 
     await waitFor(() => {
@@ -36,13 +36,13 @@ describe('useSpeciesOccurrences', () => {
       expect(result.current.error).toBeNull();
     });
 
-    expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith(12, { location: 'state-ut' });
+    expect(mockFetchSpeciesOccurrences).toHaveBeenCalledWith('12', { location: 'state-ut' });
   });
 
   it('surfaces friendly fallback error for non-Error failures', async () => {
     mockFetchSpeciesOccurrences.mockRejectedValueOnce('network');
 
-    const { result } = renderHook(() => useSpeciesOccurrences({ taxonId: 12, locationGid: null }));
+    const { result } = renderHook(() => useSpeciesOccurrences({ taxonId: '12', locationGid: null }));
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -72,7 +72,7 @@ describe('useSpeciesOccurrences', () => {
     });
 
     const { result } = renderHook(() =>
-      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut', phenology: 'flowers' }),
+      useSpeciesOccurrences({ taxonId: '12', locationGid: 'state-ut', phenology: 'flowers' }),
     );
 
     await waitFor(() => {
@@ -90,7 +90,7 @@ describe('useSpeciesOccurrences', () => {
     });
 
     const { result } = renderHook(() =>
-      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut' }),
+      useSpeciesOccurrences({ taxonId: '12', locationGid: 'state-ut' }),
     );
 
     await waitFor(() => {
@@ -109,7 +109,7 @@ describe('useSpeciesOccurrences', () => {
     });
 
     const { result } = renderHook(() =>
-      useSpeciesOccurrences({ taxonId: 12, locationGid: 'state-ut', phenology: 'flowers' }),
+      useSpeciesOccurrences({ taxonId: '12', locationGid: 'state-ut', phenology: 'flowers' }),
     );
 
     await waitFor(() => {
