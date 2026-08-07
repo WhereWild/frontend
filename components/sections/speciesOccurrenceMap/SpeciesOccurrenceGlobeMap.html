@@ -763,6 +763,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
       minZoom: CUSTOM_MIN_ZOOM,
       maxPitch: 90,
+      // MapLibre's own in-memory tile cache otherwise keeps a previously-
+      // seen tile around (across zoom/pan changes, not just the current
+      // frame) and reuses it as an overzoom placeholder rather than
+      // treating the view as needing a fresh fetch — see
+      // evaluateOfflineFallback's basemap-layer visibility handling below,
+      // which handles the closely related "still rendering something for
+      // the current frame while loading/failing" case; this handles the
+      // "don't keep retired tiles around at all" case, at the cost of
+      // re-fetching a tile if you pan back to a view you've already seen.
+      maxTileCacheSize: 0,
       // Default attribution control sits bottom-right, directly under the
       // colormap-picker overlay the consuming page renders there — added
       // manually below at bottom-left instead so the two never collide.
