@@ -1085,6 +1085,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
     // z/y/x tile path, since the backend handles that reversal.
     const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;
+    // 'variable' basemap mode's basemap tile — the same simpler background
+    // maps.tsx always uses (paired with LABELS_OVERLAY_URL below), rather
+    // than the full-detail TILE_URL used for 'standard' mode.
+    const VARIABLE_MODE_BACKGROUND_TILE_URL = __VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__;
     // 'standard' | 'satellite' | 'variable' — same persisted-preference
     // pattern as SpeciesOccurrenceGlobeMap.html's TERRAIN_ENABLED_INITIAL,
     // read once at load so a reload/return visit starts wherever the user
@@ -1264,21 +1268,28 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     if (LABELS_OVERLAY_URL) {
       map.createPane('labelsPane');
       map.getPane('labelsPane').style.zIndex = 650;
+      // Initial visibility is set by applyBasemapMode(currentBasemapMode)
+      // below, once the basemap toggle's setup code runs: labels only show
+      // in 'satellite'/'variable' modes there, not 'standard' (which
+      // already has labels baked into its own tile style). Pages without
+      // the toggle (maps.tsx, no SATELLITE_TILE_URL) never call
+      // applyBasemapMode at all, so labels just stay on always, unaffected.
     }
 
     // Tracks whatever the currently-selected GIS variable's tile URL is —
     // starts at HEATMAP_TILE_URL but updates live via the 'heatmapUpdate'
     // message below (see currentHeatmapTileUrl assignment there). Used only
     // to decide whether 'variable' basemap mode is reachable in the toggle
-    // cycle at all (see nextBasemapMode below) — not for the basemap tile
-    // itself, which 'variable' mode never changes (see tileUrlForBasemapMode).
+    // cycle at all (see nextBasemapMode below).
     var currentHeatmapTileUrl = HEATMAP_TILE_URL;
-    // 'variable' mode does NOT change which raster is the basemap — it's
-    // the same standard tiles as 'standard', just with the heatmap overlay
-    // (heatmapLayer, below) switched on on top of it, exactly matching
-    // maps.tsx's look. Only 'satellite' ever changes the basemap tile itself.
+    // 'satellite' swaps in the satellite tile; 'variable' swaps in the
+    // simpler background tile (same one maps.tsx always uses, paired with
+    // the labels overlay — see applyBasemapMode below), plus the heatmap
+    // overlay on top; 'standard' is the plain full-detail tile.
     function tileUrlForBasemapMode(mode) {
-      return (mode === 'satellite' && SATELLITE_TILE_URL) ? SATELLITE_TILE_URL : TILE_URL;
+      if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
+      if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
+      return TILE_URL;
     }
     const tileLayer = L.tileLayer(tileUrlForBasemapMode(BASEMAP_MODE_INITIAL), {
       attribution: TILE_ATTRIBUTION,
@@ -1430,6 +1441,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             map.removeLayer(heatmapLayer);
           }
         }
+        // Labels overlay: visible in 'satellite'/'variable', hidden in
+        // 'standard' (see the pane-creation comment above for why).
+        var labelsPane = map.getPane('labelsPane');
+        if (labelsPane) { labelsPane.style.display = mode === 'standard' ? 'none' : ''; }
       }
       function nextBasemapMode(mode) {
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');

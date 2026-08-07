@@ -140,6 +140,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
   terrainEnabled: '__TERRAIN_ENABLED__',
   satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
+  variableModeBackgroundTileUrl: '__VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__',
   basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
   initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
@@ -1289,6 +1290,7 @@ const fillMapTemplatePlaceholders = (
   initialDrawnPolygons?: [number, number][][] | null,
   basemapMode?: BasemapMode,
   satelliteTileUrl?: string | null,
+  variableModeBackgroundTileUrl?: string | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1496,6 +1498,13 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteTileUrl)
     .join(satelliteTileUrl ? JSON.stringify(satelliteTileUrl) : 'null');
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.variableModeBackgroundTileUrl)
+    .join(
+      variableModeBackgroundTileUrl
+        ? JSON.stringify(variableModeBackgroundTileUrl)
+        : 'null',
+    );
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.leafletResizeObserverScript)
     .join(LEAFLET_RESIZE_OBSERVER_SCRIPT);
   html = html
@@ -1567,6 +1576,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     initialDrawnPolygons,
     basemapMode,
     satelliteTileUrl,
+    variableModeBackgroundTileUrl,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1614,6 +1624,9 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     initialDrawnPolygons,
     basemapMode,
     satelliteTileUrl,
+    variableModeBackgroundTileUrl
+      ? stripRetinaPlaceholder(variableModeBackgroundTileUrl)
+      : variableModeBackgroundTileUrl,
   );
 };
 

@@ -265,7 +265,7 @@ export function SpeciesOccurrenceMap({
   height,
   highlightedCatalogs = [],
   heatmapTileUrl = null,
-  heatmapOpacity = 0.6,
+  heatmapOpacity = 0.85,
   minZoom = 0,
   maxZoom = null,
   initialLat = null,
@@ -616,9 +616,26 @@ export function SpeciesOccurrenceMap({
       useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
     [mode, useLabelsOverlay],
   );
+  // Pages with the 3-way basemap toggle (see enableBasemapModeToggle) also
+  // want a labels overlay — but only shown in 'satellite'/'variable' modes
+  // (see the in-template tileUrlForBasemapMode/applyBasemapMode), not
+  // 'standard', which already has labels baked into tileUrlTemplate's own
+  // style. useLabelsOverlay's simpler always-on case (maps.tsx, no toggle)
+  // stays independent of that.
   const labelsOverlayTileUrl = React.useMemo(
-    () => (useLabelsOverlay ? getLabelsOverlayTileUrl() : null),
-    [useLabelsOverlay],
+    () =>
+      useLabelsOverlay || enableBasemapModeToggle
+        ? getLabelsOverlayTileUrl()
+        : null,
+    [useLabelsOverlay, enableBasemapModeToggle],
+  );
+  // 'variable' basemap mode's basemap tile — the same simpler background +
+  // labels-overlay combo maps.tsx always uses (see getBackgroundTileUrl),
+  // rather than the normal full-detail tileUrlTemplate used for 'standard'
+  // mode. Only relevant on pages with the 3-way toggle at all.
+  const variableModeBackgroundTileUrl = React.useMemo(
+    () => (enableBasemapModeToggle ? getBackgroundTileUrl() : null),
+    [enableBasemapModeToggle],
   );
   // Terrain is a MapLibre-only (globe) feature — always the same global DEM,
   // so no memo dependency beyond globeView itself. Whether it's actually
@@ -879,6 +896,7 @@ export function SpeciesOccurrenceMap({
       memoInitialDrawnPolygons,
       memoBasemapMode,
       satelliteTileUrl,
+      variableModeBackgroundTileUrl,
     );
   }, [
     allowPinObservations,
@@ -922,6 +940,7 @@ export function SpeciesOccurrenceMap({
     memoInitialDrawnPolygons,
     memoBasemapMode,
     satelliteTileUrl,
+    variableModeBackgroundTileUrl,
   ]);
 
   React.useEffect(() => {

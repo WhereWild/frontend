@@ -606,7 +606,6 @@ export default function Maps() {
                 error={null}
                 height={MAP_HEIGHT}
                 heatmapTileUrl={tileUrl}
-                heatmapOpacity={0.85}
                 minZoom={MAP_MIN_ZOOM}
                 showMarkers={false}
                 useLabelsOverlay

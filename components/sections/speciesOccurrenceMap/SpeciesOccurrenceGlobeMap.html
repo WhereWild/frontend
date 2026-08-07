@@ -79,6 +79,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
     // z/y/x tile path, since the backend handles that reversal.
     const SATELLITE_TILE_URL = __SATELLITE_TILE_URL_JSON__;
+    // 'variable' basemap mode's basemap tile — the same simpler background
+    // maps.tsx always uses (paired with LABELS_OVERLAY_URL below), rather
+    // than the full-detail TILE_URL used for 'standard' mode.
+    const VARIABLE_MODE_BACKGROUND_TILE_URL = __VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__;
     // 'standard' | 'satellite' | 'variable' — same persisted-preference
     // pattern as TERRAIN_ENABLED_INITIAL.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
@@ -90,13 +94,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     var INITIAL_BASEMAP_MODE = (BASEMAP_MODE_INITIAL === 'variable' && !currentHeatmapTileUrl)
       ? 'standard'
       : (BASEMAP_MODE_INITIAL || 'standard');
-    // 'variable' mode does NOT change which raster is the basemap — it's
-    // the same standard tiles as 'standard', just with the heatmap overlay
-    // (see the heatmap-layer visibility logic below) switched on on top of
-    // it, exactly matching maps.tsx's look. Only 'satellite' ever changes
-    // the basemap tile itself.
+    // 'satellite' swaps in the satellite tile; 'variable' swaps in the
+    // simpler background tile (same one maps.tsx always uses, paired with
+    // the labels overlay — see the labels-layer visibility logic below),
+    // plus the heatmap overlay on top; 'standard' is the plain full-detail
+    // tile.
     function tileUrlForBasemapMode(mode) {
-      return (mode === 'satellite' && SATELLITE_TILE_URL) ? SATELLITE_TILE_URL : TILE_URL;
+      if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
+      if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
+      return TILE_URL;
     }
     // Whatever region(s) were already drawn/uploaded when this map was
     // (re)built — e.g. switching here from Leaflet after drawing a region
@@ -752,7 +758,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           // this guards against.
           .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY }, layout: { visibility: INITIAL_BASEMAP_MODE === 'variable' ? 'visible' : 'none' } }] : [])
           .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
-          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 } }] : []),
+          // On pages with the 3-way basemap toggle (SATELLITE_TILE_URL
+          // truthy), labels only show in 'satellite'/'variable' modes, not
+          // 'standard' (which already has labels baked into its own tile
+          // style). Pages without the toggle (maps.tsx) have no 'standard'
+          // mode to speak of, so labels just stay on always.
+          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 }, layout: { visibility: (SATELLITE_TILE_URL && INITIAL_BASEMAP_MODE === 'standard') ? 'none' : 'visible' } }] : []),
         // 1.0 — true-scale elevation, not exaggerated. At full-globe zoom
         // this reads as nearly flat (real relief is ~0.1% of Earth's
         // radius), but it becomes accurate once zoomed in close, which
@@ -908,6 +919,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         }
         if (map.getLayer('heatmap-layer')) {
           map.setLayoutProperty('heatmap-layer', 'visibility', mode === 'variable' ? 'visible' : 'none');
+        }
+        if (map.getLayer('labels-layer')) {
+          map.setLayoutProperty('labels-layer', 'visibility', mode === 'standard' ? 'none' : 'visible');
         }
       };
       var nextBasemapMode = function(mode) {
