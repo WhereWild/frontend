@@ -1796,6 +1796,11 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // in one click rather than one at a time.
     let drawnPolygonLayers = [];
     let refreshVisibleMarkerPresentationImpl = null;
+    // Keys shown as direct markers as of the last refresh — diffed against
+    // the newly-visible set each call so only entries that actually entered
+    // or exited the viewport are touched, instead of sweeping every point in
+    // the dataset on every single pan/zoom.
+    let previouslyVisibleDirectMarkerKeys = new Set();
     let rebuildOccurrenceMarkersImpl = null;
     let replaceOccurrenceMarkersImpl = null;
 
@@ -2722,18 +2727,24 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           );
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
+          if (!visibleMarkerLayer.hasLayer(entry.directMarker)) {
+            visibleMarkerLayer.addLayer(entry.directMarker);
+          }
           entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
           applyStyleToMarker(entry.directMarker, effectiveStyleForCatalog(entry.key), entry.varShape);
         }
         entry.alignedLongitude = alignedLongitude;
       }
 
+      // Detaches the marker from the layer but keeps the Leaflet object (and
+      // its bound popup/click handler) alive on the entry, so panning it back
+      // into view in ensureVisibleDirectMarker just re-adds the existing
+      // layer instead of rebuilding the marker/popup/closure from scratch.
       function removeVisibleDirectMarker(entry) {
         if (!visibleMarkerLayer || !entry.directMarker) {
           return;
         }
         visibleMarkerLayer.removeLayer(entry.directMarker);
-        entry.directMarker = null;
       }
 
       function syncDirectMarkersToCurrentWorld() {
@@ -2814,11 +2825,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             ensureVisibleDirectMarker(entry, alignedLongitude);
           });
 
-          markerEntries.forEach((entry) => {
-            if (!visibleKeys.has(entry.key)) {
-              removeVisibleDirectMarker(entry);
+          previouslyVisibleDirectMarkerKeys.forEach((key) => {
+            if (visibleKeys.has(key)) return;
+            const tracked = markers.get(key);
+            if (tracked && tracked.markerEntry) {
+              removeVisibleDirectMarker(tracked.markerEntry);
             }
           });
+          previouslyVisibleDirectMarkerKeys = visibleKeys;
 
           if (selectedCatalogDirectMarker && selectedCatalogKey != null) {
             const selEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
@@ -2831,6 +2845,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         }
 
         markerEntries.forEach(removeVisibleDirectMarker);
+        previouslyVisibleDirectMarkerKeys = new Set();
         if (showingVisibleIndividualMarkers) {
           map.removeLayer(visibleMarkerLayer);
           clusterGroup.addTo(map);
@@ -3064,6 +3079,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         markerEntries = [];
         markerLatBuckets = new Map();
         markers.clear();
+        previouslyVisibleDirectMarkerKeys = new Set();
         var newBounds = buildOccurrenceMarkers(newPoints);
         if (useVisibilityManagedClustering && clusterGroup && !map.hasLayer(clusterGroup)) {
           map.addLayer(clusterGroup);
