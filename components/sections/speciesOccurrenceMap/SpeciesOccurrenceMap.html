@@ -2727,11 +2727,18 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           );
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
+          // Style is kept current independent of visibility — applyHighlights
+          // and rebuildOccurrenceMarkersImpl push a fresh style straight onto
+          // entry.directMarker (via applyEntryStyle) whenever it actually
+          // changes, attached or not — so re-deriving and re-applying
+          // effectiveStyleForCatalog here on every pan/zoom would just be
+          // redoing that work for markers whose style never changed.
           if (!visibleMarkerLayer.hasLayer(entry.directMarker)) {
             visibleMarkerLayer.addLayer(entry.directMarker);
           }
-          entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
-          applyStyleToMarker(entry.directMarker, effectiveStyleForCatalog(entry.key), entry.varShape);
+          if (entry.alignedLongitude !== alignedLongitude) {
+            entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
+          }
         }
         entry.alignedLongitude = alignedLongitude;
       }
