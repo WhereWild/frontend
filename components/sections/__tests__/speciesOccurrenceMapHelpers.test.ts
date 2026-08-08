@@ -148,11 +148,19 @@ describe('speciesOccurrenceMapHelpers', () => {
       openOn: jest.fn().mockReturnThis(),
     };
 
-    const makeLayer = () => ({
-      addTo: jest.fn().mockReturnThis(),
-      addLayer: jest.fn(),
-      removeLayer: jest.fn(),
-    });
+    const makeLayer = () => {
+      const layersInGroup = new Set<unknown>();
+      return {
+        addTo: jest.fn().mockReturnThis(),
+        addLayer: jest.fn((layer: unknown) => {
+          layersInGroup.add(layer);
+        }),
+        removeLayer: jest.fn((layer: unknown) => {
+          layersInGroup.delete(layer);
+        }),
+        hasLayer: jest.fn((layer: unknown) => layersInGroup.has(layer)),
+      };
+    };
 
     const makeTileLayer = (url = '') => ({
       _url: url,
