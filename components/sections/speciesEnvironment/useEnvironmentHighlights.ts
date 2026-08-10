@@ -177,6 +177,12 @@ type UseEnvironmentHighlightsParams = {
   } | null;
   /** When false, suppresses slice and category-sample network requests. */
   slicingEnabled?: boolean;
+  /** Ordinal's live colormap, or nominal's cbMode — whichever applies to
+   * the current variable. Forwarded as `colormap` to the pinned-point
+   * environment-value lookup so its class color matches what the map/tiles
+   * render, instead of a stale per-class legend color. See
+   * useSpeciesEnvironmentState.ts's identical colorMode derivation. */
+  colorMode?: string | null;
 };
 
 /** Handles category/range selections and resolves corresponding highlighted observations. */
@@ -194,6 +200,7 @@ export function useEnvironmentHighlights({
   onHighlightChange,
   pinnedObservation,
   slicingEnabled = true,
+  colorMode = null,
 }: UseEnvironmentHighlightsParams) {
   const speciesDataSource = useSpeciesDataSource();
   const [selectedCategoryValues, setSelectedCategoryValuesState] =
@@ -275,6 +282,9 @@ export function useEnvironmentHighlights({
   const [pinnedValueDescription, setPinnedValueDescription] = React.useState<
     string | null
   >(null);
+  const [pinnedValueColor, setPinnedValueColor] = React.useState<string | null>(
+    null,
+  );
   const [pinnedCategoryObserved, setPinnedCategoryObserved] = React.useState<
     boolean | null
   >(null);
@@ -284,6 +294,7 @@ export function useEnvironmentHighlights({
     value: null as number | string | null,
     label: null as string | null,
     description: null as string | null,
+    color: null as string | null,
     observed: null as boolean | null,
     loading: false,
   });
@@ -293,6 +304,7 @@ export function useEnvironmentHighlights({
       value: pinnedValue,
       label: pinnedValueLabel,
       description: pinnedValueDescription,
+      color: pinnedValueColor,
       observed: pinnedCategoryObserved,
       loading: pinnedLoading,
     };
@@ -300,6 +312,7 @@ export function useEnvironmentHighlights({
     pinnedCategoryObserved,
     pinnedLoading,
     pinnedValue,
+    pinnedValueColor,
     pinnedValueDescription,
     pinnedValueLabel,
   ]);
@@ -352,6 +365,9 @@ export function useEnvironmentHighlights({
     if (pinnedState.description !== null) {
       setPinnedValueDescription(null);
     }
+    if (pinnedState.color !== null) {
+      setPinnedValueColor(null);
+    }
     if (pinnedState.observed !== null) {
       setPinnedCategoryObserved(null);
     }
@@ -363,6 +379,7 @@ export function useEnvironmentHighlights({
       value: null,
       label: null,
       description: null,
+      color: null,
       observed: null,
       loading: false,
     };
@@ -562,6 +579,7 @@ export function useEnvironmentHighlights({
         setPinnedValue(stored.value ?? null);
         setPinnedValueLabel(null);
         setPinnedValueDescription(null);
+        setPinnedValueColor(null);
         setPinnedCategoryObserved(null);
         setPinnedLoading(false);
         return;
@@ -583,6 +601,7 @@ export function useEnvironmentHighlights({
                   phenology: phenology ?? undefined,
                   startTs: startTimestamp ?? undefined,
                   endTs: endTimestamp ?? undefined,
+                  colormap: colorMode ?? undefined,
                 },
               )
             : await fetchPointEnvironmentValue(
@@ -591,6 +610,7 @@ export function useEnvironmentHighlights({
                 selectedVariable,
                 {
                   units,
+                  colormap: colorMode ?? undefined,
                   ...(!isSyntheticPinnedPoint(
                     pinnedObservation.catalogNumber,
                   ) && taxonId
@@ -607,6 +627,7 @@ export function useEnvironmentHighlights({
         setPinnedValue(result.value);
         setPinnedValueLabel(result.valueLabel ?? null);
         setPinnedValueDescription(result.valueDescription ?? null);
+        setPinnedValueColor(result.valueColor ?? null);
         if (
           !isCategorical ||
           result.value === null ||
@@ -671,6 +692,7 @@ export function useEnvironmentHighlights({
         setPinnedValue(null);
         setPinnedValueLabel(null);
         setPinnedValueDescription(null);
+        setPinnedValueColor(null);
         setPinnedCategoryObserved(null);
       } finally {
         if (pinnedRequestRef.current === requestId) {
@@ -694,6 +716,7 @@ export function useEnvironmentHighlights({
     stats,
     units,
     slicingEnabled,
+    colorMode,
   ]);
 
   React.useEffect(() => {
@@ -1603,6 +1626,7 @@ export function useEnvironmentHighlights({
       pinnedValueDescription === null,
     pinnedValueLabel,
     pinnedValueDescription,
+    pinnedValueColor,
     pinnedCategoryObserved,
     pinnedValue,
     pinnedLoading,

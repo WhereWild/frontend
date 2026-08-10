@@ -463,20 +463,22 @@ export default function Maps() {
       return null;
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
-      if (cls.id != null && cls.color) {
+      // Ordinal classes intentionally carry no raw legend color — see the
+      // matching comment in app/_species.tsx's classColors.
+      if (cls.id != null && (cls.color || isOrdinalVariable)) {
         const color = colorMode
           ? getCbColor(
               selectedVariableMeta.id,
               cls.id as number,
               colorMode,
-              cls.color,
+              cls.color ?? '#888888',
             )
-          : cls.color;
+          : (cls.color ?? '#888888');
         map.set(String(cls.id), color);
       }
     }
     return map;
-  }, [isCategorical, selectedVariableMeta, colorMode]);
+  }, [isCategorical, selectedVariableMeta, colorMode, isOrdinalVariable]);
 
   const classLabels = useMemo(() => {
     if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)
@@ -628,7 +630,7 @@ export default function Maps() {
                 onPointValue={handlePointValue}
                 pointQueryUrl={
                   selectedVariable
-                    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}`
+                    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
                     : null
                 }
                 isCircular={isCircular}

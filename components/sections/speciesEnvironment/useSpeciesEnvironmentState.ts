@@ -29,6 +29,7 @@ import { useEnvironmentHighlights } from './useEnvironmentHighlights';
 import { useEnvironmentStats } from './useEnvironmentStats';
 import { useEnvironmentVariableSelection } from './useEnvironmentVariableSelection';
 import { useHomeLocationPin } from './useHomeLocationPin';
+import { getCbColor, type CbMode } from '../speciesOccurrenceMap/cbColors';
 
 const SPECIES_CATEGORY_REMAP: Record<string, string> = {
   'live weather': 'Recent Weather',
@@ -61,6 +62,15 @@ type UseSpeciesEnvironmentStateParams = {
   } | null;
   /** When false, suppresses slice and category-sample network requests. */
   slicingEnabled?: boolean;
+  /** Accessibility color mode (colorblind/achromatopsia) — used for nominal
+   * pinned/unobserved-category badge colors. Not used for ordinal variables
+   * (see colormap below). */
+  cbMode?: CbMode | null;
+  /** Currently-selected continuous colormap — used instead of cbMode for
+   * ordinal variables' pinned/unobserved-category badge colors, since
+   * ordinal has no separate accessibility variant (the colormap IS its
+   * coloring mechanism). See util/tiles.py's matching branch. */
+  colormap?: CbMode | null;
 };
 
 /** Inputs used to derive presentational state from loaded stats and selection metadata. */
@@ -133,6 +143,8 @@ export function useSpeciesEnvironmentState({
   units,
   pinnedObservation,
   slicingEnabled = true,
+  cbMode = null,
+  colormap = null,
 }: UseSpeciesEnvironmentStateParams) {
   const {
     categories,
@@ -150,6 +162,14 @@ export function useSpeciesEnvironmentState({
     units,
     remapCategories: SPECIES_CATEGORY_REMAP,
   });
+
+  // Ordinal variables have no separate accessibility variant — the
+  // selected continuous colormap IS their coloring mechanism, always on
+  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
+  // variables). See util/tiles.py's matching branch for the raster side.
+  const isOrdinalVariable =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const colorMode = isOrdinalVariable ? (colormap ?? 'viridis') : cbMode;
 
   // useEnvironmentStats needs the active chain (to send as `extra`, so the
   // density curve/histogram/categorical distribution it returns reflect a
@@ -223,6 +243,7 @@ export function useSpeciesEnvironmentState({
     pinnedNoData,
     pinnedValueLabel,
     pinnedValueDescription,
+    pinnedValueColor,
     pinnedCategoryObserved,
     pinnedValue,
     pinnedLoading,
@@ -240,6 +261,7 @@ export function useSpeciesEnvironmentState({
     units,
     pinnedObservation,
     slicingEnabled,
+    colorMode,
   });
 
   // A single combined line for display right below metaText, e.g. "And
@@ -320,12 +342,20 @@ export function useSpeciesEnvironmentState({
         categoricalDistribution.find(
           (cat) => normalizeCategoryIdentity(cat.value) === normalizedPinned,
         )?.color ?? null;
-      const legendColor =
+      const rawLegendColor =
         distributionColor ??
         selectedVariableMeta?.legendClasses?.find(
           (cls) => String(cls.id) === String(homePinValue),
         )?.color ??
         null;
+      const legendColor = colorMode
+        ? getCbColor(
+            selectedVariable ?? '',
+            Number(homePinValue),
+            colorMode,
+            rawLegendColor ?? '#888888',
+          )
+        : rawLegendColor;
 
       return {
         value: homePinValue,
@@ -343,6 +373,8 @@ export function useSpeciesEnvironmentState({
       homePinValue,
       homePinValueLabel,
       selectedVariableMeta,
+      selectedVariable,
+      colorMode,
     ]);
 
   const rangeObservationItems = React.useMemo(
@@ -598,12 +630,20 @@ export function useSpeciesEnvironmentState({
         categoricalDistribution.find(
           (cat) => normalizeCategoryIdentity(cat.value) === normalizedPinned,
         )?.color ?? null;
-      const legendColor =
+      const rawLegendColor =
         distributionColor ??
         selectedVariableMeta?.legendClasses?.find(
           (cls) => String(cls.id) === String(pinnedValue),
         )?.color ??
         null;
+      const legendColor = colorMode
+        ? getCbColor(
+            selectedVariable ?? '',
+            Number(pinnedValue),
+            colorMode,
+            rawLegendColor ?? '#888888',
+          )
+        : rawLegendColor;
 
       return {
         value: pinnedValue,
@@ -621,6 +661,8 @@ export function useSpeciesEnvironmentState({
       pinnedValueDescription,
       pinnedValueLabel,
       selectedVariableMeta,
+      selectedVariable,
+      colorMode,
     ]);
 
   const headingText = buildHeadingText(
@@ -684,6 +726,7 @@ export function useSpeciesEnvironmentState({
     pinnedCategoryValue,
     pinnedUnobservedCategory,
     pinnedClassName,
+    pinnedValueColor,
     pinnedValue,
     pinnedLoading,
     pinnedNoData,

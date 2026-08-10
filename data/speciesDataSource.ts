@@ -30,6 +30,10 @@ type EnvironmentRequestOptions = {
   extra?: ExtraVariableFilter[] | null;
   /** Encoded polyline region filter (see encodePolygonsParam) — only honored by the stats endpoints (environment/slice/class-samples), not fetchSpeciesOccurrences. */
   polygon?: string | null;
+  /** Live-selected continuous colormap — only matters for ordinal
+   * variables, whose class color is stepped off this colormap rather than
+   * a fixed per-class legend color. Only honored by fetchObservationEnvironmentValue. */
+  colormap?: string | null;
 };
 
 type CategorySampleOptions = EnvironmentRequestOptions & {
@@ -67,6 +71,7 @@ export type SpeciesDataSource = {
     valueLabel?: string | null;
     valueDescription?: string | null;
     units?: string | null;
+    valueColor?: string | null;
   }>;
   fetchSpeciesOccurrences: (
     taxonId: string | number,

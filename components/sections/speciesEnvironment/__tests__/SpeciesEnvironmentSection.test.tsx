@@ -275,6 +275,7 @@ const baseState: SpeciesEnvironmentState = {
   pinnedCategoryValue: null,
   pinnedUnobservedCategory: null,
   pinnedClassName: null,
+  pinnedValueColor: null,
   pinnedValue: null,
   pinnedLoading: false,
   pinnedNoData: false,

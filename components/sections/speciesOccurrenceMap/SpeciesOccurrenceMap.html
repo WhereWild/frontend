@@ -1841,8 +1841,13 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     function buildObservationValueHtml(varValue, varColor, varLabel, varShape) {
       if (varValue == null) return isVariableColorMode() ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
       var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN;
-      if (varColor) {
-        var dot = shapeToPopupSvg(varShape || null, varColor);
+      // A class label must never fall through to the raw-number branches
+      // below just because color resolution failed for some reason (e.g. an
+      // ordinal class not yet present in a stale CLASS_COLORS snapshot) —
+      // that's a "wrong number" bug users would never trace back to color.
+      // Show the label with no dot if color genuinely isn't available.
+      if (varColor || varLabel) {
+        var dot = varColor ? shapeToPopupSvg(varShape || null, varColor) : '';
         var labelText = varLabel || '';
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
       }

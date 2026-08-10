@@ -750,14 +750,28 @@ export default function Species({
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta?.legendClasses ?? []) {
       if (isLandcover && cls.id === 0) continue;
-      if (cls.color)
+      // Ordinal classes intentionally carry no raw legend color (see
+      // sreg_legend.json) — their color comes ONLY from the stepped
+      // colormap lookup, so this can't require cls.color to be truthy the
+      // way nominal classes do, or every ordinal class gets silently
+      // dropped from the map, and the map falls back to coloring points
+      // by a continuous gradient over the OBSERVED value range instead of
+      // the fixed legend range — which is exactly how a species with zero
+      // observations of the top class ends up with its actual top-observed
+      // class miscolored as if it were the legend maximum.
+      if (cls.color || isOrdinalVariable)
         map.set(
           String(cls.id),
-          getCbColor(variableId, cls.id as number, colorMode, cls.color),
+          getCbColor(
+            variableId,
+            cls.id as number,
+            colorMode,
+            cls.color ?? '#888888',
+          ),
         );
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta, colorMode]);
+  }, [selectedVariableMeta, colorMode, isOrdinalVariable]);
 
   const classLabels = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -1213,7 +1227,7 @@ export default function Species({
                   onMapBounds={handleMapBounds}
                   pointQueryUrl={
                     selectedVariableMeta?.id
-                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}&unit_system=${encodeURIComponent(units ?? '')}`
+                      ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}&unit_system=${encodeURIComponent(units ?? '')}&colormap=${encodeURIComponent(selectedColormap)}`
                       : null
                   }
                   heatmapTileUrl={heatmapTileUrl}

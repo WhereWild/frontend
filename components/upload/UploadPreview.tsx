@@ -396,14 +396,21 @@ export function UploadPreview({
     const variableId = selectedVariableMeta.id ?? '';
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
-      if (cls.color)
+      // Ordinal classes intentionally carry no raw legend color — see the
+      // matching comment in app/_species.tsx's classColors.
+      if (cls.color || isOrdinalVariable)
         map.set(
           String(cls.id),
-          getCbColor(variableId, cls.id as number, colorMode, cls.color),
+          getCbColor(
+            variableId,
+            cls.id as number,
+            colorMode,
+            cls.color ?? '#888888',
+          ),
         );
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta, colorMode]);
+  }, [selectedVariableMeta, colorMode, isOrdinalVariable]);
 
   const classShapes = React.useMemo((): Map<string, string> | null => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -527,7 +534,7 @@ export function UploadPreview({
     : false;
 
   const pointQueryUrl = selectedVariableMeta
-    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}`
+    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
     : null;
 
   return (

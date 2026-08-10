@@ -164,6 +164,10 @@ function SpeciesEnvironmentSectionComponent({
   const palette = Colors[mode];
 
   const dataSources = useDataSources();
+  // Declared before useSpeciesEnvironmentState so cbMode/colormap can be
+  // passed in as inputs (the hook needs them to correctly color ordinal
+  // pinned/unobserved-category badges — see its own colorMode comment).
+  const settings = useOptionalSettings();
 
   const {
     categories,
@@ -220,13 +224,14 @@ function SpeciesEnvironmentSectionComponent({
     units,
     pinnedObservation,
     slicingEnabled,
+    cbMode: settings?.cbMode ?? null,
+    colormap: settings?.colormap ?? null,
   });
 
   React.useEffect(() => {
     onVariableMetaChange?.(selectedVariableMeta ?? null);
   }, [selectedVariableMeta, onVariableMetaChange]);
 
-  const settings = useOptionalSettings();
   const cbMode = settings?.cbMode ?? null;
   // Ordinal variables have no separate accessibility variant — the
   // selected continuous colormap IS their coloring mechanism, always on
@@ -266,7 +271,12 @@ function SpeciesEnvironmentSectionComponent({
         : Number(rawId);
     return {
       ...pinnedUnobservedCategory,
-      color: getCbColor(varId, classId, colorMode, pinnedUnobservedCategory.color),
+      color: getCbColor(
+        varId,
+        classId,
+        colorMode,
+        pinnedUnobservedCategory.color,
+      ),
     };
   }, [pinnedUnobservedCategory, colorMode, selectedVariable]);
 
