@@ -434,20 +434,28 @@ export default function Maps() {
     return visible.length > 0 ? visible : null;
   }, [isCategorical, selectedVariableMeta, visibleNominalCounts]);
 
+  // Ordinal variables have no separate accessibility variant — the
+  // selected continuous colormap IS their coloring mechanism, always on
+  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
+  // variables). See util/tiles.py's matching branch for the raster side.
+  const isOrdinalVariable =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+
   const cbVisibleClasses = useMemo(
     () =>
-      cbMode && visibleCategoricalClasses
+      colorMode && visibleCategoricalClasses
         ? visibleCategoricalClasses.map((cls) => ({
             ...cls,
             color: getCbColor(
               selectedVariableMeta?.id ?? '',
               cls.id as number,
-              cbMode,
+              colorMode,
               cls.color ?? '#888888',
             ),
           }))
         : visibleCategoricalClasses,
-    [cbMode, selectedVariableMeta, visibleCategoricalClasses],
+    [colorMode, selectedVariableMeta, visibleCategoricalClasses],
   );
 
   const classColors = useMemo(() => {
@@ -456,11 +464,11 @@ export default function Maps() {
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
       if (cls.id != null && cls.color) {
-        const color = cbMode
+        const color = colorMode
           ? getCbColor(
               selectedVariableMeta.id,
               cls.id as number,
-              cbMode,
+              colorMode,
               cls.color,
             )
           : cls.color;
@@ -468,7 +476,7 @@ export default function Maps() {
       }
     }
     return map;
-  }, [isCategorical, selectedVariableMeta, cbMode]);
+  }, [isCategorical, selectedVariableMeta, colorMode]);
 
   const classLabels = useMemo(() => {
     if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)
@@ -682,15 +690,25 @@ export default function Maps() {
                     selectedClassIds={selectedClassIds}
                     onClassClick={toggleSelectedClassId}
                   />
-                  <MapCbModePicker
-                    selected={cbMode}
-                    onChange={setCbMode}
-                    topClasses={visibleCategoricalClasses?.slice(0, 3) ?? []}
-                    variableId={selectedVariableMeta?.id ?? ''}
-                    shapesEnabled={false}
-                    dotsOnly
-                    markerOutlineEnabled={markerOutlineEnabled}
-                  />
+                  {isOrdinalVariable ? (
+                    // Ordinal has no accessibility-mode picker — the
+                    // continuous colormap picker IS its coloring control,
+                    // same widget continuous variables use below.
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
+                    />
+                  ) : (
+                    <MapCbModePicker
+                      selected={cbMode}
+                      onChange={setCbMode}
+                      topClasses={visibleCategoricalClasses?.slice(0, 3) ?? []}
+                      variableId={selectedVariableMeta?.id ?? ''}
+                      shapesEnabled={false}
+                      dotsOnly
+                      markerOutlineEnabled={markerOutlineEnabled}
+                    />
+                  )}
                 </>
               )}
 

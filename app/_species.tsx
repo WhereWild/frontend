@@ -724,6 +724,14 @@ export default function Species({
     highlightedPointValue,
   ]);
 
+  // Ordinal variables have no separate accessibility variant — the
+  // selected continuous colormap IS their coloring mechanism, always on
+  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
+  // variables). See util/tiles.py's matching branch for the raster side.
+  const isOrdinalVariable =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+
   const classShapes = React.useMemo(() => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -745,11 +753,11 @@ export default function Species({
       if (cls.color)
         map.set(
           String(cls.id),
-          getCbColor(variableId, cls.id as number, cbMode, cls.color),
+          getCbColor(variableId, cls.id as number, colorMode, cls.color),
         );
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta, cbMode]);
+  }, [selectedVariableMeta, colorMode]);
 
   const classLabels = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -796,18 +804,18 @@ export default function Species({
 
   const cbVisibleCategoricalClasses = React.useMemo(() => {
     if (!visibleCategoricalClasses) return null;
-    if (!cbMode) return visibleCategoricalClasses;
+    if (!colorMode) return visibleCategoricalClasses;
     const variableId = selectedVariableMeta?.id ?? '';
     return visibleCategoricalClasses.map((cls) => ({
       ...cls,
       color: getCbColor(
         variableId,
         cls.id as number,
-        cbMode,
+        colorMode,
         cls.color ?? '#888888',
       ),
     }));
-  }, [visibleCategoricalClasses, cbMode, selectedVariableMeta]);
+  }, [visibleCategoricalClasses, colorMode, selectedVariableMeta]);
 
   const circularShapesEnabled =
     (shapesEnabled || cbMode === 'achromatopsia') &&
@@ -1315,16 +1323,26 @@ export default function Species({
                     markerOutlineEnabled={effectiveOutline}
                   />
                 )}
-                {visibleCategoricalClasses && selectedVariableMeta && (
-                  <MapCbModePicker
-                    selected={cbMode ?? null}
-                    onChange={setCbMode}
-                    topClasses={visibleCategoricalClasses.slice(0, 3)}
-                    variableId={selectedVariableMeta.id ?? ''}
-                    shapesEnabled={shapesEnabled}
-                    markerOutlineEnabled={effectiveOutline}
-                  />
-                )}
+                {visibleCategoricalClasses &&
+                  selectedVariableMeta &&
+                  (isOrdinalVariable ? (
+                    // Ordinal has no accessibility-mode picker — the
+                    // continuous colormap picker IS its coloring control,
+                    // same widget continuous variables use above.
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
+                    />
+                  ) : (
+                    <MapCbModePicker
+                      selected={cbMode ?? null}
+                      onChange={setCbMode}
+                      topClasses={visibleCategoricalClasses.slice(0, 3)}
+                      variableId={selectedVariableMeta.id ?? ''}
+                      shapesEnabled={shapesEnabled}
+                      markerOutlineEnabled={effectiveOutline}
+                    />
+                  ))}
               </MapScrollLockWrapper>
             )}
           </View>

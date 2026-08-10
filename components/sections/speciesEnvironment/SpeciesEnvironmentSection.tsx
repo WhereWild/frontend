@@ -228,9 +228,18 @@ function SpeciesEnvironmentSectionComponent({
 
   const settings = useOptionalSettings();
   const cbMode = settings?.cbMode ?? null;
+  // Ordinal variables have no separate accessibility variant — the
+  // selected continuous colormap IS their coloring mechanism, always on
+  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
+  // variables). See util/tiles.py's matching branch for the raster side.
+  const isOrdinalVariable =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const colorMode = isOrdinalVariable
+    ? (settings?.colormap ?? 'viridis')
+    : cbMode;
 
   const cbCategoricalDistribution = React.useMemo(() => {
-    if (!cbMode || !categoricalDistribution.length)
+    if (!colorMode || !categoricalDistribution.length)
       return categoricalDistribution;
     const varId = selectedVariable ?? '';
     return categoricalDistribution.map((cat) => {
@@ -241,13 +250,13 @@ function SpeciesEnvironmentSectionComponent({
           : Number(rawId);
       return {
         ...cat,
-        color: getCbColor(varId, classId, cbMode, cat.color ?? '#888888'),
+        color: getCbColor(varId, classId, colorMode, cat.color ?? '#888888'),
       };
     });
-  }, [categoricalDistribution, cbMode, selectedVariable]);
+  }, [categoricalDistribution, colorMode, selectedVariable]);
 
   const cbPinnedUnobservedCategory = React.useMemo(() => {
-    if (!cbMode || !pinnedUnobservedCategory?.color)
+    if (!colorMode || !pinnedUnobservedCategory?.color)
       return pinnedUnobservedCategory;
     const varId = selectedVariable ?? '';
     const rawId = pinnedUnobservedCategory.value;
@@ -257,9 +266,9 @@ function SpeciesEnvironmentSectionComponent({
         : Number(rawId);
     return {
       ...pinnedUnobservedCategory,
-      color: getCbColor(varId, classId, cbMode, pinnedUnobservedCategory.color),
+      color: getCbColor(varId, classId, colorMode, pinnedUnobservedCategory.color),
     };
-  }, [pinnedUnobservedCategory, cbMode, selectedVariable]);
+  }, [pinnedUnobservedCategory, colorMode, selectedVariable]);
 
   const isDiscrete = isVariableDiscrete(selectedVariableMeta);
 
