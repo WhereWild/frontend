@@ -1159,6 +1159,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         '.maplibregl-popup-content{background:' + bg + ';color:' + text + '}',
         '.maplibregl-popup-content a,.maplibregl-popup-content a:visited{color:' + link + ' !important}',
         '.maplibregl-popup-tip{border-top-color:' + bg + ' !important;border-bottom-color:' + bg + ' !important}',
+        // GeolocateControl's "you are here" dot defaults to MapLibre's stock
+        // blue — recolor it to palette.markerFill (the same wherewild brand
+        // green Leaflet's locateMarker/locateCircle use) so both map backends
+        // render the current-location indicator consistently. ::after is left
+        // alone — it's the white contrast ring around the dot, not the fill.
+        '.maplibregl-user-location-dot{background-color:' + palette.markerFill + '}',
+        '.maplibregl-user-location-dot::before{background-color:' + palette.markerFill + '}',
+        '.maplibregl-user-location-accuracy-circle{background-color:' + palette.markerFill + '}',
       ].join('');
       var el = document.createElement('style');
       el.textContent = css;
