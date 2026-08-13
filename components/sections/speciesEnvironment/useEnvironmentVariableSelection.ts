@@ -132,13 +132,17 @@ export function useEnvironmentVariableSelection({
   }, [fallbackVariable]);
 
   const categories = React.useMemo(() => {
+    // Insertion order, not alphabetical — Set preserves first-appearance
+    // order, which follows catalog.json's category order as returned by
+    // the backend (nothing sorts it en route), so this is how the catalog
+    // author actually wants categories to display.
     const categorySet = new Set<string>();
     resolvedVariables.forEach((variable) => {
       if (variable.category) {
         categorySet.add(variable.category);
       }
     });
-    return Array.from(categorySet).sort();
+    return Array.from(categorySet);
   }, [resolvedVariables]);
 
   const filteredVariables = React.useMemo(() => {

@@ -434,20 +434,28 @@ export default function Maps() {
     return visible.length > 0 ? visible : null;
   }, [isCategorical, selectedVariableMeta, visibleNominalCounts]);
 
+  // Ordinal variables have no separate accessibility variant — the
+  // selected continuous colormap IS their coloring mechanism, always on
+  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
+  // variables). See util/tiles.py's matching branch for the raster side.
+  const isOrdinalVariable =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+
   const cbVisibleClasses = useMemo(
     () =>
-      cbMode && visibleCategoricalClasses
+      colorMode && visibleCategoricalClasses
         ? visibleCategoricalClasses.map((cls) => ({
             ...cls,
             color: getCbColor(
               selectedVariableMeta?.id ?? '',
               cls.id as number,
-              cbMode,
+              colorMode,
               cls.color ?? '#888888',
             ),
           }))
         : visibleCategoricalClasses,
-    [cbMode, selectedVariableMeta, visibleCategoricalClasses],
+    [colorMode, selectedVariableMeta, visibleCategoricalClasses],
   );
 
   const classColors = useMemo(() => {
@@ -455,20 +463,22 @@ export default function Maps() {
       return null;
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
-      if (cls.id != null && cls.color) {
-        const color = cbMode
+      // Ordinal classes intentionally carry no raw legend color — see the
+      // matching comment in app/_species.tsx's classColors.
+      if (cls.id != null && (cls.color || isOrdinalVariable)) {
+        const color = colorMode
           ? getCbColor(
               selectedVariableMeta.id,
               cls.id as number,
-              cbMode,
-              cls.color,
+              colorMode,
+              cls.color ?? '#888888',
             )
-          : cls.color;
+          : (cls.color ?? '#888888');
         map.set(String(cls.id), color);
       }
     }
     return map;
-  }, [isCategorical, selectedVariableMeta, cbMode]);
+  }, [isCategorical, selectedVariableMeta, colorMode, isOrdinalVariable]);
 
   const classLabels = useMemo(() => {
     if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)
@@ -620,7 +630,7 @@ export default function Maps() {
                 onPointValue={handlePointValue}
                 pointQueryUrl={
                   selectedVariable
-                    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}`
+                    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
                     : null
                 }
                 isCircular={isCircular}
@@ -682,15 +692,25 @@ export default function Maps() {
                     selectedClassIds={selectedClassIds}
                     onClassClick={toggleSelectedClassId}
                   />
-                  <MapCbModePicker
-                    selected={cbMode}
-                    onChange={setCbMode}
-                    topClasses={visibleCategoricalClasses?.slice(0, 3) ?? []}
-                    variableId={selectedVariableMeta?.id ?? ''}
-                    shapesEnabled={false}
-                    dotsOnly
-                    markerOutlineEnabled={markerOutlineEnabled}
-                  />
+                  {isOrdinalVariable ? (
+                    // Ordinal has no accessibility-mode picker — the
+                    // continuous colormap picker IS its coloring control,
+                    // same widget continuous variables use below.
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
+                    />
+                  ) : (
+                    <MapCbModePicker
+                      selected={cbMode}
+                      onChange={setCbMode}
+                      topClasses={visibleCategoricalClasses?.slice(0, 3) ?? []}
+                      variableId={selectedVariableMeta?.id ?? ''}
+                      shapesEnabled={false}
+                      dotsOnly
+                      markerOutlineEnabled={markerOutlineEnabled}
+                    />
+                  )}
                 </>
               )}
 

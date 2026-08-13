@@ -75,14 +75,16 @@ describe('useEnvironmentVariableSelection', () => {
       }),
     );
 
+    // categories preserve insertion order — 'Live Weather' (from the
+    // first-listed variable) is the default, not alphabetical.
     await waitFor(() => {
-      expect(result.current.selectedVariableCategory).toBe('Categorical');
+      expect(result.current.selectedVariableCategory).toBe('Live Weather');
     });
-    expect(result.current.selectedVariable).toBe('landcover');
+    expect(result.current.selectedVariable).toBe('wind_speed');
     expect(result.current.filteredVariables.map((item) => item.id)).toEqual([
-      'landcover',
+      'wind_speed',
     ]);
-    expect(result.current.isVariableCategorical).toBe(true);
+    expect(result.current.isVariableCategorical).toBe(false);
   });
 
   it('filters excluded categories from the remote catalog', async () => {
@@ -120,20 +122,23 @@ describe('useEnvironmentVariableSelection', () => {
       />,
     );
 
+    // Insertion order (remote catalog order after filtering), not
+    // alphabetical — 'Live Weather' appears before 'Categorical' in the
+    // mocked catalog response.
     await waitFor(() => {
       expect(screen.getByTestId('categories').props.children).toBe(
-        JSON.stringify(['Categorical', 'Live Weather']),
+        JSON.stringify(['Live Weather', 'Categorical']),
       );
     });
     await waitFor(() => {
       expect(screen.getByTestId('filtered-variables').props.children).toBe(
-        JSON.stringify(['landcover']),
+        JSON.stringify(['wind_speed']),
       );
       expect(screen.getByTestId('selected-category').props.children).toBe(
-        'Categorical',
+        'Live Weather',
       );
       expect(screen.getByTestId('selected-meta').props.children).toBe(
-        'landcover',
+        'wind_speed',
       );
     });
   });
@@ -175,12 +180,12 @@ describe('useEnvironmentVariableSelection', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('categories').props.children).toBe(
-        JSON.stringify(['Categorical', 'Live Weather']),
+        JSON.stringify(['Live Weather', 'Categorical']),
       );
     });
     await waitFor(() => {
       expect(screen.getByTestId('selected-meta').props.children).toBe(
-        'landcover',
+        'wind_speed',
       );
     });
   });
@@ -241,19 +246,22 @@ describe('useEnvironmentVariableSelection', () => {
       }),
     );
 
-    await waitFor(() => {
-      expect(result.current.selectedVariableCategory).toBe('Categorical');
-    });
-
-    act(() => {
-      result.current.setSelectedVariableCategory('Live Weather');
-    });
-
+    // 'Live Weather' (first-listed variable's category) is the insertion-
+    // order default; switch to 'Categorical' to verify the selected
+    // variable follows.
     await waitFor(() => {
       expect(result.current.selectedVariableCategory).toBe('Live Weather');
     });
-    expect(result.current.selectedVariable).toBe('wind_speed');
-    expect(result.current.selectedVariableMeta?.label).toBe('Wind Speed');
-    expect(result.current.isVariableCategorical).toBe(false);
+
+    act(() => {
+      result.current.setSelectedVariableCategory('Categorical');
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedVariableCategory).toBe('Categorical');
+    });
+    expect(result.current.selectedVariable).toBe('landcover');
+    expect(result.current.selectedVariableMeta?.label).toBe('Land Cover');
+    expect(result.current.isVariableCategorical).toBe(true);
   });
 });

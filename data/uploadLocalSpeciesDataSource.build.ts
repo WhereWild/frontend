@@ -28,6 +28,10 @@ import {
   type LinearConversion,
 } from '@/data/unitConversions';
 import { decodePolygonsParam, isPointInPolygon } from '@/utils/geoPolygon';
+import {
+  getCbColor,
+  type CbMode,
+} from '@/components/sections/speciesOccurrenceMap/cbColors';
 import type {
   UploadedCategoricalStatsRow,
   UploadedCategoricalValueLookupRow,
@@ -1961,6 +1965,19 @@ export const buildUploadLocalSpeciesDataSource = ({
           ? (applyConv(rawValue, conv) ?? rawValue)
           : rawValue;
       const categoryEntry = findCategoricalDistributionEntry(stats, rawValue);
+      // Ordinal has no per-class embedded color — its color is the same
+      // live-colormap-stepped lookup the map/tiles use (see main.py's
+      // /gis/point, which this local data source otherwise mirrors), not
+      // whatever color happened to be baked into the uploaded bundle.
+      const isOrdinal = stats?.variableType?.toLowerCase() === 'ordinal';
+      const valueColor = isOrdinal
+        ? getCbColor(
+            variableId,
+            Number(rawValue),
+            (options?.colormap ?? 'viridis') as CbMode,
+            categoryEntry?.color ?? '#888888',
+          )
+        : (categoryEntry?.color ?? null);
 
       return {
         variable: variableId,
@@ -1968,6 +1985,7 @@ export const buildUploadLocalSpeciesDataSource = ({
         valueLabel: categoryEntry?.className ?? null,
         valueDescription: categoryEntry?.description ?? null,
         units: conv ? conv.unit : (stats?.units ?? null),
+        valueColor,
       };
     },
 

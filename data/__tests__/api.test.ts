@@ -209,6 +209,7 @@ describe('data/api common name normalization', () => {
       lon: -105.1,
       value: 90,
       valueLabel: 'Urban',
+      valueColor: null,
       valueDescription: 'Developed land',
     });
   });
@@ -235,6 +236,7 @@ describe('data/api common name normalization', () => {
       lon: -105.1,
       value: 'Urban',
       valueLabel: 'Urban',
+      valueColor: null,
       valueDescription: 'Developed land',
     });
   });

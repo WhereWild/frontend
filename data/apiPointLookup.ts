@@ -12,6 +12,7 @@ export type PointEnvironmentResult = {
   value: number | string | null;
   valueLabel: string | null;
   valueDescription: string | null;
+  valueColor?: string | null;
 };
 
 /**
@@ -24,7 +25,16 @@ export async function fetchPointEnvironmentValue(
   lat: number,
   lon: number,
   variableId: string,
-  options?: { units?: string | null; taxonId?: string | number | null; catalogNumber?: string | number | null },
+  options?: {
+    units?: string | null;
+    taxonId?: string | number | null;
+    catalogNumber?: string | number | null;
+    /** Live-selected continuous colormap — only matters for ordinal
+     * variables, whose class color is stepped off this colormap
+     * server-side (see main.py's /gis/point) rather than a fixed
+     * per-class legend color. */
+    colormap?: string | null;
+  },
 ): Promise<PointEnvironmentResult> {
   const params = new URLSearchParams({
     lat: String(lat),
@@ -39,6 +49,9 @@ export async function fetchPointEnvironmentValue(
   }
   if (options?.catalogNumber != null) {
     params.set('catalog_number', String(options.catalogNumber));
+  }
+  if (options?.colormap) {
+    params.set('colormap', options.colormap);
   }
   const payload = await fetchJsonOrThrow(
     `${BACKEND_BASE}/gis/point?${params.toString()}`,
@@ -83,6 +96,14 @@ export async function fetchPointEnvironmentValue(
           ? source.value_description
           : typeof source.description === 'string'
             ? source.description
+            : null,
+    valueColor:
+      typeof source.valueColor === 'string'
+        ? source.valueColor
+        : typeof source.class_color === 'string'
+          ? source.class_color
+          : typeof source.classColor === 'string'
+            ? source.classColor
             : null,
   };
 }
