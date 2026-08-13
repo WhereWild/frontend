@@ -169,7 +169,8 @@ describe('Acknowledgements screen', () => {
 
     render(<AcknowledgementsScreen />);
 
-    expect(screen.getByText('Acknowledgements')).toBeTruthy();
+    // Two matches expected on web: the page title and the footer's nav link.
+    expect(screen.getAllByText('Acknowledgements').length).toBeGreaterThan(0);
   });
 
   it('hides the page title in the body on native', () => {

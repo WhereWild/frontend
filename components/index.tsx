@@ -46,6 +46,8 @@ export type {
   WebPageHeaderProps,
 } from './sections/webPageHeader/WebPageHeader';
 
+export { WebPageFooter } from './sections/webPageFooter/WebPageFooter';
+
 export { TopAppBar } from './sections/topAppBar/TopAppBar';
 export type {
   TopAppBarProps,

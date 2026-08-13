@@ -8,6 +8,8 @@ const isPreview = appVariant === 'preview';
 const fallbackBackendUrl = 'http://localhost:8000';
 const siteUrl = process.env.APP_SITE_URL?.trim() || null;
 const stadiaMapsApiKey = process.env.APP_STADIA_MAPS_API_KEY?.trim() || null;
+const buildDate =
+  process.env.APP_BUILD_DATE?.trim() || new Date().toISOString();
 
 const appName = isDevelopment
   ? 'WhereWild Dev'
@@ -103,6 +105,7 @@ module.exports = () => ({
       backendUrl: process.env.APP_BACKEND_URL || fallbackBackendUrl,
       siteUrl,
       stadiaMapsApiKey,
+      buildDate,
     },
   },
 });

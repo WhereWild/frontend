@@ -239,7 +239,8 @@ describe('SystemStatusPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('page-title')).toBeTruthy();
-      expect(screen.getByText('Status')).toBeTruthy();
+      // Two matches expected on web: the page title and the footer's nav link.
+      expect(screen.getAllByText('Status').length).toBeGreaterThan(0);
     });
   });
 

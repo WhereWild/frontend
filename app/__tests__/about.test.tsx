@@ -260,6 +260,7 @@ describe('About screen', () => {
 
     render(<AboutScreen />);
 
-    expect(screen.getByText('About')).toBeTruthy();
+    // Two matches expected on web: the page title and the footer's nav link.
+    expect(screen.getAllByText('About').length).toBeGreaterThan(0);
   });
 });

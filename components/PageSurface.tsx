@@ -13,6 +13,7 @@ import {
   type ViewProps,
   type ViewStyle,
 } from 'react-native';
+import { WebPageFooter } from './sections/webPageFooter/WebPageFooter';
 
 type PageSurfaceProps = Pick<ViewProps, 'children' | 'testID'> & {
   style?: StyleProp<ViewStyle>;
@@ -32,7 +33,14 @@ export function PageSurface({ children, style, testID }: PageSurfaceProps) {
         style,
       ]}
     >
-      {children}
+      {Platform.OS === 'web' ? (
+        <>
+          <View style={styles.webContent}>{children}</View>
+          <WebPageFooter />
+        </>
+      ) : (
+        children
+      )}
     </View>
   );
 }
@@ -44,5 +52,8 @@ const styles = StyleSheet.create({
   web: {
     width: '100%',
     minHeight: '100%',
+  },
+  webContent: {
+    flex: 1,
   },
 });
