@@ -318,6 +318,7 @@ describe('upload local species data source variable categories', () => {
       variable: 'landcover',
       value: 'class_52',
       valueLabel: 'Impervious surfaces',
+      valueColor: null,
       valueDescription: null,
       units: null,
     });

@@ -789,10 +789,13 @@ describe('useSpeciesEnvironmentState', () => {
       }),
     );
 
+    // categories preserve insertion (first-appearance) order, not
+    // alphabetical — see useEnvironmentVariableSelection's `categories`
+    // memo — so 'Zeta' (from the first-listed variable) comes first.
     await waitFor(() => {
-      expect(result.current.categories).toEqual(['Alpha', 'Zeta']);
-      expect(result.current.selectedVariableCategory).toBe('Alpha');
-      expect(result.current.selectedVariable).toBe('bio_1');
+      expect(result.current.categories).toEqual(['Zeta', 'Alpha']);
+      expect(result.current.selectedVariableCategory).toBe('Zeta');
+      expect(result.current.selectedVariable).toBe('bio_2');
     });
   });
 
