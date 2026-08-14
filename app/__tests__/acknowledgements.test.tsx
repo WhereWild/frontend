@@ -5,7 +5,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Linking, Platform } from 'react-native';
-import AcknowledgementsScreen, { SourceEntry } from '../acknowledgements';
+import { SourceEntry } from '@/components/sections/SourceEntry';
+import AcknowledgementsScreen from '../acknowledgements';
 
 jest.mock('expo-router/head', () => {
   const React = jest.requireActual('react');

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { SpeciesOccurrenceMap } from '@/components';
+import { SpeciesOccurrenceMap, ThemedText } from '@/components';
 import type { SelectOption } from '@/components';
 import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { PageSurface } from '@/components/PageSurface';
@@ -15,6 +15,7 @@ import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings, type UnitSystem } from '@/context/SettingsContext';
 import { StyleSheet, View } from 'react-native';
@@ -44,6 +45,7 @@ import {
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
+import { parseTemporalId } from '@/components/sections/speciesEnvironment/temporalHelpers';
 import {
   useMapLayerChain,
   type MapChainExtra,
@@ -172,6 +174,7 @@ const buildTileUrl = ({
 };
 
 export default function Maps() {
+  const router = useRouter();
   const {
     units,
     colormap: selectedColormap,
@@ -749,6 +752,18 @@ export default function Maps() {
                   dataSources={dataSources}
                 />
               )}
+            {selectedVariable ? (
+              <ThemedText
+                variant='bodySmallLink'
+                onPress={() =>
+                  router.push(
+                    `/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`,
+                  )
+                }
+              >
+                {'View guide'}
+              </ThemedText>
+            ) : null}
           </View>
         </PageScrollContainer>
       </PageSurface>

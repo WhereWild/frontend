@@ -99,6 +99,7 @@ describe('WebPageFooter', () => {
       ['Maps', '/maps'],
       ['Upload', '/upload'],
       ['Help', '/help'],
+      ['Guides', '/guides'],
       ['About', '/about'],
       ['Settings', '/settings'],
       ['Status', '/status'],
@@ -114,8 +115,8 @@ describe('WebPageFooter', () => {
   it('renders a "|" separator between every link', () => {
     render(<WebPageFooter />);
 
-    // 9 internal links -> 8 separators between them.
-    expect(screen.getAllByText('  |  ').length).toBe(8);
+    // 10 internal links -> 9 separators between them.
+    expect(screen.getAllByText('  |  ').length).toBe(9);
   });
 
   it('still links to every internal page when stacked on a phone-width viewport', () => {

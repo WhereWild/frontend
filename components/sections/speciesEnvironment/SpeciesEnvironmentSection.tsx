@@ -6,6 +6,7 @@ import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/text/ThemedText';
 import { AspectCompassChart } from './AspectCompassChart';
 import { ContinuousInsights } from './ContinuousInsights';
@@ -22,6 +23,7 @@ import {
   isVariableDiscrete,
   type EnvironmentVariableOption,
 } from './model';
+import { parseTemporalId } from './temporalHelpers';
 import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
@@ -89,6 +91,7 @@ function SpeciesEnvironmentSectionComponent({
   units,
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
+  const router = useRouter();
   const slicingEnabled =
     !largeTaxon &&
     (taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase()));
@@ -750,6 +753,18 @@ function SpeciesEnvironmentSectionComponent({
               dataSources={dataSources}
             />
           )}
+        {selectedVariable ? (
+          <ThemedText
+            variant='bodySmallLink'
+            onPress={() =>
+              router.push(
+                `/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`,
+              )
+            }
+          >
+            {'View guide'}
+          </ThemedText>
+        ) : null}
       </View>
     </View>
   );

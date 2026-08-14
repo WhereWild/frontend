@@ -2,29 +2,44 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { Markdown, PageScrollContainer, PageTitle } from '@/components';
+import {
+  Markdown,
+  PageScrollContainer,
+  PageTitle,
+  ThemedText,
+} from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { SourceEntry } from '@/components/sections/SourceEntry';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
-import { useDataSources } from '@/hooks/useDataSources';
+import { VARIABLE_TYPES } from '@/constants/variableTypes';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useLocalSearchParams } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
-import ACKNOWLEDGEMENTS_CONTENT from '@/content/acknowledgements.md';
+import { TYPE_GUIDES } from '@/content/guides/variables/types/index';
 
-export default function AcknowledgementsScreen() {
+const NO_GUIDE_YET_CONTENT = 'More coming soon.';
+
+type VariableTypeRouteParams = {
+  type?: string;
+};
+
+export default function VariableTypeGuideScreen() {
+  const params = useLocalSearchParams<VariableTypeRouteParams>();
+  const typeKey = typeof params.type === 'string' ? params.type : '';
   const responsive = useResponsive();
-  const dataSources = useDataSources();
-  const sources = Object.values(dataSources);
+
+  const type = VARIABLE_TYPES.find((entry) => entry.key === typeKey);
+  const label = type?.label ?? typeKey;
+  const guideContent = TYPE_GUIDES[typeKey] ?? NO_GUIDE_YET_CONTENT;
 
   return (
     <>
       {Platform.OS === 'web' ? (
         <WebMetadata
-          title='WhereWild | Acknowledgements'
-          description='See the open datasets, tools, and contributors that power WhereWild.'
-          path='/acknowledgements'
+          title={`WhereWild | ${label} Variable Type`}
+          description={`Reference for the ${label} measurement type used across WhereWild environmental variables.`}
+          path={`/guides/variables/types/${typeKey}`}
         />
       ) : null}
       <PageSurface>
@@ -39,9 +54,7 @@ export default function AcknowledgementsScreen() {
           )}
           bounces={false}
         >
-          {Platform.OS === 'web' ? (
-            <PageTitle title='Acknowledgements' />
-          ) : null}
+          {Platform.OS === 'web' ? <PageTitle title={label} /> : null}
 
           <View
             style={[
@@ -53,16 +66,13 @@ export default function AcknowledgementsScreen() {
             ]}
           >
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
-              <View style={styles.section}>
-                <Markdown>{ACKNOWLEDGEMENTS_CONTENT}</Markdown>
-              </View>
-              {sources.length > 0 ? (
-                <View style={styles.section}>
-                  {sources.map((source) => (
-                    <SourceEntry key={source.name} source={source} />
-                  ))}
-                </View>
-              ) : null}
+              {type ? (
+                <Markdown>{guideContent}</Markdown>
+              ) : (
+                <ThemedText variant='body'>
+                  {"We couldn't find that variable type."}
+                </ThemedText>
+              )}
             </View>
           </View>
         </PageScrollContainer>
@@ -80,8 +90,5 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     gap: Size.space.text.section,
-  },
-  section: {
-    gap: Size.space.text.subsection,
   },
 });

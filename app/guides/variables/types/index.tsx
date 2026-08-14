@@ -2,29 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { Markdown, PageScrollContainer, PageTitle } from '@/components';
+import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { SourceEntry } from '@/components/sections/SourceEntry';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
-import { useDataSources } from '@/hooks/useDataSources';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useRouter } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
-import ACKNOWLEDGEMENTS_CONTENT from '@/content/acknowledgements.md';
+import { VARIABLE_TYPES } from '@/constants/variableTypes';
 
-export default function AcknowledgementsScreen() {
+export default function VariableTypesIndexScreen() {
   const responsive = useResponsive();
-  const dataSources = useDataSources();
-  const sources = Object.values(dataSources);
+  const router = useRouter();
 
   return (
     <>
       {Platform.OS === 'web' ? (
         <WebMetadata
-          title='WhereWild | Acknowledgements'
-          description='See the open datasets, tools, and contributors that power WhereWild.'
-          path='/acknowledgements'
+          title='WhereWild | Variable Types'
+          description='Reference for the measurement types (nominal, ordinal, interval, ratio, circular) used across WhereWild environmental variables.'
+          path='/guides/variables/types'
         />
       ) : null}
       <PageSurface>
@@ -39,9 +37,7 @@ export default function AcknowledgementsScreen() {
           )}
           bounces={false}
         >
-          {Platform.OS === 'web' ? (
-            <PageTitle title='Acknowledgements' />
-          ) : null}
+          {Platform.OS === 'web' ? <PageTitle title='Variable Types' /> : null}
 
           <View
             style={[
@@ -53,16 +49,19 @@ export default function AcknowledgementsScreen() {
             ]}
           >
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
-              <View style={styles.section}>
-                <Markdown>{ACKNOWLEDGEMENTS_CONTENT}</Markdown>
+              <View style={styles.linkList}>
+                {VARIABLE_TYPES.map((type) => (
+                  <ThemedText
+                    key={type.key}
+                    variant='link'
+                    onPress={() =>
+                      router.push(`/guides/variables/types/${type.key}`)
+                    }
+                  >
+                    {type.label}
+                  </ThemedText>
+                ))}
               </View>
-              {sources.length > 0 ? (
-                <View style={styles.section}>
-                  {sources.map((source) => (
-                    <SourceEntry key={source.name} source={source} />
-                  ))}
-                </View>
-              ) : null}
             </View>
           </View>
         </PageScrollContainer>
@@ -81,7 +80,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: Size.space.text.section,
   },
-  section: {
-    gap: Size.space.text.subsection,
+  linkList: {
+    gap: Size.space.text.line,
   },
 });

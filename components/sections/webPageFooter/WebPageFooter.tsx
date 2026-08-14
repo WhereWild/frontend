@@ -42,6 +42,7 @@ const INTERNAL_LINKS: { label: string; route: Href }[] = [
   { label: 'Maps', route: '/maps' },
   { label: 'Upload', route: '/upload' },
   { label: 'Help', route: '/help' },
+  { label: 'Guides', route: '/guides' },
   { label: 'About', route: '/about' },
   { label: 'Settings', route: '/settings' },
   { label: 'Status', route: '/status' },

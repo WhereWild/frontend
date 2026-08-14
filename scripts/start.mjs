@@ -63,6 +63,10 @@ if (!requestedAppVariant) {
 
 let exitCode = 1;
 
+spawnSync('node', ['./scripts/generate-variable-guides-index.mjs'], {
+  stdio: 'inherit',
+});
+
 try {
   const previousEnvMode = shouldManageMetroCache ? readPreviousEnvMode() : null;
   const shouldClearCache =

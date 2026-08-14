@@ -63,6 +63,10 @@ try {
     env.APP_BACKEND_URL = backendUrl;
   }
 
+  spawnSync('node', ['./scripts/generate-variable-guides-index.mjs'], {
+    stdio: 'inherit',
+  });
+
   const result = spawnSync(
     process.platform === 'win32' ? 'npx.cmd' : 'npx',
     [
