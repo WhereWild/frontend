@@ -91,6 +91,8 @@ jest.mock('@/hooks/useDataSources', () => ({
 jest.mock('@/content/guides/variables/index', () => ({
   VARIABLE_GUIDES: {
     bio1: 'Annual mean temperature explained in depth.',
+    landcover:
+      '# Landcover\n\nLandcover overview.\n\n## Rainfed cropland\n\nCropland that relies on rainfall rather than irrigation.\n\n## Forest\n',
   },
 }));
 
@@ -337,6 +339,35 @@ describe('VariableGuideScreen', () => {
     await waitFor(() =>
       expect(screen.getByText('Rainfed cropland')).toBeTruthy(),
     );
+  });
+
+  it("merges a class heading's written prose into that class's swatch row instead of listing it separately", async () => {
+    mockSlug = 'landcover';
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      {
+        id: 'landcover',
+        name: 'Landcover',
+        category: 'terrain',
+        legendClasses: [
+          { id: 10, name: 'Rainfed cropland', color: '#FFFF64' },
+          { id: 20, name: 'Forest', color: '#00FF00' },
+        ],
+      },
+    ]);
+
+    render(<VariableGuideScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Landcover overview.')).toBeTruthy(),
+    );
+    expect(
+      screen.getByText(
+        'Cropland that relies on rainfall rather than irrigation.',
+      ),
+    ).toBeTruthy();
+    // "Rainfed cropland" should appear exactly once — as the swatch row's
+    // label — not a second time as a bare heading up in the intro.
+    expect(screen.getAllByText('Rainfed cropland')).toHaveLength(1);
   });
 
   it('links an axis member to its sibling axes and the classifier', async () => {

@@ -30,7 +30,9 @@ jest.mock('@/hooks/useResponsive', () => ({
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  usePathname: () => '/',
+  // A path that never matches any footer link, so RoutePressable's "don't
+  // navigate if already on this route" check never suppresses a press.
+  usePathname: () => '/__not-a-footer-link__',
 }));
 
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<

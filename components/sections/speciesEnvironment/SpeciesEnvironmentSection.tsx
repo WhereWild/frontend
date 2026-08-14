@@ -6,7 +6,7 @@ import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { ThemedText } from '@/components/text/ThemedText';
 import { AspectCompassChart } from './AspectCompassChart';
 import { ContinuousInsights } from './ContinuousInsights';
@@ -91,7 +91,6 @@ function SpeciesEnvironmentSectionComponent({
   units,
   pinnedObservation,
 }: SpeciesEnvironmentSectionProps) {
-  const router = useRouter();
   const slicingEnabled =
     !largeTaxon &&
     (taxonRank == null || SLICEABLE_RANKS.has(taxonRank.toUpperCase()));
@@ -754,16 +753,12 @@ function SpeciesEnvironmentSectionComponent({
             />
           )}
         {selectedVariable ? (
-          <ThemedText
-            variant='bodySmallLink'
-            onPress={() =>
-              router.push(
-                `/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`,
-              )
-            }
+          <RoutePressable
+            href={`/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`}
+            accessibilityRole='link'
           >
-            {'View guide'}
-          </ThemedText>
+            <ThemedText variant='bodySmallLink'>{'View guide'}</ThemedText>
+          </RoutePressable>
         ) : null}
       </View>
     </View>

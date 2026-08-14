@@ -8,10 +8,11 @@ import { BACKEND_BASE, fetchJsonOrThrow } from '@/data/apiShared';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Constants from 'expo-constants';
-import { useRouter, type Href } from 'expo-router';
+import type { Href } from 'expo-router';
 import React from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { IconButton } from '../../buttons/IconButton';
+import { RoutePressable } from '../../navigation/RoutePressable';
 import { ThemedText } from '../../text/ThemedText';
 
 const WHEREWILD_GITHUB_URL = 'https://github.com/WhereWild';
@@ -53,7 +54,6 @@ export function WebPageFooter() {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
-  const router = useRouter();
   const responsive = useResponsive();
   const isCompact = responsive.breakpoint !== 'desktop';
   const [gbifCrawlDate, setGbifCrawlDate] = React.useState<string | null>(null);
@@ -113,8 +113,16 @@ export function WebPageFooter() {
       </View>
       <View style={[styles.column, isCompact && styles.columnCompact]}>
         {/* Nested Text wraps like ordinary sentence text, so links and "|"
-            separators flow and break naturally at any width — no manual
-            layout measurement needed. */}
+            separators flow and break naturally -- no manual layout
+            measurement needed, and copy/paste extracts clean plain text
+            (unlike a View-based layout, where each block-level View forces
+            a newline into copied text regardless of visual flex layout).
+            The separator's leading spaces are regular (breakable) but its
+            trailing space is non-breaking, so a line can only wrap before a
+            "|", never between it and the label it precedes -- otherwise a
+            "|" can strand itself alone at the end of a line. RoutePressable
+            renders a real <a href> inline here, so ctrl/cmd/middle-click
+            "open in new tab" works, unlike a plain onPress handler. */}
         <ThemedText
           variant='bodySmall'
           style={[styles.internalLinks, isCompact && styles.centeredText]}
@@ -123,15 +131,12 @@ export function WebPageFooter() {
             <React.Fragment key={label}>
               {index > 0 ? (
                 <ThemedText variant='bodyTiny' style={tinyTextStyle}>
-                  {'  |  '}
+                  {'  | '}
                 </ThemedText>
               ) : null}
-              <ThemedText
-                variant='bodySmallLink'
-                onPress={() => router.push(route)}
-              >
-                {label}
-              </ThemedText>
+              <RoutePressable href={route} accessibilityRole='link'>
+                <ThemedText variant='bodySmallLink'>{label}</ThemedText>
+              </RoutePressable>
             </React.Fragment>
           ))}
         </ThemedText>
@@ -175,6 +180,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   internalLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     maxWidth: 340,
+    rowGap: Size.space['100'],
+  },
+  internalLinksCentered: {
+    justifyContent: 'center',
+  },
+  internalLinkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
   },
 });

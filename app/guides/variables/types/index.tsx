@@ -4,17 +4,16 @@
 
 import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useRouter } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
 import { VARIABLE_TYPES } from '@/constants/variableTypes';
 
 export default function VariableTypesIndexScreen() {
   const responsive = useResponsive();
-  const router = useRouter();
 
   return (
     <>
@@ -51,15 +50,13 @@ export default function VariableTypesIndexScreen() {
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
               <View style={styles.linkList}>
                 {VARIABLE_TYPES.map((type) => (
-                  <ThemedText
+                  <RoutePressable
                     key={type.key}
-                    variant='link'
-                    onPress={() =>
-                      router.push(`/guides/variables/types/${type.key}`)
-                    }
+                    href={`/guides/variables/types/${type.key}`}
+                    accessibilityRole='link'
                   >
-                    {type.label}
-                  </ThemedText>
+                    <ThemedText variant='link'>{type.label}</ThemedText>
+                  </RoutePressable>
                 ))}
               </View>
             </View>

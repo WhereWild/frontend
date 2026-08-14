@@ -9,6 +9,7 @@ import {
   ThemedText,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { SourceEntry } from '@/components/sections/SourceEntry';
 import {
   getCbColor,
@@ -34,13 +35,42 @@ import type { EnvironmentVariableDefinition } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
 import { VARIABLE_GUIDES } from '@/content/guides/variables/index';
 
 const NO_GUIDE_YET_CONTENT = 'More coming soon.';
+
+/** Matches an `## ClassName` heading — see scaffold-variable-guide.mjs,
+ * which generates one such heading per legend class. */
+const CLASS_HEADING_PATTERN = /^##\s+(.+)$/gm;
+
+/** Splits guide markdown into the free-form intro (everything before the
+ * first `## ` heading) and a class-name -> body map for each `## ` section,
+ * so per-class prose renders alongside that class's color swatch in the
+ * Categories list below, instead of as a second, disconnected listing of
+ * bare headings up top. */
+function splitGuideContentByClass(content: string): {
+  intro: string;
+  classSections: Map<string, string>;
+} {
+  const classSections = new Map<string, string>();
+  const matches = [...content.matchAll(CLASS_HEADING_PATTERN)];
+  if (matches.length === 0) {
+    return { intro: content, classSections };
+  }
+  const intro = content.slice(0, matches[0].index).trim();
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i];
+    const name = match[1].trim();
+    const start = match.index! + match[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : content.length;
+    classSections.set(name, content.slice(start, end).trim());
+  }
+  return { intro, classSections };
+}
 
 type VariableGuideRouteParams = {
   slug?: string;
@@ -49,7 +79,6 @@ type VariableGuideRouteParams = {
 export default function VariableGuideScreen() {
   const params = useLocalSearchParams<VariableGuideRouteParams>();
   const slug = typeof params.slug === 'string' ? params.slug : '';
-  const router = useRouter();
   const responsive = useResponsive();
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -118,6 +147,10 @@ export default function VariableGuideScreen() {
       ? normalizeLabel(slug)
       : 'Variable';
   const guideContent = VARIABLE_GUIDES[slug] ?? NO_GUIDE_YET_CONTENT;
+  const { intro, classSections } = React.useMemo(
+    () => splitGuideContentByClass(guideContent),
+    [guideContent],
+  );
   const sources = (variable?.sourceIds ?? [])
     .map((id) => dataSources[id])
     .filter((source): source is NonNullable<typeof source> => Boolean(source));
@@ -164,7 +197,7 @@ export default function VariableGuideScreen() {
               ) : (
                 <>
                   <View style={styles.section}>
-                    <Markdown>{guideContent}</Markdown>
+                    <Markdown>{intro}</Markdown>
                   </View>
 
                   <View style={styles.section}>
@@ -194,16 +227,14 @@ export default function VariableGuideScreen() {
                           return isVariableTypeKey(
                             displayType.toLowerCase(),
                           ) ? (
-                            <ThemedText
-                              variant='bodySmallLink'
-                              onPress={() =>
-                                router.push(
-                                  `/guides/variables/types/${displayType.toLowerCase()}`,
-                                )
-                              }
+                            <RoutePressable
+                              href={`/guides/variables/types/${displayType.toLowerCase()}`}
+                              accessibilityRole='link'
                             >
-                              {normalizeLabel(displayType)}
-                            </ThemedText>
+                              <ThemedText variant='bodySmallLink'>
+                                {normalizeLabel(displayType)}
+                              </ThemedText>
+                            </RoutePressable>
                           ) : (
                             <ThemedText variant='bodySmall'>
                               {normalizeLabel(displayType)}
@@ -285,17 +316,17 @@ export default function VariableGuideScreen() {
                       </ThemedText>
                       <View style={styles.linkList}>
                         {compositionMembers.map((member) => (
-                          <ThemedText
+                          <RoutePressable
                             key={member.id}
-                            variant='link'
-                            onPress={() =>
-                              router.push(`/guides/variables/${member.id}`)
-                            }
+                            href={`/guides/variables/${member.id}`}
+                            accessibilityRole='link'
                           >
-                            {member.compositionLabel ??
-                              member.name ??
-                              normalizeLabel(member.id)}
-                          </ThemedText>
+                            <ThemedText variant='link'>
+                              {member.compositionLabel ??
+                                member.name ??
+                                normalizeLabel(member.id)}
+                            </ThemedText>
+                          </RoutePressable>
                         ))}
                       </View>
                     </View>
@@ -315,33 +346,44 @@ export default function VariableGuideScreen() {
                             legendColorMode,
                             legendClass.color ?? '#888888',
                           );
+                          const classBody = classSections.get(legendClass.name);
                           return (
-                            <View key={legendClass.id} style={styles.legendRow}>
-                              {useShapes ? (
-                                <View
-                                  testID={`legend-swatch-${legendClass.id}`}
-                                >
-                                  <ShapeMarker
-                                    shape={getCbShape(
-                                      variable.id,
-                                      Number(legendClass.id),
-                                    )}
-                                    color={classColor}
-                                    size={16}
+                            <View
+                              key={legendClass.id}
+                              style={styles.legendItem}
+                            >
+                              <View style={styles.legendRow}>
+                                {useShapes ? (
+                                  <View
+                                    testID={`legend-swatch-${legendClass.id}`}
+                                  >
+                                    <ShapeMarker
+                                      shape={getCbShape(
+                                        variable.id,
+                                        Number(legendClass.id),
+                                      )}
+                                      color={classColor}
+                                      size={16}
+                                    />
+                                  </View>
+                                ) : (
+                                  <View
+                                    testID={`legend-swatch-${legendClass.id}`}
+                                    style={[
+                                      styles.legendSwatch,
+                                      { backgroundColor: classColor },
+                                    ]}
                                   />
+                                )}
+                                <ThemedText variant='bodySmall'>
+                                  {legendClass.name}
+                                </ThemedText>
+                              </View>
+                              {classBody ? (
+                                <View style={styles.legendBody}>
+                                  <Markdown>{classBody}</Markdown>
                                 </View>
-                              ) : (
-                                <View
-                                  testID={`legend-swatch-${legendClass.id}`}
-                                  style={[
-                                    styles.legendSwatch,
-                                    { backgroundColor: classColor },
-                                  ]}
-                                />
-                              )}
-                              <ThemedText variant='bodySmall'>
-                                {legendClass.name}
-                              </ThemedText>
+                              ) : null}
                             </View>
                           );
                         })}
@@ -385,9 +427,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   legendList: {
-    gap: Size.space.text.line,
+    gap: Size.space.text.paragraph,
   },
   linkList: {
+    gap: Size.space.text.line,
+  },
+  legendItem: {
     gap: Size.space.text.line,
   },
   legendRow: {
@@ -399,5 +444,8 @@ const styles = StyleSheet.create({
     width: Size.space['400'],
     height: Size.space['400'],
     borderRadius: Size.radius['100'],
+  },
+  legendBody: {
+    paddingLeft: Size.space['600'],
   },
 });

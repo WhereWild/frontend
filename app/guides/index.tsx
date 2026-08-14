@@ -4,10 +4,10 @@
 
 import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useRouter } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
 
@@ -26,7 +26,6 @@ const GUIDE_LINKS = [
 
 export default function GuidesIndexScreen() {
   const responsive = useResponsive();
-  const router = useRouter();
 
   return (
     <>
@@ -63,12 +62,9 @@ export default function GuidesIndexScreen() {
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
               {GUIDE_LINKS.map((guide) => (
                 <View key={guide.route} style={styles.section}>
-                  <ThemedText
-                    variant='link'
-                    onPress={() => router.push(guide.route)}
-                  >
-                    {guide.label}
-                  </ThemedText>
+                  <RoutePressable href={guide.route} accessibilityRole='link'>
+                    <ThemedText variant='link'>{guide.label}</ThemedText>
+                  </RoutePressable>
                   <ThemedText variant='bodySmall'>
                     {guide.description}
                   </ThemedText>

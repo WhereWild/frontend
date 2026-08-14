@@ -6,10 +6,10 @@
  * `value_type` can be — same vocabulary used by the /guides/variables/types
  * reference pages. */
 export const VARIABLE_TYPES = [
-  { key: 'nominal', label: 'Nominal' },
-  { key: 'ordinal', label: 'Ordinal' },
-  { key: 'interval', label: 'Interval' },
   { key: 'ratio', label: 'Ratio' },
+  { key: 'interval', label: 'Interval' },
+  { key: 'ordinal', label: 'Ordinal' },
+  { key: 'nominal', label: 'Nominal' },
   { key: 'circular', label: 'Circular' },
 ] as const;
 

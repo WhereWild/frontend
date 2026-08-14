@@ -7,6 +7,7 @@ import type { SelectOption } from '@/components';
 import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { PageSurface } from '@/components/PageSurface';
 import { PageScrollContainer } from '@/components/PageScrollContainer';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { Colors, Size } from '@/constants/theme';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
@@ -15,7 +16,6 @@ import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings, type UnitSystem } from '@/context/SettingsContext';
 import { StyleSheet, View } from 'react-native';
@@ -174,7 +174,6 @@ const buildTileUrl = ({
 };
 
 export default function Maps() {
-  const router = useRouter();
   const {
     units,
     colormap: selectedColormap,
@@ -753,16 +752,12 @@ export default function Maps() {
                 />
               )}
             {selectedVariable ? (
-              <ThemedText
-                variant='bodySmallLink'
-                onPress={() =>
-                  router.push(
-                    `/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`,
-                  )
-                }
+              <RoutePressable
+                href={`/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`}
+                accessibilityRole='link'
               >
-                {'View guide'}
-              </ThemedText>
+                <ThemedText variant='bodySmallLink'>{'View guide'}</ThemedText>
+              </RoutePressable>
             ) : null}
           </View>
         </PageScrollContainer>

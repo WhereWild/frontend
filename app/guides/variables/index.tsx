@@ -4,6 +4,7 @@
 
 import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import {
   getFamilyLabel,
   groupVariablesByFamily,
@@ -15,7 +16,6 @@ import { Size } from '@/constants/theme';
 import { fetchEnvironmentVariables } from '@/data/api';
 import type { EnvironmentVariableDefinition } from '@/data/types';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useRouter } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
@@ -51,12 +51,14 @@ const groupByCategory = (entries: VariableFamilyEntry[]) => {
   for (const groupEntries of groups.values()) {
     groupEntries.sort((a, b) => a.label.localeCompare(b.label));
   }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  // Category order follows first-encounter order in the backend's /variables
+  // response (itself driven by config/gis/catalog.json's category order) —
+  // not alphabetical.
+  return [...groups.entries()];
 };
 
 export default function VariableGuidesIndexScreen() {
   const responsive = useResponsive();
-  const router = useRouter();
   const [variables, setVariables] = React.useState<
     EnvironmentVariableDefinition[]
   >([]);
@@ -129,15 +131,13 @@ export default function VariableGuidesIndexScreen() {
                     </ThemedText>
                     <View style={styles.linkList}>
                       {categoryEntries.map((entry) => (
-                        <ThemedText
+                        <RoutePressable
                           key={entry.key}
-                          variant='link'
-                          onPress={() =>
-                            router.push(`/guides/variables/${entry.key}`)
-                          }
+                          href={`/guides/variables/${entry.key}`}
+                          accessibilityRole='link'
                         >
-                          {entry.label}
-                        </ThemedText>
+                          <ThemedText variant='link'>{entry.label}</ThemedText>
+                        </RoutePressable>
                       ))}
                     </View>
                   </View>

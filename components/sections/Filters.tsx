@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
-import { useRouter } from 'expo-router';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -192,7 +192,6 @@ export function Filters({
 
   const pageSize = numberOfResults > 0 ? numberOfResults : 1;
   const currentPage = Math.floor(listOffset / pageSize) + 1;
-  const router = useRouter();
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
   const canGoPrevious = currentPage > 1;
   const canGoNext = currentPage < totalPages;
@@ -325,12 +324,12 @@ export function Filters({
           />
         )}
         {selectedBaseKey ? (
-          <ThemedText
-            variant='bodySmallLink'
-            onPress={() => router.push(`/guides/variables/${selectedBaseKey}`)}
+          <RoutePressable
+            href={`/guides/variables/${selectedBaseKey}`}
+            accessibilityRole='link'
           >
-            {'View guide'}
-          </ThemedText>
+            <ThemedText variant='bodySmallLink'>{'View guide'}</ThemedText>
+          </RoutePressable>
         ) : null}
         <SelectField
           label='Sorting metric'
