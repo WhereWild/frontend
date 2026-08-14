@@ -1241,6 +1241,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // scale — see the addTo() calls above).
         '.leaflet-bottom.leaflet-left{display:flex !important;flex-direction:row !important;align-items:flex-end !important}',
         '.leaflet-bottom.leaflet-left .leaflet-control{float:none !important;clear:none !important;margin:0 0 10px 10px !important}',
+        '.leaflet-control-scale.wherewild-scale-centered{position:fixed !important;top:50% !important;left:50% !important;right:auto !important;bottom:auto !important;margin:0 !important;transform:translate(-50%,-50%);z-index:2000}',
       ].join('');
       var el = document.createElement('style');
       el.textContent = css;
@@ -1283,11 +1284,25 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // control stack ran tall enough to be hidden underneath the left-side
     // legend overlay the consuming page renders there.
     L.control.attribution({ position: 'bottomleft' }).addTo(map);
-    L.control.scale({
-      position: 'bottomleft',
-      metric: UNIT_SYSTEM !== 'imperial',
-      imperial: UNIT_SYSTEM === 'imperial',
-    }).addTo(map);
+    // Tapping the scale bar toggles it between docked bottom-left (default)
+    // and centered over the map — the corner is a fine resting spot, but
+    // it's awkward for actually eyeballing distance against something
+    // mid-map, so a tap moves it there instead. Not persisted: always
+    // starts docked again on the next load.
+    (function() {
+      var scaleCtrl = L.control.scale({
+        position: 'bottomleft',
+        metric: UNIT_SYSTEM !== 'imperial',
+        imperial: UNIT_SYSTEM === 'imperial',
+      }).addTo(map);
+      var scaleEl = scaleCtrl.getContainer();
+      L.DomEvent.disableClickPropagation(scaleEl);
+      L.DomEvent.disableScrollPropagation(scaleEl);
+      scaleEl.style.cursor = 'pointer';
+      scaleEl.addEventListener('click', function() {
+        scaleEl.classList.toggle('wherewild-scale-centered');
+      });
+    })();
 
     function applyMinZoomForSize() {
       map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));

@@ -1060,6 +1060,20 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // column, and the default vertical control stack ran tall enough to be
     // hidden underneath it).
     map.addControl(new maplibregl.ScaleControl({ unit: UNIT_SYSTEM }), 'bottom-left');
+    // Tapping the scale bar toggles it between docked bottom-left (default)
+    // and centered over the map — the corner is a fine resting spot, but
+    // it's awkward for actually eyeballing distance against something
+    // mid-map, so a tap moves it there instead. Not persisted: always
+    // starts docked again on the next load.
+    (function() {
+      var scaleEl = document.querySelector('.maplibregl-ctrl-scale');
+      if (!scaleEl) return;
+      scaleEl.style.cursor = 'pointer';
+      scaleEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        scaleEl.classList.toggle('wherewild-scale-centered');
+      });
+    })();
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     // MapLibre's built-in FullscreenControl fullscreens map.getContainer()
     // itself, inside this iframe's own document — that would only ever show
@@ -1422,6 +1436,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // attribution — see the addControl() calls above).
         '.maplibregl-ctrl-bottom-left{display:flex !important;flex-direction:row !important;align-items:flex-end !important}',
         '.maplibregl-ctrl-bottom-left .maplibregl-ctrl{float:none !important;clear:none !important;margin:0 0 10px 10px !important}',
+        '.maplibregl-ctrl-scale.wherewild-scale-centered{position:fixed !important;top:50% !important;left:50% !important;right:auto !important;bottom:auto !important;margin:0 !important;transform:translate(-50%,-50%);z-index:2000}',
         '.maplibregl-popup-content{background:' + bg + ';color:' + text + '}',
         '.maplibregl-popup-content a,.maplibregl-popup-content a:visited{color:' + link + ' !important}',
         '.maplibregl-popup-tip{border-top-color:' + bg + ' !important;border-bottom-color:' + bg + ' !important}',

@@ -423,7 +423,15 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
       control: {
         attribution: jest.fn(() => ({ addTo: jest.fn() })),
-        scale: jest.fn(() => ({ addTo: jest.fn() })),
+        scale: jest.fn(() => ({
+          addTo: jest.fn(() => ({
+            getContainer: jest.fn(() => ({
+              style: {},
+              classList: { toggle: jest.fn() },
+              addEventListener: jest.fn(),
+            })),
+          })),
+        })),
       },
       DomUtil: {
         create: jest.fn((tagName: string) => {
@@ -440,6 +448,7 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
       DomEvent: {
         disableClickPropagation: jest.fn(),
+        disableScrollPropagation: jest.fn(),
         on: jest.fn(),
       },
     };
