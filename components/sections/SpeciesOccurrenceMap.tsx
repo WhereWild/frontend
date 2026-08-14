@@ -897,6 +897,7 @@ export function SpeciesOccurrenceMap({
       memoBasemapMode,
       satelliteTileUrl,
       variableModeBackgroundTileUrl,
+      settings?.units,
     );
   }, [
     allowPinObservations,
@@ -941,6 +942,7 @@ export function SpeciesOccurrenceMap({
     memoBasemapMode,
     satelliteTileUrl,
     variableModeBackgroundTileUrl,
+    settings?.units,
   ]);
 
   React.useEffect(() => {

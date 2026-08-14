@@ -64,6 +64,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const TILE_URL = __TILE_URL_JSON__;
     const TILE_MAX_ZOOM = __TILE_MAX_ZOOM__;
     const MAP_TILE_MODE = __MAP_TILE_MODE_JSON__;
+    const UNIT_SYSTEM = __UNIT_SYSTEM_JSON__;
     const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     const HEATMAP_TILE_URL = __HEATMAP_TILE_URL_JSON__;
     const HEATMAP_OPACITY = __HEATMAP_OPACITY__;
@@ -809,7 +810,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // page expects (left-side legend overlay already claims the far-left
     // column, and the default vertical control stack ran tall enough to be
     // hidden underneath it).
-    map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
+    map.addControl(new maplibregl.ScaleControl({ unit: UNIT_SYSTEM }), 'bottom-left');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     // MapLibre's built-in FullscreenControl fullscreens map.getContainer()
     // itself, inside this iframe's own document — that would only ever show

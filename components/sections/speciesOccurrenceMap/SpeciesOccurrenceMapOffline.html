@@ -1078,6 +1078,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const TILE_REFERRER_POLICY = __REFERRER_POLICY_JSON__;
     const TILE_URL = __TILE_URL_JSON__;
 const MAP_TILE_MODE = __MAP_TILE_MODE_JSON__;
+const UNIT_SYSTEM = __UNIT_SYSTEM_JSON__;
 const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     const TILE_ATTRIBUTION = __TILE_ATTRIBUTION_JSON__;
     // Esri World Imagery, proxied through our own backend (see
@@ -1282,7 +1283,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // control stack ran tall enough to be hidden underneath the left-side
     // legend overlay the consuming page renders there.
     L.control.attribution({ position: 'bottomleft' }).addTo(map);
-    L.control.scale({ position: 'bottomleft' }).addTo(map);
+    L.control.scale({
+      position: 'bottomleft',
+      metric: UNIT_SYSTEM !== 'imperial',
+      imperial: UNIT_SYSTEM === 'imperial',
+    }).addTo(map);
 
     function applyMinZoomForSize() {
       map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));

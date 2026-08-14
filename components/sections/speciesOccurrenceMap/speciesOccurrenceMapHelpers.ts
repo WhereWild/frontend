@@ -6,7 +6,7 @@ import { Asset } from 'expo-asset';
 import Constants from 'expo-constants';
 
 import { BACKEND_BASE } from '@/data/apiShared';
-import type { BasemapMode } from '@/context/SettingsContext';
+import type { BasemapMode, UnitSystem } from '@/context/SettingsContext';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
@@ -147,6 +147,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
   initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
   mapTileMode: '__MAP_TILE_MODE_JSON__',
+  unitSystem: '__UNIT_SYSTEM_JSON__',
   enableOfflineFallback: '__ENABLE_OFFLINE_FALLBACK__',
   leafletResizeObserverScript: '__LEAFLET_RESIZE_OBSERVER_SCRIPT__',
   leafletHeatmapTrackingScript: '__LEAFLET_HEATMAP_TRACKING_SCRIPT__',
@@ -1291,6 +1292,7 @@ const fillMapTemplatePlaceholders = (
   basemapMode?: BasemapMode,
   satelliteTileUrl?: string | null,
   variableModeBackgroundTileUrl?: string | null,
+  unitSystem?: UnitSystem,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1476,6 +1478,9 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.mapTileMode)
     .join(JSON.stringify(tileMode === 'dark' ? 'dark' : 'light'));
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.unitSystem)
+    .join(JSON.stringify(unitSystem === 'imperial' ? 'imperial' : 'metric'));
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.enableOfflineFallback)
     .join(enableOfflineFallback ? 'true' : 'false');
   html = html
@@ -1577,6 +1582,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     basemapMode,
     satelliteTileUrl,
     variableModeBackgroundTileUrl,
+    unitSystem,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1627,6 +1633,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     variableModeBackgroundTileUrl
       ? stripRetinaPlaceholder(variableModeBackgroundTileUrl)
       : variableModeBackgroundTileUrl,
+    unitSystem,
   );
 };
 
