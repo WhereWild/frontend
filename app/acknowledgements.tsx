@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
+import {
+  Markdown,
+  PageScrollContainer,
+  PageTitle,
+  ThemedText,
+} from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
@@ -11,6 +16,7 @@ import { useDataSources } from '@/hooks/useDataSources';
 import { useResponsive } from '@/hooks/useResponsive';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
+import ACKNOWLEDGEMENTS_CONTENT from '@/content/acknowledgements.md';
 
 export function SourceEntry({ source }: { source: DataSource }) {
   return (
@@ -113,11 +119,7 @@ export default function AcknowledgementsScreen() {
           >
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
               <View style={styles.section}>
-                <ThemedText variant='body'>
-                  {
-                    'WhereWild is built on top of a number of remarkable open datasets. We are deeply grateful to the researchers and organizations who made their work freely available. WhereWild is and will always be completely free and open source, in compliance with the non-commercial licenses of many of these datasets.'
-                  }
-                </ThemedText>
+                <Markdown>{ACKNOWLEDGEMENTS_CONTENT}</Markdown>
               </View>
               {sources.length > 0 ? (
                 <View style={styles.section}>

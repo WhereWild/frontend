@@ -38,7 +38,8 @@ jest.mock('@/components/PageSurface', () => ({
 
 jest.mock('@/components', () => {
   const React = jest.requireActual('react');
-  const { Text, View, Pressable } = jest.requireActual('react-native');
+  const { Text, View } = jest.requireActual('react-native');
+  const { Markdown } = jest.requireActual('@/components/markdown/Markdown');
 
   return {
     PageScrollContainer: ({ children }: { children?: React.ReactNode }) => (
@@ -47,22 +48,7 @@ jest.mock('@/components', () => {
     PageTitle: ({ title }: { title: string }) => (
       <Text testID='page-title'>{title}</Text>
     ),
-    ThemedText: ({
-      children,
-      onPress,
-      variant,
-    }: {
-      children?: React.ReactNode;
-      onPress?: () => void;
-      variant?: string;
-    }) =>
-      onPress ? (
-        <Pressable onPress={onPress}>
-          <Text>{children}</Text>
-        </Pressable>
-      ) : (
-        <Text>{children}</Text>
-      ),
+    Markdown,
   };
 });
 

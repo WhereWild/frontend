@@ -2,17 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
+import { Markdown, PageScrollContainer, PageTitle } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
 import { useResponsive } from '@/hooks/useResponsive';
-import { useRouter } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
+import HOME_CONTENT from '@/content/home.md';
 
 export default function HomeScreen() {
-  const router = useRouter();
   const responsive = useResponsive();
 
   return (
@@ -42,35 +41,7 @@ export default function HomeScreen() {
             ]}
           >
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
-              <ThemedText variant='body'>
-                {
-                  'Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use '
-                }
-                <ThemedText
-                  variant='link'
-                  onPress={() => router.push('/search')}
-                >
-                  {'search filters'}
-                </ThemedText>
-                {
-                  ' to sort and filter species by many criteria. Explore GIS data on the '
-                }
-                <ThemedText variant='link' onPress={() => router.push('/maps')}>
-                  {'maps'}
-                </ThemedText>
-                {' page, adjust your preferences in '}
-                <ThemedText
-                  variant='link'
-                  onPress={() => router.push('/settings')}
-                >
-                  {'settings'}
-                </ThemedText>
-                {', or read the '}
-                <ThemedText variant='link' onPress={() => router.push('/help')}>
-                  {'help page'}
-                </ThemedText>
-                {' to learn more about how everything works.'}
-              </ThemedText>
+              <Markdown>{HOME_CONTENT}</Markdown>
             </View>
           </View>
         </PageScrollContainer>

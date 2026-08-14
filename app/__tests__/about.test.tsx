@@ -40,8 +40,10 @@ jest.mock('@/data/api', () => ({
 jest.mock('@/components', () => {
   const React = jest.requireActual('react');
   const { Text, View } = jest.requireActual('react-native');
+  const { Markdown } = jest.requireActual('@/components/markdown/Markdown');
 
   return {
+    Markdown,
     ContentImage: ({ label }: { label?: string }) =>
       React.createElement(View, { accessibilityLabel: label }),
     IconButton: ({

@@ -48,6 +48,9 @@ export type {
 
 export { WebPageFooter } from './sections/webPageFooter/WebPageFooter';
 
+export { Markdown } from './markdown/Markdown';
+export type { MarkdownProps } from './markdown/Markdown';
+
 export { TopAppBar } from './sections/topAppBar/TopAppBar';
 export type {
   TopAppBarProps,

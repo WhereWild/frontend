@@ -97,6 +97,7 @@ jest.mock('@/hooks/useResponsive', () => ({
 jest.mock('@/components', () => {
   const React = jest.requireActual('react');
   const { Text, View } = jest.requireActual('react-native');
+  const { Markdown } = jest.requireActual('@/components/markdown/Markdown');
 
   return {
     PageScrollContainer: ({ children }: { children?: React.ReactNode }) =>
@@ -112,6 +113,7 @@ jest.mock('@/components', () => {
       style?: object;
       onPress?: () => void;
     }) => React.createElement(Text, { onPress }, children),
+    Markdown,
   };
 });
 

@@ -1,0 +1,1 @@
+WhereWild is built on top of a number of remarkable open datasets. We are deeply grateful to the researchers and organizations who made their work freely available. WhereWild is and will always be completely free and open source, in compliance with the non-commercial licenses of many of these datasets.
