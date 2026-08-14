@@ -72,4 +72,13 @@ describe('VariableTypesIndexScreen', () => {
     fireEvent.press(screen.getByText('Ordinal'));
     expect(mockPush).toHaveBeenCalledWith('/guides/variables/types/ordinal');
   });
+
+  it('lists Compositional at the bottom, linking to the standalone compositional guide (not a fake value_type route)', () => {
+    render(<VariableTypesIndexScreen />);
+
+    expect(screen.getByText('Compositional')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Compositional'));
+    expect(mockPush).toHaveBeenCalledWith('/guides/compositional');
+  });
 });

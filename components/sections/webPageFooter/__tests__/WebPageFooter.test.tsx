@@ -114,13 +114,6 @@ describe('WebPageFooter', () => {
     }
   });
 
-  it('renders a "|" separator between every link', () => {
-    render(<WebPageFooter />);
-
-    // 10 internal links -> 9 separators between them.
-    expect(screen.getAllByText('  |  ').length).toBe(9);
-  });
-
   it('still links to every internal page when stacked on a phone-width viewport', () => {
     mockUseResponsive.mockReturnValue({
       breakpoint: 'phone',

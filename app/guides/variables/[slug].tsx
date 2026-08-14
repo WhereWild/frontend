@@ -243,6 +243,24 @@ export default function VariableGuideScreen() {
                         })()}
                       </View>
                     ) : null}
+                    {variable?.compositionGroup ? (
+                      <View style={styles.statRow}>
+                        <ThemedText
+                          variant='bodySmall'
+                          style={{ color: palette.text.default.secondary }}
+                        >
+                          {'Secondary type'}
+                        </ThemedText>
+                        <RoutePressable
+                          href='/guides/compositional'
+                          accessibilityRole='link'
+                        >
+                          <ThemedText variant='bodySmallLink'>
+                            {'Compositional'}
+                          </ThemedText>
+                        </RoutePressable>
+                      </View>
+                    ) : null}
                     {variable?.domain ? (
                       <View style={styles.statRow}>
                         <ThemedText

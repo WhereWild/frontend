@@ -420,6 +420,41 @@ describe('VariableGuideScreen', () => {
     expect(mockPush).toHaveBeenCalledWith('/guides/variables/sand');
   });
 
+  it('shows a "Secondary type" row linking to the compositional guide for any variable with a compositionGroup', async () => {
+    mockSlug = 'clay';
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      {
+        id: 'clay',
+        name: 'Clay Content (0–5cm)',
+        valueType: 'ratio',
+        compositionGroup: 'soil_texture',
+        compositionAxis: 'top',
+        compositionLabel: 'Clay',
+      },
+    ]);
+
+    render(<VariableGuideScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Secondary type')).toBeTruthy(),
+    );
+    expect(screen.getByText('Compositional')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Compositional'));
+    expect(mockPush).toHaveBeenCalledWith('/guides/compositional');
+  });
+
+  it('omits the "Secondary type" row for a variable with no compositionGroup', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      { id: 'bio1', name: 'Annual Mean Temperature', valueType: 'ratio' },
+    ]);
+
+    render(<VariableGuideScreen />);
+
+    await waitFor(() => expect(screen.getByText('bio1')).toBeTruthy());
+    expect(screen.queryByText('Secondary type')).toBeNull();
+  });
+
   it('links the classifier to its composition members', async () => {
     mockSlug = 'soil_texture';
     mockFetchEnvironmentVariables.mockResolvedValue([

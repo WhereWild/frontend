@@ -33,9 +33,3 @@
 ## Entropy
 
 ## Mode
-
-## Compositional Variables
-
-<!-- Ratio-typed variables that are part of a ternary composition (e.g. soil
-     texture's sand/silt/clay) use these same metrics — no separate metric
-     set. Notes on interpreting them as parts of a whole go here. -->

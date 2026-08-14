@@ -112,28 +112,25 @@ export function WebPageFooter() {
         ) : null}
       </View>
       <View style={[styles.column, isCompact && styles.columnCompact]}>
-        {/* Nested Text wraps like ordinary sentence text, so links and "|"
-            separators flow and break naturally -- no manual layout
-            measurement needed, and copy/paste extracts clean plain text
-            (unlike a View-based layout, where each block-level View forces
-            a newline into copied text regardless of visual flex layout).
-            The separator's leading spaces are regular (breakable) but its
-            trailing space is non-breaking, so a line can only wrap before a
-            "|", never between it and the label it precedes -- otherwise a
-            "|" can strand itself alone at the end of a line. RoutePressable
-            renders a real <a href> inline here, so ctrl/cmd/middle-click
-            "open in new tab" works, unlike a plain onPress handler. */}
+        {/* Nested Text wraps like ordinary sentence text, so links flow and
+            break naturally -- no manual layout measurement needed, and
+            copy/paste extracts clean plain text (unlike a View-based
+            layout, where each block-level View forces a newline into
+            copied text regardless of visual flex layout). No separator
+            glyph between links -- a "|" would sometimes land as the first
+            character of a wrapped line (CSS has a clean fix for that via
+            ::after pseudo-elements, which don't exist in React Native's
+            styling model) -- spacing alone separates them instead.
+            RoutePressable renders a real <a href> inline here, so
+            ctrl/cmd/middle-click "open in new tab" works, unlike a plain
+            onPress handler. */}
         <ThemedText
           variant='bodySmall'
           style={[styles.internalLinks, isCompact && styles.centeredText]}
         >
           {INTERNAL_LINKS.map(({ label, route }, index) => (
             <React.Fragment key={label}>
-              {index > 0 ? (
-                <ThemedText variant='bodyTiny' style={tinyTextStyle}>
-                  {'  | '}
-                </ThemedText>
-              ) : null}
+              {index > 0 ? '   ' : ''}
               <RoutePressable href={route} accessibilityRole='link'>
                 <ThemedText variant='bodySmallLink'>{label}</ThemedText>
               </RoutePressable>
@@ -180,17 +177,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   internalLinks: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     maxWidth: 340,
-    rowGap: Size.space['100'],
-  },
-  internalLinksCentered: {
-    justifyContent: 'center',
-  },
-  internalLinkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Size.space['200'],
   },
 });
