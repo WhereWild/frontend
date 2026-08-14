@@ -1231,6 +1231,15 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         '.leaflet-locate-btn:hover{background:' + bdr + ' !important}',
         '.leaflet-control-attribution{background:' + bg + ' !important;color:' + text + '}',
         '.leaflet-control-attribution a{color:' + link + ' !important}',
+        '.leaflet-control-scale-line{background:' + bg + ' !important;color:' + text + ';border-color:' + text + '}',
+        // Leaflet stacks same-corner controls in a vertical column by
+        // default (float+clear:both) — tall enough at bottom-left to run
+        // under the left-side legend overlay the consuming page renders
+        // there. Force a horizontal row instead so attribution and the
+        // scale bar sit side by side, in DOM/add order (attribution, then
+        // scale — see the addTo() calls above).
+        '.leaflet-bottom.leaflet-left{display:flex !important;flex-direction:row !important;align-items:flex-end !important}',
+        '.leaflet-bottom.leaflet-left .leaflet-control{float:none !important;clear:none !important;margin:0 0 10px 10px !important}',
       ].join('');
       var el = document.createElement('style');
       el.textContent = css;
@@ -1267,7 +1276,13 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // manually below at bottomleft instead so the two never collide.
       attributionControl: false,
     });
+    // Added in this order (attribution before scale) so that, once the
+    // bottom-left corner is forced into a horizontal row below, the scale
+    // bar renders to the right of attribution — the default vertical
+    // control stack ran tall enough to be hidden underneath the left-side
+    // legend overlay the consuming page renders there.
     L.control.attribution({ position: 'bottomleft' }).addTo(map);
+    L.control.scale({ position: 'bottomleft' }).addTo(map);
 
     function applyMinZoomForSize() {
       map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));

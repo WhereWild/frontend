@@ -1052,6 +1052,13 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
 
     map.addControl(new maplibregl.NavigationControl());
     map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }));
+    // Added in this order (scale before attribution) so that, once the
+    // bottom-left corner is forced into a horizontal row below, the scale
+    // bar renders to the left of attribution, per the layout the consuming
+    // page expects (left-side legend overlay already claims the far-left
+    // column, and the default vertical control stack ran tall enough to be
+    // hidden underneath it).
+    map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     // MapLibre's built-in FullscreenControl fullscreens map.getContainer()
     // itself, inside this iframe's own document — that would only ever show
@@ -1405,6 +1412,15 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         '.maplibregl-ctrl-icon,.maplibregl-ctrl-attrib-button{filter:' + iconFilter + '}',
         '.maplibregl-ctrl-attrib{background:' + bg + ' !important;color:' + text + '}',
         '.maplibregl-ctrl-attrib a{color:' + link + ' !important}',
+        '.maplibregl-ctrl-scale{background:' + bg + ' !important;color:' + text + ';border-color:' + text + '}',
+        // MapLibre stacks same-corner controls in a vertical column by
+        // default (float+clear:both) — tall enough at bottom-left to run
+        // under the left-side legend overlay the consuming page renders
+        // there. Force a horizontal row instead so the scale bar and
+        // attribution sit side by side, in DOM/add order (scale, then
+        // attribution — see the addControl() calls above).
+        '.maplibregl-ctrl-bottom-left{display:flex !important;flex-direction:row !important;align-items:flex-end !important}',
+        '.maplibregl-ctrl-bottom-left .maplibregl-ctrl{float:none !important;clear:none !important;margin:0 0 10px 10px !important}',
         '.maplibregl-popup-content{background:' + bg + ';color:' + text + '}',
         '.maplibregl-popup-content a,.maplibregl-popup-content a:visited{color:' + link + ' !important}',
         '.maplibregl-popup-tip{border-top-color:' + bg + ' !important;border-bottom-color:' + bg + ' !important}',

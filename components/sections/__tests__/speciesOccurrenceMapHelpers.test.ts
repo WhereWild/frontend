@@ -423,6 +423,7 @@ describe('speciesOccurrenceMapHelpers', () => {
       },
       control: {
         attribution: jest.fn(() => ({ addTo: jest.fn() })),
+        scale: jest.fn(() => ({ addTo: jest.fn() })),
       },
       DomUtil: {
         create: jest.fn((tagName: string) => {
