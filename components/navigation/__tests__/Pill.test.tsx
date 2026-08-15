@@ -452,4 +452,30 @@ describe('NavigationPill', () => {
 
     expect(getStableWrapperCount()).toBe(initialWrapperCount);
   });
+
+  it('clips a long label to one line instead of overflowing the pill', () => {
+    const longLabel =
+      'A Genuinely Extremely Long Ordinal Category Label That Would Otherwise Overflow';
+    const renderer = createRenderer(
+      <NavigationPill
+        id='one'
+        label={longLabel}
+        isActive={false}
+        onPress={jest.fn()}
+      />,
+    );
+
+    const labelText = renderer.root.findByProps({ children: longLabel });
+    expect(labelText.props.numberOfLines).toBe(1);
+
+    // The whole flex chain down to the label must allow shrinking below its
+    // content's natural width (minWidth: 0) — flex children default to
+    // min-width: auto, which silently defeats both maxWidth and
+    // numberOfLines by never asking the text to shrink/ellipsize at all.
+    const pill = renderer.root.findByProps({ accessibilityRole: 'radio' });
+    const pillStyle = StyleSheet.flatten(pill.props.style) as {
+      minWidth?: number;
+    };
+    expect(pillStyle.minWidth).toBe(0);
+  });
 });

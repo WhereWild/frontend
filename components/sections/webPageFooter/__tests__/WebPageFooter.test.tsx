@@ -21,6 +21,7 @@ jest.mock('@/hooks/useColorScheme', () => ({
 jest.mock('@/hooks/useResponsive', () => ({
   useResponsive: jest.fn(() => ({
     breakpoint: 'desktop',
+    isKnownWidth: true,
     contentWidth: 1200,
     gap: 32,
     marginHorizontal: 32,
@@ -48,6 +49,7 @@ describe('WebPageFooter', () => {
     mockUseColorScheme.mockReturnValue('light');
     mockUseResponsive.mockReturnValue({
       breakpoint: 'desktop',
+      isKnownWidth: true,
       contentWidth: 1200,
       gap: 32,
       marginHorizontal: 32,
@@ -117,6 +119,7 @@ describe('WebPageFooter', () => {
   it('still links to every internal page when stacked on a phone-width viewport', () => {
     mockUseResponsive.mockReturnValue({
       breakpoint: 'phone',
+      isKnownWidth: true,
       contentWidth: 400,
       gap: 16,
       marginHorizontal: 16,
@@ -127,6 +130,30 @@ describe('WebPageFooter', () => {
     fireEvent.press(screen.getByText('Maps'));
 
     expect(mockPush).toHaveBeenCalledWith('/maps');
+  });
+
+  it('assumes desktop layout while the real width is unknown (SSR), even when the shared breakpoint guesses compact', () => {
+    // The shared responsive breakpoint defaults to 'tablet'/compact when
+    // width is unknown (right for nav — see WebPageHeader), but this
+    // footer's own bug needs the opposite guess. isKnownWidth: false
+    // simulates SSR; the footer should still render as if desktop,
+    // ignoring the compact breakpoint until the width is actually known.
+    mockUseResponsive.mockReturnValue({
+      breakpoint: 'phone',
+      isKnownWidth: false,
+      contentWidth: 400,
+      gap: 16,
+      marginHorizontal: 16,
+    } as any);
+
+    render(<WebPageFooter />);
+
+    const copyrightStyle = screen.getByText(
+      /© \d{4} The WhereWild Contributors/,
+    ).props.style;
+    expect(copyrightStyle).not.toContainEqual(
+      expect.objectContaining({ textAlign: 'center' }),
+    );
   });
 
   it('renders a copyright line and a last-build line', () => {

@@ -213,10 +213,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     maxWidth: '100%',
+    minWidth: 0,
   },
   innerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0,
+    flexShrink: 1,
   },
   iconSlot: {
     marginRight: Size.space['100'],
@@ -228,5 +231,6 @@ const styles = StyleSheet.create({
   },
   labelSlot: {
     flexShrink: 1,
+    minWidth: 0,
   },
 });
