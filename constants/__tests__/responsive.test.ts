@@ -98,14 +98,15 @@ describe('responsive factory', () => {
     expect(tabletResult.gap).not.toBe(desktopResult.gap);
   });
 
-  it('defaults to desktop when width is unavailable', () => {
+  it('defaults to tablet (compact) when width is unavailable', () => {
     const platform = makePlatform({ OS: 'ios' });
     const result = getResponsive({ platform, windowWidth: Number.NaN });
 
-    expect(result.breakpoint).toBe('desktop');
+    expect(result.breakpoint).toBe('tablet');
+    expect(result.isKnownWidth).toBe(false);
     expect(result.runtime).toBe('app');
     expect(result.platformOS).toBe('ios');
-    expect(result.byDevice.desktop.device).toBe('desktop');
+    expect(result.byDevice.tablet.device).toBe('tablet');
   });
 
   it('falls back to the platform Dimensions API when no windowWidth is given', () => {
@@ -119,12 +120,13 @@ describe('responsive factory', () => {
     const result = getResponsive({ platform });
 
     expect(result.breakpoint).toBe('tablet');
+    expect(result.isKnownWidth).toBe(true);
     expect(result.runtime).toBe('app');
     expect(result.platformOS).toBe('ios');
     expect(result.byDevice.tablet.device).toBe('tablet');
   });
 
-  it('defaults to desktop, not phone, when Dimensions reports width: 0 (the react-native-web SSR stub)', () => {
+  it('defaults to tablet, not phone, when Dimensions reports width: 0 (the react-native-web SSR stub)', () => {
     // react-native-web's Dimensions module hardcodes {width: 0, height: 0}
     // and only ever updates it once canUseDOM is true — during SSR (no real
     // DOM in that Node process) this is exactly what Dimensions.get('window')
@@ -141,7 +143,8 @@ describe('responsive factory', () => {
 
     getSpy.mockRestore();
 
-    expect(result.breakpoint).toBe('desktop');
+    expect(result.breakpoint).toBe('tablet');
+    expect(result.isKnownWidth).toBe(false);
   });
 
   it('throws a clear error when a required responsive variant is missing', () => {

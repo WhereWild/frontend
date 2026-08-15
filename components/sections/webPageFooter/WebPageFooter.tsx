@@ -55,7 +55,16 @@ export function WebPageFooter() {
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
-  const isCompact = responsive.breakpoint !== 'desktop';
+  // The shared breakpoint defaults to 'tablet' (compact) when the real
+  // width is unknown (SSR) — right for most consumers (nav shouldn't flash
+  // full desktop content on a phone), but wrong for this footer, whose own
+  // bug was the opposite: a compact/stacked layout on first paint that
+  // then snaps wide once hydration measures the real desktop viewport.
+  // Assume desktop layout specifically while the width is still unknown;
+  // once it's known, defer to the real measurement like everyone else.
+  const isCompact = responsive.isKnownWidth
+    ? responsive.breakpoint !== 'desktop'
+    : false;
   const [gbifCrawlDate, setGbifCrawlDate] = React.useState<string | null>(null);
   const [apiBuildDate, setApiBuildDate] = React.useState<string | null>(null);
 

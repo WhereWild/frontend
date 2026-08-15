@@ -318,8 +318,19 @@ const styles = StyleSheet.create({
   pillWrapper: {
     alignSelf: 'flex-start',
     maxWidth: '100%',
+    // Flex children default to min-width: auto — i.e. never shrink below
+    // their content's natural size — which silently defeats maxWidth: a
+    // pill with a long label would just overflow its row/screen instead of
+    // ever being asked to respect the cap. minWidth: 0 removes that floor
+    // so maxWidth (and NavigationPill's own numberOfLines={1} ellipsis)
+    // can actually take effect.
+    minWidth: 0,
   },
   pillWrapperHorizontal: {
+    // Pills don't need to shrink to fit alongside siblings — the row wraps
+    // instead — but a single pill wider than the row's own width still
+    // needs to respect pillWrapper's maxWidth above, which flexShrink: 0
+    // does not prevent (that only stops shrinking under sibling pressure).
     flexShrink: 0,
   },
   pillWrapperVertical: {

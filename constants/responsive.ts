@@ -26,6 +26,16 @@ export type ResponsiveByDevice = Record<ResponsiveVariant, ResponsiveVariantValu
 
 export type ResponsiveResult = {
   breakpoint: ResponsiveVariant;
+  /** False when `breakpoint` is a guess (SSR — no real window width was
+   * available), rather than a real viewport measurement. Most consumers
+   * can ignore this and just use `breakpoint` (which defaults to 'tablet'
+   * when unknown, so anything gated on `breakpoint !== 'desktop'` — nav
+   * collapsing to a hamburger menu, etc. — safely stays compact rather
+   * than flashing full desktop content on a phone). A component whose own
+   * bug is specifically about the *unknown* case needing the opposite
+   * guess (e.g. a footer that collapses awkwardly if it assumes compact)
+   * can check this to override just for itself. */
+  isKnownWidth: boolean;
   platformOS: string;
   runtime: ResponsiveRuntime;
   device: string;
@@ -108,13 +118,16 @@ const pickDimensionVariant = (
   // Unknown width happens during SSR (web output: 'server' — no `window`
   // there), where this guess gets baked into the initial HTML before the
   // client hydrates and re-measures the real viewport. Defaulting to
-  // 'desktop' means desktop visitors (the common case) see the correct
-  // layout immediately instead of a compact layout that snaps wide on
-  // hydration; phone/tablet visitors get the inverse flash instead. This
-  // doesn't eliminate the SSR/hydration mismatch — see useResponsive.ts —
-  // just picks who it affects.
+  // 'tablet' (i.e. "compact") means anything gated on
+  // `breakpoint !== 'desktop'` — most commonly nav collapsing to a
+  // hamburger menu — stays compact on first paint instead of flashing
+  // full desktop content that then collapses, which is the more jarring
+  // direction to get wrong (and phone visitors are the ones who'd see it).
+  // This doesn't eliminate the SSR/hydration mismatch — see
+  // ResponsiveResult.isKnownWidth for a component whose own bug needs the
+  // opposite guess.
   if (typeof width !== 'number' || Number.isNaN(width)) {
-    return 'desktop';
+    return 'tablet';
   }
 
   const { phone, tablet } = byDevice;
@@ -157,11 +170,14 @@ export const getResponsive = ({ platform = Platform, windowWidth }: ResponsiveOp
     throw new Error('Missing platform OS in getResponsive()');
   }
   const runtime: ResponsiveRuntime = platformOS === 'web' ? 'web' : 'app';
-  const breakpoint = pickDimensionVariant(windowWidth ?? getCurrentWindowWidth(), byDevice);
+  const resolvedWidth = windowWidth ?? getCurrentWindowWidth();
+  const isKnownWidth = typeof resolvedWidth === 'number' && !Number.isNaN(resolvedWidth);
+  const breakpoint = pickDimensionVariant(resolvedWidth, byDevice);
   const platformValues = byDevice[breakpoint];
 
   return {
     breakpoint,
+    isKnownWidth,
     platformOS,
     runtime,
     device: platformValues.device,
