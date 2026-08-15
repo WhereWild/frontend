@@ -88,7 +88,13 @@ const getCurrentWindowWidth = (): number | undefined => {
 
   try {
     const { width } = Dimensions.get?.('window') ?? {};
-    return typeof width === 'number' ? width : undefined;
+    // react-native-web's Dimensions module hardcodes {width: 0, height: 0}
+    // and only ever updates it when canUseDOM is true — during SSR (no real
+    // DOM in that Node process) this stub is exactly what comes back, and
+    // 0 is a valid number that would otherwise sail past the "unknown
+    // width" fallback below and get treated as an actual (phone-sized)
+    // viewport. Treat non-positive width the same as unknown.
+    return typeof width === 'number' && width > 0 ? width : undefined;
   } catch {
     return undefined;
   }
@@ -99,8 +105,16 @@ const pickDimensionVariant = (
   byDevice: ResponsiveByDevice,
 ): ResponsiveVariant => {
   // Breakpoints depend only on viewport width, independent of platform.
+  // Unknown width happens during SSR (web output: 'server' — no `window`
+  // there), where this guess gets baked into the initial HTML before the
+  // client hydrates and re-measures the real viewport. Defaulting to
+  // 'desktop' means desktop visitors (the common case) see the correct
+  // layout immediately instead of a compact layout that snaps wide on
+  // hydration; phone/tablet visitors get the inverse flash instead. This
+  // doesn't eliminate the SSR/hydration mismatch — see useResponsive.ts —
+  // just picks who it affects.
   if (typeof width !== 'number' || Number.isNaN(width)) {
-    return 'tablet';
+    return 'desktop';
   }
 
   const { phone, tablet } = byDevice;

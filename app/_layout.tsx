@@ -313,11 +313,26 @@ function RootLayoutWebFrame() {
   // page content under the fixed header on web.
   const resolvedWebHeaderHeight =
     webHeaderHeight > 0 ? webHeaderHeight : fallbackWebHeaderHeight;
-  const resolvedWebShellMinHeight = Math.max(viewportHeight, 0);
-  const resolvedWebContentMinHeight = Math.max(
-    0,
-    viewportHeight - resolvedWebHeaderHeight,
-  );
+  // useWindowDimensions() hits react-native-web's Dimensions module, which
+  // hardcodes {width: 0, height: 0} until canUseDOM is true — i.e. always
+  // during SSR (web output: 'server' — no real DOM in that Node process).
+  // A numeric minHeight of 0 baked into the initial HTML collapses the
+  // shell to its own content's natural height instead of the viewport, so
+  // the footer sits right under short page content on first paint and only
+  // drops to the bottom of the viewport once the client re-measures the
+  // real window height. Fall back to a CSS-native height for that case —
+  // the browser resolves it correctly without needing any JS measurement.
+  // react-native-web passes minHeight straight through to CSS, so '100vh'/
+  // calc() work fine at runtime even though RN's DimensionValue type (this
+  // whole component is web-only) doesn't model arbitrary CSS strings.
+  const resolvedWebShellMinHeight = (
+    viewportHeight > 0 ? viewportHeight : '100vh'
+  ) as number;
+  const resolvedWebContentMinHeight = (
+    viewportHeight > 0
+      ? Math.max(0, viewportHeight - resolvedWebHeaderHeight)
+      : `calc(100vh - ${resolvedWebHeaderHeight}px)`
+  ) as number;
   const webScrollRootCss = useMemo(
     () => buildWebScrollRootCss(rootBackgroundColor),
     [rootBackgroundColor],
