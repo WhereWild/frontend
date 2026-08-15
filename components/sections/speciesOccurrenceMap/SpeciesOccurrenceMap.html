@@ -1136,6 +1136,13 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     let DOT_MAX = __DOT_MAX_JSON__;
     let RENDER_MIN = __RENDER_MIN_JSON__;
     let RENDER_MAX = __RENDER_MAX_JSON__;
+    const ENABLE_AUTO_ADAPT_TOGGLE = __ENABLE_AUTO_ADAPT_TOGGLE__;
+    // Whether the ruler-icon auto-adapt button is currently relevant
+    // (a plain numeric-gradient variable) and toggled on — kept live via
+    // 'heatmapUpdate' (see below) since a plain variable switch reuses this
+    // same document instead of rebuilding it (see preserveMapPosition).
+    let AUTO_ADAPT_APPLICABLE = __AUTO_ADAPT_APPLICABLE_INITIAL__;
+    let AUTO_ADAPT_ENABLED = __AUTO_ADAPT_ENABLED_INITIAL__;
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
     let VAR_UNITS = __VAR_UNITS_JSON__;
     let CLASS_COLORS = __CLASS_COLORS_JSON__;
@@ -1634,6 +1641,42 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     });
     uploadPolygonControlInstance = new UploadPolygonControl();
     map.addControl(uploadPolygonControlInstance);
+
+    // "Auto-adapt": rescales the legend/colorization to just the value
+    // range actually visible on screen, instead of the variable's fixed
+    // catalog-wide render_min/render_max — a ruler, since it's about
+    // measuring the data that's currently in view. This button doesn't
+    // track its own on/off state — it's a dumb trigger that posts a click
+    // upward and waits for AUTO_ADAPT_ENABLED to round-trip back down via
+    // 'heatmapUpdate' (see updateAutoAdaptButton), so there's only ever one
+    // source of truth for whether it's on.
+    var AUTO_ADAPT_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="5.5" width="13" height="5" rx="0.5"/><path d="M4.5 5.5v2M7.5 5.5v2M10.5 5.5v2M13 5.5v1.3"/></svg>';
+    var autoAdaptButtonEl = null;
+    function updateAutoAdaptButton() {
+      if (!autoAdaptButtonEl) return;
+      autoAdaptButtonEl.style.display = AUTO_ADAPT_APPLICABLE ? '' : 'none';
+      autoAdaptButtonEl.style.color = AUTO_ADAPT_ENABLED ? palette.linkColor : '';
+      autoAdaptButtonEl.title = AUTO_ADAPT_ENABLED
+        ? 'Auto-adapt: on (colors are scaled to what\'s on screen)'
+        : 'Auto-adapt: scale colors to what\'s on screen';
+    }
+    if (ENABLE_AUTO_ADAPT_TOGGLE) {
+      var AutoAdaptControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function() {
+          var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
+          btn.innerHTML = AUTO_ADAPT_ICON;
+          L.DomEvent.disableClickPropagation(btn);
+          L.DomEvent.on(btn, 'click', function() {
+            postToParent({ type: 'toggleAutoAdapt' });
+          });
+          autoAdaptButtonEl = btn;
+          updateAutoAdaptButton();
+          return btn;
+        },
+      });
+      map.addControl(new AutoAdaptControl());
+    }
 
     var locateMarker = null;
     var locateCircle = null;
@@ -2302,7 +2345,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           // tileUrlForBasemapMode), only whether the toggle can reach
           // 'variable' at all.
           currentHeatmapTileUrl = data.heatmapTileUrl;
-          if (heatmapLayer) { heatmapLayer.setUrl(data.heatmapTileUrl); }
+          swapHeatmapLayer(data.heatmapTileUrl);
         }
         if (data.pointQueryUrl !== undefined) { POINT_QUERY_URL = data.pointQueryUrl; }
         if (data.renderMin !== undefined) { RENDER_MIN = data.renderMin; }
@@ -2313,6 +2356,9 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           MARKER_OUTLINE = data.markerOutline;
           OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
         }
+        if (data.autoAdaptApplicable !== undefined) { AUTO_ADAPT_APPLICABLE = data.autoAdaptApplicable; }
+        if (data.autoAdaptEnabled !== undefined) { AUTO_ADAPT_ENABLED = data.autoAdaptEnabled; }
+        updateAutoAdaptButton();
         return;
       }
 

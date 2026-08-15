@@ -46,6 +46,7 @@ import {
   TOGGLE_TERRAIN_MESSAGE_TYPE,
   TOGGLE_BASEMAP_MODE_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
+  TOGGLE_AUTO_ADAPT_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
   POINT_STYLES_UPDATE_MESSAGE_TYPE,
   POINTS_UPDATE_MESSAGE_TYPE,
@@ -204,6 +205,18 @@ type SpeciesOccurrenceMapProps = {
   // contrast and where a much higher-traffic page multiplies the ArcGIS
   // tile cost of leaving satellite available).
   enableBasemapModeToggle?: boolean;
+  // Off by default — set true to build the ruler-icon "auto-adapt" toggle
+  // control into the map (only maps.tsx wants it). autoAdaptApplicable
+  // gates whether it's currently shown at all (only meaningful for a plain
+  // numeric-gradient variable — see maps.tsx's isAutoAdaptApplicable) and
+  // autoAdaptEnabled is its current on/off state, both owned by the
+  // caller — the button itself is a dumb trigger that reports clicks via
+  // onToggleAutoAdapt rather than tracking its own state, so there's only
+  // ever one source of truth for it.
+  enableAutoAdaptToggle?: boolean;
+  autoAdaptApplicable?: boolean;
+  autoAdaptEnabled?: boolean;
+  onToggleAutoAdapt?: () => void;
   preserveMapPosition?: boolean;
   locationPickerMode?: boolean;
   onLocationPicked?: (lat: number, lon: number) => void;
@@ -300,6 +313,10 @@ export function SpeciesOccurrenceMap({
   aspectStops = null,
   useLabelsOverlay = false,
   enableBasemapModeToggle = true,
+  enableAutoAdaptToggle = false,
+  autoAdaptApplicable = false,
+  autoAdaptEnabled = false,
+  onToggleAutoAdapt,
   preserveMapPosition = false,
   locationPickerMode = false,
   onLocationPicked,
@@ -479,6 +496,16 @@ export function SpeciesOccurrenceMap({
         msg.type === POLYGON_DRAW_END_MESSAGE_TYPE
       ) {
         onPolygonDrawEnd?.();
+        return;
+      }
+
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === TOGGLE_AUTO_ADAPT_MESSAGE_TYPE
+      ) {
+        onToggleAutoAdapt?.();
       }
     },
     [
@@ -493,6 +520,7 @@ export function SpeciesOccurrenceMap({
       onPolygonCleared,
       onPolygonDrawStart,
       onPolygonDrawEnd,
+      onToggleAutoAdapt,
     ],
   );
 
@@ -727,6 +755,8 @@ export function SpeciesOccurrenceMap({
     ? (settings?.basemapMode ?? 'standard')
     : 'variable';
   const initialBasemapMode = React.useRef(effectiveBasemapMode);
+  const initialAutoAdaptApplicable = React.useRef(autoAdaptApplicable);
+  const initialAutoAdaptEnabled = React.useRef(autoAdaptEnabled);
   // Same reasoning as initialTerrainEnabled above, for drawn regions:
   // drawing/erasing while staying on the SAME renderer already updates
   // that renderer's own DOM directly (no round trip needed) — only a
@@ -787,6 +817,8 @@ export function SpeciesOccurrenceMap({
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
     initialBasemapMode.current = effectiveBasemapMode;
+    initialAutoAdaptApplicable.current = autoAdaptApplicable;
+    initialAutoAdaptEnabled.current = autoAdaptEnabled;
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
   }
 
@@ -846,6 +878,12 @@ export function SpeciesOccurrenceMap({
   const memoInitialDrawnPolygons = preserveMapPosition
     ? initialDrawnPolygonsRef.current
     : (initialDrawnPolygons ?? null);
+  const memoAutoAdaptApplicable = preserveMapPosition
+    ? initialAutoAdaptApplicable.current
+    : autoAdaptApplicable;
+  const memoAutoAdaptEnabled = preserveMapPosition
+    ? initialAutoAdaptEnabled.current
+    : autoAdaptEnabled;
 
   const html = React.useMemo(() => {
     if (!mapTemplate) {
@@ -898,6 +936,9 @@ export function SpeciesOccurrenceMap({
       satelliteTileUrl,
       variableModeBackgroundTileUrl,
       settings?.units,
+      enableAutoAdaptToggle,
+      memoAutoAdaptApplicable,
+      memoAutoAdaptEnabled,
     );
   }, [
     allowPinObservations,
@@ -943,6 +984,9 @@ export function SpeciesOccurrenceMap({
     satelliteTileUrl,
     variableModeBackgroundTileUrl,
     settings?.units,
+    enableAutoAdaptToggle,
+    memoAutoAdaptApplicable,
+    memoAutoAdaptEnabled,
   ]);
 
   React.useEffect(() => {
@@ -1021,6 +1065,8 @@ export function SpeciesOccurrenceMap({
       varUnits,
       classShapes: classShapes ? Object.fromEntries(classShapes) : null,
       markerOutline: markerOutlineEnabled,
+      autoAdaptApplicable,
+      autoAdaptEnabled,
     };
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage(msg, '*');
@@ -1037,6 +1083,8 @@ export function SpeciesOccurrenceMap({
     varUnits,
     classShapes,
     markerOutlineEnabled,
+    autoAdaptApplicable,
+    autoAdaptEnabled,
   ]);
 
   // The single source of truth for "what color/shape does each marker get,
@@ -1357,6 +1405,18 @@ export function SpeciesOccurrenceMap({
             containerRef.current as unknown as Element | null,
           );
         }
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_AUTO_ADAPT_MESSAGE_TYPE
+      ) {
+        onToggleAutoAdapt?.();
       }
     };
     window.addEventListener('message', handler);
@@ -1379,6 +1439,7 @@ export function SpeciesOccurrenceMap({
     onPolygonDrawEnd,
     settings,
     onFullscreenToggle,
+    onToggleAutoAdapt,
   ]);
 
   if (error) {

@@ -4,6 +4,7 @@
 
 import { fetchEnvironmentVariables } from '@/data/api';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -79,9 +80,27 @@ jest.mock('@/components', () => {
     SpeciesOccurrenceMap: ({
       heatmapTileUrl,
       onTileClasses,
+      onBoundsChange,
+      renderMin,
+      renderMax,
+      autoAdaptApplicable,
+      autoAdaptEnabled,
+      onToggleAutoAdapt,
     }: {
       heatmapTileUrl?: string | null;
       onTileClasses?: (classes: { id: number; count: number }[]) => void;
+      onBoundsChange?: (bounds: {
+        z: number;
+        x0: number;
+        y0: number;
+        x1: number;
+        y1: number;
+      }) => void;
+      renderMin?: number | null;
+      renderMax?: number | null;
+      autoAdaptApplicable?: boolean;
+      autoAdaptEnabled?: boolean;
+      onToggleAutoAdapt?: () => void;
     }) => {
       mockReact.useEffect(() => {
         onTileClasses?.([
@@ -97,6 +116,24 @@ jest.mock('@/components', () => {
           { testID: 'species-occurrence-map-url' },
           heatmapTileUrl ?? 'none',
         ),
+        mockReact.createElement(
+          MockText,
+          { testID: 'species-occurrence-map-render-range' },
+          `${renderMin ?? 'null'},${renderMax ?? 'null'}`,
+        ),
+        mockReact.createElement(MockPressable, {
+          testID: 'trigger-bounds-change',
+          onPress: () => onBoundsChange?.({ z: 4, x0: 2, y0: 3, x1: 3, y1: 4 }),
+        }),
+        mockReact.createElement(
+          MockText,
+          { testID: 'species-occurrence-map-auto-adapt-state' },
+          `${autoAdaptApplicable ? 'applicable' : 'not-applicable'},${autoAdaptEnabled ? 'enabled' : 'disabled'}`,
+        ),
+        mockReact.createElement(MockPressable, {
+          testID: 'trigger-toggle-auto-adapt',
+          onPress: () => onToggleAutoAdapt?.(),
+        }),
       );
     },
   };
@@ -410,6 +447,126 @@ describe('Maps screen', () => {
     expect(
       screen.getByTestId('species-occurrence-map-url').props.children,
     ).toContain('/api/variables/bio_1/');
+  });
+
+  it('auto-adapt: off by default; discovers a range via tile-range/stats only once toggled on, and never applies before the fetch resolves', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValueOnce([
+      {
+        id: 'bio_1',
+        name: 'Annual Mean Temperature',
+        category: 'Bioclim',
+        valueType: 'continuous',
+        renderMin: -5,
+        renderMax: 30,
+        units: '°C',
+      },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        category: 'Categorical',
+        valueType: 'categorical',
+      },
+    ] as any);
+
+    const originalFetch = global.fetch;
+    const fetchMock = jest.fn(async (url: string) => {
+      if (typeof url === 'string' && url.includes('/tile-range/stats')) {
+        return { ok: true, json: async () => ({ min: 10, max: 20 }) } as any;
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    global.fetch = fetchMock as any;
+
+    render(<Maps />);
+    fireEvent.press(screen.getByTestId('select-bio1'));
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-variable').props.children).toBe(
+        'bio_1',
+      );
+    });
+
+    // Off by default: knowing the viewport bounds alone doesn't trigger a
+    // stats fetch or change the legend range.
+    fireEvent.press(screen.getByTestId('trigger-bounds-change'));
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId('species-occurrence-map-render-range').props.children,
+    ).toBe('-5,30');
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).not.toContain('render_range=');
+
+    expect(
+      screen.getByTestId('species-occurrence-map-auto-adapt-state').props
+        .children,
+    ).toBe('applicable,disabled');
+
+    fireEvent.press(screen.getByTestId('trigger-toggle-auto-adapt'));
+    // Bounds are already known, so the toggle alone schedules the debounced
+    // stats fetch — the legend must stay on the catalog range right up
+    // until it actually resolves (no intermediate/default-range flash).
+    expect(
+      screen.getByTestId('species-occurrence-map-render-range').props.children,
+    ).toBe('-5,30');
+
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      '/api/layers/bio_1/tile-range/stats',
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('species-occurrence-map-render-range').props
+          .children,
+      ).toBe('10,20');
+    });
+    expect(
+      screen.getByTestId('species-occurrence-map-url').props.children,
+    ).toContain(`render_range=${encodeURIComponent('[10,20]')}`);
+
+    global.fetch = originalFetch;
+  });
+
+  it('auto-adapt: button is absent for categorical/circular variables', async () => {
+    mockFetchEnvironmentVariables.mockResolvedValueOnce([
+      {
+        id: 'aspect',
+        name: 'Aspect',
+        category: 'Terrain',
+        valueType: 'circular',
+      },
+      {
+        id: 'landcover',
+        name: 'Land Cover',
+        category: 'Categorical',
+        valueType: 'categorical',
+      },
+    ] as any);
+
+    render(<Maps />);
+    expect(
+      screen.getByTestId('species-occurrence-map-auto-adapt-state').props
+        .children,
+    ).toBe('not-applicable,disabled');
+
+    fireEvent.press(screen.getByTestId('select-aspect'));
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('species-occurrence-map-url').props.children,
+      ).toContain('twilight_90');
+    });
+    expect(
+      screen.getByTestId('species-occurrence-map-auto-adapt-state').props
+        .children,
+    ).toBe('not-applicable,disabled');
   });
 
   it('renders categorical legend after tile classes are reported', async () => {

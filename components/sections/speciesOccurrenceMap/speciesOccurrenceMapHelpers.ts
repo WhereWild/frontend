@@ -24,6 +24,14 @@ export const TOGGLE_TERRAIN_MESSAGE_TYPE = 'toggleTerrain';
 // opacity in place of the basemap too, not just satellite imagery.
 export const TOGGLE_BASEMAP_MODE_MESSAGE_TYPE = 'toggleBasemapMode';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
+// Sent when the user clicks the map's ruler-icon auto-adapt button (see
+// AutoAdaptControl in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html).
+// The button itself doesn't flip its own visual state on click — maps.tsx's
+// autoAdaptEnabled is the single source of truth, and the button's active/
+// inactive appearance only ever changes once that state round-trips back
+// down via the heatmapUpdate message, avoiding two copies of the same
+// boolean able to drift apart. No payload.
+export const TOGGLE_AUTO_ADAPT_MESSAGE_TYPE = 'toggleAutoAdapt';
 export const TILE_CLASSES_SYNC_MESSAGE_TYPE = 'tileClassesSync';
 export const POINT_STYLES_UPDATE_MESSAGE_TYPE = 'pointStylesUpdate';
 export const POINTS_UPDATE_MESSAGE_TYPE = 'pointsUpdate';
@@ -148,6 +156,9 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   initialLocalLon: '__INITIAL_LOCAL_LON_JSON__',
   mapTileMode: '__MAP_TILE_MODE_JSON__',
   unitSystem: '__UNIT_SYSTEM_JSON__',
+  enableAutoAdaptToggle: '__ENABLE_AUTO_ADAPT_TOGGLE__',
+  autoAdaptApplicableInitial: '__AUTO_ADAPT_APPLICABLE_INITIAL__',
+  autoAdaptEnabledInitial: '__AUTO_ADAPT_ENABLED_INITIAL__',
   enableOfflineFallback: '__ENABLE_OFFLINE_FALLBACK__',
   leafletResizeObserverScript: '__LEAFLET_RESIZE_OBSERVER_SCRIPT__',
   leafletHeatmapTrackingScript: '__LEAFLET_HEATMAP_TRACKING_SCRIPT__',
@@ -865,36 +876,91 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
       return layer;
     }
 
-    let heatmapLayer = null;
-    if (HEATMAP_TILE_URL) {
-      heatmapLayer = supportsAbortableTileFetch()
-        ? createAbortableHeatmapLayer(HEATMAP_TILE_URL)
-        : L.tileLayer(HEATMAP_TILE_URL, {
+    function buildHeatmapLayer(urlTemplate) {
+      return supportsAbortableTileFetch()
+        ? createAbortableHeatmapLayer(urlTemplate)
+        : L.tileLayer(urlTemplate, {
             opacity: HEATMAP_OPACITY,
             tileSize: 256,
             maxZoom: TILE_MAX_ZOOM,
           });
-      heatmapLayer.addTo(map);
+    }
 
-      if (typeof heatmapLayer.syncClasses === 'function') {
-        // This vendored Leaflet (1.1.1) has no generic map-level "idle"
-        // event (unlike MapLibre, used for the same purpose in the globe
-        // template) — 'load' (GridLayer/TileLayer: fires once all of this
-        // layer's tiles for the current view have finished loading) and
-        // 'moveend' (Map: fires once a pan/zoom gesture settles, including
-        // cases where nothing new needed to load) together cover "the map
-        // has settled" here instead.
-        var classSyncTimer = null;
-        var scheduleClassSync = function() {
-          if (classSyncTimer) clearTimeout(classSyncTimer);
-          classSyncTimer = setTimeout(function() {
-            classSyncTimer = null;
-            heatmapLayer.syncClasses();
-          }, 200);
-        };
-        heatmapLayer.on('load', scheduleClassSync);
-        map.on('moveend', scheduleClassSync);
+    let heatmapLayer = null;
+    var classSyncTimer = null;
+    var scheduleClassSync = function() {
+      if (classSyncTimer) clearTimeout(classSyncTimer);
+      classSyncTimer = setTimeout(function() {
+        classSyncTimer = null;
+        if (heatmapLayer && typeof heatmapLayer.syncClasses === 'function') {
+          heatmapLayer.syncClasses();
+        }
+      }, 200);
+    };
+
+    // Layers still fading out — see swapHeatmapLayer below for why a
+    // layer's replacement doesn't remove it immediately.
+    var pendingOldHeatmapLayers = [];
+
+    // Replaces the active heatmap layer's URL by adding a whole new layer
+    // on top and only removing the old one once the new one has actually
+    // finished loading every tile for the current view — NOT by calling
+    // Leaflet's own layer.setUrl(), whose default redraw() immediately
+    // clears every currently-displayed tile (_removeAllTiles) before any
+    // replacement is ready. That's fine for a genuine variable switch
+    // (nothing worth preserving), but the maps page's "auto-adapt" mode
+    // changes the URL (render_range) far more often — every settled pan/
+    // zoom while it's on — and setUrl()'s hard clear-then-refetch made
+    // each of those read as the whole map blanking out and repainting,
+    // unlike a normal pan/zoom that doesn't change the URL at all (where
+    // already-loaded tiles just stay up and only the newly-revealed edge
+    // fetches in). Stacking the new layer on top means already-loaded new
+    // tiles occlude the old ones directly beneath them (both layers'
+    // tiles are opaque where they have data), and any new tile still
+    // loading simply lets the old layer show through underneath until
+    // it's ready — the same "just gets painted over" feel as a normal
+    // pan/zoom.
+    function swapHeatmapLayer(urlTemplate) {
+      if (heatmapLayer) {
+        pendingOldHeatmapLayers.push(heatmapLayer);
       }
+      var newLayer = buildHeatmapLayer(urlTemplate);
+      // One combined 'load' listener rather than two separate ones — every
+      // layer's own 'load' already needs to feed scheduleClassSync
+      // (unchanged from before), and piggybacking the old-layer cleanup on
+      // the very same event means whichever swap's layer finishes loading
+      // FIRST clears every layer stacked up before it, not just its own
+      // immediate predecessor — so a burst of rapid swaps (fast panning
+      // while auto-adapt keeps discovering new ranges) can never orphan an
+      // older layer indefinitely just because ITS specific successor never
+      // got the chance to finish loading before being superseded. Clearing
+      // an already-empty pendingOldHeatmapLayers on a later 'load' is a
+      // harmless no-op, so no extra guard is needed for that.
+      newLayer.on('load', function() {
+        if (pendingOldHeatmapLayers.length) {
+          pendingOldHeatmapLayers.forEach(function(old) {
+            map.removeLayer(old);
+          });
+          pendingOldHeatmapLayers = [];
+        }
+        if (typeof newLayer.syncClasses === 'function') {
+          scheduleClassSync();
+        }
+      });
+      newLayer.addTo(map);
+      heatmapLayer = newLayer;
+    }
+
+    if (HEATMAP_TILE_URL) {
+      swapHeatmapLayer(HEATMAP_TILE_URL);
+      // This vendored Leaflet (1.1.1) has no generic map-level "idle"
+      // event (unlike MapLibre, used for the same purpose in the globe
+      // template) — 'load' (GridLayer/TileLayer: fires once all of this
+      // layer's tiles for the current view have finished loading) and
+      // 'moveend' (Map: fires once a pan/zoom gesture settles, including
+      // cases where nothing new needed to load) together cover "the map
+      // has settled" here instead.
+      map.on('moveend', scheduleClassSync);
     }
 `;
 
@@ -1293,6 +1359,15 @@ const fillMapTemplatePlaceholders = (
   satelliteTileUrl?: string | null,
   variableModeBackgroundTileUrl?: string | null,
   unitSystem?: UnitSystem,
+  // Whether to build the ruler-icon "auto-adapt" toggle control into the
+  // map at all (only maps.tsx wants it — species-page/upload-preview usages
+  // never pass this), and its initial applicable/enabled state, frozen at
+  // build time and kept live via the heatmapUpdate message afterward (see
+  // SpeciesOccurrenceMap.tsx) since a plain variable switch reuses this
+  // same document instead of rebuilding it under preserveMapPosition.
+  enableAutoAdaptToggle?: boolean,
+  autoAdaptApplicable?: boolean,
+  autoAdaptEnabled?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1481,6 +1556,15 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.unitSystem)
     .join(JSON.stringify(unitSystem === 'imperial' ? 'imperial' : 'metric'));
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.enableAutoAdaptToggle)
+    .join(enableAutoAdaptToggle ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.autoAdaptApplicableInitial)
+    .join(autoAdaptApplicable ? 'true' : 'false');
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.autoAdaptEnabledInitial)
+    .join(autoAdaptEnabled ? 'true' : 'false');
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.enableOfflineFallback)
     .join(enableOfflineFallback ? 'true' : 'false');
   html = html
@@ -1583,6 +1667,9 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     satelliteTileUrl,
     variableModeBackgroundTileUrl,
     unitSystem,
+    enableAutoAdaptToggle,
+    autoAdaptApplicable,
+    autoAdaptEnabled,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1634,6 +1721,9 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
       ? stripRetinaPlaceholder(variableModeBackgroundTileUrl)
       : variableModeBackgroundTileUrl,
     unitSystem,
+    enableAutoAdaptToggle,
+    autoAdaptApplicable,
+    autoAdaptEnabled,
   );
 };
 
