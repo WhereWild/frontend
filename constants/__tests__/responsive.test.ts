@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { Dimensions } from 'react-native';
 import { getResponsive } from '@/constants/responsive';
 import { cssLengthToPx } from '@/constants/tokenHelpers';
 import { wdsResponsiveTokens } from '@/constants/wdsTokens';
@@ -97,17 +98,23 @@ describe('responsive factory', () => {
     expect(tabletResult.gap).not.toBe(desktopResult.gap);
   });
 
-  it('defaults to tablet when width is unavailable', () => {
+  it('defaults to desktop when width is unavailable', () => {
     const platform = makePlatform({ OS: 'ios' });
     const result = getResponsive({ platform, windowWidth: Number.NaN });
 
-    expect(result.breakpoint).toBe('tablet');
+    expect(result.breakpoint).toBe('desktop');
     expect(result.runtime).toBe('app');
     expect(result.platformOS).toBe('ios');
-    expect(result.byDevice.tablet.device).toBe('tablet');
+    expect(result.byDevice.desktop.device).toBe('desktop');
   });
 
-  it('defaults to tablet when width is undefined', () => {
+  it('falls back to the platform Dimensions API when no windowWidth is given', () => {
+    // Omitting windowWidth doesn't exercise the true unknown-width fallback
+    // in this test environment — RN's jest Dimensions mock reports a real
+    // (tablet-range) width, same as it would on an actual device where
+    // Dimensions.get('window') is available. The unknown-width fallback
+    // itself (SSR, no window/Dimensions at all) is covered by the NaN case
+    // above.
     const platform = makePlatform({ OS: 'ios' });
     const result = getResponsive({ platform });
 
@@ -115,6 +122,26 @@ describe('responsive factory', () => {
     expect(result.runtime).toBe('app');
     expect(result.platformOS).toBe('ios');
     expect(result.byDevice.tablet.device).toBe('tablet');
+  });
+
+  it('defaults to desktop, not phone, when Dimensions reports width: 0 (the react-native-web SSR stub)', () => {
+    // react-native-web's Dimensions module hardcodes {width: 0, height: 0}
+    // and only ever updates it once canUseDOM is true — during SSR (no real
+    // DOM in that Node process) this is exactly what Dimensions.get('window')
+    // returns. 0 is a valid number, so without the width > 0 guard it sails
+    // past the "unknown width" fallback and gets treated as an actual
+    // (phone-sized) viewport — the real cause of the mobile-layout flash on
+    // SSR page loads before hydration corrects it.
+    const getSpy = jest
+      .spyOn(Dimensions, 'get')
+      .mockReturnValue({ width: 0, height: 0, scale: 1, fontScale: 1 });
+
+    const platform = makePlatform({ OS: 'web' });
+    const result = getResponsive({ platform });
+
+    getSpy.mockRestore();
+
+    expect(result.breakpoint).toBe('desktop');
   });
 
   it('throws a clear error when a required responsive variant is missing', () => {
