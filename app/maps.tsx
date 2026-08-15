@@ -10,11 +10,8 @@ import { PageScrollContainer } from '@/components/PageScrollContainer';
 import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { Colors, Size } from '@/constants/theme';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
-import {
-  BACKEND_BASE,
-  fetchEnvironmentVariables,
-  type ViewportTileRange,
-} from '@/data/api';
+import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
+import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
 import { useDataSources } from '@/hooks/useDataSources';
 import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -214,30 +211,6 @@ export default function Maps() {
     Map<number, number>
   >(new Map());
   const [pinnedValue, setPinnedValue] = useState<number | null>(null);
-  // "Auto-adapt" mode: rescales the numeric legend/colorization to just the
-  // value range actually visible on screen, instead of the variable's fixed
-  // catalog-wide render_min/render_max. Off by default, session-only (no
-  // persistence) — a deliberate per-visit choice, not a saved preference.
-  //
-  // autoRange only ever updates once a GET .../tile-range/stats request for
-  // the CURRENT viewport actually resolves (see the effect below) — never
-  // set optimistically to some default first. That's what avoids the
-  // "flash of the wrong color while the real range is still loading" that
-  // discovering the range from the colorized tiles themselves used to
-  // cause: the map keeps showing whatever was last correctly colored
-  // (catalog range, or the previous viewport's auto range) right up until
-  // the new one is ready to swap in atomically.
-  const [autoAdaptEnabled, setAutoAdaptEnabled] = useState(false);
-  const [autoRange, setAutoRange] = useState<{
-    min: number;
-    max: number;
-  } | null>(null);
-  const [viewportBounds, setViewportBounds] =
-    useState<ViewportTileRange | null>(null);
-  const handleBoundsChange = useCallback(
-    (bounds: ViewportTileRange) => setViewportBounds(bounds),
-    [],
-  );
   const [selectedForecast, setSelectedForecast] = useState('now');
   // Multiple classes can be toggled on at once — an empty array means no
   // filter (all classes shown), same as the previous single-select's null.
@@ -364,64 +337,24 @@ export default function Maps() {
   useEffect(() => {
     setVisibleNominalCounts(new Map());
     setPinnedValue(null);
-    setAutoRange(null);
   }, [selectedVariable, globeViewEnabled]);
 
-  // Discovers auto-adapt's colorization range for the CURRENT viewport —
-  // debounced so a drag/zoom gesture doesn't fire a request per frame, and
-  // only ever applied once the fetch actually resolves (see autoRange's own
-  // comment above for why that's what keeps this flash-free). A stale
-  // response from a viewport the user has since panned away from is
-  // dropped via the cancelled flag rather than clobbering a newer one.
-  useEffect(() => {
-    if (
-      !autoAdaptEnabled ||
-      !isAutoAdaptApplicable ||
-      !viewportBounds ||
-      !selectedVariable
-    ) {
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams({
-        z: String(viewportBounds.z),
-        x0: String(viewportBounds.x0),
-        y0: String(viewportBounds.y0),
-        x1: String(viewportBounds.x1),
-        y1: String(viewportBounds.y1),
-        unit_system: units ?? 'metric',
-      });
-      if (forecastH > 0) {
-        params.set('forecast_h', String(forecastH));
-      }
-      fetch(
-        `${BACKEND_BASE}/api/layers/${encodeURIComponent(selectedVariable)}/tile-range/stats?${params.toString()}`,
-      )
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: { min?: unknown; max?: unknown } | null) => {
-          if (cancelled || !data) return;
-          if (typeof data.min === 'number' && typeof data.max === 'number') {
-            setAutoRange({ min: data.min, max: data.max });
-          }
-        })
-        .catch(() => {
-          // Transient failure — keep whatever range was last known rather
-          // than blanking/reverting the legend for one bad request.
-        });
-    }, 400);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [
+  const {
     autoAdaptEnabled,
-    isAutoAdaptApplicable,
-    viewportBounds,
+    toggleAutoAdapt,
+    handleBoundsChange,
+    renderRange: autoAdaptRenderRange,
+    effectiveRenderMin,
+    effectiveRenderMax,
+  } = useAutoAdaptRange({
     selectedVariable,
+    isApplicable: isAutoAdaptApplicable,
     units,
     forecastH,
-  ]);
+    catalogRenderMin: selectedVariableMeta?.renderMin,
+    catalogRenderMax: selectedVariableMeta?.renderMax,
+    resetKey: globeViewEnabled,
+  });
 
   const { chain: layerChain, clearChain: clearLayerChain } = useMapLayerChain({
     selectedVariable,
@@ -480,10 +413,7 @@ export default function Maps() {
             : selectedValueRanges,
         unitSystem: units,
         chain: layerChain.map((entry) => entry.extra),
-        renderRange:
-          isAutoAdaptApplicable && autoAdaptEnabled && autoRange
-            ? [autoRange.min, autoRange.max]
-            : null,
+        renderRange: autoAdaptRenderRange,
       }),
     [
       tileCacheKey,
@@ -499,24 +429,9 @@ export default function Maps() {
       selectedValueRanges,
       units,
       layerChain,
-      isAutoAdaptApplicable,
-      autoAdaptEnabled,
-      autoRange,
+      autoAdaptRenderRange,
     ],
   );
-
-  // Falls back to the catalog's fixed range whenever auto-adapt is off, or
-  // on but not yet resolved for the current viewport — so toggling it on
-  // never blanks the legend while the first .../tile-range/stats request is
-  // still in flight.
-  const effectiveRenderMin =
-    isAutoAdaptApplicable && autoAdaptEnabled && autoRange
-      ? autoRange.min
-      : (selectedVariableMeta?.renderMin ?? null);
-  const effectiveRenderMax =
-    isAutoAdaptApplicable && autoAdaptEnabled && autoRange
-      ? autoRange.max
-      : (selectedVariableMeta?.renderMax ?? null);
 
   const handlePointValue = useCallback(
     (value: number) => setPinnedValue(value),
@@ -761,7 +676,7 @@ export default function Maps() {
                 enableAutoAdaptToggle
                 autoAdaptApplicable={isAutoAdaptApplicable}
                 autoAdaptEnabled={autoAdaptEnabled}
-                onToggleAutoAdapt={() => setAutoAdaptEnabled((v) => !v)}
+                onToggleAutoAdapt={toggleAutoAdapt}
                 gradientStops={
                   !isCategorical && !isCircular
                     ? COLORMAPS[selectedColormap].stops

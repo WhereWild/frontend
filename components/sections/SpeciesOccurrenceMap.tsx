@@ -206,7 +206,9 @@ type SpeciesOccurrenceMapProps = {
   // tile cost of leaving satellite available).
   enableBasemapModeToggle?: boolean;
   // Off by default — set true to build the ruler-icon "auto-adapt" toggle
-  // control into the map (only maps.tsx wants it). autoAdaptApplicable
+  // control into the map (maps.tsx, _species.tsx, and UploadPreview.tsx all
+  // opt in — any page that colors by a numeric variable wants it).
+  // autoAdaptApplicable
   // gates whether it's currently shown at all (only meaningful for a plain
   // numeric-gradient variable — see maps.tsx's isAutoAdaptApplicable) and
   // autoAdaptEnabled is its current on/off state, both owned by the

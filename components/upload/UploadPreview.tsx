@@ -8,6 +8,7 @@ import { SpeciesEnvironmentSection, SpeciesOccurrenceMap } from '@/components';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { Size } from '@/constants/theme';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
@@ -360,14 +361,41 @@ export function UploadPreview({
   // markers themselves were colored by it, which meant the basemap-mode
   // toggle's 'variable' mode had nothing to show here either. Mirrors
   // maps.tsx's tileUrl builder.
+  // Auto-adapt only makes sense for a plain numeric gradient — circular
+  // (wraparound 0-360°) variables don't have a meaningful "observed
+  // min/max" the same way, and categorical variables have no numeric range
+  // at all. Mirrors maps.tsx's isAutoAdaptApplicable.
+  const isAutoAdaptApplicable =
+    Boolean(selectedVariableMeta) &&
+    !isVariableCategorical(selectedVariableMeta) &&
+    !isVariableCircular(selectedVariableMeta);
+  const {
+    autoAdaptEnabled,
+    toggleAutoAdapt,
+    handleBoundsChange: handleAutoAdaptBoundsChange,
+    renderRange: autoAdaptRenderRange,
+    effectiveRenderMin,
+    effectiveRenderMax,
+  } = useAutoAdaptRange({
+    selectedVariable: selectedVariableMeta?.id,
+    isApplicable: isAutoAdaptApplicable,
+    units,
+    forecastH: 0,
+    catalogRenderMin: selectedVariableMeta?.renderMin,
+    catalogRenderMax: selectedVariableMeta?.renderMax,
+  });
+
   const heatmapTileUrl = React.useMemo(() => {
     if (!selectedVariableMeta?.id) return null;
     const isCircular = isVariableCircular(selectedVariableMeta);
     const colormap = isCircular ? selectedCircularColormap : selectedColormap;
     const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
+    const renderRangeParam = autoAdaptRenderRange
+      ? `&render_range=${encodeURIComponent(JSON.stringify(autoAdaptRenderRange))}`
+      : '';
     return (
       `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
-      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}`
+      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}${renderRangeParam}`
     );
   }, [
     selectedVariableMeta,
@@ -375,6 +403,7 @@ export function UploadPreview({
     selectedCircularColormap,
     cbMode,
     units,
+    autoAdaptRenderRange,
   ]);
 
   const nsweColors = React.useMemo((): [string, string, string, string] => {
@@ -565,6 +594,11 @@ export function UploadPreview({
             onPinObservation={handlePinObservation}
             selectedPoint={selectedMapPoint}
             onMapBounds={setMapBounds}
+            onBoundsChange={handleAutoAdaptBoundsChange}
+            enableAutoAdaptToggle
+            autoAdaptApplicable={isAutoAdaptApplicable}
+            autoAdaptEnabled={autoAdaptEnabled}
+            onToggleAutoAdapt={toggleAutoAdapt}
             onPointValue={setPinnedPointValue}
             pointQueryUrl={pointQueryUrl}
             heatmapTileUrl={heatmapTileUrl}
@@ -586,16 +620,8 @@ export function UploadPreview({
             classLabels={classLabels}
             dotMin={dotMin}
             dotMax={dotMax}
-            renderMin={
-              !isCategorical && !isCircular
-                ? (selectedVariableMeta?.renderMin ?? null)
-                : null
-            }
-            renderMax={
-              !isCategorical && !isCircular
-                ? (selectedVariableMeta?.renderMax ?? null)
-                : null
-            }
+            renderMin={isAutoAdaptApplicable ? effectiveRenderMin : null}
+            renderMax={isAutoAdaptApplicable ? effectiveRenderMax : null}
             isCircular={isCircular}
             circularShapesEnabled={circularShapesEnabled}
             gradientStops={

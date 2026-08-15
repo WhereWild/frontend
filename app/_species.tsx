@@ -46,6 +46,7 @@ import {
   isVariableCategorical,
   isVariableCircular,
 } from '@/components/sections/speciesEnvironment/model';
+import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
 import { useScrollLock } from '@/context/ScrollLockContext';
 import {
   BACKEND_BASE,
@@ -844,14 +845,41 @@ export default function Species({
   // since it's resolution-tolerant of either an old variable_id or a real
   // layer_id (_resolve_variable_id on the backend), same as selectedVariableMeta.id
   // already gets used for elsewhere (pointQueryUrl, classShapes lookups).
+  // Auto-adapt only makes sense for a plain numeric gradient — circular
+  // (wraparound 0-360°) variables don't have a meaningful "observed
+  // min/max" the same way, and categorical variables have no numeric range
+  // at all. Mirrors maps.tsx's isAutoAdaptApplicable.
+  const isAutoAdaptApplicable =
+    Boolean(selectedVariableMeta) &&
+    !isVariableCategorical(selectedVariableMeta) &&
+    !isVariableCircular(selectedVariableMeta);
+  const {
+    autoAdaptEnabled,
+    toggleAutoAdapt,
+    handleBoundsChange: handleAutoAdaptBoundsChange,
+    renderRange: autoAdaptRenderRange,
+    effectiveRenderMin,
+    effectiveRenderMax,
+  } = useAutoAdaptRange({
+    selectedVariable: selectedVariableMeta?.id,
+    isApplicable: isAutoAdaptApplicable,
+    units,
+    forecastH: 0,
+    catalogRenderMin: selectedVariableMeta?.renderMin,
+    catalogRenderMax: selectedVariableMeta?.renderMax,
+  });
+
   const heatmapTileUrl = React.useMemo(() => {
     if (!selectedVariableMeta?.id) return null;
     const isCircular = isVariableCircular(selectedVariableMeta);
     const colormap = isCircular ? selectedCircularColormap : selectedColormap;
     const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
+    const renderRangeParam = autoAdaptRenderRange
+      ? `&render_range=${encodeURIComponent(JSON.stringify(autoAdaptRenderRange))}`
+      : '';
     return (
       `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
-      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}`
+      `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}${renderRangeParam}`
     );
   }, [
     selectedVariableMeta,
@@ -859,6 +887,7 @@ export default function Species({
     selectedCircularColormap,
     cbMode,
     units,
+    autoAdaptRenderRange,
   ]);
 
   const nsweColors = React.useMemo((): [string, string, string, string] => {
@@ -1231,20 +1260,13 @@ export default function Species({
                       : null
                   }
                   heatmapTileUrl={heatmapTileUrl}
-                  renderMin={
-                    selectedVariableMeta &&
-                    !isVariableCategorical(selectedVariableMeta) &&
-                    !isVariableCircular(selectedVariableMeta)
-                      ? (selectedVariableMeta.renderMin ?? null)
-                      : null
-                  }
-                  renderMax={
-                    selectedVariableMeta &&
-                    !isVariableCategorical(selectedVariableMeta) &&
-                    !isVariableCircular(selectedVariableMeta)
-                      ? (selectedVariableMeta.renderMax ?? null)
-                      : null
-                  }
+                  renderMin={isAutoAdaptApplicable ? effectiveRenderMin : null}
+                  renderMax={isAutoAdaptApplicable ? effectiveRenderMax : null}
+                  onBoundsChange={handleAutoAdaptBoundsChange}
+                  enableAutoAdaptToggle
+                  autoAdaptApplicable={isAutoAdaptApplicable}
+                  autoAdaptEnabled={autoAdaptEnabled}
+                  onToggleAutoAdapt={toggleAutoAdapt}
                   isCircular={isVariableCircular(selectedVariableMeta)}
                   observationValues={observationValues}
                   classColors={classColors}
