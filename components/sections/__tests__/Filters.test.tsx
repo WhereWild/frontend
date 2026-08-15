@@ -9,6 +9,13 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useDataSources } from '@/hooks/useDataSources';
 import type { SpeciesSummary } from '@/data/types';
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  usePathname: () => '/search',
+  useLocalSearchParams: () => ({}),
+}));
+
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
 }));
@@ -122,6 +129,19 @@ describe('Filters', () => {
       expect(screen.getByText('Country')).toBeTruthy();
       expect(screen.getByText('State')).toBeTruthy();
       expect(screen.getByText('County')).toBeTruthy();
+    });
+
+    it('links "View guide" to the selected sort variable\'s guide page', () => {
+      render(<Filters {...baseProps} sortVariableValue='elevation' />);
+
+      fireEvent.press(screen.getByText('View guide'));
+      expect(mockPush).toHaveBeenCalledWith('/guides/variables/elevation');
+    });
+
+    it('omits "View guide" when no sort variable is selected', () => {
+      render(<Filters {...baseProps} sortVariableValue='' />);
+
+      expect(screen.queryByText('View guide')).toBeNull();
     });
 
     it('shows all-options for location fields so users can clear selection', () => {

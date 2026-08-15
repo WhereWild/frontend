@@ -5,7 +5,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Linking, Platform } from 'react-native';
-import AcknowledgementsScreen, { SourceEntry } from '../acknowledgements';
+import { SourceEntry } from '@/components/sections/SourceEntry';
+import AcknowledgementsScreen from '../acknowledgements';
 
 jest.mock('expo-router/head', () => {
   const React = jest.requireActual('react');
@@ -97,6 +98,7 @@ jest.mock('@/hooks/useResponsive', () => ({
 jest.mock('@/components', () => {
   const React = jest.requireActual('react');
   const { Text, View } = jest.requireActual('react-native');
+  const { Markdown } = jest.requireActual('@/components/markdown/Markdown');
 
   return {
     PageScrollContainer: ({ children }: { children?: React.ReactNode }) =>
@@ -112,6 +114,7 @@ jest.mock('@/components', () => {
       style?: object;
       onPress?: () => void;
     }) => React.createElement(Text, { onPress }, children),
+    Markdown,
   };
 });
 
@@ -169,7 +172,8 @@ describe('Acknowledgements screen', () => {
 
     render(<AcknowledgementsScreen />);
 
-    expect(screen.getByText('Acknowledgements')).toBeTruthy();
+    // Two matches expected on web: the page title and the footer's nav link.
+    expect(screen.getAllByText('Acknowledgements').length).toBeGreaterThan(0);
   });
 
   it('hides the page title in the body on native', () => {

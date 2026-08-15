@@ -2,75 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { PageScrollContainer, PageTitle, ThemedText } from '@/components';
+import { Markdown, PageScrollContainer, PageTitle } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { SourceEntry } from '@/components/sections/SourceEntry';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
-import type { DataSource } from '@/data/types';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useResponsive } from '@/hooks/useResponsive';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
-
-export function SourceEntry({ source }: { source: DataSource }) {
-  return (
-    <View style={styles.sourceEntry}>
-      <View style={styles.sourceHeader}>
-        <ThemedText variant='subheading'>
-          <ThemedText
-            variant='link'
-            onPress={() => Linking.openURL(source.url)}
-          >
-            {source.name}
-          </ThemedText>
-        </ThemedText>
-        <ThemedText variant='bodySmall'>
-          {'License: '}
-          {source.license_url ? (
-            <ThemedText
-              variant='bodySmallLink'
-              onPress={() => Linking.openURL(source.license_url!)}
-            >
-              {source.license}
-            </ThemedText>
-          ) : (
-            source.license
-          )}
-        </ThemedText>
-      </View>
-      {source.references.length > 0 ? (
-        <View style={styles.referenceList}>
-          {source.references.map((ref, i) => (
-            <ThemedText key={i} variant='bodySmall'>
-              {ref.year
-                ? `${ref.authors} (${ref.year}). ${ref.title}.`
-                : `${ref.authors}. ${ref.title}.`}
-              {ref.journal ? ` ${ref.journal}` : ''}
-              {ref.volume_issue ? `, ${ref.volume_issue}` : ''}
-              {ref.pages ? `, pp. ${ref.pages}` : ''}
-              {ref.doi || ref.url ? '. ' : '.'}
-              {ref.doi ? (
-                <ThemedText
-                  variant='bodySmallLink'
-                  onPress={() => Linking.openURL(ref.doi!)}
-                >
-                  {ref.doi}
-                </ThemedText>
-              ) : ref.url ? (
-                <ThemedText
-                  variant='bodySmallLink'
-                  onPress={() => Linking.openURL(ref.url!)}
-                >
-                  {ref.url}
-                </ThemedText>
-              ) : null}
-            </ThemedText>
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
-}
+import ACKNOWLEDGEMENTS_CONTENT from '@/content/acknowledgements.md';
 
 export default function AcknowledgementsScreen() {
   const responsive = useResponsive();
@@ -113,11 +54,7 @@ export default function AcknowledgementsScreen() {
           >
             <View style={[styles.content, { maxWidth: responsive.textWidth }]}>
               <View style={styles.section}>
-                <ThemedText variant='body'>
-                  {
-                    'WhereWild is built on top of a number of remarkable open datasets. We are deeply grateful to the researchers and organizations who made their work freely available. WhereWild is and will always be completely free and open source, in compliance with the non-commercial licenses of many of these datasets.'
-                  }
-                </ThemedText>
+                <Markdown>{ACKNOWLEDGEMENTS_CONTENT}</Markdown>
               </View>
               {sources.length > 0 ? (
                 <View style={styles.section}>
@@ -146,15 +83,5 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Size.space.text.subsection,
-  },
-  sourceEntry: {
-    gap: Size.space.text.paragraph,
-  },
-  sourceHeader: {
-    gap: Size.space.text.line,
-  },
-  referenceList: {
-    gap: Size.space.text.paragraph,
-    paddingLeft: Size.space['400'],
   },
 });

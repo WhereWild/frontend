@@ -2,14 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { SpeciesOccurrenceMap } from '@/components';
+import { SpeciesOccurrenceMap, ThemedText } from '@/components';
 import type { SelectOption } from '@/components';
 import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { PageSurface } from '@/components/PageSurface';
 import { PageScrollContainer } from '@/components/PageScrollContainer';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { Colors, Size } from '@/constants/theme';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { BACKEND_BASE, fetchEnvironmentVariables } from '@/data/api';
+import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
 import { useDataSources } from '@/hooks/useDataSources';
 import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -44,6 +46,7 @@ import {
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { useEnvironmentVariableSelection } from '@/components/sections/speciesEnvironment/useEnvironmentVariableSelection';
 import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment/VariableSelectorHeader';
+import { parseTemporalId } from '@/components/sections/speciesEnvironment/temporalHelpers';
 import {
   useMapLayerChain,
   type MapChainExtra,
@@ -124,6 +127,7 @@ const buildTileUrl = ({
   valueRanges,
   unitSystem,
   chain,
+  renderRange,
 }: {
   cacheKey: number;
   colormap: string;
@@ -136,6 +140,11 @@ const buildTileUrl = ({
   valueRanges: LegendRange[] | null;
   unitSystem: UnitSystem | undefined;
   chain?: MapChainExtra[];
+  // "Auto-adapt" mode's discovered [min,max] (display units, from GET
+  // .../tile-range/stats) — overrides the layer's fixed catalog
+  // render_min/max for colorization, rescaling to just what's visible on
+  // screen. See main.py's render_range query param.
+  renderRange?: [number, number] | null;
 }) => {
   const effectiveColormap = isCircular ? circularColormap : colormap;
   const cbParam = cbMode ? `&cb_mode=${encodeURIComponent(cbMode)}` : '';
@@ -166,9 +175,12 @@ const buildTileUrl = ({
     chain && chain.length > 0
       ? `&chain=${encodeURIComponent(JSON.stringify(chain))}`
       : '';
+  const renderRangeParam = renderRange
+    ? `&render_range=${encodeURIComponent(JSON.stringify(renderRange))}`
+    : '';
   return `${BACKEND_BASE}/api/variables/${encodeURIComponent(
     variable || 'landcover',
-  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}${vrParam}&unit_system=${unitSystem ?? 'metric'}${chainParam}`;
+  )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}${vrParam}&unit_system=${unitSystem ?? 'metric'}${chainParam}${renderRangeParam}`;
 };
 
 export default function Maps() {
@@ -305,6 +317,11 @@ export default function Maps() {
     (selectedVariableCategory ?? '').toLowerCase() === 'recent weather';
   const isCircular = isVariableCircular(selectedVariableMeta);
   const isCategorical = isVariableCategorical(selectedVariableMeta);
+  // Auto-adapt only makes sense for a plain numeric gradient — circular
+  // (wraparound 0-360°) variables don't have a meaningful "observed
+  // min/max" the same way, and categorical variables have no numeric range
+  // at all.
+  const isAutoAdaptApplicable = !isCategorical && !isCircular;
 
   const forecastH = isRecentWeather
     ? (FORECAST_HOUR_MAP[selectedForecast] ?? 0)
@@ -321,6 +338,23 @@ export default function Maps() {
     setVisibleNominalCounts(new Map());
     setPinnedValue(null);
   }, [selectedVariable, globeViewEnabled]);
+
+  const {
+    autoAdaptEnabled,
+    toggleAutoAdapt,
+    handleBoundsChange,
+    renderRange: autoAdaptRenderRange,
+    effectiveRenderMin,
+    effectiveRenderMax,
+  } = useAutoAdaptRange({
+    selectedVariable,
+    isApplicable: isAutoAdaptApplicable,
+    units,
+    forecastH,
+    catalogRenderMin: selectedVariableMeta?.renderMin,
+    catalogRenderMax: selectedVariableMeta?.renderMax,
+    resetKey: globeViewEnabled,
+  });
 
   const { chain: layerChain, clearChain: clearLayerChain } = useMapLayerChain({
     selectedVariable,
@@ -379,6 +413,7 @@ export default function Maps() {
             : selectedValueRanges,
         unitSystem: units,
         chain: layerChain.map((entry) => entry.extra),
+        renderRange: autoAdaptRenderRange,
       }),
     [
       tileCacheKey,
@@ -394,6 +429,7 @@ export default function Maps() {
       selectedValueRanges,
       units,
       layerChain,
+      autoAdaptRenderRange,
     ],
   );
 
@@ -627,6 +663,7 @@ export default function Maps() {
                   )
                 }
                 onTileClasses={handleTileClasses}
+                onBoundsChange={handleBoundsChange}
                 onPointValue={handlePointValue}
                 pointQueryUrl={
                   selectedVariable
@@ -634,16 +671,12 @@ export default function Maps() {
                     : null
                 }
                 isCircular={isCircular}
-                renderMin={
-                  !isCategorical && !isCircular
-                    ? (selectedVariableMeta?.renderMin ?? null)
-                    : null
-                }
-                renderMax={
-                  !isCategorical && !isCircular
-                    ? (selectedVariableMeta?.renderMax ?? null)
-                    : null
-                }
+                renderMin={isAutoAdaptApplicable ? effectiveRenderMin : null}
+                renderMax={isAutoAdaptApplicable ? effectiveRenderMax : null}
+                enableAutoAdaptToggle
+                autoAdaptApplicable={isAutoAdaptApplicable}
+                autoAdaptEnabled={autoAdaptEnabled}
+                onToggleAutoAdapt={toggleAutoAdapt}
                 gradientStops={
                   !isCategorical && !isCircular
                     ? COLORMAPS[selectedColormap].stops
@@ -714,15 +747,14 @@ export default function Maps() {
                 </>
               )}
 
-              {!isCircular &&
-                !isCategorical &&
-                selectedVariableMeta?.renderMin != null &&
-                selectedVariableMeta?.renderMax != null && (
+              {isAutoAdaptApplicable &&
+                effectiveRenderMin != null &&
+                effectiveRenderMax != null && (
                   <>
                     <MapVariableLegend
-                      min={selectedVariableMeta.renderMin}
-                      max={selectedVariableMeta.renderMax}
-                      units={selectedVariableMeta.units}
+                      min={effectiveRenderMin}
+                      max={effectiveRenderMax}
+                      units={selectedVariableMeta?.units}
                       pinnedValue={pinnedValue}
                       barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
                       selectedRanges={selectedValueRanges}
@@ -749,6 +781,14 @@ export default function Maps() {
                   dataSources={dataSources}
                 />
               )}
+            {selectedVariable ? (
+              <RoutePressable
+                href={`/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`}
+                accessibilityRole='link'
+              >
+                <ThemedText variant='bodySmallLink'>{'View guide'}</ThemedText>
+              </RoutePressable>
+            ) : null}
           </View>
         </PageScrollContainer>
       </PageSurface>

@@ -26,9 +26,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Record build date
+        id: build-date
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build web export
         env:
           APP_BACKEND_URL: https://api.wherewild.net
+          APP_BUILD_DATE: ${{ steps.build-date.outputs.date }}
         run: npm run export:web -- --backendUrl=https://api.wherewild.net
       - name: Inject build version into service worker
         run: sed -i "s/__BUILD_VERSION__/${{ github.sha }}/g" dist/sw.js

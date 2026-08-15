@@ -1,0 +1,1 @@
+Welcome to WhereWild. Get started by searching for a species using the search bar, or you can also use [search filters](/search) to sort and filter species by many criteria. Explore GIS data on the [maps](/maps) page, adjust your preferences in [settings](/settings), or read the [help page](/help) to learn more about how everything works.

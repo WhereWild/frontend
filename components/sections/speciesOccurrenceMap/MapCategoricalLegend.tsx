@@ -205,7 +205,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 8,
     top: 82,
-    bottom: 10,
+    // Clears the map's native bottom-left attribution/scale-bar row (see
+    // SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html) instead of
+    // running the class list underneath it.
+    bottom: 40,
     zIndex: 1000,
     justifyContent: 'flex-start',
   },

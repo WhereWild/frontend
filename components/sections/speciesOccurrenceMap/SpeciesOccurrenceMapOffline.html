@@ -1078,6 +1078,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const TILE_REFERRER_POLICY = __REFERRER_POLICY_JSON__;
     const TILE_URL = __TILE_URL_JSON__;
 const MAP_TILE_MODE = __MAP_TILE_MODE_JSON__;
+const UNIT_SYSTEM = __UNIT_SYSTEM_JSON__;
 const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     const TILE_ATTRIBUTION = __TILE_ATTRIBUTION_JSON__;
     // Esri World Imagery, proxied through our own backend (see
@@ -1152,6 +1153,13 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     let DOT_MAX = __DOT_MAX_JSON__;
     let RENDER_MIN = __RENDER_MIN_JSON__;
     let RENDER_MAX = __RENDER_MAX_JSON__;
+    const ENABLE_AUTO_ADAPT_TOGGLE = __ENABLE_AUTO_ADAPT_TOGGLE__;
+    // Whether the ruler-icon auto-adapt button is currently relevant
+    // (a plain numeric-gradient variable) and toggled on — kept live via
+    // 'heatmapUpdate' (see below) since a plain variable switch reuses this
+    // same document instead of rebuilding it (see preserveMapPosition).
+    let AUTO_ADAPT_APPLICABLE = __AUTO_ADAPT_APPLICABLE_INITIAL__;
+    let AUTO_ADAPT_ENABLED = __AUTO_ADAPT_ENABLED_INITIAL__;
     const DISABLE_OBSERVATION_QUERY = __DISABLE_OBSERVATION_QUERY__;
     let VAR_UNITS = __VAR_UNITS_JSON__;
     let CLASS_COLORS = __CLASS_COLORS_JSON__;
@@ -1231,6 +1239,16 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         '.leaflet-locate-btn:hover{background:' + bdr + ' !important}',
         '.leaflet-control-attribution{background:' + bg + ' !important;color:' + text + '}',
         '.leaflet-control-attribution a{color:' + link + ' !important}',
+        '.leaflet-control-scale-line{background:' + bg + ' !important;color:' + text + ';border-color:' + text + '}',
+        // Leaflet stacks same-corner controls in a vertical column by
+        // default (float+clear:both) — tall enough at bottom-left to run
+        // under the left-side legend overlay the consuming page renders
+        // there. Force a horizontal row instead so attribution and the
+        // scale bar sit side by side, in DOM/add order (attribution, then
+        // scale — see the addTo() calls above).
+        '.leaflet-bottom.leaflet-left{display:flex !important;flex-direction:row !important;align-items:flex-end !important}',
+        '.leaflet-bottom.leaflet-left .leaflet-control{float:none !important;clear:none !important;margin:0 0 10px 10px !important}',
+        '.leaflet-control-scale.wherewild-scale-centered{position:fixed !important;top:50% !important;left:50% !important;right:auto !important;bottom:auto !important;margin:0 !important;transform:translate(-50%,-50%);z-index:2000}',
       ].join('');
       var el = document.createElement('style');
       el.textContent = css;
@@ -1267,7 +1285,31 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // manually below at bottomleft instead so the two never collide.
       attributionControl: false,
     });
+    // Added in this order (attribution before scale) so that, once the
+    // bottom-left corner is forced into a horizontal row below, the scale
+    // bar renders to the right of attribution — the default vertical
+    // control stack ran tall enough to be hidden underneath the left-side
+    // legend overlay the consuming page renders there.
     L.control.attribution({ position: 'bottomleft' }).addTo(map);
+    // Tapping the scale bar toggles it between docked bottom-left (default)
+    // and centered over the map — the corner is a fine resting spot, but
+    // it's awkward for actually eyeballing distance against something
+    // mid-map, so a tap moves it there instead. Not persisted: always
+    // starts docked again on the next load.
+    (function() {
+      var scaleCtrl = L.control.scale({
+        position: 'bottomleft',
+        metric: UNIT_SYSTEM !== 'imperial',
+        imperial: UNIT_SYSTEM === 'imperial',
+      }).addTo(map);
+      var scaleEl = scaleCtrl.getContainer();
+      L.DomEvent.disableClickPropagation(scaleEl);
+      L.DomEvent.disableScrollPropagation(scaleEl);
+      scaleEl.style.cursor = 'pointer';
+      scaleEl.addEventListener('click', function() {
+        scaleEl.classList.toggle('wherewild-scale-centered');
+      });
+    })();
 
     function applyMinZoomForSize() {
       map.setMinZoom(minZoomForMaxLongitudeSpan(map.getSize().x));
@@ -2104,6 +2146,42 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     uploadPolygonControlInstance = new UploadPolygonControl();
     map.addControl(uploadPolygonControlInstance);
 
+    // "Auto-adapt": rescales the legend/colorization to just the value
+    // range actually visible on screen, instead of the variable's fixed
+    // catalog-wide render_min/render_max — a ruler, since it's about
+    // measuring the data that's currently in view. This button doesn't
+    // track its own on/off state — it's a dumb trigger that posts a click
+    // upward and waits for AUTO_ADAPT_ENABLED to round-trip back down via
+    // 'heatmapUpdate' (see updateAutoAdaptButton), so there's only ever one
+    // source of truth for whether it's on.
+    var AUTO_ADAPT_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="5.5" width="13" height="5" rx="0.5"/><path d="M4.5 5.5v2M7.5 5.5v2M10.5 5.5v2M13 5.5v1.3"/></svg>';
+    var autoAdaptButtonEl = null;
+    function updateAutoAdaptButton() {
+      if (!autoAdaptButtonEl) return;
+      autoAdaptButtonEl.style.display = AUTO_ADAPT_APPLICABLE ? '' : 'none';
+      autoAdaptButtonEl.style.color = AUTO_ADAPT_ENABLED ? palette.linkColor : '';
+      autoAdaptButtonEl.title = AUTO_ADAPT_ENABLED
+        ? 'Auto-adapt: on (colors are scaled to what\'s on screen)'
+        : 'Auto-adapt: scale colors to what\'s on screen';
+    }
+    if (ENABLE_AUTO_ADAPT_TOGGLE) {
+      var AutoAdaptControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function() {
+          var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
+          btn.innerHTML = AUTO_ADAPT_ICON;
+          L.DomEvent.disableClickPropagation(btn);
+          L.DomEvent.on(btn, 'click', function() {
+            postToParent({ type: 'toggleAutoAdapt' });
+          });
+          autoAdaptButtonEl = btn;
+          updateAutoAdaptButton();
+          return btn;
+        },
+      });
+      map.addControl(new AutoAdaptControl());
+    }
+
     var locateMarker = null;
     var locateCircle = null;
 
@@ -2761,7 +2839,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           // tileUrlForBasemapMode), only whether the toggle can reach
           // 'variable' at all.
           currentHeatmapTileUrl = data.heatmapTileUrl;
-          if (heatmapLayer) { heatmapLayer.setUrl(data.heatmapTileUrl); }
+          swapHeatmapLayer(data.heatmapTileUrl);
         }
         if (data.pointQueryUrl !== undefined) { POINT_QUERY_URL = data.pointQueryUrl; }
         if (data.renderMin !== undefined) { RENDER_MIN = data.renderMin; }
@@ -2772,6 +2850,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           MARKER_OUTLINE = data.markerOutline;
           OUTLINE_STROKE = MARKER_OUTLINE ? 'rgba(176,176,176,0.65)' : null;
         }
+        if (data.autoAdaptApplicable !== undefined) { AUTO_ADAPT_APPLICABLE = data.autoAdaptApplicable; }
+        if (data.autoAdaptEnabled !== undefined) { AUTO_ADAPT_ENABLED = data.autoAdaptEnabled; }
+        updateAutoAdaptButton();
         return;
       }
 

@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -322,6 +323,14 @@ export function Filters({
             dataSources={dataSources}
           />
         )}
+        {selectedBaseKey ? (
+          <RoutePressable
+            href={`/guides/variables/${selectedBaseKey}`}
+            accessibilityRole='link'
+          >
+            <ThemedText variant='bodySmallLink'>{'View guide'}</ThemedText>
+          </RoutePressable>
+        ) : null}
         <SelectField
           label='Sorting metric'
           disabled={sortVariableDisabled || sortMetricOptions.length === 0}

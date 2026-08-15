@@ -385,7 +385,14 @@ export type EnvironmentVariableDefinition = {
   name?: string;
   units?: string | null;
   description?: string | null;
+  /** Coarse UI-rendering-mode bucket ("continuous"/"categorical"/"ordinal"/
+   * "circular") — collapses interval and ratio together, and nominal into
+   * "categorical". Prefer `rawValueType` for anything that needs the
+   * precise measurement level (e.g. distinguishing interval from ratio). */
   valueType?: string | null;
+  /** The precise, unbucketed measurement level — "nominal" | "ordinal" |
+   * "interval" | "ratio" | "circular" — see backend's raw_value_type. */
+  rawValueType?: string | null;
   domain?: string | null;
   category?: string | null;
   sourceIds?: string[];

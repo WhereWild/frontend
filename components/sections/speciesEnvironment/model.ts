@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type {
+  EnvironmentVariableDefinition,
   ExtraVariableFilter,
   LegendClass,
   SpeciesEnvironmentCategory,
@@ -11,6 +12,7 @@ import type {
   SpeciesEnvironmentObservation,
   SpeciesEnvironmentSummary,
 } from '@/data/types';
+import { parseTemporalId, stripTemporalSuffix } from './temporalHelpers';
 
 const SIGNIFICANT_CATEGORY_THRESHOLD = 0.02;
 
@@ -183,6 +185,110 @@ export const normalizeLabel = (value: string) =>
     .split('_')
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(' ');
+
+/** Resolves the "family" key that unifies a variable's temporal-window
+ * and/or grouped-agg variants (e.g. weather_code_simple_mode_24h/_168h, or
+ * vpdmin/vpdmean/vpdmax/vpdrange) into one conceptual variable — same
+ * priority order as useVariableGroupSelection's baseVariableOptions. */
+export const getVariableFamilyKey = (
+  variable: Pick<EnvironmentVariableDefinition, 'id' | 'group' | 'agg'>,
+): string => {
+  const parsed = parseTemporalId(variable.id);
+  if (parsed) return parsed.baseId;
+  if (variable.group && variable.agg) return variable.group;
+  return variable.id;
+};
+
+/** Groups a flat variable list by family key (see getVariableFamilyKey). */
+export const groupVariablesByFamily = (
+  variables: EnvironmentVariableDefinition[],
+): Map<string, EnvironmentVariableDefinition[]> => {
+  const groups = new Map<string, EnvironmentVariableDefinition[]>();
+  for (const variable of variables) {
+    const key = getVariableFamilyKey(variable);
+    const existing = groups.get(key) ?? [];
+    existing.push(variable);
+    groups.set(key, existing);
+  }
+  return groups;
+};
+
+/** Picks the variant a multi-variant family's shared stats/legend/sources
+ * are sourced from — the "mean" agg for grouped families, else the
+ * shortest temporal window, else whichever variant came first. */
+export const pickFamilyRepresentative = (
+  variants: EnvironmentVariableDefinition[],
+): EnvironmentVariableDefinition => {
+  const meanVariant = variants.find((v) => v.agg === 'mean');
+  if (meanVariant) return meanVariant;
+  const shortestWindow = variants
+    .map((v) => ({ v, parsed: parseTemporalId(v.id) }))
+    .filter(
+      (
+        entry,
+      ): entry is {
+        v: EnvironmentVariableDefinition;
+        parsed: NonNullable<ReturnType<typeof parseTemporalId>>;
+      } => entry.parsed !== null,
+    )
+    .sort((a, b) => a.parsed.windowHours - b.parsed.windowHours)[0];
+  return shortestWindow?.v ?? variants[0];
+};
+
+/** Simplified display label for a variable family — strips the temporal
+ * agg/window suffix, or falls back to the shared group label. */
+export const getFamilyLabel = (
+  representative: EnvironmentVariableDefinition,
+  familyKey: string,
+): string => {
+  if (parseTemporalId(representative.id)) {
+    return stripTemporalSuffix(
+      representative.name ?? normalizeLabel(familyKey),
+    );
+  }
+  if (representative.group && representative.agg) {
+    return (
+      representative.groupLabel ??
+      representative.name ??
+      normalizeLabel(familyKey)
+    );
+  }
+  return representative.name ?? normalizeLabel(familyKey);
+};
+
+/** Human-readable API id (or id pattern) for a variable family — a single
+ * real id when there's only one variant, a `{baseId}_{agg}_{window}h`
+ * template plus the actual windows present for a temporal family (rather
+ * than just one arbitrarily-picked variant's id), or a comma-separated list
+ * of the real ids for a grouped family (vpdmin/vpdmean/vpdmax/vpdrange —
+ * no shared template to derive one from). */
+export const getApiIdDisplay = (
+  variants: EnvironmentVariableDefinition[],
+): string => {
+  if (variants.length <= 1) return variants[0]?.id ?? '';
+
+  const parsedVariants = variants
+    .map((v) => ({ v, parsed: parseTemporalId(v.id) }))
+    .filter(
+      (
+        entry,
+      ): entry is {
+        v: EnvironmentVariableDefinition;
+        parsed: NonNullable<ReturnType<typeof parseTemporalId>>;
+      } => entry.parsed !== null,
+    );
+  if (parsedVariants.length === variants.length) {
+    const { baseId, agg } = parsedVariants[0].parsed;
+    const windows = parsedVariants
+      .map((entry) => entry.parsed.windowHours)
+      .sort((a, b) => a - b)
+      .map((hours) => `${hours}`)
+      .join(', ');
+    return `${baseId}_${agg}_{window}h (windows: ${windows})`;
+  }
+
+  return variants.map((v) => v.id).join(', ');
+};
 
 /** Formats numeric values with a fixed number of fraction digits. */
 export const formatValue = (value: number | null | undefined, digits = 0) => {

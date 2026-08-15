@@ -40,6 +40,7 @@ jest.mock('expo-router/head', () => ({
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
+  usePathname: () => '/settings',
 }));
 
 jest.mock('@/hooks/useResponsive', () => ({

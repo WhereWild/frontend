@@ -6,6 +6,7 @@ import { Colors, Responsive, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { ThemedText } from '@/components/text/ThemedText';
 import { AspectCompassChart } from './AspectCompassChart';
 import { ContinuousInsights } from './ContinuousInsights';
@@ -22,6 +23,7 @@ import {
   isVariableDiscrete,
   type EnvironmentVariableOption,
 } from './model';
+import { parseTemporalId } from './temporalHelpers';
 import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
@@ -750,6 +752,14 @@ function SpeciesEnvironmentSectionComponent({
               dataSources={dataSources}
             />
           )}
+        {selectedVariable ? (
+          <RoutePressable
+            href={`/guides/variables/${parseTemporalId(selectedVariable)?.baseId ?? selectedVariable}`}
+            accessibilityRole='link'
+          >
+            <ThemedText variant='bodySmallLink'>{'View guide'}</ThemedText>
+          </RoutePressable>
+        ) : null}
       </View>
     </View>
   );
