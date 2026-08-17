@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import React from 'react';
 import { SpeciesInformationSection } from '../SpeciesInformationSection';
 import { useDataSources } from '@/hooks/useDataSources';
@@ -153,5 +153,40 @@ describe('SpeciesInformationSection', () => {
     expect(screen.getByText('Habitat')).toBeTruthy();
     expect(screen.queryByText('Seasonality')).toBeNull();
     expect(screen.queryByText('Not notable.')).toBeNull();
+  });
+
+  it('assigns a slugified nativeID to the Overview heading and each subsection on web, so #habitat can be linked to directly', () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      const { UNSAFE_getByProps } = render(
+        <SpeciesInformationSection
+          commonName='Test Cactus'
+          overview={{
+            description: 'Fallback overview description.',
+            imageSource: { uri: 'https://images.example/cactus.jpg' },
+            sections: [
+              {
+                id: 'habitat',
+                title: 'Habitat',
+                lines: [{ body: 'Open desert slopes' }],
+              },
+            ],
+          }}
+        />,
+      );
+
+      expect(UNSAFE_getByProps({ nativeID: 'overview' })).toBeTruthy();
+      expect(UNSAFE_getByProps({ nativeID: 'habitat' })).toBeTruthy();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 });

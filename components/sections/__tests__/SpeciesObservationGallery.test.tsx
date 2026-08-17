@@ -5,6 +5,7 @@
 import { Typography } from '@/constants/theme';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
+import { Platform } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTypographyStyles } from '@/hooks/useTypographyStyles';
 import {
@@ -18,6 +19,12 @@ jest.mock('@/hooks/useColorScheme', () => ({
 
 jest.mock('@/hooks/useTypographyStyles', () => ({
   useTypographyStyles: jest.fn(),
+}));
+
+// Real useResponsive() adds a window resize listener on web, which this
+// non-jsdom test environment's `window` global doesn't support.
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({ breakpoint: 'desktop' }),
 }));
 
 jest.mock('@/components/text/ThemedText', () => {
@@ -78,6 +85,30 @@ describe('SpeciesObservationGallery', () => {
       <SpeciesObservationGallery {...defaultPagerProps} points={[]} loading />,
     );
     expect(screen.getByText('Loading…')).toBeTruthy();
+  });
+
+  it('assigns a slugified nativeID to the section heading on web, so #observations can be linked to directly', () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      const { UNSAFE_getByProps } = render(
+        <SpeciesObservationGallery
+          {...defaultPagerProps}
+          totalCount={1}
+          points={[point()]}
+        />,
+      );
+      expect(UNSAFE_getByProps({ nativeID: 'observations' })).toBeTruthy();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it('renders a card per point, passing through the catalog number and variable fields', () => {

@@ -3,9 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Colors, Responsive, Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
+import { toKebabCase } from '@/utils/string';
 import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { ThemedText } from '@/components/text/ThemedText';
 import { AspectCompassChart } from './AspectCompassChart';
@@ -99,6 +103,13 @@ function SpeciesEnvironmentSectionComponent({
       ? 'Species'
       : `${taxonRank.charAt(0).toUpperCase()}${taxonRank.slice(1).toLowerCase()}`;
   const sectionTitle = `${rankLabel} Environment`;
+  const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
+  // Lets links target this section directly, e.g. #species-environment.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
 
   const stableDisplayRef = React.useRef<{
     headingText: string | null;
@@ -400,7 +411,17 @@ function SpeciesEnvironmentSectionComponent({
 
   return (
     <View collapsable={false} style={styles.container}>
-      <ThemedText variant='subheading'>{sectionTitle}</ThemedText>
+      <ThemedText
+        variant='subheading'
+        {...(Platform.OS === 'web'
+          ? {
+              nativeID: toKebabCase(sectionTitle),
+              style: scrollMarginStyle,
+            }
+          : {})}
+      >
+        {sectionTitle}
+      </ThemedText>
 
       <VariableSelectorHeader
         categories={categories}

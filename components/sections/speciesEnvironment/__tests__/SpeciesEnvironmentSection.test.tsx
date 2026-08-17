@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import type { SpeciesEnvironmentStats } from '@/data/types';
 import { useDataSources } from '@/hooks/useDataSources';
 import { SpeciesEnvironmentSection } from '../SpeciesEnvironmentSection';
@@ -11,6 +12,12 @@ import { useSpeciesEnvironmentState } from '../useSpeciesEnvironmentState';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
+}));
+
+// Real useResponsive() adds a window resize listener on web, which this
+// non-jsdom test environment's `window` global doesn't support.
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({ breakpoint: 'desktop' }),
 }));
 
 jest.mock('../useSpeciesEnvironmentState', () => ({
@@ -344,6 +351,28 @@ describe('SpeciesEnvironmentSection', () => {
   it('renders the section subheading above the variable selector', () => {
     render(<SpeciesEnvironmentSection taxonId='1' />);
     expect(screen.getByText('Species Environment')).toBeTruthy();
+  });
+
+  it('assigns a slugified nativeID to the section heading on web, so #species-environment can be linked to directly', () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      const { UNSAFE_getByProps } = render(
+        <SpeciesEnvironmentSection taxonId='1' />,
+      );
+      expect(
+        UNSAFE_getByProps({ nativeID: 'species-environment' }),
+      ).toBeTruthy();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it('renders loading state', () => {

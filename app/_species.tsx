@@ -67,6 +67,7 @@ import {
 } from '@/hooks/upload/uploadWorkflowHelpers';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import React from 'react';
 import {
@@ -1067,6 +1068,12 @@ export default function Species({
     selectedColormap,
     selectedCircularColormap,
   ]);
+
+  // Lands on a specific section once its content has loaded, e.g.
+  // #distribution (an Overview subsection, present on first render from
+  // `data`) or #observations (the gallery, which only exists once
+  // observations have loaded).
+  useScrollToHash([galleryPoints.length]);
 
   const speciesPath = React.useMemo(() => {
     if (Platform.OS === 'web' && pathname.startsWith('/species/')) {

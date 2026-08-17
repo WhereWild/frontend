@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Colors, Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { parseOverviewSectionsFromDescriptionText } from '@/data/speciesOverviewParser';
 import type { SpeciesOverview, SpeciesOverviewLine } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -12,11 +13,13 @@ import React from 'react';
 import {
   Image,
   Linking,
+  Platform,
   StyleProp,
   StyleSheet,
   View,
   ViewStyle,
 } from 'react-native';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
 import { ThemedText } from '../text/ThemedText';
 
 const GBIF_SOURCE_ID = 'gbif_inaturalist';
@@ -52,6 +55,13 @@ export function SpeciesInformationSection({
   const mode = scheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
   const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
+  // Lets links target this species page's Overview (and its structured
+  // subsections, e.g. #distribution) directly.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
   const dataSources = useDataSources();
   const gbifSource = dataSources[GBIF_SOURCE_ID] ?? null;
   const gbifCitationUrl = gbifSource?.url ?? null;
@@ -144,7 +154,14 @@ export function SpeciesInformationSection({
         ]}
       >
         <View style={styles.textSection}>
-          <ThemedText variant='heading'>Overview</ThemedText>
+          <ThemedText
+            variant='heading'
+            {...(Platform.OS === 'web'
+              ? { nativeID: 'overview', style: scrollMarginStyle }
+              : {})}
+          >
+            Overview
+          </ThemedText>
           {allObscured && (
             <View
               style={[
@@ -168,7 +185,14 @@ export function SpeciesInformationSection({
             <View style={styles.textSubsectionContainer}>
               {overviewSections.map((section) => (
                 <View key={section.id} style={styles.textSubsection}>
-                  <ThemedText variant='subheading'>{section.title}</ThemedText>
+                  <ThemedText
+                    variant='subheading'
+                    {...(Platform.OS === 'web'
+                      ? { nativeID: section.id, style: scrollMarginStyle }
+                      : {})}
+                  >
+                    {section.title}
+                  </ThemedText>
                   <View style={styles.textBody}>
                     {section.lines.map((line, index) => {
                       const lineNode = renderOverviewLineText(line);
