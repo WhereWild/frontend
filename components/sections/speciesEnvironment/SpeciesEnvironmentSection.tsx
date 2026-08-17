@@ -232,7 +232,7 @@ function SpeciesEnvironmentSectionComponent({
     homePinnedCategoryValue,
     homeUnobservedCategory,
     isCircularVariable,
-    activeChain,
+    fullChain,
   } = useSpeciesEnvironmentState({
     taxonId,
     variableId,
@@ -256,8 +256,8 @@ function SpeciesEnvironmentSectionComponent({
   }, [selectedVariableMeta, onVariableMetaChange]);
 
   React.useEffect(() => {
-    onChainChange?.(activeChain);
-  }, [activeChain, onChainChange]);
+    onChainChange?.(fullChain);
+  }, [fullChain, onChainChange]);
 
   const cbMode = settings?.cbMode ?? null;
   // Ordinal variables have no separate accessibility variant — the
