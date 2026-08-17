@@ -91,8 +91,22 @@ export const MAP_LINES_TILE_URL_TEMPLATE =
   'https://tiles.stadiamaps.com/tiles/stamen_toner_lines/{z}/{x}/{y}{r}.png';
 export const MAP_BACKGROUND_TILE_URL_TEMPLATE =
   'https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png';
+// Stadia Maps credit here pairs with the Stadia-hosted MAP_TILE_URL_TEMPLATE_*
+// constants above. When those switch to the self-hosted basemap (see
+// scripts/gis/build_basemap_tiles.py + config/gis/tile_styles/), swap this for
+// MAP_TILE_ATTRIBUTION_SELF_HOSTED below in the same change — CARTO's design
+// license (CC-BY 4.0, config/gis/tile_styles/standard-*.json) requires visible
+// credit the moment those styles actually serve traffic, and crediting CARTO
+// while still pulling Stadia's tiles (or vice versa) would misattribute both.
 export const MAP_TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+// Required credits for the self-hosted basemap: CARTO (style design, CC-BY 4.0
+// — config/gis/tile_styles/standard-*.json are forks of CARTO's Positron/Dark
+// Matter), OpenMapTiles (vector schema, BSD-3/CC-BY — also the license under
+// which planetiler, the tile-building tool, publishes its OpenMapTiles-schema
+// output), and OpenStreetMap (source data, ODbL).
+export const MAP_TILE_ATTRIBUTION_SELF_HOSTED =
+  '&copy; <a href="https://carto.com/" target="_blank">CARTO</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
 export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 10000;
 
