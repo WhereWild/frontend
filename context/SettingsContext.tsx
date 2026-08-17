@@ -146,11 +146,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     useAsyncStorageState<boolean>('settings.markerOutlineEnabled', false);
   const [globeViewEnabled, setGlobeViewEnabled] = useAsyncStorageState<boolean>(
     'settings.globeViewEnabled',
-    false,
+    true,
   );
   const [terrainEnabled, setTerrainEnabled] = useAsyncStorageState<boolean>(
     'settings.terrainEnabled',
-    false,
+    true,
   );
   const [basemapMode, setBasemapMode] = useAsyncStorageState<BasemapMode>(
     'settings.basemapMode',
