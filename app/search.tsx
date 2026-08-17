@@ -375,11 +375,11 @@ export default function Search() {
         collapsable={false}
         accessibilityElementsHidden={!isVisible}
         importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
-        pointerEvents={isVisible ? 'auto' : 'none'}
         style={[
           styles.resultSlot,
           isVisible && index > 0 ? styles.resultSlotSpaced : undefined,
           !isVisible ? styles.resultSlotHidden : undefined,
+          { pointerEvents: isVisible ? 'auto' : 'none' },
         ]}
       >
         {searching ? (

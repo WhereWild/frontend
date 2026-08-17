@@ -822,12 +822,12 @@ export function DensityChart({
         </Svg>
         {!isDiscrete ? (
           <View
-            pointerEvents='none'
             style={[
               styles.pinImageContainer,
               {
                 opacity: homePinMarkerVisible ? 1 : 0,
                 left: homePinMarkerVisible ? `${homePinPosition}%` : '0%',
+                pointerEvents: 'none',
               },
             ]}
           >
@@ -840,12 +840,12 @@ export function DensityChart({
         ) : null}
         {!isDiscrete ? (
           <View
-            pointerEvents='none'
             style={[
               styles.pinImageContainer,
               {
                 opacity: pinMarkerVisible ? 1 : 0,
                 left: pinMarkerVisible ? `${pinPosition}%` : '0%',
+                pointerEvents: 'none',
               },
             ]}
           >

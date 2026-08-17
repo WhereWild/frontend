@@ -94,7 +94,7 @@ export function MapColormapPicker({
     // pointerEvents="box-none" so the (mostly empty, flex-end-aligned) box
     // doesn't itself swallow clicks meant for the map's controls underneath
     // it — only the actual visible Pressable below should be clickable.
-    <View style={styles.boundingBox} pointerEvents='box-none'>
+    <View style={[styles.boundingBox, { pointerEvents: 'box-none' }]}>
       <Pressable
         collapsable={false}
         style={[
