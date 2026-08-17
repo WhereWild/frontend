@@ -81,32 +81,56 @@ export const MAP_TILE_API_KEY =
   typeof rawMapTileApiKey === 'string' && rawMapTileApiKey.trim().length > 0
     ? rawMapTileApiKey.trim()
     : null;
-export const MAP_TILE_URL_TEMPLATE_LIGHT =
-  'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
-export const MAP_TILE_URL_TEMPLATE_DARK =
-  'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
+// standard light/dark now come from our own self-hosted OpenMapTiles basemap
+// (see scripts/gis/build_basemap_tiles.py) instead of Stadia's Alidade Smooth
+// — build_basemap_tiles.py's proxy route (main.py's basemap_tile) needs a
+// {build_date} path segment as a pure cache-busting token (mirrors
+// getLayerVersion's mtime-token scheme already used for GIS layer tiles), so
+// these are template functions rather than static strings now. The
+// background/labels/lines trio below (MAP_BACKGROUND_TILE_URL_TEMPLATE etc.)
+// stays on Stadia for now — collapsing that 3-layer composite into one
+// self-hosted "variable" tile is a real visual change deserving its own
+// verified pass, not bundled into this swap.
+let _basemapBuildDate: string | null = null;
+let _basemapBuildDatePromise: Promise<string | null> | null = null;
+
+/** Kicks off (once) fetching the current basemap build date; call from a
+ * component effect so a re-render picks up the real value once it resolves.
+ * Until then, callers fall back to 'latest', which still works (tileserver-gl
+ * only ever has one basemap loaded) — it just isn't a real cache-busting
+ * token until the real date lands. */
+export const ensureBasemapBuildDateLoaded = (): Promise<string | null> => {
+  if (!_basemapBuildDatePromise) {
+    _basemapBuildDatePromise = fetch(`${BACKEND_BASE}/api/basemap/version`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        _basemapBuildDate = d?.build_date ?? null;
+        return _basemapBuildDate;
+      })
+      .catch(() => null);
+  }
+  return _basemapBuildDatePromise;
+};
+
+export const getBasemapBuildDate = (): string => _basemapBuildDate ?? 'latest';
+
+export const MAP_TILE_URL_TEMPLATE_LIGHT = () =>
+  `${BACKEND_BASE}/api/basemap/standard-light/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
+export const MAP_TILE_URL_TEMPLATE_DARK = () =>
+  `${BACKEND_BASE}/api/basemap/standard-dark/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 export const MAP_LABELS_TILE_URL_TEMPLATE =
   'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png';
 export const MAP_LINES_TILE_URL_TEMPLATE =
   'https://tiles.stadiamaps.com/tiles/stamen_toner_lines/{z}/{x}/{y}{r}.png';
 export const MAP_BACKGROUND_TILE_URL_TEMPLATE =
   'https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png';
-// Stadia Maps credit here pairs with the Stadia-hosted MAP_TILE_URL_TEMPLATE_*
-// constants above. When those switch to the self-hosted basemap (see
-// scripts/gis/build_basemap_tiles.py + config/gis/tile_styles/), swap this for
-// MAP_TILE_ATTRIBUTION_SELF_HOSTED below in the same change — CARTO's design
-// license (CC-BY 4.0, config/gis/tile_styles/standard-*.json) requires visible
-// credit the moment those styles actually serve traffic, and crediting CARTO
-// while still pulling Stadia's tiles (or vice versa) would misattribute both.
+// Combined credit: Stadia is still live for the background/labels/lines trio
+// above, CARTO/OpenMapTiles/OpenStreetMap for the now-self-hosted standard
+// light/dark (CARTO's CC-BY 4.0 design license requires this the moment
+// those styles serve traffic — see config/gis/tile_styles/standard-*.json).
+// OpenMapTiles/OSM credit is shared by both sources, listed once.
 export const MAP_TILE_ATTRIBUTION =
-  '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
-// Required credits for the self-hosted basemap: CARTO (style design, CC-BY 4.0
-// — config/gis/tile_styles/standard-*.json are forks of CARTO's Positron/Dark
-// Matter), OpenMapTiles (vector schema, BSD-3/CC-BY — also the license under
-// which planetiler, the tile-building tool, publishes its OpenMapTiles-schema
-// output), and OpenStreetMap (source data, ODbL).
-export const MAP_TILE_ATTRIBUTION_SELF_HOSTED =
-  '&copy; <a href="https://carto.com/" target="_blank">CARTO</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+  '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://carto.com/" target="_blank">CARTO</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
 export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 10000;
 
@@ -324,13 +348,9 @@ export const toSelectedPointMessagePayload = (
   point,
 });
 
-export const getMapTileUrlTemplate = (mode: MapTileMode) => {
-  const baseTemplate =
-    mode === 'dark' ? MAP_TILE_URL_TEMPLATE_DARK : MAP_TILE_URL_TEMPLATE_LIGHT;
-  return MAP_TILE_API_KEY
-    ? `${baseTemplate}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
-    : baseTemplate;
-};
+// No api_key param — self-hosted, unlike the Stadia-backed helpers below.
+export const getMapTileUrlTemplate = (mode: MapTileMode) =>
+  mode === 'dark' ? MAP_TILE_URL_TEMPLATE_DARK() : MAP_TILE_URL_TEMPLATE_LIGHT();
 
 export const getLabelsOverlayTileUrl = () =>
   MAP_TILE_API_KEY

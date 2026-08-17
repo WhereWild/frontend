@@ -21,7 +21,9 @@ import { ThemedText } from '../text/ThemedText';
 import {
   buildGlobeHtml,
   buildLeafletHtml,
+  ensureBasemapBuildDateLoaded,
   getBackgroundTileUrl,
+  getBasemapBuildDate,
   getElevationTerrainTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
@@ -345,6 +347,15 @@ export function SpeciesOccurrenceMap({
   // onFullscreenToggle. Typed loosely since this only matters on web.
   const containerRef = React.useRef<View | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  // getMapTileUrlTemplate() reads the basemap build date synchronously (for
+  // cache-busting — see ensureBasemapBuildDateLoaded's doc comment) via a
+  // module-level singleton fetched once, not per-component; this just forces
+  // a re-render (and so a tileUrlTemplate recompute below) once the real
+  // value lands, since the first render likely sees the 'latest' fallback.
+  const [, forceBasemapVersionRerender] = React.useState(0);
+  React.useEffect(() => {
+    ensureBasemapBuildDateLoaded().then(() => forceBasemapVersionRerender((v) => v + 1));
+  }, []);
   // Even when a fixed `height` prop is set (the common case — most pages
   // give the map a set height in its normal layout), fullscreen should fill
   // the whole screen rather than leaving the map pinned at its original
@@ -644,7 +655,10 @@ export function SpeciesOccurrenceMap({
   const tileUrlTemplate = React.useMemo(
     () =>
       useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
-    [mode, useLabelsOverlay],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getBasemapBuildDate()
+    // is read for its current value as a recompute trigger (see the effect
+    // above), not a real prop/state dependency.
+    [mode, useLabelsOverlay, getBasemapBuildDate()],
   );
   // Pages with the 3-way basemap toggle (see enableBasemapModeToggle) also
   // want a labels overlay — but only shown in 'satellite'/'variable' modes

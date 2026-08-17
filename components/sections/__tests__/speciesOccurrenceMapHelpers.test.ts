@@ -10,6 +10,7 @@ import {
   buildGlobeHtml,
   buildLeafletHtml,
   computePointStyleUpdates,
+  getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
   isOpenExternalUrlEventFromFrame,
@@ -1734,23 +1735,24 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.net/');
   });
 
-  it('exposes stable map transport constants for Stadia and declustering', () => {
+  it('exposes stable map transport constants for the self-hosted basemap, Stadia overlays, and declustering', () => {
     expect(MAP_REFERRER_POLICY).toBe('strict-origin-when-cross-origin');
-    expect(MAP_TILE_URL_TEMPLATE_LIGHT).toBe(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
-    );
-    expect(MAP_TILE_URL_TEMPLATE_DARK).toBe(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-    );
+    expect(MAP_TILE_URL_TEMPLATE_LIGHT()).toContain('/api/basemap/standard-light/');
+    expect(MAP_TILE_URL_TEMPLATE_DARK()).toContain('/api/basemap/standard-dark/');
     expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
+    expect(MAP_TILE_ATTRIBUTION).toContain('CARTO');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);
     expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(10000);
   });
 
-  it('resolves a tile template for both light and dark map modes', () => {
-    expect(getMapTileUrlTemplate('light')).toContain('alidade_smooth');
-    expect(getMapTileUrlTemplate('dark')).toContain('alidade_smooth_dark');
-    expect(getMapTileUrlTemplate('light')).toContain('api_key=test-stadia-key');
+  it('resolves a tile template for both light and dark map modes, no api_key (self-hosted)', () => {
+    expect(getMapTileUrlTemplate('light')).toContain('standard-light');
+    expect(getMapTileUrlTemplate('dark')).toContain('standard-dark');
+    expect(getMapTileUrlTemplate('light')).not.toContain('api_key');
+  });
+
+  it('still applies the Stadia api_key to the (still-Stadia-backed) labels overlay', () => {
+    expect(getLabelsOverlayTileUrl()).toContain('api_key=test-stadia-key');
   });
 
   it('treats a non-string Stadia config value as absent', () => {
@@ -1771,9 +1773,7 @@ describe('speciesOccurrenceMapHelpers', () => {
     ) as typeof import('../speciesOccurrenceMap/speciesOccurrenceMapHelpers');
 
     expect(isolatedHelpers.MAP_TILE_API_KEY).toBeNull();
-    expect(isolatedHelpers.getMapTileUrlTemplate('light')).toBe(
-      MAP_TILE_URL_TEMPLATE_LIGHT,
-    );
+    expect(isolatedHelpers.getLabelsOverlayTileUrl()).not.toContain('api_key');
 
     jest.dontMock('expo-constants');
     jest.resetModules();
