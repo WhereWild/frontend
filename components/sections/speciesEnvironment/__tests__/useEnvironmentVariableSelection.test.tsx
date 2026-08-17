@@ -225,6 +225,97 @@ describe('useEnvironmentVariableSelection', () => {
     expect(screen.getByTestId('selected-meta').props.children).toBe('null');
   });
 
+  it('lands a requested variable on its own category tab, not the first-listed category (e.g. /maps?variable=ecoregions)', async () => {
+    const { result } = renderHook(() =>
+      useEnvironmentVariableSelection({
+        variableId: 'ecoregions',
+        variables: [
+          {
+            id: 'landcover',
+            label: 'Land Cover',
+            category: 'Categorical',
+            valueType: 'categorical',
+          },
+          {
+            id: 'ecoregions',
+            label: 'Ecoregions',
+            category: 'Terrain',
+            valueType: 'categorical',
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedVariableCategory).toBe('Terrain');
+    });
+    expect(result.current.selectedVariable).toBe('ecoregions');
+    expect(result.current.selectedVariableMeta?.label).toBe('Ecoregions');
+  });
+
+  it("corrects the requested variable's category AND the variable itself once the real catalog replaces a fallback list that didn't have it yet (e.g. /maps?variable=slope)", async () => {
+    const { result, rerender } = renderHook(
+      (props: Parameters<typeof useEnvironmentVariableSelection>[0]) =>
+        useEnvironmentVariableSelection(props),
+      {
+        initialProps: {
+          variableId: 'slope',
+          variables: [
+            {
+              id: 'landcover',
+              label: 'Land Cover',
+              category: 'Categorical',
+              valueType: 'categorical',
+            },
+          ],
+        },
+      },
+    );
+
+    // Before the real catalog loads, 'slope' isn't in the fallback list —
+    // the hook has to default to *some* category, and (before the fix)
+    // that default-category branch alone would leave selectedVariable
+    // stuck on that category's own variable ('landcover').
+    await waitFor(() => {
+      expect(result.current.selectedVariableCategory).toBe('Categorical');
+    });
+
+    // The real catalog arrives (e.g. maps.tsx's own fetch effect resolves)
+    // and now includes 'slope' under Terrain — critically, NOT as Terrain's
+    // first-listed variable, so a plain "fall back to this category's
+    // first variable" correction lands on the wrong one ('elevation')
+    // instead of the one actually requested.
+    rerender({
+      variableId: 'slope',
+      variables: [
+        {
+          id: 'landcover',
+          label: 'Land Cover',
+          category: 'Categorical',
+          valueType: 'categorical',
+        },
+        {
+          id: 'elevation',
+          label: 'Elevation',
+          category: 'Terrain',
+          valueType: 'continuous',
+        },
+        {
+          id: 'slope',
+          label: 'Slope',
+          category: 'Terrain',
+          valueType: 'continuous',
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedVariableCategory).toBe('Terrain');
+    });
+    expect(result.current.selectedVariable).toBe('slope');
+    expect(result.current.selectedVariableMeta?.label).toBe('Slope');
+  });
+
   it('updates the selected variable when the active category changes', async () => {
     const { result } = renderHook(() =>
       useEnvironmentVariableSelection({

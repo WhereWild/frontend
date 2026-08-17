@@ -154,10 +154,46 @@ export function useEnvironmentVariableSelection({
     );
   }, [resolvedVariables, selectedVariableCategory, categories.length]);
 
+  // Tracks the fallbackVariable a requested category was last applied for,
+  // so a route-requested variable (e.g. /maps?variable=ecoregions) lands on
+  // its own category tab instead of whichever category happens to default
+  // first — without this, the category-defaulting branch below would win
+  // the category race, then the variable-follows-category effect further
+  // down would silently swap the requested variable back out for that
+  // category's own default. Re-fires (rather than a one-shot ref) whenever
+  // resolvedVariables changes so it can correct itself once the real
+  // catalog replaces this hook's small pre-fetch fallback list, which may
+  // not have carried the requested variable (or its real category) yet.
+  const appliedRequestedCategoryVariableRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
     if (!categories.length) {
       return;
     }
+    const requestedCategory =
+      resolvedVariables.find((variable) => variable.id === fallbackVariable)
+        ?.category ?? null;
+
+    if (
+      requestedCategory &&
+      categories.includes(requestedCategory) &&
+      appliedRequestedCategoryVariableRef.current !== fallbackVariable
+    ) {
+      appliedRequestedCategoryVariableRef.current = fallbackVariable;
+      setSelectedVariableCategoryState(requestedCategory);
+      // Re-assert the requested variable itself in the same pass as its
+      // category correction (not just on fallbackVariable's own value
+      // changing, below) — otherwise, if selectedVariable had already
+      // drifted to some other category's default while this variable
+      // wasn't resolvable yet (e.g. it's missing from a small pre-fetch
+      // fallback list), the variable-follows-category effect sees the
+      // freshly-corrected category with a stale, mismatched variable and
+      // "corrects" it again — to that category's own first entry, not the
+      // one actually requested.
+      setSelectedVariable(fallbackVariable);
+      return;
+    }
+
     if (
       selectedVariableCategory &&
       categories.includes(selectedVariableCategory)
@@ -165,7 +201,12 @@ export function useEnvironmentVariableSelection({
       return;
     }
     setSelectedVariableCategoryState(categories[0]);
-  }, [categories, selectedVariableCategory]);
+  }, [
+    categories,
+    resolvedVariables,
+    fallbackVariable,
+    selectedVariableCategory,
+  ]);
 
   React.useEffect(() => {
     if (!selectedVariableCategory || !filteredVariables.length) {
