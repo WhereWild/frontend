@@ -183,6 +183,11 @@ type UseEnvironmentHighlightsParams = {
    * render, instead of a stale per-class legend color. See
    * useSpeciesEnvironmentState.ts's identical colorMode derivation. */
   colorMode?: string | null;
+  /** Seeds activeChain on mount — e.g. a chain hydrated from the route's
+   * ?slice= param. Only consulted on first render (an ordinary useState
+   * initial value), same as every other route-hydrated piece of state on
+   * the species page. */
+  initialChain?: ChainedVariableFilter[];
 };
 
 /** Handles category/range selections and resolves corresponding highlighted observations. */
@@ -201,6 +206,7 @@ export function useEnvironmentHighlights({
   pinnedObservation,
   slicingEnabled = true,
   colorMode = null,
+  initialChain,
 }: UseEnvironmentHighlightsParams) {
   const speciesDataSource = useSpeciesDataSource();
   const [selectedCategoryValues, setSelectedCategoryValuesState] =
@@ -259,7 +265,7 @@ export function useEnvironmentHighlights({
   // on a genuine context change (location/phenology/timestamp/units/taxon),
   // same as the old single-slice behavior for those.
   const [activeChain, setActiveChain] = React.useState<ChainedVariableFilter[]>(
-    [],
+    initialChain ?? [],
   );
   // Tracks which variable + mode the CURRENT selectedDensityRanges/
   // selectedCategoryValues belongs to, plus its already-resolved display
@@ -388,7 +394,15 @@ export function useEnvironmentHighlights({
   // A genuine context change (not just switching which variable is
   // selected) invalidates any chained filters too — the whole underlying
   // dataset shifted, so there's nothing meaningful left to chain onto.
+  // Skipped on the very first mount: all deps are "new" then, which would
+  // otherwise immediately wipe out a chain seeded via `initialChain`
+  // (URL-hydrated slice params) before it's ever visible.
+  const isFirstResetRef = React.useRef(true);
   React.useEffect(() => {
+    if (isFirstResetRef.current) {
+      isFirstResetRef.current = false;
+      return;
+    }
     resetHighlightState();
   }, [
     endTimestamp,

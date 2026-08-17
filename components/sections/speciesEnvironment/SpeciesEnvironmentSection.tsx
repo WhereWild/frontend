@@ -25,6 +25,7 @@ import {
   getCompositionAxisLabels,
   isValidHistogramContract,
   isVariableDiscrete,
+  type ChainedVariableFilter,
   type EnvironmentVariableOption,
 } from './model';
 import { parseTemporalId } from './temporalHelpers';
@@ -76,6 +77,11 @@ export type SpeciesEnvironmentSectionProps = {
     lat: number;
     lon: number;
   } | null;
+  /** Seeds the chained-filter state on mount — e.g. a chain hydrated from
+   * the route's ?slice= param. */
+  initialChain?: ChainedVariableFilter[];
+  /** Called whenever the chained-filter state changes. */
+  onChainChange?: (chain: ChainedVariableFilter[]) => void;
 };
 
 /** Displays environment distribution insights for a species and selected variable. */
@@ -94,6 +100,8 @@ function SpeciesEnvironmentSectionComponent({
   polygon,
   units,
   pinnedObservation,
+  initialChain,
+  onChainChange,
 }: SpeciesEnvironmentSectionProps) {
   const slicingEnabled =
     !largeTaxon &&
@@ -224,6 +232,7 @@ function SpeciesEnvironmentSectionComponent({
     homePinnedCategoryValue,
     homeUnobservedCategory,
     isCircularVariable,
+    activeChain,
   } = useSpeciesEnvironmentState({
     taxonId,
     variableId,
@@ -239,11 +248,16 @@ function SpeciesEnvironmentSectionComponent({
     slicingEnabled,
     cbMode: settings?.cbMode ?? null,
     colormap: settings?.colormap ?? null,
+    initialChain,
   });
 
   React.useEffect(() => {
     onVariableMetaChange?.(selectedVariableMeta ?? null);
   }, [selectedVariableMeta, onVariableMetaChange]);
+
+  React.useEffect(() => {
+    onChainChange?.(activeChain);
+  }, [activeChain, onChainChange]);
 
   const cbMode = settings?.cbMode ?? null;
   // Ordinal variables have no separate accessibility variant — the

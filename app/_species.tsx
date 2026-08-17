@@ -42,7 +42,10 @@ import {
   getCbColor,
   getCbShape,
 } from '@/components/sections/speciesOccurrenceMap/cbColors';
-import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+import type {
+  ChainedVariableFilter,
+  EnvironmentVariableOption,
+} from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
   isVariableCircular,
@@ -61,6 +64,7 @@ import type {
   SpeciesPageData,
   SpeciesOccurrence,
   OccurrenceLookup,
+  ExtraVariableFilter,
 } from '@/data/types';
 import {
   deliverProcessedZip,
@@ -91,6 +95,121 @@ import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
+
+// Builds a readable-enough fallback label straight from the raw filter
+// values (e.g. "5" or "500-1500") — a hydrated chain entry has no access to
+// the target variable's catalog metadata (legend class names, units) at
+// parse time, unlike a live selection, which reads them from `stats` at the
+// moment the user clicks/drags. The label self-corrects to nothing better
+// later — chain entries never re-resolve their label — so this is what a
+// route-hydrated slice will always show; still functionally correct since
+// the backend filter itself uses `extra`, not `label`.
+function buildFallbackChainLabel(extra: ExtraVariableFilter): string {
+  if ('classValue' in extra) {
+    return String(extra.classValue);
+  }
+  if ('classValues' in extra) {
+    return extra.classValues.map(String).join(', ');
+  }
+  if ('ranges' in extra) {
+    return extra.ranges.map((r) => `${r.min}-${r.max}`).join(', ');
+  }
+  return `${extra.min}-${extra.max}`;
+}
+
+// Parses ?slice=<json> — a JSON-encoded ExtraVariableFilter[] (the exact
+// shape SourceEntry-style features already serialize/deserialize as
+// `entry.extra`, see encodeChainParam below) — into full
+// ChainedVariableFilter[] entries with a fallback label. Defensive against
+// arbitrary/malformed input: any entry that isn't a recognizable
+// ExtraVariableFilter shape is dropped rather than throwing, so an invalid
+// or hand-edited ?slice= value just contributes fewer (or zero) chain
+// entries instead of breaking the page.
+function parseChainParam(raw: string | undefined): ChainedVariableFilter[] {
+  if (!raw) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  const result: ChainedVariableFilter[] = [];
+  for (const item of parsed) {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      typeof (item as { variableId?: unknown }).variableId !== 'string'
+    ) {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const variableId = record.variableId as string;
+
+    let extra: ExtraVariableFilter | null = null;
+    if (typeof record.classValue === 'number') {
+      extra = { variableId, classValue: record.classValue };
+    } else if (Array.isArray(record.classValues)) {
+      const classValues = record.classValues.filter(
+        (v): v is number => typeof v === 'number',
+      );
+      if (classValues.length > 0) {
+        extra = { variableId, classValues };
+      }
+    } else if (Array.isArray(record.ranges)) {
+      const ranges = record.ranges.filter(
+        (r): r is { min: number; max: number } =>
+          Boolean(r) &&
+          typeof (r as { min?: unknown }).min === 'number' &&
+          typeof (r as { max?: unknown }).max === 'number',
+      );
+      if (ranges.length > 0) {
+        extra = { variableId, ranges };
+      }
+    } else if (
+      typeof record.min === 'number' &&
+      typeof record.max === 'number'
+    ) {
+      extra = { variableId, min: record.min, max: record.max };
+    }
+    if (!extra) {
+      continue;
+    }
+
+    const isCategorical = 'classValue' in extra || 'classValues' in extra;
+    result.push({
+      variableId,
+      isCategorical,
+      extra,
+      label: buildFallbackChainLabel(extra),
+      originalCategoryValues: isCategorical
+        ? 'classValue' in extra
+          ? [extra.classValue]
+          : extra.classValues
+        : undefined,
+      originalRanges: !isCategorical
+        ? 'ranges' in extra
+          ? extra.ranges.map((r) => ({ start: r.min, end: r.max }))
+          : [{ start: extra.min, end: extra.max }]
+        : undefined,
+    });
+  }
+  return result;
+}
+
+// Inverse of parseChainParam — just the `extra` field of each chain entry,
+// which is already exactly the ExtraVariableFilter shape the param expects.
+function encodeChainParam(chain: ChainedVariableFilter[]): string | null {
+  if (chain.length === 0) {
+    return null;
+  }
+  return JSON.stringify(chain.map((entry) => entry.extra));
+}
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -224,6 +343,7 @@ export default function Species({
     location?: string;
     phenology?: string;
     region?: string;
+    slice?: string;
   }>();
   // On this catch-all route, expo-router's web history can fold the query
   // string into the hash instead of keeping it separate (e.g.
@@ -268,6 +388,18 @@ export default function Species({
   const routeRegionPolygon = React.useMemo(
     () => getRouteParamWithHashFallback('region', searchParams.region),
     [getRouteParamWithHashFallback, searchParams.region],
+  );
+  // Lets links target a specific chained-filter state, e.g.
+  // ?slice=[{"variableId":"elevation","min":500,"max":1500}]. Read once,
+  // same as region above — only ever seeds SpeciesEnvironmentSection's
+  // initial chain.
+  const routeSliceParam = React.useMemo(
+    () => getRouteParamWithHashFallback('slice', searchParams.slice),
+    [getRouteParamWithHashFallback, searchParams.slice],
+  );
+  const initialChain = React.useMemo(
+    () => parseChainParam(routeSliceParam),
+    [routeSliceParam],
   );
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
@@ -327,6 +459,13 @@ export default function Species({
   } | null>(null);
   const [selectedVariableMeta, setSelectedVariableMeta] =
     React.useState<EnvironmentVariableOption | null>(null);
+  const [activeChain, setActiveChain] = React.useState<
+    ChainedVariableFilter[]
+  >(initialChain);
+  const handleChainChange = React.useCallback(
+    (chain: ChainedVariableFilter[]) => setActiveChain(chain),
+    [],
+  );
   // Fullscreens the map + its legend/colormap-picker overlays together —
   // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
   const mapContainerRef = React.useRef<View | null>(null);
@@ -603,6 +742,44 @@ export default function Species({
     pinnedObservation?.catalogNumber,
     encodedRegionPolygon,
   ]);
+
+  // Same idea as the sync effect above, but debounced and split out on its
+  // own — a slice can be actively dragged (density range) or built up
+  // across several quick clicks (category pills), and activeChain changes
+  // on every one of those intermediate steps. Writing the URL on every tick
+  // would spam history.replaceState mid-gesture instead of once the
+  // selection actually settles.
+  const sliceUrlSyncTimeoutRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    if (sliceUrlSyncTimeoutRef.current) {
+      clearTimeout(sliceUrlSyncTimeoutRef.current);
+    }
+    const encodedChain = encodeChainParam(activeChain);
+    sliceUrlSyncTimeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (encodedChain) {
+        params.set('slice', encodedChain);
+      } else {
+        params.delete('slice');
+      }
+      const query = params.toString();
+      const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl !== currentUrl) {
+        window.history.replaceState(null, '', nextUrl);
+      }
+    }, 600);
+    return () => {
+      if (sliceUrlSyncTimeoutRef.current) {
+        clearTimeout(sliceUrlSyncTimeoutRef.current);
+      }
+    };
+  }, [pathname, activeChain]);
 
   // While a new region is actively being drawn, show the unfiltered set on
   // the map instead of `occurrences` — otherwise, once one region already
@@ -1372,6 +1549,8 @@ export default function Species({
                   polygon={encodedRegionPolygon}
                   units={units}
                   pinnedObservation={pinnedObservation}
+                  initialChain={initialChain}
+                  onChainChange={handleChainChange}
                 />
               </SectionShell>
             )}
