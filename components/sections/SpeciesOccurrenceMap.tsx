@@ -660,17 +660,28 @@ export function SpeciesOccurrenceMap({
     () => highlightedCatalogs.map((id) => String(id)),
     [highlightedCatalogs],
   );
+  // Same freeze-at-build-time treatment as initialBasemapMode below — the
+  // theme toggle button applies itself instantly and locally (client-side
+  // tile-URL swap in the map template, see STANDARD_THEME_ALT_TILE_URL),
+  // then only tells settings.standardBasemapTheme about it for next time.
+  // Declared here (before tileUrlTemplate) rather than down with the other
+  // initial* refs since tileUrlTemplate needs it immediately below — living
+  // reactively in tileUrlTemplate's own deps (as settings.standardBasemapTheme
+  // once did) forced a full WebView rebuild on every theme click, undoing
+  // the whole point of the in-template live swap the instant after it ran.
+  const initialStandardTheme = React.useRef(
+    settings?.standardBasemapTheme ?? 'default',
+  );
   // getBasemapBuildDate() is read for its current value as a recompute
   // trigger (see the effect above), not a real prop/state dependency.
   const tileUrlTemplate = React.useMemo(
     () =>
       useLabelsOverlay
         ? getBackgroundTileUrl()
-        : getMapTileUrlTemplate(mode, settings?.standardBasemapTheme),
+        : getMapTileUrlTemplate(mode, initialStandardTheme.current),
     [
       mode,
       useLabelsOverlay,
-      settings?.standardBasemapTheme,
       // eslint-disable-next-line react-hooks/exhaustive-deps
       getBasemapBuildDate(),
     ],
@@ -800,12 +811,6 @@ export function SpeciesOccurrenceMap({
     ? (settings?.basemapMode ?? 'standard')
     : 'variable';
   const initialBasemapMode = React.useRef(effectiveBasemapMode);
-  // Same freeze-at-build-time treatment as initialBasemapMode above — the
-  // theme toggle button applies itself instantly and locally too, then only
-  // tells settings.standardBasemapTheme about it for next time.
-  const initialStandardTheme = React.useRef(
-    settings?.standardBasemapTheme ?? 'default',
-  );
   const initialAutoAdaptApplicable = React.useRef(autoAdaptApplicable);
   const initialAutoAdaptEnabled = React.useRef(autoAdaptEnabled);
   // Same reasoning as initialTerrainEnabled above, for drawn regions:
