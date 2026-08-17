@@ -1312,10 +1312,12 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       map.getPane('labelsPane').style.zIndex = 650;
       // Initial visibility is set by applyBasemapMode(currentBasemapMode)
       // below, once the basemap toggle's setup code runs: labels only show
-      // in 'satellite'/'variable' modes there, not 'standard' (which
-      // already has labels baked into its own tile style). Pages without
-      // the toggle (maps.tsx, no SATELLITE_TILE_URL) never call
-      // applyBasemapMode at all, so labels just stay on always, unaffected.
+      // in 'satellite' mode there — 'standard' and 'variable' both have
+      // labels baked into their own (self-hosted) tile styles now. Pages
+      // without the toggle (maps.tsx, no SATELLITE_TILE_URL) never request
+      // LABELS_OVERLAY_URL at all anymore (see labelsOverlayTileUrl in
+      // SpeciesOccurrenceMap.tsx), so this pane just never gets created
+      // there — nothing to leave "on always" like before.
     }
 
     // Tracks whatever the currently-selected GIS variable's tile URL is —
@@ -1483,10 +1485,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             map.removeLayer(heatmapLayer);
           }
         }
-        // Labels overlay: visible in 'satellite'/'variable', hidden in
-        // 'standard' (see the pane-creation comment above for why).
+        // Labels overlay: only 'satellite' needs it now — 'variable' mode's
+        // self-hosted background already bakes labels in (see
+        // getBackgroundTileUrl/VARIABLE_MODE_HIDDEN_SOURCE_LAYERS), so
+        // showing this too would double-draw labels in two different
+        // styles. 'standard' also has its own baked-in labels (see the
+        // pane-creation comment above for why).
         var labelsPane = map.getPane('labelsPane');
-        if (labelsPane) { labelsPane.style.display = mode === 'standard' ? 'none' : ''; }
+        if (labelsPane) { labelsPane.style.display = mode === 'satellite' ? '' : 'none'; }
       }
       function nextBasemapMode(mode) {
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');

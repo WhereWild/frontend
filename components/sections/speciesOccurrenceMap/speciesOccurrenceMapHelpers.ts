@@ -377,10 +377,20 @@ export const getElevationTerrainTileUrl = () =>
 export const getSatelliteTileUrlTemplate = () =>
   `${BACKEND_BASE}/api/tiles/satellite/{z}/{x}/{y}.jpg`;
 
+// Self-hosted now, like getMapTileUrlTemplate. Always the 'variable-light'
+// theme regardless of app light/dark mode — there's no 'variable-dark': the
+// light land/dark water Toner look reads best under the heatmap overlay in
+// both app themes (confirmed by direct comparison — a dark-inverted variant
+// was tried and rejected), matching the old Stadia background's behavior
+// too (MAP_BACKGROUND_TILE_URL_TEMPLATE was never split by mode either).
+// Already bakes in place/water labels (see variable-light.json — only
+// buildings/POI/housenumbers/aeroway are absent), so unlike the old Stadia
+// Toner background (label-less, always required pairing with
+// getLabelsOverlayTileUrl), this needs no separate labels overlay — see the
+// mode-gated labelsPane/labels-layer visibility logic in the map HTML
+// templates, which now only shows that overlay for 'satellite'.
 export const getBackgroundTileUrl = () =>
-  MAP_TILE_API_KEY
-    ? `${MAP_BACKGROUND_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
-    : MAP_BACKGROUND_TILE_URL_TEMPLATE;
+  `${BACKEND_BASE}/api/basemap/variable-light/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 
 const NSWE_SHAPES = {
   N: 'triangle',

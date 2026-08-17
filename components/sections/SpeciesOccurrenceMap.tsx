@@ -660,23 +660,25 @@ export function SpeciesOccurrenceMap({
     // above), not a real prop/state dependency.
     [mode, useLabelsOverlay, getBasemapBuildDate()],
   );
-  // Pages with the 3-way basemap toggle (see enableBasemapModeToggle) also
-  // want a labels overlay — but only shown in 'satellite'/'variable' modes
-  // (see the in-template tileUrlForBasemapMode/applyBasemapMode), not
-  // 'standard', which already has labels baked into tileUrlTemplate's own
-  // style. useLabelsOverlay's simpler always-on case (maps.tsx, no toggle)
-  // stays independent of that.
+  // Only 'satellite' mode still needs a separate labels overlay now —
+  // 'variable' mode's self-hosted background (getBackgroundTileUrl) already
+  // bakes labels in (see variable-light.json: only buildings/POI/
+  // housenumbers/aeroway are hidden, not place/water labels), so pairing it
+  // with the old Stadia labels overlay would double-draw labels in two
+  // different styles. useLabelsOverlay's simpler always-on case (maps.tsx,
+  // no toggle, pairs with the same self-hosted background) never needed the
+  // overlay for the same reason — matches the mode-gated labelsPane/
+  // labels-layer visibility in the map HTML templates, which now only shows
+  // that overlay for 'satellite'.
   const labelsOverlayTileUrl = React.useMemo(
-    () =>
-      useLabelsOverlay || enableBasemapModeToggle
-        ? getLabelsOverlayTileUrl()
-        : null,
-    [useLabelsOverlay, enableBasemapModeToggle],
+    () => (enableBasemapModeToggle ? getLabelsOverlayTileUrl() : null),
+    [enableBasemapModeToggle],
   );
-  // 'variable' basemap mode's basemap tile — the same simpler background +
-  // labels-overlay combo maps.tsx always uses (see getBackgroundTileUrl),
-  // rather than the normal full-detail tileUrlTemplate used for 'standard'
-  // mode. Only relevant on pages with the 3-way toggle at all.
+  // 'variable' basemap mode's basemap tile — the same self-hosted
+  // background maps.tsx always uses (see getBackgroundTileUrl), rather than
+  // the normal full-detail tileUrlTemplate used for 'standard' mode. Only
+  // relevant on pages with the 3-way toggle at all. Always 'variable-light'
+  // regardless of app theme — see getBackgroundTileUrl's doc comment.
   const variableModeBackgroundTileUrl = React.useMemo(
     () => (enableBasemapModeToggle ? getBackgroundTileUrl() : null),
     [enableBasemapModeToggle],

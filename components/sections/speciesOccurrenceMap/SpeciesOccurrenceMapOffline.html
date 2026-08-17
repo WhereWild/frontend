@@ -1987,10 +1987,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             map.removeLayer(heatmapLayer);
           }
         }
-        // Labels overlay: visible in 'satellite'/'variable', hidden in
-        // 'standard' (see the pane-creation comment above for why).
+        // Labels overlay: only 'satellite' needs it now — 'variable' mode's
+        // self-hosted background already bakes labels in, 'standard' has
+        // its own baked-in labels too (see the pane-creation comment above).
         var labelsPane = map.getPane('labelsPane');
-        if (labelsPane) { labelsPane.style.display = mode === 'standard' ? 'none' : ''; }
+        if (labelsPane) { labelsPane.style.display = mode === 'satellite' ? '' : 'none'; }
       }
       function nextBasemapMode(mode) {
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');

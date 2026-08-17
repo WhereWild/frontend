@@ -1199,7 +1199,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           map.setLayoutProperty('heatmap-layer', 'visibility', mode === 'variable' ? 'visible' : 'none');
         }
         if (map.getLayer('labels-layer')) {
-          map.setLayoutProperty('labels-layer', 'visibility', mode === 'standard' ? 'none' : 'visible');
+          // Only 'satellite' needs the separate labels overlay now —
+          // 'standard'/'variable' both have labels baked into their own
+          // self-hosted tile styles.
+          map.setLayoutProperty('labels-layer', 'visibility', mode === 'satellite' ? 'visible' : 'none');
         }
       };
       var nextBasemapMode = function(mode) {
