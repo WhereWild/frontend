@@ -17,10 +17,10 @@ import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, usePathname } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings, type UnitSystem } from '@/context/SettingsContext';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import {
   formatValue,
@@ -50,9 +50,13 @@ import { VariableSelectorHeader } from '@/components/sections/speciesEnvironment
 import { parseTemporalId } from '@/components/sections/speciesEnvironment/temporalHelpers';
 import {
   useMapLayerChain,
+  type ChainedLayerFilter,
   type MapChainExtra,
 } from '@/components/sections/speciesOccurrenceMap/useMapLayerChain';
-import { buildChainDescriptionText } from '@/hooks/useVariableFilterChain';
+import {
+  buildChainDescriptionText,
+  popRestorable,
+} from '@/hooks/useVariableFilterChain';
 import { useRangeSelectionAccumulator } from '@/hooks/useRangeSelectionAccumulator';
 
 const MAP_HEIGHT = 520;
@@ -184,6 +188,94 @@ const buildTileUrl = ({
   )}/tiles/{z}/{x}/{y}.png?reproject=true&max_native_zoom=10&colormap=${encodeURIComponent(effectiveColormap)}${cbParam}&_cb=${cacheKey}${fcParam}${cfParam}${vrParam}&unit_system=${unitSystem ?? 'metric'}${chainParam}${renderRangeParam}`;
 };
 
+// Parses ?slice=<json> — a JSON-encoded MapChainExtra[] (see
+// encodeMapChainParam below) — into full ChainedLayerFilter[] entries.
+// Mirrors app/_species.tsx's parseChainParam. Self-describing from the JSON
+// shape alone (class_filter present => categorical), same as the species
+// version — no catalog lookup needed, so it isn't racing the async
+// variable-catalog fetch. isCircular can't be recovered this way (a
+// circular variable's angle ranges serialize identically to a plain
+// numeric range) and defaults to false; the ONE place that actually needs
+// it right — the entry for whatever variable ends up selected at mount —
+// gets corrected with the live, catalog-resolved value once it's known
+// (see Maps()'s initialChainSplit). Defensive against malformed input, same
+// as the species version.
+function parseMapChainParam(raw: string | undefined): ChainedLayerFilter[] {
+  if (!raw) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  const result: ChainedLayerFilter[] = [];
+  for (const item of parsed) {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      typeof (item as { layer_id?: unknown }).layer_id !== 'string'
+    ) {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const layerId = record.layer_id as string;
+
+    let extra: MapChainExtra | null = null;
+    if (Array.isArray(record.class_filter)) {
+      const classFilter = record.class_filter.filter(
+        (v): v is number => typeof v === 'number',
+      );
+      if (classFilter.length > 0) {
+        extra = { layer_id: layerId, class_filter: classFilter };
+      }
+    } else if (Array.isArray(record.value_ranges)) {
+      const valueRanges = record.value_ranges.filter(
+        (r): r is [number, number] =>
+          Array.isArray(r) &&
+          r.length === 2 &&
+          typeof r[0] === 'number' &&
+          typeof r[1] === 'number',
+      );
+      if (valueRanges.length > 0) {
+        extra = { layer_id: layerId, value_ranges: valueRanges };
+      }
+    }
+    if (!extra) {
+      continue;
+    }
+
+    const isCategorical = 'class_filter' in extra;
+    result.push({
+      layerId,
+      isCategorical,
+      isCircular: false,
+      extra,
+      label: isCategorical
+        ? (extra.class_filter ?? []).map(String).join(', ')
+        : '',
+      originalClassIds: isCategorical ? extra.class_filter : undefined,
+      originalRanges: !isCategorical
+        ? (extra.value_ranges ?? []).map(([min, max]) => ({ min, max }))
+        : undefined,
+    });
+  }
+  return result;
+}
+
+// Inverse of parseMapChainParam — just the `extra` field of each entry.
+function encodeMapChainParam(chain: ChainedLayerFilter[]): string | null {
+  if (chain.length === 0) {
+    return null;
+  }
+  return JSON.stringify(chain.map((entry) => entry.extra));
+}
+
 export default function Maps() {
   const {
     units,
@@ -205,9 +297,75 @@ export default function Maps() {
   const responsive = useResponsive();
 
   const dataSources = useDataSources();
+  const pathname = usePathname();
 
   const [variables, setVariables] =
     useState<EnvironmentVariableOption[]>(FALLBACK_VARIABLES);
+
+  // Lets other pages (e.g. a variable guide's "View on map" link) deep-link
+  // straight to a specific variable via /maps?variable=<id>, and a slice/
+  // chain filter reproduce via ?slice=<json> — species-page-style hydration
+  // (see app/_species.tsx), mirrored here for the maps page's own chain
+  // shape (ChainedLayerFilter/MapChainExtra instead of
+  // ChainedVariableFilter/ExtraVariableFilter).
+  const { variable: routeVariableId, slice: routeSliceParam } =
+    useLocalSearchParams<{ variable?: string; slice?: string }>();
+
+  const {
+    categories,
+    selectedVariableCategory,
+    setSelectedVariableCategory,
+    filteredVariables,
+    allVariables,
+    selectedVariable,
+    setSelectedVariable,
+    selectedVariableMeta,
+  } = useEnvironmentVariableSelection({
+    variableId:
+      typeof routeVariableId === 'string' ? routeVariableId : 'landcover',
+    variables,
+  });
+
+  const isRecentWeather =
+    (selectedVariableCategory ?? '').toLowerCase() === 'recent weather';
+  const isCircular = isVariableCircular(selectedVariableMeta);
+  const isCategorical = isVariableCategorical(selectedVariableMeta);
+
+  const initialChain = useMemo(
+    () =>
+      parseMapChainParam(
+        typeof routeSliceParam === 'string' ? routeSliceParam : undefined,
+      ),
+    [routeSliceParam],
+  );
+  // If the hydrated chain has an entry for the variable that's already
+  // selected on mount, pop it off and apply it as the live selection
+  // instead of a "chained" filter — mirrors useEnvironmentHighlights.ts's
+  // initialChainSplit. Computed once via ref (not useMemo, which React
+  // doesn't guarantee to run only once).
+  const initialChainSplitRef = useRef<{
+    chain: ChainedLayerFilter[];
+    restored: ChainedLayerFilter | null;
+  } | null>(null);
+  if (initialChainSplitRef.current === null) {
+    const split = popRestorable(
+      initialChain,
+      selectedVariable,
+      (entry: ChainedLayerFilter) => entry.layerId,
+    );
+    // parseMapChainParam can't tell a circular variable's angle ranges from
+    // a plain numeric range and defaults isCircular to false — the live,
+    // catalog-resolved flags for the variable actually selected at mount
+    // are authoritative, so use those instead for the restored entry.
+    initialChainSplitRef.current = {
+      chain: split.chain,
+      restored: split.restored
+        ? { ...split.restored, isCategorical, isCircular }
+        : null,
+    };
+  }
+  const initialChainSplit = initialChainSplitRef.current;
+
   const [visibleNominalCounts, setVisibleNominalCounts] = useState<
     Map<number, number>
   >(new Map());
@@ -215,7 +373,11 @@ export default function Maps() {
   const [selectedForecast, setSelectedForecast] = useState('now');
   // Multiple classes can be toggled on at once — an empty array means no
   // filter (all classes shown), same as the previous single-select's null.
-  const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<number[]>(() =>
+    initialChainSplit.restored?.isCategorical
+      ? (initialChainSplit.restored.originalClassIds ?? [])
+      : [],
+  );
   const toggleSelectedClassId = useCallback((id: number) => {
     setSelectedClassIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -227,7 +389,16 @@ export default function Maps() {
   // Multiple disjoint ranges can be selected at once (shift/cmd-drag or a
   // ~500ms long-press-to-arm adds a range instead of replacing the
   // selection — see useLinearLegendDragSelection/useRangeSelectionAccumulator).
-  const valueRangeSelection = useRangeSelectionAccumulator();
+  const valueRangeSelection = useRangeSelectionAccumulator(
+    initialChainSplit.restored &&
+      !initialChainSplit.restored.isCategorical &&
+      !initialChainSplit.restored.isCircular
+      ? (initialChainSplit.restored.originalRanges ?? []).map((r) => ({
+          start: r.min,
+          end: r.max,
+        }))
+      : undefined,
+  );
   const selectedValueRanges: LegendRange[] = valueRangeSelection.ranges.map(
     (r) => ({ min: r.start, max: r.end }),
   );
@@ -255,7 +426,16 @@ export default function Maps() {
   // doc comment on MapCircularLegendProps for the wraparound convention.
   // mergeRanges (used internally by the accumulator) already handles this
   // wraparound case, same as the species page's circular density chart.
-  const angleRangeSelection = useRangeSelectionAccumulator();
+  const angleRangeSelection = useRangeSelectionAccumulator(
+    initialChainSplit.restored &&
+      !initialChainSplit.restored.isCategorical &&
+      initialChainSplit.restored.isCircular
+      ? (initialChainSplit.restored.originalRanges ?? []).map((r) => ({
+          start: r.min,
+          end: r.max,
+        }))
+      : undefined,
+  );
   const selectedAngleRanges: LegendRange[] = angleRangeSelection.ranges.map(
     (r) => ({ min: r.start, max: r.end }),
   );
@@ -303,31 +483,6 @@ export default function Maps() {
     };
   }, [units, selectedForecastH]);
 
-  // Lets other pages (e.g. a variable guide's "View on map" link) deep-link
-  // straight to a specific variable via /maps?variable=<id>.
-  const { variable: routeVariableId } = useLocalSearchParams<{
-    variable?: string;
-  }>();
-
-  const {
-    categories,
-    selectedVariableCategory,
-    setSelectedVariableCategory,
-    filteredVariables,
-    allVariables,
-    selectedVariable,
-    setSelectedVariable,
-    selectedVariableMeta,
-  } = useEnvironmentVariableSelection({
-    variableId:
-      typeof routeVariableId === 'string' ? routeVariableId : 'landcover',
-    variables,
-  });
-
-  const isRecentWeather =
-    (selectedVariableCategory ?? '').toLowerCase() === 'recent weather';
-  const isCircular = isVariableCircular(selectedVariableMeta);
-  const isCategorical = isVariableCategorical(selectedVariableMeta);
   // Auto-adapt only makes sense for a plain numeric gradient — circular
   // (wraparound 0-360°) variables don't have a meaningful "observed
   // min/max" the same way, and categorical variables have no numeric range
@@ -367,7 +522,11 @@ export default function Maps() {
     resetKey: globeViewEnabled,
   });
 
-  const { chain: layerChain, clearChain: clearLayerChain } = useMapLayerChain({
+  const {
+    chain: layerChain,
+    fullChain: fullLayerChain,
+    clearChain: clearLayerChain,
+  } = useMapLayerChain({
     selectedVariable,
     isCategorical,
     isCircular,
@@ -378,7 +537,68 @@ export default function Maps() {
     setSelectedClassIds,
     setSelectedValueRanges,
     setSelectedAngleRanges,
+    initialChain: initialChainSplit.chain,
   });
+
+  // Mirrors the current variable + slice selection into the URL's query
+  // string, so copying the address bar reproduces this exact view — same
+  // replaceState-based, one-directional (state -> URL only) approach as the
+  // species page (see app/_species.tsx).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (selectedVariable) {
+      params.set('variable', selectedVariable);
+    } else {
+      params.delete('variable');
+    }
+    const query = params.toString();
+    const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }, [pathname, selectedVariable]);
+
+  // Same idea, but debounced and split out on its own — a slice can be
+  // actively dragged or built up across several quick clicks, and
+  // fullLayerChain changes on every one of those intermediate steps.
+  // Writing the URL on every tick would spam history.replaceState
+  // mid-gesture instead of once the selection actually settles (see
+  // app/_species.tsx's equivalent sliceUrlSyncTimeoutRef effect).
+  const sliceUrlSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    if (sliceUrlSyncTimeoutRef.current) {
+      clearTimeout(sliceUrlSyncTimeoutRef.current);
+    }
+    const encodedChain = encodeMapChainParam(fullLayerChain);
+    sliceUrlSyncTimeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (encodedChain) {
+        params.set('slice', encodedChain);
+      } else {
+        params.delete('slice');
+      }
+      const query = params.toString();
+      const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl !== currentUrl) {
+        window.history.replaceState(null, '', nextUrl);
+      }
+    }, 600);
+    return () => {
+      if (sliceUrlSyncTimeoutRef.current) {
+        clearTimeout(sliceUrlSyncTimeoutRef.current);
+      }
+    };
+  }, [pathname, fullLayerChain]);
 
   // The renderer swap (globe <-> flat map) discards the old WebView/iframe
   // document outright, so any tileClassesRemoved messages it still owed

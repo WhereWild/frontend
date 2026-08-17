@@ -17,9 +17,11 @@ import { mergeRanges, rangeContainsValue, type PlainRange } from './rangeMerge';
  * extracted from it, so the actual merge behavior (including circular
  * wraparound) is identical.
  */
-export function useRangeSelectionAccumulator() {
-  const [ranges, setRangesState] = React.useState<PlainRange[]>([]);
-  const rangesRef = React.useRef<PlainRange[]>([]);
+export function useRangeSelectionAccumulator(initialRanges?: PlainRange[]) {
+  const [ranges, setRangesState] = React.useState<PlainRange[]>(
+    () => initialRanges ?? [],
+  );
+  const rangesRef = React.useRef<PlainRange[]>(initialRanges ?? []);
   const activeDragSessionRef = React.useRef<{
     id: number;
     index: number;

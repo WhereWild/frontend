@@ -47,6 +47,43 @@ const chainEntryKey = (entry: ChainedLayerFilter) => entry.layerId;
 const toValueRanges = (ranges: LegendRange[]): [number, number][] =>
   ranges.map((r) => [r.min, r.max]);
 
+// Builds a ChainedLayerFilter-shaped entry from a live selection — shared
+// by the "outgoing layer" stash-onto-chain transition and by fullChain
+// below (species-page-style: see useEnvironmentHighlights.ts's
+// buildSelectionEntry, same idea, different entry shape). Returns null when
+// there's nothing selected to represent.
+const buildLayerSelectionEntry = (
+  layerId: string,
+  isCategorical: boolean,
+  isCircular: boolean,
+  label: string,
+  selectedClassIds: number[],
+  selectedValueRanges: LegendRange[],
+  selectedAngleRanges: LegendRange[],
+): ChainedLayerFilter | null => {
+  if (isCategorical) {
+    if (selectedClassIds.length === 0) return null;
+    return {
+      layerId,
+      isCategorical: true,
+      isCircular: false,
+      label,
+      extra: { layer_id: layerId, class_filter: selectedClassIds },
+      originalClassIds: selectedClassIds,
+    };
+  }
+  const ranges = isCircular ? selectedAngleRanges : selectedValueRanges;
+  if (ranges.length === 0) return null;
+  return {
+    layerId,
+    isCategorical: false,
+    isCircular,
+    label,
+    extra: { layer_id: layerId, value_ranges: toValueRanges(ranges) },
+    originalRanges: ranges,
+  };
+};
+
 type UseMapLayerChainParams = {
   selectedVariable: string;
   isCategorical: boolean;
@@ -60,9 +97,14 @@ type UseMapLayerChainParams = {
    * accumulator hook's `setAll`, not its additive `applyRangeChange`. */
   setSelectedValueRanges: (ranges: LegendRange[]) => void;
   setSelectedAngleRanges: (ranges: LegendRange[]) => void;
+  /** Seeds `chain` on mount — e.g. a chain hydrated from the route's
+   * ?slice= param, already split by the caller (any entry naming the
+   * variable selected at mount should have been popped off and applied as
+   * the live selection instead — see app/maps.tsx). */
+  initialChain?: ChainedLayerFilter[];
 };
 
-const resolveCategoryLabel = (
+export const resolveCategoryLabel = (
   allVariables: EnvironmentVariableOption[],
   layerId: string,
   classIds: number[],
@@ -103,8 +145,11 @@ export function useMapLayerChain({
   setSelectedClassIds,
   setSelectedValueRanges,
   setSelectedAngleRanges,
+  initialChain,
 }: UseMapLayerChainParams) {
-  const [chain, setChain] = React.useState<ChainedLayerFilter[]>([]);
+  const [chain, setChain] = React.useState<ChainedLayerFilter[]>(
+    () => initialChain ?? [],
+  );
 
   // Tracks the OUTGOING layer's own type flags — by the time the switch
   // effect below runs, isCategorical/isCircular already reflect the
@@ -128,51 +173,17 @@ export function useMapLayerChain({
       isCircular,
     };
 
-    const outgoingEntry: ChainedLayerFilter | null = outgoing.isCategorical
-      ? selectedClassIds.length === 0
-        ? null
-        : {
-            layerId: outgoing.variable,
-            isCategorical: true,
-            isCircular: false,
-            label: resolveCategoryLabel(
-              allVariables,
-              outgoing.variable,
-              selectedClassIds,
-            ),
-            extra: {
-              layer_id: outgoing.variable,
-              class_filter: selectedClassIds,
-            },
-            originalClassIds: selectedClassIds,
-          }
-      : outgoing.isCircular
-        ? selectedAngleRanges.length === 0
-          ? null
-          : {
-              layerId: outgoing.variable,
-              isCategorical: false,
-              isCircular: true,
-              label: '',
-              extra: {
-                layer_id: outgoing.variable,
-                value_ranges: toValueRanges(selectedAngleRanges),
-              },
-              originalRanges: selectedAngleRanges,
-            }
-        : selectedValueRanges.length === 0
-          ? null
-          : {
-              layerId: outgoing.variable,
-              isCategorical: false,
-              isCircular: false,
-              label: '',
-              extra: {
-                layer_id: outgoing.variable,
-                value_ranges: toValueRanges(selectedValueRanges),
-              },
-              originalRanges: selectedValueRanges,
-            };
+    const outgoingEntry = buildLayerSelectionEntry(
+      outgoing.variable,
+      outgoing.isCategorical,
+      outgoing.isCircular,
+      outgoing.isCategorical
+        ? resolveCategoryLabel(allVariables, outgoing.variable, selectedClassIds)
+        : '',
+      selectedClassIds,
+      selectedValueRanges,
+      selectedAngleRanges,
+    );
 
     const nextChain = stashOutgoing(
       chain,
@@ -229,5 +240,35 @@ export function useMapLayerChain({
     setChain((prev) => clearChainEntries(prev));
   }, []);
 
-  return { chain, removeChainedFilter, clearChain };
+  // chain plus the live selection currently active on selectedVariable
+  // itself, if any — chain alone never includes it (a chain entry naming
+  // the currently-selected layer gets restored as the live selection
+  // instead, see the switch effect above), but URL round-tripping needs it
+  // represented too. Species-page equivalent: useEnvironmentHighlights.ts's
+  // fullChain.
+  const fullChain = React.useMemo(() => {
+    const liveEntry = buildLayerSelectionEntry(
+      selectedVariable,
+      isCategorical,
+      isCircular,
+      isCategorical
+        ? resolveCategoryLabel(allVariables, selectedVariable, selectedClassIds)
+        : '',
+      selectedClassIds,
+      selectedValueRanges,
+      selectedAngleRanges,
+    );
+    return liveEntry ? [...chain, liveEntry] : chain;
+  }, [
+    allVariables,
+    chain,
+    isCategorical,
+    isCircular,
+    selectedAngleRanges,
+    selectedClassIds,
+    selectedValueRanges,
+    selectedVariable,
+  ]);
+
+  return { chain, fullChain, removeChainedFilter, clearChain };
 }
