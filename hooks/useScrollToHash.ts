@@ -24,7 +24,13 @@ export function useScrollToHash(deps: React.DependencyList) {
     }
     const hash = window.location?.hash;
     if (hash) {
-      scrollToElementId(hash.slice(1).toLowerCase());
+      // A query string can end up appended after the hash instead of before
+      // it (an expo-router quirk on catch-all routes when both are present
+      // in the initial URL — e.g. `#section?variable=x` instead of
+      // `?variable=x#section`), which would otherwise fold into the id and
+      // never match. Strip it so the anchor still resolves either way.
+      const id = hash.slice(1).split(/[?&]/)[0].toLowerCase();
+      scrollToElementId(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);

@@ -218,7 +218,25 @@ export default function Species({
   const pathname = usePathname();
   const searchParams = useLocalSearchParams<{
     highlightObservation?: string;
+    variable?: string;
   }>();
+  // Lets links target a specific environment variable directly, e.g.
+  // /species/<id>/<slug>?variable=elevation. On this catch-all route,
+  // expo-router's web history can fold the query string into the hash
+  // instead of keeping it separate (e.g. `#section?variable=x`), in which
+  // case useLocalSearchParams never sees `variable` at all — recover it
+  // straight from the raw hash as a fallback.
+  const routeVariableIdFromHash = React.useMemo(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return undefined;
+    }
+    const match = window.location.hash.match(/[?&]variable=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : undefined;
+  }, []);
+  const routeVariableId =
+    typeof searchParams.variable === 'string'
+      ? searchParams.variable
+      : routeVariableIdFromHash;
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
   // Lets links target the occurrence map directly, e.g.
@@ -1198,6 +1216,7 @@ export default function Species({
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   largeTaxon={largeTaxon}
+                  variableId={routeVariableId}
                   onHighlightChange={setHighlightedCatalogs}
                   onVariableMetaChange={handleVariableMetaChange}
                   locationGid={finalLocationGid}
