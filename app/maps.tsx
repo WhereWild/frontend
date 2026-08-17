@@ -321,8 +321,10 @@ export default function Maps() {
     setSelectedVariable,
     selectedVariableMeta,
   } = useEnvironmentVariableSelection({
-    variableId:
-      typeof routeVariableId === 'string' ? routeVariableId : 'landcover',
+    // No route param falls through to useEnvironmentVariableSelection's own
+    // default (the catalog's first variable) rather than forcing a specific
+    // one here.
+    variableId: typeof routeVariableId === 'string' ? routeVariableId : '',
     variables,
   });
 
