@@ -20,6 +20,7 @@ const mockUseSettings = useSettings as jest.MockedFunction<typeof useSettings>;
 const mockSetUnits = jest.fn();
 const mockSetColorModeOverride = jest.fn();
 const mockSelectField = jest.fn();
+const mockSwitchField = jest.fn();
 
 function getSelectFieldChangeHandler(
   label: string,
@@ -52,6 +53,29 @@ jest.mock('@/constants/responsiveStyles', () => ({
     paddingHorizontal: 12,
   })),
 }));
+
+// The real SwitchField drives an Animated.timing on mount (see
+// useSwitchFieldController.tsx) whose frame callbacks land after this
+// file's render()/act() scope has already closed, which React flags as an
+// act() warning. This suite only cares about the value/onValueChange
+// wiring settings.tsx passes through, not SwitchField's own animated
+// visuals (that's SwitchField.test.tsx's job), so mock it out the same way
+// SelectField and Button are mocked below.
+jest.mock('@/components/inputs/SwitchField', () => {
+  const mockReact = jest.requireActual('react') as typeof React;
+  const mockReactNative = jest.requireActual(
+    'react-native',
+  ) as typeof import('react-native');
+
+  return {
+    SwitchField: (props: Record<string, unknown>) => {
+      mockSwitchField(props);
+      return mockReact.createElement(mockReactNative.View, {
+        testID: `switch-${String(props.label)}`,
+      });
+    },
+  };
+});
 
 jest.mock('@/context/SettingsContext', () => ({
   useSettings: jest.fn(),
@@ -123,6 +147,7 @@ describe('Settings screen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSelectField.mockReset();
+    mockSwitchField.mockReset();
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: originalPlatform,
