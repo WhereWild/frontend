@@ -35,6 +35,14 @@ const MOCK_STATUS_RUNNING: SystemStatusData = {
     last_duration_s: null,
     received_at: new Date(Date.now() - 125_000).toISOString(),
   },
+  basemap: {
+    status: 'running',
+    stage: 'pmtiles_build',
+    elapsed_s: 300,
+    last_finished_at: null,
+    last_duration_s: null,
+    received_at: new Date(Date.now() - 60_000).toISOString(),
+  },
   upload_queue: { depth: 2, active: true },
   server: MOCK_SERVER,
 };
@@ -54,6 +62,14 @@ const MOCK_STATUS_IDLE: SystemStatusData = {
     last_finished_at: new Date(Date.now() - 86400_000).toISOString(),
     last_duration_s: 420,
     received_at: new Date(Date.now() - 86400_000).toISOString(),
+  },
+  basemap: {
+    status: 'idle',
+    stage: null,
+    elapsed_s: null,
+    last_finished_at: new Date(Date.now() - 30 * 86400_000).toISOString(),
+    last_duration_s: 16200,
+    received_at: new Date(Date.now() - 30 * 86400_000).toISOString(),
   },
   upload_queue: { depth: 0, active: false },
   server: MOCK_SERVER,
@@ -119,6 +135,15 @@ describe('SystemStatusView', () => {
     });
   });
 
+  describe('null basemap', () => {
+    it('shows no data indicator when basemap is null', () => {
+      render(
+        <SystemStatusView status={{ ...MOCK_STATUS_IDLE, basemap: null }} />,
+      );
+      expect(screen.getByText(/No data/)).toBeTruthy();
+    });
+  });
+
   describe('elapsed time formatting', () => {
     it('formats hours correctly', () => {
       render(
@@ -158,12 +183,20 @@ describe('SystemStatusView', () => {
   });
 
   describe('running state', () => {
-    it('renders all four section cards', () => {
+    it('renders all five section cards', () => {
       render(<SystemStatusView status={MOCK_STATUS_RUNNING} />);
       expect(screen.getByText('Pipeline')).toBeTruthy();
       expect(screen.getByText('Temporal')).toBeTruthy();
+      expect(screen.getByText('Basemap')).toBeTruthy();
       expect(screen.getByText('Upload Queue')).toBeTruthy();
       expect(screen.getByText('Server')).toBeTruthy();
+    });
+
+    it('shows building label and stage for basemap', () => {
+      render(<SystemStatusView status={MOCK_STATUS_RUNNING} />);
+      expect(screen.getByText('Building')).toBeTruthy();
+      expect(screen.getByText(/pmtiles_build/)).toBeTruthy();
+      expect(screen.getByText(/5m/)).toBeTruthy();
     });
 
     it('shows in progress label and stage for pipeline', () => {
@@ -219,6 +252,11 @@ describe('SystemStatusView', () => {
     it('shows last run info for temporal', () => {
       render(<SystemStatusView status={MOCK_STATUS_IDLE} />);
       expect(screen.getByText(/Last run.*took 7m/)).toBeTruthy();
+    });
+
+    it('shows last built info for basemap', () => {
+      render(<SystemStatusView status={MOCK_STATUS_IDLE} />);
+      expect(screen.getByText(/Last built.*took 4h 30m/)).toBeTruthy();
     });
 
     it('shows queue empty and idle for upload queue', () => {

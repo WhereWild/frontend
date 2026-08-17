@@ -26,6 +26,15 @@ export type TemporalStatusData = {
   received_at?: string | null;
 };
 
+export type BasemapStatusData = {
+  status: string;
+  stage?: string | null;
+  elapsed_s?: number | null;
+  last_finished_at?: string | null;
+  last_duration_s?: number | null;
+  received_at?: string | null;
+};
+
 export type UploadQueueStatusData = {
   depth: number;
   active: boolean;
@@ -45,6 +54,7 @@ export type ServerStatusData = {
 export type SystemStatusData = {
   pipeline: PipelineStatusData | null;
   temporal: TemporalStatusData | null;
+  basemap: BasemapStatusData | null;
   upload_queue: UploadQueueStatusData;
   server: ServerStatusData;
 };
@@ -327,6 +337,47 @@ function TemporalCard({ data }: { data: TemporalStatusData | null }) {
   );
 }
 
+function BasemapCard({ data }: { data: BasemapStatusData | null }) {
+  const colorScheme = useColorScheme();
+  const mode = colorScheme === 'dark' ? 'dark' : 'light';
+  const palette = Colors[mode];
+
+  if (!data) {
+    return (
+      <StatusCard title='Basemap'>
+        <StatusIndicator kind='idle' label='No data' />
+      </StatusCard>
+    );
+  }
+
+  const kind = resolveKind(data.status);
+  const statusLabel =
+    kind === 'running' ? 'Building' : kind === 'done' ? 'Idle' : data.status;
+
+  return (
+    <StatusCard title='Basemap'>
+      <StatusIndicator kind={kind} label={statusLabel} />
+      {kind === 'running' && data.stage ? (
+        <ThemedText
+          variant='bodySmall'
+          style={{ color: palette.text.default.secondary }}
+        >
+          Stage: {data.stage}
+          {data.elapsed_s != null ? `  ·  ${formatElapsed(data.elapsed_s)}` : ''}
+        </ThemedText>
+      ) : null}
+      {data.last_finished_at ? (
+        <ThemedText
+          variant='bodyTiny'
+          style={{ color: palette.text.default.tertiary }}
+        >
+          {`Last built ${formatTimeAgo(data.last_finished_at)}${data.last_duration_s != null ? `, took ${formatElapsed(data.last_duration_s)}` : ''}`}
+        </ThemedText>
+      ) : null}
+    </StatusCard>
+  );
+}
+
 function UploadQueueCard({ data }: { data: UploadQueueStatusData }) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -444,6 +495,7 @@ export function SystemStatusView({
     <View style={styles.grid}>
       <PipelineCard data={status.pipeline} />
       <TemporalCard data={status.temporal} />
+      <BasemapCard data={status.basemap} />
       <UploadQueueCard data={status.upload_queue} />
       <ServerCard data={status.server} />
     </View>
