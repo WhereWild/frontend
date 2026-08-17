@@ -1008,8 +1008,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           // attribution, but GeoNames (used for the offline populated-places
           // labels below) is CC-BY — this is a real license requirement, not
           // courtesy. Attributed on the sources themselves (not a second,
-          // always-on AttributionControl) so the single control below
-          // aggregates it automatically, same as every other source.
+          // always-on AttributionControl) so the single control the main
+          // template already adds aggregates it automatically, same as
+          // every other source.
           ENABLE_OFFLINE_FALLBACK ? { offlineFallback: { type: 'raster', tiles: ['offlinebasemap://{z}/{x}/{y}'], tileSize: 256, maxzoom: TILE_MAX_ZOOM, attribution: '<a href="https://www.naturalearthdata.com/" target="_blank">Natural Earth</a>' } } : {},
           ENABLE_OFFLINE_FALLBACK ? { offlinePlaceLabels: { type: 'geojson', data: PLACE_LABELS_GEOJSON, attribution: '<a href="https://www.geonames.org/" target="_blank">GeoNames</a>' } } : {}
         ),
@@ -1622,6 +1623,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       document.head.appendChild(el);
     })();
 
+    // No separate offline-only AttributionControl here — the Natural Earth/
+    // GeoNames credits live on the offlineFallback/offlinePlaceLabels
+    // sources' own `attribution` field instead (see
+    // globeOfflineSourcesFragment.partial.js), so the single
+    // AttributionControl the main template already adds picks them up
+    // automatically. A second, always-on control here used to duplicate
+    // that (two visible attribution widgets at once) once the main
+    // control's own TILE_ATTRIBUTION source credit was wired in.
     let mapReady = false;
 
     function formatPointValueHtml(numVal, units) {
