@@ -290,6 +290,7 @@ jest.mock(
           selectedVariableCategory,
           setSelectedVariableCategory,
           filteredVariables,
+          allVariables: resolvedVariables,
           selectedVariable,
           setSelectedVariable,
           selectedVariableMeta,

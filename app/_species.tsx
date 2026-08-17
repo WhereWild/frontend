@@ -187,16 +187,18 @@ function parseChainParam(raw: string | undefined): ChainedVariableFilter[] {
       isCategorical,
       extra,
       label: buildFallbackChainLabel(extra),
-      originalCategoryValues: isCategorical
-        ? 'classValue' in extra
+      originalCategoryValues:
+        'classValue' in extra
           ? [extra.classValue]
-          : extra.classValues
-        : undefined,
-      originalRanges: !isCategorical
-        ? 'ranges' in extra
+          : 'classValues' in extra
+            ? extra.classValues
+            : undefined,
+      originalRanges:
+        'ranges' in extra
           ? extra.ranges.map((r) => ({ start: r.min, end: r.max }))
-          : [{ start: extra.min, end: extra.max }]
-        : undefined,
+          : 'min' in extra
+            ? [{ start: extra.min, end: extra.max }]
+            : undefined,
     });
   }
   return result;
@@ -459,9 +461,8 @@ export default function Species({
   } | null>(null);
   const [selectedVariableMeta, setSelectedVariableMeta] =
     React.useState<EnvironmentVariableOption | null>(null);
-  const [activeChain, setActiveChain] = React.useState<
-    ChainedVariableFilter[]
-  >(initialChain);
+  const [activeChain, setActiveChain] =
+    React.useState<ChainedVariableFilter[]>(initialChain);
   const handleChainChange = React.useCallback(
     (chain: ChainedVariableFilter[]) => setActiveChain(chain),
     [],
@@ -579,9 +580,7 @@ export default function Species({
       const [latRaw, lonRaw] = id.slice('point:'.length).split(',');
       const lat = Number(latRaw);
       const lon = Number(lonRaw);
-      return Number.isFinite(lat) && Number.isFinite(lon)
-        ? { lat, lon }
-        : null;
+      return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
     },
     [],
   );
@@ -726,7 +725,10 @@ export default function Species({
     // Covers both a real observation pin and a background map pin (the
     // synthetic "point:<lat>,<lon>" id) — see highlightObservationId's
     // hydration below, which already knows how to read either kind back.
-    setOrDelete('highlightObservation', pinnedObservation?.catalogNumber ?? null);
+    setOrDelete(
+      'highlightObservation',
+      pinnedObservation?.catalogNumber ?? null,
+    );
     setOrDelete('region', encodedRegionPolygon);
     const query = params.toString();
     const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;

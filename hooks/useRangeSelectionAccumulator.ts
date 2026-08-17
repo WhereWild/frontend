@@ -46,9 +46,7 @@ export function useRangeSelectionAccumulator(initialRanges?: PlainRange[]) {
         if (options?.additive && options?.sessionId != null) {
           if (activeDragSessionRef.current?.id === options.sessionId) {
             const index = activeDragSessionRef.current.index;
-            const nextRanges = rangesRef.current.filter(
-              (_, i) => i !== index,
-            );
+            const nextRanges = rangesRef.current.filter((_, i) => i !== index);
             activeDragSessionRef.current = null;
             setRanges(nextRanges);
           }

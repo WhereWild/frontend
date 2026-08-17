@@ -1047,9 +1047,15 @@ export function useEnvironmentHighlights({
     }
     const keys = selectedCategoryValues.map((v) => String(v));
     const states = keys.map((key) => categorySamplesByValue[key]);
-    if (
-      states.some((state) => !state?.loaded || state.loading || state.error)
-    ) {
+    if (states.some((state) => !state?.loaded || state.loading)) {
+      return;
+    }
+    // At least one key's fetch failed — there's no reliable union to
+    // compute (a partial one would silently under-report), so clear
+    // whatever was highlighted before rather than leaving stale highlights
+    // from a previous, unrelated selection displayed under this one.
+    if (states.some((state) => state.error)) {
+      emitHighlightChange([]);
       return;
     }
     const seen = new Set<CatalogId>();

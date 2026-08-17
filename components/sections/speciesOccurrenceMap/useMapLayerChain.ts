@@ -178,7 +178,11 @@ export function useMapLayerChain({
       outgoing.isCategorical,
       outgoing.isCircular,
       outgoing.isCategorical
-        ? resolveCategoryLabel(allVariables, outgoing.variable, selectedClassIds)
+        ? resolveCategoryLabel(
+            allVariables,
+            outgoing.variable,
+            selectedClassIds,
+          )
         : '',
       selectedClassIds,
       selectedValueRanges,

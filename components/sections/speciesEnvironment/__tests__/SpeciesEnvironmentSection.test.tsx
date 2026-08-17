@@ -241,6 +241,7 @@ const baseState: SpeciesEnvironmentState = {
   selectedDensityRanges: [],
   selectDensityRange: jest.fn(),
   activeChain: [],
+  fullChain: [],
   chainDescription: null,
   removeChainedFilter: jest.fn(),
   clearChain: jest.fn(),
