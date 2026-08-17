@@ -84,6 +84,7 @@ import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSettings } from '@/context/SettingsContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
 import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
@@ -220,6 +221,12 @@ export default function Species({
   }>();
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
+  // Lets links target the occurrence map directly, e.g.
+  // #species-occurrence-map.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
@@ -1227,6 +1234,22 @@ export default function Species({
             </SectionShell>
           )}
 
+          {shouldRenderOccurrenceMap && (
+            <SectionShell responsive={responsive}>
+              <ThemedText
+                variant='subheading'
+                {...(Platform.OS === 'web'
+                  ? {
+                      nativeID: 'species-occurrence-map',
+                      style: [styles.mapHeading, scrollMarginStyle],
+                    }
+                  : { style: styles.mapHeading })}
+              >
+                Species Occurrence Map
+              </ThemedText>
+            </SectionShell>
+          )}
+
           {/* Always mount the map container to keep ScrollView child indices
               stable — toggling between a component and null shifts Fabric indices
               and causes unmount crashes on iPadOS with mouse/Pencil input. */}
@@ -1411,6 +1434,9 @@ export default function Species({
 }
 
 const styles = StyleSheet.create({
+  mapHeading: {
+    marginBottom: Size.space['200'],
+  },
   overlayContent: {
     width: '100%',
     gap: Size.space['400'],

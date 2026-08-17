@@ -12,6 +12,7 @@ import { Colors, Size } from '@/constants/theme';
 import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { calculateObservationMapHeight } from '@/app/_species';
 import { useUploadWorkflow } from '@/hooks/upload/useUploadWorkflow';
 import { UploadPreview } from './UploadPreview';
@@ -59,6 +60,7 @@ export function UploadScreen() {
   } = useUploadWorkflow();
 
   const { webHeaderHeight } = useLayoutChrome();
+  useScrollToHash([]);
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
   const { height: viewportHeight } = useWindowDimensions();

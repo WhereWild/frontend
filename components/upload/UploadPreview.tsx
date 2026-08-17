@@ -3,13 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { SpeciesEnvironmentSection, SpeciesOccurrenceMap } from '@/components';
+import { Platform, StyleSheet, View } from 'react-native';
+import {
+  SpeciesEnvironmentSection,
+  SpeciesOccurrenceMap,
+  ThemedText,
+} from '@/components';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { Size } from '@/constants/theme';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
@@ -127,6 +134,8 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
+  const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
   const settings = useOptionalSettings();
   const units = settings?.units;
   const selectedColormap = settings?.colormap ?? 'viridis';
@@ -580,8 +589,23 @@ export function UploadPreview({
         polygon={encodedRegionPolygon}
       />
       {uploadedBundle.occurrences.length > 0 ? (
-        <View ref={mapContainerRef} style={styles.mapContainer}>
-          <SpeciesOccurrenceMap
+        <View style={styles.mapSection}>
+          <ThemedText
+            variant='subheading'
+            {...(Platform.OS === 'web'
+              ? {
+                  nativeID: 'species-occurrence-map',
+                  style: anchorScrollMarginStyle(
+                    webHeaderHeight,
+                    responsive.breakpoint,
+                  ),
+                }
+              : {})}
+          >
+            Species Occurrence Map
+          </ThemedText>
+          <View ref={mapContainerRef} style={styles.mapContainer}>
+            <SpeciesOccurrenceMap
             preserveMapPosition
             occurrences={occurrencesForMap}
             refitOnOccurrencesChange={fetchedMapOccurrences}
@@ -715,6 +739,7 @@ export function UploadPreview({
                     markerOutlineEnabled={markerOutlineEnabled}
                   />
                 ))}
+          </View>
         </View>
       ) : null}
     </SpeciesDataSourceProvider>
@@ -725,6 +750,10 @@ const styles = StyleSheet.create({
   previewSection: {
     width: '100%',
     gap: Size.space['400'],
+  },
+  mapSection: {
+    width: '100%',
+    gap: Size.space['200'],
   },
   mapContainer: {
     position: 'relative',

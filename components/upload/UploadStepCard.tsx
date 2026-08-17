@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { IconDownload, IconUpload } from '@/assets/icons';
 import { Button, ThemedText } from '@/components';
 import { Size, type Colors } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
+import { useResponsive } from '@/hooks/useResponsive';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
+import { toKebabCase } from '@/utils/string';
 
 type UploadStepCardAction = {
   isLoading?: boolean;
@@ -43,6 +47,8 @@ export function UploadStepCard({
   testID,
   onPress,
 }: UploadStepCardProps) {
+  const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
   const resolvedSecondaryAction = secondaryAction ?? null;
   const showPrimaryAction = !isLoading;
   const showPrimaryLoading = isLoading;
@@ -62,7 +68,20 @@ export function UploadStepCard({
         { backgroundColor: palette.background.default.secondary },
       ]}
     >
-      <ThemedText variant='heading'>{stepTitle}</ThemedText>
+      <ThemedText
+        variant='heading'
+        {...(Platform.OS === 'web'
+          ? {
+              nativeID: toKebabCase(stepTitle),
+              style: anchorScrollMarginStyle(
+                webHeaderHeight,
+                responsive.breakpoint,
+              ),
+            }
+          : {})}
+      >
+        {stepTitle}
+      </ThemedText>
       <ThemedText
         variant='body'
         style={[
