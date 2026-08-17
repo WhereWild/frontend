@@ -1292,9 +1292,36 @@ export default function Species({
 
   const [galleryPage, setGalleryPage] = React.useState(0);
 
+  // gallerySourceCatalogs is a new array reference on every mapBounds
+  // change (postMapBounds fires on every moveend/zoomend, including
+  // autoPan-triggered pans from opening a popup), even when the actual set
+  // of visible catalog numbers hasn't changed — so keying the reset off the
+  // array itself reset the gallery back to page 1 on nearly any map touch.
+  // Key it off the content instead: same filtering (order is deterministic
+  // for a given occurrences/highlightedCatalogs/mapBounds combination), so
+  // a plain join is a cheap, reference-independent equality check.
+  const gallerySourceCatalogsKey = React.useMemo(
+    () => gallerySourceCatalogs.join(','),
+    [gallerySourceCatalogs],
+  );
+
   React.useEffect(() => {
     setGalleryPage(0);
-  }, [gallerySourceCatalogs]);
+  }, [gallerySourceCatalogsKey]);
+
+  // galleryPageSize shifts with viewportWidth (unthrottled — rotation,
+  // on-screen keyboard, browser chrome show/hide on mobile all perturb it),
+  // and gallerySourceCatalogs.length can also shrink without the content
+  // key above changing page-worthiness. Clamp instead of reset — unlike the
+  // effect above, staying on the closest valid page (rather than snapping
+  // to page 1) preserves the user's place when e.g. rotating the device.
+  const galleryTotalPages = Math.max(
+    1,
+    Math.ceil(gallerySourceCatalogs.length / Math.max(1, galleryPageSize)),
+  );
+  React.useEffect(() => {
+    setGalleryPage((page) => Math.min(page, galleryTotalPages - 1));
+  }, [galleryTotalPages]);
 
   const occurrenceByCatalog = React.useMemo(
     () =>

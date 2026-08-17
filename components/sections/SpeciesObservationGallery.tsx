@@ -57,7 +57,12 @@ export function SpeciesObservationGallery({
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
 
-  if (!loading && points.length === 0) {
+  // Gate on totalCount, not points.length — points can legitimately be
+  // empty for a moment on an out-of-range page (e.g. a mobile rotation
+  // shrinking pageSize while sitting on a later page, before the parent's
+  // clamp effect catches up). Hiding the whole section — pager included —
+  // in that case strands the user with no way back to a valid page.
+  if (!loading && totalCount === 0) {
     return null;
   }
 
