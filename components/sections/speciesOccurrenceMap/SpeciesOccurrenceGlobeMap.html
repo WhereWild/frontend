@@ -285,6 +285,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         replaceOccurrencePointsImpl(newPoints);
       }
     }
+    // Same deal: the real updateClusterMode is defined inside the
+    // SHOW_MARKERS/map.on('load') closure below (it needs useClustering,
+    // setMarkerMode, etc.), but applyHighlightsNow (defined above that
+    // closure) needs to be able to trigger it whenever a slice changes what
+    // the clustered source contains.
+    var updateClusterModeImpl = null;
+    function updateClusterMode() {
+      if (updateClusterModeImpl) updateClusterModeImpl();
+    }
 
     function isVariableColorMode() {
       return IS_CIRCULAR
@@ -494,10 +503,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     function refreshOccurrenceMarkerColors() {
       var source = map.getSource('occurrences');
       if (!source || !OCCURRENCE_POINTS.length) return;
-      var collection = buildOccurrenceFeatureCollection(OCCURRENCE_POINTS);
-      source.setData(collection);
+      source.setData(buildOccurrenceFeatureCollection(OCCURRENCE_POINTS));
       var clusteredSource = map.getSource('occurrences-clustered');
-      if (clusteredSource) clusteredSource.setData(collection);
+      if (clusteredSource) clusteredSource.setData(buildOccurrenceFeatureCollection(clusteredSourcePoints(OCCURRENCE_POINTS)));
     }
 
     // Occurrence markers can render in one of two MODES, mirroring Leaflet's
@@ -525,10 +533,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     var CLUSTER_COUNT_LAYER_ID = 'occurrences-cluster-count-layer';
     // Anything that needs to touch "all occurrence marker layers" — hover
     // handlers, hit-testing — has to account for every mode's layers,
-    // including cluster bubbles (which sit outside OCCURRENCE_LAYERS/
-    // applyHighlightsNow below since clustered features are aggregates with
-    // no `catalog` property, so the "isolate to these catalogs" highlight
-    // filter can't meaningfully apply to them — they're left unfiltered).
+    // including cluster bubbles. Cluster bubbles sit outside
+    // OCCURRENCE_LAYERS/applyHighlightsNow's style-filter loop below (their
+    // aggregate features have no `catalog` property to filter on) but are
+    // still kept in sync with the active slice — see applyHighlightsNow's
+    // clustered-source setData, which re-clusters over just the
+    // highlighted subset instead of trying to filter cluster output.
     var ALL_MARKER_LAYER_IDS = [];
 
     function occurrenceLayersExist() {
@@ -545,13 +555,56 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // ready instead of silently dropping it.
     var pendingHighlightCatalogs = null;
 
+    // Latest applied highlight/slice, as a lookup set (or null when no
+    // slice is active) — kept around so any other code path that
+    // regenerates the clustered source's data (color refresh, occurrence
+    // replacement) can re-derive the same filtered subset instead of
+    // clobbering it back to the full dataset.
+    var currentHighlightCatalogSet = null;
+
+    function clusteredSourcePoints(pointList) {
+      if (!currentHighlightCatalogSet) return pointList;
+      return pointList.filter(function(pt) {
+        return currentHighlightCatalogSet[String(pt.popupCatalogValue || '')];
+      });
+    }
+
+    // Cache of the last catalog list actually pushed into the clustered
+    // source, so retries/redundant calls (e.g. applyPendingHighlights
+    // polling while layers aren't ready yet) skip the relatively costly
+    // supercluster re-index (setData on a 'cluster: true' source) when
+    // nothing has actually changed.
+    var lastClusteredHighlightKey = '';
+
     function applyHighlightsNow(catalogs) {
-      var highlightFilter = Array.isArray(catalogs) && catalogs.length > 0
-        ? ['in', ['get', 'catalog'], ['literal', catalogs.map(String)]]
+      var normalizedCatalogs = Array.isArray(catalogs) && catalogs.length > 0 ? catalogs.map(String) : null;
+      var highlightFilter = normalizedCatalogs
+        ? ['in', ['get', 'catalog'], ['literal', normalizedCatalogs]]
         : null;
       OCCURRENCE_LAYERS.forEach(function(layer) {
         map.setFilter(layer.id, highlightFilter ? ['all', layer.baseFilter, highlightFilter] : layer.baseFilter);
       });
+
+      // Style filters only pick which already-clustered features to draw —
+      // they run after supercluster has grouped points into bubbles, so
+      // they can't change which points end up aggregated together. Isolating
+      // a slice inside a bubble instead requires re-clustering over just the
+      // highlighted subset, i.e. pushing filtered data into the clustered
+      // source rather than filtering its output.
+      var clusteredSource = map.getSource('occurrences-clustered');
+      if (clusteredSource) {
+        var key = normalizedCatalogs ? normalizedCatalogs.slice().sort().join(',') : '';
+        if (key !== lastClusteredHighlightKey) {
+          lastClusteredHighlightKey = key;
+          currentHighlightCatalogSet = null;
+          if (normalizedCatalogs) {
+            currentHighlightCatalogSet = {};
+            normalizedCatalogs.forEach(function(c) { currentHighlightCatalogSet[c] = true; });
+          }
+          clusteredSource.setData(buildOccurrenceFeatureCollection(clusteredSourcePoints(OCCURRENCE_POINTS)));
+          updateClusterMode();
+        }
+      }
     }
 
     function applyHighlights(catalogs) {
@@ -1619,14 +1672,24 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         // so any imprecision there is inconsequential.
         function updateClusterMode() {
           if (!useClustering) return;
+          // Read from OCCURRENCE_POINTS (filtered by the active slice, if
+          // any) rather than the closed-over validPoints from initial load —
+          // validPoints is never reassigned, so using it here would keep
+          // deciding individual-vs-clustered mode off stale/original data
+          // after any later replaceOccurrencePoints or highlight change.
+          var currentPoints = clusteredSourcePoints(OCCURRENCE_POINTS);
           var bounds = map.getBounds();
           var visibleCount = 0;
-          for (var i = 0; i < validPoints.length; i++) {
-            if (bounds.contains([validPoints[i].longitude, validPoints[i].latitude])) visibleCount++;
+          for (var i = 0; i < currentPoints.length; i++) {
+            if (bounds.contains([currentPoints[i].longitude, currentPoints[i].latitude])) visibleCount++;
           }
           var wantIndividual = visibleCount > 0 && visibleCount <= MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
           setMarkerMode(wantIndividual ? 'individual' : 'clustered');
         }
+        // Wire up the outer forward-declared wrapper (see
+        // updateClusterModeImpl above) so applyHighlightsNow can reach this
+        // closure's real implementation once it exists.
+        updateClusterModeImpl = updateClusterMode;
         if (useClustering) {
           map.on('moveend', updateClusterMode);
         }
@@ -1694,12 +1757,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             // Unlike refreshOccurrenceMarkerColors, always setData here
             // (even when empty) — a filter matching zero results must
             // still clear whatever's currently shown, not leave it stale.
-            var collection = buildOccurrenceFeatureCollection(validNewPoints);
-            source.setData(collection);
+            source.setData(buildOccurrenceFeatureCollection(validNewPoints));
             var clusteredSource = map.getSource('occurrences-clustered');
-            if (clusteredSource) clusteredSource.setData(collection);
+            if (clusteredSource) clusteredSource.setData(buildOccurrenceFeatureCollection(clusteredSourcePoints(validNewPoints)));
           }
           positionMapForOccurrencePoints(validNewPoints);
+          updateClusterMode();
         };
 
         function handleOccurrenceMarkerClick(e) {
