@@ -3,15 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Colors, Size, type ColorPalette } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
+import {
+  anchorScrollMarginStyle,
+  scrollToElementId,
+  slugifySection,
+} from '@/utils/anchors';
 import { useRouter, type Href } from 'expo-router';
 import { lexer, type MarkedToken, type Token } from 'marked';
 import React from 'react';
 import {
   Linking,
+  Platform,
   StyleSheet,
   View,
   type StyleProp,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { ThemedText } from '../text/ThemedText';
@@ -21,15 +31,35 @@ export type MarkdownProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+const isHashHref = (href: string) => href.startsWith('#');
 const isInternalHref = (href: string) => href.startsWith('/');
 
 const navigateToHref = (href: string, router: ReturnType<typeof useRouter>) => {
-  if (isInternalHref(href)) {
+  if (isHashHref(href)) {
+    scrollToElementId(href.slice(1));
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.history?.replaceState?.(null, '', href);
+    }
+  } else if (isInternalHref(href)) {
     router.push(href as Href);
   } else {
     Linking.openURL(href);
   }
 };
+
+// Flattens inline tokens back to plain text for slug generation — headings
+// can contain bold/code/link spans, but the anchor id only needs the text.
+function tokensToPlainText(tokens: Token[]): string {
+  return tokens
+    .map((token) => {
+      const markedToken = token as MarkedToken;
+      if ('text' in markedToken && typeof markedToken.text === 'string') {
+        return markedToken.text;
+      }
+      return '';
+    })
+    .join('');
+}
 
 // Renders the inline (character-level) tokens within a block: text, bold,
 // italic, strikethrough, inline code, links, and line breaks.
@@ -100,6 +130,8 @@ function renderBlockTokens(
   router: ReturnType<typeof useRouter>,
   keyPrefix: string,
   palette: ColorPalette,
+  seenSlugs: Map<string, number>,
+  scrollMarginStyle: TextStyle | undefined,
 ): React.ReactNode[] {
   return tokens.map((token, index) => {
     const key = `${keyPrefix}-${index}`;
@@ -113,8 +145,18 @@ function renderBlockTokens(
             : markedToken.depth === 2
               ? 'subheading'
               : 'bodyStrong';
+        const slug = slugifySection(
+          tokensToPlainText(markedToken.tokens),
+          seenSlugs,
+        );
         return (
-          <ThemedText key={key} variant={variant}>
+          <ThemedText
+            key={key}
+            variant={variant}
+            {...(Platform.OS === 'web'
+              ? { nativeID: slug, style: scrollMarginStyle }
+              : {})}
+          >
             {renderInlineTokens(markedToken.tokens, router, key)}
           </ThemedText>
         );
@@ -140,7 +182,14 @@ function renderBlockTokens(
                     {marker}
                   </ThemedText>
                   <View style={styles.listItemContent}>
-                    {renderBlockTokens(item.tokens, router, itemKey, palette)}
+                    {renderBlockTokens(
+                      item.tokens,
+                      router,
+                      itemKey,
+                      palette,
+                      seenSlugs,
+                      scrollMarginStyle,
+                    )}
                   </View>
                 </View>
               );
@@ -156,7 +205,14 @@ function renderBlockTokens(
               { borderLeftColor: palette.border.default.secondary },
             ]}
           >
-            {renderBlockTokens(markedToken.tokens, router, key, palette)}
+            {renderBlockTokens(
+              markedToken.tokens,
+              router,
+              key,
+              palette,
+              seenSlugs,
+              scrollMarginStyle,
+            )}
           </View>
         );
       case 'code':
@@ -196,11 +252,29 @@ export function Markdown({ children, style }: MarkdownProps) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
+  const { webHeaderHeight } = useLayoutChrome();
+  const responsive = useResponsive();
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
   const tokens = React.useMemo(() => lexer(children), [children]);
+  // Fresh per render — only needs to dedupe slugs within a single pass over
+  // this render's headings, not across renders.
+  const seenSlugs = new Map<string, number>();
+
+  useScrollToHash([tokens]);
 
   return (
     <View style={[styles.container, style]}>
-      {renderBlockTokens(tokens, router, 'md', palette)}
+      {renderBlockTokens(
+        tokens,
+        router,
+        'md',
+        palette,
+        seenSlugs,
+        scrollMarginStyle,
+      )}
     </View>
   );
 }

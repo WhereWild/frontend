@@ -198,6 +198,14 @@ export default function VariableGuideScreen() {
                 <>
                   <View style={styles.section}>
                     <Markdown>{intro}</Markdown>
+                    {variable ? (
+                      <RoutePressable
+                        href={`/maps?variable=${variable.id}`}
+                        accessibilityRole='link'
+                      >
+                        <ThemedText variant='link'>{'View on map'}</ThemedText>
+                      </RoutePressable>
+                    ) : null}
                   </View>
 
                   <View style={styles.section}>

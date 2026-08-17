@@ -14,11 +14,15 @@ import { PageSurface } from '@/components/PageSurface';
 import { IconGithub, IconLinkedin, IconMail } from '@/assets/icons';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { type ReactNode } from 'react';
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType, ViewStyle } from 'react-native';
 import { Image, Linking, Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
+import { toKebabCase } from '@/utils/string';
 import { WebMetadata } from '@/utils/webMetadata';
 import ABOUT_CONTENT from '@/content/about.md';
 
@@ -50,6 +54,9 @@ type TeamMemberProps = {
   imageOnRight?: boolean;
   isStacked: boolean;
   palette: (typeof Colors)['light'] | (typeof Colors)['dark'];
+  // Lets links to this page target a specific member, e.g.
+  // /about#lucas-pearce — undefined on native, where anchors don't apply.
+  scrollMarginStyle: ViewStyle | undefined;
   children: ReactNode;
 };
 
@@ -60,6 +67,7 @@ function TeamMember({
   imageOnRight = false,
   isStacked,
   palette,
+  scrollMarginStyle,
   children,
 }: TeamMemberProps) {
   const media = (
@@ -106,7 +114,9 @@ function TeamMember({
         !isStacked && styles.teamMemberHorizontal,
         isStacked && styles.teamMemberStacked,
         { backgroundColor: palette.background.default.secondary },
+        scrollMarginStyle,
       ]}
+      {...(Platform.OS === 'web' ? { nativeID: toKebabCase(name) } : {})}
     >
       {layoutChildren}
     </View>
@@ -255,6 +265,14 @@ export default function AboutScreen() {
     responsive.breakpoint === 'desktop'
       ? TEAM_MEMBER_IMAGE_SIZE_DESKTOP
       : TEAM_MEMBER_IMAGE_SIZE_COMPACT;
+  const { webHeaderHeight } = useLayoutChrome();
+  // Lets links to this page target a specific team member, e.g.
+  // /about#lucas-pearce.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
+  useScrollToHash([]);
 
   return (
     <>
@@ -312,6 +330,7 @@ export default function AboutScreen() {
                   imageSize={teamMemberImageSize}
                   isStacked={areTeamCardsStacked}
                   palette={palette}
+                  scrollMarginStyle={scrollMarginStyle}
                 >
                   <ThemedText variant='body'>
                     {
@@ -363,6 +382,7 @@ export default function AboutScreen() {
                   imageOnRight
                   isStacked={areTeamCardsStacked}
                   palette={palette}
+                  scrollMarginStyle={scrollMarginStyle}
                 >
                   <ThemedText variant='body'>
                     {
@@ -404,6 +424,7 @@ export default function AboutScreen() {
                   imageSize={teamMemberImageSize}
                   isStacked={areTeamCardsStacked}
                   palette={palette}
+                  scrollMarginStyle={scrollMarginStyle}
                 >
                   <ThemedText variant='body'>
                     {
@@ -444,6 +465,7 @@ export default function AboutScreen() {
                   imageOnRight
                   isStacked={areTeamCardsStacked}
                   palette={palette}
+                  scrollMarginStyle={scrollMarginStyle}
                 >
                   <ThemedText variant='body'>
                     {

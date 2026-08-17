@@ -17,6 +17,7 @@ import { SourceAttribution } from '@/components/sections/SourceAttribution';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import Head from 'expo-router/head';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettings, type UnitSystem } from '@/context/SettingsContext';
 import { StyleSheet, View } from 'react-native';
@@ -302,6 +303,12 @@ export default function Maps() {
     };
   }, [units, selectedForecastH]);
 
+  // Lets other pages (e.g. a variable guide's "View on map" link) deep-link
+  // straight to a specific variable via /maps?variable=<id>.
+  const { variable: routeVariableId } = useLocalSearchParams<{
+    variable?: string;
+  }>();
+
   const {
     categories,
     selectedVariableCategory,
@@ -311,7 +318,11 @@ export default function Maps() {
     selectedVariable,
     setSelectedVariable,
     selectedVariableMeta,
-  } = useEnvironmentVariableSelection({ variableId: 'landcover', variables });
+  } = useEnvironmentVariableSelection({
+    variableId:
+      typeof routeVariableId === 'string' ? routeVariableId : 'landcover',
+    variables,
+  });
 
   const isRecentWeather =
     (selectedVariableCategory ?? '').toLowerCase() === 'recent weather';

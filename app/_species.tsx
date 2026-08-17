@@ -54,6 +54,7 @@ import {
   parseFilenameFromContentDisposition,
 } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
+import { resolveWebHeaderHeight } from '@/constants/webHeaderHeight';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type {
   SpeciesPageData,
@@ -86,10 +87,6 @@ import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
-
-const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
-const WEB_HEADER_HEIGHT_COMPACT =
-  Size.control.dimension.large + Size.space['400'] * 2;
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -132,11 +129,7 @@ export const calculateObservationMapHeight = ({
 }) => {
   const excludedViewportHeight =
     platform === 'web'
-      ? measuredWebHeaderHeight && measuredWebHeaderHeight > 0
-        ? measuredWebHeaderHeight
-        : breakpoint === 'desktop'
-          ? WEB_HEADER_HEIGHT_DESKTOP
-          : WEB_HEADER_HEIGHT_COMPACT
+      ? resolveWebHeaderHeight(measuredWebHeaderHeight ?? 0, breakpoint)
       : Size.bar.height.short +
         Size.bar.height.tall +
         safeAreaTop +

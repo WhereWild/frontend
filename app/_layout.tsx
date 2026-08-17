@@ -32,7 +32,8 @@ import {
   NativePortalHost,
   NativePortalProvider,
 } from '@/components/NativePortalHost';
-import { Colors, Size, Time } from '@/constants/theme';
+import { Colors, Time } from '@/constants/theme';
+import { resolveWebHeaderHeight } from '@/constants/webHeaderHeight';
 import {
   LayoutChromeProvider,
   useLayoutChrome,
@@ -87,9 +88,6 @@ const NOOP_SEARCH_HANDLER = (_value: string) => {};
 const NATIVE_STACK_DEFAULT_ANIMATION = 'none' as const;
 const SPECIES_STACK_ANIMATION = 'fade' as const;
 const WEB_SCROLL_ROOT_STYLE_ID = 'wherewild-web-scroll-root-override';
-const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
-const WEB_HEADER_HEIGHT_COMPACT =
-  Size.control.dimension.large + Size.space['400'] * 2;
 
 // Expo/RN Web injects a fixed-height root with hidden body overflow. On mobile Safari
 // that turns page scroll into a trapped inner scroller, so we override the root chain
@@ -305,14 +303,12 @@ function RootLayoutWebFrame() {
   const webHeaderThemeColorLight = Colors.light.background.default.secondary;
   const webHeaderThemeColorDark = Colors.dark.background.default.secondary;
   const rootBackgroundColor = Colors[mode].background.default.default;
-  const fallbackWebHeaderHeight =
-    responsive.breakpoint === 'desktop'
-      ? WEB_HEADER_HEIGHT_DESKTOP
-      : WEB_HEADER_HEIGHT_COMPACT;
   // We need an initial offset before the header measures so first paint does not slide
   // page content under the fixed header on web.
-  const resolvedWebHeaderHeight =
-    webHeaderHeight > 0 ? webHeaderHeight : fallbackWebHeaderHeight;
+  const resolvedWebHeaderHeight = resolveWebHeaderHeight(
+    webHeaderHeight,
+    responsive.breakpoint,
+  );
   // useWindowDimensions() hits react-native-web's Dimensions module, which
   // hardcodes {width: 0, height: 0} until canUseDOM is true — i.e. always
   // during SSR (web output: 'server' — no real DOM in that Node process).
