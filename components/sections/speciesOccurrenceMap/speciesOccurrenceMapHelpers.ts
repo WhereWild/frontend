@@ -122,17 +122,24 @@ export const getBasemapBuildDate = (): string => _basemapBuildDate ?? 'latest';
 // Adding a new theme means adding one entry here (plus registering it in
 // STANDARD_BASEMAP_THEMES in SettingsContext.tsx, which controls cycle
 // order) — every URL/cycle helper below derives from this one table rather
-// than branching per theme name. Every entry MUST have both light and dark
-// — a theme that ignores app light/dark mode ('voyager') was tried once and
-// dropped specifically because it couldn't satisfy that.
+// than branching per theme name. Neither half is required — a theme can
+// register only 'light' or only 'dark' if that's all it has; whichever
+// half exists is used for both modes (see getMapTileUrlTemplateForTheme
+// below). 'voyager' (single-look, dropped) was cut for looking wrong
+// specifically while the app was in dark mode, not because single-look
+// themes are disallowed — this table just needs at least one of the two.
 const STANDARD_THEME_STYLE_IDS: Record<
   StandardBasemapTheme,
-  { light: string; dark: string }
+  { light?: string; dark?: string }
 > = {
   default: { light: 'standard-light', dark: 'standard-dark' },
   versatiles: {
     light: 'standard-versatiles-light',
     dark: 'standard-versatiles-dark',
+  },
+  openfreemap: {
+    light: 'standard-openfreemap-light',
+    dark: 'standard-openfreemap-dark',
   },
 };
 export const MAP_TILE_URL_TEMPLATE_LIGHT = () =>
@@ -372,10 +379,11 @@ export const getMapTileUrlTemplate = (
   mode: MapTileMode,
   standardTheme?: StandardBasemapTheme,
 ) => {
-  const styleId =
-    STANDARD_THEME_STYLE_IDS[standardTheme ?? 'default'][
-      mode === 'dark' ? 'dark' : 'light'
-    ];
+  const ids = STANDARD_THEME_STYLE_IDS[standardTheme ?? 'default'];
+  // Prefer the current mode's half; fall back to whichever half the theme
+  // actually registered if that one's missing — see STANDARD_THEME_STYLE_IDS'
+  // doc comment for why a theme is allowed to only have one.
+  const styleId = (mode === 'dark' ? ids.dark : ids.light) ?? ids.light ?? ids.dark;
   return `${BACKEND_BASE}/api/basemap/${styleId}/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 };
 

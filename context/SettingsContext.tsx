@@ -53,19 +53,22 @@ export function isBasemapMode(value: string): value is BasemapMode {
 
 // A second, independent axis from BasemapMode — only meaningful while
 // BasemapMode is 'standard' (satellite/variable each have exactly one
-// look). Both options here are light/dark-aware (a hard requirement — a
-// theme that ignores the app's light/dark setting was tried with 'voyager'
-// and dropped for exactly that reason): 'default' is the CARTO Positron/
-// Dark Matter pair; 'versatiles' is a WhereWild recolor of VersaTiles'
-// real published 'Colorful' palette (Unlicense/public domain) onto our own
-// OpenMapTiles-schema layers, with the dark variant generated
-// algorithmically via VersaTiles' own invertLuminosity() transform rather
-// than hand-designed — see config/gis/tile_styles/standard-versatiles-
-// {light,dark}.json's metadata note in the wherewild repo. Both variants
-// resolved via MAP_TILE_MODE, same as 'default'. Cycled via the in-map
-// palette-icon control, shown only in 'standard' mode — see
-// SpeciesOccurrenceMap.html's StandardThemeToggleControl.
-export type StandardBasemapTheme = 'default' | 'versatiles';
+// look). A theme doesn't strictly need both a light and dark look (see
+// STANDARD_THEME_STYLE_IDS in speciesOccurrenceMapHelpers.ts, which allows
+// either half to be omitted) — 'voyager' (single-look, dropped) was cut for
+// looking wrong specifically when the app was in dark mode, not because
+// single-look themes are banned outright. 'default' is the CARTO Positron/
+// Dark Matter pair; 'versatiles' is a WhereWild recolor of VersaTiles' real
+// published 'Colorful' palette (Unlicense/public domain), dark generated
+// algorithmically via VersaTiles' own invertLuminosity() transform;
+// 'openfreemap' is a WhereWild recolor of OpenFreeMap's real 'bright'/
+// 'dark' style JSON (github.com/hyperknot/openfreemap-styles, BSD-3-Clause,
+// genuine unmodified OpenMapTiles schema — see that repo's own per-style
+// LICENSE.md files). See config/gis/tile_styles/standard-*.json's metadata
+// notes for each. Cycled via the in-map palette-icon control, shown only
+// in 'standard' mode — see SpeciesOccurrenceMap.html's
+// StandardThemeToggleControl.
+export type StandardBasemapTheme = 'default' | 'versatiles' | 'openfreemap';
 // Exported (not just used internally) so it's the single source of truth
 // for cycle order everywhere a theme list is needed — the in-map toggle's
 // N-way cycle (see getStandardThemeCycle in speciesOccurrenceMapHelpers.ts)
@@ -76,6 +79,7 @@ export type StandardBasemapTheme = 'default' | 'versatiles';
 export const STANDARD_BASEMAP_THEMES: StandardBasemapTheme[] = [
   'default',
   'versatiles',
+  'openfreemap',
 ];
 export function isStandardBasemapTheme(
   value: string,
