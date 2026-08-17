@@ -87,6 +87,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // 'standard' | 'satellite' | 'variable' — same persisted-preference
     // pattern as TERRAIN_ENABLED_INITIAL.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
+    // The 'standard' basemap mode's own look — 'default' (CARTO
+    // Positron/Dark Matter, light/dark-aware) or 'voyager' (CARTO's
+    // colorful single-look style). Same persisted-preference read-once
+    // pattern as BASEMAP_MODE_INITIAL above.
+    const STANDARD_THEME_INITIAL = __STANDARD_THEME_INITIAL_JSON__;
+    // Voyager's tile URL, fetched up front like SATELLITE_TILE_URL so
+    // the theme toggle below can swap to it client-side with no round
+    // trip. Null on pages without the 3-way basemap toggle at all (see
+    // standardThemeAltTileUrl's gating in SpeciesOccurrenceMap.tsx).
+    const STANDARD_THEME_ALT_TILE_URL = __STANDARD_THEME_ALT_TILE_URL_JSON__;
     // Tracks whatever the currently-selected GIS variable's tile URL is —
     // starts at HEATMAP_TILE_URL but updates live via applyPendingHeatmapUpdate
     // below, so 'variable' basemap mode always reflects the live selection
@@ -100,10 +110,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // the labels overlay — see the labels-layer visibility logic below),
     // plus the heatmap overlay on top; 'standard' is the plain full-detail
     // tile.
+    // Which of 'standard' mode's own looks is active — declared up front
+    // (like currentHeatmapTileUrl above) since tileUrlForBasemapMode needs
+    // it for the very first tile request, before the theme toggle control
+    // below (which only exists when STANDARD_THEME_ALT_TILE_URL is set)
+    // ever runs.
+    var currentStandardTheme = (STANDARD_THEME_INITIAL === 'voyager' && STANDARD_THEME_ALT_TILE_URL)
+      ? 'voyager'
+      : 'default';
     function tileUrlForBasemapMode(mode) {
       if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
       if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
-      return TILE_URL;
+      return (currentStandardTheme === 'voyager' && STANDARD_THEME_ALT_TILE_URL) ? STANDARD_THEME_ALT_TILE_URL : TILE_URL;
     }
     // Whatever region(s) were already drawn/uploaded when this map was
     // (re)built — e.g. switching here from Leaflet after drawing a region
@@ -921,9 +939,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     // Basemap mode toggle — 3 distinct looks, cycling standard -> satellite
-    // -> variable -> standard: (1) standard Stadia tiles only, (2) Esri
+    // -> variable -> standard: (1) standard self-hosted tiles only, (2) Esri
     // satellite tiles only, (3) the exact same setup as maps.tsx — standard
-    // Stadia tiles with the currently-selected GIS variable's translucent
+    // self-hosted tiles with the currently-selected GIS variable's translucent
     // heatmap overlay on top. The overlay is ONLY visible in mode 3; modes
     // 1/2 explicitly hide it even if a variable happens to be selected, so
     // it never shows up uninvited on top of satellite. Same live-locally /
@@ -955,6 +973,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           // self-hosted tile styles.
           map.setLayoutProperty('labels-layer', 'visibility', mode === 'satellite' ? 'visible' : 'none');
         }
+        // The standard-theme toggle button (defined below, only when
+        // STANDARD_THEME_ALT_TILE_URL exists) only makes sense in
+        // 'standard' mode — satellite/variable each have exactly one look.
+        // Guarded with typeof since applyBasemapMode's first call runs
+        // before that control is built.
+        if (typeof updateStandardThemeVisibility === 'function') { updateStandardThemeVisibility(); }
       };
       var nextBasemapMode = function(mode) {
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
@@ -985,6 +1009,58 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         },
         onRemove: function() {},
       });
+
+      // Cycles the 'standard' mode's own look (currently default <->
+      // voyager) — a second, independent axis from the 3-way mode toggle
+      // above. Only built at all when STANDARD_THEME_ALT_TILE_URL exists
+      // (mirrors SATELLITE_TILE_URL's gating on the outer if), and only
+      // ever visible while currentBasemapMode === 'standard' (see
+      // updateStandardThemeVisibility, called from applyBasemapMode above).
+      if (STANDARD_THEME_ALT_TILE_URL) {
+        var STANDARD_THEME_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5c-3.6 0-6.5 2.6-6.5 5.8 0 2 1.4 3.2 3 3.2h.6c.5 0 .9.4.9.9 0 .3-.1.5-.3.7-.3.3-.5.7-.5 1.1 0 .9.8 1.3 1.5 1.3 3.9 0 7.3-3 7.3-6.7 0-3.5-2.9-6.3-6-6.3z"/><circle cx="5" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="8" cy="4.7" r="0.9" fill="currentColor" stroke="none"/><circle cx="11" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="6.5" cy="9" r="0.9" fill="currentColor" stroke="none"/></svg>';
+        var STANDARD_THEME_TITLES = {
+          default: 'Switch to Voyager theme',
+          voyager: 'Switch to default theme',
+        };
+        var standardThemeContainer = null;
+        var updateStandardThemeVisibility = function() {
+          if (standardThemeContainer) { standardThemeContainer.style.display = currentBasemapMode === 'standard' ? '' : 'none'; }
+        };
+        var nextStandardTheme = function(theme) {
+          return theme === 'voyager' ? 'default' : 'voyager';
+        };
+        map.addControl({
+          onAdd: function() {
+            var container = document.createElement('div');
+            container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+            standardThemeContainer = container;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+            var updateButton = function() {
+              btn.title = STANDARD_THEME_TITLES[currentStandardTheme] || STANDARD_THEME_TITLES.default;
+              btn.style.color = currentStandardTheme === 'voyager' ? palette.linkColor : '';
+            };
+            btn.innerHTML = STANDARD_THEME_ICON;
+            updateButton();
+            updateStandardThemeVisibility();
+            btn.addEventListener('click', function() {
+              currentStandardTheme = nextStandardTheme(currentStandardTheme);
+              if (currentBasemapMode === 'standard') {
+                var source = map.getSource('basemap');
+                if (source && typeof source.setTiles === 'function') {
+                  source.setTiles([tileUrlForBasemapMode('standard')]);
+                }
+              }
+              updateButton();
+              postToParent({ type: 'toggleStandardTheme', theme: currentStandardTheme });
+            });
+            container.appendChild(btn);
+            return container;
+          },
+          onRemove: function() {},
+        });
+      }
     }
 
     // Region-filter regions (see SpeciesOccurrenceMap.html for the

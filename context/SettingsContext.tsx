@@ -51,6 +51,22 @@ export function isBasemapMode(value: string): value is BasemapMode {
   return (BASEMAP_MODES as string[]).includes(value);
 }
 
+// A second, independent axis from BasemapMode — only meaningful while
+// BasemapMode is 'standard' (satellite/variable each have exactly one
+// look). 'default' is the CARTO Positron/Dark Matter pair (already
+// light/dark-aware via MAP_TILE_MODE); 'voyager' is CARTO's colorful
+// Voyager style, one look regardless of app theme (see
+// getMapTileUrlTemplate's doc comment). Cycled via the in-map
+// palette-icon control, shown only in 'standard' mode — see
+// SpeciesOccurrenceMap.html's StandardThemeToggleControl.
+export type StandardBasemapTheme = 'default' | 'voyager';
+const STANDARD_BASEMAP_THEMES: StandardBasemapTheme[] = ['default', 'voyager'];
+export function isStandardBasemapTheme(
+  value: string,
+): value is StandardBasemapTheme {
+  return (STANDARD_BASEMAP_THEMES as string[]).includes(value);
+}
+
 export type { CbMode };
 
 type SettingsContextType = {
@@ -78,6 +94,8 @@ type SettingsContextType = {
   setTerrainEnabled: (v: boolean) => void;
   basemapMode: BasemapMode;
   setBasemapMode: (v: BasemapMode) => void;
+  standardBasemapTheme: StandardBasemapTheme;
+  setStandardBasemapTheme: (v: StandardBasemapTheme) => void;
   localLat: number | null;
   setLocalLat: (v: number | null) => void;
   localLon: number | null;
@@ -138,6 +156,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     'settings.basemapMode',
     'standard',
   );
+  const [standardBasemapTheme, setStandardBasemapTheme] =
+    useAsyncStorageState<StandardBasemapTheme>(
+      'settings.standardBasemapTheme',
+      'default',
+    );
   const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
     'settings.localLat',
     null,
@@ -174,6 +197,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setTerrainEnabled,
         basemapMode,
         setBasemapMode,
+        standardBasemapTheme,
+        setStandardBasemapTheme,
         localLat,
         setLocalLat,
         localLon,

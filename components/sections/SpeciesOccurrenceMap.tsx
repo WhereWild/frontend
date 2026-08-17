@@ -14,7 +14,11 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { isBasemapMode, useOptionalSettings } from '@/context/SettingsContext';
+import {
+  isBasemapMode,
+  isStandardBasemapTheme,
+  useOptionalSettings,
+} from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
@@ -28,6 +32,7 @@ import {
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   getSatelliteTileUrlTemplate,
+  MAP_TILE_URL_TEMPLATE_VOYAGER,
   loadFallbackMapTemplate,
   loadGlobeMapTemplate,
   loadGlobeMapTemplateOffline,
@@ -47,6 +52,7 @@ import {
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
   TOGGLE_TERRAIN_MESSAGE_TYPE,
   TOGGLE_BASEMAP_MODE_MESSAGE_TYPE,
+  TOGGLE_STANDARD_THEME_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TOGGLE_AUTO_ADAPT_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
@@ -654,11 +660,25 @@ export function SpeciesOccurrenceMap({
   );
   const tileUrlTemplate = React.useMemo(
     () =>
-      useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
+      useLabelsOverlay
+        ? getBackgroundTileUrl()
+        : getMapTileUrlTemplate(mode, settings?.standardBasemapTheme),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getBasemapBuildDate()
     // is read for its current value as a recompute trigger (see the effect
     // above), not a real prop/state dependency.
-    [mode, useLabelsOverlay, getBasemapBuildDate()],
+    [mode, useLabelsOverlay, settings?.standardBasemapTheme, getBasemapBuildDate()],
+  );
+  // The 'standard' mode's one non-default look (currently just 'voyager') —
+  // always fetched (like satelliteTileUrl below) whenever the toggle is
+  // enabled at all, regardless of which theme is currently active, so the
+  // in-map control has both URLs ready to swap between client-side without
+  // a round trip. Gated the same way satelliteTileUrl/
+  // variableModeBackgroundTileUrl are: only pages with the 3-way basemap
+  // toggle need this.
+  const standardThemeAltTileUrl = React.useMemo(
+    () => (enableBasemapModeToggle ? MAP_TILE_URL_TEMPLATE_VOYAGER() : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see tileUrlTemplate above.
+    [enableBasemapModeToggle, getBasemapBuildDate()],
   );
   // Only 'satellite' mode still needs a separate labels overlay now —
   // 'variable' mode's self-hosted background (getBackgroundTileUrl) already
@@ -773,6 +793,12 @@ export function SpeciesOccurrenceMap({
     ? (settings?.basemapMode ?? 'standard')
     : 'variable';
   const initialBasemapMode = React.useRef(effectiveBasemapMode);
+  // Same freeze-at-build-time treatment as initialBasemapMode above — the
+  // theme toggle button applies itself instantly and locally too, then only
+  // tells settings.standardBasemapTheme about it for next time.
+  const initialStandardTheme = React.useRef(
+    settings?.standardBasemapTheme ?? 'default',
+  );
   const initialAutoAdaptApplicable = React.useRef(autoAdaptApplicable);
   const initialAutoAdaptEnabled = React.useRef(autoAdaptEnabled);
   // Same reasoning as initialTerrainEnabled above, for drawn regions:
@@ -835,6 +861,7 @@ export function SpeciesOccurrenceMap({
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
     initialBasemapMode.current = effectiveBasemapMode;
+    initialStandardTheme.current = settings?.standardBasemapTheme ?? 'default';
     initialAutoAdaptApplicable.current = autoAdaptApplicable;
     initialAutoAdaptEnabled.current = autoAdaptEnabled;
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
@@ -957,6 +984,8 @@ export function SpeciesOccurrenceMap({
       enableAutoAdaptToggle,
       memoAutoAdaptApplicable,
       memoAutoAdaptEnabled,
+      initialStandardTheme.current,
+      standardThemeAltTileUrl,
     );
   }, [
     allowPinObservations,
@@ -1005,6 +1034,7 @@ export function SpeciesOccurrenceMap({
     enableAutoAdaptToggle,
     memoAutoAdaptApplicable,
     memoAutoAdaptEnabled,
+    standardThemeAltTileUrl,
   ]);
 
   React.useEffect(() => {
@@ -1404,6 +1434,25 @@ export function SpeciesOccurrenceMap({
         // reload starts with whatever was last picked.
         settings?.setBasemapMode(
           (data as { mode: 'standard' | 'satellite' | 'variable' }).mode,
+        );
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_STANDARD_THEME_MESSAGE_TYPE &&
+        'theme' in data &&
+        typeof (data as { theme?: unknown }).theme === 'string' &&
+        isStandardBasemapTheme((data as { theme: string }).theme)
+      ) {
+        // Same live-locally / persist-via-postMessage split as
+        // TOGGLE_BASEMAP_MODE_MESSAGE_TYPE above.
+        settings?.setStandardBasemapTheme(
+          (data as { theme: 'default' | 'voyager' }).theme,
         );
         return;
       }

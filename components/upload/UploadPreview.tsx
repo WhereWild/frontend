@@ -364,8 +364,12 @@ export function UploadPreview({
   // Auto-adapt only makes sense for a plain numeric gradient — circular
   // (wraparound 0-360°) variables don't have a meaningful "observed
   // min/max" the same way, and categorical variables have no numeric range
-  // at all. Mirrors maps.tsx's isAutoAdaptApplicable.
+  // at all. Mirrors maps.tsx's isAutoAdaptApplicable. Also requires the
+  // 'variable' basemap mode actually be active — see _species.tsx's
+  // identical addition for why (some variable can be selected without the
+  // heatmap overlay itself being shown).
   const isAutoAdaptApplicable =
+    settings?.basemapMode === 'variable' &&
     Boolean(selectedVariableMeta) &&
     !isVariableCategorical(selectedVariableMeta) &&
     !isVariableCircular(selectedVariableMeta);

@@ -49,17 +49,6 @@ const readTemplateCached = (templatePath: string): string => {
   return content;
 };
 
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: {
-    expoConfig: {
-      extra: {
-        stadiaMapsApiKey: ' test-stadia-key ',
-      },
-    },
-  },
-}));
-
 describe('speciesOccurrenceMapHelpers', () => {
   const originalFetch = global.fetch;
   const validTemplateHtml =
@@ -1735,11 +1724,11 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.net/');
   });
 
-  it('exposes stable map transport constants for the self-hosted basemap, Stadia overlays, and declustering', () => {
+  it('exposes stable map transport constants for the self-hosted basemap and declustering', () => {
     expect(MAP_REFERRER_POLICY).toBe('strict-origin-when-cross-origin');
     expect(MAP_TILE_URL_TEMPLATE_LIGHT()).toContain('/api/basemap/standard-light/');
     expect(MAP_TILE_URL_TEMPLATE_DARK()).toContain('/api/basemap/standard-dark/');
-    expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
+    expect(MAP_TILE_ATTRIBUTION).not.toContain('Stadia');
     expect(MAP_TILE_ATTRIBUTION).toContain('CARTO');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);
     expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(10000);
@@ -1751,32 +1740,21 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(getMapTileUrlTemplate('light')).not.toContain('api_key');
   });
 
-  it('still applies the Stadia api_key to the (still-Stadia-backed) labels overlay', () => {
-    expect(getLabelsOverlayTileUrl()).toContain('api_key=test-stadia-key');
+  it("resolves the 'voyager' standard theme to its own single look, ignoring light/dark mode", () => {
+    expect(getMapTileUrlTemplate('light', 'voyager')).toContain(
+      '/api/basemap/standard-voyager/',
+    );
+    expect(getMapTileUrlTemplate('dark', 'voyager')).toContain(
+      '/api/basemap/standard-voyager/',
+    );
+    expect(getMapTileUrlTemplate('light', 'default')).toContain(
+      'standard-light',
+    );
   });
 
-  it('treats a non-string Stadia config value as absent', () => {
-    jest.resetModules();
-    jest.doMock('expo-constants', () => ({
-      __esModule: true,
-      default: {
-        expoConfig: {
-          extra: {
-            stadiaMapsApiKey: { token: 'unexpected-object' },
-          },
-        },
-      },
-    }));
-
-    const isolatedHelpers = jest.requireActual(
-      '../speciesOccurrenceMap/speciesOccurrenceMapHelpers',
-    ) as typeof import('../speciesOccurrenceMap/speciesOccurrenceMapHelpers');
-
-    expect(isolatedHelpers.MAP_TILE_API_KEY).toBeNull();
-    expect(isolatedHelpers.getLabelsOverlayTileUrl()).not.toContain('api_key');
-
-    jest.dontMock('expo-constants');
-    jest.resetModules();
+  it('resolves the labels overlay to the self-hosted labels theme, no api_key', () => {
+    expect(getLabelsOverlayTileUrl()).toContain('/api/basemap/labels/');
+    expect(getLabelsOverlayTileUrl()).not.toContain('api_key');
   });
 
   // Skipped: this block builds real canvas GridLayer/tile-culling/label-

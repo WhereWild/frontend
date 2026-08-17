@@ -239,6 +239,7 @@ export default function Species({
     setCbMode,
     shapesEnabled,
     markerOutlineEnabled,
+    basemapMode,
   } = useSettings();
   const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
   const { height: viewportHeight, width: viewportWidth } =
@@ -848,8 +849,14 @@ export default function Species({
   // Auto-adapt only makes sense for a plain numeric gradient — circular
   // (wraparound 0-360°) variables don't have a meaningful "observed
   // min/max" the same way, and categorical variables have no numeric range
-  // at all. Mirrors maps.tsx's isAutoAdaptApplicable.
+  // at all. Mirrors maps.tsx's isAutoAdaptApplicable. Also requires the
+  // 'variable' basemap mode actually be active — some variable is always
+  // selected in the picker by default (see useEnvironmentVariableSelection's
+  // fallback), so without this the button would show even when the heatmap
+  // overlay itself isn't currently displayed (basemap on 'standard'/
+  // 'satellite' instead).
   const isAutoAdaptApplicable =
+    basemapMode === 'variable' &&
     Boolean(selectedVariableMeta) &&
     !isVariableCategorical(selectedVariableMeta) &&
     !isVariableCircular(selectedVariableMeta);

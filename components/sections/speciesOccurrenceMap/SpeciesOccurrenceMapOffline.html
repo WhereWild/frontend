@@ -1095,6 +1095,16 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // read once at load so a reload/return visit starts wherever the user
     // last left the toggle.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
+    // The 'standard' basemap mode's own look — 'default' (CARTO
+    // Positron/Dark Matter, light/dark-aware) or 'voyager' (CARTO's
+    // colorful single-look style). Same persisted-preference read-once
+    // pattern as BASEMAP_MODE_INITIAL above.
+    const STANDARD_THEME_INITIAL = __STANDARD_THEME_INITIAL_JSON__;
+    // Voyager's tile URL, fetched up front like SATELLITE_TILE_URL so
+    // the theme toggle below can swap to it client-side with no round
+    // trip. Null on pages without the 3-way basemap toggle at all (see
+    // standardThemeAltTileUrl's gating in SpeciesOccurrenceMap.tsx).
+    const STANDARD_THEME_ALT_TILE_URL = __STANDARD_THEME_ALT_TILE_URL_JSON__;
     // Coarse (110m) country outlines, bundled inline so a low-context
     // background is available even when the real basemap tiles can't be
     // reached (e.g. offline). Public domain (Natural Earth), via the ISC-
@@ -1345,10 +1355,18 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // simpler background tile (same one maps.tsx always uses, paired with
     // the labels overlay — see applyBasemapMode below), plus the heatmap
     // overlay on top; 'standard' is the plain full-detail tile.
+    // Which of 'standard' mode's own looks is active — declared up front
+    // (like currentHeatmapTileUrl above) since tileUrlForBasemapMode needs
+    // it for the very first tile request, before the theme toggle control
+    // below (which only exists when STANDARD_THEME_ALT_TILE_URL is set)
+    // ever runs.
+    var currentStandardTheme = (STANDARD_THEME_INITIAL === 'voyager' && STANDARD_THEME_ALT_TILE_URL)
+      ? 'voyager'
+      : 'default';
     function tileUrlForBasemapMode(mode) {
       if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
       if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
-      return TILE_URL;
+      return (currentStandardTheme === 'voyager' && STANDARD_THEME_ALT_TILE_URL) ? STANDARD_THEME_ALT_TILE_URL : TILE_URL;
     }
     const tileLayer = L.tileLayer(tileUrlForBasemapMode(BASEMAP_MODE_INITIAL), {
       attribution: TILE_ATTRIBUTION,
@@ -1951,9 +1969,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     }
 
     // Basemap mode toggle — 3 distinct looks, cycling standard -> satellite
-    // -> variable -> standard: (1) standard Stadia tiles only, (2) Esri
+    // -> variable -> standard: (1) standard self-hosted tiles only, (2) Esri
     // satellite tiles only, (3) the exact same setup as maps.tsx — standard
-    // Stadia tiles with the currently-selected GIS variable's translucent
+    // self-hosted tiles with the currently-selected GIS variable's translucent
     // heatmap overlay on top. Applies live via tileLayer.setUrl() +
     // heatmapLayer add/remove, and only persists the choice to
     // settings.basemapMode via postToParent, for next time. Web-only like
@@ -1992,6 +2010,12 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // its own baked-in labels too (see the pane-creation comment above).
         var labelsPane = map.getPane('labelsPane');
         if (labelsPane) { labelsPane.style.display = mode === 'satellite' ? '' : 'none'; }
+        // The standard-theme toggle button (defined below, only when
+        // STANDARD_THEME_ALT_TILE_URL exists) only makes sense in
+        // 'standard' mode — satellite/variable each have exactly one look.
+        // Guarded with typeof since applyBasemapMode's very first call
+        // (right below) runs before that control is built.
+        if (typeof updateStandardThemeVisibility === 'function') { updateStandardThemeVisibility(); }
       }
       function nextBasemapMode(mode) {
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
@@ -2020,6 +2044,52 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         },
       });
       map.addControl(new BasemapModeToggleControl());
+
+      // Cycles the 'standard' mode's own look (currently default <->
+      // voyager) — a second, independent axis from the 3-way mode toggle
+      // above. Only built at all when STANDARD_THEME_ALT_TILE_URL exists
+      // (mirrors SATELLITE_TILE_URL's gating on the outer if), and only
+      // ever visible while currentBasemapMode === 'standard' (see
+      // updateStandardThemeVisibility, called from applyBasemapMode above).
+      if (STANDARD_THEME_ALT_TILE_URL) {
+        var STANDARD_THEME_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5c-3.6 0-6.5 2.6-6.5 5.8 0 2 1.4 3.2 3 3.2h.6c.5 0 .9.4.9.9 0 .3-.1.5-.3.7-.3.3-.5.7-.5 1.1 0 .9.8 1.3 1.5 1.3 3.9 0 7.3-3 7.3-6.7 0-3.5-2.9-6.3-6-6.3z"/><circle cx="5" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="8" cy="4.7" r="0.9" fill="currentColor" stroke="none"/><circle cx="11" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="6.5" cy="9" r="0.9" fill="currentColor" stroke="none"/></svg>';
+        var STANDARD_THEME_TITLES = {
+          default: 'Switch to Voyager theme',
+          voyager: 'Switch to default theme',
+        };
+        var standardThemeBtn = null;
+        var updateStandardThemeVisibility = function() {
+          if (standardThemeBtn) { standardThemeBtn.style.display = currentBasemapMode === 'standard' ? '' : 'none'; }
+        };
+        function nextStandardTheme(theme) {
+          return theme === 'voyager' ? 'default' : 'voyager';
+        }
+        var StandardThemeToggleControl = L.Control.extend({
+          options: { position: 'topright' },
+          onAdd: function() {
+            var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
+            standardThemeBtn = btn;
+            var updateButton = function() {
+              btn.title = STANDARD_THEME_TITLES[currentStandardTheme] || STANDARD_THEME_TITLES.default;
+              btn.style.color = currentStandardTheme === 'voyager' ? palette.linkColor : '';
+            };
+            btn.innerHTML = STANDARD_THEME_ICON;
+            updateButton();
+            updateStandardThemeVisibility();
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', function() {
+              currentStandardTheme = nextStandardTheme(currentStandardTheme);
+              if (currentBasemapMode === 'standard') {
+                tileLayer.setUrl(tileUrlForBasemapMode('standard'));
+              }
+              updateButton();
+              postToParent({ type: 'toggleStandardTheme', theme: currentStandardTheme });
+            });
+            return btn;
+          },
+        });
+        map.addControl(new StandardThemeToggleControl());
+      }
     }
 
     // Pencil is a 2-state toggle (idle -> drawing -> idle) that never
