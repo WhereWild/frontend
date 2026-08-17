@@ -1826,7 +1826,10 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     autoAdaptEnabled,
     standardTheme,
     standardThemes
-      ? standardThemes.map((t) => ({ ...t, url: stripRetinaPlaceholder(t.url) }))
+      ? standardThemes.map((t) => ({
+          ...t,
+          url: stripRetinaPlaceholder(t.url),
+        }))
       : standardThemes,
   );
 };
