@@ -9,6 +9,7 @@ import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles
 import { Size } from '@/constants/theme';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebMetadata } from '@/utils/webMetadata';
 import ACKNOWLEDGEMENTS_CONTENT from '@/content/acknowledgements.md';
@@ -17,6 +18,9 @@ export default function AcknowledgementsScreen() {
   const responsive = useResponsive();
   const dataSources = useDataSources();
   const sources = Object.values(dataSources);
+  // Lands on a specific citation once sources have loaded, e.g.
+  // /acknowledgements#fabdem-v1-2.
+  useScrollToHash([sources.length]);
 
   return (
     <>

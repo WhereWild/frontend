@@ -1095,6 +1095,21 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // read once at load so a reload/return visit starts wherever the user
     // last left the toggle.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
+    // The 'standard' basemap mode's own look — 'default' (CARTO
+    // Positron/Dark Matter, light/dark-aware) or 'versatiles' (CARTO's
+    // colorful single-look style). Same persisted-preference read-once
+    // pattern as BASEMAP_MODE_INITIAL above.
+    const STANDARD_THEME_INITIAL = __STANDARD_THEME_INITIAL_JSON__;
+    // Every registered standard theme's { id, url } pair, already resolved
+    // for the current light/dark mode (see getStandardThemeCycle in
+    // speciesOccurrenceMapHelpers.ts) and fetched up front like
+    // SATELLITE_TILE_URL, so the toggle below can cycle through all of them
+    // client-side with no round trip. An array (not a single "alt" URL) so
+    // this is a genuine N-way cycle, not a hardcoded 2-way one — adding a
+    // theme is a backend/helpers.ts change, never a template change. Null
+    // on pages without the 3-way basemap toggle at all (see standardThemes'
+    // gating in SpeciesOccurrenceMap.tsx).
+    const STANDARD_THEMES = __STANDARD_THEMES_JSON__;
     // Coarse (110m) country outlines, bundled inline so a low-context
     // background is available even when the real basemap tiles can't be
     // reached (e.g. offline). Public domain (Natural Earth), via the ISC-
@@ -1312,10 +1327,12 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       map.getPane('labelsPane').style.zIndex = 650;
       // Initial visibility is set by applyBasemapMode(currentBasemapMode)
       // below, once the basemap toggle's setup code runs: labels only show
-      // in 'satellite'/'variable' modes there, not 'standard' (which
-      // already has labels baked into its own tile style). Pages without
-      // the toggle (maps.tsx, no SATELLITE_TILE_URL) never call
-      // applyBasemapMode at all, so labels just stay on always, unaffected.
+      // in 'satellite' mode there — 'standard' and 'variable' both have
+      // labels baked into their own (self-hosted) tile styles now. Pages
+      // without the toggle (maps.tsx, no SATELLITE_TILE_URL) never request
+      // LABELS_OVERLAY_URL at all anymore (see labelsOverlayTileUrl in
+      // SpeciesOccurrenceMap.tsx), so this pane just never gets created
+      // there — nothing to leave "on always" like before.
     }
 
     // Tracks whatever the currently-selected GIS variable's tile URL is —
@@ -1328,10 +1345,27 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // simpler background tile (same one maps.tsx always uses, paired with
     // the labels overlay — see applyBasemapMode below), plus the heatmap
     // overlay on top; 'standard' is the plain full-detail tile.
+    // Which of STANDARD_THEMES is active — declared up front (like
+    // currentHeatmapTileUrl above) since tileUrlForBasemapMode needs it for
+    // the very first tile request, before the theme toggle control below
+    // (which only exists when STANDARD_THEMES is set) ever runs.
+    var currentStandardTheme = STANDARD_THEME_INITIAL;
+    // Looks currentStandardTheme's URL up in STANDARD_THEMES by id rather
+    // than a hardcoded default-vs-alt branch — works for any number of
+    // registered themes. Falls back to TILE_URL (the 'default' theme's own
+    // URL, always present even on pages without the toggle at all) if the
+    // list is missing or the id isn't found in it.
+    function standardThemeUrl(theme) {
+      if (!STANDARD_THEMES) return null;
+      for (var i = 0; i < STANDARD_THEMES.length; i++) {
+        if (STANDARD_THEMES[i].id === theme) return STANDARD_THEMES[i].url;
+      }
+      return null;
+    }
     function tileUrlForBasemapMode(mode) {
       if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
       if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
-      return TILE_URL;
+      return standardThemeUrl(currentStandardTheme) || TILE_URL;
     }
     const tileLayer = L.tileLayer(tileUrlForBasemapMode(BASEMAP_MODE_INITIAL), {
       attribution: TILE_ATTRIBUTION,
@@ -1447,9 +1481,9 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     }
 
     // Basemap mode toggle — 3 distinct looks, cycling standard -> satellite
-    // -> variable -> standard: (1) standard Stadia tiles only, (2) Esri
+    // -> variable -> standard: (1) standard self-hosted tiles only, (2) Esri
     // satellite tiles only, (3) the exact same setup as maps.tsx — standard
-    // Stadia tiles with the currently-selected GIS variable's translucent
+    // self-hosted tiles with the currently-selected GIS variable's translucent
     // heatmap overlay on top. Applies live via tileLayer.setUrl() +
     // heatmapLayer add/remove, and only persists the choice to
     // settings.basemapMode via postToParent, for next time. Web-only like
@@ -1483,10 +1517,20 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             map.removeLayer(heatmapLayer);
           }
         }
-        // Labels overlay: visible in 'satellite'/'variable', hidden in
-        // 'standard' (see the pane-creation comment above for why).
+        // Labels overlay: only 'satellite' needs it now — 'variable' mode's
+        // self-hosted background already bakes labels in (see
+        // getBackgroundTileUrl/VARIABLE_MODE_HIDDEN_SOURCE_LAYERS), so
+        // showing this too would double-draw labels in two different
+        // styles. 'standard' also has its own baked-in labels (see the
+        // pane-creation comment above for why).
         var labelsPane = map.getPane('labelsPane');
-        if (labelsPane) { labelsPane.style.display = mode === 'standard' ? 'none' : ''; }
+        if (labelsPane) { labelsPane.style.display = mode === 'satellite' ? '' : 'none'; }
+        // The standard-theme toggle button (defined below, only when
+        // STANDARD_THEMES has more than one entry) only makes sense in
+        // 'standard' mode — satellite/variable each have exactly one look.
+        // Guarded with typeof since applyBasemapMode's very first call
+        // (right below) runs before that control is built.
+        if (typeof updateStandardThemeVisibility === 'function') { updateStandardThemeVisibility(); }
       }
       function nextBasemapMode(mode) {
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
@@ -1515,6 +1559,56 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         },
       });
       map.addControl(new BasemapModeToggleControl());
+
+      // Cycles the 'standard' mode's own look, N-way over STANDARD_THEMES
+      // (currently 2: default/versatiles, but nothing here assumes that) —
+      // a second, independent axis from the 3-way mode toggle above. Only
+      // built at all when STANDARD_THEMES has more than one entry (nothing
+      // to cycle to otherwise) — mirrors SATELLITE_TILE_URL's gating on the
+      // outer if — and only ever visible while currentBasemapMode ===
+      // 'standard' (see updateStandardThemeVisibility, called from
+      // applyBasemapMode above).
+      if (STANDARD_THEMES && STANDARD_THEMES.length > 1) {
+        var STANDARD_THEME_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5c-3.6 0-6.5 2.6-6.5 5.8 0 2 1.4 3.2 3 3.2h.6c.5 0 .9.4.9.9 0 .3-.1.5-.3.7-.3.3-.5.7-.5 1.1 0 .9.8 1.3 1.5 1.3 3.9 0 7.3-3 7.3-6.7 0-3.5-2.9-6.3-6-6.3z"/><circle cx="5" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="8" cy="4.7" r="0.9" fill="currentColor" stroke="none"/><circle cx="11" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="6.5" cy="9" r="0.9" fill="currentColor" stroke="none"/></svg>';
+        var standardThemeBtn = null;
+        var updateStandardThemeVisibility = function() {
+          if (standardThemeBtn) { standardThemeBtn.style.display = currentBasemapMode === 'standard' ? '' : 'none'; }
+        };
+        // Index-based cycle over STANDARD_THEMES rather than a hardcoded
+        // 2-way ternary — works for any list length.
+        function nextStandardTheme(theme) {
+          var i = -1;
+          for (var j = 0; j < STANDARD_THEMES.length; j++) {
+            if (STANDARD_THEMES[j].id === theme) { i = j; break; }
+          }
+          return STANDARD_THEMES[(i + 1) % STANDARD_THEMES.length].id;
+        }
+        var StandardThemeToggleControl = L.Control.extend({
+          options: { position: 'topright' },
+          onAdd: function() {
+            var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
+            standardThemeBtn = btn;
+            var updateButton = function() {
+              btn.title = 'Basemap theme: ' + currentStandardTheme + ' (tap to switch)';
+              btn.style.color = currentStandardTheme === STANDARD_THEMES[0].id ? '' : palette.linkColor;
+            };
+            btn.innerHTML = STANDARD_THEME_ICON;
+            updateButton();
+            updateStandardThemeVisibility();
+            L.DomEvent.disableClickPropagation(btn);
+            L.DomEvent.on(btn, 'click', function() {
+              currentStandardTheme = nextStandardTheme(currentStandardTheme);
+              if (currentBasemapMode === 'standard') {
+                tileLayer.setUrl(tileUrlForBasemapMode('standard'));
+              }
+              updateButton();
+              postToParent({ type: 'toggleStandardTheme', theme: currentStandardTheme });
+            });
+            return btn;
+          },
+        });
+        map.addControl(new StandardThemeToggleControl());
+      }
     }
 
     // Pencil is a 2-state toggle (idle -> drawing -> idle) that never
@@ -2508,6 +2602,20 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       var bgStyle = { radius: markerStyle.radius, fillOpacity: 0, fillColor: 'transparent',
         color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' };
       selectedPointMarker = L.circleMarker([bgLat, bgLon], bgStyle).addTo(map);
+
+      // A background pin restored via applySelectedPoint (e.g. on load, from
+      // a hydrated ?highlightObservation=point:<lat>,<lon> URL) otherwise
+      // only ever drew the outline above — unlike a live map.on('click') on
+      // the same spot, which also opens a popup and fetches its value. Do
+      // the same here so a reloaded background pin looks identical to one
+      // just clicked, not just the outline with no popup.
+      if (POINT_QUERY_URL) {
+        var bgPopup = L.popup().setLatLng([bgLat, bgLon])
+          .setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>')
+          .openOn(map);
+        lastBackgroundPopup = bgPopup;
+        fetchBackgroundPointPopup(bgPopup, bgLat, bgLon);
+      }
 
       if (CLASS_SHAPES && POINT_QUERY_URL) {
         (function(markerRef) {

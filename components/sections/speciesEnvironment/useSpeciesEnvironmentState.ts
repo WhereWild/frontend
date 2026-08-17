@@ -9,6 +9,7 @@ import type {
 import React from 'react';
 import {
   buildCategoricalSummary,
+  type ChainedVariableFilter,
   EnvironmentVariableOption,
   formatValue,
   isVariableCategorical as isVariableCategoricalOption,
@@ -71,6 +72,9 @@ type UseSpeciesEnvironmentStateParams = {
    * ordinal has no separate accessibility variant (the colormap IS its
    * coloring mechanism). See util/tiles.py's matching branch. */
   colormap?: CbMode | null;
+  /** Seeds activeChain on mount — e.g. a chain hydrated from the route's
+   * ?slice= param. Forwarded straight through to useEnvironmentHighlights. */
+  initialChain?: ChainedVariableFilter[];
 };
 
 /** Inputs used to derive presentational state from loaded stats and selection metadata. */
@@ -145,6 +149,7 @@ export function useSpeciesEnvironmentState({
   slicingEnabled = true,
   cbMode = null,
   colormap = null,
+  initialChain,
 }: UseSpeciesEnvironmentStateParams) {
   const {
     categories,
@@ -237,6 +242,7 @@ export function useSpeciesEnvironmentState({
     selectDensityRange,
     rangeObservations,
     activeChain,
+    fullChain,
     removeChainedFilter,
     clearChain,
     pinnedClassName,
@@ -262,6 +268,7 @@ export function useSpeciesEnvironmentState({
     pinnedObservation,
     slicingEnabled,
     colorMode,
+    initialChain,
   });
 
   // A single combined line for display right below metaText, e.g. "And
@@ -713,6 +720,7 @@ export function useSpeciesEnvironmentState({
     selectedDensityRanges,
     selectDensityRange,
     activeChain,
+    fullChain,
     chainDescription,
     removeChainedFilter,
     clearChain,

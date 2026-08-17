@@ -9,6 +9,7 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import React from 'react';
+import { Platform } from 'react-native';
 import VariableGuideScreen from '../[slug]';
 
 let mockSlug: string | undefined = 'bio1';
@@ -339,6 +340,45 @@ describe('VariableGuideScreen', () => {
     await waitFor(() =>
       expect(screen.getByText('Rainfed cropland')).toBeTruthy(),
     );
+  });
+
+  it('assigns a slugified nativeID to each section heading and each individual legend class on web, so /guides/variables/ecoregions#west-sahara-desert can be linked to directly', async () => {
+    mockSlug = 'ecoregions';
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      {
+        id: 'ecoregions',
+        name: 'Ecoregions',
+        category: 'terrain',
+        legendClasses: [
+          { id: 10, name: 'Rainfed cropland', color: '#FFFF64' },
+          { id: 20, name: 'West Sahara desert', color: '#D2B48C' },
+        ],
+      },
+    ]);
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      const { UNSAFE_getByProps } = render(<VariableGuideScreen />);
+
+      await waitFor(() =>
+        expect(screen.getByText('West Sahara desert')).toBeTruthy(),
+      );
+      expect(UNSAFE_getByProps({ nativeID: 'details' })).toBeTruthy();
+      expect(UNSAFE_getByProps({ nativeID: 'categories' })).toBeTruthy();
+      expect(UNSAFE_getByProps({ nativeID: 'rainfed-cropland' })).toBeTruthy();
+      expect(
+        UNSAFE_getByProps({ nativeID: 'west-sahara-desert' }),
+      ).toBeTruthy();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it("merges a class heading's written prose into that class's swatch row instead of listing it separately", async () => {

@@ -77,6 +77,56 @@ const toNumericClassValue = (value: number | string): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// Builds a ChainedVariableFilter-shaped entry from a live selection —
+// shared by the "outgoing variable" stash-onto-chain transition and by
+// fullChain below (which needs the CURRENTLY selected variable's own live
+// selection represented the same way, purely for URL round-tripping, since
+// the currently-selected variable's own slice isn't "chained" for display
+// purposes). Returns null when there's nothing selected to represent.
+const buildSelectionEntry = (
+  variableId: string,
+  isCategorical: boolean,
+  label: string,
+  selectedCategoryValues: (number | string)[],
+  selectedDensityRanges: DensitySelectionRange[],
+): ChainedVariableFilter | null => {
+  if (isCategorical) {
+    if (selectedCategoryValues.length === 0) return null;
+    const numericValues = selectedCategoryValues
+      .map(toNumericClassValue)
+      .filter((v): v is number => v !== null);
+    if (numericValues.length === 0) return null;
+    return {
+      variableId,
+      isCategorical: true,
+      extra: { variableId, classValues: numericValues },
+      label,
+      originalCategoryValues: selectedCategoryValues,
+    };
+  }
+  if (selectedDensityRanges.length === 0) return null;
+  return {
+    variableId,
+    isCategorical: false,
+    extra:
+      selectedDensityRanges.length === 1
+        ? {
+            variableId,
+            min: selectedDensityRanges[0].start,
+            max: selectedDensityRanges[0].end,
+          }
+        : {
+            variableId,
+            ranges: selectedDensityRanges.map((r) => ({
+              min: r.start,
+              max: r.end,
+            })),
+          },
+    label,
+    originalRanges: selectedDensityRanges,
+  };
+};
+
 // Stable identity for a density range — used to detect "the user
 // clicked/dragged this exact range again" (toggle it off) when multiple
 // ranges are selected at once.
@@ -183,6 +233,11 @@ type UseEnvironmentHighlightsParams = {
    * render, instead of a stale per-class legend color. See
    * useSpeciesEnvironmentState.ts's identical colorMode derivation. */
   colorMode?: string | null;
+  /** Seeds activeChain on mount — e.g. a chain hydrated from the route's
+   * ?slice= param. Only consulted on first render (an ordinary useState
+   * initial value), same as every other route-hydrated piece of state on
+   * the species page. */
+  initialChain?: ChainedVariableFilter[];
 };
 
 /** Handles category/range selections and resolves corresponding highlighted observations. */
@@ -201,10 +256,33 @@ export function useEnvironmentHighlights({
   pinnedObservation,
   slicingEnabled = true,
   colorMode = null,
+  initialChain,
 }: UseEnvironmentHighlightsParams) {
   const speciesDataSource = useSpeciesDataSource();
+  // If the URL-hydrated chain has an entry for the variable that's ALREADY
+  // selected on mount, that's not a genuine "chain" (a slice from some
+  // OTHER variable) — pop it off and apply it as the live selection instead,
+  // same as switching back to a variable with a stashed entry does. Computed
+  // once via ref (not useMemo, which React doesn't guarantee to run only
+  // once) so every state initializer below sees the same split.
+  const initialChainSplitRef = React.useRef<{
+    chain: ChainedVariableFilter[];
+    restored: ChainedVariableFilter | null;
+  } | null>(null);
+  if (initialChainSplitRef.current === null) {
+    initialChainSplitRef.current = popRestorable(
+      initialChain ?? [],
+      selectedVariable,
+      chainEntryKey,
+    );
+  }
+  const initialChainSplit = initialChainSplitRef.current;
   const [selectedCategoryValues, setSelectedCategoryValuesState] =
-    React.useState<(number | string)[]>([]);
+    React.useState<(number | string)[]>(() =>
+      initialChainSplit.restored?.isCategorical
+        ? (initialChainSplit.restored.originalCategoryValues ?? [])
+        : [],
+    );
   // Authoritative "current" selection, updated eagerly (not just via the
   // state setter) so a rapid second selectCategoryValue call — e.g. two
   // ctrl-clicks in quick succession, both scheduled via startTransition
@@ -212,7 +290,11 @@ export function useEnvironmentHighlights({
   // toggle against the REAL latest selection instead of a stale snapshot
   // captured from render scope. Same ref-mirrors-state pattern as
   // activeChainRef elsewhere in this codebase.
-  const selectedCategoryValuesRef = React.useRef<(number | string)[]>([]);
+  const selectedCategoryValuesRef = React.useRef<(number | string)[]>(
+    initialChainSplit.restored?.isCategorical
+      ? (initialChainSplit.restored.originalCategoryValues ?? [])
+      : [],
+  );
   const setSelectedCategoryValues = React.useCallback(
     (next: (number | string)[]) => {
       selectedCategoryValuesRef.current = next;
@@ -225,13 +307,21 @@ export function useEnvironmentHighlights({
   >({});
   const [selectedDensityRanges, setSelectedDensityRangesState] = React.useState<
     DensitySelectionRange[]
-  >([]);
+  >(() =>
+    initialChainSplit.restored && !initialChainSplit.restored.isCategorical
+      ? (initialChainSplit.restored.originalRanges ?? [])
+      : [],
+  );
   // Same eager-ref-mirror pattern as selectedCategoryValuesRef — protects
   // against two rapid selectDensityRange calls (e.g. ctrl-click on two
   // histogram bars in quick succession, batched via startTransition) both
   // computing their additive toggle against the same stale pre-update
   // snapshot.
-  const selectedDensityRangesRef = React.useRef<DensitySelectionRange[]>([]);
+  const selectedDensityRangesRef = React.useRef<DensitySelectionRange[]>(
+    initialChainSplit.restored && !initialChainSplit.restored.isCategorical
+      ? (initialChainSplit.restored.originalRanges ?? [])
+      : [],
+  );
   const setSelectedDensityRanges = React.useCallback(
     (next: DensitySelectionRange[]) => {
       selectedDensityRangesRef.current = next;
@@ -259,7 +349,7 @@ export function useEnvironmentHighlights({
   // on a genuine context change (location/phenology/timestamp/units/taxon),
   // same as the old single-slice behavior for those.
   const [activeChain, setActiveChain] = React.useState<ChainedVariableFilter[]>(
-    [],
+    () => initialChainSplit.chain,
   );
   // Tracks which variable + mode the CURRENT selectedDensityRanges/
   // selectedCategoryValues belongs to, plus its already-resolved display
@@ -272,7 +362,15 @@ export function useEnvironmentHighlights({
     variableId: string;
     isCategorical: boolean;
     label: string;
-  } | null>(null);
+  } | null>(
+    initialChainSplit.restored
+      ? {
+          variableId: selectedVariable,
+          isCategorical: initialChainSplit.restored.isCategorical,
+          label: initialChainSplit.restored.label,
+        }
+      : null,
+  );
   const [pinnedValue, setPinnedValue] = React.useState<number | string | null>(
     null,
   );
@@ -388,7 +486,15 @@ export function useEnvironmentHighlights({
   // A genuine context change (not just switching which variable is
   // selected) invalidates any chained filters too — the whole underlying
   // dataset shifted, so there's nothing meaningful left to chain onto.
+  // Skipped on the very first mount: all deps are "new" then, which would
+  // otherwise immediately wipe out a chain seeded via `initialChain`
+  // (URL-hydrated slice params) before it's ever visible.
+  const isFirstResetRef = React.useRef(true);
   React.useEffect(() => {
+    if (isFirstResetRef.current) {
+      isFirstResetRef.current = false;
+      return;
+    }
     resetHighlightState();
   }, [
     endTimestamp,
@@ -419,48 +525,13 @@ export function useEnvironmentHighlights({
     const outgoingMeta = selectionMetaRef.current;
     const outgoingEntry: ChainedVariableFilter | null =
       outgoingMeta && outgoingMeta.variableId === outgoingVariableId
-        ? outgoingMeta.isCategorical
-          ? (() => {
-              if (selectedCategoryValues.length === 0) return null;
-              const numericValues = selectedCategoryValues
-                .map(toNumericClassValue)
-                .filter((v): v is number => v !== null);
-              return numericValues.length === 0
-                ? null
-                : {
-                    variableId: outgoingVariableId,
-                    isCategorical: true,
-                    extra: {
-                      variableId: outgoingVariableId,
-                      classValues: numericValues,
-                    },
-                    label: outgoingMeta.label,
-                    originalCategoryValues: selectedCategoryValues,
-                  };
-            })()
-          : (() => {
-              if (selectedDensityRanges.length === 0) return null;
-              return {
-                variableId: outgoingVariableId,
-                isCategorical: false,
-                extra:
-                  selectedDensityRanges.length === 1
-                    ? {
-                        variableId: outgoingVariableId,
-                        min: selectedDensityRanges[0].start,
-                        max: selectedDensityRanges[0].end,
-                      }
-                    : {
-                        variableId: outgoingVariableId,
-                        ranges: selectedDensityRanges.map((r) => ({
-                          min: r.start,
-                          max: r.end,
-                        })),
-                      },
-                label: outgoingMeta.label,
-                originalRanges: selectedDensityRanges,
-              };
-            })()
+        ? buildSelectionEntry(
+            outgoingVariableId,
+            outgoingMeta.isCategorical,
+            outgoingMeta.label,
+            selectedCategoryValues,
+            selectedDensityRanges,
+          )
         : null;
 
     // Shared switch-to-chain state machine (see hooks/useVariableFilterChain)
@@ -976,9 +1047,15 @@ export function useEnvironmentHighlights({
     }
     const keys = selectedCategoryValues.map((v) => String(v));
     const states = keys.map((key) => categorySamplesByValue[key]);
-    if (
-      states.some((state) => !state?.loaded || state.loading || state.error)
-    ) {
+    if (states.some((state) => !state?.loaded || state.loading)) {
+      return;
+    }
+    // At least one key's fetch failed — there's no reliable union to
+    // compute (a partial one would silently under-report), so clear
+    // whatever was highlighted before rather than leaving stale highlights
+    // from a previous, unrelated selection displayed under this one.
+    if (states.some((state) => state.error)) {
+      emitHighlightChange([]);
       return;
     }
     const seen = new Set<CatalogId>();
@@ -1610,6 +1687,32 @@ export function useEnvironmentHighlights({
     emitHighlightChange,
   ]);
 
+  // activeChain plus the live selection currently active on selectedVariable
+  // itself, if any — activeChain alone never includes it (by construction,
+  // a chain entry naming the currently-selected variable gets restored as
+  // the live selection instead of staying chained, see the switch effect
+  // above), but URL round-tripping needs it represented too: the user
+  // shouldn't lose their in-progress slice on the variable they're actually
+  // looking at just because it isn't rendered as a "chained" banner. Not
+  // used for display — only for callers (route hydration) that need the
+  // FULL set of active filters, not just the chained-from-elsewhere ones.
+  const fullChain = React.useMemo(() => {
+    const liveEntry = buildSelectionEntry(
+      selectedVariable,
+      isCategorical,
+      '',
+      selectedCategoryValues,
+      selectedDensityRanges,
+    );
+    return liveEntry ? [...activeChain, liveEntry] : activeChain;
+  }, [
+    activeChain,
+    isCategorical,
+    selectedCategoryValues,
+    selectedDensityRanges,
+    selectedVariable,
+  ]);
+
   return {
     selectedCategoryValues,
     selectCategoryValue,
@@ -1617,6 +1720,7 @@ export function useEnvironmentHighlights({
     selectDensityRange,
     rangeObservations,
     activeChain,
+    fullChain,
     removeChainedFilter,
     clearChain,
     pinnedClassName: pinnedValueLabel,

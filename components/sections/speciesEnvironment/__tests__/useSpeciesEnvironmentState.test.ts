@@ -1385,7 +1385,7 @@ describe('useSpeciesEnvironmentState', () => {
       'forest',
       { location: 'USA.1_1', units: undefined, extra: [] },
     );
-    expect(onHighlightChange).toHaveBeenCalled();
+    await waitFor(() => expect(onHighlightChange).toHaveBeenCalled());
   });
 
   it('does not fetch category samples when preloaded categorical samples are available', async () => {

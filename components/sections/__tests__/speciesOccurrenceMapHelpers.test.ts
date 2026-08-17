@@ -10,6 +10,7 @@ import {
   buildGlobeHtml,
   buildLeafletHtml,
   computePointStyleUpdates,
+  getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   HIGHLIGHT_MESSAGE_TYPE,
   isOpenExternalUrlEventFromFrame,
@@ -47,17 +48,6 @@ const readTemplateCached = (templatePath: string): string => {
   templateFileCache.set(templatePath, content);
   return content;
 };
-
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: {
-    expoConfig: {
-      extra: {
-        stadiaMapsApiKey: ' test-stadia-key ',
-      },
-    },
-  },
-}));
 
 describe('speciesOccurrenceMapHelpers', () => {
   const originalFetch = global.fetch;
@@ -1734,49 +1724,41 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(MAP_DOCUMENT_BASE_URL).toBe('https://wherewild.net/');
   });
 
-  it('exposes stable map transport constants for Stadia and declustering', () => {
+  it('exposes stable map transport constants for the self-hosted basemap and declustering', () => {
     expect(MAP_REFERRER_POLICY).toBe('strict-origin-when-cross-origin');
-    expect(MAP_TILE_URL_TEMPLATE_LIGHT).toBe(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
+    expect(MAP_TILE_URL_TEMPLATE_LIGHT()).toContain(
+      '/api/basemap/standard-light/',
     );
-    expect(MAP_TILE_URL_TEMPLATE_DARK).toBe(
-      'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+    expect(MAP_TILE_URL_TEMPLATE_DARK()).toContain(
+      '/api/basemap/standard-dark/',
     );
-    expect(MAP_TILE_ATTRIBUTION).toContain('Stadia Maps');
+    expect(MAP_TILE_ATTRIBUTION).not.toContain('Stadia');
+    expect(MAP_TILE_ATTRIBUTION).toContain('CARTO');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);
     expect(MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS).toBe(10000);
   });
 
-  it('resolves a tile template for both light and dark map modes', () => {
-    expect(getMapTileUrlTemplate('light')).toContain('alidade_smooth');
-    expect(getMapTileUrlTemplate('dark')).toContain('alidade_smooth_dark');
-    expect(getMapTileUrlTemplate('light')).toContain('api_key=test-stadia-key');
+  it('resolves a tile template for both light and dark map modes, no api_key (self-hosted)', () => {
+    expect(getMapTileUrlTemplate('light')).toContain('standard-light');
+    expect(getMapTileUrlTemplate('dark')).toContain('standard-dark');
+    expect(getMapTileUrlTemplate('light')).not.toContain('api_key');
   });
 
-  it('treats a non-string Stadia config value as absent', () => {
-    jest.resetModules();
-    jest.doMock('expo-constants', () => ({
-      __esModule: true,
-      default: {
-        expoConfig: {
-          extra: {
-            stadiaMapsApiKey: { token: 'unexpected-object' },
-          },
-        },
-      },
-    }));
-
-    const isolatedHelpers = jest.requireActual(
-      '../speciesOccurrenceMap/speciesOccurrenceMapHelpers',
-    ) as typeof import('../speciesOccurrenceMap/speciesOccurrenceMapHelpers');
-
-    expect(isolatedHelpers.MAP_TILE_API_KEY).toBeNull();
-    expect(isolatedHelpers.getMapTileUrlTemplate('light')).toBe(
-      MAP_TILE_URL_TEMPLATE_LIGHT,
+  it("resolves the 'versatiles' standard theme light/dark-aware, like 'default'", () => {
+    expect(getMapTileUrlTemplate('light', 'versatiles')).toContain(
+      '/api/basemap/standard-versatiles-light/',
     );
+    expect(getMapTileUrlTemplate('dark', 'versatiles')).toContain(
+      '/api/basemap/standard-versatiles-dark/',
+    );
+    expect(getMapTileUrlTemplate('light', 'default')).toContain(
+      'standard-light',
+    );
+  });
 
-    jest.dontMock('expo-constants');
-    jest.resetModules();
+  it('resolves the labels overlay to the self-hosted labels theme, no api_key', () => {
+    expect(getLabelsOverlayTileUrl()).toContain('/api/basemap/labels/');
+    expect(getLabelsOverlayTileUrl()).not.toContain('api_key');
   });
 
   // Skipped: this block builds real canvas GridLayer/tile-culling/label-

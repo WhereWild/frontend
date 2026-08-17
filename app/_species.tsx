@@ -25,6 +25,7 @@ import {
   isPointInPolygon,
   encodePolygonsParam,
 } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import { decodePolygonsParam } from '@/utils/geoPolygon';
 import type { ObservationVarFieldsInputs } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
 import type { ObservationGalleryPoint } from '@/components/sections/SpeciesObservationGallery';
@@ -41,7 +42,10 @@ import {
   getCbColor,
   getCbShape,
 } from '@/components/sections/speciesOccurrenceMap/cbColors';
-import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+import type {
+  ChainedVariableFilter,
+  EnvironmentVariableOption,
+} from '@/components/sections/speciesEnvironment/model';
 import {
   isVariableCategorical,
   isVariableCircular,
@@ -54,11 +58,13 @@ import {
   parseFilenameFromContentDisposition,
 } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
+import { resolveWebHeaderHeight } from '@/constants/webHeaderHeight';
 import { mountainBallCactusData } from '@/data/speciesSample';
 import type {
   SpeciesPageData,
   SpeciesOccurrence,
   OccurrenceLookup,
+  ExtraVariableFilter,
 } from '@/data/types';
 import {
   deliverProcessedZip,
@@ -66,6 +72,7 @@ import {
 } from '@/hooks/upload/uploadWorkflowHelpers';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import React from 'react';
 import {
@@ -80,16 +87,131 @@ import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFil
 import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { useSpeciesRouteLocationHydration } from '@/hooks/species/useSpeciesRouteLocationHydration';
 import { useSettings } from '@/context/SettingsContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
 import { WebMetadata, resolveOpenGraphImageUrl } from '@/utils/webMetadata';
 import { buildSpeciesPath } from '@/utils/speciesOpenGraph';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 
-const WEB_HEADER_HEIGHT_DESKTOP = Size.space['1600'] + Size.space['200'] * 2;
-const WEB_HEADER_HEIGHT_COMPACT =
-  Size.control.dimension.large + Size.space['400'] * 2;
+// Builds a readable-enough fallback label straight from the raw filter
+// values (e.g. "5" or "500-1500") — a hydrated chain entry has no access to
+// the target variable's catalog metadata (legend class names, units) at
+// parse time, unlike a live selection, which reads them from `stats` at the
+// moment the user clicks/drags. The label self-corrects to nothing better
+// later — chain entries never re-resolve their label — so this is what a
+// route-hydrated slice will always show; still functionally correct since
+// the backend filter itself uses `extra`, not `label`.
+function buildFallbackChainLabel(extra: ExtraVariableFilter): string {
+  if ('classValue' in extra) {
+    return String(extra.classValue);
+  }
+  if ('classValues' in extra) {
+    return extra.classValues.map(String).join(', ');
+  }
+  if ('ranges' in extra) {
+    return extra.ranges.map((r) => `${r.min}-${r.max}`).join(', ');
+  }
+  return `${extra.min}-${extra.max}`;
+}
+
+// Parses ?slice=<json> — a JSON-encoded ExtraVariableFilter[] (the exact
+// shape SourceEntry-style features already serialize/deserialize as
+// `entry.extra`, see encodeChainParam below) — into full
+// ChainedVariableFilter[] entries with a fallback label. Defensive against
+// arbitrary/malformed input: any entry that isn't a recognizable
+// ExtraVariableFilter shape is dropped rather than throwing, so an invalid
+// or hand-edited ?slice= value just contributes fewer (or zero) chain
+// entries instead of breaking the page.
+function parseChainParam(raw: string | undefined): ChainedVariableFilter[] {
+  if (!raw) {
+    return [];
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  const result: ChainedVariableFilter[] = [];
+  for (const item of parsed) {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      typeof (item as { variableId?: unknown }).variableId !== 'string'
+    ) {
+      continue;
+    }
+    const record = item as Record<string, unknown>;
+    const variableId = record.variableId as string;
+
+    let extra: ExtraVariableFilter | null = null;
+    if (typeof record.classValue === 'number') {
+      extra = { variableId, classValue: record.classValue };
+    } else if (Array.isArray(record.classValues)) {
+      const classValues = record.classValues.filter(
+        (v): v is number => typeof v === 'number',
+      );
+      if (classValues.length > 0) {
+        extra = { variableId, classValues };
+      }
+    } else if (Array.isArray(record.ranges)) {
+      const ranges = record.ranges.filter(
+        (r): r is { min: number; max: number } =>
+          Boolean(r) &&
+          typeof (r as { min?: unknown }).min === 'number' &&
+          typeof (r as { max?: unknown }).max === 'number',
+      );
+      if (ranges.length > 0) {
+        extra = { variableId, ranges };
+      }
+    } else if (
+      typeof record.min === 'number' &&
+      typeof record.max === 'number'
+    ) {
+      extra = { variableId, min: record.min, max: record.max };
+    }
+    if (!extra) {
+      continue;
+    }
+
+    const isCategorical = 'classValue' in extra || 'classValues' in extra;
+    result.push({
+      variableId,
+      isCategorical,
+      extra,
+      label: buildFallbackChainLabel(extra),
+      originalCategoryValues:
+        'classValue' in extra
+          ? [extra.classValue]
+          : 'classValues' in extra
+            ? extra.classValues
+            : undefined,
+      originalRanges:
+        'ranges' in extra
+          ? extra.ranges.map((r) => ({ start: r.min, end: r.max }))
+          : 'min' in extra
+            ? [{ start: extra.min, end: extra.max }]
+            : undefined,
+    });
+  }
+  return result;
+}
+
+// Inverse of parseChainParam — just the `extra` field of each chain entry,
+// which is already exactly the ExtraVariableFilter shape the param expects.
+function encodeChainParam(chain: ChainedVariableFilter[]): string | null {
+  if (chain.length === 0) {
+    return null;
+  }
+  return JSON.stringify(chain.map((entry) => entry.extra));
+}
 
 type SpeciesScreenProps = {
   data?: SpeciesScreenData;
@@ -132,11 +254,7 @@ export const calculateObservationMapHeight = ({
 }) => {
   const excludedViewportHeight =
     platform === 'web'
-      ? measuredWebHeaderHeight && measuredWebHeaderHeight > 0
-        ? measuredWebHeaderHeight
-        : breakpoint === 'desktop'
-          ? WEB_HEADER_HEIGHT_DESKTOP
-          : WEB_HEADER_HEIGHT_COMPACT
+      ? resolveWebHeaderHeight(measuredWebHeaderHeight ?? 0, breakpoint)
       : Size.bar.height.short +
         Size.bar.height.tall +
         safeAreaTop +
@@ -223,9 +341,76 @@ export default function Species({
   const pathname = usePathname();
   const searchParams = useLocalSearchParams<{
     highlightObservation?: string;
+    variable?: string;
+    location?: string;
+    phenology?: string;
+    region?: string;
+    slice?: string;
   }>();
+  // On this catch-all route, expo-router's web history can fold the query
+  // string into the hash instead of keeping it separate (e.g.
+  // `#section?variable=x` instead of `?variable=x#section`), in which case
+  // useLocalSearchParams never sees the query param at all — recover it
+  // straight from the raw hash as a fallback.
+  const getRouteParamWithHashFallback = React.useCallback(
+    (key: string, fromSearchParams: string | undefined) => {
+      if (typeof fromSearchParams === 'string') {
+        return fromSearchParams;
+      }
+      if (Platform.OS !== 'web' || typeof window === 'undefined') {
+        return undefined;
+      }
+      const match = window.location.hash.match(
+        new RegExp(`[?&]${key}=([^&]+)`),
+      );
+      return match ? decodeURIComponent(match[1]) : undefined;
+    },
+    [],
+  );
+  // Lets links target a specific environment variable directly, e.g.
+  // /species/<id>/<slug>?variable=elevation.
+  const routeVariableId = React.useMemo(
+    () => getRouteParamWithHashFallback('variable', searchParams.variable),
+    [getRouteParamWithHashFallback, searchParams.variable],
+  );
+  // Lets links target a specific location filter, e.g. ?location=<gid>.
+  const routeLocationGid = React.useMemo(
+    () => getRouteParamWithHashFallback('location', searchParams.location),
+    [getRouteParamWithHashFallback, searchParams.location],
+  );
+  // Lets links target a specific phenology filter, e.g. ?phenology=flowering.
+  const routePhenology = React.useMemo(
+    () => getRouteParamWithHashFallback('phenology', searchParams.phenology),
+    [getRouteParamWithHashFallback, searchParams.phenology],
+  );
+  // Lets links target a specific hand-drawn region filter, e.g.
+  // ?region=<encoded-polygon>. Read once (not re-derived on hash changes
+  // after mount) since it only ever seeds drawnPolygons' initial state
+  // below — same one-shot-hydration shape as the other route params.
+  const routeRegionPolygon = React.useMemo(
+    () => getRouteParamWithHashFallback('region', searchParams.region),
+    [getRouteParamWithHashFallback, searchParams.region],
+  );
+  // Lets links target a specific chained-filter state, e.g.
+  // ?slice=[{"variableId":"elevation","min":500,"max":1500}]. Read once,
+  // same as region above — only ever seeds SpeciesEnvironmentSection's
+  // initial chain.
+  const routeSliceParam = React.useMemo(
+    () => getRouteParamWithHashFallback('slice', searchParams.slice),
+    [getRouteParamWithHashFallback, searchParams.slice],
+  );
+  const initialChain = React.useMemo(
+    () => parseChainParam(routeSliceParam),
+    [routeSliceParam],
+  );
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
+  // Lets links target the occurrence map directly, e.g.
+  // #species-occurrence-map.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
 
@@ -239,6 +424,7 @@ export default function Species({
     setCbMode,
     shapesEnabled,
     markerOutlineEnabled,
+    basemapMode,
   } = useSettings();
   const effectiveOutline = markerOutlineEnabled || cbMode === 'achromatopsia';
   const { height: viewportHeight, width: viewportWidth } =
@@ -275,6 +461,12 @@ export default function Species({
   } | null>(null);
   const [selectedVariableMeta, setSelectedVariableMeta] =
     React.useState<EnvironmentVariableOption | null>(null);
+  const [activeChain, setActiveChain] =
+    React.useState<ChainedVariableFilter[]>(initialChain);
+  const handleChainChange = React.useCallback(
+    (chain: ChainedVariableFilter[]) => setActiveChain(chain),
+    [],
+  );
   // Fullscreens the map + its legend/colormap-picker overlays together —
   // see onFullscreenToggle's doc comment on SpeciesOccurrenceMapProps.
   const mapContainerRef = React.useRef<View | null>(null);
@@ -315,6 +507,22 @@ export default function Species({
     locationSearchLimit: LOCATION_SEARCH_LIMIT,
   });
 
+  // Applies routeLocationGid to whichever level (country/state/county) it
+  // actually resolves to — a no-op if it's not one of this species' own
+  // location options (e.g. the species has no observations there).
+  useSpeciesRouteLocationHydration({
+    routeLocationGid,
+    countryOptions,
+    countryLoading,
+    stateOptions,
+    stateLoading,
+    countyOptions,
+    countyLoading,
+    onCountryChange,
+    onStateChange,
+    onCountyChange,
+  });
+
   const {
     occurrences: fetchedOccurrences,
     loading: occurrenceLoading,
@@ -329,23 +537,60 @@ export default function Species({
     endTimestamp,
   });
 
+  // Applies routePhenology once the taxon's available phenology options are
+  // known — a no-op if it's not one of them (e.g. this species has no
+  // observations tagged with that phenology stage).
+  const appliedRoutePhenologyRef = React.useRef(false);
+  React.useEffect(() => {
+    if (appliedRoutePhenologyRef.current || !routePhenology) {
+      return;
+    }
+    if (phenologyCounts && routePhenology in phenologyCounts) {
+      appliedRoutePhenologyRef.current = true;
+      setSelectedPhenology(routePhenology);
+    }
+  }, [routePhenology, phenologyCounts]);
+
   // highlightObservation: deep-linked from /occurrence/{id} (see
   // app/occurrence/[id].tsx) — resolves the observation via the same
   // endpoint that redirect used, and when it's not part of this taxon's
   // normal occurrence set (not yet ingested by GBIF), injects it as a
   // synthetic occurrence below so the existing map/gallery/popup pipeline
   // renders it exactly like any other point, with no separate rendering path.
+  //
+  // It can also carry a background (non-observation) map pin — clicking
+  // empty map background sends a synthetic "point:<lat>,<lon>" id through
+  // this exact same pin mechanism (see SpeciesOccurrenceMap.html's
+  // map.on('click') background-click branch) — those never have a real
+  // catalog entry to look up, so they're parsed and pinned directly below
+  // instead of going through fetchOccurrenceLookup.
   const highlightObservationId = React.useMemo(() => {
-    const raw = searchParams.highlightObservation;
+    const raw = getRouteParamWithHashFallback(
+      'highlightObservation',
+      searchParams.highlightObservation,
+    );
     return typeof raw === 'string' ? raw.trim() : '';
-  }, [searchParams.highlightObservation]);
+  }, [getRouteParamWithHashFallback, searchParams.highlightObservation]);
+
+  const parsePointPinId = React.useCallback(
+    (id: string): { lat: number; lon: number } | null => {
+      if (!id.startsWith('point:')) {
+        return null;
+      }
+      const [latRaw, lonRaw] = id.slice('point:'.length).split(',');
+      const lat = Number(latRaw);
+      const lon = Number(lonRaw);
+      return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+    },
+    [],
+  );
 
   const [highlightedOccurrenceLookup, setHighlightedOccurrenceLookup] =
     React.useState<OccurrenceLookup | null>(null);
 
   React.useEffect(() => {
     setHighlightedOccurrenceLookup(null);
-    if (!highlightObservationId) {
+    if (!highlightObservationId || parsePointPinId(highlightObservationId)) {
       return;
     }
     let cancelled = false;
@@ -359,7 +604,7 @@ export default function Species({
     return () => {
       cancelled = true;
     };
-  }, [highlightObservationId]);
+  }, [highlightObservationId, parsePointPinId]);
 
   // Only injected when NOT ingested — an already-ingested highlighted
   // observation is already part of fetchedOccurrences, so adding it again
@@ -410,7 +655,13 @@ export default function Species({
   // active.
   const [drawnPolygons, setDrawnPolygons] = React.useState<
     [number, number][][] | null
-  >(null);
+  >(() => {
+    if (!routeRegionPolygon) {
+      return null;
+    }
+    const decoded = decodePolygonsParam(routeRegionPolygon);
+    return decoded.length > 0 ? decoded : null;
+  });
   const handlePolygonDrawn = React.useCallback(
     (polygons: [number, number][][]) => setDrawnPolygons(polygons),
     [],
@@ -448,6 +699,89 @@ export default function Species({
     }
     return encodePolygonsParam(activePolygons);
   }, [drawnPolygons]);
+
+  // Mirrors the current variable/location/phenology/pin/region selections
+  // into the URL's query string as they change, so copying the address bar
+  // reproduces this exact view — one-directional (state -> URL only) and
+  // replaceState-based, unlike search.tsx's fuller push/pop history sync:
+  // reading these back out of the URL only ever needs to happen once, on
+  // initial mount (see the hydration effects above/below), so there's no
+  // need for back/forward-aware history entries here.
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const setOrDelete = (key: string, value: string | null | undefined) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    };
+    setOrDelete('variable', selectedVariableMeta?.id ?? null);
+    setOrDelete('location', finalLocationGid);
+    setOrDelete('phenology', selectedPhenology);
+    // Covers both a real observation pin and a background map pin (the
+    // synthetic "point:<lat>,<lon>" id) — see highlightObservationId's
+    // hydration below, which already knows how to read either kind back.
+    setOrDelete(
+      'highlightObservation',
+      pinnedObservation?.catalogNumber ?? null,
+    );
+    setOrDelete('region', encodedRegionPolygon);
+    const query = params.toString();
+    const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }, [
+    pathname,
+    selectedVariableMeta?.id,
+    finalLocationGid,
+    selectedPhenology,
+    pinnedObservation?.catalogNumber,
+    encodedRegionPolygon,
+  ]);
+
+  // Same idea as the sync effect above, but debounced and split out on its
+  // own — a slice can be actively dragged (density range) or built up
+  // across several quick clicks (category pills), and activeChain changes
+  // on every one of those intermediate steps. Writing the URL on every tick
+  // would spam history.replaceState mid-gesture instead of once the
+  // selection actually settles.
+  const sliceUrlSyncTimeoutRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    if (sliceUrlSyncTimeoutRef.current) {
+      clearTimeout(sliceUrlSyncTimeoutRef.current);
+    }
+    const encodedChain = encodeChainParam(activeChain);
+    sliceUrlSyncTimeoutRef.current = setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (encodedChain) {
+        params.set('slice', encodedChain);
+      } else {
+        params.delete('slice');
+      }
+      const query = params.toString();
+      const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl !== currentUrl) {
+        window.history.replaceState(null, '', nextUrl);
+      }
+    }, 600);
+    return () => {
+      if (sliceUrlSyncTimeoutRef.current) {
+        clearTimeout(sliceUrlSyncTimeoutRef.current);
+      }
+    };
+  }, [pathname, activeChain]);
 
   // While a new region is actively being drawn, show the unfiltered set on
   // the map instead of `occurrences` — otherwise, once one region already
@@ -848,8 +1182,14 @@ export default function Species({
   // Auto-adapt only makes sense for a plain numeric gradient — circular
   // (wraparound 0-360°) variables don't have a meaningful "observed
   // min/max" the same way, and categorical variables have no numeric range
-  // at all. Mirrors maps.tsx's isAutoAdaptApplicable.
+  // at all. Mirrors maps.tsx's isAutoAdaptApplicable. Also requires the
+  // 'variable' basemap mode actually be active — some variable is always
+  // selected in the picker by default (see useEnvironmentVariableSelection's
+  // fallback), so without this the button would show even when the heatmap
+  // overlay itself isn't currently displayed (basemap on 'standard'/
+  // 'satellite' instead).
   const isAutoAdaptApplicable =
+    basemapMode === 'variable' &&
     Boolean(selectedVariableMeta) &&
     !isVariableCategorical(selectedVariableMeta) &&
     !isVariableCircular(selectedVariableMeta);
@@ -997,13 +1337,24 @@ export default function Species({
     if (autoPinnedObservationRef.current === highlightObservationId) {
       return;
     }
+    const pointPin = parsePointPinId(highlightObservationId);
+    if (pointPin) {
+      autoPinnedObservationRef.current = highlightObservationId;
+      handlePinObservation(highlightObservationId, pointPin.lat, pointPin.lon);
+      return;
+    }
     const occ = occurrenceByCatalog.get(highlightObservationId);
     if (!occ) {
       return;
     }
     autoPinnedObservationRef.current = highlightObservationId;
     handlePinObservation(highlightObservationId, occ.latitude, occ.longitude);
-  }, [highlightObservationId, occurrenceByCatalog, handlePinObservation]);
+  }, [
+    highlightObservationId,
+    occurrenceByCatalog,
+    handlePinObservation,
+    parsePointPinId,
+  ]);
 
   const galleryPoints = React.useMemo<ObservationGalleryPoint[]>(() => {
     const isCategorical = isVariableCategorical(selectedVariableMeta);
@@ -1067,6 +1418,12 @@ export default function Species({
     selectedColormap,
     selectedCircularColormap,
   ]);
+
+  // Lands on a specific section once its content has loaded, e.g.
+  // #distribution (an Overview subsection, present on first render from
+  // `data`) or #observations (the gallery, which only exists once
+  // observations have loaded).
+  useScrollToHash([galleryPoints.length]);
 
   const speciesPath = React.useMemo(() => {
     if (Platform.OS === 'web' && pathname.startsWith('/species/')) {
@@ -1184,6 +1541,7 @@ export default function Species({
                   taxonId={taxonId}
                   taxonRank={taxonRank}
                   largeTaxon={largeTaxon}
+                  variableId={routeVariableId}
                   onHighlightChange={setHighlightedCatalogs}
                   onVariableMetaChange={handleVariableMetaChange}
                   locationGid={finalLocationGid}
@@ -1193,6 +1551,8 @@ export default function Species({
                   polygon={encodedRegionPolygon}
                   units={units}
                   pinnedObservation={pinnedObservation}
+                  initialChain={initialChain}
+                  onChainChange={handleChainChange}
                 />
               </SectionShell>
             )}
@@ -1217,6 +1577,22 @@ export default function Species({
                   downloading are disabled for this taxon.
                 </ThemedText>
               </View>
+            </SectionShell>
+          )}
+
+          {shouldRenderOccurrenceMap && (
+            <SectionShell responsive={responsive}>
+              <ThemedText
+                variant='subheading'
+                {...(Platform.OS === 'web'
+                  ? {
+                      nativeID: 'species-occurrence-map',
+                      style: [styles.mapHeading, scrollMarginStyle],
+                    }
+                  : { style: styles.mapHeading })}
+              >
+                Species Occurrence Map
+              </ThemedText>
             </SectionShell>
           )}
 
@@ -1404,6 +1780,9 @@ export default function Species({
 }
 
 const styles = StyleSheet.create({
+  mapHeading: {
+    marginBottom: Size.space['200'],
+  },
   overlayContent: {
     width: '100%',
     gap: Size.space['400'],

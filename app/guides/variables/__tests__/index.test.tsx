@@ -9,6 +9,7 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 import React from 'react';
+import { Platform } from 'react-native';
 import VariableGuidesIndexScreen from '../index';
 
 const mockPush = jest.fn();
@@ -48,17 +49,19 @@ jest.mock('@/components', () => {
     ThemedText: ({
       children,
       onPress,
+      nativeID,
     }: {
       children?: React.ReactNode;
       onPress?: () => void;
+      nativeID?: string;
     }) =>
       onPress
         ? React.createElement(
             Pressable,
             { onPress },
-            React.createElement(Text, null, children),
+            React.createElement(Text, { nativeID }, children),
           )
-        : React.createElement(Text, null, children),
+        : React.createElement(Text, { nativeID }, children),
   };
 });
 
@@ -97,5 +100,32 @@ describe('VariableGuidesIndexScreen', () => {
     render(<VariableGuidesIndexScreen />);
 
     await waitFor(() => expect(screen.getByText('Soil Texture')).toBeTruthy());
+  });
+
+  it('assigns a slugified nativeID to each category heading on web, so /guides/variables#terrain can be linked to directly', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      mockFetchEnvironmentVariables.mockResolvedValue([
+        { id: 'elevation', name: 'Elevation', category: 'terrain' },
+        { id: 'bio1', name: 'Annual Mean Temperature', category: 'bioclimate' },
+      ]);
+
+      const { UNSAFE_getByProps } = render(<VariableGuidesIndexScreen />);
+
+      await waitFor(() => {
+        expect(UNSAFE_getByProps({ nativeID: 'terrain' })).toBeTruthy();
+        expect(UNSAFE_getByProps({ nativeID: 'bioclimate' })).toBeTruthy();
+      });
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 });

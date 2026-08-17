@@ -10,8 +10,11 @@ import {
 } from '@/components/cards/ObservationCard';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
 
 export type ObservationGalleryPoint = {
   catalogNumber: string;
@@ -51,6 +54,9 @@ export function SpeciesObservationGallery({
   pageSize,
   totalCount,
 }: SpeciesObservationGalleryProps) {
+  const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
+
   if (!loading && points.length === 0) {
     return null;
   }
@@ -64,7 +70,20 @@ export function SpeciesObservationGallery({
 
   return (
     <View style={styles.container}>
-      <ThemedText variant='subheading'>Observations</ThemedText>
+      <ThemedText
+        variant='subheading'
+        {...(Platform.OS === 'web'
+          ? {
+              nativeID: 'observations',
+              style: anchorScrollMarginStyle(
+                webHeaderHeight,
+                responsive.breakpoint,
+              ),
+            }
+          : {})}
+      >
+        Observations
+      </ThemedText>
       {loading && points.length === 0 ? (
         <ThemedText variant='bodySmall'>Loading…</ThemedText>
       ) : (

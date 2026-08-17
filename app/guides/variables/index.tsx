@@ -13,11 +13,14 @@ import {
 } from '@/components/sections/speciesEnvironment/model';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { fetchEnvironmentVariables } from '@/data/api';
 import type { EnvironmentVariableDefinition } from '@/data/types';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle, slugifySection } from '@/utils/anchors';
 import { WebMetadata } from '@/utils/webMetadata';
 
 type VariableFamilyEntry = {
@@ -59,6 +62,7 @@ const groupByCategory = (entries: VariableFamilyEntry[]) => {
 
 export default function VariableGuidesIndexScreen() {
   const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
   const [variables, setVariables] = React.useState<
     EnvironmentVariableDefinition[]
   >([]);
@@ -87,6 +91,23 @@ export default function VariableGuidesIndexScreen() {
     () => groupByCategory(toFamilyEntries(variables)),
     [variables],
   );
+  // Lets links to this page target a specific category, e.g.
+  // /guides/variables#terrain — shared across every category heading in
+  // this render pass so repeated category names still de-dupe.
+  const categorySlugs = React.useMemo(() => {
+    const seenSlugs = new Map<string, number>();
+    return new Map(
+      groupedVariables.map(([category]) => [
+        category,
+        slugifySection(normalizeLabel(category), seenSlugs),
+      ]),
+    );
+  }, [groupedVariables]);
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
+  useScrollToHash([groupedVariables]);
 
   return (
     <>
@@ -126,7 +147,15 @@ export default function VariableGuidesIndexScreen() {
               ) : (
                 groupedVariables.map(([category, categoryEntries]) => (
                   <View key={category} style={styles.section}>
-                    <ThemedText variant='subheading'>
+                    <ThemedText
+                      variant='subheading'
+                      {...(Platform.OS === 'web'
+                        ? {
+                            nativeID: categorySlugs.get(category),
+                            style: scrollMarginStyle,
+                          }
+                        : {})}
+                    >
                       {normalizeLabel(category)}
                     </ThemedText>
                     <View style={styles.linkList}>

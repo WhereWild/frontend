@@ -265,4 +265,23 @@ describe('About screen', () => {
     // Two matches expected on web: the page title and the footer's nav link.
     expect(screen.getAllByText('About').length).toBeGreaterThan(0);
   });
+
+  it('assigns a slugified, scroll-margin-aware nativeID to each team member card on web, so /about#lucas-pearce can be linked to directly', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    const { UNSAFE_getByProps } = render(<AboutScreen />);
+
+    const lucasCard = UNSAFE_getByProps({ nativeID: 'lucas-pearce' });
+    expect(lucasCard).toBeTruthy();
+    expect(UNSAFE_getByProps({ nativeID: 'kelly-wu' })).toBeTruthy();
+    expect(
+      typeof (lucasCard.props.style ?? [])
+        .flat?.()
+        .find?.((entry: { scrollMarginTop?: number }) => entry?.scrollMarginTop)
+        ?.scrollMarginTop,
+    ).toBe('number');
+  });
 });

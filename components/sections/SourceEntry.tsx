@@ -3,13 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import type { DataSource } from '@/data/types';
-import { Linking, StyleSheet, View } from 'react-native';
+import { useResponsive } from '@/hooks/useResponsive';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
+import { toKebabCase } from '@/utils/string';
 import { ThemedText } from '../text/ThemedText';
 
 export function SourceEntry({ source }: { source: DataSource }) {
+  const { webHeaderHeight } = useLayoutChrome();
+  const responsive = useResponsive();
+  // Lets links target a specific source directly, e.g.
+  // /acknowledgements#fabdem-v1-2.
+  const anchorProps =
+    Platform.OS === 'web'
+      ? {
+          nativeID: toKebabCase(source.name),
+          style: [
+            styles.sourceEntry,
+            anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint),
+          ],
+        }
+      : { style: styles.sourceEntry };
+
   return (
-    <View style={styles.sourceEntry}>
+    <View {...anchorProps}>
       <View style={styles.sourceHeader}>
         <ThemedText variant='subheading'>
           <ThemedText

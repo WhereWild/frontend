@@ -14,18 +14,25 @@ import {
 import { WebView } from 'react-native-webview';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { isBasemapMode, useOptionalSettings } from '@/context/SettingsContext';
+import {
+  isBasemapMode,
+  isStandardBasemapTheme,
+  useOptionalSettings,
+} from '@/context/SettingsContext';
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
 import {
   buildGlobeHtml,
   buildLeafletHtml,
+  ensureBasemapBuildDateLoaded,
   getBackgroundTileUrl,
+  getBasemapBuildDate,
   getElevationTerrainTileUrl,
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   getSatelliteTileUrlTemplate,
+  getStandardThemeCycle,
   loadFallbackMapTemplate,
   loadGlobeMapTemplate,
   loadGlobeMapTemplateOffline,
@@ -45,6 +52,7 @@ import {
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
   TOGGLE_TERRAIN_MESSAGE_TYPE,
   TOGGLE_BASEMAP_MODE_MESSAGE_TYPE,
+  TOGGLE_STANDARD_THEME_MESSAGE_TYPE,
   TOGGLE_FULLSCREEN_MESSAGE_TYPE,
   TOGGLE_AUTO_ADAPT_MESSAGE_TYPE,
   TILE_CLASSES_SYNC_MESSAGE_TYPE,
@@ -345,6 +353,17 @@ export function SpeciesOccurrenceMap({
   // onFullscreenToggle. Typed loosely since this only matters on web.
   const containerRef = React.useRef<View | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  // getMapTileUrlTemplate() reads the basemap build date synchronously (for
+  // cache-busting — see ensureBasemapBuildDateLoaded's doc comment) via a
+  // module-level singleton fetched once, not per-component; this just forces
+  // a re-render (and so a tileUrlTemplate recompute below) once the real
+  // value lands, since the first render likely sees the 'latest' fallback.
+  const [, forceBasemapVersionRerender] = React.useState(0);
+  React.useEffect(() => {
+    ensureBasemapBuildDateLoaded().then(() =>
+      forceBasemapVersionRerender((v) => v + 1),
+    );
+  }, []);
   // Even when a fixed `height` prop is set (the common case — most pages
   // give the map a set height in its normal layout), fullscreen should fill
   // the whole screen rather than leaving the map pinned at its original
@@ -641,28 +660,65 @@ export function SpeciesOccurrenceMap({
     () => highlightedCatalogs.map((id) => String(id)),
     [highlightedCatalogs],
   );
+  // Same freeze-at-build-time treatment as initialBasemapMode below — the
+  // theme toggle button applies itself instantly and locally (client-side
+  // tile-URL swap in the map template, see STANDARD_THEME_ALT_TILE_URL),
+  // then only tells settings.standardBasemapTheme about it for next time.
+  // Declared here (before tileUrlTemplate) rather than down with the other
+  // initial* refs since tileUrlTemplate needs it immediately below — living
+  // reactively in tileUrlTemplate's own deps (as settings.standardBasemapTheme
+  // once did) forced a full WebView rebuild on every theme click, undoing
+  // the whole point of the in-template live swap the instant after it ran.
+  const initialStandardTheme = React.useRef(
+    settings?.standardBasemapTheme ?? 'default',
+  );
+  // getBasemapBuildDate() is read for its current value as a recompute
+  // trigger (see the effect above), not a real prop/state dependency.
   const tileUrlTemplate = React.useMemo(
     () =>
-      useLabelsOverlay ? getBackgroundTileUrl() : getMapTileUrlTemplate(mode),
-    [mode, useLabelsOverlay],
+      useLabelsOverlay
+        ? getBackgroundTileUrl()
+        : getMapTileUrlTemplate(mode, initialStandardTheme.current),
+    [
+      mode,
+      useLabelsOverlay,
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      getBasemapBuildDate(),
+    ],
   );
-  // Pages with the 3-way basemap toggle (see enableBasemapModeToggle) also
-  // want a labels overlay — but only shown in 'satellite'/'variable' modes
-  // (see the in-template tileUrlForBasemapMode/applyBasemapMode), not
-  // 'standard', which already has labels baked into tileUrlTemplate's own
-  // style. useLabelsOverlay's simpler always-on case (maps.tsx, no toggle)
-  // stays independent of that.
+  // Every registered standard theme's URL (see STANDARD_BASEMAP_THEMES in
+  // SettingsContext.tsx), already resolved for the current light/dark mode
+  // — always fetched (like satelliteTileUrl below) whenever the toggle is
+  // enabled at all, so the in-map control can cycle through all of them
+  // client-side without a round trip. Every theme is light/dark-aware by
+  // construction, so this needs `mode` in its deps (unlike a fixed single
+  // look would). Gated the same way satelliteTileUrl/
+  // variableModeBackgroundTileUrl are: only pages with the 3-way basemap
+  // toggle need this.
+  const standardThemes = React.useMemo(
+    () => (enableBasemapModeToggle ? getStandardThemeCycle(mode) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see tileUrlTemplate above.
+    [enableBasemapModeToggle, mode, getBasemapBuildDate()],
+  );
+  // Only 'satellite' mode still needs a separate labels overlay now —
+  // 'variable' mode's self-hosted background (getBackgroundTileUrl) already
+  // bakes labels in (see variable-light.json: only buildings/POI/
+  // housenumbers/aeroway are hidden, not place/water labels), so pairing it
+  // with the old Stadia labels overlay would double-draw labels in two
+  // different styles. useLabelsOverlay's simpler always-on case (maps.tsx,
+  // no toggle, pairs with the same self-hosted background) never needed the
+  // overlay for the same reason — matches the mode-gated labelsPane/
+  // labels-layer visibility in the map HTML templates, which now only shows
+  // that overlay for 'satellite'.
   const labelsOverlayTileUrl = React.useMemo(
-    () =>
-      useLabelsOverlay || enableBasemapModeToggle
-        ? getLabelsOverlayTileUrl()
-        : null,
-    [useLabelsOverlay, enableBasemapModeToggle],
+    () => (enableBasemapModeToggle ? getLabelsOverlayTileUrl() : null),
+    [enableBasemapModeToggle],
   );
-  // 'variable' basemap mode's basemap tile — the same simpler background +
-  // labels-overlay combo maps.tsx always uses (see getBackgroundTileUrl),
-  // rather than the normal full-detail tileUrlTemplate used for 'standard'
-  // mode. Only relevant on pages with the 3-way toggle at all.
+  // 'variable' basemap mode's basemap tile — the same self-hosted
+  // background maps.tsx always uses (see getBackgroundTileUrl), rather than
+  // the normal full-detail tileUrlTemplate used for 'standard' mode. Only
+  // relevant on pages with the 3-way toggle at all. Always 'variable-light'
+  // regardless of app theme — see getBackgroundTileUrl's doc comment.
   const variableModeBackgroundTileUrl = React.useMemo(
     () => (enableBasemapModeToggle ? getBackgroundTileUrl() : null),
     [enableBasemapModeToggle],
@@ -819,6 +875,7 @@ export function SpeciesOccurrenceMap({
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
     initialBasemapMode.current = effectiveBasemapMode;
+    initialStandardTheme.current = settings?.standardBasemapTheme ?? 'default';
     initialAutoAdaptApplicable.current = autoAdaptApplicable;
     initialAutoAdaptEnabled.current = autoAdaptEnabled;
     initialDrawnPolygonsRef.current = initialDrawnPolygons ?? null;
@@ -941,6 +998,8 @@ export function SpeciesOccurrenceMap({
       enableAutoAdaptToggle,
       memoAutoAdaptApplicable,
       memoAutoAdaptEnabled,
+      initialStandardTheme.current,
+      standardThemes,
     );
   }, [
     allowPinObservations,
@@ -989,6 +1048,7 @@ export function SpeciesOccurrenceMap({
     enableAutoAdaptToggle,
     memoAutoAdaptApplicable,
     memoAutoAdaptEnabled,
+    standardThemes,
   ]);
 
   React.useEffect(() => {
@@ -1388,6 +1448,25 @@ export function SpeciesOccurrenceMap({
         // reload starts with whatever was last picked.
         settings?.setBasemapMode(
           (data as { mode: 'standard' | 'satellite' | 'variable' }).mode,
+        );
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === TOGGLE_STANDARD_THEME_MESSAGE_TYPE &&
+        'theme' in data &&
+        typeof (data as { theme?: unknown }).theme === 'string' &&
+        isStandardBasemapTheme((data as { theme: string }).theme)
+      ) {
+        // Same live-locally / persist-via-postMessage split as
+        // TOGGLE_BASEMAP_MODE_MESSAGE_TYPE above.
+        settings?.setStandardBasemapTheme(
+          (data as { theme: 'default' | 'versatiles' }).theme,
         );
         return;
       }

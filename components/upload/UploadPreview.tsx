@@ -3,13 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { SpeciesEnvironmentSection, SpeciesOccurrenceMap } from '@/components';
+import { Platform, StyleSheet, View } from 'react-native';
+import {
+  SpeciesEnvironmentSection,
+  SpeciesOccurrenceMap,
+  ThemedText,
+} from '@/components';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { Size } from '@/constants/theme';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
+import { useResponsive } from '@/hooks/useResponsive';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
@@ -127,6 +134,8 @@ export function UploadPreview({
   uploadedDataSource,
   onHighlightChange,
 }: UploadPreviewProps) {
+  const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
   const settings = useOptionalSettings();
   const units = settings?.units;
   const selectedColormap = settings?.colormap ?? 'viridis';
@@ -364,8 +373,12 @@ export function UploadPreview({
   // Auto-adapt only makes sense for a plain numeric gradient — circular
   // (wraparound 0-360°) variables don't have a meaningful "observed
   // min/max" the same way, and categorical variables have no numeric range
-  // at all. Mirrors maps.tsx's isAutoAdaptApplicable.
+  // at all. Mirrors maps.tsx's isAutoAdaptApplicable. Also requires the
+  // 'variable' basemap mode actually be active — see _species.tsx's
+  // identical addition for why (some variable can be selected without the
+  // heatmap overlay itself being shown).
   const isAutoAdaptApplicable =
+    settings?.basemapMode === 'variable' &&
     Boolean(selectedVariableMeta) &&
     !isVariableCategorical(selectedVariableMeta) &&
     !isVariableCircular(selectedVariableMeta);
@@ -576,141 +589,157 @@ export function UploadPreview({
         polygon={encodedRegionPolygon}
       />
       {uploadedBundle.occurrences.length > 0 ? (
-        <View ref={mapContainerRef} style={styles.mapContainer}>
-          <SpeciesOccurrenceMap
-            preserveMapPosition
-            occurrences={occurrencesForMap}
-            refitOnOccurrencesChange={fetchedMapOccurrences}
-            loading={false}
-            error={null}
-            highlightedCatalogs={highlightedCatalogs}
-            height={height}
-            linkObservations={false}
-            onFullscreenToggle={() =>
-              toggleFullscreenElement(
-                mapContainerRef.current as unknown as Element | null,
-              )
-            }
-            onPinObservation={handlePinObservation}
-            selectedPoint={selectedMapPoint}
-            onMapBounds={setMapBounds}
-            onBoundsChange={handleAutoAdaptBoundsChange}
-            enableAutoAdaptToggle
-            autoAdaptApplicable={isAutoAdaptApplicable}
-            autoAdaptEnabled={autoAdaptEnabled}
-            onToggleAutoAdapt={toggleAutoAdapt}
-            onPointValue={setPinnedPointValue}
-            pointQueryUrl={pointQueryUrl}
-            heatmapTileUrl={heatmapTileUrl}
-            disableObservationQuery={true}
-            onPolygonDrawn={handlePolygonDrawn}
-            onPolygonCleared={handlePolygonCleared}
-            onPolygonDrawStart={handlePolygonDrawStart}
-            onPolygonDrawEnd={handlePolygonDrawEnd}
-            initialDrawnPolygons={drawnPolygons}
-            varUnits={
-              !isCategorical && !isCircular
-                ? (selectedVariableMeta?.units ?? null)
-                : null
-            }
-            observationValues={observationValues}
-            classColors={classColors}
-            classShapes={classShapes}
-            markerOutlineEnabled={markerOutlineEnabled}
-            classLabels={classLabels}
-            dotMin={dotMin}
-            dotMax={dotMax}
-            renderMin={isAutoAdaptApplicable ? effectiveRenderMin : null}
-            renderMax={isAutoAdaptApplicable ? effectiveRenderMax : null}
-            isCircular={isCircular}
-            circularShapesEnabled={circularShapesEnabled}
-            gradientStops={
-              !isCategorical && !isCircular
-                ? COLORMAPS[selectedColormap].stops
-                : null
-            }
-            aspectStops={
-              isCircular
-                ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
-                : null
-            }
-          />
-          {selectedVariableMeta &&
-            !isCategorical &&
-            !isCircular &&
-            dotMin != null &&
-            dotMax != null && (
-              <MapVariableLegend
-                min={dotMin}
-                max={dotMax}
-                units={selectedVariableMeta.units}
-                pinnedValue={pinnedValue}
-                barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
-              />
-            )}
-          {selectedVariableMeta &&
-            !isCategorical &&
-            !isCircular &&
-            setSelectedColormap && (
-              <MapColormapPicker
-                selected={selectedColormap}
-                onChange={setSelectedColormap}
-              />
-            )}
-          {selectedVariableMeta && isCircular && (
-            <MapCircularLegend
-              pinnedValue={pinnedValue}
-              conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
-              arcSegmentColors={
-                CIRCULAR_COLORMAPS[selectedCircularColormap].arcSegmentColors
+        <View style={styles.mapSection}>
+          <ThemedText
+            variant='subheading'
+            {...(Platform.OS === 'web'
+              ? {
+                  nativeID: 'species-occurrence-map',
+                  style: anchorScrollMarginStyle(
+                    webHeaderHeight,
+                    responsive.breakpoint,
+                  ),
+                }
+              : {})}
+          >
+            Species Occurrence Map
+          </ThemedText>
+          <View ref={mapContainerRef} style={styles.mapContainer}>
+            <SpeciesOccurrenceMap
+              preserveMapPosition
+              occurrences={occurrencesForMap}
+              refitOnOccurrencesChange={fetchedMapOccurrences}
+              loading={false}
+              error={null}
+              highlightedCatalogs={highlightedCatalogs}
+              height={height}
+              linkObservations={false}
+              onFullscreenToggle={() =>
+                toggleFullscreenElement(
+                  mapContainerRef.current as unknown as Element | null,
+                )
               }
-              shapesEnabled={circularShapesEnabled}
+              onPinObservation={handlePinObservation}
+              selectedPoint={selectedMapPoint}
+              onMapBounds={setMapBounds}
+              onBoundsChange={handleAutoAdaptBoundsChange}
+              enableAutoAdaptToggle
+              autoAdaptApplicable={isAutoAdaptApplicable}
+              autoAdaptEnabled={autoAdaptEnabled}
+              onToggleAutoAdapt={toggleAutoAdapt}
+              onPointValue={setPinnedPointValue}
+              pointQueryUrl={pointQueryUrl}
+              heatmapTileUrl={heatmapTileUrl}
+              disableObservationQuery={true}
+              onPolygonDrawn={handlePolygonDrawn}
+              onPolygonCleared={handlePolygonCleared}
+              onPolygonDrawStart={handlePolygonDrawStart}
+              onPolygonDrawEnd={handlePolygonDrawEnd}
+              initialDrawnPolygons={drawnPolygons}
+              varUnits={
+                !isCategorical && !isCircular
+                  ? (selectedVariableMeta?.units ?? null)
+                  : null
+              }
+              observationValues={observationValues}
+              classColors={classColors}
+              classShapes={classShapes}
               markerOutlineEnabled={markerOutlineEnabled}
-              nsweColors={nsweColors}
+              classLabels={classLabels}
+              dotMin={dotMin}
+              dotMax={dotMax}
+              renderMin={isAutoAdaptApplicable ? effectiveRenderMin : null}
+              renderMax={isAutoAdaptApplicable ? effectiveRenderMax : null}
+              isCircular={isCircular}
+              circularShapesEnabled={circularShapesEnabled}
+              gradientStops={
+                !isCategorical && !isCircular
+                  ? COLORMAPS[selectedColormap].stops
+                  : null
+              }
+              aspectStops={
+                isCircular
+                  ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+                  : null
+              }
             />
-          )}
-          {selectedVariableMeta &&
-            isCircular &&
-            setSelectedCircularColormap && (
-              <MapCircularColormapPicker
-                selected={selectedCircularColormap}
-                onChange={setSelectedCircularColormap}
+            {selectedVariableMeta &&
+              !isCategorical &&
+              !isCircular &&
+              dotMin != null &&
+              dotMax != null && (
+                <MapVariableLegend
+                  min={dotMin}
+                  max={dotMax}
+                  units={selectedVariableMeta.units}
+                  pinnedValue={pinnedValue}
+                  barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
+                />
+              )}
+            {selectedVariableMeta &&
+              !isCategorical &&
+              !isCircular &&
+              setSelectedColormap && (
+                <MapColormapPicker
+                  selected={selectedColormap}
+                  onChange={setSelectedColormap}
+                />
+              )}
+            {selectedVariableMeta && isCircular && (
+              <MapCircularLegend
+                pinnedValue={pinnedValue}
+                conicCss={CIRCULAR_COLORMAPS[selectedCircularColormap].conicCss}
+                arcSegmentColors={
+                  CIRCULAR_COLORMAPS[selectedCircularColormap].arcSegmentColors
+                }
+                shapesEnabled={circularShapesEnabled}
+                markerOutlineEnabled={markerOutlineEnabled}
+                nsweColors={nsweColors}
+              />
+            )}
+            {selectedVariableMeta &&
+              isCircular &&
+              setSelectedCircularColormap && (
+                <MapCircularColormapPicker
+                  selected={selectedCircularColormap}
+                  onChange={setSelectedCircularColormap}
+                  cbMode={cbMode}
+                  onCbModeChange={settings?.setCbMode}
+                  markerOutlineEnabled={markerOutlineEnabled}
+                />
+              )}
+            {cbVisibleCategoricalClasses && (
+              <MapCategoricalLegend
+                classes={cbVisibleCategoricalClasses}
+                variableId={selectedVariableMeta?.id}
                 cbMode={cbMode}
-                onCbModeChange={settings?.setCbMode}
+                shapesEnabled={shapesEnabled}
                 markerOutlineEnabled={markerOutlineEnabled}
               />
             )}
-          {cbVisibleCategoricalClasses && (
-            <MapCategoricalLegend
-              classes={cbVisibleCategoricalClasses}
-              variableId={selectedVariableMeta?.id}
-              cbMode={cbMode}
-              shapesEnabled={shapesEnabled}
-              markerOutlineEnabled={markerOutlineEnabled}
-            />
-          )}
-          {visibleCategoricalClasses &&
-            selectedVariableMeta &&
-            (isOrdinalVariable
-              ? setSelectedColormap && (
-                  // Ordinal has no accessibility-mode picker — the
-                  // continuous colormap picker IS its coloring control,
-                  // same widget continuous variables use above.
-                  <MapColormapPicker
-                    selected={selectedColormap}
-                    onChange={setSelectedColormap}
-                  />
-                )
-              : settings?.setCbMode && (
-                  <MapCbModePicker
-                    selected={cbMode ?? null}
-                    onChange={settings.setCbMode}
-                    topClasses={visibleCategoricalClasses.slice(0, 3)}
-                    variableId={selectedVariableMeta.id ?? ''}
-                    shapesEnabled={shapesEnabled}
-                    markerOutlineEnabled={markerOutlineEnabled}
-                  />
-                ))}
+            {visibleCategoricalClasses &&
+              selectedVariableMeta &&
+              (isOrdinalVariable
+                ? setSelectedColormap && (
+                    // Ordinal has no accessibility-mode picker — the
+                    // continuous colormap picker IS its coloring control,
+                    // same widget continuous variables use above.
+                    <MapColormapPicker
+                      selected={selectedColormap}
+                      onChange={setSelectedColormap}
+                    />
+                  )
+                : settings?.setCbMode && (
+                    <MapCbModePicker
+                      selected={cbMode ?? null}
+                      onChange={settings.setCbMode}
+                      topClasses={visibleCategoricalClasses.slice(0, 3)}
+                      variableId={selectedVariableMeta.id ?? ''}
+                      shapesEnabled={shapesEnabled}
+                      markerOutlineEnabled={markerOutlineEnabled}
+                    />
+                  ))}
+          </View>
         </View>
       ) : null}
     </SpeciesDataSourceProvider>
@@ -721,6 +750,10 @@ const styles = StyleSheet.create({
   previewSection: {
     width: '100%',
     gap: Size.space['400'],
+  },
+  mapSection: {
+    width: '100%',
+    gap: Size.space['200'],
   },
   mapContainer: {
     position: 'relative',

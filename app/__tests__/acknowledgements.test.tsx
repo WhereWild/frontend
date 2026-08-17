@@ -213,6 +213,26 @@ describe('Acknowledgements screen', () => {
     ).toBeTruthy();
   });
 
+  it('assigns a slugified nativeID to each source on web, so /acknowledgements#fabdem-v1-2 can be linked to directly', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    const { UNSAFE_getByProps } = render(
+      <SourceEntry
+        source={{
+          name: 'FABDEM V1.2',
+          url: 'https://example.com/fabdem',
+          license: 'CC BY-NC-SA 4.0',
+          references: [],
+        }}
+      />,
+    );
+
+    expect(UNSAFE_getByProps({ nativeID: 'fabdem-v1-2' })).toBeTruthy();
+  });
+
   it('opens source, license, and citation links when pressed', () => {
     render(
       <>

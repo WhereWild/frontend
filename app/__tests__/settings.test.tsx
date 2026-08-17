@@ -153,6 +153,8 @@ describe('Settings screen', () => {
       setTerrainEnabled: jest.fn(),
       basemapMode: 'standard',
       setBasemapMode: jest.fn(),
+      standardBasemapTheme: 'default',
+      setStandardBasemapTheme: jest.fn(),
       localLat: null,
       setLocalLat: jest.fn(),
       localLon: null,

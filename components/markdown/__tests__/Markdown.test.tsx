@@ -3,13 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import React from 'react';
 import { Markdown } from '../Markdown';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
+}));
+
+// Real useResponsive() (via ThemedText -> useTypographyStyles) adds a
+// window resize listener on web, which this non-jsdom test environment's
+// `window` global doesn't support — mock it out like other page tests do.
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({ breakpoint: 'desktop', rootFontSize: 16 }),
 }));
 
 const mockPush = jest.fn();
@@ -21,6 +28,30 @@ jest.mock('expo-router', () => ({
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
 >;
+
+type DomStub = {
+  scrollIntoView: jest.Mock;
+  getElementById: jest.Mock;
+  replaceState: jest.Mock;
+  hash: string;
+};
+
+const withPlatformOS = (platform: string, run: () => void) => {
+  const originalPlatform = Platform.OS;
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: platform,
+  });
+
+  try {
+    run();
+  } finally {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: originalPlatform,
+    });
+  }
+};
 
 describe('Markdown', () => {
   beforeEach(() => {
@@ -117,5 +148,112 @@ describe('Markdown', () => {
     render(<Markdown>{''}</Markdown>);
 
     expect(screen.queryAllByText(/.+/).length).toBe(0);
+  });
+
+  describe('heading anchors', () => {
+    it('assigns a slugified nativeID to each heading on web', () => {
+      withPlatformOS('web', () => {
+        const { UNSAFE_getByProps } = render(
+          <Markdown>{'# Getting Started\n\n## The API'}</Markdown>,
+        );
+
+        expect(UNSAFE_getByProps({ nativeID: 'getting-started' })).toBeTruthy();
+        expect(UNSAFE_getByProps({ nativeID: 'the-api' })).toBeTruthy();
+      });
+    });
+
+    it('de-dupes slugs for repeated heading text', () => {
+      withPlatformOS('web', () => {
+        const { UNSAFE_getByProps } = render(
+          <Markdown>{'## Overview\n\nSome text.\n\n## Overview'}</Markdown>,
+        );
+
+        expect(UNSAFE_getByProps({ nativeID: 'overview' })).toBeTruthy();
+        expect(UNSAFE_getByProps({ nativeID: 'overview-1' })).toBeTruthy();
+      });
+    });
+
+    it('does not assign a nativeID on native platforms', () => {
+      withPlatformOS('ios', () => {
+        const { UNSAFE_queryByProps } = render(
+          <Markdown>{'# Title'}</Markdown>,
+        );
+
+        expect(UNSAFE_queryByProps({ nativeID: 'title' })).toBeFalsy();
+      });
+    });
+
+    // This test environment has no jsdom (see jest.config.js's
+    // testEnvironment: 'node'), so `document` isn't a real global here —
+    // stub just enough of it/`window` to exercise Markdown's web-only DOM
+    // calls, then tear the stub down.
+    const withDomStub = (initialHash: string, run: (stub: DomStub) => void) => {
+      const stub: DomStub = {
+        scrollIntoView: jest.fn(),
+        getElementById: jest.fn(),
+        replaceState: jest.fn(),
+        hash: initialHash,
+      };
+      stub.getElementById.mockImplementation(() => ({
+        scrollIntoView: stub.scrollIntoView,
+      }));
+      const originalDocument = (global as { document?: unknown }).document;
+      const originalLocation = window.location;
+      const originalHistory = window.history;
+      (global as { document?: unknown }).document = {
+        getElementById: stub.getElementById,
+      };
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { hash: stub.hash },
+      });
+      Object.defineProperty(window, 'history', {
+        configurable: true,
+        value: { replaceState: stub.replaceState },
+      });
+
+      try {
+        run(stub);
+      } finally {
+        (global as { document?: unknown }).document = originalDocument;
+        Object.defineProperty(window, 'location', {
+          configurable: true,
+          value: originalLocation,
+        });
+        Object.defineProperty(window, 'history', {
+          configurable: true,
+          value: originalHistory,
+        });
+      }
+    };
+
+    it('scrolls to and updates the URL for an in-page hash link, without navigating', () => {
+      withPlatformOS('web', () => {
+        withDomStub('', ({ getElementById, scrollIntoView, replaceState }) => {
+          render(
+            <Markdown>
+              {'## The API\n\nSee the [API section](#the-api).'}
+            </Markdown>,
+          );
+          fireEvent.press(screen.getByText('API section'));
+
+          expect(getElementById).toHaveBeenCalledWith('the-api');
+          expect(scrollIntoView).toHaveBeenCalled();
+          expect(replaceState).toHaveBeenCalledWith(null, '', '#the-api');
+          expect(mockPush).not.toHaveBeenCalled();
+        });
+      });
+    });
+
+    it('scrolls to the section matching an incoming URL hash on mount', () => {
+      withPlatformOS('web', () => {
+        withDomStub('#the-api', ({ getElementById, scrollIntoView }) => {
+          render(<Markdown>{'## The API'}</Markdown>);
+
+          expect(getElementById).toHaveBeenCalledWith('the-api');
+          expect(scrollIntoView).toHaveBeenCalled();
+        });
+      });
+    });
   });
 });

@@ -3,10 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Asset } from 'expo-asset';
-import Constants from 'expo-constants';
 
 import { BACKEND_BASE } from '@/data/apiShared';
-import type { BasemapMode, UnitSystem } from '@/context/SettingsContext';
+import {
+  STANDARD_BASEMAP_THEMES,
+  type BasemapMode,
+  type StandardBasemapTheme,
+  type UnitSystem,
+} from '@/context/SettingsContext';
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
@@ -23,6 +27,14 @@ export const TOGGLE_TERRAIN_MESSAGE_TYPE = 'toggleTerrain';
 // covers showing the currently-selected GIS variable's own tiles at full
 // opacity in place of the basemap too, not just satellite imagery.
 export const TOGGLE_BASEMAP_MODE_MESSAGE_TYPE = 'toggleBasemapMode';
+// Payload carries { theme: StandardBasemapTheme } — cycles the 'standard'
+// basemap mode's own look (currently default <-> versatiles), independent of
+// BasemapMode itself. Only ever sent while the in-map palette-icon control
+// is visible, which is gated on currentBasemapMode === 'standard' (see
+// StandardThemeToggleControl in SpeciesOccurrenceMap.html/
+// SpeciesOccurrenceGlobeMap.html) — satellite/variable each have exactly
+// one look, so there's nothing to cycle there.
+export const TOGGLE_STANDARD_THEME_MESSAGE_TYPE = 'toggleStandardTheme';
 export const TOGGLE_FULLSCREEN_MESSAGE_TYPE = 'toggleFullscreen';
 // Sent when the user clicks the map's ruler-icon auto-adapt button (see
 // AutoAdaptControl in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html).
@@ -75,24 +87,71 @@ export const toggleFullscreenElement = (el: Element | null | undefined) => {
 };
 export const MAP_DOCUMENT_BASE_URL = 'https://wherewild.net/';
 export const MAP_REFERRER_POLICY = 'strict-origin-when-cross-origin';
-const rawMapTileApiKey = Constants.expoConfig?.extra?.stadiaMapsApiKey;
+// Every basemap layer (standard light/dark, variable, satellite's labels
+// overlay) is self-hosted now — see scripts/gis/build_basemap_tiles.py and
+// main.py's basemap_tile proxy route. No Stadia dependency left; no API key
+// needed (that's what MAP_TILE_API_KEY used to be for). {build_date} in
+// each URL is a pure cache-busting token (mirrors getLayerVersion's
+// mtime-token scheme already used for GIS layer tiles), which is why these
+// are template functions rather than static strings.
+let _basemapBuildDate: string | null = null;
+let _basemapBuildDatePromise: Promise<string | null> | null = null;
 
-export const MAP_TILE_API_KEY =
-  typeof rawMapTileApiKey === 'string' && rawMapTileApiKey.trim().length > 0
-    ? rawMapTileApiKey.trim()
-    : null;
-export const MAP_TILE_URL_TEMPLATE_LIGHT =
-  'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png';
-export const MAP_TILE_URL_TEMPLATE_DARK =
-  'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png';
-export const MAP_LABELS_TILE_URL_TEMPLATE =
-  'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png';
-export const MAP_LINES_TILE_URL_TEMPLATE =
-  'https://tiles.stadiamaps.com/tiles/stamen_toner_lines/{z}/{x}/{y}{r}.png';
-export const MAP_BACKGROUND_TILE_URL_TEMPLATE =
-  'https://tiles.stadiamaps.com/tiles/stamen_toner_background/{z}/{x}/{y}{r}.png';
+/** Kicks off (once) fetching the current basemap build date; call from a
+ * component effect so a re-render picks up the real value once it resolves.
+ * Until then, callers fall back to 'latest', which still works (tileserver-gl
+ * only ever has one basemap loaded) — it just isn't a real cache-busting
+ * token until the real date lands. */
+export const ensureBasemapBuildDateLoaded = (): Promise<string | null> => {
+  if (!_basemapBuildDatePromise) {
+    _basemapBuildDatePromise = fetch(`${BACKEND_BASE}/api/basemap/version`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        _basemapBuildDate = d?.build_date ?? null;
+        return _basemapBuildDate;
+      })
+      .catch(() => null);
+  }
+  return _basemapBuildDatePromise;
+};
+
+export const getBasemapBuildDate = (): string => _basemapBuildDate ?? 'latest';
+
+// Single source of truth mapping each StandardBasemapTheme to its backend
+// style ids (see config/gis/tile_styles/*.json + main.py's _BASEMAP_THEMES).
+// Adding a new theme means adding one entry here (plus registering it in
+// STANDARD_BASEMAP_THEMES in SettingsContext.tsx, which controls cycle
+// order) — every URL/cycle helper below derives from this one table rather
+// than branching per theme name. Neither half is required — a theme can
+// register only 'light' or only 'dark' if that's all it has; whichever
+// half exists is used for both modes (see getMapTileUrlTemplateForTheme
+// below). 'voyager' (single-look, dropped) was cut for looking wrong
+// specifically while the app was in dark mode, not because single-look
+// themes are disallowed — this table just needs at least one of the two.
+const STANDARD_THEME_STYLE_IDS: Record<
+  StandardBasemapTheme,
+  { light?: string; dark?: string }
+> = {
+  default: { light: 'standard-light', dark: 'standard-dark' },
+  versatiles: {
+    light: 'standard-versatiles-light',
+    dark: 'standard-versatiles-dark',
+  },
+  openfreemap: {
+    light: 'standard-openfreemap-light',
+    dark: 'standard-openfreemap-dark',
+  },
+};
+export const MAP_TILE_URL_TEMPLATE_LIGHT = () =>
+  getMapTileUrlTemplate('light', 'default');
+export const MAP_TILE_URL_TEMPLATE_DARK = () =>
+  getMapTileUrlTemplate('dark', 'default');
+// Required credit per CARTO's CC-BY 4.0 design license (config/gis/tile_styles/
+// standard-*.json, variable-light.json are forks/recreations of CARTO's
+// Positron/Dark Matter and the Toner design lineage) plus OpenMapTiles'/
+// OpenStreetMap's own attribution requirements.
 export const MAP_TILE_ATTRIBUTION =
-  '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+  '&copy; <a href="https://carto.com/" target="_blank">CARTO</a>, &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 export const MAP_TILE_MAX_ZOOM = 20;
 export const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 10000;
 
@@ -150,6 +209,8 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
   variableModeBackgroundTileUrl: '__VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__',
   basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
+  standardThemeInitial: '__STANDARD_THEME_INITIAL_JSON__',
+  standardThemesJson: '__STANDARD_THEMES_JSON__',
   initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
   locationPickerMode: '__LOCATION_PICKER_MODE__',
   initialLocalLat: '__INITIAL_LOCAL_LAT_JSON__',
@@ -310,28 +371,47 @@ export const toSelectedPointMessagePayload = (
   point,
 });
 
-export const getMapTileUrlTemplate = (mode: MapTileMode) => {
-  const baseTemplate =
-    mode === 'dark' ? MAP_TILE_URL_TEMPLATE_DARK : MAP_TILE_URL_TEMPLATE_LIGHT;
-  return MAP_TILE_API_KEY
-    ? `${baseTemplate}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
-    : baseTemplate;
+// No api_key param — self-hosted, unlike the Stadia-backed helpers below.
+// Looks the theme up in STANDARD_THEME_STYLE_IDS rather than branching per
+// name — every standardTheme is light/dark-aware by construction (that
+// table requires both), so `mode` always applies regardless of theme.
+export const getMapTileUrlTemplate = (
+  mode: MapTileMode,
+  standardTheme?: StandardBasemapTheme,
+) => {
+  const ids = STANDARD_THEME_STYLE_IDS[standardTheme ?? 'default'];
+  // Prefer the current mode's half; fall back to whichever half the theme
+  // actually registered if that one's missing — see STANDARD_THEME_STYLE_IDS'
+  // doc comment for why a theme is allowed to only have one.
+  const styleId =
+    (mode === 'dark' ? ids.dark : ids.light) ?? ids.light ?? ids.dark;
+  return `${BACKEND_BASE}/api/basemap/${styleId}/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 };
 
-export const getLabelsOverlayTileUrl = () =>
-  MAP_TILE_API_KEY
-    ? `${MAP_LABELS_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
-    : MAP_LABELS_TILE_URL_TEMPLATE;
+// The full ordered cycle for the in-map palette-icon toggle — every
+// registered theme's URL, already resolved for the current light/dark
+// mode, in STANDARD_BASEMAP_THEMES' order. Lets the map template cycle
+// through an arbitrary number of themes by index (see STANDARD_THEMES in
+// SpeciesOccurrenceMap.html) instead of a hardcoded 2-way toggle.
+export const getStandardThemeCycle = (
+  mode: MapTileMode,
+): { id: StandardBasemapTheme; url: string }[] =>
+  STANDARD_BASEMAP_THEMES.map((id) => ({
+    id,
+    url: getMapTileUrlTemplate(mode, id),
+  }));
 
-export const getLinesOverlayTileUrl = () =>
-  MAP_TILE_API_KEY
-    ? `${MAP_LINES_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
-    : MAP_LINES_TILE_URL_TEMPLATE;
+// Self-hosted now — replaces Stadia's stamen_toner_labels, used only for
+// 'satellite' basemap mode (Esri imagery has no place names of its own).
+// One style regardless of app theme, same reasoning as getBackgroundTileUrl
+// below — see config/gis/tile_styles/labels.json.
+export const getLabelsOverlayTileUrl = () =>
+  `${BACKEND_BASE}/api/basemap/labels/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 
 // Terrarium-encoded raster-dem tiles for the globe view's setTerrain()/
-// hillshade — no API key, unlike the Stadia Maps helpers above, since this
-// is our own backend endpoint (see wherewild/main.py's
-// elevation_terrain_tile / util/tiles.py's render_elevation_terrain_rgb_tile_bytes).
+// hillshade — same self-hosted backend proxy pattern as the basemap
+// helpers above (see wherewild/main.py's elevation_terrain_tile /
+// util/tiles.py's render_elevation_terrain_rgb_tile_bytes).
 export const getElevationTerrainTileUrl = () =>
   `${BACKEND_BASE}/api/layers/elevation/terrain-tiles/{z}/{x}/{y}.png`;
 
@@ -343,10 +423,20 @@ export const getElevationTerrainTileUrl = () =>
 export const getSatelliteTileUrlTemplate = () =>
   `${BACKEND_BASE}/api/tiles/satellite/{z}/{x}/{y}.jpg`;
 
+// Self-hosted now, like getMapTileUrlTemplate. Always the 'variable-light'
+// theme regardless of app light/dark mode — there's no 'variable-dark': the
+// light land/dark water Toner look reads best under the heatmap overlay in
+// both app themes (confirmed by direct comparison — a dark-inverted variant
+// was tried and rejected), matching the old Stadia background's behavior
+// too (MAP_BACKGROUND_TILE_URL_TEMPLATE was never split by mode either).
+// Already bakes in place/water labels (see variable-light.json — only
+// buildings/POI/housenumbers/aeroway are absent), so unlike the old Stadia
+// Toner background (label-less, always required pairing with
+// getLabelsOverlayTileUrl), this needs no separate labels overlay — see the
+// mode-gated labelsPane/labels-layer visibility logic in the map HTML
+// templates, which now only shows that overlay for 'satellite'.
 export const getBackgroundTileUrl = () =>
-  MAP_TILE_API_KEY
-    ? `${MAP_BACKGROUND_TILE_URL_TEMPLATE}?api_key=${encodeURIComponent(MAP_TILE_API_KEY)}`
-    : MAP_BACKGROUND_TILE_URL_TEMPLATE;
+  `${BACKEND_BASE}/api/basemap/variable-light/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 
 const NSWE_SHAPES = {
   N: 'triangle',
@@ -1368,6 +1458,13 @@ const fillMapTemplatePlaceholders = (
   enableAutoAdaptToggle?: boolean,
   autoAdaptApplicable?: boolean,
   autoAdaptEnabled?: boolean,
+  // The 'standard' basemap mode's own look — see StandardBasemapTheme's doc
+  // comment. standardThemes is the full ordered cycle (see
+  // getStandardThemeCycle), already mode-resolved; the in-map toggle
+  // control is only ever built at all when this is non-null/non-empty,
+  // same gating pattern as satelliteTileUrl/SATELLITE_TILE_URL above.
+  standardTheme?: StandardBasemapTheme,
+  standardThemes?: { id: string; url: string }[] | null,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1584,6 +1681,16 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.basemapModeInitial)
     .join(JSON.stringify(basemapMode || 'standard'));
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.standardThemeInitial)
+    .join(JSON.stringify(standardTheme || 'default'));
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.standardThemesJson)
+    .join(
+      standardThemes && standardThemes.length > 0
+        ? JSON.stringify(standardThemes)
+        : 'null',
+    );
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteTileUrl)
     .join(satelliteTileUrl ? JSON.stringify(satelliteTileUrl) : 'null');
   html = html
@@ -1670,6 +1777,8 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     enableAutoAdaptToggle,
     autoAdaptApplicable,
     autoAdaptEnabled,
+    standardTheme,
+    standardThemes,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1724,6 +1833,13 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     enableAutoAdaptToggle,
     autoAdaptApplicable,
     autoAdaptEnabled,
+    standardTheme,
+    standardThemes
+      ? standardThemes.map((t) => ({
+          ...t,
+          url: stripRetinaPlaceholder(t.url),
+        }))
+      : standardThemes,
   );
 };
 

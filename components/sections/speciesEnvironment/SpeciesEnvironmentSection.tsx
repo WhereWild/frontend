@@ -3,9 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import { Colors, Responsive, Size } from '@/constants/theme';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useResponsive } from '@/hooks/useResponsive';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle } from '@/utils/anchors';
+import { toKebabCase } from '@/utils/string';
 import { RoutePressable } from '@/components/navigation/RoutePressable';
 import { ThemedText } from '@/components/text/ThemedText';
 import { AspectCompassChart } from './AspectCompassChart';
@@ -21,6 +25,7 @@ import {
   getCompositionAxisLabels,
   isValidHistogramContract,
   isVariableDiscrete,
+  type ChainedVariableFilter,
   type EnvironmentVariableOption,
 } from './model';
 import { parseTemporalId } from './temporalHelpers';
@@ -72,6 +77,11 @@ export type SpeciesEnvironmentSectionProps = {
     lat: number;
     lon: number;
   } | null;
+  /** Seeds the chained-filter state on mount — e.g. a chain hydrated from
+   * the route's ?slice= param. */
+  initialChain?: ChainedVariableFilter[];
+  /** Called whenever the chained-filter state changes. */
+  onChainChange?: (chain: ChainedVariableFilter[]) => void;
 };
 
 /** Displays environment distribution insights for a species and selected variable. */
@@ -90,6 +100,8 @@ function SpeciesEnvironmentSectionComponent({
   polygon,
   units,
   pinnedObservation,
+  initialChain,
+  onChainChange,
 }: SpeciesEnvironmentSectionProps) {
   const slicingEnabled =
     !largeTaxon &&
@@ -99,6 +111,13 @@ function SpeciesEnvironmentSectionComponent({
       ? 'Species'
       : `${taxonRank.charAt(0).toUpperCase()}${taxonRank.slice(1).toLowerCase()}`;
   const sectionTitle = `${rankLabel} Environment`;
+  const responsive = useResponsive();
+  const { webHeaderHeight } = useLayoutChrome();
+  // Lets links target this section directly, e.g. #species-environment.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
 
   const stableDisplayRef = React.useRef<{
     headingText: string | null;
@@ -213,6 +232,7 @@ function SpeciesEnvironmentSectionComponent({
     homePinnedCategoryValue,
     homeUnobservedCategory,
     isCircularVariable,
+    fullChain,
   } = useSpeciesEnvironmentState({
     taxonId,
     variableId,
@@ -228,11 +248,16 @@ function SpeciesEnvironmentSectionComponent({
     slicingEnabled,
     cbMode: settings?.cbMode ?? null,
     colormap: settings?.colormap ?? null,
+    initialChain,
   });
 
   React.useEffect(() => {
     onVariableMetaChange?.(selectedVariableMeta ?? null);
   }, [selectedVariableMeta, onVariableMetaChange]);
+
+  React.useEffect(() => {
+    onChainChange?.(fullChain);
+  }, [fullChain, onChainChange]);
 
   const cbMode = settings?.cbMode ?? null;
   // Ordinal variables have no separate accessibility variant — the
@@ -400,7 +425,17 @@ function SpeciesEnvironmentSectionComponent({
 
   return (
     <View collapsable={false} style={styles.container}>
-      <ThemedText variant='subheading'>{sectionTitle}</ThemedText>
+      <ThemedText
+        variant='subheading'
+        {...(Platform.OS === 'web'
+          ? {
+              nativeID: toKebabCase(sectionTitle),
+              style: scrollMarginStyle,
+            }
+          : {})}
+      >
+        {sectionTitle}
+      </ThemedText>
 
       <VariableSelectorHeader
         categories={categories}

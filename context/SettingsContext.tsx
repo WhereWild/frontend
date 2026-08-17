@@ -51,6 +51,42 @@ export function isBasemapMode(value: string): value is BasemapMode {
   return (BASEMAP_MODES as string[]).includes(value);
 }
 
+// A second, independent axis from BasemapMode — only meaningful while
+// BasemapMode is 'standard' (satellite/variable each have exactly one
+// look). A theme doesn't strictly need both a light and dark look (see
+// STANDARD_THEME_STYLE_IDS in speciesOccurrenceMapHelpers.ts, which allows
+// either half to be omitted) — 'voyager' (single-look, dropped) was cut for
+// looking wrong specifically when the app was in dark mode, not because
+// single-look themes are banned outright. 'default' is the CARTO Positron/
+// Dark Matter pair; 'versatiles' is a WhereWild recolor of VersaTiles' real
+// published 'Colorful' palette (Unlicense/public domain), dark generated
+// algorithmically via VersaTiles' own invertLuminosity() transform;
+// 'openfreemap' is a WhereWild recolor of OpenFreeMap's real 'bright'/
+// 'dark' style JSON (github.com/hyperknot/openfreemap-styles, BSD-3-Clause,
+// genuine unmodified OpenMapTiles schema — see that repo's own per-style
+// LICENSE.md files). See config/gis/tile_styles/standard-*.json's metadata
+// notes for each. Cycled via the in-map palette-icon control, shown only
+// in 'standard' mode — see SpeciesOccurrenceMap.html's
+// StandardThemeToggleControl.
+export type StandardBasemapTheme = 'default' | 'versatiles' | 'openfreemap';
+// Exported (not just used internally) so it's the single source of truth
+// for cycle order everywhere a theme list is needed — the in-map toggle's
+// N-way cycle (see getStandardThemeCycle in speciesOccurrenceMapHelpers.ts)
+// and validation both read from this one array. Adding a theme means
+// extending StandardBasemapTheme and this array, plus registering its
+// backend style ids in speciesOccurrenceMapHelpers.ts's
+// STANDARD_THEME_STYLE_IDS — nothing else should need a per-theme branch.
+export const STANDARD_BASEMAP_THEMES: StandardBasemapTheme[] = [
+  'default',
+  'versatiles',
+  'openfreemap',
+];
+export function isStandardBasemapTheme(
+  value: string,
+): value is StandardBasemapTheme {
+  return (STANDARD_BASEMAP_THEMES as string[]).includes(value);
+}
+
 export type { CbMode };
 
 type SettingsContextType = {
@@ -78,6 +114,8 @@ type SettingsContextType = {
   setTerrainEnabled: (v: boolean) => void;
   basemapMode: BasemapMode;
   setBasemapMode: (v: BasemapMode) => void;
+  standardBasemapTheme: StandardBasemapTheme;
+  setStandardBasemapTheme: (v: StandardBasemapTheme) => void;
   localLat: number | null;
   setLocalLat: (v: number | null) => void;
   localLon: number | null;
@@ -128,16 +166,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     useAsyncStorageState<boolean>('settings.markerOutlineEnabled', false);
   const [globeViewEnabled, setGlobeViewEnabled] = useAsyncStorageState<boolean>(
     'settings.globeViewEnabled',
-    false,
+    true,
   );
   const [terrainEnabled, setTerrainEnabled] = useAsyncStorageState<boolean>(
     'settings.terrainEnabled',
-    false,
+    true,
   );
   const [basemapMode, setBasemapMode] = useAsyncStorageState<BasemapMode>(
     'settings.basemapMode',
     'standard',
   );
+  const [standardBasemapTheme, setStandardBasemapTheme] =
+    useAsyncStorageState<StandardBasemapTheme>(
+      'settings.standardBasemapTheme',
+      'default',
+    );
   const [localLat, setLocalLat] = useAsyncStorageState<number | null>(
     'settings.localLat',
     null,
@@ -174,6 +217,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setTerrainEnabled,
         basemapMode,
         setBasemapMode,
+        standardBasemapTheme,
+        setStandardBasemapTheme,
         localLat,
         setLocalLat,
         localLon,
