@@ -103,12 +103,6 @@ export function useSpeciesRouteLocationHydration({
       countryLoading ||
       !state.countryStarted
     ) {
-      console.warn('[species] country: skip', {
-        routeLocationGid,
-        countryDone: state.countryDone,
-        countryLoading,
-        countryStarted: state.countryStarted,
-      });
       return;
     }
     const match = countryOptions.find((option) =>
@@ -116,11 +110,6 @@ export function useSpeciesRouteLocationHydration({
     );
     state.countryDone = true;
     state.countryMatch = match?.value ?? null;
-    console.warn('[species] country: resolved', {
-      routeLocationGid,
-      countryOptionValues: countryOptions.map((o) => o.value),
-      match,
-    });
     if (match) {
       onCountryChange(match.value);
     }
@@ -140,12 +129,6 @@ export function useSpeciesRouteLocationHydration({
       stateLoading ||
       !state.stateStarted
     ) {
-      console.warn('[species] state: skip', {
-        routeLocationGid,
-        stateDone: state.stateDone,
-        stateLoading,
-        stateStarted: state.stateStarted,
-      });
       return;
     }
     const match = stateOptions.find((option) =>
@@ -153,14 +136,6 @@ export function useSpeciesRouteLocationHydration({
     );
     state.stateDone = true;
     state.stateMatch = match?.value ?? null;
-    console.warn(
-      '[species] state: resolved',
-      JSON.stringify({
-        routeLocationGid,
-        stateOptionValues: stateOptions.map((o) => o.value),
-        match,
-      }),
-    );
     if (match) {
       onStateChange(match.value);
     }
@@ -180,26 +155,12 @@ export function useSpeciesRouteLocationHydration({
       countyLoading ||
       !state.countyStarted
     ) {
-      console.warn('[species] county: skip', {
-        routeLocationGid,
-        countyDone: state.countyDone,
-        countyLoading,
-        countyStarted: state.countyStarted,
-      });
       return;
     }
     const match = countyOptions.find(
       (option) => option.value === routeLocationGid,
     );
     state.countyDone = true;
-    console.warn(
-      '[species] county: resolved',
-      JSON.stringify({
-        routeLocationGid,
-        countyOptionValues: countyOptions.map((o) => o.value),
-        match,
-      }),
-    );
     if (match) {
       onCountyChange(match.value);
     }
