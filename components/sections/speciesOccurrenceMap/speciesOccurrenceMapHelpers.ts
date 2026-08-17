@@ -383,7 +383,8 @@ export const getMapTileUrlTemplate = (
   // Prefer the current mode's half; fall back to whichever half the theme
   // actually registered if that one's missing — see STANDARD_THEME_STYLE_IDS'
   // doc comment for why a theme is allowed to only have one.
-  const styleId = (mode === 'dark' ? ids.dark : ids.light) ?? ids.light ?? ids.dark;
+  const styleId =
+    (mode === 'dark' ? ids.dark : ids.light) ?? ids.light ?? ids.dark;
   return `${BACKEND_BASE}/api/basemap/${styleId}/${getBasemapBuildDate()}/tiles/{z}/{x}/{y}.png`;
 };
 
