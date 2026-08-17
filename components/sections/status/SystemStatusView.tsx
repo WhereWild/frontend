@@ -363,7 +363,9 @@ function BasemapCard({ data }: { data: BasemapStatusData | null }) {
           style={{ color: palette.text.default.secondary }}
         >
           Stage: {data.stage}
-          {data.elapsed_s != null ? `  ·  ${formatElapsed(data.elapsed_s)}` : ''}
+          {data.elapsed_s != null
+            ? `  ·  ${formatElapsed(data.elapsed_s)}`
+            : ''}
         </ThemedText>
       ) : null}
       {data.last_finished_at ? (

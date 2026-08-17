@@ -1726,8 +1726,12 @@ describe('speciesOccurrenceMapHelpers', () => {
 
   it('exposes stable map transport constants for the self-hosted basemap and declustering', () => {
     expect(MAP_REFERRER_POLICY).toBe('strict-origin-when-cross-origin');
-    expect(MAP_TILE_URL_TEMPLATE_LIGHT()).toContain('/api/basemap/standard-light/');
-    expect(MAP_TILE_URL_TEMPLATE_DARK()).toContain('/api/basemap/standard-dark/');
+    expect(MAP_TILE_URL_TEMPLATE_LIGHT()).toContain(
+      '/api/basemap/standard-light/',
+    );
+    expect(MAP_TILE_URL_TEMPLATE_DARK()).toContain(
+      '/api/basemap/standard-dark/',
+    );
     expect(MAP_TILE_ATTRIBUTION).not.toContain('Stadia');
     expect(MAP_TILE_ATTRIBUTION).toContain('CARTO');
     expect(MAP_TILE_MAX_ZOOM).toBe(20);

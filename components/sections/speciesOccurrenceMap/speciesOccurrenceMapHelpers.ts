@@ -1650,7 +1650,9 @@ const fillMapTemplatePlaceholders = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.standardThemeAltTileUrl)
     .join(
-      standardThemeAltTileUrl ? JSON.stringify(standardThemeAltTileUrl) : 'null',
+      standardThemeAltTileUrl
+        ? JSON.stringify(standardThemeAltTileUrl)
+        : 'null',
     );
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.satelliteTileUrl)

@@ -360,7 +360,9 @@ export function SpeciesOccurrenceMap({
   // value lands, since the first render likely sees the 'latest' fallback.
   const [, forceBasemapVersionRerender] = React.useState(0);
   React.useEffect(() => {
-    ensureBasemapBuildDateLoaded().then(() => forceBasemapVersionRerender((v) => v + 1));
+    ensureBasemapBuildDateLoaded().then(() =>
+      forceBasemapVersionRerender((v) => v + 1),
+    );
   }, []);
   // Even when a fixed `height` prop is set (the common case — most pages
   // give the map a set height in its normal layout), fullscreen should fill
@@ -658,15 +660,20 @@ export function SpeciesOccurrenceMap({
     () => highlightedCatalogs.map((id) => String(id)),
     [highlightedCatalogs],
   );
+  // getBasemapBuildDate() is read for its current value as a recompute
+  // trigger (see the effect above), not a real prop/state dependency.
   const tileUrlTemplate = React.useMemo(
     () =>
       useLabelsOverlay
         ? getBackgroundTileUrl()
         : getMapTileUrlTemplate(mode, settings?.standardBasemapTheme),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- getBasemapBuildDate()
-    // is read for its current value as a recompute trigger (see the effect
-    // above), not a real prop/state dependency.
-    [mode, useLabelsOverlay, settings?.standardBasemapTheme, getBasemapBuildDate()],
+    [
+      mode,
+      useLabelsOverlay,
+      settings?.standardBasemapTheme,
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      getBasemapBuildDate(),
+    ],
   );
   // The 'standard' mode's one non-default look (currently just 'voyager') —
   // always fetched (like satelliteTileUrl below) whenever the toggle is

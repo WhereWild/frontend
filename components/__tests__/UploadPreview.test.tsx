@@ -13,6 +13,9 @@ jest.mock('@/components', () => {
   ) as typeof import('react-native');
 
   return {
+    ThemedText: (
+      props: React.ComponentProps<typeof Text> & { children?: React.ReactNode },
+    ) => ReactLocal.createElement(Text, props, props.children),
     SpeciesEnvironmentSection: (props: {
       pinnedObservation?: {
         catalogNumber: string;
