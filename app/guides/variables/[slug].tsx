@@ -181,7 +181,7 @@ export default function VariableGuideScreen() {
       ]),
     );
   }, [variable?.legendClasses]);
-  useScrollToHash([isLoading, notFound]);
+  useScrollToHash([isLoading, notFound, sources.length]);
 
   return (
     <>
