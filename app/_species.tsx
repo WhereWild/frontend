@@ -82,6 +82,7 @@ import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFil
 import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
+import { useSpeciesRouteLocationHydration } from '@/hooks/species/useSpeciesRouteLocationHydration';
 import { useSettings } from '@/context/SettingsContext';
 import { useLayoutChrome } from '../context/LayoutChromeContext';
 import { anchorScrollMarginStyle } from '@/utils/anchors';
@@ -219,24 +220,45 @@ export default function Species({
   const searchParams = useLocalSearchParams<{
     highlightObservation?: string;
     variable?: string;
+    location?: string;
+    phenology?: string;
   }>();
-  // Lets links target a specific environment variable directly, e.g.
-  // /species/<id>/<slug>?variable=elevation. On this catch-all route,
-  // expo-router's web history can fold the query string into the hash
-  // instead of keeping it separate (e.g. `#section?variable=x`), in which
-  // case useLocalSearchParams never sees `variable` at all — recover it
+  // On this catch-all route, expo-router's web history can fold the query
+  // string into the hash instead of keeping it separate (e.g.
+  // `#section?variable=x` instead of `?variable=x#section`), in which case
+  // useLocalSearchParams never sees the query param at all — recover it
   // straight from the raw hash as a fallback.
-  const routeVariableIdFromHash = React.useMemo(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') {
-      return undefined;
-    }
-    const match = window.location.hash.match(/[?&]variable=([^&]+)/);
-    return match ? decodeURIComponent(match[1]) : undefined;
-  }, []);
-  const routeVariableId =
-    typeof searchParams.variable === 'string'
-      ? searchParams.variable
-      : routeVariableIdFromHash;
+  const getRouteParamWithHashFallback = React.useCallback(
+    (key: string, fromSearchParams: string | undefined) => {
+      if (typeof fromSearchParams === 'string') {
+        return fromSearchParams;
+      }
+      if (Platform.OS !== 'web' || typeof window === 'undefined') {
+        return undefined;
+      }
+      const match = window.location.hash.match(
+        new RegExp(`[?&]${key}=([^&]+)`),
+      );
+      return match ? decodeURIComponent(match[1]) : undefined;
+    },
+    [],
+  );
+  // Lets links target a specific environment variable directly, e.g.
+  // /species/<id>/<slug>?variable=elevation.
+  const routeVariableId = React.useMemo(
+    () => getRouteParamWithHashFallback('variable', searchParams.variable),
+    [getRouteParamWithHashFallback, searchParams.variable],
+  );
+  // Lets links target a specific location filter, e.g. ?location=<gid>.
+  const routeLocationGid = React.useMemo(
+    () => getRouteParamWithHashFallback('location', searchParams.location),
+    [getRouteParamWithHashFallback, searchParams.location],
+  );
+  // Lets links target a specific phenology filter, e.g. ?phenology=flowering.
+  const routePhenology = React.useMemo(
+    () => getRouteParamWithHashFallback('phenology', searchParams.phenology),
+    [getRouteParamWithHashFallback, searchParams.phenology],
+  );
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
   // Lets links target the occurrence map directly, e.g.
@@ -335,6 +357,22 @@ export default function Species({
     locationSearchLimit: LOCATION_SEARCH_LIMIT,
   });
 
+  // Applies routeLocationGid to whichever level (country/state/county) it
+  // actually resolves to — a no-op if it's not one of this species' own
+  // location options (e.g. the species has no observations there).
+  useSpeciesRouteLocationHydration({
+    routeLocationGid,
+    countryOptions,
+    countryLoading,
+    stateOptions,
+    stateLoading,
+    countyOptions,
+    countyLoading,
+    onCountryChange,
+    onStateChange,
+    onCountyChange,
+  });
+
   const {
     occurrences: fetchedOccurrences,
     loading: occurrenceLoading,
@@ -348,6 +386,55 @@ export default function Species({
     startTimestamp,
     endTimestamp,
   });
+
+  // Applies routePhenology once the taxon's available phenology options are
+  // known — a no-op if it's not one of them (e.g. this species has no
+  // observations tagged with that phenology stage).
+  const appliedRoutePhenologyRef = React.useRef(false);
+  React.useEffect(() => {
+    if (appliedRoutePhenologyRef.current || !routePhenology) {
+      return;
+    }
+    if (phenologyCounts && routePhenology in phenologyCounts) {
+      appliedRoutePhenologyRef.current = true;
+      setSelectedPhenology(routePhenology);
+    }
+  }, [routePhenology, phenologyCounts]);
+
+  // Mirrors the current variable/location/phenology selections into the
+  // URL's query string as they change, so copying the address bar
+  // reproduces this exact view — one-directional (state -> URL only) and
+  // replaceState-based, unlike search.tsx's fuller push/pop history sync:
+  // reading these back out of the URL only ever needs to happen once, on
+  // initial mount (see the hydration effects above), so there's no need
+  // for back/forward-aware history entries here.
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const setOrDelete = (key: string, value: string | null | undefined) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    };
+    setOrDelete('variable', selectedVariableMeta?.id ?? null);
+    setOrDelete('location', finalLocationGid);
+    setOrDelete('phenology', selectedPhenology);
+    const query = params.toString();
+    const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }, [
+    pathname,
+    selectedVariableMeta?.id,
+    finalLocationGid,
+    selectedPhenology,
+  ]);
 
   // highlightObservation: deep-linked from /occurrence/{id} (see
   // app/occurrence/[id].tsx) — resolves the observation via the same
