@@ -1339,10 +1339,12 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       map.getPane('labelsPane').style.zIndex = 650;
       // Initial visibility is set by applyBasemapMode(currentBasemapMode)
       // below, once the basemap toggle's setup code runs: labels only show
-      // in 'satellite'/'variable' modes there, not 'standard' (which
-      // already has labels baked into its own tile style). Pages without
-      // the toggle (maps.tsx, no SATELLITE_TILE_URL) never call
-      // applyBasemapMode at all, so labels just stay on always, unaffected.
+      // in 'satellite' mode there — 'standard' and 'variable' both have
+      // labels baked into their own (self-hosted) tile styles now. Pages
+      // without the toggle (maps.tsx, no SATELLITE_TILE_URL) never request
+      // LABELS_OVERLAY_URL at all anymore (see labelsOverlayTileUrl in
+      // SpeciesOccurrenceMap.tsx), so this pane just never gets created
+      // there — nothing to leave "on always" like before.
     }
 
     // Tracks whatever the currently-selected GIS variable's tile URL is —
@@ -2006,8 +2008,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           }
         }
         // Labels overlay: only 'satellite' needs it now — 'variable' mode's
-        // self-hosted background already bakes labels in, 'standard' has
-        // its own baked-in labels too (see the pane-creation comment above).
+        // self-hosted background already bakes labels in (see
+        // getBackgroundTileUrl/VARIABLE_MODE_HIDDEN_SOURCE_LAYERS), so
+        // showing this too would double-draw labels in two different
+        // styles. 'standard' also has its own baked-in labels (see the
+        // pane-creation comment above for why).
         var labelsPane = map.getPane('labelsPane');
         if (labelsPane) { labelsPane.style.display = mode === 'satellite' ? '' : 'none'; }
         // The standard-theme toggle button (defined below, only when
@@ -2449,6 +2454,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // in one click rather than one at a time.
     let drawnPolygonLayers = [];
     let refreshVisibleMarkerPresentationImpl = null;
+    // Keys shown as direct markers as of the last refresh — diffed against
+    // the newly-visible set each call so only entries that actually entered
+    // or exited the viewport are touched, instead of sweeping every point in
+    // the dataset on every single pan/zoom.
+    let previouslyVisibleDirectMarkerKeys = new Set();
     let rebuildOccurrenceMarkersImpl = null;
     let replaceOccurrenceMarkersImpl = null;
 
@@ -2489,8 +2499,13 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     function buildObservationValueHtml(varValue, varColor, varLabel, varShape) {
       if (varValue == null) return isVariableColorMode() ? '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' : '';
       var isNumericVar = DOT_MIN != null && DOT_MAX != null && DOT_MAX >= DOT_MIN;
-      if (varColor) {
-        var dot = shapeToPopupSvg(varShape || null, varColor);
+      // A class label must never fall through to the raw-number branches
+      // below just because color resolution failed for some reason (e.g. an
+      // ordinal class not yet present in a stale CLASS_COLORS snapshot) —
+      // that's a "wrong number" bug users would never trace back to color.
+      // Show the label with no dot if color genuinely isn't available.
+      if (varColor || varLabel) {
+        var dot = varColor ? shapeToPopupSvg(varShape || null, varColor) : '';
         var labelText = varLabel || '';
         return '<div style="display:flex;align-items:center;font-size:12px;margin-top:4px">' + dot + (labelText ? '<span>' + labelText + '</span>' : '') + '</div>';
       }
@@ -3074,6 +3089,20 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' };
       selectedPointMarker = L.circleMarker([bgLat, bgLon], bgStyle).addTo(map);
 
+      // A background pin restored via applySelectedPoint (e.g. on load, from
+      // a hydrated ?highlightObservation=point:<lat>,<lon> URL) otherwise
+      // only ever drew the outline above — unlike a live map.on('click') on
+      // the same spot, which also opens a popup and fetches its value. Do
+      // the same here so a reloaded background pin looks identical to one
+      // just clicked, not just the outline with no popup.
+      if (POINT_QUERY_URL) {
+        var bgPopup = L.popup().setLatLng([bgLat, bgLon])
+          .setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>')
+          .openOn(map);
+        lastBackgroundPopup = bgPopup;
+        fetchBackgroundPointPopup(bgPopup, bgLat, bgLon);
+      }
+
       if (CLASS_SHAPES && POINT_QUERY_URL) {
         (function(markerRef) {
           fetch(POINT_QUERY_URL + '&lat=' + bgLat + '&lon=' + bgLon)
@@ -3378,18 +3407,31 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           );
           visibleMarkerLayer.addLayer(entry.directMarker);
         } else {
-          entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
-          applyStyleToMarker(entry.directMarker, effectiveStyleForCatalog(entry.key), entry.varShape);
+          // Style is kept current independent of visibility — applyHighlights
+          // and rebuildOccurrenceMarkersImpl push a fresh style straight onto
+          // entry.directMarker (via applyEntryStyle) whenever it actually
+          // changes, attached or not — so re-deriving and re-applying
+          // effectiveStyleForCatalog here on every pan/zoom would just be
+          // redoing that work for markers whose style never changed.
+          if (!visibleMarkerLayer.hasLayer(entry.directMarker)) {
+            visibleMarkerLayer.addLayer(entry.directMarker);
+          }
+          if (entry.alignedLongitude !== alignedLongitude) {
+            entry.directMarker.setLatLng([entry.latitude, alignedLongitude]);
+          }
         }
         entry.alignedLongitude = alignedLongitude;
       }
 
+      // Detaches the marker from the layer but keeps the Leaflet object (and
+      // its bound popup/click handler) alive on the entry, so panning it back
+      // into view in ensureVisibleDirectMarker just re-adds the existing
+      // layer instead of rebuilding the marker/popup/closure from scratch.
       function removeVisibleDirectMarker(entry) {
         if (!visibleMarkerLayer || !entry.directMarker) {
           return;
         }
         visibleMarkerLayer.removeLayer(entry.directMarker);
-        entry.directMarker = null;
       }
 
       function syncDirectMarkersToCurrentWorld() {
@@ -3470,11 +3512,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             ensureVisibleDirectMarker(entry, alignedLongitude);
           });
 
-          markerEntries.forEach((entry) => {
-            if (!visibleKeys.has(entry.key)) {
-              removeVisibleDirectMarker(entry);
+          previouslyVisibleDirectMarkerKeys.forEach((key) => {
+            if (visibleKeys.has(key)) return;
+            const tracked = markers.get(key);
+            if (tracked && tracked.markerEntry) {
+              removeVisibleDirectMarker(tracked.markerEntry);
             }
           });
+          previouslyVisibleDirectMarkerKeys = visibleKeys;
 
           if (selectedCatalogDirectMarker && selectedCatalogKey != null) {
             const selEntry = markerEntries.find(function(e) { return e.key === selectedCatalogKey; });
@@ -3487,6 +3532,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         }
 
         markerEntries.forEach(removeVisibleDirectMarker);
+        previouslyVisibleDirectMarkerKeys = new Set();
         if (showingVisibleIndividualMarkers) {
           map.removeLayer(visibleMarkerLayer);
           clusterGroup.addTo(map);
@@ -3720,6 +3766,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         markerEntries = [];
         markerLatBuckets = new Map();
         markers.clear();
+        previouslyVisibleDirectMarkerKeys = new Set();
         var newBounds = buildOccurrenceMarkers(newPoints);
         if (useVisibilityManagedClustering && clusterGroup && !map.hasLayer(clusterGroup)) {
           map.addLayer(clusterGroup);

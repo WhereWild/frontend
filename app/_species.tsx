@@ -25,6 +25,7 @@ import {
   isPointInPolygon,
   encodePolygonsParam,
 } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import { decodePolygonsParam } from '@/utils/geoPolygon';
 import type { ObservationVarFieldsInputs } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
 import type { ObservationGalleryPoint } from '@/components/sections/SpeciesObservationGallery';
@@ -222,6 +223,7 @@ export default function Species({
     variable?: string;
     location?: string;
     phenology?: string;
+    region?: string;
   }>();
   // On this catch-all route, expo-router's web history can fold the query
   // string into the hash instead of keeping it separate (e.g.
@@ -258,6 +260,14 @@ export default function Species({
   const routePhenology = React.useMemo(
     () => getRouteParamWithHashFallback('phenology', searchParams.phenology),
     [getRouteParamWithHashFallback, searchParams.phenology],
+  );
+  // Lets links target a specific hand-drawn region filter, e.g.
+  // ?region=<encoded-polygon>. Read once (not re-derived on hash changes
+  // after mount) since it only ever seeds drawnPolygons' initial state
+  // below — same one-shot-hydration shape as the other route params.
+  const routeRegionPolygon = React.useMemo(
+    () => getRouteParamWithHashFallback('region', searchParams.region),
+    [getRouteParamWithHashFallback, searchParams.region],
   );
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
@@ -401,58 +411,48 @@ export default function Species({
     }
   }, [routePhenology, phenologyCounts]);
 
-  // Mirrors the current variable/location/phenology selections into the
-  // URL's query string as they change, so copying the address bar
-  // reproduces this exact view — one-directional (state -> URL only) and
-  // replaceState-based, unlike search.tsx's fuller push/pop history sync:
-  // reading these back out of the URL only ever needs to happen once, on
-  // initial mount (see the hydration effects above), so there's no need
-  // for back/forward-aware history entries here.
-  React.useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') {
-      return;
-    }
-    const params = new URLSearchParams(window.location.search);
-    const setOrDelete = (key: string, value: string | null | undefined) => {
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-    };
-    setOrDelete('variable', selectedVariableMeta?.id ?? null);
-    setOrDelete('location', finalLocationGid);
-    setOrDelete('phenology', selectedPhenology);
-    const query = params.toString();
-    const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
-    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    if (nextUrl !== currentUrl) {
-      window.history.replaceState(null, '', nextUrl);
-    }
-  }, [
-    pathname,
-    selectedVariableMeta?.id,
-    finalLocationGid,
-    selectedPhenology,
-  ]);
-
   // highlightObservation: deep-linked from /occurrence/{id} (see
   // app/occurrence/[id].tsx) — resolves the observation via the same
   // endpoint that redirect used, and when it's not part of this taxon's
   // normal occurrence set (not yet ingested by GBIF), injects it as a
   // synthetic occurrence below so the existing map/gallery/popup pipeline
   // renders it exactly like any other point, with no separate rendering path.
+  //
+  // It can also carry a background (non-observation) map pin — clicking
+  // empty map background sends a synthetic "point:<lat>,<lon>" id through
+  // this exact same pin mechanism (see SpeciesOccurrenceMap.html's
+  // map.on('click') background-click branch) — those never have a real
+  // catalog entry to look up, so they're parsed and pinned directly below
+  // instead of going through fetchOccurrenceLookup.
   const highlightObservationId = React.useMemo(() => {
-    const raw = searchParams.highlightObservation;
+    const raw = getRouteParamWithHashFallback(
+      'highlightObservation',
+      searchParams.highlightObservation,
+    );
     return typeof raw === 'string' ? raw.trim() : '';
-  }, [searchParams.highlightObservation]);
+  }, [getRouteParamWithHashFallback, searchParams.highlightObservation]);
+
+  const parsePointPinId = React.useCallback(
+    (id: string): { lat: number; lon: number } | null => {
+      if (!id.startsWith('point:')) {
+        return null;
+      }
+      const [latRaw, lonRaw] = id.slice('point:'.length).split(',');
+      const lat = Number(latRaw);
+      const lon = Number(lonRaw);
+      return Number.isFinite(lat) && Number.isFinite(lon)
+        ? { lat, lon }
+        : null;
+    },
+    [],
+  );
 
   const [highlightedOccurrenceLookup, setHighlightedOccurrenceLookup] =
     React.useState<OccurrenceLookup | null>(null);
 
   React.useEffect(() => {
     setHighlightedOccurrenceLookup(null);
-    if (!highlightObservationId) {
+    if (!highlightObservationId || parsePointPinId(highlightObservationId)) {
       return;
     }
     let cancelled = false;
@@ -466,7 +466,7 @@ export default function Species({
     return () => {
       cancelled = true;
     };
-  }, [highlightObservationId]);
+  }, [highlightObservationId, parsePointPinId]);
 
   // Only injected when NOT ingested — an already-ingested highlighted
   // observation is already part of fetchedOccurrences, so adding it again
@@ -517,7 +517,13 @@ export default function Species({
   // active.
   const [drawnPolygons, setDrawnPolygons] = React.useState<
     [number, number][][] | null
-  >(null);
+  >(() => {
+    if (!routeRegionPolygon) {
+      return null;
+    }
+    const decoded = decodePolygonsParam(routeRegionPolygon);
+    return decoded.length > 0 ? decoded : null;
+  });
   const handlePolygonDrawn = React.useCallback(
     (polygons: [number, number][][]) => setDrawnPolygons(polygons),
     [],
@@ -555,6 +561,48 @@ export default function Species({
     }
     return encodePolygonsParam(activePolygons);
   }, [drawnPolygons]);
+
+  // Mirrors the current variable/location/phenology/pin/region selections
+  // into the URL's query string as they change, so copying the address bar
+  // reproduces this exact view — one-directional (state -> URL only) and
+  // replaceState-based, unlike search.tsx's fuller push/pop history sync:
+  // reading these back out of the URL only ever needs to happen once, on
+  // initial mount (see the hydration effects above/below), so there's no
+  // need for back/forward-aware history entries here.
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const setOrDelete = (key: string, value: string | null | undefined) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    };
+    setOrDelete('variable', selectedVariableMeta?.id ?? null);
+    setOrDelete('location', finalLocationGid);
+    setOrDelete('phenology', selectedPhenology);
+    // Covers both a real observation pin and a background map pin (the
+    // synthetic "point:<lat>,<lon>" id) — see highlightObservationId's
+    // hydration below, which already knows how to read either kind back.
+    setOrDelete('highlightObservation', pinnedObservation?.catalogNumber ?? null);
+    setOrDelete('region', encodedRegionPolygon);
+    const query = params.toString();
+    const nextUrl = `${pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }, [
+    pathname,
+    selectedVariableMeta?.id,
+    finalLocationGid,
+    selectedPhenology,
+    pinnedObservation?.catalogNumber,
+    encodedRegionPolygon,
+  ]);
 
   // While a new region is actively being drawn, show the unfiltered set on
   // the map instead of `occurrences` — otherwise, once one region already
@@ -1110,13 +1158,24 @@ export default function Species({
     if (autoPinnedObservationRef.current === highlightObservationId) {
       return;
     }
+    const pointPin = parsePointPinId(highlightObservationId);
+    if (pointPin) {
+      autoPinnedObservationRef.current = highlightObservationId;
+      handlePinObservation(highlightObservationId, pointPin.lat, pointPin.lon);
+      return;
+    }
     const occ = occurrenceByCatalog.get(highlightObservationId);
     if (!occ) {
       return;
     }
     autoPinnedObservationRef.current = highlightObservationId;
     handlePinObservation(highlightObservationId, occ.latitude, occ.longitude);
-  }, [highlightObservationId, occurrenceByCatalog, handlePinObservation]);
+  }, [
+    highlightObservationId,
+    occurrenceByCatalog,
+    handlePinObservation,
+    parsePointPinId,
+  ]);
 
   const galleryPoints = React.useMemo<ObservationGalleryPoint[]>(() => {
     const isCategorical = isVariableCategorical(selectedVariableMeta);

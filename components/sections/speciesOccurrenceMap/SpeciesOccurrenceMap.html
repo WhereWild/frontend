@@ -2585,6 +2585,20 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         color: palette.selectedPointStroke, weight: 2, opacity: 1, dashArray: '2 2' };
       selectedPointMarker = L.circleMarker([bgLat, bgLon], bgStyle).addTo(map);
 
+      // A background pin restored via applySelectedPoint (e.g. on load, from
+      // a hydrated ?highlightObservation=point:<lat>,<lon> URL) otherwise
+      // only ever drew the outline above — unlike a live map.on('click') on
+      // the same spot, which also opens a popup and fetches its value. Do
+      // the same here so a reloaded background pin looks identical to one
+      // just clicked, not just the outline with no popup.
+      if (POINT_QUERY_URL) {
+        var bgPopup = L.popup().setLatLng([bgLat, bgLon])
+          .setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>')
+          .openOn(map);
+        lastBackgroundPopup = bgPopup;
+        fetchBackgroundPointPopup(bgPopup, bgLat, bgLon);
+      }
+
       if (CLASS_SHAPES && POINT_QUERY_URL) {
         (function(markerRef) {
           fetch(POINT_QUERY_URL + '&lat=' + bgLat + '&lon=' + bgLon)

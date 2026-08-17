@@ -427,6 +427,20 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         });
       }
       if (!matchingPt) {
+        // A background pin restored via applySelectedPoint (e.g. on load,
+        // from a hydrated ?highlightObservation=point:<lat>,<lon> URL)
+        // otherwise only ever drew the selected-point source dot above —
+        // unlike a live map.on('click') on the same spot, which also opens
+        // a popup and fetches its value. Do the same here so a reloaded
+        // background pin looks identical to one just clicked.
+        if (POINT_QUERY_URL) {
+          selectedPointPopup = new maplibregl.Popup({ closeButton: true, focusAfterOpen: false })
+            .setLngLat([point.longitude, point.latitude])
+            .setHTML('<span style="opacity:0.6;font-size:11px">Loading…</span>')
+            .addTo(map);
+          lastBackgroundPopup = selectedPointPopup;
+          fetchBackgroundPointPopup(selectedPointPopup, point.latitude, point.longitude);
+        }
         return;
       }
 
