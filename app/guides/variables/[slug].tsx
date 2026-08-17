@@ -29,15 +29,19 @@ import {
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
 import { isVariableTypeKey } from '@/constants/variableTypes';
+import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useSettings } from '@/context/SettingsContext';
 import { fetchEnvironmentVariables } from '@/data/api';
 import type { EnvironmentVariableDefinition } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { anchorScrollMarginStyle, slugifySection } from '@/utils/anchors';
+import { toKebabCase } from '@/utils/string';
 import { WebMetadata } from '@/utils/webMetadata';
 import { VARIABLE_GUIDES } from '@/content/guides/variables/index';
 
@@ -155,6 +159,30 @@ export default function VariableGuideScreen() {
     .map((id) => dataSources[id])
     .filter((source): source is NonNullable<typeof source> => Boolean(source));
 
+  const { webHeaderHeight } = useLayoutChrome();
+  // Lets links to this page target a specific section, e.g.
+  // /guides/variables/ecoregions#categories.
+  const scrollMarginStyle =
+    Platform.OS === 'web'
+      ? anchorScrollMarginStyle(webHeaderHeight, responsive.breakpoint)
+      : undefined;
+  const sectionAnchorProps = (heading: string) =>
+    Platform.OS === 'web'
+      ? { nativeID: toKebabCase(heading), style: scrollMarginStyle }
+      : {};
+  // Lets links target a specific category too, e.g.
+  // /guides/variables/ecoregions#western-sahara-desert.
+  const legendClassSlugs = React.useMemo(() => {
+    const seenSlugs = new Map<string, number>();
+    return new Map(
+      (variable?.legendClasses ?? []).map((legendClass) => [
+        legendClass.id,
+        slugifySection(legendClass.name, seenSlugs),
+      ]),
+    );
+  }, [variable?.legendClasses]);
+  useScrollToHash([isLoading, notFound]);
+
   return (
     <>
       {Platform.OS === 'web' ? (
@@ -209,7 +237,12 @@ export default function VariableGuideScreen() {
                   </View>
 
                   <View style={styles.section}>
-                    <ThemedText variant='subheading'>{'Details'}</ThemedText>
+                    <ThemedText
+                      variant='subheading'
+                      {...sectionAnchorProps('Details')}
+                    >
+                      {'Details'}
+                    </ThemedText>
                     <View style={styles.statRow}>
                       <ThemedText
                         variant='bodySmall'
@@ -329,7 +362,10 @@ export default function VariableGuideScreen() {
                   {variable?.compositionGroup &&
                   compositionMembers.length > 0 ? (
                     <View style={styles.section}>
-                      <ThemedText variant='subheading'>
+                      <ThemedText
+                        variant='subheading'
+                        {...sectionAnchorProps('Composition')}
+                      >
                         {'Composition'}
                       </ThemedText>
                       <ThemedText
@@ -361,7 +397,10 @@ export default function VariableGuideScreen() {
                   {variable?.legendClasses &&
                   variable.legendClasses.length > 0 ? (
                     <View style={styles.section}>
-                      <ThemedText variant='subheading'>
+                      <ThemedText
+                        variant='subheading'
+                        {...sectionAnchorProps('Categories')}
+                      >
                         {'Categories'}
                       </ThemedText>
                       <View style={styles.legendList}>
@@ -376,7 +415,14 @@ export default function VariableGuideScreen() {
                           return (
                             <View
                               key={legendClass.id}
-                              style={styles.legendItem}
+                              style={[styles.legendItem, scrollMarginStyle]}
+                              {...(Platform.OS === 'web'
+                                ? {
+                                    nativeID: legendClassSlugs.get(
+                                      legendClass.id,
+                                    ),
+                                  }
+                                : {})}
                             >
                               <View style={styles.legendRow}>
                                 {useShapes ? (
@@ -419,7 +465,12 @@ export default function VariableGuideScreen() {
 
                   {sources.length > 0 ? (
                     <View style={styles.section}>
-                      <ThemedText variant='subheading'>{'Sources'}</ThemedText>
+                      <ThemedText
+                        variant='subheading'
+                        {...sectionAnchorProps('Sources')}
+                      >
+                        {'Sources'}
+                      </ThemedText>
                       {sources.map((source) => (
                         <SourceEntry key={source.name} source={source} />
                       ))}
