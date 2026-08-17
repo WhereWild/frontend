@@ -53,14 +53,30 @@ export function isBasemapMode(value: string): value is BasemapMode {
 
 // A second, independent axis from BasemapMode — only meaningful while
 // BasemapMode is 'standard' (satellite/variable each have exactly one
-// look). 'default' is the CARTO Positron/Dark Matter pair (already
-// light/dark-aware via MAP_TILE_MODE); 'voyager' is CARTO's colorful
-// Voyager style, one look regardless of app theme (see
-// getMapTileUrlTemplate's doc comment). Cycled via the in-map
+// look). Both options here are light/dark-aware (a hard requirement — a
+// theme that ignores the app's light/dark setting was tried with 'voyager'
+// and dropped for exactly that reason): 'default' is the CARTO Positron/
+// Dark Matter pair; 'versatiles' is a WhereWild recolor of VersaTiles'
+// real published 'Colorful' palette (Unlicense/public domain) onto our own
+// OpenMapTiles-schema layers, with the dark variant generated
+// algorithmically via VersaTiles' own invertLuminosity() transform rather
+// than hand-designed — see config/gis/tile_styles/standard-versatiles-
+// {light,dark}.json's metadata note in the wherewild repo. Both variants
+// resolved via MAP_TILE_MODE, same as 'default'. Cycled via the in-map
 // palette-icon control, shown only in 'standard' mode — see
 // SpeciesOccurrenceMap.html's StandardThemeToggleControl.
-export type StandardBasemapTheme = 'default' | 'voyager';
-const STANDARD_BASEMAP_THEMES: StandardBasemapTheme[] = ['default', 'voyager'];
+export type StandardBasemapTheme = 'default' | 'versatiles';
+// Exported (not just used internally) so it's the single source of truth
+// for cycle order everywhere a theme list is needed — the in-map toggle's
+// N-way cycle (see getStandardThemeCycle in speciesOccurrenceMapHelpers.ts)
+// and validation both read from this one array. Adding a theme means
+// extending StandardBasemapTheme and this array, plus registering its
+// backend style ids in speciesOccurrenceMapHelpers.ts's
+// STANDARD_THEME_STYLE_IDS — nothing else should need a per-theme branch.
+export const STANDARD_BASEMAP_THEMES: StandardBasemapTheme[] = [
+  'default',
+  'versatiles',
+];
 export function isStandardBasemapTheme(
   value: string,
 ): value is StandardBasemapTheme {

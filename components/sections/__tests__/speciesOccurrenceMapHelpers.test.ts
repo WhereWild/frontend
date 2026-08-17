@@ -1744,12 +1744,12 @@ describe('speciesOccurrenceMapHelpers', () => {
     expect(getMapTileUrlTemplate('light')).not.toContain('api_key');
   });
 
-  it("resolves the 'voyager' standard theme to its own single look, ignoring light/dark mode", () => {
-    expect(getMapTileUrlTemplate('light', 'voyager')).toContain(
-      '/api/basemap/standard-voyager/',
+  it("resolves the 'versatiles' standard theme light/dark-aware, like 'default'", () => {
+    expect(getMapTileUrlTemplate('light', 'versatiles')).toContain(
+      '/api/basemap/standard-versatiles-light/',
     );
-    expect(getMapTileUrlTemplate('dark', 'voyager')).toContain(
-      '/api/basemap/standard-voyager/',
+    expect(getMapTileUrlTemplate('dark', 'versatiles')).toContain(
+      '/api/basemap/standard-versatiles-dark/',
     );
     expect(getMapTileUrlTemplate('light', 'default')).toContain(
       'standard-light',

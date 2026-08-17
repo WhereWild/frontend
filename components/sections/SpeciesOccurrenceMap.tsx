@@ -32,7 +32,7 @@ import {
   getLabelsOverlayTileUrl,
   getMapTileUrlTemplate,
   getSatelliteTileUrlTemplate,
-  MAP_TILE_URL_TEMPLATE_VOYAGER,
+  getStandardThemeCycle,
   loadFallbackMapTemplate,
   loadGlobeMapTemplate,
   loadGlobeMapTemplateOffline,
@@ -686,17 +686,19 @@ export function SpeciesOccurrenceMap({
       getBasemapBuildDate(),
     ],
   );
-  // The 'standard' mode's one non-default look (currently just 'voyager') —
-  // always fetched (like satelliteTileUrl below) whenever the toggle is
-  // enabled at all, regardless of which theme is currently active, so the
-  // in-map control has both URLs ready to swap between client-side without
-  // a round trip. Gated the same way satelliteTileUrl/
+  // Every registered standard theme's URL (see STANDARD_BASEMAP_THEMES in
+  // SettingsContext.tsx), already resolved for the current light/dark mode
+  // — always fetched (like satelliteTileUrl below) whenever the toggle is
+  // enabled at all, so the in-map control can cycle through all of them
+  // client-side without a round trip. Every theme is light/dark-aware by
+  // construction, so this needs `mode` in its deps (unlike a fixed single
+  // look would). Gated the same way satelliteTileUrl/
   // variableModeBackgroundTileUrl are: only pages with the 3-way basemap
   // toggle need this.
-  const standardThemeAltTileUrl = React.useMemo(
-    () => (enableBasemapModeToggle ? MAP_TILE_URL_TEMPLATE_VOYAGER() : null),
+  const standardThemes = React.useMemo(
+    () => (enableBasemapModeToggle ? getStandardThemeCycle(mode) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see tileUrlTemplate above.
-    [enableBasemapModeToggle, getBasemapBuildDate()],
+    [enableBasemapModeToggle, mode, getBasemapBuildDate()],
   );
   // Only 'satellite' mode still needs a separate labels overlay now —
   // 'variable' mode's self-hosted background (getBackgroundTileUrl) already
@@ -997,7 +999,7 @@ export function SpeciesOccurrenceMap({
       memoAutoAdaptApplicable,
       memoAutoAdaptEnabled,
       initialStandardTheme.current,
-      standardThemeAltTileUrl,
+      standardThemes,
     );
   }, [
     allowPinObservations,
@@ -1046,7 +1048,7 @@ export function SpeciesOccurrenceMap({
     enableAutoAdaptToggle,
     memoAutoAdaptApplicable,
     memoAutoAdaptEnabled,
-    standardThemeAltTileUrl,
+    standardThemes,
   ]);
 
   React.useEffect(() => {
@@ -1464,7 +1466,7 @@ export function SpeciesOccurrenceMap({
         // Same live-locally / persist-via-postMessage split as
         // TOGGLE_BASEMAP_MODE_MESSAGE_TYPE above.
         settings?.setStandardBasemapTheme(
-          (data as { theme: 'default' | 'voyager' }).theme,
+          (data as { theme: 'default' | 'versatiles' }).theme,
         );
         return;
       }

@@ -88,15 +88,20 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // pattern as TERRAIN_ENABLED_INITIAL.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
     // The 'standard' basemap mode's own look — 'default' (CARTO
-    // Positron/Dark Matter, light/dark-aware) or 'voyager' (CARTO's
+    // Positron/Dark Matter, light/dark-aware) or 'versatiles' (CARTO's
     // colorful single-look style). Same persisted-preference read-once
     // pattern as BASEMAP_MODE_INITIAL above.
     const STANDARD_THEME_INITIAL = __STANDARD_THEME_INITIAL_JSON__;
-    // Voyager's tile URL, fetched up front like SATELLITE_TILE_URL so
-    // the theme toggle below can swap to it client-side with no round
-    // trip. Null on pages without the 3-way basemap toggle at all (see
-    // standardThemeAltTileUrl's gating in SpeciesOccurrenceMap.tsx).
-    const STANDARD_THEME_ALT_TILE_URL = __STANDARD_THEME_ALT_TILE_URL_JSON__;
+    // Every registered standard theme's { id, url } pair, already resolved
+    // for the current light/dark mode (see getStandardThemeCycle in
+    // speciesOccurrenceMapHelpers.ts) and fetched up front like
+    // SATELLITE_TILE_URL, so the toggle below can cycle through all of them
+    // client-side with no round trip. An array (not a single "alt" URL) so
+    // this is a genuine N-way cycle, not a hardcoded 2-way one — adding a
+    // theme is a backend/helpers.ts change, never a template change. Null
+    // on pages without the 3-way basemap toggle at all (see standardThemes'
+    // gating in SpeciesOccurrenceMap.tsx).
+    const STANDARD_THEMES = __STANDARD_THEMES_JSON__;
     // Tracks whatever the currently-selected GIS variable's tile URL is —
     // starts at HEATMAP_TILE_URL but updates live via applyPendingHeatmapUpdate
     // below, so 'variable' basemap mode always reflects the live selection
@@ -110,18 +115,27 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // the labels overlay — see the labels-layer visibility logic below),
     // plus the heatmap overlay on top; 'standard' is the plain full-detail
     // tile.
-    // Which of 'standard' mode's own looks is active — declared up front
-    // (like currentHeatmapTileUrl above) since tileUrlForBasemapMode needs
-    // it for the very first tile request, before the theme toggle control
-    // below (which only exists when STANDARD_THEME_ALT_TILE_URL is set)
-    // ever runs.
-    var currentStandardTheme = (STANDARD_THEME_INITIAL === 'voyager' && STANDARD_THEME_ALT_TILE_URL)
-      ? 'voyager'
-      : 'default';
+    // Which of STANDARD_THEMES is active — declared up front (like
+    // currentHeatmapTileUrl above) since tileUrlForBasemapMode needs it for
+    // the very first tile request, before the theme toggle control below
+    // (which only exists when STANDARD_THEMES is set) ever runs.
+    var currentStandardTheme = STANDARD_THEME_INITIAL;
+    // Looks currentStandardTheme's URL up in STANDARD_THEMES by id rather
+    // than a hardcoded default-vs-alt branch — works for any number of
+    // registered themes. Falls back to TILE_URL (the 'default' theme's own
+    // URL, always present even on pages without the toggle at all) if the
+    // list is missing or the id isn't found in it.
+    function standardThemeUrl(theme) {
+      if (!STANDARD_THEMES) return null;
+      for (var i = 0; i < STANDARD_THEMES.length; i++) {
+        if (STANDARD_THEMES[i].id === theme) return STANDARD_THEMES[i].url;
+      }
+      return null;
+    }
     function tileUrlForBasemapMode(mode) {
       if (mode === 'satellite' && SATELLITE_TILE_URL) return SATELLITE_TILE_URL;
       if (mode === 'variable' && VARIABLE_MODE_BACKGROUND_TILE_URL) return VARIABLE_MODE_BACKGROUND_TILE_URL;
-      return (currentStandardTheme === 'voyager' && STANDARD_THEME_ALT_TILE_URL) ? STANDARD_THEME_ALT_TILE_URL : TILE_URL;
+      return standardThemeUrl(currentStandardTheme) || TILE_URL;
     }
     // Whatever region(s) were already drawn/uploaded when this map was
     // (re)built — e.g. switching here from Leaflet after drawing a region
@@ -1237,7 +1251,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           map.setLayoutProperty('labels-layer', 'visibility', mode === 'satellite' ? 'visible' : 'none');
         }
         // The standard-theme toggle button (defined below, only when
-        // STANDARD_THEME_ALT_TILE_URL exists) only makes sense in
+        // STANDARD_THEMES has more than one entry) only makes sense in
         // 'standard' mode — satellite/variable each have exactly one look.
         // Guarded with typeof since applyBasemapMode's first call runs
         // before that control is built.
@@ -1273,24 +1287,28 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         onRemove: function() {},
       });
 
-      // Cycles the 'standard' mode's own look (currently default <->
-      // voyager) — a second, independent axis from the 3-way mode toggle
-      // above. Only built at all when STANDARD_THEME_ALT_TILE_URL exists
-      // (mirrors SATELLITE_TILE_URL's gating on the outer if), and only
-      // ever visible while currentBasemapMode === 'standard' (see
-      // updateStandardThemeVisibility, called from applyBasemapMode above).
-      if (STANDARD_THEME_ALT_TILE_URL) {
+      // Cycles the 'standard' mode's own look, N-way over STANDARD_THEMES
+      // (currently 2: default/versatiles, but nothing here assumes that) —
+      // a second, independent axis from the 3-way mode toggle above. Only
+      // built at all when STANDARD_THEMES has more than one entry (nothing
+      // to cycle to otherwise) — mirrors SATELLITE_TILE_URL's gating on the
+      // outer if — and only ever visible while currentBasemapMode ===
+      // 'standard' (see updateStandardThemeVisibility, called from
+      // applyBasemapMode above).
+      if (STANDARD_THEMES && STANDARD_THEMES.length > 1) {
         var STANDARD_THEME_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5c-3.6 0-6.5 2.6-6.5 5.8 0 2 1.4 3.2 3 3.2h.6c.5 0 .9.4.9.9 0 .3-.1.5-.3.7-.3.3-.5.7-.5 1.1 0 .9.8 1.3 1.5 1.3 3.9 0 7.3-3 7.3-6.7 0-3.5-2.9-6.3-6-6.3z"/><circle cx="5" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="8" cy="4.7" r="0.9" fill="currentColor" stroke="none"/><circle cx="11" cy="6.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="6.5" cy="9" r="0.9" fill="currentColor" stroke="none"/></svg>';
-        var STANDARD_THEME_TITLES = {
-          default: 'Switch to Voyager theme',
-          voyager: 'Switch to default theme',
-        };
         var standardThemeContainer = null;
         var updateStandardThemeVisibility = function() {
           if (standardThemeContainer) { standardThemeContainer.style.display = currentBasemapMode === 'standard' ? '' : 'none'; }
         };
+        // Index-based cycle over STANDARD_THEMES rather than a hardcoded
+        // 2-way ternary — works for any list length.
         var nextStandardTheme = function(theme) {
-          return theme === 'voyager' ? 'default' : 'voyager';
+          var i = -1;
+          for (var j = 0; j < STANDARD_THEMES.length; j++) {
+            if (STANDARD_THEMES[j].id === theme) { i = j; break; }
+          }
+          return STANDARD_THEMES[(i + 1) % STANDARD_THEMES.length].id;
         };
         map.addControl({
           onAdd: function() {
@@ -1301,8 +1319,8 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             btn.type = 'button';
             btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
             var updateButton = function() {
-              btn.title = STANDARD_THEME_TITLES[currentStandardTheme] || STANDARD_THEME_TITLES.default;
-              btn.style.color = currentStandardTheme === 'voyager' ? palette.linkColor : '';
+              btn.title = 'Basemap theme: ' + currentStandardTheme + ' (tap to switch)';
+              btn.style.color = currentStandardTheme === STANDARD_THEMES[0].id ? '' : palette.linkColor;
             };
             btn.innerHTML = STANDARD_THEME_ICON;
             updateButton();

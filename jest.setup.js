@@ -90,10 +90,16 @@ jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: mockUseColorScheme,
 }));
 
-// Mock useSettings from SettingsContext for test environment
+// Mock useSettings from SettingsContext for test environment. Spreads the
+// real module through first (...actual) rather than hand-listing every
+// export — otherwise any export added later (e.g. STANDARD_BASEMAP_THEMES,
+// isBasemapMode) silently becomes undefined for every test using this
+// global mock instead of failing loudly at the point it's actually wrong.
 jest.mock('@/context/SettingsContext', () => {
   const React = require('react');
+  const actual = jest.requireActual('@/context/SettingsContext');
   return {
+    ...actual,
     useSettings: jest.fn(() => ({
       units: 'metric',
       colorModeOverride: 'system',
@@ -104,6 +110,8 @@ jest.mock('@/context/SettingsContext', () => {
       markerOutlineEnabled: false,
       globeViewEnabled: false,
       setGlobeViewEnabled: jest.fn(),
+      basemapMode: 'standard',
+      standardBasemapTheme: 'default',
     })),
     // Mirrors runtime fallback behavior for suites rendering components outside
     // SettingsProvider (for example isolated/unit-level tests).
@@ -117,6 +125,8 @@ jest.mock('@/context/SettingsContext', () => {
       markerOutlineEnabled: false,
       globeViewEnabled: false,
       setGlobeViewEnabled: jest.fn(),
+      basemapMode: 'standard',
+      standardBasemapTheme: 'default',
     })),
     /**
      * @param {{ children: React.ReactNode }} props
