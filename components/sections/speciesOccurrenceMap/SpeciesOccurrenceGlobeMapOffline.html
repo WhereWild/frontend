@@ -463,7 +463,8 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             .setHTML('<span style="opacity:0.6;font-size:11px">Loading…</span>')
             .addTo(map);
           lastBackgroundPopup = selectedPointPopup;
-          fetchBackgroundPointPopup(selectedPointPopup, point.latitude, point.longitude);
+          fetchBackgroundPointPopup(selectedPointPopup, point.latitude, point.longitude, point.catalogNumber);
+          attachPopupUnpinOnClose(selectedPointPopup, point.catalogNumber, point.latitude, point.longitude);
         }
         return;
       }
@@ -491,6 +492,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         .setLngLat([point.longitude, point.latitude])
         .setHTML(html || '&nbsp;')
         .addTo(map);
+      attachPopupUnpinOnClose(selectedPointPopup, point.catalogNumber, point.latitude, point.longitude);
     }
 
     function buildOccurrenceFeatureCollection(pointList) {
@@ -1836,6 +1838,32 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       }
     }
 
+    // Every popup this map ever opens for a point (observation marker,
+    // background click, or a restored ?highlightObservation= pin) is opened
+    // alongside a sendPinMessage call for that same catalogNumber — clicking
+    // the popup's own 'x' should undo that, not just dismiss the bubble.
+    // sendPinMessage's parent-side handler toggles the pin off when it
+    // receives the SAME catalogNumber that's already pinned, so re-sending
+    // it here is enough — no separate "unpin" message type needed. See
+    // SpeciesOccurrenceMap.html's identical helper (Leaflet's close-button
+    // class differs from MapLibre's, otherwise the same approach).
+    function attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude) {
+      if (!popup || !catalogNumber) return;
+      var el = typeof popup.getElement === 'function' ? popup.getElement() : null;
+      var closeBtn = el && el.querySelector('.maplibregl-popup-close-button');
+      // Callers re-invoke this after every setHTML/setDOMContent (see
+      // fetchBackgroundPointPopup) since MapLibre replaces the whole popup
+      // DOM — including the close button — on each re-render, orphaning any
+      // previously-attached listener. Guard against double-attaching to the
+      // SAME button in case some path doesn't actually replace it, which
+      // would otherwise stack N listeners and fire the toggle N times.
+      if (!closeBtn || closeBtn._unpinHandlerAttached) return;
+      closeBtn._unpinHandlerAttached = true;
+      closeBtn.addEventListener('click', function() {
+        sendPinMessage(catalogNumber, latitude, longitude);
+      }, { once: true });
+    }
+
     map.on('load', function() {
       mapReady = true;
       if (typeof map.setProjection === 'function') {
@@ -2199,7 +2227,18 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           if (props.catalogLabel) {
             html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
           }
-          new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
+          // Tracked into selectedPointPopup (not a local var) so the
+          // sendPinMessage round-trip above — which lands back here shortly
+          // as an applySelectedPoint(point) call for this same observation
+          // — finds and removes THIS popup via clearSelectedPoint() before
+          // opening its own, instead of leaving both stacked on top of each
+          // other (clicking the close button then only dismissed whichever
+          // one was on top, leaving the other looking like the popup
+          // "didn't go away").
+          selectedPointPopup = new maplibregl.Popup({ closeButton: true }).setLngLat(lngLat).setHTML(html || '&nbsp;').addTo(map);
+          if (ALLOW_PIN_OBSERVATIONS && props.catalog) {
+            attachPopupUnpinOnClose(selectedPointPopup, props.catalog, lngLat[1], lngLat[0]);
+          }
         }
 
         OCCURRENCE_LAYER_IDS.forEach(function(layerId) {
@@ -2244,13 +2283,23 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // map.on('click') below so refreshBackgroundPointPopup can re-run the
     // exact same rendering after a variable switch, instead of duplicating
     // this logic.
-    function fetchBackgroundPointPopup(popup, latitude, longitude) {
+    function fetchBackgroundPointPopup(popup, latitude, longitude, catalogNumber) {
+      // setHTML() replaces the popup's DOM content wholesale — unlike
+      // Leaflet's setContent (which only touches the inner content div),
+      // MapLibre's re-render also throws away and rebuilds the close button
+      // element. attachPopupUnpinOnClose's listener was bound to the OLD
+      // (now-detached) button, so it stops firing the moment this resolves
+      // — silently orphaning the "click x to unpin" handler on every
+      // background pin, since this always runs at least once (replacing
+      // the initial "Loading…" placeholder). Re-attach after every setHTML
+      // call below so the CURRENT button always has a live listener.
       fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
         .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
         .then(function(data) {
           if (!popup.isOpen()) return;
           if (data.value == null) {
             popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
+            attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude);
             return;
           }
           var numVal = Number(data.value);
@@ -2267,10 +2316,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             } else {
               popup.setHTML(formatPointValueHtml(numVal, data.units || VAR_UNITS));
             }
+            attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude);
           }
         })
         .catch(function() {
-          if (popup.isOpen()) popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
+          if (popup.isOpen()) {
+            popup.setHTML('<span style="opacity:0.6;font-size:11px">Offline</span>');
+            attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude);
+          }
         });
     }
 
@@ -2285,7 +2338,12 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       if (!lastBackgroundPopup || !lastBackgroundPopup.isOpen() || !POINT_QUERY_URL) return;
       var lngLat = lastBackgroundPopup.getLngLat();
       if (!lngLat) return;
-      fetchBackgroundPointPopup(lastBackgroundPopup, lngLat.lat, lngLat.lng);
+      fetchBackgroundPointPopup(
+        lastBackgroundPopup,
+        lngLat.lat,
+        lngLat.lng,
+        lastAppliedSelectedPoint ? lastAppliedSelectedPoint.catalogNumber : null,
+      );
     }
 
     map.on('click', function(event) {
@@ -2319,15 +2377,26 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       }
 
       if (POINT_QUERY_URL) {
+        var syntheticPointId = 'point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6);
         if (ALLOW_PIN_OBSERVATIONS) {
-          sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+          sendPinMessage(syntheticPointId, latitude, longitude);
         }
-        var popup = new maplibregl.Popup({ closeButton: true })
+        // Tracked into selectedPointPopup too (not just lastBackgroundPopup)
+        // so the sendPinMessage round-trip above — which lands back here
+        // shortly as an applySelectedPoint(point) call for this same point
+        // — finds and removes THIS popup via clearSelectedPoint() before
+        // opening its own, instead of leaving both stacked on top of each
+        // other (see the observation-marker click handler's identical fix
+        // above).
+        selectedPointPopup = new maplibregl.Popup({ closeButton: true })
           .setLngLat(event.lngLat)
           .setHTML('<span style="opacity:0.6;font-size:11px">Loading…</span>')
           .addTo(map);
-        lastBackgroundPopup = popup;
-        fetchBackgroundPointPopup(popup, latitude, longitude);
+        lastBackgroundPopup = selectedPointPopup;
+        fetchBackgroundPointPopup(selectedPointPopup, latitude, longitude, syntheticPointId);
+        if (ALLOW_PIN_OBSERVATIONS) {
+          attachPopupUnpinOnClose(selectedPointPopup, syntheticPointId, latitude, longitude);
+        }
         return;
       }
 
