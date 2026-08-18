@@ -4,7 +4,10 @@
 
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
 import { createSpeciesDataSource } from '@/data/speciesDataSource';
-import type { OccurrenceTileResult } from '@/data/apiEnvironmentHelpers';
+import type {
+  OccurrenceTileResult,
+  TileFilterOptions,
+} from '@/data/apiEnvironmentHelpers';
 import type { SpeciesOccurrence } from '@/data/types';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import React from 'react';
@@ -48,11 +51,13 @@ const tileResult = (
 
 describe('useSpeciesOccurrenceTiles', () => {
   it('fetches and merges every tile in the visible range, deduping by catalogNumber', async () => {
-    const mockFetchTile = jest.fn(async (_taxonId, _z, x: number, y: number) => {
-      if (x === 0 && y === 0) return tileResult([point(1, 10)]);
-      if (x === 1 && y === 0) return tileResult([point(1, 10), point(2, 20)]);
-      return emptyTileResult();
-    });
+    const mockFetchTile = jest.fn(
+      async (_taxonId, _z, x: number, y: number) => {
+        if (x === 0 && y === 0) return tileResult([point(1, 10)]);
+        if (x === 1 && y === 0) return tileResult([point(1, 10), point(2, 20)]);
+        return emptyTileResult();
+      },
+    );
     const dataSource = createSpeciesDataSource({
       fetchSpeciesOccurrenceTile: mockFetchTile,
     });
@@ -93,10 +98,20 @@ describe('useSpeciesOccurrenceTiles', () => {
     };
     expect(mockFetchTile).toHaveBeenCalledTimes(2);
     expect(mockFetchTile).toHaveBeenCalledWith(
-      '12', 3, 0, 0, emptyFilters, expect.any(AbortSignal),
+      '12',
+      3,
+      0,
+      0,
+      emptyFilters,
+      expect.any(AbortSignal),
     );
     expect(mockFetchTile).toHaveBeenCalledWith(
-      '12', 3, 1, 0, emptyFilters, expect.any(AbortSignal),
+      '12',
+      3,
+      1,
+      0,
+      emptyFilters,
+      expect.any(AbortSignal),
     );
     expect(result.current.occurrences).toHaveLength(2);
     expect(result.current.error).toBeNull();
@@ -133,7 +148,10 @@ describe('useSpeciesOccurrenceTiles', () => {
     });
 
     expect(mockFetchTile).toHaveBeenCalledWith(
-      '12', 3, 0, 0,
+      '12',
+      3,
+      0,
+      0,
       {
         location: 'state-ut',
         phenology: 'flowers',
@@ -208,9 +226,9 @@ describe('useSpeciesOccurrenceTiles', () => {
     rerender({ tileRange: secondTileRange });
 
     await waitFor(() => {
-      expect(result.current.occurrences.some((o) => o.catalogNumber === 3)).toBe(
-        true,
-      );
+      expect(
+        result.current.occurrences.some((o) => o.catalogNumber === 3),
+      ).toBe(true);
     });
 
     // Scale expanded-only: still 10-20, not narrowed to 12-15.
@@ -219,6 +237,65 @@ describe('useSpeciesOccurrenceTiles', () => {
     // Point 1's value from the first fetch is still remembered.
     expect(result.current.observationValues?.get('1')).toBe(10);
     expect(result.current.observationValues?.get('3')).toBe(15);
+  });
+
+  it('does not reopen the loading overlay for a variable-only change once data is already on screen', async () => {
+    const mockFetchTile = jest.fn(
+      async (
+        _taxonId: string | number,
+        _z: number,
+        _x: number,
+        _y: number,
+        filterOptions?: TileFilterOptions,
+      ) =>
+        tileResult([point(1, 10)], {
+          values: new Map([
+            ['1', filterOptions?.variableId === 'bio2' ? 99 : 10],
+          ]),
+        }),
+    );
+    const dataSource = createSpeciesDataSource({
+      fetchSpeciesOccurrenceTile: mockFetchTile,
+    });
+
+    const loadingStates: boolean[] = [];
+    const { result, rerender } = renderHook(
+      ({ variableId }: { variableId: string }) => {
+        const hookResult = useSpeciesOccurrenceTiles({
+          taxonId: '12',
+          enabled: true,
+          tileRange: SINGLE_TILE_RANGE,
+          variableId,
+        });
+        loadingStates.push(hookResult.loading);
+        return hookResult;
+      },
+      {
+        initialProps: { variableId: 'bio1' },
+        wrapper: ({ children }) => (
+          <SpeciesDataSourceProvider value={dataSource}>
+            {children}
+          </SpeciesDataSourceProvider>
+        ),
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.observationValues?.get('1')).toBe(10);
+    });
+    expect(result.current.loading).toBe(false);
+
+    // Only the states from here on (after the variable switch) matter —
+    // the initial fetch legitimately shows loading=true first.
+    loadingStates.length = 0;
+
+    rerender({ variableId: 'bio2' });
+
+    await waitFor(() => {
+      expect(result.current.observationValues?.get('1')).toBe(99);
+    });
+
+    expect(loadingStates).not.toContain(true);
   });
 
   it('aborts a superseded batch instead of letting it run to completion', async () => {

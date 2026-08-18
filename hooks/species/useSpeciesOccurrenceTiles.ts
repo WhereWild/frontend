@@ -89,8 +89,10 @@ export const useSpeciesOccurrenceTiles = ({
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [observationValues, setObservationValues] =
-    React.useState<Map<string, number> | null>(null);
+  const [observationValues, setObservationValues] = React.useState<Map<
+    string,
+    number
+  > | null>(null);
   const [dotMin, setDotMin] = React.useState<number | null>(null);
   const [dotMax, setDotMax] = React.useState<number | null>(null);
   const [labelMin, setLabelMin] = React.useState<number | null>(null);
@@ -108,12 +110,26 @@ export const useSpeciesOccurrenceTiles = ({
   // observationValues'/dotMin's doc comments above for why these persist
   // across fetches instead of resetting with each new tile batch.
   const cumulativeValuesRef = React.useRef<Map<string, number>>(new Map());
-  const cumulativeDotRangeRef = React.useRef<{ min: number; max: number } | null>(
-    null,
-  );
-  const cumulativeLabelRangeRef = React.useRef<{ min: number; max: number } | null>(
-    null,
-  );
+  const cumulativeDotRangeRef = React.useRef<{
+    min: number;
+    max: number;
+  } | null>(null);
+  const cumulativeLabelRangeRef = React.useRef<{
+    min: number;
+    max: number;
+  } | null>(null);
+  // Identifies the point SET (which occurrences are on screen), deliberately
+  // excluding variableId/unitSystem: the backend fetches the exact same rows
+  // regardless of variable (see main.py:_get_species_occurrences_viewport —
+  // it annotates a `value` onto each row afterward, it doesn't filter rows
+  // by variable), and that value is extracted into observationValues, never
+  // baked into the occurrence objects themselves (see
+  // extractOccurrenceValues/parseOccurrenceRows). So a variable-only change
+  // still triggers a real refetch (to get the new values), but must NOT
+  // replace the occurrences array reference — doing so would make
+  // SpeciesOccurrenceMap think the point set itself changed, forcing a full
+  // marker teardown/rebuild for what should just be a recolor.
+  const lastGeometryKeyRef = React.useRef<string | null>(null);
 
   // The map reports its bounds as a fresh object on every moveend/zoomend,
   // even when the visible tile range didn't actually change (e.g. a
@@ -131,14 +147,28 @@ export const useSpeciesOccurrenceTiles = ({
     };
   }, []);
 
-  // A different taxon or variable (or the hook going from disabled to
-  // enabled) is a fresh session — reset every cumulative signal instead of
-  // silently carrying it over from whatever was displayed before.
+  // A different taxon (or the hook going from disabled to enabled) means
+  // there's nothing on screen yet for it — that's the one case the
+  // full-screen loading overlay should reappear for. A variable change
+  // alone must NOT reset this: the map already has points on screen, and
+  // switching variables should just recolor them once the new values land,
+  // not blank the whole map out again (see hasLoadedOnceRef's doc comment
+  // above).
+  const taxonSessionKey = taxonId ?? '';
+  const lastTaxonSessionKeyRef = React.useRef<string>(taxonSessionKey);
+  if (taxonSessionKey !== lastTaxonSessionKeyRef.current) {
+    lastTaxonSessionKeyRef.current = taxonSessionKey;
+    hasLoadedOnceRef.current = false;
+  }
+
+  // A different taxon or variable is a fresh session for the cumulative,
+  // expanding-only color-scale signals specifically — those are inherently
+  // per-variable and must reset instead of silently carrying over whatever
+  // the previous variable's scale was.
   const sessionKey = `${taxonId ?? ''}:${variableId ?? ''}`;
   const lastSessionKeyRef = React.useRef<string>(sessionKey);
   if (sessionKey !== lastSessionKeyRef.current) {
     lastSessionKeyRef.current = sessionKey;
-    hasLoadedOnceRef.current = false;
     cumulativeValuesRef.current = new Map();
     cumulativeDotRangeRef.current = null;
     cumulativeLabelRangeRef.current = null;
@@ -149,6 +179,7 @@ export const useSpeciesOccurrenceTiles = ({
 
     if (!taxonId || !enabled || !tileRange || !fetchTile) {
       requestRef.current += 1;
+      lastGeometryKeyRef.current = null;
       setOccurrences([]);
       setError(null);
       setLoading(false);
@@ -216,7 +247,14 @@ export const useSpeciesOccurrenceTiles = ({
         const fetchStart = performance.now();
         const results = await Promise.all(
           coords.map(([x, y]) =>
-            resolvedFetchTile(resolvedTaxonId, z, x, y, filterOptions, abortController.signal),
+            resolvedFetchTile(
+              resolvedTaxonId,
+              z,
+              x,
+              y,
+              filterOptions,
+              abortController.signal,
+            ),
           ),
         );
         const fetchMs = performance.now() - fetchStart;
@@ -246,10 +284,21 @@ export const useSpeciesOccurrenceTiles = ({
             ref.current =
               ref.current == null
                 ? { min: lo, max: hi }
-                : { min: Math.min(ref.current.min, lo), max: Math.max(ref.current.max, hi) };
+                : {
+                    min: Math.min(ref.current.min, lo),
+                    max: Math.max(ref.current.max, hi),
+                  };
           };
-          expandRange(cumulativeDotRangeRef, result.variableQ01, result.variableQ99);
-          expandRange(cumulativeLabelRangeRef, result.variableMin, result.variableMax);
+          expandRange(
+            cumulativeDotRangeRef,
+            result.variableQ01,
+            result.variableQ99,
+          );
+          expandRange(
+            cumulativeLabelRangeRef,
+            result.variableMin,
+            result.variableMax,
+          );
         }
         const mergeMs = performance.now() - mergeStart;
         // TEMPORARY diagnostic — remove once the perf issue is resolved.
@@ -265,7 +314,11 @@ export const useSpeciesOccurrenceTiles = ({
           fetchMs: Math.round(fetchMs),
           mergeMs: Math.round(mergeMs),
         });
-        setOccurrences(merged);
+        const geometryKey = `${resolvedTaxonId}:${tileRangeKey}:${locationGid ?? ''}:${phenology ?? ''}:${startTimestamp ?? ''}:${endTimestamp ?? ''}`;
+        if (geometryKey !== lastGeometryKeyRef.current) {
+          lastGeometryKeyRef.current = geometryKey;
+          setOccurrences(merged);
+        }
         if (variableId) {
           setObservationValues(new Map(cumulativeValuesRef.current));
           setDotMin(cumulativeDotRangeRef.current?.min ?? null);
@@ -292,6 +345,7 @@ export const useSpeciesOccurrenceTiles = ({
               ? requestError.message
               : 'Failed to load observations.';
           setError(message);
+          lastGeometryKeyRef.current = null;
           setOccurrences([]);
         }
       } finally {

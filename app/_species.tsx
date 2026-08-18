@@ -1507,8 +1507,8 @@ export default function Species({
       classShapes,
       circularShapesEnabled,
       isCircular,
-      dotMin: obsDotMin,
-      dotMax: obsDotMax,
+      dotMin: effectiveDotMin,
+      dotMax: effectiveDotMax,
       gradientStops:
         selectedVariableMeta && !isCategorical && !isCircular
           ? COLORMAPS[selectedColormap].stops
@@ -1541,6 +1541,12 @@ export default function Species({
           license: occ?.mediaLicense,
           licenseUrl: occ?.mediaLicenseUrl,
           attribution: occ?.mediaAttribution,
+          // occ.taxonId/scientificName are only ever set for a large-taxon
+          // tile fetch (see SpeciesOccurrence's doc comment) — for a
+          // species/infraspecific page, every occurrence trivially IS this
+          // page's own taxon, so fall back to that.
+          taxonId: occ?.taxonId ?? taxonId,
+          scientificName: occ?.scientificName ?? scientificName,
         };
       });
   }, [
@@ -1548,14 +1554,16 @@ export default function Species({
     galleryPage,
     galleryPageSize,
     occurrenceByCatalog,
+    taxonId,
+    scientificName,
     selectedVariableMeta,
     observationValues,
     classColors,
     classLabels,
     classShapes,
     circularShapesEnabled,
-    obsDotMin,
-    obsDotMax,
+    effectiveDotMin,
+    effectiveDotMax,
     selectedColormap,
     selectedCircularColormap,
   ]);

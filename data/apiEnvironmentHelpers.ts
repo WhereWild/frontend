@@ -254,6 +254,15 @@ function parseOccurrenceRows(rows: unknown[]): SpeciesOccurrence[] {
           typeof source.media_license_url === 'string'
             ? source.media_license_url
             : null,
+        // Only present on tile-route rows for a taxon above species/
+        // infraspecific rank — see SpeciesOccurrence.taxonId's doc comment.
+        taxonId: typeof source.taxon_id === 'string' ? source.taxon_id : null,
+        scientificName:
+          typeof source.scientific_name === 'string'
+            ? source.scientific_name
+            : null,
+        commonName:
+          typeof source.common_name === 'string' ? source.common_name : null,
       };
     })
     .filter(
@@ -267,6 +276,9 @@ function parseOccurrenceRows(rows: unknown[]): SpeciesOccurrence[] {
         mediaAttribution: string | null;
         mediaLicense: string | null;
         mediaLicenseUrl: string | null;
+        taxonId: string | null;
+        scientificName: string | null;
+        commonName: string | null;
       } =>
         typeof entry.latitude === 'number' &&
         typeof entry.longitude === 'number',
@@ -279,6 +291,9 @@ function parseOccurrenceRows(rows: unknown[]): SpeciesOccurrence[] {
       mediaAttribution: entry.mediaAttribution,
       mediaLicense: entry.mediaLicense,
       mediaLicenseUrl: entry.mediaLicenseUrl,
+      taxonId: entry.taxonId,
+      scientificName: entry.scientificName,
+      commonName: entry.commonName,
     }));
 }
 
@@ -354,7 +369,11 @@ function extractOccurrenceValues(rows: unknown[]): Map<string, number> {
   for (const row of rows) {
     const source = asRecord(row);
     const catalogNumber =
-      source.catalogNumber ?? source.catalog_number ?? source.id ?? source.catalog ?? null;
+      source.catalogNumber ??
+      source.catalog_number ??
+      source.id ??
+      source.catalog ??
+      null;
     const value = toFiniteNumber(source.value);
     if (catalogNumber != null && value != null) {
       values.set(String(catalogNumber), value);
@@ -404,7 +423,11 @@ export async function fetchSpeciesOccurrenceTile(
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences/${z}/${x}/${y}${query ? `?${query}` : ''}`;
   const payload = asRecord(
-    await fetchJsonOrThrow(url, `Failed to fetch occurrence tile for ${taxonId}`, signal ? { signal } : undefined),
+    await fetchJsonOrThrow(
+      url,
+      `Failed to fetch occurrence tile for ${taxonId}`,
+      signal ? { signal } : undefined,
+    ),
   );
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
   return {

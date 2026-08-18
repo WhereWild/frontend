@@ -6,11 +6,11 @@
 // half of each (zoom, cell_size_meters) tuple) in the backend repo — these
 // are the only zoom values a minZoom<Level> column ever takes. A raw zoom
 // strictly between two of these produces the exact same "which points are
-// visible" answer as the band below it (minZoomKingdom <= 5 and <= 6 are
-// identical to <= 4, since nothing has minZoom 5 or 6), so there is no
+// visible" answer as the band below it (minZoomKingdom <= 3 and <= 4 are
+// identical to <= 2, since nothing has minZoom 3 or 4), so there is no
 // reason to fetch new occurrence tiles for a raw zoom change that stays
 // within one band — see bandZoomForRawZoom.
-export const OCCURRENCE_BAND_ZOOMS: readonly number[] = [0, 4, 7, 10, 13, 15];
+export const OCCURRENCE_BAND_ZOOMS: readonly number[] = [0, 2, 5, 8, 11, 13];
 
 /**
  * The band zoom that governs which occurrence points are visible at
@@ -30,7 +30,11 @@ export function bandZoomForRawZoom(rawZoom: number): number {
 
 /** Standard slippy-map lon/lat -> tile x/y at zoom z, clamped to the valid
  * [0, 2^z) range for that zoom (matches main.py's tile validation). */
-export function deg2tile(lat: number, lon: number, z: number): { x: number; y: number } {
+export function deg2tile(
+  lat: number,
+  lon: number,
+  z: number,
+): { x: number; y: number } {
   const n = 2 ** z;
   const x = Math.floor(((lon + 180) / 360) * n);
   const latRad = (lat * Math.PI) / 180;

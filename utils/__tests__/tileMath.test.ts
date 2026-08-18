@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { bandZoomForRawZoom, deg2tile, OCCURRENCE_BAND_ZOOMS } from '../tileMath';
+import {
+  bandZoomForRawZoom,
+  deg2tile,
+  OCCURRENCE_BAND_ZOOMS,
+} from '../tileMath';
 
 describe('bandZoomForRawZoom', () => {
   it('returns the exact band for a raw zoom that is itself a band boundary', () => {
@@ -13,17 +17,19 @@ describe('bandZoomForRawZoom', () => {
 
   it('snaps a raw zoom between two bands down to the lower one', () => {
     expect(bandZoomForRawZoom(1)).toBe(0);
-    expect(bandZoomForRawZoom(3)).toBe(0);
-    expect(bandZoomForRawZoom(5)).toBe(4);
-    expect(bandZoomForRawZoom(6)).toBe(4);
-    expect(bandZoomForRawZoom(9)).toBe(7);
-    expect(bandZoomForRawZoom(12)).toBe(10);
+    expect(bandZoomForRawZoom(3)).toBe(2);
+    expect(bandZoomForRawZoom(4)).toBe(2);
+    expect(bandZoomForRawZoom(6)).toBe(5);
+    expect(bandZoomForRawZoom(7)).toBe(5);
+    expect(bandZoomForRawZoom(9)).toBe(8);
+    expect(bandZoomForRawZoom(10)).toBe(8);
+    expect(bandZoomForRawZoom(12)).toBe(11);
   });
 
   it('clamps a raw zoom past the finest band to the finest band', () => {
-    expect(bandZoomForRawZoom(15)).toBe(15);
-    expect(bandZoomForRawZoom(20)).toBe(15);
-    expect(bandZoomForRawZoom(24)).toBe(15);
+    expect(bandZoomForRawZoom(13)).toBe(13);
+    expect(bandZoomForRawZoom(20)).toBe(13);
+    expect(bandZoomForRawZoom(24)).toBe(13);
   });
 });
 
