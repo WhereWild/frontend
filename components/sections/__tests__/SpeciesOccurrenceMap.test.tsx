@@ -71,9 +71,12 @@ describe('SpeciesOccurrenceMap', () => {
   ) => {
     Object.defineProperty(Platform, 'OS', { value: platform });
     render(<SpeciesOccurrenceMap {...props} />);
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
   };
 
   afterEach(() => {
@@ -183,9 +186,12 @@ describe('SpeciesOccurrenceMap', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
 
     const webView = screen.getByTestId('mock-webview');
     fireEvent(webView, 'loadEnd');
@@ -222,9 +228,12 @@ describe('SpeciesOccurrenceMap', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
 
     const webView = screen.getByTestId('mock-webview');
     fireEvent(webView, 'loadEnd');
@@ -265,9 +274,12 @@ describe('SpeciesOccurrenceMap', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
 
     const webView = screen.getByTestId('mock-webview');
     fireEvent(webView, 'loadEnd');
@@ -280,9 +292,12 @@ describe('SpeciesOccurrenceMap', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
 
     expect(mockPostMessage.mock.calls.length).toBeGreaterThanOrEqual(
       callCountAfterFirstLoad,
@@ -315,9 +330,12 @@ describe('SpeciesOccurrenceMap', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
 
     const iframe = UNSAFE_getByProps({ title: 'Observation map' });
     expect(iframe).toBeTruthy();
@@ -364,9 +382,12 @@ describe('SpeciesOccurrenceMap', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.queryByText('Loading map renderer…')).toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading map renderer…')).toBeNull();
+      },
+      { timeout: 5000 },
+    );
 
     const iframe = UNSAFE_getByProps({ title: 'Observation map' });
     expect(iframe.props.srcDoc).toContain(

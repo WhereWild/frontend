@@ -167,7 +167,7 @@ export function MapCbModePicker({
     // Pressable shrinks to content but never exceeds this height, so it
     // can't grow into the map's top controls on a short viewport — instead
     // it starts (and can be toggled back to) a collapsed preview there.
-    <View style={styles.boundingBox} pointerEvents='box-none'>
+    <View style={[styles.boundingBox, { pointerEvents: 'box-none' }]}>
       <Pressable
         collapsable={false}
         style={[

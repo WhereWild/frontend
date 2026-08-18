@@ -295,7 +295,19 @@ function RootLayoutWebFrame() {
   const pathname = usePathname();
   const colorScheme = useColorScheme();
   const responsive = useResponsive();
-  const { height: viewportHeight } = useWindowDimensions();
+  // react-native-web's Dimensions module lazily measures the real window on
+  // its first read, which happens during this component's very first client
+  // render (i.e. mid-hydration) — before any effect has run. That means the
+  // client's first render already sees a nonzero height while the static
+  // SSR output baked in 0, so trust it only once mounted (same pattern as
+  // useColorScheme.web.ts) to keep the first client render matching the
+  // server-rendered markup.
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  const { height: rawViewportHeight } = useWindowDimensions();
+  const viewportHeight = hasMounted ? rawViewportHeight : 0;
   const { config } = useWebPageHeaderConfig();
   const { webHeaderHeight, setWebHeaderHeight } = useLayoutChrome();
   const resolvedConfig = resolveHeaderConfigForRoute(pathname, config);

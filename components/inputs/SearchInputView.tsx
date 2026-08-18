@@ -134,10 +134,10 @@ export function SearchInputView({
         collapsable={false}
         accessibilityElementsHidden={!clearButton}
         importantForAccessibility={clearButton ? 'auto' : 'no-hide-descendants'}
-        pointerEvents={clearButton ? 'auto' : 'none'}
         style={[
           styles.clearButtonSlot,
           !clearButton ? styles.clearButtonSlotHidden : undefined,
+          { pointerEvents: clearButton ? 'auto' : 'none' },
         ]}
       >
         <IconButton

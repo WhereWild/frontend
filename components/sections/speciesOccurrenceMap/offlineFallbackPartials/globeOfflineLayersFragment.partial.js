@@ -17,7 +17,8 @@
             layout: {
               visibility: 'visible',
               'text-field': ['get', 'name'],
-              'text-font': ['match', ['get', 'weight'], 'bold', ['literal', ['Open Sans Bold', 'Arial Unicode MS Bold']], ['literal', ['Open Sans Regular', 'Arial Unicode MS Regular']]],
+              // Only font actually hosted at the demotiles glyphs endpoint (see the glyphs: line above the sources).
+              'text-font': ['Noto Sans Regular'],
               'text-size': ['match', ['get', 'weight'], 'bold', 12, 10],
               'symbol-sort-key': ['get', 'z'],
               'text-allow-overlap': false,
