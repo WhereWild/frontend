@@ -73,6 +73,12 @@ describe('useSpeciesOccurrenceTiles', () => {
       },
     );
 
+    // Not `loading === false` — that's trivially true before the debounced
+    // fetch even runs (loading starts false and only flips once runFetch
+    // actually fires — see PAN_DEBOUNCE_MS). Wait on the real signal.
+    await waitFor(() => {
+      expect(mockFetchTile).toHaveBeenCalled();
+    });
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
@@ -119,7 +125,7 @@ describe('useSpeciesOccurrenceTiles', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(mockFetchTile).toHaveBeenCalled();
     });
 
     expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 0, 0, {
@@ -184,7 +190,7 @@ describe('useSpeciesOccurrenceTiles', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(mockFetchTile).toHaveBeenCalledTimes(1);
     });
     expect(result.current.dotMin).toBe(10);
     expect(result.current.dotMax).toBe(20);

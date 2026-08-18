@@ -14,6 +14,17 @@ import React from 'react';
 // report, not something real usage should ever hit.
 const MAX_TILES_PER_FETCH = 256;
 
+// A drag or a scroll-wheel zoom fires many intermediate moveend/zoomend
+// events in quick succession, each reporting a different tileRangeKey —
+// without debouncing, every single one kicks off its own batch of up to
+// dozens of tile fetches, all in flight at once, which is real, visible
+// jank during continuous panning/zooming (confirmed live: rapid
+// overlapping fetch batches during one gesture). Only the settled
+// tileRangeKey (the one still current after this delay) actually fetches.
+// Not applied to the very first fetch for a session — there's nothing on
+// screen yet, so there's no reason to delay showing something.
+const PAN_DEBOUNCE_MS = 200;
+
 type UseSpeciesOccurrenceTilesParams = {
   taxonId?: string;
   enabled: boolean;
@@ -133,10 +144,10 @@ export const useSpeciesOccurrenceTiles = ({
   }
 
   React.useEffect(() => {
-    const requestId = ++requestRef.current;
     const fetchTile = speciesDataSource.fetchSpeciesOccurrenceTile;
 
     if (!taxonId || !enabled || !tileRange || !fetchTile) {
+      requestRef.current += 1;
       setOccurrences([]);
       setError(null);
       setLoading(false);
@@ -148,35 +159,53 @@ export const useSpeciesOccurrenceTiles = ({
       return;
     }
 
-    const { z, x0, y0, x1, y1 } = tileRange;
-    const coords: [number, number][] = [];
-    for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x += 1) {
-      for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y += 1) {
-        coords.push([x, y]);
+    // Narrowed to non-nullable consts so they stay narrowed inside the
+    // nested runFetch closure below — TypeScript doesn't carry the outer
+    // guard's narrowing of a destructured param/prop across a function
+    // boundary.
+    const resolvedTaxonId = taxonId;
+    const resolvedTileRange = tileRange;
+    const resolvedFetchTile = fetchTile;
+
+    const delay = hasLoadedOnceRef.current ? PAN_DEBOUNCE_MS : 0;
+    const timeoutId = setTimeout(() => {
+      runFetch();
+    }, delay);
+    return () => clearTimeout(timeoutId);
+
+    async function runFetch() {
+      const requestId = ++requestRef.current;
+      const { z, x0, y0, x1, y1 } = resolvedTileRange;
+      const coords: [number, number][] = [];
+      for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x += 1) {
+        for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y += 1) {
+          coords.push([x, y]);
+          if (coords.length >= MAX_TILES_PER_FETCH) break;
+        }
         if (coords.length >= MAX_TILES_PER_FETCH) break;
       }
-      if (coords.length >= MAX_TILES_PER_FETCH) break;
-    }
 
-    setLoading(!hasLoadedOnceRef.current);
-    setError(null);
+      setLoading(!hasLoadedOnceRef.current);
+      setError(null);
 
-    const filterOptions = {
-      location: locationGid,
-      phenology,
-      startTs: startTimestamp,
-      endTs: endTimestamp,
-      variableId,
-      unitSystem,
-    };
+      const filterOptions = {
+        location: locationGid,
+        phenology,
+        startTs: startTimestamp,
+        endTs: endTimestamp,
+        variableId,
+        unitSystem,
+      };
 
-    (async () => {
       try {
+        const fetchStart = performance.now();
         const results = await Promise.all(
-          coords.map(([x, y]) => fetchTile(taxonId, z, x, y, filterOptions)),
+          coords.map(([x, y]) => resolvedFetchTile(resolvedTaxonId, z, x, y, filterOptions)),
         );
+        const fetchMs = performance.now() - fetchStart;
         if (requestRef.current !== requestId) return;
 
+        const mergeStart = performance.now();
         const seen = new Set<string>();
         const merged: SpeciesOccurrence[] = [];
         for (const result of results) {
@@ -205,6 +234,20 @@ export const useSpeciesOccurrenceTiles = ({
           expandRange(cumulativeDotRangeRef, result.variableQ01, result.variableQ99);
           expandRange(cumulativeLabelRangeRef, result.variableMin, result.variableMax);
         }
+        const mergeMs = performance.now() - mergeStart;
+        // TEMPORARY diagnostic — remove once the perf issue is resolved.
+        // fetchMs = network+backend round trip. mergeMs = the dedupe/
+        // cumulative-value loop above, purely JS, no DOM. Neither includes
+        // React's own re-render or (much more likely the real cost) the
+        // WebView's marker rebuild — see the matching [occurrence-map]
+        // timing log for that.
+        console.log('[occurrence-tiles]', {
+          tileRangeKey,
+          tileCount: coords.length,
+          mergedCount: merged.length,
+          fetchMs: Math.round(fetchMs),
+          mergeMs: Math.round(mergeMs),
+        });
         setOccurrences(merged);
         if (variableId) {
           setObservationValues(new Map(cumulativeValuesRef.current));
@@ -228,7 +271,7 @@ export const useSpeciesOccurrenceTiles = ({
           setLoading(false);
         }
       }
-    })();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tileRangeKey stands in for tileRange (see its declaration above)
   }, [
     enabled,

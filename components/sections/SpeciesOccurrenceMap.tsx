@@ -171,12 +171,6 @@ type SpeciesOccurrenceMapProps = {
   initialZoom?: number | null;
   maxBounds?: [[number, number], [number, number]] | null;
   showMarkers?: boolean;
-  /** True for a map that starts empty on purpose and expects to grow via
-   * viewport-tile fetches (a large taxon — see largeTaxon in
-   * app/_species.tsx). Forces the in-map clustering system on regardless
-   * of the (always zero) initial points count — see fillMapTemplatePlaceholders'
-   * assumeManyPoints param for why that can't just be inferred. */
-  assumeManyPoints?: boolean;
   linkObservations?: boolean;
   allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
@@ -302,7 +296,6 @@ export function SpeciesOccurrenceMap({
   initialZoom = null,
   maxBounds = null,
   showMarkers = true,
-  assumeManyPoints = false,
   linkObservations = true,
   allowPinObservations = true,
   onPinObservation,
@@ -1007,7 +1000,6 @@ export function SpeciesOccurrenceMap({
       memoAutoAdaptEnabled,
       initialStandardTheme.current,
       standardThemes,
-      assumeManyPoints,
     );
   }, [
     allowPinObservations,
@@ -1057,7 +1049,6 @@ export function SpeciesOccurrenceMap({
     memoAutoAdaptApplicable,
     memoAutoAdaptEnabled,
     standardThemes,
-    assumeManyPoints,
   ]);
 
   React.useEffect(() => {

@@ -183,7 +183,6 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   initialLon: '__INITIAL_LON__',
   initialZoom: '__INITIAL_ZOOM__',
   showMarkers: '__SHOW_MARKERS__',
-  assumeManyPoints: '__ASSUME_MANY_POINTS__',
   pinObservationType: '__PIN_OBSERVATION_MESSAGE_TYPE_JSON__',
   allowPinObservations: '__ALLOW_PIN_OBSERVATIONS__',
   linkObservations: '__LINK_OBSERVATIONS__',
@@ -1466,16 +1465,6 @@ const fillMapTemplatePlaceholders = (
   // same gating pattern as satelliteTileUrl/SATELLITE_TILE_URL above.
   standardTheme?: StandardBasemapTheme,
   standardThemes?: { id: string; url: string }[] | null,
-  // True for a map that starts with zero points on purpose and expects to
-  // grow via pointsUpdate messages (a large taxon's tile-fetched map — see
-  // largeTaxon in app/_species.tsx), as opposed to zero points meaning the
-  // taxon genuinely has none. The clustering-vs-plain-markers decision
-  // inside the template can only be made once, at build time, from
-  // points.length — which is always 0 for this map's *initial* build
-  // regardless of how many points arrive later, so that decision needs its
-  // own explicit signal instead of inferring it from the (always empty)
-  // initial points array.
-  assumeManyPoints?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1549,9 +1538,6 @@ const fillMapTemplatePlaceholders = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.showMarkers)
     .join(showMarkers !== false ? 'true' : 'false');
-  html = html
-    .split(MAP_TEMPLATE_PLACEHOLDERS.assumeManyPoints)
-    .join(assumeManyPoints ? 'true' : 'false');
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.pinObservationType)
     .join(JSON.stringify(PIN_OBSERVATION_MESSAGE_TYPE));

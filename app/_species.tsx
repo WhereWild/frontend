@@ -1721,10 +1721,9 @@ export default function Species({
                   }
                   occurrences={mapOccurrences}
                   // For large taxa, occurrences are re-fetched per tile as the
-                  // user pans — refitting the viewport to match each new batch
-                  // would fight the pan that caused it. A stable key means
-                  // "never refit again" once the map has settled on a view
-                  // (matches this map's own points-empty-on-load fallback).
+                  // user pans — the map should never auto-recenter/refit on
+                  // its own here, only ever move because the user moved it.
+                  // A stable key means "never refit," full stop.
                   refitOnOccurrencesChange={
                     largeTaxon ? 'tile-viewport' : occurrencesBeforeRegionFilter
                   }
@@ -1734,7 +1733,6 @@ export default function Species({
                   selectedPoint={selectedMapPoint}
                   height={observationMapHeight}
                   minZoom={0}
-                  assumeManyPoints={largeTaxon}
                   onPinObservation={handlePinObservation}
                   onPointValue={handleMapPointValue}
                   onMapBounds={handleMapBounds}

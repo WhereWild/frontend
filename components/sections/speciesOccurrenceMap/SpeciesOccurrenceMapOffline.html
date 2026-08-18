@@ -1157,13 +1157,6 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     const INITIAL_LON = __INITIAL_LON__;
     const INITIAL_ZOOM = __INITIAL_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
-    // True for a map that starts empty on purpose and grows via
-    // pointsUpdate (a large taxon's tile-fetched map) — points.length is
-    // always 0 at this point either way, so the clustering-vs-plain-markers
-    // decision below needs this explicit signal instead of inferring "how
-    // many points will this map ever have" from the initial (always empty)
-    // array.
-    const ASSUME_MANY_POINTS = __ASSUME_MANY_POINTS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const LOCATION_PICKER_MODE = __LOCATION_PICKER_MODE__;
@@ -2998,7 +2991,13 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // array is meaningful here (filter matched nothing) and must still
         // clear whatever's currently shown.
         if (Array.isArray(data.points)) {
+          // TEMPORARY diagnostic — remove once the perf issue is resolved.
+          var __t0 = performance.now();
           replaceOccurrenceMarkers(data.points, !!data.preserveViewport);
+          console.log('[occurrence-map] rebuild', {
+            count: data.points.length,
+            rebuildMs: Math.round(performance.now() - __t0),
+          });
         }
         return;
       }
@@ -3267,7 +3266,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     if (SHOW_MARKERS) {
       const directMarkerAnchors = [];
       const useVisibilityManagedClustering =
-        ASSUME_MANY_POINTS || points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+        points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
       clusterGroup = useVisibilityManagedClustering
         ? L.markerClusterGroup({
           spiderfyOnMaxZoom: false,
@@ -3608,17 +3607,30 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
         const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
         const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
-        const popupHtml = buildObservationPopup(
-          pt.popupCatalogValue,
-          pt.popupCatalogHref,
-          pt.popupCatalogLabel,
-          latitude,
-          canonicalLongitude,
-          pt.popupMediaUrl,
-          pt.popupMediaAttribution,
-          pt.popupMediaLicense,
-          pt.popupMediaLicenseUrl,
-        );
+        // A function, not a precomputed string: Leaflet calls this only
+        // when the popup is actually about to open, instead of us building
+        // popup HTML (including an <img> tag) for every point up front —
+        // for a large taxon that's thousands of points per viewport update,
+        // the overwhelming majority of which never get clicked. Every
+        // marker stays fully clickable either way; this only defers the
+        // content, never the interactivity. Matches buildObservationPopup's
+        // own early-return so we don't bind a popup at all when there's no
+        // catalogLabel to show.
+        const popupHtml = pt.popupCatalogLabel
+          ? function() {
+              return buildObservationPopup(
+                pt.popupCatalogValue,
+                pt.popupCatalogHref,
+                pt.popupCatalogLabel,
+                latitude,
+                canonicalLongitude,
+                pt.popupMediaUrl,
+                pt.popupMediaAttribution,
+                pt.popupMediaLicense,
+                pt.popupMediaLicenseUrl,
+              );
+            }
+          : null;
 
         if (useVisibilityManagedClustering && clusterGroup) {
           var ptStyle = baseStyleForPoint(pt, markerKey);
@@ -3792,6 +3804,8 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // OBSERVATIONS threshold in either direction keeps whichever mode
       // was picked at first load.
       replaceOccurrenceMarkersImpl = function(newPoints, preserveViewport) {
+        // TEMPORARY diagnostic — remove once the perf issue is resolved.
+        var __tClear0 = performance.now();
         if (clusterGroup) clusterGroup.clearLayers();
         if (visibleMarkerLayer) visibleMarkerLayer.clearLayers();
         directMarkerAnchors.forEach(function(anchor) { map.removeLayer(anchor.marker); });
@@ -3805,7 +3819,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         markerLatBuckets = new Map();
         markers.clear();
         previouslyVisibleDirectMarkerKeys = new Set();
+        var __tClearMs = performance.now() - __tClear0;
+        var __tBuild0 = performance.now();
         var newBounds = buildOccurrenceMarkers(newPoints);
+        var __tBuildMs = performance.now() - __tBuild0;
         if (useVisibilityManagedClustering && clusterGroup && !map.hasLayer(clusterGroup)) {
           map.addLayer(clusterGroup);
         }
@@ -3816,7 +3833,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             map.setView([0, 0], BASE_MIN_ZOOM);
           }
         }
+        var __tVisible0 = performance.now();
         refreshVisibleMarkerPresentation();
+        var __tVisibleMs = performance.now() - __tVisible0;
         // Reapply whatever point React last told us to select — rebuilding
         // the marker set (above) unconditionally drops the selection, but
         // occurrences can legitimately change (e.g. a location/phenology
@@ -3827,6 +3846,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // No-op when nothing was selected (lastAppliedSelectedPoint is null).
         applySelectedPoint(lastAppliedSelectedPoint);
         refreshBackgroundPointPopup();
+        console.log('[occurrence-map] rebuild breakdown', {
+          count: newPoints.length,
+          clearMs: Math.round(__tClearMs),
+          buildMs: Math.round(__tBuildMs),
+          visibleMs: Math.round(__tVisibleMs),
+          preserveViewport: preserveViewport,
+          useVisibilityManagedClustering: useVisibilityManagedClustering,
+        });
       };
 
       const observedBounds = buildOccurrenceMarkers(points);
