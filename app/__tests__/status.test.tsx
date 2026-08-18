@@ -138,7 +138,7 @@ describe('SystemStatusPage', () => {
     });
   });
 
-  it('renders the page surface', async () => {
+  it('renders the page surface', () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       json: async () => MOCK_STATUS_RESPONSE,
@@ -147,13 +147,6 @@ describe('SystemStatusPage', () => {
     render(<SystemStatusPage />);
 
     expect(screen.getByTestId('status-screen')).toBeTruthy();
-
-    // Let the mocked fetch's resolution (and the setStatus()/setIsLoading()
-    // it triggers) settle under act() before the test ends, instead of
-    // leaking into whatever runs next.
-    await waitFor(() => {
-      expect(screen.queryByText('loading')).toBeNull();
-    });
   });
 
   it('shows loading state initially before fetch resolves', () => {

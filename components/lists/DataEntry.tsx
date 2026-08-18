@@ -114,11 +114,11 @@ export function DataEntry({
         style={[
           styles.details,
           !showDetails ? styles.detailsHidden : undefined,
-          { pointerEvents: showDetails ? 'auto' : 'none' },
         ]}
         collapsable={false}
         accessibilityElementsHidden={!showDetails}
         importantForAccessibility={showDetails ? 'auto' : 'no-hide-descendants'}
+        pointerEvents={showDetails ? 'auto' : 'none'}
       >
         {showGraph ? (
           <View

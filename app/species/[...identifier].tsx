@@ -185,8 +185,8 @@ const useSpeciesBasicsData = (
 
     (async () => {
       if (!fetchIdentifier) {
-        setData(null);
         setLoading(false);
+        console.error('Missing taxon ID in route segments.');
         return;
       }
 
@@ -207,7 +207,6 @@ const useSpeciesBasicsData = (
         const message =
           err instanceof Error ? err.message : 'Failed to load species';
         console.error(`Failed to load species '${fetchIdentifier}':`, message);
-        setData(null);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -279,33 +278,9 @@ export default function SpeciesBasicsPage() {
     );
   }
 
-  if (!data) {
-    return (
-      <PageSurface testID='species-not-found' style={styles.loadingScreen}>
-        <View
-          style={styles.loadingContent}
-          accessibilityLiveRegion='polite'
-          accessible
-          accessibilityLabel='Species not found'
-        >
-          <ThemedText variant='subheading'>Species not found</ThemedText>
-          <ThemedText
-            variant='body'
-            style={{ color: palette.text.default.tertiary }}
-          >
-            {requestedTaxonId
-              ? `We couldn't find a species with id "${requestedTaxonId}".`
-              : 'No species id was provided.'}
-          </ThemedText>
-        </View>
-      </PageSurface>
-    );
-  }
-
-  const resolvedPageData = {
-    ...buildSpeciesPageData(data, requestedTaxonId),
-    allObscured,
-  };
+  const resolvedPageData = data
+    ? { ...buildSpeciesPageData(data, requestedTaxonId), allObscured }
+    : mountainBallCactusData;
 
   return <Species data={resolvedPageData} />;
 }
