@@ -20,10 +20,14 @@
         // a single missing tile at the edge of the pan would flip
         // shouldShowFallback true and hide every OTHER tile in view too,
         // including ones that genuinely loaded fine from cache. Relying on
-        // z-order (offlineFallback-layer sits below basemap-layer) plus
-        // maxTileCacheSize: 0 (below) instead: real/cached tiles still show
-        // through per-tile wherever they succeed, and the vector background
-        // only fills the gaps.
+        // z-order (offlineFallback-layer sits below basemap-layer) instead:
+        // real/cached tiles still show through per-tile wherever they
+        // succeed, and the vector background only fills the gaps.
+        // (maxTileCacheSize was previously forced to 0 map-wide — removed
+        // after it turned out to cause an unrelated endless tile-refetch
+        // loop under 3D terrain; this offline-detection logic no longer
+        // depends on it, so it should keep working the same, but hasn't
+        // been separately re-verified against MapLibre's default cache.)
         if (cacheToggleBtn) { cacheToggleBtn.style.display = shouldShowFallback ? 'flex' : 'none'; }
       }
       map.on('dataloading', function(e) {

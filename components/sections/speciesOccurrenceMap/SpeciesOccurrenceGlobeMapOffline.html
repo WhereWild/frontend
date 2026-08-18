@@ -1140,16 +1140,23 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       zoom: INITIAL_ZOOM || Math.max(CUSTOM_MIN_ZOOM, 1.5),
       minZoom: CUSTOM_MIN_ZOOM,
       maxPitch: 90,
-      // MapLibre's own in-memory tile cache otherwise keeps a previously-
-      // seen tile around (across zoom/pan changes, not just the current
-      // frame) and reuses it as an overzoom placeholder rather than
-      // treating the view as needing a fresh fetch — see
-      // evaluateOfflineFallback's basemap-layer visibility handling below,
-      // which handles the closely related "still rendering something for
-      // the current frame while loading/failing" case; this handles the
-      // "don't keep retired tiles around at all" case, at the cost of
-      // re-fetching a tile if you pan back to a view you've already seen.
-      maxTileCacheSize: 0,
+      // No maxTileCacheSize override — left at MapLibre's default. This
+      // used to be forced to 0 (never keep a retired tile around, always
+      // fetch fresh instead of showing a stale overzoom placeholder while
+      // panning back to an already-seen view), but with terrain enabled,
+      // MapLibre recomputes DEM tile coverage every render frame — not
+      // just on camera moves — and a zero-size cache turns any transient,
+      // single-frame flicker in that per-frame recomputation into a real
+      // evict-and-refetch. That refetch's completion then triggers a
+      // repaint that re-evaluates every other raster source's (terrain-
+      // aware) coverage too, closing a self-sustaining loop: confirmed
+      // live as an endless stream of repeated tile requests with the
+      // camera completely stationary, which stopped instantly with
+      // terrain off. (Also worth correcting: the old comment here pointed
+      // at an "evaluateOfflineFallback" function that doesn't exist —
+      // today's offline behavior is the offlineFallback-layer raster
+      // layer below, backed by the service worker's own disk cache, which
+      // is unrelated to this setting entirely.)
       // Default attribution control sits bottom-right, directly under the
       // colormap-picker overlay the consuming page renders there — added
       // manually below at bottom-left instead so the two never collide.
@@ -1737,10 +1744,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // a single missing tile at the edge of the pan would flip
         // shouldShowFallback true and hide every OTHER tile in view too,
         // including ones that genuinely loaded fine from cache. Relying on
-        // z-order (offlineFallback-layer sits below basemap-layer) plus
-        // maxTileCacheSize: 0 (below) instead: real/cached tiles still show
-        // through per-tile wherever they succeed, and the vector background
-        // only fills the gaps.
+        // z-order (offlineFallback-layer sits below basemap-layer) instead:
+        // real/cached tiles still show through per-tile wherever they
+        // succeed, and the vector background only fills the gaps.
+        // (maxTileCacheSize was previously forced to 0 map-wide — removed
+        // after it turned out to cause an unrelated endless tile-refetch
+        // loop under 3D terrain; this offline-detection logic no longer
+        // depends on it, so it should keep working the same, but hasn't
+        // been separately re-verified against MapLibre's default cache.)
         if (cacheToggleBtn) { cacheToggleBtn.style.display = shouldShowFallback ? 'flex' : 'none'; }
       }
       map.on('dataloading', function(e) {
