@@ -21,6 +21,10 @@ import type {
   SpeciesOccurrencesResult,
   LocationSearchResult,
 } from './types';
+import type {
+  OccurrenceTileResult,
+  TileFilterOptions,
+} from './apiEnvironmentHelpers';
 
 type EnvironmentRequestOptions = {
   location?: string | null;
@@ -87,8 +91,8 @@ export type SpeciesDataSource = {
     z: number,
     x: number,
     y: number,
-    options?: EnvironmentRequestOptions,
-  ) => Promise<SpeciesOccurrencesResult['occurrences']>;
+    options?: TileFilterOptions,
+  ) => Promise<OccurrenceTileResult>;
   fetchSpeciesLocations: (
     taxonId: string | number,
     level?: FetchSpeciesLocationsLevel,

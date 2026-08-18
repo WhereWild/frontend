@@ -1140,6 +1140,13 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     const INITIAL_LON = __INITIAL_LON__;
     const INITIAL_ZOOM = __INITIAL_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
+    // True for a map that starts empty on purpose and grows via
+    // pointsUpdate (a large taxon's tile-fetched map) — points.length is
+    // always 0 at this point either way, so the clustering-vs-plain-markers
+    // decision below needs this explicit signal instead of inferring "how
+    // many points will this map ever have" from the initial (always empty)
+    // array.
+    const ASSUME_MANY_POINTS = __ASSUME_MANY_POINTS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
     const LOCATION_PICKER_MODE = __LOCATION_PICKER_MODE__;
@@ -2756,7 +2763,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     if (SHOW_MARKERS) {
       const directMarkerAnchors = [];
       const useVisibilityManagedClustering =
-        points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+        ASSUME_MANY_POINTS || points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
       clusterGroup = useVisibilityManagedClustering
         ? L.markerClusterGroup({
           spiderfyOnMaxZoom: false,

@@ -22,22 +22,46 @@ type UseSpeciesOccurrenceTilesParams = {
   phenology?: string | null;
   startTimestamp?: number | null;
   endTimestamp?: number | null;
+  /** Attaches per-point values for this variable (see fetchSpeciesOccurrenceTile's
+   * TileFilterOptions) — the tile-scoped counterpart to the whole-taxon
+   * observation-values fetch, which is blocked for a taxon this large. */
+  variableId?: string | null;
+  unitSystem?: string | null;
 };
 
 type UseSpeciesOccurrenceTilesResult = {
   occurrences: SpeciesOccurrence[];
   loading: boolean;
   error: string | null;
+  /** catalogNumber -> value for the requested variableId, merged across every
+   * tile fetched so far this session (not just the current batch) — a point
+   * scrolled out of view keeps its last known value rather than vanishing
+   * from the map, matching how useSpeciesOccurrences' whole-taxon fetch
+   * never drops points either. */
+  observationValues: Map<string, number> | null;
+  /** Color/dot-size scale, expanding-only across every tile fetched so far
+   * this session (never shrinks) — panning to a new area with a narrower
+   * range shouldn't visibly rescale colors that are already on screen. Not
+   * a true whole-taxon range (see main.py:_viewport_variable_values), but
+   * converges toward one as more of the taxon's extent gets viewed. dotMin/
+   * dotMax mirror useSpeciesOccurrences' q01/q99-based scale; labelMin/
+   * labelMax mirror its plain min/max. */
+  dotMin: number | null;
+  dotMax: number | null;
+  labelMin: number | null;
+  labelMax: number | null;
 };
 
 /** Viewport-tile-scoped counterpart to useSpeciesOccurrences — for taxa too
  * large for the flat/unbounded fetch (see largeTaxon in app/_species.tsx).
  * Re-fetches whichever tiles are currently visible whenever tileRange (or
  * any filter) changes, and replaces (doesn't accumulate onto) the previous
- * result — a snapshot of what's on screen right now, not a running total
- * of everywhere the user has ever panned. locationGid/phenology/
- * startTimestamp/endTimestamp match useSpeciesOccurrences' filter params
- * exactly — the tile route accepts the same ones now. */
+ * occurrences — a snapshot of what's on screen right now, not a running
+ * total of everywhere the user has ever panned (observationValues/the
+ * color scale are the one exception — see their own doc comments).
+ * locationGid/phenology/startTimestamp/endTimestamp match
+ * useSpeciesOccurrences' filter params exactly — the tile route accepts
+ * the same ones now. */
 export const useSpeciesOccurrenceTiles = ({
   taxonId,
   enabled,
@@ -46,11 +70,19 @@ export const useSpeciesOccurrenceTiles = ({
   phenology,
   startTimestamp,
   endTimestamp,
+  variableId,
+  unitSystem,
 }: UseSpeciesOccurrenceTilesParams): UseSpeciesOccurrenceTilesResult => {
   const speciesDataSource = useSpeciesDataSource();
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [observationValues, setObservationValues] =
+    React.useState<Map<string, number> | null>(null);
+  const [dotMin, setDotMin] = React.useState<number | null>(null);
+  const [dotMax, setDotMax] = React.useState<number | null>(null);
+  const [labelMin, setLabelMin] = React.useState<number | null>(null);
+  const [labelMax, setLabelMax] = React.useState<number | null>(null);
   const requestRef = React.useRef(0);
   // The map renders `loading` as a full-screen overlay covering whatever's
   // already on screen — appropriate for the very first fetch (there's
@@ -60,6 +92,16 @@ export const useSpeciesOccurrenceTiles = ({
   // for a given enabled taxon reports loading=true externally; every fetch
   // after that updates the occurrences in the background, no overlay.
   const hasLoadedOnceRef = React.useRef(false);
+  // Cumulative catalogNumber -> value, expanding-only min/max — see
+  // observationValues'/dotMin's doc comments above for why these persist
+  // across fetches instead of resetting with each new tile batch.
+  const cumulativeValuesRef = React.useRef<Map<string, number>>(new Map());
+  const cumulativeDotRangeRef = React.useRef<{ min: number; max: number } | null>(
+    null,
+  );
+  const cumulativeLabelRangeRef = React.useRef<{ min: number; max: number } | null>(
+    null,
+  );
 
   // The map reports its bounds as a fresh object on every moveend/zoomend,
   // even when the visible tile range didn't actually change (e.g. a
@@ -77,13 +119,17 @@ export const useSpeciesOccurrenceTiles = ({
     };
   }, []);
 
-  // A different taxon (or the hook going from disabled to enabled) is a
-  // fresh session — its first fetch should show loading again, not silently
-  // inherit "already loaded once" from whatever was displayed before.
-  const lastTaxonIdRef = React.useRef<string | undefined>(undefined);
-  if (taxonId !== lastTaxonIdRef.current) {
-    lastTaxonIdRef.current = taxonId;
+  // A different taxon or variable (or the hook going from disabled to
+  // enabled) is a fresh session — reset every cumulative signal instead of
+  // silently carrying it over from whatever was displayed before.
+  const sessionKey = `${taxonId ?? ''}:${variableId ?? ''}`;
+  const lastSessionKeyRef = React.useRef<string>(sessionKey);
+  if (sessionKey !== lastSessionKeyRef.current) {
+    lastSessionKeyRef.current = sessionKey;
     hasLoadedOnceRef.current = false;
+    cumulativeValuesRef.current = new Map();
+    cumulativeDotRangeRef.current = null;
+    cumulativeLabelRangeRef.current = null;
   }
 
   React.useEffect(() => {
@@ -94,6 +140,11 @@ export const useSpeciesOccurrenceTiles = ({
       setOccurrences([]);
       setError(null);
       setLoading(false);
+      setObservationValues(null);
+      setDotMin(null);
+      setDotMax(null);
+      setLabelMin(null);
+      setLabelMax(null);
       return;
     }
 
@@ -115,6 +166,8 @@ export const useSpeciesOccurrenceTiles = ({
       phenology,
       startTs: startTimestamp,
       endTs: endTimestamp,
+      variableId,
+      unitSystem,
     };
 
     (async () => {
@@ -126,15 +179,40 @@ export const useSpeciesOccurrenceTiles = ({
 
         const seen = new Set<string>();
         const merged: SpeciesOccurrence[] = [];
-        for (const tileOccurrences of results) {
-          for (const occ of tileOccurrences) {
+        for (const result of results) {
+          for (const occ of result.occurrences) {
             const key = String(occ.catalogNumber);
             if (seen.has(key)) continue;
             seen.add(key);
             merged.push(occ);
           }
+          if (result.values) {
+            for (const [key, value] of result.values) {
+              cumulativeValuesRef.current.set(key, value);
+            }
+          }
+          const expandRange = (
+            ref: React.MutableRefObject<{ min: number; max: number } | null>,
+            lo: number | null,
+            hi: number | null,
+          ) => {
+            if (lo == null || hi == null) return;
+            ref.current =
+              ref.current == null
+                ? { min: lo, max: hi }
+                : { min: Math.min(ref.current.min, lo), max: Math.max(ref.current.max, hi) };
+          };
+          expandRange(cumulativeDotRangeRef, result.variableQ01, result.variableQ99);
+          expandRange(cumulativeLabelRangeRef, result.variableMin, result.variableMax);
         }
         setOccurrences(merged);
+        if (variableId) {
+          setObservationValues(new Map(cumulativeValuesRef.current));
+          setDotMin(cumulativeDotRangeRef.current?.min ?? null);
+          setDotMax(cumulativeDotRangeRef.current?.max ?? null);
+          setLabelMin(cumulativeLabelRangeRef.current?.min ?? null);
+          setLabelMax(cumulativeLabelRangeRef.current?.max ?? null);
+        }
       } catch (requestError) {
         if (requestRef.current === requestId) {
           const message =
@@ -161,7 +239,18 @@ export const useSpeciesOccurrenceTiles = ({
     phenology,
     startTimestamp,
     endTimestamp,
+    variableId,
+    unitSystem,
   ]);
 
-  return { occurrences, loading, error };
+  return {
+    occurrences,
+    loading,
+    error,
+    observationValues,
+    dotMin,
+    dotMax,
+    labelMin,
+    labelMax,
+  };
 };

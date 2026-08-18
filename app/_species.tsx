@@ -562,6 +562,11 @@ export default function Species({
     occurrences: tileOccurrences,
     loading: tileOccurrenceLoading,
     error: tileOccurrenceError,
+    observationValues: tileObservationValues,
+    dotMin: tileDotMin,
+    dotMax: tileDotMax,
+    labelMin: tileLabelMin,
+    labelMax: tileLabelMax,
   } = useSpeciesOccurrenceTiles({
     taxonId,
     enabled: Boolean(largeTaxon),
@@ -570,6 +575,8 @@ export default function Species({
     phenology: selectedPhenology,
     startTimestamp,
     endTimestamp,
+    variableId: selectedVariableMeta?.id,
+    unitSystem: units,
   });
 
   const fetchedOccurrences = largeTaxon ? tileOccurrences : flatOccurrences;
@@ -957,7 +964,19 @@ export default function Species({
   );
 
   React.useEffect(() => {
-    if (!taxonId || !selectedVariableMeta?.id || !shouldRenderOccurrenceMap) {
+    // The whole-taxon observation-values endpoint this hits is guarded the
+    // same way collect-everything download/flat-occurrences are (see
+    // main.py:get_observation_variable_values's unconditional
+    // _reject_if_large_taxon) — always 400s for a large taxon. Skipping the
+    // request entirely avoids a guaranteed-failing round trip; large taxa
+    // get their per-point values from useSpeciesOccurrenceTiles instead
+    // (see tileObservationValues below).
+    if (
+      !taxonId ||
+      !selectedVariableMeta?.id ||
+      !shouldRenderOccurrenceMap ||
+      largeTaxon
+    ) {
       setFetchedObservationValues(null);
       setVariableValuesLoading(false);
       return;
@@ -1014,7 +1033,13 @@ export default function Species({
     return () => {
       cancelled = true;
     };
-  }, [taxonId, selectedVariableMeta, units, shouldRenderOccurrenceMap]);
+  }, [
+    taxonId,
+    selectedVariableMeta,
+    units,
+    shouldRenderOccurrenceMap,
+    largeTaxon,
+  ]);
 
   // fetchedObservationValues (above) only covers this taxon's normal
   // ingested occurrences — a not-ingested highlighted observation
@@ -1087,20 +1112,35 @@ export default function Species({
   ]);
 
   const observationValues = React.useMemo(() => {
+    const base = largeTaxon ? tileObservationValues : fetchedObservationValues;
     if (!highlightedSyntheticOccurrence || highlightedPointValue == null) {
-      return fetchedObservationValues;
+      return base;
     }
-    const merged = new Map(fetchedObservationValues ?? []);
+    const merged = new Map(base ?? []);
     merged.set(
       String(highlightedSyntheticOccurrence.catalogNumber),
       highlightedPointValue,
     );
     return merged;
   }, [
+    largeTaxon,
+    tileObservationValues,
     fetchedObservationValues,
     highlightedSyntheticOccurrence,
     highlightedPointValue,
   ]);
+
+  // For a large taxon, obsDotMin/obsDotMax/obsLabelMin/obsLabelMax
+  // (set by the whole-taxon observation-values fetch, which is skipped
+  // entirely for a taxon this size — see that effect above) stay null;
+  // the tile-scoped equivalents from useSpeciesOccurrenceTiles take over.
+  const effectiveDotMin = largeTaxon ? tileDotMin : obsDotMin;
+  const effectiveDotMax = largeTaxon ? tileDotMax : obsDotMax;
+  const effectiveLabelMin = largeTaxon ? tileLabelMin : obsLabelMin;
+  const effectiveLabelMax = largeTaxon ? tileLabelMax : obsLabelMax;
+  const effectiveVariableDataLoading = largeTaxon
+    ? tileOccurrenceLoading
+    : variableValuesLoading;
 
   // Ordinal variables have no separate accessibility variant — the
   // selected continuous colormap IS their coloring mechanism, always on
@@ -1694,6 +1734,7 @@ export default function Species({
                   selectedPoint={selectedMapPoint}
                   height={observationMapHeight}
                   minZoom={0}
+                  assumeManyPoints={largeTaxon}
                   onPinObservation={handlePinObservation}
                   onPointValue={handleMapPointValue}
                   onMapBounds={handleMapBounds}
@@ -1717,9 +1758,9 @@ export default function Species({
                   classShapes={classShapes}
                   markerOutlineEnabled={effectiveOutline}
                   circularShapesEnabled={circularShapesEnabled}
-                  dotMin={obsDotMin}
-                  dotMax={obsDotMax}
-                  variableDataLoading={variableValuesLoading}
+                  dotMin={effectiveDotMin}
+                  dotMax={effectiveDotMax}
+                  variableDataLoading={effectiveVariableDataLoading}
                   varUnits={
                     selectedVariableMeta &&
                     !isVariableCategorical(selectedVariableMeta) &&
@@ -1749,11 +1790,11 @@ export default function Species({
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&
                   !isVariableCircular(selectedVariableMeta) &&
-                  obsLabelMin != null &&
-                  obsLabelMax != null && (
+                  effectiveLabelMin != null &&
+                  effectiveLabelMax != null && (
                     <MapVariableLegend
-                      min={obsLabelMin}
-                      max={obsLabelMax}
+                      min={effectiveLabelMin}
+                      max={effectiveLabelMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
                       barSvgStops={COLORMAPS[selectedColormap].barSvgStops}

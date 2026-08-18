@@ -152,6 +152,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     const INITIAL_LON = __INITIAL_LON__;
     const INITIAL_ZOOM = __INITIAL_ZOOM__;
     const SHOW_MARKERS = __SHOW_MARKERS__;
+    // See the matching comment in SpeciesOccurrenceMap.html — same
+    // clustering-decision problem, same fix.
+    const ASSUME_MANY_POINTS = __ASSUME_MANY_POINTS__;
     const MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = __MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS__;
     const ALLOW_PIN_OBSERVATIONS = __ALLOW_PIN_OBSERVATIONS__;
     const LINK_OBSERVATIONS = __LINK_OBSERVATIONS__;
@@ -1920,7 +1923,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // doesn't set disableClusteringAtZoom either) so clustering keeps
         // applying all the way in — clusters only stop forming once points
         // are naturally farther apart than the radius at that zoom.
-        var useClustering = validPoints.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+        var useClustering = ASSUME_MANY_POINTS || validPoints.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
 
         map.addSource('occurrences', {
           type: 'geojson',

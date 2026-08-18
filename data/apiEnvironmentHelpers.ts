@@ -329,7 +329,39 @@ export type TileFilterOptions = {
   phenology?: string | null;
   startTs?: number | null;
   endTs?: number | null;
+  /** Attaches each entry's value for this variable (see OccurrenceTileResult.values) — the tile-scoped counterpart to fetchObservationVariableValues, for a taxon too large for that whole-taxon endpoint. */
+  variableId?: string | null;
+  unitSystem?: string | null;
 };
+
+export type OccurrenceTileResult = {
+  occurrences: SpeciesOccurrence[];
+  /** catalogNumber -> unit-converted value for options.variableId, only present when it was requested and resolved. */
+  values: Map<string, number> | null;
+  /** This tile's own min/max/q01/q99 for options.variableId — not a whole-taxon aggregate, see main.py:_viewport_variable_values. */
+  variableMin: number | null;
+  variableMax: number | null;
+  variableQ01: number | null;
+  variableQ99: number | null;
+};
+
+/** catalogNumber -> value from raw tile response rows, built alongside
+ * parseOccurrenceRows (not folded into it — "value" only ever appears on
+ * tile responses, never on fetchSpeciesOccurrences' flat/whole-taxon
+ * rows). */
+function extractOccurrenceValues(rows: unknown[]): Map<string, number> {
+  const values = new Map<string, number>();
+  for (const row of rows) {
+    const source = asRecord(row);
+    const catalogNumber =
+      source.catalogNumber ?? source.catalog_number ?? source.id ?? source.catalog ?? null;
+    const value = toFiniteNumber(source.value);
+    if (catalogNumber != null && value != null) {
+      values.set(String(catalogNumber), value);
+    }
+  }
+  return values;
+}
 
 /**
  * Fetches occurrence points for one slippy-map tile — the viewport-bounded
@@ -347,7 +379,7 @@ export async function fetchSpeciesOccurrenceTile(
   x: number,
   y: number,
   options?: TileFilterOptions,
-): Promise<SpeciesOccurrence[]> {
+): Promise<OccurrenceTileResult> {
   const encodedId = encodeURIComponent(String(taxonId));
   const params = new URLSearchParams();
   if (options?.location) {
@@ -362,11 +394,24 @@ export async function fetchSpeciesOccurrenceTile(
   if (options?.endTs != null) {
     params.set('end_ts', String(options.endTs));
   }
+  if (options?.variableId) {
+    params.set('variable', options.variableId);
+  }
+  if (options?.unitSystem) {
+    params.set('unit_system', options.unitSystem);
+  }
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences/${z}/${x}/${y}${query ? `?${query}` : ''}`;
   const payload = asRecord(
     await fetchJsonOrThrow(url, `Failed to fetch occurrence tile for ${taxonId}`),
   );
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
-  return parseOccurrenceRows(rows);
+  return {
+    occurrences: parseOccurrenceRows(rows),
+    values: options?.variableId ? extractOccurrenceValues(rows) : null,
+    variableMin: toFiniteNumber(payload.variable_min),
+    variableMax: toFiniteNumber(payload.variable_max),
+    variableQ01: toFiniteNumber(payload.variable_q01),
+    variableQ99: toFiniteNumber(payload.variable_q99),
+  };
 }
