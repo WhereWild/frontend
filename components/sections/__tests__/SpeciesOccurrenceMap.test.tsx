@@ -480,6 +480,10 @@ describe('SpeciesOccurrenceMap', () => {
           y0: 90,
           x1: 42,
           y1: 92,
+          north: 45,
+          south: 44,
+          east: 10,
+          west: 9,
         }),
       },
     });
@@ -491,6 +495,10 @@ describe('SpeciesOccurrenceMap', () => {
       y0: 90,
       x1: 42,
       y1: 92,
+      north: 45,
+      south: 44,
+      east: 10,
+      west: 9,
     });
   });
 

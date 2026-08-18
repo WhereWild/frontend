@@ -68,26 +68,48 @@ import {
   type SelectedPointMessage,
 } from './speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
+// north/south/east/west ride along on the same message as the raw z/tile
+// range (not read from the separate mapBounds message) deliberately:
+// tilesChanged and mapBounds are sent as two separate postMessage calls
+// from the same moveend/zoomend handler, so reading mapBounds state from
+// inside the tilesChanged handler would risk using a stale value from
+// before this update — see handleOccurrenceMapBoundsChange in
+// app/_species.tsx, which needs the raw bounds (not just raw tile
+// indices) to compute a band-snapped tile range independent of this
+// message's own z/x0/y0/x1/y1 (which stay true-zoom, unchanged, for
+// auto-adapt's own unrelated use of this same message).
 type TilesChangedMessage = {
   type: 'tilesChanged';
-} & ViewportTileRange;
+} & ViewportTileRange &
+  MapBounds;
 
 function isTilesChangedMessage(msg: unknown): msg is TilesChangedMessage {
+  if (
+    !(
+      !!msg &&
+      typeof msg === 'object' &&
+      'type' in msg &&
+      msg.type === 'tilesChanged' &&
+      'z' in msg &&
+      'x0' in msg &&
+      'y0' in msg &&
+      'x1' in msg &&
+      'y1' in msg &&
+      typeof msg.z === 'number' &&
+      typeof msg.x0 === 'number' &&
+      typeof msg.y0 === 'number' &&
+      typeof msg.x1 === 'number' &&
+      typeof msg.y1 === 'number'
+    )
+  ) {
+    return false;
+  }
+  const m = msg as Record<string, unknown>;
   return (
-    !!msg &&
-    typeof msg === 'object' &&
-    'type' in msg &&
-    msg.type === 'tilesChanged' &&
-    'z' in msg &&
-    'x0' in msg &&
-    'y0' in msg &&
-    'x1' in msg &&
-    'y1' in msg &&
-    typeof msg.z === 'number' &&
-    typeof msg.x0 === 'number' &&
-    typeof msg.y0 === 'number' &&
-    typeof msg.x1 === 'number' &&
-    typeof msg.y1 === 'number'
+    typeof m.north === 'number' &&
+    typeof m.south === 'number' &&
+    typeof m.east === 'number' &&
+    typeof m.west === 'number'
   );
 }
 
@@ -175,7 +197,7 @@ type SpeciesOccurrenceMapProps = {
   allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   selectedPoint?: { lat: number; lon: number; catalogNumber?: string } | null;
-  onBoundsChange?: (tiles: ViewportTileRange) => void;
+  onBoundsChange?: (tiles: ViewportTileRange & MapBounds) => void;
   // A full snapshot of currently-visible nominal classes, not an
   // incremental delta — see TileClassesMessage's doc comment.
   onTileClasses?: (classes: { id: number; count: number }[]) => void;
@@ -948,6 +970,12 @@ export function SpeciesOccurrenceMap({
     if (!mapTemplate) {
       return null;
     }
+    // TEMPORARY diagnostic — remove once the "resets to original position"
+    // issue is resolved. This memo rebuilding at all after mount means the
+    // WebView/iframe's source is changing, which reloads the whole page
+    // (fresh Leaflet instance, back to its initial view) — a much bigger
+    // reset than anything replaceOccurrenceMarkersImpl could cause.
+    console.log('[occurrence-map] html rebuilt', { globeView });
     const buildHtml = globeView ? buildGlobeHtml : buildLeafletHtml;
     return buildHtml(
       mapTemplate,

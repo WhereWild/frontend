@@ -92,6 +92,7 @@ export type SpeciesDataSource = {
     x: number,
     y: number,
     options?: TileFilterOptions,
+    signal?: AbortSignal,
   ) => Promise<OccurrenceTileResult>;
   fetchSpeciesLocations: (
     taxonId: string | number,

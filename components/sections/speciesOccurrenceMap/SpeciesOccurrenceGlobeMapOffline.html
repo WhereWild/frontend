@@ -280,9 +280,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // location/phenology filter refetch) and repositions the camera, unlike
     // refreshOccurrenceMarkerColors which only recolors the existing set.
     var replaceOccurrencePointsImpl = null;
-    function replaceOccurrencePoints(newPoints) {
+    function replaceOccurrencePoints(newPoints, preserveViewport) {
       if (replaceOccurrencePointsImpl) {
-        replaceOccurrencePointsImpl(newPoints);
+        replaceOccurrencePointsImpl(newPoints, preserveViewport);
       }
     }
     // Same deal: the real updateClusterMode is defined inside the
@@ -2141,7 +2141,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         }
         positionMapForOccurrencePoints(validPoints);
 
-        replaceOccurrencePointsImpl = function(newPoints) {
+        replaceOccurrencePointsImpl = function(newPoints, preserveViewport) {
           var validNewPoints = newPoints.filter(function(pt) {
             return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
           });
@@ -2155,7 +2155,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             var clusteredSource = map.getSource('occurrences-clustered');
             if (clusteredSource) clusteredSource.setData(buildOccurrenceFeatureCollection(clusteredSourcePoints(validNewPoints)));
           }
-          positionMapForOccurrencePoints(validNewPoints);
+          if (!preserveViewport) {
+            positionMapForOccurrencePoints(validNewPoints);
+          }
           updateClusterMode();
         };
 
@@ -2366,7 +2368,12 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       }
       var nw = tile(b.getNorth(), b.getWest());
       var se = tile(b.getSouth(), b.getEast());
-      postToParent({ type: 'tilesChanged', z: z, x0: nw.x, y0: nw.y, x1: se.x, y1: se.y });
+      // north/south/east/west ride along here too — see the matching
+      // comment in SpeciesOccurrenceMap.html's sendTiles.
+      postToParent({
+        type: 'tilesChanged', z: z, x0: nw.x, y0: nw.y, x1: se.x, y1: se.y,
+        north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest(),
+      });
     }
     map.on('moveend', postBounds);
     map.on('moveend', scheduleRefreshVisibleTileClasses);
@@ -2505,7 +2512,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // empty array is meaningful here (filter matched nothing) and must
         // still clear whatever's currently shown.
         if (Array.isArray(data.points)) {
-          replaceOccurrencePoints(data.points);
+          replaceOccurrencePoints(data.points, !!data.preserveViewport);
         }
         return;
       }

@@ -4,6 +4,7 @@
 
 import { useSpeciesDataSource } from '@/context/SpeciesDataSourceContext';
 import type { ViewportTileRange } from '@/data/api';
+import { isAbortError } from '@/data/apiShared';
 import type { SpeciesOccurrence } from '@/data/types';
 import React from 'react';
 
@@ -167,13 +168,27 @@ export const useSpeciesOccurrenceTiles = ({
     const resolvedTileRange = tileRange;
     const resolvedFetchTile = fetchTile;
 
+    // A superseded batch (e.g. an intermediate zoom level passed through on
+    // the way to where the user actually stopped) previously kept running
+    // to completion server-side even though its result was discarded on
+    // arrival (see the requestId check below) — every tile in it still
+    // consumed real backend time and added to concurrent-request
+    // contention for the batch that actually matters. Aborting the
+    // in-flight requests themselves (not just ignoring their result) stops
+    // that waste at the source.
+    const abortController = new AbortController();
+
     const delay = hasLoadedOnceRef.current ? PAN_DEBOUNCE_MS : 0;
     const timeoutId = setTimeout(() => {
       runFetch();
     }, delay);
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
+    };
 
     async function runFetch() {
+      let aborted = false;
       const requestId = ++requestRef.current;
       const { z, x0, y0, x1, y1 } = resolvedTileRange;
       const coords: [number, number][] = [];
@@ -200,7 +215,9 @@ export const useSpeciesOccurrenceTiles = ({
       try {
         const fetchStart = performance.now();
         const results = await Promise.all(
-          coords.map(([x, y]) => resolvedFetchTile(resolvedTaxonId, z, x, y, filterOptions)),
+          coords.map(([x, y]) =>
+            resolvedFetchTile(resolvedTaxonId, z, x, y, filterOptions, abortController.signal),
+          ),
         );
         const fetchMs = performance.now() - fetchStart;
         if (requestRef.current !== requestId) return;
@@ -257,6 +274,18 @@ export const useSpeciesOccurrenceTiles = ({
           setLabelMax(cumulativeLabelRangeRef.current?.max ?? null);
         }
       } catch (requestError) {
+        // An abort means this batch was superseded, not that it failed —
+        // the request that replaced it (or the disabled/cleared state)
+        // owns whatever comes next, so touch nothing here (including in
+        // finally below — aborted is checked there too). The requestId
+        // guard alone isn't enough: the abort can be caught before the
+        // superseding effect's own debounce timer has even fired (and so
+        // before it's bumped requestRef), so requestId could still
+        // spuriously match at this point.
+        if (isAbortError(requestError)) {
+          aborted = true;
+          return;
+        }
         if (requestRef.current === requestId) {
           const message =
             requestError instanceof Error
@@ -266,7 +295,7 @@ export const useSpeciesOccurrenceTiles = ({
           setOccurrences([]);
         }
       } finally {
-        if (requestRef.current === requestId) {
+        if (!aborted && requestRef.current === requestId) {
           hasLoadedOnceRef.current = true;
           setLoading(false);
         }

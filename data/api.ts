@@ -362,8 +362,9 @@ export async function fetchSpeciesOccurrenceTile(
   x: number,
   y: number,
   options?: TileFilterOptions,
+  signal?: AbortSignal,
 ) {
-  return fetchSpeciesOccurrenceTileHelper(taxonId, z, x, y, options);
+  return fetchSpeciesOccurrenceTileHelper(taxonId, z, x, y, options, signal);
 }
 
 /**

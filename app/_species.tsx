@@ -58,6 +58,7 @@ import {
   parseFilenameFromContentDisposition,
 } from '@/data/api';
 import type { ViewportTileRange } from '@/data/api';
+import { bandZoomForRawZoom, deg2tile } from '@/utils/tileMath';
 import { Colors, Size } from '@/constants/theme';
 import { resolveWebHeaderHeight } from '@/constants/webHeaderHeight';
 import { mountainBallCactusData } from '@/data/speciesSample';
@@ -1293,14 +1294,30 @@ export default function Species({
   });
 
   // Multiplexes the map's one onBoundsChange slot: auto-adapt always wants
-  // to know the visible bounds (unrelated to taxon size), and for a large
-  // taxon this is also what drives which occurrence tiles get fetched (see
-  // useSpeciesOccurrenceTiles above).
+  // the true/raw zoom and tile range (unrelated to taxon size, a different
+  // backend, no minZoom band concept) — handleAutoAdaptBoundsChange gets
+  // `tiles` exactly as reported, unchanged. Occurrence-tile fetching is
+  // different: it re-derives its OWN tile range from tiles.north/south/
+  // east/west at a band-snapped zoom (see bandZoomForRawZoom) instead of
+  // trusting tiles.z/x0/y0/x1/y1 directly — a raw zoom change that stays
+  // within one band produces the exact same visible-point set, so
+  // re-fetching for it would be pure waste. This is what actually avoids
+  // firing (and needing to later abort) a request per zoom tick while
+  // zooming, rather than just debouncing how quickly they fire.
   const handleOccurrenceMapBoundsChange = React.useCallback(
-    (tiles: ViewportTileRange) => {
+    (tiles: ViewportTileRange & MapBounds) => {
       handleAutoAdaptBoundsChange(tiles);
       if (largeTaxon) {
-        setViewportTileRange(tiles);
+        const bandZoom = bandZoomForRawZoom(tiles.z);
+        const nw = deg2tile(tiles.north, tiles.west, bandZoom);
+        const se = deg2tile(tiles.south, tiles.east, bandZoom);
+        setViewportTileRange({
+          z: bandZoom,
+          x0: nw.x,
+          y0: nw.y,
+          x1: se.x,
+          y1: se.y,
+        });
       }
     },
     [handleAutoAdaptBoundsChange, largeTaxon],

@@ -379,6 +379,7 @@ export async function fetchSpeciesOccurrenceTile(
   x: number,
   y: number,
   options?: TileFilterOptions,
+  signal?: AbortSignal,
 ): Promise<OccurrenceTileResult> {
   const encodedId = encodeURIComponent(String(taxonId));
   const params = new URLSearchParams();
@@ -403,7 +404,7 @@ export async function fetchSpeciesOccurrenceTile(
   const query = params.toString();
   const url = `${BACKEND_BASE}/species/${encodedId}/occurrences/${z}/${x}/${y}${query ? `?${query}` : ''}`;
   const payload = asRecord(
-    await fetchJsonOrThrow(url, `Failed to fetch occurrence tile for ${taxonId}`),
+    await fetchJsonOrThrow(url, `Failed to fetch occurrence tile for ${taxonId}`, signal ? { signal } : undefined),
   );
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
   return {

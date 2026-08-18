@@ -3527,11 +3527,18 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       var b = map.getBounds();
       var nw = latLonToTile(b.getNorth(), b.getWest(), z);
       var se = latLonToTile(b.getSouth(), b.getEast(), z);
+      // north/south/east/west ride along here (not just relying on the
+      // separate mapBounds message) so a consumer that needs to re-derive
+      // tile indices at a DIFFERENT zoom than this message's own raw z
+      // (see app/_species.tsx's band-snapped occurrence-tile fetching) can
+      // do it from one message, with no risk of pairing this z/x/y with a
+      // stale bounds value from a different postMessage call.
       var msg = {
         type: 'tilesChanged',
         z: z,
         x0: nw.x, y0: nw.y,
         x1: se.x, y1: se.y,
+        north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest(),
       };
       postToParent(msg);
     }

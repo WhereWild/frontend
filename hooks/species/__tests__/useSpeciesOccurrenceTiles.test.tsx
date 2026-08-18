@@ -92,8 +92,12 @@ describe('useSpeciesOccurrenceTiles', () => {
       unitSystem: undefined,
     };
     expect(mockFetchTile).toHaveBeenCalledTimes(2);
-    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 0, 0, emptyFilters);
-    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 1, 0, emptyFilters);
+    expect(mockFetchTile).toHaveBeenCalledWith(
+      '12', 3, 0, 0, emptyFilters, expect.any(AbortSignal),
+    );
+    expect(mockFetchTile).toHaveBeenCalledWith(
+      '12', 3, 1, 0, emptyFilters, expect.any(AbortSignal),
+    );
     expect(result.current.occurrences).toHaveLength(2);
     expect(result.current.error).toBeNull();
   });
@@ -128,14 +132,18 @@ describe('useSpeciesOccurrenceTiles', () => {
       expect(mockFetchTile).toHaveBeenCalled();
     });
 
-    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 0, 0, {
-      location: 'state-ut',
-      phenology: 'flowers',
-      startTs: 100,
-      endTs: 200,
-      variableId: undefined,
-      unitSystem: undefined,
-    });
+    expect(mockFetchTile).toHaveBeenCalledWith(
+      '12', 3, 0, 0,
+      {
+        location: 'state-ut',
+        phenology: 'flowers',
+        startTs: 100,
+        endTs: 200,
+        variableId: undefined,
+        unitSystem: undefined,
+      },
+      expect.any(AbortSignal),
+    );
   });
 
   it('merges per-point values and expands the color scale across fetches without shrinking', async () => {
@@ -211,6 +219,52 @@ describe('useSpeciesOccurrenceTiles', () => {
     // Point 1's value from the first fetch is still remembered.
     expect(result.current.observationValues?.get('1')).toBe(10);
     expect(result.current.observationValues?.get('3')).toBe(15);
+  });
+
+  it('aborts a superseded batch instead of letting it run to completion', async () => {
+    // First tile range's fetch never resolves on its own (simulating a
+    // slow backend request) — the test asserts its signal gets aborted
+    // once a newer tileRange supersedes it, rather than waiting for it to
+    // "finish" naturally.
+    let firstCallSignal: AbortSignal | undefined;
+    const mockFetchTile = jest
+      .fn()
+      .mockImplementationOnce((..._args: unknown[]) => {
+        firstCallSignal = _args[5] as AbortSignal;
+        return new Promise(() => {}); // never resolves
+      })
+      .mockResolvedValue(emptyTileResult());
+    const dataSource = createSpeciesDataSource({
+      fetchSpeciesOccurrenceTile: mockFetchTile,
+    });
+
+    const { rerender } = renderHook(
+      ({ tileRange }: { tileRange: typeof SINGLE_TILE_RANGE }) =>
+        useSpeciesOccurrenceTiles({
+          taxonId: '12',
+          enabled: true,
+          tileRange,
+        }),
+      {
+        initialProps: { tileRange: SINGLE_TILE_RANGE },
+        wrapper: ({ children }) => (
+          <SpeciesDataSourceProvider value={dataSource}>
+            {children}
+          </SpeciesDataSourceProvider>
+        ),
+      },
+    );
+
+    await waitFor(() => {
+      expect(mockFetchTile).toHaveBeenCalledTimes(1);
+    });
+    expect(firstCallSignal?.aborted).toBe(false);
+
+    rerender({ tileRange: { z: 3, x0: 1, y0: 1, x1: 1, y1: 1 } });
+
+    await waitFor(() => {
+      expect(firstCallSignal?.aborted).toBe(true);
+    });
   });
 
   it('does not fetch when disabled', async () => {
