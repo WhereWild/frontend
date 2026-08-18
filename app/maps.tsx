@@ -628,6 +628,57 @@ export default function Maps() {
     angleRangeSelection.clear,
   ]);
 
+  // Debounced mirrors of the drag-selected value/angle ranges, used only
+  // for the tile URL below — same DENSITY_SLICE_DEBOUNCE_MS the species
+  // page's density charts debounce their own range-triggered fetch by (see
+  // useEnvironmentHighlights.ts), so dragging across the legend's gradient
+  // bar/ring doesn't re-fetch raster tiles for the whole viewport on every
+  // intermediate frame. The legend itself still reads the LIVE (undebounced)
+  // selectedValueRanges/selectedAngleRanges directly, so its own drawn
+  // selection stays instantly responsive — only the network-backed tiles
+  // lag behind. Categorical class clicks aren't a drag gesture, so
+  // selectedClassIds stays undebounced here too, same as the density chart
+  // precedent (which only debounces continuous ranges, not category picks).
+  // Clearing (ranges going back to empty) applies immediately rather than
+  // waiting out the debounce, matching selectDensityRange's own instant-
+  // clear behavior.
+  const TILE_RANGE_DEBOUNCE_MS = 200;
+  const [debouncedValueRanges, setDebouncedValueRanges] =
+    useState(selectedValueRanges);
+  useEffect(() => {
+    if (valueRangeSelection.ranges.length === 0) {
+      setDebouncedValueRanges([]);
+      return;
+    }
+    const timer = setTimeout(
+      () => setDebouncedValueRanges(selectedValueRanges),
+      TILE_RANGE_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+    // selectedValueRanges is a fresh array every render (it's a plain
+    // .map() over valueRangeSelection.ranges, not itself memoized) — keying
+    // off valueRangeSelection.ranges instead is what makes this a real
+    // debounce: that reference only actually changes when the selection
+    // does, whereas selectedValueRanges would reset this timer on every
+    // unrelated re-render and could end up never firing at all.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueRangeSelection.ranges]);
+
+  const [debouncedAngleRanges, setDebouncedAngleRanges] =
+    useState(selectedAngleRanges);
+  useEffect(() => {
+    if (angleRangeSelection.ranges.length === 0) {
+      setDebouncedAngleRanges([]);
+      return;
+    }
+    const timer = setTimeout(
+      () => setDebouncedAngleRanges(selectedAngleRanges),
+      TILE_RANGE_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see debouncedValueRanges above.
+  }, [angleRangeSelection.ranges]);
+
   const tileUrl = useMemo(
     () =>
       buildTileUrl({
@@ -642,8 +693,8 @@ export default function Maps() {
         valueRanges: isCategorical
           ? null
           : isCircular
-            ? selectedAngleRanges
-            : selectedValueRanges,
+            ? debouncedAngleRanges
+            : debouncedValueRanges,
         unitSystem: units,
         chain: layerChain.map((entry) => entry.extra),
         renderRange: autoAdaptRenderRange,
@@ -658,8 +709,8 @@ export default function Maps() {
       selectedVariable,
       isCategorical,
       selectedClassIds,
-      selectedAngleRanges,
-      selectedValueRanges,
+      debouncedAngleRanges,
+      debouncedValueRanges,
       units,
       layerChain,
       autoAdaptRenderRange,
