@@ -223,34 +223,12 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   });
 }
 
-/**
- * Fetches occurrence points for a species, plus the full timestamp range of the matching observations.
- */
-export async function fetchSpeciesOccurrences(
-  taxonId: string | number,
-  options?: LocationOptions,
-): Promise<SpeciesOccurrencesResult> {
-  const encodedId = encodeURIComponent(String(taxonId));
-  const params = new URLSearchParams();
-  if (options?.location) {
-    params.set('location', options.location);
-  }
-  if (options?.phenology) {
-    params.set('phenology', options.phenology);
-  }
-  if (options?.startTs != null) {
-    params.set('start_ts', String(options.startTs));
-  }
-  if (options?.endTs != null) {
-    params.set('end_ts', String(options.endTs));
-  }
-  const query = params.toString();
-  const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
-  const payload = asRecord(
-    await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`),
-  );
-  const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
-  const occurrences: SpeciesOccurrence[] = rows
+/** Shared by fetchSpeciesOccurrences and fetchSpeciesOccurrenceTile — both
+ * endpoints return the same per-entry shape (catalogNumber/latitude/
+ * longitude + optional media fields), see main.py's
+ * _occurrence_entries_from_df, the function both routes share server-side. */
+function parseOccurrenceRows(rows: unknown[]): SpeciesOccurrence[] {
+  return rows
     .map((entry) => {
       const source = asRecord(entry);
       return {
@@ -302,6 +280,36 @@ export async function fetchSpeciesOccurrences(
       mediaLicense: entry.mediaLicense,
       mediaLicenseUrl: entry.mediaLicenseUrl,
     }));
+}
+
+/**
+ * Fetches occurrence points for a species, plus the full timestamp range of the matching observations.
+ */
+export async function fetchSpeciesOccurrences(
+  taxonId: string | number,
+  options?: LocationOptions,
+): Promise<SpeciesOccurrencesResult> {
+  const encodedId = encodeURIComponent(String(taxonId));
+  const params = new URLSearchParams();
+  if (options?.location) {
+    params.set('location', options.location);
+  }
+  if (options?.phenology) {
+    params.set('phenology', options.phenology);
+  }
+  if (options?.startTs != null) {
+    params.set('start_ts', String(options.startTs));
+  }
+  if (options?.endTs != null) {
+    params.set('end_ts', String(options.endTs));
+  }
+  const query = params.toString();
+  const url = `${BACKEND_BASE}/species/${encodedId}/occurrences${query ? `?${query}` : ''}`;
+  const payload = asRecord(
+    await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`),
+  );
+  const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
+  const occurrences = parseOccurrenceRows(rows);
   const phenologyCounts =
     payload.phenology_counts && typeof payload.phenology_counts === 'object'
       ? (payload.phenology_counts as Record<string, number>)
@@ -314,4 +322,28 @@ export async function fetchSpeciesOccurrences(
       typeof payload.max_timestamp === 'number' ? payload.max_timestamp : null,
     phenologyCounts,
   };
+}
+
+/**
+ * Fetches occurrence points for one slippy-map tile — the viewport-bounded
+ * counterpart to fetchSpeciesOccurrences, safe to call for any taxon size
+ * (including genus/family/kingdom rank) since a tile's bbox is bounded by
+ * construction (see main.py:get_species_occurrences_tile). No location/
+ * phenology/timestamp filter params — the tile route doesn't accept them.
+ * No phenologyCounts/minTimestamp/maxTimestamp in the response either —
+ * those are whole-taxon aggregates with no honest meaning over one tile.
+ */
+export async function fetchSpeciesOccurrenceTile(
+  taxonId: string | number,
+  z: number,
+  x: number,
+  y: number,
+): Promise<SpeciesOccurrence[]> {
+  const encodedId = encodeURIComponent(String(taxonId));
+  const url = `${BACKEND_BASE}/species/${encodedId}/occurrences/${z}/${x}/${y}`;
+  const payload = asRecord(
+    await fetchJsonOrThrow(url, `Failed to fetch occurrence tile for ${taxonId}`),
+  );
+  const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
+  return parseOccurrenceRows(rows);
 }

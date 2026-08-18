@@ -57,6 +57,7 @@ import {
   fetchOccurrenceLookup,
   parseFilenameFromContentDisposition,
 } from '@/data/api';
+import type { ViewportTileRange } from '@/data/api';
 import { Colors, Size } from '@/constants/theme';
 import { resolveWebHeaderHeight } from '@/constants/webHeaderHeight';
 import { mountainBallCactusData } from '@/data/speciesSample';
@@ -86,6 +87,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
 import { SpeciesObservationFilters } from '@/components/sections/SpeciesObservationFilters';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
+import { useSpeciesOccurrenceTiles } from '@/hooks/species/useSpeciesOccurrenceTiles';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { useSpeciesRouteLocationHydration } from '@/hooks/species/useSpeciesRouteLocationHydration';
 import { useSettings } from '@/context/SettingsContext';
@@ -446,7 +448,12 @@ export default function Species({
     webHeaderHeight,
   ]);
 
-  const shouldRenderOccurrenceMap = Boolean(taxonId) && !largeTaxon;
+  // Large taxa now render fine — the map fetches per visible tile
+  // (useSpeciesOccurrenceTiles) instead of the flat, unbounded endpoint
+  // (useSpeciesOccurrences), which is what actually made this unsafe
+  // before. Only the raw all-observations paths (download, the flat
+  // occurrences fetch itself) still need largeTaxon to stay gated.
+  const shouldRenderOccurrenceMap = Boolean(taxonId);
   const isOccurrenceMapReadyToRender = shouldRenderObservationMapFrame({
     measuredWebHeaderHeight: webHeaderHeight,
     platform: Platform.OS,
@@ -503,7 +510,11 @@ export default function Species({
     onStateChange,
     onCountyChange,
   } = useSpeciesLocationFilters({
-    taxonId: largeTaxon ? undefined : taxonId,
+    // /species/{id}/locations reads a precomputed per-taxon aggregate table
+    // (main.py:_cached_get_species_locations) — it was never guarded
+    // against large taxa on the backend, so there's no reason to gate it
+    // on largeTaxon here.
+    taxonId,
     locationSearchLimit: LOCATION_SEARCH_LIMIT,
   });
 
@@ -524,9 +535,9 @@ export default function Species({
   });
 
   const {
-    occurrences: fetchedOccurrences,
-    loading: occurrenceLoading,
-    error: occurrenceError,
+    occurrences: flatOccurrences,
+    loading: flatOccurrenceLoading,
+    error: flatOccurrenceError,
     phenologyCounts,
     phenologyNoData,
   } = useSpeciesOccurrences({
@@ -536,6 +547,31 @@ export default function Species({
     startTimestamp,
     endTimestamp,
   });
+
+  // Large-taxon counterpart to the flat fetch above — driven by whichever
+  // tiles the map currently has on screen (see handleOccurrenceMapBoundsChange
+  // below). No location/phenology filtering support server-side yet (the
+  // tile route doesn't accept those params — see fetchSpeciesOccurrenceTile),
+  // so those filters stay disabled for large taxa regardless of this.
+  const [viewportTileRange, setViewportTileRange] =
+    React.useState<ViewportTileRange | null>(null);
+  const {
+    occurrences: tileOccurrences,
+    loading: tileOccurrenceLoading,
+    error: tileOccurrenceError,
+  } = useSpeciesOccurrenceTiles({
+    taxonId,
+    enabled: Boolean(largeTaxon),
+    tileRange: viewportTileRange,
+  });
+
+  const fetchedOccurrences = largeTaxon ? tileOccurrences : flatOccurrences;
+  const occurrenceLoading = largeTaxon
+    ? tileOccurrenceLoading
+    : flatOccurrenceLoading;
+  const occurrenceError = largeTaxon
+    ? tileOccurrenceError
+    : flatOccurrenceError;
 
   // Applies routePhenology once the taxon's available phenology options are
   // known — a no-op if it's not one of them (e.g. this species has no
@@ -1209,6 +1245,20 @@ export default function Species({
     catalogRenderMax: selectedVariableMeta?.renderMax,
   });
 
+  // Multiplexes the map's one onBoundsChange slot: auto-adapt always wants
+  // to know the visible bounds (unrelated to taxon size), and for a large
+  // taxon this is also what drives which occurrence tiles get fetched (see
+  // useSpeciesOccurrenceTiles above).
+  const handleOccurrenceMapBoundsChange = React.useCallback(
+    (tiles: ViewportTileRange) => {
+      handleAutoAdaptBoundsChange(tiles);
+      if (largeTaxon) {
+        setViewportTileRange(tiles);
+      }
+    },
+    [handleAutoAdaptBoundsChange, largeTaxon],
+  );
+
   const heatmapTileUrl = React.useMemo(() => {
     if (!selectedVariableMeta?.id) return null;
     const isCircular = isVariableCircular(selectedVariableMeta);
@@ -1554,7 +1604,6 @@ export default function Species({
                   onCountryChange={onCountryChange}
                   onStateChange={onStateChange}
                   onCountyChange={onCountyChange}
-                  disabled={largeTaxon}
                 />
 
                 <SpeciesObservationFilters
@@ -1567,7 +1616,6 @@ export default function Species({
                 <SpeciesEnvironmentSection
                   taxonId={taxonId}
                   taxonRank={taxonRank}
-                  largeTaxon={largeTaxon}
                   variableId={routeVariableId}
                   onHighlightChange={setHighlightedCatalogs}
                   onVariableMetaChange={handleVariableMetaChange}
@@ -1600,8 +1648,10 @@ export default function Species({
                   variant='bodySmall'
                   style={{ color: palette.text.warning.default }}
                 >
-                  Too many observations to display on map. Filters, slicing, and
-                  downloading are disabled for this taxon.
+                  This taxon is too broad to download all observations at once,
+                  and phenology filtering isn&apos;t available at this level.
+                  The map, location filtering, and environment stats are still
+                  available.
                 </ThemedText>
               </View>
             </SectionShell>
@@ -1647,7 +1697,14 @@ export default function Species({
                     )
                   }
                   occurrences={mapOccurrences}
-                  refitOnOccurrencesChange={occurrencesBeforeRegionFilter}
+                  // For large taxa, occurrences are re-fetched per tile as the
+                  // user pans — refitting the viewport to match each new batch
+                  // would fight the pan that caused it. A stable key means
+                  // "never refit again" once the map has settled on a view
+                  // (matches this map's own points-empty-on-load fallback).
+                  refitOnOccurrencesChange={
+                    largeTaxon ? 'tile-viewport' : occurrencesBeforeRegionFilter
+                  }
                   loading={occurrenceLoading}
                   error={occurrenceError}
                   highlightedCatalogs={highlightedCatalogs}
@@ -1665,7 +1722,7 @@ export default function Species({
                   heatmapTileUrl={heatmapTileUrl}
                   renderMin={isAutoAdaptApplicable ? effectiveRenderMin : null}
                   renderMax={isAutoAdaptApplicable ? effectiveRenderMax : null}
-                  onBoundsChange={handleAutoAdaptBoundsChange}
+                  onBoundsChange={handleOccurrenceMapBoundsChange}
                   enableAutoAdaptToggle
                   autoAdaptApplicable={isAutoAdaptApplicable}
                   autoAdaptEnabled={autoAdaptEnabled}

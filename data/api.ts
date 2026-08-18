@@ -37,6 +37,7 @@ import {
   fetchSpeciesEnvironment as fetchSpeciesEnvironmentHelper,
   fetchSpeciesEnvironmentCategorySamples as fetchSpeciesEnvironmentCategorySamplesHelper,
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
+  fetchSpeciesOccurrenceTile as fetchSpeciesOccurrenceTileHelper,
   type CategorySampleOptions,
   type LocationOptions,
 } from './apiEnvironmentHelpers';
@@ -347,6 +348,20 @@ export async function fetchSpeciesOccurrences(
   options?: { location?: string | null; units?: string | null },
 ) {
   return fetchSpeciesOccurrencesHelper(taxonId, options);
+}
+
+/**
+ * Fetches species occurrence coordinates for one slippy-map tile — safe for
+ * any taxon size, unlike fetchSpeciesOccurrences. See
+ * apiEnvironmentHelpers.fetchSpeciesOccurrenceTile.
+ */
+export async function fetchSpeciesOccurrenceTile(
+  taxonId: string | number,
+  z: number,
+  x: number,
+  y: number,
+) {
+  return fetchSpeciesOccurrenceTileHelper(taxonId, z, x, y);
 }
 
 /**

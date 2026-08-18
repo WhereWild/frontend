@@ -9,6 +9,7 @@ import {
   fetchSpeciesEnvironmentCategorySamples,
   fetchSpeciesLocations,
   fetchSpeciesOccurrences,
+  fetchSpeciesOccurrenceTile,
 } from './api';
 import type {
   EnvironmentSliceParams,
@@ -77,6 +78,16 @@ export type SpeciesDataSource = {
     taxonId: string | number,
     options?: EnvironmentRequestOptions,
   ) => Promise<SpeciesOccurrencesResult>;
+  /** Viewport-tile-scoped occurrence fetch — safe for any taxon size. Only
+   * the remote data source implements this; there's no offline/upload
+   * equivalent (custom-upload data is already small — see
+   * util/upload.py:_MAX_UPLOAD_ROWS — and doesn't need viewport bounding). */
+  fetchSpeciesOccurrenceTile?: (
+    taxonId: string | number,
+    z: number,
+    x: number,
+    y: number,
+  ) => Promise<SpeciesOccurrencesResult['occurrences']>;
   fetchSpeciesLocations: (
     taxonId: string | number,
     level?: FetchSpeciesLocationsLevel,
@@ -92,6 +103,7 @@ export const remoteSpeciesDataSource: SpeciesDataSource = {
   fetchEnvironmentRangeSlice,
   fetchSpeciesEnvironmentCategorySamples,
   fetchSpeciesOccurrences,
+  fetchSpeciesOccurrenceTile,
   fetchSpeciesLocations,
 };
 
