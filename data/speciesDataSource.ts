@@ -87,6 +87,7 @@ export type SpeciesDataSource = {
     z: number,
     x: number,
     y: number,
+    options?: EnvironmentRequestOptions,
   ) => Promise<SpeciesOccurrencesResult['occurrences']>;
   fetchSpeciesLocations: (
     taxonId: string | number,

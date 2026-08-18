@@ -550,9 +550,12 @@ export default function Species({
 
   // Large-taxon counterpart to the flat fetch above — driven by whichever
   // tiles the map currently has on screen (see handleOccurrenceMapBoundsChange
-  // below). No location/phenology filtering support server-side yet (the
-  // tile route doesn't accept those params — see fetchSpeciesOccurrenceTile),
-  // so those filters stay disabled for large taxa regardless of this.
+  // below). Same location/phenology/timestamp filters as the flat fetch —
+  // the tile route accepts them now too. Phenology's dropdown still won't
+  // show options for a large taxon, though (see phenologyCounts below,
+  // which only ever comes from the flat fetch) — filtering by phenology
+  // works mechanically here, but there's no UI path to select a value yet
+  // for a taxon this large.
   const [viewportTileRange, setViewportTileRange] =
     React.useState<ViewportTileRange | null>(null);
   const {
@@ -563,6 +566,10 @@ export default function Species({
     taxonId,
     enabled: Boolean(largeTaxon),
     tileRange: viewportTileRange,
+    locationGid: finalLocationGid,
+    phenology: selectedPhenology,
+    startTimestamp,
+    endTimestamp,
   });
 
   const fetchedOccurrences = largeTaxon ? tileOccurrences : flatOccurrences;

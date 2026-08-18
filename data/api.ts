@@ -38,6 +38,7 @@ import {
   fetchSpeciesEnvironmentCategorySamples as fetchSpeciesEnvironmentCategorySamplesHelper,
   fetchSpeciesOccurrences as fetchSpeciesOccurrencesHelper,
   fetchSpeciesOccurrenceTile as fetchSpeciesOccurrenceTileHelper,
+  type TileFilterOptions,
   type CategorySampleOptions,
   type LocationOptions,
 } from './apiEnvironmentHelpers';
@@ -360,8 +361,9 @@ export async function fetchSpeciesOccurrenceTile(
   z: number,
   x: number,
   y: number,
+  options?: TileFilterOptions,
 ) {
-  return fetchSpeciesOccurrenceTileHelper(taxonId, z, x, y);
+  return fetchSpeciesOccurrenceTileHelper(taxonId, z, x, y, options);
 }
 
 /**

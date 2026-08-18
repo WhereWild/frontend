@@ -58,11 +58,55 @@ describe('useSpeciesOccurrenceTiles', () => {
       expect(result.current.loading).toBe(false);
     });
 
+    const emptyFilters = {
+      location: undefined,
+      phenology: undefined,
+      startTs: undefined,
+      endTs: undefined,
+    };
     expect(mockFetchTile).toHaveBeenCalledTimes(2);
-    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 0, 0);
-    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 1, 0);
+    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 0, 0, emptyFilters);
+    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 1, 0, emptyFilters);
     expect(result.current.occurrences).toHaveLength(2);
     expect(result.current.error).toBeNull();
+  });
+
+  it('passes location/phenology/timestamp filters through to each tile fetch', async () => {
+    const mockFetchTile = jest.fn(async () => []);
+    const dataSource = createSpeciesDataSource({
+      fetchSpeciesOccurrenceTile: mockFetchTile,
+    });
+
+    const { result } = renderHook(
+      () =>
+        useSpeciesOccurrenceTiles({
+          taxonId: '12',
+          enabled: true,
+          tileRange: SINGLE_TILE_RANGE,
+          locationGid: 'state-ut',
+          phenology: 'flowers',
+          startTimestamp: 100,
+          endTimestamp: 200,
+        }),
+      {
+        wrapper: ({ children }) => (
+          <SpeciesDataSourceProvider value={dataSource}>
+            {children}
+          </SpeciesDataSourceProvider>
+        ),
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockFetchTile).toHaveBeenCalledWith('12', 3, 0, 0, {
+      location: 'state-ut',
+      phenology: 'flowers',
+      startTs: 100,
+      endTs: 200,
+    });
   });
 
   it('does not fetch when disabled', async () => {

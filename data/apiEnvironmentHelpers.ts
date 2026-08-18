@@ -324,23 +324,46 @@ export async function fetchSpeciesOccurrences(
   };
 }
 
+export type TileFilterOptions = {
+  location?: string | null;
+  phenology?: string | null;
+  startTs?: number | null;
+  endTs?: number | null;
+};
+
 /**
  * Fetches occurrence points for one slippy-map tile — the viewport-bounded
  * counterpart to fetchSpeciesOccurrences, safe to call for any taxon size
  * (including genus/family/kingdom rank) since a tile's bbox is bounded by
- * construction (see main.py:get_species_occurrences_tile). No location/
- * phenology/timestamp filter params — the tile route doesn't accept them.
- * No phenologyCounts/minTimestamp/maxTimestamp in the response either —
- * those are whole-taxon aggregates with no honest meaning over one tile.
+ * construction (see main.py:get_species_occurrences_tile). Same
+ * location/phenology/start_ts/end_ts semantics as fetchSpeciesOccurrences.
+ * No phenologyCounts/minTimestamp/maxTimestamp in the response though —
+ * those are whole-taxon aggregates with no honest meaning over one tile,
+ * so the tile route never returns them regardless of filters.
  */
 export async function fetchSpeciesOccurrenceTile(
   taxonId: string | number,
   z: number,
   x: number,
   y: number,
+  options?: TileFilterOptions,
 ): Promise<SpeciesOccurrence[]> {
   const encodedId = encodeURIComponent(String(taxonId));
-  const url = `${BACKEND_BASE}/species/${encodedId}/occurrences/${z}/${x}/${y}`;
+  const params = new URLSearchParams();
+  if (options?.location) {
+    params.set('location', options.location);
+  }
+  if (options?.phenology) {
+    params.set('phenology', options.phenology);
+  }
+  if (options?.startTs != null) {
+    params.set('start_ts', String(options.startTs));
+  }
+  if (options?.endTs != null) {
+    params.set('end_ts', String(options.endTs));
+  }
+  const query = params.toString();
+  const url = `${BACKEND_BASE}/species/${encodedId}/occurrences/${z}/${x}/${y}${query ? `?${query}` : ''}`;
   const payload = asRecord(
     await fetchJsonOrThrow(url, `Failed to fetch occurrence tile for ${taxonId}`),
   );

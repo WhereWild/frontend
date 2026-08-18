@@ -18,6 +18,10 @@ type UseSpeciesOccurrenceTilesParams = {
   taxonId?: string;
   enabled: boolean;
   tileRange: ViewportTileRange | null;
+  locationGid?: string | null;
+  phenology?: string | null;
+  startTimestamp?: number | null;
+  endTimestamp?: number | null;
 };
 
 type UseSpeciesOccurrenceTilesResult = {
@@ -28,14 +32,20 @@ type UseSpeciesOccurrenceTilesResult = {
 
 /** Viewport-tile-scoped counterpart to useSpeciesOccurrences — for taxa too
  * large for the flat/unbounded fetch (see largeTaxon in app/_species.tsx).
- * Re-fetches whichever tiles are currently visible whenever tileRange
- * changes, and replaces (doesn't accumulate onto) the previous result — a
- * snapshot of what's on screen right now, not a running total of
- * everywhere the user has ever panned. */
+ * Re-fetches whichever tiles are currently visible whenever tileRange (or
+ * any filter) changes, and replaces (doesn't accumulate onto) the previous
+ * result — a snapshot of what's on screen right now, not a running total
+ * of everywhere the user has ever panned. locationGid/phenology/
+ * startTimestamp/endTimestamp match useSpeciesOccurrences' filter params
+ * exactly — the tile route accepts the same ones now. */
 export const useSpeciesOccurrenceTiles = ({
   taxonId,
   enabled,
   tileRange,
+  locationGid,
+  phenology,
+  startTimestamp,
+  endTimestamp,
 }: UseSpeciesOccurrenceTilesParams): UseSpeciesOccurrenceTilesResult => {
   const speciesDataSource = useSpeciesDataSource();
   const [occurrences, setOccurrences] = React.useState<SpeciesOccurrence[]>([]);
@@ -83,10 +93,17 @@ export const useSpeciesOccurrenceTiles = ({
     setLoading(true);
     setError(null);
 
+    const filterOptions = {
+      location: locationGid,
+      phenology,
+      startTs: startTimestamp,
+      endTs: endTimestamp,
+    };
+
     (async () => {
       try {
         const results = await Promise.all(
-          coords.map(([x, y]) => fetchTile(taxonId, z, x, y)),
+          coords.map(([x, y]) => fetchTile(taxonId, z, x, y, filterOptions)),
         );
         if (requestRef.current !== requestId) return;
 
@@ -117,7 +134,16 @@ export const useSpeciesOccurrenceTiles = ({
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tileRangeKey stands in for tileRange (see its declaration above)
-  }, [enabled, speciesDataSource, taxonId, tileRangeKey]);
+  }, [
+    enabled,
+    speciesDataSource,
+    taxonId,
+    tileRangeKey,
+    locationGid,
+    phenology,
+    startTimestamp,
+    endTimestamp,
+  ]);
 
   return { occurrences, loading, error };
 };
