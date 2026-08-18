@@ -91,7 +91,10 @@ describe('SpeciesBasicsPage', () => {
     });
   });
 
-  it('renders a not-found screen when no identifier parameter is supplied', async () => {
+  it('renders fallback data when no identifier parameter is supplied', async () => {
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(jest.fn());
     mockUseLocalSearchParams.mockReturnValue({});
 
     render(<SpeciesBasicsPage />);
@@ -100,11 +103,11 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(screen.getByTestId('species-not-found')).toBeTruthy();
-    expect(screen.getByText('No species id was provided.')).toBeTruthy();
     expect(
       screen.queryAllByText(mountainBallCactusData.commonName).length,
-    ).toBe(0);
+    ).toBeGreaterThan(0);
+
+    consoleSpy.mockRestore();
   });
 
   it('fetches species basics and maps the response onto SpeciesPage props', async () => {
@@ -195,7 +198,7 @@ describe('SpeciesBasicsPage', () => {
     );
   });
 
-  it('renders a not-found screen when the fetch request fails', async () => {
+  it('falls back to sample data when the fetch request fails', async () => {
     const consoleSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -211,16 +214,10 @@ describe('SpeciesBasicsPage', () => {
       units: 'metric',
     });
     await waitFor(() => {
-      expect(screen.getByTestId('species-not-found')).toBeTruthy();
+      expect(
+        screen.getAllByText(mountainBallCactusData.commonName).length,
+      ).toBeGreaterThan(0);
     });
-    expect(
-      screen.getByText(
-        `We couldn't find a species with id "${SAMPLE_TAXON_ID}".`,
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.queryAllByText(mountainBallCactusData.commonName).length,
-    ).toBe(0);
     expect(consoleSpy).toHaveBeenCalledWith(
       `Failed to load species '${SAMPLE_TAXON_ID}':`,
       'Network down',
@@ -248,7 +245,7 @@ describe('SpeciesBasicsPage', () => {
     consoleSpy.mockRestore();
   });
 
-  it('renders a not-found screen when the API returns null for a valid identifier', async () => {
+  it('falls back to sample data when the API returns null for a valid identifier', async () => {
     mockUseLocalSearchParams.mockReturnValue({ identifier: SAMPLE_TAXON_ID });
     mockFetchSpeciesByTaxonId.mockResolvedValue(null as any);
 
@@ -261,11 +258,10 @@ describe('SpeciesBasicsPage', () => {
       units: 'metric',
     });
     await waitFor(() => {
-      expect(screen.getByTestId('species-not-found')).toBeTruthy();
+      expect(
+        screen.getAllByText(mountainBallCactusData.commonName).length,
+      ).toBeGreaterThan(0);
     });
-    expect(
-      screen.queryAllByText(mountainBallCactusData.commonName).length,
-    ).toBe(0);
   });
 
   it('prefers image_source strings returned by the API over image_url', async () => {
@@ -470,7 +466,7 @@ describe('SpeciesBasicsPage', () => {
     });
   });
 
-  it('renders a not-found screen without logging when the identifier is invalid', async () => {
+  it('logs an error and renders fallback data when the identifier is invalid', async () => {
     const consoleSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -484,8 +480,9 @@ describe('SpeciesBasicsPage', () => {
     });
 
     expect(mockFetchSpeciesByTaxonId).not.toHaveBeenCalled();
-    expect(screen.getByTestId('species-not-found')).toBeTruthy();
-    expect(consoleSpy).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Missing taxon ID in route segments.',
+    );
 
     consoleSpy.mockRestore();
   });

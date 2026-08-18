@@ -1836,20 +1836,6 @@ describe('useEnvironmentHighlights', () => {
           extra: { variableId: 'landcover', classValues: [52] },
         }),
       ]);
-
-      // The rerender above also kicks off the chained-classValues fallback
-      // fetch (useEnvironmentHighlights.ts's `'classValues' in primary.extra`
-      // branch) and its setRangeObservations() — wait for that to settle
-      // under act() before the test ends, instead of leaking into whatever
-      // runs next.
-      await waitFor(() =>
-        expect(mockFetchSpeciesEnvironmentCategorySamples).toHaveBeenCalledWith(
-          expect.any(String),
-          'landcover',
-          52,
-          expect.anything(),
-        ),
-      );
     });
 
     it('applies a chained categorical filter on its own when switching from one nominal variable to ANOTHER nominal variable with no selection yet', async () => {

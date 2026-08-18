@@ -289,14 +289,12 @@ export function NominalInsights({
           </View>
           <View
             collapsable={false}
-            style={[
-              !expanded ? styles.hiddenSlot : undefined,
-              { pointerEvents: expanded ? 'auto' : 'none' },
-            ]}
+            style={!expanded ? styles.hiddenSlot : undefined}
             accessibilityElementsHidden={!expanded}
             importantForAccessibility={
               expanded ? 'auto' : 'no-hide-descendants'
             }
+            pointerEvents={expanded ? 'auto' : 'none'}
           >
             <View
               collapsable={false}
