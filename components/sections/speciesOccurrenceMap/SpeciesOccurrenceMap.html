@@ -2740,7 +2740,20 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       }
     }
 
-    if (SHOW_MARKERS && Array.isArray(points) && points.length) {
+    // Deliberately NOT gated on points.length: a large taxon starts with an
+    // empty points array on purpose (see app/_species.tsx's largeTaxon
+    // path) and populates it later via pointsUpdate messages as tiles are
+    // fetched. Skipping this block for an empty initial array used to be a
+    // reasonable optimization when "zero points now, more later" wasn't a
+    // real case — but it meant replaceOccurrenceMarkersImpl (defined inside
+    // this block) never got assigned, so replaceOccurrenceMarkers's `if
+    // (replaceOccurrenceMarkersImpl)` guard silently no-op'd every
+    // subsequent pointsUpdate for the rest of the session. Every branch
+    // below already handles points.length === 0 correctly on its own
+    // (buildOccurrenceMarkers, the observedBounds fallback to
+    // map.setView([0,0], BASE_MIN_ZOOM), etc.) — this was purely an
+    // initialization-order bug, not a real invariant.
+    if (SHOW_MARKERS) {
       const directMarkerAnchors = [];
       const useVisibilityManagedClustering =
         points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
