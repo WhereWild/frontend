@@ -52,6 +52,14 @@ export const useSpeciesOccurrenceTiles = ({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const requestRef = React.useRef(0);
+  // The map renders `loading` as a full-screen overlay covering whatever's
+  // already on screen — appropriate for the very first fetch (there's
+  // nothing to show yet), but panning/zooming refetches constantly after
+  // that, and blanking the map out on every one of those would make already
+  // -loaded dots disappear and reappear on every pan. Only the first fetch
+  // for a given enabled taxon reports loading=true externally; every fetch
+  // after that updates the occurrences in the background, no overlay.
+  const hasLoadedOnceRef = React.useRef(false);
 
   // The map reports its bounds as a fresh object on every moveend/zoomend,
   // even when the visible tile range didn't actually change (e.g. a
@@ -68,6 +76,15 @@ export const useSpeciesOccurrenceTiles = ({
       requestRef.current += 1;
     };
   }, []);
+
+  // A different taxon (or the hook going from disabled to enabled) is a
+  // fresh session — its first fetch should show loading again, not silently
+  // inherit "already loaded once" from whatever was displayed before.
+  const lastTaxonIdRef = React.useRef<string | undefined>(undefined);
+  if (taxonId !== lastTaxonIdRef.current) {
+    lastTaxonIdRef.current = taxonId;
+    hasLoadedOnceRef.current = false;
+  }
 
   React.useEffect(() => {
     const requestId = ++requestRef.current;
@@ -90,7 +107,7 @@ export const useSpeciesOccurrenceTiles = ({
       if (coords.length >= MAX_TILES_PER_FETCH) break;
     }
 
-    setLoading(true);
+    setLoading(!hasLoadedOnceRef.current);
     setError(null);
 
     const filterOptions = {
@@ -129,6 +146,7 @@ export const useSpeciesOccurrenceTiles = ({
         }
       } finally {
         if (requestRef.current === requestId) {
+          hasLoadedOnceRef.current = true;
           setLoading(false);
         }
       }

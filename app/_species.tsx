@@ -1640,30 +1640,6 @@ export default function Species({
             )}
           </View>
 
-          {largeTaxon && Boolean(taxonId) && (
-            <SectionShell responsive={responsive}>
-              <View
-                style={{
-                  borderWidth: 1,
-                  borderRadius: 8,
-                  padding: 12,
-                  backgroundColor: palette.background.warning.secondary,
-                  borderColor: palette.border.warning.default,
-                }}
-              >
-                <ThemedText
-                  variant='bodySmall'
-                  style={{ color: palette.text.warning.default }}
-                >
-                  This taxon is too broad to download all observations at once,
-                  and phenology filtering isn&apos;t available at this level.
-                  The map, location filtering, and environment stats are still
-                  available.
-                </ThemedText>
-              </View>
-            </SectionShell>
-          )}
-
           {shouldRenderOccurrenceMap && (
             <SectionShell responsive={responsive}>
               <ThemedText

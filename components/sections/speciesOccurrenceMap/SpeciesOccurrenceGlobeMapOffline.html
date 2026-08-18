@@ -1852,7 +1852,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         }
       }
 
-      if (SHOW_MARKERS && Array.isArray(points) && points.length) {
+      // Deliberately NOT gated on points.length — see the matching comment
+      // in SpeciesOccurrenceMap.html's SHOW_MARKERS block. Same bug, same
+      // fix: a large taxon starts with an empty points array on purpose and
+      // fills it in later via pointsUpdate, but replaceOccurrencePointsImpl
+      // (assigned inside this block) never got set for an empty initial
+      // array, so replaceOccurrencePoints silently no-op'd every update
+      // after that for the rest of the session.
+      if (SHOW_MARKERS) {
         var validPoints = points.filter(function(pt) {
           return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
         });
