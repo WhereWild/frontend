@@ -2089,6 +2089,32 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       map.closePopup();
     }
 
+    // Every popup this map ever opens for a point (observation marker,
+    // background click, or a restored ?highlightObservation= pin) is opened
+    // alongside a sendPinMessage call for that same catalogNumber — clicking
+    // the popup's own 'x' should undo that, not just dismiss the bubble.
+    // sendPinMessage's parent-side handler toggles the pin off when it
+    // receives the SAME catalogNumber that's already pinned, so re-sending
+    // it here is enough — no separate "unpin" message type needed. Reads
+    // the close button straight out of the popup's DOM (rather than
+    // Leaflet's 'popupclose'/'remove' events, which also fire for our OWN
+    // programmatic closes, e.g. sendPinMessage's map.closePopup() — reacting
+    // to those too would immediately re-toggle the pin right back on).
+    function attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude) {
+      if (!popup || !catalogNumber) return;
+      var el = typeof popup.getElement === 'function' ? popup.getElement() : null;
+      var closeBtn = el && el.querySelector('.leaflet-popup-close-button');
+      // Guard against double-attaching to the same button (e.g. if this
+      // gets called again for a popup whose content updated but DOM wasn't
+      // replaced) — would otherwise stack N listeners and fire the toggle
+      // N times per click.
+      if (!closeBtn || closeBtn._unpinHandlerAttached) return;
+      closeBtn._unpinHandlerAttached = true;
+      closeBtn.addEventListener('click', function() {
+        sendPinMessage(catalogNumber, latitude, longitude);
+      }, { once: true });
+    }
+
     function sendOpenExternalUrlMessage(url) {
       postToParent({ type: OPEN_EXTERNAL_URL_MESSAGE_TYPE, url: url });
     }
@@ -2520,6 +2546,16 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         selectedPointMarker = null;
       }
 
+      // Unlike an observation marker's popup (bound to selectedCatalogDirectMarker
+      // above, so removing that marker layer auto-closes it too), a
+      // background/point-pin popup is a standalone L.popup() never bound to
+      // any marker — nothing else here would ever close it, so clearing the
+      // pin (point === null) would otherwise leave the bubble open forever.
+      if (lastBackgroundPopup) {
+        map.closePopup(lastBackgroundPopup);
+        lastBackgroundPopup = null;
+      }
+
       if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') {
         refreshVisibleMarkerPresentation();
         return;
@@ -2593,6 +2629,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
             : '';
           fetchAndShowPointValue(selectedCatalogDirectMarker, selInatHtml, latitude, matchingEntry.longitude, matchingEntry.popupMediaUrl, matchingEntry.popupMediaAttribution, matchingEntry.popupMediaLicense, matchingEntry.popupMediaLicenseUrl);
         }
+        attachPopupUnpinOnClose(selectedCatalogDirectMarker.getPopup(), point.catalogNumber, latitude, matchingEntry.longitude);
         refreshVisibleMarkerPresentation();
         return;
       }
@@ -2615,6 +2652,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
           .openOn(map);
         lastBackgroundPopup = bgPopup;
         fetchBackgroundPointPopup(bgPopup, bgLat, bgLon);
+        attachPopupUnpinOnClose(bgPopup, point.catalogNumber, latitude, longitude);
       }
 
       if (CLASS_SHAPES && POINT_QUERY_URL) {
@@ -2742,8 +2780,18 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
 
     if (SHOW_MARKERS && Array.isArray(points) && points.length) {
       const directMarkerAnchors = [];
-      const useVisibilityManagedClustering =
-        points.length > MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS;
+      // Clustering removed: lazy popup content loading (see popupHtml
+      // below) already keeps a full set of plain, individually-clickable
+      // markers cheap to build and render, even for a taxon with thousands
+      // of points — clustering existed specifically to work around THAT
+      // being expensive, which it no longer is. Hardcoded false rather
+      // than deleting every cluster-specific code path below (marker
+      // creation, hide/restore, viewport-visibility switching): those
+      // paths are already exercised today for any taxon under the old
+      // MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS threshold, so keeping this a
+      // single decision point is the lowest-risk way to make that the
+      // ALWAYS case, rather than rewriting the structure around it.
+      const useVisibilityManagedClustering = false;
       clusterGroup = useVisibilityManagedClustering
         ? L.markerClusterGroup({
           spiderfyOnMaxZoom: false,
@@ -2855,6 +2903,7 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
               popup.setContent(content);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
+            attachPopupUnpinOnClose(popup, catalogValue, latitude, longitude);
           } else if (isVariableColorMode()) {
             var content = inatHtml + '<div style="margin-top:4px"><span style="opacity:0.6;font-size:11px">No data</span></div>' + buildObservationMediaHtml(varData.popupMediaUrl, varData.popupMediaAttribution, varData.popupMediaLicense, varData.popupMediaLicenseUrl);
             var popup = marker.getPopup();
@@ -2865,8 +2914,10 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
               popup.setContent(content);
             }
             if (!marker.isPopupOpen()) marker.openPopup();
+            attachPopupUnpinOnClose(popup, catalogValue, latitude, longitude);
           } else if (POINT_QUERY_URL && !DISABLE_OBSERVATION_QUERY) {
             fetchAndShowPointValue(marker, inatHtml, latitude, longitude, varData.popupMediaUrl, varData.popupMediaAttribution, varData.popupMediaLicense, varData.popupMediaLicenseUrl);
+            attachPopupUnpinOnClose(marker.getPopup(), catalogValue, latitude, longitude);
           }
         });
       }
@@ -3084,17 +3135,30 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
         const initialLongitude = alignLongitudeToView(canonicalLongitude, 0);
         const catalog = pt.catalogNumber ? String(pt.catalogNumber) : '';
         const markerKey = catalog.length ? catalog : 'fallback-' + String(idx);
-        const popupHtml = buildObservationPopup(
-          pt.popupCatalogValue,
-          pt.popupCatalogHref,
-          pt.popupCatalogLabel,
-          latitude,
-          canonicalLongitude,
-          pt.popupMediaUrl,
-          pt.popupMediaAttribution,
-          pt.popupMediaLicense,
-          pt.popupMediaLicenseUrl,
-        );
+        // A function, not a precomputed string: Leaflet calls this only
+        // when the popup is actually about to open, instead of us building
+        // popup HTML (including an <img> tag) for every point up front —
+        // for a taxon with thousands of points per viewport update, the
+        // overwhelming majority of which never get clicked. Every marker
+        // stays fully clickable either way; this only defers the content,
+        // never the interactivity. Matches buildObservationPopup's own
+        // early-return so we don't bind a popup at all when there's no
+        // catalogLabel to show.
+        const popupHtml = pt.popupCatalogLabel
+          ? function() {
+              return buildObservationPopup(
+                pt.popupCatalogValue,
+                pt.popupCatalogHref,
+                pt.popupCatalogLabel,
+                latitude,
+                canonicalLongitude,
+                pt.popupMediaUrl,
+                pt.popupMediaAttribution,
+                pt.popupMediaLicense,
+                pt.popupMediaLicenseUrl,
+              );
+            }
+          : null;
 
         if (useVisibilityManagedClustering && clusterGroup) {
           var ptStyle = baseStyleForPoint(pt, markerKey);
@@ -3450,12 +3514,16 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
       }
 
       if (POINT_QUERY_URL) {
+        var syntheticPointId = 'point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6);
         if (ALLOW_PIN_OBSERVATIONS) {
-          sendPinMessage('point:' + latitude.toFixed(6) + ',' + longitude.toFixed(6), latitude, longitude);
+          sendPinMessage(syntheticPointId, latitude, longitude);
         }
         var popup = L.popup().setLatLng(event.latlng).setContent('<span style="opacity:0.6;font-size:11px">Loading…</span>').openOn(map);
         lastBackgroundPopup = popup;
         fetchBackgroundPointPopup(popup, latitude, longitude);
+        if (ALLOW_PIN_OBSERVATIONS) {
+          attachPopupUnpinOnClose(popup, syntheticPointId, latitude, longitude);
+        }
         return;
       }
 

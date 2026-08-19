@@ -503,7 +503,11 @@ export default function Species({
     onStateChange,
     onCountyChange,
   } = useSpeciesLocationFilters({
-    taxonId: largeTaxon ? undefined : taxonId,
+    // /species/{id}/locations reads a precomputed per-taxon aggregate table
+    // (main.py:_cached_get_species_locations) — it was never guarded
+    // against large taxa on the backend, so there's no reason to gate it
+    // on largeTaxon here.
+    taxonId,
     locationSearchLimit: LOCATION_SEARCH_LIMIT,
   });
 
@@ -1427,6 +1431,12 @@ export default function Species({
           license: occ?.mediaLicense,
           licenseUrl: occ?.mediaLicenseUrl,
           attribution: occ?.mediaAttribution,
+          // occ.taxonId/scientificName are only ever set for a large-taxon
+          // tile fetch (see SpeciesOccurrence's doc comment) — for a
+          // species/infraspecific page, every occurrence trivially IS this
+          // page's own taxon, so fall back to that.
+          taxonId: occ?.taxonId ?? taxonId,
+          scientificName: occ?.scientificName ?? scientificName,
         };
       });
   }, [
@@ -1434,6 +1444,8 @@ export default function Species({
     galleryPage,
     galleryPageSize,
     occurrenceByCatalog,
+    taxonId,
+    scientificName,
     selectedVariableMeta,
     observationValues,
     classColors,
@@ -1554,7 +1566,6 @@ export default function Species({
                   onCountryChange={onCountryChange}
                   onStateChange={onStateChange}
                   onCountyChange={onCountyChange}
-                  disabled={largeTaxon}
                 />
 
                 <SpeciesObservationFilters

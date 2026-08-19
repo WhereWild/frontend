@@ -701,8 +701,14 @@ describe('speciesOccurrenceMapHelpers', () => {
         extractInlineScript(linkedHtml),
         linkedHarness.context,
       );
-      const linkedPopup =
+      // bindPopup's content arg is a lazy function (see popupHtml in
+      // SpeciesOccurrenceMap.html) — resolve it to the actual HTML string.
+      const linkedPopupContent =
         linkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+      const linkedPopup =
+        typeof linkedPopupContent === 'function'
+          ? linkedPopupContent()
+          : linkedPopupContent;
 
       const unlinkedHtml = buildLeafletHtml(
         rawTemplate,
@@ -725,8 +731,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         extractInlineScript(unlinkedHtml),
         unlinkedHarness.context,
       );
-      const unlinkedPopup =
+      const unlinkedPopupContent =
         unlinkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+      const unlinkedPopup =
+        typeof unlinkedPopupContent === 'function'
+          ? unlinkedPopupContent()
+          : unlinkedPopupContent;
 
       expect(linkedPopup).toContain(
         'https://www.inaturalist.org/observations/obs-123',
@@ -888,8 +898,14 @@ describe('speciesOccurrenceMapHelpers', () => {
         extractInlineScript(linkedHtml),
         linkedHarness.context,
       );
-      const linkedPopup =
+      // bindPopup's content arg is a lazy function (see popupHtml in
+      // SpeciesOccurrenceMap.html) — resolve it to the actual HTML string.
+      const linkedPopupContent =
         linkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+      const linkedPopup =
+        typeof linkedPopupContent === 'function'
+          ? linkedPopupContent()
+          : linkedPopupContent;
 
       const unlinkedHtml = buildLeafletHtml(
         rawTemplate,
@@ -912,8 +928,12 @@ describe('speciesOccurrenceMapHelpers', () => {
         extractInlineScript(unlinkedHtml),
         unlinkedHarness.context,
       );
-      const unlinkedPopup =
+      const unlinkedPopupContent =
         unlinkedHarness.createdMarkers[0]?.bindPopup.mock.calls[0]?.[0];
+      const unlinkedPopup =
+        typeof unlinkedPopupContent === 'function'
+          ? unlinkedPopupContent()
+          : unlinkedPopupContent;
 
       expect(linkedPopup).toContain(
         'https://www.inaturalist.org/observations/obs-123',
@@ -922,74 +942,6 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(unlinkedPopup ?? '').not.toContain(
         'https://www.inaturalist.org/observations/obs-123',
       );
-    });
-  });
-
-  it('keeps clustered highlight state when zooming into direct markers', () => {
-    // Skipping the ~26MB offline/fallback template variants here — this
-    // suite used to take 70s+ per run testing the same map-html logic three
-    // times over against them just for parity. Core behavior is still
-    // covered against the real (270KB) template; the offline-specific
-    // canvas/tile logic has its own dedicated (now-skipped) describe block
-    // below ('offline Natural Earth fallback layer').
-    const templatePaths = [
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMap.html',
-      ),
-    ];
-
-    const expectedHighlightStyles: Record<
-      string,
-      { fillColor: string; color: string }
-    > = {
-      'SpeciesOccurrenceMap.html': {
-        fillColor: markerPalette.markerFill,
-        color: markerPalette.markerStroke,
-      },
-      'SpeciesOccurrenceMapFallback.html': {
-        fillColor: '#ffffff',
-        color: 'rgba(0,0,0,0.65)',
-      },
-    };
-
-    templatePaths.forEach((templatePath) => {
-      const rawTemplate = readTemplateCached(templatePath);
-      const html = buildLeafletHtml(
-        rawTemplate,
-        [
-          { catalogNumber: 101, latitude: 10, longitude: 20 },
-          { catalogNumber: 202, latitude: 11, longitude: 40 },
-        ],
-        markerPalette,
-        getMapTileUrlTemplate('light'),
-      ).replace(
-        `MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = ${MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS}`,
-        'MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 1',
-      );
-      const harness = createLeafletHarness();
-      harness.setVisibleLongitudePredicate(() => true);
-
-      vm.runInNewContext(extractInlineScript(html), harness.context);
-
-      expect(harness.createdMarkers).toHaveLength(2);
-
-      harness.windowListeners.get('message')?.({
-        data: toHighlightMessagePayload(['101']),
-      });
-
-      harness.setVisibleLongitudePredicate((longitude) => longitude === 20);
-      harness.eventHandlers.get('zoomend')?.();
-
-      const templateName = path.basename(templatePath);
-      const expectedStyle = expectedHighlightStyles[templateName];
-      expect(harness.createdMarkers).toHaveLength(3);
-      expect(harness.createdMarkers[2]?.style).toMatchObject({
-        ...expectedStyle,
-        radius: 4,
-      });
     });
   });
 
@@ -1228,65 +1180,6 @@ describe('speciesOccurrenceMapHelpers', () => {
       expect(
         (harness.context.L.map as jest.Mock).mock.results[0]?.value.removeLayer,
       ).toHaveBeenCalled();
-    });
-  });
-
-  it('hides the matching clustered observation marker while selected and restores it when cleared', () => {
-    // Skipping the ~26MB offline/fallback template variants here — this
-    // suite used to take 70s+ per run testing the same map-html logic three
-    // times over against them just for parity. Core behavior is still
-    // covered against the real (270KB) template; the offline-specific
-    // canvas/tile logic has its own dedicated (now-skipped) describe block
-    // below ('offline Natural Earth fallback layer').
-    const templatePaths = [
-      path.join(
-        __dirname,
-        '..',
-        'speciesOccurrenceMap',
-        'SpeciesOccurrenceMap.html',
-      ),
-    ];
-
-    templatePaths.forEach((templatePath) => {
-      const rawTemplate = readTemplateCached(templatePath);
-      const html = buildLeafletHtml(
-        rawTemplate,
-        [
-          { catalogNumber: 101, latitude: 10, longitude: 20 },
-          { catalogNumber: 202, latitude: 11, longitude: 40 },
-        ],
-        markerPalette,
-        getMapTileUrlTemplate('light'),
-      ).replace(
-        `MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = ${MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS}`,
-        'MAX_VISIBLE_UNCLUSTERED_OBSERVATIONS = 1',
-      );
-      const harness = createLeafletHarness();
-
-      vm.runInNewContext(extractInlineScript(html), harness.context);
-
-      expect(harness.createdMarkers).toHaveLength(2);
-
-      const targetClusterMarker = harness.createdMarkers[0];
-      const clusterGroup = (harness.context.L.markerClusterGroup as jest.Mock)
-        .mock.results[0]?.value;
-
-      expect(clusterGroup).toBeTruthy();
-
-      harness.windowListeners.get('message')?.({
-        data: toSelectedPointMessagePayload({ latitude: 10, longitude: 20 }),
-      });
-
-      expect(harness.createdMarkers).toHaveLength(3);
-      expect(clusterGroup.removeLayer).toHaveBeenCalledWith(
-        targetClusterMarker,
-      );
-
-      harness.windowListeners.get('message')?.({
-        data: toSelectedPointMessagePayload(null),
-      });
-
-      expect(clusterGroup.addLayer).toHaveBeenCalledWith(targetClusterMarker);
     });
   });
 

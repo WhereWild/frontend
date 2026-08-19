@@ -179,6 +179,13 @@ const useSpeciesBasicsData = (
 ) => {
   const [data, setData] = React.useState<SpeciesBasics | null>(null);
   const [loading, setLoading] = React.useState(true);
+  // Distinct from `!data` — data starts null before the first fetch even
+  // resolves, which isn't "not found" yet, just "not loaded yet". Only set
+  // once we've actually tried and come up empty (missing id, request
+  // failed, or the API had nothing for it), so the page can tell "still
+  // loading" apart from "there's genuinely nothing here" instead of
+  // silently rendering the sample species data for both.
+  const [notFound, setNotFound] = React.useState(false);
 
   React.useEffect(() => {
     let mounted = true;
@@ -186,11 +193,13 @@ const useSpeciesBasicsData = (
     (async () => {
       if (!fetchIdentifier) {
         setLoading(false);
+        setNotFound(true);
         console.error('Missing taxon ID in route segments.');
         return;
       }
 
       setLoading(true);
+      setNotFound(false);
 
       try {
         const response = await fetchSpeciesByTaxonId(fetchIdentifier, {
@@ -200,6 +209,9 @@ const useSpeciesBasicsData = (
           return;
         }
         setData(response ?? null);
+        if (!response) {
+          setNotFound(true);
+        }
       } catch (err) {
         if (!mounted) {
           return;
@@ -207,6 +219,7 @@ const useSpeciesBasicsData = (
         const message =
           err instanceof Error ? err.message : 'Failed to load species';
         console.error(`Failed to load species '${fetchIdentifier}':`, message);
+        setNotFound(true);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -222,6 +235,7 @@ const useSpeciesBasicsData = (
   return {
     data,
     loading,
+    notFound,
   };
 };
 
@@ -259,7 +273,10 @@ export default function SpeciesBasicsPage() {
   const mode = useColorScheme() === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
 
-  const { data, loading } = useSpeciesBasicsData(fetchIdentifier, units);
+  const { data, loading, notFound } = useSpeciesBasicsData(
+    fetchIdentifier,
+    units,
+  );
   const allObscured = useSpeciesObscuredData(fetchIdentifier);
 
   if (loading && !data) {
@@ -278,9 +295,33 @@ export default function SpeciesBasicsPage() {
     );
   }
 
-  const resolvedPageData = data
-    ? { ...buildSpeciesPageData(data, requestedTaxonId), allObscured }
-    : mountainBallCactusData;
+  if (notFound || !data) {
+    return (
+      <PageSurface testID='species-page-not-found' style={styles.loadingScreen}>
+        <View
+          style={styles.loadingContent}
+          accessibilityLiveRegion='polite'
+          accessible
+          accessibilityLabel='Species not found'
+        >
+          <ThemedText variant='subheading'>Species not found</ThemedText>
+          <ThemedText
+            variant='body'
+            style={{ color: palette.text.default.tertiary }}
+          >
+            {fetchIdentifier
+              ? `We couldn't find a species with id "${fetchIdentifier}".`
+              : 'No species id was provided.'}
+          </ThemedText>
+        </View>
+      </PageSurface>
+    );
+  }
+
+  const resolvedPageData = {
+    ...buildSpeciesPageData(data, requestedTaxonId),
+    allObscured,
+  };
 
   return <Species data={resolvedPageData} />;
 }
