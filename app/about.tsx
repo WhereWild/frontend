@@ -31,7 +31,7 @@ const OPUNTIA_IMAGE =
 const LANDCOVER_IMAGE =
   require('@/assets/images/about_landcover.png') as ImageSourcePropType;
 const DENSITY_IMAGE =
-  require('@/assets/images/about_mojavensis_density.png') as ImageSourcePropType;
+  require('@/assets/images/about_opuntia_density.png') as ImageSourcePropType;
 const LUCAS_IMAGE =
   require('@/assets/images/about_lucas.png') as ImageSourcePropType;
 const DRAEDEN_IMAGE =
@@ -163,26 +163,27 @@ function AboutImageBlock({
           source={OPUNTIA_IMAGE}
           label='Map of Opuntia fragilis observations across North America'
         />
-        <View style={styles.captionRow}>
-          <ThemedText variant='bodySmall' style={secondaryStyle}>
-            {'Occurrence data: '}
-          </ThemedText>
+        <ThemedText variant='bodySmall' style={secondaryStyle}>
+          {
+            'The color of each dot reflects the average temperature of that observation, per the legend on the left of the image.'
+          }
+        </ThemedText>
+        <ThemedText variant='bodySmall' style={secondaryStyle}>
+          {'Occurrence data: '}
           <ThemedText
             variant='bodySmallLink'
             onPress={() => Linking.openURL('https://www.gbif.org/')}
           >
             {'GBIF'}
           </ThemedText>
-          <ThemedText variant='bodySmall' style={secondaryStyle}>
-            {' / '}
-          </ThemedText>
+          {' / '}
           <ThemedText
             variant='bodySmallLink'
             onPress={() => Linking.openURL('https://www.inaturalist.org/')}
           >
             {'iNaturalist'}
           </ThemedText>
-        </View>
+        </ThemedText>
       </>
     );
   }
@@ -194,10 +195,8 @@ function AboutImageBlock({
           source={LANDCOVER_IMAGE}
           label='Landcover raster map of the United States'
         />
-        <View style={styles.captionRow}>
-          <ThemedText variant='bodySmall' style={secondaryStyle}>
-            {'Source: GLC_FCS30-2020 '}
-          </ThemedText>
+        <ThemedText variant='bodySmall' style={secondaryStyle}>
+          {'Source: GLC_FCS30-2020 '}
           <ThemedText
             variant='bodySmallLink'
             onPress={() =>
@@ -206,9 +205,7 @@ function AboutImageBlock({
           >
             {'DOI'}
           </ThemedText>
-          <ThemedText variant='bodySmall' style={secondaryStyle}>
-            {' · '}
-          </ThemedText>
+          {' · '}
           <ThemedText
             variant='bodySmallLink'
             onPress={() =>
@@ -217,7 +214,7 @@ function AboutImageBlock({
           >
             {'Data page'}
           </ThemedText>
-        </View>
+        </ThemedText>
       </>
     );
   }
@@ -227,26 +224,38 @@ function AboutImageBlock({
       <>
         <ContentImage
           source={DENSITY_IMAGE}
-          label='Density graph of Mojave kingcup cactus observations by annual precipitation'
+          label='Density graph of Opuntia fragilis observations by annual precipitation'
         />
-        <View style={styles.captionRowCenter}>
-          <ThemedText variant='bodySmall' style={secondaryStyle}>
-            {'A density graph of all observations of the '}
-          </ThemedText>
+        <ThemedText
+          variant='bodySmall'
+          style={[secondaryStyle, styles.captionTextCenter]}
+        >
+          {'A density graph of all observations of '}
           <ThemedText
             variant='bodySmallLink'
             onPress={() =>
               Linking.openURL(
-                'https://wherewild.net/species/3953823/echinocereus-triglochidiatus-subsp-mojavensis',
+                'https://wherewild.net/species/6SRLS/opuntia-fragilis?variable=bio12#species-environment',
               )
             }
           >
-            {'Mojave kingcup cactus'}
+            {'Opuntia fragilis'}
           </ThemedText>
-          <ThemedText variant='bodySmall' style={secondaryStyle}>
-            {', showing a preferred annual precipitation of ~12 inches.'}
+          {', showing a preferred annual precipitation of ~18 inches. The '}
+          <ThemedText
+            variant='bodySmallLink'
+            onPress={() =>
+              Linking.openURL(
+                'https://wherewild.net/species/6SRLS/opuntia-fragilis?variable=bio12&slice=%5B%7B%22variableId%22%3A%22bio12%22%2C%22min%22%3A33.442782152230976%2C%22max%22%3A79.23228346456693%7D%5D#species-occurrence-map',
+              )
+            }
+          >
+            {'long tail distribution'}
           </ThemedText>
-        </View>
+          {
+            ' to the right indicates a population of plants that receive much more rainfall than average, and correspond to the population of this plant in the surprising location of coastal British Columbia, Canada.'
+          }
+        </ThemedText>
       </>
     );
   }
@@ -522,16 +531,8 @@ const styles = StyleSheet.create({
   section: {
     gap: Size.space.text.subsection,
   },
-  captionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-  },
-  captionRowCenter: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    justifyContent: 'center',
+  captionTextCenter: {
+    textAlign: 'center',
   },
   teamMember: {
     width: '100%',
@@ -569,5 +570,12 @@ const styles = StyleSheet.create({
   socialLinks: {
     flexDirection: 'row',
     gap: Size.space['100'],
+    // Pushes the icon row to the bottom of the card instead of sitting
+    // right after the bio text with the same gap as every other
+    // paragraph — only has room to matter in the non-stacked (desktop)
+    // layout, where teamMemberText is flex:1 alongside the fixed-height
+    // photo; teamMemberTextStacked is flex:0 (content-sized) so there's no
+    // leftover space for this to consume there, a harmless no-op.
+    marginTop: 'auto',
   },
 });

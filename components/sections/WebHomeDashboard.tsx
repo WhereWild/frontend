@@ -158,7 +158,7 @@ export function WebHomeDashboard({ data }: { data?: HomePageData }) {
     <>
       <WebMetadata
         title='WhereWild | Home'
-        description='WhereWild is a website and mobile application that combines occurrence and environmental data to generate a field guide and in-depth analytics on the habitat of over 400,000 species.'
+        description='WhereWild is a website and mobile application that combines occurrence and environmental data to generate a field guide and in-depth analytics on the habitat of over 170,000 species.'
         imageUrl={homeImageUrl}
         path='/'
       />

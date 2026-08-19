@@ -664,36 +664,36 @@ export const wdsStyleTokens = {
 
 export const wdsResponsiveTokens = {
   "desktop": {
-    "wds-responsive-content-width": "75rem",
+    "wds-responsive-content-width": "100rem",
     "wds-responsive-device": "desktop",
     "wds-responsive-device-width": "90rem",
     "wds-responsive-margin-horizontal": "var(--@size-space-800)",
     "wds-responsive-max-device-width": "625rem",
     "wds-responsive-root-font-size": "var(--@typography_primitives-scale-03)",
     "wds-responsive-scale": "0.0625rem",
-    "wds-responsive-text-width": "50rem",
+    "wds-responsive-text-width": "100rem",
     "wds-responsive-top-level-gap": "var(--@size-space-800)"
   },
   "phone": {
-    "wds-responsive-content-width": "75rem",
+    "wds-responsive-content-width": "100rem",
     "wds-responsive-device": "phone",
     "wds-responsive-device-width": "23.4375rem",
     "wds-responsive-margin-horizontal": "var(--@size-space-400)",
     "wds-responsive-max-device-width": "37.5rem",
     "wds-responsive-root-font-size": "var(--@typography_primitives-scale-03)",
     "wds-responsive-scale": "0.0625rem",
-    "wds-responsive-text-width": "50rem",
+    "wds-responsive-text-width": "100rem",
     "wds-responsive-top-level-gap": "var(--@size-space-400)"
   },
   "tablet": {
-    "wds-responsive-content-width": "75rem",
+    "wds-responsive-content-width": "100rem",
     "wds-responsive-device": "tablet",
     "wds-responsive-device-width": "48rem",
     "wds-responsive-margin-horizontal": "var(--@size-space-600)",
     "wds-responsive-max-device-width": "62.5rem",
     "wds-responsive-root-font-size": "var(--@typography_primitives-scale-03)",
     "wds-responsive-scale": "0.0625rem",
-    "wds-responsive-text-width": "50rem",
+    "wds-responsive-text-width": "100rem",
     "wds-responsive-top-level-gap": "var(--@size-space-600)"
   }
 } as const;
