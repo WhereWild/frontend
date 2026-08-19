@@ -168,5 +168,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Size.space['200'],
+    marginBottom: Size.space['600'],
   },
 });

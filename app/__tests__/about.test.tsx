@@ -87,7 +87,7 @@ jest.mock('@/assets/images/about_opuntia_distribution.png', () => 1, {
   virtual: true,
 });
 jest.mock('@/assets/images/about_landcover.png', () => 1, { virtual: true });
-jest.mock('@/assets/images/about_mojavensis_density.png', () => 1, {
+jest.mock('@/assets/images/about_opuntia_density.png', () => 1, {
   virtual: true,
 });
 jest.mock('@/assets/images/about_lucas.png', () => 1, { virtual: true });

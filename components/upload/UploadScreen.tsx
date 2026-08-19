@@ -186,17 +186,24 @@ export function UploadScreen() {
                 message={zipUploadWarning}
               />
             ) : null}
-
-            {uploadedBundle && uploadedDataSource ? (
-              <UploadPreview
-                highlightedCatalogs={highlightedCatalogs}
-                height={observationMapHeight}
-                uploadedBundle={uploadedBundle}
-                uploadedDataSource={uploadedDataSource}
-                onHighlightChange={setHighlightedCatalogs}
-              />
-            ) : null}
           </View>
+
+          {uploadedBundle && uploadedDataSource ? (
+            // Deliberately a sibling of (not nested inside) the
+            // maxWidth-constrained `content` View above — UploadPreview's
+            // own occurrence map goes full-bleed edge to edge, matching the
+            // species page's map (see app/_species.tsx). UploadPreview
+            // re-applies the same contentWidth constraint internally to
+            // its own non-map content, so that part still lines up with
+            // the rest of this page.
+            <UploadPreview
+              highlightedCatalogs={highlightedCatalogs}
+              height={observationMapHeight}
+              uploadedBundle={uploadedBundle}
+              uploadedDataSource={uploadedDataSource}
+              onHighlightChange={setHighlightedCatalogs}
+            />
+          ) : null}
         </View>
       </PageScrollContainer>
     </PageSurface>

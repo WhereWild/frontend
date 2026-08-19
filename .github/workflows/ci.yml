@@ -74,6 +74,17 @@ jobs:
             exit 1
           fi
 
+  validate-offline-maps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm run check:offline-maps
+
   security:
     runs-on: ubuntu-latest
     steps:
@@ -92,7 +103,7 @@ jobs:
   export:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    needs: [lint, typecheck, test, validate-tokens]
+    needs: [lint, typecheck, test, validate-tokens, validate-offline-maps]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

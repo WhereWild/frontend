@@ -22,7 +22,8 @@
     "sync-theme": "node ./scripts/sync-theme.cjs",
     "sync-theme:offline": "node ./scripts/sync-theme.cjs --skip-rest-api",
     "sync-theme:rest": "node ./scripts/sync-theme.cjs --rest-api",
-    "regenerate:offline-maps": "node ./scripts/regenerate-offline-map-templates.mjs"
+    "regenerate:offline-maps": "node ./scripts/regenerate-offline-map-templates.mjs",
+    "check:offline-maps": "node ./scripts/regenerate-offline-map-templates.mjs --check"
   },
   "dependencies": {
     "@expo-google-fonts/domine": "^0.4.2",

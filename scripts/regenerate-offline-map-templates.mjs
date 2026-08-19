@@ -21,10 +21,20 @@
 //
 // Usage: node ./scripts/regenerate-offline-map-templates.mjs
 // (or: npm run regenerate:offline-maps)
+//
+// --check: don't write anything — compute what the offline templates
+// SHOULD contain and compare against what's on disk, exiting 1 (with the
+// list of out-of-sync files) if they've drifted from the main templates.
+// For a pre-commit hook or CI, so a source-template edit that forgot the
+// regenerate step fails loudly instead of silently shipping stale offline
+// fallbacks. (or: npm run check:offline-maps)
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+
+const CHECK_ONLY = process.argv.includes('--check');
+const outOfSync = [];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const mapDir = path.join(
@@ -65,6 +75,26 @@ function replaceOnce(content, anchor, replacement, label) {
   );
 }
 
+// Writes `content` to `outPath` — or, in --check mode, compares it against
+// what's already there and records a mismatch instead of writing.
+function emit(outPath, content) {
+  if (CHECK_ONLY) {
+    const existing = (() => {
+      try {
+        return readFileSync(outPath, 'utf8');
+      } catch {
+        return null;
+      }
+    })();
+    if (existing !== content) {
+      outOfSync.push(path.relative(process.cwd(), outPath));
+    }
+    return;
+  }
+  writeFileSync(outPath, content);
+  console.log(`Wrote ${path.relative(process.cwd(), outPath)}`);
+}
+
 function buildLeafletOffline() {
   const mainPath = path.join(mapDir, 'SpeciesOccurrenceMap.html');
   const outPath = path.join(mapDir, 'SpeciesOccurrenceMapOffline.html');
@@ -102,8 +132,7 @@ function buildLeafletOffline() {
     'leaflet offline logic block',
   );
 
-  writeFileSync(outPath, content);
-  console.log(`Wrote ${path.relative(process.cwd(), outPath)}`);
+  emit(outPath, content);
 }
 
 function buildGlobeOffline() {
@@ -180,9 +209,20 @@ function buildGlobeOffline() {
     'globe offline evaluateOfflineFallback block',
   );
 
-  writeFileSync(outPath, content);
-  console.log(`Wrote ${path.relative(process.cwd(), outPath)}`);
+  emit(outPath, content);
 }
 
 buildLeafletOffline();
 buildGlobeOffline();
+
+if (CHECK_ONLY) {
+  if (outOfSync.length > 0) {
+    console.error(
+      'Offline map templates are out of sync with the main templates:\n' +
+        outOfSync.map((f) => `  - ${f}`).join('\n') +
+        '\n\nRun `npm run regenerate:offline-maps` and commit the result.',
+    );
+    process.exit(1);
+  }
+  console.log('Offline map templates are up to date.');
+}

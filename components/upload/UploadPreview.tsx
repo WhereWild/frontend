@@ -581,14 +581,25 @@ export function UploadPreview({
 
   return (
     <SpeciesDataSourceProvider value={uploadedDataSource}>
-      <UploadSpeciesPreviewSection
-        onHighlightChange={onHighlightChange}
-        pinnedObservation={pinnedObservation}
-        onVariableMetaChange={setSelectedVariableMeta}
-        onLocationChange={setFinalLocationGid}
-        polygon={encodedRegionPolygon}
-      />
+      <View
+        style={[
+          styles.constrainedSection,
+          { maxWidth: responsive.contentWidth },
+        ]}
+      >
+        <UploadSpeciesPreviewSection
+          onHighlightChange={onHighlightChange}
+          pinnedObservation={pinnedObservation}
+          onVariableMetaChange={setSelectedVariableMeta}
+          onLocationChange={setFinalLocationGid}
+          polygon={encodedRegionPolygon}
+        />
+      </View>
       {uploadedBundle.occurrences.length > 0 ? (
+        // Deliberately NOT wrapped in constrainedSection — the map goes
+        // full-bleed edge to edge, matching the species page's occurrence
+        // map (see app/_species.tsx: the map is the one section rendered
+        // outside SectionShell's width constraint).
         <View style={styles.mapSection}>
           <ThemedText
             variant='subheading'
@@ -747,6 +758,10 @@ export function UploadPreview({
 }
 
 const styles = StyleSheet.create({
+  constrainedSection: {
+    width: '100%',
+    alignSelf: 'center',
+  },
   previewSection: {
     width: '100%',
     gap: Size.space['400'],
