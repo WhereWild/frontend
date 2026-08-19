@@ -20,15 +20,24 @@ import {
   Platform,
   StyleSheet,
   View,
+  type ImageSourcePropType,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { ContentImage } from '@/components/sections/ContentImage';
 import { ThemedText } from '../text/ThemedText';
 
 export type MarkdownProps = {
   children: string;
   style?: StyleProp<ViewStyle>;
+  // Markdown `![alt](key)` images can't resolve to a require()'d asset from
+  // plain text alone (Metro needs a static require() call, not a runtime
+  // string) — so the markdown's image "url" is actually just a lookup key
+  // into this caller-supplied map instead of a real path. An image whose
+  // key isn't in this map is silently dropped rather than crashing, same
+  // as any other markdown content this renderer doesn't recognize.
+  images?: Record<string, ImageSourcePropType>;
 };
 
 const isHashHref = (href: string) => href.startsWith('#');
@@ -132,6 +141,7 @@ function renderBlockTokens(
   palette: ColorPalette,
   seenSlugs: Map<string, number>,
   scrollMarginStyle: TextStyle | undefined,
+  images: Record<string, ImageSourcePropType> | undefined,
 ): React.ReactNode[] {
   return tokens.map((token, index) => {
     const key = `${keyPrefix}-${index}`;
@@ -162,12 +172,41 @@ function renderBlockTokens(
         );
       }
       case 'paragraph':
-      case 'text':
+      case 'text': {
+        const inlineTokens = markedToken.tokens ?? [];
+        // A paragraph consisting of nothing but a single `![alt](key)` is
+        // an image block, not a text line — matches how every other
+        // markdown renderer treats an image-only paragraph. A mix of text
+        // and an inline image (rare, and awkward to lay out in a Text
+        // flow here) falls through to the plain-text path below, same as
+        // an image token anywhere else this renderer doesn't expect one.
+        if (
+          inlineTokens.length === 1 &&
+          (inlineTokens[0] as MarkedToken).type === 'image'
+        ) {
+          const imageToken = inlineTokens[0] as MarkedToken & {
+            type: 'image';
+            href: string;
+            text: string;
+          };
+          const source = images?.[imageToken.href];
+          if (source) {
+            return (
+              <ContentImage
+                key={key}
+                source={source}
+                label={imageToken.text || 'Image'}
+              />
+            );
+          }
+          return null;
+        }
         return (
           <ThemedText key={key} variant='body'>
-            {renderInlineTokens(markedToken.tokens ?? [], router, key)}
+            {renderInlineTokens(inlineTokens, router, key)}
           </ThemedText>
         );
+      }
       case 'list':
         return (
           <View key={key} style={styles.list}>
@@ -189,6 +228,7 @@ function renderBlockTokens(
                       palette,
                       seenSlugs,
                       scrollMarginStyle,
+                      images,
                     )}
                   </View>
                 </View>
@@ -212,6 +252,7 @@ function renderBlockTokens(
               palette,
               seenSlugs,
               scrollMarginStyle,
+              images,
             )}
           </View>
         );
@@ -247,7 +288,7 @@ function renderBlockTokens(
 
 // Renders straight to View/ThemedText (no HTML), so it works identically
 // on web and native with no per-platform overrides.
-export function Markdown({ children, style }: MarkdownProps) {
+export function Markdown({ children, style, images }: MarkdownProps) {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
@@ -274,6 +315,7 @@ export function Markdown({ children, style }: MarkdownProps) {
         palette,
         seenSlugs,
         scrollMarginStyle,
+        images,
       )}
     </View>
   );
