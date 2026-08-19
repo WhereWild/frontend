@@ -29,6 +29,14 @@ jest.mock('@/components/text/ThemedText', () => {
   };
 });
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  // A path that never matches the taxon link, so RoutePressable's "don't
+  // navigate if already on this route" check never suppresses a press.
+  usePathname: () => '/__not-the-taxon-page__',
+}));
+
 const mockUseColorScheme = useColorScheme as jest.MockedFunction<
   typeof useColorScheme
 >;
@@ -40,6 +48,7 @@ describe('ObservationCard', () => {
   beforeEach(() => {
     mockUseColorScheme.mockReturnValue('dark');
     mockUseTypographyStyles.mockReturnValue(Typography.dark);
+    mockPush.mockClear();
   });
 
   it('renders placeholder when no image is provided', () => {
@@ -87,6 +96,50 @@ describe('ObservationCard', () => {
 
     const catalogText = screen.getByText('#987654');
     expect(catalogText.props.onPress).toBeUndefined();
+  });
+
+  it('shows the scientific name, truncated to one line', () => {
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        scientificName='Quercus alba'
+        taxonId='42'
+      />,
+    );
+
+    const nameText = screen.getByText('Quercus alba');
+    expect(nameText.props.numberOfLines).toBe(1);
+  });
+
+  it('navigates to the observed taxon page when the scientific name is pressed', () => {
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        scientificName='Quercus alba'
+        taxonId='42'
+      />,
+    );
+
+    fireEvent.press(screen.getByText('Quercus alba'));
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/species/[...identifier]',
+      params: { identifier: ['42', 'quercus-alba'] },
+    });
+  });
+
+  it('renders the scientific name as plain, non-pressable text when taxonId is missing', () => {
+    render(
+      <ObservationCard catalogNumber='123456' scientificName='Quercus alba' />,
+    );
+
+    fireEvent.press(screen.getByText('Quercus alba'));
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('renders no scientific name line when none is provided', () => {
+    render(<ObservationCard catalogNumber='123456' />);
+
+    expect(screen.queryByText(/Quercus/)).toBeNull();
   });
 
   it('colors the catalog link using the light-mode brand token', () => {

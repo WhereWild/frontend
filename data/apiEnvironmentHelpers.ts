@@ -223,6 +223,79 @@ export async function fetchSpeciesEnvironmentCategorySamples(
   });
 }
 
+/** Shared shape for GET /species/{id}/occurrences' per-entry rows, see
+ * main.py's _occurrence_entries_from_df. */
+function parseOccurrenceRows(rows: unknown[]): SpeciesOccurrence[] {
+  return rows
+    .map((entry) => {
+      const source = asRecord(entry);
+      return {
+        catalogNumber:
+          source.catalogNumber ??
+          source.catalog_number ??
+          source.id ??
+          source.catalog ??
+          null,
+        latitude: toFiniteNumber(source.latitude),
+        longitude: toFiniteNumber(source.longitude),
+        mediaUrl:
+          typeof source.media_url === 'string' ? source.media_url : null,
+        mediaAttribution:
+          typeof source.media_attribution === 'string'
+            ? source.media_attribution
+            : null,
+        mediaLicense:
+          typeof source.media_license === 'string'
+            ? source.media_license
+            : null,
+        mediaLicenseUrl:
+          typeof source.media_license_url === 'string'
+            ? source.media_license_url
+            : null,
+        // Only present on tile-route rows for a taxon above species/
+        // infraspecific rank — see SpeciesOccurrence.taxonId's doc comment.
+        // The flat endpoint this function also parses never sets these.
+        taxonId: typeof source.taxon_id === 'string' ? source.taxon_id : null,
+        scientificName:
+          typeof source.scientific_name === 'string'
+            ? source.scientific_name
+            : null,
+        commonName:
+          typeof source.common_name === 'string' ? source.common_name : null,
+      };
+    })
+    .filter(
+      (
+        entry,
+      ): entry is {
+        catalogNumber: string | number;
+        latitude: number;
+        longitude: number;
+        mediaUrl: string | null;
+        mediaAttribution: string | null;
+        mediaLicense: string | null;
+        mediaLicenseUrl: string | null;
+        taxonId: string | null;
+        scientificName: string | null;
+        commonName: string | null;
+      } =>
+        typeof entry.latitude === 'number' &&
+        typeof entry.longitude === 'number',
+    )
+    .map((entry) => ({
+      catalogNumber: entry.catalogNumber ?? '',
+      latitude: entry.latitude,
+      longitude: entry.longitude,
+      mediaUrl: entry.mediaUrl,
+      mediaAttribution: entry.mediaAttribution,
+      mediaLicense: entry.mediaLicense,
+      mediaLicenseUrl: entry.mediaLicenseUrl,
+      taxonId: entry.taxonId,
+      scientificName: entry.scientificName,
+      commonName: entry.commonName,
+    }));
+}
+
 /**
  * Fetches occurrence points for a species, plus the full timestamp range of the matching observations.
  */
@@ -250,58 +323,7 @@ export async function fetchSpeciesOccurrences(
     await fetchJsonOrThrow(url, `Failed to fetch occurrences for ${taxonId}`),
   );
   const rows = Array.isArray(payload.occurrences) ? payload.occurrences : [];
-  const occurrences: SpeciesOccurrence[] = rows
-    .map((entry) => {
-      const source = asRecord(entry);
-      return {
-        catalogNumber:
-          source.catalogNumber ??
-          source.catalog_number ??
-          source.id ??
-          source.catalog ??
-          null,
-        latitude: toFiniteNumber(source.latitude),
-        longitude: toFiniteNumber(source.longitude),
-        mediaUrl:
-          typeof source.media_url === 'string' ? source.media_url : null,
-        mediaAttribution:
-          typeof source.media_attribution === 'string'
-            ? source.media_attribution
-            : null,
-        mediaLicense:
-          typeof source.media_license === 'string'
-            ? source.media_license
-            : null,
-        mediaLicenseUrl:
-          typeof source.media_license_url === 'string'
-            ? source.media_license_url
-            : null,
-      };
-    })
-    .filter(
-      (
-        entry,
-      ): entry is {
-        catalogNumber: string | number;
-        latitude: number;
-        longitude: number;
-        mediaUrl: string | null;
-        mediaAttribution: string | null;
-        mediaLicense: string | null;
-        mediaLicenseUrl: string | null;
-      } =>
-        typeof entry.latitude === 'number' &&
-        typeof entry.longitude === 'number',
-    )
-    .map((entry) => ({
-      catalogNumber: entry.catalogNumber ?? '',
-      latitude: entry.latitude,
-      longitude: entry.longitude,
-      mediaUrl: entry.mediaUrl,
-      mediaAttribution: entry.mediaAttribution,
-      mediaLicense: entry.mediaLicense,
-      mediaLicenseUrl: entry.mediaLicenseUrl,
-    }));
+  const occurrences = parseOccurrenceRows(rows);
   const phenologyCounts =
     payload.phenology_counts && typeof payload.phenology_counts === 'object'
       ? (payload.phenology_counts as Record<string, number>)

@@ -1011,10 +1011,38 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
     // it's ready — the same "just gets painted over" feel as a normal
     // pan/zoom.
     function swapHeatmapLayer(urlTemplate) {
+      // Which mode is ACTUALLY active right now — checked here too, not
+      // just left to applyBasemapMode's own add/remove (further down,
+      // only built when SATELLITE_TILE_URL is set): this runs on every
+      // heatmap URL change (a variable switch, or auto-adapt discovering a
+      // new render range mid-pan), not just when the mode itself changes.
+      // Unconditionally re-adding the new layer here would silently
+      // override the user's chosen 'standard'/'satellite' mode the next
+      // time either of those fired — the overlay creeping back in on a
+      // non-'variable' basemap even though nothing about the mode itself
+      // changed. Falls back to BASEMAP_MODE_INITIAL when there's no toggle
+      // control at all (e.g. maps.tsx, permanently 'variable' — see
+      // SpeciesOccurrenceMap.tsx's effectiveBasemapMode).
+      var activeMode =
+        typeof currentBasemapMode !== 'undefined'
+          ? currentBasemapMode
+          : BASEMAP_MODE_INITIAL;
+      var newLayer = buildHeatmapLayer(urlTemplate);
+      if (activeMode !== 'variable') {
+        // Not currently visible — no crossfade needed (nothing on screen
+        // to occlude, and a never-added layer never fires 'load' anyway),
+        // just swap the tracked reference directly so applyBasemapMode's
+        // own add/remove picks up the RIGHT layer instance whenever the
+        // user switches back to 'variable' mode.
+        if (heatmapLayer) {
+          map.removeLayer(heatmapLayer);
+        }
+        heatmapLayer = newLayer;
+        return;
+      }
       if (heatmapLayer) {
         pendingOldHeatmapLayers.push(heatmapLayer);
       }
-      var newLayer = buildHeatmapLayer(urlTemplate);
       // One combined 'load' listener rather than two separate ones — every
       // layer's own 'load' already needs to feed scheduleClassSync
       // (unchanged from before), and piggybacking the old-layer cleanup on

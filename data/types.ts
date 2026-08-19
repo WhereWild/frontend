@@ -211,6 +211,16 @@ export type SpeciesOccurrence = {
   mediaAttribution?: string | null;
   mediaLicense?: string | null;
   mediaLicenseUrl?: string | null;
+  /** The OBSERVED taxon for this specific row — only present on tile-route
+   * responses queried at a rank above species/infraspecific (see main.py's
+   * _occurrence_entries_from_df), where a single result can span many
+   * different descendant species. Absent (not just null) on the flat/
+   * whole-taxon route, whose large-taxon guard already restricts it to
+   * species/infraspecific taxa — there, every row's real taxon trivially IS
+   * the page's own taxon, so callers should fall back to that instead. */
+  taxonId?: string | null;
+  scientificName?: string | null;
+  commonName?: string | null;
 };
 
 /** Result of GET /occurrence/{catalogNumber} — resolves an inat observation id to its taxon. */
