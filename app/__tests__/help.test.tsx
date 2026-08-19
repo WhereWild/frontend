@@ -52,6 +52,8 @@ jest.mock('@/components', () => {
       style?: object;
       onPress?: () => void;
     }) => React.createElement(Text, { onPress }, children),
+    Markdown: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(Text, null, children),
   };
 });
 
@@ -73,9 +75,9 @@ describe('Help screen', () => {
     });
   });
 
-  it('renders TBD placeholder', () => {
+  it('renders the tutorial video embed', () => {
     render(<HelpScreen />);
-    expect(screen.getByText('TBD')).toBeTruthy();
+    expect(screen.getByTestId('help-video-embed')).toBeTruthy();
   });
 
   it('renders the shared page title on web', () => {
