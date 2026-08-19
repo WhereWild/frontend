@@ -150,6 +150,22 @@ describe('Markdown', () => {
     expect(screen.queryAllByText(/.+/).length).toBe(0);
   });
 
+  describe('images', () => {
+    it('renders an image for a key that resolves via the images prop', () => {
+      render(
+        <Markdown images={{ logo: 1 }}>{'![Company logo](logo)'}</Markdown>,
+      );
+
+      expect(screen.getByLabelText('Company logo')).toBeTruthy();
+    });
+
+    it('renders nothing for an image whose key is not in the images map', () => {
+      render(<Markdown>{'![Missing](unknown-key)'}</Markdown>);
+
+      expect(screen.queryByLabelText('Missing')).toBeNull();
+    });
+  });
+
   describe('heading anchors', () => {
     it('assigns a slugified nativeID to each heading on web', () => {
       withPlatformOS('web', () => {
