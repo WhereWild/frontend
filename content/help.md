@@ -134,7 +134,7 @@ If you want to confirm this, you could try removing the "Flowering" phenology fi
 
 Re-apply the flowering phenology filter.
 
-### Okay, but what is this useful for?
+### Okay, But What is This Useful For?
 
 To see how this might be helpful, we can select a different aggregation window. Where it says 1 hour in the selector, change it to 3 months.
 
@@ -150,3 +150,58 @@ This has some marginal utility compared to the monthly observations-by-phenology
 
 There are many other weather variables this section contains. It likely has utility as an additional source to check along with iNat's phenology graphs, as well as it being a kind of cool way to find observations at really hot or cold times, or during times of rain or snow.
 
+# Advanced Species Page and Map Controls
+
+Reset the phenology filter again. There are a few more advanced filters and things we can do on the species page, and in regards to map controls.
+
+## Slicing and Slice Chaining
+
+If you're looking at a density chart such as elevation, and want to isolate observations to ONLY those within the upper range of its elevation, you can click and drag on the map to isolate only those observations. The number of observations satisfied will be shown, along with only those observations being shown on the map:
+
+![alt text](image-18.png)
+
+You can even highlight multiple ranges of the same density chart. Click and hold and drag again, and we could highlight both the highest and lowest elevation observations if we wanted to:
+
+![alt text](image-19.png)
+
+Click on the density chart to reset the filters. Then, re-highlight the upper end of the elevation graph again, then switch variables to the "Bioclimate" section, then "Annual Precipitation".
+This keeps the high-elevation filter *active*, allowing us to see the annual precipitation of these high-elevation observations.
+
+![alt text](image-20.png)
+
+The mean precipitation is slightly higher, which is perhaps not surprising. Going to the "Biogeography" section, landcover will come up again. You can click on the pills or the relevant section of the bar to highlight only observations with those values as well, with clicking and holding allowing for the selection of extra classes on top of the current selection.
+
+![alt text](image-21.png)
+
+These selections persist on reload and shared links, which is a good way to share any selection with anyone else. You can deselect them manually or remove them from the url to get back to a clean slate.
+
+## Map controls
+
+### Color Picker
+
+There are a few more nice features the map has. Go back to a variable such as elevation. You'll see a color picker in the bottom right, allowing you to choose from 6 different color gradients, which update the way the dots are colored on the map:
+![alt text](image-22.png)
+
+For nominal variables such as landcover, you'll see instead three options. The top option is the default coloration, usually using the legend from the source. The second option is a coloration designed to be more colorblind-friendly, however there are limits to how much this can be accomplished. The third option will make the dots instead display as shapes, hopefully offering better visualization to users with certain vision deficiencies.
+
+![alt text](image-23.png)
+
+For circular variables such as aspect you can change the offset of the color gradient, or have them display in shapes as well corresponding to their cardinal direction:
+
+![alt text](image-24.png)
+
+### Top Right Controls
+
+The top right contains various controls. You can hover over each button for a tip as to what it does. There are +- buttons controlling zoom, and a compass showing the map orientation, that can be clicked to reset back to north being the top of the map.
+
+There is a location picker right below that will add a marker for your current location, if you are comfortable with providing it. It is not sent to our servers at all, we don't want your data!
+
+Next there is a fullscreen button.
+
+After that there is a button to switch into 2d vs globe view. When in 2d mode, you can click the pencil icon to start drawing a polygon on the map. The polygon will filter observations just like any other filter, and transfer over for when you switch back over to globe view, which is the default.
+
+Below the switcher there is a mountain symbol that toggles 3d terrain. 3d terrain is much more noticeable when zoomed in and at an angle. By holding control and dragging on the map, you can control the pitch of the camera angle. On mobile this is done by scrolling with two fingers at once.
+
+Right below that, there is the basemap picker. You can toggle between a basic tile basemap, satellite basemap, and the selected variable as a basemap. When the basic tile basemap is selected, there will be a pallette icon that allows you to change the theme of the basemap.
+
+Finally, there is an upload button that allows you to upload a geojson of any bounding box you want, and it will apply it as a "location filter" of sorts just like any other filter. When polygon filters are in place, you can click the eraser icon to remove the one at the top of the stack.
