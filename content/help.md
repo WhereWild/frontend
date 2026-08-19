@@ -205,3 +205,29 @@ Below the switcher there is a mountain symbol that toggles 3d terrain. 3d terrai
 Right below that, there is the basemap picker. You can toggle between a basic tile basemap, satellite basemap, and the selected variable as a basemap. When the basic tile basemap is selected, there will be a pallette icon that allows you to change the theme of the basemap.
 
 Finally, there is an upload button that allows you to upload a geojson of any bounding box you want, and it will apply it as a "location filter" of sorts just like any other filter. When polygon filters are in place, you can click the eraser icon to remove the one at the top of the stack.
+
+# Custom Upload Page
+
+One drawback about WhereWild is that is uses iNaturalist occurrence data, which in some ways is noisy, taxnomically weird, or simply not ideal to any kind of serious analysis. Luckily, we support uploading of custom datasets to allow similar analysis of "cleaned" occurrence data.
+
+The term "upload" here is used somewhat loosely. The data is not stored permanently or served to other users on our end. This simply allows you to upload observations so we can combine them with environmental data and then send it to your browser to allow analysis of the data the same way the regular species page does. The upload page is found simply at the upload page in the header at the top right.
+
+## What Do I Upload?
+
+Simply click the upload button on "Step 1" on the upload page. All you need is a csv with each row being an observation, at a minimum having columns for lat and lon. You can optionally include columns for observationId (to map original rows to output rows cleanly), and timestamp if wanting to have temporal variables processed as well, but do note that this makes the job take much longer to complete. Most will finish in around 30-45 seconds.
+
+Once the upload is finished, the data will automatically be mounted in your browser, and you will be able to do essentially everything you can on the normal species page, while all of the computation runs locally on your browser only.
+
+![alt text](image-25.png)
+
+You'll also be able to download the processed result as a zip by clicking the "Download ZIP" button. This allows you to have the data yourself to perform any kind of analysis you want on the data yourself. The zip will contain many files in parquet and csv format (parquet is a columnar file format great for big datasets, and can be converted to csv in Python very easily regardless); many of these files are used internally for proper display on this page. The important one is the occurrence file, which contains all the original rows along with their added GIS values.
+
+## Already Processed ZIPs and Offline Functionality
+
+Another good reason to download the processed ZIP is that it allows you to simply mount the files in your browser without having to wait for processing if coming back to the page, by clicking "Step 2" instead and selecting the ZIP.
+
+This even works with data from WhereWild if you don't have your own data, by clicking the "Upload" button on the top right of the species page, which downloads a zip similar to the result you would get from uploading a custom dataset.
+
+![alt text](image-26.png)
+
+This is useful as the custom upload page works even when the browser is offline, *provided is has been loaded while online at least once*. It will also cache satellite and terrain tiles, allowing you to preload an area while online, allowing you to get a good quality offline map. A "cache" button will appear as the last button on the buttons on the right when offline, which toggles whether or not cached tiles are used vs an offline fallback map.
