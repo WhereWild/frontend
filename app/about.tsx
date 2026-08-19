@@ -542,7 +542,13 @@ const styles = StyleSheet.create({
   },
   teamMemberHorizontal: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    // 'stretch' (not 'flex-start') so teamMemberText matches the row's
+    // height — driven by the photo, its tallest sibling — instead of only
+    // being as tall as its own bio text. Without that, there's no leftover
+    // space in the text column for socialLinks' marginTop: 'auto' to push
+    // into, so the icon row just sits right after the bio text with a gap
+    // of empty card below it instead of flush with the photo's bottom.
+    alignItems: 'stretch',
   },
   teamMemberStacked: {
     flexDirection: 'column',
