@@ -231,3 +231,48 @@ This even works with data from WhereWild if you don't have your own data, by cli
 ![alt text](image-26.png)
 
 This is useful as the custom upload page works even when the browser is offline, *provided is has been loaded while online at least once*. It will also cache satellite and terrain tiles, allowing you to preload an area while online, allowing you to get a good quality offline map. A "cache" button will appear as the last button on the buttons on the right when offline, which toggles whether or not cached tiles are used vs an offline fallback map.
+
+# Advanced Search
+
+WhereWild supports advanced searching to allow finding taxa while sorting and filtering output in relation to statistics about their environmental preferences. Press the enter key while having selected the search bar, then the "filter" button in the header. It'll pull up a screen with many advanced search options:
+
+![alt text](image-27.png)
+
+## Scope Taxon
+
+Filters results to only those within a certain taxon
+
+## Rank
+
+Only include taxa at the selected rank
+
+## Category, Variable and Metric
+
+Select which variable and metric to sort results by. Example: average annual precipitation.
+
+## Sort Order & Minimum Samples
+
+Which order to sort results by, and how many samples (observations) a taxon needs at minimum to be shown.
+
+## Additional Filters
+
+Add filters that need to satisfy some condition for a given variable and metric.
+
+An example with many of these filters applied is the following, where we see all cacti species sorted by their median annual mean temperatures, filtered to those with a median of at least 50 degrees Fahrenheit:
+
+![alt text](image-28.png)
+
+We also support location filtering (just like the species page) that filters to only taxa found within the selected location (with at least as many samples as the selected minimum samples), and the number of results per page, as well as pagination.
+
+## An Example?
+
+Let's say you wanted to find species of cacti that can tolerate lots of snow in North America, as many species can't. You simply set cacti as the scope taxon, filter to the US, sort by a snow-related variable such as Snow Cover Duration, then sort by the maximum value, descending. The list will then show a sorted list of North American cacti by their maximum snow tolerance:
+
+![alt text](image-29.png)
+
+Opuntia basilaris may seem like a surprising result, as it typically inhabits very xeric environments. Navigating to its species page however, we can see some extreme outlier observations up a few canyons in the Sierra Nevadas, which is just one example of many cool discoveries WhereWild helps make:
+
+![alt text](image-30.png)
+
+You can try all sorts of cool queries out; find plants that grow on the highest peaks, the hottest deserts, and the most desolate tundras!
+
