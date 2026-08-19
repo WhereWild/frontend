@@ -297,3 +297,11 @@ You can perform a long click to chain multiple of these together on the same leg
 Finally, you can navigate to the "Recent Weather" section to see a map of the world's current weather! The "Weather Code" variable looks really cool here, and is usually quite accurate, and updates every hour.
 
 ![alt text](image-35.png)
+
+# Guides
+
+We also have some more in-depth guides with more detailed information about certain variables and variable types. They can be reached by clicking "Guides" on the footer, and there should be a link to the relevant variable guide right below the citation of each variable in the app. The information for many of these is not filled out yet, but we plan to fill them out sometime in the future.
+
+# Settings
+
+Finally, there is the settings page that can be reached from the top right header. Right now it simply allows you to change your theme from light vs dark as well as the display units, as well as some map settings (many of which can be toggled directly on the map).
