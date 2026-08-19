@@ -276,3 +276,24 @@ Opuntia basilaris may seem like a surprising result, as it typically inhabits ve
 
 You can try all sorts of cool queries out; find plants that grow on the highest peaks, the hottest deserts, and the most desolate tundras!
 
+# Maps Page
+
+Finally, you can get to the maps page by clicking the link on the home page, or in the footer. The maps page is simply a way to explore the GIS data WhereWild provides without needing any specific occurrence data.
+
+The only real difference here is an extra setting and options to filter the map. The last button on the right will be a ruler icon that turns on "auto-adapt" mode, making the tiles in view be re-colored to the min/max of said tiles. This helps add contrast on small, local areas and especially when viewing variables with high ranges that stretch the colorization; for example, the Salt Lake area's precipitation before and after:
+
+![alt text](image-31.png)
+
+![alt text](image-32.png)
+
+Finally, you can even filter areas of the map by values just like you can filter observation dots on the species page. Try clicking and dragging on the colored part of the legend, and it will only render pixels within that range, such as values above 11,000 feet:
+
+![alt text](image-33.png)
+
+You can perform a long click to chain multiple of these together on the same legend, and chain them across variables just like the species page. For nominal legends, a long click will only show that certain class, allowing us to only show evergreen needle-leaved forests above 10,600 feet as shown below:
+
+![alt text](image-34.png)
+
+Finally, you can navigate to the "Recent Weather" section to see a map of the world's current weather! The "Weather Code" variable looks really cool here, and is usually quite accurate, and updates every hour.
+
+![alt text](image-35.png)
