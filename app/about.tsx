@@ -165,7 +165,7 @@ function AboutImageBlock({
         />
         <ThemedText variant='bodySmall' style={secondaryStyle}>
           {
-            'The color of each dot reflects the average temperature of that observation, per the legend on the left of the image.'
+            'The color of each dot reflects the average annual precipitation at that observation, per the legend on the left of the image.'
           }
         </ThemedText>
         <ThemedText variant='bodySmall' style={secondaryStyle}>

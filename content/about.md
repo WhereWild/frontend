@@ -20,7 +20,7 @@ Occurrence data is data that describes the *where* and *when* a given species ha
 
 Occurrence data is just a very large list of these data points, organized by taxonomy. The current data snapshot includes ~65 million [Research Grade](https://help.inaturalist.org/en/support/solutions/articles/151000169936-what-is-the-data-quality-assessment-and-how-do-observations-qualify-to-become-research-grade-) observations.
 
-Occurrence data is a great way to understand the distribution of a species. For example, we can view a map of all observations of [Opuntia fragilis](https://wherewild.net/species/6SRLS/opuntia-fragilis?variable=bio1#species-occurrence-map), and observe a wide range across western North America. However, occurrence data alone struggles to explain the *actual habitat and climate* of these locations, and *why* a species might have the range it does.
+Occurrence data is a great way to understand the distribution of a species. For example, we can view a map of all observations of [Opuntia fragilis](https://wherewild.net/species/6SRLS/opuntia-fragilis?variable=bio12#species-occurrence-map), and observe a wide range across western North America. However, occurrence data alone struggles to explain the *actual habitat and climate* of these locations, and *why* a species might have the range it does.
 
 <!-- image: opuntia -->
 
