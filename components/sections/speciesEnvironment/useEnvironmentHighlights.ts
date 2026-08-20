@@ -915,6 +915,9 @@ export function useEnvironmentHighlights({
               {
                 location: locationGid ?? undefined,
                 units,
+                phenology: phenology ?? undefined,
+                startTs: startTimestamp ?? undefined,
+                endTs: endTimestamp ?? undefined,
                 polygon: polygon ?? undefined,
                 extra: activeChain.map((f) => f.extra),
               },
@@ -955,10 +958,13 @@ export function useEnvironmentHighlights({
     [
       activeChain,
       categorySamplesByValue,
+      endTimestamp,
       isCategorical,
       locationGid,
+      phenology,
       polygon,
       selectedVariable,
+      startTimestamp,
       stats?.categoricalSamples,
       speciesDataSource,
       taxonId,
@@ -1523,6 +1529,9 @@ export function useEnvironmentHighlights({
                   {
                     location: locationGid ?? undefined,
                     units,
+                    phenology: phenology ?? undefined,
+                    startTs: startTimestamp ?? undefined,
+                    endTs: endTimestamp ?? undefined,
                     polygon: polygon ?? undefined,
                     extra,
                   },
@@ -1558,6 +1567,9 @@ export function useEnvironmentHighlights({
               {
                 location: locationGid ?? undefined,
                 units,
+                phenology: phenology ?? undefined,
+                startTs: startTimestamp ?? undefined,
+                endTs: endTimestamp ?? undefined,
                 polygon: polygon ?? undefined,
                 extra,
               },
