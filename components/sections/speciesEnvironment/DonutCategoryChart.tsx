@@ -129,11 +129,7 @@ export function DonutCategoryChart({
     [categories],
   );
 
-  const hiddenCount = Math.max(
-    0,
-    validCategories.length - CATEGORY_DISPLAY_LIMIT,
-  );
-  const hasMore = hiddenCount > 0;
+  const hasMore = validCategories.length - CATEGORY_DISPLAY_LIMIT > 0;
 
   const selectedValueKeys = React.useMemo(
     () => new Set(selectedValues.map((value) => String(value))),
@@ -189,7 +185,11 @@ export function DonutCategoryChart({
     if (!hasMore || expanded) {
       return {
         slices: validCategories,
-        other: null as null | { fraction: number; count: number },
+        other: null as null | {
+          fraction: number;
+          count: number;
+          hidden: number;
+        },
       };
     }
     const promoteKeys = new Set(
@@ -206,6 +206,7 @@ export function DonutCategoryChart({
       ? {
           fraction: tail.reduce((s, c) => s + c.fraction, 0),
           count: tail.reduce((s, c) => s + c.count, 0),
+          hidden: tail.length,
         }
       : null;
     return { slices: head, other };
@@ -279,9 +280,9 @@ export function DonutCategoryChart({
       const radius = Math.sqrt(dx * dx + dy * dy);
       if (radius < R_INNER - 6 || radius > R_OUTER + 8) return;
       const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
-      const hit = arcs.find(
-        (arc) => deg >= arc.hitStartDeg && deg < arc.hitEndDeg,
-      );
+      const hit =
+        arcs.find((arc) => deg >= arc.hitStartDeg && deg < arc.hitEndDeg) ??
+        arcs[arcs.length - 1]; // guard float drift at the 360deg seam
       if (!hit) return;
       if (!hit.category) {
         setExpanded(true);
@@ -484,7 +485,7 @@ export function DonutCategoryChart({
       <View collapsable={false} style={styles.chartWrap}>
         <Pressable
           testID='donut-hit-layer'
-          accessibilityRole='none'
+          accessibilityLabel='Category chart'
           style={{ width: CHART_SIZE, height: CHART_SIZE }}
           onPress={(event) => {
             const ne = event?.nativeEvent as unknown as {
@@ -527,7 +528,7 @@ export function DonutCategoryChart({
                     testID={`donut-wedge-${arc.key}`}
                     d={wedgePath(arc.startDeg, arc.endDeg)}
                     fill={arc.color}
-                    opacity={dimmed ? 0.4 : 1}
+                    opacity={dimmed ? 0.5 : 1}
                     stroke={
                       isHighlighted
                         ? highlightOutlineColor
@@ -594,7 +595,7 @@ export function DonutCategoryChart({
         highlightOutlineColor={highlightOutlineColor}
       />
 
-      {hasMore && (
+      {(expanded || wedges.other) && (
         <Pressable
           onPress={() => setExpanded((e) => !e)}
           style={styles.showMoreButton}
@@ -603,7 +604,7 @@ export function DonutCategoryChart({
             variant='bodySmall'
             style={{ color: palette.text.default.secondary }}
           >
-            {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+            {expanded ? 'Show less' : `Show ${wedges.other?.hidden ?? 0} more`}
           </ThemedText>
         </Pressable>
       )}
