@@ -227,33 +227,70 @@ export function DonutCategoryChart({
       color: string;
       startDeg: number;
       endDeg: number;
+      /** Gapless bounds used for pointer hit-testing. */
+      hitStartDeg: number;
+      hitEndDeg: number;
       category: SpeciesEnvironmentCategory | null;
     }[] = [];
     let cursor = 0;
-    wedges.slices.forEach((category, index) => {
-      const sweep = (category.fraction / total) * 360;
+    const push = (
+      key: string,
+      color: string,
+      sweep: number,
+      category: SpeciesEnvironmentCategory | null,
+    ) => {
       items.push({
-        key: String(category.value),
-        color:
-          category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+        key,
+        color,
         startDeg: cursor + GAP_DEG / 2,
         endDeg: cursor + sweep - GAP_DEG / 2,
+        hitStartDeg: cursor,
+        hitEndDeg: cursor + sweep,
         category,
       });
       cursor += sweep;
+    };
+    wedges.slices.forEach((category, index) => {
+      push(
+        String(category.value),
+        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+        (category.fraction / total) * 360,
+        category,
+      );
     });
     if (wedges.other) {
-      const sweep = (wedges.other.fraction / total) * 360;
-      items.push({
-        key: '__other_wedge__',
-        color: OTHER_COLOR,
-        startDeg: cursor + GAP_DEG / 2,
-        endDeg: cursor + sweep - GAP_DEG / 2,
-        category: null,
-      });
+      push(
+        '__other_wedge__',
+        OTHER_COLOR,
+        (wedges.other.fraction / total) * 360,
+        null,
+      );
     }
     return items;
   }, [wedges]);
+
+  // The react-native-svg <Path> touch responder does not fire onLongPress
+  // reliably (especially on web), so a real RN <Pressable> overlay owns all
+  // wedge interaction and resolves which wedge was hit from the touch point.
+  const handleWedgeAt = React.useCallback(
+    (localX: number, localY: number, additive: boolean) => {
+      const dx = localX - CX;
+      const dy = localY - CY;
+      const radius = Math.sqrt(dx * dx + dy * dy);
+      if (radius < R_INNER - 6 || radius > R_OUTER + 8) return;
+      const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
+      const hit = arcs.find(
+        (arc) => deg >= arc.hitStartDeg && deg < arc.hitEndDeg,
+      );
+      if (!hit) return;
+      if (!hit.category) {
+        setExpanded(true);
+        return;
+      }
+      onSelect?.(hit.category.value, { additive });
+    },
+    [arcs, onSelect],
+  );
 
   const selectedCategories = React.useMemo(
     () =>
@@ -445,84 +482,94 @@ export function DonutCategoryChart({
   return (
     <View collapsable={false} style={styles.container}>
       <View collapsable={false} style={styles.chartWrap}>
-        <Svg width={CHART_SIZE} height={CHART_SIZE}>
-          <G>
-            {arcs.map((arc) => {
-              const isHighlighted =
-                effectiveHighlightedValue !== null &&
-                arc.key === String(effectiveHighlightedValue);
-              const isHomeHighlighted =
-                !isHighlighted &&
-                homeHighlightedValue != null &&
-                arc.key === String(homeHighlightedValue);
-              const isSelected = selectedValueKeys.has(arc.key);
-              const dimmed = selectedValueKeys.size > 0 && !isSelected;
-              return (
-                <Path
-                  key={arc.key}
-                  testID={`donut-wedge-${arc.key}`}
-                  d={wedgePath(arc.startDeg, arc.endDeg)}
-                  fill={arc.color}
-                  opacity={dimmed ? 0.4 : 1}
-                  stroke={
-                    isHighlighted
-                      ? highlightOutlineColor
-                      : isHomeHighlighted
-                        ? homeHighlightOutlineColor
-                        : palette.background.default.default
-                  }
-                  strokeWidth={isHighlighted || isHomeHighlighted ? 3 : 1}
-                  strokeDasharray={
-                    isHighlighted || isHomeHighlighted ? '4 3' : undefined
-                  }
-                  onPress={(event) => {
-                    if (!arc.category) {
-                      setExpanded(true);
-                      return;
+        <Pressable
+          testID='donut-hit-layer'
+          accessibilityRole='none'
+          style={{ width: CHART_SIZE, height: CHART_SIZE }}
+          onPress={(event) => {
+            const ne = event?.nativeEvent as unknown as {
+              locationX?: number;
+              locationY?: number;
+              ctrlKey?: boolean;
+              metaKey?: boolean;
+            };
+            if (ne?.locationX == null || ne?.locationY == null) return;
+            handleWedgeAt(
+              ne.locationX,
+              ne.locationY,
+              Boolean(ne.ctrlKey || ne.metaKey),
+            );
+          }}
+          onLongPress={(event) => {
+            const ne = event?.nativeEvent as unknown as {
+              locationX?: number;
+              locationY?: number;
+            };
+            if (ne?.locationX == null || ne?.locationY == null) return;
+            handleWedgeAt(ne.locationX, ne.locationY, true);
+          }}
+        >
+          <Svg width={CHART_SIZE} height={CHART_SIZE} pointerEvents='none'>
+            <G>
+              {arcs.map((arc) => {
+                const isHighlighted =
+                  effectiveHighlightedValue !== null &&
+                  arc.key === String(effectiveHighlightedValue);
+                const isHomeHighlighted =
+                  !isHighlighted &&
+                  homeHighlightedValue != null &&
+                  arc.key === String(homeHighlightedValue);
+                const isSelected = selectedValueKeys.has(arc.key);
+                const dimmed = selectedValueKeys.size > 0 && !isSelected;
+                return (
+                  <Path
+                    key={arc.key}
+                    testID={`donut-wedge-${arc.key}`}
+                    d={wedgePath(arc.startDeg, arc.endDeg)}
+                    fill={arc.color}
+                    opacity={dimmed ? 0.4 : 1}
+                    stroke={
+                      isHighlighted
+                        ? highlightOutlineColor
+                        : isHomeHighlighted
+                          ? homeHighlightOutlineColor
+                          : palette.background.default.default
                     }
-                    const nativeEvent = event?.nativeEvent as unknown as {
-                      ctrlKey?: boolean;
-                      metaKey?: boolean;
-                    };
-                    const additive = Boolean(
-                      nativeEvent?.ctrlKey || nativeEvent?.metaKey,
-                    );
-                    onSelect?.(arc.category.value, { additive });
-                  }}
-                  onLongPress={() => {
-                    if (arc.category)
-                      onSelect?.(arc.category.value, { additive: true });
-                  }}
-                />
-              );
-            })}
-          </G>
-          {centerLabel ? (
-            <SvgText
-              x={CX}
-              y={CY - 4}
-              textAnchor='middle'
-              fontSize={13}
-              fontWeight='600'
-              fill={palette.text.default.default}
-            >
-              {centerValue}
-            </SvgText>
-          ) : null}
-          {centerLabel ? (
-            <SvgText
-              x={CX}
-              y={CY + 14}
-              textAnchor='middle'
-              fontSize={10}
-              fill={palette.text.default.secondary}
-            >
-              {centerLabel.length > 16
-                ? `${centerLabel.slice(0, 15)}…`
-                : centerLabel}
-            </SvgText>
-          ) : null}
-        </Svg>
+                    strokeWidth={isHighlighted || isHomeHighlighted ? 3 : 1}
+                    strokeDasharray={
+                      isHighlighted || isHomeHighlighted ? '4 3' : undefined
+                    }
+                  />
+                );
+              })}
+            </G>
+            {centerLabel ? (
+              <SvgText
+                x={CX}
+                y={CY - 4}
+                textAnchor='middle'
+                fontSize={13}
+                fontWeight='600'
+                fill={palette.text.default.default}
+              >
+                {centerValue}
+              </SvgText>
+            ) : null}
+            {centerLabel ? (
+              <SvgText
+                x={CX}
+                y={CY + 14}
+                textAnchor='middle'
+                fontSize={10}
+                fill={palette.text.default.secondary}
+              >
+                {centerLabel.length > 16
+                  ? `${centerLabel.slice(0, 15)}…`
+                  : centerLabel}
+              </SvgText>
+            ) : null}
+          </Svg>
+        </Pressable>
       </View>
 
       <NavigationPillList
