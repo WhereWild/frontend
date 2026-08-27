@@ -96,7 +96,12 @@ const cats = (n: number, fraction = 1 / n): SpeciesEnvironmentCategory[] =>
 describe('DonutCategoryChart', () => {
   beforeEach(() => mockNavigationPillList.mockClear());
 
-  it('forwards a wedge tap as a non-additive selection', () => {
+  // Geometry for 3 equal wedges (120deg each) at the mid-radius (~73px):
+  // wedge 1 (cat-1) centers straight down; wedge 2 (cat-2) centers lower-left.
+  const CAT_1_POINT = { locationX: 100, locationY: 173 };
+  const CAT_2_POINT = { locationX: 37, locationY: 63 };
+
+  it('resolves a tap on the hit layer to the wedge under the pointer', () => {
     const onSelect = jest.fn();
     render(
       <DonutCategoryChart
@@ -107,11 +112,13 @@ describe('DonutCategoryChart', () => {
       />,
     );
 
-    fireEvent.press(screen.getByTestId('donut-wedge-cat-1'));
+    fireEvent.press(screen.getByTestId('donut-hit-layer'), {
+      nativeEvent: CAT_1_POINT,
+    });
     expect(onSelect).toHaveBeenCalledWith('cat-1', { additive: false });
   });
 
-  it('forwards a wedge long-press as an additive selection', () => {
+  it('resolves a long-press on the hit layer to an additive selection', () => {
     const onSelect = jest.fn();
     render(
       <DonutCategoryChart
@@ -122,8 +129,27 @@ describe('DonutCategoryChart', () => {
       />,
     );
 
-    fireEvent(screen.getByTestId('donut-wedge-cat-2'), 'longPress');
+    fireEvent(screen.getByTestId('donut-hit-layer'), 'longPress', {
+      nativeEvent: CAT_2_POINT,
+    });
     expect(onSelect).toHaveBeenCalledWith('cat-2', { additive: true });
+  });
+
+  it('ignores taps that land in the donut hole', () => {
+    const onSelect = jest.fn();
+    render(
+      <DonutCategoryChart
+        categories={cats(3)}
+        selectedValues={[]}
+        onSelect={onSelect}
+        descriptionColor='#666'
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('donut-hit-layer'), {
+      nativeEvent: { locationX: 100, locationY: 100 },
+    });
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it('outlines the location-matched wedge and forwards the highlight to the pills', () => {
