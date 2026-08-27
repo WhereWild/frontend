@@ -69,10 +69,7 @@ type DonutCategoryChartProps = {
   pinnedClassName?: string | null;
   highlightedValue?: number | string | null;
   unobservedHighlightedCategory?: PinnedCategoryBadge | null;
-  onSelect?: (
-    value: number | string,
-    options?: { additive?: boolean },
-  ) => void;
+  onSelect?: (value: number | string, options?: { additive?: boolean }) => void;
   descriptionColor: string;
   highlightOutlineColor?: string;
   homeHighlightedValue?: number | string | null;
@@ -159,11 +156,17 @@ export function DonutCategoryChart({
         };
       }
       if (pinnedClassName?.trim()) {
-        return { resolvedPinnedKey: null, pinnedOtherLabel: pinnedClassName.trim() };
+        return {
+          resolvedPinnedKey: null,
+          pinnedOtherLabel: pinnedClassName.trim(),
+        };
       }
     }
     if (highlightedValue !== null) {
-      return { resolvedPinnedKey: String(highlightedValue), pinnedOtherLabel: null };
+      return {
+        resolvedPinnedKey: String(highlightedValue),
+        pinnedOtherLabel: null,
+      };
     }
     if (unobservedHighlightedCategory) {
       return {
@@ -184,7 +187,10 @@ export function DonutCategoryChart({
   // If a highlighted/home category lands in the tail, promote it so it stays visible.
   const wedges = React.useMemo(() => {
     if (!hasMore || expanded) {
-      return { slices: validCategories, other: null as null | { fraction: number; count: number } };
+      return {
+        slices: validCategories,
+        other: null as null | { fraction: number; count: number },
+      };
     }
     const promoteKeys = new Set(
       [resolvedPinnedKey, homeHighlightedValue].filter(Boolean).map(String),
@@ -192,7 +198,8 @@ export function DonutCategoryChart({
     const head: SpeciesEnvironmentCategory[] = [];
     const tail: SpeciesEnvironmentCategory[] = [];
     validCategories.forEach((c, i) => {
-      if (i < CATEGORY_DISPLAY_LIMIT || promoteKeys.has(String(c.value))) head.push(c);
+      if (i < CATEGORY_DISPLAY_LIMIT || promoteKeys.has(String(c.value)))
+        head.push(c);
       else tail.push(c);
     });
     const other = tail.length
@@ -202,7 +209,13 @@ export function DonutCategoryChart({
         }
       : null;
     return { slices: head, other };
-  }, [validCategories, hasMore, expanded, resolvedPinnedKey, homeHighlightedValue]);
+  }, [
+    validCategories,
+    hasMore,
+    expanded,
+    resolvedPinnedKey,
+    homeHighlightedValue,
+  ]);
 
   const arcs = React.useMemo(() => {
     const total =
@@ -249,9 +262,7 @@ export function DonutCategoryChart({
   );
 
   const pills = React.useMemo(() => {
-    const source = expanded || !hasMore
-      ? validCategories
-      : wedges.slices;
+    const source = expanded || !hasMore ? validCategories : wedges.slices;
     const base = source.map((category, index) => {
       const color =
         category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
@@ -442,7 +453,9 @@ export function DonutCategoryChart({
             : undefined
         }
         homeHighlightedKey={
-          homeHighlightedValue != null ? String(homeHighlightedValue) : undefined
+          homeHighlightedValue != null
+            ? String(homeHighlightedValue)
+            : undefined
         }
         homeHighlightOutlineColor={homeHighlightOutlineColor}
         onSelectionChange={handlePillSelectionChange}

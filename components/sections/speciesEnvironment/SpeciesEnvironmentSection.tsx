@@ -615,14 +615,10 @@ function SpeciesEnvironmentSectionComponent({
                 return (
                   <CategoryChart
                     categories={displayState?.categoricalDistribution ?? []}
-                    selectedValues={
-                      displayState?.selectedCategoryValues ?? []
-                    }
+                    selectedValues={displayState?.selectedCategoryValues ?? []}
                     pinnedValue={displayState?.pinnedValue ?? null}
                     pinnedClassName={displayState?.pinnedClassName ?? null}
-                    highlightedValue={
-                      displayState?.pinnedCategoryValue ?? null
-                    }
+                    highlightedValue={displayState?.pinnedCategoryValue ?? null}
                     homeHighlightedValue={
                       displayState?.homePinnedCategoryValue ?? null
                     }
@@ -637,9 +633,7 @@ function SpeciesEnvironmentSectionComponent({
                     onSelect={handleCategorySelect}
                     descriptionColor={palette.text.default.secondary}
                     highlightOutlineColor='#F59E0B'
-                    homeHighlightOutlineColor={
-                      palette.background.brand.default
-                    }
+                    homeHighlightOutlineColor={palette.background.brand.default}
                     variableId={selectedVariable ?? undefined}
                     shapesEnabled={settings?.shapesEnabled ?? false}
                     markerOutlineEnabled={
