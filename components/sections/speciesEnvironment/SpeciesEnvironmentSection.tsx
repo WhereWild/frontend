@@ -18,6 +18,7 @@ import { DensityChart } from './DensityChart';
 import { NominalInsights } from './NominalInsights';
 import { PolarDensityChart } from './PolarDensityChart';
 import { StackedCategoryBar } from './StackedCategoryBar';
+import { DonutCategoryChart } from './DonutCategoryChart';
 import { TernaryDensityChart } from './TernaryDensityChart';
 import { VariableSelectorHeader } from './VariableSelectorHeader';
 import {
@@ -607,32 +608,47 @@ function SpeciesEnvironmentSectionComponent({
                     legendClasses={selectedVariableMeta?.legendClasses ?? null}
                   />
                 )}
-              <StackedCategoryBar
-                categories={displayState?.categoricalDistribution ?? []}
-                selectedValues={displayState?.selectedCategoryValues ?? []}
-                pinnedValue={displayState?.pinnedValue ?? null}
-                pinnedClassName={displayState?.pinnedClassName ?? null}
-                highlightedValue={displayState?.pinnedCategoryValue ?? null}
-                homeHighlightedValue={
-                  displayState?.homePinnedCategoryValue ?? null
-                }
-                unobservedHighlightedCategory={
-                  displayState?.pinnedUnobservedCategory ?? null
-                }
-                homeUnobservedCategory={
-                  displayState?.homeUnobservedCategory ?? null
-                }
-                anyFilterActive={displayState?.anyFilterActive ?? false}
-                environmentNoun={environmentNoun}
-                onSelect={handleCategorySelect}
-                descriptionColor={palette.text.default.secondary}
-                highlightOutlineColor='#F59E0B'
-                homeHighlightOutlineColor={palette.background.brand.default}
-                variableId={selectedVariable ?? undefined}
-                shapesEnabled={settings?.shapesEnabled ?? false}
-                markerOutlineEnabled={settings?.markerOutlineEnabled ?? false}
-                preserveOrder={isOrdinalVar}
-              />
+              {(() => {
+                const CategoryChart = isOrdinalVar
+                  ? StackedCategoryBar
+                  : DonutCategoryChart;
+                return (
+                  <CategoryChart
+                    categories={displayState?.categoricalDistribution ?? []}
+                    selectedValues={
+                      displayState?.selectedCategoryValues ?? []
+                    }
+                    pinnedValue={displayState?.pinnedValue ?? null}
+                    pinnedClassName={displayState?.pinnedClassName ?? null}
+                    highlightedValue={
+                      displayState?.pinnedCategoryValue ?? null
+                    }
+                    homeHighlightedValue={
+                      displayState?.homePinnedCategoryValue ?? null
+                    }
+                    unobservedHighlightedCategory={
+                      displayState?.pinnedUnobservedCategory ?? null
+                    }
+                    homeUnobservedCategory={
+                      displayState?.homeUnobservedCategory ?? null
+                    }
+                    anyFilterActive={displayState?.anyFilterActive ?? false}
+                    environmentNoun={environmentNoun}
+                    onSelect={handleCategorySelect}
+                    descriptionColor={palette.text.default.secondary}
+                    highlightOutlineColor='#F59E0B'
+                    homeHighlightOutlineColor={
+                      palette.background.brand.default
+                    }
+                    variableId={selectedVariable ?? undefined}
+                    shapesEnabled={settings?.shapesEnabled ?? false}
+                    markerOutlineEnabled={
+                      settings?.markerOutlineEnabled ?? false
+                    }
+                    preserveOrder={isOrdinalVar}
+                  />
+                );
+              })()}
             </>
           )}
           {typeof displayState?.summary?.unique_classes === 'number' &&

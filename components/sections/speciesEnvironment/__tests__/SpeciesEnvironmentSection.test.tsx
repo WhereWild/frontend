@@ -87,6 +87,48 @@ jest.mock('../StackedCategoryBar', () => ({
   },
 }));
 
+// The nominal path renders DonutCategoryChart instead of StackedCategoryBar;
+// mirror the same sentinels so branch/forwarding assertions stay meaningful.
+jest.mock('../DonutCategoryChart', () => ({
+  DonutCategoryChart: ({
+    onSelect,
+    highlightedValue,
+    pinnedValue,
+    pinnedClassName,
+  }: {
+    onSelect?: (value: string | number) => void;
+    highlightedValue?: string | number | null;
+    pinnedValue?: string | number | null;
+    pinnedClassName?: string | null;
+  }) => {
+    const ReactNative = jest.requireActual('react-native');
+    const { Pressable, Text, View } = ReactNative;
+    return (
+      <View>
+        <Text>categorical-view</Text>
+        <Text>
+          {highlightedValue == null
+            ? 'no-highlighted-category'
+            : `highlighted-${String(highlightedValue)}`}
+        </Text>
+        <Text>
+          {pinnedValue == null
+            ? 'no-pinned-value'
+            : `pinned-${String(pinnedValue)}`}
+        </Text>
+        <Text>
+          {pinnedClassName == null
+            ? 'no-pinned-class-name'
+            : `pinned-class-${pinnedClassName}`}
+        </Text>
+        <Pressable testID='pick-categorical' onPress={() => onSelect?.('a')}>
+          <Text>pick</Text>
+        </Pressable>
+      </View>
+    );
+  },
+}));
+
 jest.mock('../DensityChart', () => ({
   DensityChart: () => {
     const ReactNative = jest.requireActual('react-native');
