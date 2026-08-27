@@ -261,48 +261,127 @@ export function DonutCategoryChart({
     [validCategories, selectedValueKeys],
   );
 
+  const displaySlices = React.useMemo(
+    () => (expanded || !hasMore ? validCategories : wedges.slices),
+    [expanded, hasMore, validCategories, wedges.slices],
+  );
+
+  // Mirrors StackedCategoryBar: '__home_match__' means we need an extra pill
+  // (home same as the pinned/obs category, or home not in the displayed slices);
+  // a category value string means the existing pill is reused.
+  const homeMatchKey = React.useMemo(() => {
+    if (homeHighlightedValue == null || homeUnobservedCategory) return null;
+    const homeStr = String(homeHighlightedValue);
+    const existsInDisplay = displaySlices.some(
+      (c) => String(c.value) === homeStr,
+    );
+    if (!existsInDisplay || resolvedPinnedKey === homeStr)
+      return '__home_match__';
+    return homeStr;
+  }, [
+    homeHighlightedValue,
+    homeUnobservedCategory,
+    displaySlices,
+    resolvedPinnedKey,
+  ]);
+
   const pills = React.useMemo(() => {
-    const source = expanded || !hasMore ? validCategories : wedges.slices;
-    const base = source.map((category, index) => {
-      const color =
-        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-      const rawId = category.value;
-      const classId =
-        typeof rawId === 'string' && rawId.startsWith('class_')
+    const swatch = (color: string, classId: number) =>
+      shapesEnabled && variableId && classId >= 0 ? (
+        <ShapeMarker
+          shape={getCbShape(variableId, classId)}
+          color={color}
+          size={12}
+          outline={markerOutlineEnabled}
+        />
+      ) : (
+        <View
+          style={{
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: color,
+            ...(markerOutlineEnabled
+              ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
+              : {}),
+          }}
+        />
+      );
+    const classIdOf = (rawId: number | string | null | undefined) =>
+      rawId == null
+        ? -1
+        : typeof rawId === 'string' && rawId.startsWith('class_')
           ? Number(rawId.slice(6))
           : Number(rawId);
+
+    const base = displaySlices.map((category, index) => {
+      const color =
+        category.color ?? CATEGORY_COLORS[index % CATEGORY_COLORS.length];
       return {
         key: String(category.value),
         label: category.className,
-        icon:
-          shapesEnabled && variableId ? (
-            <ShapeMarker
-              shape={getCbShape(variableId, classId)}
-              color={color}
-              size={12}
-              outline={markerOutlineEnabled}
-            />
-          ) : (
-            <View
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                backgroundColor: color,
-                ...(markerOutlineEnabled
-                  ? { borderWidth: 1, borderColor: 'rgba(176,176,176,0.65)' }
-                  : {}),
-              }}
-            />
-          ),
+        icon: swatch(color, classIdOf(category.value)),
       };
     });
+
+    // Home pill: reuse existing pill when possible, otherwise synthesize one.
+    let homePill: (typeof base)[number] | null = null;
+    if (homeMatchKey === '__home_match__' && homeHighlightedValue != null) {
+      const i = displaySlices.findIndex(
+        (c) => String(c.value) === String(homeHighlightedValue),
+      );
+      if (i >= 0) {
+        const cat = displaySlices[i];
+        homePill = {
+          key: '__home_match__',
+          label: cat.className,
+          icon: swatch(
+            cat.color ?? CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+            classIdOf(cat.value),
+          ),
+        };
+      }
+    } else if (homeUnobservedCategory) {
+      homePill = {
+        key: '__home_other__',
+        label: homeUnobservedCategory.label,
+        icon: swatch(
+          homeUnobservedCategory.color ?? OTHER_COLOR,
+          classIdOf(homeUnobservedCategory.value),
+        ),
+      };
+    }
+
+    // Obs pill for a pinned location whose category is not in the distribution.
+    if (pinnedOtherLabel) {
+      base.push({
+        key: '__other__',
+        label: pinnedOtherLabel,
+        icon: swatch(
+          unobservedHighlightedCategory?.color ?? OTHER_COLOR,
+          classIdOf(unobservedHighlightedCategory?.value),
+        ),
+      });
+      if (homePill) base.push(homePill);
+    } else if (resolvedPinnedKey) {
+      const obsIndex = base.findIndex((p) => p.key === resolvedPinnedKey);
+      if (homePill) {
+        if (obsIndex >= 0) base.splice(obsIndex + 1, 0, homePill);
+        else base.push(homePill);
+      }
+    } else if (homePill) {
+      base.push(homePill);
+    }
+
     return base;
   }, [
-    validCategories,
-    wedges.slices,
-    expanded,
-    hasMore,
+    displaySlices,
+    homeMatchKey,
+    homeHighlightedValue,
+    homeUnobservedCategory,
+    pinnedOtherLabel,
+    resolvedPinnedKey,
+    unobservedHighlightedCategory,
     shapesEnabled,
     markerOutlineEnabled,
     variableId,
@@ -381,6 +460,7 @@ export function DonutCategoryChart({
               return (
                 <Path
                   key={arc.key}
+                  testID={`donut-wedge-${arc.key}`}
                   d={wedgePath(arc.startDeg, arc.endDeg)}
                   fill={arc.color}
                   opacity={dimmed ? 0.4 : 1}
@@ -408,6 +488,10 @@ export function DonutCategoryChart({
                       nativeEvent?.ctrlKey || nativeEvent?.metaKey,
                     );
                     onSelect?.(arc.category.value, { additive });
+                  }}
+                  onLongPress={() => {
+                    if (arc.category)
+                      onSelect?.(arc.category.value, { additive: true });
                   }}
                 />
               );
@@ -453,9 +537,8 @@ export function DonutCategoryChart({
             : undefined
         }
         homeHighlightedKey={
-          homeHighlightedValue != null
-            ? String(homeHighlightedValue)
-            : undefined
+          homeMatchKey ??
+          (homeUnobservedCategory ? '__home_other__' : undefined)
         }
         homeHighlightOutlineColor={homeHighlightOutlineColor}
         onSelectionChange={handlePillSelectionChange}
