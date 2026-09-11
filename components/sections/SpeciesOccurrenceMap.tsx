@@ -282,14 +282,20 @@ type SpeciesOccurrenceMapProps = {
   // ask this callback for each tile's PNG bytes (via a postMessage round
   // trip) instead of `fetch()`ing the backend. `url` is the full tile URL
   // (query string intact) so the callback can read colormap/render_range/…
-  // the same way the backend tile route does. Return null for a transparent
-  // tile. Optional and inert unless a `localtiles://` URL is passed.
+  // the same way the backend tile route does. `classes` (nominal/ordinal
+  // only) mirrors the backend's X-Nominal-Classes header, since a local tile
+  // has no HTTP response to carry a header on. Return null for a
+  // transparent tile. Optional and inert unless a `localtiles://` URL is
+  // passed.
   renderLocalTile?: (
     z: number,
     x: number,
     y: number,
     url: string,
-  ) => Promise<ArrayBuffer | null>;
+  ) => Promise<{
+    data: ArrayBuffer;
+    classes?: { id: number; count: number }[];
+  } | null>;
 };
 
 export function SpeciesOccurrenceMap({
@@ -1533,11 +1539,21 @@ export function SpeciesOccurrenceMap({
           y: number;
           url: string;
         };
-        const respond = (bytes: ArrayBuffer | null) =>
+        const respond = (
+          result: {
+            data: ArrayBuffer;
+            classes?: { id: number; count: number }[];
+          } | null,
+        ) =>
           frameWindow.postMessage(
-            { type: 'localTileResponse', requestId, data: bytes },
+            {
+              type: 'localTileResponse',
+              requestId,
+              data: result?.data ?? null,
+              classes: result?.classes ?? null,
+            },
             '*',
-            bytes ? [bytes] : [],
+            result?.data ? [result.data] : [],
           );
         void renderLocalTile(z, x, y, url).then(respond, () => respond(null));
       }

@@ -12,12 +12,19 @@
 import {
   buildColorLut,
   colorizeBand,
+  colorizeCategoricalBand,
+  hexToRgb,
   mercatorToLngLat,
   parseTileStyleFromUrl,
+  tallyCategoricalCounts,
   tileToMercatorBounds,
 } from './cogTileMath';
+import type { ValueTypeGuess } from './dataTypeDetection';
 import type { RasterMetadata } from './rasterMetadata';
-import { COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import {
+  CIRCULAR_COLORMAPS,
+  COLORMAPS,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 
 const TILE_SIZE = 256;
 const MESH = 16;
@@ -29,13 +36,21 @@ export class UnsupportedCrsError extends Error {
   }
 }
 
+export type RenderedTile = {
+  data: ArrayBuffer;
+  /** Present only for nominal/ordinal rasters — pixel counts per class in
+   * this tile, mirroring the backend's X-Nominal-Classes header so the
+   * legend's visible-classes tracking works for local sources too. */
+  classes?: { id: number; count: number }[];
+};
+
 export type CogTileRenderer = {
   renderTile: (
     z: number,
     x: number,
     y: number,
     url: string,
-  ) => Promise<ArrayBuffer | null>;
+  ) => Promise<RenderedTile | null>;
   view: { lat: number; lon: number; zoom: number };
   dispose: () => void;
 };
@@ -110,6 +125,12 @@ type CreateArgs = {
   metadata: RasterMetadata;
   renderMin: number;
   renderMax: number;
+  valueType: ValueTypeGuess;
+  /** Only meaningful for nominal — ordinal renders through the same
+   * continuous min/max stretch as interval/ratio/circular (see
+   * rasterEditableMeta.ts), so its legend swatches carry a default color but
+   * the pixels themselves don't need per-class lookup. */
+  legendClasses: { id: number; color: string | null }[] | null;
 };
 
 export const createCogTileRenderer = async ({
@@ -117,7 +138,18 @@ export const createCogTileRenderer = async ({
   metadata,
   renderMin,
   renderMax,
+  valueType,
+  legendClasses,
 }: CreateArgs): Promise<CogTileRenderer> => {
+  const isCategorical = valueType === 'nominal' || valueType === 'ordinal';
+  const isNominal = valueType === 'nominal';
+  const colorsById = new Map<number, [number, number, number]>();
+  if (isNominal && legendClasses) {
+    for (const cls of legendClasses) {
+      const rgb = cls.color ? hexToRgb(cls.color) : null;
+      if (rgb) colorsById.set(cls.id, rgb);
+    }
+  }
   const rasterProj = resolveRasterProj4(metadata); // may throw UnsupportedCrsError
   const noData = metadata.noData;
 
@@ -139,18 +171,18 @@ export const createCogTileRenderer = async ({
 
   const lutCache = new Map<string, Uint8Array>();
   const lutFor = (name: string): Uint8Array => {
-    const key = name in COLORMAPS ? name : 'viridis';
-    let l = lutCache.get(key);
-    if (!l) {
-      l = buildColorLut(
-        COLORMAPS[key as keyof typeof COLORMAPS].stops as [
-          number,
-          number,
-          number,
-        ][],
-      );
-      lutCache.set(key, l);
-    }
+    let l = lutCache.get(name);
+    if (l) return l;
+    // Circular variables' colormap ids (e.g. "twilight_90") live in a
+    // separate table from the sequential ones — check both before falling
+    // back, so a circular raster's tiles pick up its cyclic colormap
+    // instead of silently defaulting to viridis.
+    const stops =
+      COLORMAPS[name as keyof typeof COLORMAPS]?.stops ??
+      CIRCULAR_COLORMAPS[name as keyof typeof CIRCULAR_COLORMAPS]?.stops ??
+      COLORMAPS.viridis.stops;
+    l = buildColorLut(stops as [number, number, number][]);
+    lutCache.set(name, l);
     return l;
   };
 
@@ -203,7 +235,7 @@ export const createCogTileRenderer = async ({
     x: number,
     y: number,
     url: string,
-  ): Promise<ArrayBuffer | null> => {
+  ): Promise<RenderedTile | null> => {
     if (disposed) return null;
     const style = parseTileStyleFromUrl(url);
     const lut = lutFor(style.colormap ?? 'viridis');
@@ -341,15 +373,35 @@ export const createCogTileRenderer = async ({
     }
     if (!anyValid) return null;
 
-    const rgba = colorizeBand(
-      samples,
-      min,
-      max,
-      noData,
-      lut,
-      style.valueRanges,
-    );
-    return encodePng(rgba);
+    // Nominal codes are unordered — interpolating between two of them is
+    // meaningless, so they're colorized by exact lookup instead of the
+    // continuous min/max stretch. Ordinal stays on the continuous path (its
+    // rank order makes a sequential colormap sensible), same as
+    // interval/ratio/circular.
+    const rgba =
+      isNominal && colorsById.size > 0
+        ? colorizeCategoricalBand(
+            samples,
+            noData,
+            colorsById,
+            style.classFilter,
+          )
+        : colorizeBand(
+            samples,
+            min,
+            max,
+            noData,
+            lut,
+            style.valueRanges,
+            style.classFilter,
+          );
+    const classes = isCategorical
+      ? tallyCategoricalCounts(samples, noData)
+      : undefined;
+
+    const data = await encodePng(rgba);
+    if (!data) return null;
+    return { data, classes };
   };
 
   return {

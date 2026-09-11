@@ -285,10 +285,13 @@ export const deriveDetectedValueType = async (
   blob: Blob,
   metadata: RasterMetadata,
 ): Promise<DetectedValueType | null> => {
-  if (metadata.hasColorMap) {
-    return detectValueType([], { hasColorMap: true });
-  }
   const values = await readSmallestOverviewSamples(blob, metadata);
-  if (values == null) return null;
-  return detectValueType(values);
+  if (values == null) {
+    // No overviews to sample — but an embedded palette is still a
+    // definitive signal on its own, just without a real class list.
+    return metadata.hasColorMap
+      ? detectValueType([], { hasColorMap: true })
+      : null;
+  }
+  return detectValueType(values, { hasColorMap: metadata.hasColorMap });
 };

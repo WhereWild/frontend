@@ -21,11 +21,17 @@ import {
   selectFileFromPicker,
 } from '@/hooks/upload/uploadWorkflowHelpers';
 import { WebMetadata } from '@/utils/webMetadata';
-import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import { buildCogFixCommand } from './cogFixCommand';
+import { MetadataEditor } from './MetadataEditor';
 import { MetadataPanel } from './MetadataPanel';
 import { createCogTileRenderer, type CogTileRenderer } from './cogTileRenderer';
 import type { DetectedValueType } from './dataTypeDetection';
+import {
+  buildInitialEditableMeta,
+  editableMetaToDetectedType,
+  toEnvironmentVariableOption,
+  type RasterEditableMeta,
+} from './rasterEditableMeta';
 import {
   deriveDetectedValueType,
   deriveRenderBounds,
@@ -57,18 +63,11 @@ type Loaded = {
 const isBrowser = () =>
   Platform.OS === 'web' && typeof document !== 'undefined';
 
-const syntheticVariableMeta = (loaded: Loaded): EnvironmentVariableOption => ({
-  id: 'local-raster',
-  label: loaded.fileName,
-  units: null,
-  valueType: 'continuous',
-  category: 'Local raster',
-  sourceIds: [],
-  legendClasses: null,
-  renderMin: loaded.bounds.min,
-  renderMax: loaded.bounds.max,
-  version: loaded.fileSize,
-});
+// Debounce for rebuilding the tile renderer after a metadata edit (color
+// swatch drags in particular can fire many onChange calls in a row) — the
+// initial render (new file load / "Render anyway") always happens
+// immediately, this only smooths out live edits to an already-open preview.
+const EDIT_REBUILD_DEBOUNCE_MS = 300;
 
 export function GisEditorScreen() {
   const responsive = useResponsive();
@@ -79,28 +78,46 @@ export function GisEditorScreen() {
   const [status, setStatus] = React.useState<Status>('idle');
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState<Loaded | null>(null);
+  const [editableMeta, setEditableMeta] =
+    React.useState<RasterEditableMeta | null>(null);
   const [renderer, setRenderer] = React.useState<CogTileRenderer | null>(null);
   const [loadSeq, setLoadSeq] = React.useState(0);
+  // Cache-busts the tile URLs the map requests — bumped on every renderer
+  // (re)build so an edited raster's tiles actually get re-fetched instead of
+  // reusing what the map already has cached under the old URL.
+  const [renderVersion, setRenderVersion] = React.useState(0);
 
   const requestIdRef = React.useRef(0);
   const rendererRef = React.useRef<CogTileRenderer | null>(null);
 
   const buildRenderer = React.useCallback(
-    async (next: Loaded, requestId: number) => {
+    async (
+      next: Loaded,
+      requestId: number,
+      editable: RasterEditableMeta,
+      isInitialLoad: boolean,
+    ) => {
       try {
         const tileRenderer = await createCogTileRenderer({
           blob: next.blob,
           metadata: next.metadata,
-          renderMin: next.bounds.min,
-          renderMax: next.bounds.max,
+          renderMin: editable.renderMin,
+          renderMax: editable.renderMax,
+          valueType: editable.valueType,
+          legendClasses: editable.classes.map((c) => ({
+            id: c.value,
+            color: c.color,
+          })),
         });
         if (requestIdRef.current !== requestId) {
           tileRenderer.dispose();
           return;
         }
+        rendererRef.current?.dispose();
         rendererRef.current = tileRenderer;
         setRenderer(tileRenderer);
-        setLoadSeq((n) => n + 1);
+        setRenderVersion((v) => v + 1);
+        if (isInitialLoad) setLoadSeq((n) => n + 1);
         setStatus('ready');
       } catch (error) {
         if (requestIdRef.current !== requestId) return;
@@ -124,6 +141,7 @@ export function GisEditorScreen() {
       rendererRef.current = null;
       setRenderer(null);
       setLoaded(null);
+      setEditableMeta(null);
       setErrorMessage(null);
       setStatus('parsing');
       try {
@@ -139,9 +157,11 @@ export function GisEditorScreen() {
           detectedType,
         };
         if (requestIdRef.current !== requestId) return;
+        const initialEditable = buildInitialEditableMeta(detectedType, bounds);
         setLoaded(next);
+        setEditableMeta(initialEditable);
         if (metadata.cog.isCog) {
-          await buildRenderer(next, requestId);
+          await buildRenderer(next, requestId, initialEditable, true);
         } else {
           setStatus('confirm');
         }
@@ -160,10 +180,33 @@ export function GisEditorScreen() {
   );
 
   const confirmRender = React.useCallback(() => {
-    if (!loaded) return;
+    if (!loaded || !editableMeta) return;
     setStatus('parsing');
-    void buildRenderer(loaded, requestIdRef.current);
-  }, [loaded, buildRenderer]);
+    void buildRenderer(loaded, requestIdRef.current, editableMeta, true);
+  }, [loaded, editableMeta, buildRenderer]);
+
+  // Live-updates the map preview as the user edits data type / bounds /
+  // units / legend — skipped on the very first editableMeta for a file
+  // (that build already happened above, via ingest()/confirmRender()) by
+  // only firing once a renderer is already showing.
+  React.useEffect(() => {
+    if (!loaded || !editableMeta || status !== 'ready') return;
+    const requestId = requestIdRef.current;
+    const timer = setTimeout(() => {
+      void buildRenderer(loaded, requestId, editableMeta, false);
+    }, EDIT_REBUILD_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // Only re-run when the edited metadata itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editableMeta]);
+
+  const effectiveDetectedType = React.useMemo(
+    () =>
+      editableMeta
+        ? editableMetaToDetectedType(editableMeta)
+        : (loaded?.detectedType ?? null),
+    [editableMeta, loaded],
+  );
 
   const fixCommand = React.useMemo(
     () =>
@@ -171,10 +214,10 @@ export function GisEditorScreen() {
         ? buildCogFixCommand(
             loaded.fileName,
             loaded.metadata,
-            loaded.detectedType,
+            effectiveDetectedType,
           )
         : '',
-    [loaded],
+    [loaded, effectiveDetectedType],
   );
   const [copied, setCopied] = React.useState(false);
   const copyFixCommand = React.useCallback(() => {
@@ -213,6 +256,7 @@ export function GisEditorScreen() {
     rendererRef.current = null;
     setRenderer(null);
     setLoaded(null);
+    setEditableMeta(null);
     setErrorMessage(null);
     setStatus('idle');
   }, []);
@@ -361,6 +405,13 @@ export function GisEditorScreen() {
                       metadata={loaded.metadata}
                       detectedType={loaded.detectedType}
                     />
+                    {editableMeta ? (
+                      <MetadataEditor
+                        editable={editableMeta}
+                        detectedType={loaded.detectedType}
+                        onChange={setEditableMeta}
+                      />
+                    ) : null}
                   </View>
                   <View
                     style={[
@@ -484,20 +535,33 @@ export function GisEditorScreen() {
                         {`Colour range ${loaded.bounds.min}–${loaded.bounds.max} is a data-type estimate (no overviews to sample).`}
                       </ThemedText>
                     ) : null}
+                    {editableMeta ? (
+                      <MetadataEditor
+                        editable={editableMeta}
+                        detectedType={loaded.detectedType}
+                        onChange={setEditableMeta}
+                      />
+                    ) : null}
                   </View>
                   <View style={styles.previewColumn}>
-                    <VariableHeatmapMap
-                      key={loadSeq}
-                      variableMeta={syntheticVariableMeta(loaded)}
-                      tileSource={{
-                        kind: 'local',
-                        renderTile: renderer.renderTile,
-                      }}
-                      height={MAP_HEIGHT}
-                      initialLat={renderer.view.lat}
-                      initialLon={renderer.view.lon}
-                      initialZoom={renderer.view.zoom}
-                    />
+                    {editableMeta ? (
+                      <VariableHeatmapMap
+                        key={loadSeq}
+                        variableMeta={toEnvironmentVariableOption(
+                          loaded.fileName,
+                          renderVersion,
+                          editableMeta,
+                        )}
+                        tileSource={{
+                          kind: 'local',
+                          renderTile: renderer.renderTile,
+                        }}
+                        height={MAP_HEIGHT}
+                        initialLat={renderer.view.lat}
+                        initialLon={renderer.view.lon}
+                        initialZoom={renderer.view.zoom}
+                      />
+                    ) : null}
                   </View>
                 </View>
               ) : null}

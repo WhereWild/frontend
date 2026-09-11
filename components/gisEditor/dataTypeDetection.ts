@@ -5,11 +5,11 @@
 // Guesses a raster's measurement level ("nominal" | "ordinal" | "interval" |
 // "ratio" | "circular" — the same precise taxonomy as
 // EnvironmentVariableDefinition.rawValueType) from a sample of its pixel
-// values, for the /gis-editor "suggested data type" hint. This is always a
-// heuristic over a downsampled preview, not ground truth — "ratio" vs
-// "interval" in particular depends on what zero *means*, which pixel values
-// alone can never prove. The panel that shows this should let the guess be
-// overridden.
+// values, for the /gis-editor "suggested data type" hint and metadata
+// editor. This is always a heuristic over a downsampled preview, not ground
+// truth — "ratio" vs "interval" in particular depends on what zero *means*,
+// which pixel values alone can never prove. The metadata editor lets the
+// guess be overridden.
 
 export type ValueTypeGuess =
   | 'nominal'
@@ -27,6 +27,10 @@ export type DetectedValueType = {
    * categorical branches). Null when the sample wasn't treated as
    * categorical (continuous/circular data isn't deduplicated). */
   distinctCount: number | null;
+  /** The distinct values themselves, sorted ascending, when the guess is
+   * categorical — the metadata editor uses these to seed one legend-class
+   * row per value. Null whenever distinctCount is null. */
+  distinctValues?: number[] | null;
 };
 
 // Once this many distinct values show up we stop treating the raster as a
@@ -44,23 +48,23 @@ export const detectValueType = (
   values: ArrayLike<number>,
   opts: { hasColorMap?: boolean } = {},
 ): DetectedValueType => {
-  if (opts.hasColorMap) {
-    return {
-      guess: 'nominal',
-      confidence: 'high',
-      reason:
-        'File has an embedded color palette (a paletted/indexed raster) — that only makes sense for categorical classes.',
-      distinctCount: null,
-    };
-  }
-
   if (values.length === 0) {
-    return {
-      guess: 'ratio',
-      confidence: 'low',
-      reason: 'No sample pixels to analyze.',
-      distinctCount: null,
-    };
+    return opts.hasColorMap
+      ? {
+          guess: 'nominal',
+          confidence: 'high',
+          reason:
+            'File has an embedded color palette (a paletted/indexed raster) — that only makes sense for categorical classes.',
+          distinctCount: null,
+          distinctValues: null,
+        }
+      : {
+          guess: 'ratio',
+          confidence: 'low',
+          reason: 'No sample pixels to analyze.',
+          distinctCount: null,
+          distinctValues: null,
+        };
   }
 
   let min = Infinity;
@@ -80,6 +84,21 @@ export const detectValueType = (
     }
   }
 
+  // A file with an embedded palette is definitively categorical regardless
+  // of what the pixel values look like — but we still want the actual
+  // distinct values present in the sample to seed the class list.
+  if (opts.hasColorMap) {
+    const sorted = tooManyDistinct ? null : [...distinct].sort((a, b) => a - b);
+    return {
+      guess: 'nominal',
+      confidence: 'high',
+      reason:
+        'File has an embedded color palette (a paletted/indexed raster) — that only makes sense for categorical classes.',
+      distinctCount: sorted?.length ?? null,
+      distinctValues: sorted,
+    };
+  }
+
   const looksCategorical = allInteger && !tooManyDistinct;
 
   if (looksCategorical) {
@@ -95,6 +114,7 @@ export const detectValueType = (
           `Only two distinct integer values (${sorted[0]}, ${sorted[1]}) — looks like a binary mask or flag.` +
           DOWNSAMPLED_NOTE,
         distinctCount: sorted.length,
+        distinctValues: sorted,
       };
     }
     if (contiguous) {
@@ -105,6 +125,7 @@ export const detectValueType = (
           `Values are a contiguous run of integers (${sorted[0]}–${sorted[sorted.length - 1]}) with no gaps — looks like ranked classes.` +
           DOWNSAMPLED_NOTE,
         distinctCount: sorted.length,
+        distinctValues: sorted,
       };
     }
     return {
@@ -114,6 +135,7 @@ export const detectValueType = (
         `Few distinct integer values (${sorted.length}) that aren't a contiguous run — looks like unordered class codes.` +
         DOWNSAMPLED_NOTE,
       distinctCount: sorted.length,
+      distinctValues: sorted,
     };
   }
 
@@ -129,6 +151,7 @@ export const detectValueType = (
         ? `Values are bounded within roughly 0–360 (${min.toFixed(1)}–${max.toFixed(1)}) — looks like a bearing/aspect in degrees.`
         : `Values are bounded within roughly 0–2π (${min.toFixed(2)}–${max.toFixed(2)}) — looks like an angle in radians.`,
       distinctCount: null,
+      distinctValues: null,
     };
   }
 
@@ -138,6 +161,7 @@ export const detectValueType = (
       confidence: 'low',
       reason: `Values span both sides of zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — consistent with a scale with no true zero (e.g. temperature), but this can't be confirmed from pixel values alone.`,
       distinctCount: null,
+      distinctValues: null,
     };
   }
   // Non-negative alone is weak evidence of a true zero — plenty of interval
@@ -152,6 +176,7 @@ export const detectValueType = (
       confidence: 'low',
       reason: `Sampled values are non-negative and get close to zero (min ${min.toFixed(2)}) — consistent with a scale that has a true zero, but this can't be confirmed from pixel values alone.`,
       distinctCount: null,
+      distinctValues: null,
     };
   }
   return {
@@ -159,5 +184,6 @@ export const detectValueType = (
     confidence: 'low',
     reason: `Sampled values are non-negative but never approach zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — there's no evidence of a true zero in this sample, so this is treated as interval-like rather than assuming ratio.`,
     distinctCount: null,
+    distinctValues: null,
   };
 };

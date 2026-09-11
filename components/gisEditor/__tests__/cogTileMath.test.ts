@@ -5,9 +5,12 @@
 import {
   buildColorLut,
   colorizeBand,
+  colorizeCategoricalBand,
+  hexToRgb,
   MERCATOR_ORIGIN_SHIFT,
   mercatorToLngLat,
   parseTileStyleFromUrl,
+  tallyCategoricalCounts,
   tileToMercatorBounds,
 } from '../cogTileMath';
 
@@ -57,6 +60,73 @@ describe('buildColorLut / colorizeBand', () => {
     expect(rgba[3]).toBe(0); // 2 is outside
     expect(rgba[7]).toBe(255); // 8 is inside
   });
+
+  it('masks pixels excluded by classFilter', () => {
+    const rgba = colorizeBand([1, 2, 3], 1, 3, null, lut, null, [1, 3]);
+    expect(rgba[3]).toBe(255); // 1 is included
+    expect(rgba[7]).toBe(0); // 2 is excluded
+    expect(rgba[11]).toBe(255); // 3 is included
+  });
+});
+
+describe('colorizeCategoricalBand', () => {
+  const colorsById = new Map<number, [number, number, number]>([
+    [1, [255, 0, 0]],
+    [2, [0, 255, 0]],
+  ]);
+
+  it('colors pixels by exact class match, leaving unknown classes transparent', () => {
+    const rgba = colorizeCategoricalBand([1, 2, 5], null, colorsById);
+    expect([...rgba.slice(0, 4)]).toEqual([255, 0, 0, 255]);
+    expect([...rgba.slice(4, 8)]).toEqual([0, 255, 0, 255]);
+    expect(rgba[11]).toBe(0); // class 5 has no color
+  });
+
+  it('treats noData as transparent', () => {
+    const rgba = colorizeCategoricalBand([1, -9999], -9999, colorsById);
+    expect(rgba[7]).toBe(0);
+  });
+
+  it('masks classes excluded by classFilter', () => {
+    const rgba = colorizeCategoricalBand([1, 2], null, colorsById, [1]);
+    expect(rgba[3]).toBe(255); // class 1 included
+    expect(rgba[7]).toBe(0); // class 2 filtered out
+  });
+});
+
+describe('tallyCategoricalCounts', () => {
+  it('counts pixels per class, ignoring noData', () => {
+    const counts = tallyCategoricalCounts([1, 1, 2, -9999, 1], -9999);
+    expect(counts).toEqual(
+      expect.arrayContaining([
+        { id: 1, count: 3 },
+        { id: 2, count: 1 },
+      ]),
+    );
+  });
+
+  it('is unaffected by classFilter (reports all classes present)', () => {
+    // tallyCategoricalCounts has no classFilter param — this documents why:
+    // the legend needs to know about excluded classes too, to let them be
+    // toggled back on.
+    const counts = tallyCategoricalCounts([1, 2, 3], null);
+    expect(counts.map((c) => c.id).sort()).toEqual([1, 2, 3]);
+  });
+});
+
+describe('hexToRgb', () => {
+  it('parses a hex color', () => {
+    expect(hexToRgb('#ff8800')).toEqual([255, 136, 0]);
+  });
+
+  it('parses without a leading #', () => {
+    expect(hexToRgb('00ff00')).toEqual([0, 255, 0]);
+  });
+
+  it('returns null for malformed input', () => {
+    expect(hexToRgb('not-a-color')).toBeNull();
+    expect(hexToRgb('#fff')).toBeNull();
+  });
 });
 
 describe('parseTileStyleFromUrl', () => {
@@ -67,6 +137,7 @@ describe('parseTileStyleFromUrl', () => {
       colormap: 'plasma',
       renderRange: [10, 20],
       valueRanges: [[1, 2]],
+      classFilter: null,
     });
   });
 
@@ -76,7 +147,14 @@ describe('parseTileStyleFromUrl', () => {
         colormap: null,
         renderRange: null,
         valueRanges: null,
+        classFilter: null,
       },
     );
+  });
+
+  it('reads repeated class_filter params', () => {
+    const url =
+      'localtiles://api/x/tiles/1/2/3.png?class_filter=1&class_filter=3';
+    expect(parseTileStyleFromUrl(url).classFilter).toEqual([1, 3]);
   });
 });

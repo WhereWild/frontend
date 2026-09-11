@@ -56,7 +56,12 @@ export const buildColorLut = (stops: [number, number, number][]): ColorLut => {
 
 /**
  * Colorize a flat band of sampled values into an RGBA buffer. `noData`,
- * non-finite, and (when `ranges` is given) out-of-range values -> transparent.
+ * non-finite, (when `ranges` is given) out-of-range, and (when `classFilter`
+ * is given) excluded-class values -> transparent. `classFilter` applies even
+ * to continuous data because ordinal values are still discrete class codes
+ * under the hood — toggling a class off in the legend should hide it whether
+ * the pixels were colorized continuously (ordinal) or by exact match
+ * (nominal, see colorizeCategoricalBand below).
  */
 export const colorizeBand = (
   values: ArrayLike<number>,
@@ -65,14 +70,18 @@ export const colorizeBand = (
   noData: number | null,
   lut: ColorLut,
   ranges?: [number, number][] | null,
+  classFilter?: number[] | null,
 ): Uint8ClampedArray => {
   const out = new Uint8ClampedArray(values.length * 4);
   const span = max - min || 1;
   const hasRanges = !!ranges && ranges.length > 0;
+  const filterSet =
+    classFilter && classFilter.length > 0 ? new Set(classFilter) : null;
   for (let i = 0; i < values.length; i += 1) {
     const v = values[i];
     if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
     if (hasRanges && !ranges!.some(([lo, hi]) => v >= lo && v <= hi)) continue;
+    if (filterSet && !filterSet.has(Math.round(v))) continue;
     let t = (v - min) / span;
     t = t < 0 ? 0 : t > 1 ? 1 : t;
     const idx = Math.round(t * 255) * 3;
@@ -84,13 +93,75 @@ export const colorizeBand = (
   return out;
 };
 
-/** Read `colormap`, `render_range` and `value_ranges` from a tile URL query. */
+/**
+ * Colorize a flat band of class-code values by exact lookup rather than
+ * interpolation — for nominal data, where the numeric values are unordered
+ * codes and blending two of them together would be meaningless. Values with
+ * no matching color, or excluded by `classFilter`, are left transparent.
+ */
+export const colorizeCategoricalBand = (
+  values: ArrayLike<number>,
+  noData: number | null,
+  colorsById: Map<number, [number, number, number]>,
+  classFilter?: number[] | null,
+): Uint8ClampedArray => {
+  const out = new Uint8ClampedArray(values.length * 4);
+  const filterSet =
+    classFilter && classFilter.length > 0 ? new Set(classFilter) : null;
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i];
+    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
+    const id = Math.round(v);
+    if (filterSet && !filterSet.has(id)) continue;
+    const color = colorsById.get(id);
+    if (!color) continue;
+    const o = i * 4;
+    out[o] = color[0];
+    out[o + 1] = color[1];
+    out[o + 2] = color[2];
+    out[o + 3] = 255;
+  }
+  return out;
+};
+
+/**
+ * Counts how many sampled pixels fall in each class, regardless of
+ * `classFilter` — this feeds the legend's "which classes are visible /
+ * their pixel counts" tracking, which needs to see excluded classes too so
+ * they can still be toggled back on. Mirrors the backend's
+ * `X-Nominal-Classes` tile response header for remote sources.
+ */
+export const tallyCategoricalCounts = (
+  values: ArrayLike<number>,
+  noData: number | null,
+): { id: number; count: number }[] => {
+  const counts = new Map<number, number>();
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i];
+    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
+    const id = Math.round(v);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([id, count]) => ({ id, count }));
+};
+
+/** `#rrggbb` -> `[r, g, b]`, or null if malformed. */
+export const hexToRgb = (hex: string): [number, number, number] | null => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+/** Read `colormap`, `render_range`, `value_ranges` and `class_filter` from a
+ * tile URL query. */
 export const parseTileStyleFromUrl = (
   url: string,
 ): {
   colormap: string | null;
   renderRange: [number, number] | null;
   valueRanges: [number, number][] | null;
+  classFilter: number[] | null;
 } => {
   const q = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
   const params = new URLSearchParams(q);
@@ -129,5 +200,10 @@ export const parseTileStyleFromUrl = (
       // ignore malformed
     }
   }
-  return { colormap, renderRange, valueRanges };
+  const cf = params
+    .getAll('class_filter')
+    .map(Number)
+    .filter((n) => Number.isFinite(n));
+  const classFilter = cf.length > 0 ? cf : null;
+  return { colormap, renderRange, valueRanges, classFilter };
 };
