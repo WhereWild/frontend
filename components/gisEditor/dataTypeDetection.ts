@@ -132,18 +132,32 @@ export const detectValueType = (
     };
   }
 
-  if (min >= -INTEGER_EPSILON) {
+  if (min < -INTEGER_EPSILON) {
+    return {
+      guess: 'interval',
+      confidence: 'low',
+      reason: `Values span both sides of zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — consistent with a scale with no true zero (e.g. temperature), but this can't be confirmed from pixel values alone.`,
+      distinctCount: null,
+    };
+  }
+  // Non-negative alone is weak evidence of a true zero — plenty of interval
+  // data never happens to dip negative in a given sample. Only treat it as
+  // a sign of "ratio" when the sample actually gets close to zero; a min
+  // that's a long way from zero relative to the observed range tells us
+  // nothing about whether zero is meaningful for this variable.
+  const nearZero = min <= INTEGER_EPSILON || min <= range * 0.1;
+  if (nearZero) {
     return {
       guess: 'ratio',
       confidence: 'low',
-      reason: `All sampled values are non-negative (min ${min.toFixed(2)}) — consistent with a scale that has a true zero, but this can't be confirmed from pixel values alone.`,
+      reason: `Sampled values are non-negative and get close to zero (min ${min.toFixed(2)}) — consistent with a scale that has a true zero, but this can't be confirmed from pixel values alone.`,
       distinctCount: null,
     };
   }
   return {
     guess: 'interval',
     confidence: 'low',
-    reason: `Values span both sides of zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — consistent with a scale with no true zero (e.g. temperature), but this can't be confirmed from pixel values alone.`,
+    reason: `Sampled values are non-negative but never approach zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — there's no evidence of a true zero in this sample, so this is treated as interval-like rather than assuming ratio.`,
     distinctCount: null,
   };
 };

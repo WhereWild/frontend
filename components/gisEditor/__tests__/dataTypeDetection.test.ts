@@ -69,6 +69,17 @@ describe('detectValueType', () => {
     expect(result.confidence).toBe('low');
   });
 
+  it('does not call it ratio just because the sample never dips negative', () => {
+    // Non-negative, but the minimum (2197) is nowhere near zero relative to
+    // the observed range — no evidence of a true zero, so this shouldn't be
+    // asserted as ratio.
+    const values = [2197.3, 2500.1, 3000.8, 4100.2, 2900.6];
+    const result = detectValueType(values);
+    expect(result.guess).toBe('interval');
+    expect(result.confidence).toBe('low');
+    expect(result.reason).toMatch(/never approach zero/);
+  });
+
   it('does not mistake many-valued integers (e.g. population counts) for categorical', () => {
     const values = Array.from({ length: 200 }, (_, i) => i * 37);
     const result = detectValueType(values);
