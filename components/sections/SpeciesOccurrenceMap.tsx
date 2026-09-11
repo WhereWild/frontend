@@ -296,6 +296,19 @@ type SpeciesOccurrenceMapProps = {
     data: ArrayBuffer;
     classes?: { id: number; count: number }[];
   } | null>;
+  // When `pointQueryUrl` uses the `localpoint://` scheme, both templates ask
+  // this callback for the clicked point's value instead of fetch()ing the
+  // backend's /gis/point — the same "generic API, remote or local" pattern
+  // as renderLocalTile above. Null when there's no data at that point.
+  // Optional and inert unless a `localpoint://` URL is passed.
+  renderLocalPointValue?: (
+    lat: number,
+    lon: number,
+  ) => Promise<{
+    value: number;
+    className?: string | null;
+    classColor?: string | null;
+  } | null>;
 };
 
 export function SpeciesOccurrenceMap({
@@ -358,6 +371,7 @@ export function SpeciesOccurrenceMap({
   enableOfflineFallback = true,
   onFullscreenToggle,
   renderLocalTile,
+  renderLocalPointValue,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -1556,6 +1570,35 @@ export function SpeciesOccurrenceMap({
             result?.data ? [result.data] : [],
           );
         void renderLocalTile(z, x, y, url).then(respond, () => respond(null));
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        renderLocalPointValue &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === 'localPointRequest'
+      ) {
+        const { requestId, lat, lon } = data as {
+          requestId: number;
+          lat: number;
+          lon: number;
+        };
+        const respond = (
+          result: {
+            value: number;
+            className?: string | null;
+            classColor?: string | null;
+          } | null,
+        ) =>
+          frameWindow.postMessage(
+            { type: 'localPointResponse', requestId, data: result },
+            '*',
+          );
+        void renderLocalPointValue(lat, lon).then(respond, () => respond(null));
       }
     };
     window.addEventListener('message', handler);
@@ -1580,6 +1623,7 @@ export function SpeciesOccurrenceMap({
     onFullscreenToggle,
     onToggleAutoAdapt,
     renderLocalTile,
+    renderLocalPointValue,
   ]);
 
   if (error) {

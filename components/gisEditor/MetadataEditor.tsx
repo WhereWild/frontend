@@ -19,7 +19,12 @@ import {
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { DetectedValueType, ValueTypeGuess } from './dataTypeDetection';
-import { withValueType, type RasterEditableMeta } from './rasterEditableMeta';
+import type { RenderBounds } from './rasterMetadata';
+import {
+  withScaleOffset,
+  withValueType,
+  type RasterEditableMeta,
+} from './rasterEditableMeta';
 
 const VALUE_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Nominal (unordered categories)', value: 'nominal' },
@@ -40,10 +45,14 @@ const VALUE_TYPE_LABELS: Record<ValueTypeGuess, string> = {
 export function MetadataEditor({
   editable,
   detectedType,
+  rawBounds,
   onChange,
 }: {
   editable: RasterEditableMeta;
   detectedType: DetectedValueType | null;
+  /** Unscaled sampled min/max, straight from deriveRenderBounds() — used to
+   * re-derive render bounds whenever scale/offset changes. */
+  rawBounds: RenderBounds;
   onChange: (next: RasterEditableMeta) => void;
 }) {
   const scheme = useColorScheme();
@@ -51,6 +60,8 @@ export function MetadataEditor({
   const isNominal = editable.valueType === 'nominal';
   const isOrdinal = editable.valueType === 'ordinal';
   const isCategorical = isNominal || isOrdinal;
+  const isScaled =
+    editable.valueType === 'ratio' || editable.valueType === 'interval';
 
   const textInputStyle = [
     styles.textInput,
@@ -153,6 +164,45 @@ export function MetadataEditor({
         )
       ) : (
         <>
+          {isScaled ? (
+            <>
+              <View style={styles.boundsRow}>
+                <NumberSpinner
+                  label='Scale'
+                  value={editable.scale}
+                  min={-Infinity}
+                  precision={6}
+                  onValueChange={(v) =>
+                    onChange(
+                      withScaleOffset(editable, rawBounds, v, editable.offset),
+                    )
+                  }
+                  style={styles.boundInput}
+                />
+                <NumberSpinner
+                  label='Offset'
+                  value={editable.offset}
+                  min={-Infinity}
+                  precision={4}
+                  onValueChange={(v) =>
+                    onChange(
+                      withScaleOffset(editable, rawBounds, editable.scale, v),
+                    )
+                  }
+                  style={styles.boundInput}
+                />
+              </View>
+              <ThemedText
+                variant='bodyTiny'
+                style={{ color: palette.text.default.secondary }}
+              >
+                Display value = raw pixel value × scale + offset — read from the
+                file’s own metadata when it has one, 1 / 0 otherwise. Changing
+                these re-derives render min/max below from the raw sampled
+                range.
+              </ThemedText>
+            </>
+          ) : null}
           <View style={styles.boundsRow}>
             <NumberSpinner
               label='Render min'

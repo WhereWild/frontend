@@ -1927,11 +1927,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       // background pin, since this always runs at least once (replacing
       // the initial "Loading…" placeholder). Re-attach after every setHTML
       // call below so the CURRENT button always has a live listener.
-      fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      (isLocalPointUrl(POINT_QUERY_URL)
+        ? requestLocalPointValue(latitude, longitude)
+        : fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      )
         .then(function(data) {
           if (!popup.isOpen()) return;
-          if (data.value == null) {
+          if (!data || data.value == null) {
             popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
             attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude);
             return;

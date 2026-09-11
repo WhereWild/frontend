@@ -65,6 +65,18 @@ export type MapTileSource =
         data: ArrayBuffer;
         classes?: { id: number; count: number }[];
       } | null>;
+      /** Local equivalent of the backend's /gis/point endpoint, for the
+       * "click the map to read a value" popup. Optional — omit it and
+       * clicking is silently disabled, same as a remote source with no
+       * catalog variable selected. */
+      readPointValue?: (
+        lat: number,
+        lon: number,
+      ) => Promise<{
+        value: number;
+        className?: string | null;
+        classColor?: string | null;
+      } | null>;
     };
 
 export type HeatmapSelection = {
@@ -101,6 +113,12 @@ type VariableHeatmapMapProps = {
     fullChain: ChainedLayerFilter[];
   }) => void;
 };
+
+// Not a real URL — intercepted by isLocalPointUrl() in the map templates
+// before it's ever fetched. Just needs to be truthy (to satisfy the
+// templates' `if (POINT_QUERY_URL)` click-enabling checks) and start with
+// the recognized scheme.
+const LOCAL_POINT_QUERY_URL = 'localpoint://point';
 
 const EMPTY_VARIABLES: EnvironmentVariableOption[] = [];
 const EMPTY_CHAIN: ChainedLayerFilter[] = [];
@@ -524,6 +542,13 @@ export function VariableHeatmapMap({
         height={height}
         heatmapTileUrl={tileUrl}
         renderLocalTile={isLocal ? tileSource.renderTile : undefined}
+        renderLocalPointValue={isLocal ? tileSource.readPointValue : undefined}
+        // Falls back into the click-popup's value line whenever a
+        // per-point response doesn't carry its own units (always true for
+        // local sources, since there's no backend to embed them into the
+        // response — see requestLocalPointValue in
+        // speciesOccurrenceMapHelpers.ts).
+        varUnits={selectedVariableMeta?.units ?? null}
         initialLat={initialLat}
         initialLon={initialLon}
         initialZoom={initialZoom}
@@ -541,9 +566,18 @@ export function VariableHeatmapMap({
         onBoundsChange={handleBoundsChange}
         onPointValue={handlePointValue}
         pointQueryUrl={
-          !isLocal && selectedVariable
-            ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
-            : null
+          isLocal
+            ? // Sentinel recognized by isLocalPointUrl() in the map
+              // templates — routes the click-to-read-a-value flow through
+              // renderLocalPointValue's postMessage bridge instead of a
+              // real fetch(), the same "generic API, remote or local"
+              // pattern as the localtiles:// tile URLs.
+              tileSource.readPointValue
+              ? LOCAL_POINT_QUERY_URL
+              : null
+            : selectedVariable
+              ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariable)}&unit_system=${units}${forecastH > 0 ? `&forecast_h=${forecastH}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
+              : null
         }
         isCircular={isCircular}
         renderMin={legendMin}

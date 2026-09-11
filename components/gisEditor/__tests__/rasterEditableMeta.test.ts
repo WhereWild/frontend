@@ -7,6 +7,7 @@ import {
   buildInitialEditableMeta,
   editableMetaToDetectedType,
   toEnvironmentVariableOption,
+  withScaleOffset,
   withValueType,
   type RasterEditableMeta,
 } from '../rasterEditableMeta';
@@ -77,6 +78,79 @@ describe('buildInitialEditableMeta', () => {
     expect(meta.renderMin).toBe(0);
     expect(meta.renderMax).toBe(360);
   });
+
+  it('applies detected scale/offset to the render bounds for ratio/interval', () => {
+    const meta = buildInitialEditableMeta(
+      ratioDetected,
+      { min: 0, max: 1000, approximate: false },
+      0.1,
+      -50,
+    );
+    expect(meta.scale).toBe(0.1);
+    expect(meta.offset).toBe(-50);
+    expect(meta.renderMin).toBeCloseTo(-50);
+    expect(meta.renderMax).toBeCloseTo(50);
+  });
+
+  it('does not apply scale/offset to circular or categorical bounds', () => {
+    const circular = buildInitialEditableMeta(
+      {
+        guess: 'circular',
+        confidence: 'medium',
+        reason: 'test',
+        distinctCount: null,
+        distinctValues: null,
+      },
+      { min: 0, max: 1000, approximate: false },
+      0.1,
+      -50,
+    );
+    expect(circular.renderMin).toBe(0);
+    expect(circular.renderMax).toBe(360);
+
+    const nominal = buildInitialEditableMeta(
+      nominalDetected,
+      { min: 11, max: 41, approximate: false },
+      0.1,
+      -50,
+    );
+    expect(nominal.renderMin).toBe(11);
+    expect(nominal.renderMax).toBe(41);
+  });
+
+  it('defaults scale/offset to 1/0 when the file has none', () => {
+    const meta = buildInitialEditableMeta(ratioDetected, {
+      min: 1,
+      max: 100,
+      approximate: false,
+    });
+    expect(meta.scale).toBe(1);
+    expect(meta.offset).toBe(0);
+  });
+});
+
+describe('withScaleOffset', () => {
+  it('re-derives render bounds from the raw bounds under the new scale/offset', () => {
+    const editable: RasterEditableMeta = {
+      valueType: 'ratio',
+      units: '',
+      renderMin: 0,
+      renderMax: 1000,
+      scale: 1,
+      offset: 0,
+      classes: [],
+    };
+    const next = withScaleOffset(
+      editable,
+      { min: 0, max: 1000, approximate: false },
+      0.1,
+      -50,
+    );
+    expect(next.scale).toBe(0.1);
+    expect(next.offset).toBe(-50);
+    expect(next.renderMin).toBeCloseTo(-50);
+    expect(next.renderMax).toBeCloseTo(50);
+  });
 });
 
 describe('withValueType', () => {
@@ -85,6 +159,8 @@ describe('withValueType', () => {
     units: '',
     renderMin: 0,
     renderMax: 10,
+    scale: 1,
+    offset: 0,
     classes: [],
   };
 
@@ -123,6 +199,8 @@ describe('toEnvironmentVariableOption', () => {
       units: '  mm ',
       renderMin: 0,
       renderMax: 1,
+      scale: 1,
+      offset: 0,
       classes: [{ value: 11, name: 'Forest', color: '#00ff00' }],
     };
     const option = toEnvironmentVariableOption('test.tif', 3, editable);
@@ -140,6 +218,8 @@ describe('toEnvironmentVariableOption', () => {
       units: '   ',
       renderMin: 0,
       renderMax: 1,
+      scale: 1,
+      offset: 0,
       classes: [],
     };
     const option = toEnvironmentVariableOption('test.tif', 1, editable);
@@ -155,6 +235,8 @@ describe('editableMetaToDetectedType', () => {
       units: '',
       renderMin: 0,
       renderMax: 360,
+      scale: 1,
+      offset: 0,
       classes: [],
     };
     const detected = editableMetaToDetectedType(editable);

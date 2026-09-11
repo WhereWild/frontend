@@ -4,7 +4,9 @@
 
 // Reads a GeoTIFF's header/directory metadata in the browser via `geotiff`
 // (require()d at call time so it never loads during SSR and rides the
-// /gis-editor route chunk). The only pixel read is deriveRenderBounds().
+// /gis-editor route chunk). The only pixel reads are deriveRenderBounds()
+// and deriveDetectedValueType(), which share one bounded, cached decode of
+// the smallest overview (see readSmallestOverviewBand below).
 
 import {
   deriveCogDiagnostics,
@@ -37,6 +39,13 @@ export type RasterMetadata = {
    * ColorMap tag) — a definitive signal for a categorical/nominal raster,
    * used by deriveDetectedValueType(). */
   hasColorMap: boolean;
+  /** Band 0's GDAL Scale/Offset metadata (display = raw * scale + offset),
+   * when the file embeds one — e.g. a raw int16 stored as tenths of a
+   * degree would carry scale=0.1. Null when not present; the metadata
+   * editor seeds its editable scale/offset from these but lets them be
+   * overridden, same as every other auto-detected field. */
+  scale: number | null;
+  offset: number | null;
 };
 
 export type RenderBounds = { min: number; max: number; approximate: boolean };
@@ -88,6 +97,28 @@ const nominalRangeForDtype = (dtype: string): { min: number; max: number } => {
   }
 };
 
+// GDAL writes per-band scale/offset into the free-form GDAL_METADATA TIFF
+// tag (an XML blob of <Item name="...">value</Item> entries) rather than a
+// dedicated GeoTIFF tag — geotiff.js's getGDALMetadata() parses that blob
+// into a plain name->value object, keyed however the writer capitalized it
+// ("Scale"/"SCALE"/"scale" all show up in the wild), hence the
+// case-insensitive lookup here.
+export const readGdalScaleOffset = (
+  gdalMetadata: Record<string, string> | null | undefined,
+): { scale: number | null; offset: number | null } => {
+  if (!gdalMetadata) return { scale: null, offset: null };
+  let scale: number | null = null;
+  let offset: number | null = null;
+  for (const [key, value] of Object.entries(gdalMetadata)) {
+    const lower = key.toLowerCase();
+    const num = Number(value);
+    if (!Number.isFinite(num)) continue;
+    if (lower === 'scale') scale = num;
+    else if (lower === 'offset') offset = num;
+  }
+  return { scale, offset };
+};
+
 const firstNumber = (value: unknown): number | undefined => {
   if (Array.isArray(value))
     return typeof value[0] === 'number' ? value[0] : undefined;
@@ -137,6 +168,7 @@ type GeoImageLike = {
   getGeoKeys(): Record<string, unknown>;
   getFileDirectory(): Record<string, unknown>;
   getGDALNoData(): number | null;
+  getGDALMetadata?(sample?: number | null): Record<string, string> | null;
   getResolution(): number[];
   getBoundingBox(): number[];
   readRasters(options?: Record<string, unknown>): Promise<unknown>;
@@ -191,6 +223,14 @@ export const inspectRaster = async (blob: Blob): Promise<RasterMetadata> => {
     bbox = undefined;
   }
 
+  let gdalMetadata: Record<string, string> | null = null;
+  try {
+    gdalMetadata = full.getGDALMetadata?.(0) ?? null;
+  } catch {
+    gdalMetadata = null;
+  }
+  const { scale, offset } = readGdalScaleOffset(gdalMetadata);
+
   return {
     width: full.getWidth(),
     height: full.getHeight(),
@@ -219,36 +259,64 @@ export const inspectRaster = async (blob: Blob): Promise<RasterMetadata> => {
     hasColorMap:
       Number(fileDirectory.PhotometricInterpretation ?? -1) === 3 &&
       fileDirectory.ColorMap != null,
+    scale,
+    offset,
   };
 };
 
-/**
- * Reads the smallest overview's single band and strips out non-finite /
- * no-data pixels, for both deriveRenderBounds() and
- * deriveDetectedValueType(). Null when there are no overviews to sample
- * (reading the full-resolution band isn't bounded, so we don't).
- */
-const readSmallestOverviewSamples = async (
+// "Smallest overview" isn't a fixed size — a file with only one or two
+// overview levels can still have a multi-megapixel smallest level, and
+// decoding that fully (readRasters decompresses every source tile the
+// window touches) was the actual cost of "sampling," not the JS-side loop
+// over the result. Capping the read to a bounded center window makes the
+// decode cost — not just the array-scan cost — independent of how well the
+// file's overviews were built.
+const MAX_SAMPLE_DIM = 1024;
+
+// Reads (a bounded window of) the smallest overview's single band, raw (no
+// filtering/copying — noData and non-finite pixels are skipped inline by
+// each consumer, see below). Cached per-blob since deriveRenderBounds() and
+// deriveDetectedValueType() both need it and are normally called back to
+// back on the same file in GisEditorScreen's ingest() — without this, that
+// decoded the sample window *twice* in a row, doubling an already-visible
+// stall on a large nominal/categorical file. Keyed by the Blob so a new
+// file never sees a stale entry.
+const smallestBandCache = new WeakMap<
+  Blob,
+  Promise<ArrayLike<number> | null>
+>();
+
+const readSmallestOverviewBand = (
   blob: Blob,
   metadata: RasterMetadata,
-): Promise<number[] | null> => {
-  if (metadata.overviews.length === 0) return null;
-  const tiff = await loadGeoTiff().fromBlob(blob);
-  const count = await tiff.getImageCount();
-  const smallest = await tiff.getImage(count - 1);
-  const rasters = (await smallest.readRasters({ samples: [0] })) as
-    | ArrayLike<number>[]
-    | ArrayLike<number>;
-  const band: ArrayLike<number> = Array.isArray(rasters) ? rasters[0] : rasters;
-
-  const noData = metadata.noData;
-  const values: number[] = [];
-  for (let i = 0; i < band.length; i += 1) {
-    const v = band[i];
-    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
-    values.push(v);
-  }
-  return values;
+): Promise<ArrayLike<number> | null> => {
+  const cached = smallestBandCache.get(blob);
+  if (cached) return cached;
+  const promise = (async (): Promise<ArrayLike<number> | null> => {
+    if (metadata.overviews.length === 0) return null;
+    const tiff = await loadGeoTiff().fromBlob(blob);
+    const count = await tiff.getImageCount();
+    const smallest = await tiff.getImage(count - 1);
+    const width = smallest.getWidth();
+    const height = smallest.getHeight();
+    const window: [number, number, number, number] | undefined =
+      width > MAX_SAMPLE_DIM || height > MAX_SAMPLE_DIM
+        ? (() => {
+            const cw = Math.min(width, MAX_SAMPLE_DIM);
+            const ch = Math.min(height, MAX_SAMPLE_DIM);
+            const x0 = Math.floor((width - cw) / 2);
+            const y0 = Math.floor((height - ch) / 2);
+            return [x0, y0, x0 + cw, y0 + ch];
+          })()
+        : undefined;
+    const rasters = (await smallest.readRasters({
+      samples: [0],
+      ...(window ? { window } : {}),
+    })) as ArrayLike<number>[] | ArrayLike<number>;
+    return Array.isArray(rasters) ? rasters[0] : rasters;
+  })();
+  smallestBandCache.set(blob, promise);
+  return promise;
 };
 
 /**
@@ -260,13 +328,16 @@ export const deriveRenderBounds = async (
   blob: Blob,
   metadata: RasterMetadata,
 ): Promise<RenderBounds> => {
-  const values = await readSmallestOverviewSamples(blob, metadata);
-  if (values == null) {
+  const band = await readSmallestOverviewBand(blob, metadata);
+  if (band == null) {
     return { ...nominalRangeForDtype(metadata.dtype), approximate: true };
   }
+  const noData = metadata.noData;
   let min = Infinity;
   let max = -Infinity;
-  for (const v of values) {
+  for (let i = 0; i < band.length; i += 1) {
+    const v = band[i];
+    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
     if (v < min) min = v;
     if (v > max) max = v;
   }
@@ -285,13 +356,15 @@ export const deriveDetectedValueType = async (
   blob: Blob,
   metadata: RasterMetadata,
 ): Promise<DetectedValueType | null> => {
-  const values = await readSmallestOverviewSamples(blob, metadata);
-  if (values == null) {
+  const band = await readSmallestOverviewBand(blob, metadata);
+  if (band == null) {
     // No overviews to sample — but an embedded palette is still a
     // definitive signal on its own, just without a real class list.
     return metadata.hasColorMap
-      ? detectValueType([], { hasColorMap: true })
+      ? detectValueType([], null, { hasColorMap: true })
       : null;
   }
-  return detectValueType(values, { hasColorMap: metadata.hasColorMap });
+  return detectValueType(band, metadata.noData, {
+    hasColorMap: metadata.hasColorMap,
+  });
 };

@@ -33,6 +33,21 @@ export const mercatorToLngLat = (mx: number, my: number): [number, number] => {
   return [lon, lat];
 };
 
+/** [lon, lat] degrees (EPSG:4326) -> EPSG:3857 metres — the inverse of
+ * mercatorToLngLat, needed for point-value lookups (tile rendering only
+ * ever needs the tile-bounds -> mercator direction, above). */
+export const lngLatToMercator = (
+  lon: number,
+  lat: number,
+): [number, number] => {
+  const mx = (lon / 180) * MERCATOR_ORIGIN_SHIFT;
+  const clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+  const my =
+    (Math.log(Math.tan((Math.PI / 4) * (1 + clampedLat / 90))) / Math.PI) *
+    MERCATOR_ORIGIN_SHIFT;
+  return [mx, my];
+};
+
 export type ColorLut = Uint8Array; // length 256*3, RGB
 
 /** Interpolate an evenly-spaced [r,g,b] stop list into a 256-entry RGB LUT. */

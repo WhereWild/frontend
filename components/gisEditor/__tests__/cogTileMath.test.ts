@@ -7,6 +7,7 @@ import {
   colorizeBand,
   colorizeCategoricalBand,
   hexToRgb,
+  lngLatToMercator,
   MERCATOR_ORIGIN_SHIFT,
   mercatorToLngLat,
   parseTileStyleFromUrl,
@@ -34,6 +35,26 @@ describe('mercatorToLngLat', () => {
     );
     expect(lon).toBeCloseTo(180);
     expect(lat).toBeCloseTo(85.0511, 3);
+  });
+});
+
+describe('lngLatToMercator', () => {
+  it('is the inverse of mercatorToLngLat', () => {
+    const [mx, my] = lngLatToMercator(-97.5, 39.2);
+    const [lon, lat] = mercatorToLngLat(mx, my);
+    expect(lon).toBeCloseTo(-97.5, 6);
+    expect(lat).toBeCloseTo(39.2, 6);
+  });
+
+  it('maps the origin to (0,0)', () => {
+    const [mx, my] = lngLatToMercator(0, 0);
+    expect(mx).toBeCloseTo(0);
+    expect(my).toBeCloseTo(0);
+  });
+
+  it('clamps latitude to the mercator limit', () => {
+    const [, my] = lngLatToMercator(0, 89);
+    expect(my).toBeCloseTo(MERCATOR_ORIGIN_SHIFT, 0);
   });
 });
 
