@@ -15,19 +15,22 @@
 // *can't* be rewritten (read-only, or a non-GeoTIFF format) — which is
 // exactly the case this file doesn't handle.
 //
-// Legend (class id -> name/color for nominal/ordinal) has no long-standing
-// universal tag: GDAL only gained the ability to embed a full Raster
-// Attribute Table in this same tag in version 3.12, and its exact
-// serialization isn't something this file can verify against a real GDAL
-// install. Rather than guess at that schema and risk producing XML no
-// GDAL version actually reads, the legend is written as one more Item in
-// the same GDAL_METADATA XML, under a WhereWild-specific name
-// (WHEREWILD_LEGEND, a JSON string) — safe by construction (an unrecognized
-// Item name is just ignored by every GDAL version) and exactly what
-// rasterMetadata.ts's deriveDetectedValueType() looks for first when
-// re-opening a file this tool has already saved, so the whole configuration
-// round-trips through this app even where general GDAL RAT support can't
-// be relied on yet.
+// Legend (class id -> name/color for nominal/ordinal) is written two ways
+// in the same GDAL_METADATA XML:
+//  - A real GDAL Raster Attribute Table, as an
+//    <Item name="DEFAULT_RASTER_ATTRIBUTE_TABLE" sample="0" role="rat">
+//    wrapping a <GDALRasterAttributeTable> tree — the exact structure
+//    GDAL's own GTiff driver writes (GDAL >= 3.12; verified against
+//    gcore/gdal_rat.cpp's GDALRasterAttributeTable::Serialize() and
+//    frmts/gtiff/gtiffdataset_write.cpp's AppendMetadataItem() call site in
+//    github.com/OSGeo/gdal, not guessed at). Older GDAL/QGIS just won't
+//    render the legend from this, the same as any other item it doesn't
+//    recognize — this never breaks a reader that predates 3.12, it's just
+//    inert to it.
+//  - A WhereWild-specific Item (WHEREWILD_LEGEND, a JSON string) alongside
+//    it, which is what rasterMetadata.ts's readWherewildConfig() actually
+//    reads back on reopen — simpler and more robust to parse in JS than
+//    re-parsing our own RAT XML, and works regardless of GDAL version.
 //
 // How the patch works, structurally: TIFF's IFD chain can live anywhere in
 // the file, so nothing has to move. A new IFD0 is built that copies every
@@ -44,6 +47,7 @@
 // implement — callers should catch UnsupportedTiffWriteError and fall back
 // to telling the user why.
 
+import { hexToRgb } from './cogTileMath';
 import type { RasterEditableMeta } from './rasterEditableMeta';
 import type { RasterMetadata } from './rasterMetadata';
 
@@ -65,17 +69,83 @@ const xmlEscape = (s: string): string =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
+// GDALRATFieldType / GDALRATFieldUsage — verified against gcore/gdal.h.
+const GFT_INTEGER = 0;
+const GFT_STRING = 2;
+const GFU_GENERIC = 0;
+const GFU_NAME = 2;
+const GFU_RED = 6;
+const GFU_GREEN = 7;
+const GFU_BLUE = 8;
+
+const fieldDefn = (
+  index: number,
+  name: string,
+  type: number,
+  typeName: string,
+  usage: number,
+  usageName: string,
+): string =>
+  `<FieldDefn index="${index}"><Name>${name}</Name>` +
+  `<Type typeAsString="${typeName}">${type}</Type>` +
+  `<Usage usageAsString="${usageName}">${usage}</Usage></FieldDefn>`;
+
+/**
+ * A real GDAL Raster Attribute Table — byte-for-byte the same node shape
+ * GDALRasterAttributeTable::Serialize() produces (gcore/gdal_rat.cpp),
+ * wrapped the same way frmts/gtiff/gtiffdataset_write.cpp embeds one in
+ * GDAL_METADATA. "Value"/"Class_Name" columns always; "Red"/"Green"/"Blue"
+ * (0-255 ints, GDAL's own convention for per-row color — not a hex string
+ * column, which isn't a thing GDAL recognizes) only for nominal rows that
+ * actually have a color set.
+ */
+const buildRatXml = (
+  classes: RasterEditableMeta['classes'],
+  isNominal: boolean,
+): string => {
+  const hasColor = isNominal && classes.some((c) => c.color);
+  const fields = [
+    fieldDefn(0, 'Value', GFT_INTEGER, 'Integer', GFU_GENERIC, 'Generic'),
+    fieldDefn(1, 'Class_Name', GFT_STRING, 'String', GFU_NAME, 'Name'),
+  ];
+  if (hasColor) {
+    fields.push(
+      fieldDefn(2, 'Red', GFT_INTEGER, 'Integer', GFU_RED, 'Red'),
+      fieldDefn(3, 'Green', GFT_INTEGER, 'Integer', GFU_GREEN, 'Green'),
+      fieldDefn(4, 'Blue', GFT_INTEGER, 'Integer', GFU_BLUE, 'Blue'),
+    );
+  }
+  const rows = classes.map((c, i) => {
+    const rgb = hasColor ? (hexToRgb(c.color ?? '') ?? [0, 0, 0]) : null;
+    const cells = [
+      `<F>${c.value}</F>`,
+      `<F>${xmlEscape(c.name)}</F>`,
+      ...(rgb
+        ? [`<F>${rgb[0]}</F>`, `<F>${rgb[1]}</F>`, `<F>${rgb[2]}</F>`]
+        : []),
+    ];
+    return `<Row index="${i}">${cells.join('')}</Row>`;
+  });
+  return (
+    `<GDALRasterAttributeTable tableType="thematic">` +
+    fields.join('') +
+    rows.join('') +
+    `</GDALRasterAttributeTable>`
+  );
+};
+
 /**
  * The GDAL_METADATA tag's content. Always includes WHEREWILD_VALUE_TYPE (so
  * re-opening a saved file can always tell it was saved by this tool, even
  * one where scale/offset/units/legend are all still defaults) — Scale/
- * Offset/UnitType/WHEREWILD_LEGEND are added only when actually configured.
+ * Offset/UnitType/the RAT/WHEREWILD_LEGEND are added only when actually
+ * configured.
  */
 export const buildGdalMetadataXml = (editable: RasterEditableMeta): string => {
   const isScaled =
     editable.valueType === 'ratio' || editable.valueType === 'interval';
-  const isCategorical =
-    editable.valueType === 'nominal' || editable.valueType === 'ordinal';
+  const isNominal = editable.valueType === 'nominal';
+  const isCategorical = isNominal || editable.valueType === 'ordinal';
   const items: string[] = [];
 
   if (isScaled && (editable.scale !== 1 || editable.offset !== 0)) {
@@ -96,6 +166,11 @@ export const buildGdalMetadataXml = (editable: RasterEditableMeta): string => {
   // re-detection entirely (see rasterMetadata.ts's readWherewildConfig).
   items.push(`<Item name="WHEREWILD_VALUE_TYPE">${editable.valueType}</Item>`);
   if (isCategorical && editable.classes.length > 0) {
+    items.push(
+      `<Item name="DEFAULT_RASTER_ATTRIBUTE_TABLE" sample="0" role="rat">` +
+        buildRatXml(editable.classes, isNominal) +
+        `</Item>`,
+    );
     const legend = editable.classes.map((c) => ({
       id: c.value,
       name: c.name,
