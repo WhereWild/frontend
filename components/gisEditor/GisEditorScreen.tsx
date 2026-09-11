@@ -39,6 +39,10 @@ import {
   type RasterMetadata,
   type RenderBounds,
 } from './rasterMetadata';
+import {
+  embedMetadataIntoTiff,
+  UnsupportedTiffWriteError,
+} from './tiffMetadataWriter';
 
 const ACCEPTED_EXTENSIONS = ['.tif', '.tiff'] as const;
 const MAP_HEIGHT = 520;
@@ -62,6 +66,23 @@ type Loaded = {
 
 const isBrowser = () =>
   Platform.OS === 'web' && typeof document !== 'undefined';
+
+// Downloads a Blob straight from the browser under the given name — there's
+// no writable handle back to the dropped File to save into directly, so
+// "save" means "download the file with the metadata embedded in it,"
+// same name as the original by default so it's a natural drop-in
+// replacement.
+const downloadBlob = (fileName: string, blob: Blob) => {
+  if (!isBrowser()) return;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
 // Debounce for rebuilding the tile renderer after a metadata edit (color
 // swatch drags in particular can fire many onChange calls in a row) — the
@@ -165,6 +186,8 @@ export function GisEditorScreen() {
           bounds,
           metadata.scale,
           metadata.offset,
+          metadata.units,
+          metadata.savedConfig?.classes ?? null,
         );
         setLoaded(next);
         setEditableMeta(initialEditable);
@@ -240,6 +263,33 @@ export function GisEditorScreen() {
       });
     }
   }, [fixCommand]);
+
+  const [saveState, setSaveState] = React.useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle');
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const saveToFile = React.useCallback(async () => {
+    if (!loaded || !editableMeta) return;
+    setSaveState('saving');
+    setSaveError(null);
+    try {
+      const saved = await embedMetadataIntoTiff(
+        loaded.blob,
+        loaded.metadata,
+        editableMeta,
+      );
+      downloadBlob(loaded.fileName, saved);
+      setSaveState('saved');
+      setTimeout(() => setSaveState('idle'), 2500);
+    } catch (error) {
+      setSaveState('error');
+      setSaveError(
+        error instanceof UnsupportedTiffWriteError
+          ? error.message
+          : 'Could not save this file.',
+      );
+    }
+  }, [loaded, editableMeta]);
 
   const pickFile = React.useCallback(async () => {
     const { file, errorMessage: pickError } = await selectFileFromPicker({
@@ -552,6 +602,43 @@ export function GisEditorScreen() {
                         onChange={setEditableMeta}
                       />
                     ) : null}
+
+                    <View style={styles.saveBox}>
+                      <ThemedText variant='bodyEmphasis'>Save</ThemedText>
+                      <ThemedText
+                        variant='bodyTiny'
+                        style={{ color: palette.text.default.secondary }}
+                      >
+                        Embeds this configuration directly into a copy of the
+                        file’s own tags — the standard GDAL_METADATA tag (scale,
+                        offset, units) and GDAL_NODATA — not a separate sidecar
+                        file. Nothing else in the file is touched; re-opening
+                        the saved file here restores this exact configuration
+                        instead of re-detecting it.
+                      </ThemedText>
+                      <View style={styles.actionsRow}>
+                        <Button
+                          variant='primary'
+                          label={
+                            saveState === 'saving'
+                              ? 'Saving…'
+                              : saveState === 'saved'
+                                ? 'Saved!'
+                                : 'Save to file'
+                          }
+                          disabled={saveState === 'saving'}
+                          onPress={() => void saveToFile()}
+                        />
+                      </View>
+                      {saveState === 'error' && saveError ? (
+                        <ThemedText
+                          variant='bodySmall'
+                          style={{ color: palette.text.warning.default }}
+                        >
+                          {saveError}
+                        </ThemedText>
+                      ) : null}
+                    </View>
                   </View>
                   <View style={styles.previewColumn}>
                     {editableMeta ? (
@@ -624,6 +711,10 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: Size.radius['200'],
     padding: Size.space['200'],
+  },
+  saveBox: {
+    width: '100%',
+    gap: Size.space['200'],
   },
   resultsRow: {
     width: '100%',

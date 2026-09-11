@@ -13,7 +13,11 @@ import {
   type CogDiagnostics,
   type IfdSummary,
 } from './cogDiagnostics';
-import { detectValueType, type DetectedValueType } from './dataTypeDetection';
+import {
+  detectValueType,
+  type DetectedValueType,
+  type ValueTypeGuess,
+} from './dataTypeDetection';
 
 export type RasterOverview = { width: number; height: number };
 
@@ -46,6 +50,19 @@ export type RasterMetadata = {
    * overridden, same as every other auto-detected field. */
   scale: number | null;
   offset: number | null;
+  /** Band 0's GDAL UnitType item, when present (e.g. "mm", "°C"). */
+  units: string | null;
+  /** This tool's own previously-saved configuration, when re-opening a file
+   * saved via tiffMetadataWriter.ts's embedMetadataIntoTiff() — read from
+   * the WHEREWILD_VALUE_TYPE/WHEREWILD_LEGEND items in the same
+   * GDAL_METADATA tag Scale/Offset come from. When present,
+   * deriveDetectedValueType() returns it directly (confidence "high",
+   * skipping the sampled-pixel heuristic entirely) so a save/reopen
+   * round-trips the exact configuration instead of re-guessing it. */
+  savedConfig: {
+    valueType: ValueTypeGuess;
+    classes: { id: number; name: string; color: string | null }[];
+  } | null;
 };
 
 export type RenderBounds = { min: number; max: number; approximate: boolean };
@@ -117,6 +134,63 @@ export const readGdalScaleOffset = (
     else if (lower === 'offset') offset = num;
   }
   return { scale, offset };
+};
+
+/** Same GDAL_METADATA blob, same case-insensitive-key convention, for the
+ * UnitType item (see tiffMetadataWriter.ts's buildGdalMetadataXml — this is
+ * the same standard GDAL item that writes it). */
+export const readGdalUnitType = (
+  gdalMetadata: Record<string, string> | null | undefined,
+): string | null => {
+  if (!gdalMetadata) return null;
+  for (const [key, value] of Object.entries(gdalMetadata)) {
+    if (key.toLowerCase() === 'unittype' && value.trim()) return value.trim();
+  }
+  return null;
+};
+
+const VALUE_TYPE_GUESSES: ReadonlySet<string> = new Set([
+  'nominal',
+  'ordinal',
+  'interval',
+  'ratio',
+  'circular',
+]);
+
+/** Reads this tool's own previously-saved WHEREWILD_VALUE_TYPE/
+ * WHEREWILD_LEGEND items back out of the same GDAL_METADATA object
+ * readGdalScaleOffset() reads Scale/Offset from — see
+ * tiffMetadataWriter.ts's buildGdalMetadataXml() for what writes them.
+ * Defensive about malformed/foreign content (a WHEREWILD_LEGEND item that
+ * isn't valid JSON, or one some other tool happened to write) — falls back
+ * to null rather than throwing, so a corrupt item just means "nothing
+ * saved," not a broken file load. */
+export const readWherewildConfig = (
+  gdalMetadata: Record<string, string> | null | undefined,
+): RasterMetadata['savedConfig'] => {
+  const rawValueType = gdalMetadata?.WHEREWILD_VALUE_TYPE;
+  if (!rawValueType || !VALUE_TYPE_GUESSES.has(rawValueType)) return null;
+  const valueType = rawValueType as ValueTypeGuess;
+
+  let classes: { id: number; name: string; color: string | null }[] = [];
+  const rawLegend = gdalMetadata?.WHEREWILD_LEGEND;
+  if (rawLegend) {
+    try {
+      const parsed: unknown = JSON.parse(rawLegend);
+      if (Array.isArray(parsed)) {
+        classes = parsed.filter(
+          (c): c is { id: number; name: string; color: string | null } =>
+            !!c &&
+            typeof c === 'object' &&
+            typeof (c as Record<string, unknown>).id === 'number' &&
+            typeof (c as Record<string, unknown>).name === 'string',
+        );
+      }
+    } catch {
+      classes = [];
+    }
+  }
+  return { valueType, classes };
 };
 
 const firstNumber = (value: unknown): number | undefined => {
@@ -230,6 +304,8 @@ export const inspectRaster = async (blob: Blob): Promise<RasterMetadata> => {
     gdalMetadata = null;
   }
   const { scale, offset } = readGdalScaleOffset(gdalMetadata);
+  const units = readGdalUnitType(gdalMetadata);
+  const savedConfig = readWherewildConfig(gdalMetadata);
 
   return {
     width: full.getWidth(),
@@ -261,6 +337,8 @@ export const inspectRaster = async (blob: Blob): Promise<RasterMetadata> => {
       fileDirectory.ColorMap != null,
     scale,
     offset,
+    units,
+    savedConfig,
   };
 };
 
@@ -356,6 +434,20 @@ export const deriveDetectedValueType = async (
   blob: Blob,
   metadata: RasterMetadata,
 ): Promise<DetectedValueType | null> => {
+  if (metadata.savedConfig) {
+    const { valueType, classes } = metadata.savedConfig;
+    return {
+      guess: valueType,
+      confidence: 'high',
+      reason:
+        'Read from this file’s previously saved WhereWild metadata — not re-detected.',
+      distinctCount: classes.length > 0 ? classes.length : null,
+      distinctValues:
+        classes.length > 0
+          ? classes.map((c) => c.id).sort((a, b) => a - b)
+          : null,
+    };
+  }
   const band = await readSmallestOverviewBand(blob, metadata);
   if (band == null) {
     // No overviews to sample — but an embedded palette is still a
