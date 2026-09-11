@@ -166,7 +166,14 @@ export function GisEditorScreen() {
   }, [loaded, buildRenderer]);
 
   const fixCommand = React.useMemo(
-    () => (loaded ? buildCogFixCommand(loaded.fileName, loaded.metadata) : ''),
+    () =>
+      loaded
+        ? buildCogFixCommand(
+            loaded.fileName,
+            loaded.metadata,
+            loaded.detectedType,
+          )
+        : '',
     [loaded],
   );
   const [copied, setCopied] = React.useState(false);
