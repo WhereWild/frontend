@@ -25,7 +25,9 @@ import type { EnvironmentVariableOption } from '@/components/sections/speciesEnv
 import { buildCogFixCommand } from './cogFixCommand';
 import { MetadataPanel } from './MetadataPanel';
 import { createCogTileRenderer, type CogTileRenderer } from './cogTileRenderer';
+import type { DetectedValueType } from './dataTypeDetection';
 import {
+  deriveDetectedValueType,
   deriveRenderBounds,
   inspectRaster,
   type RasterMetadata,
@@ -49,6 +51,7 @@ type Loaded = {
   fileSize: number;
   metadata: RasterMetadata;
   bounds: RenderBounds;
+  detectedType: DetectedValueType | null;
 };
 
 const isBrowser = () =>
@@ -126,7 +129,15 @@ export function GisEditorScreen() {
       try {
         const metadata = await inspectRaster(blob);
         const bounds = await deriveRenderBounds(blob, metadata);
-        const next: Loaded = { blob, fileName, fileSize, metadata, bounds };
+        const detectedType = await deriveDetectedValueType(blob, metadata);
+        const next: Loaded = {
+          blob,
+          fileName,
+          fileSize,
+          metadata,
+          bounds,
+          detectedType,
+        };
         if (requestIdRef.current !== requestId) return;
         setLoaded(next);
         if (metadata.cog.isCog) {
@@ -339,7 +350,10 @@ export function GisEditorScreen() {
                   ]}
                 >
                   <View style={styles.metaColumn}>
-                    <MetadataPanel metadata={loaded.metadata} />
+                    <MetadataPanel
+                      metadata={loaded.metadata}
+                      detectedType={loaded.detectedType}
+                    />
                   </View>
                   <View
                     style={[
@@ -451,7 +465,10 @@ export function GisEditorScreen() {
                   ]}
                 >
                   <View style={styles.metaColumn}>
-                    <MetadataPanel metadata={loaded.metadata} />
+                    <MetadataPanel
+                      metadata={loaded.metadata}
+                      detectedType={loaded.detectedType}
+                    />
                     {loaded.bounds.approximate ? (
                       <ThemedText
                         variant='bodyTiny'

@@ -62,6 +62,7 @@ jest.mock('@/components/gisEditor/cogTileRenderer', () => ({
 jest.mock('@/components/gisEditor/rasterMetadata', () => ({
   inspectRaster: jest.fn(),
   deriveRenderBounds: jest.fn(),
+  deriveDetectedValueType: jest.fn(async () => null),
 }));
 
 const originalOS = Platform.OS;

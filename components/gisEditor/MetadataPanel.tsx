@@ -7,7 +7,16 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import type { DetectedValueType } from './dataTypeDetection';
 import type { RasterMetadata } from './rasterMetadata';
+
+const VALUE_TYPE_LABELS: Record<DetectedValueType['guess'], string> = {
+  nominal: 'Nominal (unordered categories)',
+  ordinal: 'Ordinal (ranked categories)',
+  interval: 'Interval (no true zero)',
+  ratio: 'Ratio (true zero)',
+  circular: 'Circular (angle/bearing)',
+};
 
 const fmt = (v: number): string => {
   if (!Number.isFinite(v)) return '—';
@@ -16,7 +25,13 @@ const fmt = (v: number): string => {
   return String(Math.round(v * 1e6) / 1e6);
 };
 
-export function MetadataPanel({ metadata }: { metadata: RasterMetadata }) {
+export function MetadataPanel({
+  metadata,
+  detectedType,
+}: {
+  metadata: RasterMetadata;
+  detectedType?: DetectedValueType | null;
+}) {
   const scheme = useColorScheme();
   const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
@@ -65,6 +80,28 @@ export function MetadataPanel({ metadata }: { metadata: RasterMetadata }) {
           </View>
         ))}
       </View>
+
+      {detectedType ? (
+        <View
+          style={[
+            styles.callout,
+            {
+              backgroundColor: palette.background.default.secondary,
+              borderColor: palette.border.default.secondary,
+            },
+          ]}
+        >
+          <ThemedText variant='bodyEmphasis'>
+            {`Suggested data type: ${VALUE_TYPE_LABELS[detectedType.guess]}`}
+          </ThemedText>
+          <ThemedText
+            variant='bodyTiny'
+            style={{ color: palette.text.default.secondary }}
+          >
+            {`${detectedType.confidence} confidence — ${detectedType.reason}`}
+          </ThemedText>
+        </View>
+      ) : null}
 
       <View
         style={[

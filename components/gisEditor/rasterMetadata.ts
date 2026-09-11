@@ -11,6 +11,7 @@ import {
   type CogDiagnostics,
   type IfdSummary,
 } from './cogDiagnostics';
+import { detectValueType, type DetectedValueType } from './dataTypeDetection';
 
 export type RasterOverview = { width: number; height: number };
 
@@ -32,6 +33,10 @@ export type RasterMetadata = {
   bigTiff: boolean;
   overviews: RasterOverview[];
   cog: CogDiagnostics;
+  /** Whether the file has an embedded palette (Photometric=Palette + a
+   * ColorMap tag) — a definitive signal for a categorical/nominal raster,
+   * used by deriveDetectedValueType(). */
+  hasColorMap: boolean;
 };
 
 export type RenderBounds = { min: number; max: number; approximate: boolean };
@@ -211,7 +216,39 @@ export const inspectRaster = async (blob: Blob): Promise<RasterMetadata> => {
     bigTiff: Boolean((tiff as unknown as { bigTiff?: boolean }).bigTiff),
     overviews,
     cog: deriveCogDiagnostics(ifds),
+    hasColorMap:
+      Number(fileDirectory.PhotometricInterpretation ?? -1) === 3 &&
+      fileDirectory.ColorMap != null,
   };
+};
+
+/**
+ * Reads the smallest overview's single band and strips out non-finite /
+ * no-data pixels, for both deriveRenderBounds() and
+ * deriveDetectedValueType(). Null when there are no overviews to sample
+ * (reading the full-resolution band isn't bounded, so we don't).
+ */
+const readSmallestOverviewSamples = async (
+  blob: Blob,
+  metadata: RasterMetadata,
+): Promise<number[] | null> => {
+  if (metadata.overviews.length === 0) return null;
+  const tiff = await loadGeoTiff().fromBlob(blob);
+  const count = await tiff.getImageCount();
+  const smallest = await tiff.getImage(count - 1);
+  const rasters = (await smallest.readRasters({ samples: [0] })) as
+    | ArrayLike<number>[]
+    | ArrayLike<number>;
+  const band: ArrayLike<number> = Array.isArray(rasters) ? rasters[0] : rasters;
+
+  const noData = metadata.noData;
+  const values: number[] = [];
+  for (let i = 0; i < band.length; i += 1) {
+    const v = band[i];
+    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
+    values.push(v);
+  }
+  return values;
 };
 
 /**
@@ -223,23 +260,13 @@ export const deriveRenderBounds = async (
   blob: Blob,
   metadata: RasterMetadata,
 ): Promise<RenderBounds> => {
-  if (metadata.overviews.length === 0) {
+  const values = await readSmallestOverviewSamples(blob, metadata);
+  if (values == null) {
     return { ...nominalRangeForDtype(metadata.dtype), approximate: true };
   }
-  const tiff = await loadGeoTiff().fromBlob(blob);
-  const count = await tiff.getImageCount();
-  const smallest = await tiff.getImage(count - 1);
-  const rasters = (await smallest.readRasters({ samples: [0] })) as
-    | ArrayLike<number>[]
-    | ArrayLike<number>;
-  const band: ArrayLike<number> = Array.isArray(rasters) ? rasters[0] : rasters;
-
-  const noData = metadata.noData;
   let min = Infinity;
   let max = -Infinity;
-  for (let i = 0; i < band.length; i += 1) {
-    const v = band[i];
-    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
+  for (const v of values) {
     if (v < min) min = v;
     if (v > max) max = v;
   }
@@ -247,4 +274,21 @@ export const deriveRenderBounds = async (
     return { ...nominalRangeForDtype(metadata.dtype), approximate: true };
   }
   return { min, max, approximate: false };
+};
+
+/**
+ * Guesses the raster's measurement level from the same downsampled sample
+ * used for deriveRenderBounds(). Null when there's nothing to sample (no
+ * overviews) — the caller should treat that as "unknown", not "continuous".
+ */
+export const deriveDetectedValueType = async (
+  blob: Blob,
+  metadata: RasterMetadata,
+): Promise<DetectedValueType | null> => {
+  if (metadata.hasColorMap) {
+    return detectValueType([], { hasColorMap: true });
+  }
+  const values = await readSmallestOverviewSamples(blob, metadata);
+  if (values == null) return null;
+  return detectValueType(values);
 };
