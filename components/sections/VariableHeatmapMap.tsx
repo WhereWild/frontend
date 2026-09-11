@@ -51,14 +51,20 @@ export type MapTileSource =
   | { kind: 'remote' }
   | {
       kind: 'local';
-      /** Return PNG bytes for the tile, or null for a transparent tile.
-       * `url` is the full `localtiles://...` URL with the query string. */
+      /** Return PNG bytes for the tile (plus, for nominal/ordinal data, a
+       * per-class pixel count so the legend's visible-classes tracking works
+       * the same as it does for remote tiles' X-Nominal-Classes header), or
+       * null for a transparent tile. `url` is the full `localtiles://...`
+       * URL with the query string. */
       renderTile: (
         z: number,
         x: number,
         y: number,
         url: string,
-      ) => Promise<ArrayBuffer | null>;
+      ) => Promise<{
+        data: ArrayBuffer;
+        classes?: { id: number; count: number }[];
+      } | null>;
     };
 
 export type HeatmapSelection = {

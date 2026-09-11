@@ -798,24 +798,33 @@ const LOCAL_TILE_BRIDGE = `
         var resolve = __ltPending.get(d.requestId);
         if (!resolve) return;
         __ltPending.delete(d.requestId);
-        resolve(d.data);
+        resolve({ data: d.data, classes: d.classes || null });
       });
     }
     function isLocalTileUrl(u) {
       return typeof u === 'string' && u.indexOf('localtiles://') === 0;
     }
-    // -> Promise<ArrayBuffer> (a 1x1 transparent PNG when the parent has nothing).
+    // -> Promise<{ data: ArrayBuffer, classes: {id,count}[]|null }>. "data"
+    // falls back to a 1x1 transparent PNG when the parent has nothing;
+    // "classes" (nominal/ordinal rasters only) mirrors the X-Nominal-Classes
+    // header the fetch() branch below reads for remote tiles, since a local
+    // tile has no HTTP response to carry a header on.
     function requestLocalTileBytes(url) {
       return new Promise(function(resolve) {
         var m = /\\/tiles\\/(\\d+)\\/(\\d+)\\/(\\d+)/.exec(url);
-        if (!m) { resolve(null); return; }
+        if (!m) { resolve({ data: null, classes: null }); return; }
         var id = ++__ltReqId;
         __ltPending.set(id, resolve);
         postToParent({
           type: 'localTileRequest',
           requestId: id, z: Number(m[1]), x: Number(m[2]), y: Number(m[3]), url: url,
         });
-      }).then(function(data) { return data || __ltBlankTile(); });
+      }).then(function(result) {
+        return {
+          data: (result && result.data) || __ltBlankTile(),
+          classes: (result && result.classes) || null,
+        };
+      });
     }
 `;
 
@@ -962,8 +971,9 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT =
 
         var heatmapTileUrl = layer.getTileUrl(coords);
         (isLocalTileUrl(heatmapTileUrl)
-          ? requestLocalTileBytes(heatmapTileUrl).then(function(bytes) {
-              return new Blob([bytes], { type: 'image/png' });
+          ? requestLocalTileBytes(heatmapTileUrl).then(function(result) {
+              if (result.classes) tileClassData.set(tile, result.classes);
+              return new Blob([result.data], { type: 'image/png' });
             })
           : fetch(heatmapTileUrl, {
               signal: controller.signal,
@@ -1443,8 +1453,14 @@ const GLOBE_TILE_CLASS_TRACKING_SCRIPT =
       maplibregl.addProtocol('heatmap', function(params, abortController) {
         var realUrl = params.url.slice('heatmap://'.length);
         if (isLocalTileUrl(realUrl)) {
-          return requestLocalTileBytes(realUrl).then(function(data) {
-            return { data: data };
+          return requestLocalTileBytes(realUrl).then(function(result) {
+            var match = HEATMAP_TILE_KEY_RE.exec(realUrl);
+            if (match) {
+              var key = tileKey(Number(match[1]), Number(match[2]), Number(match[3]));
+              TILE_CLASS_CACHE.set(key, result.classes || []);
+              scheduleRefreshVisibleTileClasses();
+            }
+            return { data: result.data };
           });
         }
         return fetch(realUrl, { signal: abortController.signal, referrerPolicy: TILE_REFERRER_POLICY })
