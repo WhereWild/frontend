@@ -65,6 +65,18 @@ const classesFor = (
   }));
 };
 
+/** When re-opening a file this tool already saved, the real class
+ * names/colors come back from the file itself (see rasterMetadata.ts's
+ * readWherewildConfig) instead of the generic "String(value)" name +
+ * palette-default color classesFor() falls back to for a freshly-detected
+ * file. */
+type SavedClass = { id: number; name: string; color: string | null };
+const classesFromSaved = (saved: SavedClass[]): EditableClass[] =>
+  saved
+    .slice()
+    .sort((a, b) => a.id - b.id)
+    .map((c) => ({ value: c.id, name: c.name, color: c.color }));
+
 // Aspect/bearing-style circular data is overwhelmingly measured in degrees,
 // so that's the default full-period render range — a cyclic colormap only
 // wraps correctly when the render bounds span exactly one full period, which
@@ -78,6 +90,8 @@ export const buildInitialEditableMeta = (
   bounds: RenderBounds,
   detectedScale: number | null = null,
   detectedOffset: number | null = null,
+  detectedUnits: string | null = null,
+  savedClasses: SavedClass[] | null = null,
 ): RasterEditableMeta => {
   const valueType = detectedType?.guess ?? 'ratio';
   const scale = detectedScale ?? 1;
@@ -91,12 +105,15 @@ export const buildInitialEditableMeta = (
         : [bounds.min, bounds.max];
   return {
     valueType,
-    units: '',
+    units: detectedUnits ?? '',
     renderMin,
     renderMax,
     scale,
     offset,
-    classes: classesFor(detectedType, valueType),
+    classes:
+      savedClasses && savedClasses.length > 0
+        ? classesFromSaved(savedClasses)
+        : classesFor(detectedType, valueType),
   };
 };
 

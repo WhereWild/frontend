@@ -127,6 +127,36 @@ describe('buildInitialEditableMeta', () => {
     expect(meta.scale).toBe(1);
     expect(meta.offset).toBe(0);
   });
+
+  it('seeds units from the detected GDAL UnitType', () => {
+    const meta = buildInitialEditableMeta(
+      ratioDetected,
+      { min: 0, max: 1, approximate: false },
+      null,
+      null,
+      '°C',
+    );
+    expect(meta.units).toBe('°C');
+  });
+
+  it('uses the exact saved class names/colors when re-opening a saved file, instead of generated defaults', () => {
+    const meta = buildInitialEditableMeta(
+      nominalDetected,
+      { min: 11, max: 41, approximate: false },
+      null,
+      null,
+      null,
+      [
+        { id: 21, name: 'Forest', color: '#00ff00' },
+        { id: 11, name: 'Water', color: '#0000ff' },
+      ],
+    );
+    // Sorted by id, and using the real saved names — not "String(value)".
+    expect(meta.classes).toEqual([
+      { value: 11, name: 'Water', color: '#0000ff' },
+      { value: 21, name: 'Forest', color: '#00ff00' },
+    ]);
+  });
 });
 
 describe('withScaleOffset', () => {
