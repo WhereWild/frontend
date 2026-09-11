@@ -5,7 +5,7 @@
 const CACHE_NAME = 'wherewild-__BUILD_VERSION__';
 
 // Routes served from cache (network-first, offline fallback).
-const OFFLINE_ROUTES = ['/', '/upload', '/about', '/help', '/settings', '/acknowledgements'];
+const OFFLINE_ROUTES = ['/', '/upload', '/gis-editor', '/about', '/help', '/settings', '/acknowledgements'];
 
 // Routes that must never be served from cache.
 const NETWORK_ONLY_PREFIXES = ['/api/', '/search', '/maps', '/map', '/species/', '/status', '/dev'];

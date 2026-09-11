@@ -828,6 +828,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       container: 'map',
       style: {
         version: 8,
+        // Globe from the very first frame — set here (not only in the
+        // map.on('load') handler below) so there's no flat-Mercator flash
+        // before load, and so the view is still a globe even if the 'load'
+        // event is delayed or never fires (e.g. a heatmap tile source that
+        // hangs).
+        projection: { type: 'globe' },
         // Only used for cluster-count labels (text-field on the cluster
         // symbol layer below) — MapLibre demo glyphs, no API key needed.
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',

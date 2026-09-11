@@ -42,6 +42,7 @@ const INTERNAL_LINKS: { label: string; route: Href }[] = [
   { label: 'Search', route: '/search' },
   { label: 'Maps', route: '/maps' },
   { label: 'Upload', route: '/upload' },
+  { label: 'GIS Editor', route: '/gis-editor' },
   { label: 'Help', route: '/help' },
   { label: 'Guides', route: '/guides' },
   { label: 'About', route: '/about' },
