@@ -1481,11 +1481,19 @@ const GLOBE_TILE_CLASS_TRACKING_SCRIPT =
         var realUrl = params.url.slice('heatmap://'.length);
         if (isLocalTileUrl(realUrl)) {
           return requestLocalTileBytes(realUrl).then(function(result) {
-            var match = HEATMAP_TILE_KEY_RE.exec(realUrl);
-            if (match) {
-              var key = tileKey(Number(match[1]), Number(match[2]), Number(match[3]));
-              TILE_CLASS_CACHE.set(key, result.classes || []);
-              scheduleRefreshVisibleTileClasses();
+            // Only for categorical (nominal/ordinal) rasters — result.classes
+            // is undefined for every other type, and touching
+            // TILE_CLASS_CACHE/scheduling a recompute unconditionally here
+            // meant every single tile of every local raster, categorical or
+            // not, paid for the visible-classes tracking machinery with
+            // nothing to show for it.
+            if (result.classes) {
+              var match = HEATMAP_TILE_KEY_RE.exec(realUrl);
+              if (match) {
+                var key = tileKey(Number(match[1]), Number(match[2]), Number(match[3]));
+                TILE_CLASS_CACHE.set(key, result.classes);
+                scheduleRefreshVisibleTileClasses();
+              }
             }
             return { data: result.data };
           });

@@ -78,6 +78,62 @@ describe('buildGdalMetadataXml', () => {
     });
     expect(xml).toContain('A &amp; B &lt; C');
   });
+
+  // Shape verified directly against GDAL's own source (not guessed): see
+  // GDALRasterAttributeTable::Serialize() in gcore/gdal_rat.cpp and the
+  // AppendMetadataItem() call site in
+  // frmts/gtiff/gtiffdataset_write.cpp, github.com/OSGeo/gdal.
+  describe('embeds a real GDAL Raster Attribute Table', () => {
+    it('wraps it in the exact Item GDAL itself uses', () => {
+      const xml = buildGdalMetadataXml(nominalEditable);
+      expect(xml).toContain(
+        '<Item name="DEFAULT_RASTER_ATTRIBUTE_TABLE" sample="0" role="rat">',
+      );
+      expect(xml).toContain('<GDALRasterAttributeTable tableType="thematic">');
+    });
+
+    it('defines Value/Class_Name/Red/Green/Blue with GDAL’s exact type/usage codes', () => {
+      const xml = buildGdalMetadataXml(nominalEditable);
+      expect(xml).toContain(
+        '<FieldDefn index="0"><Name>Value</Name><Type typeAsString="Integer">0</Type><Usage usageAsString="Generic">0</Usage></FieldDefn>',
+      );
+      expect(xml).toContain(
+        '<FieldDefn index="1"><Name>Class_Name</Name><Type typeAsString="String">2</Type><Usage usageAsString="Name">2</Usage></FieldDefn>',
+      );
+      expect(xml).toContain('usageAsString="Red">6<');
+      expect(xml).toContain('usageAsString="Green">7<');
+      expect(xml).toContain('usageAsString="Blue">8<');
+    });
+
+    it('writes one row per class as Value/Name/R/G/B cells', () => {
+      const xml = buildGdalMetadataXml(nominalEditable);
+      expect(xml).toContain(
+        '<Row index="0"><F>11</F><F>Water</F><F>0</F><F>0</F><F>255</F></Row>',
+      );
+      expect(xml).toContain(
+        '<Row index="1"><F>21</F><F>Forest</F><F>0</F><F>255</F><F>0</F></Row>',
+      );
+    });
+
+    it('omits the Red/Green/Blue columns for ordinal (no colors)', () => {
+      const xml = buildGdalMetadataXml({
+        ...nominalEditable,
+        valueType: 'ordinal',
+        classes: [
+          { value: 1, name: 'Low', color: null },
+          { value: 2, name: 'High', color: null },
+        ],
+      });
+      expect(xml).not.toContain('usageAsString="Red"');
+      expect(xml).toContain('<Row index="0"><F>1</F><F>Low</F></Row>');
+    });
+
+    it('is absent entirely for interval/ratio/circular (no classes)', () => {
+      expect(buildGdalMetadataXml(ratioEditable)).not.toContain(
+        'DEFAULT_RASTER_ATTRIBUTE_TABLE',
+      );
+    });
+  });
 });
 
 // --- A minimal hand-built classic (32-bit) TIFF for exercising the byte

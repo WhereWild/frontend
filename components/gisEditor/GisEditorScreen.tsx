@@ -611,10 +611,11 @@ export function GisEditorScreen() {
                       >
                         Embeds this configuration directly into a copy of the
                         file’s own tags — the standard GDAL_METADATA tag (scale,
-                        offset, units) and GDAL_NODATA — not a separate sidecar
-                        file. Nothing else in the file is touched; re-opening
-                        the saved file here restores this exact configuration
-                        instead of re-detecting it.
+                        offset, units, and for nominal/ordinal a real GDAL
+                        Raster Attribute Table QGIS can render) and GDAL_NODATA
+                        — not a separate sidecar file. Nothing else in the file
+                        is touched; re-opening the saved file here restores this
+                        exact configuration instead of re-detecting it.
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button
