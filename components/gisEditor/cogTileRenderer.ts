@@ -14,6 +14,7 @@ import {
   colorizeBand,
   colorizeCategoricalBand,
   hexToRgb,
+  lngLatToMercator,
   mercatorToLngLat,
   parseTileStyleFromUrl,
   tallyCategoricalCounts,
@@ -44,6 +45,14 @@ export type RenderedTile = {
   classes?: { id: number; count: number }[];
 };
 
+export type PointValue = {
+  value: number;
+  /** Nominal/ordinal only — the matching legend class's name/color, mirroring
+   * the backend point-query endpoint's class_name/class_color fields. */
+  className?: string | null;
+  classColor?: string | null;
+};
+
 export type CogTileRenderer = {
   renderTile: (
     z: number,
@@ -51,6 +60,12 @@ export type CogTileRenderer = {
     y: number,
     url: string,
   ) => Promise<RenderedTile | null>;
+  /** Reads the raw pixel value at a map click — the local equivalent of the
+   * backend's /gis/point endpoint (see VariableHeatmapMap's pointQueryUrl).
+   * Reads the full-resolution level directly (a single-pixel window), not
+   * an overview, since this needs the actual value, not a downsampled
+   * estimate. Null when the point is outside the raster or lands on noData. */
+  readPointValue: (lat: number, lon: number) => Promise<PointValue | null>;
   view: { lat: number; lon: number; zoom: number };
   dispose: () => void;
 };
@@ -126,11 +141,20 @@ type CreateArgs = {
   renderMin: number;
   renderMax: number;
   valueType: ValueTypeGuess;
-  /** Only meaningful for nominal — ordinal renders through the same
-   * continuous min/max stretch as interval/ratio/circular (see
-   * rasterEditableMeta.ts), so its legend swatches carry a default color but
-   * the pixels themselves don't need per-class lookup. */
-  legendClasses: { id: number; color: string | null }[] | null;
+  /** Names are used by readPointValue() for both nominal and ordinal.
+   * Colors are only used for nominal pixel colorization (see isNominal
+   * below) — ordinal renders through the same continuous min/max stretch as
+   * interval/ratio/circular (see rasterEditableMeta.ts), so its legend
+   * swatches carry a default color but the pixels themselves don't need
+   * per-class lookup. */
+  legendClasses: { id: number; name: string; color: string | null }[] | null;
+  /** display = raw * scale + offset — interval/ratio only (see
+   * rasterEditableMeta.ts); pass 1/0 for every other value type. Applied
+   * before both the continuous colorize stretch and readPointValue(), and
+   * NOT applied before the noData/finite check (noData is a raw sentinel —
+   * scaling it first would stop it from matching). */
+  scale: number;
+  offset: number;
 };
 
 export const createCogTileRenderer = async ({
@@ -140,14 +164,22 @@ export const createCogTileRenderer = async ({
   renderMax,
   valueType,
   legendClasses,
+  scale,
+  offset,
 }: CreateArgs): Promise<CogTileRenderer> => {
   const isCategorical = valueType === 'nominal' || valueType === 'ordinal';
   const isNominal = valueType === 'nominal';
+  const isScaled = valueType === 'ratio' || valueType === 'interval';
+  const toDisplay = (raw: number) => (isScaled ? raw * scale + offset : raw);
   const colorsById = new Map<number, [number, number, number]>();
-  if (isNominal && legendClasses) {
+  const classById = new Map<number, { name: string; color: string | null }>();
+  if (legendClasses) {
     for (const cls of legendClasses) {
-      const rgb = cls.color ? hexToRgb(cls.color) : null;
-      if (rgb) colorsById.set(cls.id, rgb);
+      classById.set(cls.id, { name: cls.name, color: cls.color });
+      if (isNominal && cls.color) {
+        const rgb = hexToRgb(cls.color);
+        if (rgb) colorsById.set(cls.id, rgb);
+      }
     }
   }
   const rasterProj = resolveRasterProj4(metadata); // may throw UnsupportedCrsError
@@ -373,6 +405,20 @@ export const createCogTileRenderer = async ({
     }
     if (!anyValid) return null;
 
+    // Ratio/interval only — raw*scale+offset, applied before colorizing so
+    // the stretch operates in the same display domain as renderMin/renderMax
+    // (which are already scaled, see rasterEditableMeta.ts). Never applied
+    // to nominal/ordinal (class codes) or circular (unscaled by design), so
+    // this can't collide with the noData/tally comparisons below, which
+    // always run against raw class-code-shaped values for those types.
+    if (isScaled) {
+      for (let i = 0; i < samples.length; i += 1) {
+        if (Number.isFinite(samples[i])) samples[i] = toDisplay(samples[i]);
+      }
+    }
+    const effectiveNoData =
+      isScaled && noData != null ? toDisplay(noData) : noData;
+
     // Nominal codes are unordered — interpolating between two of them is
     // meaningless, so they're colorized by exact lookup instead of the
     // continuous min/max stretch. Ordinal stays on the continuous path (its
@@ -390,7 +436,7 @@ export const createCogTileRenderer = async ({
             samples,
             min,
             max,
-            noData,
+            effectiveNoData,
             lut,
             style.valueRanges,
             style.classFilter,
@@ -404,8 +450,49 @@ export const createCogTileRenderer = async ({
     return { data, classes };
   };
 
+  // levels is sorted ascending by resX (pixel size), so index 0 is the
+  // finest/full resolution — the last entry is the smallest overview.
+  const fullRes = levels[0];
+
+  const readPointValue = async (
+    lat: number,
+    lon: number,
+  ): Promise<PointValue | null> => {
+    if (disposed) return null;
+    const [mx, my] = lngLatToMercator(lon, lat);
+    const [rx, ry] = project(mx, my);
+    if (!Number.isFinite(rx) || !Number.isFinite(ry)) return null;
+    if (rx < extent[0] || rx > extent[2] || ry < extent[1] || ry > extent[3]) {
+      return null;
+    }
+    const col = Math.floor((rx - extent[0]) / fullRes.resX);
+    const row = Math.floor((extent[3] - ry) / fullRes.resY);
+    if (col < 0 || col >= fullRes.width || row < 0 || row >= fullRes.height) {
+      return null;
+    }
+    const bandResult = await fullRes.image.readRasters({
+      window: [col, row, col + 1, row + 1],
+      samples: [0],
+    });
+    if (disposed) return null;
+    const raw = bandResult[0][0];
+    if (!Number.isFinite(raw) || (noData != null && raw === noData)) {
+      return null;
+    }
+    if (isCategorical) {
+      const cls = classById.get(Math.round(raw));
+      return {
+        value: raw,
+        className: cls?.name ?? null,
+        classColor: cls?.color ?? null,
+      };
+    }
+    return { value: toDisplay(raw) };
+  };
+
   return {
     renderTile,
+    readPointValue,
     view,
     dispose: () => {
       disposed = true;

@@ -3404,11 +3404,14 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // exact same rendering after a variable switch, instead of duplicating
     // this logic.
     function fetchBackgroundPointPopup(popup, latitude, longitude) {
-      fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      (isLocalPointUrl(POINT_QUERY_URL)
+        ? requestLocalPointValue(latitude, longitude)
+        : fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      )
         .then(function(data) {
           if (!popup.isOpen()) return;
-          if (data.value == null) {
+          if (!data || data.value == null) {
             popup.setContent('<span style="opacity:0.6;font-size:11px">No data</span>');
             return;
           }

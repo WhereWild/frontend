@@ -791,14 +791,23 @@ const LOCAL_TILE_BRIDGE = `
       }
       return __ltBlank.slice().buffer;
     }
+    var __lpPending = new Map();
+    var __lpReqId = 0;
     if (typeof window !== 'undefined' && window.addEventListener) {
       window.addEventListener('message', function(event) {
         var d = event.data;
-        if (!d || typeof d !== 'object' || d.type !== 'localTileResponse') return;
-        var resolve = __ltPending.get(d.requestId);
-        if (!resolve) return;
-        __ltPending.delete(d.requestId);
-        resolve({ data: d.data, classes: d.classes || null });
+        if (!d || typeof d !== 'object') return;
+        if (d.type === 'localTileResponse') {
+          var resolveTile = __ltPending.get(d.requestId);
+          if (!resolveTile) return;
+          __ltPending.delete(d.requestId);
+          resolveTile({ data: d.data, classes: d.classes || null });
+        } else if (d.type === 'localPointResponse') {
+          var resolvePoint = __lpPending.get(d.requestId);
+          if (!resolvePoint) return;
+          __lpPending.delete(d.requestId);
+          resolvePoint(d.data || null);
+        }
       });
     }
     function isLocalTileUrl(u) {
@@ -824,6 +833,24 @@ const LOCAL_TILE_BRIDGE = `
           data: (result && result.data) || __ltBlankTile(),
           classes: (result && result.classes) || null,
         };
+      });
+    }
+    function isLocalPointUrl(u) {
+      return typeof u === 'string' && u.indexOf('localpoint://') === 0;
+    }
+    // -> Promise<{ value, class_name, class_color } | null>. Field names
+    // match what the backend's /gis/point endpoint returns, so the
+    // click-popup rendering code below (which reads data.value/class_name/
+    // class_color) needs no local-vs-remote branch beyond picking which
+    // promise to await.
+    function requestLocalPointValue(lat, lon) {
+      return new Promise(function(resolve) {
+        var id = ++__lpReqId;
+        __lpPending.set(id, resolve);
+        postToParent({ type: 'localPointRequest', requestId: id, lat: lat, lon: lon });
+      }).then(function(result) {
+        if (!result) return null;
+        return { value: result.value, class_name: result.className, class_color: result.classColor };
       });
     }
 `;

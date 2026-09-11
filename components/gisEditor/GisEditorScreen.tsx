@@ -106,8 +106,11 @@ export function GisEditorScreen() {
           valueType: editable.valueType,
           legendClasses: editable.classes.map((c) => ({
             id: c.value,
+            name: c.name,
             color: c.color,
           })),
+          scale: editable.scale,
+          offset: editable.offset,
         });
         if (requestIdRef.current !== requestId) {
           tileRenderer.dispose();
@@ -157,7 +160,12 @@ export function GisEditorScreen() {
           detectedType,
         };
         if (requestIdRef.current !== requestId) return;
-        const initialEditable = buildInitialEditableMeta(detectedType, bounds);
+        const initialEditable = buildInitialEditableMeta(
+          detectedType,
+          bounds,
+          metadata.scale,
+          metadata.offset,
+        );
         setLoaded(next);
         setEditableMeta(initialEditable);
         if (metadata.cog.isCog) {
@@ -409,6 +417,7 @@ export function GisEditorScreen() {
                       <MetadataEditor
                         editable={editableMeta}
                         detectedType={loaded.detectedType}
+                        rawBounds={loaded.bounds}
                         onChange={setEditableMeta}
                       />
                     ) : null}
@@ -539,6 +548,7 @@ export function GisEditorScreen() {
                       <MetadataEditor
                         editable={editableMeta}
                         detectedType={loaded.detectedType}
+                        rawBounds={loaded.bounds}
                         onChange={setEditableMeta}
                       />
                     ) : null}
@@ -555,6 +565,7 @@ export function GisEditorScreen() {
                         tileSource={{
                           kind: 'local',
                           renderTile: renderer.renderTile,
+                          readPointValue: renderer.readPointValue,
                         }}
                         height={MAP_HEIGHT}
                         initialLat={renderer.view.lat}

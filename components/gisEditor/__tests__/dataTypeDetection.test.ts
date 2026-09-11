@@ -6,7 +6,7 @@ import { detectValueType } from '../dataTypeDetection';
 
 describe('detectValueType', () => {
   it('flags an embedded color palette as high-confidence nominal', () => {
-    const result = detectValueType([1, 2, 3], { hasColorMap: true });
+    const result = detectValueType([1, 2, 3], null, { hasColorMap: true });
     expect(result.guess).toBe('nominal');
     expect(result.confidence).toBe('high');
   });
@@ -90,5 +90,17 @@ describe('detectValueType', () => {
   it('returns a low-confidence ratio guess for an empty sample', () => {
     const result = detectValueType([]);
     expect(result.confidence).toBe('low');
+  });
+
+  it('excludes noData and non-finite values from the analysis', () => {
+    const values = [1, 1, 2, -9999, -9999, NaN, 1];
+    const result = detectValueType(values, -9999);
+    expect(result.distinctCount).toBe(2);
+  });
+
+  it('treats an all-noData sample the same as an empty one', () => {
+    const result = detectValueType([-9999, -9999, NaN], -9999);
+    expect(result.confidence).toBe('low');
+    expect(result.distinctCount).toBeNull();
   });
 });

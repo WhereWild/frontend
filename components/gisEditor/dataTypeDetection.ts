@@ -44,37 +44,47 @@ const DOWNSAMPLED_NOTE =
 
 const isInteger = (v: number) => Math.abs(v - Math.round(v)) < INTEGER_EPSILON;
 
+// `band` is the raw, unfiltered sample straight off geotiff.js's
+// readRasters() (typically a typed array) — noData/non-finite pixels are
+// skipped inline in the single pass below rather than pre-filtered into a
+// plain array by the caller, which would double the memory and add a whole
+// extra pass over what can be a multi-million-pixel "smallest" overview.
 export const detectValueType = (
-  values: ArrayLike<number>,
+  band: ArrayLike<number>,
+  noData: number | null = null,
   opts: { hasColorMap?: boolean } = {},
 ): DetectedValueType => {
-  if (values.length === 0) {
-    return opts.hasColorMap
+  const noSample = () =>
+    opts.hasColorMap
       ? {
-          guess: 'nominal',
-          confidence: 'high',
+          guess: 'nominal' as const,
+          confidence: 'high' as const,
           reason:
             'File has an embedded color palette (a paletted/indexed raster) — that only makes sense for categorical classes.',
           distinctCount: null,
           distinctValues: null,
         }
       : {
-          guess: 'ratio',
-          confidence: 'low',
+          guess: 'ratio' as const,
+          confidence: 'low' as const,
           reason: 'No sample pixels to analyze.',
           distinctCount: null,
           distinctValues: null,
         };
-  }
+
+  if (band.length === 0) return noSample();
 
   let min = Infinity;
   let max = -Infinity;
   let allInteger = true;
+  let validCount = 0;
   const distinct = new Set<number>();
   let tooManyDistinct = false;
 
-  for (let i = 0; i < values.length; i += 1) {
-    const v = values[i];
+  for (let i = 0; i < band.length; i += 1) {
+    const v = band[i];
+    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
+    validCount += 1;
     if (v < min) min = v;
     if (v > max) max = v;
     if (allInteger && !isInteger(v)) allInteger = false;
@@ -83,6 +93,8 @@ export const detectValueType = (
       if (distinct.size > CATEGORICAL_MAX_DISTINCT) tooManyDistinct = true;
     }
   }
+
+  if (validCount === 0) return noSample();
 
   // A file with an embedded palette is definitively categorical regardless
   // of what the pixel values look like — but we still want the actual

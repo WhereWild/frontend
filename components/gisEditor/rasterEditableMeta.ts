@@ -31,6 +31,13 @@ export type RasterEditableMeta = {
   units: string;
   renderMin: number;
   renderMax: number;
+  /** display = raw * scale + offset — interval/ratio only (a GDAL Scale/
+   * Offset convention; see rasterMetadata.ts's readGdalScaleOffset). Seeded
+   * from the file's own GDAL metadata when present, 1/0 otherwise; always
+   * overridable. Ignored for nominal/ordinal (class codes aren't scaled)
+   * and circular (its render range is already a fixed 0-360/0-2π period). */
+  scale: number;
+  offset: number;
   /** Empty for interval/ratio/circular — legend classes only apply to
    * nominal/ordinal data. */
   classes: EditableClass[];
@@ -69,20 +76,48 @@ const DEFAULT_CIRCULAR_RENDER_RANGE: [number, number] = [0, 360];
 export const buildInitialEditableMeta = (
   detectedType: DetectedValueType | null,
   bounds: RenderBounds,
+  detectedScale: number | null = null,
+  detectedOffset: number | null = null,
 ): RasterEditableMeta => {
   const valueType = detectedType?.guess ?? 'ratio';
+  const scale = detectedScale ?? 1;
+  const offset = detectedOffset ?? 0;
+  const isScaled = valueType === 'ratio' || valueType === 'interval';
   const [renderMin, renderMax] =
     valueType === 'circular'
       ? DEFAULT_CIRCULAR_RENDER_RANGE
-      : [bounds.min, bounds.max];
+      : isScaled
+        ? [bounds.min * scale + offset, bounds.max * scale + offset]
+        : [bounds.min, bounds.max];
   return {
     valueType,
     units: '',
     renderMin,
     renderMax,
+    scale,
+    offset,
     classes: classesFor(detectedType, valueType),
   };
 };
+
+/**
+ * Applies a manual scale/offset edit and re-derives render bounds from the
+ * raw (unscaled) sampled bounds, so the render range always matches the
+ * scale currently in effect instead of drifting from whatever it was
+ * computed under before.
+ */
+export const withScaleOffset = (
+  editable: RasterEditableMeta,
+  rawBounds: RenderBounds,
+  scale: number,
+  offset: number,
+): RasterEditableMeta => ({
+  ...editable,
+  scale,
+  offset,
+  renderMin: rawBounds.min * scale + offset,
+  renderMax: rawBounds.max * scale + offset,
+});
 
 /**
  * Applies a manual data-type override. Re-derives the class list from the
