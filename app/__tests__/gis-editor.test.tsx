@@ -1,0 +1,145 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: MIT
+
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import React from 'react';
+import { Platform } from 'react-native';
+import GisEditorRoute from '../gis-editor';
+import {
+  inspectRaster,
+  deriveRenderBounds,
+} from '@/components/gisEditor/rasterMetadata';
+import { createCogTileRenderer } from '@/components/gisEditor/cogTileRenderer';
+import { selectFileFromPicker } from '@/hooks/upload/uploadWorkflowHelpers';
+
+const mockRedirect = jest.fn();
+
+jest.mock('expo-router', () => ({
+  Redirect: ({ href }: { href: string }) => {
+    mockRedirect(href);
+    return null;
+  },
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => '/gis-editor',
+}));
+
+jest.mock('expo-router/head', () => ({
+  __esModule: true,
+  default: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('@/hooks/useResponsive', () => ({
+  useResponsive: () => ({
+    breakpoint: 'desktop',
+    contentWidth: 960,
+    gap: 16,
+    marginHorizontal: 24,
+  }),
+}));
+
+jest.mock('@/constants/responsiveStyles', () => ({
+  getResponsiveContentContainerStyle: jest.fn(() => undefined),
+}));
+
+jest.mock('@/hooks/upload/uploadWorkflowHelpers', () => ({
+  selectFileFromPicker: jest.fn(async () => ({})),
+  resolveAssetBlob: jest.fn(async () => new Blob()),
+}));
+
+// The map + the GeoTIFF renderer are exercised in their own suites.
+jest.mock('@/components/sections/VariableHeatmapMap', () => ({
+  VariableHeatmapMap: () => null,
+}));
+jest.mock('@/components/gisEditor/cogTileRenderer', () => ({
+  createCogTileRenderer: jest.fn(),
+}));
+jest.mock('@/components/gisEditor/rasterMetadata', () => ({
+  inspectRaster: jest.fn(),
+  deriveRenderBounds: jest.fn(),
+}));
+
+const originalOS = Platform.OS;
+afterEach(() => {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    value: originalOS,
+  });
+  mockRedirect.mockClear();
+});
+
+describe('GisEditorRoute', () => {
+  it('redirects to home on native', () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+    render(<GisEditorRoute />);
+    expect(mockRedirect).toHaveBeenCalledWith('/');
+  });
+
+  it('renders the drop zone on web', () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    render(<GisEditorRoute />);
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(screen.getByText('Choose GeoTIFF')).toBeTruthy();
+    expect(screen.getByText('No file loaded')).toBeTruthy();
+  });
+
+  it('gates rendering behind a warning when the COG checklist fails', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    (selectFileFromPicker as jest.Mock).mockResolvedValueOnce({
+      file: { name: 'huge.tif' },
+    });
+    (inspectRaster as jest.Mock).mockResolvedValueOnce({
+      width: 43202,
+      height: 21384,
+      tiled: true,
+      tileWidth: 256,
+      tileHeight: 256,
+      bandCount: 1,
+      dtype: 'float64',
+      compression: 'LZW',
+      noData: null,
+      epsg: 4326,
+      crsLabel: 'EPSG:4326',
+      geoKeys: {},
+      resolution: [0.0083, 0.0083],
+      bbox: [-180, -89, 180, 89],
+      bigTiff: true,
+      overviews: [],
+      cog: {
+        isCog: false,
+        checks: [{ label: 'Has overviews', pass: false, detail: 'None' }],
+      },
+    });
+    (deriveRenderBounds as jest.Mock).mockResolvedValueOnce({
+      min: 0,
+      max: 1,
+      approximate: true,
+    });
+
+    (createCogTileRenderer as jest.Mock).mockResolvedValueOnce({
+      renderTile: jest.fn(),
+      view: { lat: 0, lon: 0, zoom: 2 },
+      dispose: jest.fn(),
+    });
+
+    render(<GisEditorRoute />);
+    fireEvent.press(screen.getByText('Choose GeoTIFF'));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'This file fails the Cloud-Optimized GeoTIFF checklist above.',
+        ),
+      ).toBeTruthy(),
+    );
+    expect(createCogTileRenderer).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByText('Render anyway'));
+    await waitFor(() => expect(createCogTileRenderer).toHaveBeenCalledTimes(1));
+  });
+});

@@ -278,6 +278,18 @@ type SpeciesOccurrenceMapProps = {
   // fullscreening just this component (map-only, no overlays) — better
   // than nothing, but a page with its own overlays should provide this.
   onFullscreenToggle?: () => void;
+  // When `heatmapTileUrl` uses the `localtiles://` scheme, both renderers
+  // ask this callback for each tile's PNG bytes (via a postMessage round
+  // trip) instead of `fetch()`ing the backend. `url` is the full tile URL
+  // (query string intact) so the callback can read colormap/render_range/…
+  // the same way the backend tile route does. Return null for a transparent
+  // tile. Optional and inert unless a `localtiles://` URL is passed.
+  renderLocalTile?: (
+    z: number,
+    x: number,
+    y: number,
+    url: string,
+  ) => Promise<ArrayBuffer | null>;
 };
 
 export function SpeciesOccurrenceMap({
@@ -339,6 +351,7 @@ export function SpeciesOccurrenceMap({
   initialDrawnPolygons,
   enableOfflineFallback = true,
   onFullscreenToggle,
+  renderLocalTile,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -411,7 +424,10 @@ export function SpeciesOccurrenceMap({
 
   const settings = useOptionalSettings();
   const globeViewSupported = Platform.OS === 'web';
-  const globeView = globeViewSupported && !!settings?.globeViewEnabled;
+  // Always the globe renderer on web — the 2D/Leaflet path is no longer
+  // offered as a user choice (settings.globeViewEnabled is left alone so a
+  // stray persisted value doesn't matter either way).
+  const globeView = globeViewSupported;
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, latitude: number, longitude: number) => {
@@ -1498,6 +1514,32 @@ export function SpeciesOccurrenceMap({
         data.type === TOGGLE_AUTO_ADAPT_MESSAGE_TYPE
       ) {
         onToggleAutoAdapt?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        renderLocalTile &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === 'localTileRequest'
+      ) {
+        const { requestId, z, x, y, url } = data as {
+          requestId: number;
+          z: number;
+          x: number;
+          y: number;
+          url: string;
+        };
+        const respond = (bytes: ArrayBuffer | null) =>
+          frameWindow.postMessage(
+            { type: 'localTileResponse', requestId, data: bytes },
+            '*',
+            bytes ? [bytes] : [],
+          );
+        void renderLocalTile(z, x, y, url).then(respond, () => respond(null));
       }
     };
     window.addEventListener('message', handler);
@@ -1521,6 +1563,7 @@ export function SpeciesOccurrenceMap({
     settings,
     onFullscreenToggle,
     onToggleAutoAdapt,
+    renderLocalTile,
   ]);
 
   if (error) {

@@ -772,7 +772,56 @@ const LEAFLET_RESIZE_OBSERVER_SCRIPT = `
     }
 `;
 
-const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
+// Local tile source (the GIS editor). A heatmap tile URL with the
+// `localtiles://` scheme is "served" by the parent page, which has parsed
+// the user's GeoTIFF in-browser. Both renderers route the URL through their
+// normal heatmap tile path — this just swaps the backend fetch for a
+// postMessage round trip. Prepended to both heatmap scripts below so
+// Leaflet and the globe share one implementation. `postToParent` is defined
+// earlier in each template.
+const LOCAL_TILE_BRIDGE = `
+    var __ltPending = new Map();
+    var __ltReqId = 0;
+    var __ltBlank = null;
+    function __ltBlankTile() {
+      if (!__ltBlank) {
+        __ltBlank = Uint8Array.from(atob(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        ), function(c) { return c.charCodeAt(0); });
+      }
+      return __ltBlank.slice().buffer;
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('message', function(event) {
+        var d = event.data;
+        if (!d || typeof d !== 'object' || d.type !== 'localTileResponse') return;
+        var resolve = __ltPending.get(d.requestId);
+        if (!resolve) return;
+        __ltPending.delete(d.requestId);
+        resolve(d.data);
+      });
+    }
+    function isLocalTileUrl(u) {
+      return typeof u === 'string' && u.indexOf('localtiles://') === 0;
+    }
+    // -> Promise<ArrayBuffer> (a 1x1 transparent PNG when the parent has nothing).
+    function requestLocalTileBytes(url) {
+      return new Promise(function(resolve) {
+        var m = /\\/tiles\\/(\\d+)\\/(\\d+)\\/(\\d+)/.exec(url);
+        if (!m) { resolve(null); return; }
+        var id = ++__ltReqId;
+        __ltPending.set(id, resolve);
+        postToParent({
+          type: 'localTileRequest',
+          requestId: id, z: Number(m[1]), x: Number(m[2]), y: Number(m[3]), url: url,
+        });
+      }).then(function(data) { return data || __ltBlankTile(); });
+    }
+`;
+
+const LEAFLET_HEATMAP_TRACKING_SCRIPT =
+  LOCAL_TILE_BRIDGE +
+  `
     function supportsAbortableTileFetch() {
       return (
         typeof fetch === 'function'
@@ -911,36 +960,41 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
           finish(error || new Error('Heatmap tile image load failed'));
         };
 
-        fetch(layer.getTileUrl(coords), {
-          signal: controller.signal,
-          referrerPolicy: TILE_REFERRER_POLICY,
-        })
-          .then(function(response) {
-            if (!response.ok) {
-              throw new Error('Heatmap tile request failed with status ' + response.status);
-            }
-            // Skip storing class data for a tile that's already been
-            // released (controller.abort() only cancels a fetch that hasn't
-            // settled yet, so this can still run after release if the
-            // response had already fully arrived) — harmless either way
-            // since syncClasses only reads tiles Leaflet's own registry
-            // still lists, but no reason to do the parsing.
-            if (!controller.signal.aborted) {
-              var classesHeader = response.headers.get('X-Nominal-Classes');
-              if (classesHeader) {
-                var classes = classesHeader.split(',').reduce(function(acc, part) {
-                  var sep = part.indexOf(':');
-                  if (sep === -1) return acc;
-                  var id = Number(part.slice(0, sep));
-                  var count = Number(part.slice(sep + 1));
-                  if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
-                  return acc;
-                }, []);
-                tileClassData.set(tile, classes);
+        var heatmapTileUrl = layer.getTileUrl(coords);
+        (isLocalTileUrl(heatmapTileUrl)
+          ? requestLocalTileBytes(heatmapTileUrl).then(function(bytes) {
+              return new Blob([bytes], { type: 'image/png' });
+            })
+          : fetch(heatmapTileUrl, {
+              signal: controller.signal,
+              referrerPolicy: TILE_REFERRER_POLICY,
+            }).then(function(response) {
+              if (!response.ok) {
+                throw new Error('Heatmap tile request failed with status ' + response.status);
               }
-            }
-            return response.blob();
-          })
+              // Skip storing class data for a tile that's already been
+              // released (controller.abort() only cancels a fetch that hasn't
+              // settled yet, so this can still run after release if the
+              // response had already fully arrived) — harmless either way
+              // since syncClasses only reads tiles Leaflet's own registry
+              // still lists, but no reason to do the parsing.
+              if (!controller.signal.aborted) {
+                var classesHeader = response.headers.get('X-Nominal-Classes');
+                if (classesHeader) {
+                  var classes = classesHeader.split(',').reduce(function(acc, part) {
+                    var sep = part.indexOf(':');
+                    if (sep === -1) return acc;
+                    var id = Number(part.slice(0, sep));
+                    var count = Number(part.slice(sep + 1));
+                    if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
+                    return acc;
+                  }, []);
+                  tileClassData.set(tile, classes);
+                }
+              }
+              return response.blob();
+            })
+        )
           .then(function(blob) {
             if (controller.signal.aborted) {
               finish(null);
@@ -1085,7 +1139,9 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
 // Shared verbatim between SpeciesOccurrenceGlobeMap.html and
 // SpeciesOccurrenceGlobeMapOffline.html — same reasoning as the Leaflet
 // scripts above.
-const GLOBE_TILE_CLASS_TRACKING_SCRIPT = `
+const GLOBE_TILE_CLASS_TRACKING_SCRIPT =
+  LOCAL_TILE_BRIDGE +
+  `
     // Tracks which categorical classes are present in the heatmap tiles
     // currently in view. Same self-healing full-recompute design as the
     // Leaflet template's layer.syncClasses (see there for why: a running
@@ -1386,6 +1442,11 @@ const GLOBE_TILE_CLASS_TRACKING_SCRIPT = `
       // (params, callback) => ({ cancel }) style.
       maplibregl.addProtocol('heatmap', function(params, abortController) {
         var realUrl = params.url.slice('heatmap://'.length);
+        if (isLocalTileUrl(realUrl)) {
+          return requestLocalTileBytes(realUrl).then(function(data) {
+            return { data: data };
+          });
+        }
         return fetch(realUrl, { signal: abortController.signal, referrerPolicy: TILE_REFERRER_POLICY })
           .then(function(response) {
             if (!response.ok) {
