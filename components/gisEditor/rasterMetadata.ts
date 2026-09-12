@@ -144,7 +144,17 @@ export const readGdalUnitType = (
 ): string | null => {
   if (!gdalMetadata) return null;
   for (const [key, value] of Object.entries(gdalMetadata)) {
-    if (key.toLowerCase() === 'unittype' && value.trim()) return value.trim();
+    if (key.toLowerCase() === 'unittype' && value.trim()) {
+      // See readWherewildConfig's comment: geotiff.js doesn't XML-unescape
+      // an Item's inner text, and buildGdalMetadataXml() escaped it.
+      return value
+        .trim()
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+    }
   }
   return null;
 };
@@ -176,7 +186,21 @@ export const readWherewildConfig = (
   const rawLegend = gdalMetadata?.WHEREWILD_LEGEND;
   if (rawLegend) {
     try {
-      const parsed: unknown = JSON.parse(rawLegend);
+      // geotiff.js's getGDALMetadata() hands back each Item's raw inner
+      // text verbatim — it does not XML-unescape it — and
+      // buildGdalMetadataXml() ran the JSON through xmlEscape() before
+      // embedding it (so a literal `"` in the XML wouldn't break the
+      // Item's own markup). `&amp;` must be unescaped last, or a legend
+      // entry whose escaped text happens to contain a literal "&quot;"
+      // sequence (from a class name with a literal `&` immediately
+      // followed by the text "quot;") would get double-unescaped.
+      const unescaped = rawLegend
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+      const parsed: unknown = JSON.parse(unescaped);
       if (Array.isArray(parsed)) {
         classes = parsed.filter(
           (c): c is { id: number; name: string; color: string | null } =>
@@ -297,15 +321,29 @@ export const inspectRaster = async (blob: Blob): Promise<RasterMetadata> => {
     bbox = undefined;
   }
 
+  // geotiff.js's getGDALMetadata(sample) filters strictly on the Item's
+  // `sample` attribute: sample=0 keeps only per-band items (where
+  // buildGdalMetadataXml puts Scale/Offset/UnitType/the RAT, sample="0",
+  // matching GDAL's own per-band convention) and drops anything with no
+  // `sample` attribute at all; sample=null is the opposite. WHEREWILD_
+  // VALUE_TYPE/WHEREWILD_LEGEND are deliberately dataset-level (no sample
+  // attribute), so they only show up in the sample=null call — a single
+  // sample=0 call, as this used to be, can never see them.
   let gdalMetadata: Record<string, string> | null = null;
+  let gdalMetadataDatasetLevel: Record<string, string> | null = null;
   try {
     gdalMetadata = full.getGDALMetadata?.(0) ?? null;
   } catch {
     gdalMetadata = null;
   }
+  try {
+    gdalMetadataDatasetLevel = full.getGDALMetadata?.(null) ?? null;
+  } catch {
+    gdalMetadataDatasetLevel = null;
+  }
   const { scale, offset } = readGdalScaleOffset(gdalMetadata);
   const units = readGdalUnitType(gdalMetadata);
-  const savedConfig = readWherewildConfig(gdalMetadata);
+  const savedConfig = readWherewildConfig(gdalMetadataDatasetLevel);
 
   return {
     width: full.getWidth(),
