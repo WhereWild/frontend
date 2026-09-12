@@ -40,6 +40,11 @@ import {
   type RenderBounds,
 } from './rasterMetadata';
 import {
+  canWriteInPlace,
+  writeTiffInPlace,
+  type WritableFileHandle,
+} from './inPlaceFileWriter';
+import {
   embedMetadataIntoTiff,
   UnsupportedTiffWriteError,
 } from './tiffMetadataWriter';
@@ -268,6 +273,17 @@ export function GisEditorScreen() {
     'idle' | 'saving' | 'saved' | 'error'
   >('idle');
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  // Set once a save actually lands, so the UI can say what really happened
+  // (patched the dropped file directly vs. downloaded a modified copy) —
+  // see inPlaceFileWriter.ts for why "in place" is worth distinguishing
+  // for a large raster.
+  const [lastSaveMode, setLastSaveMode] = React.useState<
+    'in-place' | 'download' | null
+  >(null);
+  // Only ever set for a file that arrived via drag-and-drop in a browser
+  // that exposes DataTransferItem.getAsFileSystemHandle() (Chromium) — null
+  // otherwise, which just means "save" falls back to a download.
+  const fileHandleRef = React.useRef<WritableFileHandle | null>(null);
   const saveToFile = React.useCallback(async () => {
     if (!loaded || !editableMeta) return;
     setSaveState('saving');
@@ -278,7 +294,26 @@ export function GisEditorScreen() {
         loaded.metadata,
         editableMeta,
       );
-      downloadBlob(loaded.fileName, saved);
+      const handle = fileHandleRef.current;
+      let savedInPlace = false;
+      if (handle && (await canWriteInPlace(handle))) {
+        try {
+          await writeTiffInPlace(handle, loaded.blob, saved);
+          savedInPlace = true;
+        } catch (inPlaceError) {
+          // Falls through to the full-copy download below — e.g. the
+          // handle's underlying file moved/was deleted since it was
+          // dropped, or the browser revoked permission mid-save.
+          console.error(
+            'In-place save failed, falling back to a download:',
+            inPlaceError,
+          );
+        }
+      }
+      if (!savedInPlace) {
+        downloadBlob(loaded.fileName, saved);
+      }
+      setLastSaveMode(savedInPlace ? 'in-place' : 'download');
       setSaveState('saved');
       setTimeout(() => setSaveState('idle'), 2500);
     } catch (error) {
@@ -304,6 +339,9 @@ export function GisEditorScreen() {
       return;
     }
     if (!file) return;
+    // The document picker never hands back a real filesystem handle, so a
+    // file selected this way always saves as a download.
+    fileHandleRef.current = null;
     const blob = await resolveAssetBlob(file);
     await ingest(blob, file.name, blob.size);
   }, [ingest]);
@@ -312,6 +350,7 @@ export function GisEditorScreen() {
     requestIdRef.current += 1;
     rendererRef.current?.dispose();
     rendererRef.current = null;
+    fileHandleRef.current = null;
     setRenderer(null);
     setLoaded(null);
     setEditableMeta(null);
@@ -335,6 +374,27 @@ export function GisEditorScreen() {
         setStatus('error');
         setErrorMessage('Drop a GeoTIFF (.tif or .tiff).');
         return;
+      }
+      // Chromium exposes a real writable handle to a dropped file via this
+      // (non-standard, feature-detected) API — captured here, synchronously
+      // in the drop handler, per the API's own usage pattern; the promise
+      // itself resolves later. Absent elsewhere (Firefox/Safari), so
+      // "save" there always falls back to a download.
+      fileHandleRef.current = null;
+      const item = e.dataTransfer?.items?.[0] as
+        | (DataTransferItem & {
+            getAsFileSystemHandle?: () => Promise<WritableFileHandle>;
+          })
+        | undefined;
+      if (item?.getAsFileSystemHandle) {
+        item
+          .getAsFileSystemHandle()
+          .then((handle) => {
+            if (handle && (handle as { kind?: string }).kind !== 'directory') {
+              fileHandleRef.current = handle;
+            }
+          })
+          .catch(() => {});
       }
       void ingest(file, file.name, file.size);
     };
@@ -609,13 +669,16 @@ export function GisEditorScreen() {
                         variant='bodyTiny'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        Embeds this configuration directly into a copy of the
-                        file’s own tags — the standard GDAL_METADATA tag (scale,
-                        offset, units, and for nominal/ordinal a real GDAL
-                        Raster Attribute Table QGIS can render) and GDAL_NODATA
-                        — not a separate sidecar file. Nothing else in the file
-                        is touched; re-opening the saved file here restores this
-                        exact configuration instead of re-detecting it.
+                        Embeds this configuration directly into the file’s own
+                        tags — the standard GDAL_METADATA tag (scale, offset,
+                        units, and for nominal/ordinal a real GDAL Raster
+                        Attribute Table QGIS can render) and GDAL_NODATA — not a
+                        separate sidecar file. Nothing else in the file is
+                        touched; re-opening the saved file here restores this
+                        exact configuration instead of re-detecting it. If your
+                        browser supports it, saving patches the dropped file in
+                        place (no re-download of the whole raster); otherwise it
+                        downloads a modified copy.
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button
@@ -624,7 +687,9 @@ export function GisEditorScreen() {
                             saveState === 'saving'
                               ? 'Saving…'
                               : saveState === 'saved'
-                                ? 'Saved!'
+                                ? lastSaveMode === 'in-place'
+                                  ? 'Saved in place!'
+                                  : 'Saved (downloaded copy)!'
                                 : 'Save to file'
                           }
                           disabled={saveState === 'saving'}

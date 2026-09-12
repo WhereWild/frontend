@@ -115,7 +115,7 @@ describe('buildGdalMetadataXml', () => {
       );
     });
 
-    it('omits the Red/Green/Blue columns for ordinal (no colors)', () => {
+    it('omits the Red/Green/Blue columns when no class actually has a color', () => {
       const xml = buildGdalMetadataXml({
         ...nominalEditable,
         valueType: 'ordinal',
@@ -126,6 +126,21 @@ describe('buildGdalMetadataXml', () => {
       });
       expect(xml).not.toContain('usageAsString="Red"');
       expect(xml).toContain('<Row index="0"><F>1</F><F>Low</F></Row>');
+    });
+
+    it('includes the Red/Green/Blue columns for ordinal too (its default colors are real colors)', () => {
+      const xml = buildGdalMetadataXml({
+        ...nominalEditable,
+        valueType: 'ordinal',
+        classes: [
+          { value: 1, name: 'Low', color: '#000080' },
+          { value: 2, name: 'High', color: '#800000' },
+        ],
+      });
+      expect(xml).toContain('usageAsString="Red">6<');
+      expect(xml).toContain(
+        '<Row index="0"><F>1</F><F>Low</F><F>0</F><F>0</F><F>128</F></Row>',
+      );
     });
 
     it('is absent entirely for interval/ratio/circular (no classes)', () => {
@@ -199,7 +214,95 @@ const buildMinimalTiff = (nextIfdOffset = 0): Uint8Array<ArrayBuffer> => {
   return out;
 };
 
-const parseIfd0 = async (blob: Blob) => {
+// --- A minimal hand-built BigTIFF: 16-byte header, 4 bytes of fake "pixel
+// data", then one IFD with 20-byte entries (8-byte counts/values) — same
+// tags as the classic fixture above, for exercising the 64-bit code path.
+
+const inlineShort8 = (v: number): Uint8Array => {
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setUint16(0, v, LE);
+  return b;
+};
+const inlineLong8 = (v: number): Uint8Array => {
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setBigUint64(0, BigInt(v), LE);
+  return b;
+};
+
+const buildMinimalBigTiff = (nextIfdOffset = 0): Uint8Array<ArrayBuffer> => {
+  const pixelData = new TextEncoder().encode('PXPX');
+  const pixelDataOffset = 16;
+  const ifd0Offset = pixelDataOffset + pixelData.length;
+
+  const entries: {
+    tag: number;
+    type: number;
+    count: number;
+    value: Uint8Array;
+  }[] = [
+    { tag: 256, type: 3, count: 1, value: inlineShort8(100) }, // ImageWidth
+    { tag: 257, type: 3, count: 1, value: inlineShort8(50) }, // ImageLength
+    { tag: 273, type: 4, count: 1, value: inlineLong8(pixelDataOffset) }, // StripOffsets
+  ];
+  const ifdLen = 8 + entries.length * 20 + 8;
+  const ifdBuf = new ArrayBuffer(ifdLen);
+  const ifdView = new DataView(ifdBuf);
+  ifdView.setBigUint64(0, BigInt(entries.length), LE);
+  entries.forEach((e, i) => {
+    const base = 8 + i * 20;
+    ifdView.setUint16(base, e.tag, LE);
+    ifdView.setUint16(base + 2, e.type, LE);
+    ifdView.setBigUint64(base + 4, BigInt(e.count), LE);
+    new Uint8Array(ifdBuf, base + 12, 8).set(e.value);
+  });
+  ifdView.setBigUint64(8 + entries.length * 20, BigInt(nextIfdOffset), LE);
+
+  const header = new ArrayBuffer(16);
+  const hv = new DataView(header);
+  hv.setUint8(0, 0x49);
+  hv.setUint8(1, 0x49);
+  hv.setUint16(2, 43, LE); // BigTIFF magic
+  hv.setUint16(4, 8, LE); // bytesize of offsets
+  hv.setUint16(6, 0, LE); // reserved
+  hv.setBigUint64(8, BigInt(ifd0Offset), LE);
+
+  const out = new Uint8Array(
+    header.byteLength + pixelData.length + ifdBuf.byteLength,
+  );
+  out.set(new Uint8Array(header), 0);
+  out.set(pixelData, header.byteLength);
+  out.set(new Uint8Array(ifdBuf), header.byteLength + pixelData.length);
+  return out;
+};
+
+const parseIfd0 = async (blob: Blob, big = false) => {
+  if (big) {
+    const headerBuf = await blob.slice(0, 16).arrayBuffer();
+    const ifd0Offset = Number(new DataView(headerBuf).getBigUint64(8, LE));
+    const countBuf = await blob.slice(ifd0Offset, ifd0Offset + 8).arrayBuffer();
+    const count = Number(new DataView(countBuf).getBigUint64(0, LE));
+    const ifdBuf = await blob
+      .slice(ifd0Offset, ifd0Offset + 8 + count * 20 + 8)
+      .arrayBuffer();
+    const view = new DataView(ifdBuf);
+    const entries: {
+      tag: number;
+      type: number;
+      count: number;
+      value: Uint8Array;
+    }[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const base = 8 + i * 20;
+      entries.push({
+        tag: view.getUint16(base, LE),
+        type: view.getUint16(base + 2, LE),
+        count: Number(view.getBigUint64(base + 4, LE)),
+        value: new Uint8Array(ifdBuf.slice(base + 12, base + 20)),
+      });
+    }
+    const nextIfdOffset = Number(view.getBigUint64(8 + count * 20, LE));
+    return { ifd0Offset, entries, nextIfdOffset };
+  }
   const headerBuf = await blob.slice(0, 8).arrayBuffer();
   const hv = new DataView(headerBuf);
   const ifd0Offset = hv.getUint32(4, LE);
@@ -231,10 +334,18 @@ const parseIfd0 = async (blob: Blob) => {
 const readAsciiValue = async (
   blob: Blob,
   entry: { type: number; count: number; value: Uint8Array },
+  big = false,
 ): Promise<string> => {
   let bytes: Uint8Array;
-  if (entry.count <= 4) {
+  if (entry.count <= entry.value.length) {
     bytes = entry.value.slice(0, entry.count);
+  } else if (big) {
+    const offset = Number(
+      new DataView(entry.value.buffer).getBigUint64(entry.value.byteOffset, LE),
+    );
+    bytes = new Uint8Array(
+      await blob.slice(offset, offset + entry.count).arrayBuffer(),
+    );
   } else {
     const offset = new DataView(entry.value.buffer).getUint32(
       entry.value.byteOffset,
@@ -311,10 +422,52 @@ describe('embedMetadataIntoTiff', () => {
     expect(await readAsciiValue(twice, gdalMeta)).toContain('role="scale">2<');
   });
 
-  it('rejects BigTIFF with a clear error', async () => {
-    const bytes = buildMinimalTiff();
-    new DataView(bytes.buffer).setUint16(2, 43, LE); // BigTIFF magic
-    const blob = new Blob([bytes]);
+  it('embeds metadata into a BigTIFF without disturbing existing tags or pixel data', async () => {
+    const original = buildMinimalBigTiff();
+    const blob = new Blob([original]);
+    const result = await embedMetadataIntoTiff(
+      blob,
+      baseMetadata,
+      ratioEditable,
+    );
+
+    // Original pixel bytes, at their original offset, are untouched.
+    const pixelBytes = await result.slice(16, 20).arrayBuffer();
+    expect(new TextDecoder().decode(pixelBytes)).toBe('PXPX');
+
+    const { entries, nextIfdOffset } = await parseIfd0(result, true);
+    const tags = entries.map((e) => e.tag);
+    expect(tags).toEqual([...tags].sort((a, b) => a - b));
+    expect(tags).toContain(256);
+    expect(tags).toContain(273);
+    expect(tags).toContain(42112);
+    expect(tags).toContain(42113);
+    expect(nextIfdOffset).toBe(0);
+
+    const gdalMeta = entries.find((e) => e.tag === 42112)!;
+    expect(await readAsciiValue(result, gdalMeta, true)).toContain(
+      'role="scale">0.1<',
+    );
+    const noData = entries.find((e) => e.tag === 42113)!;
+    expect(await readAsciiValue(result, noData, true)).toBe('-9999');
+  });
+
+  it('preserves the overview sub-IFD link in a BigTIFF', async () => {
+    const original = buildMinimalBigTiff(9999);
+    const blob = new Blob([original]);
+    const result = await embedMetadataIntoTiff(
+      blob,
+      baseMetadata,
+      ratioEditable,
+    );
+    const { nextIfdOffset } = await parseIfd0(result, true);
+    expect(nextIfdOffset).toBe(9999);
+  });
+
+  it('rejects a truncated/malformed BigTIFF header', async () => {
+    const blob = new Blob([
+      new Uint8Array([0x49, 0x49, 43, 0, 8, 0, 0, 0, 1, 2, 3]),
+    ]);
     await expect(
       embedMetadataIntoTiff(blob, baseMetadata, ratioEditable),
     ).rejects.toThrow(UnsupportedTiffWriteError);

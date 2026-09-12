@@ -8,6 +8,29 @@ require('react-native-gesture-handler/jestSetup');
 
 // Mock Expo Winter runtime (Expo 54+)
 global.__ExpoImportMetaRegistry = new Map();
+
+// Node's `testEnvironment: 'node'` has global Blob/File (from undici) but
+// no FileReader — geotiff.js's FileReaderSource (its Blob-reading source
+// for tiff.fromBlob()) needs one to read a raster's bytes at all, in tests
+// that exercise inspectRaster()/rasterMetadata.ts end to end against the
+// real `geotiff` library rather than mocking it out.
+if (typeof global.FileReader === 'undefined') {
+  global.FileReader = class FileReader extends EventTarget {
+    readAsArrayBuffer(blob) {
+      blob
+        .arrayBuffer()
+        .then((buffer) => {
+          this.result = buffer;
+          this.onload?.({ target: this });
+        })
+        .catch((error) => {
+          this.onerror?.(error);
+        });
+    }
+
+    abort() {}
+  };
+}
 global.localStorage = undefined;
 
 // Expose Node.js native structuredClone to Jest's test environment
@@ -80,7 +103,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   flushGetRequests: jest.fn(),
 }));
 
-// Mock useColorScheme for consistent test results. Individual suites can 
+// Mock useColorScheme for consistent test results. Individual suites can
 // unmock '@/hooks/useColorScheme' when they need the real implementation.
 // Default to 'dark' mode for tests as it is the app default.
 const mockUseColorScheme = jest.fn(() => 'dark');
