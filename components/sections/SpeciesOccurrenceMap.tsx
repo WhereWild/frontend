@@ -623,7 +623,10 @@ export function SpeciesOccurrenceMap({
     if (
       loading ||
       error ||
-      (!hasOccurrences && !heatmapTileUrl && !locationPickerMode)
+      (!hasOccurrences &&
+        !heatmapTileUrl &&
+        !locationPickerMode &&
+        localVectorLayer === undefined)
     ) {
       return;
     }
@@ -683,6 +686,7 @@ export function SpeciesOccurrenceMap({
     heatmapTileUrl,
     loading,
     locationPickerMode,
+    localVectorLayer,
     globeView,
     enableOfflineFallback,
     mapTemplate,
