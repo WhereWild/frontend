@@ -11,8 +11,6 @@ import {
   ThemedText,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
-import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { VariableHeatmapMap } from '@/components/sections/VariableHeatmapMap';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
@@ -24,11 +22,15 @@ import {
 } from '@/hooks/upload/uploadWorkflowHelpers';
 import { WebMetadata } from '@/utils/webMetadata';
 import { buildCogFixCommand } from './cogFixCommand';
-import { buildOverviewLevels } from './douglasPeucker';
+import {
+  buildOverviewLevels,
+  DEFAULT_TARGET_VERTEX_COUNT,
+} from './douglasPeucker';
 import { MetadataEditor } from './MetadataEditor';
 import { MetadataPanel } from './MetadataPanel';
 import { VectorEditor } from './VectorEditor';
 import { createCogTileRenderer, type CogTileRenderer } from './cogTileRenderer';
+import { createVectorTileRenderer } from './vectorTileRenderer';
 import type { DetectedValueType } from './dataTypeDetection';
 import {
   buildInitialEditableMeta,
@@ -51,6 +53,8 @@ import {
 } from './shapefileMetadata';
 import {
   buildInitialVectorEditableMeta,
+  toVectorVariableMeta,
+  vectorClassIndex,
   type VectorEditableMeta,
 } from './vectorEditableMeta';
 import {
@@ -65,15 +69,6 @@ import {
 
 const ACCEPTED_EXTENSIONS = ['.tif', '.tiff'] as const;
 const MAP_HEIGHT = 520;
-
-// The vector equivalent of the raster COG-checklist warning: past this many
-// total vertices across every feature, a plain "load it all as one GeoJSON
-// layer" render risks a slow/locked-up tab — see douglasPeucker.ts's doc
-// comment for why this is a load-time-only cost, unlike a raster's
-// per-zoomed-tile decode cost, and why a single simplification pass (not a
-// zoom-swapped pyramid) is the right fix here.
-const VECTOR_VERTEX_WARNING_THRESHOLD = 50000;
-const VECTOR_VERTEX_SIMPLIFY_TARGET = 20000;
 
 // 'confirm' = metadata parsed but the file fails the COG checklist — the
 // tile renderer isn't built (and the map doesn't mount) until the user
@@ -95,15 +90,7 @@ type Loaded = {
 type LoadedVector = {
   fileNameBase: string;
   metadata: VectorMetadata;
-  /** The real, full-resolution parsed data — what Save always writes back,
-   * regardless of what's currently on the map (simplification is a
-   * rendering concern only, never something that should silently degrade
-   * the user's actual data). */
   geojson: GeoJsonFeatureCollection;
-  /** What's actually bound to the map — either geojson itself, or a
-   * Douglas-Peucker-simplified copy the user opted into past the vertex
-   * warning threshold. */
-  displayGeojson: GeoJsonFeatureCollection;
 };
 
 const isBrowser = () =>
@@ -160,7 +147,7 @@ export function GisEditorScreen() {
   // map) that merging them would mean threading a lot of "which kind is
   // this" branching through code that's otherwise simple.
   const [vectorStatus, setVectorStatus] = React.useState<
-    'idle' | 'parsing' | 'confirm' | 'ready' | 'error'
+    'idle' | 'parsing' | 'ready' | 'error'
   >('idle');
   const [vectorErrorMessage, setVectorErrorMessage] = React.useState<
     string | null
@@ -170,6 +157,14 @@ export function GisEditorScreen() {
   );
   const [vectorEditable, setVectorEditable] =
     React.useState<VectorEditableMeta | null>(null);
+  // Cache-busts vectorTileRenderer's tile URLs (mirrors renderVersion for
+  // the raster path) — bumped whenever styling changes, so a re-color/
+  // rename actually gets new tiles instead of reusing what the map already
+  // cached under the old URL.
+  const [vectorRenderVersion, setVectorRenderVersion] = React.useState(0);
+  React.useEffect(() => {
+    if (vectorEditable) setVectorRenderVersion((v) => v + 1);
+  }, [vectorEditable]);
   const vectorRequestIdRef = React.useRef(0);
 
   const clearVector = React.useCallback(() => {
@@ -197,7 +192,6 @@ export function GisEditorScreen() {
           fileNameBase: fileName.replace(/\.(geo)?json$/i, ''),
           metadata,
           geojson,
-          displayGeojson: geojson,
         };
         setLoadedVector(next);
         setVectorEditable(
@@ -207,11 +201,12 @@ export function GisEditorScreen() {
             geojson.features,
           ),
         );
-        setVectorStatus(
-          metadata.vertexCount > VECTOR_VERTEX_WARNING_THRESHOLD
-            ? 'confirm'
-            : 'ready',
-        );
+        // No vertex-count warning/confirm step: vectorTileRenderer.ts
+        // renders on demand, per tile, from its own Douglas-Peucker
+        // overview pyramid (see its doc comment) — unlike the old "load the
+        // whole thing as one Leaflet/MapLibre vector layer" approach, an
+        // arbitrarily large file can't lock up the tab here.
+        setVectorStatus('ready');
       } catch (error) {
         if (vectorRequestIdRef.current !== requestId) return;
         console.error('Failed to prepare GeoJSON:', error);
@@ -226,36 +221,37 @@ export function GisEditorScreen() {
     [],
   );
 
-  // From the vertex-count warning: either simplify (Douglas-Peucker, same
-  // technique as a raster overview — see douglasPeucker.ts) before binding
-  // to the map, or render the untouched original anyway. Never touches
-  // `loadedVector.geojson` itself — Save always writes that back
-  // regardless of what's currently displayed.
-  const confirmVectorRender = React.useCallback((simplify: boolean) => {
-    setLoadedVector((prev) => {
-      if (!prev) return prev;
-      const displayGeojson = simplify
-        ? buildOverviewLevels(prev.geojson, VECTOR_VERTEX_SIMPLIFY_TARGET).at(
-            -1,
-          )!.data
-        : prev.geojson;
-      return { ...prev, displayGeojson };
-    });
-    setVectorStatus('ready');
-  }, []);
-
   const [vectorSaveState, setVectorSaveState] = React.useState<
     'idle' | 'saving' | 'saved' | 'error'
   >('idle');
   const [vectorSaveError, setVectorSaveError] = React.useState<string | null>(
     null,
   );
+  // Built once per file load, either from a cache this tool already saved
+  // alongside the file last time (shapefileMetadata.ts's
+  // cachedOverviewLevels) or fresh (douglasPeucker.ts's buildOverviewLevels)
+  // if there's no valid cache — geometry simplification never depends on
+  // styling, so this is deliberately its own memo, independent of
+  // vectorEditable, rather than something the renderer/save callback each
+  // rebuild on their own.
+  const vectorOverviewLevels = React.useMemo(() => {
+    if (!loadedVector) return null;
+    return (
+      loadedVector.metadata.cachedOverviewLevels ??
+      buildOverviewLevels(loadedVector.geojson, DEFAULT_TARGET_VERTEX_COUNT)
+    );
+  }, [loadedVector]);
+
   const saveVectorToFile = React.useCallback(async () => {
     if (!loadedVector || !vectorEditable) return;
     setVectorSaveState('saving');
     setVectorSaveError(null);
     try {
-      const blob = buildStyledGeoJson(loadedVector.geojson, vectorEditable);
+      const blob = buildStyledGeoJson(
+        loadedVector.geojson,
+        vectorEditable,
+        vectorOverviewLevels ?? undefined,
+      );
       downloadBlob(`${loadedVector.fileNameBase}.geojson`, blob);
       setVectorSaveState('saved');
       setTimeout(() => setVectorSaveState('idle'), 2500);
@@ -265,53 +261,68 @@ export function GisEditorScreen() {
         error instanceof Error ? error.message : 'Could not save this file.',
       );
     }
-  }, [loadedVector, vectorEditable]);
+  }, [loadedVector, vectorEditable, vectorOverviewLevels]);
 
-  const vectorInitialView = React.useMemo(() => {
-    const bbox = loadedVector?.metadata.bbox;
-    if (!bbox) return { lat: 0, lon: 0, zoom: 1 };
-    const lonSpan = Math.max(1e-4, bbox[2] - bbox[0]);
-    return {
-      lat: (bbox[1] + bbox[3]) / 2,
-      lon: (bbox[0] + bbox[2]) / 2,
-      zoom: Math.max(1, Math.min(14, Math.log2(360 / lonSpan))),
-    };
-  }, [loadedVector]);
+  // Read fresh by vectorTileRenderer on every tile/point-value request
+  // rather than baked in at creation — see vectorTileRenderer.ts's
+  // CreateArgs.getStyle doc comment for why a recolor/rename must never
+  // force it to rebuild the (expensive) simplification pyramid + per-
+  // feature geometry index. Assigning a ref during render like this is the
+  // standard "always read the latest value from later async code" pattern;
+  // it's idempotent and doesn't affect this render's own output.
+  const vectorStyleRef = React.useRef<{
+    classColorsById: Map<number, string>;
+    classNamesById: Map<number, string>;
+  }>({ classColorsById: new Map(), classNamesById: new Map() });
+  vectorStyleRef.current =
+    vectorEditable?.mode === 'categorical'
+      ? {
+          classColorsById: new Map(
+            vectorEditable.classes.map((c, i) => [i, c.color]),
+          ),
+          classNamesById: new Map(
+            vectorEditable.classes.map((c, i) => [i, c.name]),
+          ),
+        }
+      : {
+          classColorsById: new Map([[0, vectorEditable?.color ?? '#3388ff']]),
+          classNamesById: new Map([[0, 'All features']]),
+        };
 
-  const vectorLayerForMap = React.useMemo(() => {
-    if (!loadedVector || !vectorEditable || vectorStatus !== 'ready') {
-      return null;
-    }
-    const classColors = Object.fromEntries(
-      vectorEditable.classes.map((c) => [c.value, c.color]),
-    );
-    // Popups (see LOCAL_VECTOR_BRIDGE_LEAFLET/GLOBE) show a clicked
-    // feature's edited class *name*, not its raw field value -- the same
-    // distinction VectorEditor's own name field lets a user customize.
-    const classLabels = Object.fromEntries(
-      vectorEditable.classes.map((c) => [c.value, c.name]),
-    );
-    return {
-      geojson: loadedVector.displayGeojson,
-      style: {
-        mode: vectorEditable.mode,
-        color: vectorEditable.color,
-        field: vectorEditable.field,
-        classColors,
-        classLabels,
-      },
-    };
-  }, [loadedVector, vectorEditable, vectorStatus]);
+  // classIndexByValue only actually changes when the field/mode changes
+  // (see vectorClassIndex's doc comment: renaming/recoloring a class never
+  // changes which id a feature maps to) — deliberately NOT depending on
+  // the rest of vectorEditable, so a recolor/rename doesn't rebuild the
+  // renderer's simplification pyramid + per-feature geometry index.
+  const vectorRenderer = React.useMemo(() => {
+    if (!loadedVector || !vectorEditable || !vectorOverviewLevels) return null;
+    return createVectorTileRenderer({
+      overviewLevels: vectorOverviewLevels,
+      field:
+        vectorEditable.mode === 'categorical' ? vectorEditable.field : null,
+      classIndexByValue: vectorClassIndex(vectorEditable),
+      getStyle: () => vectorStyleRef.current,
+      bbox: loadedVector.metadata.bbox,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    loadedVector,
+    vectorOverviewLevels,
+    vectorEditable?.mode,
+    vectorEditable?.field,
+  ]);
 
-  const vectorLegendClasses = React.useMemo(() => {
-    if (!vectorEditable || vectorEditable.mode !== 'categorical') return null;
-    if (vectorEditable.classes.length === 0) return null;
-    return vectorEditable.classes.map((c) => ({
-      id: c.value,
-      name: c.name,
-      color: c.color,
-    }));
-  }, [vectorEditable]);
+  const vectorVariableMeta = React.useMemo(
+    () =>
+      loadedVector && vectorEditable
+        ? toVectorVariableMeta(
+            loadedVector.fileNameBase,
+            vectorRenderVersion,
+            vectorEditable,
+          )
+        : null,
+    [loadedVector, vectorEditable, vectorRenderVersion],
+  );
 
   const buildRenderer = React.useCallback(
     async (
@@ -969,67 +980,6 @@ export function GisEditorScreen() {
                 </View>
               ) : null}
 
-              {loadedVector && vectorEditable && vectorStatus === 'confirm' ? (
-                <View
-                  style={[
-                    styles.resultsRow,
-                    isStacked && styles.resultsColumn,
-                    { gap: responsive.gap },
-                  ]}
-                >
-                  <View style={styles.metaColumn}>
-                    <VectorEditor
-                      metadata={loadedVector.metadata}
-                      editable={vectorEditable}
-                      onChange={setVectorEditable}
-                    />
-                  </View>
-                  <View
-                    style={[
-                      styles.confirmBox,
-                      {
-                        backgroundColor: palette.background.warning.secondary,
-                        borderColor: palette.border.warning.default,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      variant='bodyEmphasis'
-                      style={{ color: palette.text.warning.default }}
-                    >
-                      {`This file has ${loadedVector.metadata.vertexCount.toLocaleString()} vertices.`}
-                    </ThemedText>
-                    <ThemedText
-                      variant='bodySmall'
-                      style={{ color: palette.text.warning.default }}
-                    >
-                      Rendering that many at once can be slow or lock up your
-                      browser tab. Simplifying reduces vertex count (the same
-                      idea as a raster overview) while keeping the shape
-                      recognizable — it only affects this preview, never what
-                      gets saved.
-                    </ThemedText>
-                    <View style={styles.actionsRow}>
-                      <Button
-                        variant='primary'
-                        label='Simplify and render'
-                        onPress={() => confirmVectorRender(true)}
-                      />
-                      <Button
-                        variant='subtle'
-                        label='Render full detail anyway'
-                        onPress={() => confirmVectorRender(false)}
-                      />
-                      <Button
-                        variant='subtle'
-                        label='Choose a different file'
-                        onPress={clearVector}
-                      />
-                    </View>
-                  </View>
-                </View>
-              ) : null}
-
               {loadedVector && vectorEditable && vectorStatus === 'ready' ? (
                 <View
                   style={[
@@ -1082,22 +1032,21 @@ export function GisEditorScreen() {
                     </View>
                   </View>
                   <View style={styles.previewColumn}>
-                    <View style={styles.vectorMapContainer}>
-                      <SpeciesOccurrenceMap
+                    {vectorRenderer && vectorVariableMeta ? (
+                      <VariableHeatmapMap
                         key={loadedVector.fileNameBase}
-                        occurrences={[]}
-                        showMarkers={false}
+                        variableMeta={vectorVariableMeta}
+                        tileSource={{
+                          kind: 'local',
+                          renderTile: vectorRenderer.renderTile,
+                          readPointValue: vectorRenderer.readPointValue,
+                        }}
                         height={MAP_HEIGHT}
-                        allowPinObservations={false}
-                        initialLat={vectorInitialView.lat}
-                        initialLon={vectorInitialView.lon}
-                        initialZoom={vectorInitialView.zoom}
-                        localVectorLayer={vectorLayerForMap}
+                        initialLat={vectorRenderer.view.lat}
+                        initialLon={vectorRenderer.view.lon}
+                        initialZoom={vectorRenderer.view.zoom}
                       />
-                      {vectorLegendClasses ? (
-                        <MapCategoricalLegend classes={vectorLegendClasses} />
-                      ) : null}
-                    </View>
+                    ) : null}
                   </View>
                 </View>
               ) : null}
@@ -1162,5 +1111,4 @@ const styles = StyleSheet.create({
   resultsColumn: { flexDirection: 'column' },
   metaColumn: { flex: 1, minWidth: 280, gap: Size.space['300'] },
   previewColumn: { flex: 1, minWidth: 320 },
-  vectorMapContainer: { position: 'relative' },
 });

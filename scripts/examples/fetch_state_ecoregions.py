@@ -84,6 +84,14 @@ ALBERS REPROJECTION
     `--country` on its own covers the lower 48 only; pass `--level 3` to
     also fetch and merge in Alaska.
 
+    Real EPA colors (see fetch_poster_colors() below) have no single
+    "national poster" to read them from -- unlike a single state run,
+    `--country` fetches and reads every state's own poster and merges their
+    {code: color} results (the same EPA code always gets the same official
+    color regardless of which state's poster it's read from), so this
+    covers every code in the merged national file at the cost of several
+    dozen extra downloads -- the slowest part of a --country run.
+
 WHY NO THIRD-PARTY DEPENDENCIES
     Standard library only (urllib, zipfile, zlib, struct, re, colorsys,
     math, json, ...) -- no `pip install` needed. The Shapefile binary formats
@@ -911,38 +919,49 @@ def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], 
     return text_runs, fills
 
 
-# --- ICC profile ('mft2'/lut16Type) CMYK -> sRGB, pure Python ---------------
+# --- ICC profile ('mft1'/lut8Type + 'mft2'/lut16Type) CMYK -> sRGB, pure Python
+
+# 'mft1' (lut8Type) and 'mft2' (lut16Type) are the same ICC.1:2001-04
+# section 6.5.7 layout at two different sample widths -- lut8Type's tables
+# are always a fixed 256 entries (no explicit size field) stored as
+# single bytes; lut16Type's are however many entries the profile declares,
+# stored as big-endian uint16 -- confirmed by hitting both in the wild
+# while writing this (Utah/Montana's posters use 'mft2'; Nevada's uses
+# 'mft1'), not just from the spec text.
+_ICC_LUT_ENTRY_FORMATS = {
+    b"mft1": ("B", 1, 255, 256),  # (struct format char, byte width, max value, fixed table size)
+    b"mft2": ("H", 2, 65535, None),  # None = table size is read from the tag itself
+}
 
 
 def _s15f16(raw: bytes) -> float:
     return struct.unpack(">i", raw)[0] / 65536.0
 
 
-def _parse_icc_lut16(tag_bytes: bytes) -> dict:
-    if tag_bytes[0:4] != b"mft2":
-        raise ValueError("expected an 'mft2' (lut16Type) ICC tag")
+def _parse_icc_lut(tag_bytes: bytes) -> dict:
+    sig = tag_bytes[0:4]
+    if sig not in _ICC_LUT_ENTRY_FORMATS:
+        raise ValueError(f"unsupported ICC LUT tag type: {sig!r} (expected mft1/mft2)")
+    entry_fmt, entry_size, max_value, fixed_table_size = _ICC_LUT_ENTRY_FORMATS[sig]
     in_ch, out_ch, grid = tag_bytes[8], tag_bytes[9], tag_bytes[10]
     offset = 12 + 9 * 4  # skip the (unused, input!=3) 3x3 matrix
-    n_in, n_out = struct.unpack(">HH", tag_bytes[offset : offset + 4])
-    offset += 4
-    input_tables = []
-    for _ in range(in_ch):
-        input_tables.append(
-            struct.unpack(">%dH" % n_in, tag_bytes[offset : offset + 2 * n_in])
+    if fixed_table_size is not None:
+        n_in = n_out = fixed_table_size
+    else:
+        n_in, n_out = struct.unpack(">HH", tag_bytes[offset : offset + 4])
+        offset += 4
+
+    def read_table(n: int) -> tuple[int, ...]:
+        nonlocal offset
+        values = struct.unpack(
+            f">{n}{entry_fmt}", tag_bytes[offset : offset + entry_size * n]
         )
-        offset += 2 * n_in
-    clut_count = grid**in_ch
-    clut = struct.unpack(
-        ">%dH" % (clut_count * out_ch),
-        tag_bytes[offset : offset + 2 * clut_count * out_ch],
-    )
-    offset += 2 * clut_count * out_ch
-    output_tables = []
-    for _ in range(out_ch):
-        output_tables.append(
-            struct.unpack(">%dH" % n_out, tag_bytes[offset : offset + 2 * n_out])
-        )
-        offset += 2 * n_out
+        offset += entry_size * n
+        return values
+
+    input_tables = [read_table(n_in) for _ in range(in_ch)]
+    clut = read_table(grid**in_ch * out_ch)
+    output_tables = [read_table(n_out) for _ in range(out_ch)]
     return {
         "in_ch": in_ch,
         "out_ch": out_ch,
@@ -950,20 +969,24 @@ def _parse_icc_lut16(tag_bytes: bytes) -> dict:
         "input_tables": input_tables,
         "clut": clut,
         "output_tables": output_tables,
+        "max_value": max_value,
     }
 
 
-def _lerp1d(table: tuple[int, ...], x: float) -> float:
+def _lerp1d(table: tuple[int, ...], x: float, max_value: int) -> float:
     pos = x * (len(table) - 1)
     i0 = int(pos)
     i1 = min(i0 + 1, len(table) - 1)
     frac = pos - i0
-    return (table[i0] * (1 - frac) + table[i1] * frac) / 65535.0
+    return (table[i0] * (1 - frac) + table[i1] * frac) / max_value
 
 
-def _eval_icc_lut16(lut: dict, inputs: tuple[float, ...]) -> list[float]:
+def _eval_icc_lut(lut: dict, inputs: tuple[float, ...]) -> list[float]:
     in_ch, out_ch, grid, clut = lut["in_ch"], lut["out_ch"], lut["grid"], lut["clut"]
-    coords = [_lerp1d(lut["input_tables"][c], inputs[c]) for c in range(in_ch)]
+    max_value = lut["max_value"]
+    coords = [
+        _lerp1d(lut["input_tables"][c], inputs[c], max_value) for c in range(in_ch)
+    ]
     scaled = [c * (grid - 1) for c in coords]
     idx0 = [min(int(s), grid - 2) for s in scaled]
     frac = [scaled[d] - idx0[d] for d in range(in_ch)]
@@ -987,7 +1010,10 @@ def _eval_icc_lut16(lut: dict, inputs: tuple[float, ...]) -> list[float]:
         vals = clut_at(indices)
         for o in range(out_ch):
             out[o] += weight * vals[o]
-    return [_lerp1d(lut["output_tables"][o], out[o] / 65535.0) for o in range(out_ch)]
+    return [
+        _lerp1d(lut["output_tables"][o], out[o] / max_value, max_value)
+        for o in range(out_ch)
+    ]
 
 
 def _lab_to_xyz_d50(l_star: float, a_star: float, b_star: float) -> tuple[float, float, float]:
@@ -1040,7 +1066,7 @@ def _cmyk_to_srgb(color, icc_lut: dict | None) -> tuple[int, int, int]:
         return tuple(round(max(0.0, min(1.0, c)) * 255) for c in (r, g, b))
     _, c, m, y, k = color
     if icc_lut is not None:
-        l_star, a_star, b_star = _eval_icc_lut16(icc_lut, (c, m, y, k))
+        l_star, a_star, b_star = _eval_icc_lut(icc_lut, (c, m, y, k))
         x, y_, z = _lab_to_xyz_d50(l_star * 100, a_star * 255 - 128, b_star * 255 - 128)
         return _xyz_d50_to_srgb(x, y_, z)
     r = (1 - c) * (1 - k)
@@ -1163,7 +1189,7 @@ def fetch_poster_colors(state_name: str) -> dict[str, str] | None:
         print("Downloading and reading its legend colors...")
         pdf_bytes = fetch(url)
         content, icc_bytes = _pdf_extract_page_content_and_icc(pdf_bytes)
-        icc_lut = _parse_icc_lut16(_find_a2b0_tag(icc_bytes)) if icc_bytes else None
+        icc_lut = _parse_icc_lut(_find_a2b0_tag(icc_bytes)) if icc_bytes else None
         text_runs, fills = _parse_pdf_content(content)
         colors = _match_legend_swatches(text_runs, fills, icc_lut)
         if not colors:
@@ -1174,6 +1200,33 @@ def fetch_poster_colors(state_name: str) -> dict[str, str] | None:
     except Exception as error:  # noqa: BLE001 - this is a best-effort enhancement
         print(f"  (couldn't read real colors from the poster: {error} -- using generated colors instead)")
         return None
+
+
+def fetch_all_poster_colors() -> dict[str, str]:
+    """The --country counterpart of fetch_poster_colors(): there's no
+    single poster covering the whole merged national file, so this fetches
+    every state's own poster and merges their {code: color} results. Safe
+    to run over every entry in STATE_NAMES unconditionally -- Hawaii (not
+    in the EPA system at all) and any state fetch_poster_colors() can't
+    read a legend from simply contribute nothing, the same per-state
+    best-effort fallback the single-state path already relies on. A dict
+    update (not a merge that would notice conflicts) is correct here
+    specifically because the whole premise this relies on is that a given
+    code's color doesn't vary by state -- confirmed for every code checked
+    while writing the single-state version of this feature."""
+    print(
+        f"Fetching real EPA colors from all {len(STATE_NAMES)} state posters "
+        "-- there's no single national poster, so this is the slowest part "
+        "of a --country run (several dozen extra downloads)..."
+    )
+    colors: dict[str, str] = {}
+    for i, state_name in enumerate(STATE_NAMES, start=1):
+        print(f"  [{i}/{len(STATE_NAMES)}] {state_name}")
+        state_colors = fetch_poster_colors(state_name)
+        if state_colors:
+            colors.update(state_colors)
+    print(f"Collected {len(colors)} real EPA legend colors across all states.")
+    return colors
 
 
 def _find_a2b0_tag(icc_bytes: bytes) -> bytes:
@@ -1277,6 +1330,11 @@ def main() -> None:
     if args.country:
         sources = fetch_country_sources(args.level)
         default_output = Path(f"united_states_ecoregions_l{args.level}.geojson")
+        # Best-effort: real EPA colors merged from every state's own poster
+        # PDF -- see fetch_all_poster_colors()'s doc comment for why this
+        # (unlike the single-state path) has to fetch every state's poster
+        # rather than just one.
+        poster_colors = fetch_all_poster_colors()
     else:
         state_name = resolve_state_name(args.state)
         print(
@@ -1291,8 +1349,7 @@ def main() -> None:
             f"{state_name.lower().replace(' ', '_')}_ecoregions_l{args.level}.geojson"
         )
         # Best-effort: real EPA colors from the state's own poster PDF (see
-        # the "Poster legend colors" section above) -- --country skips this
-        # since there's no single poster covering the whole merged file.
+        # the "Poster legend colors" section above).
         poster_colors = fetch_poster_colors(state_name)
 
     print("Parsing geometry and reprojecting to WGS84 (this is the slow part)...")

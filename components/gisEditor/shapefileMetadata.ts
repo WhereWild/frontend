@@ -7,7 +7,11 @@
 // (RFC 7946) fixes its coordinate reference system at WGS84 by spec, so
 // there's no reprojection math here at all.
 
-import { countVertices } from './douglasPeucker';
+import {
+  countVertices,
+  deserializeOverviewLevels,
+  type OverviewLevel,
+} from './douglasPeucker';
 
 export type VectorFieldType = 'string' | 'number' | 'boolean' | 'other';
 export type VectorField = {
@@ -52,6 +56,13 @@ export type VectorMetadata = {
   /** This tool's own previously-saved styling, round-tripped through
    * WW_MODE/WW_COLOR/WW_FIELD properties — see geoJsonWriter.ts. */
   savedConfig: VectorSavedConfig | null;
+  /** A Douglas-Peucker overview pyramid this tool already built and saved
+   * alongside the file last time (see douglasPeucker.ts's
+   * serializeOverviewLevels()/deserializeOverviewLevels() and
+   * geoJsonWriter.ts) — null if this file was never saved by this tool, or
+   * the cache didn't validate (wrong version/target/tolerance steps),
+   * either way meaning the caller has to build it fresh. */
+  cachedOverviewLevels: OverviewLevel[] | null;
 };
 
 export type GeoJsonFeatureCollection = {
@@ -61,6 +72,10 @@ export type GeoJsonFeatureCollection = {
     geometry: { type: string; coordinates: unknown } | null;
     properties: Record<string, unknown> | null;
   }[];
+  /** See VectorMetadata.cachedOverviewLevels's doc comment — an opaque
+   * value only douglasPeucker.ts's own serialize/deserialize functions
+   * interpret. */
+  wwOverviewPyramid?: unknown;
 };
 
 const WW_MODE_FIELD = 'WW_MODE';
@@ -199,6 +214,10 @@ const deriveVectorMetadata = (
     bbox: boundingBoxOf(geojson),
     crsLabel,
     savedConfig: readSavedConfig(geojson),
+    cachedOverviewLevels: deserializeOverviewLevels(
+      geojson.wwOverviewPyramid,
+      geojson,
+    ),
   };
 };
 
