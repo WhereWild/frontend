@@ -85,8 +85,8 @@ ALBERS REPROJECTION
     also fetch and merge in Alaska.
 
 WHY NO THIRD-PARTY DEPENDENCIES
-    Standard library only (urllib, zipfile, struct, re, colorsys, math,
-    json, ...) -- no `pip install` needed. The Shapefile binary formats
+    Standard library only (urllib, zipfile, zlib, struct, re, colorsys,
+    math, json, ...) -- no `pip install` needed. The Shapefile binary formats
     (.shp geometry, .dbf attributes) are small and stable enough to read
     directly; this doubles as a from-scratch reference for both formats,
     and for the Albers math, without pulling in pyshp/pyproj/GDAL.
@@ -109,6 +109,7 @@ import re
 import struct
 import sys
 import zipfile
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -196,11 +197,8 @@ def find_shapefile_url(state_name: str, level: int) -> str:
     candidates: list[tuple[str, str]] = []  # (url, anchor text)
     checked_pages = 0
     for region in range(1, NUM_EPA_REGIONS + 1):
-        url = EPA_REGION_PAGE.format(n=region)
-        try:
-            html = fetch(url).decode("utf-8", errors="replace")
-        except Exception as error:  # noqa: BLE001 - report and keep going
-            print(f"  (couldn't check region {region}: {error})", file=sys.stderr)
+        html = _get_region_html(region)
+        if not html:
             continue
         checked_pages += 1
         for heading, body in iter_state_sections(html):
@@ -614,7 +612,11 @@ LABEL_FIELD_NAME = "ECO_LABEL"
 
 
 def style_features(
-    features: list[dict], name_field: str, parent_field: str | None
+    features: list[dict],
+    name_field: str,
+    parent_field: str | None,
+    code_field: str | None = None,
+    poster_colors: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Adds ECO_LABEL ("<parent name> <name>", e.g. "Wasatch and Uinta
     Mountains Alpine Zone") plus WW_MODE/WW_FIELD/WW_COLOR to every
@@ -622,6 +624,14 @@ def style_features(
     this script, there's no fixed-width column to size or pad -- these are
     just plain JSON properties, added directly. Returns the
     label -> color mapping, for the printed summary.
+
+    If `poster_colors` (a code -> "#rrggbb" mapping, see fetch_poster_colors())
+    is given, a feature's own `code_field` value (e.g. US_L4CODE "19b") is
+    looked up there first -- these are EPA's actual published colors, lifted
+    from the state's own poster PDF legend, not invented. Any code missing
+    from `poster_colors` (including everything, if it's None -- --country
+    runs don't fetch a poster at all) falls back to the same generated,
+    evenly-hue-spaced palette as before, so coloring never fails outright.
     """
     for feature in features:
         props = feature["properties"]
@@ -639,16 +649,541 @@ def style_features(
     distinct_values = list(
         dict.fromkeys(f["properties"][LABEL_FIELD_NAME] for f in features)
     )
-    colors = {
-        value: default_class_color(i, len(distinct_values))
-        for i, value in enumerate(distinct_values)
-    }
+
+    # First choice: the real EPA poster color, found via this label's code.
+    colors: dict[str, str] = {}
+    if poster_colors and code_field:
+        label_to_code = {
+            f["properties"][LABEL_FIELD_NAME]: str(
+                f["properties"].get(code_field, "")
+            ).strip()
+            for f in features
+        }
+        for value in distinct_values:
+            code = label_to_code.get(value, "")
+            if code in poster_colors:
+                colors[value] = poster_colors[code]
+
+    # Fallback: the generated palette, for anything not matched above (or
+    # everything, if poster_colors wasn't available at all).
+    unmatched = [value for value in distinct_values if value not in colors]
+    for i, value in enumerate(unmatched):
+        colors[value] = default_class_color(i, len(unmatched))
+
     for feature in features:
         props = feature["properties"]
         props["WW_MODE"] = "categorical"
         props["WW_FIELD"] = LABEL_FIELD_NAME
         props["WW_COLOR"] = colors[props[LABEL_FIELD_NAME]]
     return colors
+
+
+# --- Poster legend colors (optional, best-effort) ---------------------------
+#
+# EPA's own state "poster front side" PDFs (e.g. ut_front.pdf) draw a real
+# vector legend: a small flat-filled swatch next to each ecoregion code and
+# name. Those are the actual, official, hand-chosen colors used in EPA's own
+# cartography (grouped by parent region with related shades -- nothing like
+# the generated rainbow above) -- but they're not exposed anywhere in the
+# shapefile's own attribute data, only in this PDF's vector artwork. This
+# section is a from-scratch, stdlib-only PDF content-stream reader (just
+# enough of one: FlateDecode streams, text-showing and path-fill operators)
+# that finds each legend row's swatch fill color and the code/name text next
+# to it, matched by position. Everything here is best-effort: if a state's
+# poster doesn't parse the way Utah's did (older scan, different software
+# version, whatever), fetch_poster_colors() catches it and returns None --
+# style_features() already falls back to the generated palette in that case,
+# so this can never turn into a hard failure of the whole script.
+#
+# CMYK -> RGB: EPA's posters fill paths using CMYK ('k'/'K' operators) under
+# a specific embedded ICC profile (confirmed: "U.S. Web Coated (SWOP) v2",
+# referenced from the page's /Resources as /DefaultCMYK), not naive device
+# CMYK -- a plain (1-C)(1-K) formula visibly drifts from how any real PDF
+# viewer renders these fills (verified against both Pillow/LittleCMS and a
+# poppler-rendered raster while writing this: naive formula on one swatch
+# gave (59,181,148) against a true rendered (60,146,150) -- a real, visible
+# difference in saturation). _eval_lut16()/_cmyk_to_srgb_icc() below are a
+# from-scratch reader for the ICC 'mft2' (lut16Type) tag format the embedded
+# profile uses (ICC.1:2001-04 spec, section 6.5.7) plus the standard
+# Lab->XYZ (D50)->Bradford-adapt->linear sRGB->gamma pipeline -- verified
+# against both Pillow/LittleCMS and the poppler raster to within 1-3/255 on
+# multiple real swatches, close enough to call it correct.
+
+
+def _pdf_find_object(data: bytes, num: int) -> bytes:
+    match = re.search((r"(?:^|[^0-9])%d\s+0\s+obj" % num).encode(), data)
+    if not match:
+        raise ValueError(f"PDF object {num} 0 obj not found")
+    end = data.find(b"endobj", match.end())
+    return data[match.end() : end]
+
+
+def _pdf_decode_stream(raw: bytes) -> bytes:
+    start = raw.find(b"stream")
+    start = raw.index(b"\n", start) + 1
+    end = raw.find(b"endstream")
+    stream_bytes = raw[start:end].rstrip(b"\r\n")
+    if b"/FlateDecode" in raw[: raw.find(b"stream")]:
+        return zlib.decompress(stream_bytes)
+    return stream_bytes
+
+
+def _pdf_extract_page_content_and_icc(pdf_bytes: bytes) -> tuple[bytes, bytes | None]:
+    """Returns (decoded content stream bytes of the first /Type /Page,
+    embedded ICC profile bytes if its /Resources declare a /DefaultCMYK
+    ICCBased color space, else None)."""
+    page_match = re.search(rb"/Type\s*/Page[^s]", pdf_bytes)
+    if not page_match:
+        raise ValueError("no /Type /Page found")
+    # /Type /Page appears INSIDE the page dict, not at its opening '<<' --
+    # find that first, then walk depth forward from there (not from
+    # page_match itself) so nested dicts (/Resources, /PieceInfo, ...)
+    # don't cause the closing '>>' of one of *those* to be mistaken for the
+    # page dict's own close.
+    page_dict_start = pdf_bytes.rfind(b"<<", 0, page_match.start())
+    depth = 0
+    pos = page_dict_start
+    while True:
+        open_i = pdf_bytes.find(b"<<", pos)
+        close_i = pdf_bytes.find(b">>", pos)
+        if open_i != -1 and open_i < close_i:
+            depth += 1
+            pos = open_i + 2
+        else:
+            depth -= 1
+            pos = close_i + 2
+            if depth == 0:
+                page_dict_end = close_i
+                break
+    page_dict = pdf_bytes[page_dict_start:page_dict_end]
+
+    contents_match = re.search(rb"/Contents\s+(\d+)\s+0\s+R", page_dict)
+    content_bytes = b""
+    if contents_match:
+        num = int(contents_match.group(1))
+        content_bytes = _pdf_decode_stream(_pdf_find_object(pdf_bytes, num))
+    else:
+        array_match = re.search(rb"/Contents\s*\[([^\]]+)\]", page_dict)
+        if array_match:
+            for num_str in re.findall(rb"(\d+)\s+0\s+R", array_match.group(1)):
+                content_bytes += _pdf_decode_stream(
+                    _pdf_find_object(pdf_bytes, int(num_str))
+                )
+    if not content_bytes:
+        raise ValueError("page has no /Contents")
+
+    icc_bytes = None
+    default_cmyk_match = re.search(rb"/DefaultCMYK\s+(\d+)\s+0\s+R", page_dict)
+    if default_cmyk_match:
+        try:
+            arr = _pdf_find_object(pdf_bytes, int(default_cmyk_match.group(1)))
+            iccbased_match = re.search(rb"/ICCBased\s+(\d+)\s+0\s+R", arr)
+            if iccbased_match:
+                icc_bytes = _pdf_decode_stream(
+                    _pdf_find_object(pdf_bytes, int(iccbased_match.group(1)))
+                )
+        except Exception:  # noqa: BLE001 -- ICC is an accuracy nicety, not required
+            icc_bytes = None
+    return content_bytes, icc_bytes
+
+
+_PDF_TOKEN_RE = re.compile(
+    rb"""
+      \( (?P<str> (?:[^()\\]|\\.)* ) \)
+    | (?P<num> [+-]?\d*\.\d+ | [+-]?\d+)
+    | (?P<op> [A-Za-z*'"]+)
+""",
+    re.X | re.S,
+)
+
+
+def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], list]:
+    """A from-scratch, minimal PDF content-stream interpreter -- just the
+    handful of operators a flat-colored vector legend + positioned text
+    actually uses (path construction/fill, CMYK/gray fill color, and
+    text-positioning/showing). Returns (text runs, fills):
+      text runs: (x, y, text) -- one per BT...ET block. Each glyph in these
+        posters is usually its own Tj call (sometimes several per block,
+        continuing the same visual line via Td) -- concatenating everything
+        between BT and ET (or a real line-wrapping Td) reconstructs each
+        legend row's text without needing per-glyph width tables at all,
+        since we only need the whole line, not exact per-character x.
+      fills: (xmin, ymin, xmax, ymax, (r, g, b) 0..1) -- one per path fill.
+    """
+    fill_rgb = (0.0, 0.0, 0.0)
+    tm = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+    cur_path: list[tuple[float, float]] = []
+    all_subpaths: list[list[tuple[float, float]]] = []
+    start_xy = (0.0, 0.0)
+    text_runs: list[tuple[float, float, str]] = []
+    fills: list[tuple[float, float, float, float, tuple[float, float, float]]] = []
+    block_start_xy: tuple[float, float] | None = None
+    block_chars: list[str] = []
+
+    def flush_block():
+        nonlocal block_start_xy, block_chars
+        if block_start_xy is not None and block_chars:
+            text_runs.append((block_start_xy[0], block_start_xy[1], "".join(block_chars)))
+        block_start_xy, block_chars = None, []
+
+    operands: list[tuple[str, object]] = []
+    for m in _PDF_TOKEN_RE.finditer(content):
+        if m.lastgroup == "str":
+            raw = m.group("str")
+            out = bytearray()
+            i = 0
+            escapes = {0x6E: 10, 0x72: 13, 0x74: 9, 0x62: 8, 0x66: 12, 0x28: 40, 0x29: 41, 0x5C: 92}
+            while i < len(raw):
+                c = raw[i]
+                if c == 0x5C and i + 1 < len(raw) and raw[i + 1] in escapes:
+                    out.append(escapes[raw[i + 1]])
+                    i += 2
+                    continue
+                if c == 0x5C:
+                    i += 2
+                    continue
+                out.append(c)
+                i += 1
+            operands.append(("str", bytes(out).decode("latin-1")))
+            continue
+        if m.lastgroup == "num":
+            operands.append(("num", float(m.group("num"))))
+            continue
+        op = m.group("op").decode()
+        nums = [v for (t, v) in operands if t == "num"]
+        strs = [v for (t, v) in operands if t == "str"]
+
+        if op == "BT":
+            block_start_xy, block_chars = None, []
+        elif op == "ET":
+            flush_block()
+        elif op == "Tm" and len(nums) >= 6:
+            tm = tuple(nums[-6:])
+            if block_chars:
+                flush_block()
+            block_start_xy = (tm[4], tm[5])
+        elif op in ("Td", "TD") and len(nums) >= 2:
+            a, b, c, d, e, f = tm
+            tx, ty = nums[-2:]
+            tm = (a, b, c, d, e + tx * a + ty * c, f + tx * b + ty * d)
+            if block_start_xy is None:
+                block_start_xy = (tm[4], tm[5])
+            elif abs(ty) > 0.3:
+                flush_block()
+                block_start_xy = (tm[4], tm[5])
+        elif op == "T*":
+            flush_block()
+            block_start_xy = (tm[4], tm[5])
+        elif op in ("Tj", "'", '"') and strs:
+            if block_start_xy is None:
+                block_start_xy = (tm[4], tm[5])
+            block_chars.append(strs[-1])
+        elif op == "g" and nums:
+            gray = nums[-1]
+            fill_rgb = (gray, gray, gray)
+        elif op == "rg" and len(nums) >= 3:
+            fill_rgb = tuple(nums[-3:])
+        elif op == "k" and len(nums) >= 4:
+            c_, m_, y_, k_ = nums[-4:]
+            fill_rgb = ("cmyk", c_, m_, y_, k_)
+        elif op == "m" and len(nums) >= 2:
+            if cur_path:
+                all_subpaths.append(cur_path)
+            cur_path = [tuple(nums[-2:])]
+            start_xy = cur_path[0]
+        elif op == "l" and len(nums) >= 2:
+            cur_path.append(tuple(nums[-2:]))
+        elif op in ("c", "v", "y") and len(nums) >= 2:
+            cur_path.append(tuple(nums[-2:]))
+        elif op == "h" and cur_path:
+            cur_path.append(start_xy)
+        elif op in ("f", "F", "f*", "B", "B*", "b", "b*"):
+            if cur_path:
+                all_subpaths.append(cur_path)
+            for pts in all_subpaths:
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                fills.append((min(xs), min(ys), max(xs), max(ys), fill_rgb))
+            all_subpaths, cur_path = [], []
+        elif op == "n":
+            all_subpaths, cur_path = [], []
+        operands = []
+    return text_runs, fills
+
+
+# --- ICC profile ('mft2'/lut16Type) CMYK -> sRGB, pure Python ---------------
+
+
+def _s15f16(raw: bytes) -> float:
+    return struct.unpack(">i", raw)[0] / 65536.0
+
+
+def _parse_icc_lut16(tag_bytes: bytes) -> dict:
+    if tag_bytes[0:4] != b"mft2":
+        raise ValueError("expected an 'mft2' (lut16Type) ICC tag")
+    in_ch, out_ch, grid = tag_bytes[8], tag_bytes[9], tag_bytes[10]
+    offset = 12 + 9 * 4  # skip the (unused, input!=3) 3x3 matrix
+    n_in, n_out = struct.unpack(">HH", tag_bytes[offset : offset + 4])
+    offset += 4
+    input_tables = []
+    for _ in range(in_ch):
+        input_tables.append(
+            struct.unpack(">%dH" % n_in, tag_bytes[offset : offset + 2 * n_in])
+        )
+        offset += 2 * n_in
+    clut_count = grid**in_ch
+    clut = struct.unpack(
+        ">%dH" % (clut_count * out_ch),
+        tag_bytes[offset : offset + 2 * clut_count * out_ch],
+    )
+    offset += 2 * clut_count * out_ch
+    output_tables = []
+    for _ in range(out_ch):
+        output_tables.append(
+            struct.unpack(">%dH" % n_out, tag_bytes[offset : offset + 2 * n_out])
+        )
+        offset += 2 * n_out
+    return {
+        "in_ch": in_ch,
+        "out_ch": out_ch,
+        "grid": grid,
+        "input_tables": input_tables,
+        "clut": clut,
+        "output_tables": output_tables,
+    }
+
+
+def _lerp1d(table: tuple[int, ...], x: float) -> float:
+    pos = x * (len(table) - 1)
+    i0 = int(pos)
+    i1 = min(i0 + 1, len(table) - 1)
+    frac = pos - i0
+    return (table[i0] * (1 - frac) + table[i1] * frac) / 65535.0
+
+
+def _eval_icc_lut16(lut: dict, inputs: tuple[float, ...]) -> list[float]:
+    in_ch, out_ch, grid, clut = lut["in_ch"], lut["out_ch"], lut["grid"], lut["clut"]
+    coords = [_lerp1d(lut["input_tables"][c], inputs[c]) for c in range(in_ch)]
+    scaled = [c * (grid - 1) for c in coords]
+    idx0 = [min(int(s), grid - 2) for s in scaled]
+    frac = [scaled[d] - idx0[d] for d in range(in_ch)]
+
+    def clut_at(indices: list[int]) -> tuple[int, ...]:
+        flat = 0
+        for d in range(in_ch):
+            flat = flat * grid + indices[d]
+        base = flat * out_ch
+        return clut[base : base + out_ch]
+
+    out = [0.0] * out_ch
+    for corner in range(1 << in_ch):
+        indices, weight = [], 1.0
+        for d in range(in_ch):
+            bit = (corner >> d) & 1
+            indices.append(idx0[d] + bit)
+            weight *= frac[d] if bit else (1 - frac[d])
+        if weight == 0:
+            continue
+        vals = clut_at(indices)
+        for o in range(out_ch):
+            out[o] += weight * vals[o]
+    return [_lerp1d(lut["output_tables"][o], out[o] / 65535.0) for o in range(out_ch)]
+
+
+def _lab_to_xyz_d50(l_star: float, a_star: float, b_star: float) -> tuple[float, float, float]:
+    fy = (l_star + 16) / 116
+    fx = fy + a_star / 500
+    fz = fy - b_star / 200
+
+    def finv(t: float) -> float:
+        return t**3 if t**3 > 0.008856 else (t - 16 / 116) / 7.787
+
+    xn, yn, zn = 0.9642, 1.0, 0.8249  # D50 reference white
+    return finv(fx) * xn, finv(fy) * yn, finv(fz) * zn
+
+
+def _xyz_d50_to_srgb(x: float, y: float, z: float) -> tuple[int, int, int]:
+    # Bradford chromatic adaptation D50 -> D65, then the standard linear
+    # XYZ(D65) -> linear sRGB matrix, then sRGB's gamma encoding.
+    xd = 0.9555766 * x + -0.0230393 * y + 0.0631636 * z
+    yd = -0.0282895 * x + 1.0099416 * y + 0.0210077 * z
+    zd = 0.0122982 * x + -0.0204830 * y + 1.3299098 * z
+    r = 3.2404542 * xd - 1.5371385 * yd - 0.4985314 * zd
+    g = -0.9692660 * xd + 1.8760108 * yd + 0.0415560 * zd
+    b = 0.0556434 * xd - 0.2040259 * yd + 1.0572252 * zd
+
+    def gamma(c: float) -> float:
+        c = max(0.0, min(1.0, c))
+        return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+
+    return tuple(round(max(0.0, min(1.0, gamma(c))) * 255) for c in (r, g, b))
+
+
+def _cmyk_to_srgb(color, icc_lut: dict | None) -> tuple[int, int, int]:
+    """`color` is either a plain (r, g, b) 0..1 tuple (from 'rg'/'g') or a
+    ("cmyk", c, m, y, k) tuple (from 'k'). Uses the real embedded ICC
+    profile when available (see the module docstring above this section for
+    why that matters); falls back to the naive (1-C)(1-K) formula
+    otherwise -- visibly less accurate, but still much closer to the real
+    printed colors than not using CMYK at all.
+
+    Always the swatch's raw, fully-opaque ink color: `_parse_pdf_content()`
+    only ever records the fill-color operator ('k'/'g'/'rg') immediately
+    behind a path fill, never any `gs`-set /ca /CA alpha -- confirmed
+    against Utah's own poster, whose ExtGState objects only set overprint
+    flags (/OP /op /OPM), not alpha, but this holds regardless of what a
+    given state's poster does with transparency, since alpha is never read
+    here at all.
+    """
+    if color[0] != "cmyk":
+        r, g, b = color
+        return tuple(round(max(0.0, min(1.0, c)) * 255) for c in (r, g, b))
+    _, c, m, y, k = color
+    if icc_lut is not None:
+        l_star, a_star, b_star = _eval_icc_lut16(icc_lut, (c, m, y, k))
+        x, y_, z = _lab_to_xyz_d50(l_star * 100, a_star * 255 - 128, b_star * 255 - 128)
+        return _xyz_d50_to_srgb(x, y_, z)
+    r = (1 - c) * (1 - k)
+    g = (1 - m) * (1 - k)
+    b = (1 - y) * (1 - k)
+    return tuple(round(v * 255) for v in (r, g, b))
+
+
+_LEGEND_ROW_RE = re.compile(r"^(\d+[a-z]?)\s+(.*\S)\s*$")
+
+
+def _match_legend_swatches(
+    text_runs: list[tuple[float, float, str]],
+    fills: list,
+    icc_lut: dict | None,
+) -> dict[str, str]:
+    """For each "<code> <name>" legend row (e.g. "19b Uinta Subalpine
+    Forests"), finds the small flat-fill swatch immediately to its left
+    (same row, i.e. vertically aligned within a few points, and abutting
+    its left edge) and returns {code: "#rrggbb"}. Layout assumptions here
+    (swatch directly precedes its label, roughly 5-30pt wide/5-15pt tall)
+    were derived from, and verified against, Utah's real poster -- states
+    whose posters happen to lay this out differently just won't match for
+    those rows, which is fine: the caller falls back to generated colors
+    per-code, not all-or-nothing.
+    """
+    rows = []
+    for x, y, text in text_runs:
+        m = _LEGEND_ROW_RE.match(text.rstrip())
+        if m and len(m.group(1)) <= 4:
+            rows.append((x, y, m.group(1)))
+
+    result: dict[str, str] = {}
+    for x0, y0, code in rows:
+        if code in result:
+            continue
+        best_color, best_gap = None, None
+        for fx0, fy0, fx1, fy1, color in fills:
+            w, h = fx1 - fx0, fy1 - fy0
+            if not (5 <= w <= 30 and 5 <= h <= 15):
+                continue
+            if abs((fy0 + fy1) / 2 - y0) > 6:
+                continue
+            gap = x0 - fx1
+            if not (0 <= gap <= 25):
+                continue
+            if best_gap is None or gap < best_gap:
+                best_color, best_gap = color, gap
+        if best_color is not None:
+            r, g, b = _cmyk_to_srgb(best_color, icc_lut)
+            result[code] = "#{:02x}{:02x}{:02x}".format(r, g, b)
+    return result
+
+
+_region_html_cache: dict[int, str] = {}
+
+
+def _get_region_html(region: int) -> str:
+    if region not in _region_html_cache:
+        url = EPA_REGION_PAGE.format(n=region)
+        try:
+            _region_html_cache[region] = fetch(url).decode("utf-8", errors="replace")
+        except Exception as error:  # noqa: BLE001 - report and keep going
+            print(f"  (couldn't check region {region}: {error})", file=sys.stderr)
+            _region_html_cache[region] = ""
+    return _region_html_cache[region]
+
+
+# Anchor text isn't always plain text -- e.g. Utah's own poster-front link
+# is `...poster&nbsp;<strong>front</strong>&nbsp;side...`, with "front"
+# nested inside a <strong> tag. `(.*?)` (DOTALL) plus stripping tags out of
+# the captured group afterwards (see find_poster_pdf_url()) handles that,
+# where a naive "no '<' allowed inside the anchor" pattern would silently
+# cut the text off before "front" and misclassify the link.
+_PDF_LINK_RE = re.compile(
+    r'<a\s+href="([^"]+\.pdf)"[^>]*>(.*?)</a>', re.IGNORECASE | re.S
+)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def find_poster_pdf_url(state_name: str) -> str | None:
+    """Finds the state's poster PDF -- the one with the real vector legend
+    (e.g. ut_front.pdf, "poster front side"). Falls back to a plain
+    "Level III and IV Ecoregions of <state>" map PDF (no explicit
+    front/back split -- some smaller states only publish one) if there's no
+    poster; returns None if neither exists so the caller can skip poster
+    coloring for that state without failing the whole run."""
+    front_candidates, plain_candidates = [], []
+    for region in range(1, NUM_EPA_REGIONS + 1):
+        html = _get_region_html(region)
+        if not html:
+            continue
+        for heading, body in iter_state_sections(html):
+            if heading.lower() != state_name.lower():
+                continue
+            for href, raw_text in _PDF_LINK_RE.findall(body):
+                lowered = _TAG_RE.sub("", raw_text).lower()
+                if "poster" in lowered and "front" in lowered:
+                    front_candidates.append(href)
+                elif "ecoregions of" in lowered:
+                    plain_candidates.append(href)
+    if front_candidates:
+        return front_candidates[0]
+    if plain_candidates:
+        return plain_candidates[0]
+    return None
+
+
+def fetch_poster_colors(state_name: str) -> dict[str, str] | None:
+    """Best-effort: downloads the state's poster PDF and extracts its real
+    legend colors as {code: "#rrggbb"} (e.g. {"19b": "#3a9296", ...}).
+    Returns None on any failure (missing poster, unexpected PDF structure,
+    no legend rows matched, ...) -- this is an enhancement over the
+    generated palette, never a requirement for the script to work."""
+    try:
+        url = find_poster_pdf_url(state_name)
+        if not url:
+            return None
+        print(f"Found a poster with a real legend: {url}")
+        print("Downloading and reading its legend colors...")
+        pdf_bytes = fetch(url)
+        content, icc_bytes = _pdf_extract_page_content_and_icc(pdf_bytes)
+        icc_lut = _parse_icc_lut16(_find_a2b0_tag(icc_bytes)) if icc_bytes else None
+        text_runs, fills = _parse_pdf_content(content)
+        colors = _match_legend_swatches(text_runs, fills, icc_lut)
+        if not colors:
+            print("  (couldn't match any legend rows -- using generated colors instead)")
+            return None
+        print(f"  Matched {len(colors)} real EPA legend colors.")
+        return colors
+    except Exception as error:  # noqa: BLE001 - this is a best-effort enhancement
+        print(f"  (couldn't read real colors from the poster: {error} -- using generated colors instead)")
+        return None
+
+
+def _find_a2b0_tag(icc_bytes: bytes) -> bytes:
+    tag_count = struct.unpack(">I", icc_bytes[128:132])[0]
+    for i in range(tag_count):
+        offset = 132 + i * 12
+        sig, tag_offset, tag_size = struct.unpack(">4sII", icc_bytes[offset : offset + 12])
+        if sig == b"A2B0":
+            return icc_bytes[tag_offset : tag_offset + tag_size]
+    raise ValueError("ICC profile has no A2B0 tag")
 
 
 # --- Fetching ----------------------------------------------------------------
@@ -738,6 +1273,7 @@ def main() -> None:
     if not args.country and not args.state:
         raise SystemExit("Pass a state name, or --country for the whole country.")
 
+    poster_colors: dict[str, str] | None = None
     if args.country:
         sources = fetch_country_sources(args.level)
         default_output = Path(f"united_states_ecoregions_l{args.level}.geojson")
@@ -754,12 +1290,19 @@ def main() -> None:
         default_output = Path(
             f"{state_name.lower().replace(' ', '_')}_ecoregions_l{args.level}.geojson"
         )
+        # Best-effort: real EPA colors from the state's own poster PDF (see
+        # the "Poster legend colors" section above) -- --country skips this
+        # since there's no single poster covering the whole merged file.
+        poster_colors = fetch_poster_colors(state_name)
 
     print("Parsing geometry and reprojecting to WGS84 (this is the slow part)...")
     features, fields = build_features_from_sources(sources)
 
     name_field = args.field or find_name_field(fields, args.level)
     parent_field = find_parent_name_field(fields, name_field)
+    code_field = name_field.replace("NAME", "CODE")
+    if code_field not in {f.name for f in fields}:
+        code_field = None
     if parent_field:
         print(
             f"Coloring by: {name_field}, prefixed with its {parent_field} parent "
@@ -767,7 +1310,7 @@ def main() -> None:
         )
     else:
         print(f"Coloring by: {name_field}")
-    colors = style_features(features, name_field, parent_field)
+    colors = style_features(features, name_field, parent_field, code_field, poster_colors)
 
     output_path = args.output or default_output
     output_path.parent.mkdir(parents=True, exist_ok=True)

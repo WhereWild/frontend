@@ -11,6 +11,7 @@ import {
   ThemedText,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap/MapCategoricalLegend';
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { VariableHeatmapMap } from '@/components/sections/VariableHeatmapMap';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
@@ -359,6 +360,12 @@ export function GisEditorScreen() {
     const classColors = Object.fromEntries(
       vectorEditable.classes.map((c) => [c.value, c.color]),
     );
+    // Popups (see LOCAL_VECTOR_BRIDGE_LEAFLET/GLOBE) show a clicked
+    // feature's edited class *name*, not its raw field value -- the same
+    // distinction VectorEditor's own name field lets a user customize.
+    const classLabels = Object.fromEntries(
+      vectorEditable.classes.map((c) => [c.value, c.name]),
+    );
     return {
       geojson: loadedVector.displayGeojson,
       style: {
@@ -366,9 +373,20 @@ export function GisEditorScreen() {
         color: vectorEditable.color,
         field: vectorEditable.field,
         classColors,
+        classLabels,
       },
     };
   }, [loadedVector, vectorEditable, vectorStatus]);
+
+  const vectorLegendClasses = React.useMemo(() => {
+    if (!vectorEditable || vectorEditable.mode !== 'categorical') return null;
+    if (vectorEditable.classes.length === 0) return null;
+    return vectorEditable.classes.map((c) => ({
+      id: c.value,
+      name: c.name,
+      color: c.color,
+    }));
+  }, [vectorEditable]);
 
   const buildRenderer = React.useCallback(
     async (
@@ -1174,17 +1192,22 @@ export function GisEditorScreen() {
                     </View>
                   </View>
                   <View style={styles.previewColumn}>
-                    <SpeciesOccurrenceMap
-                      key={loadedVector.fileNameBase}
-                      occurrences={[]}
-                      showMarkers={false}
-                      height={MAP_HEIGHT}
-                      allowPinObservations={false}
-                      initialLat={vectorInitialView.lat}
-                      initialLon={vectorInitialView.lon}
-                      initialZoom={vectorInitialView.zoom}
-                      localVectorLayer={vectorLayerForMap}
-                    />
+                    <View style={styles.vectorMapContainer}>
+                      <SpeciesOccurrenceMap
+                        key={loadedVector.fileNameBase}
+                        occurrences={[]}
+                        showMarkers={false}
+                        height={MAP_HEIGHT}
+                        allowPinObservations={false}
+                        initialLat={vectorInitialView.lat}
+                        initialLon={vectorInitialView.lon}
+                        initialZoom={vectorInitialView.zoom}
+                        localVectorLayer={vectorLayerForMap}
+                      />
+                      {vectorLegendClasses ? (
+                        <MapCategoricalLegend classes={vectorLegendClasses} />
+                      ) : null}
+                    </View>
                   </View>
                 </View>
               ) : null}
@@ -1249,4 +1272,5 @@ const styles = StyleSheet.create({
   resultsColumn: { flexDirection: 'column' },
   metaColumn: { flex: 1, minWidth: 280, gap: Size.space['300'] },
   previewColumn: { flex: 1, minWidth: 320 },
+  vectorMapContainer: { position: 'relative' },
 });
