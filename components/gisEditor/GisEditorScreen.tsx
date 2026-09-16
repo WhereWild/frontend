@@ -46,15 +46,9 @@ import {
 import { buildStyledGeoJson } from './geoJsonWriter';
 import {
   inspectGeoJson,
-  inspectShapefile,
   type GeoJsonFeatureCollection,
-  type ShapefileInputFiles,
   type VectorMetadata,
 } from './shapefileMetadata';
-import {
-  buildStyledShapefileZip,
-  type OriginalShapefileFiles,
-} from './shapefileWriter';
 import {
   buildInitialVectorEditableMeta,
   type VectorEditableMeta,
@@ -98,18 +92,8 @@ type Loaded = {
   detectedType: DetectedValueType | null;
 };
 
-// Which writer Save uses on this file — a shapefile bundle needs the
-// original .shp/.shx/.prj/.cpg bytes to pass through unchanged (see
-// shapefileWriter.ts); a native GeoJSON file needs nothing extra at all,
-// since styling is just new JSON properties on the same one file (see
-// geoJsonWriter.ts).
-type VectorSource =
-  | { kind: 'shapefile'; originalFiles: OriginalShapefileFiles }
-  | { kind: 'geojson' };
-
 type LoadedVector = {
   fileNameBase: string;
-  source: VectorSource;
   metadata: VectorMetadata;
   /** The real, full-resolution parsed data — what Save always writes back,
    * regardless of what's currently on the map (simplification is a
@@ -169,7 +153,7 @@ export function GisEditorScreen() {
   const requestIdRef = React.useRef(0);
   const rendererRef = React.useRef<CogTileRenderer | null>(null);
 
-  // A parallel, independent state tree for the shapefile path — kept
+  // A parallel, independent state tree for the vector (GeoJSON) path — kept
   // entirely separate from the raster state above rather than unified into
   // one "file kind" union, since so little is actually shared (a raster and
   // a vector file have almost nothing in common beyond both ending up on a
@@ -196,58 +180,6 @@ export function GisEditorScreen() {
     setVectorStatus('idle');
   }, []);
 
-  const ingestVector = React.useCallback(
-    async (input: ShapefileInputFiles & { shx?: Blob | null }) => {
-      const requestId = vectorRequestIdRef.current + 1;
-      vectorRequestIdRef.current = requestId;
-      setLoadedVector(null);
-      setVectorEditable(null);
-      setVectorErrorMessage(null);
-      setVectorStatus('parsing');
-      try {
-        const { geojson, metadata } = await inspectShapefile(input);
-        if (vectorRequestIdRef.current !== requestId) return;
-        const fileName =
-          'name' in input.shp && typeof input.shp.name === 'string'
-            ? input.shp.name
-            : 'shapefile.shp';
-        const originalFiles: OriginalShapefileFiles = {
-          shpName: fileName,
-          shp: await input.shp.arrayBuffer(),
-          shx: input.shx ? await input.shx.arrayBuffer() : null,
-          prj: input.prj ? await input.prj.arrayBuffer() : null,
-          cpg: input.cpg ? await input.cpg.arrayBuffer() : null,
-        };
-        const next: LoadedVector = {
-          fileNameBase: fileName.replace(/\.shp$/i, ''),
-          source: { kind: 'shapefile', originalFiles },
-          metadata,
-          geojson,
-          displayGeojson: geojson,
-        };
-        setLoadedVector(next);
-        setVectorEditable(
-          buildInitialVectorEditableMeta(metadata.fields, metadata.savedConfig),
-        );
-        setVectorStatus(
-          metadata.vertexCount > VECTOR_VERTEX_WARNING_THRESHOLD
-            ? 'confirm'
-            : 'ready',
-        );
-      } catch (error) {
-        if (vectorRequestIdRef.current !== requestId) return;
-        console.error('Failed to prepare shapefile:', error);
-        setVectorErrorMessage(
-          error instanceof Error
-            ? error.message
-            : 'Could not read that as a shapefile.',
-        );
-        setVectorStatus('error');
-      }
-    },
-    [],
-  );
-
   const ingestGeoJson = React.useCallback(
     async (file: Blob & { name?: string }) => {
       const requestId = vectorRequestIdRef.current + 1;
@@ -263,14 +195,17 @@ export function GisEditorScreen() {
           typeof file.name === 'string' ? file.name : 'layer.geojson';
         const next: LoadedVector = {
           fileNameBase: fileName.replace(/\.(geo)?json$/i, ''),
-          source: { kind: 'geojson' },
           metadata,
           geojson,
           displayGeojson: geojson,
         };
         setLoadedVector(next);
         setVectorEditable(
-          buildInitialVectorEditableMeta(metadata.fields, metadata.savedConfig),
+          buildInitialVectorEditableMeta(
+            metadata.fields,
+            metadata.savedConfig,
+            geojson.features,
+          ),
         );
         setVectorStatus(
           metadata.vertexCount > VECTOR_VERTEX_WARNING_THRESHOLD
@@ -320,18 +255,8 @@ export function GisEditorScreen() {
     setVectorSaveState('saving');
     setVectorSaveError(null);
     try {
-      if (loadedVector.source.kind === 'shapefile') {
-        const zip = buildStyledShapefileZip(
-          loadedVector.source.originalFiles,
-          loadedVector.geojson.features,
-          loadedVector.metadata.fields.map((f) => f.name),
-          vectorEditable,
-        );
-        downloadBlob(`${loadedVector.fileNameBase}.zip`, zip);
-      } else {
-        const blob = buildStyledGeoJson(loadedVector.geojson, vectorEditable);
-        downloadBlob(`${loadedVector.fileNameBase}.geojson`, blob);
-      }
+      const blob = buildStyledGeoJson(loadedVector.geojson, vectorEditable);
+      downloadBlob(`${loadedVector.fileNameBase}.geojson`, blob);
       setVectorSaveState('saved');
       setTimeout(() => setVectorSaveState('idle'), 2500);
     } catch (error) {
@@ -643,34 +568,6 @@ export function GisEditorScreen() {
       const files = Array.from(e.dataTransfer?.files ?? []);
       if (files.length === 0) return;
 
-      // A shapefile is a bundle, not a single file — dragging its
-      // extracted .shp alongside its .dbf/.prj/.shx/.cpg siblings is the
-      // normal gesture (see shapefileMetadata.ts's doc comment for why a
-      // .zip isn't accepted here yet: shpjs unzips internally without
-      // handing the raw component bytes back out, which Save needs to
-      // pass .shp/.shx/.prj/.cpg through unchanged).
-      const byExt = (re: RegExp) => files.find((f) => re.test(f.name)) ?? null;
-      const shpFile = byExt(/\.shp$/i);
-      if (shpFile) {
-        clear();
-        fileHandleRef.current = null;
-        void ingestVector({
-          shp: shpFile,
-          shx: byExt(/\.shx$/i),
-          dbf: byExt(/\.dbf$/i),
-          prj: byExt(/\.prj$/i),
-          cpg: byExt(/\.cpg$/i),
-        });
-        return;
-      }
-      if (files.length === 1 && /\.zip$/i.test(files[0].name)) {
-        clearVector();
-        setVectorStatus('error');
-        setVectorErrorMessage(
-          'Zipped shapefiles aren’t supported yet — unzip it and drop the .shp/.dbf/.prj files together.',
-        );
-        return;
-      }
       if (files.length === 1 && /\.(geo)?json$/i.test(files[0].name)) {
         clear();
         fileHandleRef.current = null;
@@ -682,9 +579,7 @@ export function GisEditorScreen() {
       const name = file.name.toLowerCase();
       if (!ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
         setStatus('error');
-        setErrorMessage(
-          'Drop a GeoTIFF (.tif or .tiff), a shapefile (.shp + .dbf, optionally + .prj/.shx/.cpg), or a .geojson file.',
-        );
+        setErrorMessage('Drop a GeoTIFF (.tif or .tiff) or a .geojson file.');
         return;
       }
       clearVector();
@@ -717,7 +612,7 @@ export function GisEditorScreen() {
       node.removeEventListener('dragover', onDragOver);
       node.removeEventListener('drop', onDrop);
     };
-  }, [ingest, ingestVector, ingestGeoJson, clear, clearVector]);
+  }, [ingest, ingestGeoJson, clear, clearVector]);
 
   React.useEffect(
     () => () => {
@@ -766,9 +661,8 @@ export function GisEditorScreen() {
             >
               <ThemedText variant='body'>
                 Drop a GeoTIFF below to inspect its metadata and preview it on
-                the map, drag a shapefile’s .shp together with its .dbf (and
-                .prj/.shx/.cpg, if you have them), or drop a .geojson file. The
-                file never leaves your browser.
+                the map, or drop a .geojson file. The file never leaves your
+                browser.
               </ThemedText>
 
               {React.createElement(
@@ -787,7 +681,7 @@ export function GisEditorScreen() {
                     {loaded
                       ? loaded.fileName
                       : loadedVector
-                        ? `${loadedVector.fileNameBase}.shp`
+                        ? `${loadedVector.fileNameBase}.geojson`
                         : status === 'parsing' || vectorStatus === 'parsing'
                           ? 'Reading file…'
                           : 'No file loaded'}
@@ -1087,7 +981,6 @@ export function GisEditorScreen() {
                     <VectorEditor
                       metadata={loadedVector.metadata}
                       editable={vectorEditable}
-                      geojson={loadedVector.geojson}
                       onChange={setVectorEditable}
                     />
                   </View>
@@ -1149,7 +1042,6 @@ export function GisEditorScreen() {
                     <VectorEditor
                       metadata={loadedVector.metadata}
                       editable={vectorEditable}
-                      geojson={loadedVector.geojson}
                       onChange={setVectorEditable}
                     />
 
@@ -1159,13 +1051,11 @@ export function GisEditorScreen() {
                         variant='bodyTiny'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        Downloads a .zip with your original .shp/.shx/.prj/ .cpg
-                        untouched (styling never touches geometry) plus a
-                        rebuilt .dbf carrying your original attributes and this
-                        tool’s own WW_MODE/WW_FIELD/WW_COLOR fields — real
-                        columns in the shapefile’s own attribute table, not a
-                        sidecar file. Re-opening the saved file here restores
-                        this exact styling.
+                        Downloads a .geojson with your original geometry and
+                        attributes untouched, plus this tool’s own
+                        WW_MODE/WW_FIELD/WW_COLOR properties — real properties
+                        in the file itself, not a sidecar file. Re-opening the
+                        saved file here restores this exact styling.
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button

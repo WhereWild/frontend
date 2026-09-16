@@ -2,15 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Parses a shapefile in the browser via `shpjs` (require()d at call time so
-// it never loads during SSR and rides the /gis-editor route chunk) and
-// derives the metadata the editor's UI needs — the vector counterpart of
-// rasterMetadata.ts.
-//
-// shpjs itself reprojects into WGS84 lat/lon using the .prj file (when
-// present) before we ever see the GeoJSON, so unlike the raster side there
-// is no reprojection math here at all — every bbox/geometry value below is
-// already plain WGS84 degrees.
+// Parses a dropped .geojson/.json file and derives the metadata the
+// editor's UI needs — the vector counterpart of rasterMetadata.ts. GeoJSON
+// (RFC 7946) fixes its coordinate reference system at WGS84 by spec, so
+// there's no reprojection math here at all.
 
 import { countVertices } from './douglasPeucker';
 
@@ -46,20 +41,16 @@ export type VectorSavedConfig = {
 
 export type VectorMetadata = {
   featureCount: number;
-  /** The shape type declared by the .shp header — shapefiles are
-   * single-geometry-type by format spec, so this is read off the first
-   * feature; null for an empty (0-feature) file. */
+  /** Read off the first feature; null for an empty (0-feature) file. A
+   * GeoJSON FeatureCollection isn't required to be single-geometry-type the
+   * way a shapefile is, but every file this tool has actually seen is. */
   geometryType: string | null;
   vertexCount: number;
   fields: VectorField[];
   bbox: [number, number, number, number] | null;
   crsLabel: string;
-  /** shpjs returns an array when the dropped zip contains more than one
-   * shapefile — we only ever preview the first, and surface this so the
-   * UI can say so instead of silently discarding the rest. */
-  additionalLayersInZip: number;
-  /** This tool's own previously-saved styling, round-tripped through a
-   * WW_MODE/WW_COLOR/WW_FIELD DBF field set — see shapefileWriter.ts. */
+  /** This tool's own previously-saved styling, round-tripped through
+   * WW_MODE/WW_COLOR/WW_FIELD properties — see geoJsonWriter.ts. */
   savedConfig: VectorSavedConfig | null;
 };
 
@@ -72,60 +63,9 @@ export type GeoJsonFeatureCollection = {
   }[];
 };
 
-export type ShapefileInputFiles = {
-  shp: Blob;
-  dbf?: Blob | null;
-  prj?: Blob | null;
-  cpg?: Blob | null;
-};
-
-type ShpJsModule = {
-  (
-    buffer: ArrayBuffer,
-  ): Promise<
-    | (GeoJsonFeatureCollection & { fileName?: string })
-    | GeoJsonFeatureCollection[]
-  >;
-  (input: {
-    shp: ArrayBuffer;
-    dbf?: ArrayBuffer;
-    prj?: ArrayBuffer;
-    cpg?: ArrayBuffer;
-  }): Promise<GeoJsonFeatureCollection & { fileName?: string }>;
-};
-
-const loadShp = (): ShpJsModule =>
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('shpjs');
-
-/** Recognizes the shapefile-bundle extensions this tool accepts alongside
- * the required .shp — used by GisEditorScreen to group a multi-file drop. */
-export const SHAPEFILE_COMPONENT_EXTENSIONS = [
-  '.shp',
-  '.dbf',
-  '.prj',
-  '.cpg',
-] as const;
-
 const WW_MODE_FIELD = 'WW_MODE';
 const WW_COLOR_FIELD = 'WW_COLOR';
 const WW_FIELD_FIELD = 'WW_FIELD';
-
-/** Best-effort EPSG extraction from an ESRI WKT .prj — most real-world .prj
- * files end with an AUTHORITY["EPSG","<code>"] clause on the geographic or
- * projected CRS node; falls back to a generic label when absent (older or
- * hand-written .prj files often omit it entirely — that's not this tool's
- * bug to fix, just something to be honest about in the UI). */
-const crsLabelFromPrj = (wkt: string): string => {
-  const matches = [...wkt.matchAll(/AUTHORITY\["EPSG","(\d+)"\]/g)];
-  if (matches.length > 0) {
-    const epsg = matches[matches.length - 1][1];
-    return `EPSG:${epsg} (reprojected to WGS84 for preview)`;
-  }
-  const nameMatch = /^(?:GEOGCS|PROJCS)\["([^"]+)"/.exec(wkt.trim());
-  if (nameMatch) return `${nameMatch[1]} (reprojected to WGS84 for preview)`;
-  return 'Unknown source CRS (reprojected to WGS84 for preview)';
-};
 
 const fieldTypeOf = (value: unknown): VectorFieldType => {
   if (typeof value === 'number') return 'number';
@@ -142,7 +82,7 @@ const isVectorSavedConfig = (v: unknown): v is VectorSavedConfig =>
 
 /** Reads this tool's own previously-saved styling back out of the parsed
  * properties — every feature carries the same WW_* values (see
- * shapefileWriter.ts), so the first feature's is representative. Malformed
+ * geoJsonWriter.ts), so the first feature's is representative. Malformed
  * or foreign WW_* fields (some other tool's data that happens to collide)
  * fall back to null rather than throwing, same policy as
  * rasterMetadata.ts's readWherewildConfig(). */
@@ -205,18 +145,9 @@ const boundingBoxOf = (
   return Number.isFinite(minX) ? [minX, minY, maxX, maxY] : null;
 };
 
-/**
- * Everything past "we already have GeoJSON" is shared between the
- * shapefile path (shpjs's output) and the native-GeoJSON path (a dropped
- * .geojson/.json file, parsed with nothing more than JSON.parse) — field
- * detection, bbox, vertex count, and reading back this tool's own saved
- * styling all operate on the GeoJSON shape itself, not on anything
- * shapefile-specific.
- */
 const deriveVectorMetadata = (
   geojson: GeoJsonFeatureCollection,
   crsLabel: string,
-  additionalLayersInZip: number,
 ): VectorMetadata => {
   const fieldMap = new Map<string, VectorFieldType>();
   const distinctValues = new Map<string, Set<string>>();
@@ -267,52 +198,8 @@ const deriveVectorMetadata = (
     }),
     bbox: boundingBoxOf(geojson),
     crsLabel,
-    additionalLayersInZip,
     savedConfig: readSavedConfig(geojson),
   };
-};
-
-/**
- * Parses a shapefile from either a single Blob (a .zip bundling the .shp
- * and its siblings, or a bare .shp with no attributes/CRS) or an explicit
- * {shp, dbf, prj, cpg} set (a multi-file drag-and-drop) into GeoJSON plus
- * this tool's derived metadata.
- */
-export const inspectShapefile = async (
-  input: Blob | ShapefileInputFiles,
-): Promise<{ geojson: GeoJsonFeatureCollection; metadata: VectorMetadata }> => {
-  const shp = loadShp();
-  let result: GeoJsonFeatureCollection | GeoJsonFeatureCollection[];
-  let crsLabel = 'Unknown source CRS (reprojected to WGS84 for preview)';
-
-  if (input instanceof Blob) {
-    result = await shp(await input.arrayBuffer());
-  } else {
-    const object: {
-      shp: ArrayBuffer;
-      dbf?: ArrayBuffer;
-      prj?: ArrayBuffer;
-      cpg?: ArrayBuffer;
-    } = { shp: await input.shp.arrayBuffer() };
-    if (input.dbf) object.dbf = await input.dbf.arrayBuffer();
-    if (input.prj) {
-      const prjBuffer = await input.prj.arrayBuffer();
-      object.prj = prjBuffer;
-      crsLabel = crsLabelFromPrj(new TextDecoder().decode(prjBuffer));
-    }
-    if (input.cpg) object.cpg = await input.cpg.arrayBuffer();
-    result = await shp(object);
-  }
-
-  const layers = Array.isArray(result) ? result : [result];
-  const geojson = layers[0] ?? { type: 'FeatureCollection', features: [] };
-  const metadata = deriveVectorMetadata(
-    geojson,
-    crsLabel,
-    Math.max(0, layers.length - 1),
-  );
-
-  return { geojson, metadata };
 };
 
 const isGeoJsonFeatureCollection = (
@@ -324,13 +211,12 @@ const isGeoJsonFeatureCollection = (
   Array.isArray((value as { features?: unknown }).features);
 
 /**
- * Parses a plain .geojson/.json file — no shpjs involved at all, just
- * JSON.parse. GeoJSON (RFC 7946) fixes its coordinate reference system at
- * WGS84 by spec, so unlike the shapefile path there's no .prj to read and
- * no reprojection to do; a source that used some other CRS anyway (a
- * pre-RFC-7946 file with an explicit "crs" member) isn't detected here —
- * its coordinates are taken at face value, same as every other GeoJSON
- * consumer that doesn't special-case that legacy member.
+ * Parses a plain .geojson/.json file — just JSON.parse. GeoJSON (RFC 7946)
+ * fixes its coordinate reference system at WGS84 by spec, so there's no CRS
+ * to read and no reprojection to do; a source that used some other CRS
+ * anyway (a pre-RFC-7946 file with an explicit "crs" member) isn't detected
+ * here — its coordinates are taken at face value, same as every other
+ * GeoJSON consumer that doesn't special-case that legacy member.
  */
 export const inspectGeoJson = async (
   blob: Blob,
@@ -347,6 +233,6 @@ export const inspectGeoJson = async (
       'That JSON file isn’t a GeoJSON FeatureCollection (expected a top-level `{"type": "FeatureCollection", "features": [...]}`).',
     );
   }
-  const metadata = deriveVectorMetadata(parsed, 'WGS84 (GeoJSON standard)', 0);
+  const metadata = deriveVectorMetadata(parsed, 'WGS84 (GeoJSON standard)');
   return { geojson: parsed, metadata };
 };

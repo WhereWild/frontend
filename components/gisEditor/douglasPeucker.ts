@@ -43,8 +43,8 @@ const perpendicularDistanceSq = (
 /**
  * Simplifies a single line (an open polyline, or one ring of a polygon)
  * to within `tolerance` (in the same units as the input coordinates —
- * degrees, for the WGS84 GeoJSON this always runs on post-shpjs). Always
- * keeps the first and last point, so a closed ring stays closed.
+ * degrees, for the WGS84 GeoJSON this always runs on). Always keeps the
+ * first and last point, so a closed ring stays closed.
  */
 export const simplifyLine = (points: Point[], tolerance: number): Point[] => {
   if (points.length <= 2 || tolerance <= 0) return points;
