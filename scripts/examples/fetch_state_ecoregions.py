@@ -623,48 +623,56 @@ def find_name_field(fields: list[DbfField], level: int) -> str:
     )
 
 
-def find_code_field(fields: list[DbfField], name_field: str) -> str | None:
+def find_parent_name_field(fields: list[DbfField], name_field: str) -> str | None:
     """EPA's Level IV (and III) ecoregion names aren't unique on their own
     -- the same name can recur under different parent regions (e.g. two
-    different "Salt Deserts" nested in different Level III ecoregions,
-    confirmed against real downloaded data) -- the real disambiguator is
-    the paired *_CODE column (e.g. US_L4NAME's own US_L4CODE: '13a', '13b',
-    ... -- these letter-suffixed subclass codes are exactly what EPA's own
-    published tables prefix the name with). This looks for that
-    counterpart generically (swap NAME for CODE in whatever field name is
-    actually being colored by, not hardcoded to US_L3/US_L4 specifically),
-    returning None if there isn't one -- coloring still works fine without
-    a prefix, just with less disambiguation between same-named regions.
+    different "Alpine Zone" ecoregions, one nested in the "Wasatch and
+    Uinta Mountains" Level III ecoregion and one in "Southern Rockies",
+    confirmed against real downloaded data). The real disambiguator is the
+    parent ecoregion's own name -- Level IV shapefiles carry the parent
+    Level III name right alongside as its own column (US_L4NAME's file
+    also has US_L3NAME; confirmed against a real downloaded Wyoming Level
+    IV shapefile). This looks for that one level up generically (US_L4NAME
+    -> US_L3NAME; US_L3NAME -> NA_L2NAME, since EPA's own schema switches
+    from a "US_" to "NA_" prefix at that boundary -- there's no US_L2NAME
+    at all), returning None if there isn't one -- coloring still works
+    fine without a prefix, just with less disambiguation between
+    same-named regions.
     """
-    candidate = name_field.upper().replace("NAME", "CODE")
-    if candidate == name_field.upper():
-        return None  # name_field didn't contain "NAME" at all
+    match = re.match(r"^(US|NA)_L(\d+)NAME$", name_field.upper())
+    if not match or int(match.group(2)) <= 1:
+        return None
+    prefix, level = match.group(1), int(match.group(2))
     by_upper = {f.name.upper(): f.name for f in fields}
-    return by_upper.get(candidate)
+    same_prefix = f"{prefix}_L{level - 1}NAME"
+    if same_prefix in by_upper:
+        return by_upper[same_prefix]
+    other_prefix = "NA" if prefix == "US" else "US"
+    return by_upper.get(f"{other_prefix}_L{level - 1}NAME")
 
 
 LABEL_FIELD_NAME = "ECO_LABEL"
 
 
 def add_disambiguated_labels(
-    records: list[dict[str, object]], name_field: str, code_field: str | None
+    records: list[dict[str, object]], name_field: str, parent_field: str | None
 ) -> list[dict[str, object]]:
-    """Adds a new ECO_LABEL field ("<code> <name>", e.g. "13a Salt
-    Deserts") to every record, without touching the original *_NAME/*_CODE
-    columns -- this is what gets colored by and saved as WW_FIELD, so the
-    class names shown in /gis-editor actually disambiguate same-named
-    ecoregions the way EPA's own reference tables do, while the original
-    EPA schema stays exactly as downloaded.
+    """Adds a new ECO_LABEL field ("<parent name> <name>", e.g. "Wasatch
+    and Uinta Mountains Alpine Zone") to every record, without touching
+    the original *_NAME columns -- this is what gets colored by and saved
+    as WW_FIELD, so the class names shown in /gis-editor actually
+    disambiguate same-named ecoregions the way EPA's own reference tables
+    do, while the original EPA schema stays exactly as downloaded.
     """
-    if code_field is None:
+    if parent_field is None:
         return [
             {**r, LABEL_FIELD_NAME: str(r.get(name_field, ""))} for r in records
         ]
     labeled = []
     for r in records:
-        code = str(r.get(code_field, "")).strip()
+        parent = str(r.get(parent_field, "")).strip()
         name = str(r.get(name_field, "")).strip()
-        labeled.append({**r, LABEL_FIELD_NAME: f"{code} {name}".strip()})
+        labeled.append({**r, LABEL_FIELD_NAME: f"{parent} {name}".strip()})
     return labeled
 
 
@@ -817,12 +825,15 @@ def main() -> None:
     fields, records = read_dbf(dbf_bytes)
 
     name_field = args.field or find_name_field(fields, args.level)
-    code_field = find_code_field(fields, name_field)
-    if code_field:
-        print(f"Coloring by: {code_field} + {name_field} (e.g. \"13a Salt Deserts\")")
+    parent_field = find_parent_name_field(fields, name_field)
+    if parent_field:
+        print(
+            f"Coloring by: {name_field}, prefixed with its {parent_field} parent "
+            f'(e.g. "Wasatch and Uinta Mountains Alpine Zone")'
+        )
     else:
         print(f"Coloring by: {name_field}")
-    labeled_records = add_disambiguated_labels(records, name_field, code_field)
+    labeled_records = add_disambiguated_labels(records, name_field, parent_field)
     styled_records, colors = style_records(labeled_records, LABEL_FIELD_NAME)
 
     label_length = min(254, max((len(v) for v in colors), default=1))
