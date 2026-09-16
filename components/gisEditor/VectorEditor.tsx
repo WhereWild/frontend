@@ -2,37 +2,32 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// The shapefile counterpart of MetadataPanel.tsx + MetadataEditor.tsx
+// The GeoJSON counterpart of MetadataPanel.tsx + MetadataEditor.tsx
 // combined into one panel: read-only file metadata, then the editable
-// styling (single flat color, or categorical by an attribute field —
-// same "one row per class, always a color, only nominal-equivalent lets
-// you rename" shape as the raster nominal legend editor).
+// styling. There's no field or mode picker — a vector file's attribute
+// table is always treated as categorical (nominal/ordinal) data here, with
+// the coloring field auto-picked (see vectorEditableMeta.ts's
+// autoPickField()) rather than exposed as a choice. A dropped GeoJSON's
+// column names (OBJECTID, US_L4CODE, Shape_Area, ...) aren't meaningful to
+// someone who didn't produce the file, so the only thing left to edit is
+// the resulting class list itself — each distinct value's display name and
+// color, same "one row per class, always a color" shape as the raster
+// nominal legend editor. The one exception: a file with no categorical-
+// looking field at all falls back to a single flat color, since there's
+// nothing to build a class list from.
 
 import React from 'react';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components';
-import {
-  SelectField,
-  type SelectOption,
-} from '@/components/inputs/SelectField';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import type {
-  GeoJsonFeatureCollection,
-  VectorMetadata,
-} from './shapefileMetadata';
+import type { VectorMetadata } from './shapefileMetadata';
 import {
-  withCategoricalField,
   withClassColor,
   withClassName,
   withSingleColor,
   type VectorEditableMeta,
 } from './vectorEditableMeta';
-
-const MODE_OPTIONS: SelectOption[] = [
-  { label: 'Single color', value: 'single' },
-  { label: 'Categorical (by field)', value: 'categorical' },
-];
 
 const ColorInput = ({
   value,
@@ -64,12 +59,10 @@ const ColorInput = ({
 export function VectorEditor({
   metadata,
   editable,
-  geojson,
   onChange,
 }: {
   metadata: VectorMetadata;
   editable: VectorEditableMeta;
-  geojson: GeoJsonFeatureCollection;
   onChange: (next: VectorEditableMeta) => void;
 }) {
   const scheme = useColorScheme();
@@ -79,16 +72,6 @@ export function VectorEditor({
     borderColor: palette.border.default.secondary,
   };
 
-  // Hides fields that read as a per-row ID or measurement rather than a
-  // real category (see VectorField.likelyCategorical's doc comment) — a
-  // real downloaded EPA shapefile has ~20 columns, most of which nobody
-  // would ever want to color by. Always keeps whatever's already selected
-  // visible even if it wouldn't otherwise qualify, so switching away from
-  // a currently-active odd field doesn't silently vanish it from the list.
-  const fieldOptions: SelectOption[] = metadata.fields
-    .filter((f) => f.likelyCategorical || f.name === editable.field)
-    .map((f) => ({ label: f.name, value: f.name }));
-
   const rows: [string, string][] = [
     ['Features', String(metadata.featureCount)],
     ['Geometry', metadata.geometryType ?? 'Empty'],
@@ -97,12 +80,6 @@ export function VectorEditor({
     [
       'Extent',
       metadata.bbox ? metadata.bbox.map((v) => v.toFixed(4)).join(', ') : '—',
-    ],
-    [
-      'Fields',
-      metadata.fields.length > 0
-        ? metadata.fields.map((f) => f.name).join(', ')
-        : 'None',
     ],
   ];
 
@@ -122,96 +99,45 @@ export function VectorEditor({
         ))}
       </View>
 
-      {metadata.additionalLayersInZip > 0 ? (
-        <View
-          style={[
-            styles.callout,
-            {
-              backgroundColor: palette.background.warning.secondary,
-              borderColor: palette.border.warning.default,
-            },
-          ]}
-        >
-          <ThemedText
-            variant='bodySmall'
-            style={{ color: palette.text.warning.default }}
-          >
-            {`This bundle has ${metadata.additionalLayersInZip} more layer${
-              metadata.additionalLayersInZip === 1 ? '' : 's'
-            } — only the first is previewed here.`}
-          </ThemedText>
-        </View>
-      ) : null}
-
       <ThemedText variant='subheading'>Style</ThemedText>
-      <SelectField
-        label='Color by'
-        options={MODE_OPTIONS}
-        value={editable.mode}
-        onValueChange={(v) => {
-          if (v === 'single') {
-            onChange(withSingleColor(editable, editable.color));
-          } else if (fieldOptions.length > 0) {
-            onChange(
-              withCategoricalField(
-                editable,
-                editable.field ?? fieldOptions[0].value,
-                geojson.features,
-              ),
-            );
-          }
-        }}
-      />
-
       {editable.mode === 'single' ? (
         <View style={styles.classRow}>
-          <ThemedText variant='bodySmall'>Color</ThemedText>
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.default.secondary }}
+          >
+            This file has no attribute that looks like a category — using one
+            flat color.
+          </ThemedText>
           <ColorInput
             value={editable.color}
             onChange={(color) => onChange(withSingleColor(editable, color))}
             label='Feature color'
           />
         </View>
-      ) : fieldOptions.length === 0 ? (
-        <ThemedText
-          variant='bodySmall'
-          style={{ color: palette.text.default.secondary }}
-        >
-          This file has no attribute fields to color by.
-        </ThemedText>
       ) : (
-        <>
-          <SelectField
-            label='Field'
-            options={fieldOptions}
-            value={editable.field ?? ''}
-            onValueChange={(field) =>
-              onChange(withCategoricalField(editable, field, geojson.features))
-            }
-          />
-          <View style={styles.classList} testID='gis-vector-class-list'>
-            {editable.classes.map((cls) => (
-              <View key={cls.value} style={styles.classRow}>
-                <TextInput
-                  style={[textInputStyle, styles.classNameInput]}
-                  value={cls.name}
-                  onChangeText={(t) =>
-                    onChange(withClassName(editable, cls.value, t))
-                  }
-                  placeholder='Class name'
-                  placeholderTextColor={palette.text.default.secondary}
-                />
-                <ColorInput
-                  value={cls.color}
-                  onChange={(color) =>
-                    onChange(withClassColor(editable, cls.value, color))
-                  }
-                  label={`Color for ${cls.value}`}
-                />
-              </View>
-            ))}
-          </View>
-        </>
+        <View style={styles.classList} testID='gis-vector-class-list'>
+          {editable.classes.map((cls) => (
+            <View key={cls.value} style={styles.classRow}>
+              <TextInput
+                style={[textInputStyle, styles.classNameInput]}
+                value={cls.name}
+                onChangeText={(t) =>
+                  onChange(withClassName(editable, cls.value, t))
+                }
+                placeholder='Class name'
+                placeholderTextColor={palette.text.default.secondary}
+              />
+              <ColorInput
+                value={cls.color}
+                onChange={(color) =>
+                  onChange(withClassColor(editable, cls.value, color))
+                }
+                label={`Color for ${cls.value}`}
+              />
+            </View>
+          ))}
+        </View>
       )}
     </View>
   );
@@ -227,12 +153,6 @@ const styles = StyleSheet.create({
   },
   rowLabel: { width: 108, flexShrink: 0, opacity: 0.7 },
   rowValue: { flex: 1 },
-  callout: {
-    borderWidth: 1,
-    borderRadius: Size.radius['200'],
-    padding: Size.space['300'],
-    gap: Size.space['200'],
-  },
   classList: { gap: Size.space['200'] },
   classRow: {
     flexDirection: 'row',

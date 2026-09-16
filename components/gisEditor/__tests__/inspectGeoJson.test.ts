@@ -71,6 +71,40 @@ describe('inspectGeoJson', () => {
     expect(geojson.features[0].properties?.LAND_USE).toBe('Forest');
   });
 
+  it('flags a numeric field as non-categorical when every row is unique (an ID/measurement), but not a low-cardinality one', async () => {
+    const feature = (objectid: number, region: number, name: string) => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [0, 1],
+            [1, 1],
+            [1, 0],
+            [0, 0],
+          ],
+        ],
+      },
+      properties: { OBJECTID: objectid, EPA_REGION: region, NAME: name },
+    });
+    const fc = {
+      type: 'FeatureCollection',
+      features: [
+        feature(1, 8, 'A'),
+        feature(2, 8, 'B'),
+        feature(3, 9, 'A'),
+        feature(4, 9, 'B'),
+      ],
+    };
+    const { metadata } = await inspectGeoJson(new Blob([JSON.stringify(fc)]));
+    expect(metadata.fields).toEqual([
+      { name: 'OBJECTID', type: 'number', likelyCategorical: false },
+      { name: 'EPA_REGION', type: 'number', likelyCategorical: true },
+      { name: 'NAME', type: 'string', likelyCategorical: true },
+    ]);
+  });
+
   it('rejects invalid JSON with a clear error', async () => {
     const blob = new Blob(['not json at all {']);
     await expect(inspectGeoJson(blob)).rejects.toThrow('valid JSON');

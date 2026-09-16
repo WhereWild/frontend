@@ -59,14 +59,24 @@ const classesFor = (values: string[]): VectorClass[] =>
 const classesFromSaved = (saved: VectorSavedConfig['classes']): VectorClass[] =>
   saved.map((c) => ({ ...c }));
 
+/** A vector file's attribute table is always this tool's stand-in for
+ * "categorical data" — see VectorEditor.tsx's doc comment for why there's
+ * no field/mode picker in the UI at all. Without a previously-saved field
+ * to restore, this just picks the first column that looks like a real
+ * category (VectorField.likelyCategorical) rather than leaving the user
+ * with nothing styled until they intervene. */
+const autoPickField = (fields: VectorField[]): string | null =>
+  fields.find((f) => f.likelyCategorical)?.name ?? null;
+
 export const buildInitialVectorEditableMeta = (
   fields: VectorField[],
   savedConfig: VectorSavedConfig | null,
+  features: { properties: Record<string, unknown> | null }[],
 ): VectorEditableMeta => {
   // A saved field that no longer exists in this file's own attribute table
   // (edited outside this tool since the last save, or just corrupt WW_*
-  // metadata) can't drive categorical mode — falls back to single-color
-  // rather than pointing at a field that isn't there.
+  // metadata) can't drive categorical mode — falls back to auto-picking one
+  // instead, same as if there were no saved config at all.
   const savedFieldStillExists =
     savedConfig?.field != null &&
     fields.some((f) => f.name === savedConfig.field);
@@ -81,12 +91,14 @@ export const buildInitialVectorEditableMeta = (
           : [],
     };
   }
-  return {
+  const base: VectorEditableMeta = {
     mode: 'single',
     color: DEFAULT_SINGLE_COLOR,
     field: null,
     classes: [],
   };
+  const autoField = autoPickField(fields);
+  return autoField ? withCategoricalField(base, autoField, features) : base;
 };
 
 /** Applies a manual switch to categorical mode for `field`, deriving a
