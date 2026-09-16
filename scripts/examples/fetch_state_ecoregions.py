@@ -38,15 +38,19 @@ WHAT THIS DOES
     EPA's own seamless nationwide file for the lower 48
     (us_eco_l3.zip/us_eco_l4.zip -- confirmed to exist on
     https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states
-    while writing this) and adds Alaska (not included in that file, and not
-    available at Level IV at all) from its own per-state file. No file
-    anywhere combines the two at this same "US_L3/US_L4" level of detail
-    (checked, including the EPA's continent-wide NA_CEC_Eco_Level3.zip,
-    which turns out to be a coarser, different classification without the
-    US_L3 refinement at all) -- so the two are reprojected into one shared
-    plain-geographic coordinate space and merged here. Hawaii isn't part of
-    the EPA's ecoregion system at all (checked all 10 region pages) and
-    can't be included from this data source.
+    while writing this) and adds Alaska (not included in that file) from its
+    own per-state file. No file anywhere combines the two at this same
+    "US_L3/US_L4" level of detail (checked, including the EPA's
+    continent-wide NA_CEC_Eco_Level3.zip, which turns out to be a coarser,
+    different classification without the US_L3 refinement at all) -- so the
+    two are reprojected into one shared plain-geographic coordinate space
+    and merged here. Hawaii isn't part of the EPA's ecoregion system at all
+    (checked all 10 region pages) and can't be included from this data
+    source.
+
+    Alaska has no Level IV data at all -- since --level defaults to 4,
+    `--country` on its own covers the lower 48 only; pass `--level 3` to
+    also fetch and merge in Alaska.
 
     The reprojection is real ellipsoidal Albers Equal-Area Conic math
     (Snyder 1987), not an approximation -- its parameters are read straight
@@ -66,8 +70,9 @@ WHY NO THIRD-PARTY DEPENDENCIES
 
 USAGE
     python3 fetch_state_ecoregions.py "Montana"
-    python3 fetch_state_ecoregions.py "New York" --level 4 --output ./layers
+    python3 fetch_state_ecoregions.py "New York" --level 3 --output ./layers
     python3 fetch_state_ecoregions.py --country
+    python3 fetch_state_ecoregions.py --country --level 3   # also include Alaska
 """
 
 from __future__ import annotations
@@ -718,12 +723,12 @@ def main() -> None:
         "--level",
         type=int,
         choices=(3, 4),
-        default=3,
-        help="EPA ecoregion level of detail (default: 3, coarser/smaller)",
+        default=4,
+        help="EPA ecoregion level of detail (default: 4, finer/more detailed)",
     )
     parser.add_argument(
         "--field",
-        help="Attribute field to color by (default: auto-detected, e.g. US_L3NAME)",
+        help="Attribute field to color by (default: auto-detected, e.g. US_L4NAME)",
     )
     parser.add_argument(
         "--output",
