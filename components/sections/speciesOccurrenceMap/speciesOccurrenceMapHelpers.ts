@@ -14,6 +14,10 @@ import {
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
+// The GIS editor's local vector (shapefile) overlay — see
+// LOCAL_VECTOR_BRIDGE_LEAFLET/LOCAL_VECTOR_BRIDGE_GLOBE below for what
+// consumes it in each renderer.
+export const VECTOR_LAYER_MESSAGE_TYPE = 'vectorLayer';
 export const LOCATE_MESSAGE_TYPE = 'locate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
@@ -855,6 +859,119 @@ const LOCAL_TILE_BRIDGE = `
     }
 `;
 
+// The GIS editor's local vector (shapefile) overlay. `style` is
+// `{ mode: 'single' | 'categorical', color, field, classColors }` —
+// classColors keys are String(feature.properties[field]) values, matching
+// how MapLibre's ['to-string', ['get', field]] expression below and
+// Leaflet's own String(...) lookup both key their own per-feature color
+// resolution, so the same style object drives both renderers identically.
+// Appended to both heatmap tracking scripts (the same pattern as
+// LOCAL_TILE_BRIDGE above), so Leaflet and the globe each get their own
+// renderer-appropriate implementation of the same 'vectorLayer' message.
+const LOCAL_VECTOR_BRIDGE_LEAFLET = `
+    var __localVectorLayer = null;
+    function __localVectorColor(style, properties) {
+      if (style.mode === 'categorical' && style.field && style.classColors) {
+        var raw = properties ? properties[style.field] : null;
+        var color = raw != null ? style.classColors[String(raw)] : null;
+        return color || '#888888';
+      }
+      return style.color || '#3388ff';
+    }
+    function applyLocalVectorLayer(geojson, style) {
+      if (__localVectorLayer) {
+        map.removeLayer(__localVectorLayer);
+        __localVectorLayer = null;
+      }
+      if (!geojson || !style) return;
+      __localVectorLayer = L.geoJSON(geojson, {
+        style: function(feature) {
+          var color = __localVectorColor(style, feature && feature.properties);
+          return { color: color, weight: 2, fillColor: color, fillOpacity: 0.35 };
+        },
+        pointToLayer: function(feature, latlng) {
+          var color = __localVectorColor(style, feature && feature.properties);
+          return L.circleMarker(latlng, {
+            radius: 5, color: '#ffffff', weight: 1, fillColor: color, fillOpacity: 0.9,
+          });
+        },
+      }).addTo(map);
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('message', function(event) {
+        var d = event.data;
+        if (d && typeof d === 'object' && d.type === 'vectorLayer') {
+          applyLocalVectorLayer(d.geojson, d.style);
+        }
+      });
+    }
+`;
+
+const LOCAL_VECTOR_BRIDGE_GLOBE = `
+    var LOCAL_VECTOR_SOURCE_ID = 'localVectorSource';
+    var LOCAL_VECTOR_LAYER_IDS = ['localVectorFill', 'localVectorLine', 'localVectorPoint'];
+    function __localVectorColorExpr(style) {
+      if (style.mode === 'categorical' && style.field && style.classColors) {
+        var expr = ['match', ['to-string', ['get', style.field]]];
+        Object.keys(style.classColors).forEach(function(k) {
+          expr.push(k, style.classColors[k]);
+        });
+        expr.push(style.color || '#888888');
+        return expr;
+      }
+      return style.color || '#3388ff';
+    }
+    function applyLocalVectorLayer(geojson, style) {
+      var existingSource = map.getSource(LOCAL_VECTOR_SOURCE_ID);
+      if (!geojson || !style) {
+        if (existingSource) existingSource.setData({ type: 'FeatureCollection', features: [] });
+        return;
+      }
+      var colorExpr = __localVectorColorExpr(style);
+      if (existingSource) {
+        existingSource.setData(geojson);
+        LOCAL_VECTOR_LAYER_IDS.forEach(function(id) {
+          if (!map.getLayer(id)) return;
+          var prop = id === 'localVectorPoint' ? 'circle-color' : (id === 'localVectorFill' ? 'fill-color' : 'line-color');
+          map.setPaintProperty(id, prop, colorExpr);
+          if (id === 'localVectorFill') map.setPaintProperty(id, 'fill-outline-color', colorExpr);
+        });
+        return;
+      }
+      map.addSource(LOCAL_VECTOR_SOURCE_ID, { type: 'geojson', data: geojson });
+      // Three type-filtered layers off one source — the standard MapLibre
+      // way to style mixed geometry types differently (a shapefile is
+      // single-type by format spec, but GeoJSON in general isn't, and this
+      // costs nothing extra when every feature is the same type).
+      map.addLayer({
+        id: 'localVectorFill', type: 'fill', source: LOCAL_VECTOR_SOURCE_ID,
+        filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
+        paint: { 'fill-color': colorExpr, 'fill-opacity': 0.35, 'fill-outline-color': colorExpr },
+      });
+      map.addLayer({
+        id: 'localVectorLine', type: 'line', source: LOCAL_VECTOR_SOURCE_ID,
+        filter: ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false],
+        paint: { 'line-color': colorExpr, 'line-width': 2 },
+      });
+      map.addLayer({
+        id: 'localVectorPoint', type: 'circle', source: LOCAL_VECTOR_SOURCE_ID,
+        filter: ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false],
+        paint: {
+          'circle-color': colorExpr, 'circle-radius': 5,
+          'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1,
+        },
+      });
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('message', function(event) {
+        var d = event.data;
+        if (d && typeof d === 'object' && d.type === 'vectorLayer') {
+          applyLocalVectorLayer(d.geojson, d.style);
+        }
+      });
+    }
+`;
+
 const LEAFLET_HEATMAP_TRACKING_SCRIPT =
   LOCAL_TILE_BRIDGE +
   `
@@ -1171,7 +1288,8 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT =
       // has settled" here instead.
       map.on('moveend', scheduleClassSync);
     }
-`;
+` +
+  LOCAL_VECTOR_BRIDGE_LEAFLET;
 
 // Shared verbatim between SpeciesOccurrenceGlobeMap.html and
 // SpeciesOccurrenceGlobeMapOffline.html — same reasoning as the Leaflet
@@ -1517,7 +1635,8 @@ const GLOBE_TILE_CLASS_TRACKING_SCRIPT =
           });
       });
     }
-`;
+` +
+  LOCAL_VECTOR_BRIDGE_GLOBE;
 
 const GLOBE_RESIZE_OBSERVER_SCRIPT = `
     // MapLibre caches its container's pixel size at init and never

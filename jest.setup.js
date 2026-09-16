@@ -31,6 +31,16 @@ if (typeof global.FileReader === 'undefined') {
     abort() {}
   };
 }
+
+// `shpjs`'s package.json "exports" resolves `require('shpjs')` to its
+// pre-bundled dist/shp.js (a browser-`<script>`-style build, per its own
+// require/import export-condition split — see shapefileMetadata.ts's doc
+// comment) — that bundle references the standard `self` global (the same
+// object as `window`/`global` in every real browser or worker context)
+// unconditionally, which plain Node doesn't define.
+if (typeof global.self === 'undefined') {
+  global.self = global;
+}
 global.localStorage = undefined;
 
 // Expose Node.js native structuredClone to Jest's test environment
