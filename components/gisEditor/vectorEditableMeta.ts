@@ -9,6 +9,7 @@
 // same defaultClassColor() palette, same "user can repaint any swatch"
 // model).
 
+import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
 import { defaultClassColor } from './paletteColors';
 import type { VectorField, VectorSavedConfig } from './shapefileMetadata';
 
@@ -143,4 +144,51 @@ export const withClassName = (
   classes: editable.classes.map((c) =>
     c.value === value ? { ...c, name } : c,
   ),
+});
+
+/**
+ * Maps a distinct field value to the synthetic integer class id
+ * vectorTileRenderer.ts's rasterizer and VariableHeatmapMap's (numeric-id-
+ * only) legend/classFilter both key on — see vectorTileRenderer.ts's doc
+ * comment for why an id, not the raw string, is what actually flows
+ * through the shared raster pipeline. Single-color mode has no field at
+ * all, so every feature is treated as one synthetic class, id 0.
+ */
+export const vectorClassIndex = (
+  editable: VectorEditableMeta,
+): Map<string, number> =>
+  editable.mode === 'categorical'
+    ? new Map(editable.classes.map((c, i) => [c.value, i]))
+    : new Map();
+
+/** Same EnvironmentVariableOption shape rasterEditableMeta.ts's
+ * toEnvironmentVariableOption() builds for a raster — this is what lets
+ * the vector path drive the exact same VariableHeatmapMap (legend,
+ * classFilter toggling, opacity, click-to-read-a-value) instead of a
+ * separate implementation. Single-color mode still gets one legend class
+ * ("All features") rather than no legend at all, since it's the same
+ * underlying mechanism (an id -> color lookup) either way.
+ */
+export const toVectorVariableMeta = (
+  fileNameBase: string,
+  version: number,
+  editable: VectorEditableMeta,
+): EnvironmentVariableOption => ({
+  id: 'local-vector',
+  label: fileNameBase,
+  units: null,
+  valueType: 'nominal',
+  category: 'Local vector',
+  sourceIds: [],
+  legendClasses:
+    editable.mode === 'categorical'
+      ? editable.classes.map((c, i) => ({
+          id: i,
+          name: c.name,
+          color: c.color,
+        }))
+      : [{ id: 0, name: 'All features', color: editable.color }],
+  renderMin: null,
+  renderMax: null,
+  version,
 });

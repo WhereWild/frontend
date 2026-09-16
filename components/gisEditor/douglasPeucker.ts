@@ -86,7 +86,7 @@ export const simplifyLine = (points: Point[], tolerance: number): Point[] => {
   return result;
 };
 
-type Geometry = {
+export type Geometry = {
   type: string;
   coordinates: unknown;
 };
@@ -234,6 +234,102 @@ export const buildOverviewLevels = (
     const simplified = simplifyFeatureCollection(fc, tolerance);
     levels.push({ tolerance, data: simplified });
     if (countVertices(simplified) <= targetVertexCount) break;
+  }
+  return levels;
+};
+
+/** The one targetVertexCount every caller actually uses — a real per-call
+ * argument in buildOverviewLevels()'s own signature (it's a pure, reusable
+ * function), but fixed in practice so a cached pyramid (see below) has a
+ * single obvious value to check itself against. */
+export const DEFAULT_TARGET_VERTEX_COUNT = 20000;
+
+// Bump this if buildOverviewLevels' own algorithm or OVERVIEW_TOLERANCE_STEPS
+// ever change — deserializeOverviewLevels() rejects (falls back to
+// recomputing from scratch) any cached pyramid whose version doesn't match,
+// so an older save never gets silently reconstructed against since-changed
+// simplification behavior.
+const OVERVIEW_CACHE_VERSION = 1;
+
+export type SerializedOverviewPyramid = {
+  version: number;
+  targetVertexCount: number;
+  toleranceSteps: number[];
+  // Level 0 (the untouched original) is never serialized — it's already
+  // `geojson.features` itself, nothing extra to cache. One geometry (or
+  // null, for a feature simplification dropped entirely at that tolerance
+  // — see simplifyFeatureCollection's doc comment) per ORIGINAL feature, in
+  // the original's own index order, so reconstruction never needs to
+  // re-derive which cached entry belongs to which source feature.
+  levels: { tolerance: number; geometries: (Geometry | null)[] }[];
+};
+
+const isSerializedOverviewPyramid = (
+  v: unknown,
+): v is SerializedOverviewPyramid =>
+  !!v &&
+  typeof v === 'object' &&
+  typeof (v as SerializedOverviewPyramid).version === 'number' &&
+  typeof (v as SerializedOverviewPyramid).targetVertexCount === 'number' &&
+  Array.isArray((v as SerializedOverviewPyramid).toleranceSteps) &&
+  Array.isArray((v as SerializedOverviewPyramid).levels);
+
+/**
+ * Packs a pyramid buildOverviewLevels() already built into the compact,
+ * index-aligned shape above, for a caller (geoJsonWriter.ts) to embed in
+ * the saved file as an extra top-level member — invisible to any GeoJSON
+ * reader that doesn't know to look for it (RFC 7946 doesn't forbid extra
+ * top-level members, and this tool's own isGeoJsonFeatureCollection() type
+ * guard only ever checks `type`/`features`).
+ */
+export const serializeOverviewLevels = (
+  levels: OverviewLevel[],
+): SerializedOverviewPyramid => ({
+  version: OVERVIEW_CACHE_VERSION,
+  targetVertexCount: DEFAULT_TARGET_VERTEX_COUNT,
+  toleranceSteps: OVERVIEW_TOLERANCE_STEPS,
+  levels: levels.slice(1).map((level) => ({
+    tolerance: level.tolerance,
+    geometries: level.data.features.map((f) => f.geometry),
+  })),
+});
+
+/**
+ * The inverse of serializeOverviewLevels() — reconstructs a full
+ * OverviewLevel[] (level 0 = `original` itself, untouched) against
+ * `original`'s own features/properties, or returns null on ANY mismatch
+ * (wrong version, different target/tolerance steps a code change since
+ * introduced, or a geometry count that doesn't match `original.features`
+ * — e.g. the file was hand-edited by something else between save and
+ * reopen) so the caller falls back to recomputing from scratch rather than
+ * risk reconstructing against stale or foreign cached data.
+ */
+export const deserializeOverviewLevels = <T extends FeatureCollection>(
+  cached: unknown,
+  original: T,
+): OverviewLevel[] | null => {
+  if (!isSerializedOverviewPyramid(cached)) return null;
+  if (cached.version !== OVERVIEW_CACHE_VERSION) return null;
+  if (cached.targetVertexCount !== DEFAULT_TARGET_VERTEX_COUNT) return null;
+  if (
+    cached.toleranceSteps.length !== OVERVIEW_TOLERANCE_STEPS.length ||
+    cached.toleranceSteps.some((t, i) => t !== OVERVIEW_TOLERANCE_STEPS[i])
+  ) {
+    return null;
+  }
+  const levels: OverviewLevel[] = [{ tolerance: 0, data: original }];
+  for (const level of cached.levels) {
+    if (level.geometries.length !== original.features.length) return null;
+    levels.push({
+      tolerance: level.tolerance,
+      data: {
+        ...original,
+        features: original.features.map((f, i) => ({
+          ...f,
+          geometry: level.geometries[i],
+        })),
+      },
+    });
   }
   return levels;
 };

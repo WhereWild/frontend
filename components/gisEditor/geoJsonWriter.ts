@@ -9,6 +9,7 @@
 // object and re-serializing. shapefileMetadata.ts's readSavedConfig() is
 // what reads them back on reopen.
 
+import { serializeOverviewLevels, type OverviewLevel } from './douglasPeucker';
 import type { GeoJsonFeatureCollection } from './shapefileMetadata';
 import type { VectorEditableMeta } from './vectorEditableMeta';
 
@@ -52,15 +53,31 @@ export const applyStylingToProperties = (
   });
 };
 
+/**
+ * `overviewLevels`, when given, is the Douglas-Peucker pyramid the preview
+ * already built for this exact file this session (see
+ * vectorTileRenderer.ts) — embedding it lets a later re-open of this saved
+ * file (see shapefileMetadata.ts's cachedOverviewLevels) skip rebuilding it
+ * from scratch. Omit it (e.g. a caller that never previewed the file,
+ * hypothetically) and the saved file just has no cache to find, same as
+ * any file this tool didn't produce.
+ */
 export const buildStyledGeoJson = (
   geojson: GeoJsonFeatureCollection,
   editable: VectorEditableMeta,
+  overviewLevels?: OverviewLevel[],
 ): Blob => {
   const styledProperties = applyStylingToProperties(geojson.features, editable);
   const features = geojson.features.map((f, i) => ({
     ...f,
     properties: styledProperties[i].properties,
   }));
-  const styled: GeoJsonFeatureCollection = { ...geojson, features };
+  const styled: GeoJsonFeatureCollection = {
+    ...geojson,
+    features,
+    wwOverviewPyramid: overviewLevels
+      ? serializeOverviewLevels(overviewLevels)
+      : geojson.wwOverviewPyramid,
+  };
   return new Blob([JSON.stringify(styled)], { type: 'application/geo+json' });
 };

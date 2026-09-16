@@ -5,6 +5,8 @@
 import {
   buildOverviewLevels,
   countVertices,
+  deserializeOverviewLevels,
+  serializeOverviewLevels,
   simplifyFeatureCollection,
   simplifyLine,
   type Point,
@@ -236,5 +238,112 @@ describe('buildOverviewLevels', () => {
         countVertices(levels[i - 1].data),
       );
     }
+  });
+});
+
+describe('serializeOverviewLevels / deserializeOverviewLevels', () => {
+  const points: [number, number][] = [];
+  for (let i = 0; i < 500; i += 1) {
+    points.push([i * 0.001, Math.sin(i) * 0.01]);
+  }
+  const fc = {
+    type: 'FeatureCollection' as const,
+    features: [
+      {
+        type: 'Feature' as const,
+        properties: { NAME: 'A' },
+        geometry: { type: 'LineString', coordinates: points },
+      },
+      {
+        type: 'Feature' as const,
+        properties: { NAME: 'B' },
+        geometry: { type: 'LineString', coordinates: points },
+      },
+    ],
+  };
+
+  it('round-trips a real pyramid through serialize -> deserialize', () => {
+    const levels = buildOverviewLevels(fc, 50);
+    expect(levels.length).toBeGreaterThan(1);
+
+    const serialized = serializeOverviewLevels(levels);
+    const restored = deserializeOverviewLevels(serialized, fc);
+
+    expect(restored).not.toBeNull();
+    expect(restored).toHaveLength(levels.length);
+    // Level 0 is always the original, untouched, byte-for-byte the same
+    // object the caller passed in as `original` -- nothing to reconstruct.
+    expect(restored![0]).toEqual({ tolerance: 0, data: fc });
+    for (let i = 1; i < levels.length; i += 1) {
+      expect(restored![i].tolerance).toBe(levels[i].tolerance);
+      expect(restored![i].data.features.map((f) => f.geometry)).toEqual(
+        levels[i].data.features.map((f) => f.geometry),
+      );
+      // Properties (not part of the cache -- see serializeOverviewLevels'
+      // doc comment) come back from `original`, unchanged.
+      expect(restored![i].data.features[0].properties).toEqual({
+        NAME: 'A',
+      });
+    }
+  });
+
+  it('rejects a cache from a different version', () => {
+    const serialized = serializeOverviewLevels(buildOverviewLevels(fc, 50));
+    const tampered = { ...serialized, version: 999 };
+    expect(deserializeOverviewLevels(tampered, fc)).toBeNull();
+  });
+
+  it('rejects a cache with mismatched tolerance steps', () => {
+    const serialized = serializeOverviewLevels(buildOverviewLevels(fc, 50));
+    const tampered = { ...serialized, toleranceSteps: [0.1, 0.2] };
+    expect(deserializeOverviewLevels(tampered, fc)).toBeNull();
+  });
+
+  it('rejects a cache whose geometry count no longer matches the file', () => {
+    const serialized = serializeOverviewLevels(buildOverviewLevels(fc, 50));
+    const fewerFeatures = { ...fc, features: [fc.features[0]] };
+    expect(deserializeOverviewLevels(serialized, fewerFeatures)).toBeNull();
+  });
+
+  it('rejects garbage input outright', () => {
+    expect(deserializeOverviewLevels(null, fc)).toBeNull();
+    expect(deserializeOverviewLevels('not a pyramid', fc)).toBeNull();
+    expect(deserializeOverviewLevels({ foo: 'bar' }, fc)).toBeNull();
+  });
+
+  it('a pyramid that stops after one step (already under target) still round-trips', () => {
+    // A 4-corner square has nothing left for Douglas-Peucker to drop at any
+    // reasonable tolerance -- buildOverviewLevels still always tries (and
+    // keeps) its first tolerance step before checking the target, so this
+    // is 2 levels (original + one, geometrically identical, "simplified"
+    // copy), not the 1-level, nothing-to-cache case a real huge file
+    // dropping under target on its first step never actually hits either.
+    const tiny = {
+      type: 'FeatureCollection' as const,
+      features: [
+        {
+          type: 'Feature' as const,
+          properties: null,
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [0, 1],
+                [1, 1],
+                [1, 0],
+                [0, 0],
+              ],
+            ],
+          },
+        },
+      ],
+    };
+    const levels = buildOverviewLevels(tiny, 100000);
+    expect(levels).toHaveLength(2);
+    const serialized = serializeOverviewLevels(levels);
+    expect(serialized.levels).toHaveLength(1);
+    const restored = deserializeOverviewLevels(serialized, tiny);
+    expect(restored).toEqual(levels);
   });
 });

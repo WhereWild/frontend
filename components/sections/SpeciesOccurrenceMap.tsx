@@ -47,7 +47,6 @@ import {
   isOpenExternalUrlMessage,
   isPinObservationMessage,
   HEATMAP_UPDATE_MESSAGE_TYPE,
-  VECTOR_LAYER_MESSAGE_TYPE,
   LOCATION_PICKED_MESSAGE_TYPE,
   LOCAL_LOCATION_UPDATE_MESSAGE_TYPE,
   TOGGLE_GLOBE_VIEW_MESSAGE_TYPE,
@@ -310,24 +309,6 @@ type SpeciesOccurrenceMapProps = {
     className?: string | null;
     classColor?: string | null;
   } | null>;
-  // The GIS editor's shapefile preview overlay — a whole GeoJSON
-  // FeatureCollection plus a flat style describing how to color it (see
-  // VECTOR_LAYER_MESSAGE_TYPE/LOCAL_VECTOR_BRIDGE_LEAFLET/
-  // LOCAL_VECTOR_BRIDGE_GLOBE in speciesOccurrenceMapHelpers.ts). Unlike
-  // the tile/point bridges above this isn't a per-request round trip — the
-  // whole layer is pushed down once `mapReady`, and again on any change
-  // (a re-style, or a different file loaded) — since a shapefile preview
-  // is a single manageable-sized dataset, not something to lazily page in
-  // per tile the way raster/point data is. Optional and inert when null.
-  localVectorLayer?: {
-    geojson: object;
-    style: {
-      mode: 'single' | 'categorical';
-      color: string;
-      field: string | null;
-      classColors: Record<string, string>;
-    };
-  } | null;
 };
 
 export function SpeciesOccurrenceMap({
@@ -391,7 +372,6 @@ export function SpeciesOccurrenceMap({
   onFullscreenToggle,
   renderLocalTile,
   renderLocalPointValue,
-  localVectorLayer,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -623,10 +603,7 @@ export function SpeciesOccurrenceMap({
     if (
       loading ||
       error ||
-      (!hasOccurrences &&
-        !heatmapTileUrl &&
-        !locationPickerMode &&
-        localVectorLayer === undefined)
+      (!hasOccurrences && !heatmapTileUrl && !locationPickerMode)
     ) {
       return;
     }
@@ -686,7 +663,6 @@ export function SpeciesOccurrenceMap({
     heatmapTileUrl,
     loading,
     locationPickerMode,
-    localVectorLayer,
     globeView,
     enableOfflineFallback,
     mapTemplate,
@@ -1208,30 +1184,6 @@ export function SpeciesOccurrenceMap({
     autoAdaptApplicable,
     autoAdaptEnabled,
   ]);
-
-  // The GIS editor's shapefile overlay — pushed whenever the map becomes
-  // ready or the layer itself changes (a different file, a re-style).
-  // Unlike the heatmap-update effect above this isn't gated on
-  // preserveMapPosition: there's no template-build-time placeholder for
-  // this data at all (see VECTOR_LAYER_MESSAGE_TYPE's doc comment), so a
-  // postMessage after `mapReady` is the only way this ever reaches the
-  // map, regardless of whether the surrounding page rebuilds the iframe's
-  // html on other changes. Gated on the prop being passed at all (not just
-  // truthy — `null` still means "clear it"), so every other caller that
-  // never touches this prop never sends this message at all.
-  React.useEffect(() => {
-    if (!mapReady || localVectorLayer === undefined) return;
-    const msg = {
-      type: VECTOR_LAYER_MESSAGE_TYPE,
-      geojson: localVectorLayer?.geojson ?? null,
-      style: localVectorLayer?.style ?? null,
-    };
-    if (Platform.OS === 'web') {
-      iframeRef.current?.contentWindow?.postMessage(msg, '*');
-    } else {
-      webViewRef.current?.postMessage(JSON.stringify(msg));
-    }
-  }, [mapReady, localVectorLayer]);
 
   // The single source of truth for "what color/shape does each marker get,
   // right now": both the color SCALE (dotMin/dotMax/isCircular/classColors/

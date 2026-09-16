@@ -14,11 +14,6 @@ import {
 
 export const HIGHLIGHT_MESSAGE_TYPE = 'highlight';
 export const HEATMAP_UPDATE_MESSAGE_TYPE = 'heatmapUpdate';
-// The GIS editor's local vector (shapefile) overlay — see
-// LOCAL_VECTOR_BRIDGE_LEAFLET/LOCAL_VECTOR_BRIDGE_GLOBE below for what
-// consumes it in each renderer.
-export const VECTOR_LAYER_MESSAGE_TYPE = 'vectorLayer';
-export const VECTOR_FEATURE_CLICK_MESSAGE_TYPE = 'localVectorFeatureClick';
 export const LOCATE_MESSAGE_TYPE = 'locate';
 export const PIN_OBSERVATION_MESSAGE_TYPE = 'pin_observation';
 export const SELECTED_POINT_MESSAGE_TYPE = 'selected_point';
@@ -860,179 +855,6 @@ const LOCAL_TILE_BRIDGE = `
     }
 `;
 
-// The GIS editor's local vector (shapefile) overlay. `style` is
-// `{ mode: 'single' | 'categorical', color, field, classColors }` —
-// classColors keys are String(feature.properties[field]) values, matching
-// how MapLibre's ['to-string', ['get', field]] expression below and
-// Leaflet's own String(...) lookup both key their own per-feature color
-// resolution, so the same style object drives both renderers identically.
-// Appended to both heatmap tracking scripts (the same pattern as
-// LOCAL_TILE_BRIDGE above), so Leaflet and the globe each get their own
-// renderer-appropriate implementation of the same 'vectorLayer' message.
-const LOCAL_VECTOR_BRIDGE_LEAFLET = `
-    var __localVectorLayer = null;
-    function __localVectorColor(style, properties) {
-      if (style.mode === 'categorical' && style.field && style.classColors) {
-        var raw = properties ? properties[style.field] : null;
-        var color = raw != null ? style.classColors[String(raw)] : null;
-        return color || '#888888';
-      }
-      return style.color || '#3388ff';
-    }
-    // Same small colored-dot-plus-label popup formatPointValueHtml() builds
-    // for a raster point-value click -- a clicked vector feature's own
-    // color and (edited, not raw) class name are just another value/color
-    // pair to show the same way, not a different UI pattern.
-    function __localVectorPopupHtml(style, properties) {
-      var color = __localVectorColor(style, properties);
-      var raw = style.field && properties ? properties[style.field] : null;
-      var label = raw != null
-        ? ((style.classLabels && style.classLabels[String(raw)]) || String(raw))
-        : '';
-      var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px"></span>';
-      return '<div style="display:flex;align-items:center">' + dot + '<span>' + label + '</span></div>';
-    }
-    function applyLocalVectorLayer(geojson, style) {
-      if (__localVectorLayer) {
-        map.removeLayer(__localVectorLayer);
-        __localVectorLayer = null;
-      }
-      if (!geojson || !style) return;
-      __localVectorLayer = L.geoJSON(geojson, {
-        style: function(feature) {
-          var color = __localVectorColor(style, feature && feature.properties);
-          // HEATMAP_OPACITY (declared earlier in this same template, driven
-          // by the heatmapOpacity prop) -- not a separate hardcoded value,
-          // so a local vector overlay's fill matches the same opacity /maps
-          // renders its raster heatmap layer at, instead of looking washed
-          // out relative to it.
-          return { color: color, weight: 2, fillColor: color, fillOpacity: HEATMAP_OPACITY };
-        },
-        pointToLayer: function(feature, latlng) {
-          var color = __localVectorColor(style, feature && feature.properties);
-          return L.circleMarker(latlng, {
-            radius: 5, color: '#ffffff', weight: 1, fillColor: color, fillOpacity: 0.9,
-          });
-        },
-        onEachFeature: function(feature, layer) {
-          layer.bindPopup(function() {
-            return __localVectorPopupHtml(style, feature && feature.properties);
-          });
-        },
-      }).addTo(map);
-    }
-    if (typeof window !== 'undefined' && window.addEventListener) {
-      window.addEventListener('message', function(event) {
-        var d = event.data;
-        if (d && typeof d === 'object' && d.type === 'vectorLayer') {
-          applyLocalVectorLayer(d.geojson, d.style);
-        }
-      });
-    }
-`;
-
-const LOCAL_VECTOR_BRIDGE_GLOBE = `
-    var LOCAL_VECTOR_SOURCE_ID = 'localVectorSource';
-    var LOCAL_VECTOR_LAYER_IDS = ['localVectorFill', 'localVectorLine', 'localVectorPoint'];
-    // Read by the click-to-popup handler below, which is registered once
-    // (see the comment where it's added) rather than per applyLocalVectorLayer
-    // call -- this is what lets it always use the *current* styling even
-    // after a re-style that goes through the existingSource branch and
-    // never touches the handler itself.
-    var __currentVectorStyle = null;
-    function __localVectorColorExpr(style) {
-      if (style.mode === 'categorical' && style.field && style.classColors) {
-        var expr = ['match', ['to-string', ['get', style.field]]];
-        Object.keys(style.classColors).forEach(function(k) {
-          expr.push(k, style.classColors[k]);
-        });
-        expr.push(style.color || '#888888');
-        return expr;
-      }
-      return style.color || '#3388ff';
-    }
-    // Same small colored-dot-plus-label popup formatPointValueHtml() builds
-    // for a raster point-value click -- a clicked vector feature's own
-    // color and (edited, not raw) class name are just another value/color
-    // pair to show the same way, not a different UI pattern.
-    function __localVectorPopupHtml(style, properties) {
-      var raw = style.field && properties ? properties[style.field] : null;
-      var color = (style.mode === 'categorical' && style.classColors && raw != null)
-        ? (style.classColors[String(raw)] || '#888888')
-        : (style.color || '#3388ff');
-      var label = raw != null
-        ? ((style.classLabels && style.classLabels[String(raw)]) || String(raw))
-        : '';
-      var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';margin-right:5px"></span>';
-      return '<div style="display:flex;align-items:center">' + dot + '<span>' + label + '</span></div>';
-    }
-    function applyLocalVectorLayer(geojson, style) {
-      __currentVectorStyle = style || null;
-      var existingSource = map.getSource(LOCAL_VECTOR_SOURCE_ID);
-      if (!geojson || !style) {
-        if (existingSource) existingSource.setData({ type: 'FeatureCollection', features: [] });
-        return;
-      }
-      var colorExpr = __localVectorColorExpr(style);
-      if (existingSource) {
-        existingSource.setData(geojson);
-        LOCAL_VECTOR_LAYER_IDS.forEach(function(id) {
-          if (!map.getLayer(id)) return;
-          var prop = id === 'localVectorPoint' ? 'circle-color' : (id === 'localVectorFill' ? 'fill-color' : 'line-color');
-          map.setPaintProperty(id, prop, colorExpr);
-          if (id === 'localVectorFill') map.setPaintProperty(id, 'fill-outline-color', colorExpr);
-        });
-        return;
-      }
-      map.addSource(LOCAL_VECTOR_SOURCE_ID, { type: 'geojson', data: geojson });
-      // Three type-filtered layers off one source — the standard MapLibre
-      // way to style mixed geometry types differently (a shapefile is
-      // single-type by format spec, but GeoJSON in general isn't, and this
-      // costs nothing extra when every feature is the same type).
-      map.addLayer({
-        id: 'localVectorFill', type: 'fill', source: LOCAL_VECTOR_SOURCE_ID,
-        filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
-        // HEATMAP_OPACITY, not a separate hardcoded value -- see the
-        // matching comment in LOCAL_VECTOR_BRIDGE_LEAFLET above.
-        paint: { 'fill-color': colorExpr, 'fill-opacity': HEATMAP_OPACITY, 'fill-outline-color': colorExpr },
-      });
-      map.addLayer({
-        id: 'localVectorLine', type: 'line', source: LOCAL_VECTOR_SOURCE_ID,
-        filter: ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false],
-        paint: { 'line-color': colorExpr, 'line-width': 2 },
-      });
-      map.addLayer({
-        id: 'localVectorPoint', type: 'circle', source: LOCAL_VECTOR_SOURCE_ID,
-        filter: ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false],
-        paint: {
-          'circle-color': colorExpr, 'circle-radius': 5,
-          'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1,
-        },
-      });
-      // Layers, not the source, are what MapLibre's own click hit-testing
-      // targets -- registered once here (addSource/addLayer above only run
-      // on first creation; re-styles go through the existingSource branch
-      // above and reuse these same listeners) rather than in
-      // applyLocalVectorLayer itself, so re-styling never stacks up
-      // duplicate handlers.
-      LOCAL_VECTOR_LAYER_IDS.forEach(function(id) {
-        map.on('click', id, function(e) {
-          if (!__currentVectorStyle || !e.features || !e.features[0]) return;
-          var html = __localVectorPopupHtml(__currentVectorStyle, e.features[0].properties || {});
-          new maplibregl.Popup({ closeButton: true }).setLngLat(e.lngLat).setHTML(html).addTo(map);
-        });
-      });
-    }
-    if (typeof window !== 'undefined' && window.addEventListener) {
-      window.addEventListener('message', function(event) {
-        var d = event.data;
-        if (d && typeof d === 'object' && d.type === 'vectorLayer') {
-          applyLocalVectorLayer(d.geojson, d.style);
-        }
-      });
-    }
-`;
-
 const LEAFLET_HEATMAP_TRACKING_SCRIPT =
   LOCAL_TILE_BRIDGE +
   `
@@ -1349,8 +1171,7 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT =
       // has settled" here instead.
       map.on('moveend', scheduleClassSync);
     }
-` +
-  LOCAL_VECTOR_BRIDGE_LEAFLET;
+`;
 
 // Shared verbatim between SpeciesOccurrenceGlobeMap.html and
 // SpeciesOccurrenceGlobeMapOffline.html — same reasoning as the Leaflet
@@ -1696,8 +1517,7 @@ const GLOBE_TILE_CLASS_TRACKING_SCRIPT =
           });
       });
     }
-` +
-  LOCAL_VECTOR_BRIDGE_GLOBE;
+`;
 
 const GLOBE_RESIZE_OBSERVER_SCRIPT = `
     // MapLibre caches its container's pixel size at init and never
