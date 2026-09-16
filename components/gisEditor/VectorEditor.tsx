@@ -79,10 +79,15 @@ export function VectorEditor({
     borderColor: palette.border.default.secondary,
   };
 
-  const fieldOptions: SelectOption[] = metadata.fields.map((f) => ({
-    label: f.name,
-    value: f.name,
-  }));
+  // Hides fields that read as a per-row ID or measurement rather than a
+  // real category (see VectorField.likelyCategorical's doc comment) — a
+  // real downloaded EPA shapefile has ~20 columns, most of which nobody
+  // would ever want to color by. Always keeps whatever's already selected
+  // visible even if it wouldn't otherwise qualify, so switching away from
+  // a currently-active odd field doesn't silently vanish it from the list.
+  const fieldOptions: SelectOption[] = metadata.fields
+    .filter((f) => f.likelyCategorical || f.name === editable.field)
+    .map((f) => ({ label: f.name, value: f.name }));
 
   const rows: [string, string][] = [
     ['Features', String(metadata.featureCount)],

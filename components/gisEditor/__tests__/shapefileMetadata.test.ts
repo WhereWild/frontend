@@ -148,7 +148,9 @@ describe('inspectShapefile', () => {
     expect(metadata.featureCount).toBe(2);
     expect(metadata.geometryType).toBe('Polygon');
     expect(metadata.vertexCount).toBe(10); // two closed 5-point rings
-    expect(metadata.fields).toEqual([{ name: 'NAME', type: 'string' }]);
+    expect(metadata.fields).toEqual([
+      { name: 'NAME', type: 'string', likelyCategorical: true },
+    ]);
     expect(metadata.bbox).toEqual([0, 0, 11, 11]);
     expect(metadata.additionalLayersInZip).toBe(0);
     expect(metadata.savedConfig).toBeNull();
@@ -180,6 +182,23 @@ describe('inspectShapefile', () => {
     expect(metadata.fields).toEqual([]);
   });
 
+  it('flags a numeric field as non-categorical when every row is unique (an ID/measurement), but not a low-cardinality one', async () => {
+    const shp = new Blob([buildShp([SQUARE_A, SQUARE_B, SQUARE_A, SQUARE_B])]);
+    const dbf = new Blob([
+      buildDbfWithFields([
+        { name: 'OBJECTID', values: ['1', '2', '3', '4'], type: 'N' },
+        { name: 'EPA_REGION', values: ['8', '8', '9', '9'], type: 'N' },
+        { name: 'NAME', values: ['A', 'B', 'A', 'B'] },
+      ]),
+    ]);
+    const { metadata } = await inspectShapefile({ shp, dbf });
+    expect(metadata.fields).toEqual([
+      { name: 'OBJECTID', type: 'number', likelyCategorical: false },
+      { name: 'EPA_REGION', type: 'number', likelyCategorical: true },
+      { name: 'NAME', type: 'string', likelyCategorical: true },
+    ]);
+  });
+
   it('reads back a previously-saved single-color style', async () => {
     const shp = new Blob([buildShp([SQUARE_A])]);
     const dbf = new Blob([
@@ -204,9 +223,12 @@ describe('inspectShapefile', () => {
 });
 
 /** Same idea as buildDbf() but for an arbitrary set of same-length-record
- * fields, needed for the WW_*-field round-trip test above. */
+ * fields, needed for the WW_*-field round-trip test above. `type` defaults
+ * to 'C' (character); pass 'N' for a numeric field (still stored as
+ * fixed-width ASCII digits, per the DBF format — just tagged 'N' so
+ * shpjs's parser returns a JS number instead of a string). */
 function buildDbfWithFields(
-  fields: { name: string; values: string[] }[],
+  fields: { name: string; values: string[]; type?: 'C' | 'N' }[],
 ): ArrayBuffer {
   const fieldLen = 20;
   const numRecords = fields[0]?.values.length ?? 0;
@@ -224,7 +246,7 @@ function buildDbfWithFields(
   fields.forEach((field, i) => {
     const base = 32 + i * 32;
     bytes.set(new TextEncoder().encode(field.name), base);
-    bytes[base + 11] = 'C'.charCodeAt(0);
+    bytes[base + 11] = (field.type ?? 'C').charCodeAt(0);
     v.setUint8(base + 16, fieldLen);
     v.setUint8(base + 17, 0);
   });

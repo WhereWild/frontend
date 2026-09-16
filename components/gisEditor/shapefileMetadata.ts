@@ -15,7 +15,27 @@
 import { countVertices } from './douglasPeucker';
 
 export type VectorFieldType = 'string' | 'number' | 'boolean' | 'other';
-export type VectorField = { name: string; type: VectorFieldType };
+export type VectorField = {
+  name: string;
+  type: VectorFieldType;
+  /** False for a numeric field with too many distinct values to be a
+   * realistic category (a per-feature ID or measurement — OBJECTID,
+   * Shape_Leng/Shape_Area on a real downloaded EPA ecoregion shapefile
+   * are exactly this) — used to keep the "color by" field picker from
+   * being cluttered with columns nobody would actually want to color by.
+   * Always true for string/boolean fields: unlike a float measurement, a
+   * text column being wide or numerous-valued doesn't mean it isn't
+   * meant as a label (e.g. a 125-char concatenated "key" field is still a
+   * legitimate, if ugly, category). */
+  likelyCategorical: boolean;
+};
+
+/** Above this many distinct values, a *numeric* field reads as an ID or
+ * measurement rather than a category — matches
+ * vectorEditableMeta.ts's own MAX_CATEGORICAL_CLASSES ceiling for the same
+ * reason (a real raster/vector legend with this many rows isn't useful
+ * either way). */
+const CATEGORICAL_MAX_DISTINCT = 64;
 
 export type VectorSavedConfig = {
   mode: 'single' | 'categorical';
@@ -221,6 +241,7 @@ export const inspectShapefile = async (
   const geojson = layers[0] ?? { type: 'FeatureCollection', features: [] };
 
   const fieldMap = new Map<string, VectorFieldType>();
+  const distinctValues = new Map<string, Set<string>>();
   for (const f of geojson.features) {
     for (const [key, value] of Object.entries(f.properties ?? {})) {
       if (
@@ -231,14 +252,41 @@ export const inspectShapefile = async (
         continue;
       }
       if (!fieldMap.has(key)) fieldMap.set(key, fieldTypeOf(value));
+      // Only tracked to distinguish "definitely too many to be a
+      // category" from "not sure yet" — capped so a genuinely huge
+      // dataset doesn't pay to fully count every numeric column's
+      // cardinality just to confirm what's already obvious past this point.
+      let seen = distinctValues.get(key);
+      if (!seen) {
+        seen = new Set();
+        distinctValues.set(key, seen);
+      }
+      if (seen.size <= CATEGORICAL_MAX_DISTINCT) seen.add(String(value));
     }
   }
 
+  const featureCount = geojson.features.length;
   const metadata: VectorMetadata = {
-    featureCount: geojson.features.length,
+    featureCount,
     geometryType: geojson.features[0]?.geometry?.type ?? null,
     vertexCount: countVertices(geojson),
-    fields: [...fieldMap.entries()].map(([name, type]) => ({ name, type })),
+    fields: [...fieldMap.entries()].map(([name, type]) => {
+      const distinctCount = distinctValues.get(name)?.size ?? 0;
+      return {
+        name,
+        type,
+        // A numeric field only reads as a category if it both stays under
+        // the flat cap AND isn't just a per-row unique ID/measurement —
+        // OBJECTID and Shape_Leng/Shape_Area on a real EPA shapefile have
+        // distinctCount == featureCount (every row unique), which the flat
+        // cap alone wouldn't catch on a small file (e.g. 37 rows, well
+        // under 64).
+        likelyCategorical:
+          type !== 'number' ||
+          (distinctCount <= CATEGORICAL_MAX_DISTINCT &&
+            distinctCount < featureCount),
+      };
+    }),
     bbox: boundingBoxOf(geojson),
     crsLabel,
     additionalLayersInZip: Math.max(0, layers.length - 1),

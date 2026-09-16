@@ -12,7 +12,9 @@ import {
 } from '../vectorEditableMeta';
 import type { VectorField, VectorSavedConfig } from '../shapefileMetadata';
 
-const fields: VectorField[] = [{ name: 'LAND_USE', type: 'string' }];
+const fields: VectorField[] = [
+  { name: 'LAND_USE', type: 'string', likelyCategorical: true },
+];
 const features = [
   { properties: { LAND_USE: 'Forest' } },
   { properties: { LAND_USE: 'Water' } },
