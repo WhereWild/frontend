@@ -623,6 +623,51 @@ def find_name_field(fields: list[DbfField], level: int) -> str:
     )
 
 
+def find_code_field(fields: list[DbfField], name_field: str) -> str | None:
+    """EPA's Level IV (and III) ecoregion names aren't unique on their own
+    -- the same name can recur under different parent regions (e.g. two
+    different "Salt Deserts" nested in different Level III ecoregions,
+    confirmed against real downloaded data) -- the real disambiguator is
+    the paired *_CODE column (e.g. US_L4NAME's own US_L4CODE: '13a', '13b',
+    ... -- these letter-suffixed subclass codes are exactly what EPA's own
+    published tables prefix the name with). This looks for that
+    counterpart generically (swap NAME for CODE in whatever field name is
+    actually being colored by, not hardcoded to US_L3/US_L4 specifically),
+    returning None if there isn't one -- coloring still works fine without
+    a prefix, just with less disambiguation between same-named regions.
+    """
+    candidate = name_field.upper().replace("NAME", "CODE")
+    if candidate == name_field.upper():
+        return None  # name_field didn't contain "NAME" at all
+    by_upper = {f.name.upper(): f.name for f in fields}
+    return by_upper.get(candidate)
+
+
+LABEL_FIELD_NAME = "ECO_LABEL"
+
+
+def add_disambiguated_labels(
+    records: list[dict[str, object]], name_field: str, code_field: str | None
+) -> list[dict[str, object]]:
+    """Adds a new ECO_LABEL field ("<code> <name>", e.g. "13a Salt
+    Deserts") to every record, without touching the original *_NAME/*_CODE
+    columns -- this is what gets colored by and saved as WW_FIELD, so the
+    class names shown in /gis-editor actually disambiguate same-named
+    ecoregions the way EPA's own reference tables do, while the original
+    EPA schema stays exactly as downloaded.
+    """
+    if code_field is None:
+        return [
+            {**r, LABEL_FIELD_NAME: str(r.get(name_field, ""))} for r in records
+        ]
+    labeled = []
+    for r in records:
+        code = str(r.get(code_field, "")).strip()
+        name = str(r.get(name_field, "")).strip()
+        labeled.append({**r, LABEL_FIELD_NAME: f"{code} {name}".strip()})
+    return labeled
+
+
 def style_records(
     records: list[dict[str, object]], field_name: str
 ) -> tuple[list[dict[str, object]], dict[str, str]]:
@@ -771,11 +816,18 @@ def main() -> None:
     dbf_bytes = (output_dir / f"{base_name}.dbf").read_bytes()
     fields, records = read_dbf(dbf_bytes)
 
-    field_name = args.field or find_name_field(fields, args.level)
-    print(f"Coloring by: {field_name}")
-    styled_records, colors = style_records(records, field_name)
+    name_field = args.field or find_name_field(fields, args.level)
+    code_field = find_code_field(fields, name_field)
+    if code_field:
+        print(f"Coloring by: {code_field} + {name_field} (e.g. \"13a Salt Deserts\")")
+    else:
+        print(f"Coloring by: {name_field}")
+    labeled_records = add_disambiguated_labels(records, name_field, code_field)
+    styled_records, colors = style_records(labeled_records, LABEL_FIELD_NAME)
 
+    label_length = min(254, max((len(v) for v in colors), default=1))
     output_fields = fields + [
+        DbfField(LABEL_FIELD_NAME, "C", label_length),
         DbfField("WW_MODE", "C", 12),
         DbfField("WW_FIELD", "C", 32),
         DbfField("WW_COLOR", "C", 7),
