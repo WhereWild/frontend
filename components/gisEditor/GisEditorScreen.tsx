@@ -42,7 +42,9 @@ import {
   type RasterMetadata,
   type RenderBounds,
 } from './rasterMetadata';
+import { buildStyledGeoJson } from './geoJsonWriter';
 import {
+  inspectGeoJson,
   inspectShapefile,
   type GeoJsonFeatureCollection,
   type ShapefileInputFiles,
@@ -95,9 +97,18 @@ type Loaded = {
   detectedType: DetectedValueType | null;
 };
 
+// Which writer Save uses on this file — a shapefile bundle needs the
+// original .shp/.shx/.prj/.cpg bytes to pass through unchanged (see
+// shapefileWriter.ts); a native GeoJSON file needs nothing extra at all,
+// since styling is just new JSON properties on the same one file (see
+// geoJsonWriter.ts).
+type VectorSource =
+  | { kind: 'shapefile'; originalFiles: OriginalShapefileFiles }
+  | { kind: 'geojson' };
+
 type LoadedVector = {
   fileNameBase: string;
-  originalFiles: OriginalShapefileFiles;
+  source: VectorSource;
   metadata: VectorMetadata;
   /** The real, full-resolution parsed data — what Save always writes back,
    * regardless of what's currently on the map (simplification is a
@@ -208,7 +219,7 @@ export function GisEditorScreen() {
         };
         const next: LoadedVector = {
           fileNameBase: fileName.replace(/\.shp$/i, ''),
-          originalFiles,
+          source: { kind: 'shapefile', originalFiles },
           metadata,
           geojson,
           displayGeojson: geojson,
@@ -229,6 +240,49 @@ export function GisEditorScreen() {
           error instanceof Error
             ? error.message
             : 'Could not read that as a shapefile.',
+        );
+        setVectorStatus('error');
+      }
+    },
+    [],
+  );
+
+  const ingestGeoJson = React.useCallback(
+    async (file: Blob & { name?: string }) => {
+      const requestId = vectorRequestIdRef.current + 1;
+      vectorRequestIdRef.current = requestId;
+      setLoadedVector(null);
+      setVectorEditable(null);
+      setVectorErrorMessage(null);
+      setVectorStatus('parsing');
+      try {
+        const { geojson, metadata } = await inspectGeoJson(file);
+        if (vectorRequestIdRef.current !== requestId) return;
+        const fileName =
+          typeof file.name === 'string' ? file.name : 'layer.geojson';
+        const next: LoadedVector = {
+          fileNameBase: fileName.replace(/\.(geo)?json$/i, ''),
+          source: { kind: 'geojson' },
+          metadata,
+          geojson,
+          displayGeojson: geojson,
+        };
+        setLoadedVector(next);
+        setVectorEditable(
+          buildInitialVectorEditableMeta(metadata.fields, metadata.savedConfig),
+        );
+        setVectorStatus(
+          metadata.vertexCount > VECTOR_VERTEX_WARNING_THRESHOLD
+            ? 'confirm'
+            : 'ready',
+        );
+      } catch (error) {
+        if (vectorRequestIdRef.current !== requestId) return;
+        console.error('Failed to prepare GeoJSON:', error);
+        setVectorErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Could not read that as a GeoJSON file.',
         );
         setVectorStatus('error');
       }
@@ -265,13 +319,18 @@ export function GisEditorScreen() {
     setVectorSaveState('saving');
     setVectorSaveError(null);
     try {
-      const zip = buildStyledShapefileZip(
-        loadedVector.originalFiles,
-        loadedVector.geojson.features,
-        loadedVector.metadata.fields.map((f) => f.name),
-        vectorEditable,
-      );
-      downloadBlob(`${loadedVector.fileNameBase}.zip`, zip);
+      if (loadedVector.source.kind === 'shapefile') {
+        const zip = buildStyledShapefileZip(
+          loadedVector.source.originalFiles,
+          loadedVector.geojson.features,
+          loadedVector.metadata.fields.map((f) => f.name),
+          vectorEditable,
+        );
+        downloadBlob(`${loadedVector.fileNameBase}.zip`, zip);
+      } else {
+        const blob = buildStyledGeoJson(loadedVector.geojson, vectorEditable);
+        downloadBlob(`${loadedVector.fileNameBase}.geojson`, blob);
+      }
       setVectorSaveState('saved');
       setTimeout(() => setVectorSaveState('idle'), 2500);
     } catch (error) {
@@ -594,13 +653,19 @@ export function GisEditorScreen() {
         );
         return;
       }
+      if (files.length === 1 && /\.(geo)?json$/i.test(files[0].name)) {
+        clear();
+        fileHandleRef.current = null;
+        void ingestGeoJson(files[0]);
+        return;
+      }
 
       const file = files[0];
       const name = file.name.toLowerCase();
       if (!ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
         setStatus('error');
         setErrorMessage(
-          'Drop a GeoTIFF (.tif or .tiff) or a shapefile (.shp + .dbf, optionally + .prj/.shx/.cpg).',
+          'Drop a GeoTIFF (.tif or .tiff), a shapefile (.shp + .dbf, optionally + .prj/.shx/.cpg), or a .geojson file.',
         );
         return;
       }
@@ -634,7 +699,7 @@ export function GisEditorScreen() {
       node.removeEventListener('dragover', onDragOver);
       node.removeEventListener('drop', onDrop);
     };
-  }, [ingest, ingestVector, clear, clearVector]);
+  }, [ingest, ingestVector, ingestGeoJson, clear, clearVector]);
 
   React.useEffect(
     () => () => {
@@ -683,9 +748,9 @@ export function GisEditorScreen() {
             >
               <ThemedText variant='body'>
                 Drop a GeoTIFF below to inspect its metadata and preview it on
-                the map, or drag a shapefile’s .shp together with its .dbf (and
-                .prj/.shx/.cpg, if you have them). The file never leaves your
-                browser.
+                the map, drag a shapefile’s .shp together with its .dbf (and
+                .prj/.shx/.cpg, if you have them), or drop a .geojson file. The
+                file never leaves your browser.
               </ThemedText>
 
               {React.createElement(

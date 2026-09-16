@@ -206,6 +206,73 @@ const boundingBoxOf = (
 };
 
 /**
+ * Everything past "we already have GeoJSON" is shared between the
+ * shapefile path (shpjs's output) and the native-GeoJSON path (a dropped
+ * .geojson/.json file, parsed with nothing more than JSON.parse) — field
+ * detection, bbox, vertex count, and reading back this tool's own saved
+ * styling all operate on the GeoJSON shape itself, not on anything
+ * shapefile-specific.
+ */
+const deriveVectorMetadata = (
+  geojson: GeoJsonFeatureCollection,
+  crsLabel: string,
+  additionalLayersInZip: number,
+): VectorMetadata => {
+  const fieldMap = new Map<string, VectorFieldType>();
+  const distinctValues = new Map<string, Set<string>>();
+  for (const f of geojson.features) {
+    for (const [key, value] of Object.entries(f.properties ?? {})) {
+      if (
+        key === WW_MODE_FIELD ||
+        key === WW_COLOR_FIELD ||
+        key === WW_FIELD_FIELD
+      ) {
+        continue;
+      }
+      if (!fieldMap.has(key)) fieldMap.set(key, fieldTypeOf(value));
+      // Only tracked to distinguish "definitely too many to be a
+      // category" from "not sure yet" — capped so a genuinely huge
+      // dataset doesn't pay to fully count every numeric column's
+      // cardinality just to confirm what's already obvious past this point.
+      let seen = distinctValues.get(key);
+      if (!seen) {
+        seen = new Set();
+        distinctValues.set(key, seen);
+      }
+      if (seen.size <= CATEGORICAL_MAX_DISTINCT) seen.add(String(value));
+    }
+  }
+
+  const featureCount = geojson.features.length;
+  return {
+    featureCount,
+    geometryType: geojson.features[0]?.geometry?.type ?? null,
+    vertexCount: countVertices(geojson),
+    fields: [...fieldMap.entries()].map(([name, type]) => {
+      const distinctCount = distinctValues.get(name)?.size ?? 0;
+      return {
+        name,
+        type,
+        // A numeric field only reads as a category if it both stays under
+        // the flat cap AND isn't just a per-row unique ID/measurement —
+        // OBJECTID and Shape_Leng/Shape_Area on a real EPA shapefile have
+        // distinctCount == featureCount (every row unique), which the flat
+        // cap alone wouldn't catch on a small file (e.g. 37 rows, well
+        // under 64).
+        likelyCategorical:
+          type !== 'number' ||
+          (distinctCount <= CATEGORICAL_MAX_DISTINCT &&
+            distinctCount < featureCount),
+      };
+    }),
+    bbox: boundingBoxOf(geojson),
+    crsLabel,
+    additionalLayersInZip,
+    savedConfig: readSavedConfig(geojson),
+  };
+};
+
+/**
  * Parses a shapefile from either a single Blob (a .zip bundling the .shp
  * and its siblings, or a bare .shp with no attributes/CRS) or an explicit
  * {shp, dbf, prj, cpg} set (a multi-file drag-and-drop) into GeoJSON plus
@@ -239,59 +306,47 @@ export const inspectShapefile = async (
 
   const layers = Array.isArray(result) ? result : [result];
   const geojson = layers[0] ?? { type: 'FeatureCollection', features: [] };
-
-  const fieldMap = new Map<string, VectorFieldType>();
-  const distinctValues = new Map<string, Set<string>>();
-  for (const f of geojson.features) {
-    for (const [key, value] of Object.entries(f.properties ?? {})) {
-      if (
-        key === WW_MODE_FIELD ||
-        key === WW_COLOR_FIELD ||
-        key === WW_FIELD_FIELD
-      ) {
-        continue;
-      }
-      if (!fieldMap.has(key)) fieldMap.set(key, fieldTypeOf(value));
-      // Only tracked to distinguish "definitely too many to be a
-      // category" from "not sure yet" — capped so a genuinely huge
-      // dataset doesn't pay to fully count every numeric column's
-      // cardinality just to confirm what's already obvious past this point.
-      let seen = distinctValues.get(key);
-      if (!seen) {
-        seen = new Set();
-        distinctValues.set(key, seen);
-      }
-      if (seen.size <= CATEGORICAL_MAX_DISTINCT) seen.add(String(value));
-    }
-  }
-
-  const featureCount = geojson.features.length;
-  const metadata: VectorMetadata = {
-    featureCount,
-    geometryType: geojson.features[0]?.geometry?.type ?? null,
-    vertexCount: countVertices(geojson),
-    fields: [...fieldMap.entries()].map(([name, type]) => {
-      const distinctCount = distinctValues.get(name)?.size ?? 0;
-      return {
-        name,
-        type,
-        // A numeric field only reads as a category if it both stays under
-        // the flat cap AND isn't just a per-row unique ID/measurement —
-        // OBJECTID and Shape_Leng/Shape_Area on a real EPA shapefile have
-        // distinctCount == featureCount (every row unique), which the flat
-        // cap alone wouldn't catch on a small file (e.g. 37 rows, well
-        // under 64).
-        likelyCategorical:
-          type !== 'number' ||
-          (distinctCount <= CATEGORICAL_MAX_DISTINCT &&
-            distinctCount < featureCount),
-      };
-    }),
-    bbox: boundingBoxOf(geojson),
+  const metadata = deriveVectorMetadata(
+    geojson,
     crsLabel,
-    additionalLayersInZip: Math.max(0, layers.length - 1),
-    savedConfig: readSavedConfig(geojson),
-  };
+    Math.max(0, layers.length - 1),
+  );
 
   return { geojson, metadata };
+};
+
+const isGeoJsonFeatureCollection = (
+  value: unknown,
+): value is GeoJsonFeatureCollection =>
+  !!value &&
+  typeof value === 'object' &&
+  (value as { type?: unknown }).type === 'FeatureCollection' &&
+  Array.isArray((value as { features?: unknown }).features);
+
+/**
+ * Parses a plain .geojson/.json file — no shpjs involved at all, just
+ * JSON.parse. GeoJSON (RFC 7946) fixes its coordinate reference system at
+ * WGS84 by spec, so unlike the shapefile path there's no .prj to read and
+ * no reprojection to do; a source that used some other CRS anyway (a
+ * pre-RFC-7946 file with an explicit "crs" member) isn't detected here —
+ * its coordinates are taken at face value, same as every other GeoJSON
+ * consumer that doesn't special-case that legacy member.
+ */
+export const inspectGeoJson = async (
+  blob: Blob,
+): Promise<{ geojson: GeoJsonFeatureCollection; metadata: VectorMetadata }> => {
+  const text = await blob.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('That file isn’t valid JSON.');
+  }
+  if (!isGeoJsonFeatureCollection(parsed)) {
+    throw new Error(
+      'That JSON file isn’t a GeoJSON FeatureCollection (expected a top-level `{"type": "FeatureCollection", "features": [...]}`).',
+    );
+  }
+  const metadata = deriveVectorMetadata(parsed, 'WGS84 (GeoJSON standard)', 0);
+  return { geojson: parsed, metadata };
 };
