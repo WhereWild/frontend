@@ -1,0 +1,134 @@
+// SPDX-FileCopyrightText: 2025-2026 The WhereWild Contributors (see CONTRIBUTORS)
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// The user-editable half of a shapefile's styling for /gis-editor — the
+// vector counterpart of rasterEditableMeta.ts. Two styling modes: a single
+// flat color for every feature, or a categorical color per distinct value
+// of one chosen attribute field (mirroring a raster's nominal legend —
+// same defaultClassColor() palette, same "user can repaint any swatch"
+// model).
+
+import { defaultClassColor } from './paletteColors';
+import type { VectorField, VectorSavedConfig } from './shapefileMetadata';
+
+export type VectorClass = { value: string; name: string; color: string };
+
+export type VectorEditableMeta = {
+  mode: 'single' | 'categorical';
+  color: string;
+  /** Which field categorical mode colors by — null in single mode, and
+   * null in categorical mode until the user (or a restored save) picks
+   * one. */
+  field: string | null;
+  classes: VectorClass[];
+};
+
+const DEFAULT_SINGLE_COLOR = '#3388ff'; // Leaflet's own default marker/path blue
+
+/** Distinct values actually present for `field`, in first-seen order —
+ * capped, same reasoning as a raster's distinct-value sampling: a field
+ * that turns out to be closer to a unique ID than a category shouldn't
+ * produce thousands of legend rows. */
+const MAX_CATEGORICAL_CLASSES = 64;
+
+export const distinctFieldValues = (
+  features: { properties: Record<string, unknown> | null }[],
+  field: string,
+): string[] => {
+  const seen = new Set<string>();
+  for (const f of features) {
+    const raw = f.properties?.[field];
+    if (raw == null) continue;
+    seen.add(String(raw));
+    if (seen.size > MAX_CATEGORICAL_CLASSES) break;
+  }
+  return [...seen];
+};
+
+const classesFor = (values: string[]): VectorClass[] =>
+  values.map((value, i) => ({
+    value,
+    name: value,
+    color: defaultClassColor(i, values.length),
+  }));
+
+/** When re-opening a file this tool already saved, the real names/colors
+ * come back from the file itself (see shapefileMetadata.ts's
+ * readSavedConfig) instead of classesFor()'s generated defaults. */
+const classesFromSaved = (saved: VectorSavedConfig['classes']): VectorClass[] =>
+  saved.map((c) => ({ ...c }));
+
+export const buildInitialVectorEditableMeta = (
+  fields: VectorField[],
+  savedConfig: VectorSavedConfig | null,
+): VectorEditableMeta => {
+  // A saved field that no longer exists in this file's own attribute table
+  // (edited outside this tool since the last save, or just corrupt WW_*
+  // metadata) can't drive categorical mode — falls back to single-color
+  // rather than pointing at a field that isn't there.
+  const savedFieldStillExists =
+    savedConfig?.field != null &&
+    fields.some((f) => f.name === savedConfig.field);
+  if (savedConfig && (savedConfig.mode === 'single' || savedFieldStillExists)) {
+    return {
+      mode: savedConfig.mode,
+      color: savedConfig.color ?? DEFAULT_SINGLE_COLOR,
+      field: savedConfig.field,
+      classes:
+        savedConfig.classes.length > 0
+          ? classesFromSaved(savedConfig.classes)
+          : [],
+    };
+  }
+  return {
+    mode: 'single',
+    color: DEFAULT_SINGLE_COLOR,
+    field: null,
+    classes: [],
+  };
+};
+
+/** Applies a manual switch to categorical mode for `field`, deriving a
+ * fresh class list from the data's own distinct values — mirrors
+ * rasterEditableMeta.ts's withValueType() re-deriving classes on a type
+ * switch. Values already styled under the previous field are discarded;
+ * there's no meaningful correspondence between two different fields'
+ * categories to carry forward. */
+export const withCategoricalField = (
+  editable: VectorEditableMeta,
+  field: string,
+  features: { properties: Record<string, unknown> | null }[],
+): VectorEditableMeta => ({
+  ...editable,
+  mode: 'categorical',
+  field,
+  classes: classesFor(distinctFieldValues(features, field)),
+});
+
+export const withSingleColor = (
+  editable: VectorEditableMeta,
+  color: string,
+): VectorEditableMeta => ({ ...editable, mode: 'single', color });
+
+export const withClassColor = (
+  editable: VectorEditableMeta,
+  value: string,
+  color: string,
+): VectorEditableMeta => ({
+  ...editable,
+  classes: editable.classes.map((c) =>
+    c.value === value ? { ...c, color } : c,
+  ),
+});
+
+export const withClassName = (
+  editable: VectorEditableMeta,
+  value: string,
+  name: string,
+): VectorEditableMeta => ({
+  ...editable,
+  classes: editable.classes.map((c) =>
+    c.value === value ? { ...c, name } : c,
+  ),
+});

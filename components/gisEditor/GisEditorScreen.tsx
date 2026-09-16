@@ -11,6 +11,7 @@ import {
   ThemedText,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { VariableHeatmapMap } from '@/components/sections/VariableHeatmapMap';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
@@ -22,8 +23,10 @@ import {
 } from '@/hooks/upload/uploadWorkflowHelpers';
 import { WebMetadata } from '@/utils/webMetadata';
 import { buildCogFixCommand } from './cogFixCommand';
+import { buildOverviewLevels } from './douglasPeucker';
 import { MetadataEditor } from './MetadataEditor';
 import { MetadataPanel } from './MetadataPanel';
+import { VectorEditor } from './VectorEditor';
 import { createCogTileRenderer, type CogTileRenderer } from './cogTileRenderer';
 import type { DetectedValueType } from './dataTypeDetection';
 import {
@@ -40,6 +43,20 @@ import {
   type RenderBounds,
 } from './rasterMetadata';
 import {
+  inspectShapefile,
+  type GeoJsonFeatureCollection,
+  type ShapefileInputFiles,
+  type VectorMetadata,
+} from './shapefileMetadata';
+import {
+  buildStyledShapefileZip,
+  type OriginalShapefileFiles,
+} from './shapefileWriter';
+import {
+  buildInitialVectorEditableMeta,
+  type VectorEditableMeta,
+} from './vectorEditableMeta';
+import {
   canWriteInPlace,
   writeTiffInPlace,
   type WritableFileHandle,
@@ -51,6 +68,15 @@ import {
 
 const ACCEPTED_EXTENSIONS = ['.tif', '.tiff'] as const;
 const MAP_HEIGHT = 520;
+
+// The vector equivalent of the raster COG-checklist warning: past this many
+// total vertices across every feature, a plain "load it all as one GeoJSON
+// layer" render risks a slow/locked-up tab — see douglasPeucker.ts's doc
+// comment for why this is a load-time-only cost, unlike a raster's
+// per-zoomed-tile decode cost, and why a single simplification pass (not a
+// zoom-swapped pyramid) is the right fix here.
+const VECTOR_VERTEX_WARNING_THRESHOLD = 50000;
+const VECTOR_VERTEX_SIMPLIFY_TARGET = 20000;
 
 // 'confirm' = metadata parsed but the file fails the COG checklist — the
 // tile renderer isn't built (and the map doesn't mount) until the user
@@ -67,6 +93,21 @@ type Loaded = {
   metadata: RasterMetadata;
   bounds: RenderBounds;
   detectedType: DetectedValueType | null;
+};
+
+type LoadedVector = {
+  fileNameBase: string;
+  originalFiles: OriginalShapefileFiles;
+  metadata: VectorMetadata;
+  /** The real, full-resolution parsed data — what Save always writes back,
+   * regardless of what's currently on the map (simplification is a
+   * rendering concern only, never something that should silently degrade
+   * the user's actual data). */
+  geojson: GeoJsonFeatureCollection;
+  /** What's actually bound to the map — either geojson itself, or a
+   * Douglas-Peucker-simplified copy the user opted into past the vertex
+   * warning threshold. */
+  displayGeojson: GeoJsonFeatureCollection;
 };
 
 const isBrowser = () =>
@@ -115,6 +156,160 @@ export function GisEditorScreen() {
 
   const requestIdRef = React.useRef(0);
   const rendererRef = React.useRef<CogTileRenderer | null>(null);
+
+  // A parallel, independent state tree for the shapefile path — kept
+  // entirely separate from the raster state above rather than unified into
+  // one "file kind" union, since so little is actually shared (a raster and
+  // a vector file have almost nothing in common beyond both ending up on a
+  // map) that merging them would mean threading a lot of "which kind is
+  // this" branching through code that's otherwise simple.
+  const [vectorStatus, setVectorStatus] = React.useState<
+    'idle' | 'parsing' | 'confirm' | 'ready' | 'error'
+  >('idle');
+  const [vectorErrorMessage, setVectorErrorMessage] = React.useState<
+    string | null
+  >(null);
+  const [loadedVector, setLoadedVector] = React.useState<LoadedVector | null>(
+    null,
+  );
+  const [vectorEditable, setVectorEditable] =
+    React.useState<VectorEditableMeta | null>(null);
+  const vectorRequestIdRef = React.useRef(0);
+
+  const clearVector = React.useCallback(() => {
+    vectorRequestIdRef.current += 1;
+    setLoadedVector(null);
+    setVectorEditable(null);
+    setVectorErrorMessage(null);
+    setVectorStatus('idle');
+  }, []);
+
+  const ingestVector = React.useCallback(
+    async (input: ShapefileInputFiles & { shx?: Blob | null }) => {
+      const requestId = vectorRequestIdRef.current + 1;
+      vectorRequestIdRef.current = requestId;
+      setLoadedVector(null);
+      setVectorEditable(null);
+      setVectorErrorMessage(null);
+      setVectorStatus('parsing');
+      try {
+        const { geojson, metadata } = await inspectShapefile(input);
+        if (vectorRequestIdRef.current !== requestId) return;
+        const fileName =
+          'name' in input.shp && typeof input.shp.name === 'string'
+            ? input.shp.name
+            : 'shapefile.shp';
+        const originalFiles: OriginalShapefileFiles = {
+          shpName: fileName,
+          shp: await input.shp.arrayBuffer(),
+          shx: input.shx ? await input.shx.arrayBuffer() : null,
+          prj: input.prj ? await input.prj.arrayBuffer() : null,
+          cpg: input.cpg ? await input.cpg.arrayBuffer() : null,
+        };
+        const next: LoadedVector = {
+          fileNameBase: fileName.replace(/\.shp$/i, ''),
+          originalFiles,
+          metadata,
+          geojson,
+          displayGeojson: geojson,
+        };
+        setLoadedVector(next);
+        setVectorEditable(
+          buildInitialVectorEditableMeta(metadata.fields, metadata.savedConfig),
+        );
+        setVectorStatus(
+          metadata.vertexCount > VECTOR_VERTEX_WARNING_THRESHOLD
+            ? 'confirm'
+            : 'ready',
+        );
+      } catch (error) {
+        if (vectorRequestIdRef.current !== requestId) return;
+        console.error('Failed to prepare shapefile:', error);
+        setVectorErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Could not read that as a shapefile.',
+        );
+        setVectorStatus('error');
+      }
+    },
+    [],
+  );
+
+  // From the vertex-count warning: either simplify (Douglas-Peucker, same
+  // technique as a raster overview — see douglasPeucker.ts) before binding
+  // to the map, or render the untouched original anyway. Never touches
+  // `loadedVector.geojson` itself — Save always writes that back
+  // regardless of what's currently displayed.
+  const confirmVectorRender = React.useCallback((simplify: boolean) => {
+    setLoadedVector((prev) => {
+      if (!prev) return prev;
+      const displayGeojson = simplify
+        ? buildOverviewLevels(prev.geojson, VECTOR_VERTEX_SIMPLIFY_TARGET).at(
+            -1,
+          )!.data
+        : prev.geojson;
+      return { ...prev, displayGeojson };
+    });
+    setVectorStatus('ready');
+  }, []);
+
+  const [vectorSaveState, setVectorSaveState] = React.useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle');
+  const [vectorSaveError, setVectorSaveError] = React.useState<string | null>(
+    null,
+  );
+  const saveVectorToFile = React.useCallback(async () => {
+    if (!loadedVector || !vectorEditable) return;
+    setVectorSaveState('saving');
+    setVectorSaveError(null);
+    try {
+      const zip = buildStyledShapefileZip(
+        loadedVector.originalFiles,
+        loadedVector.geojson.features,
+        loadedVector.metadata.fields.map((f) => f.name),
+        vectorEditable,
+      );
+      downloadBlob(`${loadedVector.fileNameBase}.zip`, zip);
+      setVectorSaveState('saved');
+      setTimeout(() => setVectorSaveState('idle'), 2500);
+    } catch (error) {
+      setVectorSaveState('error');
+      setVectorSaveError(
+        error instanceof Error ? error.message : 'Could not save this file.',
+      );
+    }
+  }, [loadedVector, vectorEditable]);
+
+  const vectorInitialView = React.useMemo(() => {
+    const bbox = loadedVector?.metadata.bbox;
+    if (!bbox) return { lat: 0, lon: 0, zoom: 1 };
+    const lonSpan = Math.max(1e-4, bbox[2] - bbox[0]);
+    return {
+      lat: (bbox[1] + bbox[3]) / 2,
+      lon: (bbox[0] + bbox[2]) / 2,
+      zoom: Math.max(1, Math.min(14, Math.log2(360 / lonSpan))),
+    };
+  }, [loadedVector]);
+
+  const vectorLayerForMap = React.useMemo(() => {
+    if (!loadedVector || !vectorEditable || vectorStatus !== 'ready') {
+      return null;
+    }
+    const classColors = Object.fromEntries(
+      vectorEditable.classes.map((c) => [c.value, c.color]),
+    );
+    return {
+      geojson: loadedVector.displayGeojson,
+      style: {
+        mode: vectorEditable.mode,
+        color: vectorEditable.color,
+        field: vectorEditable.field,
+        classColors,
+      },
+    };
+  }, [loadedVector, vectorEditable, vectorStatus]);
 
   const buildRenderer = React.useCallback(
     async (
@@ -342,9 +537,10 @@ export function GisEditorScreen() {
     // The document picker never hands back a real filesystem handle, so a
     // file selected this way always saves as a download.
     fileHandleRef.current = null;
+    clearVector();
     const blob = await resolveAssetBlob(file);
     await ingest(blob, file.name, blob.size);
-  }, [ingest]);
+  }, [ingest, clearVector]);
 
   const clear = React.useCallback(() => {
     requestIdRef.current += 1;
@@ -367,14 +563,48 @@ export function GisEditorScreen() {
     const onDragOver = (e: DragEvent) => e.preventDefault();
     const onDrop = (e: DragEvent) => {
       e.preventDefault();
-      const file = e.dataTransfer?.files?.[0];
-      if (!file) return;
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length === 0) return;
+
+      // A shapefile is a bundle, not a single file — dragging its
+      // extracted .shp alongside its .dbf/.prj/.shx/.cpg siblings is the
+      // normal gesture (see shapefileMetadata.ts's doc comment for why a
+      // .zip isn't accepted here yet: shpjs unzips internally without
+      // handing the raw component bytes back out, which Save needs to
+      // pass .shp/.shx/.prj/.cpg through unchanged).
+      const byExt = (re: RegExp) => files.find((f) => re.test(f.name)) ?? null;
+      const shpFile = byExt(/\.shp$/i);
+      if (shpFile) {
+        clear();
+        fileHandleRef.current = null;
+        void ingestVector({
+          shp: shpFile,
+          shx: byExt(/\.shx$/i),
+          dbf: byExt(/\.dbf$/i),
+          prj: byExt(/\.prj$/i),
+          cpg: byExt(/\.cpg$/i),
+        });
+        return;
+      }
+      if (files.length === 1 && /\.zip$/i.test(files[0].name)) {
+        clearVector();
+        setVectorStatus('error');
+        setVectorErrorMessage(
+          'Zipped shapefiles aren’t supported yet — unzip it and drop the .shp/.dbf/.prj files together.',
+        );
+        return;
+      }
+
+      const file = files[0];
       const name = file.name.toLowerCase();
       if (!ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
         setStatus('error');
-        setErrorMessage('Drop a GeoTIFF (.tif or .tiff).');
+        setErrorMessage(
+          'Drop a GeoTIFF (.tif or .tiff) or a shapefile (.shp + .dbf, optionally + .prj/.shx/.cpg).',
+        );
         return;
       }
+      clearVector();
       // Chromium exposes a real writable handle to a dropped file via this
       // (non-standard, feature-detected) API — captured here, synchronously
       // in the drop handler, per the API's own usage pattern; the promise
@@ -404,7 +634,7 @@ export function GisEditorScreen() {
       node.removeEventListener('dragover', onDragOver);
       node.removeEventListener('drop', onDrop);
     };
-  }, [ingest]);
+  }, [ingest, ingestVector, clear, clearVector]);
 
   React.useEffect(
     () => () => {
@@ -453,7 +683,9 @@ export function GisEditorScreen() {
             >
               <ThemedText variant='body'>
                 Drop a GeoTIFF below to inspect its metadata and preview it on
-                the map. The file never leaves your browser.
+                the map, or drag a shapefile’s .shp together with its .dbf (and
+                .prj/.shx/.cpg, if you have them). The file never leaves your
+                browser.
               </ThemedText>
 
               {React.createElement(
@@ -471,21 +703,32 @@ export function GisEditorScreen() {
                   <ThemedText variant='bodyEmphasis'>
                     {loaded
                       ? loaded.fileName
-                      : status === 'parsing'
-                        ? 'Reading file…'
-                        : 'No file loaded'}
+                      : loadedVector
+                        ? `${loadedVector.fileNameBase}.shp`
+                        : status === 'parsing' || vectorStatus === 'parsing'
+                          ? 'Reading file…'
+                          : 'No file loaded'}
                   </ThemedText>
                   <View style={styles.actionsRow}>
                     <Button
                       variant='primary'
                       label={
-                        loaded ? 'Load a different file' : 'Choose GeoTIFF'
+                        loaded || loadedVector
+                          ? 'Load a different file'
+                          : 'Choose GeoTIFF'
                       }
                       disabled={status === 'parsing'}
                       onPress={pickFile}
                     />
-                    {loaded ? (
-                      <Button variant='subtle' label='Clear' onPress={clear} />
+                    {loaded || loadedVector ? (
+                      <Button
+                        variant='subtle'
+                        label='Clear'
+                        onPress={() => {
+                          clear();
+                          clearVector();
+                        }}
+                      />
                     ) : null}
                   </View>
                 </View>,
@@ -506,6 +749,25 @@ export function GisEditorScreen() {
                     style={{ color: palette.text.warning.default }}
                   >
                     {errorMessage}
+                  </ThemedText>
+                </View>
+              ) : null}
+
+              {vectorStatus === 'error' && vectorErrorMessage ? (
+                <View
+                  style={[
+                    styles.errorBox,
+                    {
+                      backgroundColor: palette.background.warning.secondary,
+                      borderColor: palette.border.warning.default,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    variant='bodySmall'
+                    style={{ color: palette.text.warning.default }}
+                  >
+                    {vectorErrorMessage}
                   </ThemedText>
                 </View>
               ) : null}
@@ -726,6 +988,138 @@ export function GisEditorScreen() {
                         initialZoom={renderer.view.zoom}
                       />
                     ) : null}
+                  </View>
+                </View>
+              ) : null}
+
+              {loadedVector && vectorEditable && vectorStatus === 'confirm' ? (
+                <View
+                  style={[
+                    styles.resultsRow,
+                    isStacked && styles.resultsColumn,
+                    { gap: responsive.gap },
+                  ]}
+                >
+                  <View style={styles.metaColumn}>
+                    <VectorEditor
+                      metadata={loadedVector.metadata}
+                      editable={vectorEditable}
+                      geojson={loadedVector.geojson}
+                      onChange={setVectorEditable}
+                    />
+                  </View>
+                  <View
+                    style={[
+                      styles.confirmBox,
+                      {
+                        backgroundColor: palette.background.warning.secondary,
+                        borderColor: palette.border.warning.default,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      variant='bodyEmphasis'
+                      style={{ color: palette.text.warning.default }}
+                    >
+                      {`This file has ${loadedVector.metadata.vertexCount.toLocaleString()} vertices.`}
+                    </ThemedText>
+                    <ThemedText
+                      variant='bodySmall'
+                      style={{ color: palette.text.warning.default }}
+                    >
+                      Rendering that many at once can be slow or lock up your
+                      browser tab. Simplifying reduces vertex count (the same
+                      idea as a raster overview) while keeping the shape
+                      recognizable — it only affects this preview, never what
+                      gets saved.
+                    </ThemedText>
+                    <View style={styles.actionsRow}>
+                      <Button
+                        variant='primary'
+                        label='Simplify and render'
+                        onPress={() => confirmVectorRender(true)}
+                      />
+                      <Button
+                        variant='subtle'
+                        label='Render full detail anyway'
+                        onPress={() => confirmVectorRender(false)}
+                      />
+                      <Button
+                        variant='subtle'
+                        label='Choose a different file'
+                        onPress={clearVector}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+
+              {loadedVector && vectorEditable && vectorStatus === 'ready' ? (
+                <View
+                  style={[
+                    styles.resultsRow,
+                    isStacked && styles.resultsColumn,
+                    { gap: responsive.gap },
+                  ]}
+                >
+                  <View style={styles.metaColumn}>
+                    <VectorEditor
+                      metadata={loadedVector.metadata}
+                      editable={vectorEditable}
+                      geojson={loadedVector.geojson}
+                      onChange={setVectorEditable}
+                    />
+
+                    <View style={styles.saveBox}>
+                      <ThemedText variant='bodyEmphasis'>Save</ThemedText>
+                      <ThemedText
+                        variant='bodyTiny'
+                        style={{ color: palette.text.default.secondary }}
+                      >
+                        Downloads a .zip with your original .shp/.shx/.prj/ .cpg
+                        untouched (styling never touches geometry) plus a
+                        rebuilt .dbf carrying your original attributes and this
+                        tool’s own WW_MODE/WW_FIELD/WW_COLOR fields — real
+                        columns in the shapefile’s own attribute table, not a
+                        sidecar file. Re-opening the saved file here restores
+                        this exact styling.
+                      </ThemedText>
+                      <View style={styles.actionsRow}>
+                        <Button
+                          variant='primary'
+                          label={
+                            vectorSaveState === 'saving'
+                              ? 'Saving…'
+                              : vectorSaveState === 'saved'
+                                ? 'Saved!'
+                                : 'Save to file'
+                          }
+                          disabled={vectorSaveState === 'saving'}
+                          onPress={() => void saveVectorToFile()}
+                        />
+                      </View>
+                      {vectorSaveState === 'error' && vectorSaveError ? (
+                        <ThemedText
+                          variant='bodySmall'
+                          style={{ color: palette.text.warning.default }}
+                        >
+                          {vectorSaveError}
+                        </ThemedText>
+                      ) : null}
+                    </View>
+                  </View>
+                  <View style={styles.previewColumn}>
+                    <SpeciesOccurrenceMap
+                      key={loadedVector.fileNameBase}
+                      occurrences={[]}
+                      showMarkers={false}
+                      height={MAP_HEIGHT}
+                      allowPinObservations={false}
+                      initialLat={vectorInitialView.lat}
+                      initialLon={vectorInitialView.lon}
+                      initialZoom={vectorInitialView.zoom}
+                      localVectorLayer={vectorLayerForMap}
+                    />
                   </View>
                 </View>
               ) : null}
