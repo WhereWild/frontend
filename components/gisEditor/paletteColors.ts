@@ -15,8 +15,7 @@
 // rasterEditableMeta.ts / MetadataEditor.tsx), they're map-rendering
 // defaults only.
 
-import { buildColorLut } from './cogTileMath';
-import { COLORMAPS } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { sampleColormap } from '@/components/sections/speciesOccurrenceMap/variableColors';
 
 const hslToHex = (h: number, s: number, l: number): string => {
   const sat = s / 100;
@@ -37,14 +36,7 @@ export const defaultClassColor = (index: number, total: number): string => {
   return hslToHex(hue, 65, 50);
 };
 
-const rgbToHex = (r: number, g: number, b: number): string =>
-  `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
-
-let ordinalLut: Uint8Array | null = null;
-
 export const defaultOrdinalColor = (index: number, total: number): string => {
-  if (!ordinalLut) ordinalLut = buildColorLut(COLORMAPS.viridis.stops);
   const t = total > 1 ? index / (total - 1) : 0;
-  const idx = Math.round(t * 255) * 3;
-  return rgbToHex(ordinalLut[idx], ordinalLut[idx + 1], ordinalLut[idx + 2]);
+  return sampleColormap('viridis', t);
 };

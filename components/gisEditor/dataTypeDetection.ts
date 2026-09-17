@@ -115,8 +115,6 @@ export const detectValueType = (
 
   if (looksCategorical) {
     const sorted = [...distinct].sort((a, b) => a - b);
-    const startsLow = sorted[0] === 0 || sorted[0] === 1;
-    const contiguous = startsLow && sorted.every((v, i) => v === sorted[0] + i);
 
     if (sorted.length === 2) {
       return {
@@ -129,12 +127,27 @@ export const detectValueType = (
         distinctValues: sorted,
       };
     }
-    if (contiguous) {
+    // Density, not literal gaplessness: a downsampled preview sample can
+    // easily miss one of several real classes outright (confirmed: a real
+    // 5-class 0-4 ordinal raster whose rarest class the preview sample
+    // simply didn't hit, sampling only 0,1,2,4 — an exact "every value
+    // present, no gaps" check called that non-contiguous and misclassified
+    // real ordinal data as nominal, which is what sent it through the
+    // rainbow-hue nominal color path instead of a sequential colormap).
+    // Values densely packed into a small span relative to how many distinct
+    // values there are is still a strong "these are ranked classes" signal
+    // even with a gap or two; scattered codes across a wide span (e.g.
+    // land-cover codes like 11, 21, 41, 71...) are not, regardless of
+    // sampling luck, since a real land-cover raster's codes are genuinely
+    // spread out, not just under-sampled.
+    const span = sorted[sorted.length - 1] - sorted[0];
+    const density = sorted.length / (span + 1);
+    if (density >= 0.5) {
       return {
         guess: 'ordinal',
         confidence: 'medium',
         reason:
-          `Values are a contiguous run of integers (${sorted[0]}–${sorted[sorted.length - 1]}) with no gaps — looks like ranked classes.` +
+          `Values are densely packed integers (${sorted[0]}–${sorted[sorted.length - 1]}, ${sorted.length} distinct) — looks like ranked classes.` +
           DOWNSAMPLED_NOTE,
         distinctCount: sorted.length,
         distinctValues: sorted,
@@ -144,7 +157,7 @@ export const detectValueType = (
       guess: 'nominal',
       confidence: 'medium',
       reason:
-        `Few distinct integer values (${sorted.length}) that aren't a contiguous run — looks like unordered class codes.` +
+        `Few distinct integer values (${sorted.length}) scattered across a wide range (${sorted[0]}–${sorted[sorted.length - 1]}) — looks like unordered class codes.` +
         DOWNSAMPLED_NOTE,
       distinctCount: sorted.length,
       distinctValues: sorted,

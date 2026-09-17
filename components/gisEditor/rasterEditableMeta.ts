@@ -174,6 +174,44 @@ export const withValueType = (
   return { ...editable, valueType: nextType, classes, renderMin, renderMax };
 };
 
+/**
+ * Merges class ids actually seen while rendering (see VariableHeatmapMap's
+ * onDiscoverClasses) into the editable class list — the guaranteed-correct
+ * counterpart to the sample-based auto-detected class list, since a
+ * downsampled preview can miss a real, rare class outright (confirmed: a
+ * 5-class ordinal raster whose rarest class only showed up once the user
+ * actually panned/zoomed to where it renders) while a class that's
+ * genuinely been rendered on screen unambiguously exists. A no-op for
+ * continuous data (nothing to grow) and for any id already known.
+ *
+ * Only the newly-added entries get a color assigned here — existing
+ * classes' colors are left completely untouched, so this can never
+ * overwrite a nominal class the user already hand-picked a color for.
+ */
+export const addDiscoveredClasses = (
+  editable: RasterEditableMeta,
+  ids: number[],
+): RasterEditableMeta => {
+  if (editable.valueType !== 'nominal' && editable.valueType !== 'ordinal') {
+    return editable;
+  }
+  const known = new Set(editable.classes.map((c) => c.value));
+  const newIds = [...new Set(ids)].filter((id) => !known.has(id));
+  if (newIds.length === 0) return editable;
+  const total = editable.classes.length + newIds.length;
+  const additions = newIds.map((value, i) => ({
+    value,
+    name: String(value),
+    color: classColorFor(editable.valueType, editable.classes.length + i, total),
+  }));
+  return {
+    ...editable,
+    classes: [...editable.classes, ...additions].sort(
+      (a, b) => a.value - b.value,
+    ),
+  };
+};
+
 export const toEnvironmentVariableOption = (
   fileName: string,
   version: number,

@@ -33,6 +33,7 @@ import { createCogTileRenderer, type CogTileRenderer } from './cogTileRenderer';
 import { createVectorTileRenderer } from './vectorTileRenderer';
 import type { DetectedValueType } from './dataTypeDetection';
 import {
+  addDiscoveredClasses,
   buildInitialEditableMeta,
   editableMetaToDetectedType,
   toEnvironmentVariableOption,
@@ -369,6 +370,21 @@ export function GisEditorScreen() {
     },
     [],
   );
+
+  // A downsampled preview sample can miss a real, rare class outright (see
+  // rasterMetadata.ts's deriveDetectedValueType); a class that's actually
+  // been rendered on screen unambiguously exists. Growing the class list
+  // here means it's guaranteed complete eventually, regardless of what the
+  // initial sample happened to catch — the user just has to pan/zoom to
+  // where the missed class renders once for it to show up as a real,
+  // editable row. Note this triggers buildRenderer to run again (editable
+  // is one of its effect's deps below) since the renderer's own
+  // legendClasses need to include the newly-discovered class too — a rare,
+  // bounded event (at most once per distinct class ever missed), not
+  // something that fires on every tile render.
+  const handleDiscoverClasses = React.useCallback((ids: number[]) => {
+    setEditableMeta((prev) => (prev ? addDiscoveredClasses(prev, ids) : prev));
+  }, []);
 
   const ingest = React.useCallback(
     async (blob: Blob, fileName: string, fileSize: number) => {
@@ -974,6 +990,7 @@ export function GisEditorScreen() {
                         initialLat={renderer.view.lat}
                         initialLon={renderer.view.lon}
                         initialZoom={renderer.view.zoom}
+                        onDiscoverClasses={handleDiscoverClasses}
                       />
                     ) : null}
                   </View>

@@ -402,6 +402,91 @@ const smallestBandCache = new WeakMap<
   Promise<ArrayLike<number> | null>
 >();
 
+// When the data already looks categorical, scanning for the FULL set of
+// distinct class values is worth reading more than the tiny center-cropped
+// sample above — but "read genuinely full resolution" is overkill (and
+// potentially slow) for a source raster that's much finer than any
+// categorical class realistically needs. Targeting ~4km/pixel instead
+// (a resolution fine enough that a real class occupying less than a 4km
+// pixel would be a very unusual case for the kind of national/regional
+// scientific classification rasters this tool is aimed at, and coarse
+// enough to stay fast -- 1km was noticeably slow in practice) means a
+// higher-native-resolution file scans a coarser, cheaper overview level,
+// while a file whose native resolution is already ~4km or coarser just
+// reads its own full resolution directly, since there's nothing
+// coarser-but-still-usable to pick instead.
+const TARGET_SCAN_RESOLUTION_METERS = 4000;
+// Degrees->meters is only a rough approximation (varies with latitude),
+// but this is already a heuristic picking a heuristic's scan level, not a
+// real measurement -- being off by some percent doesn't change which
+// overview level gets picked in practice.
+const METERS_PER_DEGREE = 111_320;
+
+const resolutionInMeters = (res: number): number =>
+  Math.abs(res) < 1 ? Math.abs(res) * METERS_PER_DEGREE : Math.abs(res);
+
+const categoricalScanBandCache = new WeakMap<
+  Blob,
+  Promise<ArrayLike<number> | null>
+>();
+
+/** Reads the WHOLE (no center-crop) band of whichever image level (full
+ * resolution or an overview) comes closest to TARGET_SCAN_RESOLUTION_METERS
+ * without being coarser than it — see the constant's own comment above for
+ * why. Used only once we already know the data is categorical (see
+ * deriveDetectedValueType); returns null if the file has no resolution
+ * metadata to pick a level by (falls back to the coarse cropped sample). */
+const readCategoricalScanBand = (
+  blob: Blob,
+  metadata: RasterMetadata,
+): Promise<ArrayLike<number> | null> => {
+  const cached = categoricalScanBandCache.get(blob);
+  if (cached) return cached;
+  const promise = (async (): Promise<ArrayLike<number> | null> => {
+    if (!metadata.resolution || metadata.width === 0) return null;
+    const fullResMeters = resolutionInMeters(metadata.resolution[0]);
+    const tiff = await loadGeoTiff().fromBlob(blob);
+    const count = await tiff.getImageCount();
+    let best: { image: GeoImageLike; resMeters: number } | null = null;
+    let full: GeoImageLike | null = null;
+    for (let i = 0; i < count; i += 1) {
+      const image = await tiff.getImage(i);
+      if (((image.getFileDirectory().NewSubfileType as number) ?? 0) & 4) {
+        continue; // an alpha/mask subfile, not a real overview level
+      }
+      if (i === 0) full = image;
+      // Deliberately not image.getResolution() here: overview levels
+      // commonly carry no geo-referencing tags of their own at all (they
+      // inherit it from the full-resolution image instead), and
+      // geotiff.js throws ("The image does not have an affine
+      // transformation") rather than returning something usable when
+      // that's the case — confirmed against a real file while fixing
+      // this. Scaling the full-resolution image's own (always present)
+      // resolution by the width ratio avoids ever needing an overview's
+      // own geo tags at all, and is exact for how GeoTIFF overviews are
+      // actually built (same extent, integer downsample factor).
+      const width = image.getWidth();
+      const resMeters = width > 0 ? fullResMeters * (metadata.width / width) : fullResMeters;
+      if (
+        resMeters <= TARGET_SCAN_RESOLUTION_METERS &&
+        (!best || resMeters > best.resMeters)
+      ) {
+        // The coarsest level that's still at least as fine as the target
+        // -- minimizes what gets read while staying fine enough.
+        best = { image, resMeters };
+      }
+    }
+    const chosen = best?.image ?? full;
+    if (!chosen) return null;
+    const rasters = (await chosen.readRasters({
+      samples: [0],
+    })) as ArrayLike<number>[] | ArrayLike<number>;
+    return Array.isArray(rasters) ? rasters[0] : rasters;
+  })();
+  categoricalScanBandCache.set(blob, promise);
+  return promise;
+};
+
 const readSmallestOverviewBand = (
   blob: Blob,
   metadata: RasterMetadata,
@@ -494,7 +579,55 @@ export const deriveDetectedValueType = async (
       ? detectValueType([], null, { hasColorMap: true })
       : null;
   }
-  return detectValueType(band, metadata.noData, {
+  const initial = detectValueType(band, metadata.noData, {
     hasColorMap: metadata.hasColorMap,
   });
+  if (
+    (initial.guess === 'nominal' || initial.guess === 'ordinal') &&
+    initial.distinctValues
+  ) {
+    // The cheap, center-cropped sample above is enough to guess the
+    // measurement level, but can genuinely miss a real class outright —
+    // confirmed: a 5-class ordinal raster whose rarest class only ever
+    // shows up outside that crop window, so it never made it into the
+    // sample at all, leaving the editor with no way to name/color/edit it
+    // (it just doesn't exist as far as the class list is concerned). Once
+    // we already know the data is categorical, a much more thorough scan
+    // (see readCategoricalScanBand — targets ~1km/pixel, or the file's own
+    // full resolution if that's already coarser) and merging in whatever
+    // classes that turns up fixes exactly that, without paying the extra
+    // read for continuous/interval/ratio data at all. This still can't be
+    // a 100% guarantee for a class rare enough to vanish even at that
+    // resolution — see addDiscoveredClasses in rasterEditableMeta.ts for
+    // the actually-unconditional other half of this fix, which grows the
+    // class list further from what's really seen while rendering.
+    // Best-effort: this is an enhancement on top of an already-usable
+    // `initial` guess, never a requirement — any geotiff.js failure here
+    // (confirmed real: some files throw reading an overview's own
+    // resolution, worked around above, but there's no guarantee that's
+    // the only way a browser-side GeoTIFF read can fail) falls back to
+    // `initial` exactly as if this whole pass had been skipped, rather
+    // than taking detection down with it.
+    const scanBand = await readCategoricalScanBand(blob, metadata).catch(
+      () => null,
+    );
+    if (scanBand) {
+      const fromScan = detectValueType(scanBand, metadata.noData, {
+        hasColorMap: metadata.hasColorMap,
+      });
+      if (fromScan.distinctValues) {
+        const merged = Array.from(
+          new Set([...initial.distinctValues, ...fromScan.distinctValues]),
+        ).sort((a, b) => a - b);
+        if (merged.length !== initial.distinctValues.length) {
+          return {
+            ...initial,
+            distinctCount: merged.length,
+            distinctValues: merged,
+          };
+        }
+      }
+    }
+  }
+  return initial;
 };
