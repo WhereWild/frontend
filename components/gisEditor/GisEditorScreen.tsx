@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 import {
   Button,
   PageScrollContainer,
@@ -127,6 +133,12 @@ export function GisEditorScreen() {
   const isStacked = responsive.breakpoint !== 'desktop';
 
   const [status, setStatus] = React.useState<Status>('idle');
+  // A short, human-readable label for whatever the 'parsing' status is
+  // doing right now (see ingest()/buildRenderer()) -- shown next to the
+  // spinner so a slow step (the file's own size, or a categorical scan,
+  // see rasterMetadata.ts's readCategoricalScanBand) doesn't read as a
+  // stuck/frozen UI.
+  const [loadStage, setLoadStage] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState<Loaded | null>(null);
   const [editableMeta, setEditableMeta] =
@@ -333,6 +345,7 @@ export function GisEditorScreen() {
       isInitialLoad: boolean,
     ) => {
       try {
+        setLoadStage('Preparing map preview…');
         const tileRenderer = await createCogTileRenderer({
           blob: next.blob,
           metadata: next.metadata,
@@ -357,6 +370,7 @@ export function GisEditorScreen() {
         setRenderVersion((v) => v + 1);
         if (isInitialLoad) setLoadSeq((n) => n + 1);
         setStatus('ready');
+        setLoadStage(null);
       } catch (error) {
         if (requestIdRef.current !== requestId) return;
         console.error('Failed to prepare GeoTIFF:', error);
@@ -366,6 +380,7 @@ export function GisEditorScreen() {
             : 'Could not read that file as a GeoTIFF.',
         );
         setStatus('error');
+        setLoadStage(null);
       }
     },
     [],
@@ -397,10 +412,17 @@ export function GisEditorScreen() {
       setEditableMeta(null);
       setErrorMessage(null);
       setStatus('parsing');
+      setLoadStage('Reading file header…');
       try {
         const metadata = await inspectRaster(blob);
+        setLoadStage('Sampling value range…');
         const bounds = await deriveRenderBounds(blob, metadata);
-        const detectedType = await deriveDetectedValueType(blob, metadata);
+        setLoadStage('Detecting data type…');
+        const detectedType = await deriveDetectedValueType(
+          blob,
+          metadata,
+          setLoadStage,
+        );
         const next: Loaded = {
           blob,
           fileName,
@@ -424,6 +446,7 @@ export function GisEditorScreen() {
           await buildRenderer(next, requestId, initialEditable, true);
         } else {
           setStatus('confirm');
+          setLoadStage(null);
         }
       } catch (error) {
         if (requestIdRef.current !== requestId) return;
@@ -434,6 +457,7 @@ export function GisEditorScreen() {
             : 'Could not read that file as a GeoTIFF.',
         );
         setStatus('error');
+        setLoadStage(null);
       }
     },
     [buildRenderer],
@@ -704,15 +728,27 @@ export function GisEditorScreen() {
                     },
                   ]}
                 >
-                  <ThemedText variant='bodyEmphasis'>
-                    {loaded
-                      ? loaded.fileName
-                      : loadedVector
-                        ? `${loadedVector.fileNameBase}.geojson`
-                        : status === 'parsing' || vectorStatus === 'parsing'
-                          ? 'Reading file…'
+                  {status === 'parsing' || vectorStatus === 'parsing' ? (
+                    <View style={styles.loadingRow}>
+                      <ActivityIndicator
+                        color={palette.icon.brand.default}
+                        testID='gis-editor-loading-spinner'
+                      />
+                      <ThemedText variant='bodyEmphasis'>
+                        {status === 'parsing'
+                          ? (loadStage ?? 'Reading file…')
+                          : 'Reading file…'}
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <ThemedText variant='bodyEmphasis'>
+                      {loaded
+                        ? loaded.fileName
+                        : loadedVector
+                          ? `${loadedVector.fileNameBase}.geojson`
                           : 'No file loaded'}
-                  </ThemedText>
+                    </ThemedText>
+                  )}
                   <View style={styles.actionsRow}>
                     <Button
                       variant='primary'
@@ -1091,6 +1127,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Size.space['200'],
     flexWrap: 'wrap',
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['200'],
   },
   errorBox: {
     width: '100%',
