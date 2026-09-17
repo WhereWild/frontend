@@ -556,6 +556,7 @@ export const deriveRenderBounds = async (
 export const deriveDetectedValueType = async (
   blob: Blob,
   metadata: RasterMetadata,
+  onStage?: (stage: string) => void,
 ): Promise<DetectedValueType | null> => {
   if (metadata.savedConfig) {
     const { valueType, classes } = metadata.savedConfig;
@@ -593,7 +594,7 @@ export const deriveDetectedValueType = async (
     // sample at all, leaving the editor with no way to name/color/edit it
     // (it just doesn't exist as far as the class list is concerned). Once
     // we already know the data is categorical, a much more thorough scan
-    // (see readCategoricalScanBand — targets ~1km/pixel, or the file's own
+    // (see readCategoricalScanBand — targets ~4km/pixel, or the file's own
     // full resolution if that's already coarser) and merging in whatever
     // classes that turns up fixes exactly that, without paying the extra
     // read for continuous/interval/ratio data at all. This still can't be
@@ -608,6 +609,7 @@ export const deriveDetectedValueType = async (
     // the only way a browser-side GeoTIFF read can fail) falls back to
     // `initial` exactly as if this whole pass had been skipped, rather
     // than taking detection down with it.
+    onStage?.('Scanning for a complete list of classes…');
     const scanBand = await readCategoricalScanBand(blob, metadata).catch(
       () => null,
     );
