@@ -1268,7 +1268,13 @@ _ARC_OBJECT_READERS: dict[str, tuple[bool, bool, Callable]] = {
 }
 
 
-_LYR_LABEL_CODE_RE = re.compile(r"^(\d+[a-z]?)\s")
+# `[a-z]*` (zero or more), not `[a-z]?` (zero or one): some states' Level
+# IV codes carry a two-letter suffix once a broader class gets subdivided
+# further (confirmed: Montana's own "17aa" through "17am", a finer split of
+# what was originally just "17a" -- a single-letter regex here silently
+# dropped exactly these 13 real, present .lyr entries, sending them to the
+# generated palette instead for no real reason).
+_LYR_LABEL_CODE_RE = re.compile(r"^(\d+[a-z]*)\s")
 
 
 def fetch_lyr_colors(lyr_bytes: bytes) -> dict[str, str]:
