@@ -160,6 +160,28 @@ export const tallyCategoricalCounts = (
   return [...counts.entries()].map(([id, count]) => ({ id, count }));
 };
 
+/**
+ * Min/max of the finite, non-noData samples in one tile's decoded band —
+ * feeds CogTileRenderer's getVisibleRange(), the local (no server round
+ * trip) equivalent of the backend's tile-range/stats endpoint that drives
+ * auto-adapt. Null when every sample is missing/noData (e.g. a tile fully
+ * outside the raster's actual coverage).
+ */
+export const sampleValueRange = (
+  values: ArrayLike<number>,
+  noData: number | null,
+): { min: number; max: number } | null => {
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i];
+    if (!Number.isFinite(v) || (noData != null && v === noData)) continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : null;
+};
+
 /** `#rrggbb` -> `[r, g, b]`, or null if malformed. */
 export const hexToRgb = (hex: string): [number, number, number] | null => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
