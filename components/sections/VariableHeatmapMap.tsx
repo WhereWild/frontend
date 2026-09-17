@@ -597,7 +597,19 @@ export function VariableHeatmapMap({
     const rawReadPointValue = tileSource.readPointValue;
     return async (lat: number, lon: number) => {
       const result = await rawReadPointValue(lat, lon);
-      if (!result) return result;
+      // Only ordinal needs this override at all (see ordinalFallbackColor's
+      // own comment) — for anything else (ratio/interval/circular, or
+      // nominal, which is already colored correctly via the static
+      // per-class colorsById baked into the renderer), pass the result
+      // through untouched. Introducing a classColor here unconditionally
+      // was a real bug: the map template's popup renderer treats
+      // `data.class_name || data.class_color` being truthy as "this is
+      // categorical" (see fetchBackgroundPointPopup in
+      // SpeciesOccurrenceMap.html) — forcing classColor to a '#888888'
+      // fallback for continuous data made every local point query look
+      // categorical, so it always rendered the fallback gray dot instead
+      // of ever reaching the gradient-color branch.
+      if (!result || !isOrdinalVariable) return result;
       return {
         ...result,
         classColor: ordinalFallbackColor(
@@ -606,7 +618,7 @@ export function VariableHeatmapMap({
         ),
       };
     };
-  }, [isLocal, tileSource, ordinalFallbackColor]);
+  }, [isLocal, tileSource, isOrdinalVariable, ordinalFallbackColor]);
 
   return (
     <View ref={mapContainerRef} style={styles.mapContainer}>
