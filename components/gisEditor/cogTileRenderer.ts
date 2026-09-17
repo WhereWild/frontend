@@ -277,12 +277,36 @@ export const createCogTileRenderer = async ({
 
   let disposed = false;
 
+  // noData, translated into display domain once — fixed for this renderer's
+  // whole lifetime (only scale/offset, set at construction, affect it), so
+  // it's hoisted out of decodeTile() rather than recomputed per tile.
+  const effectiveNoData =
+    isScaled && noData != null ? toDisplay(noData) : noData;
+
   // Per-tile min/max of the display-domain values actually decoded for that
   // tile — see getVisibleRange() below. Keyed "z/x/y" rather than tracking a
   // single running min/max so that zooming/panning to a smaller area can
   // shrink the reported range back down instead of only ever growing from
   // every tile ever rendered this session.
   const tileRanges = new Map<string, { min: number; max: number }>();
+
+  // Cache of each tile's decoded, reprojected, display-domain samples (plus
+  // its class tally, for categorical data) keyed "z/x/y" — everything a
+  // colormap/render_range/class_filter change does NOT affect. Auto-adapt
+  // refines render_range often (see useAutoAdaptRange), and each refinement
+  // used to re-run the full decode+reproject pipeline (an async
+  // readRasters() plus a 256x256 per-pixel reprojection loop) for every
+  // visible tile just to recolor it — this cache means a style-only change
+  // only re-runs colorize+encode, the cheap tail. `null` means "decoded, but
+  // this tile has no data on the raster" (fully outside its coverage), so a
+  // repeat request short-circuits instead of re-running the geometry probe.
+  const decodedTiles = new Map<
+    string,
+    Promise<{
+      samples: Float64Array;
+      classes?: { id: number; count: number }[];
+    } | null>
+  >();
 
   const getVisibleRange = (bounds: {
     z: number;
@@ -305,18 +329,17 @@ export const createCogTileRenderer = async ({
     return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : null;
   };
 
-  const renderTile = async (
+  // Decode + reproject one tile to display-domain samples — the expensive,
+  // style-independent half of what renderTile() used to do in one pass. See
+  // decodedTiles' own comment for why this is cached separately.
+  const decodeTile = async (
     z: number,
     x: number,
     y: number,
-    url: string,
-  ): Promise<RenderedTile | null> => {
-    if (disposed) return null;
-    const style = parseTileStyleFromUrl(url);
-    const lut = lutFor(style.colormap ?? 'viridis');
-    const min = style.renderRange ? style.renderRange[0] : renderMin;
-    const max = style.renderRange ? style.renderRange[1] : renderMax;
-
+  ): Promise<{
+    samples: Float64Array;
+    classes?: { id: number; count: number }[];
+  } | null> => {
     const [minX, minY, maxX, maxY] = tileToMercatorBounds(z, x, y);
 
     let rMinX = Infinity;
@@ -459,13 +482,46 @@ export const createCogTileRenderer = async ({
         if (Number.isFinite(samples[i])) samples[i] = toDisplay(samples[i]);
       }
     }
-    const effectiveNoData =
-      isScaled && noData != null ? toDisplay(noData) : noData;
 
     if (!isCategorical) {
       const range = sampleValueRange(samples, effectiveNoData);
       if (range) tileRanges.set(`${z}/${x}/${y}`, range);
     }
+    const classes = isCategorical
+      ? tallyCategoricalCounts(samples, noData)
+      : undefined;
+
+    return { samples, classes };
+  };
+
+  const renderTile = async (
+    z: number,
+    x: number,
+    y: number,
+    url: string,
+  ): Promise<RenderedTile | null> => {
+    if (disposed) return null;
+    const style = parseTileStyleFromUrl(url);
+    const lut = lutFor(style.colormap ?? 'viridis');
+    const min = style.renderRange ? style.renderRange[0] : renderMin;
+    const max = style.renderRange ? style.renderRange[1] : renderMax;
+
+    const tileKey = `${z}/${x}/${y}`;
+    let decodedPromise = decodedTiles.get(tileKey);
+    if (!decodedPromise) {
+      // On failure, evict the cache entry rather than caching the
+      // rejection, so a transient read error doesn't permanently poison
+      // this tile for the rest of the session.
+      decodedPromise = decodeTile(z, x, y).catch((err: unknown) => {
+        decodedTiles.delete(tileKey);
+        throw err;
+      });
+      decodedTiles.set(tileKey, decodedPromise);
+    }
+    const decoded = await decodedPromise;
+    if (disposed) return null;
+    if (!decoded) return null;
+    const { samples, classes } = decoded;
 
     // Nominal codes are unordered — interpolating between two of them is
     // meaningless, so they're colorized by exact lookup instead of the
@@ -489,9 +545,6 @@ export const createCogTileRenderer = async ({
             style.valueRanges,
             style.classFilter,
           );
-    const classes = isCategorical
-      ? tallyCategoricalCounts(samples, noData)
-      : undefined;
 
     const data = await encodePng(rgba);
     if (!data) return null;
