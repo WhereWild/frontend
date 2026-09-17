@@ -40,6 +40,7 @@ import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors'
 import {
   CIRCULAR_COLORMAPS,
   COLORMAPS,
+  sampleColormap,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import {
   useMapLayerChain,
@@ -112,6 +113,15 @@ type VariableHeatmapMapProps = {
     chain: ChainedLayerFilter[];
     fullChain: ChainedLayerFilter[];
   }) => void;
+  /** Fires with any nominal/ordinal class ids seen in a rendered tile that
+   * aren't already in `variableMeta.legendClasses` — the guaranteed-correct
+   * counterpart to the /gis-editor sample-based auto-detected class list:
+   * a downsampled preview can miss a real, rare class outright, but a
+   * class that's actually been rendered on screen unambiguously exists.
+   * Only meaningful for local sources (a remote catalog variable's class
+   * list is already complete); the local /gis-editor tile source is the
+   * only caller that passes this. */
+  onDiscoverClasses?: (ids: number[]) => void;
 };
 
 // Not a real URL — intercepted by isLocalPointUrl() in the map templates
@@ -136,6 +146,7 @@ export function VariableHeatmapMap({
   initialZoom = null,
   onSelectionChange,
   onChainChange,
+  onDiscoverClasses,
 }: VariableHeatmapMapProps) {
   const {
     units,
@@ -413,9 +424,21 @@ export function VariableHeatmapMap({
       setVisibleNominalCounts(
         new Map(classes.map(({ id, count }) => [id, count])),
       );
+      if (onDiscoverClasses) {
+        const known = new Set(
+          (selectedVariableMeta?.legendClasses ?? []).map((c) => c.id),
+        );
+        const newIds = classes
+          .map((c) => c.id)
+          .filter((id) => !known.has(id));
+        if (newIds.length > 0) onDiscoverClasses(newIds);
+      }
     },
-    [],
+    [onDiscoverClasses, selectedVariableMeta],
   );
+
+  const isOrdinalVariable =
+    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
 
   const visibleCategoricalClasses = React.useMemo(() => {
     if (!isCategorical || visibleNominalCounts.size === 0) return null;
@@ -426,16 +449,47 @@ export function VariableHeatmapMap({
     const visible = allClasses
       .filter((cls) => visibleNominalCounts.has(cls.id as number))
       .sort(
-        (a, b) =>
-          (visibleNominalCounts.get(b.id as number) ?? 0) -
-          (visibleNominalCounts.get(a.id as number) ?? 0),
+        isOrdinalVariable
+          // Ordinal classes are ranked, not unordered — keeping them in
+          // rank order (rather than most-common-first, which scrambles a
+          // sequential colormap's ramp into a visually random-looking
+          // order) is what makes the legend actually read as an
+          // increasing gradient, matching the colormap the tiles
+          // themselves are rendered with.
+          ? (a, b) => (a.id as number) - (b.id as number)
+          : (a, b) =>
+              (visibleNominalCounts.get(b.id as number) ?? 0) -
+              (visibleNominalCounts.get(a.id as number) ?? 0),
       );
     return visible.length > 0 ? visible : null;
-  }, [isCategorical, selectedVariableMeta, visibleNominalCounts]);
-
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  }, [isCategorical, isOrdinalVariable, selectedVariableMeta, visibleNominalCounts]);
   const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+
+  // getCbColor's own fallback (the class's static seeded color) is right
+  // for nominal colorblind-safe substitution, but wrong for ordinal: a
+  // local raster has no CB_CLASS_COLORS catalog entry to look up at all
+  // (that table only covers known backend variables like salinity), so
+  // getCbColor always fell through to whatever color the class was seeded
+  // with when the file was first typed as ordinal — frozen at that moment,
+  // never updated when the colormap picker changes afterward. Sampling the
+  // *currently selected* colormap live, at this class's own position in
+  // the render range, keeps it matching whatever the raster tiles
+  // themselves are actually showing for that value.
+  const ordinalFallbackColor = React.useCallback(
+    (classId: number, fallback: string): string => {
+      if (!isOrdinalVariable) return fallback;
+      const renderMin = selectedVariableMeta?.renderMin;
+      const renderMax = selectedVariableMeta?.renderMax;
+      if (renderMin == null || renderMax == null || renderMax === renderMin) {
+        return fallback;
+      }
+      return sampleColormap(
+        selectedColormap,
+        (classId - renderMin) / (renderMax - renderMin),
+      );
+    },
+    [isOrdinalVariable, selectedVariableMeta, selectedColormap],
+  );
 
   const cbVisibleClasses = React.useMemo(
     () =>
@@ -446,11 +500,11 @@ export function VariableHeatmapMap({
               selectedVariableMeta?.id ?? '',
               cls.id as number,
               colorMode,
-              cls.color ?? '#888888',
+              ordinalFallbackColor(cls.id as number, cls.color ?? '#888888'),
             ),
           }))
         : visibleCategoricalClasses,
-    [colorMode, selectedVariableMeta, visibleCategoricalClasses],
+    [colorMode, ordinalFallbackColor, selectedVariableMeta, visibleCategoricalClasses],
   );
 
   const classColors = React.useMemo(() => {
@@ -459,19 +513,18 @@ export function VariableHeatmapMap({
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
       if (cls.id != null && (cls.color || isOrdinalVariable)) {
+        const fallback = ordinalFallbackColor(
+          cls.id as number,
+          cls.color ?? '#888888',
+        );
         const color = colorMode
-          ? getCbColor(
-              selectedVariableMeta.id,
-              cls.id as number,
-              colorMode,
-              cls.color ?? '#888888',
-            )
-          : (cls.color ?? '#888888');
+          ? getCbColor(selectedVariableMeta.id, cls.id as number, colorMode, fallback)
+          : fallback;
         map.set(String(cls.id), color);
       }
     }
     return map;
-  }, [isCategorical, selectedVariableMeta, colorMode, isOrdinalVariable]);
+  }, [isCategorical, selectedVariableMeta, colorMode, isOrdinalVariable, ordinalFallbackColor]);
 
   const classLabels = React.useMemo(() => {
     if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)
@@ -533,6 +586,28 @@ export function VariableHeatmapMap({
         : (selectedVariableMeta?.renderMax ?? null)
       : null;
 
+  // Local rasters' own readPointValue() bakes each class's color in at
+  // renderer-construction time (see cogTileRenderer.ts) — for ordinal data
+  // that's the same stale/seeded color problem ordinalFallbackColor above
+  // fixes for the legend, just showing up in the click-popup instead.
+  // Re-deriving it here at click time keeps the popup swatch matching
+  // whatever colormap is currently selected.
+  const renderLocalPointValue = React.useMemo(() => {
+    if (!isLocal || !tileSource.readPointValue) return undefined;
+    const rawReadPointValue = tileSource.readPointValue;
+    return async (lat: number, lon: number) => {
+      const result = await rawReadPointValue(lat, lon);
+      if (!result) return result;
+      return {
+        ...result,
+        classColor: ordinalFallbackColor(
+          result.value,
+          result.classColor ?? '#888888',
+        ),
+      };
+    };
+  }, [isLocal, tileSource, ordinalFallbackColor]);
+
   return (
     <View ref={mapContainerRef} style={styles.mapContainer}>
       <SpeciesOccurrenceMap
@@ -542,7 +617,7 @@ export function VariableHeatmapMap({
         height={height}
         heatmapTileUrl={tileUrl}
         renderLocalTile={isLocal ? tileSource.renderTile : undefined}
-        renderLocalPointValue={isLocal ? tileSource.readPointValue : undefined}
+        renderLocalPointValue={renderLocalPointValue}
         // Falls back into the click-popup's value line whenever a
         // per-point response doesn't carry its own units (always true for
         // local sources, since there's no backend to embed them into the

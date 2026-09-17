@@ -21,6 +21,19 @@ describe('detectValueType', () => {
     expect(result.distinctCount).toBe(2);
   });
 
+  it('still detects ordinal classes when a downsampled sample misses one value entirely', () => {
+    // A real 5-class 0-4 ordinal raster (salinity: 0=Non saline ... 4=Extremely
+    // saline) whose rarest class (3) simply isn't hit by the downsampled
+    // preview sample -- sorted values come out [0,1,2,4], which an "every
+    // value present, no gaps" check would call non-contiguous and misfile as
+    // nominal (sending it through the rainbow-hue color path instead of a
+    // sequential colormap, a real bug this test guards against).
+    const values = [0, 0, 1, 1, 2, 2, 4, 4, 0, 1, 2, 4];
+    const result = detectValueType(values);
+    expect(result.guess).toBe('ordinal');
+    expect(result.distinctCount).toBe(4);
+  });
+
   it('detects contiguous integer classes starting at 1 as ordinal', () => {
     const values = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 3, 3, 2];
     const result = detectValueType(values);

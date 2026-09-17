@@ -4,6 +4,7 @@
 
 import type { DetectedValueType } from '../dataTypeDetection';
 import {
+  addDiscoveredClasses,
   buildInitialEditableMeta,
   editableMetaToDetectedType,
   toEnvironmentVariableOption,
@@ -272,5 +273,61 @@ describe('editableMetaToDetectedType', () => {
     const detected = editableMetaToDetectedType(editable);
     expect(detected.guess).toBe('circular');
     expect(detected.confidence).toBe('high');
+  });
+});
+
+describe('addDiscoveredClasses', () => {
+  const ordinal: RasterEditableMeta = {
+    valueType: 'ordinal',
+    units: '',
+    renderMin: 0,
+    renderMax: 4,
+    scale: 1,
+    offset: 0,
+    classes: [
+      { value: 0, name: '0', color: '#111111' },
+      { value: 1, name: '1', color: '#222222' },
+      { value: 2, name: '2', color: '#333333' },
+      { value: 4, name: '4', color: '#444444' },
+    ],
+  };
+
+  it('inserts a class actually seen while rendering, in sorted order', () => {
+    const result = addDiscoveredClasses(ordinal, [3]);
+    expect(result.classes.map((c) => c.value)).toEqual([0, 1, 2, 3, 4]);
+    const added = result.classes.find((c) => c.value === 3);
+    expect(added?.name).toBe('3');
+    expect(added?.color).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('leaves every existing class untouched, including its color', () => {
+    const result = addDiscoveredClasses(ordinal, [3]);
+    for (const original of ordinal.classes) {
+      const kept = result.classes.find((c) => c.value === original.value);
+      expect(kept).toEqual(original);
+    }
+  });
+
+  it('is a no-op for an id that is already known', () => {
+    const result = addDiscoveredClasses(ordinal, [2]);
+    expect(result).toBe(ordinal);
+  });
+
+  it('is a no-op for continuous data (nothing to grow)', () => {
+    const ratio: RasterEditableMeta = {
+      valueType: 'ratio',
+      units: '',
+      renderMin: 0,
+      renderMax: 100,
+      scale: 1,
+      offset: 0,
+      classes: [],
+    };
+    expect(addDiscoveredClasses(ratio, [5])).toBe(ratio);
+  });
+
+  it('dedupes repeated ids in a single call', () => {
+    const result = addDiscoveredClasses(ordinal, [3, 3, 3]);
+    expect(result.classes.filter((c) => c.value === 3)).toHaveLength(1);
   });
 });
