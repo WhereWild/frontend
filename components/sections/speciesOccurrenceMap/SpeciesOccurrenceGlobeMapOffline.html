@@ -76,6 +76,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // — read once at load so a reload/return visit starts wherever the user
     // last left the toggle, rather than always defaulting on.
     const TERRAIN_ENABLED_INITIAL = __TERRAIN_ENABLED__;
+    // Same persisted-preference, read-once-at-load pattern as
+    // TERRAIN_ENABLED_INITIAL, for MapLibre's own globe-vs-flat projection
+    // (see the toggle control below — same document, no template switch).
+    const GLOBE_PROJECTION_ENABLED_INITIAL = __GLOBE_PROJECTION_ENABLED__;
     // Esri World Imagery, proxied through our own backend (see
     // wherewild/main.py's satellite_tile) so the ArcGIS API key never
     // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
@@ -1044,12 +1048,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       container: 'map',
       style: {
         version: 8,
-        // Globe from the very first frame — set here (not only in the
-        // map.on('load') handler below) so there's no flat-Mercator flash
-        // before load, and so the view is still a globe even if the 'load'
-        // event is delayed or never fires (e.g. a heatmap tile source that
-        // hangs).
-        projection: { type: 'globe' },
+        // Set here (not only in the map.on('load') handler below) so there's
+        // no flash of the other projection before load, and so the initial
+        // view is correct even if the 'load' event is delayed or never fires
+        // (e.g. a heatmap tile source that hangs).
+        projection: { type: GLOBE_PROJECTION_ENABLED_INITIAL ? 'globe' : 'mercator' },
         // Only used for cluster-count labels (text-field on the cluster
         // symbol layer below) — MapLibre demo glyphs, no API key needed.
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
@@ -1228,6 +1231,19 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       },
       onRemove: function() {},
     });
+    // Globe vs. flat MapLibre projection — both renderers are the same
+    // MapLibre document now (Leaflet is no longer switched to on web), so
+    // this toggle no longer swaps templates; it just calls setProjection()
+    // directly. Same live-locally / persist-via-postMessage split as the
+    // terrain toggle below: the projection updates immediately, and the
+    // postToParent call is only so SpeciesOccurrenceMap persists the choice
+    // to settings.globeViewEnabled for next time.
+    var globeProjectionEnabled = !!GLOBE_PROJECTION_ENABLED_INITIAL;
+    var applyGlobeProjectionState = function() {
+      if (typeof map.setProjection === 'function') {
+        map.setProjection({ type: globeProjectionEnabled ? 'globe' : 'mercator' });
+      }
+    };
     map.addControl({
       onAdd: function() {
         var container = document.createElement('div');
@@ -1235,9 +1251,16 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
-        btn.title = 'Switch to 2D map view';
+        var updateButton = function() {
+          btn.title = globeProjectionEnabled ? 'Switch to flat map view' : 'Switch to 3D globe view';
+          btn.style.color = globeProjectionEnabled ? palette.linkColor : '';
+        };
         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 3.5L5.5 2l5 1.5L15 2v10.5l-4.5 1.5-5-1.5L1 14z"/><path d="M5.5 2v10.5"/><path d="M10.5 3.5v10.5"/></svg>';
+        updateButton();
         btn.addEventListener('click', function() {
+          globeProjectionEnabled = !globeProjectionEnabled;
+          applyGlobeProjectionState();
+          updateButton();
           postToParent({ type: 'toggleGlobeView' });
         });
         container.appendChild(btn);
@@ -1883,9 +1906,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
 
     map.on('load', function() {
       mapReady = true;
-      if (typeof map.setProjection === 'function') {
-        map.setProjection({ type: 'globe' });
-      }
+      applyGlobeProjectionState();
       applyPendingHeatmapUpdate();
 
       if (typeof window.glMatrix !== 'undefined') {
