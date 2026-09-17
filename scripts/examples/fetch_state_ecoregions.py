@@ -84,20 +84,24 @@ ALBERS REPROJECTION
     `--country` on its own covers the lower 48 only; pass `--level 3` to
     also fetch and merge in Alaska.
 
-    Real EPA colors (see fetch_poster_colors() below) have no single
-    "national poster" to read them from -- unlike a single state run,
-    `--country` fetches and reads every state's own poster and merges their
-    {code: color} results (the same EPA code always gets the same official
-    color regardless of which state's poster it's read from), so this
-    covers every code in the merged national file at the cost of several
-    dozen extra downloads -- the slowest part of a --country run.
+    Real EPA colors (see fetch_all_lyr_colors() below) have no single
+    "national .lyr" to read them from -- unlike a single state run,
+    `--country` finds and reads every state's own .lyr symbology file and
+    merges their {code: color} results (the same EPA code always gets the
+    same official color regardless of which state's .lyr it's read from),
+    so this covers every code in the merged national file at the cost of
+    several dozen extra downloads -- the slowest part of a --country run.
 
 WHY NO THIRD-PARTY DEPENDENCIES
-    Standard library only (urllib, zipfile, zlib, struct, re, colorsys,
-    math, json, ...) -- no `pip install` needed. The Shapefile binary formats
-    (.shp geometry, .dbf attributes) are small and stable enough to read
-    directly; this doubles as a from-scratch reference for both formats,
-    and for the Albers math, without pulling in pyshp/pyproj/GDAL.
+    Standard library only (urllib, zipfile, struct, re, colorsys, math,
+    json, ...) -- no `pip install` needed. The Shapefile binary formats
+    (.shp geometry, .dbf attributes) and the ArcGIS .lyr symbology format
+    (an MS-CFB container -- itself a public spec -- wrapping ArcObjects'
+    own undocumented binary object serialization; see the ".lyr symbology
+    reading" section below for how that part was figured out) are read
+    directly, from scratch; this doubles as a from-scratch reference for
+    all of it, and for the Albers math, without pulling in
+    pyshp/pyproj/GDAL/olefile.
 
 USAGE
     python3 fetch_state_ecoregions.py "Montana"
@@ -109,7 +113,6 @@ USAGE
 from __future__ import annotations
 
 import argparse
-import base64
 import colorsys
 import io
 import json
@@ -118,7 +121,6 @@ import re
 import struct
 import sys
 import zipfile
-import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -161,6 +163,14 @@ def resolve_state_name(user_input: str) -> str:
 
 
 def fetch(url: str) -> bytes:
+    # A handful of anchor hrefs on the EPA's own site are protocol-relative
+    # (e.g. Florida's own shapefile link: "//dmap-...s3.../fl_eco_l4.zip",
+    # confirmed while writing this) -- urlopen has no default scheme to
+    # fall back on for those, so it fails with "unknown url type" outright.
+    # Every host this script ever fetches from is HTTPS-only, so filling in
+    # the scheme here is always correct, not a guess.
+    if url.startswith("//"):
+        url = "https:" + url
     request = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=60) as response:  # noqa: S310 (fixed https EPA/AWS hosts only)
         return response.read()
@@ -267,6 +277,20 @@ def find_shapefile_url(state_name: str, level: int) -> str:
         file=sys.stderr,
     )
     return candidates[0][0]
+
+
+_region_html_cache: dict[int, str] = {}
+
+
+def _get_region_html(region: int) -> str:
+    if region not in _region_html_cache:
+        url = EPA_REGION_PAGE.format(n=region)
+        try:
+            _region_html_cache[region] = fetch(url).decode("utf-8", errors="replace")
+        except Exception as error:  # noqa: BLE001 - report and keep going
+            print(f"  (couldn't check region {region}: {error})", file=sys.stderr)
+            _region_html_cache[region] = ""
+    return _region_html_cache[region]
 
 
 # --- Minimal DBF (dBase III, no memo) reader --------------------------------
@@ -661,12 +685,12 @@ def style_features(
     just plain JSON properties, added directly. Returns the
     label -> color mapping, for the printed summary.
 
-    If `poster_colors` (a code -> "#rrggbb" mapping, see fetch_poster_colors())
-    is given, a feature's own `code_field` value (e.g. US_L4CODE "19b") is
-    looked up there first -- these are EPA's actual published colors, lifted
-    from the state's own poster PDF legend, not invented. Any code missing
-    from `poster_colors` (including everything, if it's None -- --country
-    runs don't fetch a poster at all) falls back to the same generated,
+    If `poster_colors` (a code -> "#rrggbb" mapping, see
+    fetch_lyr_colors_for_state()) is given, a feature's own `code_field`
+    value (e.g. US_L4CODE "19b") is looked up there first -- these are
+    EPA's actual published colors, lifted from the state's own .lyr
+    symbology file, not invented. Any code missing from `poster_colors`
+    (including everything, if it's None) falls back to the same generated,
     evenly-hue-spaced palette as before, so coloring never fails outright.
     """
     for feature in features:
@@ -714,921 +738,632 @@ def style_features(
     return colors
 
 
-# --- Poster legend colors (optional, best-effort) ---------------------------
+# --- .lyr symbology reading (real, official EPA colors) ---------------------
 #
-# EPA's own state "poster front side" PDFs (e.g. ut_front.pdf) draw a real
-# vector legend: a small flat-filled swatch next to each ecoregion code and
-# name. Those are the actual, official, hand-chosen colors used in EPA's own
-# cartography (grouped by parent region with related shades -- nothing like
-# the generated rainbow above) -- but they're not exposed anywhere in the
-# shapefile's own attribute data, only in this PDF's vector artwork. This
-# section is a from-scratch, stdlib-only PDF content-stream reader (just
-# enough of one: FlateDecode streams, text-showing and path-fill operators)
-# that finds each legend row's swatch fill color and the code/name text next
-# to it, matched by position. Everything here is best-effort: if a state's
-# poster doesn't parse the way Utah's did (older scan, different software
-# version, whatever), fetch_poster_colors() catches it and returns None --
-# style_features() already falls back to the generated palette in that case,
-# so this can never turn into a hard failure of the whole script.
+# EPA publishes a ready-to-use ArcGIS ".lyr" symbology file alongside every
+# state's shapefile (e.g. ut_eco_l3.lyr, "Level III Symbology" on the EPA's
+# own download page) -- the SAME official, hand-chosen colors a poster PDF
+# would only let us reconstruct optically, but here stored as actual data.
+# Reading it is far more robust than reading a rendered poster: no swatch
+# hunting, no column-matching guesswork, no scanned-raster dead ends (New
+# England's and Tennessee's own posters turned out to be scanned images with
+# no vector legend to read at all -- their .lyr files are ordinary data).
 #
-# CMYK -> RGB: EPA's posters fill paths using CMYK ('k'/'K' operators) under
-# a specific embedded ICC profile (confirmed: "U.S. Web Coated (SWOP) v2",
-# referenced from the page's /Resources as /DefaultCMYK), not naive device
-# CMYK -- a plain (1-C)(1-K) formula visibly drifts from how any real PDF
-# viewer renders these fills (verified against both Pillow/LittleCMS and a
-# poppler-rendered raster while writing this: naive formula on one swatch
-# gave (59,181,148) against a true rendered (60,146,150) -- a real, visible
-# difference in saturation). _eval_lut16()/_cmyk_to_srgb_icc() below are a
-# from-scratch reader for the ICC 'mft2' (lut16Type) tag format the embedded
-# profile uses (ICC.1:2001-04 spec, section 6.5.7) plus the standard
-# Lab->XYZ (D50)->Bradford-adapt->linear sRGB->gamma pipeline -- verified
-# against both Pillow/LittleCMS and the poppler raster to within 1-3/255 on
-# multiple real swatches, close enough to call it correct.
+# WHAT'S IN A .LYR FILE
+#   A .lyr file is a Microsoft Compound File Binary (MS-CFB) container -- a
+#   public, Microsoft-published spec, and the same container format
+#   historically used by .doc/.xls -- holding one "Layer" stream (see
+#   _read_cfb_stream below). That stream is ArcGIS's own undocumented,
+#   proprietary binary serialization of the layer's renderer and symbology,
+#   via ArcObjects' internal IPersistStream COM protocol: a graph of typed
+#   objects, each tagged by a 16-byte CLSID, most also carrying their own
+#   incrementing reference id (so the same object can be reused later in the
+#   stream without re-serializing it) and a 2-byte format version, followed
+#   by that class's own fixed sequence of fields -- more nested objects,
+#   length-prefixed UTF-16 strings, or plain numbers.
+#
+# HOW THE FORMAT BELOW WAS FIGURED OUT
+#   ESRI publishes no spec for any of this. The class GUIDs, field order,
+#   and the ESRI-specific CIELab->RGB conversion constants below were
+#   determined by reading (NOT copying -- this is an independent,
+#   from-scratch reimplementation) the north-road/slyr project
+#   (https://github.com/north-road/slyr), an open-source QGIS plugin that
+#   reverse-engineered this exact format for ArcGIS-to-QGIS interoperability.
+#   Its own `parser` subfolder (where this format-decoding logic lives)
+#   carries no explicit license of its own -- the repo's top-level LICENSE
+#   file (GPLv2) explicitly excludes that subfolder, and per the
+#   maintainer's own comment on github.com/north-road/slyr/issues/41, the
+#   intent was to license it "ultra permissive" but that was never
+#   formalized into a declared license for it. Facts about a file format
+#   (class identifiers, field order, numeric constants) aren't protectable
+#   expression regardless of that -- the same footing as reverse-engineering
+#   any other undocumented interop format -- but no code from that project
+#   is used here; every line below is an independent implementation of the
+#   facts it exposed. Cross-checked against Utah's own already-verified
+#   (from this script's earlier PDF-poster-reading approach, since replaced
+#   by this) colors for codes 18/19/20/21/80: every one of this reader's
+#   .lyr-derived colors matched, or came within normal CMYK-conversion
+#   rounding of, the PDF-derived value for the same code.
+#
+# CMYK -> RGB: a plain naive (1-C)(1-K) formula, not the ICC-corrected
+# pipeline the old PDF-reading approach used (see this file's git history)
+# -- .lyr's CmykColor objects carry no embedded color profile of their own
+# to correct against, and (confirmed while switching to this approach) at
+# least one state's own poster PDF (New England's shared one) has no
+# embedded ICC profile either, so there's no consistent source to pull a
+# real profile from without depending on a PDF fetch again, defeating the
+# point of moving off PDF. This is a known, bounded accuracy tradeoff (a
+# real but visually minor drift in printed-color fidelity), not a
+# wrong-code/wrong-color association bug -- which is what actually made the
+# old PDF approach unreliable.
 
 
-def _pdf_build_object_index(pdf_bytes: bytes) -> dict[int, int]:
-    """Maps every "N 0 obj" object number -> the byte offset right after
-    its own "obj" keyword, in one linear pass over the whole file. Every
-    per-object lookup below takes this as `index` and turns into an O(1)
-    dict lookup instead of its own fresh full-file regex scan -- the
-    difference between a fast run and one that never finishes on
-    Illustrator-heavy posters with hundreds of Form XObjects (confirmed:
-    Alaska's own poster resolves ~900 Form XObjects for its legend/layers;
-    without this index that's ~900 independent regex scans over a 20+MB
-    file, which alone took over 100 seconds before this was added)."""
-    return {
-        int(m.group(1)): m.end()
-        for m in re.finditer(rb"(?:^|[^0-9])(\d+)\s+0\s+obj", pdf_bytes)
-    }
+def _read_cfb_stream(data: bytes, stream_name: str) -> bytes:
+    """Extracts one named stream's raw bytes from an MS-CFB (Compound File
+    Binary) container -- see MS-CFB, a public Microsoft spec. Handles both
+    regular-FAT streams and the "mini stream" (streams under the format's
+    mini_stream_cutoff, packed into small mini-sectors indexed by their own
+    separate mini-FAT chain -- most .lyr streams other than "Layer" itself
+    are small enough to need this)."""
+    if data[:8] != b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        raise ValueError("not an MS-CFB (OLE2 compound file) container")
+
+    sector_shift = struct.unpack_from("<H", data, 30)[0]
+    sector_size = 1 << sector_shift
+    mini_sector_shift = struct.unpack_from("<H", data, 32)[0]
+    mini_sector_size = 1 << mini_sector_shift
+    num_fat_sectors = struct.unpack_from("<I", data, 44)[0]
+    first_dir_sector = struct.unpack_from("<i", data, 48)[0]
+    mini_stream_cutoff = struct.unpack_from("<I", data, 56)[0]
+    first_minifat_sector = struct.unpack_from("<i", data, 60)[0]
+    num_minifat_sectors = struct.unpack_from("<I", data, 64)[0]
+    first_difat_sector = struct.unpack_from("<i", data, 68)[0]
+
+    def sector_bytes(sec: int) -> bytes:
+        off = 512 + sec * sector_size  # the header itself is always 512 bytes
+        return data[off : off + sector_size]
+
+    # The FAT's own sector list: the first 109 entries live in the header;
+    # any more come from a chain of DIFAT sectors (not needed for a file
+    # this small, but cheap to support for robustness).
+    fat_sector_nums = list(struct.unpack_from("<109i", data, 76))
+    difat_sec = first_difat_sector
+    while difat_sec >= 0:
+        sec_data = sector_bytes(difat_sec)
+        per_sector = sector_size // 4 - 1
+        fat_sector_nums.extend(struct.unpack_from(f"<{per_sector}i", sec_data, 0))
+        difat_sec = struct.unpack_from("<i", sec_data, sector_size - 4)[0]
+    fat_sector_nums = [s for s in fat_sector_nums if s >= 0][:num_fat_sectors]
+
+    fat: list[int] = []
+    for sec in fat_sector_nums:
+        per_sector = sector_size // 4
+        fat.extend(struct.unpack_from(f"<{per_sector}i", sector_bytes(sec), 0))
+
+    def read_fat_chain(start_sec: int) -> bytes:
+        out = bytearray()
+        sec = start_sec
+        seen = set()
+        while sec >= 0:
+            if sec in seen:
+                raise ValueError("cyclic FAT chain")
+            seen.add(sec)
+            out += sector_bytes(sec)
+            sec = fat[sec]
+        return bytes(out)
+
+    # The directory (one 128-byte entry per stream/storage) is itself just
+    # a regular FAT-chained stream, starting at first_dir_sector.
+    dir_bytes = read_fat_chain(first_dir_sector)
+    entries = []
+    for i in range(0, len(dir_bytes), 128):
+        entry = dir_bytes[i : i + 128]
+        name_len = struct.unpack_from("<H", entry, 64)[0]
+        if name_len < 2:
+            continue
+        name = entry[: name_len - 2].decode("utf-16le")
+        obj_type = entry[66]  # 2 = stream, 5 = root storage
+        start_sector = struct.unpack_from("<i", entry, 116)[0]
+        size = struct.unpack_from("<Q", entry, 120)[0]
+        entries.append((name, obj_type, start_sector, size))
+
+    root = next((e for e in entries if e[1] == 5), None)
+    if root is None:
+        raise ValueError("no root storage entry")
+    _, _, root_start, root_size = root
+    mini_stream = read_fat_chain(root_start)[:root_size] if root_size else b""
+
+    minifat: list[int] = []
+    if num_minifat_sectors:
+        minifat_bytes = read_fat_chain(first_minifat_sector)
+        minifat = list(
+            struct.unpack_from(f"<{len(minifat_bytes) // 4}i", minifat_bytes, 0)
+        )
+
+    def read_minifat_chain(start_sec: int, size: int) -> bytes:
+        out = bytearray()
+        sec = start_sec
+        seen = set()
+        while sec >= 0:
+            if sec in seen:
+                raise ValueError("cyclic mini-FAT chain")
+            seen.add(sec)
+            off = sec * mini_sector_size
+            out += mini_stream[off : off + mini_sector_size]
+            sec = minifat[sec]
+        return bytes(out[:size])
+
+    match = next((e for e in entries if e[0] == stream_name and e[1] == 2), None)
+    if match is None:
+        raise ValueError(f"no stream named {stream_name!r} in this .lyr file")
+    _, _, start_sector, size = match
+    if size < mini_stream_cutoff:
+        return read_minifat_chain(start_sector, size)
+    return read_fat_chain(start_sector)[:size]
 
 
-def _pdf_find_object(data: bytes, num: int, index: dict[int, int] | None = None) -> bytes:
-    """Returns a non-stream object's body (dict/array/etc, up to its own
-    'endobj'). NOT safe for stream objects -- see _pdf_decode_stream_object
-    for why searching for a literal 'endobj' breaks on those."""
-    if index is not None:
-        end = index.get(num)
-        if end is None:
-            raise ValueError(f"PDF object {num} 0 obj not found")
-    else:
-        match = re.search((r"(?:^|[^0-9])%d\s+0\s+obj" % num).encode(), data)
-        if not match:
-            raise ValueError(f"PDF object {num} 0 obj not found")
-        end = match.end()
-    endobj = data.find(b"endobj", end)
-    return data[end:endobj]
+class _ArcObjectStream:
+    """A tiny sequential reader + object-graph cache for the "Layer"
+    stream's ArcObjects IPersistStream serialization (see the module
+    comment above for what this is and how it was figured out)."""
 
+    def __init__(self, data: bytes):
+        self.data = data
+        self.pos = 0
+        self.ref_objects: dict[int, object] = {}
 
-def _pdf_resolve_int_object(
-    pdf_bytes: bytes, num: int, index: dict[int, int] | None = None
-) -> int:
-    """Resolves an indirect reference to a plain integer object (used for
-    an indirect /Length -- e.g. '16 0 obj\\r99580\\rendobj')."""
-    body = _pdf_find_object(pdf_bytes, num, index)
-    match = re.search(rb"-?\d+", body)
-    if not match:
-        raise ValueError(f"object {num} isn't a plain integer: {body[:40]!r}")
-    return int(match.group(0))
+    def read(self, n: int) -> bytes:
+        b = self.data[self.pos : self.pos + n]
+        self.pos += n
+        return b
 
+    def read_uint(self) -> int:
+        return struct.unpack_from("<I", self.read(4))[0]
 
-def _pdf_decode_stream_object(
-    pdf_bytes: bytes, num: int, index: dict[int, int] | None = None
-) -> bytes:
-    """Finds object `num`'s stream and decodes it (ASCII85/Flate). Slices
-    the raw stream bytes using the dictionary's own declared /Length
-    (resolving an indirect /Length reference to its plain-integer object
-    first, if needed) rather than searching forward for a literal
-    'endstream'/'endobj' marker -- those marker byte sequences can appear
-    purely by chance inside large binary FlateDecode-compressed data
-    (confirmed: Colorado's own co_front.pdf, object 15, whose compressed
-    stream body happens to contain the literal ASCII bytes 'endobj' tens
-    of thousands of bytes before its real end, silently truncating the
-    slice and breaking zlib.decompress with 'incomplete or truncated
-    stream' -- a real, reproducible bug, not a hypothetical edge case).
-    """
-    if index is not None:
-        header_end = index.get(num)
-        if header_end is None:
-            raise ValueError(f"PDF object {num} 0 obj not found")
-    else:
-        header_match = re.search((r"(?:^|[^0-9])%d\s+0\s+obj" % num).encode(), pdf_bytes)
-        if not header_match:
-            raise ValueError(f"PDF object {num} 0 obj not found")
-        header_end = header_match.end()
-    stream_kw = pdf_bytes.find(b"stream", header_end)
-    dict_bytes = pdf_bytes[header_end:stream_kw]
+    def read_ushort(self) -> int:
+        return struct.unpack_from("<H", self.read(2))[0]
 
-    length_ref = re.search(rb"/Length\s+(\d+)\s+0\s+R", dict_bytes)
-    if length_ref:
-        length = _pdf_resolve_int_object(pdf_bytes, int(length_ref.group(1)), index)
-    else:
-        length_literal = re.search(rb"/Length\s+(\d+)", dict_bytes)
-        if not length_literal:
-            raise ValueError(f"object {num} stream has no /Length")
-        length = int(length_literal.group(1))
+    def read_uchar(self) -> int:
+        return self.read(1)[0]
 
-    data_start = pdf_bytes.index(b"\n", stream_kw) + 1
-    stream_bytes = pdf_bytes[data_start : data_start + length]
+    def read_double(self) -> float:
+        return struct.unpack_from("<d", self.read(8))[0]
 
-    # /Filter can be a single name or (confirmed: Region 3's combined
-    # DE/MD/PA/VA/WV poster, whose content stream is ASCII85-encoded on
-    # top of Flate -- an Illustrator "compatible PDF" habit) an array of
-    # names applied in order. base64.a85decode is stdlib, keeping this
-    # dependency-free.
-    if b"/ASCII85Decode" in dict_bytes:
-        stream_bytes = base64.a85decode(stream_bytes, adobe=True)
-    if b"/FlateDecode" in dict_bytes:
-        return zlib.decompress(stream_bytes)
-    return stream_bytes
+    def read_clsid(self) -> str:
+        # Microsoft's mixed-endian GUID encoding: the first three fields
+        # are little-endian; the remaining 8 bytes are stored as-is.
+        raw = self.read(16)
+        d1, d2, d3 = struct.unpack_from("<IHH", raw, 0)
+        return "{:08x}-{:04x}-{:04x}-{}-{}".format(
+            d1, d2, d3, raw[8:10].hex(), raw[10:16].hex()
+        )
 
+    def read_string(self) -> str:
+        length = self.read_uint()  # byte length, including a null terminator
+        raw = self.read(length - 2)
+        self.read(2)  # null terminator
+        return raw.decode("utf-16le")
 
-def _pdf_balanced_dict_end(data: bytes, open_pos: int) -> int:
-    """`open_pos` is the index of a dict's opening '<<'. Returns the index
-    right after its matching '>>', walking nesting depth forward so a
-    nested dict's own close (/Resources, /PieceInfo, ExtGState, ...) isn't
-    mistaken for the outer dict's."""
-    depth = 0
-    pos = open_pos
-    while True:
-        open_i = data.find(b"<<", pos)
-        close_i = data.find(b">>", pos)
-        if open_i != -1 and open_i < close_i:
-            depth += 1
-            pos = open_i + 2
-        else:
-            depth -= 1
-            pos = close_i + 2
-            if depth == 0:
-                return pos
-
-
-def _pdf_inline_or_indirect_dict(
-    data: bytes, container: bytes, key: bytes, index: dict[int, int] | None = None
-) -> bytes | None:
-    """Looks up `key` (e.g. b"/Resources") in `container` (a dict's own
-    bytes) and returns the referenced dict's bytes, whether it's written
-    as an indirect reference ("/Resources 5 0 R") or inline
-    ("/Resources<<...>>") -- both shapes are seen across real posters
-    checked while writing this."""
-    ref_match = re.search(key + rb"\s+(\d+)\s+0\s+R", container)
-    if ref_match:
-        return _pdf_find_object(data, int(ref_match.group(1)), index)
-    inline_match = re.search(key + rb"\s*(<<)", container)
-    if not inline_match:
-        return None
-    open_pos = inline_match.start(1)
-    end_pos = _pdf_balanced_dict_end(container, open_pos)
-    return container[open_pos:end_pos]
-
-
-def _pdf_build_xobject_map(
-    pdf_bytes: bytes, page_dict: bytes, index: dict[int, int]
-) -> dict[str, int]:
-    """Maps each of the page's /Resources /XObject names (e.g. "Fm0") to
-    its object number, for resolving `/Fm0 Do` operators (see
-    _parse_pdf_content's resolve_xobject param)."""
-    resources = _pdf_inline_or_indirect_dict(pdf_bytes, page_dict, b"/Resources", index)
-    if resources is None:
-        return {}
-    xobjects = _pdf_inline_or_indirect_dict(pdf_bytes, resources, b"/XObject", index)
-    if xobjects is None:
-        return {}
-    return {
-        name.decode(): int(num)
-        for name, num in re.findall(rb"/(\w+)\s+(\d+)\s+0\s+R", xobjects)
-    }
-
-
-def _pdf_make_xobject_resolver(
-    pdf_bytes: bytes, xobject_map: dict[str, int], index: dict[int, int]
-) -> Callable[[str], bytes | None]:
-    cache: dict[int, bytes | None] = {}
-
-    def resolve(name: str) -> bytes | None:
-        num = xobject_map.get(name)
-        if num is None:
+    def read_variant(self):
+        """Reads one OLE Automation VARIANT -- just enough type tags to
+        skip through a PropertySet's values, whose actual contents this
+        script has no use for (see _read_workspace_name)."""
+        vtype = self.read_ushort()
+        if vtype == 8:  # VT_BSTR
+            return self.read_string()
+        if vtype in (3, 4):  # VT_I4 / VT_R4 (both 4 raw bytes here)
+            return self.read_uint()
+        if vtype == 2:  # VT_I2
+            return self.read_ushort()
+        if vtype in (0, 1):  # VT_EMPTY / VT_NULL
             return None
-        if num not in cache:
-            try:
-                cache[num] = _pdf_decode_stream_object(pdf_bytes, num, index)
-            except Exception:  # noqa: BLE001 -- one bad Form shouldn't sink the page
-                cache[num] = None
-        return cache[num]
+        if vtype == 5:  # VT_R8
+            return self.read_double()
+        if vtype == 11:  # VT_BOOL
+            return self.read_ushort() != 0
+        if vtype == 7:  # VT_DATE
+            return self.read_double()
+        if vtype == 17:  # VT_UI1
+            return self.read_uchar()
+        if vtype == 9:  # VT_DATAOBJECT -- a nested object
+            return self.read_object()
+        raise ValueError(f"unsupported PropertySet value type {vtype}")
 
-    return resolve
-
-
-def _pdf_extract_page_content_and_icc(
-    pdf_bytes: bytes,
-) -> tuple[bytes, bytes | None, Callable[[str], bytes | None]]:
-    """Returns (decoded content stream bytes of the first /Type /Page,
-    embedded ICC profile bytes if its /Resources declare a /DefaultCMYK
-    ICCBased color space (else None), and a resolver from XObject name ->
-    decoded content bytes for `_parse_pdf_content`'s resolve_xobject
-    param)."""
-    index = _pdf_build_object_index(pdf_bytes)
-    page_match = re.search(rb"/Type\s*/Page[^s]", pdf_bytes)
-    if not page_match:
-        raise ValueError("no /Type /Page found")
-    # /Type /Page appears INSIDE the page dict, not at its opening '<<' --
-    # and not necessarily NEAR it either: Illustrator-produced PDFs (e.g.
-    # Alaska's ak_eco.pdf, confirmed while debugging) write /Type/Page as
-    # one of the LAST keys in a huge page dict, after deeply nested
-    # /Resources/XObject/ExtGState sub-dictionaries -- so the nearest
-    # preceding '<<' is one of those nested dicts' own opening, not the
-    # page dict's. The one unambiguous anchor is the page object's own
-    # "N 0 obj" header, which every dict-holding indirect object has
-    # exactly one of, immediately before its own opening '<<' -- so find
-    # the last "N 0 obj" before /Type/Page instead, then that object's own
-    # '<<' right after it, then walk depth forward from there.
-    obj_header = None
-    for match in re.compile(rb"\d+\s+0\s+obj\s*").finditer(pdf_bytes, 0, page_match.start()):
-        obj_header = match
-    if not obj_header:
-        raise ValueError("no 'N 0 obj' header found before /Type /Page")
-    page_dict_start = pdf_bytes.find(b"<<", obj_header.end())
-    page_dict_end = _pdf_balanced_dict_end(pdf_bytes, page_dict_start)
-    page_dict = pdf_bytes[page_dict_start:page_dict_end]
-
-    contents_match = re.search(rb"/Contents\s+(\d+)\s+0\s+R", page_dict)
-    content_bytes = b""
-    if contents_match:
-        num = int(contents_match.group(1))
-        content_bytes = _pdf_decode_stream_object(pdf_bytes, num, index)
-    else:
-        array_match = re.search(rb"/Contents\s*\[([^\]]+)\]", page_dict)
-        if array_match:
-            for num_str in re.findall(rb"(\d+)\s+0\s+R", array_match.group(1)):
-                content_bytes += _pdf_decode_stream_object(pdf_bytes, int(num_str), index)
-    if not content_bytes:
-        raise ValueError("page has no /Contents")
-
-    icc_bytes = None
-    default_cmyk_match = re.search(rb"/DefaultCMYK\s+(\d+)\s+0\s+R", page_dict)
-    if default_cmyk_match:
-        try:
-            arr = _pdf_find_object(pdf_bytes, int(default_cmyk_match.group(1)), index)
-            iccbased_match = re.search(rb"/ICCBased\s+(\d+)\s+0\s+R", arr)
-            if iccbased_match:
-                icc_bytes = _pdf_decode_stream_object(
-                    pdf_bytes, int(iccbased_match.group(1)), index
-                )
-        except Exception:  # noqa: BLE001 -- ICC is an accuracy nicety, not required
-            icc_bytes = None
-
-    xobject_map = _pdf_build_xobject_map(pdf_bytes, page_dict, index)
-    resolve_xobject = _pdf_make_xobject_resolver(pdf_bytes, xobject_map, index)
-    return content_bytes, icc_bytes, resolve_xobject
+    def read_object(self):
+        clsid = self.read_clsid()
+        if clsid == "00000000-0000-0000-0000-000000000000":
+            return None
+        entry = _ARC_OBJECT_READERS.get(clsid)
+        if entry is None:
+            raise ValueError(f"unrecognized .lyr object class {clsid}")
+        needs_ref, needs_version, reader = entry
+        if not needs_ref:
+            # A handful of classes (workspace factories) carry no
+            # reference id or version at all -- just the CLSID, then
+            # straight into their own (often empty) body.
+            return reader(self, None)
+        ref_id = self.read_uint()
+        if ref_id in self.ref_objects:
+            return self.ref_objects[ref_id]
+        version = self.read_ushort() if needs_version else None
+        obj = reader(self, version)
+        self.ref_objects[ref_id] = obj
+        return obj
 
 
-_PDF_TOKEN_RE = re.compile(
-    rb"""
-      \( (?P<str> (?:[^()\\]|\\.)* ) \)
-    | / (?P<name> [A-Za-z0-9_.#]+ )
-    | (?P<num> [+-]?\d*\.\d+ | [+-]?\d+)
-    | (?P<op> [A-Za-z*'"]+)
-""",
-    re.X | re.S,
-)
+# --- Per-class field readers -------------------------------------------------
+#
+# Each function reads exactly one class's own fields off the stream, in the
+# order ArcObjects serializes them, and returns whatever this script
+# actually needs from that class -- often None, for classes only read
+# through to reach a real ecoregion's fill color further down the object
+# graph (FeatureClassName, WorkspaceName, PropertySet, the various outline
+# line-symbol types...). Consuming their bytes correctly still matters even
+# when the value is discarded, since the stream has no per-object length
+# prefix to skip over blindly -- getting a field wrong desyncs everything
+# that follows.
 
 
-def _parse_pdf_content(
-    content: bytes,
-    resolve_xobject: Callable[[str], bytes | None] | None = None,
-    _depth: int = 0,
-) -> tuple[list[tuple[float, float, str]], list]:
-    """A from-scratch, minimal PDF content-stream interpreter -- just the
-    handful of operators a flat-colored vector legend + positioned text
-    actually uses (path construction/fill, CMYK/gray fill color, and
-    text-positioning/showing). Returns (text runs, fills):
-      text runs: (x, y, text) -- one per BT...ET block. Each glyph in these
-        posters is usually its own Tj call (sometimes several per block,
-        continuing the same visual line via Td) -- concatenating everything
-        between BT and ET (or a real line-wrapping Td) reconstructs each
-        legend row's text without needing per-glyph width tables at all,
-        since we only need the whole line, not exact per-character x.
-      fills: (xmin, ymin, xmax, ymax, (r, g, b) 0..1) -- one per path fill.
-
-    `resolve_xobject`, if given, is called on every `/Name Do` operator
-    (Illustrator's own habit of putting each "layer" -- confirmed against
-    Alaska's own poster, whose /Properties dict literally names its OCG
-    layers "legend text" and "AK legend color boxes" -- in its own
-    embedded Form XObject rather than drawing it inline, unlike Utah/
-    Nevada/Montana's posters, which never use Form XObjects at all and so
-    never needed this). Its decoded content bytes (if any) are parsed
-    recursively and merged into this same call's text_runs/fills, since a
-    Form XObject invoked with no preceding `cm` (true for every real
-    poster checked) draws directly in the page's own coordinate space --
-    no offset/scale correction needed.
-    """
-    fill_rgb = (0.0, 0.0, 0.0)
-    tm = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
-    text_leading = 0.0
-    cur_path: list[tuple[float, float]] = []
-    all_subpaths: list[list[tuple[float, float]]] = []
-    start_xy = (0.0, 0.0)
-    text_runs: list[tuple[float, float, str]] = []
-    fills: list[tuple[float, float, float, float, tuple[float, float, float]]] = []
-    block_start_xy: tuple[float, float] | None = None
-    block_chars: list[str] = []
-
-    def flush_block():
-        nonlocal block_start_xy, block_chars
-        if block_start_xy is not None and block_chars:
-            text_runs.append((block_start_xy[0], block_start_xy[1], "".join(block_chars)))
-        block_start_xy, block_chars = None, []
-
-    operands: list[tuple[str, object]] = []
-    for m in _PDF_TOKEN_RE.finditer(content):
-        if m.lastgroup == "str":
-            raw = m.group("str")
-            out = bytearray()
-            i = 0
-            escapes = {0x6E: 10, 0x72: 13, 0x74: 9, 0x62: 8, 0x66: 12, 0x28: 40, 0x29: 41, 0x5C: 92}
-            while i < len(raw):
-                c = raw[i]
-                if c == 0x5C and i + 1 < len(raw) and raw[i + 1] in escapes:
-                    out.append(escapes[raw[i + 1]])
-                    i += 2
-                    continue
-                if c == 0x5C:
-                    i += 2
-                    continue
-                out.append(c)
-                i += 1
-            operands.append(("str", bytes(out).decode("latin-1")))
-            continue
-        if m.lastgroup == "num":
-            operands.append(("num", float(m.group("num"))))
-            continue
-        if m.lastgroup == "name":
-            operands.append(("name", m.group("name").decode()))
-            continue
-        op = m.group("op").decode()
-        nums = [v for (t, v) in operands if t == "num"]
-        strs = [v for (t, v) in operands if t == "str"]
-        names = [v for (t, v) in operands if t == "name"]
-
-        if op == "BT":
-            block_start_xy, block_chars = None, []
-        elif op == "ET":
-            flush_block()
-        elif op == "Tm" and len(nums) >= 6:
-            tm = tuple(nums[-6:])
-            if block_chars:
-                flush_block()
-            block_start_xy = (tm[4], tm[5])
-        elif op == "TL" and nums:
-            text_leading = nums[-1]
-        elif op in ("Td", "TD") and len(nums) >= 2:
-            a, b, c, d, e, f = tm
-            tx, ty = nums[-2:]
-            tm = (a, b, c, d, e + tx * a + ty * c, f + tx * b + ty * d)
-            if op == "TD":
-                text_leading = -ty
-            if block_start_xy is None:
-                block_start_xy = (tm[4], tm[5])
-            elif abs(ty) > 0.3:
-                flush_block()
-                block_start_xy = (tm[4], tm[5])
-        elif op == "T*":
-            # Move to the start of the next line using the current text
-            # leading (TL) -- equivalent to "0 -TL Td" per spec. A real
-            # bug this fixed while writing this: without actually applying
-            # the leading, every T*-separated line (Montana's own national-
-            # inset legend uses T* before each of its ~84 entries, confirmed
-            # while debugging) kept the SAME position as the line before
-            # it, so they never split into separate lines at all.
-            a, b, c, d, e, f = tm
-            tm = (a, b, c, d, e + -text_leading * c, f + -text_leading * d)
-            flush_block()
-            block_start_xy = (tm[4], tm[5])
-        elif op in ("Tj", "TJ", "'", '"') and strs:
-            if op in ("'", '"'):
-                # ' = T* then Tj; " = aw ac Tw Tc T* Tj (word/char spacing
-                # doesn't affect position math here, only the T* move does).
-                a, b, c, d, e, f = tm
-                tm = (a, b, c, d, e + -text_leading * c, f + -text_leading * d)
-                flush_block()
-                block_start_xy = (tm[4], tm[5])
-            if block_start_xy is None:
-                block_start_xy = (tm[4], tm[5])
-            # TJ takes an array of strings interleaved with numeric kerning
-            # adjustments (e.g. "[(Wa)-2(ter)] TJ") -- the brackets
-            # themselves aren't tokenized as operators at all (skipped as
-            # unmatched characters), so every string in the array simply
-            # accumulates in `strs` by the time TJ runs; joining all of
-            # them (not just strs[-1], which Tj/'/" only ever put exactly
-            # one of) reconstructs the full run. Confirmed: Alaska's own
-            # poster draws its legend labels entirely with TJ, never a
-            # bare Tj -- without this, none of its legend text was ever
-            # captured at all.
-            block_chars.append("".join(strs) if op == "TJ" else strs[-1])
-        elif op == "Do" and names and resolve_xobject and _depth < 6:
-            sub_content = resolve_xobject(names[-1])
-            if sub_content:
-                sub_text_runs, sub_fills = _parse_pdf_content(
-                    sub_content, resolve_xobject, _depth + 1
-                )
-                text_runs.extend(sub_text_runs)
-                fills.extend(sub_fills)
-        elif op == "g" and nums:
-            gray = nums[-1]
-            fill_rgb = (gray, gray, gray)
-        elif op == "rg" and len(nums) >= 3:
-            fill_rgb = tuple(nums[-3:])
-        elif op == "k" and len(nums) >= 4:
-            c_, m_, y_, k_ = nums[-4:]
-            fill_rgb = ("cmyk", c_, m_, y_, k_)
-        elif op == "scn" or op == "sc":
-            # "set color in the current (non-device) colorspace" -- e.g.
-            # a page whose /ColorSpace resource is CalRGB (confirmed:
-            # Tennessee's own tn_front.pdf, whose legend swatches are all
-            # filled via "cs"+"sc" instead of "rg"/"k", which meant every
-            # swatch color silently stayed at fill_rgb's black default and
-            # every matched code came out #000000). Resolving the actual
-            # colorspace object (Separation tint transforms, ICCBased,
-            # Indexed, ...) is real work this doesn't attempt; going by
-            # the operand count instead is the same shortcut most casual
-            # PDF tooling uses, and covers every colorspace family that
-            # matters for a flat legend swatch: 1 value is gray-like, 3 is
-            # RGB-like (CalRGB's own primaries are close enough to sRGB
-            # that treating it as plain "rg" is visually correct), 4 is
-            # CMYK-like. A Separation/Indexed colorspace (a single tint
-            # value that isn't literally gray) would misread as gray here
-            # -- not exercised by any real poster checked while writing
-            # this, but strictly no worse than the black-swatch status quo
-            # it replaces.
-            if len(nums) == 1:
-                gray = nums[-1]
-                fill_rgb = (gray, gray, gray)
-            elif len(nums) == 3:
-                fill_rgb = tuple(nums[-3:])
-            elif len(nums) >= 4:
-                c_, m_, y_, k_ = nums[-4:]
-                fill_rgb = ("cmyk", c_, m_, y_, k_)
-        elif op == "m" and len(nums) >= 2:
-            if cur_path:
-                all_subpaths.append(cur_path)
-            cur_path = [tuple(nums[-2:])]
-            start_xy = cur_path[0]
-        elif op == "l" and len(nums) >= 2:
-            cur_path.append(tuple(nums[-2:]))
-        elif op in ("c", "v", "y") and len(nums) >= 2:
-            cur_path.append(tuple(nums[-2:]))
-        elif op == "h" and cur_path:
-            cur_path.append(start_xy)
-        elif op == "re" and len(nums) >= 4:
-            # x y w h re -- the PDF shorthand for a closed rectangle
-            # subpath, equivalent to a moveto + 3 linetos + closepath by
-            # spec (PDF 1.7 section 8.5.2.1) -- appends it as its own
-            # closed subpath rather than touching cur_path/start_xy, since
-            # a real 're' can appear either standalone or mid-path
-            # alongside other manually-built subpaths (both seen across
-            # real posters while writing this: Utah's legend swatches are
-            # hand-built with m/l/l/l/h, Montana's own use 're' directly).
-            if cur_path:
-                all_subpaths.append(cur_path)
-                cur_path = []
-            rx, ry, rw, rh = nums[-4:]
-            all_subpaths.append(
-                [(rx, ry), (rx + rw, ry), (rx + rw, ry + rh), (rx, ry + rh), (rx, ry)]
-            )
-        elif op in ("f", "F", "f*", "B", "B*", "b", "b*"):
-            if cur_path:
-                all_subpaths.append(cur_path)
-            for pts in all_subpaths:
-                xs = [p[0] for p in pts]
-                ys = [p[1] for p in pts]
-                fills.append((min(xs), min(ys), max(xs), max(ys), fill_rgb))
-            all_subpaths, cur_path = [], []
-        elif op == "n":
-            all_subpaths, cur_path = [], []
-        operands = []
-    return text_runs, fills
+def _read_feature_layer(s: _ArcObjectStream, version: int):
+    s.read_string()  # name
+    s.read_string()  # datasource type
+    s.read_ushort()  # visible
+    s.read_ushort()  # show map tips
+    s.read_ushort()  # cached
+    s.read_object()  # dataset name (FeatureClassName)
+    return s.read_object()  # renderer -- everything this script wants
 
 
-# --- ICC profile ('mft1'/lut8Type + 'mft2'/lut16Type) CMYK -> sRGB, pure Python
-
-# 'mft1' (lut8Type) and 'mft2' (lut16Type) are the same ICC.1:2001-04
-# section 6.5.7 layout at two different sample widths -- lut8Type's tables
-# are always a fixed 256 entries (no explicit size field) stored as
-# single bytes; lut16Type's are however many entries the profile declares,
-# stored as big-endian uint16 -- confirmed by hitting both in the wild
-# while writing this (Utah/Montana's posters use 'mft2'; Nevada's uses
-# 'mft1'), not just from the spec text.
-_ICC_LUT_ENTRY_FORMATS = {
-    b"mft1": ("B", 1, 255, 256),  # (struct format char, byte width, max value, fixed table size)
-    b"mft2": ("H", 2, 65535, None),  # None = table size is read from the tag itself
-}
-
-
-def _s15f16(raw: bytes) -> float:
-    return struct.unpack(">i", raw)[0] / 65536.0
-
-
-def _parse_icc_lut(tag_bytes: bytes) -> dict:
-    sig = tag_bytes[0:4]
-    if sig not in _ICC_LUT_ENTRY_FORMATS:
-        raise ValueError(f"unsupported ICC LUT tag type: {sig!r} (expected mft1/mft2)")
-    entry_fmt, entry_size, max_value, fixed_table_size = _ICC_LUT_ENTRY_FORMATS[sig]
-    in_ch, out_ch, grid = tag_bytes[8], tag_bytes[9], tag_bytes[10]
-    offset = 12 + 9 * 4  # skip the (unused, input!=3) 3x3 matrix
-    if fixed_table_size is not None:
-        n_in = n_out = fixed_table_size
-    else:
-        n_in, n_out = struct.unpack(">HH", tag_bytes[offset : offset + 4])
-        offset += 4
-
-    def read_table(n: int) -> tuple[int, ...]:
-        nonlocal offset
-        values = struct.unpack(
-            f">{n}{entry_fmt}", tag_bytes[offset : offset + entry_size * n]
-        )
-        offset += entry_size * n
-        return values
-
-    input_tables = [read_table(n_in) for _ in range(in_ch)]
-    clut = read_table(grid**in_ch * out_ch)
-    output_tables = [read_table(n_out) for _ in range(out_ch)]
-    return {
-        "in_ch": in_ch,
-        "out_ch": out_ch,
-        "grid": grid,
-        "input_tables": input_tables,
-        "clut": clut,
-        "output_tables": output_tables,
-        "max_value": max_value,
-    }
-
-
-def _lerp1d(table: tuple[int, ...], x: float, max_value: int) -> float:
-    pos = x * (len(table) - 1)
-    i0 = int(pos)
-    i1 = min(i0 + 1, len(table) - 1)
-    frac = pos - i0
-    return (table[i0] * (1 - frac) + table[i1] * frac) / max_value
-
-
-def _eval_icc_lut(lut: dict, inputs: tuple[float, ...]) -> list[float]:
-    in_ch, out_ch, grid, clut = lut["in_ch"], lut["out_ch"], lut["grid"], lut["clut"]
-    max_value = lut["max_value"]
-    coords = [
-        _lerp1d(lut["input_tables"][c], inputs[c], max_value) for c in range(in_ch)
-    ]
-    scaled = [c * (grid - 1) for c in coords]
-    idx0 = [min(int(s), grid - 2) for s in scaled]
-    frac = [scaled[d] - idx0[d] for d in range(in_ch)]
-
-    def clut_at(indices: list[int]) -> tuple[int, ...]:
-        flat = 0
-        for d in range(in_ch):
-            flat = flat * grid + indices[d]
-        base = flat * out_ch
-        return clut[base : base + out_ch]
-
-    out = [0.0] * out_ch
-    for corner in range(1 << in_ch):
-        indices, weight = [], 1.0
-        for d in range(in_ch):
-            bit = (corner >> d) & 1
-            indices.append(idx0[d] + bit)
-            weight *= frac[d] if bit else (1 - frac[d])
-        if weight == 0:
-            continue
-        vals = clut_at(indices)
-        for o in range(out_ch):
-            out[o] += weight * vals[o]
-    return [
-        _lerp1d(lut["output_tables"][o], out[o] / max_value, max_value)
-        for o in range(out_ch)
-    ]
-
-
-def _lab_to_xyz_d50(l_star: float, a_star: float, b_star: float) -> tuple[float, float, float]:
-    fy = (l_star + 16) / 116
-    fx = fy + a_star / 500
-    fz = fy - b_star / 200
-
-    def finv(t: float) -> float:
-        return t**3 if t**3 > 0.008856 else (t - 16 / 116) / 7.787
-
-    xn, yn, zn = 0.9642, 1.0, 0.8249  # D50 reference white
-    return finv(fx) * xn, finv(fy) * yn, finv(fz) * zn
-
-
-def _xyz_d50_to_srgb(x: float, y: float, z: float) -> tuple[int, int, int]:
-    # Bradford chromatic adaptation D50 -> D65, then the standard linear
-    # XYZ(D65) -> linear sRGB matrix, then sRGB's gamma encoding.
-    xd = 0.9555766 * x + -0.0230393 * y + 0.0631636 * z
-    yd = -0.0282895 * x + 1.0099416 * y + 0.0210077 * z
-    zd = 0.0122982 * x + -0.0204830 * y + 1.3299098 * z
-    r = 3.2404542 * xd - 1.5371385 * yd - 0.4985314 * zd
-    g = -0.9692660 * xd + 1.8760108 * yd + 0.0415560 * zd
-    b = 0.0556434 * xd - 0.2040259 * yd + 1.0572252 * zd
-
-    def gamma(c: float) -> float:
-        c = max(0.0, min(1.0, c))
-        return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
-
-    return tuple(round(max(0.0, min(1.0, gamma(c))) * 255) for c in (r, g, b))
-
-
-def _cmyk_to_srgb(color, icc_lut: dict | None) -> tuple[int, int, int]:
-    """`color` is either a plain (r, g, b) 0..1 tuple (from 'rg'/'g') or a
-    ("cmyk", c, m, y, k) tuple (from 'k'). Uses the real embedded ICC
-    profile when available (see the module docstring above this section for
-    why that matters); falls back to the naive (1-C)(1-K) formula
-    otherwise -- visibly less accurate, but still much closer to the real
-    printed colors than not using CMYK at all.
-
-    Always the swatch's raw, fully-opaque ink color: `_parse_pdf_content()`
-    only ever records the fill-color operator ('k'/'g'/'rg') immediately
-    behind a path fill, never any `gs`-set /ca /CA alpha -- confirmed
-    against Utah's own poster, whose ExtGState objects only set overprint
-    flags (/OP /op /OPM), not alpha, but this holds regardless of what a
-    given state's poster does with transparency, since alpha is never read
-    here at all.
-    """
-    if color[0] != "cmyk":
-        r, g, b = color
-        return tuple(round(max(0.0, min(1.0, c)) * 255) for c in (r, g, b))
-    _, c, m, y, k = color
-    if icc_lut is not None:
-        l_star, a_star, b_star = _eval_icc_lut(icc_lut, (c, m, y, k))
-        x, y_, z = _lab_to_xyz_d50(l_star * 100, a_star * 255 - 128, b_star * 255 - 128)
-        return _xyz_d50_to_srgb(x, y_, z)
-    r = (1 - c) * (1 - k)
-    g = (1 - m) * (1 - k)
-    b = (1 - y) * (1 - k)
-    return tuple(round(v * 255) for v in (r, g, b))
-
-
-# The optional '.' handles Alaska's own poster (a USGS-report-style layout,
-# not the small-swatch-legend style every other state's poster uses),
-# whose section headers read "101. ARCTIC COASTAL PLAIN" -- a period
-# immediately after the code, not whitespace.
-_LEGEND_ROW_RE = re.compile(r"^(\d+[a-z]?)\.?\s+(.*\S)\s*$")
-
-# A generous cap on how far right a legend row's own label can run before
-# hitting unrelated content, used ONLY as a fallback when there's no next
-# swatch on the same row to bound against (see _match_legend_swatches) --
-# comfortably wider than any real single-column legend entry seen across
-# every poster checked while writing this, but nowhere near a full page
-# width, so it can't accidentally swallow an unrelated caption/photo credit
-# sitting at the same height.
-_LEGEND_ROW_FALLBACK_WIDTH = 320.0
-
-# The smallest real, correctly-matched legend across every poster checked
-# while writing this (New Jersey's) still landed at 17 -- see
-# fetch_poster_colors' use of this for why a match count under this is
-# treated as noise, not a real (if partial) legend.
-_MIN_PLAUSIBLE_MATCHED_COLORS = 10
-
-
-def _match_legend_swatches(
-    text_runs: list[tuple[float, float, str]],
-    fills: list,
-    icc_lut: dict | None,
-) -> dict[str, str]:
-    """For each small flat-fill swatch (a real legend swatch, or -- since
-    nothing distinguishes one from any other similarly-sized filled
-    rectangle on the page -- just as often something else entirely, like a
-    tick mark or a UI icon; false candidates are expected and harmless,
-    see below) finds the "<code> <name>" text immediately to its right
-    (e.g. "19b Uinta Subalpine Forests") and returns {code: "#rrggbb"}.
-
-    Swatch-anchored, not text-anchored: earlier versions of this tried to
-    first reconstruct whole lines of text and then look for a swatch next
-    to each one, which meant guessing where one column's label ends and
-    the next column's begins from x-gaps alone -- a guess that's wrong for
-    any poster whose legend text is packed tighter (or looser) than
-    whichever specific poster the guess was tuned against (confirmed: a
-    fixed gap threshold that correctly separated Utah's columns instead
-    glued Montana's own legend rows together, since Montana's columns sit
-    closer together). Anchoring on the swatch instead sidesteps the guess
-    entirely: a row's real right edge is exactly where the NEXT real
-    swatch on the same baseline starts, if there is one -- an actual
-    measurement, not an estimate.
-
-    A candidate swatch that isn't really a legend row just won't have
-    "<code> <name>"-shaped text next to it and gets silently skipped ipso
-    facto (no separate "is this a real swatch" test needed) -- so this can
-    afford to try every small filled rectangle on the page rather than
-    somehow first identifying "the legend area."
-    """
-    # Real swatch sizes vary a fair bit poster to poster (confirmed: Utah's
-    # own are roughly 15x10, Michigan's own are roughly 48x24) -- wide
-    # enough to cover both without pulling in genuine map-polygon fills,
-    # which this function's own docstring already explains don't need a
-    # separate "is this real" check anyway.
-    swatches = [f for f in fills if 5 <= f[2] - f[0] <= 60 and 5 <= f[3] - f[1] <= 30]
-    result: dict[str, str] = {}
-    # Iterated in REVERSE draw order: some posters (confirmed: Michigan's)
-    # stack two fills at the exact same bbox for one swatch (background +
-    # final color, or a border fill underneath) -- the later one in the
-    # content stream is the one actually visible on top, so it's the
-    # correct color to keep when the same code is seen more than once.
-    for fx0, fy0, fx1, fy1, color in reversed(swatches):
-        y0 = (fy0 + fy1) / 2
-        # Text baselines don't necessarily sit at the exact vertical
-        # midpoint of a swatch (e.g. text often aligns to a swatch's
-        # bottom edge, not its center) -- half the swatch's own height is
-        # a real, measured tolerance rather than a fixed guess, so a taller
-        # swatch (confirmed: Michigan's own ~24pt-tall swatches, next to
-        # which a fixed 6pt band missed the label text entirely) still
-        # matches its own label without a wider band accidentally pulling
-        # in the row above/below on posters with small, tightly stacked
-        # swatches (confirmed: Utah/Montana's own ~10pt-tall swatches).
-        tolerance = max(6.0, (fy1 - fy0) / 2)
-        same_row_right_edges = [
-            ox0
-            for ox0, oy0, ox1, oy1, _ in swatches
-            if ox0 > fx1 + 1 and abs((oy0 + oy1) / 2 - y0) <= tolerance
-        ]
-        right_bound = min(
-            min(same_row_right_edges) if same_row_right_edges else math.inf,
-            fx1 + _LEGEND_ROW_FALLBACK_WIDTH,
-        )
-        label_parts = sorted(
-            (x, text)
-            for x, y, text in text_runs
-            if abs(y - y0) <= tolerance and fx1 - 2 <= x < right_bound
-        )
-        if not label_parts:
-            continue
-        line = "".join(text for _, text in label_parts)
-        m = _LEGEND_ROW_RE.match(line.strip())
-        if not m or len(m.group(1)) > 4:
-            continue
-        code = m.group(1)
-        if code in result:
-            continue
-        r, g, b = _cmyk_to_srgb(color, icc_lut)
-        result[code] = "#{:02x}{:02x}{:02x}".format(r, g, b)
-    return result
-
-
-_region_html_cache: dict[int, str] = {}
-
-
-def _get_region_html(region: int) -> str:
-    if region not in _region_html_cache:
-        url = EPA_REGION_PAGE.format(n=region)
-        try:
-            _region_html_cache[region] = fetch(url).decode("utf-8", errors="replace")
-        except Exception as error:  # noqa: BLE001 - report and keep going
-            print(f"  (couldn't check region {region}: {error})", file=sys.stderr)
-            _region_html_cache[region] = ""
-    return _region_html_cache[region]
-
-
-# Anchor text isn't always plain text -- e.g. Utah's own poster-front link
-# is `...poster&nbsp;<strong>front</strong>&nbsp;side...`, with "front"
-# nested inside a <strong> tag. `(.*?)` (DOTALL) plus stripping tags out of
-# the captured group afterwards (see find_poster_pdf_url()) handles that,
-# where a naive "no '<' allowed inside the anchor" pattern would silently
-# cut the text off before "front" and misclassify the link.
-_PDF_LINK_RE = re.compile(
-    r'<a\s+href="([^"]+\.pdf)"[^>]*>(.*?)</a>', re.IGNORECASE | re.S
-)
-_TAG_RE = re.compile(r"<[^>]+>")
-
-
-def find_poster_pdf_url(state_name: str) -> str | None:
-    """Finds the state's poster PDF -- the one with the real vector legend
-    (e.g. ut_front.pdf, "poster front side"). Falls back to a plain
-    "Level III and IV Ecoregions of <state>" map PDF (no explicit
-    front/back split -- some smaller states only publish one) if there's no
-    poster; returns None if neither exists so the caller can skip poster
-    coloring for that state without failing the whole run."""
-    front_candidates, plain_candidates = [], []
-    for region in range(1, NUM_EPA_REGIONS + 1):
-        html = _get_region_html(region)
-        if not html:
-            continue
-        found_here = False
-        for heading, body in iter_state_sections(html):
-            if heading.lower() != state_name.lower():
-                continue
-            for href, raw_text in _PDF_LINK_RE.findall(body):
-                lowered = _TAG_RE.sub("", raw_text).lower()
-                if "poster" in lowered and "front" in lowered:
-                    front_candidates.append(href)
-                    found_here = True
-                elif "ecoregions of" in lowered:
-                    plain_candidates.append(href)
-                    found_here = True
-        if found_here:
-            continue
-        # Fallback: some EPA regions publish one shared poster covering
-        # several states instead of a per-state one (confirmed: Region 3's
-        # single combined poster for Delaware/Maryland/Pennsylvania/
-        # Virginia/West Virginia; New England's shared new_eng_front.pdf,
-        # whose link happens to land inside Maine's own <h4> section in doc
-        # order rather than each state's own -- see
-        # _zip_links_by_state_name_prefix's doc comment for the same
-        # shape of problem on the shapefile side). Only trust this page's
-        # page-wide links as relevant to `state_name` once its own
-        # shapefile is confirmed to live on this same page -- otherwise
-        # this would just grab an unrelated region's poster.
-        if not _zip_links_by_state_name_prefix(html, state_name):
-            continue
-        for href, raw_text in _PDF_LINK_RE.findall(html):
-            lowered = _TAG_RE.sub("", raw_text).lower()
-            if "poster" in lowered and "front" in lowered:
-                front_candidates.append(href)
-            elif "ecoregions of" in lowered:
-                plain_candidates.append(href)
-    if front_candidates:
-        return front_candidates[0]
-    if plain_candidates:
-        return plain_candidates[0]
+def _read_feature_class_name(s: _ArcObjectStream, version: int):
+    s.read_string()  # layer name
+    s.read_string()  # unknown
+    s.read_string()  # datasource type
+    s.read_string()  # shape field name
+    s.read_uint()  # shape type
+    s.read_uint()  # feature type
+    s.read_ushort()  # unknown
+    s.read_object()  # dataset name (WorkspaceName)
+    if version == 2:
+        for _ in range(s.read_ushort()):
+            s.read_object()  # topology (not used for EPA's own data)
     return None
 
 
-def fetch_poster_colors(state_name: str) -> dict[str, str] | None:
-    """Best-effort: downloads the state's poster PDF and extracts its real
-    legend colors as {code: "#rrggbb"} (e.g. {"19b": "#3a9296", ...}).
-    Returns None on any failure (missing poster, unexpected PDF structure,
-    no legend rows matched, ...) -- this is an enhancement over the
-    generated palette, never a requirement for the script to work."""
-    try:
-        url = find_poster_pdf_url(state_name)
-        if not url:
-            return None
-        print(f"Found a poster with a real legend: {url}")
-        print("Downloading and reading its legend colors...")
-        pdf_bytes = fetch(url)
-        content, icc_bytes, resolve_xobject = _pdf_extract_page_content_and_icc(pdf_bytes)
-        icc_lut = _parse_icc_lut(_find_a2b0_tag(icc_bytes)) if icc_bytes else None
-        text_runs, fills = _parse_pdf_content(content, resolve_xobject)
-        colors = _match_legend_swatches(text_runs, fills, icc_lut)
-        if not colors:
-            print("  (couldn't match any legend rows -- using generated colors instead)")
-            return None
-        if len(colors) < _MIN_PLAUSIBLE_MATCHED_COLORS:
-            # Every real, correctly-matched legend across every poster
-            # checked while writing this landed at 17+ matched codes (the
-            # smallest state legends still have dozens of Level IV
-            # ecoregions) -- a handful of matches is a sign the "swatches"
-            # found are just incidental small filled shapes elsewhere on
-            # the page, not a real legend at all (confirmed: Tennessee's
-            # own tn_front.pdf bakes its actual legend into a scanned
-            # raster image like New England's shared poster does, but
-            # still has enough stray vector marks -- underlines, tick
-            # marks -- to spuriously "match" a few garbage codes). Better
-            # to fall back honestly than ship a handful of wrong colors
-            # mixed in among the generated palette with no way to tell
-            # them apart.
+def _read_workspace_name(s: _ArcObjectStream, version: int):
+    s.read_string()  # path name
+    s.read_string()  # name string
+    s.read_string()  # browse name
+    s.read_object()  # connection properties (PropertySet)
+    if s.read_uchar():  # has factory
+        s.read_object()  # workspace factory
+    s.read_uint()  # workspace type
+    return None
+
+
+def _read_property_set(s: _ArcObjectStream, version: int):
+    for _ in range(s.read_uint()):
+        s.read_string()  # key
+        s.read_variant()  # value
+    return None
+
+
+def _read_unique_value_renderer(s: _ArcObjectStream, version: int):
+    """Stops reading as soon as it has every legend group's classes --
+    everything the real UniqueValueRenderer.read() does afterward (a raw
+    values array, rotation/transparency attributes, a color ramp...) is
+    map-display bookkeeping this script has no use for, and since this is
+    always the last thing read from the "Layer" stream, under-reading its
+    tail is harmless."""
+    for _ in range(s.read_uint()):  # field count
+        s.read_string()  # field name
+        s.read(3)  # unexplained -- consumed verbatim regardless
+    s.read_string()  # concatenator
+    s.read_object()  # "all other values" symbol -- not a real ecoregion code
+    groups = [s.read_object() for _ in range(s.read_uint())]
+    return [c for group in groups if group for c in group]
+
+
+def _read_legend_group(s: _ArcObjectStream, version: int):
+    s.read_ushort()  # visible
+    s.read_ushort()  # editable or expanded
+    s.read_string()  # heading
+    classes = [s.read_object() for _ in range(s.read_uint())]
+    if version > 2:
+        s.read_ushort()  # unknown
+    return classes  # list of (label, fill color or None)
+
+
+def _read_legend_class(s: _ArcObjectStream, version: int):
+    color = s.read_object()  # symbol -- already reduced to just its fill color
+    label = s.read_string()
+    s.read_string()  # description
+    s.read_object()  # format (usually null)
+    if version == 2:
+        s.read_uint()  # feature count
+    return (label, color)
+
+
+def _read_simple_fill_symbol(s: _ArcObjectStream, version: int):
+    s.read_object()  # outline (SimpleLineSymbol or similar)
+    color = s.read_object()  # the actual fill color
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    s.read_uint()  # fill style
+    return color
+
+
+def _read_multi_layer_fill_symbol(s: _ArcObjectStream, version: int):
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    s.read_object()  # unused color
+    layers = [s.read_object() for _ in range(s.read_uint())]
+    for _ in layers:
+        s.read_uint()  # enabled
+    for _ in layers:
+        s.read_uint()  # locked
+    if version >= 2:
+        for _ in layers:
+            s.read_string()  # tags
+    # The first layer's own fill color is the representative one (matches
+    # how EPA's data was cross-checked against this script's earlier
+    # PDF-based colors while writing this).
+    return layers[0] if layers else None
+
+
+def _read_color_symbol(s: _ArcObjectStream, version: int):
+    color = s.read_object()
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    s.read_uint()  # unknown
+    return color
+
+
+def _read_simple_line_symbol(s: _ArcObjectStream, version: int):
+    s.read_object()  # color
+    s.read_double()  # width
+    s.read_uint()  # line type
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    return None
+
+
+def _read_cartographic_line_symbol(s: _ArcObjectStream, version: int):
+    s.read_uint()  # cap
+    s.read_uint()  # join
+    s.read_double()  # width
+    s.read_uchar()  # flip
+    s.read_double()  # offset
+    s.read_object()  # color
+    s.read_object()  # template
+    s.read_object()  # decoration
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    s.read_uchar()  # decoration on top
+    s.read_double()  # line start offset
+    s.read_double()  # miter limit
+    return None
+
+
+def _read_marker_line_symbol(s: _ArcObjectStream, version: int):
+    s.read_uchar()  # flip
+    s.read_double()  # offset
+    s.read_object()  # pattern marker
+    s.read_object()  # template
+    s.read_object()  # decoration
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    s.read_uchar()  # decoration on top
+    s.read_double()  # line start offset
+    s.read_uint()  # cap
+    s.read_uint()  # join
+    s.read_double()  # miter limit
+    return None
+
+
+def _read_hash_line_symbol(s: _ArcObjectStream, version: int):
+    s.read_double()  # angle
+    s.read_uint()  # cap
+    s.read_uint()  # join
+    s.read_double()  # width
+    s.read_uchar()  # flip
+    s.read_double()  # offset
+    s.read_object()  # line
+    s.read_object()  # color
+    s.read_object()  # template
+    s.read_object()  # decoration
+    s.read_uint()  # raster op
+    s.read_uint()  # symbol level
+    s.read_uchar()  # decoration on top
+    s.read_double()  # line start offset
+    s.read_double()  # miter limit
+    return None
+
+
+def _read_noop(s: _ArcObjectStream, version):
+    return None
+
+
+def _cielab_to_srgb(l_value: float, a: float, b: float) -> tuple[int, int, int]:
+    """ESRI's own CIELab -> RGB conversion for RgbColor/HsvColor/HlsColor/
+    GrayColor objects (all four share this exact byte layout and math,
+    differing only in their CLSID): standard Lab->XYZ (Bruce Lindbloom's
+    public formulas, see brucelindbloom.com) against a Rec709-scaled D65
+    white point, then ESRI's own "AppleRGB" working-space matrix, then a
+    1/1.8 gamma. Not exercised against any real EPA legend code while
+    writing this (every real ecoregion class checked used CmykColor
+    instead -- this only ever showed up for the renderer's own
+    "<all other values>" catch-all, which isn't a real code and is
+    discarded regardless), but kept in case some state's own .lyr uses it
+    for a real class."""
+    fy = (l_value + 16) / 116.0
+    fz = fy - b / 200.0
+    fx = a / 500.0 + fy
+    e, k = 0.008856, 903.3
+    xr = fx**3 if fx**3 > e else (116 * fx - 16) / k
+    yr = ((l_value + 16) / 116.0) ** 3 if l_value > k * e else l_value / k
+    zr = fz**3 if fz**3 > e else (116 * fz - 16) / k
+    xr_ref, yr_ref, zr_ref = 0.9504559270516716, 1.0, 1.0888461217873364
+    x, y, z = xr * xr_ref, yr * yr_ref, zr * zr_ref
+    r = 2.9515373 * x - 1.2894116 * y - 0.4738445 * z
+    g = -1.0851093 * x + 1.9908566 * y + 0.0372026 * z
+    bb = 0.0854934 * x - 0.2694964 * y + 1.0912975 * z
+    out = []
+    for c in (r, g, bb):
+        c = max(c, 0.0) ** (1 / 1.8)
+        v = round(c * 255)
+        out.append(0 if v < 5 else min(v, 255))
+    return tuple(out)
+
+
+def _read_rgb_color(s: _ArcObjectStream, version: int):
+    s.read(3)  # unexplained
+    l_value, a, b = s.read_double(), s.read_double(), s.read_double()
+    s.read_uchar()  # dither
+    if s.read_uchar():  # is_null
+        return None
+    return _cielab_to_srgb(l_value, a, b)
+
+
+def _read_cmyk_color(s: _ArcObjectStream, version: int):
+    s.read(2)  # unexplained
+    c, m, y, k = s.read_uchar(), s.read_uchar(), s.read_uchar(), s.read_uchar()
+    s.read_uchar()  # dither
+    if s.read_uchar():  # is_null
+        return None
+    c, m, y, k = c / 100.0, m / 100.0, y / 100.0, k / 100.0
+    return (
+        round(255 * (1 - c) * (1 - k)),
+        round(255 * (1 - m) * (1 - k)),
+        round(255 * (1 - y) * (1 - k)),
+    )
+
+
+# (needs_ref, needs_version, reader) per class -- see _ArcObjectStream.read_object.
+_ARC_OBJECT_READERS: dict[str, tuple[bool, bool, Callable]] = {
+    "e663a651-8aad-11d0-bec7-00805f7c4268": (True, True, _read_feature_layer),
+    "198846d0-ca42-11d1-aa7c-00c04fa33a15": (True, True, _read_feature_class_name),
+    "5a350011-e371-11d1-aa82-00c04fa33a15": (True, True, _read_workspace_name),
+    "588e5a11-d09b-11d1-aa7c-00c04fa33a15": (True, True, _read_property_set),
+    "c3346d29-b2bc-11d1-8817-080009ec732a": (True, True, _read_unique_value_renderer),
+    "167c5ea2-af20-11d1-8817-080009ec732a": (True, True, _read_legend_group),
+    "167c5ea3-af20-11d1-8817-080009ec732a": (True, True, _read_legend_class),
+    "7914e603-c892-11d0-8bb6-080009ee4e41": (True, True, _read_simple_fill_symbol),
+    "7914e604-c892-11d0-8bb6-080009ee4e41": (True, True, _read_multi_layer_fill_symbol),
+    "b81f9ae0-026e-11d3-9c1f-00c04f5aa6ed": (True, True, _read_color_symbol),
+    "7914e5f9-c892-11d0-8bb6-080009ee4e41": (True, True, _read_simple_line_symbol),
+    "7914e5fb-c892-11d0-8bb6-080009ee4e41": (True, True, _read_cartographic_line_symbol),
+    "7914e5fd-c892-11d0-8bb6-080009ee4e41": (True, True, _read_marker_line_symbol),
+    "7914e5fc-c892-11d0-8bb6-080009ee4e41": (True, True, _read_hash_line_symbol),
+    "7ee9c496-d123-11d0-8383-080009b996cc": (True, True, _read_rgb_color),  # Rgb
+    "7ee9c497-d123-11d0-8383-080009b996cc": (True, True, _read_cmyk_color),  # Cmyk
+    "7ee9c492-d123-11d0-8383-080009b996cc": (True, True, _read_rgb_color),  # Hsv
+    "7ee9c493-d123-11d0-8383-080009b996cc": (True, True, _read_rgb_color),  # Hls
+    "7ee9c495-d123-11d0-8383-080009b996cc": (True, True, _read_rgb_color),  # Gray
+    # Workspace factories -- no reference id, no version, no body at all.
+    # Only Shapefile matters for EPA data; the rest are listed defensively.
+    "a06adb96-d95c-11d1-aa81-00c04fa33a15": (False, False, _read_noop),  # Shapefile
+    "d9b4fa40-d6d9-11d1-aa81-00c04fa33a15": (False, False, _read_noop),  # Sde
+    "dd48c96a-d92a-11d1-aa81-00c04fa33a15": (False, False, _read_noop),  # Access
+    "71fe75f0-ea0c-4406-873e-b7d53748ae7e": (False, False, _read_noop),  # FileGDB
+}
+
+
+_LYR_LABEL_CODE_RE = re.compile(r"^(\d+[a-z]?)\s")
+
+
+def fetch_lyr_colors(lyr_bytes: bytes) -> dict[str, str]:
+    """Parses a .lyr file's "Layer" stream and returns its real,
+    ArcGIS-authored per-code colors as {code: "#rrggbb"}. Raises on any
+    structural failure (not the format expected, an object class this
+    script doesn't recognize, ...) -- the caller decides how to fall back;
+    see fetch_lyr_colors_for_state below."""
+    layer_bytes = _read_cfb_stream(lyr_bytes, "Layer")
+    classes = _ArcObjectStream(layer_bytes).read_object() or []
+    result: dict[str, str] = {}
+    for label, color in classes:
+        match = _LYR_LABEL_CODE_RE.match(label or "")
+        if not match or color is None:
+            continue
+        r, g, b = color
+        result[match.group(1)] = "#{:02x}{:02x}{:02x}".format(r, g, b)
+    return result
+
+
+def _lyr_url_candidates(shapefile_url: str, level: int) -> list[str]:
+    """Guesses the .lyr symbology file's URL from the shapefile's own .zip
+    URL, using EPA's own consistent per-state file layout
+    (.../<prefix>/<prefix>_eco[_l<level>].{zip,lyr,htm}) -- confirmed
+    against every state checked while writing this, including several
+    whose own EPA download page doesn't link a .lyr file at all (Region
+    3's combined Delaware/Maryland/Pennsylvania/Virginia/West Virginia page
+    only lists a plain "<state>_eco.zip" bundle with no Symbology link,
+    yet "<state>_eco_l4.lyr" exists on the server regardless -- found by
+    trying the predictable filename directly rather than trusting only
+    what's actually linked)."""
+    base = shapefile_url.rsplit(".zip", 1)[0]
+    candidates = [base + ".lyr"]
+    if not base.endswith(f"_l{level}"):
+        candidates.append(f"{base}_l{level}.lyr")
+    return candidates
+
+
+def fetch_lyr_colors_for_state(shapefile_url: str, level: int) -> dict[str, str] | None:
+    """Best-effort: finds and downloads the state's own .lyr symbology
+    file (from its already-known shapefile URL -- see
+    _lyr_url_candidates) and extracts its real EPA colors. Returns None on
+    any failure (no .lyr found, unrecognized/unsupported object structure,
+    ...) -- style_features() falls back to the generated palette in that
+    case, so this can never turn into a hard failure of the whole script."""
+    for lyr_url in _lyr_url_candidates(shapefile_url, level):
+        try:
+            lyr_bytes = fetch(lyr_url)
+        except Exception:  # noqa: BLE001 -- just try the next candidate URL
+            continue
+        try:
+            colors = fetch_lyr_colors(lyr_bytes)
+        except Exception as error:  # noqa: BLE001 -- this is a best-effort enhancement
             print(
-                f"  (only matched {len(colors)} legend colors -- too few to "
-                "trust; this poster's legend is likely a scanned image, not "
-                "vector art -- using generated colors instead)"
+                f"  (couldn't read real colors from {lyr_url}: {error} -- "
+                "using generated colors instead)"
             )
             return None
+        if not colors:
+            continue
+        print(f"Found real EPA colors: {lyr_url}")
         print(f"  Matched {len(colors)} real EPA legend colors.")
         return colors
-    except Exception as error:  # noqa: BLE001 - this is a best-effort enhancement
-        print(f"  (couldn't read real colors from the poster: {error} -- using generated colors instead)")
-        return None
+    print("  (no .lyr symbology file found -- using generated colors instead)")
+    return None
 
 
-def fetch_all_poster_colors() -> dict[str, str]:
-    """The --country counterpart of fetch_poster_colors(): there's no
-    single poster covering the whole merged national file, so this fetches
-    every state's own poster and merges their {code: color} results. Safe
-    to run over every entry in STATE_NAMES unconditionally -- Hawaii (not
-    in the EPA system at all) and any state fetch_poster_colors() can't
-    read a legend from simply contribute nothing, the same per-state
-    best-effort fallback the single-state path already relies on. A dict
-    update (not a merge that would notice conflicts) is correct here
-    specifically because the whole premise this relies on is that a given
-    code's color doesn't vary by state -- confirmed for every code checked
-    while writing the single-state version of this feature."""
+def fetch_all_lyr_colors(level: int) -> dict[str, str]:
+    """The --country counterpart of fetch_lyr_colors_for_state(): there's
+    no single .lyr covering the whole merged national file, so this finds
+    and reads every state's own and merges their {code: color} results.
+    Safe to run over every entry in STATE_NAMES unconditionally -- Hawaii
+    and DC (neither in the EPA ecoregion system at all) and any state
+    fetch_lyr_colors_for_state() can't read simply contribute nothing, the
+    same per-state best-effort fallback the single-state path already
+    relies on. A dict update (not a merge that would notice conflicts) is
+    correct here specifically because the whole premise this relies on is
+    that a given code's color doesn't vary by state -- confirmed for every
+    code checked while writing the single-state version of this feature."""
     print(
-        f"Fetching real EPA colors from all {len(STATE_NAMES)} state posters "
-        "-- there's no single national poster, so this is the slowest part "
-        "of a --country run (several dozen extra downloads)..."
+        f"Fetching real EPA colors from all {len(STATE_NAMES)} states' own "
+        ".lyr symbology files..."
     )
     colors: dict[str, str] = {}
     for i, state_name in enumerate(STATE_NAMES, start=1):
         print(f"  [{i}/{len(STATE_NAMES)}] {state_name}")
-        state_colors = fetch_poster_colors(state_name)
+        try:
+            shapefile_url = find_shapefile_url(state_name, level)
+        except SystemExit:
+            continue
+        state_colors = fetch_lyr_colors_for_state(shapefile_url, level)
         if state_colors:
             colors.update(state_colors)
     print(f"Collected {len(colors)} real EPA legend colors across all states.")
     return colors
-
-
-def _find_a2b0_tag(icc_bytes: bytes) -> bytes:
-    tag_count = struct.unpack(">I", icc_bytes[128:132])[0]
-    for i in range(tag_count):
-        offset = 132 + i * 12
-        sig, tag_offset, tag_size = struct.unpack(">4sII", icc_bytes[offset : offset + 12])
-        if sig == b"A2B0":
-            return icc_bytes[tag_offset : tag_offset + tag_size]
-    raise ValueError("ICC profile has no A2B0 tag")
 
 
 # --- Fetching ----------------------------------------------------------------
@@ -1722,11 +1457,11 @@ def main() -> None:
     if args.country:
         sources = fetch_country_sources(args.level)
         default_output = Path(f"united_states_ecoregions_l{args.level}.geojson")
-        # Best-effort: real EPA colors merged from every state's own poster
-        # PDF -- see fetch_all_poster_colors()'s doc comment for why this
-        # (unlike the single-state path) has to fetch every state's poster
+        # Best-effort: real EPA colors merged from every state's own .lyr
+        # symbology file -- see fetch_all_lyr_colors()'s doc comment for why
+        # this (unlike the single-state path) has to fetch every state's own
         # rather than just one.
-        poster_colors = fetch_all_poster_colors()
+        poster_colors = fetch_all_lyr_colors(args.level)
     else:
         state_name = resolve_state_name(args.state)
         print(
@@ -1740,9 +1475,9 @@ def main() -> None:
         default_output = Path(
             f"{state_name.lower().replace(' ', '_')}_ecoregions_l{args.level}.geojson"
         )
-        # Best-effort: real EPA colors from the state's own poster PDF (see
-        # the "Poster legend colors" section above).
-        poster_colors = fetch_poster_colors(state_name)
+        # Best-effort: real EPA colors from the state's own .lyr symbology
+        # file (see the ".lyr symbology reading" section above).
+        poster_colors = fetch_lyr_colors_for_state(shapefile_url, args.level)
 
     print("Parsing geometry and reprojecting to WGS84 (this is the slow part)...")
     features, fields = build_features_from_sources(sources)
