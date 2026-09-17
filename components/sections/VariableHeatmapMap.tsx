@@ -78,6 +78,17 @@ export type MapTileSource =
         className?: string | null;
         classColor?: string | null;
       } | null>;
+      /** Continuous rasters only — drives auto-adapt locally, the same role
+       * the remote tile-range/stats endpoint plays for a catalog variable.
+       * Omit for vector sources (gis-editor's vector data is nominal-only,
+       * so auto-adapt never applies there anyway). */
+      getVisibleRange?: (bounds: {
+        z: number;
+        x0: number;
+        y0: number;
+        x1: number;
+        y1: number;
+      }) => { min: number; max: number } | null;
     };
 
 export type HeatmapSelection = {
@@ -275,8 +286,15 @@ export function VariableHeatmapMap({
   // Fullscreens the map + its legend/colormap-picker overlays together.
   const mapContainerRef = React.useRef<View | null>(null);
 
+  // Applicable for any continuous source, remote or local — a local raster
+  // just reads its already-decoded visible-tile range instead of hitting
+  // tile-range/stats (see useAutoAdaptRange's localRangeReader). A local
+  // source with no getVisibleRange (vector data, which is nominal-only
+  // anyway, or an older/mocked renderer) has no way to supply that range.
   const isAutoAdaptApplicable =
-    tileSource.kind === 'remote' && !isCategorical && !isCircular;
+    !isCategorical &&
+    !isCircular &&
+    (tileSource.kind === 'remote' || !!tileSource.getVisibleRange);
 
   const tileCacheKey = selectedVariableMeta?.version ?? 0;
 
@@ -300,6 +318,8 @@ export function VariableHeatmapMap({
     catalogRenderMin: selectedVariableMeta?.renderMin,
     catalogRenderMax: selectedVariableMeta?.renderMax,
     resetKey: globeViewEnabled,
+    localRangeReader:
+      tileSource.kind === 'local' ? tileSource.getVisibleRange : undefined,
   });
 
   const {
@@ -428,9 +448,7 @@ export function VariableHeatmapMap({
         const known = new Set(
           (selectedVariableMeta?.legendClasses ?? []).map((c) => c.id),
         );
-        const newIds = classes
-          .map((c) => c.id)
-          .filter((id) => !known.has(id));
+        const newIds = classes.map((c) => c.id).filter((id) => !known.has(id));
         if (newIds.length > 0) onDiscoverClasses(newIds);
       }
     },
@@ -450,19 +468,24 @@ export function VariableHeatmapMap({
       .filter((cls) => visibleNominalCounts.has(cls.id as number))
       .sort(
         isOrdinalVariable
-          // Ordinal classes are ranked, not unordered — keeping them in
-          // rank order (rather than most-common-first, which scrambles a
-          // sequential colormap's ramp into a visually random-looking
-          // order) is what makes the legend actually read as an
-          // increasing gradient, matching the colormap the tiles
-          // themselves are rendered with.
-          ? (a, b) => (a.id as number) - (b.id as number)
+          ? // Ordinal classes are ranked, not unordered — keeping them in
+            // rank order (rather than most-common-first, which scrambles a
+            // sequential colormap's ramp into a visually random-looking
+            // order) is what makes the legend actually read as an
+            // increasing gradient, matching the colormap the tiles
+            // themselves are rendered with.
+            (a, b) => (a.id as number) - (b.id as number)
           : (a, b) =>
               (visibleNominalCounts.get(b.id as number) ?? 0) -
               (visibleNominalCounts.get(a.id as number) ?? 0),
       );
     return visible.length > 0 ? visible : null;
-  }, [isCategorical, isOrdinalVariable, selectedVariableMeta, visibleNominalCounts]);
+  }, [
+    isCategorical,
+    isOrdinalVariable,
+    selectedVariableMeta,
+    visibleNominalCounts,
+  ]);
   const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
 
   // getCbColor's own fallback (the class's static seeded color) is right
@@ -504,7 +527,12 @@ export function VariableHeatmapMap({
             ),
           }))
         : visibleCategoricalClasses,
-    [colorMode, ordinalFallbackColor, selectedVariableMeta, visibleCategoricalClasses],
+    [
+      colorMode,
+      ordinalFallbackColor,
+      selectedVariableMeta,
+      visibleCategoricalClasses,
+    ],
   );
 
   const classColors = React.useMemo(() => {
@@ -518,13 +546,24 @@ export function VariableHeatmapMap({
           cls.color ?? '#888888',
         );
         const color = colorMode
-          ? getCbColor(selectedVariableMeta.id, cls.id as number, colorMode, fallback)
+          ? getCbColor(
+              selectedVariableMeta.id,
+              cls.id as number,
+              colorMode,
+              fallback,
+            )
           : fallback;
         map.set(String(cls.id), color);
       }
     }
     return map;
-  }, [isCategorical, selectedVariableMeta, colorMode, isOrdinalVariable, ordinalFallbackColor]);
+  }, [
+    isCategorical,
+    selectedVariableMeta,
+    colorMode,
+    isOrdinalVariable,
+    ordinalFallbackColor,
+  ]);
 
   const classLabels = React.useMemo(() => {
     if (!isCategorical || !selectedVariableMeta?.legendClasses?.length)

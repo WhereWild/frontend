@@ -17,7 +17,21 @@ import {
   ThemedText,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
-import { VariableHeatmapMap } from '@/components/sections/VariableHeatmapMap';
+import {
+  VariableHeatmapMap,
+  type HeatmapSelection,
+} from '@/components/sections/VariableHeatmapMap';
+import {
+  formatValue,
+  isVariableCategorical,
+  isVariableCircular,
+  joinClassNamesWithAnd,
+} from '@/components/sections/speciesEnvironment/model';
+import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+import {
+  circularRangeSpan,
+  FULL_CIRCLE_SPAN_THRESHOLD,
+} from '@/hooks/useCircularDragSelection';
 import { getResponsiveContentContainerStyle } from '@/constants/responsiveStyles';
 import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -156,6 +170,15 @@ export function GisEditorScreen() {
   // (re)build so an edited raster's tiles actually get re-fetched instead of
   // reusing what the map already has cached under the old URL.
   const [renderVersion, setRenderVersion] = React.useState(0);
+  // Live class/range selection surfaced from VariableHeatmapMap, same as
+  // /maps' "Selected range: …" header text — reset per load via `key` on
+  // the map itself, so a stale selection from a previous file never lingers.
+  const [rasterSelection, setRasterSelection] =
+    React.useState<HeatmapSelection>({
+      classIds: [],
+      valueRanges: [],
+      angleRanges: [],
+    });
 
   const requestIdRef = React.useRef(0);
   const rendererRef = React.useRef<CogTileRenderer | null>(null);
@@ -186,6 +209,12 @@ export function GisEditorScreen() {
     if (vectorEditable) setVectorRenderVersion((v) => v + 1);
   }, [vectorEditable]);
   const vectorRequestIdRef = React.useRef(0);
+  const [vectorSelection, setVectorSelection] =
+    React.useState<HeatmapSelection>({
+      classIds: [],
+      valueRanges: [],
+      angleRanges: [],
+    });
 
   const clearVector = React.useCallback(() => {
     vectorRequestIdRef.current += 1;
@@ -446,6 +475,64 @@ export function GisEditorScreen() {
       }
     },
     [editableMeta, loaded],
+  );
+
+  // Same "Selected range: …" text /maps shows above its map when a legend
+  // range or angle range is sliced — ported here so gis-editor's map has
+  // the same feedback when dragging a slice on a local raster/vector.
+  const buildSelectedRangeText = React.useCallback(
+    (
+      selection: HeatmapSelection,
+      variableMeta: EnvironmentVariableOption | null,
+    ): string | null => {
+      const circular = isVariableCircular(variableMeta);
+      const categorical = isVariableCategorical(variableMeta);
+      if (circular && selection.angleRanges.length > 0) {
+        const rangeLabel = joinClassNamesWithAnd(
+          selection.angleRanges.map((range) => {
+            const isFullCircle =
+              circularRangeSpan({ start: range.min, end: range.max }) >=
+              FULL_CIRCLE_SPAN_THRESHOLD;
+            return isFullCircle
+              ? 'Full circle'
+              : `${Math.round(range.min)}° to ${Math.round(range.max)}°`;
+          }),
+        );
+        return `Selected range: ${rangeLabel}`;
+      }
+      if (!circular && !categorical && selection.valueRanges.length > 0) {
+        const unitsSuffix = variableMeta?.units ? ` ${variableMeta.units}` : '';
+        const rangeLabel = joinClassNamesWithAnd(
+          selection.valueRanges.map(
+            (range) =>
+              `${formatValue(range.min, 1)} to ${formatValue(range.max, 1)}`,
+          ),
+        );
+        return `Selected range: ${rangeLabel}${unitsSuffix}`;
+      }
+      return null;
+    },
+    [],
+  );
+
+  const rasterVariableMeta = React.useMemo(
+    () =>
+      loaded && editableMeta
+        ? toEnvironmentVariableOption(
+            loaded.fileName,
+            renderVersion,
+            editableMeta,
+          )
+        : null,
+    [loaded, editableMeta, renderVersion],
+  );
+  const rasterSelectedRangeText = React.useMemo(
+    () => buildSelectedRangeText(rasterSelection, rasterVariableMeta),
+    [buildSelectedRangeText, rasterSelection, rasterVariableMeta],
+  );
+  const vectorSelectedRangeText = React.useMemo(
+    () => buildSelectedRangeText(vectorSelection, vectorVariableMeta),
+    [buildSelectedRangeText, vectorSelection, vectorVariableMeta],
   );
 
   const ingest = React.useCallback(
@@ -1060,25 +1147,36 @@ export function GisEditorScreen() {
                     </View>
                   </View>
                   <View style={styles.previewColumn}>
-                    {editableMeta ? (
-                      <VariableHeatmapMap
-                        key={loadSeq}
-                        variableMeta={toEnvironmentVariableOption(
-                          loaded.fileName,
-                          renderVersion,
-                          editableMeta,
-                        )}
-                        tileSource={{
-                          kind: 'local',
-                          renderTile: renderer.renderTile,
-                          readPointValue: renderer.readPointValue,
-                        }}
-                        height={MAP_HEIGHT}
-                        initialLat={renderer.view.lat}
-                        initialLon={renderer.view.lon}
-                        initialZoom={renderer.view.zoom}
-                        onDiscoverClasses={handleDiscoverClasses}
-                      />
+                    {editableMeta && rasterVariableMeta ? (
+                      <>
+                        {rasterSelectedRangeText ? (
+                          <ThemedText
+                            variant='bodySmall'
+                            style={[
+                              styles.selectedRangeText,
+                              { color: palette.text.default.secondary },
+                            ]}
+                          >
+                            {rasterSelectedRangeText}
+                          </ThemedText>
+                        ) : null}
+                        <VariableHeatmapMap
+                          key={loadSeq}
+                          variableMeta={rasterVariableMeta}
+                          tileSource={{
+                            kind: 'local',
+                            renderTile: renderer.renderTile,
+                            readPointValue: renderer.readPointValue,
+                            getVisibleRange: renderer.getVisibleRange,
+                          }}
+                          height={MAP_HEIGHT}
+                          initialLat={renderer.view.lat}
+                          initialLon={renderer.view.lon}
+                          initialZoom={renderer.view.zoom}
+                          onDiscoverClasses={handleDiscoverClasses}
+                          onSelectionChange={setRasterSelection}
+                        />
+                      </>
                     ) : null}
                   </View>
                 </View>
@@ -1137,19 +1235,33 @@ export function GisEditorScreen() {
                   </View>
                   <View style={styles.previewColumn}>
                     {vectorRenderer && vectorVariableMeta ? (
-                      <VariableHeatmapMap
-                        key={loadedVector.fileNameBase}
-                        variableMeta={vectorVariableMeta}
-                        tileSource={{
-                          kind: 'local',
-                          renderTile: vectorRenderer.renderTile,
-                          readPointValue: vectorRenderer.readPointValue,
-                        }}
-                        height={MAP_HEIGHT}
-                        initialLat={vectorRenderer.view.lat}
-                        initialLon={vectorRenderer.view.lon}
-                        initialZoom={vectorRenderer.view.zoom}
-                      />
+                      <>
+                        {vectorSelectedRangeText ? (
+                          <ThemedText
+                            variant='bodySmall'
+                            style={[
+                              styles.selectedRangeText,
+                              { color: palette.text.default.secondary },
+                            ]}
+                          >
+                            {vectorSelectedRangeText}
+                          </ThemedText>
+                        ) : null}
+                        <VariableHeatmapMap
+                          key={loadedVector.fileNameBase}
+                          variableMeta={vectorVariableMeta}
+                          tileSource={{
+                            kind: 'local',
+                            renderTile: vectorRenderer.renderTile,
+                            readPointValue: vectorRenderer.readPointValue,
+                          }}
+                          height={MAP_HEIGHT}
+                          initialLat={vectorRenderer.view.lat}
+                          initialLon={vectorRenderer.view.lon}
+                          initialZoom={vectorRenderer.view.zoom}
+                          onSelectionChange={setVectorSelection}
+                        />
+                      </>
                     ) : null}
                   </View>
                 </View>
@@ -1220,4 +1332,5 @@ const styles = StyleSheet.create({
   resultsColumn: { flexDirection: 'column' },
   metaColumn: { flex: 1, minWidth: 280, gap: Size.space['300'] },
   previewColumn: { flex: 1, minWidth: 320 },
+  selectedRangeText: { marginBottom: Size.space['100'] },
 });

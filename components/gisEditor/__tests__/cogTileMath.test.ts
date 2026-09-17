@@ -11,6 +11,7 @@ import {
   MERCATOR_ORIGIN_SHIFT,
   mercatorToLngLat,
   parseTileStyleFromUrl,
+  sampleValueRange,
   tallyCategoricalCounts,
   tileToMercatorBounds,
 } from '../cogTileMath';
@@ -132,6 +133,24 @@ describe('tallyCategoricalCounts', () => {
     // toggled back on.
     const counts = tallyCategoricalCounts([1, 2, 3], null);
     expect(counts.map((c) => c.id).sort()).toEqual([1, 2, 3]);
+  });
+});
+
+describe('sampleValueRange', () => {
+  it('finds the min/max, ignoring noData and non-finite samples', () => {
+    expect(sampleValueRange([3, -9999, NaN, 7, 1], -9999)).toEqual({
+      min: 1,
+      max: 7,
+    });
+  });
+
+  it('returns null when every sample is missing/noData', () => {
+    expect(sampleValueRange([-9999, -9999], -9999)).toBeNull();
+    expect(sampleValueRange([], null)).toBeNull();
+  });
+
+  it('treats null noData as "no sentinel to exclude"', () => {
+    expect(sampleValueRange([0, -5, 10], null)).toEqual({ min: -5, max: 10 });
   });
 });
 

@@ -7,10 +7,13 @@ import { BACKEND_BASE, type ViewportTileRange } from '@/data/api';
 
 /**
  * "Auto-adapt" mode: rescales a numeric variable's legend/colorization to
- * just the value range actually visible on screen (via GET
- * .../tile-range/stats for the current viewport), instead of the variable's
- * fixed catalog-wide render_min/render_max. Off by default, session-only —
- * a deliberate per-visit choice, not a saved preference.
+ * just the value range actually visible on screen — via GET
+ * .../tile-range/stats for the current viewport for a remote catalog
+ * variable, or via `localRangeReader` (the GIS editor's local raster
+ * renderer's own getVisibleRange(), from the tiles it's already decoded —
+ * no server, no extra pixel reads) for a local one — instead of the
+ * variable's fixed catalog-wide render_min/render_max. Off by default,
+ * session-only — a deliberate per-visit choice, not a saved preference.
  *
  * Extracted from maps.tsx so the species page and upload-preview page (which
  * both also render a variable-colorized SpeciesOccurrenceMap) can offer the
@@ -31,6 +34,7 @@ export function useAutoAdaptRange({
   catalogRenderMin,
   catalogRenderMax,
   resetKey,
+  localRangeReader,
 }: {
   selectedVariable: string | null | undefined;
   isApplicable: boolean;
@@ -42,6 +46,13 @@ export function useAutoAdaptRange({
   // when it changes — e.g. maps.tsx's globeViewEnabled, whose renderer swap
   // discards the whole map document.
   resetKey?: unknown;
+  // When set, auto-adapt reads the visible range from this local function
+  // instead of fetching .../tile-range/stats — see the GIS editor's
+  // CogTileRenderer.getVisibleRange(). Absent for remote catalog variables.
+  localRangeReader?: (bounds: ViewportTileRange) => {
+    min: number;
+    max: number;
+  } | null;
 }) {
   const [autoAdaptEnabled, setAutoAdaptEnabled] = useState(false);
   const [autoRange, setAutoRange] = useState<{
@@ -58,23 +69,33 @@ export function useAutoAdaptRange({
 
   const toggleAutoAdapt = useCallback(() => setAutoAdaptEnabled((v) => !v), []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setAutoRange(null);
   }, [selectedVariable, resetKey]);
 
   // Discovers auto-adapt's colorization range for the CURRENT viewport —
   // debounced so a drag/zoom gesture doesn't fire a request per frame, and
-  // only ever applied once the fetch actually resolves (see the doc comment
+  // only ever applied once the read actually resolves (see the doc comment
   // above). A stale response from a viewport the user has since panned away
   // from is dropped via the cancelled flag rather than clobbering a newer
-  // one.
+  // one. `selectedVariable` isn't meaningful for a local reader (there's no
+  // catalog id), so it's only required on the remote path.
   useEffect(() => {
-    if (!autoAdaptEnabled || !isApplicable || !viewportBounds || !selectedVariable) {
+    if (
+      !autoAdaptEnabled ||
+      !isApplicable ||
+      !viewportBounds ||
+      (!localRangeReader && !selectedVariable)
+    ) {
       return;
     }
     let cancelled = false;
     const timer = setTimeout(() => {
+      if (localRangeReader) {
+        const range = localRangeReader(viewportBounds);
+        if (!cancelled && range) setAutoRange(range);
+        return;
+      }
       const params = new URLSearchParams({
         z: String(viewportBounds.z),
         x0: String(viewportBounds.x0),
@@ -87,7 +108,7 @@ export function useAutoAdaptRange({
         params.set('forecast_h', String(forecastH));
       }
       fetch(
-        `${BACKEND_BASE}/api/layers/${encodeURIComponent(selectedVariable)}/tile-range/stats?${params.toString()}`,
+        `${BACKEND_BASE}/api/layers/${encodeURIComponent(selectedVariable!)}/tile-range/stats?${params.toString()}`,
       )
         .then((res) => (res.ok ? res.json() : null))
         .then((data: { min?: unknown; max?: unknown } | null) => {
@@ -112,6 +133,7 @@ export function useAutoAdaptRange({
     selectedVariable,
     units,
     forecastH,
+    localRangeReader,
   ]);
 
   const renderRange: [number, number] | null =

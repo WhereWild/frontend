@@ -17,6 +17,7 @@ import {
   lngLatToMercator,
   mercatorToLngLat,
   parseTileStyleFromUrl,
+  sampleValueRange,
   tallyCategoricalCounts,
   tileToMercatorBounds,
 } from './cogTileMath';
@@ -66,6 +67,20 @@ export type CogTileRenderer = {
    * an overview, since this needs the actual value, not a downsampled
    * estimate. Null when the point is outside the raster or lands on noData. */
   readPointValue: (lat: number, lon: number) => Promise<PointValue | null>;
+  /** Continuous (ratio/interval/circular) rasters only — the local
+   * equivalent of the backend's tile-range/stats endpoint that drives
+   * auto-adapt: min/max of the display-domain values actually decoded for
+   * whichever tiles are currently in view, from the same per-tile reads
+   * renderTile() already does (no extra pixel reads). Null for
+   * nominal/ordinal (auto-adapt doesn't apply to those) or when no tile in
+   * the given range has been rendered yet. */
+  getVisibleRange: (bounds: {
+    z: number;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  }) => { min: number; max: number } | null;
   view: { lat: number; lon: number; zoom: number };
   dispose: () => void;
 };
@@ -262,6 +277,34 @@ export const createCogTileRenderer = async ({
 
   let disposed = false;
 
+  // Per-tile min/max of the display-domain values actually decoded for that
+  // tile — see getVisibleRange() below. Keyed "z/x/y" rather than tracking a
+  // single running min/max so that zooming/panning to a smaller area can
+  // shrink the reported range back down instead of only ever growing from
+  // every tile ever rendered this session.
+  const tileRanges = new Map<string, { min: number; max: number }>();
+
+  const getVisibleRange = (bounds: {
+    z: number;
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  }): { min: number; max: number } | null => {
+    if (isCategorical) return null;
+    let min = Infinity;
+    let max = -Infinity;
+    for (let x = bounds.x0; x <= bounds.x1; x += 1) {
+      for (let y = bounds.y0; y <= bounds.y1; y += 1) {
+        const r = tileRanges.get(`${bounds.z}/${x}/${y}`);
+        if (!r) continue;
+        if (r.min < min) min = r.min;
+        if (r.max > max) max = r.max;
+      }
+    }
+    return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : null;
+  };
+
   const renderTile = async (
     z: number,
     x: number,
@@ -419,6 +462,11 @@ export const createCogTileRenderer = async ({
     const effectiveNoData =
       isScaled && noData != null ? toDisplay(noData) : noData;
 
+    if (!isCategorical) {
+      const range = sampleValueRange(samples, effectiveNoData);
+      if (range) tileRanges.set(`${z}/${x}/${y}`, range);
+    }
+
     // Nominal codes are unordered — interpolating between two of them is
     // meaningless, so they're colorized by exact lookup instead of the
     // continuous min/max stretch. Ordinal stays on the continuous path (its
@@ -493,6 +541,7 @@ export const createCogTileRenderer = async ({
   return {
     renderTile,
     readPointValue,
+    getVisibleRange,
     view,
     dispose: () => {
       disposed = true;
