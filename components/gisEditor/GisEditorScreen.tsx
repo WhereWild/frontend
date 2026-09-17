@@ -37,18 +37,20 @@ import { MetadataPanel } from './MetadataPanel';
 import { VectorEditor } from './VectorEditor';
 import { createCogTileRenderer, type CogTileRenderer } from './cogTileRenderer';
 import { createVectorTileRenderer } from './vectorTileRenderer';
-import type { DetectedValueType } from './dataTypeDetection';
+import type { DetectedValueType, ValueTypeGuess } from './dataTypeDetection';
 import {
   addDiscoveredClasses,
   buildInitialEditableMeta,
   editableMetaToDetectedType,
   toEnvironmentVariableOption,
+  withValueType,
   type RasterEditableMeta,
 } from './rasterEditableMeta';
 import {
   deriveDetectedValueType,
   deriveRenderBounds,
   inspectRaster,
+  scanForCategoricalClasses,
   type RasterMetadata,
   type RenderBounds,
 } from './rasterMetadata';
@@ -139,6 +141,11 @@ export function GisEditorScreen() {
   // see rasterMetadata.ts's readCategoricalScanBand) doesn't read as a
   // stuck/frozen UI.
   const [loadStage, setLoadStage] = React.useState<string | null>(null);
+  // True while a manual switch to nominal/ordinal (from a continuous
+  // auto-guess, whose own distinctValues is always null) is running the
+  // on-demand class scan -- see handleValueTypeChange and
+  // rasterMetadata.ts's scanForCategoricalClasses.
+  const [isScanningClasses, setIsScanningClasses] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState<Loaded | null>(null);
   const [editableMeta, setEditableMeta] =
@@ -400,6 +407,46 @@ export function GisEditorScreen() {
   const handleDiscoverClasses = React.useCallback((ids: number[]) => {
     setEditableMeta((prev) => (prev ? addDiscoveredClasses(prev, ids) : prev));
   }, []);
+
+  // withValueType() alone can't fix a wrong continuous auto-guess: a
+  // continuous guess's own distinctValues is always null (see
+  // dataTypeDetection.ts), so switching manually into nominal/ordinal from
+  // one starts with zero classes with no scan to fill them in, unlike a
+  // file auto-detected as categorical from the start (which already ran
+  // one — see deriveDetectedValueType). Runs the same on-demand scan here
+  // instead, so a manual correction isn't stuck starting from nothing
+  // until enough of the map gets panned for live discovery
+  // (handleDiscoverClasses above) to fill it in one class at a time.
+  const handleValueTypeChange = React.useCallback(
+    (next: ValueTypeGuess) => {
+      if (!editableMeta || !loaded) return;
+      const wasCategorical =
+        editableMeta.valueType === 'nominal' ||
+        editableMeta.valueType === 'ordinal';
+      const nextIsCategorical = next === 'nominal' || next === 'ordinal';
+      const updated = withValueType(editableMeta, next, loaded.detectedType);
+      setEditableMeta(updated);
+      if (
+        nextIsCategorical &&
+        !wasCategorical &&
+        updated.classes.length === 0
+      ) {
+        setIsScanningClasses(true);
+        void scanForCategoricalClasses(loaded.blob, loaded.metadata)
+          .then((values) => {
+            if (!values || values.length === 0) return;
+            setEditableMeta((prev) =>
+              prev &&
+              (prev.valueType === 'nominal' || prev.valueType === 'ordinal')
+                ? addDiscoveredClasses(prev, values)
+                : prev,
+            );
+          })
+          .finally(() => setIsScanningClasses(false));
+      }
+    },
+    [editableMeta, loaded],
+  );
 
   const ingest = React.useCallback(
     async (blob: Blob, fileName: string, fileSize: number) => {
@@ -831,6 +878,8 @@ export function GisEditorScreen() {
                         detectedType={loaded.detectedType}
                         rawBounds={loaded.bounds}
                         onChange={setEditableMeta}
+                        onValueTypeChange={handleValueTypeChange}
+                        isScanningClasses={isScanningClasses}
                       />
                     ) : null}
                   </View>
@@ -962,6 +1011,8 @@ export function GisEditorScreen() {
                         detectedType={loaded.detectedType}
                         rawBounds={loaded.bounds}
                         onChange={setEditableMeta}
+                        onValueTypeChange={handleValueTypeChange}
+                        isScanningClasses={isScanningClasses}
                       />
                     ) : null}
 

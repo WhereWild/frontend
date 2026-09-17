@@ -9,7 +9,13 @@
 // it to the map preview.
 
 import React from 'react';
-import { Platform, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { ThemedText } from '@/components';
 import { NumberSpinner } from '@/components/inputs/NumberSpinner';
 import {
@@ -20,11 +26,7 @@ import { Colors, Size } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { DetectedValueType, ValueTypeGuess } from './dataTypeDetection';
 import type { RenderBounds } from './rasterMetadata';
-import {
-  withScaleOffset,
-  withValueType,
-  type RasterEditableMeta,
-} from './rasterEditableMeta';
+import { withScaleOffset, type RasterEditableMeta } from './rasterEditableMeta';
 
 const VALUE_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Nominal (unordered categories)', value: 'nominal' },
@@ -47,6 +49,8 @@ export function MetadataEditor({
   detectedType,
   rawBounds,
   onChange,
+  onValueTypeChange,
+  isScanningClasses = false,
 }: {
   editable: RasterEditableMeta;
   detectedType: DetectedValueType | null;
@@ -54,6 +58,16 @@ export function MetadataEditor({
    * re-derive render bounds whenever scale/offset changes. */
   rawBounds: RenderBounds;
   onChange: (next: RasterEditableMeta) => void;
+  /** Fires with the raw new type on a "Data type" selection, instead of
+   * onChange getting the already-computed RasterEditableMeta directly —
+   * the caller (GisEditorScreen) needs to see the raw before/after to know
+   * whether a manual switch into nominal/ordinal needs an on-demand class
+   * scan (see rasterMetadata.ts's scanForCategoricalClasses), which
+   * withValueType() alone has no way to trigger since it's a synchronous,
+   * blob-less function. */
+  onValueTypeChange: (next: ValueTypeGuess) => void;
+  /** True while GisEditorScreen is running that on-demand scan. */
+  isScanningClasses?: boolean;
 }) {
   const scheme = useColorScheme();
   const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -104,9 +118,7 @@ export function MetadataEditor({
         label='Data type'
         value={editable.valueType}
         options={VALUE_TYPE_OPTIONS}
-        onValueChange={(v) =>
-          onChange(withValueType(editable, v as ValueTypeGuess, detectedType))
-        }
+        onValueChange={(v) => onValueTypeChange(v as ValueTypeGuess)}
       />
       {detectedType ? (
         <ThemedText
@@ -115,6 +127,21 @@ export function MetadataEditor({
         >
           {`Auto-detected: ${VALUE_TYPE_LABELS[detectedType.guess]} (${detectedType.confidence} confidence)`}
         </ThemedText>
+      ) : null}
+
+      {isScanningClasses ? (
+        <View style={styles.scanRow}>
+          <ActivityIndicator
+            color={palette.icon.brand.default}
+            testID='gis-metadata-scan-spinner'
+          />
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.default.secondary }}
+          >
+            Scanning the file for classes…
+          </ThemedText>
+        </View>
       ) : null}
 
       {isCategorical ? (
@@ -152,7 +179,7 @@ export function MetadataEditor({
               </View>
             ))}
           </View>
-        ) : (
+        ) : !isScanningClasses ? (
           <ThemedText
             variant='bodySmall'
             style={{ color: palette.text.default.secondary }}
@@ -161,7 +188,7 @@ export function MetadataEditor({
             so legend classes can’t be pre-filled. This data type may not be the
             best fit — check the auto-detected suggestion above.
           </ThemedText>
-        )
+        ) : null
       ) : (
         <>
           {isScaled ? (
@@ -253,4 +280,9 @@ const styles = StyleSheet.create({
   },
   classValue: { width: 56, flexShrink: 0, opacity: 0.7 },
   classNameInput: { flex: 1 },
+  scanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Size.space['150'],
+  },
 });
