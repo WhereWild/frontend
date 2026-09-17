@@ -206,6 +206,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
   terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
   terrainEnabled: '__TERRAIN_ENABLED__',
+  globeProjectionEnabled: '__GLOBE_PROJECTION_ENABLED__',
   satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
   variableModeBackgroundTileUrl: '__VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__',
   basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
@@ -1605,6 +1606,11 @@ const fillMapTemplatePlaceholders = (
   // same gating pattern as satelliteTileUrl/SATELLITE_TILE_URL above.
   standardTheme?: StandardBasemapTheme,
   standardThemes?: { id: string; url: string }[] | null,
+  // Globe/flat MapLibre projection preference — same persisted-preference,
+  // frozen-at-build-time/live-locally-applied pattern as terrainEnabled
+  // above (see SpeciesOccurrenceMap.tsx's memoGlobeProjectionEnabled). Only
+  // meaningful in the globe template; a no-op placeholder for Leaflet.
+  globeProjectionEnabled?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1811,6 +1817,9 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.terrainEnabled)
     .join(terrainEnabled ? 'true' : 'false');
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.globeProjectionEnabled)
+    .join(globeProjectionEnabled ? 'true' : 'false');
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.initialDrawnPolygons)
     .join(
       initialDrawnPolygons && initialDrawnPolygons.length > 0
@@ -1919,6 +1928,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     autoAdaptEnabled,
     standardTheme,
     standardThemes,
+    globeProjectionEnabled,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1980,6 +1990,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
           url: stripRetinaPlaceholder(t.url),
         }))
       : standardThemes,
+    globeProjectionEnabled,
   );
 };
 

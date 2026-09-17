@@ -834,6 +834,13 @@ export function SpeciesOccurrenceMap({
   // iframe rebuild right after the map already updated itself, undoing the
   // whole point of preserveMapPosition.
   const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
+  // Same freeze-at-build-time treatment, for the globe/flat MapLibre
+  // projection toggle — it applies itself instantly and locally (see the
+  // globe template's own toggle control) and only tells
+  // settings.globeViewEnabled about it for next time.
+  const initialGlobeProjectionEnabled = React.useRef(
+    settings?.globeViewEnabled ?? true,
+  );
   // Same freeze-at-build-time treatment, for the basemap mode toggle. When
   // the toggle itself is disabled (enableBasemapModeToggle=false, e.g.
   // maps.tsx), the template must NOT be driven by the shared/global
@@ -910,6 +917,7 @@ export function SpeciesOccurrenceMap({
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
+    initialGlobeProjectionEnabled.current = settings?.globeViewEnabled ?? true;
     initialBasemapMode.current = effectiveBasemapMode;
     initialStandardTheme.current = settings?.standardBasemapTheme ?? 'default';
     initialAutoAdaptApplicable.current = autoAdaptApplicable;
@@ -967,6 +975,9 @@ export function SpeciesOccurrenceMap({
   const memoTerrainEnabled = preserveMapPosition
     ? initialTerrainEnabled.current
     : (settings?.terrainEnabled ?? false);
+  const memoGlobeProjectionEnabled = preserveMapPosition
+    ? initialGlobeProjectionEnabled.current
+    : (settings?.globeViewEnabled ?? true);
   const memoBasemapMode = preserveMapPosition
     ? initialBasemapMode.current
     : effectiveBasemapMode;
@@ -1036,6 +1047,7 @@ export function SpeciesOccurrenceMap({
       memoAutoAdaptEnabled,
       initialStandardTheme.current,
       standardThemes,
+      memoGlobeProjectionEnabled,
     );
   }, [
     allowPinObservations,
@@ -1085,6 +1097,7 @@ export function SpeciesOccurrenceMap({
     memoAutoAdaptApplicable,
     memoAutoAdaptEnabled,
     standardThemes,
+    memoGlobeProjectionEnabled,
   ]);
 
   React.useEffect(() => {
