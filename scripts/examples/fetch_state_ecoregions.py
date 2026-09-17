@@ -109,6 +109,7 @@ USAGE
 from __future__ import annotations
 
 import argparse
+import base64
 import colorsys
 import io
 import json
@@ -120,6 +121,7 @@ import zipfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 from urllib.request import Request, urlopen
 
 USER_AGENT = "Mozilla/5.0 (compatible; wherewild-ecoregion-fetcher/1.0)"
@@ -188,6 +190,25 @@ _ZIP_LINK_RE = re.compile(
 )
 
 
+def _zip_links_by_state_name_prefix(html: str, state_name: str) -> list[tuple[str, str]]:
+    """Finds .zip links anywhere on the page whose own anchor text starts
+    with the state's name (e.g. "Virginia Shapefile (1.6 mb)") -- a
+    fallback for EPA region pages that bundle several states under one
+    combined heading instead of giving each its own (confirmed: Region 3's
+    page has a single "Region 3" heading covering Delaware, Maryland,
+    Pennsylvania, Virginia, and West Virginia together, so
+    iter_state_sections() never yields a per-state section for any of them
+    at all -- their anchor text is the only remaining way to tell them
+    apart). A prefix match (not "contains") is required so "West Virginia
+    Shapefile" doesn't get mistaken for "Virginia"'s own link.
+    """
+    pattern = re.compile(
+        r'<a\s+href="([^"]+\.zip)"[^>]*>(' + re.escape(state_name) + r"\b[^<]*)</a>",
+        re.IGNORECASE,
+    )
+    return pattern.findall(html)
+
+
 def iter_state_sections(html: str):
     """Yields (heading_text, section_html) for every h2.highlight/h4 heading
     in document order, each paired with the HTML between it and the next
@@ -213,6 +234,13 @@ def find_shapefile_url(state_name: str, level: int) -> str:
             if heading.lower() != state_name.lower():
                 continue
             for href, text in _ZIP_LINK_RE.findall(body):
+                candidates.append((href, text))
+        # Fallback for pages that bundle multiple states under one shared
+        # heading (see _zip_links_by_state_name_prefix's doc comment) --
+        # only adds candidates the heading-based pass above didn't already
+        # find, so this is a no-op on every normal per-state-heading page.
+        for href, text in _zip_links_by_state_name_prefix(html, state_name):
+            if (href, text) not in candidates:
                 candidates.append((href, text))
 
     if not candidates:
@@ -718,42 +746,112 @@ def style_features(
 # multiple real swatches, close enough to call it correct.
 
 
-def _pdf_find_object(data: bytes, num: int) -> bytes:
-    match = re.search((r"(?:^|[^0-9])%d\s+0\s+obj" % num).encode(), data)
+def _pdf_build_object_index(pdf_bytes: bytes) -> dict[int, int]:
+    """Maps every "N 0 obj" object number -> the byte offset right after
+    its own "obj" keyword, in one linear pass over the whole file. Every
+    per-object lookup below takes this as `index` and turns into an O(1)
+    dict lookup instead of its own fresh full-file regex scan -- the
+    difference between a fast run and one that never finishes on
+    Illustrator-heavy posters with hundreds of Form XObjects (confirmed:
+    Alaska's own poster resolves ~900 Form XObjects for its legend/layers;
+    without this index that's ~900 independent regex scans over a 20+MB
+    file, which alone took over 100 seconds before this was added)."""
+    return {
+        int(m.group(1)): m.end()
+        for m in re.finditer(rb"(?:^|[^0-9])(\d+)\s+0\s+obj", pdf_bytes)
+    }
+
+
+def _pdf_find_object(data: bytes, num: int, index: dict[int, int] | None = None) -> bytes:
+    """Returns a non-stream object's body (dict/array/etc, up to its own
+    'endobj'). NOT safe for stream objects -- see _pdf_decode_stream_object
+    for why searching for a literal 'endobj' breaks on those."""
+    if index is not None:
+        end = index.get(num)
+        if end is None:
+            raise ValueError(f"PDF object {num} 0 obj not found")
+    else:
+        match = re.search((r"(?:^|[^0-9])%d\s+0\s+obj" % num).encode(), data)
+        if not match:
+            raise ValueError(f"PDF object {num} 0 obj not found")
+        end = match.end()
+    endobj = data.find(b"endobj", end)
+    return data[end:endobj]
+
+
+def _pdf_resolve_int_object(
+    pdf_bytes: bytes, num: int, index: dict[int, int] | None = None
+) -> int:
+    """Resolves an indirect reference to a plain integer object (used for
+    an indirect /Length -- e.g. '16 0 obj\\r99580\\rendobj')."""
+    body = _pdf_find_object(pdf_bytes, num, index)
+    match = re.search(rb"-?\d+", body)
     if not match:
-        raise ValueError(f"PDF object {num} 0 obj not found")
-    end = data.find(b"endobj", match.end())
-    return data[match.end() : end]
+        raise ValueError(f"object {num} isn't a plain integer: {body[:40]!r}")
+    return int(match.group(0))
 
 
-def _pdf_decode_stream(raw: bytes) -> bytes:
-    start = raw.find(b"stream")
-    start = raw.index(b"\n", start) + 1
-    end = raw.find(b"endstream")
-    stream_bytes = raw[start:end].rstrip(b"\r\n")
-    if b"/FlateDecode" in raw[: raw.find(b"stream")]:
+def _pdf_decode_stream_object(
+    pdf_bytes: bytes, num: int, index: dict[int, int] | None = None
+) -> bytes:
+    """Finds object `num`'s stream and decodes it (ASCII85/Flate). Slices
+    the raw stream bytes using the dictionary's own declared /Length
+    (resolving an indirect /Length reference to its plain-integer object
+    first, if needed) rather than searching forward for a literal
+    'endstream'/'endobj' marker -- those marker byte sequences can appear
+    purely by chance inside large binary FlateDecode-compressed data
+    (confirmed: Colorado's own co_front.pdf, object 15, whose compressed
+    stream body happens to contain the literal ASCII bytes 'endobj' tens
+    of thousands of bytes before its real end, silently truncating the
+    slice and breaking zlib.decompress with 'incomplete or truncated
+    stream' -- a real, reproducible bug, not a hypothetical edge case).
+    """
+    if index is not None:
+        header_end = index.get(num)
+        if header_end is None:
+            raise ValueError(f"PDF object {num} 0 obj not found")
+    else:
+        header_match = re.search((r"(?:^|[^0-9])%d\s+0\s+obj" % num).encode(), pdf_bytes)
+        if not header_match:
+            raise ValueError(f"PDF object {num} 0 obj not found")
+        header_end = header_match.end()
+    stream_kw = pdf_bytes.find(b"stream", header_end)
+    dict_bytes = pdf_bytes[header_end:stream_kw]
+
+    length_ref = re.search(rb"/Length\s+(\d+)\s+0\s+R", dict_bytes)
+    if length_ref:
+        length = _pdf_resolve_int_object(pdf_bytes, int(length_ref.group(1)), index)
+    else:
+        length_literal = re.search(rb"/Length\s+(\d+)", dict_bytes)
+        if not length_literal:
+            raise ValueError(f"object {num} stream has no /Length")
+        length = int(length_literal.group(1))
+
+    data_start = pdf_bytes.index(b"\n", stream_kw) + 1
+    stream_bytes = pdf_bytes[data_start : data_start + length]
+
+    # /Filter can be a single name or (confirmed: Region 3's combined
+    # DE/MD/PA/VA/WV poster, whose content stream is ASCII85-encoded on
+    # top of Flate -- an Illustrator "compatible PDF" habit) an array of
+    # names applied in order. base64.a85decode is stdlib, keeping this
+    # dependency-free.
+    if b"/ASCII85Decode" in dict_bytes:
+        stream_bytes = base64.a85decode(stream_bytes, adobe=True)
+    if b"/FlateDecode" in dict_bytes:
         return zlib.decompress(stream_bytes)
     return stream_bytes
 
 
-def _pdf_extract_page_content_and_icc(pdf_bytes: bytes) -> tuple[bytes, bytes | None]:
-    """Returns (decoded content stream bytes of the first /Type /Page,
-    embedded ICC profile bytes if its /Resources declare a /DefaultCMYK
-    ICCBased color space, else None)."""
-    page_match = re.search(rb"/Type\s*/Page[^s]", pdf_bytes)
-    if not page_match:
-        raise ValueError("no /Type /Page found")
-    # /Type /Page appears INSIDE the page dict, not at its opening '<<' --
-    # find that first, then walk depth forward from there (not from
-    # page_match itself) so nested dicts (/Resources, /PieceInfo, ...)
-    # don't cause the closing '>>' of one of *those* to be mistaken for the
-    # page dict's own close.
-    page_dict_start = pdf_bytes.rfind(b"<<", 0, page_match.start())
+def _pdf_balanced_dict_end(data: bytes, open_pos: int) -> int:
+    """`open_pos` is the index of a dict's opening '<<'. Returns the index
+    right after its matching '>>', walking nesting depth forward so a
+    nested dict's own close (/Resources, /PieceInfo, ExtGState, ...) isn't
+    mistaken for the outer dict's."""
     depth = 0
-    pos = page_dict_start
+    pos = open_pos
     while True:
-        open_i = pdf_bytes.find(b"<<", pos)
-        close_i = pdf_bytes.find(b">>", pos)
+        open_i = data.find(b"<<", pos)
+        close_i = data.find(b">>", pos)
         if open_i != -1 and open_i < close_i:
             depth += 1
             pos = open_i + 2
@@ -761,22 +859,107 @@ def _pdf_extract_page_content_and_icc(pdf_bytes: bytes) -> tuple[bytes, bytes | 
             depth -= 1
             pos = close_i + 2
             if depth == 0:
-                page_dict_end = close_i
-                break
+                return pos
+
+
+def _pdf_inline_or_indirect_dict(
+    data: bytes, container: bytes, key: bytes, index: dict[int, int] | None = None
+) -> bytes | None:
+    """Looks up `key` (e.g. b"/Resources") in `container` (a dict's own
+    bytes) and returns the referenced dict's bytes, whether it's written
+    as an indirect reference ("/Resources 5 0 R") or inline
+    ("/Resources<<...>>") -- both shapes are seen across real posters
+    checked while writing this."""
+    ref_match = re.search(key + rb"\s+(\d+)\s+0\s+R", container)
+    if ref_match:
+        return _pdf_find_object(data, int(ref_match.group(1)), index)
+    inline_match = re.search(key + rb"\s*(<<)", container)
+    if not inline_match:
+        return None
+    open_pos = inline_match.start(1)
+    end_pos = _pdf_balanced_dict_end(container, open_pos)
+    return container[open_pos:end_pos]
+
+
+def _pdf_build_xobject_map(
+    pdf_bytes: bytes, page_dict: bytes, index: dict[int, int]
+) -> dict[str, int]:
+    """Maps each of the page's /Resources /XObject names (e.g. "Fm0") to
+    its object number, for resolving `/Fm0 Do` operators (see
+    _parse_pdf_content's resolve_xobject param)."""
+    resources = _pdf_inline_or_indirect_dict(pdf_bytes, page_dict, b"/Resources", index)
+    if resources is None:
+        return {}
+    xobjects = _pdf_inline_or_indirect_dict(pdf_bytes, resources, b"/XObject", index)
+    if xobjects is None:
+        return {}
+    return {
+        name.decode(): int(num)
+        for name, num in re.findall(rb"/(\w+)\s+(\d+)\s+0\s+R", xobjects)
+    }
+
+
+def _pdf_make_xobject_resolver(
+    pdf_bytes: bytes, xobject_map: dict[str, int], index: dict[int, int]
+) -> Callable[[str], bytes | None]:
+    cache: dict[int, bytes | None] = {}
+
+    def resolve(name: str) -> bytes | None:
+        num = xobject_map.get(name)
+        if num is None:
+            return None
+        if num not in cache:
+            try:
+                cache[num] = _pdf_decode_stream_object(pdf_bytes, num, index)
+            except Exception:  # noqa: BLE001 -- one bad Form shouldn't sink the page
+                cache[num] = None
+        return cache[num]
+
+    return resolve
+
+
+def _pdf_extract_page_content_and_icc(
+    pdf_bytes: bytes,
+) -> tuple[bytes, bytes | None, Callable[[str], bytes | None]]:
+    """Returns (decoded content stream bytes of the first /Type /Page,
+    embedded ICC profile bytes if its /Resources declare a /DefaultCMYK
+    ICCBased color space (else None), and a resolver from XObject name ->
+    decoded content bytes for `_parse_pdf_content`'s resolve_xobject
+    param)."""
+    index = _pdf_build_object_index(pdf_bytes)
+    page_match = re.search(rb"/Type\s*/Page[^s]", pdf_bytes)
+    if not page_match:
+        raise ValueError("no /Type /Page found")
+    # /Type /Page appears INSIDE the page dict, not at its opening '<<' --
+    # and not necessarily NEAR it either: Illustrator-produced PDFs (e.g.
+    # Alaska's ak_eco.pdf, confirmed while debugging) write /Type/Page as
+    # one of the LAST keys in a huge page dict, after deeply nested
+    # /Resources/XObject/ExtGState sub-dictionaries -- so the nearest
+    # preceding '<<' is one of those nested dicts' own opening, not the
+    # page dict's. The one unambiguous anchor is the page object's own
+    # "N 0 obj" header, which every dict-holding indirect object has
+    # exactly one of, immediately before its own opening '<<' -- so find
+    # the last "N 0 obj" before /Type/Page instead, then that object's own
+    # '<<' right after it, then walk depth forward from there.
+    obj_header = None
+    for match in re.compile(rb"\d+\s+0\s+obj\s*").finditer(pdf_bytes, 0, page_match.start()):
+        obj_header = match
+    if not obj_header:
+        raise ValueError("no 'N 0 obj' header found before /Type /Page")
+    page_dict_start = pdf_bytes.find(b"<<", obj_header.end())
+    page_dict_end = _pdf_balanced_dict_end(pdf_bytes, page_dict_start)
     page_dict = pdf_bytes[page_dict_start:page_dict_end]
 
     contents_match = re.search(rb"/Contents\s+(\d+)\s+0\s+R", page_dict)
     content_bytes = b""
     if contents_match:
         num = int(contents_match.group(1))
-        content_bytes = _pdf_decode_stream(_pdf_find_object(pdf_bytes, num))
+        content_bytes = _pdf_decode_stream_object(pdf_bytes, num, index)
     else:
         array_match = re.search(rb"/Contents\s*\[([^\]]+)\]", page_dict)
         if array_match:
             for num_str in re.findall(rb"(\d+)\s+0\s+R", array_match.group(1)):
-                content_bytes += _pdf_decode_stream(
-                    _pdf_find_object(pdf_bytes, int(num_str))
-                )
+                content_bytes += _pdf_decode_stream_object(pdf_bytes, int(num_str), index)
     if not content_bytes:
         raise ValueError("page has no /Contents")
 
@@ -784,20 +967,24 @@ def _pdf_extract_page_content_and_icc(pdf_bytes: bytes) -> tuple[bytes, bytes | 
     default_cmyk_match = re.search(rb"/DefaultCMYK\s+(\d+)\s+0\s+R", page_dict)
     if default_cmyk_match:
         try:
-            arr = _pdf_find_object(pdf_bytes, int(default_cmyk_match.group(1)))
+            arr = _pdf_find_object(pdf_bytes, int(default_cmyk_match.group(1)), index)
             iccbased_match = re.search(rb"/ICCBased\s+(\d+)\s+0\s+R", arr)
             if iccbased_match:
-                icc_bytes = _pdf_decode_stream(
-                    _pdf_find_object(pdf_bytes, int(iccbased_match.group(1)))
+                icc_bytes = _pdf_decode_stream_object(
+                    pdf_bytes, int(iccbased_match.group(1)), index
                 )
         except Exception:  # noqa: BLE001 -- ICC is an accuracy nicety, not required
             icc_bytes = None
-    return content_bytes, icc_bytes
+
+    xobject_map = _pdf_build_xobject_map(pdf_bytes, page_dict, index)
+    resolve_xobject = _pdf_make_xobject_resolver(pdf_bytes, xobject_map, index)
+    return content_bytes, icc_bytes, resolve_xobject
 
 
 _PDF_TOKEN_RE = re.compile(
     rb"""
       \( (?P<str> (?:[^()\\]|\\.)* ) \)
+    | / (?P<name> [A-Za-z0-9_.#]+ )
     | (?P<num> [+-]?\d*\.\d+ | [+-]?\d+)
     | (?P<op> [A-Za-z*'"]+)
 """,
@@ -805,7 +992,11 @@ _PDF_TOKEN_RE = re.compile(
 )
 
 
-def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], list]:
+def _parse_pdf_content(
+    content: bytes,
+    resolve_xobject: Callable[[str], bytes | None] | None = None,
+    _depth: int = 0,
+) -> tuple[list[tuple[float, float, str]], list]:
     """A from-scratch, minimal PDF content-stream interpreter -- just the
     handful of operators a flat-colored vector legend + positioned text
     actually uses (path construction/fill, CMYK/gray fill color, and
@@ -817,9 +1008,22 @@ def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], 
         legend row's text without needing per-glyph width tables at all,
         since we only need the whole line, not exact per-character x.
       fills: (xmin, ymin, xmax, ymax, (r, g, b) 0..1) -- one per path fill.
+
+    `resolve_xobject`, if given, is called on every `/Name Do` operator
+    (Illustrator's own habit of putting each "layer" -- confirmed against
+    Alaska's own poster, whose /Properties dict literally names its OCG
+    layers "legend text" and "AK legend color boxes" -- in its own
+    embedded Form XObject rather than drawing it inline, unlike Utah/
+    Nevada/Montana's posters, which never use Form XObjects at all and so
+    never needed this). Its decoded content bytes (if any) are parsed
+    recursively and merged into this same call's text_runs/fills, since a
+    Form XObject invoked with no preceding `cm` (true for every real
+    poster checked) draws directly in the page's own coordinate space --
+    no offset/scale correction needed.
     """
     fill_rgb = (0.0, 0.0, 0.0)
     tm = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+    text_leading = 0.0
     cur_path: list[tuple[float, float]] = []
     all_subpaths: list[list[tuple[float, float]]] = []
     start_xy = (0.0, 0.0)
@@ -857,9 +1061,13 @@ def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], 
         if m.lastgroup == "num":
             operands.append(("num", float(m.group("num"))))
             continue
+        if m.lastgroup == "name":
+            operands.append(("name", m.group("name").decode()))
+            continue
         op = m.group("op").decode()
         nums = [v for (t, v) in operands if t == "num"]
         strs = [v for (t, v) in operands if t == "str"]
+        names = [v for (t, v) in operands if t == "name"]
 
         if op == "BT":
             block_start_xy, block_chars = None, []
@@ -870,22 +1078,60 @@ def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], 
             if block_chars:
                 flush_block()
             block_start_xy = (tm[4], tm[5])
+        elif op == "TL" and nums:
+            text_leading = nums[-1]
         elif op in ("Td", "TD") and len(nums) >= 2:
             a, b, c, d, e, f = tm
             tx, ty = nums[-2:]
             tm = (a, b, c, d, e + tx * a + ty * c, f + tx * b + ty * d)
+            if op == "TD":
+                text_leading = -ty
             if block_start_xy is None:
                 block_start_xy = (tm[4], tm[5])
             elif abs(ty) > 0.3:
                 flush_block()
                 block_start_xy = (tm[4], tm[5])
         elif op == "T*":
+            # Move to the start of the next line using the current text
+            # leading (TL) -- equivalent to "0 -TL Td" per spec. A real
+            # bug this fixed while writing this: without actually applying
+            # the leading, every T*-separated line (Montana's own national-
+            # inset legend uses T* before each of its ~84 entries, confirmed
+            # while debugging) kept the SAME position as the line before
+            # it, so they never split into separate lines at all.
+            a, b, c, d, e, f = tm
+            tm = (a, b, c, d, e + -text_leading * c, f + -text_leading * d)
             flush_block()
             block_start_xy = (tm[4], tm[5])
-        elif op in ("Tj", "'", '"') and strs:
+        elif op in ("Tj", "TJ", "'", '"') and strs:
+            if op in ("'", '"'):
+                # ' = T* then Tj; " = aw ac Tw Tc T* Tj (word/char spacing
+                # doesn't affect position math here, only the T* move does).
+                a, b, c, d, e, f = tm
+                tm = (a, b, c, d, e + -text_leading * c, f + -text_leading * d)
+                flush_block()
+                block_start_xy = (tm[4], tm[5])
             if block_start_xy is None:
                 block_start_xy = (tm[4], tm[5])
-            block_chars.append(strs[-1])
+            # TJ takes an array of strings interleaved with numeric kerning
+            # adjustments (e.g. "[(Wa)-2(ter)] TJ") -- the brackets
+            # themselves aren't tokenized as operators at all (skipped as
+            # unmatched characters), so every string in the array simply
+            # accumulates in `strs` by the time TJ runs; joining all of
+            # them (not just strs[-1], which Tj/'/" only ever put exactly
+            # one of) reconstructs the full run. Confirmed: Alaska's own
+            # poster draws its legend labels entirely with TJ, never a
+            # bare Tj -- without this, none of its legend text was ever
+            # captured at all.
+            block_chars.append("".join(strs) if op == "TJ" else strs[-1])
+        elif op == "Do" and names and resolve_xobject and _depth < 6:
+            sub_content = resolve_xobject(names[-1])
+            if sub_content:
+                sub_text_runs, sub_fills = _parse_pdf_content(
+                    sub_content, resolve_xobject, _depth + 1
+                )
+                text_runs.extend(sub_text_runs)
+                fills.extend(sub_fills)
         elif op == "g" and nums:
             gray = nums[-1]
             fill_rgb = (gray, gray, gray)
@@ -894,6 +1140,33 @@ def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], 
         elif op == "k" and len(nums) >= 4:
             c_, m_, y_, k_ = nums[-4:]
             fill_rgb = ("cmyk", c_, m_, y_, k_)
+        elif op == "scn" or op == "sc":
+            # "set color in the current (non-device) colorspace" -- e.g.
+            # a page whose /ColorSpace resource is CalRGB (confirmed:
+            # Tennessee's own tn_front.pdf, whose legend swatches are all
+            # filled via "cs"+"sc" instead of "rg"/"k", which meant every
+            # swatch color silently stayed at fill_rgb's black default and
+            # every matched code came out #000000). Resolving the actual
+            # colorspace object (Separation tint transforms, ICCBased,
+            # Indexed, ...) is real work this doesn't attempt; going by
+            # the operand count instead is the same shortcut most casual
+            # PDF tooling uses, and covers every colorspace family that
+            # matters for a flat legend swatch: 1 value is gray-like, 3 is
+            # RGB-like (CalRGB's own primaries are close enough to sRGB
+            # that treating it as plain "rg" is visually correct), 4 is
+            # CMYK-like. A Separation/Indexed colorspace (a single tint
+            # value that isn't literally gray) would misread as gray here
+            # -- not exercised by any real poster checked while writing
+            # this, but strictly no worse than the black-swatch status quo
+            # it replaces.
+            if len(nums) == 1:
+                gray = nums[-1]
+                fill_rgb = (gray, gray, gray)
+            elif len(nums) == 3:
+                fill_rgb = tuple(nums[-3:])
+            elif len(nums) >= 4:
+                c_, m_, y_, k_ = nums[-4:]
+                fill_rgb = ("cmyk", c_, m_, y_, k_)
         elif op == "m" and len(nums) >= 2:
             if cur_path:
                 all_subpaths.append(cur_path)
@@ -905,6 +1178,22 @@ def _parse_pdf_content(content: bytes) -> tuple[list[tuple[float, float, str]], 
             cur_path.append(tuple(nums[-2:]))
         elif op == "h" and cur_path:
             cur_path.append(start_xy)
+        elif op == "re" and len(nums) >= 4:
+            # x y w h re -- the PDF shorthand for a closed rectangle
+            # subpath, equivalent to a moveto + 3 linetos + closepath by
+            # spec (PDF 1.7 section 8.5.2.1) -- appends it as its own
+            # closed subpath rather than touching cur_path/start_xy, since
+            # a real 're' can appear either standalone or mid-path
+            # alongside other manually-built subpaths (both seen across
+            # real posters while writing this: Utah's legend swatches are
+            # hand-built with m/l/l/l/h, Montana's own use 're' directly).
+            if cur_path:
+                all_subpaths.append(cur_path)
+                cur_path = []
+            rx, ry, rw, rh = nums[-4:]
+            all_subpaths.append(
+                [(rx, ry), (rx + rw, ry), (rx + rw, ry + rh), (rx, ry + rh), (rx, ry)]
+            )
         elif op in ("f", "F", "f*", "B", "B*", "b", "b*"):
             if cur_path:
                 all_subpaths.append(cur_path)
@@ -1075,7 +1364,26 @@ def _cmyk_to_srgb(color, icc_lut: dict | None) -> tuple[int, int, int]:
     return tuple(round(v * 255) for v in (r, g, b))
 
 
-_LEGEND_ROW_RE = re.compile(r"^(\d+[a-z]?)\s+(.*\S)\s*$")
+# The optional '.' handles Alaska's own poster (a USGS-report-style layout,
+# not the small-swatch-legend style every other state's poster uses),
+# whose section headers read "101. ARCTIC COASTAL PLAIN" -- a period
+# immediately after the code, not whitespace.
+_LEGEND_ROW_RE = re.compile(r"^(\d+[a-z]?)\.?\s+(.*\S)\s*$")
+
+# A generous cap on how far right a legend row's own label can run before
+# hitting unrelated content, used ONLY as a fallback when there's no next
+# swatch on the same row to bound against (see _match_legend_swatches) --
+# comfortably wider than any real single-column legend entry seen across
+# every poster checked while writing this, but nowhere near a full page
+# width, so it can't accidentally swallow an unrelated caption/photo credit
+# sitting at the same height.
+_LEGEND_ROW_FALLBACK_WIDTH = 320.0
+
+# The smallest real, correctly-matched legend across every poster checked
+# while writing this (New Jersey's) still landed at 17 -- see
+# fetch_poster_colors' use of this for why a match count under this is
+# treated as noise, not a real (if partial) legend.
+_MIN_PLAUSIBLE_MATCHED_COLORS = 10
 
 
 def _match_legend_swatches(
@@ -1083,41 +1391,81 @@ def _match_legend_swatches(
     fills: list,
     icc_lut: dict | None,
 ) -> dict[str, str]:
-    """For each "<code> <name>" legend row (e.g. "19b Uinta Subalpine
-    Forests"), finds the small flat-fill swatch immediately to its left
-    (same row, i.e. vertically aligned within a few points, and abutting
-    its left edge) and returns {code: "#rrggbb"}. Layout assumptions here
-    (swatch directly precedes its label, roughly 5-30pt wide/5-15pt tall)
-    were derived from, and verified against, Utah's real poster -- states
-    whose posters happen to lay this out differently just won't match for
-    those rows, which is fine: the caller falls back to generated colors
-    per-code, not all-or-nothing.
-    """
-    rows = []
-    for x, y, text in text_runs:
-        m = _LEGEND_ROW_RE.match(text.rstrip())
-        if m and len(m.group(1)) <= 4:
-            rows.append((x, y, m.group(1)))
+    """For each small flat-fill swatch (a real legend swatch, or -- since
+    nothing distinguishes one from any other similarly-sized filled
+    rectangle on the page -- just as often something else entirely, like a
+    tick mark or a UI icon; false candidates are expected and harmless,
+    see below) finds the "<code> <name>" text immediately to its right
+    (e.g. "19b Uinta Subalpine Forests") and returns {code: "#rrggbb"}.
 
+    Swatch-anchored, not text-anchored: earlier versions of this tried to
+    first reconstruct whole lines of text and then look for a swatch next
+    to each one, which meant guessing where one column's label ends and
+    the next column's begins from x-gaps alone -- a guess that's wrong for
+    any poster whose legend text is packed tighter (or looser) than
+    whichever specific poster the guess was tuned against (confirmed: a
+    fixed gap threshold that correctly separated Utah's columns instead
+    glued Montana's own legend rows together, since Montana's columns sit
+    closer together). Anchoring on the swatch instead sidesteps the guess
+    entirely: a row's real right edge is exactly where the NEXT real
+    swatch on the same baseline starts, if there is one -- an actual
+    measurement, not an estimate.
+
+    A candidate swatch that isn't really a legend row just won't have
+    "<code> <name>"-shaped text next to it and gets silently skipped ipso
+    facto (no separate "is this a real swatch" test needed) -- so this can
+    afford to try every small filled rectangle on the page rather than
+    somehow first identifying "the legend area."
+    """
+    # Real swatch sizes vary a fair bit poster to poster (confirmed: Utah's
+    # own are roughly 15x10, Michigan's own are roughly 48x24) -- wide
+    # enough to cover both without pulling in genuine map-polygon fills,
+    # which this function's own docstring already explains don't need a
+    # separate "is this real" check anyway.
+    swatches = [f for f in fills if 5 <= f[2] - f[0] <= 60 and 5 <= f[3] - f[1] <= 30]
     result: dict[str, str] = {}
-    for x0, y0, code in rows:
+    # Iterated in REVERSE draw order: some posters (confirmed: Michigan's)
+    # stack two fills at the exact same bbox for one swatch (background +
+    # final color, or a border fill underneath) -- the later one in the
+    # content stream is the one actually visible on top, so it's the
+    # correct color to keep when the same code is seen more than once.
+    for fx0, fy0, fx1, fy1, color in reversed(swatches):
+        y0 = (fy0 + fy1) / 2
+        # Text baselines don't necessarily sit at the exact vertical
+        # midpoint of a swatch (e.g. text often aligns to a swatch's
+        # bottom edge, not its center) -- half the swatch's own height is
+        # a real, measured tolerance rather than a fixed guess, so a taller
+        # swatch (confirmed: Michigan's own ~24pt-tall swatches, next to
+        # which a fixed 6pt band missed the label text entirely) still
+        # matches its own label without a wider band accidentally pulling
+        # in the row above/below on posters with small, tightly stacked
+        # swatches (confirmed: Utah/Montana's own ~10pt-tall swatches).
+        tolerance = max(6.0, (fy1 - fy0) / 2)
+        same_row_right_edges = [
+            ox0
+            for ox0, oy0, ox1, oy1, _ in swatches
+            if ox0 > fx1 + 1 and abs((oy0 + oy1) / 2 - y0) <= tolerance
+        ]
+        right_bound = min(
+            min(same_row_right_edges) if same_row_right_edges else math.inf,
+            fx1 + _LEGEND_ROW_FALLBACK_WIDTH,
+        )
+        label_parts = sorted(
+            (x, text)
+            for x, y, text in text_runs
+            if abs(y - y0) <= tolerance and fx1 - 2 <= x < right_bound
+        )
+        if not label_parts:
+            continue
+        line = "".join(text for _, text in label_parts)
+        m = _LEGEND_ROW_RE.match(line.strip())
+        if not m or len(m.group(1)) > 4:
+            continue
+        code = m.group(1)
         if code in result:
             continue
-        best_color, best_gap = None, None
-        for fx0, fy0, fx1, fy1, color in fills:
-            w, h = fx1 - fx0, fy1 - fy0
-            if not (5 <= w <= 30 and 5 <= h <= 15):
-                continue
-            if abs((fy0 + fy1) / 2 - y0) > 6:
-                continue
-            gap = x0 - fx1
-            if not (0 <= gap <= 25):
-                continue
-            if best_gap is None or gap < best_gap:
-                best_color, best_gap = color, gap
-        if best_color is not None:
-            r, g, b = _cmyk_to_srgb(best_color, icc_lut)
-            result[code] = "#{:02x}{:02x}{:02x}".format(r, g, b)
+        r, g, b = _cmyk_to_srgb(color, icc_lut)
+        result[code] = "#{:02x}{:02x}{:02x}".format(r, g, b)
     return result
 
 
@@ -1159,6 +1507,7 @@ def find_poster_pdf_url(state_name: str) -> str | None:
         html = _get_region_html(region)
         if not html:
             continue
+        found_here = False
         for heading, body in iter_state_sections(html):
             if heading.lower() != state_name.lower():
                 continue
@@ -1166,8 +1515,31 @@ def find_poster_pdf_url(state_name: str) -> str | None:
                 lowered = _TAG_RE.sub("", raw_text).lower()
                 if "poster" in lowered and "front" in lowered:
                     front_candidates.append(href)
+                    found_here = True
                 elif "ecoregions of" in lowered:
                     plain_candidates.append(href)
+                    found_here = True
+        if found_here:
+            continue
+        # Fallback: some EPA regions publish one shared poster covering
+        # several states instead of a per-state one (confirmed: Region 3's
+        # single combined poster for Delaware/Maryland/Pennsylvania/
+        # Virginia/West Virginia; New England's shared new_eng_front.pdf,
+        # whose link happens to land inside Maine's own <h4> section in doc
+        # order rather than each state's own -- see
+        # _zip_links_by_state_name_prefix's doc comment for the same
+        # shape of problem on the shapefile side). Only trust this page's
+        # page-wide links as relevant to `state_name` once its own
+        # shapefile is confirmed to live on this same page -- otherwise
+        # this would just grab an unrelated region's poster.
+        if not _zip_links_by_state_name_prefix(html, state_name):
+            continue
+        for href, raw_text in _PDF_LINK_RE.findall(html):
+            lowered = _TAG_RE.sub("", raw_text).lower()
+            if "poster" in lowered and "front" in lowered:
+                front_candidates.append(href)
+            elif "ecoregions of" in lowered:
+                plain_candidates.append(href)
     if front_candidates:
         return front_candidates[0]
     if plain_candidates:
@@ -1188,12 +1560,32 @@ def fetch_poster_colors(state_name: str) -> dict[str, str] | None:
         print(f"Found a poster with a real legend: {url}")
         print("Downloading and reading its legend colors...")
         pdf_bytes = fetch(url)
-        content, icc_bytes = _pdf_extract_page_content_and_icc(pdf_bytes)
+        content, icc_bytes, resolve_xobject = _pdf_extract_page_content_and_icc(pdf_bytes)
         icc_lut = _parse_icc_lut(_find_a2b0_tag(icc_bytes)) if icc_bytes else None
-        text_runs, fills = _parse_pdf_content(content)
+        text_runs, fills = _parse_pdf_content(content, resolve_xobject)
         colors = _match_legend_swatches(text_runs, fills, icc_lut)
         if not colors:
             print("  (couldn't match any legend rows -- using generated colors instead)")
+            return None
+        if len(colors) < _MIN_PLAUSIBLE_MATCHED_COLORS:
+            # Every real, correctly-matched legend across every poster
+            # checked while writing this landed at 17+ matched codes (the
+            # smallest state legends still have dozens of Level IV
+            # ecoregions) -- a handful of matches is a sign the "swatches"
+            # found are just incidental small filled shapes elsewhere on
+            # the page, not a real legend at all (confirmed: Tennessee's
+            # own tn_front.pdf bakes its actual legend into a scanned
+            # raster image like New England's shared poster does, but
+            # still has enough stray vector marks -- underlines, tick
+            # marks -- to spuriously "match" a few garbage codes). Better
+            # to fall back honestly than ship a handful of wrong colors
+            # mixed in among the generated palette with no way to tell
+            # them apart.
+            print(
+                f"  (only matched {len(colors)} legend colors -- too few to "
+                "trust; this poster's legend is likely a scanned image, not "
+                "vector art -- using generated colors instead)"
+            )
             return None
         print(f"  Matched {len(colors)} real EPA legend colors.")
         return colors
