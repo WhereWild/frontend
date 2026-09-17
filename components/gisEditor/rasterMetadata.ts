@@ -136,6 +136,39 @@ export const readGdalScaleOffset = (
   return { scale, offset };
 };
 
+// geotiff.js's getGDALMetadata() hands an Item's inner text back completely
+// unescaped (verbatim) — whatever wrote the file is on the hook for
+// escaping it, not geotiff.js. This tool's own writer
+// (tiffMetadataWriter.ts) escapes exactly once. Real GDAL (used by the
+// backend's own scripts/gis/prop_metadata.py, via rasterio's
+// update_tags()) has a confirmed, longstanding quirk where
+// SetMetadataItem escapes its own escaping too — e.g. a literal '&'
+// round-trips through GDAL's own reader fine, but comes back out on disk
+// as "&amp;amp;", not "&amp;" (GDAL's own reader silently undoes both
+// passes, which is why this is invisible to anything that reads the file
+// back through GDAL/rasterio itself — verified directly against a real
+// GDAL-written file while building that script). Applying this
+// entity-unescape REPEATEDLY (capped, and stopping as soon as a pass
+// changes nothing) rather than once handles either writer correctly
+// without needing to know in advance which one produced a given file: a
+// singly-escaped value is fully recovered after its first pass and every
+// pass after that is a no-op, so this stays exactly as correct for
+// this tool's own saved files as a single hardcoded pass was.
+const unescapeXmlEntities = (text: string): string => {
+  let result = text;
+  for (let i = 0; i < 4; i += 1) {
+    const next = result
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+    if (next === result) break;
+    result = next;
+  }
+  return result;
+};
+
 /** Same GDAL_METADATA blob, same case-insensitive-key convention, for the
  * UnitType item (see tiffMetadataWriter.ts's buildGdalMetadataXml — this is
  * the same standard GDAL item that writes it). */
@@ -145,15 +178,7 @@ export const readGdalUnitType = (
   if (!gdalMetadata) return null;
   for (const [key, value] of Object.entries(gdalMetadata)) {
     if (key.toLowerCase() === 'unittype' && value.trim()) {
-      // See readWherewildConfig's comment: geotiff.js doesn't XML-unescape
-      // an Item's inner text, and buildGdalMetadataXml() escaped it.
-      return value
-        .trim()
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&');
+      return unescapeXmlEntities(value.trim());
     }
   }
   return null;
@@ -186,20 +211,7 @@ export const readWherewildConfig = (
   const rawLegend = gdalMetadata?.WHEREWILD_LEGEND;
   if (rawLegend) {
     try {
-      // geotiff.js's getGDALMetadata() hands back each Item's raw inner
-      // text verbatim — it does not XML-unescape it — and
-      // buildGdalMetadataXml() ran the JSON through xmlEscape() before
-      // embedding it (so a literal `"` in the XML wouldn't break the
-      // Item's own markup). `&amp;` must be unescaped last, or a legend
-      // entry whose escaped text happens to contain a literal "&quot;"
-      // sequence (from a class name with a literal `&` immediately
-      // followed by the text "quot;") would get double-unescaped.
-      const unescaped = rawLegend
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&');
+      const unescaped = unescapeXmlEntities(rawLegend);
       const parsed: unknown = JSON.parse(unescaped);
       if (Array.isArray(parsed)) {
         classes = parsed.filter(

@@ -67,6 +67,38 @@ describe('readWherewildConfig', () => {
     ).toEqual({ valueType: 'ordinal', classes: [] });
   });
 
+  it('reads a legend written by real GDAL (rasterio update_tags), which double-escapes XML entities unlike this tool’s own writer', () => {
+    // Confirmed directly against a real GDAL-written file while building
+    // scripts/gis/prop_metadata.py in the backend repo: GDAL's own
+    // SetMetadataItem/update_tags path escapes an Item's text TWICE (its
+    // own reader silently undoes both passes, so this is invisible to
+    // anything that reads the file back through GDAL/rasterio itself) --
+    // e.g. a literal '&' round-trips to "&amp;amp;" on disk, not
+    // "&amp;". geotiff.js does zero unescaping on read, so this tool has
+    // to undo however many passes were actually applied.
+    const xmlEscapeOnce = (s: string) =>
+      s
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    const json = JSON.stringify([
+      { id: 1, name: 'Salt & Pepper "flats"', color: '#abcdef' },
+    ]);
+    const doubleEscaped = xmlEscapeOnce(xmlEscapeOnce(json));
+    expect(doubleEscaped).toContain('&amp;quot;');
+    expect(
+      readWherewildConfig({
+        WHEREWILD_VALUE_TYPE: 'nominal',
+        WHEREWILD_LEGEND: doubleEscaped,
+      }),
+    ).toEqual({
+      valueType: 'nominal',
+      classes: [{ id: 1, name: 'Salt & Pepper "flats"', color: '#abcdef' }],
+    });
+  });
+
   it('drops legend entries missing a numeric id or string name', () => {
     const legend = JSON.stringify([
       { id: 1, name: 'Ok', color: null },
