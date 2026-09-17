@@ -549,6 +549,47 @@ export const deriveRenderBounds = async (
 };
 
 /**
+ * The thorough half of categorical detection: given an `initial` guess that
+ * already looks categorical (from whatever cheap sample got it there — the
+ * routine center-cropped one in deriveDetectedValueType, or the plain
+ * smallest-overview one in scanForCategoricalClasses below), re-scans at
+ * ~4km/pixel (see readCategoricalScanBand) and merges in any classes that
+ * turns up. Best-effort: any geotiff.js failure here (confirmed real: some
+ * files throw reading an overview's own resolution, worked around inside
+ * readCategoricalScanBand, but there's no guarantee that's the only way a
+ * browser-side GeoTIFF read can fail) falls back to `initial` untouched,
+ * rather than taking the caller down with it.
+ */
+const withThoroughCategoricalScan = async (
+  blob: Blob,
+  metadata: RasterMetadata,
+  initial: DetectedValueType,
+  onStage?: (stage: string) => void,
+): Promise<DetectedValueType> => {
+  if (
+    (initial.guess !== 'nominal' && initial.guess !== 'ordinal') ||
+    !initial.distinctValues
+  ) {
+    return initial;
+  }
+  onStage?.('Scanning for a complete list of classes…');
+  const scanBand = await readCategoricalScanBand(blob, metadata).catch(
+    () => null,
+  );
+  if (!scanBand) return initial;
+  const fromScan = detectValueType(scanBand, metadata.noData, {
+    hasColorMap: metadata.hasColorMap,
+  });
+  if (!fromScan.distinctValues) return initial;
+  const merged = Array.from(
+    new Set([...initial.distinctValues, ...fromScan.distinctValues]),
+  ).sort((a, b) => a - b);
+  return merged.length !== initial.distinctValues.length
+    ? { ...initial, distinctCount: merged.length, distinctValues: merged }
+    : initial;
+};
+
+/**
  * Guesses the raster's measurement level from the same downsampled sample
  * used for deriveRenderBounds(). Null when there's nothing to sample (no
  * overviews) — the caller should treat that as "unknown", not "continuous".
@@ -583,53 +624,52 @@ export const deriveDetectedValueType = async (
   const initial = detectValueType(band, metadata.noData, {
     hasColorMap: metadata.hasColorMap,
   });
-  if (
-    (initial.guess === 'nominal' || initial.guess === 'ordinal') &&
-    initial.distinctValues
-  ) {
-    // The cheap, center-cropped sample above is enough to guess the
-    // measurement level, but can genuinely miss a real class outright —
-    // confirmed: a 5-class ordinal raster whose rarest class only ever
-    // shows up outside that crop window, so it never made it into the
-    // sample at all, leaving the editor with no way to name/color/edit it
-    // (it just doesn't exist as far as the class list is concerned). Once
-    // we already know the data is categorical, a much more thorough scan
-    // (see readCategoricalScanBand — targets ~4km/pixel, or the file's own
-    // full resolution if that's already coarser) and merging in whatever
-    // classes that turns up fixes exactly that, without paying the extra
-    // read for continuous/interval/ratio data at all. This still can't be
-    // a 100% guarantee for a class rare enough to vanish even at that
-    // resolution — see addDiscoveredClasses in rasterEditableMeta.ts for
-    // the actually-unconditional other half of this fix, which grows the
-    // class list further from what's really seen while rendering.
-    // Best-effort: this is an enhancement on top of an already-usable
-    // `initial` guess, never a requirement — any geotiff.js failure here
-    // (confirmed real: some files throw reading an overview's own
-    // resolution, worked around above, but there's no guarantee that's
-    // the only way a browser-side GeoTIFF read can fail) falls back to
-    // `initial` exactly as if this whole pass had been skipped, rather
-    // than taking detection down with it.
-    onStage?.('Scanning for a complete list of classes…');
-    const scanBand = await readCategoricalScanBand(blob, metadata).catch(
-      () => null,
-    );
-    if (scanBand) {
-      const fromScan = detectValueType(scanBand, metadata.noData, {
-        hasColorMap: metadata.hasColorMap,
-      });
-      if (fromScan.distinctValues) {
-        const merged = Array.from(
-          new Set([...initial.distinctValues, ...fromScan.distinctValues]),
-        ).sort((a, b) => a - b);
-        if (merged.length !== initial.distinctValues.length) {
-          return {
-            ...initial,
-            distinctCount: merged.length,
-            distinctValues: merged,
-          };
-        }
-      }
-    }
-  }
-  return initial;
+  // The cheap, center-cropped sample above is enough to guess the
+  // measurement level, but can genuinely miss a real class outright —
+  // confirmed: a 5-class ordinal raster whose rarest class only ever
+  // shows up outside that crop window, so it never made it into the
+  // sample at all, leaving the editor with no way to name/color/edit it
+  // (it just doesn't exist as far as the class list is concerned). See
+  // addDiscoveredClasses in rasterEditableMeta.ts for the
+  // actually-unconditional other half of this fix, which grows the class
+  // list further from what's really seen while rendering.
+  return withThoroughCategoricalScan(blob, metadata, initial, onStage);
+};
+
+/**
+ * Re-runs categorical class enumeration on demand — for when the user
+ * manually overrides the data type to nominal/ordinal after auto-detect
+ * guessed something continuous (interval/ratio/circular). A continuous
+ * guess's own distinctValues is always null (continuous data isn't
+ * deduplicated at detection time at all — see dataTypeDetection.ts), so
+ * there's nothing for classesFor() in rasterEditableMeta.ts to seed a class
+ * list from in that case, leaving the editor with zero classes until
+ * enough of the map gets panned/zoomed for VariableHeatmapMap's
+ * onDiscoverClasses to fill them in one at a time. Runs the same two-tier
+ * sample the automatic path gets (a cheap coarse read, then — if that alone
+ * finds true integer values — the more thorough ~4km scan), so a corrected
+ * type gets the same proactive class list a correctly-guessed one would
+ * have. Returns null if the data genuinely doesn't look categorical even on
+ * a fresh look (the user's override doesn't change what's actually in the
+ * pixels) or there's nothing to sample at all.
+ */
+export const scanForCategoricalClasses = async (
+  blob: Blob,
+  metadata: RasterMetadata,
+  onStage?: (stage: string) => void,
+): Promise<number[] | null> => {
+  onStage?.('Scanning for classes…');
+  const band = await readSmallestOverviewBand(blob, metadata);
+  if (band == null) return null;
+  const initial = detectValueType(band, metadata.noData, {
+    hasColorMap: metadata.hasColorMap,
+  });
+  if (!initial.distinctValues) return null;
+  const scanned = await withThoroughCategoricalScan(
+    blob,
+    metadata,
+    initial,
+    onStage,
+  );
+  return scanned.distinctValues ?? null;
 };
