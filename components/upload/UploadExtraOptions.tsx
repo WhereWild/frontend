@@ -13,6 +13,7 @@ import {
   IMAGE_UPLOAD_PICKER_MIME_TYPES,
   selectFileFromPicker,
 } from '@/hooks/upload/uploadWorkflowHelpers';
+import { CustomLayersField } from './CustomLayersField';
 import {
   ParentTaxonSearchField,
   type ParentTaxonSelection,
@@ -25,6 +26,10 @@ export type UploadExtraOptionsValue = {
   /** Ranks this upload's own computed stats against this taxon's real
    * precomputed sibling index -- see main.py's upload_raw_observations. */
   parentTaxon: ParentTaxonSelection | null;
+  /** Raster/vector file(s) authored or edited via /gis-editor -- sampled
+   * entirely client-side, never uploaded as raw files themselves. See
+   * components/upload/customLayers.ts. */
+  customLayers: DocumentPicker.DocumentPickerAsset[];
 };
 
 export const EMPTY_UPLOAD_EXTRA_OPTIONS: UploadExtraOptionsValue = {
@@ -32,6 +37,7 @@ export const EMPTY_UPLOAD_EXTRA_OPTIONS: UploadExtraOptionsValue = {
   image: null,
   imageUrl: '',
   parentTaxon: null,
+  customLayers: [],
 };
 
 type UploadExtraOptionsProps = {
@@ -145,6 +151,18 @@ export function UploadExtraOptions({
           <ParentTaxonSearchField
             value={value.parentTaxon}
             onChange={(parentTaxon) => onChange({ ...value, parentTaxon })}
+            disabled={disabled}
+            palette={palette}
+          />
+          <ThemedText
+            variant='bodyEmphasis'
+            style={{ color: palette.text.default.default }}
+          >
+            Custom layers
+          </ThemedText>
+          <CustomLayersField
+            value={value.customLayers}
+            onChange={(customLayers) => onChange({ ...value, customLayers })}
             disabled={disabled}
             palette={palette}
           />

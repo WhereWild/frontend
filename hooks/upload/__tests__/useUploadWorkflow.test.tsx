@@ -12,9 +12,15 @@ import {
 } from '@/data/uploadLocalSpeciesDataSource';
 import {
   deliverProcessedZip,
+  resolveAssetBlob,
   selectFileFromPicker,
 } from '@/hooks/upload/uploadWorkflowHelpers.ts';
+import { augmentRawTextWithCustomLayers } from '@/hooks/upload/customLayerAugmentation';
 import { triggerErrorHaptic } from '@/utils/haptics';
+
+jest.mock('@/hooks/upload/customLayerAugmentation', () => ({
+  augmentRawTextWithCustomLayers: jest.fn(),
+}));
 
 jest.mock('@/data/api', () => ({
   uploadRawObservations: jest.fn(),
@@ -78,6 +84,13 @@ const mockDeliverProcessedZip = deliverProcessedZip as jest.MockedFunction<
 const mockSelectFileFromPicker = selectFileFromPicker as jest.MockedFunction<
   typeof selectFileFromPicker
 >;
+const mockResolveAssetBlob = resolveAssetBlob as jest.MockedFunction<
+  typeof resolveAssetBlob
+>;
+const mockAugmentRawTextWithCustomLayers =
+  augmentRawTextWithCustomLayers as jest.MockedFunction<
+    typeof augmentRawTextWithCustomLayers
+  >;
 const mockTriggerErrorHaptic = triggerErrorHaptic as jest.MockedFunction<
   typeof triggerErrorHaptic
 >;
@@ -251,6 +264,81 @@ describe('useUploadWorkflow', () => {
       expect.objectContaining({ parentTaxonId: '42' }),
       expect.any(Function),
     );
+  });
+
+  it('samples attached custom layers, augments the raw file, and sends the resulting metadata', async () => {
+    const csvAsset = {
+      name: 'obs.csv',
+      uri: 'file://obs.csv',
+      mimeType: 'text/csv',
+    } as never;
+    mockSelectFileFromPicker.mockResolvedValueOnce({ file: csvAsset });
+    mockResolveAssetBlob.mockResolvedValueOnce({
+      text: () => Promise.resolve('latitude,longitude\n1,2\n'),
+    } as never);
+    mockAugmentRawTextWithCustomLayers.mockResolvedValueOnce({
+      augmentedText: 'latitude,longitude,rainfall\n1,2,5',
+      descriptors: [{ id: 'rainfall', name: 'rainfall', valueType: 'ratio' }],
+    });
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'processed.zip',
+      status: 200,
+    });
+
+    const customLayerAsset = {
+      name: 'rainfall.tif',
+      uri: 'file://rainfall.tif',
+    } as never;
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processRawObservations({
+        customLayers: [customLayerAsset],
+      });
+    });
+
+    expect(mockAugmentRawTextWithCustomLayers).toHaveBeenCalledWith(
+      'latitude,longitude\n1,2\n',
+      ',',
+      [customLayerAsset],
+    );
+    const [uploadArgs] = mockUploadRawObservations.mock.calls[0];
+    expect(uploadArgs.customLayerMetadata).toBe(
+      JSON.stringify([
+        { id: 'rainfall', name: 'rainfall', valueType: 'ratio' },
+      ]),
+    );
+    expect(await (uploadArgs.file as Blob).text()).toBe(
+      'latitude,longitude,rainfall\n1,2,5',
+    );
+  });
+
+  it('skips custom-layer sampling for a parquet raw upload', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: { name: 'obs.parquet', uri: 'file://obs.parquet' } as never,
+    });
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'processed.zip',
+      status: 200,
+    });
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processRawObservations({
+        customLayers: [
+          { name: 'rainfall.tif', uri: 'file://rainfall.tif' } as never,
+        ],
+      });
+    });
+
+    expect(mockAugmentRawTextWithCustomLayers).not.toHaveBeenCalled();
+    const [uploadArgs] = mockUploadRawObservations.mock.calls[0];
+    expect(uploadArgs.customLayerMetadata).toBeUndefined();
   });
 
   it('omits extra options from uploadRawObservations when none are given', async () => {

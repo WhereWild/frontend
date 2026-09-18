@@ -46,6 +46,21 @@ export const IMAGE_UPLOAD_ACCEPTED_EXTENSIONS = [
 
 export const IMAGE_UPLOAD_PICKER_MIME_TYPES = ['image/*'] as const;
 
+// A "custom layer" is a raster (.tif/.tiff COG) or vector (.geojson/.json)
+// file authored/edited via /gis-editor -- see components/upload/
+// customLayers.ts's findCustomLayersMissingMetadata, which checks for the
+// same WHEREWILD_VALUE_TYPE (raster)/WW_MODE (vector) tags that tool
+// writes when a layer's metadata has been configured there. No matching
+// MIME-type list: .geojson/.json/.tif often don't carry a MIME type an OS
+// file picker recognizes, so the picker is opened with '*/*' and filtered
+// by this extension list afterward instead (see CustomLayersField.tsx).
+export const CUSTOM_LAYER_ACCEPTED_EXTENSIONS = [
+  '.tif',
+  '.tiff',
+  '.geojson',
+  '.json',
+] as const;
+
 export type PickerSelectionConfig = {
   pickerType: string | string[];
   allowedExtensions: readonly string[];
