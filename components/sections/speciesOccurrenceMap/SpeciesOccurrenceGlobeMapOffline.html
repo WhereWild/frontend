@@ -1244,11 +1244,6 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         map.setProjection({ type: globeProjectionEnabled ? 'globe' : 'mercator' });
       }
     };
-    // Exposed at module scope (same pattern as Leaflet's
-    // drawPolygonButtonSetState) so the polygon-drawing tool below can force
-    // flat mode when drawing starts and keep this button's own icon/title in
-    // sync with that forced change, not just with clicks on the button itself.
-    var updateGlobeProjectionButton = null;
     map.addControl({
       onAdd: function() {
         var container = document.createElement('div');
@@ -1262,7 +1257,6 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         };
         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 3.5L5.5 2l5 1.5L15 2v10.5l-4.5 1.5-5-1.5L1 14z"/><path d="M5.5 2v10.5"/><path d="M10.5 3.5v10.5"/></svg>';
         updateButton();
-        updateGlobeProjectionButton = updateButton;
         btn.addEventListener('click', function() {
           globeProjectionEnabled = !globeProjectionEnabled;
           applyGlobeProjectionState();
@@ -1644,16 +1638,12 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // own (Leaflet doesn't either; the other template uses the third-party
     // leaflet-geoman for it), and the core mechanic is simple enough to
     // hand-roll: track clicked points, redraw a line between them on each
-    // click, close the ring on a click near the first vertex.
-    //
-    // Deliberately flat-projection only for now (forced, not locked, when
-    // drawing starts — see startPolygonDraw): map.unproject()/project() are
-    // projection-aware and work fine in globe mode, but vertex placement
-    // gets genuinely less precise near the horizon/limb at grazing view
-    // angles, long straight edges won't read as geodesics on the sphere,
-    // and a rotatable globe makes it easier to straddle the antimeridian
-    // than a flat map does. None of that is a hard blocker, just real
-    // fidelity cost this first version sidesteps by starting flat.
+    // click, close the ring on a click near the first vertex. Works in
+    // either projection with no special-casing — map.project()/unproject()
+    // are projection-aware, and the resulting GeoJSON line/circle layers
+    // curve along the sphere in globe mode automatically like every other
+    // vector layer (same as the 'drawn-polygons' layer above already does
+    // for uploaded regions).
     var currentDrawPoints = []; // [lat, lon] pairs, same convention as drawnPolygonGroups
     var DRAW_CLOSE_PIXEL_RADIUS = 12;
 
@@ -1690,11 +1680,6 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // so points outside an already-drawn region are visible while this
       // new one is being drawn — same contract as the Leaflet template.
       postToParent({ type: 'polygonDrawStart' });
-      if (globeProjectionEnabled) {
-        globeProjectionEnabled = false;
-        applyGlobeProjectionState();
-        if (updateGlobeProjectionButton) updateGlobeProjectionButton();
-      }
     }
 
     function cancelPolygonDraw() {
