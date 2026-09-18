@@ -13,6 +13,7 @@ import type {
   RawLocationRow,
   RawOccurrenceIndexRow,
   RawOccurrenceRow,
+  RawRelativeRankRow,
   RawSummaryStatsRow,
   RawUploadedParquetBundle,
   RawVariableMetadataRow,
@@ -34,6 +35,7 @@ type UploadParquetTableKey =
   | 'locations'
   | 'occurrences'
   | 'occurrenceIndex'
+  | 'relativeRanks'
   | 'summaryStats'
   | 'variableMetadata';
 
@@ -114,6 +116,10 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   {
     key: 'locations',
     aliases: buildTableAliases('locations'),
+  },
+  {
+    key: 'relativeRanks',
+    aliases: buildTableAliases('relative_ranks_positions', 'relative_ranks'),
   },
 ];
 
@@ -397,6 +403,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     locationRows,
     occurrenceRows,
     occurrenceIndexRows,
+    relativeRankRows,
     summaryStatsRows,
     variableMetadataRows,
     dataSources,
@@ -411,6 +418,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     readTable('locations'),
     readTable('occurrences'),
     readTable('occurrenceIndex'),
+    readTable('relativeRanks'),
     readTable('summaryStats'),
     readTable('variableMetadata'),
     readDataSourcesJson(),
@@ -433,6 +441,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     locations: toTypedRows<RawLocationRow>(locationRows),
     occurrences: toTypedRows<RawOccurrenceRow>(occurrenceRows),
     occurrenceIndex: toTypedRows<RawOccurrenceIndexRow>(occurrenceIndexRows),
+    relativeRanks: toTypedRows<RawRelativeRankRow>(relativeRankRows),
     summaryStats: toTypedRows<RawSummaryStatsRow>(summaryStatsRows),
     variableMetadata: toTypedRows<RawVariableMetadataRow>(variableMetadataRows),
     dataSources,

@@ -64,6 +64,23 @@ export type UploadedDensityGraphPoint = {
   density: number;
 };
 
+/** A species download-only table (see util/rankings.py's POSITION_FILE /
+ * util/download.py's _STATS_FILES) -- a custom CSV upload has no tree
+ * ancestors to rank against, so this is always empty on that path. One row
+ * per (variable, metric, ancestor context), e.g. "this taxon's mean bio1 is
+ * #4 of 10 species under Testaceae". rank/percentile mirror main.py's
+ * _load_relative_ranks: rank is 1-indexed (position + 1), percentile is
+ * rank / count. */
+export type UploadedRelativeRankRow = {
+  variable: string;
+  metric: string;
+  rank: number | null;
+  count: number | null;
+  sampleCount: number | null;
+  percentile: number | null;
+  contextLabel: string | null;
+};
+
 export type UploadedOccurrenceRow = {
   catalogNumber: number | string;
   latitude: number;
@@ -150,6 +167,15 @@ export type RawDensityGraphRow = {
   variableCategory?: unknown;
   points?: unknown;
   density?: unknown;
+};
+
+export type RawRelativeRankRow = {
+  variable?: unknown;
+  metric?: unknown;
+  position?: unknown;
+  count?: unknown;
+  sampleCount?: unknown;
+  contextLabel?: unknown;
 };
 
 export type RawCategoricalValueLookupRow = {
@@ -283,6 +309,7 @@ export type RawUploadedParquetBundle = {
   variableDefinitions?: EnvironmentVariableDefinition[];
   dataSources?: Record<string, DataSource>;
   locations?: RawLocationRow[];
+  relativeRanks?: RawRelativeRankRow[];
   meta?: LocalSourceMeta;
   descriptionImage?: UploadedDescriptionImage;
 };
@@ -299,6 +326,7 @@ export type UploadedParquetBundle = {
   variableDefinitions?: EnvironmentVariableDefinition[];
   dataSources?: Record<string, DataSource>;
   locations?: LocationSearchResult[];
+  relativeRanks?: UploadedRelativeRankRow[];
   meta?: LocalSourceMeta;
   descriptionImage?: UploadedDescriptionImage;
 };
