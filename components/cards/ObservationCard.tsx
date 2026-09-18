@@ -235,7 +235,7 @@ export function ObservationCard({
             No data
           </ThemedText>
         )}
-        {attribution || license ? (
+        {imageUrl ? (
           <View style={styles.creditRow} testID='observation-card-credit'>
             <ThemedText
               variant='bodySmall'

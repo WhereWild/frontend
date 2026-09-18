@@ -304,6 +304,13 @@ export const normalizeRawUploadedParquetBundle = (
         // this column mediaUrl). Both can show up in a re-imported ZIP
         // depending which path produced it, so both are checked.
         imageUrl: toStringValue(row.imageUrl) ?? toStringValue(row.mediaUrl),
+        // Only ever populated for a re-imported species download — see
+        // util/download.py's _add_media_license_label, which already
+        // splits the raw mediaLicense URL column into this exact
+        // label/url pair before it's written to occurrence.parquet.
+        mediaAttribution: toStringValue(row.mediaAttribution),
+        mediaLicense: toStringValue(row.mediaLicense),
+        mediaLicenseUrl: toStringValue(row.mediaLicenseUrl),
         ...(compositionValues ? { compositionValues } : {}),
       };
     })

@@ -1262,6 +1262,69 @@ describe('upload local species data source variable categories', () => {
     ]);
   });
 
+  it("passes a re-imported species download's per-occurrence mediaAttribution/mediaLicense/mediaLicenseUrl columns through untouched", async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [],
+      densityGraph: [],
+      occurrences: [
+        {
+          catalogNumber: 'obs_with_attribution',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          mediaUrl: 'https://example.com/real-observation.jpg',
+          // util/download.py's _add_media_license_label already splits the
+          // raw mediaLicense URL into this exact label/url pair before it
+          // ever reaches occurrence.parquet.
+          mediaAttribution: 'Jane Doe',
+          mediaLicense: 'CC BY 4.0',
+          mediaLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+        },
+        {
+          catalogNumber: 'obs_without_attribution',
+          decimalLatitude: 11,
+          decimalLongitude: 21,
+          mediaUrl: 'https://example.com/no-attribution.jpg',
+        },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          count: 2,
+          min: 0,
+          mean: 0,
+          max: 0,
+          std: 0,
+          '10th percentile': 0,
+          '90th percentile': 0,
+        },
+      ],
+      variableMetadata: [],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const { occurrences } = await dataSource.fetchSpeciesOccurrences(1, {});
+    expect(occurrences).toEqual([
+      expect.objectContaining({
+        catalogNumber: 'obs_with_attribution',
+        mediaAttribution: 'Jane Doe',
+        mediaLicense: 'CC BY 4.0',
+        mediaLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      }),
+      expect.objectContaining({
+        catalogNumber: 'obs_without_attribution',
+        mediaAttribution: null,
+        mediaLicense: null,
+        mediaLicenseUrl: null,
+      }),
+    ]);
+  });
+
   it('rebuilds environment stats for the active location scope instead of returning global stats', async () => {
     const rawBundle: RawUploadedParquetBundle = {
       categoricalStats: [

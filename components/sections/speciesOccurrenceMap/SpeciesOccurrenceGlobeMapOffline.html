@@ -484,9 +484,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         varColor: matchingPt.varColor,
         varLabel: matchingPt.varLabel,
       });
-      if (matchingPt.popupCatalogLabel) {
-        html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
-      }
+      // Media doesn't depend on popupCatalogLabel -- an auto-generated
+      // catalog number (custom uploads with no id column) empties that
+      // label deliberately (see preparePointsForMapHtml), but that has
+      // nothing to do with whether this point actually has a photo; gating
+      // the image on it silently dropped every photo for such points even
+      // when popupMediaUrl was populated.
+      html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
       // focusAfterOpen defaults to true — calling .focus() on the popup DOM
       // node makes the browser natively scroll/snap the page to bring it
       // into view, which reads as the whole screen jumping. Not needed
@@ -2439,9 +2443,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             varColor: props.rawVarColor,
             varLabel: props.varLabel,
           });
-          if (props.catalogLabel) {
-            html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
-          }
+          // Same fix as the background-click popup above: media doesn't
+          // depend on catalogLabel (empty for an auto-generated catalog
+          // number), so it must not be gated on it either.
+          html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
           // Tracked into selectedPointPopup (not a local var) so the
           // sendPinMessage round-trip above — which lands back here shortly
           // as an applySelectedPoint(point) call for this same observation
