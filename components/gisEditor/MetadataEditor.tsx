@@ -109,9 +109,7 @@ export function MetadataEditor({
         variant='bodyTiny'
         style={{ color: palette.text.default.secondary }}
       >
-        These fields aren’t read from the file — they match what a real catalog
-        variable needs (data type, units, render bounds, legend), so this is the
-        shape a future custom-layer upload would fill in.
+        TODO: stub (what this “Configure for use” section is for)
       </ThemedText>
 
       <SelectField
@@ -223,10 +221,7 @@ export function MetadataEditor({
                 variant='bodyTiny'
                 style={{ color: palette.text.default.secondary }}
               >
-                Display value = raw pixel value × scale + offset — read from the
-                file’s own metadata when it has one, 1 / 0 otherwise. Changing
-                these re-derives render min/max below from the raw sampled
-                range.
+                TODO: stub (what scale/offset mean and what changing them does)
               </ThemedText>
             </>
           ) : null}
