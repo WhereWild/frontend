@@ -72,6 +72,11 @@ export type UploadFileParams = {
    * precomputed sibling index, as if the upload were a new SPECIES-level
    * child of it -- see wherewild's util.upload.compute_relative_ranks_for_upload. */
   parentTaxonId?: string;
+  /** JSON-encoded description of any custom (GIS-editor-authored) layer(s)
+   * already sampled client-side -- see hooks/upload/customLayerAugmentation.ts
+   * and wherewild's util.upload.parse_custom_layer_metadata. The raw
+   * raster/vector file itself is never part of this payload. */
+  customLayerMetadata?: string;
 };
 
 export type UploadFileResponse = {
@@ -408,6 +413,9 @@ export async function uploadRawObservations(
   }
   if (params.parentTaxonId) {
     formData.append('parent_taxon_id', params.parentTaxonId);
+  }
+  if (params.customLayerMetadata) {
+    formData.append('custom_layer_metadata', params.customLayerMetadata);
   }
 
   const submitResponse = await fetch(

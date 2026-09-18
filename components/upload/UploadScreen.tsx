@@ -163,6 +163,7 @@ export function UploadScreen() {
                     image: extraOptions.image,
                     imageUrl: extraOptions.imageUrl.trim() || undefined,
                     parentTaxonId: extraOptions.parentTaxon?.taxonId,
+                    customLayers: extraOptions.customLayers,
                   })
                 }
               />

@@ -12,6 +12,7 @@ import {
   type UploadedParquetBundle,
 } from '@/data/uploadLocalSpeciesDataSource';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
+import { augmentRawTextWithCustomLayers } from './customLayerAugmentation';
 import {
   createFilePayload,
   DEFAULT_PROCESSED_ZIP_FILENAME,
@@ -43,6 +44,12 @@ export type RawUploadExtraOptions = {
   /** Ranks this upload's own computed stats against this taxon's real
    * precomputed sibling index -- see main.py's upload_raw_observations. */
   parentTaxonId?: string;
+  /** Raster/vector file(s) authored or edited via /gis-editor -- sampled
+   * entirely client-side (see components/upload/customLayers.ts) and sent
+   * to the backend only as already-sampled value column(s) plus a small
+   * JSON description; the raw file itself is never uploaded. CSV/TSV raw
+   * uploads only in this phase (see customLayerAugmentation.ts). */
+  customLayers?: DocumentPicker.DocumentPickerAsset[];
 };
 
 export type UseUploadWorkflowResult = {
@@ -214,9 +221,38 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
       setZipUploadError(null);
       setZipUploadWarning(null);
       try {
+        let uploadFile = createFilePayload(file);
+        let customLayerMetadata: string | undefined;
+        const customLayers = options?.customLayers ?? [];
+        const extension = file.name
+          .slice(file.name.lastIndexOf('.'))
+          .toLowerCase();
+        // Custom layers are sampled entirely client-side and merged into
+        // the raw file as ordinary extra column(s) before it's ever sent
+        // -- the backend never receives the raster/vector file itself.
+        // CSV/TSV only in this phase; a Parquet raw upload skips this step
+        // (its columns go through unaugmented, same as before).
+        if (
+          customLayers.length > 0 &&
+          (extension === '.csv' || extension === '.tsv')
+        ) {
+          const blob = await resolveAssetBlob(file);
+          const text = await blob.text();
+          const { augmentedText, descriptors } =
+            await augmentRawTextWithCustomLayers(
+              text,
+              extension === '.tsv' ? '\t' : ',',
+              customLayers,
+            );
+          if (descriptors.length > 0) {
+            uploadFile = new Blob([augmentedText], { type: 'text/csv' });
+            customLayerMetadata = JSON.stringify(descriptors);
+          }
+        }
+
         const response = await uploadRawObservations(
           {
-            file: createFilePayload(file),
+            file: uploadFile,
             filename: file.name,
             generateDescription: options?.generateDescription,
             image: options?.image
@@ -225,6 +261,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             imageFilename: options?.image?.name,
             imageUrl: options?.imageUrl,
             parentTaxonId: options?.parentTaxonId,
+            customLayerMetadata,
           },
           ({ status, position }) => {
             if (status === 'queued') {
