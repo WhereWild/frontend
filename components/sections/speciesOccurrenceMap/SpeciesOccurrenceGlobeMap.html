@@ -988,6 +988,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         map.setProjection({ type: globeProjectionEnabled ? 'globe' : 'mercator' });
       }
     };
+    // Exposed at module scope (same pattern as Leaflet's
+    // drawPolygonButtonSetState) so the polygon-drawing tool below can force
+    // flat mode when drawing starts and keep this button's own icon/title in
+    // sync with that forced change, not just with clicks on the button itself.
+    var updateGlobeProjectionButton = null;
     map.addControl({
       onAdd: function() {
         var container = document.createElement('div');
@@ -1001,6 +1006,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         };
         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 3.5L5.5 2l5 1.5L15 2v10.5l-4.5 1.5-5-1.5L1 14z"/><path d="M5.5 2v10.5"/><path d="M10.5 3.5v10.5"/></svg>';
         updateButton();
+        updateGlobeProjectionButton = updateButton;
         btn.addEventListener('click', function() {
           globeProjectionEnabled = !globeProjectionEnabled;
           applyGlobeProjectionState();
@@ -1198,6 +1204,11 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // everything upstream of it (region filtering, the backend `polygon`
     // query param) doesn't know or care which renderer sent them.
     var drawnPolygonGroups = [];
+    // True while the hand-drawn-polygon tool (see startPolygonDraw below) is
+    // actively placing vertices — guards the background click handler
+    // further down so a draw click doesn't also open a value/pin popup for
+    // the same point, same as Leaflet's identical guard.
+    var DRAW_POLYGON_MODE_ACTIVE = false;
 
     function allDrawnPolygonPoints() {
       var allRings = [];
@@ -1365,6 +1376,147 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         return container;
       },
       onRemove: function() {},
+    });
+
+    // Hand-drawn polygon regions — click to place vertices, click near the
+    // first vertex to close the ring, or click the pencil button again to
+    // cancel. Same 2-state idle/drawing pencil and polygonDrawn/
+    // polygonDrawStart/polygonDrawEnd message contract as
+    // SpeciesOccurrenceMap.html's Geoman-based version (React/the backend
+    // `polygon` filter don't know or care which renderer sent them). No
+    // plugin here — MapLibre GL JS has never shipped a drawing tool of its
+    // own (Leaflet doesn't either; the other template uses the third-party
+    // leaflet-geoman for it), and the core mechanic is simple enough to
+    // hand-roll: track clicked points, redraw a line between them on each
+    // click, close the ring on a click near the first vertex.
+    //
+    // Deliberately flat-projection only for now (forced, not locked, when
+    // drawing starts — see startPolygonDraw): map.unproject()/project() are
+    // projection-aware and work fine in globe mode, but vertex placement
+    // gets genuinely less precise near the horizon/limb at grazing view
+    // angles, long straight edges won't read as geodesics on the sphere,
+    // and a rotatable globe makes it easier to straddle the antimeridian
+    // than a flat map does. None of that is a hard blocker, just real
+    // fidelity cost this first version sidesteps by starting flat.
+    var currentDrawPoints = []; // [lat, lon] pairs, same convention as drawnPolygonGroups
+    var DRAW_CLOSE_PIXEL_RADIUS = 12;
+
+    function rebuildDrawInProgressSource() {
+      var source = map.getSource('draw-in-progress');
+      if (!source) return;
+      var features = [];
+      if (currentDrawPoints.length > 1) {
+        features.push({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: currentDrawPoints.map(function(pt) { return [pt[1], pt[0]]; }),
+          },
+        });
+      }
+      currentDrawPoints.forEach(function(pt) {
+        features.push({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Point', coordinates: [pt[1], pt[0]] },
+        });
+      });
+      source.setData({ type: 'FeatureCollection', features: features });
+    }
+
+    function startPolygonDraw() {
+      DRAW_POLYGON_MODE_ACTIVE = true;
+      currentDrawPoints = [];
+      rebuildDrawInProgressSource();
+      // Lets the parent temporarily swap in its unfiltered occurrence set
+      // (see onPolygonDrawStart's doc comment on SpeciesOccurrenceMap.tsx)
+      // so points outside an already-drawn region are visible while this
+      // new one is being drawn — same contract as the Leaflet template.
+      postToParent({ type: 'polygonDrawStart' });
+      if (globeProjectionEnabled) {
+        globeProjectionEnabled = false;
+        applyGlobeProjectionState();
+        if (updateGlobeProjectionButton) updateGlobeProjectionButton();
+      }
+    }
+
+    function cancelPolygonDraw() {
+      DRAW_POLYGON_MODE_ACTIVE = false;
+      postToParent({ type: 'polygonDrawEnd' });
+      currentDrawPoints = [];
+      rebuildDrawInProgressSource();
+    }
+
+    function finishPolygonDraw() {
+      DRAW_POLYGON_MODE_ACTIVE = false;
+      postToParent({ type: 'polygonDrawEnd' });
+      if (currentDrawPoints.length >= 3) {
+        drawnPolygonGroups.push([currentDrawPoints]);
+        rebuildDrawnPolygonsSource();
+        updateEraserControlVisibility();
+        postToParent({ type: 'polygonDrawn', polygons: allDrawnPolygonPoints() });
+      }
+      currentDrawPoints = [];
+      rebuildDrawInProgressSource();
+    }
+
+    var DRAW_POLYGON_ICONS = {
+      idle: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M10.4 2.4l3.2 3.2-7.6 7.6-3.8 1 1-3.8 7.2-7z"/><path d="M9 3.8l3.2 3.2"/></svg>',
+      drawing: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/></svg>',
+    };
+    var DRAW_POLYGON_TITLES = {
+      idle: 'Draw a region to filter observations',
+      drawing: 'Cancel drawing',
+    };
+    var drawPolygonButtonSetState = null;
+    map.addControl({
+      onAdd: function() {
+        var container = document.createElement('div');
+        container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+        function setState(next) {
+          btn.dataset.state = next;
+          btn.innerHTML = DRAW_POLYGON_ICONS[next];
+          btn.title = DRAW_POLYGON_TITLES[next];
+        }
+        setState('idle');
+        drawPolygonButtonSetState = setState;
+        btn.addEventListener('click', function() {
+          if (btn.dataset.state === 'idle') {
+            startPolygonDraw();
+            setState('drawing');
+          } else {
+            cancelPolygonDraw();
+            setState('idle');
+          }
+        });
+        container.appendChild(btn);
+        return container;
+      },
+      onRemove: function() {},
+    });
+
+    // Placing vertices is a SEPARATE listener from the background click
+    // handler further down (which opens value/pin popups) — each one's own
+    // DRAW_POLYGON_MODE_ACTIVE check keeps them from double-handling the
+    // same click, same as Leaflet's guard on its background handler.
+    map.on('click', function(event) {
+      if (!DRAW_POLYGON_MODE_ACTIVE) return;
+      if (currentDrawPoints.length >= 3) {
+        var firstScreenPoint = map.project([currentDrawPoints[0][1], currentDrawPoints[0][0]]);
+        var dx = event.point.x - firstScreenPoint.x;
+        var dy = event.point.y - firstScreenPoint.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= DRAW_CLOSE_PIXEL_RADIUS) {
+          finishPolygonDraw();
+          if (drawPolygonButtonSetState) drawPolygonButtonSetState('idle');
+          return;
+        }
+      }
+      currentDrawPoints.push([event.lngLat.lat, event.lngLat.lng]);
+      rebuildDrawInProgressSource();
     });
 
     // "Auto-adapt": rescales the legend/colorization to just the value
@@ -1713,6 +1865,38 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           },
         });
 
+        // The in-progress hand-drawn shape (see startPolygonDraw/etc.
+        // below) — a separate source from 'drawn-polygons' above since this
+        // one is a LineString + Points (an unclosed ring being built one
+        // click at a time), not a finished Polygon.
+        map.addSource('draw-in-progress', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        map.addLayer({
+          id: 'draw-in-progress-line-layer',
+          type: 'line',
+          source: 'draw-in-progress',
+          filter: ['==', ['geometry-type'], 'LineString'],
+          paint: {
+            'line-color': palette.markerFill,
+            'line-width': 2,
+            'line-dasharray': [2, 2],
+          },
+        });
+        map.addLayer({
+          id: 'draw-in-progress-vertex-layer',
+          type: 'circle',
+          source: 'draw-in-progress',
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-radius': 4,
+            'circle-color': palette.markerFill,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#fff',
+          },
+        });
+
         if (INITIAL_DRAWN_POLYGONS && INITIAL_DRAWN_POLYGONS.length > 0) {
           // One group per ring (not all lumped into one) so the eraser
           // control can remove them one at a time, matching hand-drawn
@@ -2005,6 +2189,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     }
 
     map.on('click', function(event) {
+      // MapLibre dispatches 'click' to every registered listener, including
+      // the polygon-draw listener above — without this guard, a draw click
+      // would also open a value popup/pin the point underneath it.
+      if (DRAW_POLYGON_MODE_ACTIVE) return;
       if (event.defaultPrevented) return;
       // event.defaultPrevented alone isn't reliable here — query directly
       // instead of trusting it propagated from the layer-specific handler.
