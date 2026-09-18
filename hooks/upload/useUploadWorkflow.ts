@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
+import type * as DocumentPicker from 'expo-document-picker';
 import { uploadRawObservations } from '@/data/api';
 import { parseUploadedParquetZipToRawBundle } from '@/data/uploadZipParquetParser';
 import {
@@ -29,6 +30,18 @@ import { triggerErrorHaptic, triggerSuccessHaptic } from '@/utils/haptics';
 
 export const UPLOAD_PREVIEW_TAXON_ID = 1;
 
+/** The upload page's "extra options" panel -- all optional, see main.py's
+ * upload_raw_observations. image and imageUrl are alternatives (image wins
+ * if both are given): an uploaded image's bytes get embedded straight into
+ * the processed ZIP (works fully offline once downloaded); imageUrl is
+ * stored as a plain string instead (no re-upload needed, but needs network
+ * access to actually display). */
+export type RawUploadExtraOptions = {
+  generateDescription?: boolean;
+  image?: DocumentPicker.DocumentPickerAsset | null;
+  imageUrl?: string;
+};
+
 export type UseUploadWorkflowResult = {
   canDownloadProcessedZip: boolean;
   downloadProcessedZip: () => Promise<void>;
@@ -44,7 +57,7 @@ export type UseUploadWorkflowResult = {
   setHighlightedCatalogs: React.Dispatch<
     React.SetStateAction<(number | string)[]>
   >;
-  processRawObservations: () => Promise<void>;
+  processRawObservations: (options?: RawUploadExtraOptions) => Promise<void>;
   processZippedObservations: () => Promise<void>;
 };
 
@@ -172,87 +185,101 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     isLatestProcessedZipDeliveryRequest,
   ]);
 
-  const processRawObservations = React.useCallback(async () => {
-    const { file, errorMessage } = await selectFileFromPicker({
-      pickerType: '*/*',
-      allowedExtensions: RAW_UPLOAD_ACCEPTED_EXTENSIONS,
-      invalidSelectionMessage:
-        'Unsupported file type. Please select a CSV, TSV, or parquet file.',
-    });
-    if (errorMessage) {
-      setRawUploadStatusMessage(errorMessage);
-      triggerErrorHaptic();
-      return;
-    }
-
-    if (!file) {
-      return;
-    }
-
-    setIsProcessingRaw(true);
-    invalidateProcessedZipDelivery();
-    setIsDeliveringProcessedZip(false);
-    setDownloadableProcessedZip(null);
-    setRawUploadStatusMessage(null);
-    setZipUploadError(null);
-    setZipUploadWarning(null);
-    try {
-      const response = await uploadRawObservations(
-        { file: createFilePayload(file), filename: file.name },
-        ({ status, position }) => {
-          if (status === 'queued') {
-            setRawUploadStatusMessage(
-              position > 1
-                ? `Position ${position} in queue…`
-                : 'Queued for processing…',
-            );
-          } else {
-            setRawUploadStatusMessage('Processing…');
-          }
-        },
-      );
-
-      const filename = response.filename ?? DEFAULT_PROCESSED_ZIP_FILENAME;
-      setDownloadableProcessedZip({
-        blob: response.blob,
-        contentType: response.contentType ?? null,
-        filename,
+  const processRawObservations = React.useCallback(
+    async (options?: RawUploadExtraOptions) => {
+      const { file, errorMessage } = await selectFileFromPicker({
+        pickerType: '*/*',
+        allowedExtensions: RAW_UPLOAD_ACCEPTED_EXTENSIONS,
+        invalidSelectionMessage:
+          'Unsupported file type. Please select a CSV, TSV, or parquet file.',
       });
-      setRawUploadStatusMessage(`Processed ZIP ready to download: ${filename}`);
+      if (errorMessage) {
+        setRawUploadStatusMessage(errorMessage);
+        triggerErrorHaptic();
+        return;
+      }
 
+      if (!file) {
+        return;
+      }
+
+      setIsProcessingRaw(true);
+      invalidateProcessedZipDelivery();
+      setIsDeliveringProcessedZip(false);
+      setDownloadableProcessedZip(null);
+      setRawUploadStatusMessage(null);
+      setZipUploadError(null);
+      setZipUploadWarning(null);
       try {
-        await importProcessedZipBlob(response.blob);
-      } catch (error) {
-        if (!isExpectedUploadedZipError(error)) {
-          console.error(
-            'Failed to auto-import processed ZIP after raw upload:',
-            error,
+        const response = await uploadRawObservations(
+          {
+            file: createFilePayload(file),
+            filename: file.name,
+            generateDescription: options?.generateDescription,
+            image: options?.image
+              ? createFilePayload(options.image)
+              : undefined,
+            imageFilename: options?.image?.name,
+            imageUrl: options?.imageUrl,
+          },
+          ({ status, position }) => {
+            if (status === 'queued') {
+              setRawUploadStatusMessage(
+                position > 1
+                  ? `Position ${position} in queue…`
+                  : 'Queued for processing…',
+              );
+            } else {
+              setRawUploadStatusMessage('Processing…');
+            }
+          },
+        );
+
+        const filename = response.filename ?? DEFAULT_PROCESSED_ZIP_FILENAME;
+        setDownloadableProcessedZip({
+          blob: response.blob,
+          contentType: response.contentType ?? null,
+          filename,
+        });
+        setRawUploadStatusMessage(
+          `Processed ZIP ready to download: ${filename}`,
+        );
+
+        try {
+          await importProcessedZipBlob(response.blob);
+        } catch (error) {
+          if (!isExpectedUploadedZipError(error)) {
+            console.error(
+              'Failed to auto-import processed ZIP after raw upload:',
+              error,
+            );
+          }
+          clearUploadedPreview();
+          setZipUploadError(
+            error instanceof Error
+              ? getUploadedZipErrorMessage(error)
+              : 'Processed ZIP was generated but could not be imported automatically.',
           );
+          triggerErrorHaptic();
         }
-        clearUploadedPreview();
-        setZipUploadError(
+      } catch (error) {
+        console.error('Failed to upload raw observations file:', error);
+        setRawUploadStatusMessage(
           error instanceof Error
-            ? getUploadedZipErrorMessage(error)
-            : 'Processed ZIP was generated but could not be imported automatically.',
+            ? error.message
+            : 'Failed to process raw observations.',
         );
         triggerErrorHaptic();
+      } finally {
+        setIsProcessingRaw(false);
       }
-    } catch (error) {
-      console.error('Failed to upload raw observations file:', error);
-      setRawUploadStatusMessage(
-        error instanceof Error
-          ? error.message
-          : 'Failed to process raw observations.',
-      );
-      triggerErrorHaptic();
-    } finally {
-      setIsProcessingRaw(false);
-    }
-  }, [
-    clearUploadedPreview,
-    importProcessedZipBlob,
-    invalidateProcessedZipDelivery,
-  ]);
+    },
+    [
+      clearUploadedPreview,
+      importProcessedZipBlob,
+      invalidateProcessedZipDelivery,
+    ],
+  );
 
   const processZippedObservations = React.useCallback(async () => {
     const { file, errorMessage } = await selectFileFromPicker({

@@ -182,6 +182,79 @@ describe('useUploadWorkflow', () => {
     expect(result.current.isDeliveringProcessedZip).toBe(false);
   });
 
+  it('passes extra options (generateDescription/image/imageUrl) through to uploadRawObservations', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
+    });
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'processed.zip',
+      status: 200,
+    });
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    const imageAsset = {
+      name: 'photo.jpg',
+      uri: 'file://photo.jpg',
+      mimeType: 'image/jpeg',
+    } as never;
+
+    await act(async () => {
+      await result.current.processRawObservations({
+        generateDescription: true,
+        image: imageAsset,
+        imageUrl: 'https://example.com/photo.jpg',
+      });
+    });
+
+    expect(mockUploadRawObservations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generateDescription: true,
+        image: imageAsset,
+        imageFilename: 'photo.jpg',
+        imageUrl: 'https://example.com/photo.jpg',
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it('omits extra options from uploadRawObservations when none are given', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
+    });
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'processed.zip',
+      status: 200,
+    });
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processRawObservations();
+    });
+
+    expect(mockUploadRawObservations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generateDescription: undefined,
+        image: undefined,
+        imageUrl: undefined,
+      }),
+      expect.any(Function),
+    );
+  });
+
   it('surfaces picker failures during raw upload selection', async () => {
     mockSelectFileFromPicker.mockResolvedValueOnce({
       errorMessage: 'picker failed',
@@ -239,7 +312,11 @@ describe('useUploadWorkflow', () => {
     } as never);
 
     mockSelectFileFromPicker.mockResolvedValueOnce({
-      file: { name: 'data.zip', uri: 'file://data.zip', mimeType: 'application/zip' } as never,
+      file: {
+        name: 'data.zip',
+        uri: 'file://data.zip',
+        mimeType: 'application/zip',
+      } as never,
     });
     mockParseUploadedParquetZipToRawBundle.mockResolvedValueOnce({} as never);
 
@@ -254,7 +331,11 @@ describe('useUploadWorkflow', () => {
 
   it('reports an error when auto-import of the processed zip fails after raw upload', async () => {
     mockSelectFileFromPicker.mockResolvedValueOnce({
-      file: { name: 'obs.csv', uri: 'file://obs.csv', mimeType: 'text/csv' } as never,
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
     });
     mockUploadRawObservations.mockResolvedValueOnce({
       blob: new Blob(['zip']),
@@ -278,14 +359,23 @@ describe('useUploadWorkflow', () => {
 
   it('fires the upload progress callback including queued-with-position state', async () => {
     mockSelectFileFromPicker.mockResolvedValueOnce({
-      file: { name: 'obs.csv', uri: 'file://obs.csv', mimeType: 'text/csv' } as never,
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
     });
     mockUploadRawObservations.mockImplementationOnce(
       async (_payload, onProgress) => {
         onProgress?.({ status: 'queued', position: 3 });
         onProgress?.({ status: 'queued', position: 1 });
         onProgress?.({ status: 'processing', position: 0 });
-        return { blob: new Blob(['zip']), contentType: 'application/zip', filename: 'obs.zip', status: 200 };
+        return {
+          blob: new Blob(['zip']),
+          contentType: 'application/zip',
+          filename: 'obs.zip',
+          status: 200,
+        };
       },
     );
 

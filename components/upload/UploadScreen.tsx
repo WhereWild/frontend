@@ -17,6 +17,11 @@ import { calculateObservationMapHeight } from '@/app/_species';
 import { useUploadWorkflow } from '@/hooks/upload/useUploadWorkflow';
 import { UploadPreview } from './UploadPreview';
 import { UploadStepCard } from './UploadStepCard';
+import {
+  EMPTY_UPLOAD_EXTRA_OPTIONS,
+  UploadExtraOptions,
+  type UploadExtraOptionsValue,
+} from './UploadExtraOptions';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 
@@ -59,6 +64,8 @@ export function UploadScreen() {
     processZippedObservations,
   } = useUploadWorkflow();
 
+  const [extraOptions, setExtraOptions] =
+    React.useState<UploadExtraOptionsValue>(EMPTY_UPLOAD_EXTRA_OPTIONS);
   const { webHeaderHeight } = useLayoutChrome();
   useScrollToHash([]);
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
@@ -150,7 +157,13 @@ export function UploadScreen() {
                 }
                 stepTitle='Step 1'
                 testID='upload-step-card-1'
-                onPress={processRawObservations}
+                onPress={() =>
+                  void processRawObservations({
+                    generateDescription: extraOptions.generateDescription,
+                    image: extraOptions.image,
+                    imageUrl: extraOptions.imageUrl.trim() || undefined,
+                  })
+                }
               />
               <UploadStepCard
                 description='Upload processed data as a zipped file to view the enhanced data set including environmental insights.'
@@ -165,6 +178,13 @@ export function UploadScreen() {
                 onPress={processZippedObservations}
               />
             </View>
+
+            <UploadExtraOptions
+              value={extraOptions}
+              onChange={setExtraOptions}
+              disabled={isProcessingRaw}
+              palette={palette}
+            />
 
             {rawUploadStatusMessage ? (
               <UploadStatusMessage

@@ -59,6 +59,15 @@ export type UploadFileParams = {
   fieldName?: string;
   filename?: string;
   endpoint?: string;
+  /** "Extra options" from the upload page, all optional -- see main.py's
+   * upload_raw_observations. image and imageUrl are alternatives, not a
+   * pair: an uploaded image's bytes get embedded straight into the
+   * processed ZIP (works fully offline); imageUrl is stored as a plain
+   * string instead (no re-upload needed, but needs network to display). */
+  generateDescription?: boolean;
+  image?: UploadFileValue;
+  imageFilename?: string;
+  imageUrl?: string;
 };
 
 export type UploadFileResponse = {
@@ -384,6 +393,15 @@ export async function uploadRawObservations(
   const fieldName = params.fieldName ?? 'file';
   const formData = new FormData();
   appendUploadPayload(formData, fieldName, params.file, params.filename);
+  if (params.generateDescription) {
+    formData.append('generate_description', 'true');
+  }
+  if (params.image) {
+    appendUploadPayload(formData, 'image', params.image, params.imageFilename);
+  }
+  if (params.imageUrl) {
+    formData.append('image_url', params.imageUrl);
+  }
 
   const submitResponse = await fetch(
     resolveUploadEndpoint('/upload/raw-observations'),
@@ -412,7 +430,9 @@ export async function uploadRawObservations(
     await new Promise<void>((resolve) => setTimeout(resolve, 2000));
     const statusResponse = await fetch(statusEndpoint);
     if (!statusResponse.ok) {
-      throw new Error(`Failed to check upload status: ${statusResponse.status}`);
+      throw new Error(
+        `Failed to check upload status: ${statusResponse.status}`,
+      );
     }
     job = await statusResponse.json();
     reportProgress();
