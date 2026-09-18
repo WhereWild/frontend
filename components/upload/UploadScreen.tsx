@@ -162,6 +162,7 @@ export function UploadScreen() {
                     generateDescription: extraOptions.generateDescription,
                     image: extraOptions.image,
                     imageUrl: extraOptions.imageUrl.trim() || undefined,
+                    parentTaxonId: extraOptions.parentTaxon?.taxonId,
                   })
                 }
               />

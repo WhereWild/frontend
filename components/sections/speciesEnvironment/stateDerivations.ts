@@ -39,6 +39,22 @@ export const getRankContextOptions = (
     .reverse();
 };
 
+/** A class's identity is a bare class id for the live/online data source
+ * (main.py's categorical_distribution response -- SpeciesEnvironmentCategory.
+ * value is a raw class_id number), but the custom-upload/offline data
+ * source represents the same thing as its own already-prefixed "class_<id>"
+ * metric name (see uploadLocalSpeciesDataSource.build.ts's categorical
+ * distribution `value`/`mode` fields, which reuse the metric name directly
+ * so occurrence-index/class-filter lookups elsewhere stay metric-name-
+ * keyed). A relative-rank row is always keyed by the metric name ("class_5"),
+ * so normalize either convention to that before looking one up -- otherwise
+ * the offline path double-prefixes to "class_class_5" and every class
+ * rank lookup silently misses. */
+export const toClassRankMetric = (classValue: number | string): string => {
+  const raw = String(classValue);
+  return raw.startsWith('class_') ? raw : `class_${raw}`;
+};
+
 /** Inputs required to resolve rank metadata for one summary metric. */
 type ResolveRankParams = {
   metric: string;

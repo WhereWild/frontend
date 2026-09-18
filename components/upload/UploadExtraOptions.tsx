@@ -13,17 +13,25 @@ import {
   IMAGE_UPLOAD_PICKER_MIME_TYPES,
   selectFileFromPicker,
 } from '@/hooks/upload/uploadWorkflowHelpers';
+import {
+  ParentTaxonSearchField,
+  type ParentTaxonSelection,
+} from './ParentTaxonSearchField';
 
 export type UploadExtraOptionsValue = {
   generateDescription: boolean;
   image: DocumentPicker.DocumentPickerAsset | null;
   imageUrl: string;
+  /** Ranks this upload's own computed stats against this taxon's real
+   * precomputed sibling index -- see main.py's upload_raw_observations. */
+  parentTaxon: ParentTaxonSelection | null;
 };
 
 export const EMPTY_UPLOAD_EXTRA_OPTIONS: UploadExtraOptionsValue = {
   generateDescription: false,
   image: null,
   imageUrl: '',
+  parentTaxon: null,
 };
 
 type UploadExtraOptionsProps = {
@@ -127,6 +135,18 @@ export function UploadExtraOptions({
             placeholder='Or paste an image URL'
             placeholderTextColor={palette.text.default.secondary}
             editable={!disabled}
+          />
+          <ThemedText
+            variant='bodyEmphasis'
+            style={{ color: palette.text.default.default }}
+          >
+            Parent taxon
+          </ThemedText>
+          <ParentTaxonSearchField
+            value={value.parentTaxon}
+            onChange={(parentTaxon) => onChange({ ...value, parentTaxon })}
+            disabled={disabled}
+            palette={palette}
           />
         </View>
       ) : null}

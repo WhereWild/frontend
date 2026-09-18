@@ -68,6 +68,10 @@ export type UploadFileParams = {
   image?: UploadFileValue;
   imageFilename?: string;
   imageUrl?: string;
+  /** Ranks this upload's own computed stats against this taxon's real
+   * precomputed sibling index, as if the upload were a new SPECIES-level
+   * child of it -- see wherewild's util.upload.compute_relative_ranks_for_upload. */
+  parentTaxonId?: string;
 };
 
 export type UploadFileResponse = {
@@ -401,6 +405,9 @@ export async function uploadRawObservations(
   }
   if (params.imageUrl) {
     formData.append('image_url', params.imageUrl);
+  }
+  if (params.parentTaxonId) {
+    formData.append('parent_taxon_id', params.parentTaxonId);
   }
 
   const submitResponse = await fetch(

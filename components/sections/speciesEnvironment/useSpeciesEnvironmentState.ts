@@ -25,6 +25,7 @@ import {
   getRankContextOptions,
   resolveMetricRank,
   resolveRangeValue,
+  toClassRankMetric,
 } from './stateDerivations';
 import { useEnvironmentHighlights } from './useEnvironmentHighlights';
 import { useEnvironmentStats } from './useEnvironmentStats';
@@ -522,14 +523,16 @@ export function useSpeciesEnvironmentState({
       ),
       mode_class:
         summary?.mode != null && modeFraction != null
-          ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {
-              allowHistogramFallback: false,
-            })
+          ? resolveRankForMetric(
+              toClassRankMetric(summary.mode),
+              modeFraction,
+              { allowHistogramFallback: false },
+            )
           : null,
       selected_class:
         singleSelectedCategoryValue != null && selectedFraction != null
           ? resolveRankForMetric(
-              `class_${singleSelectedCategoryValue}`,
+              toClassRankMetric(singleSelectedCategoryValue),
               selectedFraction,
               {
                 allowHistogramFallback: false,
