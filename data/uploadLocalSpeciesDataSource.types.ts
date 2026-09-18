@@ -76,6 +76,14 @@ export type UploadedOccurrenceRow = {
    * backend) — passed straight through to the map popup/gallery the same
    * way a real SpeciesOccurrence's mediaUrl is, no extra fetch involved. */
   imageUrl?: string | null;
+  /** Only ever populated by a re-imported species-page download (a custom
+   * CSV upload has no per-row license/attribution columns) — see
+   * util/download.py's _add_media_license_label, which splits the raw
+   * mediaLicense URL column into this same label/url pair
+   * SpeciesOccurrence.mediaLicense/mediaLicenseUrl already use. */
+  mediaAttribution?: string | null;
+  mediaLicense?: string | null;
+  mediaLicenseUrl?: string | null;
   /** Raw values for columns that are members of a ternary composition group
    * (e.g. sand/silt/clay), keyed by column id — kept separately from the rest
    * of the raw row (which is otherwise dropped) so a location-filtered scope

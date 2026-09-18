@@ -135,7 +135,11 @@ export function UploadExtraOptions({
 }
 
 const styles = StyleSheet.create({
-  container: { width: '100%', gap: Size.space['200'] },
+  container: {
+    width: '100%',
+    gap: Size.space['200'],
+    marginBottom: Size.space['300'],
+  },
   panel: {
     width: '100%',
     borderWidth: 1,
