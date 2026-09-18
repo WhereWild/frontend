@@ -54,6 +54,39 @@ describe('resolveParquetEntryPaths', () => {
       }),
     );
   });
+
+  it('recognizes relative_ranks_positions.parquet -- download-only, optional', () => {
+    const zip = {
+      files: {
+        'categorical_stats.parquet': { dir: false },
+        'density_graph.parquet': { dir: false },
+        'occurrence.parquet': { dir: false },
+        'occurrence_index.parquet': { dir: false },
+        'summary_stats.parquet': { dir: false },
+        'relative_ranks_positions.parquet': { dir: false },
+      },
+    } as unknown as JSZip;
+
+    expect(resolveParquetEntryPaths(zip)).toEqual(
+      expect.objectContaining({
+        relativeRanks: 'relative_ranks_positions.parquet',
+      }),
+    );
+  });
+
+  it('omits relativeRanks for a plain custom upload with no ranks file', () => {
+    const zip = {
+      files: {
+        'categorical_stats.parquet': { dir: false },
+        'density_graph.parquet': { dir: false },
+        'occurrence.parquet': { dir: false },
+        'occurrence_index.parquet': { dir: false },
+        'summary_stats.parquet': { dir: false },
+      },
+    } as unknown as JSZip;
+
+    expect(resolveParquetEntryPaths(zip).relativeRanks).toBeUndefined();
+  });
 });
 
 describe('parseUploadedParquetZipToRawBundle', () => {

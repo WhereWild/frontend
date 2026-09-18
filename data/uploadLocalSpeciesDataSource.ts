@@ -17,6 +17,7 @@ export {
   type RawLocationRow,
   type RawOccurrenceIndexRow,
   type RawOccurrenceRow,
+  type RawRelativeRankRow,
   type RawSummaryStatsRow,
   type RawUploadedParquetBundle,
   type RawVariableMetadataRow,
@@ -28,5 +29,6 @@ export {
   type UploadedOccurrenceIndexRow,
   type UploadedOccurrenceRow,
   type UploadedParquetBundle,
+  type UploadedRelativeRankRow,
   type UploadedSummaryStatsRow,
 } from '@/data/uploadLocalSpeciesDataSource.types';

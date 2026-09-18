@@ -26,6 +26,7 @@ import {
   type UploadedOccurrenceIndexRow,
   type UploadedOccurrenceRow,
   type UploadedParquetBundle,
+  type UploadedRelativeRankRow,
   type UploadedSummaryStatsRow,
   UploadedParquetBundleValidationError,
 } from '@/data/uploadLocalSpeciesDataSource.types';
@@ -481,6 +482,32 @@ export const normalizeRawUploadedParquetBundle = (
     })
     .filter((row): row is UploadedSummaryStatsRow => row !== null);
 
+  // Mirrors main.py's _load_relative_ranks: the archived position column is
+  // 0-indexed (rank n-1 of n means last place), so +1 to get a 1-indexed
+  // rank/percentile the same way the live env-stats endpoint does.
+  const relativeRanks = (rawBundle.relativeRanks ?? [])
+    .map((row): UploadedRelativeRankRow | null => {
+      const variable = toStringValue(row.variable);
+      const metric = toStringValue(row.metric);
+      if (!variable || !metric) {
+        return null;
+      }
+      const position = toFiniteNumber(row.position) ?? 0;
+      const count = toFiniteNumber(row.count) ?? 0;
+      const rank = position + 1;
+      const contextLabel = toStringValue(row.contextLabel);
+      return {
+        variable,
+        metric,
+        rank,
+        count,
+        sampleCount: toFiniteNumber(row.sampleCount),
+        percentile: count > 0 ? Math.round((rank / count) * 1000) / 1000 : 0,
+        contextLabel,
+      };
+    })
+    .filter((row): row is UploadedRelativeRankRow => row !== null);
+
   const categoryByVariable = new Map<string, string>();
   const assignCategory = (variable: string, category: unknown) => {
     const normalizedCategory = toStringValue(category);
@@ -737,6 +764,7 @@ export const normalizeRawUploadedParquetBundle = (
     variableDefinitions: normalizedVariableDefinitions,
     dataSources: rawBundle.dataSources,
     locations: locations.length > 0 ? locations : undefined,
+    relativeRanks: relativeRanks.length > 0 ? relativeRanks : undefined,
     descriptionImage: rawBundle.descriptionImage,
     meta: {
       source: 'upload-local',

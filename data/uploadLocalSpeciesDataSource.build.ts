@@ -12,6 +12,7 @@ import type {
   LocationSearchResult,
   SpeciesEnvironmentCategorySampleResponse,
   SpeciesEnvironmentObservation,
+  SpeciesEnvironmentRelativeRank,
   SpeciesEnvironmentSliceResponse,
   SpeciesEnvironmentStats,
   SpeciesOccurrence,
@@ -40,6 +41,7 @@ import type {
   UploadedOccurrenceIndexRow,
   UploadedOccurrenceRow,
   UploadedParquetBundle,
+  UploadedRelativeRankRow,
   UploadedSummaryStatsRow,
 } from '@/data/uploadLocalSpeciesDataSource.types';
 
@@ -251,6 +253,23 @@ const buildStatsByVariable = (
     return acc;
   }, {});
 
+  const relativeRanksByVariable = (bundle.relativeRanks ?? []).reduce<
+    Record<string, SpeciesEnvironmentRelativeRank[]>
+  >((acc, row: UploadedRelativeRankRow) => {
+    if (!acc[row.variable]) {
+      acc[row.variable] = [];
+    }
+    acc[row.variable].push({
+      metric: row.metric,
+      label: row.contextLabel,
+      rank: row.rank,
+      count: row.count,
+      percentile: row.percentile,
+      context: row.contextLabel,
+    });
+    return acc;
+  }, {});
+
   const variableDefinitionsById = new Map(
     (bundle.variableDefinitions ?? []).map((definition) => [
       definition.id,
@@ -345,6 +364,7 @@ const buildStatsByVariable = (
         histogram: null,
         densityCurve: null,
         categoricalDistribution: classRows,
+        relativeRanks: relativeRanksByVariable[variable],
       };
       return acc;
     }
@@ -503,6 +523,7 @@ const buildStatsByVariable = (
             sampleC: densityGridRow.sampleC,
           }
         : undefined,
+      relativeRanks: relativeRanksByVariable[variable],
     };
     return acc;
   }, {});

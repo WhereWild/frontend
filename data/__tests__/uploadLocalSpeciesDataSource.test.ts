@@ -2224,3 +2224,83 @@ describe('upload local species data source chained extra-variable filters', () =
     expect(slice.observations).toHaveLength(0);
   });
 });
+
+describe('upload local species data source relative ranks', () => {
+  const rawBundle: RawUploadedParquetBundle = {
+    categoricalStats: [],
+    densityGraph: [
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        points: [1, 2],
+        density: [0.2, 0.4],
+      },
+    ],
+    occurrences: [
+      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+    ],
+    occurrenceIndex: [{ catalogNumber: 'obs_1', bio_1: 2.1 }],
+    summaryStats: [
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        count: 1,
+        min: 2.1,
+        mean: 2.1,
+        max: 2.1,
+        std: 0,
+        '10th percentile': 2.1,
+        '90th percentile': 2.1,
+      },
+    ],
+    // Only ever present on a re-imported species download -- see
+    // util/rankings.py's POSITION_FILE / util/download.py's _STATS_FILES.
+    // position is 0-indexed (rank n-1 of n); the normalizer should convert
+    // it to a 1-indexed rank + percentile the same way main.py's
+    // _load_relative_ranks does for the live env-stats endpoint.
+    relativeRanks: [
+      {
+        variable: 'bio_1',
+        metric: 'mean',
+        position: 3,
+        count: 10,
+        sampleCount: 25,
+        contextLabel: 'Testaceae',
+      },
+    ],
+  };
+
+  it('threads relative ranks from the archive through to fetchSpeciesEnvironment, 1-indexed', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+
+    expect(stats.relativeRanks).toEqual([
+      {
+        metric: 'mean',
+        label: 'Testaceae',
+        rank: 4,
+        count: 10,
+        percentile: 0.4,
+        context: 'Testaceae',
+      },
+    ]);
+  });
+
+  it('omits relativeRanks entirely for a plain custom upload with no ranks table', async () => {
+    const { relativeRanks: _omit, ...withoutRanks } = rawBundle;
+    const normalizedBundle = normalizeRawUploadedParquetBundle(withoutRanks);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+
+    expect(stats.relativeRanks).toBeUndefined();
+  });
+});
