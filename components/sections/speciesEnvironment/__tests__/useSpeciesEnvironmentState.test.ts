@@ -885,6 +885,48 @@ describe('useSpeciesEnvironmentState', () => {
     expect(result.current.summaryRanks.range99).toBeNull();
   });
 
+  it('resolves the mode class rank whether summary.mode is a bare class id (online) or already a "class_" metric name (custom-upload)', async () => {
+    const relativeRanks = [
+      {
+        metric: 'class_5',
+        label: 'Testaceae',
+        rank: 1,
+        count: 10,
+        percentile: 0.9,
+      },
+    ];
+
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      ...categoricalStats,
+      summary: { ...categoricalStats.summary, mode: 'class_5' },
+      categoricalDistribution: [
+        { value: 'class_5', className: 'Loam', count: 3, fraction: 0.9 },
+      ],
+      relativeRanks,
+    });
+
+    const { result } = renderHook(() =>
+      useSpeciesEnvironmentState({
+        taxonId: '1',
+        variableId: 'landcover',
+        variables: [
+          {
+            id: 'landcover',
+            label: 'Land Cover',
+            units: null,
+            valueType: 'categorical',
+            category: 'Categorical',
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+
+    expect(result.current.summaryRanks.mode_class?.rank).toBe(1);
+    expect(result.current.summaryRanks.mode_class?.percentile).toBe(0.9);
+  });
+
   it('builds baseline comparisons in location filter mode', async () => {
     mockFetchSpeciesEnvironment.mockResolvedValue({
       ...continuousStats,

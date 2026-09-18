@@ -224,6 +224,35 @@ describe('useUploadWorkflow', () => {
     );
   });
 
+  it('passes parentTaxonId through to uploadRawObservations', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
+    });
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'processed.zip',
+      status: 200,
+    });
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    await act(async () => {
+      await result.current.processRawObservations({
+        parentTaxonId: '42',
+      });
+    });
+
+    expect(mockUploadRawObservations).toHaveBeenCalledWith(
+      expect.objectContaining({ parentTaxonId: '42' }),
+      expect.any(Function),
+    );
+  });
+
   it('omits extra options from uploadRawObservations when none are given', async () => {
     mockSelectFileFromPicker.mockResolvedValueOnce({
       file: {
@@ -250,6 +279,7 @@ describe('useUploadWorkflow', () => {
         generateDescription: undefined,
         image: undefined,
         imageUrl: undefined,
+        parentTaxonId: undefined,
       }),
       expect.any(Function),
     );

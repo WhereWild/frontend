@@ -40,6 +40,9 @@ export type RawUploadExtraOptions = {
   generateDescription?: boolean;
   image?: DocumentPicker.DocumentPickerAsset | null;
   imageUrl?: string;
+  /** Ranks this upload's own computed stats against this taxon's real
+   * precomputed sibling index -- see main.py's upload_raw_observations. */
+  parentTaxonId?: string;
 };
 
 export type UseUploadWorkflowResult = {
@@ -221,6 +224,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
               : undefined,
             imageFilename: options?.image?.name,
             imageUrl: options?.imageUrl,
+            parentTaxonId: options?.parentTaxonId,
           },
           ({ status, position }) => {
             if (status === 'queued') {
