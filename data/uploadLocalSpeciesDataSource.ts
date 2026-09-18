@@ -24,6 +24,7 @@ export {
   type UploadedCategoricalValueLookupRow,
   type UploadedDensityGraphPoint,
   type UploadedDensityGridRow,
+  type UploadedDescriptionImage,
   type UploadedOccurrenceIndexRow,
   type UploadedOccurrenceRow,
   type UploadedParquetBundle,

@@ -16,6 +16,7 @@ import type {
   RawSummaryStatsRow,
   RawUploadedParquetBundle,
   RawVariableMetadataRow,
+  UploadedDescriptionImage,
 } from '@/data/uploadLocalSpeciesDataSource';
 
 type AsyncBufferLike = {
@@ -80,7 +81,12 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   },
   {
     key: 'densityGraph',
-    aliases: buildTableAliases('numerical_density', 'density_graph', 'density', 'desntiy_graph'),
+    aliases: buildTableAliases(
+      'numerical_density',
+      'density_graph',
+      'density',
+      'desntiy_graph',
+    ),
     required: true,
   },
   {
@@ -329,6 +335,58 @@ export const parseUploadedParquetZipToRawBundle = async (
     return undefined;
   };
 
+  const readUploadMetadataJson = async (): Promise<
+    UploadedDescriptionImage | undefined
+  > => {
+    const entry = zip.file('upload_metadata.json');
+    if (!entry) return undefined;
+    let parsed: {
+      descriptionProfile?: { sections?: unknown };
+      imageFile?: string;
+      imageUrl?: string;
+      imageLicense?: string;
+      imageLicenseUrl?: string;
+      imageCreator?: string;
+      imageRightsHolder?: string;
+    } | null = null;
+    try {
+      parsed = JSON.parse(await entry.async('string'));
+    } catch {
+      return undefined;
+    }
+    if (!parsed || typeof parsed !== 'object') return undefined;
+
+    // An embedded image (a custom upload's own uploaded file) wins over a
+    // plain imageUrl string (a species' hosted photo, or a custom upload's
+    // own provided path) whenever both exist — resolving it to a local
+    // object URL is what makes it actually work fully offline, unlike a
+    // remote imageUrl which still needs network access to display.
+    let imageUrl = parsed.imageUrl ?? null;
+    if (parsed.imageFile) {
+      const imageEntry = zip.file(parsed.imageFile);
+      if (imageEntry) {
+        try {
+          const imageBuffer = await imageEntry.async('arraybuffer');
+          imageUrl = URL.createObjectURL(new Blob([imageBuffer]));
+        } catch {
+          // Fall back to whatever imageUrl (if any) was also provided.
+        }
+      }
+    }
+
+    return {
+      descriptionSections: Array.isArray(parsed.descriptionProfile?.sections)
+        ? (parsed.descriptionProfile
+            .sections as UploadedDescriptionImage['descriptionSections'])
+        : null,
+      imageUrl,
+      imageLicense: parsed.imageLicense ?? null,
+      imageLicenseUrl: parsed.imageLicenseUrl ?? null,
+      imageCreator: parsed.imageCreator ?? null,
+      imageRightsHolder: parsed.imageRightsHolder ?? null,
+    };
+  };
+
   const [
     categoricalStatsRows,
     ordinalStatsRows,
@@ -342,6 +400,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     summaryStatsRows,
     variableMetadataRows,
     dataSources,
+    descriptionImage,
   ] = await Promise.all([
     readTable('categoricalStats'),
     readTable('ordinalStats'),
@@ -355,6 +414,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     readTable('summaryStats'),
     readTable('variableMetadata'),
     readDataSourcesJson(),
+    readUploadMetadataJson(),
   ]);
 
   if (issues.length) {
@@ -376,6 +436,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     summaryStats: toTypedRows<RawSummaryStatsRow>(summaryStatsRows),
     variableMetadata: toTypedRows<RawVariableMetadataRow>(variableMetadataRows),
     dataSources,
+    descriptionImage,
     meta: {
       source: 'upload-local',
       uploadedAt: new Date().toISOString(),

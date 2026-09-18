@@ -36,6 +36,16 @@ export const ZIP_UPLOAD_PICKER_MIME_TYPES = [
   'application/x-zip-compressed',
 ] as const;
 
+export const IMAGE_UPLOAD_ACCEPTED_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+] as const;
+
+export const IMAGE_UPLOAD_PICKER_MIME_TYPES = ['image/*'] as const;
+
 export type PickerSelectionConfig = {
   pickerType: string | string[];
   allowedExtensions: readonly string[];
