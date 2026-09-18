@@ -3,13 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import {
-  ActivityIndicator,
-  Linking,
-  Platform,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import {
   Button,
   PageScrollContainer,
@@ -990,10 +984,8 @@ export function GisEditorScreen() {
                       variant='bodySmall'
                       style={{ color: palette.text.warning.default }}
                     >
-                      Rendering it on the map can be slow or lock up your
-                      browser tab — especially with no overviews, since every
-                      zoomed-out tile has to decode a large chunk of the
-                      full-resolution data.
+                      TODO: stub (why rendering a non-COG file can be slow/lock
+                      up the tab)
                     </ThemedText>
 
                     <View style={styles.fixItBox}>
@@ -1004,27 +996,8 @@ export function GisEditorScreen() {
                         variant='bodySmall'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        Re-encoding as a Cloud-Optimized GeoTIFF isn’t something
-                        this tool can do in the browser without a size ceiling
-                        (a few GB at most) — GDAL itself has no such limit on
-                        your machine. Install it via QGIS,{' '}
-                        <ThemedText
-                          variant='bodySmallLink'
-                          onPress={() =>
-                            Linking.openURL('https://gdal.org/download.html')
-                          }
-                        >
-                          gdal.org
-                        </ThemedText>
-                        , or your package manager (
-                        <ThemedText variant='code'>
-                          brew install gdal
-                        </ThemedText>{' '}
-                        /{' '}
-                        <ThemedText variant='code'>
-                          conda install -c conda-forge gdal
-                        </ThemedText>
-                        ), then run:
+                        TODO: stub (how to install GDAL + which command to run,
+                        leads into the command box below)
                       </ThemedText>
                       <View
                         style={[
@@ -1109,16 +1082,8 @@ export function GisEditorScreen() {
                         variant='bodyTiny'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        Embeds this configuration directly into the file’s own
-                        tags — the standard GDAL_METADATA tag (scale, offset,
-                        units, and for nominal/ordinal a real GDAL Raster
-                        Attribute Table QGIS can render) and GDAL_NODATA — not a
-                        separate sidecar file. Nothing else in the file is
-                        touched; re-opening the saved file here restores this
-                        exact configuration instead of re-detecting it. If your
-                        browser supports it, saving patches the dropped file in
-                        place (no re-download of the whole raster); otherwise it
-                        downloads a modified copy.
+                        TODO: stub (raster save — writes config into the file’s
+                        own tags, in-place patch vs. downloaded copy)
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button
@@ -1203,11 +1168,8 @@ export function GisEditorScreen() {
                         variant='bodyTiny'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        Downloads a .geojson with your original geometry and
-                        attributes untouched, plus this tool’s own
-                        WW_MODE/WW_FIELD/WW_COLOR properties — real properties
-                        in the file itself, not a sidecar file. Re-opening the
-                        saved file here restores this exact styling.
+                        TODO: stub (vector save — downloads a .geojson with your
+                        styling baked in as properties)
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button
