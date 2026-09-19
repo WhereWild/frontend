@@ -38,10 +38,13 @@ import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import {
-  getCbColor,
-  getCbShape,
-} from '@/components/sections/speciesOccurrenceMap/cbColors';
+  isVariableOrdinal,
+  resolveClassDisplayColor,
+  resolveColorMode,
+  useOrdinalFallbackColor,
+} from '@/components/sections/speciesOccurrenceMap/ordinalColorMode';
 import type {
   ChainedVariableFilter,
   EnvironmentVariableOption,
@@ -1063,13 +1066,12 @@ export default function Species({
     highlightedPointValue,
   ]);
 
-  // Ordinal variables have no separate accessibility variant — the
-  // selected continuous colormap IS their coloring mechanism, always on
-  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
-  // variables). See util/tiles.py's matching branch for the raster side.
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
-  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+  const isOrdinalVariable = isVariableOrdinal(selectedVariableMeta);
+  const colorMode = resolveColorMode(
+    isOrdinalVariable,
+    selectedColormap,
+    cbMode,
+  );
 
   const classShapes = React.useMemo(() => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -1081,6 +1083,15 @@ export default function Species({
     }
     return map.size > 0 ? map : null;
   }, [selectedVariableMeta, cbMode, shapesEnabled]);
+
+  // See components/sections/speciesOccurrenceMap/ordinalColorMode.ts --
+  // shared with UploadPreview.tsx and VariableHeatmapMap.tsx so this logic
+  // (and any future fix to it) lives in exactly one place.
+  const ordinalFallbackColor = useOrdinalFallbackColor(
+    isOrdinalVariable,
+    selectedVariableMeta,
+    selectedColormap,
+  );
 
   const classColors = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -1098,19 +1109,26 @@ export default function Species({
       // the fixed legend range — which is exactly how a species with zero
       // observations of the top class ends up with its actual top-observed
       // class miscolored as if it were the legend maximum.
-      if (cls.color || isOrdinalVariable)
+      if (cls.color || isOrdinalVariable) {
         map.set(
           String(cls.id),
-          getCbColor(
+          resolveClassDisplayColor(
             variableId,
             cls.id as number,
             colorMode,
-            cls.color ?? '#888888',
+            cls.color,
+            ordinalFallbackColor,
           ),
         );
+      }
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta, colorMode, isOrdinalVariable]);
+  }, [
+    selectedVariableMeta,
+    colorMode,
+    isOrdinalVariable,
+    ordinalFallbackColor,
+  ]);
 
   const classLabels = React.useMemo(() => {
     if (!isVariableCategorical(selectedVariableMeta)) return null;
@@ -1161,14 +1179,20 @@ export default function Species({
     const variableId = selectedVariableMeta?.id ?? '';
     return visibleCategoricalClasses.map((cls) => ({
       ...cls,
-      color: getCbColor(
+      color: resolveClassDisplayColor(
         variableId,
         cls.id as number,
         colorMode,
-        cls.color ?? '#888888',
+        cls.color,
+        ordinalFallbackColor,
       ),
     }));
-  }, [visibleCategoricalClasses, colorMode, selectedVariableMeta]);
+  }, [
+    visibleCategoricalClasses,
+    colorMode,
+    selectedVariableMeta,
+    ordinalFallbackColor,
+  ]);
 
   const circularShapesEnabled =
     (shapesEnabled || cbMode === 'achromatopsia') &&

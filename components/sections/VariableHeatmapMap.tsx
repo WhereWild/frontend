@@ -36,11 +36,15 @@ import { MapCircularLegend } from '@/components/sections/speciesOccurrenceMap/Ma
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import type { LegendRange } from '@/components/sections/speciesOccurrenceMap/legendRangeSelection';
-import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
+import {
+  isVariableOrdinal,
+  resolveClassDisplayColor,
+  resolveColorMode,
+  useOrdinalFallbackColor,
+} from '@/components/sections/speciesOccurrenceMap/ordinalColorMode';
 import {
   CIRCULAR_COLORMAPS,
   COLORMAPS,
-  sampleColormap,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import {
   useMapLayerChain,
@@ -455,8 +459,7 @@ export function VariableHeatmapMap({
     [onDiscoverClasses, selectedVariableMeta],
   );
 
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
+  const isOrdinalVariable = isVariableOrdinal(selectedVariableMeta);
 
   const visibleCategoricalClasses = React.useMemo(() => {
     if (!isCategorical || visibleNominalCounts.size === 0) return null;
@@ -486,32 +489,19 @@ export function VariableHeatmapMap({
     selectedVariableMeta,
     visibleNominalCounts,
   ]);
-  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+  const colorMode = resolveColorMode(
+    isOrdinalVariable,
+    selectedColormap,
+    cbMode,
+  );
 
-  // getCbColor's own fallback (the class's static seeded color) is right
-  // for nominal colorblind-safe substitution, but wrong for ordinal: a
-  // local raster has no CB_CLASS_COLORS catalog entry to look up at all
-  // (that table only covers known backend variables like salinity), so
-  // getCbColor always fell through to whatever color the class was seeded
-  // with when the file was first typed as ordinal — frozen at that moment,
-  // never updated when the colormap picker changes afterward. Sampling the
-  // *currently selected* colormap live, at this class's own position in
-  // the render range, keeps it matching whatever the raster tiles
-  // themselves are actually showing for that value.
-  const ordinalFallbackColor = React.useCallback(
-    (classId: number, fallback: string): string => {
-      if (!isOrdinalVariable) return fallback;
-      const renderMin = selectedVariableMeta?.renderMin;
-      const renderMax = selectedVariableMeta?.renderMax;
-      if (renderMin == null || renderMax == null || renderMax === renderMin) {
-        return fallback;
-      }
-      return sampleColormap(
-        selectedColormap,
-        (classId - renderMin) / (renderMax - renderMin),
-      );
-    },
-    [isOrdinalVariable, selectedVariableMeta, selectedColormap],
+  // See components/sections/speciesOccurrenceMap/ordinalColorMode.ts --
+  // shared with app/_species.tsx and UploadPreview.tsx so this logic (and
+  // any future fix to it) lives in exactly one place.
+  const ordinalFallbackColor = useOrdinalFallbackColor(
+    isOrdinalVariable,
+    selectedVariableMeta,
+    selectedColormap,
   );
 
   const cbVisibleClasses = React.useMemo(
@@ -519,11 +509,12 @@ export function VariableHeatmapMap({
       colorMode && visibleCategoricalClasses
         ? visibleCategoricalClasses.map((cls) => ({
             ...cls,
-            color: getCbColor(
+            color: resolveClassDisplayColor(
               selectedVariableMeta?.id ?? '',
               cls.id as number,
               colorMode,
-              ordinalFallbackColor(cls.id as number, cls.color ?? '#888888'),
+              cls.color,
+              ordinalFallbackColor,
             ),
           }))
         : visibleCategoricalClasses,
@@ -541,19 +532,16 @@ export function VariableHeatmapMap({
     const map = new Map<string, string>();
     for (const cls of selectedVariableMeta.legendClasses) {
       if (cls.id != null && (cls.color || isOrdinalVariable)) {
-        const fallback = ordinalFallbackColor(
-          cls.id as number,
-          cls.color ?? '#888888',
+        map.set(
+          String(cls.id),
+          resolveClassDisplayColor(
+            selectedVariableMeta.id,
+            cls.id as number,
+            colorMode,
+            cls.color,
+            ordinalFallbackColor,
+          ),
         );
-        const color = colorMode
-          ? getCbColor(
-              selectedVariableMeta.id,
-              cls.id as number,
-              colorMode,
-              fallback,
-            )
-          : fallback;
-        map.set(String(cls.id), color);
       }
     }
     return map;
