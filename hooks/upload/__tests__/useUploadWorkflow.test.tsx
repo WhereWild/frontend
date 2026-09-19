@@ -675,4 +675,104 @@ describe('useUploadWorkflow', () => {
       await processDone;
     });
   });
+
+  describe('Step 2 with Extra options custom layers', () => {
+    const zipAsset = {
+      name: 'processed.zip',
+      uri: 'file://processed.zip',
+    } as never;
+    const layerAsset = (name: string) =>
+      ({ name, uri: `file://${name}` }) as never;
+
+    const bundleWithCustomLayer = {
+      categoricalStats: [],
+      densityGraph: [],
+      meta: {},
+      occurrenceIndex: [],
+      occurrences: [],
+      summaryStats: [],
+      variableDefinitions: [
+        {
+          id: 'salinity_two',
+          name: 'salinity_two',
+          valueType: 'ordinal',
+          category: 'Custom Layers',
+          legendClasses: [{ id: 0, name: 'Low', color: null }],
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      mockSelectFileFromPicker.mockResolvedValue({ file: zipAsset });
+      mockResolveAssetBlob.mockResolvedValue(new Blob(['zip']));
+      mockParseUploadedParquetZipToRawBundle.mockResolvedValue({
+        occurrences: [
+          { catalogNumber: 'A', decimalLatitude: 1, decimalLongitude: 2 },
+        ],
+      } as never);
+      mockNormalizeRawUploadedParquetBundle.mockReturnValue(
+        bundleWithCustomLayer as never,
+      );
+    });
+
+    it('skips re-processing for a layer already in the ZIP and just attaches its file', async () => {
+      const asset = layerAsset('salinity_two.tif');
+      const { result } = renderHook(() => useUploadWorkflow());
+
+      await act(async () => {
+        await result.current.processZippedObservations({
+          customLayers: [asset],
+        });
+      });
+
+      expect(mockUploadRawObservations).not.toHaveBeenCalled();
+      expect(mockAugmentRawTextWithCustomLayers).not.toHaveBeenCalled();
+      expect(result.current.customLayerAssets.get('salinity_two')).toBe(asset);
+      expect(result.current.uploadedBundle).toBe(bundleWithCustomLayer);
+    });
+
+    it('re-uploads for a genuinely new layer, forwarding the Extra options and making the ZIP downloadable', async () => {
+      const newAsset = layerAsset('rainfall.tif');
+      const image = layerAsset('cover.png');
+      mockAugmentRawTextWithCustomLayers.mockResolvedValueOnce({
+        augmentedText: 'catalogNumber,rainfall\nA,5',
+        descriptors: [{ id: 'rainfall', name: 'rainfall', valueType: 'ratio' }],
+        assetsById: new Map([['rainfall', newAsset]]),
+      });
+      mockUploadRawObservations.mockResolvedValueOnce({
+        blob: new Blob(['new zip']),
+        contentType: 'application/zip',
+        filename: 'processed_observations.zip',
+      } as never);
+
+      const { result } = renderHook(() => useUploadWorkflow());
+
+      await act(async () => {
+        await result.current.processZippedObservations({
+          customLayers: [newAsset],
+          generateDescription: true,
+          image,
+          imageUrl: 'https://example.com/i.png',
+          parentTaxonId: 'ABC',
+        });
+      });
+
+      const params = mockUploadRawObservations.mock.calls[0][0];
+      expect(params).toMatchObject({
+        filename: 'reimported_observations.csv',
+        generateDescription: true,
+        image,
+        imageUrl: 'https://example.com/i.png',
+        parentTaxonId: 'ABC',
+      });
+      // The already-present custom layer is preserved alongside the new one.
+      expect(
+        JSON.parse(params.customLayerMetadata as string).map(
+          (d: { id: string }) => d.id,
+        ),
+      ).toEqual(['salinity_two', 'rainfall']);
+      expect(result.current.canDownloadProcessedZip).toBe(true);
+      expect(result.current.customLayerAssets.get('rainfall')).toBe(newAsset);
+    });
+  });
 });
