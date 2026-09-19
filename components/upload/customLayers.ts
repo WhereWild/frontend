@@ -20,10 +20,9 @@ import {
 } from '@/components/gisEditor/cogTileRenderer';
 import {
   inspectGeoJson,
-  type GeoJsonFeatureCollection,
   type VectorSavedConfig,
 } from '@/components/gisEditor/shapefileMetadata';
-import { isPointInPolygon } from '@/utils/geoPolygon';
+import { createVectorPointSampler } from '@/components/gisEditor/vectorPointSampler';
 import { resolveAssetBlob } from '@/hooks/upload/uploadWorkflowHelpers';
 
 /** The category string wherewild's util.upload.parse_custom_layer_metadata
@@ -102,6 +101,41 @@ export type CustomLayerInspection = {
   hasMetadata: boolean;
 };
 
+// One parse per attached file, shared by the attach-time metadata check, the
+// sampling pass, and the local point-click/basemap renderer -- each of which
+// used to parse (and, for the renderer, re-read) the same GeoJSON from
+// scratch, which for a nationwide layer is several multi-hundred-MB parses.
+// Keyed by the asset object itself so it's freed once the layer is removed.
+const geoJsonInspectionCache = new WeakMap<
+  DocumentPicker.DocumentPickerAsset,
+  Promise<Awaited<ReturnType<typeof inspectGeoJson>>>
+>();
+
+export const inspectGeoJsonCached = (
+  asset: DocumentPicker.DocumentPickerAsset,
+): Promise<Awaited<ReturnType<typeof inspectGeoJson>>> => {
+  let pending = geoJsonInspectionCache.get(asset);
+  if (!pending) {
+    pending = resolveAssetBlob(asset).then(inspectGeoJson);
+    geoJsonInspectionCache.set(asset, pending);
+    // A failed parse shouldn't be remembered -- the file may be fixed and
+    // re-attached under the same asset object.
+    pending.catch(() => geoJsonInspectionCache.delete(asset));
+  }
+  return pending;
+};
+
+// A long synchronous loop freezes the whole tab (no repaint, no input), so
+// sampling hands control back to the event loop this often -- also the
+// cadence progress is reported at.
+const YIELD_INTERVAL_MS = 30;
+const CLOCK_CHECK_EVERY = 16;
+
+const yieldToEventLoop = () =>
+  new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+export type SamplingProgress = (done: number, total: number) => void;
+
 /** Checks a single attached file for GIS-editor-embedded metadata, without
  * sampling anything yet -- used to build the "metadata not detected"
  * warning as soon as a file is attached. */
@@ -120,8 +154,7 @@ export const inspectCustomLayerAsset = async (
     return { kind: 'raster', hasMetadata };
   }
   if (VECTOR_EXTENSIONS.includes(ext)) {
-    const blob = await resolveAssetBlob(asset);
-    const { metadata } = await inspectGeoJson(blob);
+    const { metadata } = await inspectGeoJsonCached(asset);
     return {
       kind: 'vector',
       hasMetadata: isUsableVectorConfig(metadata.savedConfig),
@@ -156,6 +189,7 @@ export type ObservationPoint = { lat: number; lon: number };
 const sampleRaster = async (
   asset: DocumentPicker.DocumentPickerAsset,
   points: ObservationPoint[],
+  onProgress?: SamplingProgress,
 ): Promise<CustomLayerSampleResult | null> => {
   const blob = await resolveAssetBlob(asset);
   const metadata = await inspectRaster(blob);
@@ -187,6 +221,7 @@ const sampleRaster = async (
 
   try {
     const values: (number | null)[] = [];
+    let lastReport = Date.now();
     for (const point of points) {
       // Sequential, not Promise.all: each read opens a windowed decode
       // against the same shared GeoTIFF source -- safer than firing every
@@ -194,6 +229,10 @@ const sampleRaster = async (
 
       const result = await renderer.readPointValue(point.lat, point.lon);
       values.push(result?.value ?? null);
+      if (onProgress && Date.now() - lastReport >= YIELD_INTERVAL_MS) {
+        onProgress(values.length, points.length);
+        lastReport = Date.now();
+      }
     }
     const id = customLayerIdFromFilename(asset.name);
     return {
@@ -215,49 +254,12 @@ const sampleRaster = async (
   }
 };
 
-const ringToLatLon = (ring: [number, number][]): [number, number][] =>
-  ring.map(([lng, lat]): [number, number] => [lat, lng]);
-
-const pointInPolygonRings = (
-  lat: number,
-  lon: number,
-  rings: [number, number][][],
-): boolean => {
-  if (rings.length === 0) return false;
-  if (!isPointInPolygon(lat, lon, ringToLatLon(rings[0]))) return false;
-  for (let i = 1; i < rings.length; i += 1) {
-    if (isPointInPolygon(lat, lon, ringToLatLon(rings[i]))) return false; // inside a hole
-  }
-  return true;
-};
-
-const pointInFeatureGeometry = (
-  lat: number,
-  lon: number,
-  geometry: { type: string; coordinates: unknown } | null,
-): boolean => {
-  if (!geometry) return false;
-  if (geometry.type === 'Polygon') {
-    return pointInPolygonRings(
-      lat,
-      lon,
-      geometry.coordinates as [number, number][][],
-    );
-  }
-  if (geometry.type === 'MultiPolygon') {
-    return (geometry.coordinates as [number, number][][][]).some((rings) =>
-      pointInPolygonRings(lat, lon, rings),
-    );
-  }
-  return false;
-};
-
 const sampleVector = async (
   asset: DocumentPicker.DocumentPickerAsset,
   points: ObservationPoint[],
+  onProgress?: SamplingProgress,
 ): Promise<CustomLayerSampleResult | null> => {
-  const blob = await resolveAssetBlob(asset);
-  const { geojson, metadata } = await inspectGeoJson(blob);
+  const { geojson, metadata } = await inspectGeoJsonCached(asset);
   const savedConfig = metadata.savedConfig;
   if (!isUsableVectorConfig(savedConfig)) return null;
   const field = savedConfig.field;
@@ -273,17 +275,20 @@ const sampleVector = async (
     },
   );
 
-  const features = (geojson as GeoJsonFeatureCollection).features;
-  const values = points.map((point) => {
-    for (const feature of features) {
-      if (!pointInFeatureGeometry(point.lat, point.lon, feature.geometry))
-        continue;
-      const raw = feature.properties?.[field];
-      const classId = classIdByValue.get(String(raw));
-      if (classId !== undefined) return classId;
+  const sampler = createVectorPointSampler(geojson, field, classIdByValue);
+  const values: (number | null)[] = new Array(points.length);
+  let lastYield = Date.now();
+  for (let i = 0; i < points.length; i += 1) {
+    values[i] = sampler.sample(points[i].lat, points[i].lon);
+    if (
+      i % CLOCK_CHECK_EVERY === 0 &&
+      Date.now() - lastYield >= YIELD_INTERVAL_MS
+    ) {
+      onProgress?.(i + 1, points.length);
+      await yieldToEventLoop();
+      lastYield = Date.now();
     }
-    return null;
-  });
+  }
 
   const id = customLayerIdFromFilename(asset.name);
   return {
@@ -300,9 +305,14 @@ const sampleVector = async (
 export const sampleCustomLayer = async (
   asset: DocumentPicker.DocumentPickerAsset,
   points: ObservationPoint[],
+  onProgress?: SamplingProgress,
 ): Promise<CustomLayerSampleResult | null> => {
   const ext = extensionOf(asset.name);
-  if (RASTER_EXTENSIONS.includes(ext)) return sampleRaster(asset, points);
-  if (VECTOR_EXTENSIONS.includes(ext)) return sampleVector(asset, points);
+  if (RASTER_EXTENSIONS.includes(ext)) {
+    return sampleRaster(asset, points, onProgress);
+  }
+  if (VECTOR_EXTENSIONS.includes(ext)) {
+    return sampleVector(asset, points, onProgress);
+  }
   return null;
 };

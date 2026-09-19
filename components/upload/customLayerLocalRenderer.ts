@@ -20,15 +20,14 @@ import {
   type PointValue,
   type RenderedTile,
 } from '@/components/gisEditor/cogTileRenderer';
-import {
-  inspectGeoJson,
-  type GeoJsonFeatureCollection,
-} from '@/components/gisEditor/shapefileMetadata';
+import type { GeoJsonFeatureCollection } from '@/components/gisEditor/shapefileMetadata';
 import { createVectorTileRenderer } from '@/components/gisEditor/vectorTileRenderer';
 import {
   buildOverviewLevels,
   DEFAULT_TARGET_VERTEX_COUNT,
+  type OverviewLevel,
 } from '@/components/gisEditor/douglasPeucker';
+import { inspectGeoJsonCached } from '@/components/upload/customLayers';
 import { resolveAssetBlob } from '@/hooks/upload/uploadWorkflowHelpers';
 
 export type LocalCustomLayerRenderer = {
@@ -90,12 +89,29 @@ const createLocalRasterRenderer = async (
   }
 };
 
+// A file straight from a script (fetch_state_ecoregions.py) has no pyramid
+// cache written into it -- only /gis-editor's own Save does that -- so the
+// simplification would otherwise be redone from scratch every time this
+// variable gets selected. Keyed by the parsed object, which
+// inspectGeoJsonCached hands back unchanged for the life of the asset.
+const overviewLevelsCache = new WeakMap<object, OverviewLevel[]>();
+
+const overviewLevelsFor = (
+  geojson: GeoJsonFeatureCollection,
+): OverviewLevel[] => {
+  let levels = overviewLevelsCache.get(geojson);
+  if (!levels) {
+    levels = buildOverviewLevels(geojson, DEFAULT_TARGET_VERTEX_COUNT);
+    overviewLevelsCache.set(geojson, levels);
+  }
+  return levels;
+};
+
 const createLocalVectorRenderer = async (
   asset: DocumentPicker.DocumentPickerAsset,
   variableMeta: EnvironmentVariableOption,
 ): Promise<LocalCustomLayerRenderer | null> => {
-  const blob = await resolveAssetBlob(asset);
-  const { geojson, metadata } = await inspectGeoJson(blob);
+  const { geojson, metadata } = await inspectGeoJsonCached(asset);
   const savedConfig = metadata.savedConfig;
   if (
     !savedConfig ||
@@ -122,11 +138,7 @@ const createLocalVectorRenderer = async (
     (variableMeta.legendClasses ?? []).map((cls) => [Number(cls.id), cls.name]),
   );
   const overviewLevels =
-    metadata.cachedOverviewLevels ??
-    buildOverviewLevels(
-      geojson as GeoJsonFeatureCollection,
-      DEFAULT_TARGET_VERTEX_COUNT,
-    );
+    metadata.cachedOverviewLevels ?? overviewLevelsFor(geojson);
 
   const renderer = createVectorTileRenderer({
     overviewLevels,

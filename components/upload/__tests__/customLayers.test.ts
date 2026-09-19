@@ -12,6 +12,7 @@ import {
   customLayerIdFromFilename,
   findCustomLayersMissingMetadata,
   inspectCustomLayerAsset,
+  inspectGeoJsonCached,
   sampleCustomLayer,
 } from '../customLayers';
 
@@ -329,6 +330,83 @@ describe('sampleCustomLayer (vector)', () => {
       { lat: 0.5, lon: 0.5 },
     ]);
     expect(result).toBeNull();
+  });
+});
+
+describe('vector sampling performance behavior', () => {
+  const collection = JSON.stringify({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [0, 10],
+              [10, 10],
+              [10, 0],
+              [0, 0],
+            ],
+          ],
+        },
+        properties: {
+          LAND_USE: 'Forest',
+          WW_MODE: 'categorical',
+          WW_FIELD: 'LAND_USE',
+          WW_COLOR: '#0f0',
+        },
+      },
+    ],
+  });
+
+  it('parses an attached file once, however many callers ask', async () => {
+    const asset = assetWithBlob('landcover.geojson', collection);
+    const first = inspectGeoJsonCached(asset);
+    expect(inspectGeoJsonCached(asset)).toBe(first);
+    await inspectCustomLayerAsset(asset);
+    await sampleCustomLayer(asset, [{ lat: 5, lon: 5 }]);
+    const { geojson } = await first;
+    expect((await inspectGeoJsonCached(asset)).geojson).toBe(geojson);
+  });
+
+  it('does not remember a failed parse, so a fixed file can be retried', async () => {
+    const asset = assetWithBlob('bad.geojson', '{not json');
+    const first = inspectGeoJsonCached(asset);
+    await expect(first).rejects.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = inspectGeoJsonCached(asset);
+    expect(second).not.toBe(first);
+    await expect(second).rejects.toThrow();
+  });
+
+  it('yields to the event loop and reports progress while sampling many points, without changing the result', async () => {
+    let now = 0;
+    const nowSpy = jest
+      .spyOn(Date, 'now')
+      .mockImplementation(() => (now += 40));
+    const progress = jest.fn();
+    try {
+      const points = Array.from({ length: 200 }, (_, i) => ({
+        lat: i % 2 === 0 ? 5 : 50,
+        lon: 5,
+      }));
+      const result = await sampleCustomLayer(
+        assetWithBlob('landcover.geojson', collection),
+        points,
+        progress,
+      );
+      expect(result!.values).toEqual(
+        points.map((_, i) => (i % 2 === 0 ? 0 : null)),
+      );
+      expect(progress).toHaveBeenCalled();
+      const [done, total] = progress.mock.calls[progress.mock.calls.length - 1];
+      expect(total).toBe(200);
+      expect(done).toBeGreaterThan(0);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
 

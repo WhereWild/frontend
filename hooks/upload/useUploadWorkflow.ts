@@ -130,6 +130,17 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     setCustomLayerAssets(new Map());
   }, []);
 
+  // Sampling a big vector layer takes long enough to look hung without this;
+  // the sampler already reports at most every ~30 ms.
+  const reportSamplingProgress = React.useCallback(
+    (layerName: string, done: number, total: number) => {
+      setRawUploadStatusMessage(
+        `Sampling ${layerName} locally: ${done.toLocaleString()} of ${total.toLocaleString()} observations…`,
+      );
+    },
+    [],
+  );
+
   const invalidateProcessedZipDelivery = React.useCallback(() => {
     processedZipDeliveryRequestIdRef.current += 1;
   }, []);
@@ -291,6 +302,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
               text,
               extension === '.tsv' ? '\t' : ',',
               customLayers,
+              reportSamplingProgress,
             );
           if (descriptors.length > 0) {
             uploadFile = new Blob([augmentedText], { type: 'text/csv' });
@@ -370,6 +382,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
       clearUploadedPreview,
       importProcessedZipBlob,
       invalidateProcessedZipDelivery,
+      reportSamplingProgress,
     ],
   );
 
@@ -437,6 +450,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             buildReimportRawCsv(rawBundle.occurrences, existingDescriptors),
             ',',
             newLayers,
+            reportSamplingProgress,
           );
         const allDescriptors = [...existingDescriptors, ...descriptors];
         const extras = resolveReimportExtras(
@@ -497,6 +511,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
       importNormalizedBundle,
       importProcessedZipBlob,
       invalidateProcessedZipDelivery,
+      reportSamplingProgress,
     ],
   );
 
