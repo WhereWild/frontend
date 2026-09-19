@@ -202,7 +202,11 @@ export const addDiscoveredClasses = (
   const additions = newIds.map((value, i) => ({
     value,
     name: String(value),
-    color: classColorFor(editable.valueType, editable.classes.length + i, total),
+    color: classColorFor(
+      editable.valueType,
+      editable.classes.length + i,
+      total,
+    ),
   }));
   return {
     ...editable,

@@ -478,7 +478,8 @@ const readCategoricalScanBand = (
       // own geo tags at all, and is exact for how GeoTIFF overviews are
       // actually built (same extent, integer downsample factor).
       const width = image.getWidth();
-      const resMeters = width > 0 ? fullResMeters * (metadata.width / width) : fullResMeters;
+      const resMeters =
+        width > 0 ? fullResMeters * (metadata.width / width) : fullResMeters;
       if (
         resMeters <= TARGET_SCAN_RESOLUTION_METERS &&
         (!best || resMeters > best.resMeters)
@@ -616,8 +617,7 @@ export const deriveDetectedValueType = async (
     return {
       guess: valueType,
       confidence: 'high',
-      reason:
-        'Read from this file’s previously saved WhereWild metadata — not re-detected.',
+      reason: 'Read from this file’s previously saved WhereWild metadata.',
       distinctCount: classes.length > 0 ? classes.length : null,
       distinctValues:
         classes.length > 0

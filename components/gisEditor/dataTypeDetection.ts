@@ -40,7 +40,7 @@ export type DetectedValueType = {
 const CATEGORICAL_MAX_DISTINCT = 64;
 const INTEGER_EPSILON = 1e-6;
 const DOWNSAMPLED_NOTE =
-  ' (based on a downsampled preview sample — rare classes may not appear)';
+  ' (based on a downsampled preview sample. Rare classes may not appear.)';
 
 const isInteger = (v: number) => Math.abs(v - Math.round(v)) < INTEGER_EPSILON;
 
@@ -60,7 +60,7 @@ export const detectValueType = (
           guess: 'nominal' as const,
           confidence: 'high' as const,
           reason:
-            'File has an embedded color palette (a paletted/indexed raster) — that only makes sense for categorical classes.',
+            'File has an embedded color palette (a paletted/indexed raster).',
           distinctCount: null,
           distinctValues: null,
         }
@@ -104,8 +104,7 @@ export const detectValueType = (
     return {
       guess: 'nominal',
       confidence: 'high',
-      reason:
-        'File has an embedded color palette (a paletted/indexed raster) — that only makes sense for categorical classes.',
+      reason: 'File has an embedded color palette (a paletted/indexed raster).',
       distinctCount: sorted?.length ?? null,
       distinctValues: sorted,
     };
@@ -121,7 +120,7 @@ export const detectValueType = (
         guess: 'nominal',
         confidence: 'high',
         reason:
-          `Only two distinct integer values (${sorted[0]}, ${sorted[1]}) — looks like a binary mask or flag.` +
+          `Only two distinct integer values (${sorted[0]}, ${sorted[1]}). Looks like a binary mask or flag.` +
           DOWNSAMPLED_NOTE,
         distinctCount: sorted.length,
         distinctValues: sorted,
@@ -147,7 +146,7 @@ export const detectValueType = (
         guess: 'ordinal',
         confidence: 'medium',
         reason:
-          `Values are densely packed integers (${sorted[0]}–${sorted[sorted.length - 1]}, ${sorted.length} distinct) — looks like ranked classes.` +
+          `Values are densely packed integers (${sorted[0]}–${sorted[sorted.length - 1]}, ${sorted.length} distinct). Looks like ranked classes.` +
           DOWNSAMPLED_NOTE,
         distinctCount: sorted.length,
         distinctValues: sorted,
@@ -157,7 +156,7 @@ export const detectValueType = (
       guess: 'nominal',
       confidence: 'medium',
       reason:
-        `Few distinct integer values (${sorted.length}) scattered across a wide range (${sorted[0]}–${sorted[sorted.length - 1]}) — looks like unordered class codes.` +
+        `Few distinct integer values (${sorted.length}) scattered across a wide range (${sorted[0]}–${sorted[sorted.length - 1]}). Looks like unordered class codes.` +
         DOWNSAMPLED_NOTE,
       distinctCount: sorted.length,
       distinctValues: sorted,
@@ -173,8 +172,8 @@ export const detectValueType = (
       guess: 'circular',
       confidence: 'medium',
       reason: looksLikeDegrees
-        ? `Values are bounded within roughly 0–360 (${min.toFixed(1)}–${max.toFixed(1)}) — looks like a bearing/aspect in degrees.`
-        : `Values are bounded within roughly 0–2π (${min.toFixed(2)}–${max.toFixed(2)}) — looks like an angle in radians.`,
+        ? `Values are bounded within roughly 0–360 (${min.toFixed(1)}–${max.toFixed(1)}). Looks like a bearing/aspect in degrees.`
+        : `Values are bounded within roughly 0–2π (${min.toFixed(2)}–${max.toFixed(2)}). Looks like an angle in radians.`,
       distinctCount: null,
       distinctValues: null,
     };
@@ -184,7 +183,7 @@ export const detectValueType = (
     return {
       guess: 'interval',
       confidence: 'low',
-      reason: `Values span both sides of zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — consistent with a scale with no true zero (e.g. temperature), but this can't be confirmed from pixel values alone.`,
+      reason: `Values span both sides of zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}). Consistent with a scale with no true zero (e.g. temperature), but this can't be confirmed from pixel values alone.`,
       distinctCount: null,
       distinctValues: null,
     };
@@ -199,7 +198,7 @@ export const detectValueType = (
     return {
       guess: 'ratio',
       confidence: 'low',
-      reason: `Sampled values are non-negative and get close to zero (min ${min.toFixed(2)}) — consistent with a scale that has a true zero, but this can't be confirmed from pixel values alone.`,
+      reason: `Sampled values are non-negative and get close to zero (min ${min.toFixed(2)}). Consistent with a scale that has a true zero, but this can't be confirmed from pixel values alone.`,
       distinctCount: null,
       distinctValues: null,
     };
@@ -207,7 +206,7 @@ export const detectValueType = (
   return {
     guess: 'interval',
     confidence: 'low',
-    reason: `Sampled values are non-negative but never approach zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}) — there's no evidence of a true zero in this sample, so this is treated as interval-like rather than assuming ratio.`,
+    reason: `Sampled values are non-negative but never approach zero (min ${min.toFixed(2)}, max ${max.toFixed(2)}). There's no evidence of a true zero in this sample, so this is treated as interval-like rather than assuming ratio.`,
     distinctCount: null,
     distinctValues: null,
   };
