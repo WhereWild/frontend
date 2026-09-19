@@ -62,6 +62,9 @@ export type RasterMetadata = {
   savedConfig: {
     valueType: ValueTypeGuess;
     classes: { id: number; name: string; color: string | null }[];
+    /** The name the user gave this layer in the editor, shown as its label
+     * instead of the file name -- null when they never set one. */
+    displayName: string | null;
   } | null;
 };
 
@@ -226,7 +229,11 @@ export const readWherewildConfig = (
       classes = [];
     }
   }
-  return { valueType, classes };
+  const rawName = gdalMetadata?.WHEREWILD_NAME;
+  const displayName = rawName
+    ? unescapeXmlEntities(rawName).trim() || null
+    : null;
+  return { valueType, classes, displayName };
 };
 
 const firstNumber = (value: unknown): number | undefined => {

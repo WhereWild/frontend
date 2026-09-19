@@ -36,6 +36,7 @@ describe('readWherewildConfig', () => {
     expect(readWherewildConfig({ WHEREWILD_VALUE_TYPE: 'ratio' })).toEqual({
       valueType: 'ratio',
       classes: [],
+      displayName: null,
     });
   });
 
@@ -55,6 +56,7 @@ describe('readWherewildConfig', () => {
         { id: 11, name: 'Water', color: '#0000ff' },
         { id: 21, name: 'Forest', color: null },
       ],
+      displayName: null,
     });
   });
 
@@ -64,7 +66,7 @@ describe('readWherewildConfig', () => {
         WHEREWILD_VALUE_TYPE: 'ordinal',
         WHEREWILD_LEGEND: '{not valid json',
       }),
-    ).toEqual({ valueType: 'ordinal', classes: [] });
+    ).toEqual({ valueType: 'ordinal', classes: [], displayName: null });
   });
 
   it('reads a legend written by real GDAL (rasterio update_tags), which double-escapes XML entities unlike this tool’s own writer', () => {
@@ -96,6 +98,7 @@ describe('readWherewildConfig', () => {
     ).toEqual({
       valueType: 'nominal',
       classes: [{ id: 1, name: 'Salt & Pepper "flats"', color: '#abcdef' }],
+      displayName: null,
     });
   });
 
@@ -114,6 +117,25 @@ describe('readWherewildConfig', () => {
     ).toEqual({
       valueType: 'nominal',
       classes: [{ id: 1, name: 'Ok', color: null }],
+      displayName: null,
     });
+  });
+
+  it('reads a saved display name, unescaping entities and trimming it', () => {
+    expect(
+      readWherewildConfig({
+        WHEREWILD_VALUE_TYPE: 'ratio',
+        WHEREWILD_NAME: '  Salt &amp; Pepper  ',
+      })?.displayName,
+    ).toBe('Salt & Pepper');
+  });
+
+  it('treats a blank saved display name as none', () => {
+    expect(
+      readWherewildConfig({
+        WHEREWILD_VALUE_TYPE: 'ratio',
+        WHEREWILD_NAME: '   ',
+      })?.displayName,
+    ).toBeNull();
   });
 });

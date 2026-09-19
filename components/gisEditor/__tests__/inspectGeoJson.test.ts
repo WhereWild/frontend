@@ -63,6 +63,7 @@ describe('inspectGeoJson', () => {
       { name: 'LAND_USE', type: 'string', likelyCategorical: true },
     ]);
     expect(metadata.savedConfig).toEqual({
+      displayName: null,
       mode: 'categorical',
       color: null,
       field: 'LAND_USE',

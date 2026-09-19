@@ -32,6 +32,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const metadata = await inspectRaster(blob);
 
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '',
       renderMin: 1,
@@ -62,6 +63,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     // Only class 2's name was ever edited by the user — 1 and 3 are still
     // whatever classesFor()'s default naming produced ("1"/"3").
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '',
       renderMin: 1,
@@ -89,6 +91,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const blob = await buildTestTiff();
     const metadata = await inspectRaster(blob);
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '',
       renderMin: 1,
@@ -110,6 +113,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const blob = await buildTestTiff();
     const metadata = await inspectRaster(blob);
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '',
       renderMin: 1,
@@ -148,6 +152,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const blob = await buildTestTiff();
     const metadata = await inspectRaster(blob);
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ordinal',
       units: '',
       renderMin: 1,
@@ -184,6 +189,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const blob = await buildTestTiff();
     const metadata = await inspectRaster(blob);
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ratio',
       units: '',
       renderMin: 1,
@@ -203,6 +209,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const blob = await buildTestTiff();
     const metadata = await inspectRaster(blob);
     const nominal: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '',
       renderMin: 1,
@@ -219,6 +226,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     // again — the ColorMap/Palette from the earlier nominal save must not
     // silently survive into a file now described as continuous.
     const ratio: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ratio',
       units: '',
       renderMin: 1,
@@ -245,6 +253,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const metadata = await inspectRaster(blob);
 
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ratio',
       units: '°C',
       renderMin: 0,
@@ -267,6 +276,7 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     const blob = await buildTestTiff();
     const metadata = await inspectRaster(blob);
     const first: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '',
       renderMin: 1,
@@ -294,5 +304,49 @@ describe('save/reopen round trip through the real geotiff.js parser', () => {
     expect(reopenedTwice.savedConfig?.classes).toEqual([
       { id: 1, name: 'Second', color: '#00ff00' },
     ]);
+  });
+
+  it('restores the display name after save + reopen, including characters that need XML escaping', async () => {
+    const blob = await buildTestTiff();
+    const metadata = await inspectRaster(blob);
+    const editable: RasterEditableMeta = {
+      displayName: '  Salinity & <Soil> "Two"  ',
+      valueType: 'ratio',
+      units: '',
+      renderMin: 1,
+      renderMax: 9,
+      scale: 1,
+      offset: 0,
+      classes: [],
+    };
+
+    const reopened = await inspectRaster(
+      await embedMetadataIntoTiff(blob, metadata, editable),
+    );
+
+    // Trimmed on the way out, restored exactly otherwise.
+    expect(reopened.savedConfig?.displayName).toBe('Salinity & <Soil> "Two"');
+  });
+
+  it('saves no name at all when the field is blank, so reopen sees null rather than an empty string', async () => {
+    const blob = await buildTestTiff();
+    const metadata = await inspectRaster(blob);
+    const editable: RasterEditableMeta = {
+      displayName: '   ',
+      valueType: 'ratio',
+      units: '',
+      renderMin: 1,
+      renderMax: 9,
+      scale: 1,
+      offset: 0,
+      classes: [],
+    };
+
+    const reopened = await inspectRaster(
+      await embedMetadataIntoTiff(blob, metadata, editable),
+    );
+
+    expect(reopened.savedConfig).not.toBeNull();
+    expect(reopened.savedConfig?.displayName).toBeNull();
   });
 });

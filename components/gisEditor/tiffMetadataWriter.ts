@@ -188,6 +188,10 @@ export const buildGdalMetadataXml = (editable: RasterEditableMeta): string => {
   // Always recorded when set, so re-opening a saved file skips
   // re-detection entirely (see rasterMetadata.ts's readWherewildConfig).
   items.push(`<Item name="WHEREWILD_VALUE_TYPE">${editable.valueType}</Item>`);
+  const displayName = editable.displayName.trim();
+  if (displayName) {
+    items.push(`<Item name="WHEREWILD_NAME">${xmlEscape(displayName)}</Item>`);
+  }
   if (isCategorical && editable.classes.length > 0) {
     items.push(
       `<Item name="DEFAULT_RASTER_ATTRIBUTE_TABLE" sample="0" role="rat">` +

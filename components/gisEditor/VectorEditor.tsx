@@ -99,6 +99,16 @@ export function VectorEditor({
         ))}
       </View>
 
+      <TextInput
+        style={[textInputStyle, styles.displayNameInput]}
+        value={editable.displayName}
+        onChangeText={(t) => onChange({ ...editable, displayName: t })}
+        placeholder='Display name (defaults to the file name)'
+        placeholderTextColor={palette.text.default.secondary}
+        accessibilityLabel='Display name'
+        testID='gis-vector-display-name'
+      />
+
       <ThemedText variant='subheading'>Style</ThemedText>
       {editable.mode === 'single' ? (
         <View style={styles.classRow}>
@@ -161,6 +171,13 @@ const styles = StyleSheet.create({
   },
   classNameInput: {
     flex: 1,
+    borderWidth: 1,
+    borderRadius: Size.radius['100'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
+  },
+  displayNameInput: {
+    width: '100%',
     borderWidth: 1,
     borderRadius: Size.radius['100'],
     paddingHorizontal: Size.space['200'],

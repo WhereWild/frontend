@@ -27,6 +27,10 @@ export type EditableClass = {
 };
 
 export type RasterEditableMeta = {
+  /** What this layer is called wherever it's shown (the preview legend and,
+   * once used as a custom layer, the variable's label). Empty means "use
+   * the file name". */
+  displayName: string;
   valueType: ValueTypeGuess;
   units: string;
   renderMin: number;
@@ -92,6 +96,7 @@ export const buildInitialEditableMeta = (
   detectedOffset: number | null = null,
   detectedUnits: string | null = null,
   savedClasses: SavedClass[] | null = null,
+  savedDisplayName: string | null = null,
 ): RasterEditableMeta => {
   const valueType = detectedType?.guess ?? 'ratio';
   const scale = detectedScale ?? 1;
@@ -104,6 +109,7 @@ export const buildInitialEditableMeta = (
         ? [bounds.min * scale + offset, bounds.max * scale + offset]
         : [bounds.min, bounds.max];
   return {
+    displayName: savedDisplayName ?? '',
     valueType,
     units: detectedUnits ?? '',
     renderMin,
@@ -222,7 +228,7 @@ export const toEnvironmentVariableOption = (
   editable: RasterEditableMeta,
 ): EnvironmentVariableOption => ({
   id: 'local-raster',
-  label: fileName,
+  label: editable.displayName.trim() || fileName,
   units: editable.units.trim() || null,
   valueType: editable.valueType,
   category: 'Local raster',

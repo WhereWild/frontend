@@ -238,7 +238,7 @@ const sampleRaster = async (
     return {
       descriptor: {
         id,
-        name: id,
+        name: savedConfig.displayName?.trim() || id,
         valueType: savedConfig.valueType,
         units: metadata.units,
         legendClasses:
@@ -292,7 +292,12 @@ const sampleVector = async (
 
   const id = customLayerIdFromFilename(asset.name);
   return {
-    descriptor: { id, name: id, valueType: 'nominal', legendClasses },
+    descriptor: {
+      id,
+      name: savedConfig.displayName?.trim() || id,
+      valueType: 'nominal',
+      legendClasses,
+    },
     values,
   };
 };
