@@ -679,8 +679,8 @@ describe('useUploadWorkflow', () => {
 
   describe('Step 2 with Extra options custom layers', () => {
     const zipAsset = {
-      name: 'processed.zip',
-      uri: 'file://processed.zip',
+      name: 'opuntia-fragilis-5384113.zip',
+      uri: 'file://opuntia-fragilis-5384113.zip',
     } as never;
     const layerAsset = (name: string) =>
       ({ name, uri: `file://${name}` }) as never;
@@ -852,6 +852,42 @@ describe('useUploadWorkflow', () => {
       ).toEqual(['salinity_two', 'rainfall']);
       expect(result.current.canDownloadProcessedZip).toBe(true);
       expect(result.current.customLayerAssets.get('rainfall')).toBe(newAsset);
+    });
+
+    it("downloads the enriched ZIP under the imported ZIP's own filename, not the backend's generic archive name", async () => {
+      const newAsset = layerAsset('rainfall.tif');
+      mockAugmentRawTextWithCustomLayers.mockResolvedValueOnce({
+        augmentedText: 'catalogNumber,rainfall\nA,5',
+        descriptors: [{ id: 'rainfall', name: 'rainfall', valueType: 'ratio' }],
+        assetsById: new Map([['rainfall', newAsset]]),
+      });
+      mockUploadRawObservations.mockResolvedValueOnce({
+        blob: new Blob(['new zip']),
+        contentType: 'application/zip',
+        filename: 'processed_observations.zip',
+      } as never);
+      mockDeliverProcessedZip.mockResolvedValueOnce({
+        kind: 'downloaded',
+        filename: 'opuntia-fragilis-5384113.zip',
+      });
+      const { result } = renderHook(() => useUploadWorkflow());
+
+      await act(async () => {
+        await result.current.processZippedObservations({
+          customLayers: [newAsset],
+        });
+      });
+      expect(result.current.rawUploadStatusMessage).toBe(
+        'Processed ZIP ready to download: opuntia-fragilis-5384113.zip',
+      );
+
+      await act(async () => {
+        await result.current.downloadProcessedZip();
+      });
+
+      expect(mockDeliverProcessedZip).toHaveBeenCalledWith(
+        expect.objectContaining({ filename: 'opuntia-fragilis-5384113.zip' }),
+      );
     });
   });
 });
