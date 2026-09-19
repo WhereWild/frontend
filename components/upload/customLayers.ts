@@ -26,6 +26,14 @@ import {
 import { isPointInPolygon } from '@/utils/geoPolygon';
 import { resolveAssetBlob } from '@/hooks/upload/uploadWorkflowHelpers';
 
+/** The category string wherewild's util.upload.parse_custom_layer_metadata
+ * always stamps a custom layer's variable_metadata row with, server-side --
+ * the one signal a downloaded/re-imported dataset carries for "this
+ * variable used to be a custom layer" (there's no separate boolean field).
+ * A real catalog variable always has its own real category instead, so
+ * this string never collides with one. */
+export const CUSTOM_LAYER_VARIABLE_CATEGORY = 'Custom Layers';
+
 export type CustomLayerLegendClass = {
   id: number;
   name: string;
