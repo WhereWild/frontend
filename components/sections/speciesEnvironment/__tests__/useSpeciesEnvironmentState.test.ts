@@ -275,6 +275,90 @@ describe('useSpeciesEnvironmentState', () => {
     );
   });
 
+  it('colors an ordinal categoricalDistribution by the live colormap, not the frozen "class_N" legend color', async () => {
+    // Mirrors uploadLocalSpeciesDataSource.build.ts's real shape: ordinal
+    // categoricalDistribution entries key `value` as "class_N" (a metric
+    // name), not a bare number -- Number("class_3") is NaN, which used to
+    // silently defeat resolveDistributionColors' classId lookup and leave
+    // every ordinal stacked-bar/pill color frozen at whatever the legend
+    // baked in when the file was first typed as ordinal.
+    const ordinalOption: EnvironmentVariableOption = {
+      id: 'salinity_two',
+      label: 'salinity_two',
+      valueType: 'ordinal',
+      units: null,
+      category: 'Custom',
+      renderMin: 0,
+      renderMax: 4,
+    };
+    mockFetchEnvironmentVariables.mockResolvedValue([
+      {
+        id: 'salinity_two',
+        name: 'salinity_two',
+        units: null,
+        valueType: 'ordinal',
+      },
+    ]);
+    mockFetchSpeciesEnvironment.mockResolvedValue({
+      speciesId: 1,
+      variable: 'salinity_two',
+      variableName: 'salinity_two',
+      units: null,
+      variableType: 'ordinal',
+      observationCount: 2,
+      summary: {
+        count: 2,
+        min: null,
+        mean: null,
+        max: null,
+        q01: null,
+        q99: null,
+      },
+      histogram: null,
+      densityCurve: null,
+      categoricalDistribution: [
+        {
+          value: 'class_0',
+          className: 'Non saline',
+          // Frozen viridis legend color, baked in when first typed ordinal.
+          color: '#440154',
+          count: 1,
+          fraction: 0.5,
+        },
+        {
+          value: 'class_4',
+          className: 'Extremely saline',
+          color: '#fde725',
+          count: 1,
+          fraction: 0.5,
+        },
+      ],
+      categoricalSamples: [],
+      relativeRanks: [],
+    });
+
+    const { result } = await renderSpeciesEnvironmentStateHook({
+      taxonId: '1',
+      variableId: 'salinity_two',
+      variables: [ordinalOption],
+      colormap: 'magma',
+    });
+
+    await waitFor(() => expect(result.current.stats).toBeTruthy());
+    expect(result.current.isCategorical).toBe(true);
+
+    const byValue = new Map(
+      result.current.categoricalDistribution.map((cat) => [
+        cat.value,
+        cat.color,
+      ]),
+    );
+    // magma's own first/last stops (see variableColors.ts), not the frozen
+    // viridis legend colors passed in above.
+    expect(byValue.get('class_0')?.toLowerCase()).toBe('#000004');
+    expect(byValue.get('class_4')?.toLowerCase()).toBe('#fcfdbf');
+  });
+
   it('derives pinnedCategoryValue for categorical variables from the selected location lookup', async () => {
     mockFetchEnvironmentVariables.mockResolvedValue(variableCatalog);
     mockFetchSpeciesEnvironment.mockResolvedValue({

@@ -34,7 +34,6 @@ import { useSpeciesEnvironmentState } from './useSpeciesEnvironmentState';
 import { SourceAttribution } from '../SourceAttribution';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useOptionalSettings } from '@/context/SettingsContext';
-import { getCbColor } from '@/components/sections/speciesOccurrenceMap/cbColors';
 
 const SLICEABLE_RANKS = new Set([
   'SPECIES',
@@ -260,54 +259,6 @@ function SpeciesEnvironmentSectionComponent({
     onChainChange?.(fullChain);
   }, [fullChain, onChainChange]);
 
-  const cbMode = settings?.cbMode ?? null;
-  // Ordinal variables have no separate accessibility variant — the
-  // selected continuous colormap IS their coloring mechanism, always on
-  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
-  // variables). See util/tiles.py's matching branch for the raster side.
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
-  const colorMode = isOrdinalVariable
-    ? (settings?.colormap ?? 'viridis')
-    : cbMode;
-
-  const cbCategoricalDistribution = React.useMemo(() => {
-    if (!colorMode || !categoricalDistribution.length)
-      return categoricalDistribution;
-    const varId = selectedVariable ?? '';
-    return categoricalDistribution.map((cat) => {
-      const rawId = cat.value;
-      const classId =
-        typeof rawId === 'string' && rawId.startsWith('class_')
-          ? Number(rawId.slice(6))
-          : Number(rawId);
-      return {
-        ...cat,
-        color: getCbColor(varId, classId, colorMode, cat.color ?? '#888888'),
-      };
-    });
-  }, [categoricalDistribution, colorMode, selectedVariable]);
-
-  const cbPinnedUnobservedCategory = React.useMemo(() => {
-    if (!colorMode || !pinnedUnobservedCategory?.color)
-      return pinnedUnobservedCategory;
-    const varId = selectedVariable ?? '';
-    const rawId = pinnedUnobservedCategory.value;
-    const classId =
-      typeof rawId === 'string' && rawId.startsWith('class_')
-        ? Number(rawId.slice(6))
-        : Number(rawId);
-    return {
-      ...pinnedUnobservedCategory,
-      color: getCbColor(
-        varId,
-        classId,
-        colorMode,
-        pinnedUnobservedCategory.color,
-      ),
-    };
-  }, [pinnedUnobservedCategory, colorMode, selectedVariable]);
-
   const isDiscrete = isVariableDiscrete(selectedVariableMeta);
 
   const compositionAxisLabels = React.useMemo(
@@ -380,7 +331,7 @@ function SpeciesEnvironmentSectionComponent({
         headingText,
         metaText,
         isCategorical,
-        categoricalDistribution: cbCategoricalDistribution,
+        categoricalDistribution,
         selectedCategoryValues,
         densityCurve,
         ternaryCompositionDensity,
@@ -395,7 +346,7 @@ function SpeciesEnvironmentSectionComponent({
         baselineCategoricalDistribution,
         anyFilterActive,
         pinnedCategoryValue,
-        pinnedUnobservedCategory: cbPinnedUnobservedCategory,
+        pinnedUnobservedCategory,
         pinnedClassName,
         pinnedValue,
         homePinnedCategoryValue,

@@ -49,10 +49,13 @@ import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import {
-  getCbColor,
-  getCbShape,
-} from '@/components/sections/speciesOccurrenceMap/cbColors';
+  isVariableOrdinal,
+  resolveClassDisplayColor,
+  resolveColorMode,
+  useOrdinalFallbackColor,
+} from '@/components/sections/speciesOccurrenceMap/ordinalColorMode';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
@@ -393,13 +396,12 @@ export function UploadPreview({
   }, [selectedVariableMeta, uploadedBundle, metricToCodeByVariable, units]);
 
   const cbMode = settings?.cbMode;
-  // Ordinal variables have no separate accessibility variant — the
-  // selected continuous colormap IS their coloring mechanism, always on
-  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
-  // variables). See util/tiles.py's matching branch for the raster side.
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
-  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+  const isOrdinalVariable = isVariableOrdinal(selectedVariableMeta);
+  const colorMode = resolveColorMode(
+    isOrdinalVariable,
+    selectedColormap,
+    cbMode,
+  );
   const shapesEnabled = settings?.shapesEnabled ?? false;
   const markerOutlineEnabled =
     (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
@@ -474,6 +476,20 @@ export function UploadPreview({
       return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
     }) as [string, string, string, string];
   }, [selectedCircularColormap]);
+  // See components/sections/speciesOccurrenceMap/ordinalColorMode.ts for
+  // why this fallback exists (a custom layer's variable id was never
+  // processed by scripts/gen_colors.py, so getCbColor's precomputed
+  // CB_CLASS_COLORS lookup always misses for it, and without this it would
+  // freeze on whatever color got baked into the legend when /gis-editor
+  // first typed the file as ordinal instead of following the colormap
+  // picker). Shared with app/_species.tsx and VariableHeatmapMap.tsx so
+  // this logic lives in exactly one place.
+  const ordinalFallbackColor = useOrdinalFallbackColor(
+    isOrdinalVariable,
+    selectedVariableMeta,
+    selectedColormap,
+  );
+
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
@@ -482,19 +498,26 @@ export function UploadPreview({
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
       // Ordinal classes intentionally carry no raw legend color — see the
       // matching comment in app/_species.tsx's classColors.
-      if (cls.color || isOrdinalVariable)
+      if (cls.color || isOrdinalVariable) {
         map.set(
           String(cls.id),
-          getCbColor(
+          resolveClassDisplayColor(
             variableId,
             cls.id as number,
             colorMode,
-            cls.color ?? '#888888',
+            cls.color,
+            ordinalFallbackColor,
           ),
         );
+      }
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta, colorMode, isOrdinalVariable]);
+  }, [
+    selectedVariableMeta,
+    colorMode,
+    isOrdinalVariable,
+    ordinalFallbackColor,
+  ]);
 
   const classShapes = React.useMemo((): Map<string, string> | null => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -590,14 +613,20 @@ export function UploadPreview({
     const variableId = selectedVariableMeta?.id ?? '';
     return visibleCategoricalClasses.map((cls) => ({
       ...cls,
-      color: getCbColor(
+      color: resolveClassDisplayColor(
         variableId,
         cls.id as number,
         colorMode,
-        cls.color ?? '#888888',
+        cls.color,
+        ordinalFallbackColor,
       ),
     }));
-  }, [visibleCategoricalClasses, colorMode, selectedVariableMeta]);
+  }, [
+    visibleCategoricalClasses,
+    colorMode,
+    selectedVariableMeta,
+    ordinalFallbackColor,
+  ]);
 
   // Observation pins: prefer local value (offline-safe); fall back to pinnedPointValue
   // (set by the map's onPointValue when it fires varValue for the clicked dot, or via
