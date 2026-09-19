@@ -178,7 +178,11 @@ export function UploadScreen() {
                 palette={palette}
                 stepTitle='Step 2'
                 testID='upload-step-card-2'
-                onPress={processZippedObservations}
+                onPress={() =>
+                  void processZippedObservations({
+                    customLayers: extraOptions.customLayers,
+                  })
+                }
               />
             </View>
 

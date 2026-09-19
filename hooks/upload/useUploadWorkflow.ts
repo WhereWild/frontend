@@ -14,6 +14,12 @@ import {
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import { augmentRawTextWithCustomLayers } from './customLayerAugmentation';
 import {
+  buildReimportRawCsv,
+  findExistingCustomLayerDescriptors,
+  planCustomLayerReimport,
+} from './reimportCustomLayerEnrichment';
+import { customLayerIdFromFilename } from '@/components/upload/customLayers';
+import {
   createFilePayload,
   DEFAULT_PROCESSED_ZIP_FILENAME,
   deliverProcessedZip,
@@ -52,6 +58,14 @@ export type RawUploadExtraOptions = {
   customLayers?: DocumentPicker.DocumentPickerAsset[];
 };
 
+/** Step 2 (re-importing a processed ZIP) also consumes Extra options' custom
+ * layers: one already in the ZIP just gets wired up for local rendering,
+ * a genuinely new one is sampled and re-run through the backend -- see
+ * reimportCustomLayerEnrichment.ts. */
+export type ZippedImportOptions = {
+  customLayers?: DocumentPicker.DocumentPickerAsset[];
+};
+
 export type UseUploadWorkflowResult = {
   canDownloadProcessedZip: boolean;
   downloadProcessedZip: () => Promise<void>;
@@ -69,7 +83,7 @@ export type UseUploadWorkflowResult = {
     React.SetStateAction<(number | string)[]>
   >;
   processRawObservations: (options?: RawUploadExtraOptions) => Promise<void>;
-  processZippedObservations: () => Promise<void>;
+  processZippedObservations: (options?: ZippedImportOptions) => Promise<void>;
 };
 
 export function useUploadWorkflow(): UseUploadWorkflowResult {
@@ -145,23 +159,38 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     [clearUploadedPreview],
   );
 
-  const importProcessedZipBlob = React.useCallback(async (zipBlob: Blob) => {
-    const rawBundle = await parseUploadedParquetZipToRawBundle(zipBlob);
-    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    if (normalizedBundle.dataSources) {
-      seedDataSourcesCache(normalizedBundle.dataSources);
-    }
-    const dataSource = buildUploadLocalSpeciesDataSource({
-      bundle: normalizedBundle,
-      speciesId: UPLOAD_PREVIEW_TAXON_ID,
-    });
+  // Shared tail of "I now have a normalized bundle, make it the active
+  // preview" -- used both by a plain ZIP import and by the stage-2 custom-
+  // layer reimport path below, which already has its own normalized bundle
+  // in hand and would otherwise have to re-parse the same ZIP a second time
+  // just to reach this same point.
+  const importNormalizedBundle = React.useCallback(
+    (normalizedBundle: UploadedParquetBundle) => {
+      if (normalizedBundle.dataSources) {
+        seedDataSourcesCache(normalizedBundle.dataSources);
+      }
+      const dataSource = buildUploadLocalSpeciesDataSource({
+        bundle: normalizedBundle,
+        speciesId: UPLOAD_PREVIEW_TAXON_ID,
+      });
 
-    setUploadedBundle(normalizedBundle);
-    setUploadedDataSource(dataSource);
-    setZipUploadError(null);
-    setZipUploadWarning(normalizedBundle.meta?.warnings?.join('\n') ?? null);
-    triggerSuccessHaptic();
-  }, []);
+      setUploadedBundle(normalizedBundle);
+      setUploadedDataSource(dataSource);
+      setZipUploadError(null);
+      setZipUploadWarning(normalizedBundle.meta?.warnings?.join('\n') ?? null);
+      triggerSuccessHaptic();
+    },
+    [],
+  );
+
+  const importProcessedZipBlob = React.useCallback(
+    async (zipBlob: Blob) => {
+      const rawBundle = await parseUploadedParquetZipToRawBundle(zipBlob);
+      const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+      importNormalizedBundle(normalizedBundle);
+    },
+    [importNormalizedBundle],
+  );
 
   const downloadProcessedZip = React.useCallback(async () => {
     if (!downloadableProcessedZip || isDeliveringProcessedZip) {
@@ -342,46 +371,111 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     ],
   );
 
-  const processZippedObservations = React.useCallback(async () => {
-    const { file, errorMessage } = await selectFileFromPicker({
-      pickerType: '*/*',
-      allowedExtensions: ZIP_UPLOAD_ACCEPTED_EXTENSIONS,
-      invalidSelectionMessage:
-        'Unsupported file type. Please select a processed ZIP file.',
-    });
-    if (errorMessage) {
-      clearUploadedPreview();
-      setZipUploadError(errorMessage);
-      triggerErrorHaptic();
-      return;
-    }
+  const processZippedObservations = React.useCallback(
+    async (options?: ZippedImportOptions) => {
+      const { file, errorMessage } = await selectFileFromPicker({
+        pickerType: '*/*',
+        allowedExtensions: ZIP_UPLOAD_ACCEPTED_EXTENSIONS,
+        invalidSelectionMessage:
+          'Unsupported file type. Please select a processed ZIP file.',
+      });
+      if (errorMessage) {
+        clearUploadedPreview();
+        setZipUploadError(errorMessage);
+        triggerErrorHaptic();
+        return;
+      }
 
-    if (!file) {
-      return;
-    }
+      if (!file) {
+        return;
+      }
 
-    setIsProcessingZipped(true);
-    invalidateProcessedZipDelivery();
-    setIsDeliveringProcessedZip(false);
-    // Step 2 imports a separate processed ZIP for preview only; keep the
-    // Step 1 generated artifact available for download until raw upload state
-    // is replaced by another Step 1 run.
-    setZipUploadError(null);
-    setZipUploadWarning(null);
-    try {
-      const zipBlob = await resolveAssetBlob(file);
-      await importProcessedZipBlob(zipBlob);
-    } catch (error) {
-      handleZipImportError(error, { triggerHaptic: true });
-    } finally {
-      setIsProcessingZipped(false);
-    }
-  }, [
-    clearUploadedPreview,
-    handleZipImportError,
-    importProcessedZipBlob,
-    invalidateProcessedZipDelivery,
-  ]);
+      setIsProcessingZipped(true);
+      invalidateProcessedZipDelivery();
+      setIsDeliveringProcessedZip(false);
+      // Step 2 imports a separate processed ZIP for preview only; keep the
+      // Step 1 generated artifact available for download until raw upload state
+      // is replaced by another Step 1 run.
+      setZipUploadError(null);
+      setZipUploadWarning(null);
+      try {
+        const zipBlob = await resolveAssetBlob(file);
+        const customLayers = options?.customLayers ?? [];
+        if (customLayers.length === 0) {
+          await importProcessedZipBlob(zipBlob);
+          setCustomLayerAssets(new Map());
+          return;
+        }
+
+        const rawBundle = await parseUploadedParquetZipToRawBundle(zipBlob);
+        const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+        const existingDescriptors = findExistingCustomLayerDescriptors(
+          normalizedBundle.variableDefinitions ?? [],
+        );
+        const { alreadyPresent, newLayers } = planCustomLayerReimport(
+          customLayers,
+          new Set(existingDescriptors.map((d) => d.id)),
+        );
+        const alreadyPresentAssets = new Map(
+          alreadyPresent.map((asset) => [
+            customLayerIdFromFilename(asset.name),
+            asset,
+          ]),
+        );
+
+        if (newLayers.length === 0) {
+          importNormalizedBundle(normalizedBundle);
+          setCustomLayerAssets(alreadyPresentAssets);
+          return;
+        }
+
+        setRawUploadStatusMessage('Sampling new custom layers locally…');
+        const { augmentedText, descriptors, assetsById } =
+          await augmentRawTextWithCustomLayers(
+            buildReimportRawCsv(rawBundle.occurrences, existingDescriptors),
+            ',',
+            newLayers,
+          );
+        const allDescriptors = [...existingDescriptors, ...descriptors];
+        const response = await uploadRawObservations(
+          {
+            file: new Blob([augmentedText], { type: 'text/csv' }),
+            filename: 'reimported_observations.csv',
+            customLayerMetadata:
+              allDescriptors.length > 0
+                ? JSON.stringify(allDescriptors)
+                : undefined,
+          },
+          ({ status, position, stage }) => {
+            if (status === 'queued') {
+              setRawUploadStatusMessage(
+                position > 1
+                  ? `Position ${position} in queue…`
+                  : 'Queued for processing…',
+              );
+            } else {
+              setRawUploadStatusMessage(stage ? `${stage}…` : 'Processing…');
+            }
+          },
+        );
+        await importProcessedZipBlob(response.blob);
+        setRawUploadStatusMessage(null);
+        setCustomLayerAssets(new Map([...alreadyPresentAssets, ...assetsById]));
+      } catch (error) {
+        setRawUploadStatusMessage(null);
+        handleZipImportError(error, { triggerHaptic: true });
+      } finally {
+        setIsProcessingZipped(false);
+      }
+    },
+    [
+      clearUploadedPreview,
+      handleZipImportError,
+      importNormalizedBundle,
+      importProcessedZipBlob,
+      invalidateProcessedZipDelivery,
+    ],
+  );
 
   return {
     canDownloadProcessedZip: downloadableProcessedZip !== null,
