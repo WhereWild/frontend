@@ -79,12 +79,35 @@ describe('buildReimportRawCsv', () => {
     );
     expect(csv).toBe(
       [
-        'catalogNumber,decimalLatitude,decimalLongitude,observationName,imageUrl,salinity_two',
-        'A,1,2,"Smith, John",,3',
-        'B,4,5,,,',
+        'catalogNumber,decimalLatitude,decimalLongitude,observationName,salinity_two',
+        'A,1,2,"Smith, John",3',
+        'B,4,5,,',
       ].join('\n'),
     );
     expect(csv).not.toContain('bio_1');
+  });
+});
+
+describe('buildReimportRawCsv optional columns', () => {
+  it('omits observationName/imageUrl entirely when every row leaves them empty', () => {
+    const csv = buildReimportRawCsv(
+      [
+        { catalogNumber: 'A', decimalLatitude: 1, decimalLongitude: 2 },
+        {
+          catalogNumber: 'B',
+          decimalLatitude: 3,
+          decimalLongitude: 4,
+          observationName: '  ',
+          imageUrl: null,
+        },
+      ],
+      [],
+    );
+    expect(csv).toBe(
+      ['catalogNumber,decimalLatitude,decimalLongitude', 'A,1,2', 'B,3,4'].join(
+        '\n',
+      ),
+    );
   });
 });
 

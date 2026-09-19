@@ -42,13 +42,19 @@ import {
   type CustomLayerDescriptor,
 } from '@/components/upload/customLayers';
 
-const REIMPORT_BASE_COLUMNS = [
+const REQUIRED_REIMPORT_COLUMNS = [
   'catalogNumber',
   'decimalLatitude',
   'decimalLongitude',
-  'observationName',
-  'imageUrl',
 ] as const;
+
+// Only sent when at least one row has a value: a column that's empty for
+// every row (a species-page download has no observationName, say) is worse
+// than absent, since a bare empty CSV column reads back as a numeric one.
+const OPTIONAL_REIMPORT_COLUMNS = ['observationName', 'imageUrl'] as const;
+
+const hasValue = (value: unknown): boolean =>
+  value !== null && value !== undefined && String(value).trim() !== '';
 
 const CUSTOM_LAYER_VALUE_TYPES = new Set<CustomLayerDescriptor['valueType']>([
   'ratio',
@@ -136,7 +142,10 @@ export const buildReimportRawCsv = (
   preservedDescriptors: CustomLayerDescriptor[],
 ): string => {
   const columns: string[] = [
-    ...REIMPORT_BASE_COLUMNS,
+    ...REQUIRED_REIMPORT_COLUMNS,
+    ...OPTIONAL_REIMPORT_COLUMNS.filter((col) =>
+      occurrences.some((row) => hasValue(row[col])),
+    ),
     ...preservedDescriptors.map((d) => d.id),
   ];
   const header = columns.join(',');
