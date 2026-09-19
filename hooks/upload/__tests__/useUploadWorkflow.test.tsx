@@ -304,6 +304,7 @@ describe('useUploadWorkflow', () => {
       'latitude,longitude\n1,2\n',
       ',',
       [customLayerAsset],
+      expect.any(Function),
     );
     const [uploadArgs] = mockUploadRawObservations.mock.calls[0];
     expect(uploadArgs.customLayerMetadata).toBe(

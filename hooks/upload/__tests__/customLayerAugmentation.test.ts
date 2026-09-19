@@ -65,6 +65,7 @@ describe('augmentRawTextWithCustomLayers', () => {
         { lat: 10, lon: 20 },
         { lat: 30, lon: 40 },
       ],
+      undefined,
     );
     expect(result.descriptors).toEqual([
       { id: 'rainfall', name: 'rainfall', valueType: 'ratio' },
@@ -85,9 +86,11 @@ describe('augmentRawTextWithCustomLayers', () => {
       asset('kg2.tif'),
     ]);
 
-    expect(mockSampleCustomLayer).toHaveBeenCalledWith(expect.anything(), [
-      { lat: 10, lon: 20 },
-    ]);
+    expect(mockSampleCustomLayer).toHaveBeenCalledWith(
+      expect.anything(),
+      [{ lat: 10, lon: 20 }],
+      undefined,
+    );
     expect(result.augmentedText).toBe(
       'decimalLatitude\tdecimalLongitude\tkg2\n10\t20\t3',
     );
@@ -149,11 +152,35 @@ describe('augmentRawTextWithCustomLayers', () => {
       asset('a.tif'),
     ]);
 
-    expect(mockSampleCustomLayer).toHaveBeenCalledWith(expect.anything(), [
-      { lat: 10, lon: 20 },
-    ]);
+    expect(mockSampleCustomLayer).toHaveBeenCalledWith(
+      expect.anything(),
+      [{ lat: 10, lon: 20 }],
+      undefined,
+    );
     expect(result.augmentedText).toBe(
       'name,latitude,longitude,a\n"Smith, John",10,20,9',
     );
+  });
+
+  it("reports each layer's sampling progress under that layer's file name", async () => {
+    mockSampleCustomLayer.mockImplementationOnce(
+      async (_asset, _points, cb) => {
+        cb?.(50, 100);
+        return {
+          descriptor: { id: 'a', name: 'a', valueType: 'ratio' },
+          values: [1],
+        };
+      },
+    );
+    const onProgress = jest.fn();
+
+    await augmentRawTextWithCustomLayers(
+      'latitude,longitude\n1,2\n',
+      ',',
+      [asset('a.tif')],
+      onProgress,
+    );
+
+    expect(onProgress).toHaveBeenCalledWith('a.tif', 50, 100);
   });
 });

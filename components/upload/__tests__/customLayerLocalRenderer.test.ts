@@ -221,6 +221,36 @@ describe('createLocalCustomLayerRenderer', () => {
       expect(() => result?.dispose()).not.toThrow();
     });
 
+    it('parses the file and builds the simplification pyramid only once, however often the variable is re-selected', async () => {
+      mockInspectGeoJson.mockResolvedValue({
+        geojson: { type: 'FeatureCollection', features: [] },
+        metadata: {
+          savedConfig: {
+            mode: 'categorical',
+            field: 'landcover',
+            classes: [{ value: 'forest', name: 'Forest', color: '#466237' }],
+          },
+          cachedOverviewLevels: null,
+          bbox: null,
+        },
+      } as never);
+      mockCreateVectorTileRenderer.mockReturnValue({
+        renderTile: jest.fn(),
+        readPointValue: jest.fn(),
+        view: { lat: 0, lon: 0, zoom: 1 },
+      } as never);
+      mockBuildOverviewLevels.mockReturnValue([
+        { tolerance: 0, data: { type: 'FeatureCollection', features: [] } },
+      ] as never);
+      const sameAsset = asset('landcover.geojson');
+
+      await createLocalCustomLayerRenderer(sameAsset, vectorVariableMeta);
+      await createLocalCustomLayerRenderer(sameAsset, vectorVariableMeta);
+
+      expect(mockInspectGeoJson).toHaveBeenCalledTimes(1);
+      expect(mockBuildOverviewLevels).toHaveBeenCalledTimes(1);
+    });
+
     it('reuses a cached overview pyramid instead of rebuilding it', async () => {
       const cached = [
         { tolerance: 0, data: { type: 'FeatureCollection', features: [] } },

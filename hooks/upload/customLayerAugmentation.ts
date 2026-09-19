@@ -96,6 +96,7 @@ export const augmentRawTextWithCustomLayers = async (
   text: string,
   delimiter: ',' | '\t',
   customLayers: DocumentPicker.DocumentPickerAsset[],
+  onProgress?: (layerName: string, done: number, total: number) => void,
 ): Promise<CustomLayerAugmentationResult> => {
   if (customLayers.length === 0) {
     return { augmentedText: text, descriptors: [], assetsById: new Map() };
@@ -133,7 +134,11 @@ export const augmentRawTextWithCustomLayers = async (
     // multiple layers' decoders against each other, only added memory
     // pressure from several open GeoTIFF readers at once.
 
-    const result = await sampleCustomLayer(asset, points);
+    const result = await sampleCustomLayer(
+      asset,
+      points,
+      onProgress && ((done, total) => onProgress(asset.name, done, total)),
+    );
     if (!result) continue;
     descriptors.push(result.descriptor);
     newColumns.push(result.values);
