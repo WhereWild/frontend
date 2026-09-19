@@ -144,6 +144,7 @@ describe('UploadPreview', () => {
       <UploadPreview
         highlightedCatalogs={[]}
         height={320}
+        customLayerAssets={new Map()}
         uploadedBundle={{
           categoricalStats: [],
           ordinalStats: [],
@@ -186,6 +187,7 @@ describe('UploadPreview', () => {
       <UploadPreview
         highlightedCatalogs={[]}
         height={320}
+        customLayerAssets={new Map()}
         uploadedBundle={{
           categoricalStats: [],
           ordinalStats: [],
@@ -260,6 +262,7 @@ describe('UploadPreview', () => {
       <UploadPreview
         highlightedCatalogs={[]}
         height={320}
+        customLayerAssets={new Map()}
         uploadedBundle={{
           categoricalStats: [],
           ordinalStats: [],

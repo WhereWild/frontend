@@ -62,6 +62,7 @@ export type UseUploadWorkflowResult = {
   rawUploadStatusMessage: string | null;
   uploadedBundle: UploadedParquetBundle | null;
   uploadedDataSource: SpeciesDataSource | null;
+  customLayerAssets: Map<string, DocumentPicker.DocumentPickerAsset>;
   zipUploadError: string | null;
   zipUploadWarning: string | null;
   setHighlightedCatalogs: React.Dispatch<
@@ -89,6 +90,16 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     React.useState<UploadedParquetBundle | null>(null);
   const [uploadedDataSource, setUploadedDataSource] =
     React.useState<SpeciesDataSource | null>(null);
+  // The raw file each currently-uploaded custom layer variable was sampled
+  // from, keyed by variable id -- kept around only for the lifetime of this
+  // preview so the map's background-point clicks and "variable" basemap
+  // mode can render/query it locally (see customLayerLocalRenderer.ts)
+  // instead of always hitting the backend, which never received the file.
+  // Empty for a re-imported ZIP (see importProcessedZipBlob), since that
+  // path never has the original file to begin with.
+  const [customLayerAssets, setCustomLayerAssets] = React.useState<
+    Map<string, DocumentPicker.DocumentPickerAsset>
+  >(new Map());
   const [zipUploadError, setZipUploadError] = React.useState<string | null>(
     null,
   );
@@ -100,6 +111,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     setUploadedBundle(null);
     setUploadedDataSource(null);
     setZipUploadWarning(null);
+    setCustomLayerAssets(new Map());
   }, []);
 
   const invalidateProcessedZipDelivery = React.useCallback(() => {
@@ -223,6 +235,10 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
       try {
         let uploadFile = createFilePayload(file);
         let customLayerMetadata: string | undefined;
+        let sampledCustomLayerAssets = new Map<
+          string,
+          DocumentPicker.DocumentPickerAsset
+        >();
         const customLayers = options?.customLayers ?? [];
         const extension = file.name
           .slice(file.name.lastIndexOf('.'))
@@ -239,7 +255,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
           setRawUploadStatusMessage('Sampling custom layers locally…');
           const blob = await resolveAssetBlob(file);
           const text = await blob.text();
-          const { augmentedText, descriptors } =
+          const { augmentedText, descriptors, assetsById } =
             await augmentRawTextWithCustomLayers(
               text,
               extension === '.tsv' ? '\t' : ',',
@@ -248,6 +264,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
           if (descriptors.length > 0) {
             uploadFile = new Blob([augmentedText], { type: 'text/csv' });
             customLayerMetadata = JSON.stringify(descriptors);
+            sampledCustomLayerAssets = assetsById;
           }
           setRawUploadStatusMessage(null);
         }
@@ -290,6 +307,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
 
         try {
           await importProcessedZipBlob(response.blob);
+          setCustomLayerAssets(sampledCustomLayerAssets);
         } catch (error) {
           if (!isExpectedUploadedZipError(error)) {
             console.error(
@@ -375,6 +393,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     rawUploadStatusMessage,
     uploadedBundle,
     uploadedDataSource,
+    customLayerAssets,
     zipUploadError,
     zipUploadWarning,
     setHighlightedCatalogs,

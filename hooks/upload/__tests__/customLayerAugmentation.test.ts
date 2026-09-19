@@ -27,7 +27,11 @@ describe('augmentRawTextWithCustomLayers', () => {
   it('returns the text unchanged when no custom layers are given', async () => {
     const text = 'latitude,longitude\n1,2\n';
     const result = await augmentRawTextWithCustomLayers(text, ',', []);
-    expect(result).toEqual({ augmentedText: text, descriptors: [] });
+    expect(result).toEqual({
+      augmentedText: text,
+      descriptors: [],
+      assetsById: new Map(),
+    });
     expect(mockSampleCustomLayer).not.toHaveBeenCalled();
   });
 
@@ -36,7 +40,11 @@ describe('augmentRawTextWithCustomLayers', () => {
     const result = await augmentRawTextWithCustomLayers(text, ',', [
       asset('x.tif'),
     ]);
-    expect(result).toEqual({ augmentedText: text, descriptors: [] });
+    expect(result).toEqual({
+      augmentedText: text,
+      descriptors: [],
+      assetsById: new Map(),
+    });
     expect(mockSampleCustomLayer).not.toHaveBeenCalled();
   });
 
@@ -93,10 +101,16 @@ describe('augmentRawTextWithCustomLayers', () => {
       asset('bad.tif'),
     ]);
 
-    expect(result).toEqual({ augmentedText: text, descriptors: [] });
+    expect(result).toEqual({
+      augmentedText: text,
+      descriptors: [],
+      assetsById: new Map(),
+    });
   });
 
   it('samples multiple layers and appends one column each, in order', async () => {
+    const assetA = asset('a.tif');
+    const assetB = asset('b.tif');
     mockSampleCustomLayer
       .mockResolvedValueOnce({
         descriptor: { id: 'a', name: 'a', valueType: 'ratio' },
@@ -109,12 +123,19 @@ describe('augmentRawTextWithCustomLayers', () => {
     const text = 'latitude,longitude\n1,2\n';
 
     const result = await augmentRawTextWithCustomLayers(text, ',', [
-      asset('a.tif'),
-      asset('b.tif'),
+      assetA,
+      assetB,
     ]);
 
     expect(result.augmentedText).toBe('latitude,longitude,a,b\n1,2,1,2');
     expect(result.descriptors.map((d) => d.id)).toEqual(['a', 'b']);
+    // The caller (useUploadWorkflow.ts) keeps this map around for the
+    // preview's local point-value/tile rendering — each descriptor's own
+    // id must resolve back to the exact asset it was actually sampled
+    // from, not just any attached file.
+    expect(result.assetsById.get('a')).toBe(assetA);
+    expect(result.assetsById.get('b')).toBe(assetB);
+    expect(result.assetsById.size).toBe(2);
   });
 
   it('handles quoted fields containing the delimiter when locating coordinates', async () => {
