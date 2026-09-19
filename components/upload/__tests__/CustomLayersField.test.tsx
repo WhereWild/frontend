@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type * as DocumentPicker from 'expo-document-picker';
 import { Colors } from '@/constants/theme';
 import { findCustomLayersMissingMetadata } from '@/components/upload/customLayers';
-import { selectFileFromPicker } from '@/hooks/upload/uploadWorkflowHelpers';
+import { selectFilesFromPicker } from '@/hooks/upload/uploadWorkflowHelpers';
 import { CustomLayersField } from '../CustomLayersField';
 
 jest.mock('@/components/upload/customLayers', () => ({
@@ -15,11 +15,11 @@ jest.mock('@/components/upload/customLayers', () => ({
 }));
 jest.mock('@/hooks/upload/uploadWorkflowHelpers', () => {
   const actual = jest.requireActual('@/hooks/upload/uploadWorkflowHelpers');
-  return { ...actual, selectFileFromPicker: jest.fn() };
+  return { ...actual, selectFilesFromPicker: jest.fn() };
 });
 
 const mockFindMissing = jest.mocked(findCustomLayersMissingMetadata);
-const mockSelectFile = jest.mocked(selectFileFromPicker);
+const mockSelectFiles = jest.mocked(selectFilesFromPicker);
 
 const asset = (name: string): DocumentPicker.DocumentPickerAsset =>
   ({
@@ -31,7 +31,7 @@ describe('CustomLayersField', () => {
   beforeEach(() => {
     mockFindMissing.mockReset();
     mockFindMissing.mockResolvedValue([]);
-    mockSelectFile.mockReset();
+    mockSelectFiles.mockReset();
   });
 
   it('renders no attached layers or warning when value is empty', () => {
@@ -63,7 +63,7 @@ describe('CustomLayersField', () => {
   });
 
   it('adds a picked file to the list', async () => {
-    mockSelectFile.mockResolvedValueOnce({ file: asset('new.tif') });
+    mockSelectFiles.mockResolvedValueOnce({ files: [asset('new.tif')] });
     const handleChange = jest.fn();
     render(
       <CustomLayersField
@@ -83,8 +83,57 @@ describe('CustomLayersField', () => {
     ]);
   });
 
+  it('adds every file from a single multi-select pick, appended to what was already attached', async () => {
+    mockSelectFiles.mockResolvedValueOnce({
+      files: [asset('b.tif'), asset('c.geojson')],
+    });
+    const handleChange = jest.fn();
+    render(
+      <CustomLayersField
+        value={[asset('a.tif')]}
+        onChange={handleChange}
+        palette={Colors.light}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Add custom layer'));
+      await Promise.resolve();
+    });
+
+    expect(handleChange).toHaveBeenCalledWith([
+      expect.objectContaining({ name: 'a.tif' }),
+      expect.objectContaining({ name: 'b.tif' }),
+      expect.objectContaining({ name: 'c.geojson' }),
+    ]);
+  });
+
+  it('replaces an existing layer instead of duplicating it when re-picked by the same name', async () => {
+    mockSelectFiles.mockResolvedValueOnce({
+      files: [asset('a.tif')],
+    });
+    const handleChange = jest.fn();
+    render(
+      <CustomLayersField
+        value={[asset('a.tif'), asset('b.tif')]}
+        onChange={handleChange}
+        palette={Colors.light}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Add custom layer'));
+      await Promise.resolve();
+    });
+
+    expect(handleChange).toHaveBeenCalledWith([
+      expect.objectContaining({ name: 'b.tif' }),
+      expect.objectContaining({ name: 'a.tif' }),
+    ]);
+  });
+
   it('shows a picker error instead of adding a file on an invalid selection', async () => {
-    mockSelectFile.mockResolvedValueOnce({
+    mockSelectFiles.mockResolvedValueOnce({
       errorMessage: 'Unsupported file type.',
     });
     const handleChange = jest.fn();

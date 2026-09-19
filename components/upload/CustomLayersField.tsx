@@ -11,7 +11,7 @@ import { findCustomLayersMissingMetadata } from '@/components/upload/customLayer
 import { Size, type Colors } from '@/constants/theme';
 import {
   CUSTOM_LAYER_ACCEPTED_EXTENSIONS,
-  selectFileFromPicker,
+  selectFilesFromPicker,
 } from '@/hooks/upload/uploadWorkflowHelpers';
 
 type CustomLayersFieldProps = {
@@ -48,7 +48,7 @@ export function CustomLayersField({
 
   const handleAddLayer = async () => {
     setPickerError(null);
-    const { file, errorMessage } = await selectFileFromPicker({
+    const { files, errorMessage } = await selectFilesFromPicker({
       // '*/*', not a MIME allowlist: .geojson/.json/.tif often don't carry
       // a MIME type an OS file picker recognizes, so filtering by MIME
       // here can silently hide everything but the one it does recognize
@@ -57,14 +57,19 @@ export function CustomLayersField({
       pickerType: '*/*',
       allowedExtensions: CUSTOM_LAYER_ACCEPTED_EXTENSIONS,
       invalidSelectionMessage:
-        'Unsupported file type. Please select a GeoTIFF (.tif/.tiff) or GeoJSON (.geojson/.json) file.',
+        'Unsupported file type. Please select GeoTIFF (.tif/.tiff) or GeoJSON (.geojson/.json) files.',
     });
     if (errorMessage) {
       setPickerError(errorMessage);
       return;
     }
-    if (file) {
-      onChange([...value, file]);
+    if (files && files.length > 0) {
+      // Re-picking the same name replaces the existing entry instead of
+      // duplicating it, matching handleRemove's name-keyed identity.
+      const deduped = value.filter(
+        (asset) => !files.some((file) => file.name === asset.name),
+      );
+      onChange([...deduped, ...files]);
     }
   };
 

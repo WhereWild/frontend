@@ -72,6 +72,11 @@ export type PickerSelectionResult = {
   errorMessage?: string;
 };
 
+export type MultiPickerSelectionResult = {
+  files?: DocumentPicker.DocumentPickerAsset[];
+  errorMessage?: string;
+};
+
 export type DownloadableProcessedZip = {
   blob: Blob;
   contentType: string | null;
@@ -121,6 +126,11 @@ const matchesAllowedExtension = (
     normalizedName.endsWith(extension),
   );
 };
+
+const normalizePickerError = (error: unknown): string =>
+  error instanceof Error && error.message
+    ? error.message
+    : DEFAULT_PICKER_ERROR_MESSAGE;
 
 const persistProcessedZipBlob = async (
   blob: Blob,
@@ -193,12 +203,41 @@ export const selectFileFromPicker = async ({
     return { file };
   } catch (error) {
     console.error('Error opening file picker or reading file:', error);
-    return {
-      errorMessage:
-        error instanceof Error && error.message
-          ? error.message
-          : DEFAULT_PICKER_ERROR_MESSAGE,
-    };
+    return { errorMessage: normalizePickerError(error) };
+  }
+};
+
+/** Same as selectFileFromPicker, but lets the OS picker's own multi-select
+ * UI through instead of forcing a single file per pick -- for CustomLayersField,
+ * where each additional custom layer previously required re-opening the
+ * picker one file at a time. */
+export const selectFilesFromPicker = async ({
+  pickerType,
+  allowedExtensions,
+  invalidSelectionMessage,
+}: PickerSelectionConfig): Promise<MultiPickerSelectionResult> => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: pickerType,
+      copyToCacheDirectory: true,
+      multiple: true,
+    });
+
+    if (result.canceled) {
+      return {};
+    }
+
+    const hasInvalidFile = result.assets.some(
+      (file) => !matchesAllowedExtension(file, allowedExtensions),
+    );
+    if (hasInvalidFile) {
+      return { errorMessage: invalidSelectionMessage };
+    }
+
+    return { files: result.assets };
+  } catch (error) {
+    console.error('Error opening file picker or reading files:', error);
+    return { errorMessage: normalizePickerError(error) };
   }
 };
 
