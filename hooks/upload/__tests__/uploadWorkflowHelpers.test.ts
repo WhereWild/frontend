@@ -224,7 +224,9 @@ describe('uploadWorkflowHelpers', () => {
   });
 
   it('rejects when XMLHttpRequest fires onerror', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed')) as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('fetch failed')) as typeof fetch;
 
     const send = jest.fn(function send(this: { onerror?: () => void }) {
       this.onerror?.();
@@ -238,17 +240,29 @@ describe('uploadWorkflowHelpers', () => {
       send = send;
     }
 
-    global.XMLHttpRequest = MockXMLHttpRequest as unknown as typeof XMLHttpRequest;
+    global.XMLHttpRequest =
+      MockXMLHttpRequest as unknown as typeof XMLHttpRequest;
 
     await expect(
-      resolveAssetBlob(makeDocumentAsset({ uri: 'file://bad.zip', name: 'bad.zip', mimeType: 'application/zip' })),
+      resolveAssetBlob(
+        makeDocumentAsset({
+          uri: 'file://bad.zip',
+          name: 'bad.zip',
+          mimeType: 'application/zip',
+        }),
+      ),
     ).rejects.toThrow('Failed to read selected file from URI: file://bad.zip');
   });
 
   it('rejects when XMLHttpRequest onload response is not a Blob', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed')) as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('fetch failed')) as typeof fetch;
 
-    const send = jest.fn(function send(this: { onload?: () => void; response?: unknown }) {
+    const send = jest.fn(function send(this: {
+      onload?: () => void;
+      response?: unknown;
+    }) {
       this.response = 'not-a-blob';
       this.onload?.();
     });
@@ -262,11 +276,20 @@ describe('uploadWorkflowHelpers', () => {
       send = send;
     }
 
-    global.XMLHttpRequest = MockXMLHttpRequest as unknown as typeof XMLHttpRequest;
+    global.XMLHttpRequest =
+      MockXMLHttpRequest as unknown as typeof XMLHttpRequest;
 
     await expect(
-      resolveAssetBlob(makeDocumentAsset({ uri: 'file://bad.zip', name: 'bad.zip', mimeType: 'application/zip' })),
-    ).rejects.toThrow('Selected file URI did not resolve to a Blob: file://bad.zip');
+      resolveAssetBlob(
+        makeDocumentAsset({
+          uri: 'file://bad.zip',
+          name: 'bad.zip',
+          mimeType: 'application/zip',
+        }),
+      ),
+    ).rejects.toThrow(
+      'Selected file URI did not resolve to a Blob: file://bad.zip',
+    );
   });
 
   it('returns a blob upload payload when the document asset already has a file', () => {
@@ -303,7 +326,11 @@ describe('uploadWorkflowHelpers', () => {
   it('falls back to application/octet-stream when mimeType is absent', () => {
     expect(
       createFilePayload(
-        makeDocumentAsset({ uri: 'file://data', name: 'data', mimeType: undefined }),
+        makeDocumentAsset({
+          uri: 'file://data',
+          name: 'data',
+          mimeType: undefined,
+        }),
       ),
     ).toEqual(expect.objectContaining({ type: 'application/octet-stream' }));
   });
@@ -381,7 +408,9 @@ describe('uploadWorkflowHelpers', () => {
         allowedExtensions: ['.zip'],
         invalidSelectionMessage: 'invalid',
       }),
-    ).resolves.toEqual({ errorMessage: 'Failed to open file picker. Please try again.' });
+    ).resolves.toEqual({
+      errorMessage: 'Failed to open file picker. Please try again.',
+    });
   });
 
   it('formats processed zip delivery status messages for each delivery mode', () => {
