@@ -16,7 +16,10 @@ import {
   deriveRenderBounds,
 } from '@/components/gisEditor/rasterMetadata';
 import { createCogTileRenderer } from '@/components/gisEditor/cogTileRenderer';
-import { selectFileFromPicker } from '@/hooks/upload/uploadWorkflowHelpers';
+import {
+  resolveAssetBlob,
+  selectFileFromPicker,
+} from '@/hooks/upload/uploadWorkflowHelpers';
 
 const mockRedirect = jest.fn();
 
@@ -85,8 +88,60 @@ describe('GisEditorRoute', () => {
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
     render(<GisEditorRoute />);
     expect(mockRedirect).not.toHaveBeenCalled();
-    expect(screen.getByText('Choose GeoTIFF')).toBeTruthy();
+    expect(screen.getByText('Choose file')).toBeTruthy();
     expect(screen.getByText('No file loaded')).toBeTruthy();
+  });
+
+  it('lets the file dialog pick a GeoJSON as well as a GeoTIFF', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    render(<GisEditorRoute />);
+    fireEvent.press(screen.getByText('Choose file'));
+
+    await waitFor(() => expect(selectFileFromPicker).toHaveBeenCalled());
+    const config = (selectFileFromPicker as jest.Mock).mock.calls.at(-1)[0];
+    // A GeoJSON usually has no MIME type a file dialog recognizes, so this
+    // can't be a GeoTIFF-only MIME allowlist.
+    expect(config.pickerType).toBe('*/*');
+    expect(config.allowedExtensions).toEqual(
+      expect.arrayContaining(['.tif', '.tiff', '.geojson', '.json']),
+    );
+  });
+
+  it('opens a picked .geojson in the vector editor instead of treating it as a raster', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+    const geojson = JSON.stringify({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [0, 1],
+                [1, 1],
+                [1, 0],
+                [0, 0],
+              ],
+            ],
+          },
+          properties: { LAND_USE: 'Forest' },
+        },
+      ],
+    });
+    (selectFileFromPicker as jest.Mock).mockResolvedValueOnce({
+      file: { name: 'utah_l4.geojson' },
+    });
+    (resolveAssetBlob as jest.Mock).mockResolvedValueOnce(new Blob([geojson]));
+    (inspectRaster as jest.Mock).mockClear();
+
+    render(<GisEditorRoute />);
+    fireEvent.press(screen.getByText('Choose file'));
+
+    expect(await screen.findByText('utah_l4.geojson')).toBeTruthy();
+    expect(screen.getByTestId('gis-vector-display-name')).toBeTruthy();
+    expect(inspectRaster).not.toHaveBeenCalled();
   });
 
   it('gates rendering behind a warning when the COG checklist fails', async () => {
@@ -129,7 +184,7 @@ describe('GisEditorRoute', () => {
     });
 
     render(<GisEditorRoute />);
-    fireEvent.press(screen.getByText('Choose GeoTIFF'));
+    fireEvent.press(screen.getByText('Choose file'));
 
     await waitFor(() =>
       expect(

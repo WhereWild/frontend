@@ -85,6 +85,22 @@ import {
 } from './tiffMetadataWriter';
 
 const ACCEPTED_EXTENSIONS = ['.tif', '.tiff'] as const;
+const GEOJSON_NAME_PATTERN = /\.(geo)?json$/i;
+// What the file dialog accepts: the GeoTIFFs plus the GeoJSON names
+// GEOJSON_NAME_PATTERN routes to the vector path (same set drag-and-drop
+// already handled).
+const PICKER_EXTENSIONS = [
+  ...ACCEPTED_EXTENSIONS,
+  '.geojson',
+  '.json',
+] as const;
+
+// A Blob from the file picker has no name of its own on every platform, but
+// ingestGeoJson derives the layer's name from one.
+const withFileName = (blob: Blob, name: string): Blob & { name?: string } =>
+  typeof (blob as { name?: unknown }).name === 'string'
+    ? blob
+    : Object.assign(blob.slice(), { name });
 const MAP_HEIGHT = 520;
 
 // 'confirm' = metadata parsed but the file fails the COG checklist — the
@@ -703,27 +719,6 @@ export function GisEditorScreen() {
     }
   }, [loaded, editableMeta]);
 
-  const pickFile = React.useCallback(async () => {
-    const { file, errorMessage: pickError } = await selectFileFromPicker({
-      pickerType: ['image/tiff', 'image/geo+tiff'],
-      allowedExtensions: ACCEPTED_EXTENSIONS,
-      invalidSelectionMessage:
-        'Unsupported file type. Choose a GeoTIFF (.tif or .tiff).',
-    });
-    if (pickError) {
-      setStatus('error');
-      setErrorMessage(pickError);
-      return;
-    }
-    if (!file) return;
-    // The document picker never hands back a real filesystem handle, so a
-    // file selected this way always saves as a download.
-    fileHandleRef.current = null;
-    clearVector();
-    const blob = await resolveAssetBlob(file);
-    await ingest(blob, file.name, blob.size);
-  }, [ingest, clearVector]);
-
   const clear = React.useCallback(() => {
     requestIdRef.current += 1;
     rendererRef.current?.dispose();
@@ -735,6 +730,36 @@ export function GisEditorScreen() {
     setErrorMessage(null);
     setStatus('idle');
   }, []);
+
+  const pickFile = React.useCallback(async () => {
+    const { file, errorMessage: pickError } = await selectFileFromPicker({
+      // '*/*', not a MIME allowlist: a .geojson/.json file usually has no
+      // MIME type a file dialog recognizes, so listing only the GeoTIFF
+      // types hid every one of them. The extension check does the real
+      // filtering (same approach as the upload page's custom-layer picker).
+      pickerType: '*/*',
+      allowedExtensions: PICKER_EXTENSIONS,
+      invalidSelectionMessage:
+        'Unsupported file type. Choose a GeoTIFF (.tif or .tiff) or a GeoJSON (.geojson or .json) file.',
+    });
+    if (pickError) {
+      setStatus('error');
+      setErrorMessage(pickError);
+      return;
+    }
+    if (!file) return;
+    // The document picker never hands back a real filesystem handle, so a
+    // file selected this way always saves as a download.
+    fileHandleRef.current = null;
+    const blob = await resolveAssetBlob(file);
+    if (GEOJSON_NAME_PATTERN.test(file.name)) {
+      clear();
+      void ingestGeoJson(withFileName(blob, file.name));
+      return;
+    }
+    clearVector();
+    await ingest(blob, file.name, blob.size);
+  }, [ingest, ingestGeoJson, clear, clearVector]);
 
   // Web drag-and-drop.
   const dropRef = React.useRef<HTMLDivElement | null>(null);
@@ -748,7 +773,7 @@ export function GisEditorScreen() {
       const files = Array.from(e.dataTransfer?.files ?? []);
       if (files.length === 0) return;
 
-      if (files.length === 1 && /\.(geo)?json$/i.test(files[0].name)) {
+      if (files.length === 1 && GEOJSON_NAME_PATTERN.test(files[0].name)) {
         clear();
         fileHandleRef.current = null;
         void ingestGeoJson(files[0]);
@@ -840,8 +865,8 @@ export function GisEditorScreen() {
               ]}
             >
               <ThemedText variant='body'>
-                Drop a GeoTIFF below to inspect its metadata and preview it on
-                the map, or drop a .geojson file. The file never leaves your
+                Drop or choose a GeoTIFF or a .geojson file below to inspect its
+                metadata and preview it on the map. The file never leaves your
                 browser.
               </ThemedText>
 
@@ -884,7 +909,7 @@ export function GisEditorScreen() {
                       label={
                         loaded || loadedVector
                           ? 'Load a different file'
-                          : 'Choose GeoTIFF'
+                          : 'Choose file'
                       }
                       disabled={status === 'parsing'}
                       onPress={pickFile}
