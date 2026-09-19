@@ -112,6 +112,16 @@ export function MetadataEditor({
         Change the metadata of the file.
       </ThemedText>
 
+      <TextInput
+        style={textInputStyle}
+        value={editable.displayName}
+        onChangeText={(t) => onChange({ ...editable, displayName: t })}
+        placeholder='Display name (defaults to the file name)'
+        placeholderTextColor={palette.text.default.secondary}
+        accessibilityLabel='Display name'
+        testID='gis-metadata-display-name'
+      />
+
       <SelectField
         label='Data type'
         value={editable.valueType}

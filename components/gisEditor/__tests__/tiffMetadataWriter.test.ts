@@ -13,6 +13,7 @@ import type { RasterMetadata } from '../rasterMetadata';
 const baseMetadata = { noData: -9999 } as unknown as RasterMetadata;
 
 const ratioEditable: RasterEditableMeta = {
+  displayName: '',
   valueType: 'ratio',
   units: '°C',
   renderMin: 0,
@@ -23,6 +24,7 @@ const ratioEditable: RasterEditableMeta = {
 };
 
 const nominalEditable: RasterEditableMeta = {
+  displayName: '',
   valueType: 'nominal',
   units: '',
   renderMin: 11,
@@ -38,6 +40,7 @@ const nominalEditable: RasterEditableMeta = {
 describe('buildGdalMetadataXml', () => {
   it('always includes WHEREWILD_VALUE_TYPE', () => {
     const xml = buildGdalMetadataXml({
+      displayName: '',
       valueType: 'circular',
       units: '',
       renderMin: 0,

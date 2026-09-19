@@ -48,6 +48,7 @@ const baseFc: GeoJsonFeatureCollection = {
 describe('buildStyledGeoJson', () => {
   it('round-trips categorical styling through the real inspectGeoJson reader, geometry intact', async () => {
     const editable: VectorEditableMeta = {
+      displayName: '',
       mode: 'categorical',
       color: '#3388ff',
       field: 'LAND_USE',
@@ -60,6 +61,7 @@ describe('buildStyledGeoJson', () => {
     const { metadata, geojson } = await inspectGeoJson(blob);
 
     expect(metadata.savedConfig).toEqual({
+      displayName: null,
       mode: 'categorical',
       color: null,
       field: 'LAND_USE',
@@ -76,6 +78,7 @@ describe('buildStyledGeoJson', () => {
 
   it('round-trips single-color styling', async () => {
     const editable: VectorEditableMeta = {
+      displayName: '',
       mode: 'single',
       color: '#ff8800',
       field: null,
@@ -84,10 +87,59 @@ describe('buildStyledGeoJson', () => {
     const blob = buildStyledGeoJson(baseFc, editable);
     const { metadata } = await inspectGeoJson(blob);
     expect(metadata.savedConfig).toEqual({
+      displayName: null,
       mode: 'single',
       color: '#ff8800',
       field: null,
       classes: [],
     });
+  });
+
+  it('round-trips the display name in both modes, and keeps it out of the field list', async () => {
+    for (const editable of [
+      {
+        displayName: 'Ecoregions (L4)',
+        mode: 'single' as const,
+        color: '#ff0000',
+        field: null,
+        classes: [],
+      },
+      {
+        displayName: 'Ecoregions (L4)',
+        mode: 'categorical' as const,
+        color: '#3388ff',
+        field: 'LAND_USE',
+        classes: [
+          { value: 'Forest', name: 'Forest', color: '#00ff00' },
+          { value: 'Water', name: 'Water', color: '#0000ff' },
+        ],
+      },
+    ] satisfies VectorEditableMeta[]) {
+      const blob = buildStyledGeoJson(baseFc, editable);
+      const { metadata } = await inspectGeoJson(blob);
+      expect(metadata.savedConfig?.displayName).toBe('Ecoregions (L4)');
+      expect(metadata.fields.map((f) => f.name)).toEqual(['LAND_USE']);
+    }
+  });
+
+  it('removes a previously saved name when the field is cleared, instead of carrying it through', async () => {
+    const named: VectorEditableMeta = {
+      displayName: 'Old name',
+      mode: 'single',
+      color: '#ff0000',
+      field: null,
+      classes: [],
+    };
+    const first = await inspectGeoJson(buildStyledGeoJson(baseFc, named));
+    const cleared = await inspectGeoJson(
+      buildStyledGeoJson(first.geojson, { ...named, displayName: '  ' }),
+    );
+
+    expect(cleared.metadata.savedConfig?.displayName).toBeNull();
+    expect(
+      cleared.geojson.features.every(
+        (f) => !('WW_NAME' in (f.properties ?? {})),
+      ),
+    ).toBe(true);
   });
 });

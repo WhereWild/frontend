@@ -163,6 +163,7 @@ describe('buildInitialEditableMeta', () => {
 describe('withScaleOffset', () => {
   it('re-derives render bounds from the raw bounds under the new scale/offset', () => {
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ratio',
       units: '',
       renderMin: 0,
@@ -186,6 +187,7 @@ describe('withScaleOffset', () => {
 
 describe('withValueType', () => {
   const base: RasterEditableMeta = {
+    displayName: '',
     valueType: 'ratio',
     units: '',
     renderMin: 0,
@@ -226,6 +228,7 @@ describe('withValueType', () => {
 describe('toEnvironmentVariableOption', () => {
   it('maps editable state to EnvironmentVariableOption fields', () => {
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'nominal',
       units: '  mm ',
       renderMin: 0,
@@ -245,6 +248,7 @@ describe('toEnvironmentVariableOption', () => {
 
   it('nulls out units and legendClasses when empty', () => {
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ratio',
       units: '   ',
       renderMin: 0,
@@ -262,6 +266,7 @@ describe('toEnvironmentVariableOption', () => {
 describe('editableMetaToDetectedType', () => {
   it('reflects the manually chosen type with high confidence', () => {
     const editable: RasterEditableMeta = {
+      displayName: '',
       valueType: 'circular',
       units: '',
       renderMin: 0,
@@ -278,6 +283,7 @@ describe('editableMetaToDetectedType', () => {
 
 describe('addDiscoveredClasses', () => {
   const ordinal: RasterEditableMeta = {
+    displayName: '',
     valueType: 'ordinal',
     units: '',
     renderMin: 0,
@@ -315,6 +321,7 @@ describe('addDiscoveredClasses', () => {
 
   it('is a no-op for continuous data (nothing to grow)', () => {
     const ratio: RasterEditableMeta = {
+      displayName: '',
       valueType: 'ratio',
       units: '',
       renderMin: 0,
@@ -329,5 +336,41 @@ describe('addDiscoveredClasses', () => {
   it('dedupes repeated ids in a single call', () => {
     const result = addDiscoveredClasses(ordinal, [3, 3, 3]);
     expect(result.classes.filter((c) => c.value === 3)).toHaveLength(1);
+  });
+});
+
+describe('display name', () => {
+  it('labels the variable by its display name, falling back to the file name when blank', () => {
+    const base = buildInitialEditableMeta(null, {
+      min: 0,
+      max: 1,
+      approximate: false,
+    });
+    expect(
+      toEnvironmentVariableOption('salinity.tif', 1, {
+        ...base,
+        displayName: '  Soil salinity ',
+      }).label,
+    ).toBe('Soil salinity');
+    expect(
+      toEnvironmentVariableOption('salinity.tif', 1, {
+        ...base,
+        displayName: '',
+      }).label,
+    ).toBe('salinity.tif');
+  });
+
+  it('seeds the display name from a previously saved one', () => {
+    expect(
+      buildInitialEditableMeta(
+        null,
+        { min: 0, max: 1, approximate: false },
+        null,
+        null,
+        null,
+        null,
+        'Soil salinity',
+      ).displayName,
+    ).toBe('Soil salinity');
   });
 });

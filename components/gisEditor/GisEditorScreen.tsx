@@ -567,6 +567,7 @@ export function GisEditorScreen() {
           metadata.offset,
           metadata.units,
           metadata.savedConfig?.classes ?? null,
+          metadata.savedConfig?.displayName ?? null,
         );
         setLoaded(next);
         setEditableMeta(initialEditable);

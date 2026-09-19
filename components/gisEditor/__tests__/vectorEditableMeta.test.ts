@@ -4,6 +4,7 @@
 
 import {
   buildInitialVectorEditableMeta,
+  toVectorVariableMeta,
   distinctFieldValues,
   withCategoricalField,
   withClassColor,
@@ -45,6 +46,7 @@ describe('buildInitialVectorEditableMeta', () => {
 
   it('restores a saved single-color config', () => {
     const saved: VectorSavedConfig = {
+      displayName: null,
       mode: 'single',
       color: '#123456',
       field: null,
@@ -52,6 +54,7 @@ describe('buildInitialVectorEditableMeta', () => {
     };
     const editable = buildInitialVectorEditableMeta(fields, saved, features);
     expect(editable).toEqual({
+      displayName: '',
       mode: 'single',
       color: '#123456',
       field: null,
@@ -61,6 +64,7 @@ describe('buildInitialVectorEditableMeta', () => {
 
   it('restores a saved categorical config when the field still exists', () => {
     const saved: VectorSavedConfig = {
+      displayName: null,
       mode: 'categorical',
       color: null,
       field: 'LAND_USE',
@@ -78,6 +82,7 @@ describe('buildInitialVectorEditableMeta', () => {
 
   it('auto-picks a field if the saved categorical field no longer exists', () => {
     const saved: VectorSavedConfig = {
+      displayName: null,
       mode: 'categorical',
       color: null,
       field: 'REMOVED_FIELD',
@@ -139,5 +144,32 @@ describe('withSingleColor / withClassColor / withClassName', () => {
 
     const renamed = withClassName(recolored, 'Water', 'Lake');
     expect(renamed.classes.find((c) => c.value === 'Water')?.name).toBe('Lake');
+  });
+});
+
+describe('display name', () => {
+  it('restores a saved display name, even when the saved field is gone and it falls back to auto-picking', () => {
+    const saved: VectorSavedConfig = {
+      mode: 'categorical',
+      color: null,
+      field: 'MISSING_FIELD',
+      classes: [],
+      displayName: 'Ecoregions (L4)',
+    };
+    expect(buildInitialVectorEditableMeta([], saved, []).displayName).toBe(
+      'Ecoregions (L4)',
+    );
+  });
+
+  it('labels the variable by its display name, falling back to the file name when blank', () => {
+    const editable = buildInitialVectorEditableMeta([], null, []);
+    expect(
+      toVectorVariableMeta('utah_l4', 1, { ...editable, displayName: ' Utah ' })
+        .label,
+    ).toBe('Utah');
+    expect(
+      toVectorVariableMeta('utah_l4', 1, { ...editable, displayName: '' })
+        .label,
+    ).toBe('utah_l4');
   });
 });

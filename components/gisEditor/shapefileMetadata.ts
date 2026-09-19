@@ -41,6 +41,9 @@ export type VectorSavedConfig = {
   color: string | null;
   field: string | null;
   classes: { value: string; name: string; color: string }[];
+  /** The name the user gave this layer in the editor (WW_NAME), shown as
+   * its label instead of the file name -- null when they never set one. */
+  displayName: string | null;
 };
 
 export type VectorMetadata = {
@@ -81,6 +84,7 @@ export type GeoJsonFeatureCollection = {
 const WW_MODE_FIELD = 'WW_MODE';
 const WW_COLOR_FIELD = 'WW_COLOR';
 const WW_FIELD_FIELD = 'WW_FIELD';
+const WW_NAME_FIELD = 'WW_NAME';
 
 const fieldTypeOf = (value: unknown): VectorFieldType => {
   if (typeof value === 'number') return 'number';
@@ -107,10 +111,13 @@ const readSavedConfig = (
   const props = fc.features[0]?.properties;
   const mode = props?.[WW_MODE_FIELD];
   if (mode !== 'single' && mode !== 'categorical') return null;
+  const rawName = props?.[WW_NAME_FIELD];
+  const displayName =
+    typeof rawName === 'string' && rawName.trim() ? rawName.trim() : null;
   if (mode === 'single') {
     const color = props?.[WW_COLOR_FIELD];
     return typeof color === 'string'
-      ? { mode: 'single', color, field: null, classes: [] }
+      ? { mode: 'single', color, field: null, classes: [], displayName }
       : null;
   }
   const field = props?.[WW_FIELD_FIELD];
@@ -132,6 +139,7 @@ const readSavedConfig = (
       name: value,
       color,
     })),
+    displayName,
   };
   return isVectorSavedConfig(parsed) ? parsed : null;
 };
@@ -171,7 +179,8 @@ const deriveVectorMetadata = (
       if (
         key === WW_MODE_FIELD ||
         key === WW_COLOR_FIELD ||
-        key === WW_FIELD_FIELD
+        key === WW_FIELD_FIELD ||
+        key === WW_NAME_FIELD
       ) {
         continue;
       }

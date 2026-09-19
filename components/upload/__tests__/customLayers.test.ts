@@ -333,6 +333,67 @@ describe('sampleCustomLayer (vector)', () => {
   });
 });
 
+describe('display name', () => {
+  it("uses a vector layer's saved display name as the variable name, keeping the slugged id", async () => {
+    const fc = JSON.stringify({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [0, 10],
+                [10, 10],
+                [10, 0],
+                [0, 0],
+              ],
+            ],
+          },
+          properties: {
+            LAND_USE: 'Forest',
+            WW_MODE: 'categorical',
+            WW_FIELD: 'LAND_USE',
+            WW_COLOR: '#0f0',
+            WW_NAME: 'Utah Ecoregions',
+          },
+        },
+      ],
+    });
+    const result = await sampleCustomLayer(
+      assetWithBlob('utah_l4.geojson', fc),
+      [{ lat: 5, lon: 5 }],
+    );
+    expect(result!.descriptor.id).toBe('utah_l4');
+    expect(result!.descriptor.name).toBe('Utah Ecoregions');
+  });
+
+  it("uses a raster layer's saved display name as the variable name, keeping the slugged id", async () => {
+    mockInspectRaster.mockResolvedValueOnce({
+      savedConfig: {
+        valueType: 'ratio',
+        classes: [],
+        displayName: 'Soil salinity',
+      },
+      scale: 1,
+      offset: 0,
+      units: null,
+    } as never);
+    mockCreateCogTileRenderer.mockResolvedValueOnce({
+      readPointValue: jest.fn().mockResolvedValue({ value: 1 }),
+      dispose: jest.fn(),
+    } as never);
+    const result = await sampleCustomLayer(
+      { name: 'salinity_two.tif', uri: 'x', file: new Blob(['']) } as never,
+      [{ lat: 1, lon: 1 }],
+    );
+    expect(result!.descriptor.id).toBe('salinity_two');
+    expect(result!.descriptor.name).toBe('Soil salinity');
+  });
+});
+
 describe('vector sampling performance behavior', () => {
   const collection = JSON.stringify({
     type: 'FeatureCollection',

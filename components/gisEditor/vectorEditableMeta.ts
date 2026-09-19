@@ -16,6 +16,9 @@ import type { VectorField, VectorSavedConfig } from './shapefileMetadata';
 export type VectorClass = { value: string; name: string; color: string };
 
 export type VectorEditableMeta = {
+  /** What this layer is called wherever it's shown. Empty means "use the
+   * file name". */
+  displayName: string;
   mode: 'single' | 'categorical';
   color: string;
   /** Which field categorical mode colors by — null in single mode, and
@@ -83,6 +86,7 @@ export const buildInitialVectorEditableMeta = (
     fields.some((f) => f.name === savedConfig.field);
   if (savedConfig && (savedConfig.mode === 'single' || savedFieldStillExists)) {
     return {
+      displayName: savedConfig.displayName ?? '',
       mode: savedConfig.mode,
       color: savedConfig.color ?? DEFAULT_SINGLE_COLOR,
       field: savedConfig.field,
@@ -93,6 +97,9 @@ export const buildInitialVectorEditableMeta = (
     };
   }
   const base: VectorEditableMeta = {
+    // Kept even when the saved field can't be restored -- the name has
+    // nothing to do with which column the classes come from.
+    displayName: savedConfig?.displayName ?? '',
     mode: 'single',
     color: DEFAULT_SINGLE_COLOR,
     field: null,
@@ -175,7 +182,7 @@ export const toVectorVariableMeta = (
   editable: VectorEditableMeta,
 ): EnvironmentVariableOption => ({
   id: 'local-vector',
-  label: fileNameBase,
+  label: editable.displayName.trim() || fileNameBase,
   units: null,
   valueType: 'nominal',
   category: 'Local vector',
