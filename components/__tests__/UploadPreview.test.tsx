@@ -67,6 +67,20 @@ jest.mock('@/components', () => {
           },
           'select-ordinal',
         ),
+        ReactLocal.createElement(
+          Text,
+          {
+            testID: 'upload-preview-select-custom-layer-variable',
+            onPress: () =>
+              props.onVariableMetaChange?.({
+                id: 'rainfall',
+                label: 'rainfall',
+                valueType: 'ratio',
+                category: 'Custom Layers',
+              }),
+          },
+          'select-custom-layer',
+        ),
       );
     },
     SpeciesOccurrenceMap: (props: {
@@ -305,5 +319,97 @@ describe('UploadPreview', () => {
     expect(colorById.get('4')).not.toBe('#fde725');
     expect(colorById.get('0')?.toLowerCase()).toBe('#000004');
     expect(colorById.get('4')?.toLowerCase()).toBe('#fcfdbf');
+  });
+
+  it("warns that background clicks/basemap won't work for a re-imported custom layer whose file isn't attached", async () => {
+    render(
+      <UploadPreview
+        highlightedCatalogs={[]}
+        height={320}
+        customLayerAssets={new Map()}
+        uploadedBundle={{
+          categoricalStats: [],
+          ordinalStats: [],
+          densityGraph: [],
+          occurrences: [
+            { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
+          ],
+          occurrenceIndex: [],
+          summaryStats: [],
+        }}
+        uploadedDataSource={
+          {
+            fetchSpeciesOccurrences: jest.fn().mockResolvedValue({
+              occurrences: [],
+              minTimestamp: null,
+              maxTimestamp: null,
+              phenologyCounts: null,
+            }),
+          } as never
+        }
+        onHighlightChange={jest.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId('upload-preview-select-custom-layer-variable'),
+      );
+    });
+
+    expect(screen.getByText(/isn't attached this session/)).toBeTruthy();
+  });
+
+  it("does not warn once the custom layer's file is re-attached this session", async () => {
+    // customLayerAssets alone is what suppresses the warning -- whether the
+    // fake asset here can actually build a real renderer in this jsdom
+    // environment (it can't; resolveAssetBlob has no XMLHttpRequest/fetch
+    // to read it) is irrelevant to that, so just swallow the resulting
+    // build-failure log instead of asserting on it.
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <UploadPreview
+        highlightedCatalogs={[]}
+        height={320}
+        customLayerAssets={
+          new Map([
+            [
+              'rainfall',
+              { name: 'rainfall.tif', uri: 'file://rainfall.tif' } as never,
+            ],
+          ])
+        }
+        uploadedBundle={{
+          categoricalStats: [],
+          ordinalStats: [],
+          densityGraph: [],
+          occurrences: [
+            { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
+          ],
+          occurrenceIndex: [],
+          summaryStats: [],
+        }}
+        uploadedDataSource={
+          {
+            fetchSpeciesOccurrences: jest.fn().mockResolvedValue({
+              occurrences: [],
+              minTimestamp: null,
+              maxTimestamp: null,
+              phenologyCounts: null,
+            }),
+          } as never
+        }
+        onHighlightChange={jest.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId('upload-preview-select-custom-layer-variable'),
+      );
+    });
+
+    expect(screen.queryByText(/isn't attached this session/)).toBeNull();
+    errorSpy.mockRestore();
   });
 });

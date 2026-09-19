@@ -17,7 +17,7 @@ import {
   COMPACT_IMAGE_SIZE as OBSERVATION_CARD_COMPACT_WIDTH,
   type ObservationCardSize,
 } from '@/components/cards/ObservationCard';
-import { Size } from '@/constants/theme';
+import { Colors, Size } from '@/constants/theme';
 import { SpeciesInformationSection } from '@/components/sections/SpeciesInformationSection';
 import type { SpeciesOverview } from '@/data/types';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
@@ -34,6 +34,8 @@ import {
   createLocalCustomLayerRenderer,
   type LocalCustomLayerRenderer,
 } from '@/components/upload/customLayerLocalRenderer';
+import { CUSTOM_LAYER_VARIABLE_CATEGORY } from '@/components/upload/customLayers';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import {
   isVariableCategorical,
   isVariableCircular,
@@ -173,6 +175,8 @@ export function UploadPreview({
 }: UploadPreviewProps) {
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
+  const scheme = useColorScheme();
+  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const settings = useOptionalSettings();
   const units = settings?.units;
   const selectedColormap = settings?.colormap ?? 'viridis';
@@ -248,6 +252,20 @@ export function UploadPreview({
   React.useEffect(() => {
     return () => localVariableRenderer?.dispose();
   }, [localVariableRenderer]);
+
+  // True only for a "stage 2" scenario: a re-imported dataset carries a
+  // variable that used to be a custom layer (see
+  // CUSTOM_LAYER_VARIABLE_CATEGORY's own doc comment for how that's
+  // detected), but its original file isn't attached this session, so
+  // background-point clicks and the "variable" basemap silently fall back
+  // to the normal (always-failing, for a custom variable) backend path
+  // above. A fresh stage-1 upload never hits this: sampling only produces
+  // this variable at all when its file was attached, so localVariableRenderer
+  // is only null here at the very start of the async build, not because
+  // the file is missing.
+  const isCustomLayerMissingThisSession =
+    selectedVariableMeta?.category === CUSTOM_LAYER_VARIABLE_CATEGORY &&
+    !customLayerAssets.has(selectedVariableMeta.id);
 
   // Hand-drawn region filter — client-side only, against whatever's already
   // been fetched. Mirrors _species.tsx's identical setup: the draw/cancel/
@@ -1091,6 +1109,31 @@ export function UploadPreview({
                     />
                   ))}
           </View>
+          {isCustomLayerMissingThisSession && (
+            <View
+              style={[
+                styles.constrainedSection,
+                { maxWidth: responsive.contentWidth },
+              ]}
+            >
+              <View
+                style={[
+                  styles.customLayerMissingWarning,
+                  {
+                    backgroundColor: palette.background.warning.secondary,
+                    borderColor: palette.border.warning.default,
+                  },
+                ]}
+              >
+                <ThemedText
+                  variant='bodySmall'
+                  style={{ color: palette.text.warning.default }}
+                >
+                  {`"${selectedVariableMeta?.label ?? selectedVariableMeta?.id}" was sampled from a custom layer file that isn't attached this session, so clicking a background point and the "variable" basemap won't work for it. Re-add its file in Extra options to enable them.`}
+                </ThemedText>
+              </View>
+            </View>
+          )}
           <View
             style={[
               styles.constrainedSection,
@@ -1128,5 +1171,12 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     position: 'relative',
+  },
+  customLayerMissingWarning: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
   },
 });
