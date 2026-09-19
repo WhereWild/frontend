@@ -508,7 +508,12 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             }
           },
         );
-        const filename = response.filename ?? DEFAULT_PROCESSED_ZIP_FILENAME;
+        // The enriched ZIP replaces the one that was imported, so it keeps
+        // that file's name rather than the backend's generic archive name
+        // (which also drops anything specific to the original, like a
+        // species-page download's taxon name).
+        const filename =
+          file.name || response.filename || DEFAULT_PROCESSED_ZIP_FILENAME;
         setDownloadableProcessedZip({
           blob: response.blob,
           contentType: response.contentType ?? null,
