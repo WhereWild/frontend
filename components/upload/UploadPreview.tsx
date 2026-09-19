@@ -26,9 +26,14 @@ import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { anchorScrollMarginStyle } from '@/utils/anchors';
+import type * as DocumentPicker from 'expo-document-picker';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
+import {
+  createLocalCustomLayerRenderer,
+  type LocalCustomLayerRenderer,
+} from '@/components/upload/customLayerLocalRenderer';
 import {
   isVariableCategorical,
   isVariableCircular,
@@ -75,6 +80,13 @@ type UploadPreviewProps = {
   height: number;
   uploadedBundle: UploadedParquetBundle;
   uploadedDataSource: SpeciesDataSource;
+  /** The raw file each currently-uploaded custom layer variable was
+   * sampled from, keyed by variable id — see useUploadWorkflow.ts. Lets
+   * this map answer background-point clicks and render the "variable"
+   * basemap for one of these variables locally (customLayerLocalRenderer.ts)
+   * instead of always querying the backend, which never received the file.
+   * Empty for a re-imported ZIP, since that path has no original file. */
+  customLayerAssets: Map<string, DocumentPicker.DocumentPickerAsset>;
   onHighlightChange: (catalogNumbers: (number | string)[]) => void;
 };
 
@@ -156,6 +168,7 @@ export function UploadPreview({
   height,
   uploadedBundle,
   uploadedDataSource,
+  customLayerAssets,
   onHighlightChange,
 }: UploadPreviewProps) {
   const responsive = useResponsive();
@@ -197,6 +210,44 @@ export function UploadPreview({
   const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
     null,
   );
+
+  // A client-side tile/point-value renderer for the selected variable, only
+  // when its original file is still attached in this session (see
+  // customLayerAssets' own doc comment) — null for a real catalog variable
+  // (always goes through the backend) or a custom variable whose file isn't
+  // available this session (re-imported "stage 2" data with no re-added
+  // layer — background clicks/basemap intentionally fall back to the
+  // normal (failing) backend path for that case rather than pretending to
+  // work; see item #4/#5 of the upload-page nitpick list for surfacing that
+  // gap directly instead of just silently not working).
+  const [localVariableRenderer, setLocalVariableRenderer] =
+    React.useState<LocalCustomLayerRenderer | null>(null);
+  React.useEffect(() => {
+    const variableId = selectedVariableMeta?.id;
+    const asset = variableId ? customLayerAssets.get(variableId) : undefined;
+    if (!asset || !selectedVariableMeta) {
+      setLocalVariableRenderer(null);
+      return;
+    }
+    let cancelled = false;
+    createLocalCustomLayerRenderer(asset, selectedVariableMeta)
+      .then((renderer) => {
+        if (!cancelled) setLocalVariableRenderer(renderer);
+      })
+      .catch((error) => {
+        console.error('Failed to build local custom layer renderer:', error);
+        if (!cancelled) setLocalVariableRenderer(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVariableMeta, customLayerAssets]);
+  // Disposed on every replacement/unmount, not just unmount, since a new
+  // renderer is built (and the old one's decoder should close) every time
+  // the selected variable changes.
+  React.useEffect(() => {
+    return () => localVariableRenderer?.dispose();
+  }, [localVariableRenderer]);
 
   // Hand-drawn region filter — client-side only, against whatever's already
   // been fetched. Mirrors _species.tsx's identical setup: the draw/cancel/
@@ -420,12 +471,17 @@ export function UploadPreview({
   // at all. Mirrors maps.tsx's isAutoAdaptApplicable. Also requires the
   // 'variable' basemap mode actually be active — see _species.tsx's
   // identical addition for why (some variable can be selected without the
-  // heatmap overlay itself being shown).
+  // heatmap overlay itself being shown). A local custom layer has no
+  // backend tile-range/stats endpoint to fetch from either (see
+  // VariableHeatmapMap's identical tileSource.kind === 'remote' guard) —
+  // its legend already gets a real renderMin/renderMax from the variable
+  // meta itself (see util/upload.py's parse_custom_layer_metadata).
   const isAutoAdaptApplicable =
     settings?.basemapMode === 'variable' &&
     Boolean(selectedVariableMeta) &&
     !isVariableCategorical(selectedVariableMeta) &&
-    !isVariableCircular(selectedVariableMeta);
+    !isVariableCircular(selectedVariableMeta) &&
+    !localVariableRenderer;
   const {
     autoAdaptEnabled,
     toggleAutoAdapt,
@@ -450,8 +506,15 @@ export function UploadPreview({
     const renderRangeParam = autoAdaptRenderRange
       ? `&render_range=${encodeURIComponent(JSON.stringify(autoAdaptRenderRange))}`
       : '';
+    // 'localtiles://...' — recognized by isLocalTileUrl() in the map
+    // templates, which routes tile requests through renderLocalTile's
+    // postMessage bridge instead of a real fetch() (see
+    // speciesOccurrenceMapHelpers.ts). The path + query stay byte-identical
+    // either way, so createLocalCustomLayerRenderer's renderTile reads the
+    // same colormap/render_range params the backend route would.
+    const baseUrl = localVariableRenderer ? 'localtiles:/' : BACKEND_BASE;
     return (
-      `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
+      `${baseUrl}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
       `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}${renderRangeParam}`
     );
   }, [
@@ -460,6 +523,7 @@ export function UploadPreview({
     selectedCircularColormap,
     cbMode,
     units,
+    localVariableRenderer,
     autoAdaptRenderRange,
   ]);
 
@@ -646,8 +710,36 @@ export function UploadPreview({
     ? isVariableCircular(selectedVariableMeta)
     : false;
 
+  // Local rasters' own readPointValue() bakes each class's color in at
+  // renderer-construction time (see cogTileRenderer.ts) — for ordinal data
+  // that's the same stale/seeded color problem ordinalFallbackColor fixes
+  // for the legend and dots, just showing up in the click-popup instead.
+  // Re-deriving it here at click time keeps the popup swatch matching
+  // whatever colormap is currently selected. Mirrors VariableHeatmapMap's
+  // identical wrapper.
+  const renderLocalPointValue = React.useMemo(() => {
+    if (!localVariableRenderer) return undefined;
+    const rawReadPointValue = localVariableRenderer.readPointValue;
+    return async (lat: number, lon: number) => {
+      const result = await rawReadPointValue(lat, lon);
+      if (!result || !isOrdinalVariable) return result;
+      return {
+        ...result,
+        classColor: ordinalFallbackColor(
+          result.value,
+          result.classColor ?? '#888888',
+        ),
+      };
+    };
+  }, [localVariableRenderer, isOrdinalVariable, ordinalFallbackColor]);
+
+  // 'localpoint://point' — the fixed sentinel isLocalPointUrl() in the map
+  // templates checks for; renderLocalPointValue needs no query params of
+  // its own since it's a plain closure over the already-selected variable.
   const pointQueryUrl = selectedVariableMeta
-    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
+    ? localVariableRenderer
+      ? 'localpoint://point'
+      : `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
     : null;
 
   // Observation photo gallery — mirrors app/_species.tsx's identical setup
@@ -887,6 +979,8 @@ export function UploadPreview({
               onPointValue={setPinnedPointValue}
               pointQueryUrl={pointQueryUrl}
               heatmapTileUrl={heatmapTileUrl}
+              renderLocalTile={localVariableRenderer?.renderTile}
+              renderLocalPointValue={renderLocalPointValue}
               disableObservationQuery={true}
               onPolygonDrawn={handlePolygonDrawn}
               onPolygonCleared={handlePolygonCleared}

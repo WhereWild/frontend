@@ -73,6 +73,13 @@ const splitDelimitedLine = (line: string, delimiter: string): string[] => {
 export type CustomLayerAugmentationResult = {
   augmentedText: string;
   descriptors: CustomLayerDescriptor[];
+  /** The asset each usable descriptor was actually sampled from, keyed by
+   * descriptor.id — lets a caller keep the raw file around (see
+   * useUploadWorkflow.ts) for local point-value/tile rendering later in
+   * the same session, without re-deriving the id from the filename (which
+   * would work today since both use customLayerIdFromFilename, but ties
+   * two unrelated call sites to staying in sync for no reason). */
+  assetsById: Map<string, DocumentPicker.DocumentPickerAsset>;
 };
 
 /** Samples every attached custom layer at each row's (lat, lon) entirely
@@ -91,7 +98,7 @@ export const augmentRawTextWithCustomLayers = async (
   customLayers: DocumentPicker.DocumentPickerAsset[],
 ): Promise<CustomLayerAugmentationResult> => {
   if (customLayers.length === 0) {
-    return { augmentedText: text, descriptors: [] };
+    return { augmentedText: text, descriptors: [], assetsById: new Map() };
   }
 
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
@@ -100,7 +107,7 @@ export const augmentRawTextWithCustomLayers = async (
   );
   const [headerLine, ...rowLines] = nonEmptyLines;
   if (!headerLine) {
-    return { augmentedText: text, descriptors: [] };
+    return { augmentedText: text, descriptors: [], assetsById: new Map() };
   }
 
   const headers = splitDelimitedLine(headerLine, delimiter).map(
@@ -109,7 +116,7 @@ export const augmentRawTextWithCustomLayers = async (
   const latIndex = headers.findIndex((h) => LAT_ALIASES.includes(h));
   const lonIndex = headers.findIndex((h) => LON_ALIASES.includes(h));
   if (latIndex === -1 || lonIndex === -1) {
-    return { augmentedText: text, descriptors: [] };
+    return { augmentedText: text, descriptors: [], assetsById: new Map() };
   }
 
   const points: ObservationPoint[] = rowLines.map((line) => {
@@ -119,6 +126,7 @@ export const augmentRawTextWithCustomLayers = async (
 
   const descriptors: CustomLayerDescriptor[] = [];
   const newColumns: (number | null)[][] = [];
+  const assetsById = new Map<string, DocumentPicker.DocumentPickerAsset>();
   for (const asset of customLayers) {
     // Sequential, not Promise.all: each layer's own sampling is already
     // sequential per-point (see customLayers.ts) -- no benefit to racing
@@ -129,10 +137,11 @@ export const augmentRawTextWithCustomLayers = async (
     if (!result) continue;
     descriptors.push(result.descriptor);
     newColumns.push(result.values);
+    assetsById.set(result.descriptor.id, asset);
   }
 
   if (descriptors.length === 0) {
-    return { augmentedText: text, descriptors: [] };
+    return { augmentedText: text, descriptors: [], assetsById: new Map() };
   }
 
   const newHeaderLine = [headerLine, ...descriptors.map((d) => d.id)].join(
@@ -149,5 +158,6 @@ export const augmentRawTextWithCustomLayers = async (
   return {
     augmentedText: [newHeaderLine, ...newRowLines].join('\n'),
     descriptors,
+    assetsById,
   };
 };

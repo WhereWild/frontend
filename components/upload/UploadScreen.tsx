@@ -57,6 +57,7 @@ export function UploadScreen() {
     rawUploadStatusMessage,
     uploadedBundle,
     uploadedDataSource,
+    customLayerAssets,
     zipUploadError,
     zipUploadWarning,
     setHighlightedCatalogs,
@@ -223,6 +224,7 @@ export function UploadScreen() {
               height={observationMapHeight}
               uploadedBundle={uploadedBundle}
               uploadedDataSource={uploadedDataSource}
+              customLayerAssets={customLayerAssets}
               onHighlightChange={setHighlightedCatalogs}
             />
           ) : null}

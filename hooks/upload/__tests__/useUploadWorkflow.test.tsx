@@ -279,6 +279,7 @@ describe('useUploadWorkflow', () => {
     mockAugmentRawTextWithCustomLayers.mockResolvedValueOnce({
       augmentedText: 'latitude,longitude,rainfall\n1,2,5',
       descriptors: [{ id: 'rainfall', name: 'rainfall', valueType: 'ratio' }],
+      assetsById: new Map(),
     });
     mockUploadRawObservations.mockResolvedValueOnce({
       blob: new Blob(['zip']),
@@ -667,6 +668,7 @@ describe('useUploadWorkflow', () => {
       resolveAugment({
         augmentedText: 'latitude,longitude\n1,2\n',
         descriptors: [],
+        assetsById: new Map(),
       });
     });
     await act(async () => {
