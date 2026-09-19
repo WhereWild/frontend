@@ -6,6 +6,7 @@ import JSZip from 'jszip';
 import type { DataSource } from '@/data/types';
 import { readBlobAsArrayBuffer } from '../utils/blob';
 import type {
+  EmbeddedLayerFile,
   RawCategoricalStatsRow,
   RawCategoricalValueLookupRow,
   RawDensityGraphRow,
@@ -289,6 +290,30 @@ export const resolveParquetEntryPaths = (zip: JSZip) => {
   return matched;
 };
 
+const EMBEDDED_LAYER_EXTENSION = /\.(tiff?|geojson|json)$/i;
+// The JSON files this ZIP format already uses for its own metadata.
+const RESERVED_JSON_NAMES = new Set([
+  'upload_metadata.json',
+  'data_sources.json',
+]);
+
+/** Raster/vector files sitting in the ZIP alongside the parquet tables --
+ * candidates for a custom layer's original file (see EmbeddedLayerFile).
+ * Only lists them; nothing is inflated until a caller reads one. */
+export const findEmbeddedLayerFiles = (zip: JSZip): EmbeddedLayerFile[] =>
+  Object.keys(zip.files)
+    .filter((path) => !zip.files[path].dir)
+    .map((path) => ({ path, name: path.split('/').pop() ?? path }))
+    .filter(
+      ({ name }) =>
+        EMBEDDED_LAYER_EXTENSION.test(name) &&
+        !RESERVED_JSON_NAMES.has(name.toLowerCase()),
+    )
+    .map(({ path, name }) => ({
+      name,
+      read: () => zip.files[path].async('blob'),
+    }));
+
 export const parseUploadedParquetZipToRawBundle = async (
   zipFile: Blob,
 ): Promise<RawUploadedParquetBundle> => {
@@ -452,6 +477,7 @@ export const parseUploadedParquetZipToRawBundle = async (
     variableMetadata: toTypedRows<RawVariableMetadataRow>(variableMetadataRows),
     dataSources,
     descriptionImage,
+    embeddedLayerFiles: findEmbeddedLayerFiles(zip),
     meta: {
       source: 'upload-local',
       uploadedAt: new Date().toISOString(),

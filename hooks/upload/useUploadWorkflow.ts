@@ -16,6 +16,7 @@ import { augmentRawTextWithCustomLayers } from './customLayerAugmentation';
 import {
   buildReimportRawCsv,
   findExistingCustomLayerDescriptors,
+  mountEmbeddedCustomLayers,
   planCustomLayerReimport,
   resolveReimportExtras,
 } from './reimportCustomLayerEnrichment';
@@ -111,8 +112,9 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
   // preview so the map's background-point clicks and "variable" basemap
   // mode can render/query it locally (see customLayerLocalRenderer.ts)
   // instead of always hitting the backend, which never received the file.
-  // Empty for a re-imported ZIP (see importProcessedZipBlob), since that
-  // path never has the original file to begin with.
+  // A re-imported ZIP has no original file of its own, so this starts out
+  // empty for one -- filled from layer files someone put inside the ZIP
+  // (see mountEmbeddedCustomLayers) and/or ones attached in Extra options.
   const [customLayerAssets, setCustomLayerAssets] = React.useState<
     Map<string, DocumentPicker.DocumentPickerAsset>
   >(new Map());
@@ -196,11 +198,22 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
     [],
   );
 
+  // Returns any custom-layer files found inside the ZIP itself, already
+  // matched to this bundle's custom-layer variables -- the caller decides
+  // what to mount alongside them.
   const importProcessedZipBlob = React.useCallback(
     async (zipBlob: Blob) => {
       const rawBundle = await parseUploadedParquetZipToRawBundle(zipBlob);
       const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
       importNormalizedBundle(normalizedBundle);
+      return mountEmbeddedCustomLayers(
+        rawBundle.embeddedLayerFiles,
+        new Set(
+          findExistingCustomLayerDescriptors(
+            normalizedBundle.variableDefinitions ?? [],
+          ).map((d) => d.id),
+        ),
+      );
     },
     [importNormalizedBundle],
   );
@@ -417,8 +430,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
         const zipBlob = await resolveAssetBlob(file);
         const customLayers = options?.customLayers ?? [];
         if (customLayers.length === 0) {
-          await importProcessedZipBlob(zipBlob);
-          setCustomLayerAssets(new Map());
+          setCustomLayerAssets(await importProcessedZipBlob(zipBlob));
           return;
         }
 
@@ -427,9 +439,16 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
         const existingDescriptors = findExistingCustomLayerDescriptors(
           normalizedBundle.variableDefinitions ?? [],
         );
+        const existingIds = new Set(existingDescriptors.map((d) => d.id));
         const { alreadyPresent, newLayers } = planCustomLayerReimport(
           customLayers,
-          new Set(existingDescriptors.map((d) => d.id)),
+          existingIds,
+        );
+        // Layer files found inside the ZIP; a file attached in Extra options
+        // for the same variable takes precedence over one of these.
+        const embeddedAssets = await mountEmbeddedCustomLayers(
+          rawBundle.embeddedLayerFiles,
+          existingIds,
         );
         const alreadyPresentAssets = new Map(
           alreadyPresent.map((asset) => [
@@ -440,7 +459,9 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
 
         if (newLayers.length === 0) {
           importNormalizedBundle(normalizedBundle);
-          setCustomLayerAssets(alreadyPresentAssets);
+          setCustomLayerAssets(
+            new Map([...embeddedAssets, ...alreadyPresentAssets]),
+          );
           return;
         }
 
@@ -497,7 +518,9 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
         setRawUploadStatusMessage(
           `Processed ZIP ready to download: ${filename}`,
         );
-        setCustomLayerAssets(new Map([...alreadyPresentAssets, ...assetsById]));
+        setCustomLayerAssets(
+          new Map([...embeddedAssets, ...alreadyPresentAssets, ...assetsById]),
+        );
       } catch (error) {
         setRawUploadStatusMessage(null);
         handleZipImportError(error, { triggerHaptic: true });

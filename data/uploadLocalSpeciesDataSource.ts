@@ -9,6 +9,7 @@ export {
 } from '@/data/uploadLocalSpeciesDataSource.normalize';
 export {
   UploadedParquetBundleValidationError,
+  type EmbeddedLayerFile,
   type LocalSourceMeta,
   type RawCategoricalStatsRow,
   type RawCategoricalValueLookupRow,

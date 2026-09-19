@@ -4,6 +4,7 @@
 
 import JSZip from 'jszip';
 import {
+  findEmbeddedLayerFiles,
   parseUploadedParquetZipToRawBundle,
   resolveParquetEntryPaths,
 } from '@/data/uploadZipParquetParser';
@@ -152,5 +153,36 @@ describe('parseUploadedParquetZipToRawBundle', () => {
         summaryStats: [],
       }),
     );
+  });
+});
+
+describe('findEmbeddedLayerFiles', () => {
+  it("lists raster/vector files (any folder), skipping the ZIP format's own JSON, tables and directories", async () => {
+    const zip = new JSZip();
+    zip.file('occurrence.parquet', 'x');
+    zip.file('upload_metadata.json', '{}');
+    zip.file('data_sources.json', '{}');
+    zip.file('taxon_image.png', 'x');
+    zip.file('custom_layers/Salinity Two.TIF', 'tiff-bytes');
+    zip.file('wetlands.geojson', '{"type":"FeatureCollection"}');
+    zip.file('layers/extra.json', '{}');
+
+    const files = findEmbeddedLayerFiles(zip);
+
+    expect(files.map((f) => f.name).sort()).toEqual([
+      'Salinity Two.TIF',
+      'extra.json',
+      'wetlands.geojson',
+    ]);
+  });
+
+  it('only inflates an entry when it is read', async () => {
+    const zip = new JSZip();
+    zip.file('a/soil.tif', 'tiff-bytes');
+    const [file] = findEmbeddedLayerFiles(zip);
+
+    const blob = await file.read();
+
+    expect(blob.size).toBe('tiff-bytes'.length);
   });
 });
