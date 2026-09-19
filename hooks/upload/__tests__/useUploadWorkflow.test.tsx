@@ -505,4 +505,172 @@ describe('useUploadWorkflow', () => {
 
     expect(result.current.rawUploadStatusMessage).toContain('obs.zip');
   });
+
+  it('shows the backend-reported stage while processing', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
+    });
+    let resolveUpload!: (
+      value: Awaited<ReturnType<typeof uploadRawObservations>>,
+    ) => void;
+    const uploadPromise = new Promise<
+      Awaited<ReturnType<typeof uploadRawObservations>>
+    >((resolve) => {
+      resolveUpload = resolve;
+    });
+    let capturedOnProgress: Parameters<typeof uploadRawObservations>[1];
+    mockUploadRawObservations.mockImplementationOnce(
+      async (_payload, onProgress) => {
+        capturedOnProgress = onProgress;
+        return uploadPromise;
+      },
+    );
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    let processDone!: Promise<void>;
+    act(() => {
+      processDone = result.current.processRawObservations();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      capturedOnProgress?.({
+        status: 'processing',
+        position: 0,
+        stage: 'Sampling environmental layers',
+      });
+    });
+    expect(result.current.rawUploadStatusMessage).toBe(
+      'Sampling environmental layers…',
+    );
+
+    act(() => {
+      resolveUpload({
+        blob: new Blob(['zip']),
+        contentType: 'application/zip',
+        filename: 'obs.zip',
+        status: 200,
+      });
+    });
+    await act(async () => {
+      await processDone;
+    });
+  });
+
+  it('falls back to a generic "Processing…" message when no stage is reported', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
+    });
+    let resolveUpload!: (
+      value: Awaited<ReturnType<typeof uploadRawObservations>>,
+    ) => void;
+    const uploadPromise = new Promise<
+      Awaited<ReturnType<typeof uploadRawObservations>>
+    >((resolve) => {
+      resolveUpload = resolve;
+    });
+    let capturedOnProgress: Parameters<typeof uploadRawObservations>[1];
+    mockUploadRawObservations.mockImplementationOnce(
+      async (_payload, onProgress) => {
+        capturedOnProgress = onProgress;
+        return uploadPromise;
+      },
+    );
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    let processDone!: Promise<void>;
+    act(() => {
+      processDone = result.current.processRawObservations();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      capturedOnProgress?.({ status: 'processing', position: 0 });
+    });
+    expect(result.current.rawUploadStatusMessage).toBe('Processing…');
+
+    act(() => {
+      resolveUpload({
+        blob: new Blob(['zip']),
+        contentType: 'application/zip',
+        filename: 'obs.zip',
+        status: 200,
+      });
+    });
+    await act(async () => {
+      await processDone;
+    });
+  });
+
+  it('shows a local-sampling message while custom layers are being sampled client-side', async () => {
+    mockSelectFileFromPicker.mockResolvedValueOnce({
+      file: {
+        name: 'obs.csv',
+        uri: 'file://obs.csv',
+        mimeType: 'text/csv',
+      } as never,
+    });
+    mockResolveAssetBlob.mockResolvedValueOnce({
+      text: () => Promise.resolve('latitude,longitude\n1,2\n'),
+    } as never);
+    let resolveAugment!: (
+      value: Awaited<ReturnType<typeof augmentRawTextWithCustomLayers>>,
+    ) => void;
+    mockAugmentRawTextWithCustomLayers.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveAugment = resolve;
+      }),
+    );
+    mockUploadRawObservations.mockResolvedValueOnce({
+      blob: new Blob(['zip']),
+      contentType: 'application/zip',
+      filename: 'obs.zip',
+      status: 200,
+    });
+
+    const { result } = renderHook(() => useUploadWorkflow());
+
+    let processDone!: Promise<void>;
+    act(() => {
+      processDone = result.current.processRawObservations({
+        customLayers: [
+          { name: 'rainfall.tif', uri: 'file://rainfall.tif' } as never,
+        ],
+      });
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.rawUploadStatusMessage).toBe(
+      'Sampling custom layers locally…',
+    );
+
+    act(() => {
+      resolveAugment({
+        augmentedText: 'latitude,longitude\n1,2\n',
+        descriptors: [],
+      });
+    });
+    await act(async () => {
+      await processDone;
+    });
+  });
 });
