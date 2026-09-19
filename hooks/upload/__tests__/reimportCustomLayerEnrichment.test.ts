@@ -7,6 +7,7 @@ import type { EnvironmentVariableDefinition } from '@/data/types';
 import {
   buildReimportRawCsv,
   findExistingCustomLayerDescriptors,
+  mountEmbeddedCustomLayers,
   planCustomLayerReimport,
   resolveReimportExtras,
 } from '../reimportCustomLayerEnrichment';
@@ -195,5 +196,44 @@ describe('resolveReimportExtras', () => {
       imageUrl: undefined,
       parentTaxonId: undefined,
     });
+  });
+});
+
+describe('mountEmbeddedCustomLayers', () => {
+  const file = (name: string, content = 'x') => ({
+    name,
+    read: jest.fn(async () => new Blob([content])),
+  });
+
+  it('mounts files whose slugged name matches a custom-layer variable, and reads only those', async () => {
+    const matching = file('Salinity Two.tif', 'raster');
+    const unrelated = file('other.tif');
+    const mounted = await mountEmbeddedCustomLayers(
+      [matching, unrelated],
+      new Set(['salinity_two']),
+    );
+
+    expect([...mounted.keys()]).toEqual(['salinity_two']);
+    const asset = mounted.get('salinity_two')!;
+    expect(asset.name).toBe('Salinity Two.tif');
+    expect(asset.size).toBe('raster'.length);
+    // Shaped like a picked file, so resolveAssetBlob hands the blob back.
+    expect(asset.file).toBeInstanceOf(Blob);
+    expect(matching.read).toHaveBeenCalledTimes(1);
+    expect(unrelated.read).not.toHaveBeenCalled();
+  });
+
+  it('keeps the first of two files for the same variable and ignores an absent list', async () => {
+    const first = file('salinity_two.tif', 'first');
+    const second = file('Salinity-Two.geojson', 'second');
+    const mounted = await mountEmbeddedCustomLayers(
+      [first, second],
+      new Set(['salinity_two']),
+    );
+    expect(mounted.get('salinity_two')?.name).toBe('salinity_two.tif');
+    expect(second.read).not.toHaveBeenCalled();
+    expect(
+      (await mountEmbeddedCustomLayers(undefined, new Set(['a']))).size,
+    ).toBe(0);
   });
 });

@@ -33,6 +33,7 @@ import type * as DocumentPicker from 'expo-document-picker';
 import type { EnvironmentVariableDefinition } from '@/data/types';
 import type { UploadFileValue } from '@/data/api';
 import type {
+  EmbeddedLayerFile,
   RawOccurrenceRow,
   UploadedDescriptionImage,
 } from '@/data/uploadLocalSpeciesDataSource';
@@ -215,4 +216,32 @@ export const resolveReimportExtras = (
         : (existing?.imageUrl ?? undefined)),
     parentTaxonId: chosen.parentTaxonId ?? existing?.parentTaxonId ?? undefined,
   };
+};
+
+/** Mounts custom-layer files someone put inside an imported ZIP: any whose
+ * slugged filename matches one of the bundle's custom-layer variables
+ * becomes an attached layer, so background clicks and the variable basemap
+ * work for it without re-attaching. Only matching entries are read (and
+ * the first one wins if two share an id); anything else in the ZIP is
+ * ignored. Returns assets shaped like a picked file, so everything
+ * downstream (resolveAssetBlob, the local renderer) treats them the same. */
+export const mountEmbeddedCustomLayers = async (
+  files: EmbeddedLayerFile[] | undefined,
+  customLayerIds: ReadonlySet<string>,
+): Promise<Map<string, DocumentPicker.DocumentPickerAsset>> => {
+  const mounted = new Map<string, DocumentPicker.DocumentPickerAsset>();
+  for (const file of files ?? []) {
+    const id = customLayerIdFromFilename(file.name);
+    if (!customLayerIds.has(id) || mounted.has(id)) continue;
+    const blob = await file.read();
+    mounted.set(id, {
+      name: file.name,
+      uri: '',
+      size: blob.size,
+      lastModified: Date.now(),
+      mimeType: blob.type || undefined,
+      file: blob as unknown as File,
+    });
+  }
+  return mounted;
 };

@@ -305,6 +305,16 @@ export type RawLocationRow = {
   hierarchy?: unknown;
 };
 
+/** A raster/vector file found inside an imported ZIP (someone put a custom
+ * layer's original file in it by hand -- nothing in this app writes one
+ * there, the backend never receives them). Listed without being read;
+ * `read` inflates just this entry, so a big layer costs nothing unless it's
+ * actually used. */
+export type EmbeddedLayerFile = {
+  name: string;
+  read: () => Promise<Blob>;
+};
+
 export type RawUploadedParquetBundle = {
   categoricalStats: RawCategoricalStatsRow[];
   ordinalStats?: RawCategoricalStatsRow[];
@@ -322,6 +332,7 @@ export type RawUploadedParquetBundle = {
   relativeRanks?: RawRelativeRankRow[];
   meta?: LocalSourceMeta;
   descriptionImage?: UploadedDescriptionImage;
+  embeddedLayerFiles?: EmbeddedLayerFile[];
 };
 
 export type UploadedParquetBundle = {

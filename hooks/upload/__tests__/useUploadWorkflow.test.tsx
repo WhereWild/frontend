@@ -716,6 +716,84 @@ describe('useUploadWorkflow', () => {
       );
     });
 
+    it('auto-mounts a layer file found inside the ZIP on a plain import, with nothing attached in Extra options', async () => {
+      mockParseUploadedParquetZipToRawBundle.mockResolvedValue({
+        occurrences: [],
+        embeddedLayerFiles: [
+          { name: 'Salinity Two.tif', read: async () => new Blob(['raster']) },
+          { name: 'unrelated.tif', read: async () => new Blob(['x']) },
+        ],
+      } as never);
+      const { result } = renderHook(() => useUploadWorkflow());
+
+      await act(async () => {
+        await result.current.processZippedObservations();
+      });
+
+      expect([...result.current.customLayerAssets.keys()]).toEqual([
+        'salinity_two',
+      ]);
+      expect(result.current.customLayerAssets.get('salinity_two')?.name).toBe(
+        'Salinity Two.tif',
+      );
+      expect(mockUploadRawObservations).not.toHaveBeenCalled();
+    });
+
+    it('prefers a file attached in Extra options over the one inside the ZIP for the same variable', async () => {
+      mockParseUploadedParquetZipToRawBundle.mockResolvedValue({
+        occurrences: [],
+        embeddedLayerFiles: [
+          { name: 'salinity_two.tif', read: async () => new Blob(['zip']) },
+        ],
+      } as never);
+      const attached = layerAsset('salinity_two.tif');
+      const { result } = renderHook(() => useUploadWorkflow());
+
+      await act(async () => {
+        await result.current.processZippedObservations({
+          customLayers: [attached],
+        });
+      });
+
+      expect(result.current.customLayerAssets.get('salinity_two')).toBe(
+        attached,
+      );
+    });
+
+    it('keeps a ZIP-embedded layer mounted when a new layer triggers the re-upload', async () => {
+      const newAsset = layerAsset('rainfall.tif');
+      mockParseUploadedParquetZipToRawBundle.mockResolvedValue({
+        occurrences: [
+          { catalogNumber: 'A', decimalLatitude: 1, decimalLongitude: 2 },
+        ],
+        embeddedLayerFiles: [
+          { name: 'salinity_two.tif', read: async () => new Blob(['zip']) },
+        ],
+      } as never);
+      mockAugmentRawTextWithCustomLayers.mockResolvedValueOnce({
+        augmentedText: 'catalogNumber,rainfall\nA,5',
+        descriptors: [{ id: 'rainfall', name: 'rainfall', valueType: 'ratio' }],
+        assetsById: new Map([['rainfall', newAsset]]),
+      });
+      mockUploadRawObservations.mockResolvedValueOnce({
+        blob: new Blob(['new zip']),
+        contentType: 'application/zip',
+        filename: 'processed_observations.zip',
+      } as never);
+      const { result } = renderHook(() => useUploadWorkflow());
+
+      await act(async () => {
+        await result.current.processZippedObservations({
+          customLayers: [newAsset],
+        });
+      });
+
+      expect([...result.current.customLayerAssets.keys()].sort()).toEqual([
+        'rainfall',
+        'salinity_two',
+      ]);
+    });
+
     it('skips re-processing for a layer already in the ZIP and just attaches its file', async () => {
       const asset = layerAsset('salinity_two.tif');
       const { result } = renderHook(() => useUploadWorkflow());
