@@ -31,7 +31,11 @@
 
 import type * as DocumentPicker from 'expo-document-picker';
 import type { EnvironmentVariableDefinition } from '@/data/types';
-import type { RawOccurrenceRow } from '@/data/uploadLocalSpeciesDataSource';
+import type { UploadFileValue } from '@/data/api';
+import type {
+  RawOccurrenceRow,
+  UploadedDescriptionImage,
+} from '@/data/uploadLocalSpeciesDataSource';
 import {
   customLayerIdFromFilename,
   CUSTOM_LAYER_VARIABLE_CATEGORY,
@@ -140,4 +144,52 @@ export const buildReimportRawCsv = (
     columns.map((col) => escapeCsvField(row[col])).join(','),
   );
   return [header, ...rows].join('\n');
+};
+
+export type ReimportExtras = {
+  generateDescription: boolean;
+  image: UploadFileValue | undefined;
+  imageFilename: string | undefined;
+  imageUrl: string | undefined;
+  parentTaxonId: string | undefined;
+};
+
+/** What a Step 2 re-upload sends for the description/image/parent-taxon
+ * "extras": whatever the re-imported ZIP already carried, with anything set
+ * in Extra options taking precedence. Without this a re-upload would
+ * silently drop them -- the backend rebuilds the archive from scratch, and
+ * has nothing of its own to remember them by. A description is regenerated
+ * (not copied) since it's derived from the stats, which now include the new
+ * layer(s). */
+export const resolveReimportExtras = (
+  existing: UploadedDescriptionImage | undefined,
+  chosen: {
+    generateDescription?: boolean;
+    image?: UploadFileValue;
+    imageFilename?: string;
+    imageUrl?: string;
+    parentTaxonId?: string;
+  },
+): ReimportExtras => {
+  const hasChosenImage = chosen.image !== undefined;
+  const carriedImage = !hasChosenImage ? existing?.imageBlob : null;
+  return {
+    generateDescription:
+      chosen.generateDescription === true ||
+      (existing?.descriptionSections?.length ?? 0) > 0,
+    image: hasChosenImage ? chosen.image : (carriedImage ?? undefined),
+    imageFilename: hasChosenImage
+      ? chosen.imageFilename
+      : carriedImage
+        ? (existing?.imageFilename ?? undefined)
+        : undefined,
+    // The ZIP's own imageUrl for an embedded image is a local object URL,
+    // never something to send -- only a genuinely remote one is.
+    imageUrl:
+      chosen.imageUrl ??
+      (hasChosenImage || existing?.imageBlob
+        ? undefined
+        : (existing?.imageUrl ?? undefined)),
+    parentTaxonId: chosen.parentTaxonId ?? existing?.parentTaxonId ?? undefined,
+  };
 };
