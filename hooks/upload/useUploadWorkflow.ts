@@ -58,13 +58,13 @@ export type RawUploadExtraOptions = {
   customLayers?: DocumentPicker.DocumentPickerAsset[];
 };
 
-/** Step 2 (re-importing a processed ZIP) also consumes Extra options' custom
- * layers: one already in the ZIP just gets wired up for local rendering,
- * a genuinely new one is sampled and re-run through the backend -- see
- * reimportCustomLayerEnrichment.ts. */
-export type ZippedImportOptions = {
-  customLayers?: DocumentPicker.DocumentPickerAsset[];
-};
+/** Step 2 (re-importing a processed ZIP) also consumes Extra options: a
+ * custom layer already in the ZIP just gets wired up for local rendering,
+ * a genuinely new one is sampled and re-run through the backend (see
+ * reimportCustomLayerEnrichment.ts), and only that re-upload sends the
+ * description/image/parent-taxon options -- a plain import has no backend
+ * step to apply them to. */
+export type ZippedImportOptions = RawUploadExtraOptions;
 
 export type UseUploadWorkflowResult = {
   canDownloadProcessedZip: boolean;
@@ -441,6 +441,13 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
           {
             file: new Blob([augmentedText], { type: 'text/csv' }),
             filename: 'reimported_observations.csv',
+            generateDescription: options?.generateDescription,
+            image: options?.image
+              ? createFilePayload(options.image)
+              : undefined,
+            imageFilename: options?.image?.name,
+            imageUrl: options?.imageUrl,
+            parentTaxonId: options?.parentTaxonId,
             customLayerMetadata:
               allDescriptors.length > 0
                 ? JSON.stringify(allDescriptors)
@@ -458,8 +465,16 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             }
           },
         );
+        const filename = response.filename ?? DEFAULT_PROCESSED_ZIP_FILENAME;
+        setDownloadableProcessedZip({
+          blob: response.blob,
+          contentType: response.contentType ?? null,
+          filename,
+        });
         await importProcessedZipBlob(response.blob);
-        setRawUploadStatusMessage(null);
+        setRawUploadStatusMessage(
+          `Processed ZIP ready to download: ${filename}`,
+        );
         setCustomLayerAssets(new Map([...alreadyPresentAssets, ...assetsById]));
       } catch (error) {
         setRawUploadStatusMessage(null);
