@@ -206,6 +206,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   linesOverlayUrl: '__LINES_OVERLAY_URL_JSON__',
   terrainTileUrl: '__TERRAIN_TILE_URL_JSON__',
   terrainEnabled: '__TERRAIN_ENABLED__',
+  globeProjectionEnabled: '__GLOBE_PROJECTION_ENABLED__',
   satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
   variableModeBackgroundTileUrl: '__VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__',
   basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
@@ -772,7 +773,92 @@ const LEAFLET_RESIZE_OBSERVER_SCRIPT = `
     }
 `;
 
-const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
+// Local tile source (the GIS editor). A heatmap tile URL with the
+// `localtiles://` scheme is "served" by the parent page, which has parsed
+// the user's GeoTIFF in-browser. Both renderers route the URL through their
+// normal heatmap tile path — this just swaps the backend fetch for a
+// postMessage round trip. Prepended to both heatmap scripts below so
+// Leaflet and the globe share one implementation. `postToParent` is defined
+// earlier in each template.
+const LOCAL_TILE_BRIDGE = `
+    var __ltPending = new Map();
+    var __ltReqId = 0;
+    var __ltBlank = null;
+    function __ltBlankTile() {
+      if (!__ltBlank) {
+        __ltBlank = Uint8Array.from(atob(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+        ), function(c) { return c.charCodeAt(0); });
+      }
+      return __ltBlank.slice().buffer;
+    }
+    var __lpPending = new Map();
+    var __lpReqId = 0;
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('message', function(event) {
+        var d = event.data;
+        if (!d || typeof d !== 'object') return;
+        if (d.type === 'localTileResponse') {
+          var resolveTile = __ltPending.get(d.requestId);
+          if (!resolveTile) return;
+          __ltPending.delete(d.requestId);
+          resolveTile({ data: d.data, classes: d.classes || null });
+        } else if (d.type === 'localPointResponse') {
+          var resolvePoint = __lpPending.get(d.requestId);
+          if (!resolvePoint) return;
+          __lpPending.delete(d.requestId);
+          resolvePoint(d.data || null);
+        }
+      });
+    }
+    function isLocalTileUrl(u) {
+      return typeof u === 'string' && u.indexOf('localtiles://') === 0;
+    }
+    // -> Promise<{ data: ArrayBuffer, classes: {id,count}[]|null }>. "data"
+    // falls back to a 1x1 transparent PNG when the parent has nothing;
+    // "classes" (nominal/ordinal rasters only) mirrors the X-Nominal-Classes
+    // header the fetch() branch below reads for remote tiles, since a local
+    // tile has no HTTP response to carry a header on.
+    function requestLocalTileBytes(url) {
+      return new Promise(function(resolve) {
+        var m = /\\/tiles\\/(\\d+)\\/(\\d+)\\/(\\d+)/.exec(url);
+        if (!m) { resolve({ data: null, classes: null }); return; }
+        var id = ++__ltReqId;
+        __ltPending.set(id, resolve);
+        postToParent({
+          type: 'localTileRequest',
+          requestId: id, z: Number(m[1]), x: Number(m[2]), y: Number(m[3]), url: url,
+        });
+      }).then(function(result) {
+        return {
+          data: (result && result.data) || __ltBlankTile(),
+          classes: (result && result.classes) || null,
+        };
+      });
+    }
+    function isLocalPointUrl(u) {
+      return typeof u === 'string' && u.indexOf('localpoint://') === 0;
+    }
+    // -> Promise<{ value, class_name, class_color } | null>. Field names
+    // match what the backend's /gis/point endpoint returns, so the
+    // click-popup rendering code below (which reads data.value/class_name/
+    // class_color) needs no local-vs-remote branch beyond picking which
+    // promise to await.
+    function requestLocalPointValue(lat, lon) {
+      return new Promise(function(resolve) {
+        var id = ++__lpReqId;
+        __lpPending.set(id, resolve);
+        postToParent({ type: 'localPointRequest', requestId: id, lat: lat, lon: lon });
+      }).then(function(result) {
+        if (!result) return null;
+        return { value: result.value, class_name: result.className, class_color: result.classColor };
+      });
+    }
+`;
+
+const LEAFLET_HEATMAP_TRACKING_SCRIPT =
+  LOCAL_TILE_BRIDGE +
+  `
     function supportsAbortableTileFetch() {
       return (
         typeof fetch === 'function'
@@ -911,36 +997,42 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
           finish(error || new Error('Heatmap tile image load failed'));
         };
 
-        fetch(layer.getTileUrl(coords), {
-          signal: controller.signal,
-          referrerPolicy: TILE_REFERRER_POLICY,
-        })
-          .then(function(response) {
-            if (!response.ok) {
-              throw new Error('Heatmap tile request failed with status ' + response.status);
-            }
-            // Skip storing class data for a tile that's already been
-            // released (controller.abort() only cancels a fetch that hasn't
-            // settled yet, so this can still run after release if the
-            // response had already fully arrived) — harmless either way
-            // since syncClasses only reads tiles Leaflet's own registry
-            // still lists, but no reason to do the parsing.
-            if (!controller.signal.aborted) {
-              var classesHeader = response.headers.get('X-Nominal-Classes');
-              if (classesHeader) {
-                var classes = classesHeader.split(',').reduce(function(acc, part) {
-                  var sep = part.indexOf(':');
-                  if (sep === -1) return acc;
-                  var id = Number(part.slice(0, sep));
-                  var count = Number(part.slice(sep + 1));
-                  if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
-                  return acc;
-                }, []);
-                tileClassData.set(tile, classes);
+        var heatmapTileUrl = layer.getTileUrl(coords);
+        (isLocalTileUrl(heatmapTileUrl)
+          ? requestLocalTileBytes(heatmapTileUrl).then(function(result) {
+              if (result.classes) tileClassData.set(tile, result.classes);
+              return new Blob([result.data], { type: 'image/png' });
+            })
+          : fetch(heatmapTileUrl, {
+              signal: controller.signal,
+              referrerPolicy: TILE_REFERRER_POLICY,
+            }).then(function(response) {
+              if (!response.ok) {
+                throw new Error('Heatmap tile request failed with status ' + response.status);
               }
-            }
-            return response.blob();
-          })
+              // Skip storing class data for a tile that's already been
+              // released (controller.abort() only cancels a fetch that hasn't
+              // settled yet, so this can still run after release if the
+              // response had already fully arrived) — harmless either way
+              // since syncClasses only reads tiles Leaflet's own registry
+              // still lists, but no reason to do the parsing.
+              if (!controller.signal.aborted) {
+                var classesHeader = response.headers.get('X-Nominal-Classes');
+                if (classesHeader) {
+                  var classes = classesHeader.split(',').reduce(function(acc, part) {
+                    var sep = part.indexOf(':');
+                    if (sep === -1) return acc;
+                    var id = Number(part.slice(0, sep));
+                    var count = Number(part.slice(sep + 1));
+                    if (!isNaN(id) && !isNaN(count)) acc.push({ id: id, count: count });
+                    return acc;
+                  }, []);
+                  tileClassData.set(tile, classes);
+                }
+              }
+              return response.blob();
+            })
+        )
           .then(function(blob) {
             if (controller.signal.aborted) {
               finish(null);
@@ -1085,7 +1177,9 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT = `
 // Shared verbatim between SpeciesOccurrenceGlobeMap.html and
 // SpeciesOccurrenceGlobeMapOffline.html — same reasoning as the Leaflet
 // scripts above.
-const GLOBE_TILE_CLASS_TRACKING_SCRIPT = `
+const GLOBE_TILE_CLASS_TRACKING_SCRIPT =
+  LOCAL_TILE_BRIDGE +
+  `
     // Tracks which categorical classes are present in the heatmap tiles
     // currently in view. Same self-healing full-recompute design as the
     // Leaflet template's layer.syncClasses (see there for why: a running
@@ -1386,6 +1480,25 @@ const GLOBE_TILE_CLASS_TRACKING_SCRIPT = `
       // (params, callback) => ({ cancel }) style.
       maplibregl.addProtocol('heatmap', function(params, abortController) {
         var realUrl = params.url.slice('heatmap://'.length);
+        if (isLocalTileUrl(realUrl)) {
+          return requestLocalTileBytes(realUrl).then(function(result) {
+            // Only for categorical (nominal/ordinal) rasters — result.classes
+            // is undefined for every other type, and touching
+            // TILE_CLASS_CACHE/scheduling a recompute unconditionally here
+            // meant every single tile of every local raster, categorical or
+            // not, paid for the visible-classes tracking machinery with
+            // nothing to show for it.
+            if (result.classes) {
+              var match = HEATMAP_TILE_KEY_RE.exec(realUrl);
+              if (match) {
+                var key = tileKey(Number(match[1]), Number(match[2]), Number(match[3]));
+                TILE_CLASS_CACHE.set(key, result.classes);
+                scheduleRefreshVisibleTileClasses();
+              }
+            }
+            return { data: result.data };
+          });
+        }
         return fetch(realUrl, { signal: abortController.signal, referrerPolicy: TILE_REFERRER_POLICY })
           .then(function(response) {
             if (!response.ok) {
@@ -1493,6 +1606,11 @@ const fillMapTemplatePlaceholders = (
   // same gating pattern as satelliteTileUrl/SATELLITE_TILE_URL above.
   standardTheme?: StandardBasemapTheme,
   standardThemes?: { id: string; url: string }[] | null,
+  // Globe/flat MapLibre projection preference — same persisted-preference,
+  // frozen-at-build-time/live-locally-applied pattern as terrainEnabled
+  // above (see SpeciesOccurrenceMap.tsx's memoGlobeProjectionEnabled). Only
+  // meaningful in the globe template; a no-op placeholder for Leaflet.
+  globeProjectionEnabled?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1699,6 +1817,9 @@ const fillMapTemplatePlaceholders = (
     .split(MAP_TEMPLATE_PLACEHOLDERS.terrainEnabled)
     .join(terrainEnabled ? 'true' : 'false');
   html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.globeProjectionEnabled)
+    .join(globeProjectionEnabled ? 'true' : 'false');
+  html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.initialDrawnPolygons)
     .join(
       initialDrawnPolygons && initialDrawnPolygons.length > 0
@@ -1807,6 +1928,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     autoAdaptEnabled,
     standardTheme,
     standardThemes,
+    globeProjectionEnabled,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1868,6 +1990,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
           url: stripRetinaPlaceholder(t.url),
         }))
       : standardThemes,
+    globeProjectionEnabled,
   );
 };
 

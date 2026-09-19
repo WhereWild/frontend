@@ -220,17 +220,30 @@ describe('ObservationCard', () => {
     expect(screen.queryByTestId('observation-card-shape')).toBeNull();
   });
 
-  it('shows a "No media" fallback when no attribution or license is provided, matching the credit row\'s two-line height so cards without media still line up with ones that have it', () => {
+  it('shows a "No media" fallback when there is no image at all, matching the credit row\'s two-line height so cards without media still line up with ones that have it', () => {
     render(<ObservationCard catalogNumber='123456' />);
 
     expect(screen.getByTestId('observation-card-credit')).toBeTruthy();
     expect(screen.getByText('No media')).toBeTruthy();
   });
 
+  it('does not show "No media" for an image with no attribution/license (e.g. a custom upload\'s own user-supplied photo)', () => {
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        imageUrl='https://example.com/photo.jpg'
+      />,
+    );
+
+    expect(screen.getByTestId('observation-card-image')).toBeTruthy();
+    expect(screen.queryByText('No media')).toBeNull();
+  });
+
   it('renders attribution and license on their own separate lines, not joined by a separator', () => {
     render(
       <ObservationCard
         catalogNumber='123456'
+        imageUrl='https://example.com/photo.jpg'
         attribution='© Jane Doe'
         license='CC BY-NC 4.0'
       />,
@@ -242,14 +255,26 @@ describe('ObservationCard', () => {
   });
 
   it('renders only the attribution when license is missing', () => {
-    render(<ObservationCard catalogNumber='123456' attribution='© Jane Doe' />);
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        imageUrl='https://example.com/photo.jpg'
+        attribution='© Jane Doe'
+      />,
+    );
 
     expect(screen.getByText('© Jane Doe')).toBeTruthy();
     expect(screen.queryByText(/·/)).toBeNull();
   });
 
   it('renders the license as plain text when no license URL is provided', () => {
-    render(<ObservationCard catalogNumber='123456' license='Public domain' />);
+    render(
+      <ObservationCard
+        catalogNumber='123456'
+        imageUrl='https://example.com/photo.jpg'
+        license='Public domain'
+      />,
+    );
 
     const licenseText = screen.getByText('Public domain');
     expect(licenseText.props.onPress).toBeUndefined();
@@ -263,6 +288,7 @@ describe('ObservationCard', () => {
     render(
       <ObservationCard
         catalogNumber='123456'
+        imageUrl='https://example.com/photo.jpg'
         license='CC BY-NC 4.0'
         licenseUrl='https://creativecommons.org/licenses/by-nc/4.0/'
       />,
@@ -280,6 +306,7 @@ describe('ObservationCard', () => {
     render(
       <ObservationCard
         catalogNumber='123456'
+        imageUrl='https://example.com/photo.jpg'
         attribution='© Jane Doe'
         license='CC BY-NC 4.0'
         licenseUrl='https://creativecommons.org/licenses/by-nc/4.0/'

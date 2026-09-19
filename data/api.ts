@@ -59,6 +59,24 @@ export type UploadFileParams = {
   fieldName?: string;
   filename?: string;
   endpoint?: string;
+  /** "Extra options" from the upload page, all optional -- see main.py's
+   * upload_raw_observations. image and imageUrl are alternatives, not a
+   * pair: an uploaded image's bytes get embedded straight into the
+   * processed ZIP (works fully offline); imageUrl is stored as a plain
+   * string instead (no re-upload needed, but needs network to display). */
+  generateDescription?: boolean;
+  image?: UploadFileValue;
+  imageFilename?: string;
+  imageUrl?: string;
+  /** Ranks this upload's own computed stats against this taxon's real
+   * precomputed sibling index, as if the upload were a new SPECIES-level
+   * child of it -- see wherewild's util.upload.compute_relative_ranks_for_upload. */
+  parentTaxonId?: string;
+  /** JSON-encoded description of any custom (GIS-editor-authored) layer(s)
+   * already sampled client-side -- see hooks/upload/customLayerAugmentation.ts
+   * and wherewild's util.upload.parse_custom_layer_metadata. The raw
+   * raster/vector file itself is never part of this payload. */
+  customLayerMetadata?: string;
 };
 
 export type UploadFileResponse = {
@@ -365,12 +383,17 @@ type UploadJobStatus = {
   job_id: string;
   status: 'queued' | 'processing' | 'done' | 'error';
   position: number;
+  /** Human-readable sub-stage within "processing" (e.g. "Sampling
+   * environmental layers") -- see main.py's _upload_consumer. Absent/null
+   * while queued, done, or errored. */
+  stage?: string | null;
   error?: string | null;
 };
 
 export type UploadProgressUpdate = {
   status: 'queued' | 'processing';
   position: number;
+  stage?: string | null;
 };
 
 /**
@@ -384,6 +407,21 @@ export async function uploadRawObservations(
   const fieldName = params.fieldName ?? 'file';
   const formData = new FormData();
   appendUploadPayload(formData, fieldName, params.file, params.filename);
+  if (params.generateDescription) {
+    formData.append('generate_description', 'true');
+  }
+  if (params.image) {
+    appendUploadPayload(formData, 'image', params.image, params.imageFilename);
+  }
+  if (params.imageUrl) {
+    formData.append('image_url', params.imageUrl);
+  }
+  if (params.parentTaxonId) {
+    formData.append('parent_taxon_id', params.parentTaxonId);
+  }
+  if (params.customLayerMetadata) {
+    formData.append('custom_layer_metadata', params.customLayerMetadata);
+  }
 
   const submitResponse = await fetch(
     resolveUploadEndpoint('/upload/raw-observations'),
@@ -401,7 +439,11 @@ export async function uploadRawObservations(
 
   const reportProgress = () => {
     if (job.status === 'queued' || job.status === 'processing') {
-      onProgress?.({ status: job.status, position: job.position });
+      onProgress?.({
+        status: job.status,
+        position: job.position,
+        stage: job.stage,
+      });
     }
   };
 
@@ -412,7 +454,9 @@ export async function uploadRawObservations(
     await new Promise<void>((resolve) => setTimeout(resolve, 2000));
     const statusResponse = await fetch(statusEndpoint);
     if (!statusResponse.ok) {
-      throw new Error(`Failed to check upload status: ${statusResponse.status}`);
+      throw new Error(
+        `Failed to check upload status: ${statusResponse.status}`,
+      );
     }
     job = await statusResponse.json();
     reportProgress();

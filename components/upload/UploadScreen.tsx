@@ -14,9 +14,17 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useScrollToHash } from '@/hooks/useScrollToHash';
 import { calculateObservationMapHeight } from '@/app/_species';
-import { useUploadWorkflow } from '@/hooks/upload/useUploadWorkflow';
+import {
+  useUploadWorkflow,
+  type RawUploadExtraOptions,
+} from '@/hooks/upload/useUploadWorkflow';
 import { UploadPreview } from './UploadPreview';
 import { UploadStepCard } from './UploadStepCard';
+import {
+  EMPTY_UPLOAD_EXTRA_OPTIONS,
+  UploadExtraOptions,
+  type UploadExtraOptionsValue,
+} from './UploadExtraOptions';
 
 const SAFE_AREA_INSETS_FALLBACK = { top: 0, bottom: 0, left: 0, right: 0 };
 
@@ -52,6 +60,7 @@ export function UploadScreen() {
     rawUploadStatusMessage,
     uploadedBundle,
     uploadedDataSource,
+    customLayerAssets,
     zipUploadError,
     zipUploadWarning,
     setHighlightedCatalogs,
@@ -59,7 +68,19 @@ export function UploadScreen() {
     processZippedObservations,
   } = useUploadWorkflow();
 
+  const [extraOptions, setExtraOptions] =
+    React.useState<UploadExtraOptionsValue>(EMPTY_UPLOAD_EXTRA_OPTIONS);
   const { webHeaderHeight } = useLayoutChrome();
+  // Both steps read the same Extra options: Step 1 sends them with the fresh
+  // raw upload, Step 2 with the re-upload it only does when a genuinely new
+  // custom layer needs enriching.
+  const uploadOptions: RawUploadExtraOptions = {
+    generateDescription: extraOptions.generateDescription,
+    image: extraOptions.image,
+    imageUrl: extraOptions.imageUrl.trim() || undefined,
+    parentTaxonId: extraOptions.parentTaxon?.taxonId,
+    customLayers: extraOptions.customLayers,
+  };
   useScrollToHash([]);
   const safeAreaInsets = React.useContext(SafeAreaInsetsContext);
   const insets = safeAreaInsets ?? SAFE_AREA_INSETS_FALLBACK;
@@ -150,7 +171,7 @@ export function UploadScreen() {
                 }
                 stepTitle='Step 1'
                 testID='upload-step-card-1'
-                onPress={processRawObservations}
+                onPress={() => void processRawObservations(uploadOptions)}
               />
               <UploadStepCard
                 description='Upload processed data as a zipped file to view the enhanced data set including environmental insights.'
@@ -162,9 +183,16 @@ export function UploadScreen() {
                 palette={palette}
                 stepTitle='Step 2'
                 testID='upload-step-card-2'
-                onPress={processZippedObservations}
+                onPress={() => void processZippedObservations(uploadOptions)}
               />
             </View>
+
+            <UploadExtraOptions
+              value={extraOptions}
+              onChange={setExtraOptions}
+              disabled={isProcessingRaw}
+              palette={palette}
+            />
 
             {rawUploadStatusMessage ? (
               <UploadStatusMessage
@@ -201,6 +229,7 @@ export function UploadScreen() {
               height={observationMapHeight}
               uploadedBundle={uploadedBundle}
               uploadedDataSource={uploadedDataSource}
+              customLayerAssets={customLayerAssets}
               onHighlightChange={setHighlightedCatalogs}
             />
           ) : null}

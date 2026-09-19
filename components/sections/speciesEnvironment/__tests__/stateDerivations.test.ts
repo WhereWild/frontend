@@ -14,6 +14,7 @@ import {
   getRankContextOptions,
   resolveMetricRank,
   resolveRangeValue,
+  toClassRankMetric,
 } from '../stateDerivations';
 
 describe('stateDerivations', () => {
@@ -283,5 +284,16 @@ describe('stateDerivations', () => {
         q99: 11,
       }),
     ).toBeNull();
+  });
+
+  describe('toClassRankMetric', () => {
+    it('prefixes a bare class id (the live/online SpeciesEnvironmentCategory.value convention)', () => {
+      expect(toClassRankMetric(5)).toBe('class_5');
+      expect(toClassRankMetric('5')).toBe('class_5');
+    });
+
+    it('leaves an already-prefixed metric name untouched (the custom-upload convention)', () => {
+      expect(toClassRankMetric('class_5')).toBe('class_5');
+    });
   });
 });

@@ -6,6 +6,7 @@ import JSZip from 'jszip';
 import type { DataSource } from '@/data/types';
 import { readBlobAsArrayBuffer } from '../utils/blob';
 import type {
+  EmbeddedLayerFile,
   RawCategoricalStatsRow,
   RawCategoricalValueLookupRow,
   RawDensityGraphRow,
@@ -13,9 +14,11 @@ import type {
   RawLocationRow,
   RawOccurrenceIndexRow,
   RawOccurrenceRow,
+  RawRelativeRankRow,
   RawSummaryStatsRow,
   RawUploadedParquetBundle,
   RawVariableMetadataRow,
+  UploadedDescriptionImage,
 } from '@/data/uploadLocalSpeciesDataSource';
 
 type AsyncBufferLike = {
@@ -33,6 +36,7 @@ type UploadParquetTableKey =
   | 'locations'
   | 'occurrences'
   | 'occurrenceIndex'
+  | 'relativeRanks'
   | 'summaryStats'
   | 'variableMetadata';
 
@@ -80,7 +84,12 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   },
   {
     key: 'densityGraph',
-    aliases: buildTableAliases('numerical_density', 'density_graph', 'density', 'desntiy_graph'),
+    aliases: buildTableAliases(
+      'numerical_density',
+      'density_graph',
+      'density',
+      'desntiy_graph',
+    ),
     required: true,
   },
   {
@@ -108,6 +117,10 @@ const UPLOAD_TABLES: ZipTableMatchConfig[] = [
   {
     key: 'locations',
     aliases: buildTableAliases('locations'),
+  },
+  {
+    key: 'relativeRanks',
+    aliases: buildTableAliases('relative_ranks_positions', 'relative_ranks'),
   },
 ];
 
@@ -277,6 +290,30 @@ export const resolveParquetEntryPaths = (zip: JSZip) => {
   return matched;
 };
 
+const EMBEDDED_LAYER_EXTENSION = /\.(tiff?|geojson|json)$/i;
+// The JSON files this ZIP format already uses for its own metadata.
+const RESERVED_JSON_NAMES = new Set([
+  'upload_metadata.json',
+  'data_sources.json',
+]);
+
+/** Raster/vector files sitting in the ZIP alongside the parquet tables --
+ * candidates for a custom layer's original file (see EmbeddedLayerFile).
+ * Only lists them; nothing is inflated until a caller reads one. */
+export const findEmbeddedLayerFiles = (zip: JSZip): EmbeddedLayerFile[] =>
+  Object.keys(zip.files)
+    .filter((path) => !zip.files[path].dir)
+    .map((path) => ({ path, name: path.split('/').pop() ?? path }))
+    .filter(
+      ({ name }) =>
+        EMBEDDED_LAYER_EXTENSION.test(name) &&
+        !RESERVED_JSON_NAMES.has(name.toLowerCase()),
+    )
+    .map(({ path, name }) => ({
+      name,
+      read: () => zip.files[path].async('blob'),
+    }));
+
 export const parseUploadedParquetZipToRawBundle = async (
   zipFile: Blob,
 ): Promise<RawUploadedParquetBundle> => {
@@ -329,6 +366,64 @@ export const parseUploadedParquetZipToRawBundle = async (
     return undefined;
   };
 
+  const readUploadMetadataJson = async (): Promise<
+    UploadedDescriptionImage | undefined
+  > => {
+    const entry = zip.file('upload_metadata.json');
+    if (!entry) return undefined;
+    let parsed: {
+      descriptionProfile?: { sections?: unknown };
+      imageFile?: string;
+      imageUrl?: string;
+      imageLicense?: string;
+      imageLicenseUrl?: string;
+      imageCreator?: string;
+      imageRightsHolder?: string;
+      parentTaxonId?: string;
+    } | null = null;
+    try {
+      parsed = JSON.parse(await entry.async('string'));
+    } catch {
+      return undefined;
+    }
+    if (!parsed || typeof parsed !== 'object') return undefined;
+
+    // An embedded image (a custom upload's own uploaded file) wins over a
+    // plain imageUrl string (a species' hosted photo, or a custom upload's
+    // own provided path) whenever both exist — resolving it to a local
+    // object URL is what makes it actually work fully offline, unlike a
+    // remote imageUrl which still needs network access to display.
+    let imageUrl = parsed.imageUrl ?? null;
+    let imageBlob: Blob | null = null;
+    if (parsed.imageFile) {
+      const imageEntry = zip.file(parsed.imageFile);
+      if (imageEntry) {
+        try {
+          const imageBuffer = await imageEntry.async('arraybuffer');
+          imageBlob = new Blob([imageBuffer]);
+          imageUrl = URL.createObjectURL(imageBlob);
+        } catch {
+          // Fall back to whatever imageUrl (if any) was also provided.
+        }
+      }
+    }
+
+    return {
+      descriptionSections: Array.isArray(parsed.descriptionProfile?.sections)
+        ? (parsed.descriptionProfile
+            .sections as UploadedDescriptionImage['descriptionSections'])
+        : null,
+      imageUrl,
+      imageLicense: parsed.imageLicense ?? null,
+      imageLicenseUrl: parsed.imageLicenseUrl ?? null,
+      imageCreator: parsed.imageCreator ?? null,
+      imageRightsHolder: parsed.imageRightsHolder ?? null,
+      imageBlob,
+      imageFilename: imageBlob ? (parsed.imageFile ?? null) : null,
+      parentTaxonId: parsed.parentTaxonId ?? null,
+    };
+  };
+
   const [
     categoricalStatsRows,
     ordinalStatsRows,
@@ -339,9 +434,11 @@ export const parseUploadedParquetZipToRawBundle = async (
     locationRows,
     occurrenceRows,
     occurrenceIndexRows,
+    relativeRankRows,
     summaryStatsRows,
     variableMetadataRows,
     dataSources,
+    descriptionImage,
   ] = await Promise.all([
     readTable('categoricalStats'),
     readTable('ordinalStats'),
@@ -352,9 +449,11 @@ export const parseUploadedParquetZipToRawBundle = async (
     readTable('locations'),
     readTable('occurrences'),
     readTable('occurrenceIndex'),
+    readTable('relativeRanks'),
     readTable('summaryStats'),
     readTable('variableMetadata'),
     readDataSourcesJson(),
+    readUploadMetadataJson(),
   ]);
 
   if (issues.length) {
@@ -373,9 +472,12 @@ export const parseUploadedParquetZipToRawBundle = async (
     locations: toTypedRows<RawLocationRow>(locationRows),
     occurrences: toTypedRows<RawOccurrenceRow>(occurrenceRows),
     occurrenceIndex: toTypedRows<RawOccurrenceIndexRow>(occurrenceIndexRows),
+    relativeRanks: toTypedRows<RawRelativeRankRow>(relativeRankRows),
     summaryStats: toTypedRows<RawSummaryStatsRow>(summaryStatsRows),
     variableMetadata: toTypedRows<RawVariableMetadataRow>(variableMetadataRows),
     dataSources,
+    descriptionImage,
+    embeddedLayerFiles: findEmbeddedLayerFiles(zip),
     meta: {
       source: 'upload-local',
       uploadedAt: new Date().toISOString(),

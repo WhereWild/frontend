@@ -220,6 +220,46 @@ export const COLORMAP_ORDER: ColormapId[] = [
 
 export const DEFAULT_COLORMAP: ColormapId = 'viridis';
 
+// 256-entry RGB LUTs, built lazily per colormap and cached — sampleColormap
+// below is called per legend swatch / per point-click, so this avoids
+// rebuilding the same interpolated table on every call.
+const lutCache = new Map<ColormapId, Uint8Array>();
+
+const lutFor = (colormap: ColormapId): Uint8Array => {
+  let lut = lutCache.get(colormap);
+  if (!lut) {
+    const stops = COLORMAPS[colormap].stops;
+    lut = new Uint8Array(256 * 3);
+    const n = stops.length;
+    for (let i = 0; i < 256; i += 1) {
+      const t = (i / 255) * (n - 1);
+      const lo = Math.floor(t);
+      const hi = Math.min(lo + 1, n - 1);
+      const f = t - lo;
+      for (let c = 0; c < 3; c += 1) {
+        lut[i * 3 + c] = Math.round(
+          stops[lo][c] + f * (stops[hi][c] - stops[lo][c]),
+        );
+      }
+    }
+    lutCache.set(colormap, lut);
+  }
+  return lut;
+};
+
+/** Samples `colormap` at a normalized position `t` (0..1, clamped) as a hex
+ * color — the same interpolated table the raster tiles/continuous legend
+ * are colorized with (see gisEditor/cogTileMath.ts's colorizeBand, which
+ * builds an identical LUT from these same COLORMAPS stops), so a color
+ * computed here always matches what's actually on the map for that value.
+ */
+export const sampleColormap = (colormap: ColormapId, t: number): string => {
+  const lut = lutFor(colormap);
+  const idx = Math.round(Math.max(0, Math.min(1, t)) * 255) * 3;
+  const toHex = (v: number) => v.toString(16).padStart(2, '0');
+  return `#${toHex(lut[idx])}${toHex(lut[idx + 1])}${toHex(lut[idx + 2])}`;
+};
+
 // Legacy CSS exports (used by web-only rendering paths)
 export const VIRIDIS_CSS = COLORMAPS.viridis.barCss;
 export const VIRIDIS_COLORS = VIRIDIS_STOPS.slice()

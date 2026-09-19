@@ -9,6 +9,7 @@ export {
 } from '@/data/uploadLocalSpeciesDataSource.normalize';
 export {
   UploadedParquetBundleValidationError,
+  type EmbeddedLayerFile,
   type LocalSourceMeta,
   type RawCategoricalStatsRow,
   type RawCategoricalValueLookupRow,
@@ -17,6 +18,7 @@ export {
   type RawLocationRow,
   type RawOccurrenceIndexRow,
   type RawOccurrenceRow,
+  type RawRelativeRankRow,
   type RawSummaryStatsRow,
   type RawUploadedParquetBundle,
   type RawVariableMetadataRow,
@@ -24,8 +26,10 @@ export {
   type UploadedCategoricalValueLookupRow,
   type UploadedDensityGraphPoint,
   type UploadedDensityGridRow,
+  type UploadedDescriptionImage,
   type UploadedOccurrenceIndexRow,
   type UploadedOccurrenceRow,
   type UploadedParquetBundle,
+  type UploadedRelativeRankRow,
   type UploadedSummaryStatsRow,
 } from '@/data/uploadLocalSpeciesDataSource.types';

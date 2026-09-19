@@ -36,6 +36,31 @@ export const ZIP_UPLOAD_PICKER_MIME_TYPES = [
   'application/x-zip-compressed',
 ] as const;
 
+export const IMAGE_UPLOAD_ACCEPTED_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+] as const;
+
+export const IMAGE_UPLOAD_PICKER_MIME_TYPES = ['image/*'] as const;
+
+// A "custom layer" is a raster (.tif/.tiff COG) or vector (.geojson/.json)
+// file authored/edited via /gis-editor -- see components/upload/
+// customLayers.ts's findCustomLayersMissingMetadata, which checks for the
+// same WHEREWILD_VALUE_TYPE (raster)/WW_MODE (vector) tags that tool
+// writes when a layer's metadata has been configured there. No matching
+// MIME-type list: .geojson/.json/.tif often don't carry a MIME type an OS
+// file picker recognizes, so the picker is opened with '*/*' and filtered
+// by this extension list afterward instead (see CustomLayersField.tsx).
+export const CUSTOM_LAYER_ACCEPTED_EXTENSIONS = [
+  '.tif',
+  '.tiff',
+  '.geojson',
+  '.json',
+] as const;
+
 export type PickerSelectionConfig = {
   pickerType: string | string[];
   allowedExtensions: readonly string[];
@@ -44,6 +69,11 @@ export type PickerSelectionConfig = {
 
 export type PickerSelectionResult = {
   file?: DocumentPicker.DocumentPickerAsset;
+  errorMessage?: string;
+};
+
+export type MultiPickerSelectionResult = {
+  files?: DocumentPicker.DocumentPickerAsset[];
   errorMessage?: string;
 };
 
@@ -96,6 +126,11 @@ const matchesAllowedExtension = (
     normalizedName.endsWith(extension),
   );
 };
+
+const normalizePickerError = (error: unknown): string =>
+  error instanceof Error && error.message
+    ? error.message
+    : DEFAULT_PICKER_ERROR_MESSAGE;
 
 const persistProcessedZipBlob = async (
   blob: Blob,
@@ -168,12 +203,41 @@ export const selectFileFromPicker = async ({
     return { file };
   } catch (error) {
     console.error('Error opening file picker or reading file:', error);
-    return {
-      errorMessage:
-        error instanceof Error && error.message
-          ? error.message
-          : DEFAULT_PICKER_ERROR_MESSAGE,
-    };
+    return { errorMessage: normalizePickerError(error) };
+  }
+};
+
+/** Same as selectFileFromPicker, but lets the OS picker's own multi-select
+ * UI through instead of forcing a single file per pick -- for CustomLayersField,
+ * where each additional custom layer previously required re-opening the
+ * picker one file at a time. */
+export const selectFilesFromPicker = async ({
+  pickerType,
+  allowedExtensions,
+  invalidSelectionMessage,
+}: PickerSelectionConfig): Promise<MultiPickerSelectionResult> => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: pickerType,
+      copyToCacheDirectory: true,
+      multiple: true,
+    });
+
+    if (result.canceled) {
+      return {};
+    }
+
+    const hasInvalidFile = result.assets.some(
+      (file) => !matchesAllowedExtension(file, allowedExtensions),
+    );
+    if (hasInvalidFile) {
+      return { errorMessage: invalidSelectionMessage };
+    }
+
+    return { files: result.assets };
+  } catch (error) {
+    console.error('Error opening file picker or reading files:', error);
+    return { errorMessage: normalizePickerError(error) };
   }
 };
 

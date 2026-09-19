@@ -4,6 +4,7 @@
 
 import JSZip from 'jszip';
 import {
+  findEmbeddedLayerFiles,
   parseUploadedParquetZipToRawBundle,
   resolveParquetEntryPaths,
 } from '@/data/uploadZipParquetParser';
@@ -53,6 +54,39 @@ describe('resolveParquetEntryPaths', () => {
         categoricalValueLookup: 'categorical_value_lookup.csv',
       }),
     );
+  });
+
+  it('recognizes relative_ranks_positions.parquet -- download-only, optional', () => {
+    const zip = {
+      files: {
+        'categorical_stats.parquet': { dir: false },
+        'density_graph.parquet': { dir: false },
+        'occurrence.parquet': { dir: false },
+        'occurrence_index.parquet': { dir: false },
+        'summary_stats.parquet': { dir: false },
+        'relative_ranks_positions.parquet': { dir: false },
+      },
+    } as unknown as JSZip;
+
+    expect(resolveParquetEntryPaths(zip)).toEqual(
+      expect.objectContaining({
+        relativeRanks: 'relative_ranks_positions.parquet',
+      }),
+    );
+  });
+
+  it('omits relativeRanks for a plain custom upload with no ranks file', () => {
+    const zip = {
+      files: {
+        'categorical_stats.parquet': { dir: false },
+        'density_graph.parquet': { dir: false },
+        'occurrence.parquet': { dir: false },
+        'occurrence_index.parquet': { dir: false },
+        'summary_stats.parquet': { dir: false },
+      },
+    } as unknown as JSZip;
+
+    expect(resolveParquetEntryPaths(zip).relativeRanks).toBeUndefined();
   });
 });
 
@@ -119,5 +153,36 @@ describe('parseUploadedParquetZipToRawBundle', () => {
         summaryStats: [],
       }),
     );
+  });
+});
+
+describe('findEmbeddedLayerFiles', () => {
+  it("lists raster/vector files (any folder), skipping the ZIP format's own JSON, tables and directories", async () => {
+    const zip = new JSZip();
+    zip.file('occurrence.parquet', 'x');
+    zip.file('upload_metadata.json', '{}');
+    zip.file('data_sources.json', '{}');
+    zip.file('taxon_image.png', 'x');
+    zip.file('custom_layers/Salinity Two.TIF', 'tiff-bytes');
+    zip.file('wetlands.geojson', '{"type":"FeatureCollection"}');
+    zip.file('layers/extra.json', '{}');
+
+    const files = findEmbeddedLayerFiles(zip);
+
+    expect(files.map((f) => f.name).sort()).toEqual([
+      'Salinity Two.TIF',
+      'extra.json',
+      'wetlands.geojson',
+    ]);
+  });
+
+  it('only inflates an entry when it is read', async () => {
+    const zip = new JSZip();
+    zip.file('a/soil.tif', 'tiff-bytes');
+    const [file] = findEmbeddedLayerFiles(zip);
+
+    const blob = await file.read();
+
+    expect(blob.size).toBe('tiff-bytes'.length);
   });
 });

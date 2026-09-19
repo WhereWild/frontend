@@ -278,6 +278,37 @@ type SpeciesOccurrenceMapProps = {
   // fullscreening just this component (map-only, no overlays) — better
   // than nothing, but a page with its own overlays should provide this.
   onFullscreenToggle?: () => void;
+  // When `heatmapTileUrl` uses the `localtiles://` scheme, both renderers
+  // ask this callback for each tile's PNG bytes (via a postMessage round
+  // trip) instead of `fetch()`ing the backend. `url` is the full tile URL
+  // (query string intact) so the callback can read colormap/render_range/…
+  // the same way the backend tile route does. `classes` (nominal/ordinal
+  // only) mirrors the backend's X-Nominal-Classes header, since a local tile
+  // has no HTTP response to carry a header on. Return null for a
+  // transparent tile. Optional and inert unless a `localtiles://` URL is
+  // passed.
+  renderLocalTile?: (
+    z: number,
+    x: number,
+    y: number,
+    url: string,
+  ) => Promise<{
+    data: ArrayBuffer;
+    classes?: { id: number; count: number }[];
+  } | null>;
+  // When `pointQueryUrl` uses the `localpoint://` scheme, both templates ask
+  // this callback for the clicked point's value instead of fetch()ing the
+  // backend's /gis/point — the same "generic API, remote or local" pattern
+  // as renderLocalTile above. Null when there's no data at that point.
+  // Optional and inert unless a `localpoint://` URL is passed.
+  renderLocalPointValue?: (
+    lat: number,
+    lon: number,
+  ) => Promise<{
+    value: number;
+    className?: string | null;
+    classColor?: string | null;
+  } | null>;
 };
 
 export function SpeciesOccurrenceMap({
@@ -339,6 +370,8 @@ export function SpeciesOccurrenceMap({
   initialDrawnPolygons,
   enableOfflineFallback = true,
   onFullscreenToggle,
+  renderLocalTile,
+  renderLocalPointValue,
 }: SpeciesOccurrenceMapProps) {
   const fallbackWarningMessage =
     'Unable to load the bundled map renderer. Showing the fallback map.';
@@ -411,7 +444,10 @@ export function SpeciesOccurrenceMap({
 
   const settings = useOptionalSettings();
   const globeViewSupported = Platform.OS === 'web';
-  const globeView = globeViewSupported && !!settings?.globeViewEnabled;
+  // Always the globe renderer on web — the 2D/Leaflet path is no longer
+  // offered as a user choice (settings.globeViewEnabled is left alone so a
+  // stray persisted value doesn't matter either way).
+  const globeView = globeViewSupported;
 
   const handlePinObservation = React.useCallback(
     (catalogNumber: string, latitude: number, longitude: number) => {
@@ -798,6 +834,13 @@ export function SpeciesOccurrenceMap({
   // iframe rebuild right after the map already updated itself, undoing the
   // whole point of preserveMapPosition.
   const initialTerrainEnabled = React.useRef(settings?.terrainEnabled ?? false);
+  // Same freeze-at-build-time treatment, for the globe/flat MapLibre
+  // projection toggle — it applies itself instantly and locally (see the
+  // globe template's own toggle control) and only tells
+  // settings.globeViewEnabled about it for next time.
+  const initialGlobeProjectionEnabled = React.useRef(
+    settings?.globeViewEnabled ?? true,
+  );
   // Same freeze-at-build-time treatment, for the basemap mode toggle. When
   // the toggle itself is disabled (enableBasemapModeToggle=false, e.g.
   // maps.tsx), the template must NOT be driven by the shared/global
@@ -874,6 +917,7 @@ export function SpeciesOccurrenceMap({
       : observationValues;
     initialCircularShapesEnabled.current = circularShapesEnabled;
     initialTerrainEnabled.current = settings?.terrainEnabled ?? false;
+    initialGlobeProjectionEnabled.current = settings?.globeViewEnabled ?? true;
     initialBasemapMode.current = effectiveBasemapMode;
     initialStandardTheme.current = settings?.standardBasemapTheme ?? 'default';
     initialAutoAdaptApplicable.current = autoAdaptApplicable;
@@ -931,6 +975,9 @@ export function SpeciesOccurrenceMap({
   const memoTerrainEnabled = preserveMapPosition
     ? initialTerrainEnabled.current
     : (settings?.terrainEnabled ?? false);
+  const memoGlobeProjectionEnabled = preserveMapPosition
+    ? initialGlobeProjectionEnabled.current
+    : (settings?.globeViewEnabled ?? true);
   const memoBasemapMode = preserveMapPosition
     ? initialBasemapMode.current
     : effectiveBasemapMode;
@@ -1000,6 +1047,7 @@ export function SpeciesOccurrenceMap({
       memoAutoAdaptEnabled,
       initialStandardTheme.current,
       standardThemes,
+      memoGlobeProjectionEnabled,
     );
   }, [
     allowPinObservations,
@@ -1049,6 +1097,7 @@ export function SpeciesOccurrenceMap({
     memoAutoAdaptApplicable,
     memoAutoAdaptEnabled,
     standardThemes,
+    memoGlobeProjectionEnabled,
   ]);
 
   React.useEffect(() => {
@@ -1498,6 +1547,71 @@ export function SpeciesOccurrenceMap({
         data.type === TOGGLE_AUTO_ADAPT_MESSAGE_TYPE
       ) {
         onToggleAutoAdapt?.();
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        renderLocalTile &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === 'localTileRequest'
+      ) {
+        const { requestId, z, x, y, url } = data as {
+          requestId: number;
+          z: number;
+          x: number;
+          y: number;
+          url: string;
+        };
+        const respond = (
+          result: {
+            data: ArrayBuffer;
+            classes?: { id: number; count: number }[];
+          } | null,
+        ) =>
+          frameWindow.postMessage(
+            {
+              type: 'localTileResponse',
+              requestId,
+              data: result?.data ?? null,
+              classes: result?.classes ?? null,
+            },
+            '*',
+            result?.data ? [result.data] : [],
+          );
+        void renderLocalTile(z, x, y, url).then(respond, () => respond(null));
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
+        renderLocalPointValue &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === 'localPointRequest'
+      ) {
+        const { requestId, lat, lon } = data as {
+          requestId: number;
+          lat: number;
+          lon: number;
+        };
+        const respond = (
+          result: {
+            value: number;
+            className?: string | null;
+            classColor?: string | null;
+          } | null,
+        ) =>
+          frameWindow.postMessage(
+            { type: 'localPointResponse', requestId, data: result },
+            '*',
+          );
+        void renderLocalPointValue(lat, lon).then(respond, () => respond(null));
       }
     };
     window.addEventListener('message', handler);
@@ -1521,6 +1635,8 @@ export function SpeciesOccurrenceMap({
     settings,
     onFullscreenToggle,
     onToggleAutoAdapt,
+    renderLocalTile,
+    renderLocalPointValue,
   ]);
 
   if (error) {

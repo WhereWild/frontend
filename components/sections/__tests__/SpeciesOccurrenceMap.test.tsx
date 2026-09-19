@@ -16,8 +16,11 @@ import { Linking, Platform } from 'react-native';
 import { SpeciesOccurrenceMap } from '../SpeciesOccurrenceMap';
 import * as speciesOccurrenceMapHelpers from '../speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 
-const realLeafletTemplate = fs.readFileSync(
-  path.join(__dirname, '../speciesOccurrenceMap/SpeciesOccurrenceMap.html'),
+const realGlobeTemplate = fs.readFileSync(
+  path.join(
+    __dirname,
+    '../speciesOccurrenceMap/SpeciesOccurrenceGlobeMap.html',
+  ),
   'utf8',
 );
 
@@ -53,6 +56,10 @@ describe('SpeciesOccurrenceMap', () => {
     speciesOccurrenceMapHelpers,
     'loadMapTemplate',
   );
+  const loadGlobeMapTemplateSpy = jest.spyOn(
+    speciesOccurrenceMapHelpers,
+    'loadGlobeMapTemplate',
+  );
   const loadFallbackMapTemplateSpy = jest.spyOn(
     speciesOccurrenceMapHelpers,
     'loadFallbackMapTemplate',
@@ -86,12 +93,14 @@ describe('SpeciesOccurrenceMap', () => {
     mockPostMessage.mockClear();
     openURLSpy.mockClear();
     loadMapTemplateSpy.mockReset();
+    loadGlobeMapTemplateSpy.mockReset();
     loadFallbackMapTemplateSpy.mockReset();
     global.window = originalWindow;
   });
 
   beforeEach(() => {
     loadMapTemplateSpy.mockResolvedValue(resolvedTemplate);
+    loadGlobeMapTemplateSpy.mockResolvedValue(resolvedTemplate);
     loadFallbackMapTemplateSpy.mockResolvedValue(resolvedTemplate);
   });
 
@@ -348,7 +357,7 @@ describe('SpeciesOccurrenceMap', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
     } as unknown as Window & typeof globalThis;
-    loadMapTemplateSpy.mockResolvedValue(realLeafletTemplate);
+    loadGlobeMapTemplateSpy.mockResolvedValue(realGlobeTemplate);
 
     const { UNSAFE_getByProps, unmount } = render(
       <SpeciesOccurrenceMap

@@ -49,12 +49,12 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 2.1,
-  elevation: 100,
-  landcover: 52,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 2.1,
+          elevation: 100,
+          landcover: 52,
+        },
       ],
       summaryStats: [
         {
@@ -100,13 +100,22 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const definitions = await dataSource.fetchEnvironmentVariables();
 
-    expect(definitions.find((entry) => entry.id === 'bio_1')?.category).toBe('climate');
-    expect(definitions.find((entry) => entry.id === 'landcover')?.category).toBe('land');
-    expect(definitions.find((entry) => entry.id === 'elevation')?.category).toBe('terrain');
+    expect(definitions.find((entry) => entry.id === 'bio_1')?.category).toBe(
+      'climate',
+    );
+    expect(
+      definitions.find((entry) => entry.id === 'landcover')?.category,
+    ).toBe('land');
+    expect(
+      definitions.find((entry) => entry.id === 'elevation')?.category,
+    ).toBe('terrain');
   });
 
   it('maps categorical occurrence codes to stable categorical keys through categorical_value_lookup', async () => {
@@ -138,7 +147,12 @@ describe('upload local species data source variable categories', () => {
       ],
       densityGraph: [],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 },
+        {
+          catalogNumber: 'obs_1',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          landcover: 52,
+        },
       ],
       occurrenceIndex: [],
       summaryStats: [
@@ -158,15 +172,25 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const stats = await dataSource.fetchSpeciesEnvironment(1, 'landcover');
     expect(stats.variableType).toBe('categorical');
     expect(stats.categoricalDistribution?.length).toBe(1);
     expect(stats.categoricalDistribution?.[0]?.value).toBe('class_52');
-    expect(stats.categoricalDistribution?.[0]?.className).toBe('Impervious surfaces');
+    expect(stats.categoricalDistribution?.[0]?.className).toBe(
+      'Impervious surfaces',
+    );
 
-    const sampleResponse = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52');
+    const sampleResponse =
+      await dataSource.fetchSpeciesEnvironmentCategorySamples(
+        1,
+        'landcover',
+        'class_52',
+      );
     expect(sampleResponse.observations.length).toBe(1);
     expect(sampleResponse.observations[0]?.catalogNumber).toBe('obs_1');
   });
@@ -196,7 +220,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 }],
+      occurrences: [
+        {
+          catalogNumber: 'obs_1',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          landcover: 52,
+        },
+      ],
       occurrenceIndex: [],
       summaryStats: [
         {
@@ -256,7 +287,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, landcover: 52 }],
+      occurrences: [
+        {
+          catalogNumber: 'obs_1',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          landcover: 52,
+        },
+      ],
       occurrenceIndex: [],
       summaryStats: [
         {
@@ -283,7 +321,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     expect(normalizedBundle.meta?.warnings).toBeUndefined();
     expect(normalizedBundle.occurrenceIndex).toEqual([
@@ -302,11 +343,12 @@ describe('upload local species data source variable categories', () => {
       }),
     ]);
 
-    const sampleResponse = await dataSource.fetchSpeciesEnvironmentCategorySamples(
-      1,
-      'landcover',
-      'class_52',
-    );
+    const sampleResponse =
+      await dataSource.fetchSpeciesEnvironmentCategorySamples(
+        1,
+        'landcover',
+        'class_52',
+      );
     expect(sampleResponse.observations).toEqual([
       expect.objectContaining({ catalogNumber: 'obs_1' }),
     ]);
@@ -342,12 +384,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       densityGraph: [],
-      occurrences: [{ catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 }],
+      occurrences: [
+        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+      ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  landcover: 'class_52',
-},
+        {
+          catalogNumber: 'obs_1',
+          landcover: 'class_52',
+        },
       ],
       summaryStats: [
         {
@@ -366,9 +410,14 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
-    await expect(dataSource.fetchSpeciesEnvironment(1, 'landcover')).resolves.toEqual(
+    await expect(
+      dataSource.fetchSpeciesEnvironment(1, 'landcover'),
+    ).resolves.toEqual(
       expect.objectContaining({
         categoricalDistribution: [
           expect.objectContaining({
@@ -428,16 +477,16 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 2.1,
-  landcover: 52,
-},
-{
-  catalogNumber: 'obs_2',
-  bio_1: 3.1,
-  landcover: 130,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 2.1,
+          landcover: 52,
+        },
+        {
+          catalogNumber: 'obs_2',
+          bio_1: 3.1,
+          landcover: 130,
+        },
       ],
       summaryStats: [
         {
@@ -463,16 +512,18 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const stats = await dataSource.fetchSpeciesEnvironment(1, 'landcover');
 
     expect(stats.variableType).toBe('categorical');
     expect(stats.summary.count).toBe(2);
-    expect(stats.categoricalDistribution?.map((entry) => String(entry.value)).sort()).toEqual([
-      'class_130',
-      'class_52',
-    ]);
+    expect(
+      stats.categoricalDistribution?.map((entry) => String(entry.value)).sort(),
+    ).toEqual(['class_130', 'class_52']);
   });
 
   it('uses variable metadata ids as canonical keys when labels differ from variable ids', async () => {
@@ -490,10 +541,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 2.1,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 2.1,
+        },
       ],
       summaryStats: [
         {
@@ -529,14 +580,19 @@ describe('upload local species data source variable categories', () => {
       }),
     ]);
 
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
     const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
 
     expect(stats.variable).toBe('bio_1');
     expect(stats.variableName).toBe('Mean Annual Temperature');
     await expect(
       dataSource.fetchSpeciesEnvironment(1, 'Mean Annual Temperature'),
-    ).rejects.toThrow('Local upload does not include stats for variable: Mean Annual Temperature');
+    ).rejects.toThrow(
+      'Local upload does not include stats for variable: Mean Annual Temperature',
+    );
   });
 
   it('treats exported occurrence column names as display metadata, not canonical ids', async () => {
@@ -552,7 +608,12 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 12.5 },
+        {
+          catalogNumber: 'obs_1',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          bio_1: 12.5,
+        },
       ],
       occurrenceIndex: [],
       summaryStats: [
@@ -582,7 +643,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     expect(normalizedBundle.variableDefinitions).toEqual([
       expect.objectContaining({
@@ -592,7 +656,10 @@ describe('upload local species data source variable categories', () => {
       }),
     ]);
     expect(normalizedBundle.summaryStats).toEqual([
-      expect.objectContaining({ variable: 'bio_1', variableName: 'Annual Mean Temperature' }),
+      expect.objectContaining({
+        variable: 'bio_1',
+        variableName: 'Annual Mean Temperature',
+      }),
     ]);
     expect(normalizedBundle.densityGraph).toEqual([
       expect.objectContaining({ variable: 'bio_1', value: 0, density: 0.1 }),
@@ -606,7 +673,9 @@ describe('upload local species data source variable categories', () => {
     await expect(dataSource.fetchEnvironmentVariables()).resolves.toEqual([
       expect.objectContaining({ id: 'bio_1', name: 'Annual Mean Temperature' }),
     ]);
-    await expect(dataSource.fetchSpeciesEnvironment(1, 'bio_1')).resolves.toEqual(
+    await expect(
+      dataSource.fetchSpeciesEnvironment(1, 'bio_1'),
+    ).resolves.toEqual(
       expect.objectContaining({
         variable: 'bio_1',
         variableName: 'Annual Mean Temperature',
@@ -627,7 +696,12 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, 'Annual Mean Temperature': 12.5 },
+        {
+          catalogNumber: 'obs_1',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          'Annual Mean Temperature': 12.5,
+        },
       ],
       occurrenceIndex: [],
       summaryStats: [
@@ -661,12 +735,21 @@ describe('upload local species data source variable categories', () => {
       expect.objectContaining({ variable: 'Annual Mean Temperature' }),
     ]);
     expect(normalizedBundle.occurrenceIndex).toEqual([
-      expect.objectContaining({ variable: 'Annual Mean Temperature', observationIds: ['obs_1'] }),
+      expect.objectContaining({
+        variable: 'Annual Mean Temperature',
+        observationIds: ['obs_1'],
+      }),
     ]);
     expect(normalizedBundle.variableDefinitions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'bio_1', name: 'Annual Mean Temperature' }),
-        expect.objectContaining({ id: 'Annual Mean Temperature', name: 'Annual Mean Temperature' }),
+        expect.objectContaining({
+          id: 'bio_1',
+          name: 'Annual Mean Temperature',
+        }),
+        expect.objectContaining({
+          id: 'Annual Mean Temperature',
+          name: 'Annual Mean Temperature',
+        }),
       ]),
     );
   });
@@ -679,10 +762,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 12.5,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 12.5,
+        },
       ],
       summaryStats: [
         {
@@ -724,10 +807,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 12.5,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 12.5,
+        },
       ],
       summaryStats: [
         {
@@ -752,7 +835,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     expect(normalizedBundle.variableDefinitions).toEqual([
       expect.objectContaining({
@@ -781,10 +867,10 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 12.5,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 12.5,
+        },
       ],
       summaryStats: [
         {
@@ -815,7 +901,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     expect(normalizedBundle.summaryStats).toEqual([
       expect.objectContaining({
@@ -825,7 +914,9 @@ describe('upload local species data source variable categories', () => {
         variableType: 'numeric',
       }),
     ]);
-    await expect(dataSource.fetchSpeciesEnvironment(1, 'bio_1')).resolves.toEqual(
+    await expect(
+      dataSource.fetchSpeciesEnvironment(1, 'bio_1'),
+    ).resolves.toEqual(
       expect.objectContaining({
         variable: 'bio_1',
         variableName: 'Annual Mean Temperature',
@@ -858,11 +949,11 @@ describe('upload local species data source variable categories', () => {
         { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_1',
-  bio_1: 2.1,
-  elevation: 100,
-},
+        {
+          catalogNumber: 'obs_1',
+          bio_1: 2.1,
+          elevation: 100,
+        },
       ],
       summaryStats: [
         {
@@ -915,14 +1006,17 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     await expect(dataSource.fetchEnvironmentVariables()).resolves.toEqual([
       expect.objectContaining({ id: 'bio_1' }),
     ]);
-    await expect(dataSource.fetchSpeciesEnvironment(1, 'bio_1')).resolves.toEqual(
-      expect.objectContaining({ variable: 'bio_1' }),
-    );
+    await expect(
+      dataSource.fetchSpeciesEnvironment(1, 'bio_1'),
+    ).resolves.toEqual(expect.objectContaining({ variable: 'bio_1' }));
   });
 
   it('preserves numeric catalog numbers from object-form occurrence index rows', async () => {
@@ -937,7 +1031,12 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 123, decimalLatitude: 10, decimalLongitude: 20, bio_1: 2.1 },
+        {
+          catalogNumber: 123,
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          bio_1: 2.1,
+        },
       ],
       occurrenceIndex: [],
       summaryStats: [
@@ -957,7 +1056,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
     const slice = await dataSource.fetchEnvironmentRangeSlice({
       taxonId: '1',
       variableId: 'bio_1',
@@ -972,11 +1074,13 @@ describe('upload local species data source variable categories', () => {
       }),
     ]);
     expect(slice.observations).toEqual([
-      expect.objectContaining({ catalogNumber: '123', latitude: 10, longitude: 20 }),
+      expect.objectContaining({
+        catalogNumber: '123',
+        latitude: 10,
+        longitude: 20,
+      }),
     ]);
   });
-
-
 
   it('filters uploaded locations correctly when callers use string levels', async () => {
     const rawBundle: RawUploadedParquetBundle = {
@@ -1008,7 +1112,12 @@ describe('upload local species data source variable categories', () => {
       variableMetadata: [],
       locations: [
         { gid: 'country-us', name: 'United States', level: 0, hierarchy: [] },
-        { gid: 'state-us-ca', name: 'California', level: 1, hierarchy: ['country-us'] },
+        {
+          gid: 'state-us-ca',
+          name: 'California',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
         {
           gid: 'county-us-ca-sf',
           name: 'San Francisco County',
@@ -1019,20 +1128,37 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
-    await expect(dataSource.fetchSpeciesLocations(1, 'country')).resolves.toEqual([
+    await expect(
+      dataSource.fetchSpeciesLocations(1, 'country'),
+    ).resolves.toEqual([
       expect.objectContaining({ gid: 'country-us', level: 0 }),
     ]);
-    await expect(dataSource.fetchSpeciesLocations(1, 'state', 'United States')).resolves.toEqual([
+    await expect(
+      dataSource.fetchSpeciesLocations(1, 'state', 'United States'),
+    ).resolves.toEqual([
       expect.objectContaining({ gid: 'state-us-ca', level: 1 }),
     ]);
-    await expect(dataSource.fetchSpeciesLocations(1, 'county', 'California')).resolves.toEqual([
+    await expect(
+      dataSource.fetchSpeciesLocations(1, 'county', 'California'),
+    ).resolves.toEqual([
       expect.objectContaining({ gid: 'county-us-ca-sf', level: 2 }),
     ]);
 
-    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-ca' })).resolves.toMatchObject({
-      occurrences: [expect.objectContaining({ catalogNumber: 'obs_1', latitude: 10, longitude: 20 })],
+    await expect(
+      dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-ca' }),
+    ).resolves.toMatchObject({
+      occurrences: [
+        expect.objectContaining({
+          catalogNumber: 'obs_1',
+          latitude: 10,
+          longitude: 20,
+        }),
+      ],
     });
     await expect(
       dataSource.fetchEnvironmentRangeSlice({
@@ -1046,10 +1172,157 @@ describe('upload local species data source variable categories', () => {
       expect.objectContaining({
         count: 1,
         observations: [
-          expect.objectContaining({ catalogNumber: 'obs_1', latitude: 10, longitude: 20 }),
+          expect.objectContaining({
+            catalogNumber: 'obs_1',
+            latitude: 10,
+            longitude: 20,
+          }),
         ],
       }),
     );
+  });
+
+  it('passes an occurrence row optional imageUrl column through as mediaUrl, untouched, and omits it when absent', async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [],
+      densityGraph: [],
+      occurrences: [
+        {
+          catalogNumber: 'obs_with_photo',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          imageUrl: 'https://example.com/photo.jpg',
+        },
+        {
+          catalogNumber: 'obs_without_photo',
+          decimalLatitude: 11,
+          decimalLongitude: 21,
+        },
+        // A species-page download's occurrence.parquet reuses the upload
+        // pipeline's archive packaging but its data comes straight from the
+        // real occurrences table, which has always called this column
+        // mediaUrl (not imageUrl) -- re-importing one of these ZIPs via the
+        // upload page must still surface the photo.
+        {
+          catalogNumber: 'obs_from_species_download',
+          decimalLatitude: 12,
+          decimalLongitude: 22,
+          mediaUrl: 'https://example.com/real-observation.jpg',
+        },
+        // imageUrl (the upload pipeline's own canonical name) wins if a row
+        // somehow has both.
+        {
+          catalogNumber: 'obs_with_both',
+          decimalLatitude: 13,
+          decimalLongitude: 23,
+          imageUrl: 'https://example.com/upload-photo.jpg',
+          mediaUrl: 'https://example.com/should-be-ignored.jpg',
+        },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          count: 2,
+          min: 0,
+          mean: 0,
+          max: 0,
+          std: 0,
+          '10th percentile': 0,
+          '90th percentile': 0,
+        },
+      ],
+      variableMetadata: [],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const { occurrences } = await dataSource.fetchSpeciesOccurrences(1, {});
+    expect(occurrences).toEqual([
+      expect.objectContaining({
+        catalogNumber: 'obs_with_photo',
+        mediaUrl: 'https://example.com/photo.jpg',
+      }),
+      expect.objectContaining({
+        catalogNumber: 'obs_without_photo',
+        mediaUrl: null,
+      }),
+      expect.objectContaining({
+        catalogNumber: 'obs_from_species_download',
+        mediaUrl: 'https://example.com/real-observation.jpg',
+      }),
+      expect.objectContaining({
+        catalogNumber: 'obs_with_both',
+        mediaUrl: 'https://example.com/upload-photo.jpg',
+      }),
+    ]);
+  });
+
+  it("passes a re-imported species download's per-occurrence mediaAttribution/mediaLicense/mediaLicenseUrl columns through untouched", async () => {
+    const rawBundle: RawUploadedParquetBundle = {
+      categoricalStats: [],
+      densityGraph: [],
+      occurrences: [
+        {
+          catalogNumber: 'obs_with_attribution',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          mediaUrl: 'https://example.com/real-observation.jpg',
+          // util/download.py's _add_media_license_label already splits the
+          // raw mediaLicense URL into this exact label/url pair before it
+          // ever reaches occurrence.parquet.
+          mediaAttribution: 'Jane Doe',
+          mediaLicense: 'CC BY 4.0',
+          mediaLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+        },
+        {
+          catalogNumber: 'obs_without_attribution',
+          decimalLatitude: 11,
+          decimalLongitude: 21,
+          mediaUrl: 'https://example.com/no-attribution.jpg',
+        },
+      ],
+      occurrenceIndex: [],
+      summaryStats: [
+        {
+          variable: 'bio_1',
+          count: 2,
+          min: 0,
+          mean: 0,
+          max: 0,
+          std: 0,
+          '10th percentile': 0,
+          '90th percentile': 0,
+        },
+      ],
+      variableMetadata: [],
+    };
+
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const { occurrences } = await dataSource.fetchSpeciesOccurrences(1, {});
+    expect(occurrences).toEqual([
+      expect.objectContaining({
+        catalogNumber: 'obs_with_attribution',
+        mediaAttribution: 'Jane Doe',
+        mediaLicense: 'CC BY 4.0',
+        mediaLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      }),
+      expect.objectContaining({
+        catalogNumber: 'obs_without_attribution',
+        mediaAttribution: null,
+        mediaLicense: null,
+        mediaLicenseUrl: null,
+      }),
+    ]);
   });
 
   it('rebuilds environment stats for the active location scope instead of returning global stats', async () => {
@@ -1139,8 +1412,18 @@ describe('upload local species data source variable categories', () => {
       variableMetadata: [],
       locations: [
         { gid: 'country-us', name: 'United States', level: 0, hierarchy: [] },
-        { gid: 'state-us-ca', name: 'California', level: 1, hierarchy: ['country-us'] },
-        { gid: 'state-us-nv', name: 'Nevada', level: 1, hierarchy: ['country-us'] },
+        {
+          gid: 'state-us-ca',
+          name: 'California',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
+        {
+          gid: 'state-us-nv',
+          name: 'Nevada',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
         {
           gid: 'county-us-ca-sf',
           name: 'San Francisco County',
@@ -1157,12 +1440,19 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const globalStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
-    const californiaStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', {
-      location: 'state-us-ca',
-    });
+    const californiaStats = await dataSource.fetchSpeciesEnvironment(
+      1,
+      'bio_1',
+      {
+        location: 'state-us-ca',
+      },
+    );
 
     expect(globalStats.summary).toEqual(
       expect.objectContaining({ count: 2, min: 2.1, mean: 2.6, max: 3.1 }),
@@ -1177,9 +1467,13 @@ describe('upload local species data source variable categories', () => {
     });
     expect(californiaStats.densityCurve).toBeNull();
 
-    const californiaLandcoverStats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
-      location: 'state-us-ca',
-    });
+    const californiaLandcoverStats = await dataSource.fetchSpeciesEnvironment(
+      1,
+      'landcover',
+      {
+        location: 'state-us-ca',
+      },
+    );
     expect(californiaLandcoverStats.categoricalDistribution).toEqual([
       expect.objectContaining({
         value: 'class_52',
@@ -1276,7 +1570,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const square: [number, number][] = [
       [0, 0],
@@ -1287,16 +1584,22 @@ describe('upload local species data source variable categories', () => {
     const polygon = encodePolygonsParam([square]);
 
     const globalStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
-    const scopedStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { polygon });
+    const scopedStats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', {
+      polygon,
+    });
 
     expect(globalStats.summary).toEqual(expect.objectContaining({ count: 2 }));
     expect(scopedStats.summary).toEqual(
       expect.objectContaining({ count: 1, min: 2.1, mean: 2.1, max: 2.1 }),
     );
 
-    const scopedLandcoverStats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
-      polygon,
-    });
+    const scopedLandcoverStats = await dataSource.fetchSpeciesEnvironment(
+      1,
+      'landcover',
+      {
+        polygon,
+      },
+    );
     expect(scopedLandcoverStats.categoricalDistribution).toEqual([
       expect.objectContaining({ value: 'class_52', count: 1 }),
     ]);
@@ -1335,9 +1638,24 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrences: [
-        { catalogNumber: 'obs_a', decimalLatitude: 5, decimalLongitude: 5, bio_1: 2.1 },
-        { catalogNumber: 'obs_b', decimalLatitude: 25, decimalLongitude: 25, bio_1: 3.1 },
-        { catalogNumber: 'obs_c', decimalLatitude: 50, decimalLongitude: 50, bio_1: 4.1 },
+        {
+          catalogNumber: 'obs_a',
+          decimalLatitude: 5,
+          decimalLongitude: 5,
+          bio_1: 2.1,
+        },
+        {
+          catalogNumber: 'obs_b',
+          decimalLatitude: 25,
+          decimalLongitude: 25,
+          bio_1: 3.1,
+        },
+        {
+          catalogNumber: 'obs_c',
+          decimalLatitude: 50,
+          decimalLongitude: 50,
+          bio_1: 4.1,
+        },
       ],
       occurrenceIndex: [],
       summaryStats: [
@@ -1357,7 +1675,10 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const squareA: [number, number][] = [
       [0, 0],
@@ -1373,7 +1694,9 @@ describe('upload local species data source variable categories', () => {
     ];
     const polygon = encodePolygonsParam([squareA, squareB]);
 
-    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { polygon });
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', {
+      polygon,
+    });
     // obs_a (in squareA) and obs_b (in squareB) both count; obs_c (in
     // neither) is excluded — proves this is a union, not an intersection.
     expect(stats.summary).toEqual(
@@ -1400,14 +1723,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_nj',
-  bio_1: 2.1,
-},
-{
-  catalogNumber: 'obs_co',
-  bio_1: 3.1,
-},
+        {
+          catalogNumber: 'obs_nj',
+          bio_1: 2.1,
+        },
+        {
+          catalogNumber: 'obs_co',
+          bio_1: 3.1,
+        },
       ],
       summaryStats: [
         {
@@ -1425,8 +1748,18 @@ describe('upload local species data source variable categories', () => {
       variableMetadata: [],
       locations: [
         { gid: 'country-us', name: 'United States', level: 0, hierarchy: [] },
-        { gid: 'state-us-nj', name: 'Washington', level: 1, hierarchy: ['country-us'] },
-        { gid: 'state-us-co', name: 'Washington', level: 1, hierarchy: ['country-us'] },
+        {
+          gid: 'state-us-nj',
+          name: 'Washington',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
+        {
+          gid: 'state-us-co',
+          name: 'Washington',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
         {
           gid: 'county-us-nj-washington',
           name: 'Mercer County',
@@ -1443,17 +1776,24 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
-    await expect(dataSource.fetchSpeciesLocations(1, 'county', 'state-us-nj')).resolves.toEqual([
+    await expect(
+      dataSource.fetchSpeciesLocations(1, 'county', 'state-us-nj'),
+    ).resolves.toEqual([
       expect.objectContaining({ gid: 'county-us-nj-washington' }),
     ]);
-    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toMatchObject({
+    await expect(
+      dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' }),
+    ).resolves.toMatchObject({
       occurrences: [expect.objectContaining({ catalogNumber: 'obs_nj' })],
     });
   });
 
-  it('does not match unrelated duplicate-name branches by a location\'s own name', async () => {
+  it("does not match unrelated duplicate-name branches by a location's own name", async () => {
     const rawBundle: RawUploadedParquetBundle = {
       categoricalStats: [],
       densityGraph: [],
@@ -1472,14 +1812,14 @@ describe('upload local species data source variable categories', () => {
         },
       ],
       occurrenceIndex: [
-{
-  catalogNumber: 'obs_selected',
-  bio_1: 2.1,
-},
-{
-  catalogNumber: 'obs_other',
-  bio_1: 3.1,
-},
+        {
+          catalogNumber: 'obs_selected',
+          bio_1: 2.1,
+        },
+        {
+          catalogNumber: 'obs_other',
+          bio_1: 3.1,
+        },
       ],
       summaryStats: [
         {
@@ -1497,15 +1837,30 @@ describe('upload local species data source variable categories', () => {
       variableMetadata: [],
       locations: [
         { gid: 'country-us', name: 'United States', level: 0, hierarchy: [] },
-        { gid: 'state-us-nj', name: 'Washington', level: 1, hierarchy: ['country-us'] },
-        { gid: 'state-us-co', name: 'Washington', level: 1, hierarchy: ['country-us'] },
+        {
+          gid: 'state-us-nj',
+          name: 'Washington',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
+        {
+          gid: 'state-us-co',
+          name: 'Washington',
+          level: 1,
+          hierarchy: ['country-us'],
+        },
       ],
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
-    await expect(dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' })).resolves.toMatchObject({
+    await expect(
+      dataSource.fetchSpeciesOccurrences(1, { location: 'state-us-nj' }),
+    ).resolves.toMatchObject({
       occurrences: [expect.objectContaining({ catalogNumber: 'obs_selected' })],
     });
   });
@@ -1515,7 +1870,12 @@ describe('upload local species data source variable categories', () => {
       categoricalStats: [],
       densityGraph: [],
       occurrences: [
-        { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 20 },
+        {
+          catalogNumber: 'obs_1',
+          decimalLatitude: 10,
+          decimalLongitude: 20,
+          bio_1: 20,
+        },
       ],
       occurrenceIndex: [],
       summaryStats: [
@@ -1536,12 +1896,19 @@ describe('upload local species data source variable categories', () => {
     };
 
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
-    const defs = await dataSource.fetchEnvironmentVariables({ units: 'imperial' });
+    const defs = await dataSource.fetchEnvironmentVariables({
+      units: 'imperial',
+    });
     expect(defs[0]?.units).toBe('°F');
 
-    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', { units: 'imperial' });
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1', {
+      units: 'imperial',
+    });
     expect(stats.units).toBe('°F');
     expect(stats.summary.mean).toBeCloseTo(68, 1);
 
@@ -1563,21 +1930,78 @@ describe('upload local species data source chained extra-variable filters', () =
   // obs_1: bio_1=10, landcover=52   obs_2: bio_1=20, landcover=52   obs_3: bio_1=30, landcover=130
   const rawBundle: RawUploadedParquetBundle = {
     categoricalStats: [
-      { variable: 'landcover', variableCategory: 'land', metric: 'class_52', metricLabel: 'Impervious surfaces', value: 2 },
-      { variable: 'landcover', variableCategory: 'land', metric: 'class_130', metricLabel: 'Grassland', value: 1 },
-      { variable: 'landcover', variableCategory: 'land', metric: 'total_samples', value: 3 },
+      {
+        variable: 'landcover',
+        variableCategory: 'land',
+        metric: 'class_52',
+        metricLabel: 'Impervious surfaces',
+        value: 2,
+      },
+      {
+        variable: 'landcover',
+        variableCategory: 'land',
+        metric: 'class_130',
+        metricLabel: 'Grassland',
+        value: 1,
+      },
+      {
+        variable: 'landcover',
+        variableCategory: 'land',
+        metric: 'total_samples',
+        value: 3,
+      },
     ],
     categoricalValueLookup: [
-      { variable: 'landcover', variableName: 'Land Cover Classes', variableCategory: 'land', code: 52, metric: 'class_52', label: 'Impervious surfaces' },
-      { variable: 'landcover', variableName: 'Land Cover Classes', variableCategory: 'land', code: 130, metric: 'class_130', label: 'Grassland' },
+      {
+        variable: 'landcover',
+        variableName: 'Land Cover Classes',
+        variableCategory: 'land',
+        code: 52,
+        metric: 'class_52',
+        label: 'Impervious surfaces',
+      },
+      {
+        variable: 'landcover',
+        variableName: 'Land Cover Classes',
+        variableCategory: 'land',
+        code: 130,
+        metric: 'class_130',
+        label: 'Grassland',
+      },
     ],
     densityGraph: [
-      { variable: 'bio_1', variableCategory: 'climate', points: [10, 20, 30], density: [0.1, 0.2, 0.1] },
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        points: [10, 20, 30],
+        density: [0.1, 0.2, 0.1],
+      },
     ],
     occurrences: [
-      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20, bio_1: 10, landcover: 52, aspect_deg: 355 },
-      { catalogNumber: 'obs_2', decimalLatitude: 11, decimalLongitude: 21, bio_1: 20, landcover: 52, aspect_deg: 200 },
-      { catalogNumber: 'obs_3', decimalLatitude: 12, decimalLongitude: 22, bio_1: 30, landcover: 130, aspect_deg: 5 },
+      {
+        catalogNumber: 'obs_1',
+        decimalLatitude: 10,
+        decimalLongitude: 20,
+        bio_1: 10,
+        landcover: 52,
+        aspect_deg: 355,
+      },
+      {
+        catalogNumber: 'obs_2',
+        decimalLatitude: 11,
+        decimalLongitude: 21,
+        bio_1: 20,
+        landcover: 52,
+        aspect_deg: 200,
+      },
+      {
+        catalogNumber: 'obs_3',
+        decimalLatitude: 12,
+        decimalLongitude: 22,
+        bio_1: 30,
+        landcover: 130,
+        aspect_deg: 5,
+      },
     ],
     occurrenceIndex: [],
     summaryStats: [
@@ -1609,7 +2033,10 @@ describe('upload local species data source chained extra-variable filters', () =
 
   it('intersects a chained categorical filter onto a numeric slice request', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
       taxonId: '1',
@@ -1626,11 +2053,19 @@ describe('upload local species data source chained extra-variable filters', () =
 
   it('intersects a chained numeric range filter onto a categorical samples request', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
-
-    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52', {
-      extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
     });
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(
+      1,
+      'landcover',
+      'class_52',
+      {
+        extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
+      },
+    );
 
     expect(sample.observations.map((o) => o.catalogNumber)).toEqual(['obs_2']);
   });
@@ -1643,7 +2078,10 @@ describe('upload local species data source chained extra-variable filters', () =
     // slowdown, not a correctness bug — but a correctness regression here
     // would mean the fix broke something while removing that redundancy).
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const stats = await dataSource.fetchSpeciesEnvironment(1, 'landcover', {
       extra: [{ variableId: 'bio_1', min: 15, max: 100 }],
@@ -1664,7 +2102,10 @@ describe('upload local species data source chained extra-variable filters', () =
 
   it('intersects a chained multi-class (OR) filter onto a numeric slice request', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
       taxonId: '1',
@@ -1683,19 +2124,27 @@ describe('upload local species data source chained extra-variable filters', () =
 
   it('intersects a chained multi-range (OR) filter onto a categorical samples request', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
-
-    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(1, 'landcover', 'class_52', {
-      extra: [
-        {
-          variableId: 'bio_1',
-          ranges: [
-            { min: 5, max: 15 },
-            { min: 25, max: 35 },
-          ],
-        },
-      ],
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
     });
+
+    const sample = await dataSource.fetchSpeciesEnvironmentCategorySamples(
+      1,
+      'landcover',
+      'class_52',
+      {
+        extra: [
+          {
+            variableId: 'bio_1',
+            ranges: [
+              { min: 5, max: 15 },
+              { min: 25, max: 35 },
+            ],
+          },
+        ],
+      },
+    );
 
     // Primary landcover=52 matches obs_1 (bio_1=10) and obs_2 (bio_1=20).
     // ranges OR-matches [5,15] and [25,35] — obs_1's bio_1=10 falls in the
@@ -1708,7 +2157,10 @@ describe('upload local species data source chained extra-variable filters', () =
     // range means min > max — a wraparound arc through 0/360 (350→360
     // ∪ 0→10), matching obs_1 (355) and obs_3 (5) but not obs_2 (200).
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
       taxonId: '1',
@@ -1728,7 +2180,10 @@ describe('upload local species data source chained extra-variable filters', () =
     // obs_3=5) with a plain [190,210] arc (catches obs_2=200) — all three
     // rows should match across the two OR'd ranges.
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
       taxonId: '1',
@@ -1753,7 +2208,10 @@ describe('upload local species data source chained extra-variable filters', () =
 
   it('returns nothing when a chained filter matches no rows', async () => {
     const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
-    const dataSource = buildUploadLocalSpeciesDataSource({ bundle: normalizedBundle, speciesId: 1 });
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
 
     const slice = await dataSource.fetchEnvironmentRangeSlice({
       taxonId: '1',
@@ -1764,5 +2222,85 @@ describe('upload local species data source chained extra-variable filters', () =
     });
 
     expect(slice.observations).toHaveLength(0);
+  });
+});
+
+describe('upload local species data source relative ranks', () => {
+  const rawBundle: RawUploadedParquetBundle = {
+    categoricalStats: [],
+    densityGraph: [
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        points: [1, 2],
+        density: [0.2, 0.4],
+      },
+    ],
+    occurrences: [
+      { catalogNumber: 'obs_1', decimalLatitude: 10, decimalLongitude: 20 },
+    ],
+    occurrenceIndex: [{ catalogNumber: 'obs_1', bio_1: 2.1 }],
+    summaryStats: [
+      {
+        variable: 'bio_1',
+        variableCategory: 'climate',
+        count: 1,
+        min: 2.1,
+        mean: 2.1,
+        max: 2.1,
+        std: 0,
+        '10th percentile': 2.1,
+        '90th percentile': 2.1,
+      },
+    ],
+    // Only ever present on a re-imported species download -- see
+    // util/rankings.py's POSITION_FILE / util/download.py's _STATS_FILES.
+    // position is 0-indexed (rank n-1 of n); the normalizer should convert
+    // it to a 1-indexed rank + percentile the same way main.py's
+    // _load_relative_ranks does for the live env-stats endpoint.
+    relativeRanks: [
+      {
+        variable: 'bio_1',
+        metric: 'mean',
+        position: 3,
+        count: 10,
+        sampleCount: 25,
+        contextLabel: 'Testaceae',
+      },
+    ],
+  };
+
+  it('threads relative ranks from the archive through to fetchSpeciesEnvironment, 1-indexed', async () => {
+    const normalizedBundle = normalizeRawUploadedParquetBundle(rawBundle);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+
+    expect(stats.relativeRanks).toEqual([
+      {
+        metric: 'mean',
+        label: 'Testaceae',
+        rank: 4,
+        count: 10,
+        percentile: 0.4,
+        context: 'Testaceae',
+      },
+    ]);
+  });
+
+  it('omits relativeRanks entirely for a plain custom upload with no ranks table', async () => {
+    const { relativeRanks: _omit, ...withoutRanks } = rawBundle;
+    const normalizedBundle = normalizeRawUploadedParquetBundle(withoutRanks);
+    const dataSource = buildUploadLocalSpeciesDataSource({
+      bundle: normalizedBundle,
+      speciesId: 1,
+    });
+
+    const stats = await dataSource.fetchSpeciesEnvironment(1, 'bio_1');
+
+    expect(stats.relativeRanks).toBeUndefined();
   });
 });

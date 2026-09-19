@@ -76,6 +76,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // — read once at load so a reload/return visit starts wherever the user
     // last left the toggle, rather than always defaulting on.
     const TERRAIN_ENABLED_INITIAL = __TERRAIN_ENABLED__;
+    // Same persisted-preference, read-once-at-load pattern as
+    // TERRAIN_ENABLED_INITIAL, for MapLibre's own globe-vs-flat projection
+    // (see the toggle control below — same document, no template switch).
+    const GLOBE_PROJECTION_ENABLED_INITIAL = __GLOBE_PROJECTION_ENABLED__;
     // Esri World Imagery, proxied through our own backend (see
     // wherewild/main.py's satellite_tile) so the ArcGIS API key never
     // reaches the client — standard {z}/{x}/{y} order, unlike Esri's own
@@ -480,9 +484,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         varColor: matchingPt.varColor,
         varLabel: matchingPt.varLabel,
       });
-      if (matchingPt.popupCatalogLabel) {
-        html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
-      }
+      // Media doesn't depend on popupCatalogLabel -- an auto-generated
+      // catalog number (custom uploads with no id column) empties that
+      // label deliberately (see preparePointsForMapHtml), but that has
+      // nothing to do with whether this point actually has a photo; gating
+      // the image on it silently dropped every photo for such points even
+      // when popupMediaUrl was populated.
+      html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
       // focusAfterOpen defaults to true — calling .focus() on the popup DOM
       // node makes the browser natively scroll/snap the page to bring it
       // into view, which reads as the whole screen jumping. Not needed
@@ -1044,6 +1052,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       container: 'map',
       style: {
         version: 8,
+        // Set here (not only in the map.on('load') handler below) so there's
+        // no flash of the other projection before load, and so the initial
+        // view is correct even if the 'load' event is delayed or never fires
+        // (e.g. a heatmap tile source that hangs).
+        projection: { type: GLOBE_PROJECTION_ENABLED_INITIAL ? 'globe' : 'mercator' },
         // Only used for cluster-count labels (text-field on the cluster
         // symbol layer below) — MapLibre demo glyphs, no API key needed.
         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
@@ -1222,6 +1235,19 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       },
       onRemove: function() {},
     });
+    // Globe vs. flat MapLibre projection — both renderers are the same
+    // MapLibre document now (Leaflet is no longer switched to on web), so
+    // this toggle no longer swaps templates; it just calls setProjection()
+    // directly. Same live-locally / persist-via-postMessage split as the
+    // terrain toggle below: the projection updates immediately, and the
+    // postToParent call is only so SpeciesOccurrenceMap persists the choice
+    // to settings.globeViewEnabled for next time.
+    var globeProjectionEnabled = !!GLOBE_PROJECTION_ENABLED_INITIAL;
+    var applyGlobeProjectionState = function() {
+      if (typeof map.setProjection === 'function') {
+        map.setProjection({ type: globeProjectionEnabled ? 'globe' : 'mercator' });
+      }
+    };
     map.addControl({
       onAdd: function() {
         var container = document.createElement('div');
@@ -1229,9 +1255,16 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
-        btn.title = 'Switch to 2D map view';
+        var updateButton = function() {
+          btn.title = globeProjectionEnabled ? 'Switch to flat map view' : 'Switch to 3D globe view';
+          btn.style.color = globeProjectionEnabled ? palette.linkColor : '';
+        };
         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M1 3.5L5.5 2l5 1.5L15 2v10.5l-4.5 1.5-5-1.5L1 14z"/><path d="M5.5 2v10.5"/><path d="M10.5 3.5v10.5"/></svg>';
+        updateButton();
         btn.addEventListener('click', function() {
+          globeProjectionEnabled = !globeProjectionEnabled;
+          applyGlobeProjectionState();
+          updateButton();
           postToParent({ type: 'toggleGlobeView' });
         });
         container.appendChild(btn);
@@ -1425,6 +1458,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     // everything upstream of it (region filtering, the backend `polygon`
     // query param) doesn't know or care which renderer sent them.
     var drawnPolygonGroups = [];
+    // True while the hand-drawn-polygon tool (see startPolygonDraw below) is
+    // actively placing vertices — guards the background click handler
+    // further down so a draw click doesn't also open a value/pin popup for
+    // the same point, same as Leaflet's identical guard.
+    var DRAW_POLYGON_MODE_ACTIVE = false;
 
     function allDrawnPolygonPoints() {
       var allRings = [];
@@ -1592,6 +1630,138 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         return container;
       },
       onRemove: function() {},
+    });
+
+    // Hand-drawn polygon regions — click to place vertices, click near the
+    // first vertex to close the ring, or click the pencil button again to
+    // cancel. Same 2-state idle/drawing pencil and polygonDrawn/
+    // polygonDrawStart/polygonDrawEnd message contract as
+    // SpeciesOccurrenceMap.html's Geoman-based version (React/the backend
+    // `polygon` filter don't know or care which renderer sent them). No
+    // plugin here — MapLibre GL JS has never shipped a drawing tool of its
+    // own (Leaflet doesn't either; the other template uses the third-party
+    // leaflet-geoman for it), and the core mechanic is simple enough to
+    // hand-roll: track clicked points, redraw a line between them on each
+    // click, close the ring on a click near the first vertex. Works in
+    // either projection with no special-casing — map.project()/unproject()
+    // are projection-aware, and the resulting GeoJSON line/circle layers
+    // curve along the sphere in globe mode automatically like every other
+    // vector layer (same as the 'drawn-polygons' layer above already does
+    // for uploaded regions).
+    var currentDrawPoints = []; // [lat, lon] pairs, same convention as drawnPolygonGroups
+    var DRAW_CLOSE_PIXEL_RADIUS = 12;
+
+    function rebuildDrawInProgressSource() {
+      var source = map.getSource('draw-in-progress');
+      if (!source) return;
+      var features = [];
+      if (currentDrawPoints.length > 1) {
+        features.push({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: currentDrawPoints.map(function(pt) { return [pt[1], pt[0]]; }),
+          },
+        });
+      }
+      currentDrawPoints.forEach(function(pt) {
+        features.push({
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Point', coordinates: [pt[1], pt[0]] },
+        });
+      });
+      source.setData({ type: 'FeatureCollection', features: features });
+    }
+
+    function startPolygonDraw() {
+      DRAW_POLYGON_MODE_ACTIVE = true;
+      currentDrawPoints = [];
+      rebuildDrawInProgressSource();
+      // Lets the parent temporarily swap in its unfiltered occurrence set
+      // (see onPolygonDrawStart's doc comment on SpeciesOccurrenceMap.tsx)
+      // so points outside an already-drawn region are visible while this
+      // new one is being drawn — same contract as the Leaflet template.
+      postToParent({ type: 'polygonDrawStart' });
+    }
+
+    function cancelPolygonDraw() {
+      DRAW_POLYGON_MODE_ACTIVE = false;
+      postToParent({ type: 'polygonDrawEnd' });
+      currentDrawPoints = [];
+      rebuildDrawInProgressSource();
+    }
+
+    function finishPolygonDraw() {
+      DRAW_POLYGON_MODE_ACTIVE = false;
+      postToParent({ type: 'polygonDrawEnd' });
+      if (currentDrawPoints.length >= 3) {
+        drawnPolygonGroups.push([currentDrawPoints]);
+        rebuildDrawnPolygonsSource();
+        updateEraserControlVisibility();
+        postToParent({ type: 'polygonDrawn', polygons: allDrawnPolygonPoints() });
+      }
+      currentDrawPoints = [];
+      rebuildDrawInProgressSource();
+    }
+
+    var DRAW_POLYGON_ICONS = {
+      idle: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M10.4 2.4l3.2 3.2-7.6 7.6-3.8 1 1-3.8 7.2-7z"/><path d="M9 3.8l3.2 3.2"/></svg>',
+      drawing: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/></svg>',
+    };
+    var DRAW_POLYGON_TITLES = {
+      idle: 'Draw a region to filter observations',
+      drawing: 'Cancel drawing',
+    };
+    var drawPolygonButtonSetState = null;
+    map.addControl({
+      onAdd: function() {
+        var container = document.createElement('div');
+        container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+        function setState(next) {
+          btn.dataset.state = next;
+          btn.innerHTML = DRAW_POLYGON_ICONS[next];
+          btn.title = DRAW_POLYGON_TITLES[next];
+        }
+        setState('idle');
+        drawPolygonButtonSetState = setState;
+        btn.addEventListener('click', function() {
+          if (btn.dataset.state === 'idle') {
+            startPolygonDraw();
+            setState('drawing');
+          } else {
+            cancelPolygonDraw();
+            setState('idle');
+          }
+        });
+        container.appendChild(btn);
+        return container;
+      },
+      onRemove: function() {},
+    });
+
+    // Placing vertices is a SEPARATE listener from the background click
+    // handler further down (which opens value/pin popups) — each one's own
+    // DRAW_POLYGON_MODE_ACTIVE check keeps them from double-handling the
+    // same click, same as Leaflet's guard on its background handler.
+    map.on('click', function(event) {
+      if (!DRAW_POLYGON_MODE_ACTIVE) return;
+      if (currentDrawPoints.length >= 3) {
+        var firstScreenPoint = map.project([currentDrawPoints[0][1], currentDrawPoints[0][0]]);
+        var dx = event.point.x - firstScreenPoint.x;
+        var dy = event.point.y - firstScreenPoint.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= DRAW_CLOSE_PIXEL_RADIUS) {
+          finishPolygonDraw();
+          if (drawPolygonButtonSetState) drawPolygonButtonSetState('idle');
+          return;
+        }
+      }
+      currentDrawPoints.push([event.lngLat.lat, event.lngLat.lng]);
+      rebuildDrawInProgressSource();
     });
 
     // "Auto-adapt": rescales the legend/colorization to just the value
@@ -1877,9 +2047,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
 
     map.on('load', function() {
       mapReady = true;
-      if (typeof map.setProjection === 'function') {
-        map.setProjection({ type: 'globe' });
-      }
+      applyGlobeProjectionState();
       applyPendingHeatmapUpdate();
 
       if (typeof window.glMatrix !== 'undefined') {
@@ -2077,6 +2245,38 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           },
         });
 
+        // The in-progress hand-drawn shape (see startPolygonDraw/etc.
+        // below) — a separate source from 'drawn-polygons' above since this
+        // one is a LineString + Points (an unclosed ring being built one
+        // click at a time), not a finished Polygon.
+        map.addSource('draw-in-progress', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        map.addLayer({
+          id: 'draw-in-progress-line-layer',
+          type: 'line',
+          source: 'draw-in-progress',
+          filter: ['==', ['geometry-type'], 'LineString'],
+          paint: {
+            'line-color': palette.markerFill,
+            'line-width': 2,
+            'line-dasharray': [2, 2],
+          },
+        });
+        map.addLayer({
+          id: 'draw-in-progress-vertex-layer',
+          type: 'circle',
+          source: 'draw-in-progress',
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-radius': 4,
+            'circle-color': palette.markerFill,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#fff',
+          },
+        });
+
         if (INITIAL_DRAWN_POLYGONS && INITIAL_DRAWN_POLYGONS.length > 0) {
           // One group per ring (not all lumped into one) so the eraser
           // control can remove them one at a time, matching hand-drawn
@@ -2243,9 +2443,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             varColor: props.rawVarColor,
             varLabel: props.varLabel,
           });
-          if (props.catalogLabel) {
-            html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
-          }
+          // Same fix as the background-click popup above: media doesn't
+          // depend on catalogLabel (empty for an auto-generated catalog
+          // number), so it must not be gated on it either.
+          html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
           // Tracked into selectedPointPopup (not a local var) so the
           // sendPinMessage round-trip above — which lands back here shortly
           // as an applySelectedPoint(point) call for this same observation
@@ -2312,11 +2513,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // background pin, since this always runs at least once (replacing
       // the initial "Loading…" placeholder). Re-attach after every setHTML
       // call below so the CURRENT button always has a live listener.
-      fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
-        .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      (isLocalPointUrl(POINT_QUERY_URL)
+        ? requestLocalPointValue(latitude, longitude)
+        : fetch(POINT_QUERY_URL + '&lat=' + latitude + '&lon=' + longitude)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      )
         .then(function(data) {
           if (!popup.isOpen()) return;
-          if (data.value == null) {
+          if (!data || data.value == null) {
             popup.setHTML('<span style="opacity:0.6;font-size:11px">No data</span>');
             attachPopupUnpinOnClose(popup, catalogNumber, latitude, longitude);
             return;
@@ -2366,6 +2570,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     }
 
     map.on('click', function(event) {
+      // MapLibre dispatches 'click' to every registered listener, including
+      // the polygon-draw listener above — without this guard, a draw click
+      // would also open a value popup/pin the point underneath it.
+      if (DRAW_POLYGON_MODE_ACTIVE) return;
       if (event.defaultPrevented) return;
       // event.defaultPrevented alone isn't reliable here — query directly
       // instead of trusting it propagated from the layer-specific handler.

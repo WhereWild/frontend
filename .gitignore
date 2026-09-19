@@ -56,3 +56,4 @@ app-example
 
 # generated theme sync helper output
 scripts/tokens/tokenVariableSyntaxAndDescriptionSnippet.js
+__pycache__/

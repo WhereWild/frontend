@@ -5,6 +5,14 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { UploadPreview } from '@/components/upload/UploadPreview';
+import { useOptionalSettings } from '@/context/SettingsContext';
+import type { EnvironmentVariableOption } from '@/components/sections/speciesEnvironment/model';
+
+jest.mock('@/context/SettingsContext', () => ({
+  useOptionalSettings: jest.fn(),
+}));
+
+const mockUseOptionalSettings = jest.mocked(useOptionalSettings);
 
 jest.mock('@/components', () => {
   const ReactLocal = jest.requireActual('react') as typeof import('react');
@@ -23,6 +31,7 @@ jest.mock('@/components', () => {
         lon: number;
       } | null;
       polygon?: string | null;
+      onVariableMetaChange?: (meta: EnvironmentVariableOption | null) => void;
     }) => {
       return ReactLocal.createElement(
         View,
@@ -39,6 +48,39 @@ jest.mock('@/components', () => {
           { testID: 'upload-preview-polygon' },
           props.polygon ?? 'none',
         ),
+        ReactLocal.createElement(
+          Text,
+          {
+            testID: 'upload-preview-select-ordinal-variable',
+            onPress: () =>
+              props.onVariableMetaChange?.({
+                id: 'salinity_two',
+                label: 'salinity_two',
+                valueType: 'ordinal',
+                renderMin: 0,
+                renderMax: 4,
+                legendClasses: [
+                  { id: 0, name: 'Non saline', color: '#440154' },
+                  { id: 4, name: 'Extremely saline', color: '#fde725' },
+                ],
+              }),
+          },
+          'select-ordinal',
+        ),
+        ReactLocal.createElement(
+          Text,
+          {
+            testID: 'upload-preview-select-custom-layer-variable',
+            onPress: () =>
+              props.onVariableMetaChange?.({
+                id: 'rainfall',
+                label: 'rainfall',
+                valueType: 'ratio',
+                category: 'Custom Layers',
+              }),
+          },
+          'select-custom-layer',
+        ),
       );
     },
     SpeciesOccurrenceMap: (props: {
@@ -50,6 +92,7 @@ jest.mock('@/components', () => {
       ) => void;
       onPolygonDrawn?: (polygons: [number, number][][]) => void;
       onPolygonCleared?: () => void;
+      classColors?: Map<string, string> | null;
     }) => {
       return ReactLocal.createElement(
         View,
@@ -93,17 +136,29 @@ jest.mock('@/components', () => {
           },
           'erase',
         ),
+        ReactLocal.createElement(
+          Text,
+          { testID: 'upload-preview-class-colors' },
+          props.classColors
+            ? JSON.stringify(Array.from(props.classColors.entries()))
+            : 'none',
+        ),
       );
     },
   };
 });
 
 describe('UploadPreview', () => {
+  beforeEach(() => {
+    mockUseOptionalSettings.mockReturnValue(undefined);
+  });
+
   it('passes pinned observations from the uploaded map into the environment section', async () => {
     render(
       <UploadPreview
         highlightedCatalogs={[]}
         height={320}
+        customLayerAssets={new Map()}
         uploadedBundle={{
           categoricalStats: [],
           ordinalStats: [],
@@ -146,6 +201,7 @@ describe('UploadPreview', () => {
       <UploadPreview
         highlightedCatalogs={[]}
         height={320}
+        customLayerAssets={new Map()}
         uploadedBundle={{
           categoricalStats: [],
           ordinalStats: [],
@@ -209,5 +265,151 @@ describe('UploadPreview', () => {
     expect(screen.getByTestId('upload-preview-polygon').props.children).toBe(
       'none',
     );
+  });
+
+  it('colors an ordinal custom layer by the selected colormap, not its frozen legend color', async () => {
+    mockUseOptionalSettings.mockReturnValue({
+      colormap: 'magma',
+    } as never);
+
+    render(
+      <UploadPreview
+        highlightedCatalogs={[]}
+        height={320}
+        customLayerAssets={new Map()}
+        uploadedBundle={{
+          categoricalStats: [],
+          ordinalStats: [],
+          densityGraph: [],
+          occurrences: [
+            { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
+          ],
+          occurrenceIndex: [],
+          summaryStats: [],
+        }}
+        uploadedDataSource={
+          {
+            fetchSpeciesOccurrences: jest.fn().mockResolvedValue({
+              occurrences: [],
+              minTimestamp: null,
+              maxTimestamp: null,
+              phenologyCounts: null,
+            }),
+          } as never
+        }
+        onHighlightChange={jest.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId('upload-preview-select-ordinal-variable'),
+      );
+    });
+
+    const classColors: [string, string][] = JSON.parse(
+      screen.getByTestId('upload-preview-class-colors').props.children,
+    );
+    const colorById = new Map(classColors);
+
+    // magma's own stops, not viridis's #440154/#fde725 baked into the
+    // legend by /gis-editor's defaultOrdinalColor when the file was typed
+    // as ordinal there.
+    expect(colorById.get('0')).not.toBe('#440154');
+    expect(colorById.get('4')).not.toBe('#fde725');
+    expect(colorById.get('0')?.toLowerCase()).toBe('#000004');
+    expect(colorById.get('4')?.toLowerCase()).toBe('#fcfdbf');
+  });
+
+  it("warns that background clicks/basemap won't work for a re-imported custom layer whose file isn't attached", async () => {
+    render(
+      <UploadPreview
+        highlightedCatalogs={[]}
+        height={320}
+        customLayerAssets={new Map()}
+        uploadedBundle={{
+          categoricalStats: [],
+          ordinalStats: [],
+          densityGraph: [],
+          occurrences: [
+            { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
+          ],
+          occurrenceIndex: [],
+          summaryStats: [],
+        }}
+        uploadedDataSource={
+          {
+            fetchSpeciesOccurrences: jest.fn().mockResolvedValue({
+              occurrences: [],
+              minTimestamp: null,
+              maxTimestamp: null,
+              phenologyCounts: null,
+            }),
+          } as never
+        }
+        onHighlightChange={jest.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId('upload-preview-select-custom-layer-variable'),
+      );
+    });
+
+    expect(screen.getByText(/isn't attached this session/)).toBeTruthy();
+  });
+
+  it("does not warn once the custom layer's file is re-attached this session", async () => {
+    // customLayerAssets alone is what suppresses the warning -- whether the
+    // fake asset here can actually build a real renderer in this jsdom
+    // environment (it can't; resolveAssetBlob has no XMLHttpRequest/fetch
+    // to read it) is irrelevant to that, so just swallow the resulting
+    // build-failure log instead of asserting on it.
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(
+      <UploadPreview
+        highlightedCatalogs={[]}
+        height={320}
+        customLayerAssets={
+          new Map([
+            [
+              'rainfall',
+              { name: 'rainfall.tif', uri: 'file://rainfall.tif' } as never,
+            ],
+          ])
+        }
+        uploadedBundle={{
+          categoricalStats: [],
+          ordinalStats: [],
+          densityGraph: [],
+          occurrences: [
+            { catalogNumber: 'obs_1', latitude: 10, longitude: 20 },
+          ],
+          occurrenceIndex: [],
+          summaryStats: [],
+        }}
+        uploadedDataSource={
+          {
+            fetchSpeciesOccurrences: jest.fn().mockResolvedValue({
+              occurrences: [],
+              minTimestamp: null,
+              maxTimestamp: null,
+              phenologyCounts: null,
+            }),
+          } as never
+        }
+        onHighlightChange={jest.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId('upload-preview-select-custom-layer-variable'),
+      );
+    });
+
+    expect(screen.queryByText(/isn't attached this session/)).toBeNull();
+    errorSpy.mockRestore();
   });
 });

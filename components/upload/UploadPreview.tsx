@@ -3,23 +3,39 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
   SpeciesEnvironmentSection,
   SpeciesOccurrenceMap,
   ThemedText,
 } from '@/components';
 import { SpeciesLocationFilters } from '@/components/sections/SpeciesLocationFilters';
-import { Size } from '@/constants/theme';
+import { SpeciesObservationGallery } from '@/components/sections/SpeciesObservationGallery';
+import type { ObservationGalleryPoint } from '@/components/sections/SpeciesObservationGallery';
+import {
+  DEFAULT_IMAGE_SIZE as OBSERVATION_CARD_WIDTH,
+  COMPACT_IMAGE_SIZE as OBSERVATION_CARD_COMPACT_WIDTH,
+  type ObservationCardSize,
+} from '@/components/cards/ObservationCard';
+import { Colors, Size } from '@/constants/theme';
+import { SpeciesInformationSection } from '@/components/sections/SpeciesInformationSection';
+import type { SpeciesOverview } from '@/data/types';
 import { SpeciesDataSourceProvider } from '@/context/SpeciesDataSourceContext';
 import { useLayoutChrome } from '@/context/LayoutChromeContext';
 import { useAutoAdaptRange } from '@/hooks/useAutoAdaptRange';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useSpeciesLocationFilters } from '@/hooks/species/useSpeciesLocationFilters';
 import { anchorScrollMarginStyle } from '@/utils/anchors';
+import type * as DocumentPicker from 'expo-document-picker';
 import type { SpeciesDataSource } from '@/data/speciesDataSource';
 import type { UploadedParquetBundle } from '@/data/uploadLocalSpeciesDataSource';
 import { UPLOAD_PREVIEW_TAXON_ID } from '@/hooks/upload/useUploadWorkflow';
+import {
+  createLocalCustomLayerRenderer,
+  type LocalCustomLayerRenderer,
+} from '@/components/upload/customLayerLocalRenderer';
+import { CUSTOM_LAYER_VARIABLE_CATEGORY } from '@/components/upload/customLayers';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import {
   isVariableCategorical,
   isVariableCircular,
@@ -31,26 +47,48 @@ import { MapCategoricalLegend } from '@/components/sections/speciesOccurrenceMap
 import { MapColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapColormapPicker';
 import { MapCircularColormapPicker } from '@/components/sections/speciesOccurrenceMap/MapCircularColormapPicker';
 import { MapCbModePicker } from '@/components/sections/speciesOccurrenceMap/MapCbModePicker';
-import { toggleFullscreenElement } from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import {
+  toggleFullscreenElement,
+  resolveObservationVarFields,
+  type ObservationVarFieldsInputs,
+} from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
 import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import { getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import {
-  getCbColor,
-  getCbShape,
-} from '@/components/sections/speciesOccurrenceMap/cbColors';
+  isVariableOrdinal,
+  resolveClassDisplayColor,
+  resolveColorMode,
+  useOrdinalFallbackColor,
+} from '@/components/sections/speciesOccurrenceMap/ordinalColorMode';
 import type { MapBounds } from '@/components/sections/SpeciesOccurrenceMap';
 import { BACKEND_BASE } from '@/data/api';
 import { useOptionalSettings } from '@/context/SettingsContext';
 import { applyConv, getMetricToImperial } from '@/data/unitConversions';
 import { encodePolygonsParam, isPointInPolygon } from '@/utils/geoPolygon';
 
+// Same paging-by-full-rows sizing as app/_species.tsx's observation gallery.
+const GALLERY_ROWS = 3;
+const GALLERY_CARD_GAP = Size.space['300'];
+
+// SpeciesInformationSection always renders an image — this stands in for an
+// uploaded dataset that opted into a description but not an image.
+const PLACEHOLDER_IMAGE = require('@/assets/images/placeholder.png');
+
 type UploadPreviewProps = {
   highlightedCatalogs: (number | string)[];
   height: number;
   uploadedBundle: UploadedParquetBundle;
   uploadedDataSource: SpeciesDataSource;
+  /** The raw file each currently-uploaded custom layer variable was
+   * sampled from, keyed by variable id — see useUploadWorkflow.ts. Lets
+   * this map answer background-point clicks and render the "variable"
+   * basemap for one of these variables locally (customLayerLocalRenderer.ts)
+   * instead of always querying the backend, which never received the file.
+   * Empty for a re-imported ZIP, since that path has no original file. */
+  customLayerAssets: Map<string, DocumentPicker.DocumentPickerAsset>;
   onHighlightChange: (catalogNumbers: (number | string)[]) => void;
 };
 
@@ -132,10 +170,13 @@ export function UploadPreview({
   height,
   uploadedBundle,
   uploadedDataSource,
+  customLayerAssets,
   onHighlightChange,
 }: UploadPreviewProps) {
   const responsive = useResponsive();
   const { webHeaderHeight } = useLayoutChrome();
+  const scheme = useColorScheme();
+  const palette = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const settings = useOptionalSettings();
   const units = settings?.units;
   const selectedColormap = settings?.colormap ?? 'viridis';
@@ -158,6 +199,11 @@ export function UploadPreview({
       catalogNumber: row.catalogNumber,
       latitude: row.latitude,
       longitude: row.longitude,
+      catalogAutoGenerated: row.catalogAutoGenerated ?? false,
+      mediaUrl: row.imageUrl ?? null,
+      mediaAttribution: row.mediaAttribution ?? null,
+      mediaLicense: row.mediaLicense ?? null,
+      mediaLicenseUrl: row.mediaLicenseUrl ?? null,
     })),
   );
   const [pinnedObservation, setPinnedObservation] =
@@ -168,6 +214,58 @@ export function UploadPreview({
   const [pinnedPointValue, setPinnedPointValue] = React.useState<number | null>(
     null,
   );
+
+  // A client-side tile/point-value renderer for the selected variable, only
+  // when its original file is still attached in this session (see
+  // customLayerAssets' own doc comment) — null for a real catalog variable
+  // (always goes through the backend) or a custom variable whose file isn't
+  // available this session (re-imported "stage 2" data with no re-added
+  // layer — background clicks/basemap intentionally fall back to the
+  // normal (failing) backend path for that case rather than pretending to
+  // work; see item #4/#5 of the upload-page nitpick list for surfacing that
+  // gap directly instead of just silently not working).
+  const [localVariableRenderer, setLocalVariableRenderer] =
+    React.useState<LocalCustomLayerRenderer | null>(null);
+  React.useEffect(() => {
+    const variableId = selectedVariableMeta?.id;
+    const asset = variableId ? customLayerAssets.get(variableId) : undefined;
+    if (!asset || !selectedVariableMeta) {
+      setLocalVariableRenderer(null);
+      return;
+    }
+    let cancelled = false;
+    createLocalCustomLayerRenderer(asset, selectedVariableMeta)
+      .then((renderer) => {
+        if (!cancelled) setLocalVariableRenderer(renderer);
+      })
+      .catch((error) => {
+        console.error('Failed to build local custom layer renderer:', error);
+        if (!cancelled) setLocalVariableRenderer(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVariableMeta, customLayerAssets]);
+  // Disposed on every replacement/unmount, not just unmount, since a new
+  // renderer is built (and the old one's decoder should close) every time
+  // the selected variable changes.
+  React.useEffect(() => {
+    return () => localVariableRenderer?.dispose();
+  }, [localVariableRenderer]);
+
+  // True only for a "stage 2" scenario: a re-imported dataset carries a
+  // variable that used to be a custom layer (see
+  // CUSTOM_LAYER_VARIABLE_CATEGORY's own doc comment for how that's
+  // detected), but its original file isn't attached this session, so
+  // background-point clicks and the "variable" basemap silently fall back
+  // to the normal (always-failing, for a custom variable) backend path
+  // above. A fresh stage-1 upload never hits this: sampling only produces
+  // this variable at all when its file was attached, so localVariableRenderer
+  // is only null here at the very start of the async build, not because
+  // the file is missing.
+  const isCustomLayerMissingThisSession =
+    selectedVariableMeta?.category === CUSTOM_LAYER_VARIABLE_CATEGORY &&
+    !customLayerAssets.has(selectedVariableMeta.id);
 
   // Hand-drawn region filter — client-side only, against whatever's already
   // been fetched. Mirrors _species.tsx's identical setup: the draw/cancel/
@@ -235,10 +333,21 @@ export function UploadPreview({
     return encodePolygonsParam(activePolygons);
   }, [drawnPolygons]);
 
+  // catalogNumber must be included here — without it, the map falls back to
+  // matching this point by lat/lon float comparison against its own vector
+  // tile-rendered coordinates (see SpeciesOccurrenceGlobeMap.html's
+  // applySelectedPoint), which can legitimately fail from tile-quantized
+  // precision loss and silently drops to a plain "point value only" popup
+  // instead of the full observation (id + image) one. Same fix as
+  // app/_species.tsx's own selectedMapPoint.
   const selectedMapPoint = React.useMemo(
     () =>
       pinnedObservation
-        ? { lat: pinnedObservation.lat, lon: pinnedObservation.lon }
+        ? {
+            lat: pinnedObservation.lat,
+            lon: pinnedObservation.lon,
+            catalogNumber: pinnedObservation.catalogNumber,
+          }
         : null,
     [pinnedObservation],
   );
@@ -262,6 +371,11 @@ export function UploadPreview({
               catalogNumber: occ.catalogNumber,
               latitude: occ.latitude,
               longitude: occ.longitude,
+              catalogAutoGenerated: occ.catalogAutoGenerated ?? false,
+              mediaUrl: occ.mediaUrl ?? null,
+              mediaAttribution: occ.mediaAttribution ?? null,
+              mediaLicense: occ.mediaLicense ?? null,
+              mediaLicenseUrl: occ.mediaLicenseUrl ?? null,
             })),
           );
         }
@@ -351,13 +465,12 @@ export function UploadPreview({
   }, [selectedVariableMeta, uploadedBundle, metricToCodeByVariable, units]);
 
   const cbMode = settings?.cbMode;
-  // Ordinal variables have no separate accessibility variant — the
-  // selected continuous colormap IS their coloring mechanism, always on
-  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
-  // variables). See util/tiles.py's matching branch for the raster side.
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
-  const colorMode = isOrdinalVariable ? selectedColormap : cbMode;
+  const isOrdinalVariable = isVariableOrdinal(selectedVariableMeta);
+  const colorMode = resolveColorMode(
+    isOrdinalVariable,
+    selectedColormap,
+    cbMode,
+  );
   const shapesEnabled = settings?.shapesEnabled ?? false;
   const markerOutlineEnabled =
     (settings?.markerOutlineEnabled ?? false) || cbMode === 'achromatopsia';
@@ -376,12 +489,17 @@ export function UploadPreview({
   // at all. Mirrors maps.tsx's isAutoAdaptApplicable. Also requires the
   // 'variable' basemap mode actually be active — see _species.tsx's
   // identical addition for why (some variable can be selected without the
-  // heatmap overlay itself being shown).
+  // heatmap overlay itself being shown). A local custom layer has no
+  // backend tile-range/stats endpoint to fetch from either (see
+  // VariableHeatmapMap's identical tileSource.kind === 'remote' guard) —
+  // its legend already gets a real renderMin/renderMax from the variable
+  // meta itself (see util/upload.py's parse_custom_layer_metadata).
   const isAutoAdaptApplicable =
     settings?.basemapMode === 'variable' &&
     Boolean(selectedVariableMeta) &&
     !isVariableCategorical(selectedVariableMeta) &&
-    !isVariableCircular(selectedVariableMeta);
+    !isVariableCircular(selectedVariableMeta) &&
+    !localVariableRenderer;
   const {
     autoAdaptEnabled,
     toggleAutoAdapt,
@@ -406,8 +524,15 @@ export function UploadPreview({
     const renderRangeParam = autoAdaptRenderRange
       ? `&render_range=${encodeURIComponent(JSON.stringify(autoAdaptRenderRange))}`
       : '';
+    // 'localtiles://...' — recognized by isLocalTileUrl() in the map
+    // templates, which routes tile requests through renderLocalTile's
+    // postMessage bridge instead of a real fetch() (see
+    // speciesOccurrenceMapHelpers.ts). The path + query stay byte-identical
+    // either way, so createLocalCustomLayerRenderer's renderTile reads the
+    // same colormap/render_range params the backend route would.
+    const baseUrl = localVariableRenderer ? 'localtiles:/' : BACKEND_BASE;
     return (
-      `${BACKEND_BASE}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
+      `${baseUrl}/api/variables/${encodeURIComponent(selectedVariableMeta.id)}/tiles/{z}/{x}/{y}.png` +
       `?colormap=${encodeURIComponent(colormap)}${cbParam}&unit_system=${encodeURIComponent(units ?? 'metric')}${renderRangeParam}`
     );
   }, [
@@ -416,6 +541,7 @@ export function UploadPreview({
     selectedCircularColormap,
     cbMode,
     units,
+    localVariableRenderer,
     autoAdaptRenderRange,
   ]);
 
@@ -432,6 +558,20 @@ export function UploadPreview({
       return `rgb(${Math.round(c0[0] + f * (c1[0] - c0[0]))},${Math.round(c0[1] + f * (c1[1] - c0[1]))},${Math.round(c0[2] + f * (c1[2] - c0[2]))})`;
     }) as [string, string, string, string];
   }, [selectedCircularColormap]);
+  // See components/sections/speciesOccurrenceMap/ordinalColorMode.ts for
+  // why this fallback exists (a custom layer's variable id was never
+  // processed by scripts/gen_colors.py, so getCbColor's precomputed
+  // CB_CLASS_COLORS lookup always misses for it, and without this it would
+  // freeze on whatever color got baked into the legend when /gis-editor
+  // first typed the file as ordinal instead of following the colormap
+  // picker). Shared with app/_species.tsx and VariableHeatmapMap.tsx so
+  // this logic lives in exactly one place.
+  const ordinalFallbackColor = useOrdinalFallbackColor(
+    isOrdinalVariable,
+    selectedVariableMeta,
+    selectedColormap,
+  );
+
   const classColors = React.useMemo((): Map<string, string> | null => {
     if (!selectedVariableMeta || !isVariableCategorical(selectedVariableMeta))
       return null;
@@ -440,19 +580,26 @@ export function UploadPreview({
     for (const cls of selectedVariableMeta.legendClasses ?? []) {
       // Ordinal classes intentionally carry no raw legend color — see the
       // matching comment in app/_species.tsx's classColors.
-      if (cls.color || isOrdinalVariable)
+      if (cls.color || isOrdinalVariable) {
         map.set(
           String(cls.id),
-          getCbColor(
+          resolveClassDisplayColor(
             variableId,
             cls.id as number,
             colorMode,
-            cls.color ?? '#888888',
+            cls.color,
+            ordinalFallbackColor,
           ),
         );
+      }
     }
     return map.size > 0 ? map : null;
-  }, [selectedVariableMeta, colorMode, isOrdinalVariable]);
+  }, [
+    selectedVariableMeta,
+    colorMode,
+    isOrdinalVariable,
+    ordinalFallbackColor,
+  ]);
 
   const classShapes = React.useMemo((): Map<string, string> | null => {
     if (!shapesEnabled && cbMode !== 'achromatopsia') return null;
@@ -548,14 +695,20 @@ export function UploadPreview({
     const variableId = selectedVariableMeta?.id ?? '';
     return visibleCategoricalClasses.map((cls) => ({
       ...cls,
-      color: getCbColor(
+      color: resolveClassDisplayColor(
         variableId,
         cls.id as number,
         colorMode,
-        cls.color ?? '#888888',
+        cls.color,
+        ordinalFallbackColor,
       ),
     }));
-  }, [visibleCategoricalClasses, colorMode, selectedVariableMeta]);
+  }, [
+    visibleCategoricalClasses,
+    colorMode,
+    selectedVariableMeta,
+    ordinalFallbackColor,
+  ]);
 
   // Observation pins: prefer local value (offline-safe); fall back to pinnedPointValue
   // (set by the map's onPointValue when it fires varValue for the clicked dot, or via
@@ -575,12 +728,215 @@ export function UploadPreview({
     ? isVariableCircular(selectedVariableMeta)
     : false;
 
+  // Local rasters' own readPointValue() bakes each class's color in at
+  // renderer-construction time (see cogTileRenderer.ts) — for ordinal data
+  // that's the same stale/seeded color problem ordinalFallbackColor fixes
+  // for the legend and dots, just showing up in the click-popup instead.
+  // Re-deriving it here at click time keeps the popup swatch matching
+  // whatever colormap is currently selected. Mirrors VariableHeatmapMap's
+  // identical wrapper.
+  const renderLocalPointValue = React.useMemo(() => {
+    if (!localVariableRenderer) return undefined;
+    const rawReadPointValue = localVariableRenderer.readPointValue;
+    return async (lat: number, lon: number) => {
+      const result = await rawReadPointValue(lat, lon);
+      if (!result || !isOrdinalVariable) return result;
+      return {
+        ...result,
+        classColor: ordinalFallbackColor(
+          result.value,
+          result.classColor ?? '#888888',
+        ),
+      };
+    };
+  }, [localVariableRenderer, isOrdinalVariable, ordinalFallbackColor]);
+
+  // 'localpoint://point' — the fixed sentinel isLocalPointUrl() in the map
+  // templates checks for; renderLocalPointValue needs no query params of
+  // its own since it's a plain closure over the already-selected variable.
   const pointQueryUrl = selectedVariableMeta
-    ? `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
+    ? localVariableRenderer
+      ? 'localpoint://point'
+      : `${BACKEND_BASE}/gis/point?variable=${encodeURIComponent(selectedVariableMeta.id)}${units ? `&unit_system=${encodeURIComponent(units)}` : ''}&colormap=${encodeURIComponent(selectedColormap)}`
+    : null;
+
+  // Observation photo gallery — mirrors app/_species.tsx's identical setup
+  // (same gallery component, same varValue/varColor resolution, same
+  // full-rows-per-page sizing) so an uploaded dataset's occurrences with an
+  // image column look and behave the same as real observations.
+  const gallerySourceCatalogs = React.useMemo(() => {
+    if (highlightedCatalogs.length > 0) {
+      return highlightedCatalogs.map((catalog) => String(catalog));
+    }
+    return occurrencesForMap
+      .filter((occ) => {
+        if (!mapBounds) return true;
+        return !(
+          occ.latitude < mapBounds.south ||
+          occ.latitude > mapBounds.north ||
+          occ.longitude < mapBounds.west ||
+          occ.longitude > mapBounds.east
+        );
+      })
+      .map((occ) => String(occ.catalogNumber));
+  }, [occurrencesForMap, highlightedCatalogs, mapBounds]);
+
+  const { width: viewportWidth } = useWindowDimensions();
+  const galleryAvailableWidth = Math.min(
+    responsive.contentWidth,
+    viewportWidth - responsive.marginHorizontal * 2,
+  );
+  const galleryCardSize: ObservationCardSize =
+    responsive.breakpoint === 'phone' ? 'compact' : 'default';
+  const galleryCardWidth =
+    galleryCardSize === 'compact'
+      ? OBSERVATION_CARD_COMPACT_WIDTH
+      : OBSERVATION_CARD_WIDTH;
+  const galleryColumns = Math.max(
+    1,
+    Math.floor(
+      (galleryAvailableWidth + GALLERY_CARD_GAP) /
+        (galleryCardWidth + GALLERY_CARD_GAP),
+    ),
+  );
+  const galleryPageSize = galleryColumns * GALLERY_ROWS;
+
+  const [galleryPage, setGalleryPage] = React.useState(0);
+  const gallerySourceCatalogsKey = React.useMemo(
+    () => gallerySourceCatalogs.join(','),
+    [gallerySourceCatalogs],
+  );
+  React.useEffect(() => {
+    setGalleryPage(0);
+  }, [gallerySourceCatalogsKey]);
+  const galleryTotalPages = Math.max(
+    1,
+    Math.ceil(gallerySourceCatalogs.length / galleryPageSize),
+  );
+  React.useEffect(() => {
+    setGalleryPage((page) => Math.min(page, galleryTotalPages - 1));
+  }, [galleryTotalPages]);
+
+  const occurrenceByCatalog = React.useMemo(
+    () =>
+      new Map(
+        occurrencesForMap.map(
+          (occ) => [String(occ.catalogNumber), occ] as const,
+        ),
+      ),
+    [occurrencesForMap],
+  );
+
+  const handleGalleryCardPress = React.useCallback(
+    (catalogNumber: string) => {
+      const occ = occurrenceByCatalog.get(catalogNumber);
+      if (!occ) return;
+      handlePinObservation(catalogNumber, occ.latitude, occ.longitude);
+    },
+    [occurrenceByCatalog, handlePinObservation],
+  );
+
+  const galleryPoints = React.useMemo<ObservationGalleryPoint[]>(() => {
+    const inputs: ObservationVarFieldsInputs = {
+      observationValues,
+      classColors,
+      classLabels,
+      classShapes,
+      circularShapesEnabled,
+      isCircular,
+      dotMin,
+      dotMax,
+      gradientStops:
+        selectedVariableMeta && !isCategorical && !isCircular
+          ? COLORMAPS[selectedColormap].stops
+          : null,
+      aspectStops:
+        selectedVariableMeta && isCircular
+          ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops
+          : null,
+      varUnits:
+        selectedVariableMeta && !isCategorical && !isCircular
+          ? (selectedVariableMeta.units ?? null)
+          : null,
+    };
+
+    const start = galleryPage * galleryPageSize;
+    return gallerySourceCatalogs
+      .slice(start, start + galleryPageSize)
+      .map((catalogNumber) => {
+        const { varValue, varColor, varLabel, varShape } =
+          resolveObservationVarFields(catalogNumber, inputs);
+        const occ = occurrenceByCatalog.get(catalogNumber);
+        return {
+          catalogNumber,
+          catalogAutoGenerated: occ?.catalogAutoGenerated,
+          varValue,
+          varColor,
+          varLabel,
+          varShape,
+          imageUrl: occ?.mediaUrl,
+          attribution: occ?.mediaAttribution,
+          license: occ?.mediaLicense,
+          licenseUrl: occ?.mediaLicenseUrl,
+        };
+      });
+  }, [
+    gallerySourceCatalogs,
+    galleryPage,
+    galleryPageSize,
+    occurrenceByCatalog,
+    observationValues,
+    classColors,
+    classLabels,
+    classShapes,
+    circularShapesEnabled,
+    dotMin,
+    dotMax,
+    selectedVariableMeta,
+    isCategorical,
+    isCircular,
+    selectedColormap,
+    selectedCircularColormap,
+  ]);
+
+  // Same component the real species page uses for its description + image,
+  // rather than a separate one-off layout here — the description/image
+  // shape (descriptionImage) already matches SpeciesOverview's own fields.
+  const descriptionImage = uploadedBundle.descriptionImage;
+  const hasDescriptionImage = Boolean(
+    descriptionImage &&
+    (descriptionImage.imageUrl ||
+      (descriptionImage.descriptionSections?.length ?? 0) > 0),
+  );
+  const descriptionOverview: SpeciesOverview | null = hasDescriptionImage
+    ? {
+        description: '',
+        sections: descriptionImage!.descriptionSections ?? undefined,
+        imageSource: descriptionImage!.imageUrl
+          ? { uri: descriptionImage!.imageUrl }
+          : PLACEHOLDER_IMAGE,
+        imageLicense: descriptionImage!.imageLicense ?? undefined,
+        imageLicenseUrl: descriptionImage!.imageLicenseUrl ?? undefined,
+        imageCreator: descriptionImage!.imageCreator ?? undefined,
+        imageRightsHolder: descriptionImage!.imageRightsHolder ?? undefined,
+      }
     : null;
 
   return (
     <SpeciesDataSourceProvider value={uploadedDataSource}>
+      {descriptionOverview ? (
+        <View
+          style={[
+            styles.constrainedSection,
+            { maxWidth: responsive.contentWidth },
+          ]}
+        >
+          <SpeciesInformationSection
+            commonName='Uploaded dataset'
+            overview={descriptionOverview}
+          />
+        </View>
+      ) : null}
       <View
         style={[
           styles.constrainedSection,
@@ -641,6 +997,8 @@ export function UploadPreview({
               onPointValue={setPinnedPointValue}
               pointQueryUrl={pointQueryUrl}
               heatmapTileUrl={heatmapTileUrl}
+              renderLocalTile={localVariableRenderer?.renderTile}
+              renderLocalPointValue={renderLocalPointValue}
               disableObservationQuery={true}
               onPolygonDrawn={handlePolygonDrawn}
               onPolygonCleared={handlePolygonCleared}
@@ -751,6 +1109,47 @@ export function UploadPreview({
                     />
                   ))}
           </View>
+          {isCustomLayerMissingThisSession && (
+            <View
+              style={[
+                styles.constrainedSection,
+                { maxWidth: responsive.contentWidth },
+              ]}
+            >
+              <View
+                style={[
+                  styles.customLayerMissingWarning,
+                  {
+                    backgroundColor: palette.background.warning.secondary,
+                    borderColor: palette.border.warning.default,
+                  },
+                ]}
+              >
+                <ThemedText
+                  variant='bodySmall'
+                  style={{ color: palette.text.warning.default }}
+                >
+                  {`"${selectedVariableMeta?.label ?? selectedVariableMeta?.id}" was sampled from a custom layer file that isn't attached this session, so clicking a background point and the "variable" basemap won't work for it. Re-add its file in Extra options to enable them.`}
+                </ThemedText>
+              </View>
+            </View>
+          )}
+          <View
+            style={[
+              styles.constrainedSection,
+              { maxWidth: responsive.contentWidth },
+            ]}
+          >
+            <SpeciesObservationGallery
+              points={galleryPoints}
+              onCardPress={handleGalleryCardPress}
+              cardSize={galleryCardSize}
+              page={galleryPage}
+              onPageChange={setGalleryPage}
+              pageSize={galleryPageSize}
+              totalCount={gallerySourceCatalogs.length}
+            />
+          </View>
         </View>
       ) : null}
     </SpeciesDataSourceProvider>
@@ -772,5 +1171,12 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     position: 'relative',
+  },
+  customLayerMissingWarning: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    paddingHorizontal: Size.space['200'],
+    paddingVertical: Size.space['100'],
   },
 });

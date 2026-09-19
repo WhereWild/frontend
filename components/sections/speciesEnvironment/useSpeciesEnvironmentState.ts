@@ -25,12 +25,21 @@ import {
   getRankContextOptions,
   resolveMetricRank,
   resolveRangeValue,
+  toClassRankMetric,
 } from './stateDerivations';
 import { useEnvironmentHighlights } from './useEnvironmentHighlights';
 import { useEnvironmentStats } from './useEnvironmentStats';
 import { useEnvironmentVariableSelection } from './useEnvironmentVariableSelection';
 import { useHomeLocationPin } from './useHomeLocationPin';
-import { getCbColor, type CbMode } from '../speciesOccurrenceMap/cbColors';
+import type { CbMode } from '../speciesOccurrenceMap/cbColors';
+import type { ColormapId } from '../speciesOccurrenceMap/variableColors';
+import {
+  isVariableOrdinal,
+  parseClassId,
+  resolveClassDisplayColor,
+  resolveColorMode,
+  useOrdinalFallbackColor,
+} from '../speciesOccurrenceMap/ordinalColorMode';
 
 const SPECIES_CATEGORY_REMAP: Record<string, string> = {
   'live weather': 'Recent Weather',
@@ -71,7 +80,7 @@ type UseSpeciesEnvironmentStateParams = {
    * ordinal variables' pinned/unobserved-category badge colors, since
    * ordinal has no separate accessibility variant (the colormap IS its
    * coloring mechanism). See util/tiles.py's matching branch. */
-  colormap?: CbMode | null;
+  colormap?: ColormapId | null;
   /** Seeds activeChain on mount — e.g. a chain hydrated from the route's
    * ?slice= param. Forwarded straight through to useEnvironmentHighlights. */
   initialChain?: ChainedVariableFilter[];
@@ -168,13 +177,21 @@ export function useSpeciesEnvironmentState({
     remapCategories: SPECIES_CATEGORY_REMAP,
   });
 
-  // Ordinal variables have no separate accessibility variant — the
-  // selected continuous colormap IS their coloring mechanism, always on
-  // (unlike cbMode, which is an opt-in accessibility toggle for nominal
-  // variables). See util/tiles.py's matching branch for the raster side.
-  const isOrdinalVariable =
-    selectedVariableMeta?.valueType?.toLowerCase() === 'ordinal';
-  const colorMode = isOrdinalVariable ? (colormap ?? 'viridis') : cbMode;
+  const isOrdinalVariable = isVariableOrdinal(selectedVariableMeta);
+  const colorMode = resolveColorMode(
+    isOrdinalVariable,
+    colormap ?? 'viridis',
+    cbMode,
+  );
+  // See components/sections/speciesOccurrenceMap/ordinalColorMode.ts --
+  // shared with the map's own class coloring (VariableHeatmapMap.tsx,
+  // app/_species.tsx, UploadPreview.tsx) so a class's color always agrees
+  // between the map, the stacked bar chart/pills below, and the legend.
+  const ordinalFallbackColor = useOrdinalFallbackColor(
+    isOrdinalVariable,
+    selectedVariableMeta,
+    colormap ?? 'viridis',
+  );
 
   // useEnvironmentStats needs the active chain (to send as `extra`, so the
   // density curve/histogram/categorical distribution it returns reflect a
@@ -218,9 +235,9 @@ export function useSpeciesEnvironmentState({
 
   const {
     baselineSummary,
-    baselineCategoricalDistribution,
+    baselineCategoricalDistribution: rawBaselineCategoricalDistribution,
     summary,
-    categoricalDistribution,
+    categoricalDistribution: rawCategoricalDistribution,
     isCategorical,
     densityCurve,
     ternaryCompositionDensity,
@@ -233,6 +250,65 @@ export function useSpeciesEnvironmentState({
         anyFilterActive,
       }),
     [anyFilterActive, selectedVariable, selectedVariableMeta, stats],
+  );
+
+  // Each category's own `.color` (from the data source's legend) is only
+  // ever correct as-is for nominal -- for ordinal it's whatever got baked
+  // in at whatever moment the variable was last typed as ordinal (see
+  // ordinalColorMode.ts), so the stacked bar chart / pills / donut chart
+  // that read `.color` straight off these distributions need the same
+  // live-colormap resolution the map's own classColors already gets, or
+  // they silently disagree with both the map and the colormap picker.
+  const resolveDistributionColors = React.useCallback(
+    <T extends { value: number | string; color?: string | null }>(
+      distribution: T[],
+    ): T[] => {
+      // Same double guard as the map's own classColors/cbVisibleClasses
+      // (ordinalColorMode.ts's consumers): nothing to resolve without an
+      // active colorMode, and a nominal category with no color of its own
+      // isn't something to force a color onto here -- StackedCategoryBar
+      // already has its own default rotation (CATEGORY_COLORS) for that
+      // case, and forcing '#888888' onto it (or trying to number-coerce a
+      // string category value like "forest" into a class id) would both
+      // be wrong.
+      if (!isCategorical || distribution.length === 0 || !colorMode) {
+        return distribution;
+      }
+      const variableId = selectedVariableMeta?.id ?? selectedVariable ?? '';
+      return distribution.map((cat) => {
+        if (!cat.color && !isOrdinalVariable) return cat;
+        return {
+          ...cat,
+          color: resolveClassDisplayColor(
+            variableId,
+            parseClassId(cat.value),
+            colorMode,
+            cat.color,
+            ordinalFallbackColor,
+          ),
+        };
+      });
+    },
+    [
+      isCategorical,
+      colorMode,
+      isOrdinalVariable,
+      selectedVariableMeta,
+      selectedVariable,
+      ordinalFallbackColor,
+    ],
+  );
+
+  const categoricalDistribution = React.useMemo(
+    () => resolveDistributionColors(rawCategoricalDistribution),
+    [resolveDistributionColors, rawCategoricalDistribution],
+  );
+  const baselineCategoricalDistribution = React.useMemo(
+    () =>
+      rawBaselineCategoricalDistribution
+        ? resolveDistributionColors(rawBaselineCategoricalDistribution)
+        : rawBaselineCategoricalDistribution,
+    [resolveDistributionColors, rawBaselineCategoricalDistribution],
   );
 
   const {
@@ -356,11 +432,12 @@ export function useSpeciesEnvironmentState({
         )?.color ??
         null;
       const legendColor = colorMode
-        ? getCbColor(
+        ? resolveClassDisplayColor(
             selectedVariable ?? '',
-            Number(homePinValue),
+            parseClassId(homePinValue),
             colorMode,
-            rawLegendColor ?? '#888888',
+            rawLegendColor,
+            ordinalFallbackColor,
           )
         : rawLegendColor;
 
@@ -382,6 +459,7 @@ export function useSpeciesEnvironmentState({
       selectedVariableMeta,
       selectedVariable,
       colorMode,
+      ordinalFallbackColor,
     ]);
 
   const rangeObservationItems = React.useMemo(
@@ -522,14 +600,16 @@ export function useSpeciesEnvironmentState({
       ),
       mode_class:
         summary?.mode != null && modeFraction != null
-          ? resolveRankForMetric(`class_${summary.mode}`, modeFraction, {
-              allowHistogramFallback: false,
-            })
+          ? resolveRankForMetric(
+              toClassRankMetric(summary.mode),
+              modeFraction,
+              { allowHistogramFallback: false },
+            )
           : null,
       selected_class:
         singleSelectedCategoryValue != null && selectedFraction != null
           ? resolveRankForMetric(
-              `class_${singleSelectedCategoryValue}`,
+              toClassRankMetric(singleSelectedCategoryValue),
               selectedFraction,
               {
                 allowHistogramFallback: false,
@@ -644,11 +724,12 @@ export function useSpeciesEnvironmentState({
         )?.color ??
         null;
       const legendColor = colorMode
-        ? getCbColor(
+        ? resolveClassDisplayColor(
             selectedVariable ?? '',
-            Number(pinnedValue),
+            parseClassId(pinnedValue),
             colorMode,
-            rawLegendColor ?? '#888888',
+            rawLegendColor,
+            ordinalFallbackColor,
           )
         : rawLegendColor;
 
@@ -670,6 +751,7 @@ export function useSpeciesEnvironmentState({
       selectedVariableMeta,
       selectedVariable,
       colorMode,
+      ordinalFallbackColor,
     ]);
 
   const headingText = buildHeadingText(
