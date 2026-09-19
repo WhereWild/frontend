@@ -25,7 +25,9 @@ WHAT THIS DOES
        reuses names like "Alpine Zone" under different parent regions --
        see find_parent_name_field()'s docstring), and assigns each distinct
        result a color.
-    4. Adds three properties to every feature: WW_MODE, WW_FIELD, WW_COLOR.
+    4. Adds four properties to every feature: WW_MODE, WW_FIELD, WW_COLOR,
+       and WW_NAME (the layer's Display Name, e.g. "Utah Level IV
+       Ecoregions", or "Level IV Ecoregions" with --country).
        This is exactly the convention /gis-editor's own "Save" writes and
        reads back (see components/gisEditor/shapefileWriter.ts and
        shapefileMetadata.ts in this repo) -- it's a real, documented
@@ -671,16 +673,30 @@ def find_parent_name_field(fields: list[DbfField], name_field: str) -> str | Non
 LABEL_FIELD_NAME = "ECO_LABEL"
 
 
+ROMAN_LEVELS = {3: "III", 4: "IV"}
+
+
+def display_name_for(level: int, state_name: str | None) -> str:
+    """The layer's Display Name (WW_NAME, see style_features): "Utah Level
+    IV Ecoregions" for one state, or just "Level IV Ecoregions" for the
+    merged --country file, where a state name would be wrong."""
+    prefix = f"{state_name} " if state_name else ""
+    return f"{prefix}Level {ROMAN_LEVELS.get(level, level)} Ecoregions"
+
+
 def style_features(
     features: list[dict],
     name_field: str,
     parent_field: str | None,
     code_field: str | None = None,
     poster_colors: dict[str, str] | None = None,
+    display_name: str | None = None,
 ) -> dict[str, str]:
     """Adds ECO_LABEL ("<parent name> <name>", e.g. "Wasatch and Uinta
     Mountains Alpine Zone") plus WW_MODE/WW_FIELD/WW_COLOR to every
-    feature's properties, in place. Unlike the old DBF-based version of
+    feature's properties, in place -- and WW_NAME, the layer's Display Name
+    in /gis-editor and the variable's label once used as a custom layer,
+    when `display_name` is given. Unlike the old DBF-based version of
     this script, there's no fixed-width column to size or pad -- these are
     just plain JSON properties, added directly. Returns the
     label -> color mapping, for the printed summary.
@@ -735,6 +751,8 @@ def style_features(
         props["WW_MODE"] = "categorical"
         props["WW_FIELD"] = LABEL_FIELD_NAME
         props["WW_COLOR"] = colors[props[LABEL_FIELD_NAME]]
+        if display_name:
+            props["WW_NAME"] = display_name
     return colors
 
 
@@ -1460,6 +1478,7 @@ def main() -> None:
         raise SystemExit("Pass a state name, or --country for the whole country.")
 
     poster_colors: dict[str, str] | None = None
+    state_name: str | None = None
     if args.country:
         sources = fetch_country_sources(args.level)
         default_output = Path(f"united_states_ecoregions_l{args.level}.geojson")
@@ -1500,7 +1519,14 @@ def main() -> None:
         )
     else:
         print(f"Coloring by: {name_field}")
-    colors = style_features(features, name_field, parent_field, code_field, poster_colors)
+    colors = style_features(
+        features,
+        name_field,
+        parent_field,
+        code_field,
+        poster_colors,
+        display_name=display_name_for(args.level, state_name),
+    )
 
     output_path = args.output or default_output
     output_path.parent.mkdir(parents=True, exist_ok=True)
