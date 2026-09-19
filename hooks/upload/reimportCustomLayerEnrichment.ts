@@ -51,7 +51,21 @@ const REQUIRED_REIMPORT_COLUMNS = [
 // Only sent when at least one row has a value: a column that's empty for
 // every row (a species-page download has no observationName, say) is worse
 // than absent, since a bare empty CSV column reads back as a numeric one.
-const OPTIONAL_REIMPORT_COLUMNS = ['observationName', 'imageUrl'] as const;
+//
+// The media columns are what carries a per-observation photo and its
+// attribution/license through a re-upload: a custom upload's own is named
+// imageUrl, a species-page download's mediaUrl (the backend's
+// normalize_image_column accepts either), and its attribution/license
+// columns just ride through the pipeline untouched like any other
+// unrecognized column.
+const OPTIONAL_REIMPORT_COLUMNS = [
+  'observationName',
+  'imageUrl',
+  'mediaUrl',
+  'mediaAttribution',
+  'mediaLicense',
+  'mediaLicenseUrl',
+] as const;
 
 const hasValue = (value: unknown): boolean =>
   value !== null && value !== undefined && String(value).trim() !== '';

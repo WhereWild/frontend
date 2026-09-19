@@ -111,6 +111,33 @@ describe('buildReimportRawCsv optional columns', () => {
   });
 });
 
+describe('buildReimportRawCsv media columns', () => {
+  it("carries a species-page download's per-observation photo, attribution and license through", () => {
+    const csv = buildReimportRawCsv(
+      [
+        {
+          catalogNumber: 'A',
+          decimalLatitude: 1,
+          decimalLongitude: 2,
+          mediaUrl: 'https://img/a.jpg',
+          mediaAttribution: '(c) Jane',
+          mediaLicense: 'CC BY 4.0',
+          mediaLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+        },
+        { catalogNumber: 'B', decimalLatitude: 3, decimalLongitude: 4 },
+      ],
+      [],
+    );
+    expect(csv).toBe(
+      [
+        'catalogNumber,decimalLatitude,decimalLongitude,mediaUrl,mediaAttribution,mediaLicense,mediaLicenseUrl',
+        'A,1,2,https://img/a.jpg,(c) Jane,CC BY 4.0,https://creativecommons.org/licenses/by/4.0/',
+        'B,3,4,,,,',
+      ].join('\n'),
+    );
+  });
+});
+
 describe('resolveReimportExtras', () => {
   const embedded = new Blob(['img']);
   const carried = {
