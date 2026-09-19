@@ -984,8 +984,9 @@ export function GisEditorScreen() {
                       variant='bodySmall'
                       style={{ color: palette.text.warning.default }}
                     >
-                      TODO: stub (why rendering a non-COG file can be slow/lock
-                      up the tab)
+                      Without being a COG, the browser cannot efficiently render
+                      the file while zoomed out. Consider converting the COG to
+                      a file using GDAL or a similar tool before coming back.
                     </ThemedText>
 
                     <View style={styles.fixItBox}>
@@ -996,8 +997,15 @@ export function GisEditorScreen() {
                         variant='bodySmall'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        TODO: stub (how to install GDAL + which command to run,
-                        leads into the command box below)
+                        GDAL is a free, open-source command-line toolkit for
+                        geospatial files. Install it with `brew install gdal`
+                        (macOS), `apt install gdal-bin` (Debian/Ubuntu), or
+                        OSGeo4W / `conda install -c conda-forge gdal` (Windows).
+                        You need version 3.1 or newer for the COG format.
+                        `gdalinfo --version` shows what you have. Then open a
+                        terminal in the folder containing your file and run this
+                        command. It writes a new Cloud-Optimized copy next to
+                        the original and leaves the original untouched.
                       </ThemedText>
                       <View
                         style={[
@@ -1082,8 +1090,9 @@ export function GisEditorScreen() {
                         variant='bodyTiny'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        TODO: stub (raster save — writes config into the file’s
-                        own tags, in-place patch vs. downloaded copy)
+                        Save the file with the above data written into its
+                        metadata. Persists for the next time, and passes it onto
+                        the custom data upload tool.
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button
@@ -1168,8 +1177,9 @@ export function GisEditorScreen() {
                         variant='bodyTiny'
                         style={{ color: palette.text.default.secondary }}
                       >
-                        TODO: stub (vector save — downloads a .geojson with your
-                        styling baked in as properties)
+                        Save the file with the above data written into its
+                        metadata. Persists for the next time, and passes it onto
+                        the custom data upload tool.
                       </ThemedText>
                       <View style={styles.actionsRow}>
                         <Button

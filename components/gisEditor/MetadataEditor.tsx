@@ -109,7 +109,7 @@ export function MetadataEditor({
         variant='bodyTiny'
         style={{ color: palette.text.default.secondary }}
       >
-        TODO: stub (what this “Configure for use” section is for)
+        Change the metadata of the file.
       </ThemedText>
 
       <SelectField
@@ -221,7 +221,7 @@ export function MetadataEditor({
                 variant='bodyTiny'
                 style={{ color: palette.text.default.secondary }}
               >
-                TODO: stub (what scale/offset mean and what changing them does)
+                Edit the scale and offset of the data.
               </ThemedText>
             </>
           ) : null}
