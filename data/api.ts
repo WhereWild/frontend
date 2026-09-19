@@ -383,12 +383,17 @@ type UploadJobStatus = {
   job_id: string;
   status: 'queued' | 'processing' | 'done' | 'error';
   position: number;
+  /** Human-readable sub-stage within "processing" (e.g. "Sampling
+   * environmental layers") -- see main.py's _upload_consumer. Absent/null
+   * while queued, done, or errored. */
+  stage?: string | null;
   error?: string | null;
 };
 
 export type UploadProgressUpdate = {
   status: 'queued' | 'processing';
   position: number;
+  stage?: string | null;
 };
 
 /**
@@ -434,7 +439,11 @@ export async function uploadRawObservations(
 
   const reportProgress = () => {
     if (job.status === 'queued' || job.status === 'processing') {
-      onProgress?.({ status: job.status, position: job.position });
+      onProgress?.({
+        status: job.status,
+        position: job.position,
+        stage: job.stage,
+      });
     }
   };
 

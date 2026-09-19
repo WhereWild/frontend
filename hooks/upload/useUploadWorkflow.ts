@@ -236,6 +236,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
           customLayers.length > 0 &&
           (extension === '.csv' || extension === '.tsv')
         ) {
+          setRawUploadStatusMessage('Sampling custom layers locally…');
           const blob = await resolveAssetBlob(file);
           const text = await blob.text();
           const { augmentedText, descriptors } =
@@ -248,6 +249,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             uploadFile = new Blob([augmentedText], { type: 'text/csv' });
             customLayerMetadata = JSON.stringify(descriptors);
           }
+          setRawUploadStatusMessage(null);
         }
 
         const response = await uploadRawObservations(
@@ -263,7 +265,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             parentTaxonId: options?.parentTaxonId,
             customLayerMetadata,
           },
-          ({ status, position }) => {
+          ({ status, position, stage }) => {
             if (status === 'queued') {
               setRawUploadStatusMessage(
                 position > 1
@@ -271,7 +273,7 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
                   : 'Queued for processing…',
               );
             } else {
-              setRawUploadStatusMessage('Processing…');
+              setRawUploadStatusMessage(stage ? `${stage}…` : 'Processing…');
             }
           },
         );
