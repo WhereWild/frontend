@@ -8,6 +8,7 @@ import {
   buildReimportRawCsv,
   findExistingCustomLayerDescriptors,
   planCustomLayerReimport,
+  resolveReimportExtras,
 } from '../reimportCustomLayerEnrichment';
 
 const asset = (name: string): DocumentPicker.DocumentPickerAsset =>
@@ -84,5 +85,65 @@ describe('buildReimportRawCsv', () => {
       ].join('\n'),
     );
     expect(csv).not.toContain('bio_1');
+  });
+});
+
+describe('resolveReimportExtras', () => {
+  const embedded = new Blob(['img']);
+  const carried = {
+    descriptionSections: [{ id: 'a', title: 'A', lines: [] }],
+    imageUrl: 'blob:local',
+    imageBlob: embedded,
+    imageFilename: 'taxon_image.png',
+    parentTaxonId: '6SRLS',
+  } as never;
+
+  it('carries over everything the ZIP already had when Extra options are blank', () => {
+    expect(resolveReimportExtras(carried, {})).toEqual({
+      generateDescription: true,
+      image: embedded,
+      imageFilename: 'taxon_image.png',
+      // The ZIP's own imageUrl for an embedded image is a local object URL.
+      imageUrl: undefined,
+      parentTaxonId: '6SRLS',
+    });
+  });
+
+  it('lets Extra options override the ZIP, including swapping the image', () => {
+    const chosen = new Blob(['new']);
+    expect(
+      resolveReimportExtras(carried, {
+        image: chosen,
+        imageFilename: 'new.png',
+        parentTaxonId: 'XYZ',
+      }),
+    ).toMatchObject({
+      image: chosen,
+      imageFilename: 'new.png',
+      imageUrl: undefined,
+      parentTaxonId: 'XYZ',
+    });
+  });
+
+  it('carries a remote imageUrl but never sends one alongside an embedded image', () => {
+    expect(
+      resolveReimportExtras(
+        { imageUrl: 'https://example.com/a.jpg' } as never,
+        {},
+      ),
+    ).toMatchObject({
+      image: undefined,
+      imageUrl: 'https://example.com/a.jpg',
+    });
+  });
+
+  it('sends nothing for a ZIP that carried no extras', () => {
+    expect(resolveReimportExtras(undefined, {})).toEqual({
+      generateDescription: false,
+      image: undefined,
+      imageFilename: undefined,
+      imageUrl: undefined,
+      parentTaxonId: undefined,
+    });
   });
 });

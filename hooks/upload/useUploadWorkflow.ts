@@ -17,6 +17,7 @@ import {
   buildReimportRawCsv,
   findExistingCustomLayerDescriptors,
   planCustomLayerReimport,
+  resolveReimportExtras,
 } from './reimportCustomLayerEnrichment';
 import { customLayerIdFromFilename } from '@/components/upload/customLayers';
 import {
@@ -61,9 +62,10 @@ export type RawUploadExtraOptions = {
 /** Step 2 (re-importing a processed ZIP) also consumes Extra options: a
  * custom layer already in the ZIP just gets wired up for local rendering,
  * a genuinely new one is sampled and re-run through the backend (see
- * reimportCustomLayerEnrichment.ts), and only that re-upload sends the
+ * reimportCustomLayerEnrichment.ts). Only that re-upload applies the
  * description/image/parent-taxon options -- a plain import has no backend
- * step to apply them to. */
+ * step -- and there they override whatever the ZIP already carried, which
+ * otherwise carries over (see resolveReimportExtras). */
 export type ZippedImportOptions = RawUploadExtraOptions;
 
 export type UseUploadWorkflowResult = {
@@ -437,10 +439,9 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             newLayers,
           );
         const allDescriptors = [...existingDescriptors, ...descriptors];
-        const response = await uploadRawObservations(
+        const extras = resolveReimportExtras(
+          normalizedBundle.descriptionImage,
           {
-            file: new Blob([augmentedText], { type: 'text/csv' }),
-            filename: 'reimported_observations.csv',
             generateDescription: options?.generateDescription,
             image: options?.image
               ? createFilePayload(options.image)
@@ -448,6 +449,13 @@ export function useUploadWorkflow(): UseUploadWorkflowResult {
             imageFilename: options?.image?.name,
             imageUrl: options?.imageUrl,
             parentTaxonId: options?.parentTaxonId,
+          },
+        );
+        const response = await uploadRawObservations(
+          {
+            file: new Blob([augmentedText], { type: 'text/csv' }),
+            filename: 'reimported_observations.csv',
+            ...extras,
             customLayerMetadata:
               allDescriptors.length > 0
                 ? JSON.stringify(allDescriptors)

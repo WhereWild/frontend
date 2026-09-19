@@ -354,6 +354,7 @@ export const parseUploadedParquetZipToRawBundle = async (
       imageLicenseUrl?: string;
       imageCreator?: string;
       imageRightsHolder?: string;
+      parentTaxonId?: string;
     } | null = null;
     try {
       parsed = JSON.parse(await entry.async('string'));
@@ -368,12 +369,14 @@ export const parseUploadedParquetZipToRawBundle = async (
     // object URL is what makes it actually work fully offline, unlike a
     // remote imageUrl which still needs network access to display.
     let imageUrl = parsed.imageUrl ?? null;
+    let imageBlob: Blob | null = null;
     if (parsed.imageFile) {
       const imageEntry = zip.file(parsed.imageFile);
       if (imageEntry) {
         try {
           const imageBuffer = await imageEntry.async('arraybuffer');
-          imageUrl = URL.createObjectURL(new Blob([imageBuffer]));
+          imageBlob = new Blob([imageBuffer]);
+          imageUrl = URL.createObjectURL(imageBlob);
         } catch {
           // Fall back to whatever imageUrl (if any) was also provided.
         }
@@ -390,6 +393,9 @@ export const parseUploadedParquetZipToRawBundle = async (
       imageLicenseUrl: parsed.imageLicenseUrl ?? null,
       imageCreator: parsed.imageCreator ?? null,
       imageRightsHolder: parsed.imageRightsHolder ?? null,
+      imageBlob,
+      imageFilename: imageBlob ? (parsed.imageFile ?? null) : null,
+      parentTaxonId: parsed.parentTaxonId ?? null,
     };
   };
 

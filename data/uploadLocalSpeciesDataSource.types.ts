@@ -27,6 +27,16 @@ export type UploadedDescriptionImage = {
   imageLicenseUrl?: string | null;
   imageCreator?: string | null;
   imageRightsHolder?: string | null;
+  /** Raw bytes + zip member name of an embedded image, kept alongside its
+   * imageUrl object URL so re-enriching this ZIP (see
+   * useUploadWorkflow.ts's Step 2 re-upload) can send the same image again
+   * instead of losing it. Null for a remote imageUrl. */
+  imageBlob?: Blob | null;
+  imageFilename?: string | null;
+  /** The parent taxon this ZIP's relative ranks were computed against, when
+   * it was uploaded with one -- absent on ZIPs written before the backend
+   * started recording it. */
+  parentTaxonId?: string | null;
 };
 
 export type LocalSourceMeta = {
