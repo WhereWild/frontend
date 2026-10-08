@@ -4,11 +4,21 @@
 
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render, screen } from '@testing-library/react-native';
-import { SummaryItem } from '../SummaryItem';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import { SummaryItem, SummaryRowPressContext } from '../SummaryItem';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
+}));
+
+const mockFetchRankDensity = jest.fn();
+jest.mock('@/data/apiRankDensity', () => ({
+  fetchRankDensity: (...args: unknown[]) => mockFetchRankDensity(...args),
 }));
 
 describe('SummaryItem', () => {
@@ -234,5 +244,108 @@ describe('SummaryItem', () => {
 
       expect(style).not.toHaveProperty('borderBottomColor');
     });
+  });
+});
+
+describe('SummaryItem rank density peek', () => {
+  const peekableRank = {
+    metric: 'mean',
+    label: 'Opuntia',
+    rank: 3,
+    count: 40,
+    percentile: 0.075,
+    contextTaxonId: '2923968',
+    contextRank: 'SPECIES',
+    variable: 'bio1',
+    value: 5,
+  };
+
+  beforeEach(() => {
+    mockFetchRankDensity.mockReset();
+  });
+
+  it('fetches and shows the cohort distribution on hover, and hides it on leave', async () => {
+    mockFetchRankDensity.mockResolvedValue({
+      count: 40,
+      curve: { points: [0, 5, 10], density: [0.1, 0.3, 0.1] },
+      values: null,
+    });
+    render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
+    const item = screen.getByTestId('summary-item-peekable');
+
+    fireEvent(item, 'hoverIn');
+
+    expect(screen.getByText('Loading distribution…')).toBeTruthy();
+    expect(await screen.findByText('40 taxa')).toBeTruthy();
+    expect(screen.getByTestId('rank-density-marker')).toBeTruthy();
+    expect(mockFetchRankDensity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextTaxonId: '2923968',
+        contextRank: 'SPECIES',
+        variable: 'bio1',
+        metric: 'mean',
+      }),
+    );
+
+    fireEvent(item, 'hoverOut');
+
+    expect(screen.queryByTestId('rank-density-peek')).toBeNull();
+  });
+
+  it('peeks while long-pressed and closes on release', async () => {
+    mockFetchRankDensity.mockResolvedValue(null);
+    render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
+    const item = screen.getByTestId('summary-item-peekable');
+
+    fireEvent(item, 'longPress');
+    expect(screen.getByTestId('rank-density-peek')).toBeTruthy();
+    await waitFor(() => expect(mockFetchRankDensity).toHaveBeenCalled());
+
+    fireEvent(item, 'pressOut');
+    expect(screen.queryByTestId('rank-density-peek')).toBeNull();
+  });
+
+  it('reports an unavailable distribution when the request fails', async () => {
+    mockFetchRankDensity.mockRejectedValue(new Error('boom'));
+    render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
+
+    fireEvent(screen.getByTestId('summary-item-peekable'), 'hoverIn');
+
+    expect(await screen.findByText('Distribution unavailable.')).toBeTruthy();
+  });
+
+  it('forwards a plain tap to the enclosing summary row', () => {
+    const onRowPress = jest.fn();
+    render(
+      <SummaryRowPressContext.Provider value={onRowPress}>
+        <SummaryItem label='Mean' value='5' rank={peekableRank} />
+      </SummaryRowPressContext.Provider>,
+    );
+
+    fireEvent.press(screen.getByTestId('summary-item-peekable'));
+
+    expect(onRowPress).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('rank-density-peek')).toBeNull();
+  });
+
+  it('is not peekable without a cohort to fetch, or while comparing', () => {
+    const { rerender } = render(
+      <SummaryItem
+        label='Mean'
+        value='5'
+        rank={{ ...peekableRank, contextTaxonId: null }}
+      />,
+    );
+    expect(screen.queryByTestId('summary-item-peekable')).toBeNull();
+
+    rerender(
+      <SummaryItem
+        label='Mean'
+        value='5'
+        rank={peekableRank}
+        comparison='vs. 4 (+25%)'
+      />,
+    );
+    expect(screen.queryByTestId('summary-item-peekable')).toBeNull();
   });
 });

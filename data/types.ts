@@ -340,6 +340,25 @@ export type SpeciesEnvironmentRelativeRank = {
   count?: number | null;
   percentile?: number | null;
   context?: string | null;
+  /** Ancestor taxon this rank is computed within — with `contextRank` and
+   * `variable`, identifies the cohort whose `RankDensity` can be fetched. */
+  contextTaxonId?: string | null;
+  /** Taxonomic rank of the cohort (e.g. SPECIES), not the position. */
+  contextRank?: string | null;
+  variable?: string | null;
+  /** This taxon's own metric value, in display units. */
+  value?: number | null;
+};
+
+/**
+ * Distribution of one ranked metric's values across a cohort of taxa (one
+ * value per taxon). Cohorts too small for a meaningful KDE come back as raw
+ * sorted `values` instead of a `curve`.
+ */
+export type RankDensity = {
+  count: number;
+  curve: SpeciesEnvironmentDensity | null;
+  values: number[] | null;
 };
 
 export type SpeciesEnvironmentStats = {
@@ -549,4 +568,10 @@ export type TaxaQueryResponse = {
   limit: number;
   offset: number;
   results: TaxaQueryResult[];
+  /** Distribution of the sort metric across the whole filtered result set
+   * (scoped sorted queries only). */
+  density?: RankDensity | null;
+  /** First and last sort values on the current page, in sort order — for a
+   * circular sort the page spans the arc from `start` to `end`. */
+  highlight?: { start: number; end: number } | null;
 };

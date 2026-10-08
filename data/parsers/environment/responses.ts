@@ -273,6 +273,14 @@ const normalizeRelativeRank = (
       (typeof source?.ancestor_name === 'string' ? source.ancestor_name : undefined) ??
       overrides?.context ??
       null,
+    contextTaxonId:
+      typeof source?.context_taxon_id === 'string'
+        ? source.context_taxon_id
+        : null,
+    contextRank:
+      typeof source?.context_rank === 'string' ? source.context_rank : null,
+    variable: typeof source?.variable === 'string' ? source.variable : null,
+    value: toFiniteNumber(source?.value),
   };
 };
 

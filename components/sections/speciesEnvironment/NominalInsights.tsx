@@ -14,7 +14,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { NavigationPillList } from '@/components/navigation/NavigationPillList';
-import { SummaryItem } from './SummaryItem';
+import { SummaryItem, SummaryRowPressContext } from './SummaryItem';
 import type { RankContextOption } from './model';
 import {
   formatCategoryPercent,
@@ -224,140 +224,144 @@ export function NominalInsights({
       </View>
 
       {isOrdinal ? (
-        <Pressable
-          onPress={handleToggle}
-          testID='summary-row'
-          accessibilityRole='button'
-          accessibilityLabel={expanded ? 'Show fewer stats' : 'Show more stats'}
-          accessibilityState={{ expanded }}
-          style={({ pressed, hovered }) => [
-            (pressed || (hovered ?? false)) && {
-              backgroundColor: palette.background.default.secondaryHover,
-              borderRadius: Size.radius['100'],
-            },
-          ]}
-        >
-          <View
-            collapsable={false}
-            style={[
-              styles.summaryRow,
-              { paddingTop: Size.space['300'] },
-              isStacked && styles.summaryRowStacked,
+        <SummaryRowPressContext.Provider value={handleToggle}>
+          <Pressable
+            onPress={handleToggle}
+            testID='summary-row'
+            accessibilityRole='button'
+            accessibilityLabel={
+              expanded ? 'Show fewer stats' : 'Show more stats'
+            }
+            accessibilityState={{ expanded }}
+            style={({ pressed, hovered }) => [
+              (pressed || (hovered ?? false)) && {
+                backgroundColor: palette.background.default.secondaryHover,
+                borderRadius: Size.radius['100'],
+              },
             ]}
           >
-            <SummaryItem
-              label='Unique classes'
-              value={
-                typeof summary?.unique_classes === 'number'
-                  ? String(summary.unique_classes)
-                  : '—'
-              }
-              rank={
-                anyFilterActive
-                  ? undefined
-                  : (summaryRanks.unique_classes ?? null)
-              }
-              comparison={
-                anyFilterActive
-                  ? (summaryComparisons?.unique_classes ?? null)
-                  : null
-              }
-              stacked={isStacked}
-              prominent={!showRankContext}
-            />
-            <SummaryItem
-              label='Entropy'
-              value={formatValue(summary?.entropy, 3)}
-              rank={
-                anyFilterActive ? undefined : (summaryRanks.entropy ?? null)
-              }
-              comparison={
-                anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
-              }
-              stacked={isStacked}
-              prominent={!showRankContext}
-            />
-            <SummaryItem
-              label={thirdSlot.label}
-              value={thirdSlot.value}
-              rank={anyFilterActive ? undefined : (thirdSlot.rank ?? null)}
-              comparison={anyFilterActive ? thirdSlotComparison : null}
-              stacked={isStacked}
-              prominent={!showRankContext}
-              isLast
-            />
-          </View>
-          <View
-            collapsable={false}
-            style={!expanded ? styles.hiddenSlot : undefined}
-            accessibilityElementsHidden={!expanded}
-            importantForAccessibility={
-              expanded ? 'auto' : 'no-hide-descendants'
-            }
-            pointerEvents={expanded ? 'auto' : 'none'}
-          >
             <View
               collapsable={false}
               style={[
                 styles.summaryRow,
-                { paddingTop: Size.space['200'] },
+                { paddingTop: Size.space['300'] },
                 isStacked && styles.summaryRowStacked,
               ]}
             >
               <SummaryItem
-                label='Q25'
-                value={resolveOrdinalClassName(summary?.q25) ?? '—'}
-                rank={null}
-                comparison={null}
+                label='Unique classes'
+                value={
+                  typeof summary?.unique_classes === 'number'
+                    ? String(summary.unique_classes)
+                    : '—'
+                }
+                rank={
+                  anyFilterActive
+                    ? undefined
+                    : (summaryRanks.unique_classes ?? null)
+                }
+                comparison={
+                  anyFilterActive
+                    ? (summaryComparisons?.unique_classes ?? null)
+                    : null
+                }
                 stacked={isStacked}
-                prominent
+                prominent={!showRankContext}
               />
               <SummaryItem
-                label='Median'
-                value={resolveOrdinalClassName(summary?.median) ?? '—'}
-                rank={null}
-                comparison={null}
+                label='Entropy'
+                value={formatValue(summary?.entropy, 3)}
+                rank={
+                  anyFilterActive ? undefined : (summaryRanks.entropy ?? null)
+                }
+                comparison={
+                  anyFilterActive ? (summaryComparisons?.entropy ?? null) : null
+                }
                 stacked={isStacked}
-                prominent
+                prominent={!showRankContext}
               />
               <SummaryItem
-                label='Q75'
-                value={resolveOrdinalClassName(summary?.q75) ?? '—'}
-                rank={null}
-                comparison={null}
+                label={thirdSlot.label}
+                value={thirdSlot.value}
+                rank={anyFilterActive ? undefined : (thirdSlot.rank ?? null)}
+                comparison={anyFilterActive ? thirdSlotComparison : null}
                 stacked={isStacked}
-                prominent
+                prominent={!showRankContext}
                 isLast
               />
             </View>
             <View
               collapsable={false}
-              style={[
-                styles.summaryRow,
-                { paddingTop: Size.space['200'] },
-                isStacked && styles.summaryRowStacked,
-              ]}
+              style={!expanded ? styles.hiddenSlot : undefined}
+              accessibilityElementsHidden={!expanded}
+              importantForAccessibility={
+                expanded ? 'auto' : 'no-hide-descendants'
+              }
+              pointerEvents={expanded ? 'auto' : 'none'}
             >
-              <SummaryItem
-                label='Q10'
-                value={resolveOrdinalClassName(summary?.q10) ?? '—'}
-                rank={null}
-                comparison={null}
-                stacked={isStacked}
-                prominent
-              />
-              <SummaryItem
-                label='Q90'
-                value={resolveOrdinalClassName(summary?.q90) ?? '—'}
-                rank={null}
-                comparison={null}
-                stacked={isStacked}
-                prominent
-                isLast
-              />
+              <View
+                collapsable={false}
+                style={[
+                  styles.summaryRow,
+                  { paddingTop: Size.space['200'] },
+                  isStacked && styles.summaryRowStacked,
+                ]}
+              >
+                <SummaryItem
+                  label='Q25'
+                  value={resolveOrdinalClassName(summary?.q25) ?? '—'}
+                  rank={null}
+                  comparison={null}
+                  stacked={isStacked}
+                  prominent
+                />
+                <SummaryItem
+                  label='Median'
+                  value={resolveOrdinalClassName(summary?.median) ?? '—'}
+                  rank={null}
+                  comparison={null}
+                  stacked={isStacked}
+                  prominent
+                />
+                <SummaryItem
+                  label='Q75'
+                  value={resolveOrdinalClassName(summary?.q75) ?? '—'}
+                  rank={null}
+                  comparison={null}
+                  stacked={isStacked}
+                  prominent
+                  isLast
+                />
+              </View>
+              <View
+                collapsable={false}
+                style={[
+                  styles.summaryRow,
+                  { paddingTop: Size.space['200'] },
+                  isStacked && styles.summaryRowStacked,
+                ]}
+              >
+                <SummaryItem
+                  label='Q10'
+                  value={resolveOrdinalClassName(summary?.q10) ?? '—'}
+                  rank={null}
+                  comparison={null}
+                  stacked={isStacked}
+                  prominent
+                />
+                <SummaryItem
+                  label='Q90'
+                  value={resolveOrdinalClassName(summary?.q90) ?? '—'}
+                  rank={null}
+                  comparison={null}
+                  stacked={isStacked}
+                  prominent
+                  isLast
+                />
+              </View>
             </View>
-          </View>
-        </Pressable>
+          </Pressable>
+        </SummaryRowPressContext.Provider>
       ) : (
         <View
           collapsable={false}

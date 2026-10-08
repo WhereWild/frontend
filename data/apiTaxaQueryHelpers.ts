@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type { TaxaQueryResponse, TaxaQueryResult } from './types';
+import { parseRankDensity } from './apiRankDensity';
 import { normalizeToJsonShape } from './apiSpeciesSearchHelpers';
 import {
   asRecord,
@@ -201,6 +202,9 @@ export async function fetchTaxaQuery(
   );
   const scope = asRecord(payload.scope);
   const sort = asRecord(payload.sort);
+  const highlight = asRecord(payload.highlight);
+  const highlightStart = toFiniteNumber(highlight.start);
+  const highlightEnd = toFiniteNumber(highlight.end);
 
   return {
     query: toOptionalString(payload.query),
@@ -254,5 +258,12 @@ export async function fetchTaxaQuery(
     results: Array.isArray(payload.results)
       ? payload.results.map(normalizeTaxaQueryResult)
       : [],
+    density: parseRankDensity(payload.density),
+    highlight:
+      payload.highlight != null &&
+      highlightStart !== null &&
+      highlightEnd !== null
+        ? { start: highlightStart, end: highlightEnd }
+        : null,
   };
 }
