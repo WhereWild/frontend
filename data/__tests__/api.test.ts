@@ -34,6 +34,39 @@ describe('data/api common name normalization', () => {
     global.fetch = originalFetch;
   });
 
+  it('parses the sort density and page highlight of a ranked query', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        total: 0,
+        results: [],
+        density: { count: 3, points: [1, 3], density: [0.5, 0.5] },
+        highlight: { start: 3, end: 2 },
+      }),
+    });
+
+    const response = await fetchTaxaQuery({ q: 'wolf' });
+
+    expect(response.density).toEqual({
+      count: 3,
+      mean: null,
+      curve: { points: [1, 3], density: [0.5, 0.5] },
+    });
+    expect(response.highlight).toEqual({ start: 3, end: 2 });
+  });
+
+  it('leaves density and highlight empty for unranked queries', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ total: 0, results: [] }),
+    });
+
+    const response = await fetchTaxaQuery({ q: 'wolf' });
+
+    expect(response.density).toBeNull();
+    expect(response.highlight).toBeNull();
+  });
+
   it('normalizes common_names arrays in taxa query responses', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,

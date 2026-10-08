@@ -305,6 +305,7 @@ const baseState: SpeciesEnvironmentState = {
     iqr: null,
     q10_90_range: null,
     range99: null,
+    circular_mean: null,
     rbar: null,
     circular_std: null,
     circular_var: null,

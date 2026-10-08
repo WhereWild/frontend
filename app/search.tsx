@@ -10,6 +10,7 @@ import {
   PageScrollContainer,
 } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
+import { RankDensityChart } from '@/components/sections/speciesEnvironment/RankDensityChart';
 import { Size } from '@/constants/theme';
 import { useNativeSearchSession } from '@/context/NativeSearchSessionContext';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -292,6 +293,7 @@ export default function Search() {
     setNativeSearchQuery,
     searchContext,
     searchResults,
+    searchSortDensity,
     searchTotal,
     searching,
   } = useSearchController({
@@ -354,6 +356,15 @@ export default function Search() {
     countyOptions,
     onHydrateRouteLocation,
   });
+
+  // Only angular sorts send a reference bearing. A descending one runs
+  // counter-clockwise from it, so its page spans the arc from end to start.
+  const isCircularSort = filters.filterParams.sortReference != null;
+  const pageHighlight = searchSortDensity?.highlight ?? null;
+  const sortDensityHighlight =
+    pageHighlight && isCircularSort && filters.filterParams.sortOrder === 'desc'
+      ? { start: pageHighlight.end, end: pageHighlight.start }
+      : pageHighlight;
 
   const resultsMessage = searchContext
     ? searchContext
@@ -485,6 +496,13 @@ export default function Search() {
                   <ThemedText variant='body'>{resultsMessage}</ThemedText>
                 </View>
               </View>
+              {searchSortDensity ? (
+                <RankDensityChart
+                  density={searchSortDensity.density}
+                  highlight={sortDensityHighlight}
+                  circular={isCircularSort}
+                />
+              ) : null}
               <View style={styles.results}>{renderedResults}</View>
             </View>
           </View>

@@ -2,13 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { Colors, Size } from '@/constants/theme';
+import { Colors, Shadows, Size } from '@/constants/theme';
 import type { SpeciesEnvironmentRelativeRank } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/text/ThemedText';
 import { formatPercent } from './model';
+import { RankDensityChart } from './RankDensityChart';
+import { useRankDensity } from './useRankDensity';
+
+const PEEK_WIDTH = 280;
+
+/** The enclosing summary row's tap action (expand/collapse). A rank box with a
+ * peekable distribution becomes its own Pressable for hover/long-press, which
+ * would otherwise swallow the row's taps — so it forwards them here. */
+export const SummaryRowPressContext = React.createContext<(() => void) | null>(
+  null,
+);
 
 /** Props for one metric summary card in the insights row. */
 type SummaryItemProps = {
@@ -26,6 +37,11 @@ type SummaryItemProps = {
   stacked?: boolean;
   /** When true, omits rank/percentile rows and uses a larger value text size. */
   prominent?: boolean;
+  /** Cohort to chart on hover for a box that shows no rank text — e.g. a
+   * bearing, whose 0–360 rank order means nothing. Ignored when `rank` is set. */
+  densityRank?: SpeciesEnvironmentRelativeRank | null;
+  /** Charts the cohort on a polar (0° = north) chart. */
+  circular?: boolean;
 };
 
 /** Displays one summary metric with optional rank/comparison metadata. */
@@ -37,6 +53,8 @@ export function SummaryItem({
   isLast,
   stacked,
   prominent = false,
+  densityRank,
+  circular = false,
 }: SummaryItemProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -57,16 +75,30 @@ export function SummaryItem({
   const percentileDisplayText =
     percentileText.trim().length > 0 && !comparison ? percentileText : ' ';
 
-  return (
-    <View
-      collapsable={false}
-      style={[
-        styles.summaryItem,
-        stacked ? styles.summaryItemStacked : { borderRightColor: borderColor },
-        stacked && !isLast && { borderBottomColor: borderColor },
-        isLast && !stacked && styles.summaryItemLast,
-      ]}
-    >
+  const onRowPress = React.useContext(SummaryRowPressContext);
+  const peekRank = rank ?? densityRank ?? null;
+  const canPeek =
+    !comparison &&
+    !!peekRank?.contextTaxonId &&
+    !!peekRank.contextRank &&
+    !!peekRank.variable;
+  const [peeking, setPeeking] = React.useState(false);
+  const heldOpen = React.useRef(false);
+  const { density, loading, failed } = useRankDensity(
+    peekRank,
+    canPeek && peeking,
+  );
+
+  const itemStyle = [
+    styles.summaryItem,
+    stacked ? styles.summaryItemStacked : { borderRightColor: borderColor },
+    stacked && !isLast && { borderBottomColor: borderColor },
+    isLast && !stacked && styles.summaryItemLast,
+    peeking && styles.summaryItemPeeking,
+  ];
+
+  const content = (
+    <>
       <ThemedText
         variant='body'
         style={prominent ? styles.prominentValue : undefined}
@@ -105,7 +137,75 @@ export function SummaryItem({
           </ThemedText>
         </View>
       )}
-    </View>
+    </>
+  );
+
+  if (!canPeek) {
+    return (
+      <View collapsable={false} style={itemStyle}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      collapsable={false}
+      testID='summary-item-peekable'
+      style={itemStyle}
+      onPress={onRowPress ?? undefined}
+      onHoverIn={() => setPeeking(true)}
+      onHoverOut={() => setPeeking(false)}
+      onLongPress={() => {
+        heldOpen.current = true;
+        setPeeking(true);
+      }}
+      onPressOut={() => {
+        if (heldOpen.current) {
+          heldOpen.current = false;
+          setPeeking(false);
+        }
+      }}
+      accessibilityHint='Hover or press and hold to see how this compares across the group'
+    >
+      {content}
+      <View
+        collapsable={false}
+        testID='rank-density-peek'
+        style={[
+          styles.peek,
+          stacked ? styles.peekStacked : styles.peekCentered,
+          !peeking && styles.peekHidden,
+          Shadows.dropShadow400.style,
+          {
+            backgroundColor: palette.background.default.default,
+            borderColor,
+          },
+        ]}
+      >
+        <ThemedText variant='bodySmall'>
+          {label} across {peekRank.label || 'selected taxon'}
+        </ThemedText>
+        {density ? (
+          <RankDensityChart
+            density={density}
+            marker={peekRank.value ?? null}
+            circular={circular}
+          />
+        ) : (
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.default.secondary }}
+          >
+            {loading
+              ? 'Loading distribution…'
+              : failed
+                ? 'Distribution unavailable.'
+                : ' '}
+          </ThemedText>
+        )}
+      </View>
+    </Pressable>
   );
 }
 
@@ -121,6 +221,30 @@ const styles = StyleSheet.create({
   },
   summaryItemLast: {
     borderRightWidth: 0,
+  },
+  summaryItemPeeking: {
+    zIndex: 10,
+  },
+  peek: {
+    position: 'absolute',
+    bottom: '100%',
+    width: PEEK_WIDTH,
+    marginBottom: Size.space['100'],
+    padding: Size.space['200'],
+    gap: Size.space['100'],
+    borderWidth: 1,
+    borderRadius: Size.radius['200'],
+    pointerEvents: 'none',
+  },
+  peekCentered: {
+    left: '50%',
+    marginLeft: -PEEK_WIDTH / 2,
+  },
+  peekStacked: {
+    left: 0,
+  },
+  peekHidden: {
+    display: 'none',
   },
   summaryItemStacked: {
     alignItems: 'flex-start',

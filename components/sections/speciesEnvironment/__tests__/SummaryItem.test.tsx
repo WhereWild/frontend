@@ -4,11 +4,21 @@
 
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { render, screen } from '@testing-library/react-native';
-import { SummaryItem } from '../SummaryItem';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import { SummaryItem, SummaryRowPressContext } from '../SummaryItem';
 
 jest.mock('@/hooks/useColorScheme', () => ({
   useColorScheme: jest.fn(() => 'light'),
+}));
+
+const mockFetchRankDensity = jest.fn();
+jest.mock('@/data/apiRankDensity', () => ({
+  fetchRankDensity: (...args: unknown[]) => mockFetchRankDensity(...args),
 }));
 
 describe('SummaryItem', () => {
@@ -234,5 +244,151 @@ describe('SummaryItem', () => {
 
       expect(style).not.toHaveProperty('borderBottomColor');
     });
+  });
+});
+
+describe('SummaryItem rank density peek', () => {
+  const peekableBearing = {
+    metric: 'circular_mean',
+    label: 'Opuntia',
+    rank: 12,
+    count: 40,
+    percentile: 0.3,
+    contextTaxonId: '2923968',
+    contextRank: 'SPECIES',
+    variable: 'aspect',
+    value: 92,
+  };
+  const peekableRank = {
+    metric: 'mean',
+    label: 'Opuntia',
+    rank: 3,
+    count: 40,
+    percentile: 0.075,
+    contextTaxonId: '2923968',
+    contextRank: 'SPECIES',
+    variable: 'bio1',
+    value: 5,
+  };
+
+  beforeEach(() => {
+    mockFetchRankDensity.mockReset();
+  });
+
+  it('fetches and shows the cohort distribution on hover, and hides it on leave', async () => {
+    mockFetchRankDensity.mockResolvedValue({
+      count: 40,
+      curve: { points: [0, 5, 10], density: [0.1, 0.3, 0.1] },
+    });
+    render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
+    const item = screen.getByTestId('summary-item-peekable');
+
+    fireEvent(item, 'hoverIn');
+
+    expect(screen.getByText('Loading distribution…')).toBeTruthy();
+    expect(await screen.findByTestId('rank-density-chart')).toBeTruthy();
+    expect(screen.getByTestId('rank-density-marker')).toBeTruthy();
+    expect(mockFetchRankDensity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextTaxonId: '2923968',
+        contextRank: 'SPECIES',
+        variable: 'bio1',
+        metric: 'mean',
+      }),
+    );
+
+    fireEvent(item, 'hoverOut');
+
+    expect(
+      screen.getByTestId('rank-density-peek', { includeHiddenElements: true }),
+    ).not.toBeVisible();
+  });
+
+  it('peeks while long-pressed and closes on release', async () => {
+    mockFetchRankDensity.mockResolvedValue(null);
+    render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
+    const item = screen.getByTestId('summary-item-peekable');
+
+    fireEvent(item, 'longPress');
+    expect(screen.getByTestId('rank-density-peek')).toBeVisible();
+    await waitFor(() => expect(mockFetchRankDensity).toHaveBeenCalled());
+
+    fireEvent(item, 'pressOut');
+    expect(
+      screen.getByTestId('rank-density-peek', { includeHiddenElements: true }),
+    ).not.toBeVisible();
+  });
+
+  it('reports an unavailable distribution when the request fails', async () => {
+    mockFetchRankDensity.mockRejectedValue(new Error('boom'));
+    render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
+
+    fireEvent(screen.getByTestId('summary-item-peekable'), 'hoverIn');
+
+    expect(await screen.findByText('Distribution unavailable.')).toBeTruthy();
+  });
+
+  it('forwards a plain tap to the enclosing summary row', () => {
+    const onRowPress = jest.fn();
+    render(
+      <SummaryRowPressContext.Provider value={onRowPress}>
+        <SummaryItem label='Mean' value='5' rank={peekableRank} />
+      </SummaryRowPressContext.Provider>,
+    );
+
+    fireEvent.press(screen.getByTestId('summary-item-peekable'));
+
+    expect(onRowPress).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByTestId('rank-density-peek', { includeHiddenElements: true }),
+    ).not.toBeVisible();
+  });
+
+  it('is not peekable without a cohort to fetch, or while comparing', () => {
+    const { rerender } = render(
+      <SummaryItem
+        label='Mean'
+        value='5'
+        rank={{ ...peekableRank, contextTaxonId: null }}
+      />,
+    );
+    expect(screen.queryByTestId('summary-item-peekable')).toBeNull();
+
+    rerender(
+      <SummaryItem
+        label='Mean'
+        value='5'
+        rank={peekableRank}
+        comparison='vs. 4 (+25%)'
+      />,
+    );
+    expect(screen.queryByTestId('summary-item-peekable')).toBeNull();
+  });
+
+  it('charts a bearing cohort on a polar chart without showing rank text', async () => {
+    mockFetchRankDensity.mockResolvedValue({
+      count: 40,
+      mean: 90,
+      curve: { points: [0, 90, 180, 270], density: [0.2, 0.4, 0.2, 0.1] },
+    });
+    render(
+      <SummaryItem
+        label='Mean'
+        value='92°'
+        densityRank={{ ...peekableBearing }}
+        circular
+      />,
+    );
+
+    expect(screen.queryByText(/Ranks/)).toBeNull();
+    fireEvent(screen.getByTestId('summary-item-peekable'), 'hoverIn');
+
+    await waitFor(() =>
+      expect(mockFetchRankDensity).toHaveBeenCalledWith(
+        expect.objectContaining({ metric: 'circular_mean' }),
+      ),
+    );
+    // Polar chart, not the linear one.
+    expect(screen.queryByTestId('rank-density-chart')).toBeNull();
   });
 });
