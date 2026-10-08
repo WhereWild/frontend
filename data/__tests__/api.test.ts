@@ -49,6 +49,7 @@ describe('data/api common name normalization', () => {
 
     expect(response.density).toEqual({
       count: 3,
+      mean: null,
       curve: null,
       values: [1, 2, 3],
     });

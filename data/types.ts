@@ -357,6 +357,8 @@ export type SpeciesEnvironmentRelativeRank = {
  */
 export type RankDensity = {
   count: number;
+  /** Cohort mean (circular mean for a bearing metric). */
+  mean: number | null;
   curve: SpeciesEnvironmentDensity | null;
   values: number[] | null;
 };

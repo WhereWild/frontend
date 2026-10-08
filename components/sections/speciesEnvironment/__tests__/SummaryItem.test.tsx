@@ -276,7 +276,7 @@ describe('SummaryItem rank density peek', () => {
     fireEvent(item, 'hoverIn');
 
     expect(screen.getByText('Loading distribution…')).toBeTruthy();
-    expect(await screen.findByText('40 taxa')).toBeTruthy();
+    expect(await screen.findByTestId('rank-density-chart')).toBeTruthy();
     expect(screen.getByTestId('rank-density-marker')).toBeTruthy();
     expect(mockFetchRankDensity).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -289,7 +289,9 @@ describe('SummaryItem rank density peek', () => {
 
     fireEvent(item, 'hoverOut');
 
-    expect(screen.queryByTestId('rank-density-peek')).toBeNull();
+    expect(
+      screen.getByTestId('rank-density-peek', { includeHiddenElements: true }),
+    ).not.toBeVisible();
   });
 
   it('peeks while long-pressed and closes on release', async () => {
@@ -298,11 +300,13 @@ describe('SummaryItem rank density peek', () => {
     const item = screen.getByTestId('summary-item-peekable');
 
     fireEvent(item, 'longPress');
-    expect(screen.getByTestId('rank-density-peek')).toBeTruthy();
+    expect(screen.getByTestId('rank-density-peek')).toBeVisible();
     await waitFor(() => expect(mockFetchRankDensity).toHaveBeenCalled());
 
     fireEvent(item, 'pressOut');
-    expect(screen.queryByTestId('rank-density-peek')).toBeNull();
+    expect(
+      screen.getByTestId('rank-density-peek', { includeHiddenElements: true }),
+    ).not.toBeVisible();
   });
 
   it('reports an unavailable distribution when the request fails', async () => {
@@ -325,7 +329,9 @@ describe('SummaryItem rank density peek', () => {
     fireEvent.press(screen.getByTestId('summary-item-peekable'));
 
     expect(onRowPress).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId('rank-density-peek')).toBeNull();
+    expect(
+      screen.getByTestId('rank-density-peek', { includeHiddenElements: true }),
+    ).not.toBeVisible();
   });
 
   it('is not peekable without a cohort to fetch, or while comparing', () => {

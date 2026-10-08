@@ -158,39 +158,38 @@ export function SummaryItem({
       accessibilityHint='Hover or press and hold to see how this compares across the group'
     >
       {content}
-      {peeking ? (
-        <View
-          testID='rank-density-peek'
-          pointerEvents='none'
-          style={[
-            styles.peek,
-            stacked ? styles.peekStacked : styles.peekCentered,
-            Shadows.dropShadow400.style,
-            {
-              backgroundColor: palette.background.default.default,
-              borderColor,
-            },
-          ]}
-        >
-          <ThemedText variant='bodySmall'>
-            {label} across {rank.label || 'selected taxon'}
+      <View
+        collapsable={false}
+        testID='rank-density-peek'
+        style={[
+          styles.peek,
+          stacked ? styles.peekStacked : styles.peekCentered,
+          !peeking && styles.peekHidden,
+          Shadows.dropShadow400.style,
+          {
+            backgroundColor: palette.background.default.default,
+            borderColor,
+          },
+        ]}
+      >
+        <ThemedText variant='bodySmall'>
+          {label} across {rank.label || 'selected taxon'}
+        </ThemedText>
+        {density ? (
+          <RankDensityChart density={density} marker={rank.value ?? null} />
+        ) : (
+          <ThemedText
+            variant='bodySmall'
+            style={{ color: palette.text.default.secondary }}
+          >
+            {loading
+              ? 'Loading distribution…'
+              : failed
+                ? 'Distribution unavailable.'
+                : ' '}
           </ThemedText>
-          {density ? (
-            <RankDensityChart density={density} marker={rank.value ?? null} />
-          ) : (
-            <ThemedText
-              variant='bodySmall'
-              style={{ color: palette.text.default.secondary }}
-            >
-              {loading
-                ? 'Loading distribution…'
-                : failed
-                  ? 'Distribution unavailable.'
-                  : ' '}
-            </ThemedText>
-          )}
-        </View>
-      ) : null}
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -220,6 +219,7 @@ const styles = StyleSheet.create({
     gap: Size.space['100'],
     borderWidth: 1,
     borderRadius: Size.radius['200'],
+    pointerEvents: 'none',
   },
   peekCentered: {
     left: '50%',
@@ -227,6 +227,9 @@ const styles = StyleSheet.create({
   },
   peekStacked: {
     left: 0,
+  },
+  peekHidden: {
+    display: 'none',
   },
   summaryItemStacked: {
     alignItems: 'flex-start',

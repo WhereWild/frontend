@@ -19,14 +19,18 @@ describe('parseRankDensity', () => {
       }),
     ).toEqual({
       count: 500,
+      mean: null,
       curve: { points: [1, 2, 3], density: [0.1, 0.5, 0.2] },
       values: null,
     });
   });
 
   it('parses raw values for a cohort too small for a curve', () => {
-    expect(parseRankDensity({ count: 3, values: [1, 4, 9] })).toEqual({
+    expect(
+      parseRankDensity({ count: 3, mean: 4.67, values: [1, 4, 9] }),
+    ).toEqual({
       count: 3,
+      mean: 4.67,
       curve: null,
       values: [1, 4, 9],
     });
@@ -70,7 +74,12 @@ describe('fetchRankDensity', () => {
     const first = await fetchRankDensity(params);
     const second = await fetchRankDensity(params);
 
-    expect(first).toEqual({ count: 2, curve: null, values: [1, 2] });
+    expect(first).toEqual({
+      count: 2,
+      mean: null,
+      curve: null,
+      values: [1, 2],
+    });
     expect(second).toBe(first);
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith(

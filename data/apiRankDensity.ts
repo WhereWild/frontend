@@ -30,6 +30,10 @@ export const parseRankDensity = (value: unknown): RankDensity | null => {
   return {
     count:
       typeof source.count === 'number' ? source.count : (values?.length ?? 0),
+    mean:
+      typeof source.mean === 'number' && Number.isFinite(source.mean)
+        ? source.mean
+        : null,
     curve,
     values: curve ? null : values,
   };

@@ -501,7 +501,6 @@ export default function Search() {
                   density={searchSortDensity.density}
                   highlight={sortDensityHighlight}
                   circular={isCircularSort}
-                  units={searchSortDensity.units}
                 />
               ) : null}
               <View style={styles.results}>{renderedResults}</View>
