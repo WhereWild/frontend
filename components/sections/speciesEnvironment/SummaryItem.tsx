@@ -37,6 +37,11 @@ type SummaryItemProps = {
   stacked?: boolean;
   /** When true, omits rank/percentile rows and uses a larger value text size. */
   prominent?: boolean;
+  /** Cohort to chart on hover for a box that shows no rank text — e.g. a
+   * bearing, whose 0–360 rank order means nothing. Ignored when `rank` is set. */
+  densityRank?: SpeciesEnvironmentRelativeRank | null;
+  /** Charts the cohort on a polar (0° = north) chart. */
+  circular?: boolean;
 };
 
 /** Displays one summary metric with optional rank/comparison metadata. */
@@ -48,6 +53,8 @@ export function SummaryItem({
   isLast,
   stacked,
   prominent = false,
+  densityRank,
+  circular = false,
 }: SummaryItemProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -69,14 +76,18 @@ export function SummaryItem({
     percentileText.trim().length > 0 && !comparison ? percentileText : ' ';
 
   const onRowPress = React.useContext(SummaryRowPressContext);
+  const peekRank = rank ?? densityRank ?? null;
   const canPeek =
     !comparison &&
-    !!rank?.contextTaxonId &&
-    !!rank.contextRank &&
-    !!rank.variable;
+    !!peekRank?.contextTaxonId &&
+    !!peekRank.contextRank &&
+    !!peekRank.variable;
   const [peeking, setPeeking] = React.useState(false);
   const heldOpen = React.useRef(false);
-  const { density, loading, failed } = useRankDensity(rank, canPeek && peeking);
+  const { density, loading, failed } = useRankDensity(
+    peekRank,
+    canPeek && peeking,
+  );
 
   const itemStyle = [
     styles.summaryItem,
@@ -173,10 +184,14 @@ export function SummaryItem({
         ]}
       >
         <ThemedText variant='bodySmall'>
-          {label} across {rank.label || 'selected taxon'}
+          {label} across {peekRank.label || 'selected taxon'}
         </ThemedText>
         {density ? (
-          <RankDensityChart density={density} marker={rank.value ?? null} />
+          <RankDensityChart
+            density={density}
+            marker={peekRank.value ?? null}
+            circular={circular}
+          />
         ) : (
           <ThemedText
             variant='bodySmall'

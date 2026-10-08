@@ -350,17 +350,13 @@ export type SpeciesEnvironmentRelativeRank = {
   value?: number | null;
 };
 
-/**
- * Distribution of one ranked metric's values across a cohort of taxa (one
- * value per taxon). Cohorts too small for a meaningful KDE come back as raw
- * sorted `values` instead of a `curve`.
- */
+/** Distribution of one ranked metric's values across a cohort of taxa (one
+ * value per taxon). */
 export type RankDensity = {
   count: number;
   /** Cohort mean (circular mean for a bearing metric). */
   mean: number | null;
-  curve: SpeciesEnvironmentDensity | null;
-  values: number[] | null;
+  curve: SpeciesEnvironmentDensity;
 };
 
 export type SpeciesEnvironmentStats = {

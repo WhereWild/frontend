@@ -40,7 +40,7 @@ describe('data/api common name normalization', () => {
       json: async () => ({
         total: 0,
         results: [],
-        density: { count: 3, values: [1, 2, 3] },
+        density: { count: 3, points: [1, 3], density: [0.5, 0.5] },
         highlight: { start: 3, end: 2 },
       }),
     });
@@ -50,8 +50,7 @@ describe('data/api common name normalization', () => {
     expect(response.density).toEqual({
       count: 3,
       mean: null,
-      curve: null,
-      values: [1, 2, 3],
+      curve: { points: [1, 3], density: [0.5, 0.5] },
     });
     expect(response.highlight).toEqual({ start: 3, end: 2 });
   });

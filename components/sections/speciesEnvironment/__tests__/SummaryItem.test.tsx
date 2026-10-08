@@ -248,6 +248,17 @@ describe('SummaryItem', () => {
 });
 
 describe('SummaryItem rank density peek', () => {
+  const peekableBearing = {
+    metric: 'circular_mean',
+    label: 'Opuntia',
+    rank: 12,
+    count: 40,
+    percentile: 0.3,
+    contextTaxonId: '2923968',
+    contextRank: 'SPECIES',
+    variable: 'aspect',
+    value: 92,
+  };
   const peekableRank = {
     metric: 'mean',
     label: 'Opuntia',
@@ -268,7 +279,6 @@ describe('SummaryItem rank density peek', () => {
     mockFetchRankDensity.mockResolvedValue({
       count: 40,
       curve: { points: [0, 5, 10], density: [0.1, 0.3, 0.1] },
-      values: null,
     });
     render(<SummaryItem label='Mean' value='5' rank={peekableRank} />);
     const item = screen.getByTestId('summary-item-peekable');
@@ -353,5 +363,32 @@ describe('SummaryItem rank density peek', () => {
       />,
     );
     expect(screen.queryByTestId('summary-item-peekable')).toBeNull();
+  });
+
+  it('charts a bearing cohort on a polar chart without showing rank text', async () => {
+    mockFetchRankDensity.mockResolvedValue({
+      count: 40,
+      mean: 90,
+      curve: { points: [0, 90, 180, 270], density: [0.2, 0.4, 0.2, 0.1] },
+    });
+    render(
+      <SummaryItem
+        label='Mean'
+        value='92°'
+        densityRank={{ ...peekableBearing }}
+        circular
+      />,
+    );
+
+    expect(screen.queryByText(/Ranks/)).toBeNull();
+    fireEvent(screen.getByTestId('summary-item-peekable'), 'hoverIn');
+
+    await waitFor(() =>
+      expect(mockFetchRankDensity).toHaveBeenCalledWith(
+        expect.objectContaining({ metric: 'circular_mean' }),
+      ),
+    );
+    // Polar chart, not the linear one.
+    expect(screen.queryByTestId('rank-density-chart')).toBeNull();
   });
 });

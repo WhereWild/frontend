@@ -48,6 +48,7 @@ type ContinuousInsightsProps = {
     q90?: SpeciesEnvironmentRelativeRank | null;
     iqr?: SpeciesEnvironmentRelativeRank | null;
     q10_90_range?: SpeciesEnvironmentRelativeRank | null;
+    circular_mean?: SpeciesEnvironmentRelativeRank | null;
     rbar?: SpeciesEnvironmentRelativeRank | null;
     circular_std?: SpeciesEnvironmentRelativeRank | null;
     entropy?: SpeciesEnvironmentRelativeRank | null;
@@ -183,6 +184,10 @@ export function ContinuousInsights({
               <SummaryItem
                 label='Mean'
                 value={formatDeg(summary?.circular_mean)}
+                densityRank={
+                  anyFilterActive ? undefined : summaryRanks.circular_mean
+                }
+                circular
                 comparison={
                   anyFilterActive
                     ? (summaryComparisons.circular_mean ?? null)
@@ -239,6 +244,8 @@ export function ContinuousInsights({
                 <SummaryItem
                   label='Mode'
                   value={formatDeg(summary?.mode as number | null | undefined)}
+                  densityRank={anyFilterActive ? undefined : summaryRanks.mode}
+                  circular
                   stacked={isStacked}
                   prominent
                   rank={null}

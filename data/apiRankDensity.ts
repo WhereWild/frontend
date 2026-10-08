@@ -11,7 +11,7 @@ const toFiniteNumbers = (value: unknown): number[] | null =>
     ? (value as number[])
     : null;
 
-/** Parses a backend rank-density payload: a KDE curve, or raw values for small cohorts. */
+/** Parses a backend rank-density payload. */
 export const parseRankDensity = (value: unknown): RankDensity | null => {
   if (!value || typeof value !== 'object') {
     return null;
@@ -19,23 +19,21 @@ export const parseRankDensity = (value: unknown): RankDensity | null => {
   const source = asRecord(value);
   const points = toFiniteNumbers(source.points);
   const density = toFiniteNumbers(source.density);
-  const values = toFiniteNumbers(source.values);
-  const curve =
-    points && density && points.length === density.length && points.length > 0
-      ? { points, density }
-      : null;
-  if (!curve && !values?.length) {
+  if (
+    !points ||
+    !density ||
+    !points.length ||
+    points.length !== density.length
+  ) {
     return null;
   }
   return {
-    count:
-      typeof source.count === 'number' ? source.count : (values?.length ?? 0),
+    count: typeof source.count === 'number' ? source.count : 0,
     mean:
       typeof source.mean === 'number' && Number.isFinite(source.mean)
         ? source.mean
         : null,
-    curve,
-    values: curve ? null : values,
+    curve: { points, density },
   };
 };
 

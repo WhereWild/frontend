@@ -14,7 +14,6 @@ const CURVE = {
   count: 1200,
   mean: 4,
   curve: { points: [0, 5, 10], density: [0.1, 0.3, 0.1] },
-  values: null,
 };
 
 const layOut = (width: number) =>
@@ -64,18 +63,6 @@ describe('RankDensityChart', () => {
     expect(screen.getByTestId('rank-density-highlight')).toBeTruthy();
   });
 
-  it('draws small cohorts as a strip of values instead of a curve', () => {
-    render(
-      <RankDensityChart
-        density={{ count: 3, mean: 4, curve: null, values: [2, 4, 6] }}
-      />,
-    );
-    layOut(400);
-
-    expect(screen.getByText('2.00')).toBeTruthy();
-    expect(screen.getByText('6.00')).toBeTruthy();
-  });
-
   it('renders a polar chart for circular metrics', () => {
     render(
       <RankDensityChart
@@ -83,7 +70,6 @@ describe('RankDensityChart', () => {
           count: 50,
           mean: 90,
           curve: { points: [0, 90, 180, 270], density: [0.2, 0.4, 0.2, 0.1] },
-          values: null,
         }}
         circular
       />,

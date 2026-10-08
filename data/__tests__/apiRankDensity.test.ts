@@ -21,28 +21,29 @@ describe('parseRankDensity', () => {
       count: 500,
       mean: null,
       curve: { points: [1, 2, 3], density: [0.1, 0.5, 0.2] },
-      values: null,
     });
   });
 
-  it('parses raw values for a cohort too small for a curve', () => {
+  it('keeps the cohort mean', () => {
     expect(
-      parseRankDensity({ count: 3, mean: 4.67, values: [1, 4, 9] }),
-    ).toEqual({
-      count: 3,
-      mean: 4.67,
-      curve: null,
-      values: [1, 4, 9],
-    });
+      parseRankDensity({
+        count: 3,
+        mean: 4.67,
+        points: [1, 9],
+        density: [1, 1],
+      })?.mean,
+    ).toBe(4.67);
   });
 
   it('rejects missing, empty, and mismatched payloads', () => {
     expect(parseRankDensity(null)).toBeNull();
-    expect(parseRankDensity({ count: 0, values: [] })).toBeNull();
+    expect(parseRankDensity({ count: 0, points: [], density: [] })).toBeNull();
     expect(
       parseRankDensity({ count: 2, points: [1, 2], density: [0.5] }),
     ).toBeNull();
-    expect(parseRankDensity({ count: 2, values: [1, Number.NaN] })).toBeNull();
+    expect(
+      parseRankDensity({ count: 2, points: [1, Number.NaN], density: [1, 1] }),
+    ).toBeNull();
   });
 });
 
@@ -68,7 +69,9 @@ describe('fetchRankDensity', () => {
   it('requests the cohort and memoizes repeat requests', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ density: { count: 2, values: [1, 2] } }),
+      json: async () => ({
+        density: { count: 2, points: [1, 2], density: [0.5, 0.5] },
+      }),
     });
 
     const first = await fetchRankDensity(params);
@@ -77,8 +80,7 @@ describe('fetchRankDensity', () => {
     expect(first).toEqual({
       count: 2,
       mean: null,
-      curve: null,
-      values: [1, 2],
+      curve: { points: [1, 2], density: [0.5, 0.5] },
     });
     expect(second).toBe(first);
     expect(global.fetch).toHaveBeenCalledTimes(1);

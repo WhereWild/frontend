@@ -81,8 +81,7 @@ const strokeProps = {
   vectorEffect: 'non-scaling-stroke',
 } as const;
 
-/** Read-only distribution of one ranked metric across a cohort of taxa: a KDE
- * curve, or a strip of ticks when the cohort is too small for one. */
+/** Read-only KDE of one ranked metric across a cohort of taxa. */
 export function RankDensityChart({
   density,
   marker,
@@ -98,14 +97,7 @@ export function RankDensityChart({
     () => buildDensitySamples(density.curve),
     [density.curve],
   );
-  const values = React.useMemo(() => density.values ?? [], [density.values]);
-  const domain = React.useMemo(
-    () =>
-      samples.length
-        ? getDensityDomain(samples)
-        : getDensityDomain(values.map((x) => ({ x, y: 1 }))),
-    [samples, values],
-  );
+  const domain = React.useMemo(() => getDensityDomain(samples), [samples]);
   const normalized = React.useMemo(
     () => normalizeDensitySamples(samples, domain, height, CHART_PADDING),
     [samples, domain, height],
@@ -116,7 +108,7 @@ export function RankDensityChart({
     setWidth(event.nativeEvent.layout.width);
   }, []);
 
-  if (circular && density.curve) {
+  if (circular) {
     return (
       <PolarDensityChart
         curve={density.curve}
@@ -159,10 +151,6 @@ export function RankDensityChart({
           height,
         )
       : '';
-  const isInHighlight = (value: number) =>
-    highlight != null &&
-    value >= Math.min(highlight.start, highlight.end) &&
-    value <= Math.max(highlight.start, highlight.end);
   const markerX =
     marker != null && Number.isFinite(marker)
       ? Math.min(Math.max(toPercentX(marker, domain), 0), 100)
@@ -206,19 +194,6 @@ export function RankDensityChart({
             {...strokeProps}
           />
         ) : null}
-        {values.map((value, i) => {
-          const x = toPercentX(value, domain);
-          return (
-            <Path
-              key={i}
-              d={`M${x},${height * 0.35} L${x},${height}`}
-              stroke={brand}
-              strokeWidth={2}
-              opacity={highlight == null || isInHighlight(value) ? 0.9 : 0.35}
-              {...strokeProps}
-            />
-          );
-        })}
         <Path
           d={`M0,${height} L100,${height}`}
           stroke={guide}
