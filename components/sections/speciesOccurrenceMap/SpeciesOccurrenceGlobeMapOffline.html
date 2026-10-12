@@ -92,6 +92,15 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // 'standard' | 'satellite' | 'variable' — same persisted-preference
     // pattern as TERRAIN_ENABLED_INITIAL.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
+    // Two-way variable/satellite backdrop toggle (maps.tsx — see
+    // enableSatelliteBackdropToggle in SpeciesOccurrenceMap.tsx): the
+    // in-map control only flips between those two modes instead of cycling
+    // all three. The heatmap overlay is still ONLY visible in 'variable'
+    // mode, so satellite shows plain imagery (plus the labels overlay).
+    const HEATMAP_OVER_SATELLITE = __HEATMAP_OVER_SATELLITE__;
+    function heatmapVisibleInMode(mode) {
+      return mode === 'variable';
+    }
     // The 'standard' basemap mode's own look — 'default' (CARTO
     // Positron/Dark Matter, light/dark-aware) or 'versatiles' (CARTO's
     // colorful single-look style). Same persisted-preference read-once
@@ -1135,14 +1144,14 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           // default whenever a variable happens to be selected (regardless
           // of mode, including on top of satellite) is exactly the bug
           // this guards against.
-          .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY }, layout: { visibility: INITIAL_BASEMAP_MODE === 'variable' ? 'visible' : 'none' } }] : [])
+          .concat(HEATMAP_TILE_URL ? [{ id: 'heatmap-layer', type: 'raster', source: 'heatmap', paint: { 'raster-opacity': HEATMAP_OPACITY }, layout: { visibility: heatmapVisibleInMode(INITIAL_BASEMAP_MODE) ? 'visible' : 'none' } }] : [])
           .concat(LINES_OVERLAY_URL ? [{ id: 'lines-layer', type: 'raster', source: 'lines', paint: { 'raster-opacity': 0.5 } }] : [])
           // On pages with the 3-way basemap toggle (SATELLITE_TILE_URL
           // truthy), labels only show in 'satellite'/'variable' modes, not
           // 'standard' (which already has labels baked into its own tile
           // style). Pages without the toggle (maps.tsx) have no 'standard'
           // mode to speak of, so labels just stay on always.
-          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 }, layout: { visibility: (SATELLITE_TILE_URL && INITIAL_BASEMAP_MODE === 'standard') ? 'none' : 'visible' } }] : []),
+          .concat(LABELS_OVERLAY_URL ? [{ id: 'labels-layer', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.8 }, layout: { visibility: (SATELLITE_TILE_URL && (INITIAL_BASEMAP_MODE === 'standard' || (HEATMAP_OVER_SATELLITE && INITIAL_BASEMAP_MODE !== 'satellite'))) ? 'none' : 'visible' } }] : []),
         // 1.0 — true-scale elevation, not exaggerated. At full-globe zoom
         // this reads as nearly flat (real relief is ~0.1% of Earth's
         // radius), but it becomes accurate once zoomed in close, which
@@ -1334,7 +1343,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // view" button's icon) — only the tooltip text and the highlight
       // color change, same as every other toggle control here.
       var BASEMAP_MODE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5L14.5 5 8 8.5 1.5 5z"/><path d="M1.5 8L8 11.5 14.5 8"/><path d="M1.5 11L8 14.5 14.5 11"/></svg>';
-      var BASEMAP_MODE_TITLES = {
+      var BASEMAP_MODE_TITLES = HEATMAP_OVER_SATELLITE ? {
+        standard: 'Switch to satellite basemap',
+        satellite: 'Switch to standard basemap',
+        variable: 'Switch to satellite basemap',
+      } : {
         standard: 'Switch to satellite basemap',
         satellite: 'Switch to variable overlay',
         variable: 'Switch to standard basemap',
@@ -1345,7 +1358,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           source.setTiles([tileUrlForBasemapMode(mode)]);
         }
         if (map.getLayer('heatmap-layer')) {
-          map.setLayoutProperty('heatmap-layer', 'visibility', mode === 'variable' ? 'visible' : 'none');
+          map.setLayoutProperty('heatmap-layer', 'visibility', heatmapVisibleInMode(mode) ? 'visible' : 'none');
         }
         if (map.getLayer('labels-layer')) {
           // Only 'satellite' needs the separate labels overlay now —
@@ -1361,6 +1374,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         if (typeof updateStandardThemeVisibility === 'function') { updateStandardThemeVisibility(); }
       };
       var nextBasemapMode = function(mode) {
+        if (HEATMAP_OVER_SATELLITE) return mode === 'satellite' ? 'variable' : 'satellite';
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
         if (mode === 'satellite') return currentHeatmapTileUrl ? 'variable' : 'standard';
         return 'standard';
@@ -1374,7 +1388,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           btn.style.cssText = 'display:flex;align-items:center;justify-content:center;';
           var updateButton = function() {
             btn.title = BASEMAP_MODE_TITLES[currentBasemapMode] || BASEMAP_MODE_TITLES.standard;
-            btn.style.color = currentBasemapMode === 'standard' ? '' : palette.linkColor;
+            btn.style.color = (HEATMAP_OVER_SATELLITE ? currentBasemapMode !== 'satellite' : currentBasemapMode === 'standard') ? '' : palette.linkColor;
           };
           btn.innerHTML = BASEMAP_MODE_ICON;
           updateButton();

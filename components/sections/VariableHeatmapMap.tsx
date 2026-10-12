@@ -670,6 +670,10 @@ export function VariableHeatmapMap({
         showMarkers={false}
         useLabelsOverlay
         enableBasemapModeToggle={false}
+        // /maps (the only remote caller) gets a two-way variable/satellite
+        // toggle (satellite hides the heatmap); /gis-editor (local source)
+        // keeps the plain backdrop only.
+        enableSatelliteBackdropToggle={!isLocal}
         preserveMapPosition
         onFullscreenToggle={() =>
           toggleFullscreenElement(
