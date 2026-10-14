@@ -213,6 +213,14 @@ type SpeciesOccurrenceMapProps = {
   // contrast and where a much higher-traffic page multiplies the ArcGIS
   // tile cost of leaving satellite available).
   enableBasemapModeToggle?: boolean;
+  // Off by default — a lighter alternative to enableBasemapModeToggle for
+  // pages that always show a variable heatmap (maps.tsx): builds the same
+  // in-map basemap control, but it only flips between the page's normal
+  // background (with the heatmap) and plain satellite imagery (heatmap
+  // hidden, like the 3-way toggle's satellite mode). Never reads or writes the shared settings.basemapMode (so a
+  // satellite pick here can't leak onto the species page), and is ignored
+  // when enableBasemapModeToggle is on.
+  enableSatelliteBackdropToggle?: boolean;
   // Off by default — set true to build the ruler-icon "auto-adapt" toggle
   // control into the map (maps.tsx, _species.tsx, and UploadPreview.tsx all
   // opt in — any page that colors by a numeric variable wants it).
@@ -354,6 +362,7 @@ export function SpeciesOccurrenceMap({
   aspectStops = null,
   useLabelsOverlay = false,
   enableBasemapModeToggle = true,
+  enableSatelliteBackdropToggle = false,
   enableAutoAdaptToggle = false,
   autoAdaptApplicable = false,
   autoAdaptEnabled = false,
@@ -746,9 +755,14 @@ export function SpeciesOccurrenceMap({
   // overlay for the same reason — matches the mode-gated labelsPane/
   // labels-layer visibility in the map HTML templates, which now only shows
   // that overlay for 'satellite'.
+  const satelliteBackdropOnly =
+    enableSatelliteBackdropToggle && !enableBasemapModeToggle;
   const labelsOverlayTileUrl = React.useMemo(
-    () => (enableBasemapModeToggle ? getLabelsOverlayTileUrl() : null),
-    [enableBasemapModeToggle],
+    () =>
+      enableBasemapModeToggle || satelliteBackdropOnly
+        ? getLabelsOverlayTileUrl()
+        : null,
+    [enableBasemapModeToggle, satelliteBackdropOnly],
   );
   // 'variable' basemap mode's basemap tile — the same self-hosted
   // background maps.tsx always uses (see getBackgroundTileUrl), rather than
@@ -774,8 +788,11 @@ export function SpeciesOccurrenceMap({
   // MapLibre-only) — same backend proxy URL regardless of render, gated
   // only by the enableBasemapModeToggle prop (see its doc comment).
   const satelliteTileUrl = React.useMemo(
-    () => (enableBasemapModeToggle ? getSatelliteTileUrlTemplate() : null),
-    [enableBasemapModeToggle],
+    () =>
+      enableBasemapModeToggle || satelliteBackdropOnly
+        ? getSatelliteTileUrlTemplate()
+        : null,
+    [enableBasemapModeToggle, satelliteBackdropOnly],
   );
 
   // When preserveMapPosition is true, the html memo is built once with initial
@@ -1048,6 +1065,7 @@ export function SpeciesOccurrenceMap({
       initialStandardTheme.current,
       standardThemes,
       memoGlobeProjectionEnabled,
+      satelliteBackdropOnly,
     );
   }, [
     allowPinObservations,
@@ -1098,6 +1116,7 @@ export function SpeciesOccurrenceMap({
     memoAutoAdaptEnabled,
     standardThemes,
     memoGlobeProjectionEnabled,
+    satelliteBackdropOnly,
   ]);
 
   React.useEffect(() => {
@@ -1495,9 +1514,11 @@ export function SpeciesOccurrenceMap({
         // in SpeciesOccurrenceMap.html/SpeciesOccurrenceGlobeMap.html) —
         // this only persists the choice to settings.basemapMode so a later
         // reload starts with whatever was last picked.
-        settings?.setBasemapMode(
-          (data as { mode: 'standard' | 'satellite' | 'variable' }).mode,
-        );
+        if (!satelliteBackdropOnly) {
+          settings?.setBasemapMode(
+            (data as { mode: 'standard' | 'satellite' | 'variable' }).mode,
+          );
+        }
         return;
       }
 
@@ -1637,6 +1658,7 @@ export function SpeciesOccurrenceMap({
     onToggleAutoAdapt,
     renderLocalTile,
     renderLocalPointValue,
+    satelliteBackdropOnly,
   ]);
 
   if (error) {

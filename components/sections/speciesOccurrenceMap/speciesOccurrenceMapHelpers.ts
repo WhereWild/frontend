@@ -210,6 +210,7 @@ const MAP_TEMPLATE_PLACEHOLDERS = {
   satelliteTileUrl: '__SATELLITE_TILE_URL_JSON__',
   variableModeBackgroundTileUrl: '__VARIABLE_MODE_BACKGROUND_TILE_URL_JSON__',
   basemapModeInitial: '__BASEMAP_MODE_INITIAL_JSON__',
+  heatmapOverSatellite: '__HEATMAP_OVER_SATELLITE__',
   standardThemeInitial: '__STANDARD_THEME_INITIAL_JSON__',
   standardThemesJson: '__STANDARD_THEMES_JSON__',
   initialDrawnPolygons: '__INITIAL_DRAWN_POLYGONS_JSON__',
@@ -1120,7 +1121,7 @@ const LEAFLET_HEATMAP_TRACKING_SCRIPT =
           ? currentBasemapMode
           : BASEMAP_MODE_INITIAL;
       var newLayer = buildHeatmapLayer(urlTemplate);
-      if (activeMode !== 'variable') {
+      if (!heatmapVisibleInMode(activeMode)) {
         // Not currently visible — no crossfade needed (nothing on screen
         // to occlude, and a never-added layer never fires 'load' anyway),
         // just swap the tracked reference directly so applyBasemapMode's
@@ -1611,6 +1612,11 @@ const fillMapTemplatePlaceholders = (
   // above (see SpeciesOccurrenceMap.tsx's memoGlobeProjectionEnabled). Only
   // meaningful in the globe template; a no-op placeholder for Leaflet.
   globeProjectionEnabled?: boolean,
+  // Two-way variable/satellite backdrop toggle (maps.tsx): the in-map
+  // toggle only cycles between those two modes (heatmap shows in 'variable'
+  // only, satellite is plain imagery). See SpeciesOccurrenceMap.tsx's
+  // enableSatelliteBackdropToggle.
+  heatmapOverSatellite?: boolean,
 ) => {
   let html = mapTemplate;
   html = html
@@ -1861,6 +1867,9 @@ const fillMapTemplatePlaceholders = (
   html = html
     .split(MAP_TEMPLATE_PLACEHOLDERS.globeResizeObserverScript)
     .join(GLOBE_RESIZE_OBSERVER_SCRIPT);
+  html = html
+    .split(MAP_TEMPLATE_PLACEHOLDERS.heatmapOverSatellite)
+    .join(heatmapOverSatellite ? 'true' : 'false');
   return html;
 };
 
@@ -1929,6 +1938,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
     standardTheme,
     standardThemes,
     globeProjectionEnabled,
+    heatmapOverSatellite,
   ] = args;
   return fillMapTemplatePlaceholders(
     mapTemplate,
@@ -1991,6 +2001,7 @@ export const buildGlobeHtml = (...args: FillMapTemplateArgs): string => {
         }))
       : standardThemes,
     globeProjectionEnabled,
+    heatmapOverSatellite,
   );
 };
 

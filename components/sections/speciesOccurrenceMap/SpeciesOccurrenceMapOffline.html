@@ -1095,6 +1095,15 @@ const ENABLE_OFFLINE_FALLBACK = __ENABLE_OFFLINE_FALLBACK__;
     // read once at load so a reload/return visit starts wherever the user
     // last left the toggle.
     const BASEMAP_MODE_INITIAL = __BASEMAP_MODE_INITIAL_JSON__;
+    // Two-way variable/satellite backdrop toggle (maps.tsx — see
+    // enableSatelliteBackdropToggle in SpeciesOccurrenceMap.tsx): the
+    // in-map control only flips between those two modes instead of cycling
+    // all three. The heatmap overlay is still ONLY visible in 'variable'
+    // mode, so satellite shows plain imagery (plus the labels overlay).
+    const HEATMAP_OVER_SATELLITE = __HEATMAP_OVER_SATELLITE__;
+    function heatmapVisibleInMode(mode) {
+      return mode === 'variable';
+    }
     // The 'standard' basemap mode's own look — 'default' (CARTO
     // Positron/Dark Matter, light/dark-aware) or 'versatiles' (CARTO's
     // colorful single-look style). Same persisted-preference read-once
@@ -2004,7 +2013,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
       // — only the tooltip text and the highlight color change, same as
       // every other toggle control here.
       var BASEMAP_MODE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M8 1.5L14.5 5 8 8.5 1.5 5z"/><path d="M1.5 8L8 11.5 14.5 8"/><path d="M1.5 11L8 14.5 14.5 11"/></svg>';
-      var BASEMAP_MODE_TITLES = {
+      var BASEMAP_MODE_TITLES = HEATMAP_OVER_SATELLITE ? {
+        standard: 'Switch to satellite basemap',
+        satellite: 'Switch to standard basemap',
+        variable: 'Switch to satellite basemap',
+      } : {
         standard: 'Switch to satellite basemap',
         satellite: 'Switch to variable overlay',
         variable: 'Switch to standard basemap',
@@ -2015,9 +2028,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         // a variable happens to be selected regardless of mode (including
         // on top of satellite) is exactly the bug this guards against.
         if (heatmapLayer) {
-          if (mode === 'variable' && !map.hasLayer(heatmapLayer)) {
+          if (heatmapVisibleInMode(mode) && !map.hasLayer(heatmapLayer)) {
             heatmapLayer.addTo(map);
-          } else if (mode !== 'variable' && map.hasLayer(heatmapLayer)) {
+          } else if (!heatmapVisibleInMode(mode) && map.hasLayer(heatmapLayer)) {
             map.removeLayer(heatmapLayer);
           }
         }
@@ -2037,6 +2050,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         if (typeof updateStandardThemeVisibility === 'function') { updateStandardThemeVisibility(); }
       }
       function nextBasemapMode(mode) {
+        if (HEATMAP_OVER_SATELLITE) return mode === 'satellite' ? 'variable' : 'satellite';
         if (mode === 'standard') return SATELLITE_TILE_URL ? 'satellite' : (currentHeatmapTileUrl ? 'variable' : 'standard');
         if (mode === 'satellite') return currentHeatmapTileUrl ? 'variable' : 'standard';
         return 'standard';
@@ -2048,7 +2062,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           var btn = L.DomUtil.create('button', 'leaflet-locate-btn');
           var updateButton = function() {
             btn.title = BASEMAP_MODE_TITLES[currentBasemapMode] || BASEMAP_MODE_TITLES.standard;
-            btn.style.color = currentBasemapMode === 'standard' ? '' : palette.linkColor;
+            btn.style.color = (HEATMAP_OVER_SATELLITE ? currentBasemapMode !== 'satellite' : currentBasemapMode === 'standard') ? '' : palette.linkColor;
           };
           btn.innerHTML = BASEMAP_MODE_ICON;
           updateButton();
