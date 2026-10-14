@@ -13,7 +13,6 @@ import React from 'react';
 import {
   Image,
   Linking,
-  Pressable,
   StyleProp,
   StyleSheet,
   View,
@@ -135,6 +134,21 @@ export function ObservationCard({
     : undefined;
   const taxonHrefPath = canLinkToTaxon
     ? `/species/${taxonId}/${scientificSegment}`
+    : undefined;
+  // Pressable cards (gallery -> pin on map) also get a real anchor so
+  // middle/ctrl-click opens the species page with this observation pinned
+  // via ?highlightObservation=.
+  const pinHref: Href | undefined = canLinkToTaxon
+    ? ({
+        pathname: '/species/[...identifier]',
+        params: {
+          identifier: [taxonId, scientificSegment],
+          highlightObservation: catalogNumber,
+        },
+      } as Href)
+    : undefined;
+  const pinHrefPath = taxonHrefPath
+    ? `${taxonHrefPath}?highlightObservation=${encodeURIComponent(catalogNumber)}`
     : undefined;
 
   const content = (
@@ -294,14 +308,17 @@ export function ObservationCard({
 
   if (onPress) {
     return (
-      <Pressable
+      <RoutePressable
+        href={pinHref}
+        hrefPath={pinHrefPath}
         onPress={onPress}
+        navigateAfterPress={false}
         accessibilityRole='button'
         accessibilityLabel={`Observation #${catalogNumber}`}
         testID={testID}
       >
         {content}
-      </Pressable>
+      </RoutePressable>
     );
   }
 
