@@ -13,7 +13,7 @@ import React from 'react';
 import {
   Image,
   Linking,
-  Pressable,
+  Platform,
   StyleProp,
   StyleSheet,
   View,
@@ -21,6 +21,19 @@ import {
 } from 'react-native';
 import { RoutePressable } from '../navigation/RoutePressable';
 import { ThemedText } from '../text/ThemedText';
+
+// On web, render external links as real anchors (so middle/ctrl-click open
+// them in a new tab) instead of relying on onPress alone. The no-op onPress
+// keeps the click from bubbling to the card's own pin-on-map press, while the
+// anchor's default action does the navigation. Native keeps Linking.openURL.
+const externalLinkProps = (url: string) =>
+  (Platform.OS === 'web'
+    ? {
+        href: url,
+        hrefAttrs: { target: '_blank', rel: 'noopener noreferrer' },
+        onPress: () => {},
+      }
+    : { onPress: () => Linking.openURL(url) }) as Record<string, unknown>;
 
 export type ObservationCardSize = 'default' | 'compact';
 
@@ -136,6 +149,21 @@ export function ObservationCard({
   const taxonHrefPath = canLinkToTaxon
     ? `/species/${taxonId}/${scientificSegment}`
     : undefined;
+  // Pressable cards (gallery -> pin on map) also get a real anchor so
+  // middle/ctrl-click opens the species page with this observation pinned
+  // via ?highlightObservation=.
+  const pinHref: Href | undefined = canLinkToTaxon
+    ? ({
+        pathname: '/species/[...identifier]',
+        params: {
+          identifier: [taxonId, scientificSegment],
+          highlightObservation: catalogNumber,
+        },
+      } as Href)
+    : undefined;
+  const pinHrefPath = taxonHrefPath
+    ? `${taxonHrefPath}?highlightObservation=${encodeURIComponent(catalogNumber)}`
+    : undefined;
 
   const content = (
     <View
@@ -199,7 +227,7 @@ export function ObservationCard({
             numberOfLines={1}
             style={linkStyle}
             accessibilityRole='link'
-            onPress={() => Linking.openURL(inatUrl)}
+            {...externalLinkProps(inatUrl)}
           >
             {`#${catalogNumber}`}
           </ThemedText>
@@ -249,7 +277,7 @@ export function ObservationCard({
                 <ThemedText
                   variant='bodySmallLink'
                   numberOfLines={1}
-                  onPress={() => Linking.openURL(licenseUrl)}
+                  {...externalLinkProps(licenseUrl)}
                 >
                   {license}
                 </ThemedText>
@@ -294,14 +322,19 @@ export function ObservationCard({
 
   if (onPress) {
     return (
-      <Pressable
+      <RoutePressable
+        href={pinHref}
+        hrefPath={pinHrefPath}
         onPress={onPress}
-        accessibilityRole='button'
+        navigateAfterPress={false}
+        // 'button' would make react-native-web render a <button>, which
+        // ignores href — a link role keeps it a real <a>.
+        accessibilityRole={pinHref ? 'link' : 'button'}
         accessibilityLabel={`Observation #${catalogNumber}`}
         testID={testID}
       >
         {content}
-      </Pressable>
+      </RoutePressable>
     );
   }
 

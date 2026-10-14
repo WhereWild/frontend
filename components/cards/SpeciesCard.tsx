@@ -60,6 +60,10 @@ export type SpeciesCardProps = {
   interactionMode?: SpeciesCardInteractionMode;
   variant?: SpeciesCardVariant;
   size?: SpeciesCardSize;
+  /** Environment variable the species page should open with active (`?variable=`). */
+  linkVariable?: string | null;
+  /** Section anchor to scroll to on the species page (`#hash`, no leading `#`). */
+  linkHash?: string;
 };
 
 const DEFAULT_IMAGE_SIZE = 128;
@@ -150,6 +154,8 @@ export function SpeciesCard({
   interactionMode = 'route',
   variant = 'secondary',
   size = 'default',
+  linkVariable,
+  linkHash,
 }: SpeciesCardProps) {
   const scheme = useColorScheme();
   const mode = scheme === 'dark' ? 'dark' : 'light';
@@ -174,13 +180,19 @@ export function SpeciesCard({
     shouldProvideRouteHref && hasValidTaxonId && hasValidSegment
       ? {
           pathname: '/species/[...identifier]',
-          params: { identifier: [taxonId, scientificSegment] },
+          params: {
+            identifier: [taxonId, scientificSegment],
+            ...(linkVariable ? { variable: linkVariable } : {}),
+          },
+          ...(linkHash ? { hash: linkHash } : {}),
         }
       : undefined
   ) as Href | undefined;
   const hrefPath =
     shouldProvideRouteHref && hasValidTaxonId && hasValidSegment
-      ? `/species/${taxonId}/${scientificSegment}`
+      ? `/species/${taxonId}/${scientificSegment}${
+          linkVariable ? `?variable=${encodeURIComponent(linkVariable)}` : ''
+        }${linkHash ? `#${linkHash}` : ''}`
       : undefined;
 
   const handlePress = () => {

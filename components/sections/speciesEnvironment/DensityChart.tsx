@@ -29,6 +29,7 @@ import {
   getSelectionBounds,
   getValueForLocation as mapLocationXToValue,
   normalizeDensitySamples,
+  placeLabels,
   resampleHistogram,
   toSortedSelectionRange,
 } from './densityChartUtils';
@@ -563,6 +564,7 @@ export function DensityChart({
   // All calculations in pixels; convert back to % for positioning.
   const {
     meanLeft,
+    meanLabelVisible,
     pinLeft,
     pinLabelVisible,
     homePinLeft,
@@ -570,6 +572,7 @@ export function DensityChart({
   } = React.useMemo(() => {
     const fallback = {
       meanLeft: meanPosition,
+      meanLabelVisible: true,
       pinLeft: pinPosition,
       pinLabelVisible: true,
       homePinLeft: homePinPosition,
@@ -611,58 +614,36 @@ export function DensityChart({
         homePinLabelVisible = false;
     }
 
-    // Helper: nudge two centers apart symmetrically.
-    const nudge = (
-      aCenter: number,
-      aHalf: number,
-      bCenter: number,
-      bHalf: number,
-    ): [number, number] => {
-      const overlap = aHalf + bHalf + gap - Math.abs(aCenter - bCenter);
-      if (overlap <= 0) return [aCenter, bCenter];
-      const shift = overlap / 2;
-      const dir = aCenter <= bCenter ? -1 : 1;
-      return [aCenter + dir * shift, bCenter - dir * shift];
-    };
-
-    // Nudge all pairs repeatedly until stable (needed for triple overlap).
-    for (let pass = 0; pass < 4; pass++) {
-      if (meanCenter != null && pinCenter != null)
-        [meanCenter, pinCenter] = nudge(
-          meanCenter,
-          meanHalf,
-          pinCenter,
-          pinHalf,
-        );
-      if (meanCenter != null && homeCenter != null)
-        [meanCenter, homeCenter] = nudge(
-          meanCenter,
-          meanHalf,
-          homeCenter,
-          pinHalf,
-        );
-      if (pinCenter != null && homeCenter != null)
-        [pinCenter, homeCenter] = nudge(
-          pinCenter,
-          pinHalf,
-          homeCenter,
-          pinHalf,
-        );
-    }
-
-    // Clamp mean away from edge labels.
-    if (meanCenter != null) {
-      const lo = summary?.min != null ? edgeW + gap + meanHalf : meanHalf;
-      const hi =
-        summary?.max != null
-          ? chartWidth - edgeW - gap - meanHalf
-          : chartWidth - meanHalf;
-      if (lo < hi) meanCenter = Math.min(Math.max(meanCenter, lo), hi);
-    }
+    // Hidden labels don't take part in the layout. Mean/pin/home share one
+    // collision-free layout; if they can't all fit, home then mean drop out.
+    const lo = summary?.min != null ? edgeW + gap : 0;
+    const hi = summary?.max != null ? chartWidth - edgeW - gap : chartWidth;
+    const [placedMean, placedPin, placedHome] = placeLabels(
+      [
+        meanCenter != null
+          ? { center: meanCenter, half: meanHalf, priority: 1 }
+          : null,
+        pinCenter != null && pinLabelVisible
+          ? { center: pinCenter, half: pinHalf, priority: 0 }
+          : null,
+        homeCenter != null && homePinLabelVisible
+          ? { center: homeCenter, half: pinHalf, priority: 2 }
+          : null,
+      ],
+      lo,
+      hi,
+      gap,
+    );
+    meanCenter = placedMean;
+    pinCenter = placedPin;
+    homeCenter = placedHome;
+    if (pinCenter == null) pinLabelVisible = false;
+    if (homeCenter == null) homePinLabelVisible = false;
+    const meanLabelVisible = meanCenter != null;
 
     return {
-      meanLeft:
-        meanCenter != null ? (meanCenter / chartWidth) * 100 : meanPosition,
+      meanLeft: meanCenter != null ? (meanCenter / chartWidth) * 100 : null,
+      meanLabelVisible,
       pinLeft: pinCenter != null ? (pinCenter / chartWidth) * 100 : pinPosition,
       pinLabelVisible,
       homePinLeft:
@@ -892,7 +873,7 @@ export function DensityChart({
             <ThemedText variant='bodySmall'>min</ThemedText>
           </View>
         )}
-        {meanLeft != null && Number.isFinite(meanLeft) ? (
+        {meanLabelVisible && meanLeft != null && Number.isFinite(meanLeft) ? (
           <View
             style={{
               ...styles.meanLabelContainer,

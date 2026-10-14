@@ -414,6 +414,12 @@ export default function Search() {
             size={isSmallDisplay ? 'compact' : 'default'}
             style={styles.resultCard}
             testID={`search-result-${item.taxonId}`}
+            linkVariable={filters.filterParams.sortVariable}
+            linkHash={
+              filters.filterParams.sortVariable
+                ? 'species-environment'
+                : undefined
+            }
           />
         ) : (
           <View collapsable={false} style={styles.resultSlotPlaceholder} />
