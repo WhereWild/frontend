@@ -15,6 +15,7 @@ import {
   buildSelectionAreaPath,
   getDensityDomain,
   getSelectionBounds,
+  placeLabels,
   normalizeDensitySamples,
   type DensityDomain,
 } from './densityChartUtils';
@@ -45,34 +46,26 @@ const toPercentX = (value: number, domain: DensityDomain) =>
 /**
  * Places the mean and marker labels under their lines (all in px): each is
  * pushed in clear of the fixed min/max edge labels, then the two are nudged
- * apart if they overlap — same rules as DensityChart's mean/pin labels.
+ * apart (never overlapping, dropping the mean label if both can't fit).
  */
 export const layoutMarkerLabels = (
   width: number,
   meanCenter: number | null,
   markerCenter: number | null,
 ): { mean: number | null; marker: number | null } => {
-  const clamp = (center: number, half: number) => {
-    const lo = EDGE_LABEL_WIDTH + LABEL_GAP + half;
-    const hi = width - EDGE_LABEL_WIDTH - LABEL_GAP - half;
-    return lo < hi ? Math.min(Math.max(center, lo), hi) : width / 2;
-  };
-  let mean =
-    meanCenter != null ? clamp(meanCenter, MEAN_LABEL_HALF_WIDTH) : null;
-  let marker =
-    markerCenter != null ? clamp(markerCenter, MARKER_LABEL_HALF_WIDTH) : null;
-  if (mean != null && marker != null) {
-    const overlap =
-      MEAN_LABEL_HALF_WIDTH +
-      MARKER_LABEL_HALF_WIDTH +
-      LABEL_GAP -
-      Math.abs(mean - marker);
-    if (overlap > 0) {
-      const dir = mean <= marker ? -1 : 1;
-      mean = clamp(mean + (dir * overlap) / 2, MEAN_LABEL_HALF_WIDTH);
-      marker = clamp(marker - (dir * overlap) / 2, MARKER_LABEL_HALF_WIDTH);
-    }
-  }
+  const [mean, marker] = placeLabels(
+    [
+      meanCenter != null
+        ? { center: meanCenter, half: MEAN_LABEL_HALF_WIDTH, priority: 1 }
+        : null,
+      markerCenter != null
+        ? { center: markerCenter, half: MARKER_LABEL_HALF_WIDTH, priority: 0 }
+        : null,
+    ],
+    EDGE_LABEL_WIDTH + LABEL_GAP,
+    width - EDGE_LABEL_WIDTH - LABEL_GAP,
+    LABEL_GAP,
+  );
   return { mean, marker };
 };
 

@@ -9,6 +9,7 @@ import {
   getSelectionBounds,
   getValueForLocation,
   normalizeDensitySamples,
+  placeLabels,
   resampleHistogram,
   toSortedSelectionRange,
 } from '../densityChartUtils';
@@ -166,5 +167,36 @@ describe('densityChartUtils', () => {
       expect(path).toBeTruthy();
       expect(path).toContain('120,200');
     });
+  });
+});
+
+describe('placeLabels', () => {
+  const item = (center: number, half: number, priority = 0) => ({
+    center,
+    half,
+    priority,
+  });
+
+  it('never overlaps a triple cluster pressed against the right bound', () => {
+    const inputs = [item(290, 24, 1), item(295, 36, 0), item(298, 36, 2)];
+    const out = placeLabels(inputs, 52, 260, 4) as number[];
+    const spans = out
+      .map((c, i) => ({ l: c - inputs[i].half, r: c + inputs[i].half }))
+      .sort((a, b) => a.l - b.l);
+    expect(spans[0].l).toBeGreaterThanOrEqual(52);
+    expect(spans[2].r).toBeLessThanOrEqual(260);
+    expect(spans[1].l - spans[0].r).toBeGreaterThanOrEqual(4);
+    expect(spans[2].l - spans[1].r).toBeGreaterThanOrEqual(4);
+  });
+
+  it('drops the least important labels when they cannot all fit', () => {
+    const out = placeLabels(
+      [item(50, 24, 1), item(50, 36, 0), item(50, 36, 2)],
+      0,
+      120,
+      4,
+    );
+    expect(out[1]).not.toBeNull();
+    expect(out[2]).toBeNull();
   });
 });

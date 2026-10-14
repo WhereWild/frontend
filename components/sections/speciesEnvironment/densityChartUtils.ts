@@ -216,3 +216,101 @@ export function buildSelectionAreaPath(
     .join(' ');
   return `${linePath} L${selRight},${chartHeight} L${selLeft},${chartHeight} Z`;
 }
+
+export type LabelPlacementInput = {
+  /** Desired center (px) — usually directly under the line it labels. */
+  center: number;
+  /** Half the label's fixed width (px). */
+  half: number;
+  /** Lower number = more important; the highest numbers are dropped first
+   * when the labels cannot all fit side by side. */
+  priority: number;
+};
+
+/**
+ * Lays out horizontally-centered labels along `[lo, hi]` (px) so that none
+ * overlap each other or leave the range. Each label stays as close to its
+ * desired center as possible: overlapping labels are merged into clusters
+ * spread symmetrically around their desired centers (kept inside range). If the labels cannot all fit,
+ * the least important are dropped (returned as `null`) until the rest do.
+ */
+export function placeLabels(
+  inputs: (LabelPlacementInput | null)[],
+  lo: number,
+  hi: number,
+  gap = 4,
+): (number | null)[] {
+  const kept = inputs
+    .map((input, index) => ({ input, index }))
+    .filter(
+      (e): e is { input: LabelPlacementInput; index: number } =>
+        e.input != null && Number.isFinite(e.input.center),
+    );
+  const widthOf = (list: typeof kept) =>
+    list.reduce((sum, e) => sum + e.input.half * 2, 0) +
+    gap * Math.max(list.length - 1, 0);
+
+  const available = hi - lo;
+  while (kept.length > 0 && widthOf(kept) > available) {
+    let worst = 0;
+    kept.forEach((e, i) => {
+      if (e.input.priority >= kept[worst].input.priority) worst = i;
+    });
+    kept.splice(worst, 1);
+  }
+
+  const result: (number | null)[] = inputs.map(() => null);
+  const sorted = [...kept].sort((a, b) => a.input.center - b.input.center);
+
+  // Merge overlapping labels into clusters that sit centered on their
+  // members' desired positions (so neighbours shift symmetrically), clamped
+  // into range; merging repeats until no two clusters touch.
+  type Cluster = { start: number; width: number; first: number; last: number };
+  const clusters: Cluster[] = [];
+  const clampStart = (start: number, width: number) =>
+    Math.min(Math.max(start, lo), hi - width);
+  const centeredStart = (first: number, last: number, width: number) => {
+    // Average of each member's ideal cluster start.
+    let offset = 0;
+    let sum = 0;
+    for (let i = first; i <= last; i++) {
+      const half = sorted[i].input.half;
+      sum += sorted[i].input.center - half - offset;
+      offset += half * 2 + gap;
+    }
+    return clampStart(sum / (last - first + 1), width);
+  };
+  sorted.forEach((e, i) => {
+    const width = e.input.half * 2;
+    clusters.push({
+      start: clampStart(e.input.center - e.input.half, width),
+      width,
+      first: i,
+      last: i,
+    });
+    while (clusters.length > 1) {
+      const cur = clusters[clusters.length - 1];
+      const prev = clusters[clusters.length - 2];
+      if (prev.start + prev.width + gap <= cur.start) break;
+      clusters.splice(clusters.length - 2, 2, {
+        first: prev.first,
+        last: cur.last,
+        width: prev.width + gap + cur.width,
+        start: centeredStart(
+          prev.first,
+          cur.last,
+          prev.width + gap + cur.width,
+        ),
+      });
+    }
+  });
+  clusters.forEach((cluster) => {
+    let cursor = cluster.start;
+    for (let i = cluster.first; i <= cluster.last; i++) {
+      const half = sorted[i].input.half;
+      result[sorted[i].index] = cursor + half;
+      cursor += half * 2 + gap;
+    }
+  });
+  return result;
+}

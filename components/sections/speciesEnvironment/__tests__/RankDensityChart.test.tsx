@@ -97,4 +97,17 @@ describe('layoutMarkerLabels', () => {
     const { mean, marker } = layoutMarkerLabels(400, 200, 210);
     expect(marker! - mean!).toBeGreaterThanOrEqual(24 + 36 + 4);
   });
+
+  it('keeps nudged labels apart and clear of the edge labels', () => {
+    // Pair sits against the right edge: clamping must not re-collide them.
+    const { mean, marker } = layoutMarkerLabels(400, 330, 340);
+    expect(Math.abs(marker! - mean!)).toBeGreaterThanOrEqual(24 + 36 + 4);
+    expect(Math.max(mean! + 24, marker! + 36)).toBeLessThanOrEqual(400 - 52);
+  });
+
+  it('drops the mean label when both cannot fit', () => {
+    const { mean, marker } = layoutMarkerLabels(200, 100, 100);
+    expect(mean).toBeNull();
+    expect(marker).not.toBeNull();
+  });
 });
