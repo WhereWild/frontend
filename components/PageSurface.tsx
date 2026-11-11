@@ -17,9 +17,16 @@ import { WebPageFooter } from './sections/webPageFooter/WebPageFooter';
 
 type PageSurfaceProps = Pick<ViewProps, 'children' | 'testID'> & {
   style?: StyleProp<ViewStyle>;
+  /** Omit the web footer (e.g. the visualization study page). */
+  hideFooter?: boolean;
 };
 
-export function PageSurface({ children, style, testID }: PageSurfaceProps) {
+export function PageSurface({
+  children,
+  style,
+  testID,
+  hideFooter = false,
+}: PageSurfaceProps) {
   const colorScheme = useColorScheme();
   const mode = colorScheme === 'dark' ? 'dark' : 'light';
   const palette = Colors[mode];
@@ -36,7 +43,7 @@ export function PageSurface({ children, style, testID }: PageSurfaceProps) {
       {Platform.OS === 'web' ? (
         <>
           <View style={styles.webContent}>{children}</View>
-          <WebPageFooter />
+          {!hideFooter && <WebPageFooter />}
         </>
       ) : (
         children

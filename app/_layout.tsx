@@ -127,6 +127,10 @@ const TOP_LEVEL_PATH_SET: ReadonlySet<string> = new Set(TOP_LEVEL_PATHS);
 const isTopLevelPath = (value: string): value is TopLevelPath =>
   TOP_LEVEL_PATH_SET.has(value);
 
+// Routes rendered without the site header / navigation bar (e.g. the
+// visualization study, which should show participants only its own content).
+const isChromelessPath = (value: string): boolean => value === '/study';
+
 const isSpeciesPath = (value: string): value is `/species/${string}` =>
   value.startsWith('/species/');
 
@@ -305,10 +309,10 @@ function RootLayoutWebFrame() {
   const rootBackgroundColor = Colors[mode].background.default.default;
   // We need an initial offset before the header measures so first paint does not slide
   // page content under the fixed header on web.
-  const resolvedWebHeaderHeight = resolveWebHeaderHeight(
-    webHeaderHeight,
-    responsive.breakpoint,
-  );
+  const hideChrome = isChromelessPath(pathname);
+  const resolvedWebHeaderHeight = hideChrome
+    ? 0
+    : resolveWebHeaderHeight(webHeaderHeight, responsive.breakpoint);
   // useWindowDimensions() hits react-native-web's Dimensions module, which
   // hardcodes {width: 0, height: 0} until canUseDOM is true — i.e. always
   // during SSR (web output: 'server' — no real DOM in that Node process).
@@ -397,20 +401,24 @@ function RootLayoutWebFrame() {
       >
         {/* Sticky was unreliable in this RN Web layout tree; a fixed wrapper plus measured
             content offset keeps the header pinned consistently across Safari/WebKit. */}
-        <View style={styles.webHeaderSlot}>
-          <WebPageHeader
-            showFilterButton={resolvedConfig.showFilterButton}
-            onFilterPress={resolvedConfig.onFilterPress}
-            filterLabel={resolvedConfig.filterLabel}
-            showResetFilterButton={resolvedConfig.showResetFilterButton}
-            onResetFilterPress={resolvedConfig.onResetFilterPress}
-            showSearchResultsDropdown={resolvedConfig.showSearchResultsDropdown}
-            searchQuery={resolvedConfig.searchQuery}
-            onSearchQueryChange={resolvedConfig.onSearchQueryChange}
-            filterParams={resolvedConfig.filterParams}
-            onLayout={handleHeaderLayout}
-          />
-        </View>
+        {!hideChrome && (
+          <View style={styles.webHeaderSlot}>
+            <WebPageHeader
+              showFilterButton={resolvedConfig.showFilterButton}
+              onFilterPress={resolvedConfig.onFilterPress}
+              filterLabel={resolvedConfig.filterLabel}
+              showResetFilterButton={resolvedConfig.showResetFilterButton}
+              onResetFilterPress={resolvedConfig.onResetFilterPress}
+              showSearchResultsDropdown={
+                resolvedConfig.showSearchResultsDropdown
+              }
+              searchQuery={resolvedConfig.searchQuery}
+              onSearchQueryChange={resolvedConfig.onSearchQueryChange}
+              filterParams={resolvedConfig.filterParams}
+              onLayout={handleHeaderLayout}
+            />
+          </View>
+        )}
         <View
           style={[
             styles.webContent,
@@ -718,7 +726,7 @@ function RootLayoutNativeFrame() {
 
   return (
     <View style={[styles.appShell, { backgroundColor: rootBackgroundColor }]}>
-      {nativeTopAppBar}
+      {!isChromelessPath(pathname) && nativeTopAppBar}
       <View style={styles.content}>
         {/* Keep native route transitions disabled by default to avoid cross-route
             jank; only species screens opt into fade for in-flow detail transitions. */}
@@ -764,7 +772,7 @@ function RootLayoutNativeFrame() {
           />
         </Stack>
       </View>
-      <NavigationBar tabs={navigationTabs} />
+      {!isChromelessPath(pathname) && <NavigationBar tabs={navigationTabs} />}
       <NativePortalHost />
     </View>
   );
