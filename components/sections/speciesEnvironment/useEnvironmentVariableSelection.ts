@@ -71,6 +71,8 @@ const mapEnvironmentVariableOptions = (
         legendClasses: variableDefinition.legendClasses ?? null,
         renderMin: variableDefinition.renderMin ?? null,
         renderMax: variableDefinition.renderMax ?? null,
+        colormapOverride: variableDefinition.colormapOverride ?? null,
+        colormapBounds: variableDefinition.colormapBounds ?? null,
         group: variableDefinition.group ?? null,
         groupLabel: variableDefinition.groupLabel ?? null,
         compositionGroup: variableDefinition.compositionGroup ?? null,

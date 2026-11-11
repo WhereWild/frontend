@@ -426,6 +426,13 @@ export type EnvironmentVariableDefinition = {
   legendClasses?: LegendClass[] | null;
   renderMin?: number | null;
   renderMax?: number | null;
+  /** Catalog-driven per-variable colormap (16 RGB stops, low→high, spanning
+   * renderMin..renderMax). Overrides the global colormap picker for this
+   * variable — see backend's colormap_override. */
+  colormapOverride?: ColormapOverride | null;
+  /** Catalog-driven value range the colormap spans (display units), in place
+   * of renderMin/renderMax; values outside clamp to the end colors. */
+  colormapBounds?: { min: number; max: number } | null;
   group?: string | null;
   groupLabel?: string | null;
   agg?: string | null;
@@ -572,4 +579,9 @@ export type TaxaQueryResponse = {
   /** First and last sort values on the current page, in sort order — for a
    * circular sort the page spans the arc from `start` to `end`. */
   highlight?: { start: number; end: number } | null;
+};
+
+export type ColormapOverride = {
+  name: string;
+  stops: [number, number, number][];
 };

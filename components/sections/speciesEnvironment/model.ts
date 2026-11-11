@@ -33,6 +33,12 @@ export type EnvironmentVariableOption = {
   legendClasses?: LegendClass[] | null;
   renderMin?: number | null;
   renderMax?: number | null;
+  /** Catalog-driven per-variable colormap, overriding the global one. */
+  colormapBounds?: { min: number; max: number } | null;
+  colormapOverride?: {
+    name: string;
+    stops: [number, number, number][];
+  } | null;
   group?: string | null;
   groupLabel?: string | null;
   version?: number | null;

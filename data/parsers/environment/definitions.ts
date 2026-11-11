@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import type { EnvironmentVariableDefinition, LegendClass } from '../../types';
+import type {
+  ColormapOverride,
+  EnvironmentVariableDefinition,
+  LegendClass,
+} from '../../types';
 import { asRecord } from '../core';
 
 const toVariableDefinition = (entry: unknown): EnvironmentVariableDefinition => {
@@ -50,6 +54,12 @@ const rawSourceIds = source?.source_ids ?? source?.sourceIds;
     legendClasses: legendClasses && legendClasses.length > 0 ? legendClasses : null,
     renderMin: typeof source?.render_min === 'number' ? source.render_min : typeof source?.renderMin === 'number' ? source.renderMin : null,
     renderMax: typeof source?.render_max === 'number' ? source.render_max : typeof source?.renderMax === 'number' ? source.renderMax : null,
+    colormapBounds: parseColormapBounds(
+      source?.colormap_bounds ?? source?.colormapBounds,
+    ),
+    colormapOverride: parseColormapOverride(
+      source?.colormap_override ?? source?.colormapOverride,
+    ),
     group: typeof source?.group === 'string' ? source.group : null,
     groupLabel: typeof source?.group_label === 'string' ? source.group_label : null,
     agg: typeof source?.agg === 'string' ? source.agg : null,
@@ -88,3 +98,28 @@ export const parseEnvironmentVariableDefinitions = (payload: unknown): Environme
   }
   return payload.map(toVariableDefinition).filter((entry) => entry.id.length > 0);
 };
+
+function parseColormapOverride(value: unknown): ColormapOverride | null {
+  if (!value || typeof value !== 'object') return null;
+  const { name, stops } = value as { name?: unknown; stops?: unknown };
+  if (typeof name !== 'string' || !Array.isArray(stops) || stops.length < 2) {
+    return null;
+  }
+  const valid = stops.every(
+    (s) =>
+      Array.isArray(s) &&
+      s.length === 3 &&
+      s.every((c) => typeof c === 'number' && c >= 0 && c <= 255),
+  );
+  return valid ? { name, stops: stops as ColormapOverride['stops'] } : null;
+}
+
+function parseColormapBounds(
+  value: unknown,
+): { min: number; max: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const { min, max } = value as { min?: unknown; max?: unknown };
+  return typeof min === 'number' && typeof max === 'number' && min < max
+    ? { min, max }
+    : null;
+}

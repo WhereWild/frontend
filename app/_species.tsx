@@ -37,6 +37,7 @@ import {
 import {
   COLORMAPS,
   CIRCULAR_COLORMAPS,
+  stopsColormap,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import { getCbShape } from '@/components/sections/speciesOccurrenceMap/cbColors';
 import {
@@ -479,10 +480,31 @@ export default function Species({
   const [mapBounds, setMapBounds] = React.useState<MapBounds | null>(null);
   const [fetchedObservationValues, setFetchedObservationValues] =
     React.useState<Map<string, number> | null>(null);
-  const [obsDotMin, setObsDotMin] = React.useState<number | null>(null);
-  const [obsDotMax, setObsDotMax] = React.useState<number | null>(null);
-  const [obsLabelMin, setObsLabelMin] = React.useState<number | null>(null);
-  const [obsLabelMax, setObsLabelMax] = React.useState<number | null>(null);
+  const [observedDotMin, setObsDotMin] = React.useState<number | null>(null);
+  const [observedDotMax, setObsDotMax] = React.useState<number | null>(null);
+  const [observedLabelMin, setObsLabelMin] = React.useState<number | null>(
+    null,
+  );
+  const [observedLabelMax, setObsLabelMax] = React.useState<number | null>(
+    null,
+  );
+  // Variables with a catalog colormap override (e.g. bio1) are colored
+  // against the variable's global render range instead of this species'
+  // observed range, so colors mean the same thing across species.
+  const globalBounds =
+    selectedVariableMeta?.colormapOverride &&
+    (selectedVariableMeta.colormapBounds ||
+      (selectedVariableMeta.renderMin != null &&
+        selectedVariableMeta.renderMax != null))
+      ? (selectedVariableMeta.colormapBounds ?? {
+          min: selectedVariableMeta.renderMin as number,
+          max: selectedVariableMeta.renderMax as number,
+        })
+      : null;
+  const obsDotMin = globalBounds ? globalBounds.min : observedDotMin;
+  const obsDotMax = globalBounds ? globalBounds.max : observedDotMax;
+  const obsLabelMin = globalBounds ? globalBounds.min : observedLabelMin;
+  const obsLabelMax = globalBounds ? globalBounds.max : observedLabelMax;
   const [variableValuesLoading, setVariableValuesLoading] =
     React.useState(false);
   const [selectedPhenology, setSelectedPhenology] = React.useState<
@@ -1066,6 +1088,17 @@ export default function Species({
     highlightedPointValue,
   ]);
 
+  // Catalog-driven per-variable override (e.g. bio1 blue→red); falls back
+  // to the user-selected global colormap otherwise.
+  const colormapOverride = selectedVariableMeta?.colormapOverride ?? null;
+  const continuousColormap = React.useMemo(
+    () =>
+      colormapOverride
+        ? stopsColormap(colormapOverride.stops)
+        : COLORMAPS[selectedColormap],
+    [colormapOverride, selectedColormap],
+  );
+
   const isOrdinalVariable = isVariableOrdinal(selectedVariableMeta);
   const colorMode = resolveColorMode(
     isOrdinalVariable,
@@ -1233,8 +1266,12 @@ export default function Species({
     isApplicable: isAutoAdaptApplicable,
     units,
     forecastH: 0,
-    catalogRenderMin: selectedVariableMeta?.renderMin,
-    catalogRenderMax: selectedVariableMeta?.renderMax,
+    catalogRenderMin:
+      selectedVariableMeta?.colormapBounds?.min ??
+      selectedVariableMeta?.renderMin,
+    catalogRenderMax:
+      selectedVariableMeta?.colormapBounds?.max ??
+      selectedVariableMeta?.renderMax,
   });
 
   const heatmapTileUrl = React.useMemo(() => {
@@ -1425,7 +1462,7 @@ export default function Species({
       dotMax: obsDotMax,
       gradientStops:
         selectedVariableMeta && !isCategorical && !isCircular
-          ? COLORMAPS[selectedColormap].stops
+          ? continuousColormap.stops
           : null,
       aspectStops:
         selectedVariableMeta && isCircular
@@ -1464,6 +1501,7 @@ export default function Species({
         };
       });
   }, [
+    continuousColormap,
     gallerySourceCatalogs,
     galleryPage,
     galleryPageSize,
@@ -1478,7 +1516,6 @@ export default function Species({
     circularShapesEnabled,
     obsDotMin,
     obsDotMax,
-    selectedColormap,
     selectedCircularColormap,
   ]);
 
@@ -1726,7 +1763,7 @@ export default function Species({
                     selectedVariableMeta &&
                     !isVariableCategorical(selectedVariableMeta) &&
                     !isVariableCircular(selectedVariableMeta)
-                      ? COLORMAPS[selectedColormap].stops
+                      ? continuousColormap.stops
                       : null
                   }
                   aspectStops={
@@ -1751,12 +1788,13 @@ export default function Species({
                       max={obsLabelMax}
                       units={selectedVariableMeta.units}
                       pinnedValue={pinnedPointValue}
-                      barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
+                      barSvgStops={continuousColormap.barSvgStops}
                     />
                   )}
                 {selectedVariableMeta &&
                   !isVariableCategorical(selectedVariableMeta) &&
-                  !isVariableCircular(selectedVariableMeta) && (
+                  !isVariableCircular(selectedVariableMeta) &&
+                  !colormapOverride && (
                     <MapColormapPicker
                       selected={selectedColormap}
                       onChange={setSelectedColormap}

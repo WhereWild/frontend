@@ -45,6 +45,7 @@ import {
 import {
   CIRCULAR_COLORMAPS,
   COLORMAPS,
+  stopsColormap,
 } from '@/components/sections/speciesOccurrenceMap/variableColors';
 import {
   useMapLayerChain,
@@ -182,6 +183,16 @@ export function VariableHeatmapMap({
   const selectedVariableMeta = variableMeta;
   const isCircular = isVariableCircular(selectedVariableMeta);
   const isCategorical = isVariableCategorical(selectedVariableMeta);
+  // Catalog-driven per-variable override (e.g. bio1 coolwarm); falls back to
+  // the user-selected global colormap otherwise.
+  const colormapOverride = selectedVariableMeta?.colormapOverride ?? null;
+  const continuousColormap = React.useMemo(
+    () =>
+      colormapOverride
+        ? stopsColormap(colormapOverride.stops)
+        : COLORMAPS[selectedColormap],
+    [colormapOverride, selectedColormap],
+  );
   const isLocal = tileSource.kind === 'local';
 
   // Split the hydrated chain once: any entry naming the variable selected at
@@ -319,8 +330,12 @@ export function VariableHeatmapMap({
     isApplicable: isAutoAdaptApplicable,
     units,
     forecastH,
-    catalogRenderMin: selectedVariableMeta?.renderMin,
-    catalogRenderMax: selectedVariableMeta?.renderMax,
+    catalogRenderMin:
+      selectedVariableMeta?.colormapBounds?.min ??
+      selectedVariableMeta?.renderMin,
+    catalogRenderMax:
+      selectedVariableMeta?.colormapBounds?.max ??
+      selectedVariableMeta?.renderMax,
     resetKey: globeViewEnabled,
     localRangeReader:
       tileSource.kind === 'local' ? tileSource.getVisibleRange : undefined,
@@ -604,13 +619,17 @@ export function VariableHeatmapMap({
     !isCategorical && !isCircular
       ? isAutoAdaptApplicable
         ? effectiveRenderMin
-        : (selectedVariableMeta?.renderMin ?? null)
+        : (selectedVariableMeta?.colormapBounds?.min ??
+          selectedVariableMeta?.renderMin ??
+          null)
       : null;
   const legendMax =
     !isCategorical && !isCircular
       ? isAutoAdaptApplicable
         ? effectiveRenderMax
-        : (selectedVariableMeta?.renderMax ?? null)
+        : (selectedVariableMeta?.colormapBounds?.max ??
+          selectedVariableMeta?.renderMax ??
+          null)
       : null;
 
   // Local rasters' own readPointValue() bakes each class's color in at
@@ -705,9 +724,7 @@ export function VariableHeatmapMap({
         autoAdaptEnabled={autoAdaptEnabled}
         onToggleAutoAdapt={toggleAutoAdapt}
         gradientStops={
-          !isCategorical && !isCircular
-            ? COLORMAPS[selectedColormap].stops
-            : null
+          !isCategorical && !isCircular ? continuousColormap.stops : null
         }
         aspectStops={
           isCircular ? CIRCULAR_COLORMAPS[selectedCircularColormap].stops : null
@@ -776,15 +793,17 @@ export function VariableHeatmapMap({
               max={legendMax}
               units={selectedVariableMeta?.units}
               pinnedValue={pinnedValue}
-              barSvgStops={COLORMAPS[selectedColormap].barSvgStops}
+              barSvgStops={continuousColormap.barSvgStops}
               selectedRanges={selectedValueRanges}
               onRangeChange={handleValueRangeChange}
               forceAdditive={responsive.breakpoint === 'phone'}
             />
-            <MapColormapPicker
-              selected={selectedColormap}
-              onChange={setSelectedColormap}
-            />
+            {!colormapOverride && (
+              <MapColormapPicker
+                selected={selectedColormap}
+                onChange={setSelectedColormap}
+              />
+            )}
           </>
         )}
     </View>

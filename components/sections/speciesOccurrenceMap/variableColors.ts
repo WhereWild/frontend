@@ -218,6 +218,14 @@ export const COLORMAP_ORDER: ColormapId[] = [
   'gray',
 ];
 
+/** Wraps backend-supplied RGB stops (a catalog per-variable colormap
+ * override) in the same stops/barSvgStops shape as COLORMAPS entries. */
+export function stopsColormap(
+  stops: [number, number, number][],
+): Pick<ColormapDef, 'stops' | 'barSvgStops'> {
+  return { stops, barSvgStops: makeBarSvgStops(stops) };
+}
+
 export const DEFAULT_COLORMAP: ColormapId = 'viridis';
 
 // 256-entry RGB LUTs, built lazily per colormap and cached — sampleColormap

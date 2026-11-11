@@ -98,6 +98,8 @@ const toVariableOption = (
     legendClasses: e.legendClasses ?? null,
     renderMin: e.renderMin ?? null,
     renderMax: e.renderMax ?? null,
+    colormapOverride: e.colormapOverride ?? null,
+    colormapBounds: e.colormapBounds ?? null,
     sourceIds: e.sourceIds ?? [],
     group: e.group ?? null,
     groupLabel: e.groupLabel ?? null,
